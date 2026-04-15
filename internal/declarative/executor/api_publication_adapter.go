@@ -30,30 +30,26 @@ func (a *APIPublicationAdapter) MapCreateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.APIPublication,
 ) error {
-	// Get the planned change from execution context to access references
 	change := *execCtx.PlannedChange
 
 	// Handle auth strategy IDs references
 	if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok && authStrategyRefs.IsArray {
-		// Handle array references - use ResolvedIDs if available
 		if len(authStrategyRefs.ResolvedIDs) > 0 {
 			create.AuthStrategyIds = authStrategyRefs.ResolvedIDs
 		}
-	} else if authStrategyIDs, ok := fields["auth_strategy_ids"].([]any); ok {
-		// Fallback: Convert interface array to string array
-		ids := make([]string, 0, len(authStrategyIDs))
-		for _, id := range authStrategyIDs {
+	} else if rawIDs, ok := fields["auth_strategy_ids"].([]any); ok {
+		// convert []any to []string, skipping non-string elements
+		ids := make([]string, 0, len(rawIDs))
+		for _, id := range rawIDs {
 			if strID, ok := id.(string); ok {
 				ids = append(ids, strID)
 			}
 		}
 		create.AuthStrategyIds = ids
-	} else if authStrategyIDsList, ok := fields["auth_strategy_ids"].([]string); ok {
-		// Direct array assignment
-		create.AuthStrategyIds = authStrategyIDsList
+	} else if ids, ok := fields["auth_strategy_ids"].([]string); ok {
+		create.AuthStrategyIds = ids
 	}
 
-	// Optional fields
 	if autoApprove, ok := fields["auto_approve_registrations"].(bool); ok {
 		create.AutoApproveRegistrations = &autoApprove
 	}
@@ -70,13 +66,11 @@ func (a *APIPublicationAdapter) MapCreateFields(
 func (a *APIPublicationAdapter) Create(ctx context.Context, req kkComps.APIPublication,
 	_ string, execCtx *ExecutionContext,
 ) (string, error) {
-	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
 
-	// Get portal ID from execution context
 	portalID, err := a.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
@@ -92,7 +86,6 @@ func (a *APIPublicationAdapter) Create(ctx context.Context, req kkComps.APIPubli
 
 // Delete deletes an API publication
 func (a *APIPublicationAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
