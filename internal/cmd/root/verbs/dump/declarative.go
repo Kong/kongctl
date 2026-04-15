@@ -37,6 +37,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"portals":                     {},
 	"apis":                        {},
 	"application_auth_strategies": {},
+	"dcr_providers":               {},
 	"control_planes":              {},
 	"event_gateways":              {},
 	"organization.teams":          {},
@@ -70,7 +71,8 @@ func newDeclarativeCmd() *cobra.Command {
 
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
-			"(portals, apis, application_auth_strategies, control_planes, event_gateways, organization.teams).")
+			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
+			"event_gateways, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -168,6 +170,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			PortalAPI:                           sdk.GetPortalAPI(),
 			APIAPI:                              sdk.GetAPIAPI(),
 			AppAuthAPI:                          sdk.GetAppAuthStrategiesAPI(),
+			DCRProviderAPI:                      sdk.GetDCRProvidersAPI(),
 			ControlPlaneAPI:                     sdk.GetControlPlaneAPI(),
 			GatewayServiceAPI:                   sdk.GetGatewayServiceAPI(),
 			ControlPlaneGroupsAPI:               sdk.GetControlPlaneGroupsAPI(),
@@ -244,6 +247,14 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.ApplicationAuthStrategies = append(resourceSet.ApplicationAuthStrategies, authStrategies...)
+		case "dcr_providers":
+			dcrProviders, err := collectDeclarativeDCRProviders(
+				ctx, sdk.GetDCRProvidersAPI(), requestPageSize, opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.DCRProviders = append(resourceSet.DCRProviders, dcrProviders...)
 		case "control_planes":
 			controlPlanes, err := collectDeclarativeControlPlanes(
 				ctx,
@@ -346,8 +357,8 @@ func collectDeclarativePortals(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListPortalsRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -396,8 +407,8 @@ func collectDeclarativeAPIs(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListApisRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -452,7 +463,7 @@ func collectDeclarativeEventGateways(
 
 	for {
 		req := kkOps.ListEventGatewaysRequest{
-			PageSize: new(requestPageSize),
+			PageSize: &requestPageSize,
 		}
 
 		if pageAfter != nil {
@@ -523,8 +534,8 @@ func collectDeclarativeOrganizationTeams(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListTeamsRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -762,8 +773,8 @@ func collectDeclarativeAuthStrategies(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListAppAuthStrategiesRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -897,6 +908,95 @@ func buildAuthStrategyRef(id, name string) string {
 	return strings.TrimSpace(name)
 }
 
+func buildDCRProviderRef(id, name string) string {
+	if trimmed := strings.TrimSpace(id); trimmed != "" {
+		return trimmed
+	}
+	return strings.TrimSpace(name)
+}
+
+func collectDeclarativeDCRProviders(
+	ctx context.Context,
+	api helpers.DCRProvidersAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.DCRProviderResource, error) {
+	if api == nil {
+		return nil, fmt.Errorf("DCR providers API is not configured")
+	}
+
+	var results []declresources.DCRProviderResource
+
+	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
+		req := kkOps.ListDcrProvidersRequest{
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := api.ListDcrProviderPayloads(ctx, req)
+		if err != nil {
+			return false, fmt.Errorf("failed to list DCR providers: %w", err)
+		}
+
+		if resp == nil || len(resp.Data) == 0 {
+			return false, nil
+		}
+
+		for _, provider := range resp.Data {
+			mapped, mapErr := mapDCRProviderToDeclarativeResource(provider)
+			if mapErr != nil {
+				return false, mapErr
+			}
+			results = append(results, mapped)
+		}
+
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: resp.Total,
+		}
+		return params.hasMorePages(), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	results = filterByNameOrID(results, filter, func(r declresources.DCRProviderResource) (string, string) {
+		return r.Name, r.Ref
+	})
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
+
+	return results, nil
+}
+
+func mapDCRProviderToDeclarativeResource(data any) (declresources.DCRProviderResource, error) {
+	provider, err := helpers.NormalizeDCRProviderPayload(data)
+	if err != nil {
+		return declresources.DCRProviderResource{}, err
+	}
+
+	resource := declresources.DCRProviderResource{
+		BaseResource: declresources.BaseResource{Ref: buildDCRProviderRef(provider.ID, provider.Name)},
+		Name:         provider.Name,
+		ProviderType: provider.ProviderType,
+		Issuer:       provider.Issuer,
+		DCRConfig:    provider.DCRConfig,
+		Labels:       decllabels.GetUserLabels(provider.Labels),
+	}
+
+	if resource.DCRConfig == nil {
+		resource.DCRConfig = map[string]any{}
+	}
+	if provider.DisplayNameSet {
+		resource.DisplayName = provider.DisplayName
+	}
+
+	return resource, nil
+}
+
 func collectDeclarativeControlPlanes(
 	ctx context.Context,
 	api helpers.ControlPlaneAPI,
@@ -912,8 +1012,8 @@ func collectDeclarativeControlPlanes(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListControlPlanesRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {

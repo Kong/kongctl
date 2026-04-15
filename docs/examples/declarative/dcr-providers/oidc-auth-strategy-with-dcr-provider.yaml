@@ -1,0 +1,36 @@
+# OIDC Authentication Strategy With DCR Provider
+# One Dynamic Client Registration provider and one OIDC auth strategy that
+# references it with !ref.
+
+_defaults:
+  kongctl:
+    namespace: dcr-providers-example
+
+dcr_providers:
+  - ref: okta-dcr
+    name: dcr-providers-example-okta-for-oidc
+    display_name: Okta DCR Provider For OIDC Strategy
+    provider_type: okta
+    issuer: https://my-issuer.okta.com/default
+    dcr_config:
+      dcr_token: replace-with-okta-dcr-token
+    labels:
+      provider: okta
+      environment: example
+
+application_auth_strategies:
+  - ref: oidc-dcr-auth
+    name: dcr-providers-example-oidc-auth
+    display_name: OIDC Auth Strategy With DCR Provider
+    strategy_type: openid_connect
+    dcr_provider_id: !ref okta-dcr
+    configs:
+      openid_connect:
+        issuer: https://my-issuer.okta.com/default
+        credential_claim:
+          - sub
+        auth_methods:
+          - bearer
+        scopes:
+          - openid
+          - profile

@@ -25,6 +25,9 @@ type planningResourceCache struct {
 	managedAuthStrategiesByKey  map[string][]state.ApplicationAuthStrategy
 	managedAuthStrategiesAll    []state.ApplicationAuthStrategy
 	managedAuthStrategiesLoaded bool
+	managedDCRProvidersByKey    map[string][]state.DCRProvider
+	managedDCRProvidersAll      []state.DCRProvider
+	managedDCRProvidersLoaded   bool
 
 	managedAPIsByKey  map[string][]state.API
 	managedAPIsAll    []state.API
@@ -47,6 +50,7 @@ func newPlanningResourceCache() *planningResourceCache {
 		managedEventGatewayControlPlanesByKey: make(map[string][]state.EventGatewayControlPlane),
 		managedPortalsByKey:                   make(map[string][]state.Portal),
 		managedAuthStrategiesByKey:            make(map[string][]state.ApplicationAuthStrategy),
+		managedDCRProvidersByKey:              make(map[string][]state.DCRProvider),
 		managedAPIsByKey:                      make(map[string][]state.API),
 		managedCatalogServicesByKey:           make(map[string][]state.CatalogService),
 		managedOrganizationTeamsByKey:         make(map[string][]state.OrganizationTeam),
@@ -208,6 +212,56 @@ func (p *Planner) listManagedAuthStrategies(
 	}
 
 	return strategies, nil
+}
+
+func (p *Planner) listManagedDCRProviders(ctx context.Context, namespaces []string) ([]state.DCRProvider, error) {
+	normalizedNamespaces := normalizeNamespaces(namespaces)
+	if len(normalizedNamespaces) == 0 {
+		return []state.DCRProvider{}, nil
+	}
+
+	cache := p.resourceCache
+	cacheKey := namespaceCacheKey(normalizedNamespaces)
+	if cache != nil {
+		if cached, ok := cache.managedDCRProvidersByKey[cacheKey]; ok {
+			return cached, nil
+		}
+
+		if cacheKey != "*" && cache.managedDCRProvidersLoaded {
+			filtered := filterDCRProvidersByNamespaces(cache.managedDCRProvidersAll, normalizedNamespaces)
+			cache.managedDCRProvidersByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+	}
+
+	requestNamespaces := normalizedNamespaces
+	useAllNamespaces := p.namespaceFanout && cacheKey != "*"
+	if useAllNamespaces {
+		requestNamespaces = []string{"*"}
+	}
+
+	providers, err := p.client.ListManagedDCRProviders(ctx, requestNamespaces)
+	if err != nil {
+		return nil, err
+	}
+
+	if cache != nil {
+		if useAllNamespaces {
+			cache.managedDCRProvidersAll = providers
+			cache.managedDCRProvidersLoaded = true
+			filtered := filterDCRProvidersByNamespaces(providers, normalizedNamespaces)
+			cache.managedDCRProvidersByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+
+		cache.managedDCRProvidersByKey[cacheKey] = providers
+		if cacheKey == "*" {
+			cache.managedDCRProvidersAll = providers
+			cache.managedDCRProvidersLoaded = true
+		}
+	}
+
+	return providers, nil
 }
 
 func (p *Planner) listManagedAPIs(ctx context.Context, namespaces []string) ([]state.API, error) {
@@ -550,6 +604,30 @@ func filterAuthStrategiesByNamespaces(
 		namespace := strategy.NormalizedLabels[labels.NamespaceKey]
 		if _, ok := allowed[namespace]; ok {
 			filtered = append(filtered, strategy)
+		}
+	}
+
+	return filtered
+}
+
+func filterDCRProvidersByNamespaces(providers []state.DCRProvider, namespaces []string) []state.DCRProvider {
+	if len(namespaces) == 0 {
+		return []state.DCRProvider{}
+	}
+	if len(namespaces) == 1 && namespaces[0] == "*" {
+		return providers
+	}
+
+	allowed := make(map[string]struct{}, len(namespaces))
+	for _, ns := range namespaces {
+		allowed[ns] = struct{}{}
+	}
+
+	filtered := make([]state.DCRProvider, 0, len(providers))
+	for _, provider := range providers {
+		namespace := provider.NormalizedLabels[labels.NamespaceKey]
+		if _, ok := allowed[namespace]; ok {
+			filtered = append(filtered, provider)
 		}
 	}
 

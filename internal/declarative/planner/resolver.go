@@ -131,6 +131,7 @@ func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 	// Fields that contain references to other resources
 	referenceFields := []string{
 		"default_application_auth_strategy_id",
+		FieldDCRProviderID,
 		"control_plane_id",
 		"portal_id",
 		"auth_strategy_ids",
@@ -154,6 +155,8 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 	switch fieldName {
 	case "default_application_auth_strategy_id", "auth_strategy_ids":
 		return "application_auth_strategy"
+	case FieldDCRProviderID:
+		return "dcr_provider"
 	case "control_plane_id", "gateway_service.control_plane_id", "service.control_plane_id":
 		return "control_plane"
 	case "portal_id":
@@ -206,6 +209,8 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 	switch resourceType {
 	case "application_auth_strategy":
 		return r.resolveAuthStrategyRef(ctx, targetRef)
+	case "dcr_provider":
+		return r.resolveDCRProviderRef(ctx, targetRef)
 	case "control_plane":
 		return r.resolveControlPlaneRef(ctx, targetRef)
 	case ResourceTypePortal:
@@ -213,6 +218,17 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 	default:
 		return "", fmt.Errorf("unknown resource type: %s", resourceType)
 	}
+}
+
+func (r *ReferenceResolver) resolveDCRProviderRef(ctx context.Context, ref string) (string, error) {
+	provider, err := r.client.GetDCRProviderByName(ctx, ref)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve DCR provider ref '%s': %w", ref, err)
+	}
+	if provider == nil {
+		return "", fmt.Errorf("dcr provider with ref '%s' not found", ref)
+	}
+	return provider.ID, nil
 }
 
 // resolveAuthStrategyRef resolves auth strategy ref to ID

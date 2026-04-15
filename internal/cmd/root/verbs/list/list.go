@@ -39,6 +39,8 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		%[1]s list apis
 		# Retrieve Konnect auth strategies
 		%[1]s list auth-strategies
+		# Retrieve Konnect DCR providers
+		%[1]s list dcr-providers
 		# Retrieve Konnect control planes (Konnect-first)
 		%[1]s list gateway control-planes
 		# Retrieve Konnect control planes (explicit)
@@ -113,6 +115,13 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(authStrategyCmd)
+
+	// Add DCR provider command directly for Konnect-first pattern
+	dcrProviderCmd, err := NewDirectDCRProviderCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(dcrProviderCmd)
 
 	// Add gateway command directly for Konnect-first pattern
 	gatewayCmd, err := NewDirectGatewayCmd()

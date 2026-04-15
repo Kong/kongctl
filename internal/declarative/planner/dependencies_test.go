@@ -81,6 +81,43 @@ func TestResolveDependencies_ImplicitReferenceDependencies(t *testing.T) {
 	}
 }
 
+func TestResolveDependencies_ImplicitReferenceDependencies_WithPlaceholder(t *testing.T) {
+	resolver := NewDependencyResolver()
+
+	changes := []PlannedChange{
+		{
+			ID:           "1:u:application_auth_strategy:oidc",
+			ResourceType: "application_auth_strategy",
+			ResourceRef:  "oidc",
+			Action:       ActionUpdate,
+			References: map[string]ReferenceInfo{
+				FieldDCRProviderID: {
+					Ref: "__REF__:http-dcr#id",
+					ID:  "[unknown]",
+				},
+			},
+		},
+		{
+			ID:           "2:c:dcr_provider:http-dcr",
+			ResourceType: "dcr_provider",
+			ResourceRef:  "http-dcr",
+			Action:       ActionCreate,
+		},
+	}
+
+	order, err := resolver.ResolveDependencies(changes)
+	if err != nil {
+		t.Fatalf("ResolveDependencies failed: %v", err)
+	}
+
+	dcrIndex := indexOf(order, "2:c:dcr_provider:http-dcr")
+	authIndex := indexOf(order, "1:u:application_auth_strategy:oidc")
+
+	if dcrIndex >= authIndex {
+		t.Errorf("DCR provider create (index %d) should come before auth strategy update (index %d)", dcrIndex, authIndex)
+	}
+}
+
 func TestResolveDependencies_ParentChildRelationship(t *testing.T) {
 	resolver := NewDependencyResolver()
 

@@ -302,6 +302,7 @@ var resetSequence = []struct {
 	{"v3", "system-accounts", true, nil, nil},
 	{"v3", "teams", true, skipSystemTeams, nil},
 	{"v2", "application-auth-strategies", false, nil, nil},
+	{"v2", "dcr-providers", false, nil, nil},
 	{"v2", "control-planes", false, nil, nil},
 	{"v1", "catalog-services", false, nil, nil},
 	{"v1", "event-gateways", false, nil, nil},

@@ -1,0 +1,50 @@
+_defaults:
+  kongctl:
+    namespace: dcr-workflow
+
+dcr_providers:
+  - ref: e2e-dcr-http
+    name: e2e-dcr-http
+    provider_type: http
+    issuer: https://e2e-http-issuer.example.com
+    dcr_config:
+      dcr_base_url: https://e2e-http.example.com/v2/dcr
+      api_key: e2e_http_api_key
+    labels:
+      team: platform
+      provider: http
+      lifecycle: stable
+
+  - ref: e2e-dcr-http-sync
+    name: e2e-dcr-http-sync
+    provider_type: http
+    issuer: https://e2e-sync-http-issuer.example.com
+    dcr_config:
+      dcr_base_url: https://e2e-sync-http.example.com/v1/dcr
+      api_key: e2e_sync_http_api_key
+    labels:
+      team: platform
+      provider: http
+      lifecycle: expansion
+
+application_auth_strategies:
+  - ref: e2e-oidc-dcr-auth
+    name: e2e-oidc-dcr-auth
+    display_name: E2E OIDC Strategy With DCR Provider
+    strategy_type: openid_connect
+    dcr_provider_id: !ref e2e-dcr-http-sync
+    configs:
+      openid_connect:
+        issuer: https://e2e-sync-http-issuer.example.com
+        credential_claim:
+          - sub
+        auth_methods:
+          - bearer
+        scopes:
+          - openid
+          - profile
+          - email
+    labels:
+      team: platform
+      strategy: oidc
+      lifecycle: sync

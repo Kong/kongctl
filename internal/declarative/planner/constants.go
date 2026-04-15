@@ -1,9 +1,11 @@
 package planner
 
-// Internal field names used for communication between planner and executor
-// These fields are prefixed with underscore to indicate they are internal
-// and should not be confused with actual resource fields
+// Field names used for communication between planner and executor. Internal
+// fields are prefixed with underscore to avoid confusion with resource fields.
 const (
+	// FieldName contains a resource name
+	FieldName = "name"
+
 	// FieldCurrentLabels contains the current labels of a resource
 	// Used during updates to determine which labels should be removed
 	FieldCurrentLabels = "_current_labels"
@@ -11,6 +13,28 @@ const (
 	// FieldStrategyType contains the current strategy type for auth strategies
 	// Used during updates since strategy type cannot be changed
 	FieldStrategyType = "_strategy_type"
+
+	// FieldDCRProviderUpdateType contains the current provider type for DCR providers
+	// Used during updates since provider type cannot be changed and update config is a union type
+	FieldDCRProviderUpdateType = "_provider_type"
+
+	// FieldDCRProviderID contains the DCR provider reference or resolved ID for OIDC auth strategies
+	FieldDCRProviderID = "dcr_provider_id"
+
+	// FieldDCRProviderProviderType contains the DCR provider type
+	FieldDCRProviderProviderType = "provider_type"
+
+	// FieldDCRProviderIssuer contains the DCR provider issuer URL
+	FieldDCRProviderIssuer = "issuer"
+
+	// FieldDCRProviderConfig contains provider-specific DCR configuration
+	FieldDCRProviderConfig = "dcr_config"
+
+	// FieldDisplayName contains a resource display name
+	FieldDisplayName = "display_name"
+
+	// FieldLabels contains user-managed labels
+	FieldLabels = "labels"
 
 	// FieldError contains validation errors that should be reported
 	// Used when the planner detects an invalid operation

@@ -69,6 +69,7 @@ type Planner struct {
 	portalPlanner                   PortalPlanner
 	controlPlanePlanner             ControlPlanePlanner
 	authStrategyPlanner             AuthStrategyPlanner
+	dcrProviderPlanner              DCRProviderPlanner
 	apiPlanner                      APIPlanner
 	catalogServicePlanner           CatalogServicePlanner
 	eventGatewayControlPlanePlanner EGWControlPlanePlanner
@@ -112,6 +113,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, p.resources)
 	p.controlPlanePlanner = NewControlPlanePlanner(base)
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
+	p.dcrProviderPlanner = NewDCRProviderPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
 	p.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
@@ -208,6 +210,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.portalPlanner = NewPortalPlanner(base)
 		namespacePlanner.controlPlanePlanner = NewControlPlanePlanner(base)
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
+		namespacePlanner.dcrProviderPlanner = NewDCRProviderPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
@@ -243,6 +246,14 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 		// Create planner context with namespace
 		plannerCtx := NewConfig(actualNamespace)
+
+		if err := namespacePlanner.dcrProviderPlanner.PlanChanges(
+			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dcrProviderPlanner), ""),
+			plannerCtx,
+			namespacePlan,
+		); err != nil {
+			return nil, fmt.Errorf("failed to plan DCR provider changes for namespace %s: %w", namespace, err)
+		}
 
 		if err := namespacePlanner.authStrategyPlanner.PlanChanges(
 			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.authStrategyPlanner), ""),
@@ -376,6 +387,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// Resolve dependencies and calculate execution order
 	// Inject additional dependency constraints that span resource planners
 	adjustAuthStrategyDeleteDependencies(basePlan.Changes)
+	adjustDCRProviderDeleteDependencies(basePlan.Changes)
 
 	executionOrder, err := p.depResolver.ResolveDependencies(basePlan.Changes)
 	if err != nil {
@@ -509,6 +521,33 @@ func adjustAuthStrategyDeleteDependencies(changes []PlannedChange) {
 		}
 
 		for _, dep := range publicationDeletes {
+			if shouldLinkAuthStrategy(change, dep) {
+				change.DependsOn = appendDependsOn(change.DependsOn, dep.ID)
+			}
+		}
+	}
+}
+
+// adjustDCRProviderDeleteDependencies ensures dcr_provider DELETE changes execute only
+// after application_auth_strategy DELETE changes in the same namespace. Konnect rejects
+// deleting a DCR provider that is still referenced by an auth strategy.
+func adjustDCRProviderDeleteDependencies(changes []PlannedChange) {
+	var authStrategyDeletes []*PlannedChange
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action == ActionDelete && change.ResourceType == "application_auth_strategy" {
+			authStrategyDeletes = append(authStrategyDeletes, change)
+		}
+	}
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete || change.ResourceType != "dcr_provider" {
+			continue
+		}
+
+		for _, dep := range authStrategyDeletes {
 			if shouldLinkAuthStrategy(change, dep) {
 				change.DependsOn = appendDependsOn(change.DependsOn, dep.ID)
 			}
@@ -1759,6 +1798,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, strategy := range rs.ApplicationAuthStrategies {
 		ns := resources.GetNamespace(strategy.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, provider := range rs.DCRProviders {
+		ns := resources.GetNamespace(provider.Kongctl)
 		namespaceSet[ns] = true
 	}
 

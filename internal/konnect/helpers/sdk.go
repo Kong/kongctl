@@ -27,6 +27,7 @@ type SDKAPI interface {
 	GetAPIPublicationAPI() APIPublicationAPI
 	GetAPIImplementationAPI() APIImplementationAPI
 	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
+	GetDCRProvidersAPI() DCRProvidersAPI
 	GetMeAPI() MeAPI
 	GetGatewayServiceAPI() GatewayServiceAPI
 	GetSystemAccountAPI() SystemAccountAPI
@@ -158,6 +159,20 @@ func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	}
 
 	return &AppAuthStrategiesAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the DCRProvidersAPI interface
+func (k *KonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &DCRProvidersAPIImpl{
+		SDK:        k.SDK,
+		BaseURL:    k.BaseURL,
+		Token:      k.Token,
+		HTTPClient: k.HTTPClient,
+	}
 }
 
 // Returns the implementation of the GatewayServiceAPI interface

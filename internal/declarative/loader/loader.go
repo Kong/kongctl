@@ -484,6 +484,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	if source.DefaultNamespace != "" {
 		parentCount := len(source.Portals) +
 			len(source.ApplicationAuthStrategies) +
+			len(source.DCRProviders) +
 			len(source.ControlPlanes) +
 			len(source.APIs) +
 			len(source.OrganizationTeams)
@@ -614,6 +615,22 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		if rs.ApplicationAuthStrategies[i].Kongctl.Protected == nil {
 			falseVal := false
 			rs.ApplicationAuthStrategies[i].Kongctl.Protected = &falseVal
+		}
+	}
+
+	// Apply defaults to DCRProviders (parent resources)
+	for i := range rs.DCRProviders {
+		if err := assignNamespace(&rs.DCRProviders[i].Kongctl, "dcr_provider", rs.DCRProviders[i].Ref); err != nil {
+			return err
+		}
+		// Apply protected default if not set
+		if rs.DCRProviders[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.DCRProviders[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.DCRProviders[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.DCRProviders[i].Kongctl.Protected = &falseVal
 		}
 	}
 

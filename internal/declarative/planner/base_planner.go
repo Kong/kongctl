@@ -75,6 +75,11 @@ func (b *BasePlanner) GetDesiredAuthStrategies(namespace string) []resources.App
 	return b.planner.resources.GetAuthStrategiesByNamespace(namespace)
 }
 
+// GetDesiredDCRProviders returns desired DCR provider resources from the specified namespace
+func (b *BasePlanner) GetDesiredDCRProviders(namespace string) []resources.DCRProviderResource {
+	return b.planner.resources.GetDCRProvidersByNamespace(namespace)
+}
+
 // GetDesiredAPIs returns desired API resources from the specified namespace
 func (b *BasePlanner) GetDesiredAPIs(namespace string) []resources.APIResource {
 	return b.planner.resources.GetAPIsByNamespace(namespace)

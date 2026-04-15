@@ -125,9 +125,17 @@ func (d *DependencyResolver) findImplicitDependencies(change PlannedChange, allC
 			continue
 		}
 		if refInfo.ID == "[unknown]" {
+			ref := refInfo.Ref
+			if tags.IsRefPlaceholder(ref) {
+				parsedRef, _, ok := tags.ParseRefPlaceholder(ref)
+				if !ok {
+					continue
+				}
+				ref = parsedRef
+			}
 			// Find the change that creates this resource
 			for _, other := range allChanges {
-				if other.ResourceRef == refInfo.Ref && other.Action == ActionCreate {
+				if other.ResourceRef == ref && other.Action == ActionCreate {
 					dependencies = append(dependencies, other.ID)
 					break
 				}

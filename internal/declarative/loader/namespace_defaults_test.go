@@ -71,6 +71,13 @@ application_auth_strategies:
     configs:
       key_auth:
         key_names: ["x-api-key"]
+
+dcr_providers:
+  - ref: dcr1
+    name: "DCR Provider"
+    provider_type: okta
+    issuer: https://issuer.example.com
+    dcr_config: {}
 `
 		dir := t.TempDir()
 		file := filepath.Join(dir, "test.yaml")
@@ -97,6 +104,15 @@ application_auth_strategies:
 		assert.Equal(t, resources.NamespaceOriginFileDefault, rs.ApplicationAuthStrategies[0].Kongctl.NamespaceOrigin)
 		assert.NotNil(t, rs.ApplicationAuthStrategies[0].Kongctl.Protected)
 		assert.True(t, *rs.ApplicationAuthStrategies[0].Kongctl.Protected)
+
+		// Check DCR provider inherited both namespace and protected
+		require.Len(t, rs.DCRProviders, 1)
+		assert.NotNil(t, rs.DCRProviders[0].Kongctl)
+		assert.NotNil(t, rs.DCRProviders[0].Kongctl.Namespace)
+		assert.Equal(t, "production", *rs.DCRProviders[0].Kongctl.Namespace)
+		assert.Equal(t, resources.NamespaceOriginFileDefault, rs.DCRProviders[0].Kongctl.NamespaceOrigin)
+		assert.NotNil(t, rs.DCRProviders[0].Kongctl.Protected)
+		assert.True(t, *rs.DCRProviders[0].Kongctl.Protected)
 	})
 
 	t.Run("explicit values override defaults", func(t *testing.T) {

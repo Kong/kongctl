@@ -149,3 +149,29 @@ configs:
 		})
 	}
 }
+
+func TestApplicationAuthStrategyResource_UnmarshalJSON_OIDCDCRProviderReference(t *testing.T) {
+	input := `
+ref: oidc
+name: oidc
+display_name: OIDC
+strategy_type: openid_connect
+dcr_provider_id: okta-dcr
+configs:
+  openid_connect:
+    issuer: https://issuer.example.com
+    scopes:
+      - openid
+`
+
+	var strategy ApplicationAuthStrategyResource
+	err := yaml.Unmarshal([]byte(input), &strategy)
+	require.NoError(t, err)
+
+	assert.Equal(t, "okta-dcr", strategy.GetDCRProviderID())
+	require.NotNil(t, strategy.AppAuthStrategyOpenIDConnectRequest)
+	assert.Equal(t, "okta-dcr", *strategy.AppAuthStrategyOpenIDConnectRequest.DcrProviderID)
+	assert.Equal(t, []ResourceRef{
+		{Kind: string(ResourceTypeDCRProvider), Ref: "okta-dcr"},
+	}, strategy.GetDependencies())
+}
