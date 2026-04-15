@@ -356,8 +356,8 @@ func collectDeclarativePortals(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListPortalsRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -406,8 +406,8 @@ func collectDeclarativeAPIs(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListApisRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -462,7 +462,7 @@ func collectDeclarativeEventGateways(
 
 	for {
 		req := kkOps.ListEventGatewaysRequest{
-			PageSize: new(requestPageSize),
+			PageSize: &requestPageSize,
 		}
 
 		if pageAfter != nil {
@@ -533,8 +533,8 @@ func collectDeclarativeOrganizationTeams(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListTeamsRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -772,8 +772,8 @@ func collectDeclarativeAuthStrategies(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListAppAuthStrategiesRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -928,8 +928,8 @@ func collectDeclarativeDCRProviders(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListDcrProvidersRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		resp, err := api.ListDcrProviderPayloads(ctx, req)
@@ -1011,8 +1011,8 @@ func collectDeclarativeControlPlanes(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListControlPlanesRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
