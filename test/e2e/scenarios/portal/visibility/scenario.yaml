@@ -60,6 +60,27 @@ steps:
             mask:
               dropKeys:
                 - api_spec_ids
+      - name: 003-apply-no-op-after-create
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                skipped: 0
+                status: "success"
+                total_changes: 0
+          - select: "plan.changes[?resource_type=='api_publication']"
+            expect:
+              fields:
+                "length(@)": 0
 
   - name: 002-mutate-publication-visibility
     inputOverlayOps:
