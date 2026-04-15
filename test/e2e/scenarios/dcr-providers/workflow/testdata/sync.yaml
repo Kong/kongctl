@@ -26,3 +26,25 @@ dcr_providers:
       team: platform
       provider: http
       lifecycle: expansion
+
+application_auth_strategies:
+  - ref: e2e-oidc-dcr-auth
+    name: e2e-oidc-dcr-auth
+    display_name: E2E OIDC Strategy With DCR Provider
+    strategy_type: openid_connect
+    dcr_provider_id: !ref e2e-dcr-http-sync
+    configs:
+      openid_connect:
+        issuer: https://e2e-sync-http-issuer.example.com
+        credential_claim:
+          - sub
+        auth_methods:
+          - bearer
+        scopes:
+          - openid
+          - profile
+          - email
+    labels:
+      team: platform
+      strategy: oidc
+      lifecycle: sync

@@ -387,6 +387,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// Resolve dependencies and calculate execution order
 	// Inject additional dependency constraints that span resource planners
 	adjustAuthStrategyDeleteDependencies(basePlan.Changes)
+	adjustDCRProviderDeleteDependencies(basePlan.Changes)
 
 	executionOrder, err := p.depResolver.ResolveDependencies(basePlan.Changes)
 	if err != nil {
@@ -520,6 +521,33 @@ func adjustAuthStrategyDeleteDependencies(changes []PlannedChange) {
 		}
 
 		for _, dep := range publicationDeletes {
+			if shouldLinkAuthStrategy(change, dep) {
+				change.DependsOn = appendDependsOn(change.DependsOn, dep.ID)
+			}
+		}
+	}
+}
+
+// adjustDCRProviderDeleteDependencies ensures dcr_provider DELETE changes execute only
+// after application_auth_strategy DELETE changes in the same namespace. Konnect rejects
+// deleting a DCR provider that is still referenced by an auth strategy.
+func adjustDCRProviderDeleteDependencies(changes []PlannedChange) {
+	var authStrategyDeletes []*PlannedChange
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action == ActionDelete && change.ResourceType == "application_auth_strategy" {
+			authStrategyDeletes = append(authStrategyDeletes, change)
+		}
+	}
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete || change.ResourceType != "dcr_provider" {
+			continue
+		}
+
+		for _, dep := range authStrategyDeletes {
 			if shouldLinkAuthStrategy(change, dep) {
 				change.DependsOn = appendDependsOn(change.DependsOn, dep.ID)
 			}

@@ -23,3 +23,23 @@ dcr_providers:
     labels:
       team: platform
       provider: http
+
+application_auth_strategies:
+  - ref: e2e-oidc-dcr-auth
+    name: e2e-oidc-dcr-auth
+    display_name: E2E OIDC Strategy With DCR Provider
+    strategy_type: openid_connect
+    dcr_provider_id: !ref e2e-dcr-http
+    configs:
+      openid_connect:
+        issuer: https://e2e-http-issuer.example.com
+        credential_claim:
+          - sub
+        auth_methods:
+          - bearer
+        scopes:
+          - openid
+          - profile
+    labels:
+      team: platform
+      strategy: oidc

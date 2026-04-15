@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // authStrategyPlannerImpl implements planning logic for auth strategy resources
@@ -498,7 +499,10 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 			}
 
 			desiredProviderID := desired.GetDCRProviderID()
-			if desiredProviderID != "" && current.DCRProviderID != desiredProviderID {
+			comparableProviderValue := p.resolveComparableDCRProviderValue(desiredProviderID)
+			if desiredProviderID != "" &&
+				current.DCRProviderID != comparableProviderValue &&
+				current.DCRProviderName != comparableProviderValue {
 				updateFields[FieldDCRProviderID] = desiredProviderID
 				changedFields[FieldDCRProviderID] = FieldChange{
 					Old: current.DCRProviderID,
@@ -522,6 +526,35 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 	}
 
 	return len(updateFields) > 0, updateFields, changedFields
+}
+
+func (p *authStrategyPlannerImpl) resolveComparableDCRProviderValue(desiredProviderID string) string {
+	if desiredProviderID == "" {
+		return ""
+	}
+
+	ref := desiredProviderID
+	if tags.IsRefPlaceholder(desiredProviderID) {
+		parsedRef, field, ok := tags.ParseRefPlaceholder(desiredProviderID)
+		if !ok || (field != "" && field != "id" && field != "ID") {
+			return desiredProviderID
+		}
+		ref = parsedRef
+	}
+
+	provider := p.planner.resources.GetDCRProviderByRef(ref)
+	if provider == nil {
+		return desiredProviderID
+	}
+
+	if moniker := provider.GetMoniker(); moniker != "" {
+		return moniker
+	}
+	if konnectID := provider.GetKonnectID(); konnectID != "" {
+		return konnectID
+	}
+
+	return desiredProviderID
 }
 
 // extractStringSlice converts any to []string

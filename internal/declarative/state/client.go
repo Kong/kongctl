@@ -263,6 +263,7 @@ type ApplicationAuthStrategy struct {
 	DisplayName      string
 	StrategyType     string
 	DCRProviderID    string
+	DCRProviderName  string
 	Configs          map[string]any
 	NormalizedLabels map[string]string // Non-pointer labels
 }
@@ -2066,6 +2067,7 @@ func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *Applic
 			keyAuthResp.Labels,
 			keyAuthResp.Configs.KeyAuth.KeyNames,
 			idValue(keyAuthResp.DcrProvider),
+			nameValue(keyAuthResp.DcrProvider),
 		)
 	}
 
@@ -2081,6 +2083,7 @@ func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *Applic
 			oidcResp.Configs.OpenidConnect.Scopes,
 			oidcResp.Configs.OpenidConnect.AuthMethods,
 			idValue(oidcResp.DcrProvider),
+			nameValue(oidcResp.DcrProvider),
 		)
 	}
 
@@ -2102,6 +2105,7 @@ func (c *Client) extractAuthStrategyFromCreateResponse(
 			keyAuthResp.Labels,
 			keyAuthResp.Configs.KeyAuth.KeyNames,
 			idValue(keyAuthResp.DcrProvider),
+			nameValue(keyAuthResp.DcrProvider),
 		)
 	}
 
@@ -2116,6 +2120,7 @@ func (c *Client) extractAuthStrategyFromCreateResponse(
 			oidcResp.Configs.OpenidConnect.Scopes,
 			oidcResp.Configs.OpenidConnect.AuthMethods,
 			idValue(oidcResp.DcrProvider),
+			nameValue(oidcResp.DcrProvider),
 		)
 	}
 
@@ -2134,13 +2139,15 @@ func normalizeKeyAuthStrategy(
 	labelMap map[string]string,
 	keyNames []string,
 	dcrProviderID string,
+	dcrProviderName string,
 ) *ApplicationAuthStrategy {
 	strategy := &ApplicationAuthStrategy{
-		ID:            id,
-		Name:          name,
-		DisplayName:   displayName,
-		StrategyType:  "key_auth",
-		DCRProviderID: dcrProviderID,
+		ID:              id,
+		Name:            name,
+		DisplayName:     displayName,
+		StrategyType:    "key_auth",
+		DCRProviderID:   dcrProviderID,
+		DCRProviderName: dcrProviderName,
 		Configs: map[string]any{
 			"key-auth": map[string]any{},
 		},
@@ -2161,6 +2168,7 @@ func normalizeOIDCStrategy(
 	issuer string,
 	credentialClaim, scopes, authMethods []string,
 	dcrProviderID string,
+	dcrProviderName string,
 ) *ApplicationAuthStrategy {
 	oidcConfig := map[string]any{
 		"issuer": issuer,
@@ -2176,11 +2184,12 @@ func normalizeOIDCStrategy(
 	}
 
 	return &ApplicationAuthStrategy{
-		ID:            id,
-		Name:          name,
-		DisplayName:   displayName,
-		StrategyType:  "openid_connect",
-		DCRProviderID: dcrProviderID,
+		ID:              id,
+		Name:            name,
+		DisplayName:     displayName,
+		StrategyType:    "openid_connect",
+		DCRProviderID:   dcrProviderID,
+		DCRProviderName: dcrProviderName,
 		Configs: map[string]any{
 			"openid-connect": oidcConfig,
 		},
@@ -2246,6 +2255,29 @@ func idValue(v any) string {
 		return str
 	}
 	str, _ = payload["ID"].(string)
+	return str
+}
+
+func nameValue(v any) string {
+	if v == nil {
+		return ""
+	}
+
+	payloadBytes, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return ""
+	}
+
+	str, _ := payload["name"].(string)
+	if str != "" {
+		return str
+	}
+	str, _ = payload["Name"].(string)
 	return str
 }
 
