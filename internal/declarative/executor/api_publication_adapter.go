@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -97,7 +98,19 @@ func (a *APIPublicationAdapter) Delete(ctx context.Context, id string, execCtx *
 		return err
 	}
 
-	return a.client.DeleteAPIPublication(ctx, apiID, id)
+	portalID, err := a.getPortalIDFromExecutionContext(execCtx)
+	if err != nil {
+		// Older plans may only provide the composite api_id:portal_id resource ID.
+		if _, parsedPortalID, ok := strings.Cut(id, ":"); ok && parsedPortalID != "" {
+			portalID = parsedPortalID
+		} else if id != "" {
+			portalID = id
+		} else {
+			return err
+		}
+	}
+
+	return a.client.DeleteAPIPublication(ctx, apiID, portalID)
 }
 
 // GetByName gets an API publication by name

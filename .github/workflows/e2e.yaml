@@ -2,11 +2,6 @@ name: E2E
 permissions:
   contents: read
 
-# Ensure only one Konnect-mutating e2e run at a time across all refs
-concurrency:
-  group: konnect-e2e
-  cancel-in-progress: false
-
 on:
   pull_request:
     branches: ['**']
@@ -156,6 +151,11 @@ jobs:
     if: needs.e2e-needed.outputs.required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Serialize Konnect-mutating runs per target org across refs without
+    # preventing the lightweight gate jobs from running and failing closed.
+    concurrency:
+      group: konnect-e2e-${{ matrix.org_name }}
+      cancel-in-progress: false
     environment: ${{ matrix.org_name }}
     strategy:
       fail-fast: false
