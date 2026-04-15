@@ -25,11 +25,7 @@ func NormalizeAPIAttributes(raw any) (map[string]any, bool) {
 	case map[string][]string:
 		out := make(map[string]any, len(attrs))
 		for k, v := range attrs {
-			if v == nil {
-				out[k] = nil
-				continue
-			}
-			out[k] = slices.Clone(v)
+			out[k] = normalizeAPIAttributeValue(v)
 		}
 		return out, true
 	case map[string][]any:
