@@ -194,6 +194,39 @@ func TestExecutor_resolveAuthStrategyRef_WithPlaceholder(t *testing.T) {
 	assert.Equal(t, "abc-123", id)
 }
 
+func TestExecutor_syncResolvedDCRProviderID_UpdatesFieldsFromResolvedReference(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.refToID["dcr_provider"] = map[string]string{
+		"okta-dcr": "6f211020-9ffb-4f64-b351-9ca7282fe451",
+	}
+
+	change := &planner.PlannedChange{
+		Fields: map[string]any{
+			planner.FieldDCRProviderID: "__REF__:okta-dcr#id",
+		},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldDCRProviderID: {
+				Ref: "__REF__:okta-dcr#id",
+				ID:  "[unknown]",
+			},
+		},
+	}
+
+	err := exec.syncResolvedDCRProviderID(context.Background(), change)
+	require.NoError(t, err)
+
+	assert.Equal(
+		t,
+		"6f211020-9ffb-4f64-b351-9ca7282fe451",
+		change.Fields[planner.FieldDCRProviderID],
+	)
+	assert.Equal(
+		t,
+		"6f211020-9ffb-4f64-b351-9ca7282fe451",
+		change.References[planner.FieldDCRProviderID].ID,
+	)
+}
+
 func TestExecutor_ValidateChangePreExecution_Basic(t *testing.T) {
 	tests := []struct {
 		name          string

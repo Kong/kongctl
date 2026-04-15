@@ -742,6 +742,37 @@ func (e *Executor) resolveDCRProviderRef(ctx context.Context, refInfo planner.Re
 	return provider.ID, nil
 }
 
+func unresolvedReferenceID(id string) bool {
+	return id == "" || id == "[unknown]"
+}
+
+func (e *Executor) syncResolvedDCRProviderID(
+	ctx context.Context,
+	change *planner.PlannedChange,
+) error {
+	if change == nil {
+		return nil
+	}
+
+	dcrProviderRef, ok := change.References[planner.FieldDCRProviderID]
+	if !ok {
+		return nil
+	}
+
+	if unresolvedReferenceID(dcrProviderRef.ID) {
+		dcrProviderID, err := e.resolveDCRProviderRef(ctx, dcrProviderRef)
+		if err != nil {
+			return fmt.Errorf("failed to resolve DCR provider reference: %w", err)
+		}
+		dcrProviderRef.ID = dcrProviderID
+		change.References[planner.FieldDCRProviderID] = dcrProviderRef
+	}
+
+	change.Fields[planner.FieldDCRProviderID] = dcrProviderRef.ID
+
+	return nil
+}
+
 // resolvePortalRef resolves a portal reference to its ID
 func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
 	// First check if the reference already has an ID (resolved from dependency)
@@ -1679,14 +1710,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.apiDocumentExecutor.Create(ctx, *change)
 	case "application_auth_strategy":
-		if dcrProviderRef, ok := change.References[planner.FieldDCRProviderID]; ok && dcrProviderRef.ID == "" {
-			dcrProviderID, err := e.resolveDCRProviderRef(ctx, dcrProviderRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve DCR provider reference: %w", err)
-			}
-			dcrProviderRef.ID = dcrProviderID
-			change.References[planner.FieldDCRProviderID] = dcrProviderRef
-			change.Fields[planner.FieldDCRProviderID] = dcrProviderID
+		if err := e.syncResolvedDCRProviderID(ctx, change); err != nil {
+			return "", err
 		}
 		return e.authStrategyExecutor.Create(ctx, *change)
 	case "portal_customization":
@@ -2073,14 +2098,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		// Use Create method which handles PUT (both create and update)
 		return e.apiPublicationExecutor.Create(ctx, *change)
 	case "application_auth_strategy":
-		if dcrProviderRef, ok := change.References[planner.FieldDCRProviderID]; ok && dcrProviderRef.ID == "" {
-			dcrProviderID, err := e.resolveDCRProviderRef(ctx, dcrProviderRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve DCR provider reference: %w", err)
-			}
-			dcrProviderRef.ID = dcrProviderID
-			change.References[planner.FieldDCRProviderID] = dcrProviderRef
-			change.Fields[planner.FieldDCRProviderID] = dcrProviderID
+		if err := e.syncResolvedDCRProviderID(ctx, change); err != nil {
+			return "", err
 		}
 		return e.authStrategyExecutor.Update(ctx, *change)
 	case "dcr_provider":
