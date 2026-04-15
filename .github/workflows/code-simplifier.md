@@ -46,6 +46,15 @@ preserving all functionality. Create an issue detailing the recomended simplifie
 - **Analysis Date**: $(date +%Y-%m-%d)
 - **Workspace**: ${{ github.workspace }}
 
+**Important tool usage notes:**
+- Use GitHub MCP tools (for example `search_pull_requests`,
+  `list_pull_requests`, `pull_request_read`, `get_commit`, and
+  `get_file_contents`) for all GitHub reads.
+- Use safe-output tools (`create_issue`, `noop`) for all GitHub writes and
+  completion signaling.
+- Do NOT use `gh` CLI commands for GitHub API reads or writes because the CLI
+  is not authenticated in this environment.
+
 ## Phase 1: Identify Recently Modified Code
 
 ### 1.1 Find Recent Changes
@@ -60,7 +69,7 @@ YESTERDAY=$(date -d '1 day ago' '+%Y-%m-%d' 2>/dev/null || date -v-1d '+%Y-%m-%d
 git log --since="24 hours ago" --pretty=format:"%H %s" --no-merges
 ```
 
-Use GitHub tools to:
+Use GitHub MCP tools to:
 - Search for pull requests merged in the last 24 hours: `repo:${{ github.repository }} is:pr is:merged merged:>=${YESTERDAY}`
 - Get details of merged PRs to understand what files were changed
 - Ignore changes that are purely documentation, cicd, workflows, configuration, or non-code files (non .go or non go related files).
@@ -253,7 +262,7 @@ Please verify:
 
 ### 4.3 Use Safe Outputs
 
-Create the issue request by emitting `create-issue` with the generated content in
+Create the issue request by emitting `create_issue` with the generated content in
 the required format.
 
 ## Important Guidelines
