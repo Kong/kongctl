@@ -1,0 +1,8 @@
+apis:
+  - ref: sms
+    name: "E2E SMS API"
+    description: "Demo API used to verify root-level publication visibility ownership"
+    versions:
+      - ref: sms-v1
+        version: "1.0.0"
+        spec: !file ./apis/e2e-api.yaml
