@@ -61,3 +61,148 @@ steps:
                 skipped: 0
                 status: "success"
                 total_changes: 0
+
+  # Step 002: Create a second auth strategy and capture its UUID.
+  # The captured ID is used in subsequent steps via {{ .vars.authStrategyV2ID }}.
+  - name: 002-add-v2-strategy
+    inputOverlayDirs:
+      - overlays/002-add-v2-strategy
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - --auto-approve
+        recordVar:
+          name: authStrategyV2ID
+          responsePath: >-
+            execution.applied_changes[?resource_ref=='apikey-app-auth-strategy-v2'] | [0].resource_id
+        assertions:
+          - select: >-
+              execution.applied_changes[?resource_type=='application_auth_strategy' &&
+                            resource_ref=='apikey-app-auth-strategy-v2'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                total_changes: 1
+
+  # Step 003: Switch the portal's default_application_auth_strategy_id to the new
+  # strategy.  The overlay renders the captured UUID directly so the planner can
+  # detect a field-value change and produce an UPDATE plan.
+  - name: 003-update-portal-to-v2
+    inputOverlayDirs:
+      - overlays/003-update-portal-to-v2
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              execution.applied_changes[?resource_type=='portal' &&
+                            resource_ref=='simple-portal'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                total_changes: 1
+
+      - name: 001-get-portals-verify-v2
+        run:
+          - get
+          - portals
+        assertions:
+          - select: "[?name=='My Simple Portal'] | [0]"
+            expect:
+              fields:
+                default_application_auth_strategy_id: "{{ .vars.authStrategyV2ID }}"
+
+      - name: 002-re-apply-no-op
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                total_changes: 0
+
+  # Step 004: Omit default_application_auth_strategy_id from the portal config.
+  # Documents that clearing the field is a no-op by design — the planner skips
+  # comparison when the desired value is nil.
+  - name: 004-clear-default-auth-strategy
+    inputOverlayDirs:
+      - overlays/004-clear-auth-strategy
+    commands:
+      - name: 000-plan-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: "changes[?resource_type=='portal']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 001-get-portals-field-unchanged
+        run:
+          - get
+          - portals
+        assertions:
+          - select: "[?name=='My Simple Portal'] | [0]"
+            expect:
+              fields:
+                default_application_auth_strategy_id: "{{ .vars.authStrategyV2ID }}"
+
+  # Step 005: Run plan --mode sync with a portal config that omits
+  # default_application_auth_strategy_id.  Verifies that sync mode does not plan
+  # an UPDATE to clear the portal's auth strategy field.
+  - name: 005-sync-no-clear-auth-strategy
+    inputOverlayDirs:
+      - overlays/005-sync-no-clear-auth-strategy
+    commands:
+      - name: 000-plan-sync
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: "changes[?resource_type=='portal']"
+            expect:
+              fields:
+                "length(@)": 0
