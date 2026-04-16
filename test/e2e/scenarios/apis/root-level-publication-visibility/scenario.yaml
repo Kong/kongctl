@@ -1,7 +1,7 @@
 baseInputsPath: testdata
 
 env:
-  KONGCTL_LOG_LEVEL: debug
+  KONGCTL_LOG_LEVEL: info
 
 vars:
   portalRef: e2e-portal
@@ -153,8 +153,6 @@ steps:
                 "length(@)": 0
 
   - name: 003-omit-visibility-after-public
-    inputOverlayDirs:
-      - overlays/003-remove-visibility
     commands:
       - name: 000-apply-no-op
         run:
