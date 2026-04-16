@@ -1,0 +1,4 @@
+api_publications:
+  - ref: sms-to-e2e-portal
+    api: sms
+    portal_id: !ref e2e-portal#id
