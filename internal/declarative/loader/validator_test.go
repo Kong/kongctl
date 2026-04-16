@@ -551,6 +551,24 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "raw UUID reference should be accepted without local ref match",
+			rs: &resources.ResourceSet{
+				Portals: []resources.PortalResource{
+					{
+						BaseResource: resources.BaseResource{
+							Ref: "portal1",
+						},
+						CreatePortal: kkComps.CreatePortal{
+							// A raw UUID is an already-resolved Konnect resource ID;
+							// it cannot be matched against local refs and must be allowed.
+							DefaultApplicationAuthStrategyID: new("5cb6138c-fcf4-4db6-8972-756262d743ac"),
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

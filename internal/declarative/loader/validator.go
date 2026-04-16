@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/declarative/validator"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // validateResourceSet validates all resources and checks for ref uniqueness
@@ -641,6 +642,12 @@ func (l *Loader) validateResourceReferences(resource any, rs *resources.Resource
 		// Skip validation for unresolved reference placeholders
 		if strings.HasPrefix(fieldValue, tags.RefPlaceholderPrefix) {
 			// This will be resolved during planning/execution phase
+			continue
+		}
+
+		// Skip validation for raw UUIDs — these are already-resolved Konnect
+		// resource IDs that cannot be matched against local refs.
+		if util.IsValidUUID(fieldValue) {
 			continue
 		}
 
