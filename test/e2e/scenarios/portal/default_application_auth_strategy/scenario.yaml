@@ -206,3 +206,7 @@ steps:
             expect:
               fields:
                 "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
