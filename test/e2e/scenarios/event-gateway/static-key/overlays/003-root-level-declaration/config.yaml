@@ -12,4 +12,4 @@ event_gateway_static_keys:
     event_gateway: egw-cp-for-static-key-test-ref
     name: default-static-key-name
     description: "Default root level Static Key description"
-    value: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
+    value: !env "STATIC_KEY_VALUE"

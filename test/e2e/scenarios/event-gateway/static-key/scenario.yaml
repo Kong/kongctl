@@ -2,6 +2,7 @@ baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
+  STATIC_KEY_VALUE: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
 
 test:
   enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
@@ -56,6 +57,7 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.staticKeyRef }}"
+
       - name: 002-apply-create
         outputFormat: json
         run:
@@ -245,6 +247,7 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.staticKeyRef }}"
+                "fields.value": __ENV__:STATIC_KEY_VALUE
       - name: 002-apply-create
         outputFormat: json
         run:
