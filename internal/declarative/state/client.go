@@ -63,6 +63,7 @@ type ClientConfig struct {
 	EventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 	EventGatewaySchemaRegistryAPI       helpers.EventGatewaySchemaRegistryAPI
 	EventGatewayStaticKeyAPI            helpers.EventGatewayStaticKeyAPI
+	EventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Identity resources
 	OrganizationTeamAPI helpers.OrganizationTeamAPI
@@ -109,6 +110,7 @@ type Client struct {
 	eventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 	eventGatewaySchemaRegistryAPI       helpers.EventGatewaySchemaRegistryAPI
 	eventGatewayStaticKeyAPI            helpers.EventGatewayStaticKeyAPI
+	eventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Organization resource APIs
 	organizationTeamAPI helpers.OrganizationTeamAPI
@@ -156,6 +158,7 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayDataPlaneCertificateAPI: config.EventGatewayDataPlaneCertificateAPI,
 		eventGatewaySchemaRegistryAPI:       config.EventGatewaySchemaRegistryAPI,
 		eventGatewayStaticKeyAPI:            config.EventGatewayStaticKeyAPI,
+		eventGatewayTLSTrustBundleAPI:       config.EventGatewayTLSTrustBundleAPI,
 
 		// Identity resource APIs
 		organizationTeamAPI: config.OrganizationTeamAPI,
@@ -5680,6 +5683,191 @@ func (c *Client) DeleteEventGatewayStaticKey(
 	_, err := c.eventGatewayStaticKeyAPI.DeleteEventGatewayStaticKey(ctx, deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway static key", nil)
+	}
+
+	return nil
+}
+
+// EventGatewayTLSTrustBundle represents an event gateway TLS trust bundle for internal use.
+type EventGatewayTLSTrustBundle struct {
+	kkComps.TLSTrustBundle
+	NormalizedLabels map[string]string
+}
+
+// ListEventGatewayTLSTrustBundles lists all TLS trust bundles for a gateway using cursor-based pagination.
+func (c *Client) ListEventGatewayTLSTrustBundles(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewayTLSTrustBundle, error) {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.TLSTrustBundle
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewayTLSTrustBundlesRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewayTLSTrustBundleAPI.ListEventGatewayTLSTrustBundles(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway TLS trust bundles", nil)
+		}
+
+		if res.ListTLSTrustBundlesResponse == nil {
+			return []EventGatewayTLSTrustBundle{}, nil
+		}
+
+		allData = append(allData, res.ListTLSTrustBundlesResponse.Data...)
+
+		if res.ListTLSTrustBundlesResponse.Meta == nil ||
+			res.ListTLSTrustBundlesResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		u, err := url.Parse(*res.ListTLSTrustBundlesResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway TLS trust bundles: invalid cursor", nil)
+		}
+
+		values := u.Query()
+		after := values.Get("page[after]")
+		pageAfter = &after
+	}
+
+	result := make([]EventGatewayTLSTrustBundle, 0, len(allData))
+	for _, tb := range allData {
+		result = append(result, EventGatewayTLSTrustBundle{
+			TLSTrustBundle:   tb,
+			NormalizedLabels: tb.Labels,
+		})
+	}
+
+	return result, nil
+}
+
+// CreateEventGatewayTLSTrustBundle creates a new TLS trust bundle for an event gateway.
+func (c *Client) CreateEventGatewayTLSTrustBundle(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.CreateTLSTrustBundleRequest,
+	_ string, // namespace
+) (string, error) {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return "", err
+	}
+
+	createReq := kkOps.CreateEventGatewayTLSTrustBundleRequest{
+		GatewayID:                   gatewayID,
+		CreateTLSTrustBundleRequest: req,
+	}
+
+	resp, err := c.eventGatewayTLSTrustBundleAPI.CreateEventGatewayTLSTrustBundle(ctx, createReq)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway TLS trust bundle", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_tls_trust_bundle",
+			ResourceName: req.Name,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.TLSTrustBundle, "create event gateway TLS trust bundle"); err != nil {
+		return "", err
+	}
+
+	return resp.TLSTrustBundle.ID, nil
+}
+
+// GetEventGatewayTLSTrustBundle retrieves a TLS trust bundle by ID.
+func (c *Client) GetEventGatewayTLSTrustBundle(
+	ctx context.Context,
+	gatewayID string,
+	bundleID string,
+) (*EventGatewayTLSTrustBundle, error) {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.GetEventGatewayTLSTrustBundleRequest{
+		GatewayID:        gatewayID,
+		TLSTrustBundleID: bundleID,
+	}
+
+	resp, err := c.eventGatewayTLSTrustBundleAPI.GetEventGatewayTLSTrustBundle(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway TLS trust bundle", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_tls_trust_bundle",
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.TLSTrustBundle == nil {
+		return nil, nil
+	}
+
+	return &EventGatewayTLSTrustBundle{
+		TLSTrustBundle:   *resp.TLSTrustBundle,
+		NormalizedLabels: resp.TLSTrustBundle.Labels,
+	}, nil
+}
+
+// UpdateEventGatewayTLSTrustBundle updates a TLS trust bundle.
+func (c *Client) UpdateEventGatewayTLSTrustBundle(
+	ctx context.Context,
+	gatewayID string,
+	bundleID string,
+	req kkComps.UpdateTLSTrustBundleRequest,
+	_ string, // namespace
+) (string, error) {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return "", err
+	}
+
+	updateReq := kkOps.UpdateEventGatewayTLSTrustBundleRequest{
+		GatewayID:                   gatewayID,
+		TLSTrustBundleID:            bundleID,
+		UpdateTLSTrustBundleRequest: req,
+	}
+
+	resp, err := c.eventGatewayTLSTrustBundleAPI.UpdateEventGatewayTLSTrustBundle(ctx, updateReq)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway TLS trust bundle", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_tls_trust_bundle",
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.TLSTrustBundle, "update event gateway TLS trust bundle"); err != nil {
+		return "", err
+	}
+
+	return resp.TLSTrustBundle.ID, nil
+}
+
+// DeleteEventGatewayTLSTrustBundle deletes a TLS trust bundle by ID.
+func (c *Client) DeleteEventGatewayTLSTrustBundle(
+	ctx context.Context,
+	gatewayID string,
+	bundleID string,
+) error {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return err
+	}
+
+	deleteReq := kkOps.DeleteEventGatewayTLSTrustBundleRequest{
+		GatewayID:        gatewayID,
+		TLSTrustBundleID: bundleID,
+	}
+
+	_, err := c.eventGatewayTLSTrustBundleAPI.DeleteEventGatewayTLSTrustBundle(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway TLS trust bundle", nil)
 	}
 
 	return nil

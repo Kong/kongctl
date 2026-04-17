@@ -41,6 +41,7 @@ const (
 	ResourceTypeEventGatewayConsumePolicy        ResourceType = "event_gateway_virtual_cluster_consume_policy"
 	ResourceTypeEventGatewaySchemaRegistry       ResourceType = "event_gateway_schema_registry"
 	ResourceTypeEventGatewayStaticKey            ResourceType = "event_gateway_static_key"
+	ResourceTypeEventGatewayTLSTrustBundle       ResourceType = "event_gateway_tls_trust_bundle"
 )
 
 const (
@@ -98,6 +99,7 @@ type ResourceSet struct {
 	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"`                   //nolint:lll
 	EventGatewaySchemaRegistries      []EventGatewaySchemaRegistryResource       `yaml:"event_gateway_schema_registries,omitempty"       json:"event_gateway_schema_registries,omitempty"`                         //nolint:lll
 	EventGatewayStaticKeys            []EventGatewayStaticKeyResource            `yaml:"event_gateway_static_keys,omitempty"              json:"event_gateway_static_keys,omitempty"`                              //nolint:lll
+	EventGatewayTLSTrustBundles       []EventGatewayTLSTrustBundleResource       `yaml:"event_gateway_tls_trust_bundles,omitempty"        json:"event_gateway_tls_trust_bundles,omitempty"`                        //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                               json:"-"`
@@ -969,4 +971,33 @@ func (rs *ResourceSet) GetStaticKeysForGateway(
 	}
 
 	return keys
+}
+
+// GetTrustBundlesForGateway returns all TLS trust bundles (nested + root-level)
+// for a specific event gateway
+func (rs *ResourceSet) GetTrustBundlesForGateway(
+	gatewayRef string,
+) []EventGatewayTLSTrustBundleResource {
+	var bundles []EventGatewayTLSTrustBundleResource
+
+	// Add nested trust bundles from the event gateway
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			for _, tb := range gateway.TrustBundles {
+				tbCopy := tb
+				tbCopy.EventGateway = gatewayRef
+				bundles = append(bundles, tbCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level trust bundles for this gateway
+	for _, tb := range rs.EventGatewayTLSTrustBundles {
+		if tb.EventGateway == gatewayRef {
+			bundles = append(bundles, tb)
+		}
+	}
+
+	return bundles
 }

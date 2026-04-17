@@ -57,6 +57,7 @@ type SDKAPI interface {
 	GetEventGatewayDataPlaneCertificateAPI() EventGatewayDataPlaneCertificateAPI
 	GetEventGatewaySchemaRegistryAPI() EventGatewaySchemaRegistryAPI
 	GetEventGatewayStaticKeyAPI() EventGatewayStaticKeyAPI
+	GetEventGatewayTLSTrustBundleAPI() EventGatewayTLSTrustBundleAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -416,6 +417,15 @@ func (k *KonnectSDK) GetEventGatewayStaticKeyAPI() EventGatewayStaticKeyAPI {
 	}
 
 	return &EventGatewayStaticKeyAPIImpl{SDK: k.SDK}
+}
+
+// GetEventGatewayTLSTrustBundleAPI returns the implementation of the EventGatewayTLSTrustBundleAPI interface.
+func (k *KonnectSDK) GetEventGatewayTLSTrustBundleAPI() EventGatewayTLSTrustBundleAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayTLSTrustBundleAPIImpl{SDK: k.SDK}
 }
 
 func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {

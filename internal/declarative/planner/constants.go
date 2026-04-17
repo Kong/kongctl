@@ -111,6 +111,9 @@ const (
 	// Static keys do not support update – changes are applied as delete + create.
 	ResourceTypeEventGatewayStaticKey = "event_gateway_static_key"
 
+	// ResourceTypeEventGatewayTLSTrustBundle is the resource type for event gateway TLS trust bundles.
+	ResourceTypeEventGatewayTLSTrustBundle = "event_gateway_tls_trust_bundle"
+
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"
 )

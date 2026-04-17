@@ -257,6 +257,18 @@ func (p *Planner) planEGWControlPlaneChanges(
 				return err
 			}
 		}
+
+		// Plan TLS trust bundles for this gateway (whether it exists or is being created)
+		trustBundles := p.resources.GetTrustBundlesForGateway(desiredEGWCP.Ref)
+
+		if len(trustBundles) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if err := p.planEventGatewayTLSTrustBundleChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, trustBundles, plan,
+			); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Check for managed resources to delete (sync mode only)
