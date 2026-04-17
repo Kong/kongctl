@@ -36,5 +36,10 @@ func CLIVersion() string {
 
 // UserAgent returns the canonical User-Agent value for kongctl requests.
 func UserAgent() string {
-	return CLIName + "/" + CLIVersion()
+	version := CLIVersion()
+	if version != DefaultCLIVersion && !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+
+	return CLIName + "/" + version
 }

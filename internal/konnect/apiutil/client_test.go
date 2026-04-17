@@ -94,7 +94,7 @@ func TestRequestSetsUserAgentHeader(t *testing.T) {
 	t.Cleanup(func() {
 		meta.SetCLIVersion(original)
 	})
-	meta.SetCLIVersion("v0.5.0")
+	meta.SetCLIVersion("0.5.0")
 
 	var gotUserAgent string
 	client := roundTripFunc(func(req *http.Request) (*http.Response, error) {
