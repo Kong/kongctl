@@ -25,7 +25,7 @@ type EventGatewayControlPlaneResource struct {
 	DataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
 	SchemaRegistries      []EventGatewaySchemaRegistryResource       `yaml:"schema_registries,omitempty"       json:"schema_registries,omitempty"`       //nolint:lll
 	StaticKeys            []EventGatewayStaticKeyResource            `yaml:"static_keys,omitempty"             json:"static_keys,omitempty"`             //nolint:lll
-	TrustBundles          []EventGatewayTLSTrustBundleResource       `yaml:"trust_bundles,omitempty"           json:"trust_bundles,omitempty"`           //nolint:lll
+	TrustBundles          []EventGatewayTLSTrustBundleResource       `yaml:"tls_trust_bundles,omitempty"       json:"tls_trust_bundles,omitempty"`       //nolint:lll
 }
 
 func (e EventGatewayControlPlaneResource) GetType() ResourceType {

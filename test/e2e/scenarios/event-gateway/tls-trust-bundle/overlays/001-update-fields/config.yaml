@@ -6,7 +6,7 @@ event_gateways:
   - ref: egw-cp-for-tls-trust-bundle-test-ref
     name: egw-cp-for-tls-trust-bundle-test-name
     description: "EGW CP for TLS Trust Bundle Test"
-    trust_bundles:
+    tls_trust_bundles:
       - ref: default-tls-trust-bundle-ref
         name: default-tls-trust-bundle-name
         description: "Updated TLS Trust Bundle description"

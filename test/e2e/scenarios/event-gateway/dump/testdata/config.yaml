@@ -73,7 +73,7 @@ event_gateways:
         name: default-static-key-name-for-dump-test
         description: "Default Static Key description for Dump Test"
         value: "${env[\"STATIC_KEY_VALUE\"]}"
-    trust_bundles:
+    tls_trust_bundles:
       - ref: default-tls-trust-bundle-ref-dump
         name: default-tls-trust-bundle-name-dump
         description: "Default TLS Trust Bundle description for Dump Test"

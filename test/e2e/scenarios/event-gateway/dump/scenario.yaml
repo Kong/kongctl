@@ -116,7 +116,7 @@ steps:
                 name: "{{ .vars.staticKeyName }}"
           - name: trust-bundle-present
             select: >-
-              event_gateways[?name=='{{ .vars.egwName }}'] | [0].trust_bundles[?name=='{{ .vars.trustBundleName }}'] | [0]
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].tls_trust_bundles[?name=='{{ .vars.trustBundleName }}'] | [0]
             expect:
               fields:
                 name: "{{ .vars.trustBundleName }}"

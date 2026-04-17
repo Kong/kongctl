@@ -130,7 +130,7 @@ event_gateways:
           Koxa8kCt7uywoqu0hfbBfUT4HqmXPvsuhz8RinE5ltxId108vtDNlD/+bKl+N5Ub
           qKjBs0k=
           -----END CERTIFICATE-----
-    trust_bundles:
+    tls_trust_bundles:
       - ref: default-tls-trust-bundle-ref
         name: default-tls-trust-bundle-name
         description: "Default TLS Trust Bundle description"

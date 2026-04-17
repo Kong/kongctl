@@ -422,3 +422,71 @@ func tlsTrustBundleToRecord(tb kkComps.TLSTrustBundle) tlsTrustBundleSummaryReco
 		LocalUpdatedTime: updatedAt,
 	}
 }
+
+func tlsTrustBundleDetailView(tb *kkComps.TLSTrustBundle) string {
+	if tb == nil {
+		return ""
+	}
+
+	id := strings.TrimSpace(tb.ID)
+	if id == "" {
+		id = valueNA
+	}
+
+	name := tb.Name
+	if name == "" {
+		name = valueNA
+	}
+
+	description := valueNA
+	if tb.Description != nil && strings.TrimSpace(*tb.Description) != "" {
+		description = strings.TrimSpace(*tb.Description)
+	}
+
+	trustedCa := strings.TrimSpace(tb.Config.TrustedCa)
+	if trustedCa == "" {
+		trustedCa = valueNA
+	}
+
+	createdAt := tb.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := tb.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "config.trusted_ca: %s\n", trustedCa)
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func buildTLSTrustBundleChildView(bundles []kkComps.TLSTrustBundle) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(bundles))
+	for i := range bundles {
+		record := tlsTrustBundleToRecord(bundles[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.Description})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(bundles) {
+			return ""
+		}
+		return tlsTrustBundleDetailView(&bundles[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME", "DESCRIPTION"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "TLS Trust Bundles",
+		ParentType:     "tls-trust-bundle",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(bundles) {
+				return nil
+			}
+			return &bundles[index]
+		},
+	}
+}

@@ -21,6 +21,7 @@ func init() {
 	tableview.RegisterChildLoader("event-gateway", "listeners", loadEventGatewayListeners)
 	tableview.RegisterChildLoader("event-gateway", "schema-registries", loadEventGatewaySchemaRegistries)
 	tableview.RegisterChildLoader("event-gateway", "static-keys", loadEventGatewayStaticKeys)
+	tableview.RegisterChildLoader("event-gateway", "tls-trust-bundles", loadEventGatewayTLSTrustBundles)
 	tableview.RegisterChildLoader("listener", "policies", loadEventGatewayListenerPolicies)
 	tableview.RegisterChildLoader("virtual-cluster", "cluster-policies", loadEventGatewayVirtualClusterClusterPolicies)
 	tableview.RegisterChildLoader("virtual-cluster", "produce-policies", loadEventGatewayVirtualClusterProducePolicies)
@@ -486,4 +487,42 @@ func loadEventGatewayStaticKeys(
 	}
 
 	return buildStaticKeyChildView(keys), nil
+}
+
+func loadEventGatewayTLSTrustBundles(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, err := eventGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	bundleAPI := sdk.GetEventGatewayTLSTrustBundleAPI()
+	if bundleAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway TLS trust bundle client is not available")
+	}
+
+	bundles, err := fetchTLSTrustBundles(helper, bundleAPI, gatewayID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildTLSTrustBundleChildView(bundles), nil
 }
