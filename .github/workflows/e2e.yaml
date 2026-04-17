@@ -162,7 +162,6 @@ jobs:
       matrix:
         include: ${{ fromJSON(vars.KONGCTL_E2E_ORGS_JSON || '[{"org_name":"default"}]') }}
     env:
-      KONGCTL_ENABLE_EVENT_GATEWAY: "1"
       KONGCTL_E2E_MATRIX_ORG: ${{ matrix.org_name }}
       KONGCTL_E2E_BIN: ${{ github.workspace }}/kongctl
       KONGCTL_E2E_TEST_BIN: ${{ github.workspace }}/e2e.test
