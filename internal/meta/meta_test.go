@@ -25,6 +25,23 @@ func TestUserAgentUsesConfiguredVersion(t *testing.T) {
 		SetCLIVersion(original)
 	})
 
+	SetCLIVersion(" 0.5.0 ")
+
+	if got := UserAgent(); got != "kongctl/v0.5.0" {
+		t.Fatalf("UserAgent() = %q, want %q", got, "kongctl/v0.5.0")
+	}
+
+	if got := CLIVersion(); got != "0.5.0" {
+		t.Fatalf("CLIVersion() = %q, want %q", got, "0.5.0")
+	}
+}
+
+func TestUserAgentKeepsPrefixedVersion(t *testing.T) {
+	original := CLIVersion()
+	t.Cleanup(func() {
+		SetCLIVersion(original)
+	})
+
 	SetCLIVersion(" v0.5.0 ")
 
 	if got := UserAgent(); got != "kongctl/v0.5.0" {
