@@ -21,6 +21,8 @@ vars:
   schemaRegistryName: default-schema-registry-name-for-dump-test
   staticKeyRef: default-static-key
   staticKeyName: default-static-key-name-for-dump-test
+  trustBundleRef: default-tls-trust-bundle-ref-dump
+  trustBundleName: default-tls-trust-bundle-name-dump
 
 defaults:
   mask:
@@ -48,7 +50,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 7
+                applied: 8
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.
@@ -112,6 +114,12 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.staticKeyName }}"
+          - name: trust-bundle-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].trust_bundles[?name=='{{ .vars.trustBundleName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.trustBundleName }}"
           - name: namespace-label-preserved
             select: "_defaults.kongctl"
             expect:
