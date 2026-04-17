@@ -73,5 +73,3 @@ event_gateways:
         name: default-static-key-name-for-dump-test
         description: "Default Static Key description for Dump Test"
         value: "${env[\"STATIC_KEY_VALUE\"]}"
-    
-    
