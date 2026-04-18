@@ -15,6 +15,10 @@ vars:
   cpName: "diff-coverage-cp"
   cpDesc: "Control plane for diff coverage E2E"
   cpUpdatedDesc: "Updated description for diff test"
+  authStrategyRef: diff-key-auth
+  authStrategyUpdatedDisplayName: "Diff Key Auth (Updated)"
+  dcrProviderRef: diff-dcr-http
+  dcrProviderUpdatedIssuer: "https://e2ediffissuer-updated.example.com/oauth2/default"
 
 defaults:
   mask:
@@ -44,12 +48,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 4
-                by_action.CREATE: 4
+                total_changes: 6
+                by_action.CREATE: 6
           - select: "summary"
             expect:
               fields:
-                applied: 4
+                applied: 6
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='portal' &&
@@ -118,9 +122,9 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 3
+                total_changes: 5
                 by_action.CREATE: 1
-                by_action.UPDATE: 2
+                by_action.UPDATE: 4
           - expect:
               fields:
                 "length(changes[?action=='DELETE'])": 0
@@ -145,6 +149,18 @@ steps:
               fields:
                 action: CREATE
                 namespace: "{{ .vars.namespace }}"
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                       resource_ref=='{{ .vars.authStrategyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+          - select: >-
+              changes[?resource_type=='dcr_provider' &&
+                       resource_ref=='{{ .vars.dcrProviderRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
 
       - name: 001-diff-delete-mode
         run:
@@ -163,8 +179,8 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 3
-                by_action.DELETE: 3
+                total_changes: 5
+                by_action.DELETE: 5
           - expect:
               fields:
                 "length(changes[?action=='CREATE'])": 0
@@ -187,6 +203,18 @@ steps:
             expect:
               fields:
                 action: DELETE
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                       resource_ref=='{{ .vars.authStrategyRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='dcr_provider' &&
+                       resource_ref=='{{ .vars.dcrProviderRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
 
       - name: 002-diff-plan-sync-mode
         run:
@@ -206,9 +234,9 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 4
+                total_changes: 6
                 by_action.CREATE: 1
-                by_action.UPDATE: 2
+                by_action.UPDATE: 4
                 by_action.DELETE: 1
           - select: >-
               changes[?resource_type=='control_plane' &&
@@ -238,6 +266,18 @@ steps:
               fields:
                 action: DELETE
                 namespace: "{{ .vars.namespace }}"
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                       resource_ref=='{{ .vars.authStrategyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+          - select: >-
+              changes[?resource_type=='dcr_provider' &&
+                       resource_ref=='{{ .vars.dcrProviderRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
 
       - name: 003-diff-plan-file
         run:
@@ -250,7 +290,7 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 4
+                total_changes: 6
           - select: >-
               changes[?resource_ref=='{{ .vars.newAPIRef }}'] | [0]
             expect:
