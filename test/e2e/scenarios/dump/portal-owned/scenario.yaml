@@ -63,6 +63,12 @@ steps:
                 role_name: "API Viewer"
                 entity_type_name: "Services"
                 entity_region: "us"
+          - select: "application_auth_strategies[?strategy_type=='key_auth'] | [0]"
+            expect:
+              fields:
+                strategy_type: key_auth
+                name: key-auth
+                'configs."key-auth".key_names[0]': X-API-Key
 
       - name: 001-plan-from-dump
         outputFormat: disable
