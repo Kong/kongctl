@@ -27,7 +27,7 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.16.0
 	github.com/oapi-codegen/oapi-codegen/v2 v2.6.0
-	github.com/oapi-codegen/runtime v1.3.1
+	github.com/oapi-codegen/runtime v1.4.0
 	github.com/segmentio/cli v0.8.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
