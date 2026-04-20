@@ -28,3 +28,22 @@ apis:
     description: "Analytics API"
     labels:
       team: insights
+
+application_auth_strategies:
+  - ref: diff-key-auth
+    name: diff-key-auth
+    display_name: "Diff Key Auth (Updated)"
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-API-Key
+
+dcr_providers:
+  - ref: diff-dcr-http
+    name: diff-dcr-http
+    provider_type: http
+    issuer: https://e2ediffissuer-updated.example.com/oauth2/default
+    dcr_config:
+      dcr_base_url: https://e2ediff.example.com/v1/dcr
+      api_key: e2e_diff_token
