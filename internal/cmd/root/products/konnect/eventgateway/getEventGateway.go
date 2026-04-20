@@ -525,6 +525,11 @@ func newGetEventGatewayControlPlaneCmd(verb verbs.VerbValue,
 		rv.AddCommand(schemaRegistriesCmd)
 	}
 
+	staticKeysCmd := newGetEventGatewayStaticKeysCmd(verb, addParentFlags, parentPreRun)
+	if staticKeysCmd != nil {
+		rv.AddCommand(staticKeysCmd)
+	}
+
 	listenerPoliciesCmd := newGetEventGatewayListenerPoliciesCmd(verb, addParentFlags, parentPreRun)
 	if listenerPoliciesCmd != nil {
 		rv.AddCommand(listenerPoliciesCmd)

@@ -126,7 +126,8 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeEventGatewayListenerPolicy,
 		resources.ResourceTypeEventGatewayDataPlaneCertificate,
 		resources.ResourceTypeEventGatewayProducePolicy,
-		resources.ResourceTypeEventGatewaySchemaRegistry:
+		resources.ResourceTypeEventGatewaySchemaRegistry,
+		resources.ResourceTypeEventGatewayStaticKey:
 		return false, nil
 	}
 

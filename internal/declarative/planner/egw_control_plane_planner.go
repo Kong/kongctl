@@ -245,6 +245,18 @@ func (p *Planner) planEGWControlPlaneChanges(
 				return err
 			}
 		}
+
+		// Plan static keys for this gateway (whether it exists or is being created)
+		staticKeys := p.resources.GetStaticKeysForGateway(desiredEGWCP.Ref)
+
+		if len(staticKeys) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if err := p.planEventGatewayStaticKeyChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, staticKeys, plan,
+			); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Check for managed resources to delete (sync mode only)

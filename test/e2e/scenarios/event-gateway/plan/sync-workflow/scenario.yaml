@@ -37,6 +37,9 @@ vars:
   schemaRegistryRef: plan-sync-schema-registry
   schemaRegistryName: plan-sync-schema-registry-name
   schemaRegistryDesc: "Plan Sync Schema Registry description"
+  staticKeyRef: plan-sync-static-key
+  staticKeyName: plan-sync-static-key-name
+  staticKeyDesc: "Plan Sync Static Key description"
 
 defaults:
   mask:
@@ -981,4 +984,89 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
-
+  - name: 012-plan-sync-static-key
+    inputOverlayDirs:
+      - overlays/011-static-key
+    commands:
+      - name: 000-plan-create-static-key
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-static-key.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='{{ .vars.staticKeyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.staticKeyRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-static-key.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_static_key \"plan-sync-static-key\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-static-key.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-static-key
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "{{ .vars.staticKeyDesc }}"
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true

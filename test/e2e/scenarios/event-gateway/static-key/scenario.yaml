@@ -1,0 +1,340 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+  STATIC_KEY_VALUE: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
+
+test:
+  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
+
+vars:
+  egwName: egw-cp-for-static-key-test-name
+  staticKeyRef: default-static-key-ref
+  staticKeyName: default-static-key-name
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+  - name: 001-plan-apply-create
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway' && resource_ref=='egw-cp-for-static-key-test-ref'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "egw-cp-for-static-key-test-ref"
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='{{ .vars.staticKeyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.staticKeyRef }}"
+
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "Default Static Key description"
+  - name: 002-plan-sync-replace
+    # Static keys do not support update – changing description triggers DELETE+CREATE.
+    inputOverlayDirs:
+      - overlays/001-update-fields
+    commands:
+      - name: 001-plan-replace
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-replace.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_type: "event_gateway_static_key"
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && action=='CREATE'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.staticKeyRef }}"
+      - name: 002-apply-replace
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-replace.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 003-verify-replace
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "Updated Static Key description"
+  - name: 003-sync-delete
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 001-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_type: "event_gateway_static_key"
+      - name: 002-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 003-verify-delete
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+  - name: 004-root-level-declaration
+    inputOverlayDirs:
+      - overlays/003-root-level-declaration
+    commands:
+      - name: 001-plan-root-level
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='{{ .vars.staticKeyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.staticKeyRef }}"
+                "fields.value": __ENV__:STATIC_KEY_VALUE
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: default-static-key-name
+                description: "Default root level Static Key description"
+  - name: 005-sync-delete-root-level
+    inputOverlayDirs:
+      - overlays/004-sync-delete-root-level-declaration
+    commands:
+      - name: 001-plan-sync-delete-root-level
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_type: "event_gateway_static_key"
+      - name: 002-sync-delete-root-level
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 003-verify-delete-root-level
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0

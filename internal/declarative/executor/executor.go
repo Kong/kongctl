@@ -64,6 +64,8 @@ type Executor struct {
 		kkComps.UpdateEventGatewayDataPlaneCertificateRequest]
 	eventGatewaySchemaRegistryExecutor *BaseExecutor[
 		kkComps.SchemaRegistryCreate, kkComps.SchemaRegistryUpdate]
+	eventGatewayStaticKeyExecutor *BaseExecutor[
+		kkComps.EventGatewayStaticKeyCreate, kkComps.EventGatewayStaticKeyCreate]
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -230,6 +232,13 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.eventGatewaySchemaRegistryExecutor = NewBaseExecutor[
 		kkComps.SchemaRegistryCreate, kkComps.SchemaRegistryUpdate](
 		NewEventGatewaySchemaRegistryAdapter(client),
+		client,
+		dryRun,
+	)
+
+	e.eventGatewayStaticKeyExecutor = NewBaseExecutor[
+		kkComps.EventGatewayStaticKeyCreate, kkComps.EventGatewayStaticKeyCreate](
+		NewEventGatewayStaticKeyAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1980,6 +1989,17 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewaySchemaRegistryExecutor.Create(ctx, *change)
+	case planner.ResourceTypeEventGatewayStaticKey:
+		// Resolve event gateway reference if needed
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewayStaticKeyExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayClusterPolicy:
 		// Resolve event gateway reference if needed
 		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
@@ -2561,6 +2581,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case planner.ResourceTypeEventGatewaySchemaRegistry:
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewaySchemaRegistryExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeEventGatewayStaticKey:
+		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
+		return e.eventGatewayStaticKeyExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeEventGatewayClusterPolicy:
 		// Both gateway ID and virtual cluster ID should be in References for delete
 		return e.eventGatewayClusterPolicyExecutor.Delete(ctx, *change)
