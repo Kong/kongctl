@@ -45,11 +45,18 @@ steps:
         assertions:
           - select: "[?name=='{{ .vars.portalName }}'] | [0]"
             expect:
-              file: "expect/initial-apply/get-portals.json"
-            mask:
-              dropKeys:
-                - canonical_domain
-                - default_domain
+              fields:
+                authentication_enabled: false
+                auto_approve_applications: false
+                auto_approve_developers: false
+                default_api_visibility: "public"
+                default_application_auth_strategy_id: null
+                default_page_visibility: "public"
+                description: "A comprehensive developer portal with guides, API documentation, and getting started content"
+                display_name: "A Getting Started Portal"
+                'labels."KONGCTL-namespace"': "default"
+                name: "{{ .vars.portalName }}"
+                rbac_enabled: false
 
       - name: 002-get-apis
         run: ["get", "apis"]
