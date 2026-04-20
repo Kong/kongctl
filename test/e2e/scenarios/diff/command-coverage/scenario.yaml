@@ -155,12 +155,14 @@ steps:
             expect:
               fields:
                 action: UPDATE
+                "not_null(changed_fields.display_name.new, fields.display_name)": "{{ .vars.authStrategyUpdatedDisplayName }}"
           - select: >-
               changes[?resource_type=='dcr_provider' &&
                        resource_ref=='{{ .vars.dcrProviderRef }}'] | [0]
             expect:
               fields:
                 action: UPDATE
+                "not_null(changed_fields.issuer.new, fields.issuer)": "{{ .vars.dcrProviderUpdatedIssuer }}"
 
       - name: 001-diff-delete-mode
         run:
@@ -272,12 +274,14 @@ steps:
             expect:
               fields:
                 action: UPDATE
+                "not_null(changed_fields.display_name.new, fields.display_name)": "{{ .vars.authStrategyUpdatedDisplayName }}"
           - select: >-
               changes[?resource_type=='dcr_provider' &&
                        resource_ref=='{{ .vars.dcrProviderRef }}'] | [0]
             expect:
               fields:
                 action: UPDATE
+                "not_null(changed_fields.issuer.new, fields.issuer)": "{{ .vars.dcrProviderUpdatedIssuer }}"
 
       - name: 003-diff-plan-file
         run:

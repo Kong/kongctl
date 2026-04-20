@@ -46,4 +46,4 @@ dcr_providers:
     issuer: https://e2ediffissuer-updated.example.com/oauth2/default
     dcr_config:
       dcr_base_url: https://e2ediff.example.com/v1/dcr
-      dcr_token: e2e_diff_token
+      api_key: e2e_diff_token
