@@ -21,18 +21,21 @@ without reading the full research section.
 
 `kongctl` should preserve the `kongctl <verb> <product> <resource...>` pattern
 and implement extensions as managed external command contributions. A single
-installed extension should be able to contribute one or more routes under
-existing, allowlisted verbs such as `get`, `list`, `patch`, or `lint`, and it
-should also be able to contribute new top-level verbs when needed. Extensions
-should be described by a simple `extension.yaml` manifest, invoked as child
-processes, and given a per-invocation runtime context through an inherited
-environment variable that points at a temporary session directory containing
-`context.json`. Nested `kongctl` subprocesses should detect that environment
-variable, reload the same resolved session state, and use it to preserve
-profile, base URL, and other invocation-bound settings. This keeps the CLI
-grammar intact, supports script and Go-based extensions, avoids in-process
-plugin complexity, and leaves room for richer IPC later if subprocess
-callbacks prove too expensive.
+installed extension should be able to contribute one or more command patterns
+under existing, allowlisted verbs, for example `kongctl get foo` and
+`kongctl list foo`, and it should also be able to contribute new top-level
+verbs when needed. Extensions should be described by a simple `extension.yaml`
+manifest and installed explicitly from either a local path or a GitHub
+repository. For GitHub installs, `kongctl` should prefer compatible release
+assets for binary extensions and fall back to cloning the repository for
+script-based extensions. Extensions should run as child processes and receive
+per-invocation runtime context through an inherited environment variable that
+points at a temporary session directory containing `context.json`. Nested
+`kongctl` subprocesses should detect that environment variable, reload the same
+resolved session state, and use it to preserve profile, base URL, and other
+invocation-bound settings. This keeps the CLI grammar intact, supports script
+and Go-based extensions, avoids in-process plugin complexity, and leaves room
+for richer IPC later if subprocess callbacks prove too expensive.
 
 ## Proposed Design
 
@@ -56,7 +59,7 @@ The proposed design is driven by the following goals:
 | Area | Recommendation |
 |------|----------------|
 | End-user grammar | Preserve `kongctl <verb> ...` |
-| Contribution types | `routes` under existing verbs and custom `verbs` |
+| Contribution types | command patterns under existing verbs and custom `verbs` |
 | Built-in precedence | Built-ins always win |
 | Declarative verbs | Closed in v1 |
 | Manifest | Simple `extension.yaml` with `schema_version` |
@@ -86,8 +89,6 @@ That means extensions should be able to contribute:
 
 - `kongctl get foo`
 - `kongctl list foo`
-- `kongctl patch foo`
-- `kongctl lint foo`
 
 and, when needed:
 
@@ -98,7 +99,7 @@ and, when needed:
 
 An installed extension should be able to declare:
 
-1. `routes`
+1. `commands`
    These extend existing verbs.
 2. `verbs`
    These define brand-new verbs.
@@ -112,8 +113,7 @@ The initial extension surface should be intentionally selective.
 
 Recommended v1 policy:
 
-- allow route contributions under low-risk or read-heavy verbs such as `get`,
-  `list`, `patch`, and `lint`
+- allow command contributions under read-heavy verbs such as `get` and `list`
 - allow custom verbs
 - keep declarative engine verbs closed in v1
 
@@ -129,7 +129,7 @@ This preserves room for future hooks without committing to them early.
 
 ### 4. Treat One Extension As A Bundle Of Contributions
 
-One extension should be able to contribute many routes and verbs. The
+One extension should be able to contribute many command patterns and verbs. The
 extension should be the installation unit, while the manifest should describe
 the set of command contributions it owns.
 
@@ -159,7 +159,7 @@ compatibility:
   min_kongctl_version: 0.20.0
 
 contributes:
-  routes:
+  commands:
     - id: get_foo
       verb: get
       product: konnect
@@ -183,7 +183,46 @@ capabilities:
 
 This is more natural for `kongctl` than `apiVersion` and `kind`.
 
-### 6. Pass Runtime Context Through An Inherited Environment Variable
+### 6. Discover And Install Extensions Explicitly
+
+The v1 discovery model should be explicit-source installation, not broad
+catalog search.
+
+That means users install an extension by naming where it comes from:
+
+1. a local filesystem path
+2. a GitHub repository reference such as `owner/repo`
+
+Recommended install behavior:
+
+- `kongctl extension install ./my-extension`
+- `kongctl extension install kong/kongctl-ext-foo`
+
+For local path installs:
+
+1. the target path must contain `extension.yaml`
+2. `kongctl extension link` should be preferred for local development
+3. `kongctl extension install <path>` should copy the extension into the
+   managed extension home for normal use
+
+For GitHub repo installs:
+
+1. the repository must contain `extension.yaml`
+2. if the repo publishes a compatible release asset for the current platform,
+   prefer downloading that asset
+3. if the extension is a script-based extension without release assets, clone
+   the repository at the selected ref into the managed extension home
+4. record the source and installed version so `upgrade` can repeat the same
+   strategy later
+
+This gives `kongctl` a clear v1 install story:
+
+- explicit local path installs
+- explicit GitHub repo installs
+- no ambient PATH discovery
+- no broad marketplace search requirement in v1
+
+### 7. Pass Runtime Context Through An Inherited Environment Variable
 
 The parent `kongctl` process should resolve invocation-bound state, write a
 machine-generated `context.json` into a temporary session directory, and pass
@@ -206,7 +245,7 @@ The session directory should hold at least:
 Future transport upgrades can add additional files such as `host.sock` without
 breaking the bootstrap contract.
 
-### 7. Keep Secrets Out Of The Runtime Context
+### 8. Keep Secrets Out Of The Runtime Context
 
 The runtime context should include resolved invocation state such as:
 
@@ -225,7 +264,7 @@ It should not include:
 - refresh credentials
 - copied secrets from the host environment
 
-### 8. Make Nested `kongctl` Calls Session-Aware
+### 9. Make Nested `kongctl` Calls Session-Aware
 
 When an extension runs `kongctl api ...` or `kongctl get config <field>`, the
 nested `kongctl` subprocess should inherit
@@ -241,7 +280,7 @@ That means the child does not need to replay:
 
 This is the key design point that makes CLI-first callbacks workable.
 
-### 9. Use A CLI-First Host Callback Model In v1
+### 10. Use A CLI-First Host Callback Model In v1
 
 For v1, the main host callback surface should be the `kongctl` CLI itself.
 
@@ -261,7 +300,7 @@ especially:
 - `kongctl get config <field>`
 - `kongctl version --json`
 
-### 10. Keep The v1 Go Library Thin
+### 11. Keep The v1 Go Library Thin
 
 The v1 Go support should be a small helper library that lives in this
 repository and wraps:
@@ -273,7 +312,7 @@ repository and wraps:
 
 It should not be a large in-process host SDK in v1.
 
-### 11. Add Cleanup And Recursion Protection From The Start
+### 12. Add Cleanup And Recursion Protection From The Start
 
 Because the runtime model writes temporary session files, the implementation
 must be disciplined:
@@ -283,7 +322,7 @@ must be disciplined:
 - keep session files in a runtime or temp location, not the permanent config
   tree
 
-Because extensions can contribute routes such as `kongctl get foo`, the design
+Because extensions can contribute command patterns such as `kongctl get foo`, the design
 must also include a recursion guard. The session context should track:
 
 - active contribution id
@@ -1201,7 +1240,7 @@ Good as a phased strategy, not as a day-one everything model.
 preserves the `kongctl <verb> ...` model instead of replacing it with isolated
 top-level extension commands. The core design choice is:
 
-1. allow `routes` under selected existing verbs
+1. allow command patterns under selected existing verbs
 2. allow custom `verbs` when existing verbs are not a good fit
 3. use a simple `extension.yaml` manifest
 4. pass runtime context through `KONGCTL_EXTENSION_SESSION_DIR`
@@ -1225,12 +1264,11 @@ constraints:
 
 The first extension release should include only these capabilities.
 
-### 1. Route And Verb Contributions
+### 1. Command Patterns Under Existing Verbs And Custom Verbs
 
 Allowed in v1:
 
-- route contributions under selected verbs such as `get`, `list`, `patch`, and
-  `lint`
+- command contributions under selected verbs such as `get` and `list`
 - custom verbs contributed by extensions
 
 Disallowed in v1:
@@ -1265,28 +1303,29 @@ Recommended but optional for the earliest cut:
 
 ### 3. Installation Sources And Discovery
 
-The install story is not fully planned yet and should become a first-class
-deliverable in this design.
+The v1 install model should be explicit and source-driven.
 
-Recommended v1 sources:
+Supported v1 sources:
 
-1. local path for development and internal use
+1. local filesystem path
 2. GitHub repository reference such as `owner/repo`
-3. direct archive URL only if needed, and only with explicit checksum metadata
 
-Recommended remote discovery approach for v1:
+Recommended install rules:
 
-1. support direct GitHub repo installation
-2. require an `extension.yaml` manifest in the repo or release artifact
-3. prefer prebuilt release assets when present
-4. support local link mode for development
+1. local path installs require `extension.yaml`
+2. `link` should be used for local development workflows
+3. GitHub repo installs require `extension.yaml`
+4. for binary extensions, prefer compatible release assets when present
+5. for script extensions, clone the repo into the managed extension home
+6. store the install source and ref so `upgrade` can reuse the same strategy
+
+Recommended non-goal for v1:
+
+- no broad catalog or marketplace search requirement
 
 Recommended later addition:
 
-- an official index or catalog for discovery and trust tiering
-
-This keeps the initial installation model simple while still leaving room for a
-curated ecosystem later.
+- an official index or catalog for search, trust tiering, and discoverability
 
 ### 4. Extension Manifest
 
@@ -1310,7 +1349,7 @@ compatibility:
   min_kongctl_version: 0.20.0
 
 contributes:
-  routes:
+  commands:
     - id: get_foo
       verb: get
       product: konnect
@@ -1353,7 +1392,7 @@ Important design notes:
 The host should resolve effective invocation state before executing the
 extension. That includes:
 
-- matched route or custom verb contribution
+- matched command pattern or custom verb contribution
 - selected profile
 - resolved base URL
 - output format
@@ -1375,7 +1414,7 @@ Example:
 {
   "schema_version": 1,
   "matched_contribution": {
-    "type": "route",
+    "type": "command",
     "id": "get_foo",
     "verb": "get",
     "product": "konnect",
@@ -1471,7 +1510,7 @@ The repository should include at least two example extensions:
 These are important deliverables because they prove:
 
 - the manifest shape
-- route and verb contribution wiring
+- command-pattern and verb contribution wiring
 - callback ergonomics
 - install and link flows
 
@@ -1487,7 +1526,7 @@ The skill should help a coding agent:
 - scaffold a new extension
 - choose between script and Go templates
 - fill in `extension.yaml`
-- register route or verb contributions
+- register command patterns or custom verbs
 - wire in the thin Go SDK when appropriate
 - test local install and link workflows
 
@@ -1589,7 +1628,7 @@ Recommended rules:
 
 1. `kongctl` owns installation, removal, upgrade, and inspection.
 2. Built-ins always win over extensions.
-3. Extension route and verb collisions are rejected.
+3. Extension command-pattern and verb collisions are rejected.
 4. Upgrades are explicit, not silent.
 5. Local development links are clearly marked in `list` and `inspect`.
 
@@ -1643,7 +1682,7 @@ into a framework before the basic product loop is proven.
 ## Phase 1: Core Runtime And Install Flows
 
 - finalize `extension.yaml` schema
-- define route and verb contribution matching
+- define command-pattern and verb matching
 - define the runtime context contract
 - implement `KONGCTL_EXTENSION_SESSION_DIR` bootstrap
 - implement recursion guard
@@ -1683,12 +1722,12 @@ into a framework before the basic product loop is proven.
 
 These questions should be resolved before implementation begins.
 
-1. Which existing verbs should be allowlisted in v1 beyond `get`, `list`,
-   `patch`, and `lint`?
+1. Which existing verbs should be allowlisted in v1 beyond `get` and `list`?
 2. Should custom verbs be generally allowed, or should policy default them to
    `official` and `verified` extensions only?
-3. Should GitHub repo installation clone source, prefer release assets, or use
-   a hybrid rule similar to `gh extension install`?
+3. Should GitHub repo installation always use a hybrid rule of release assets
+   first and repo clone for script extensions, or should users choose
+   explicitly?
 4. Should there be an official extension index in v1, or should that wait
    until after direct GitHub and local installs are working?
 5. What exact precedence rules should apply when nested session-aware helper
@@ -1705,7 +1744,7 @@ as managed external command contributions.
 The concrete v1 recommendation is:
 
 1. preserve `kongctl <verb> ...`
-2. support both `routes` under existing verbs and custom `verbs`
+2. support both command patterns under existing verbs and custom `verbs`
 3. use a simple `extension.yaml` manifest with `schema_version`
 4. invoke extensions as child processes
 5. pass runtime context through `KONGCTL_EXTENSION_SESSION_DIR`
