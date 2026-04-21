@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-tls-trust-bundle-test
+
+event_gateways:
+  - ref: egw-cp-for-tls-trust-bundle-test-ref
+    name: egw-cp-for-tls-trust-bundle-test-name
+    description: "EGW CP for TLS Trust Bundle Test"
+    tls_trust_bundles: []

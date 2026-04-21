@@ -530,6 +530,11 @@ func newGetEventGatewayControlPlaneCmd(verb verbs.VerbValue,
 		rv.AddCommand(staticKeysCmd)
 	}
 
+	tlsTrustBundlesCmd := newGetEventGatewayTLSTrustBundlesCmd(verb, addParentFlags, parentPreRun)
+	if tlsTrustBundlesCmd != nil {
+		rv.AddCommand(tlsTrustBundlesCmd)
+	}
+
 	listenerPoliciesCmd := newGetEventGatewayListenerPoliciesCmd(verb, addParentFlags, parentPreRun)
 	if listenerPoliciesCmd != nil {
 		rv.AddCommand(listenerPoliciesCmd)

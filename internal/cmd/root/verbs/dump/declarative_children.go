@@ -210,6 +210,12 @@ func populateEventGatewayChildren(
 		} else if len(keys) > 0 {
 			gateway.StaticKeys = keys
 		}
+
+		if bundles, err := buildEventGatewayTLSTrustBundles(ctx, logger, client, gatewayID, gateway.Name); err != nil {
+			logWarn(logger, "failed to load event gateway TLS trust bundles", gatewayID, gateway.Name, err)
+		} else if len(bundles) > 0 {
+			gateway.TrustBundles = bundles
+		}
 	}
 }
 
@@ -307,6 +313,44 @@ func buildEventGatewaySchemaRegistries(
 		res := declresources.EventGatewaySchemaRegistryResource{
 			SchemaRegistryCreate: createReq,
 			Ref:                  sr.ID,
+		}
+
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func buildEventGatewayTLSTrustBundles(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+) ([]declresources.EventGatewayTLSTrustBundleResource, error) {
+	bundles, err := client.ListEventGatewayTLSTrustBundles(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(bundles) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayTLSTrustBundleResource, 0, len(bundles))
+	for _, tb := range bundles {
+		if strings.TrimSpace(tb.ID) == "" {
+			logWarn(logger, "TLS trust bundle missing ID", gatewayID, gatewayName, nil)
+			continue
+		}
+
+		res := declresources.EventGatewayTLSTrustBundleResource{
+			CreateTLSTrustBundleRequest: kkComps.CreateTLSTrustBundleRequest{
+				Name:        tb.Name,
+				Description: tb.Description,
+				Config:      kkComps.TLSTrustBundleConfig{TrustedCa: tb.Config.TrustedCa},
+				Labels:      tb.Labels,
+			},
+			Ref: tb.ID,
 		}
 
 		results = append(results, res)

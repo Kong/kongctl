@@ -916,6 +916,12 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		}
 		egw.StaticKeys = nil
 
+		for _, tb := range egw.TrustBundles {
+			tb.EventGateway = egw.Ref
+			rs.EventGatewayTLSTrustBundles = append(rs.EventGatewayTLSTrustBundles, tb)
+		}
+		egw.TrustBundles = nil
+
 		for _, sr := range egw.SchemaRegistries {
 			sr.EventGateway = egw.Ref
 			rs.EventGatewaySchemaRegistries = append(rs.EventGatewaySchemaRegistries, sr)

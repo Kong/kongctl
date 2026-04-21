@@ -53,6 +53,12 @@ const (
 	staticKeyIDConfigPath   = "konnect.event-gateway.static-key.id"
 	staticKeyNameConfigPath = "konnect.event-gateway.static-key.name"
 
+	tlsTrustBundleIDFlagName   = "tls-trust-bundle-id"
+	tlsTrustBundleNameFlagName = "tls-trust-bundle-name"
+
+	tlsTrustBundleIDConfigPath   = "konnect.event-gateway.tls-trust-bundle.id"
+	tlsTrustBundleNameConfigPath = "konnect.event-gateway.tls-trust-bundle.name"
+
 	valueNA = "n/a"
 )
 
@@ -317,6 +323,42 @@ func bindStaticKeyChildFlags(c *cobra.Command, args []string) error {
 
 func getStaticKeyIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(staticKeyIDConfigPath), cfg.GetString(staticKeyNameConfigPath)
+}
+
+func addTLSTrustBundleChildFlags(cmd *cobra.Command) {
+	cmd.Flags().String(tlsTrustBundleIDFlagName, "",
+		fmt.Sprintf(`The ID of the TLS trust bundle to retrieve.
+- Config path: [ %s ]`, tlsTrustBundleIDConfigPath))
+	cmd.Flags().String(tlsTrustBundleNameFlagName, "",
+		fmt.Sprintf(`The name of the TLS trust bundle to retrieve.
+- Config path: [ %s ]`, tlsTrustBundleNameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(tlsTrustBundleIDFlagName, tlsTrustBundleNameFlagName)
+}
+
+func bindTLSTrustBundleChildFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(tlsTrustBundleIDFlagName); flag != nil {
+		if err := cfg.BindFlag(tlsTrustBundleIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := c.Flags().Lookup(tlsTrustBundleNameFlagName); flag != nil {
+		if err := cfg.BindFlag(tlsTrustBundleNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getTLSTrustBundleIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(tlsTrustBundleIDConfigPath), cfg.GetString(tlsTrustBundleNameConfigPath)
 }
 
 func resolveEventGatewayIDByName(

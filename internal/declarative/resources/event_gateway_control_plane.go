@@ -25,6 +25,7 @@ type EventGatewayControlPlaneResource struct {
 	DataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
 	SchemaRegistries      []EventGatewaySchemaRegistryResource       `yaml:"schema_registries,omitempty"       json:"schema_registries,omitempty"`       //nolint:lll
 	StaticKeys            []EventGatewayStaticKeyResource            `yaml:"static_keys,omitempty"             json:"static_keys,omitempty"`             //nolint:lll
+	TrustBundles          []EventGatewayTLSTrustBundleResource       `yaml:"tls_trust_bundles,omitempty"       json:"tls_trust_bundles,omitempty"`       //nolint:lll
 }
 
 func (e EventGatewayControlPlaneResource) GetType() ResourceType {
@@ -125,6 +126,18 @@ func (e EventGatewayControlPlaneResource) Validate() error {
 		staticKeyRefs[sk.GetRef()] = true
 	}
 
+	// Validate TLS trust bundles
+	trustBundleRefs := make(map[string]bool)
+	for i, tb := range e.TrustBundles {
+		if err := tb.Validate(); err != nil {
+			return fmt.Errorf("invalid TLS trust bundle %d: %w", i, err)
+		}
+		if trustBundleRefs[tb.GetRef()] {
+			return fmt.Errorf("duplicate TLS trust bundle ref: %s", tb.GetRef())
+		}
+		trustBundleRefs[tb.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -155,6 +168,10 @@ func (e *EventGatewayControlPlaneResource) SetDefaults() {
 
 	for i := range e.StaticKeys {
 		e.StaticKeys[i].SetDefaults()
+	}
+
+	for i := range e.TrustBundles {
+		e.TrustBundles[i].SetDefaults()
 	}
 }
 

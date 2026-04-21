@@ -1,0 +1,45 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-tls-trust-bundle-test
+
+event_gateways:
+  - ref: egw-cp-for-tls-trust-bundle-test-ref
+    name: egw-cp-for-tls-trust-bundle-test-name
+    description: "EGW CP for TLS Trust Bundle Test"
+    tls_trust_bundles:
+      - ref: default-tls-trust-bundle-ref
+        name: default-tls-trust-bundle-name
+        description: "Default TLS Trust Bundle description"
+        config:
+          trusted_ca: |-
+            -----BEGIN CERTIFICATE-----
+            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
+            oxQ=
+            -----END CERTIFICATE-----
