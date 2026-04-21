@@ -75,3 +75,23 @@ steps:
             expect:
               fields:
                 name: "kongctl-e2e-cp-2"
+                description: "Second Test Control Plane for E2E testing via kongctl"
+
+      - name: 002-002-verify-created-fields
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - kongctl-e2e-cp-2
+          - -o
+          - json
+        assertions:
+          - select: description
+            expect:
+              fields:
+                "@": "Second Test Control Plane for E2E testing via kongctl"
+          - select: config.cluster_type
+            expect:
+              fields:
+                "@": "CLUSTER_TYPE_CONTROL_PLANE"
