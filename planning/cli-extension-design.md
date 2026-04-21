@@ -17,27 +17,29 @@ The document is intentionally front-loaded:
 The goal is that a reader can understand the proposed plan from the first page
 without reading the full research section.
 
-## Executive Summary
+## TL;DR
 
-`kongctl` should implement extensions as managed external command
-contributions. A single installed extension should be able to contribute one
-or more `command_paths`, for example `kongctl get foo`, `kongctl list foo`,
-or `kongctl promote foo`. Extensions should be described by a simple
-`extension.yaml` manifest for package metadata and installed explicitly from
-either a local path or a GitHub repository. For GitHub installs, `kongctl`
-should prefer compatible release assets for binary extensions and fall back to
-cloning the repository for script-based extensions. Command metadata should
-come from the extension runtime itself through a reserved internal argument
-contract such as `__kongctl describe`, and `kongctl` should validate and cache
-that descriptor during install or link. Extensions should run as child
-processes and receive per-invocation runtime context through an inherited
-environment variable that points at a temporary session directory containing
-`context.json`. Nested `kongctl` subprocesses should detect that environment
-variable, reload the same resolved session state, and use it to preserve
-profile, base URL, and other invocation-bound settings. This keeps the CLI
-grammar intact, supports script and Go-based extensions, avoids in-process
-plugin complexity, and leaves room for richer IPC later if subprocess
-callbacks prove too expensive.
+`kongctl` should add an extension system that lets installed extensions
+contribute new `kongctl` command paths. An extension should be able to add
+commands such as `kongctl get foo`, `kongctl list foo`, or a new verb such as
+`kongctl promote foo`, while preserving the normal `kongctl <verb> ...`
+command shape.
+
+For users, this means they can install an extension from a local path or a
+GitHub repository and then use the new command path as if it were part of the
+CLI. The extension should show up in help and inspection output, follow the
+same command grammar as the rest of `kongctl`, and be managed with normal
+verb-first lifecycle commands such as `install`, `upgrade`, `list`, and
+`uninstall`.
+
+Technically, each extension is a separately executed script or binary described
+by `extension.yaml`. During install or link, `kongctl` runs the extension in a
+reserved `__kongctl describe` mode to collect command metadata, validate
+conflicts, and cache help data. During normal execution, `kongctl` launches the
+extension as a child process and passes invocation context through
+`KONGCTL_EXTENSION_SESSION_DIR` and `context.json`, so nested `kongctl`
+subprocesses can reuse the same profile, base URL, and other resolved settings
+without in-process plugins.
 
 ## Proposed Design
 
