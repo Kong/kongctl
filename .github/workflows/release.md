@@ -578,9 +578,9 @@ The body should begin with:
 ## kongctl Release Highlights
 ```
 
-Do not emit raw HTML in the release body. The `update_release` safe-output
-tool sanitizes the `body` field before publishing, so tags like `<img>` will be
-escaped or stripped instead of rendered.
+Do not emit raw HTML in the release body. The `safeoutputs/update_release`
+safe-output tool sanitizes the `body` field before publishing, so tags like
+`<img>` will be escaped or stripped instead of rendered.
 
 When commits are available, include this section near the end:
 
