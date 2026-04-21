@@ -25,9 +25,9 @@ func TestPortalAuthSettingsDetailView_ExcludesDeprecatedFields(t *testing.T) {
 
 	detail := portalAuthSettingsDetailView(settings)
 
-	require.Contains(t, detail, "Basic Auth Enabled: true")
-	require.Contains(t, detail, "IdP Mapping Enabled: true")
-	require.Contains(t, detail, "Konnect Mapping Enabled: false")
+	require.Contains(t, detail, "basic_auth_enabled: true")
+	require.Contains(t, detail, "idp_mapping_enabled: true")
+	require.Contains(t, detail, "konnect_mapping_enabled: false")
 	require.NotContains(t, strings.ToLower(detail), "oidc")
 	require.NotContains(t, strings.ToLower(detail), "saml")
 }
@@ -43,5 +43,5 @@ func TestBuildPortalAuthSettingsChildView_UsesDetailMode(t *testing.T) {
 	require.Equal(t, tableview.ChildViewModeDetail, view.Mode)
 	require.Equal(t, "Authentication Settings", view.Title)
 	require.NotNil(t, view.DetailRenderer)
-	require.Contains(t, view.DetailRenderer(0), "Basic Auth Enabled: true")
+	require.Contains(t, view.DetailRenderer(0), "basic_auth_enabled: true")
 }

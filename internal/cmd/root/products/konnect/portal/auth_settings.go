@@ -165,9 +165,9 @@ func portalAuthSettingsDetailView(settings *kkComps.PortalAuthenticationSettings
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Basic Auth Enabled: %t\n", settings.BasicAuthEnabled)
-	fmt.Fprintf(&b, "IdP Mapping Enabled: %v\n", valueOrNA(settings.IdpMappingEnabled))
-	fmt.Fprintf(&b, "Konnect Mapping Enabled: %t\n", settings.KonnectMappingEnabled)
+	fmt.Fprintf(&b, "basic_auth_enabled: %t\n", settings.BasicAuthEnabled)
+	fmt.Fprintf(&b, "idp_mapping_enabled: %v\n", valueOrNA(settings.IdpMappingEnabled))
+	fmt.Fprintf(&b, "konnect_mapping_enabled: %t\n", settings.KonnectMappingEnabled)
 
 	return strings.TrimRight(b.String(), "\n")
 }

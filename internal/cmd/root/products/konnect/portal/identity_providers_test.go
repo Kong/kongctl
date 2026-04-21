@@ -32,9 +32,9 @@ func TestPortalIdentityProviderDetailView_OmitsLoginPath(t *testing.T) {
 
 	detail := portalIdentityProviderDetailView(provider)
 
-	require.Contains(t, detail, "Type: oidc")
-	require.Contains(t, detail, "Enabled: true")
-	require.Contains(t, detail, "Config:")
+	require.Contains(t, detail, "type: oidc")
+	require.Contains(t, detail, "enabled: true")
+	require.Contains(t, detail, "config:")
 	require.NotContains(t, strings.ToLower(detail), "login path")
 }
 

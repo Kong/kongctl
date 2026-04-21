@@ -193,12 +193,12 @@ func portalIdentityProviderEnabled(provider kkComps.IdentityProvider) string {
 
 func portalIdentityProviderDetailView(provider kkComps.IdentityProvider) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "ID: %s\n", optionalPtr(provider.GetID()))
-	fmt.Fprintf(&b, "Type: %s\n", portalIdentityProviderType(provider))
-	fmt.Fprintf(&b, "Enabled: %s\n", portalIdentityProviderEnabled(provider))
-	fmt.Fprintf(&b, "Created At: %s\n", formatTimePtr(provider.GetCreatedAt()))
-	fmt.Fprintf(&b, "Updated At: %s\n", formatTimePtr(provider.GetUpdatedAt()))
-	fmt.Fprintf(&b, "Config:\n")
+	fmt.Fprintf(&b, "id: %s\n", optionalPtr(provider.GetID()))
+	fmt.Fprintf(&b, "type: %s\n", portalIdentityProviderType(provider))
+	fmt.Fprintf(&b, "enabled: %s\n", portalIdentityProviderEnabled(provider))
+	fmt.Fprintf(&b, "created_at: %s\n", formatTimePtr(provider.GetCreatedAt()))
+	fmt.Fprintf(&b, "updated_at: %s\n", formatTimePtr(provider.GetUpdatedAt()))
+	fmt.Fprintf(&b, "config:\n")
 
 	return strings.TrimRight(b.String(), "\n")
 }
