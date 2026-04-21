@@ -75,3 +75,8 @@ steps:
             expect:
               fields:
                 name: "kongctl-e2e-cp-2"
+                description: "Second Test Control Plane for E2E testing via kongctl"
+          - select: "[?name=='kongctl-e2e-cp-2'] | [0].config.cluster_type"
+            expect:
+              fields:
+                "@": "CLUSTER_TYPE_CONTROL_PLANE"
