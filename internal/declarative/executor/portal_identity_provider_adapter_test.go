@@ -37,7 +37,7 @@ func (s *stubPortalIdentityProviderAPI) GetPortalIdentityProvider(
 
 func (s *stubPortalIdentityProviderAPI) CreatePortalIdentityProvider(
 	_ context.Context,
-	portalID string,
+	_ string,
 	request kkComps.CreateIdentityProvider,
 	_ ...kkOps.Option,
 ) (*kkOps.CreatePortalIdentityProviderResponse, error) {
