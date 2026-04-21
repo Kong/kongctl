@@ -65,7 +65,7 @@ steps:
             expect:
               fields:
                 "contains(@, 'Plan: 1 to add')": true
-                "contains(@, 'control_plane \"{{ .vars.cpRef }}\" will be created')": true
+                "contains(@, 'control_plane \"cp-plan-apply\" will be created')": true
       - name: 002-apply-plan
         outputFormat: json
         run:
@@ -142,7 +142,7 @@ steps:
           - select: stdout
             expect:
               fields:
-                "contains(@, 'control_plane \"{{ .vars.cpRef }}\" will be updated')": true
+                "contains(@, 'control_plane \"cp-plan-apply\" will be updated')": true
       - name: 002-apply-plan
         outputFormat: json
         run:
