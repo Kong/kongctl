@@ -498,7 +498,8 @@ func portalIdentityProviderConfigNeedsUpdate(
 		if !reflect.DeepEqual(currentOIDC.ClaimMappings, desiredOIDC.ClaimMappings) {
 			return true
 		}
-		return desiredOIDC.ClientSecret != nil
+		// client_secret is write-only and is never returned by the API, so it is skipped.
+		return false
 	case kkComps.CreateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:
 		if current.Type != kkComps.IdentityProviderConfigTypeSAMLIdentityProviderConfig {
 			return true

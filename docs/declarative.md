@@ -557,6 +557,33 @@ A runnable example is available in
   while planning.
 - Human-readable plan and diff output redact `!env` values.
 
+### Write-only Secret Fields
+
+Some Konnect APIs accept secret values on create or update but do not return
+them from `get` or `list` responses. Common examples include:
+
+- Portal identity provider `config.client_secret`
+- DCR provider secrets such as `dcr_token`, `api_key`, and
+  `initial_client_secret`
+- Event Gateway schema registry authentication `password`
+
+For these fields, `kongctl` prefers idempotent planning over perpetual
+updates. When the API does not expose the current value, the planner skips
+that field during diff calculation instead of assuming drift on every run.
+
+This means:
+
+- The initial create or update still sends the configured secret value.
+- Re-applying the same declarative configuration will usually be a no-op
+  instead of planning an update forever.
+- Changing only a write-only secret may not be detectable from live state, so
+  `plan` may show no changes even though the configured secret value differs
+  from what is currently stored in Konnect.
+
+When you need to rotate a write-only secret declaratively, make the change
+alongside another observable field, or recreate the resource if the API does
+not provide a safe observable signal for that update.
+
 ### Path Resolution
 
 All file paths are resolved relative to the directory containing the
