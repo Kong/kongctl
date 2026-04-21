@@ -4,8 +4,6 @@ env:
   KONGCTL_LOG_LEVEL: info
   STATIC_KEY_VALUE: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
 
-test:
-  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
 
 vars:
   egwName: egw-cp-for-static-key-test-name

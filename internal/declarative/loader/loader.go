@@ -15,7 +15,6 @@ import (
 	decerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/util"
 	"sigs.k8s.io/yaml"
 )
 
@@ -657,25 +656,22 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
-	// Apply defaults to ControlPlanes (parent resources)
-	if util.IsEventGatewayEnabled() {
-		for i := range rs.EventGatewayControlPlanes {
-			if err := assignNamespace(
-				&rs.EventGatewayControlPlanes[i].Kongctl,
-				"control_plane",
-				rs.EventGatewayControlPlanes[i].Ref,
-			); err != nil {
-				return err
-			}
-			// Apply protected default if not set
-			if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
-				rs.EventGatewayControlPlanes[i].Kongctl.Protected = protectedDefault
-			}
-			// Ensure protected has a value (false if still nil)
-			if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil {
-				falseVal := false
-				rs.EventGatewayControlPlanes[i].Kongctl.Protected = &falseVal
-			}
+	for i := range rs.EventGatewayControlPlanes {
+		if err := assignNamespace(
+			&rs.EventGatewayControlPlanes[i].Kongctl,
+			"control_plane",
+			rs.EventGatewayControlPlanes[i].Ref,
+		); err != nil {
+			return err
+		}
+		// Apply protected default if not set
+		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.EventGatewayControlPlanes[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.EventGatewayControlPlanes[i].Kongctl.Protected = &falseVal
 		}
 	}
 
