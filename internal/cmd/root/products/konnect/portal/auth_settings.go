@@ -159,6 +159,27 @@ func portalAuthSettingsToRecord(settings *kkComps.PortalAuthenticationSettingsRe
 	}
 }
 
+func portalAuthSettingsDetailView(settings *kkComps.PortalAuthenticationSettingsResponse) string {
+	if settings == nil {
+		return ""
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Basic Auth Enabled: %t\n", settings.BasicAuthEnabled)
+	fmt.Fprintf(&b, "IdP Mapping Enabled: %v\n", valueOrNA(settings.IdpMappingEnabled))
+	fmt.Fprintf(&b, "Konnect Mapping Enabled: %t\n", settings.KonnectMappingEnabled)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func buildPortalAuthSettingsChildView(settings *kkComps.PortalAuthenticationSettingsResponse) tableview.ChildView {
+	return tableview.ChildView{
+		Title:          "Authentication Settings",
+		Mode:           tableview.ChildViewModeDetail,
+		DetailRenderer: func(int) string { return portalAuthSettingsDetailView(settings) },
+	}
+}
+
 func valueOrNA(value any) any {
 	switch v := value.(type) {
 	case *bool:

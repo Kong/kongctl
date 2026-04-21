@@ -7,12 +7,15 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 )
 
 func init() {
+	tableview.RegisterChildLoader("portal", "auth-settings", loadPortalAuthSettings)
+	tableview.RegisterChildLoader("portal", "identity-providers", loadPortalIdentityProviders)
 	tableview.RegisterChildLoader("portal", "pages", loadPortalPages)
 	tableview.RegisterChildLoader("portal", "snippets", loadPortalSnippets)
 	tableview.RegisterChildLoader("portal", "applications", loadPortalApplications)
@@ -24,6 +27,80 @@ func init() {
 	tableview.RegisterChildLoader("portal-team", "team-roles", loadPortalTeamRolesForTeam)
 	tableview.RegisterChildLoader("portal-page", "content", loadPortalPageContent)
 	tableview.RegisterChildLoader("portal-snippet", "content", loadPortalSnippetContent)
+}
+
+func loadPortalAuthSettings(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	portalID, err := portalIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	authAPI := sdk.GetPortalAuthSettingsAPI()
+	if authAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("portal auth settings client is not available")
+	}
+
+	res, err := authAPI.GetPortalAuthenticationSettings(helper.GetContext(), portalID)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	if res == nil || res.PortalAuthenticationSettingsResponse == nil {
+		return tableview.ChildView{}, fmt.Errorf("empty portal auth settings response")
+	}
+
+	return buildPortalAuthSettingsChildView(res.PortalAuthenticationSettingsResponse), nil
+}
+
+func loadPortalIdentityProviders(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	portalID, err := portalIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	identityProviderAPI := sdk.GetPortalIdentityProviderAPI()
+	if identityProviderAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("portal identity providers client is not available")
+	}
+
+	resp, err := identityProviderAPI.ListPortalIdentityProviders(
+		helper.GetContext(),
+		kkOps.GetPortalIdentityProvidersRequest{PortalID: portalID},
+	)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildPortalIdentityProvidersChildView(resp.IdentityProviders), nil
 }
 
 func loadPortalPages(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

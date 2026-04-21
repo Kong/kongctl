@@ -656,7 +656,6 @@ func TestPlanPortalIdentityProviders_UpdateWhenStateDiffers(t *testing.T) {
 func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) {
 	t.Parallel()
 
-	clientSecret := "write-only-secret"
 	stub := &stubPortalIdentityProviderAPI{
 		listFn: func(
 			_ context.Context,
@@ -698,7 +697,7 @@ func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) 
 		kkComps.OIDCIdentityProviderConfig{
 			IssuerURL:    "https://accounts.google.com",
 			ClientID:     "client-id-1",
-			ClientSecret: &clientSecret,
+			ClientSecret: new("placeholder"),
 			Scopes:       []string{"openid", "profile"},
 			ClaimMappings: &kkComps.OIDCIdentityProviderClaimMappings{
 				Name:   new("name"),

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
@@ -25,7 +26,6 @@ type portalIdentityProviderRecord struct {
 	ID        string `json:"id"`
 	Type      string `json:"type"`
 	Enabled   string `json:"enabled"`
-	LoginPath string `json:"login_path"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
@@ -168,22 +168,64 @@ func runGetPortalIdentityProviders(c *cobra.Command, args []string) error {
 }
 
 func portalIdentityProviderToRecord(provider kkComps.IdentityProvider) portalIdentityProviderRecord {
-	enabled := valueNA
-	if provider.Enabled != nil {
-		enabled = fmt.Sprintf("%v", *provider.Enabled)
-	}
-
-	providerType := valueNA
-	if provider.Type != nil {
-		providerType = string(*provider.Type)
-	}
-
 	return portalIdentityProviderRecord{
 		ID:        optionalPtr(provider.GetID()),
-		Type:      providerType,
-		Enabled:   enabled,
-		LoginPath: optionalPtr(provider.GetLoginPath()),
+		Type:      portalIdentityProviderType(provider),
+		Enabled:   portalIdentityProviderEnabled(provider),
 		CreatedAt: formatTimePtr(provider.GetCreatedAt()),
 		UpdatedAt: formatTimePtr(provider.GetUpdatedAt()),
+	}
+}
+
+func portalIdentityProviderType(provider kkComps.IdentityProvider) string {
+	if provider.Type == nil {
+		return valueNA
+	}
+	return string(*provider.Type)
+}
+
+func portalIdentityProviderEnabled(provider kkComps.IdentityProvider) string {
+	if provider.Enabled == nil {
+		return valueNA
+	}
+	return fmt.Sprintf("%v", *provider.Enabled)
+}
+
+func portalIdentityProviderDetailView(provider kkComps.IdentityProvider) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "ID: %s\n", optionalPtr(provider.GetID()))
+	fmt.Fprintf(&b, "Type: %s\n", portalIdentityProviderType(provider))
+	fmt.Fprintf(&b, "Enabled: %s\n", portalIdentityProviderEnabled(provider))
+	fmt.Fprintf(&b, "Created At: %s\n", formatTimePtr(provider.GetCreatedAt()))
+	fmt.Fprintf(&b, "Updated At: %s\n", formatTimePtr(provider.GetUpdatedAt()))
+	fmt.Fprintf(&b, "Config:\n")
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func buildPortalIdentityProvidersChildView(providers []kkComps.IdentityProvider) tableview.ChildView {
+	rows := make([]table.Row, 0, len(providers))
+	for _, provider := range providers {
+		record := portalIdentityProviderToRecord(provider)
+		rows = append(rows, table.Row{record.ID, record.Type, record.Enabled})
+	}
+
+	return tableview.ChildView{
+		Headers: []string{"ID", "TYPE", "ENABLED"},
+		Rows:    rows,
+		Title:   "Identity Providers",
+		DetailRenderer: func(index int) string {
+			if index < 0 || index >= len(providers) {
+				return ""
+			}
+			return portalIdentityProviderDetailView(providers[index])
+		},
+		ParentType: "portal-identity-provider",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(providers) {
+				return nil
+			}
+			return providers[index]
+		},
 	}
 }
