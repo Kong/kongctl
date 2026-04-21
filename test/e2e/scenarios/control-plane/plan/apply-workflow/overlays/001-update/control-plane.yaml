@@ -1,0 +1,12 @@
+_defaults:
+  kongctl:
+    namespace: cp-plan-apply
+
+control_planes:
+  - ref: cp-plan-apply
+    name: kongctl-cp-plan-apply
+    description: "Updated description for control plane plan apply workflow"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      env: e2e
+      owner: kongctl-test

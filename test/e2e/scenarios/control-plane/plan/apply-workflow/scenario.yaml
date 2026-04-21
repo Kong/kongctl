@@ -1,0 +1,202 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  cpRef: cp-plan-apply
+  cpName: kongctl-cp-plan-apply
+  cpInitialDesc: "Initial description for control plane plan apply workflow"
+  cpUpdatedDesc: "Updated description for control plane plan apply workflow"
+  namespace: cp-plan-apply
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                        resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'control_plane \"{{ .vars.cpRef }}\" will be created')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-get-control-plane
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - "{{ .vars.cpName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.cpName }}"
+          - select: description
+            expect:
+              fields:
+                "@": "{{ .vars.cpInitialDesc }}"
+
+  - name: 002-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                        resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'control_plane \"{{ .vars.cpRef }}\" will be updated')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.UPDATE: 1
+      - name: 003-get-control-plane
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - "{{ .vars.cpName }}"
+          - -o
+          - json
+        assertions:
+          - select: description
+            expect:
+              fields:
+                "@": "{{ .vars.cpUpdatedDesc }}"
+          - select: "labels.env"
+            expect:
+              fields:
+                "@": "e2e"
+          - select: "labels.owner"
+            expect:
+              fields:
+                "@": "kongctl-test"
+
+  - name: 003-plan-idempotent
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
