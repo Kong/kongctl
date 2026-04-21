@@ -19,8 +19,7 @@ without reading the full research section.
 
 ## Executive Summary
 
-`kongctl` should preserve the `kongctl <verb> <product> <resource...>` pattern
-and implement extensions as managed external command contributions. A single
+`kongctl` should implement extensions as managed external command contributions. A single
 installed extension should be able to contribute one or more command patterns
 under existing, allowlisted verbs, for example `kongctl get foo` and
 `kongctl list foo`, and it should also be able to contribute new top-level
@@ -61,7 +60,7 @@ The proposed design is driven by the following goals:
 | End-user grammar | Preserve `kongctl <verb> ...` |
 | Contribution types | command patterns under existing verbs and custom `verbs` |
 | Built-in precedence | Built-ins always win |
-| Declarative verbs | Closed in v1 |
+| Open existing verbs in v1 | `get`, `list` |
 | Manifest | Simple `extension.yaml` with `schema_version` |
 | Runtime model | Managed external child process |
 | Runtime context transport | `KONGCTL_EXTENSION_SESSION_DIR` |
@@ -78,7 +77,7 @@ The proposed design is driven by the following goals:
 
 The design should not force all extension behavior into:
 
-- `kongctl extension ...`
+- `kongctl install extension ...`
 - `kongctl run ...`
 - `kongctl foo ...`
 
@@ -107,25 +106,18 @@ An installed extension should be able to declare:
 This is better than forcing all non-standard workflows under a generic `run`
 verb. A generic `run` bucket weakens help text, completion, and intent.
 
-### 3. Keep Some Verbs Closed In v1
+### 3. Open Only A Narrow Set Of Existing Verbs In v1
 
 The initial extension surface should be intentionally selective.
 
 Recommended v1 policy:
 
-- allow command contributions under read-heavy verbs such as `get` and `list`
+- open existing verbs for command contributions: `get`, `list`
 - allow custom verbs
-- keep declarative engine verbs closed in v1
 
-Closed in v1:
-
-- `apply`
-- `plan`
-- `sync`
-- `delete`
-- `diff`
-
-This preserves room for future hooks without committing to them early.
+All other existing verbs should be treated as closed to extension in v1 unless
+explicitly revisited later. This preserves room for future hooks without
+committing to them early.
 
 ### 4. Treat One Extension As A Bundle Of Contributions
 
@@ -138,8 +130,7 @@ many small install units.
 
 ### 5. Use A Simple YAML Manifest
 
-The manifest should be a plain `extension.yaml` file, not a Kubernetes-style
-resource document.
+The manifest should be a plain `extension.yaml` file.
 
 Recommended shape:
 
@@ -181,8 +172,6 @@ capabilities:
   - structured_output
 ```
 
-This is more natural for `kongctl` than `apiVersion` and `kind`.
-
 ### 6. Discover And Install Extensions Explicitly
 
 The v1 discovery model should be explicit-source installation, not broad
@@ -195,14 +184,14 @@ That means users install an extension by naming where it comes from:
 
 Recommended install behavior:
 
-- `kongctl extension install ./my-extension`
-- `kongctl extension install kong/kongctl-ext-foo`
+- `kongctl install extension ./my-extension`
+- `kongctl install extension kong/kongctl-ext-foo`
 
 For local path installs:
 
 1. the target path must contain `extension.yaml`
-2. `kongctl extension link` should be preferred for local development
-3. `kongctl extension install <path>` should copy the extension into the
+2. `kongctl link extension` should be preferred for local development
+3. `kongctl install extension <path>` should copy the extension into the
    managed extension home for normal use
 
 For GitHub repo installs:
@@ -1268,15 +1257,14 @@ The first extension release should include only these capabilities.
 
 Allowed in v1:
 
-- command contributions under selected verbs such as `get` and `list`
+- command contributions under the open existing verbs `get` and `list`
 - custom verbs contributed by extensions
 
 Disallowed in v1:
 
 - overriding built-in commands
 - collisions with built-in resources or other extensions
-- extending declarative engine verbs such as `apply`, `plan`, `sync`,
-  `delete`, and `diff`
+- command contributions under any existing verb other than `get` or `list`
 - general host lifecycle hooks
 
 This lets `kongctl` preserve its existing grammar without opening the most
@@ -1288,18 +1276,18 @@ dangerous integration points too early.
 
 Required v1 commands:
 
-- `kongctl extension install <source>`
-- `kongctl extension remove <name>`
-- `kongctl extension upgrade <name>`
-- `kongctl extension list`
-- `kongctl extension inspect <name>`
-- `kongctl extension link <path>`
+- `kongctl install extension <source>`
+- `kongctl uninstall extension <name>`
+- `kongctl upgrade extension <name>`
+- `kongctl list extensions`
+- `kongctl inspect extension <name>`
+- `kongctl link extension <path>`
 
 Recommended but optional for the earliest cut:
 
-- `kongctl extension upgrade --all`
-- `kongctl extension create <name>`
-- `kongctl extension search`
+- `kongctl upgrade extension --all`
+- `kongctl create extension <name>`
+- `kongctl search extensions`
 
 ### 3. Installation Sources And Discovery
 
@@ -1587,9 +1575,9 @@ accidental.
 
 ### Minimum author tooling
 
-1. `kongctl extension create <name>`
-2. `kongctl extension link <path>`
-3. `kongctl extension inspect <name>`
+1. `kongctl create extension <name>`
+2. `kongctl link extension <path>`
+3. `kongctl inspect extension <name>`
 4. sample manifest templates
 5. sample shell extension
 6. sample Go extension
@@ -1635,11 +1623,11 @@ Recommended rules:
 Example flow:
 
 ```text
-kongctl extension install kong/kongctl-ext-foo
+kongctl install extension kong/kongctl-ext-foo
 kongctl get foo
-kongctl extension inspect foo
-kongctl extension upgrade foo
-kongctl extension remove foo
+kongctl inspect extension foo
+kongctl upgrade extension foo
+kongctl uninstall extension foo
 ```
 
 ## Why `kongctl` Should Not Expose Internal Packages Directly
@@ -1668,7 +1656,7 @@ The first release should explicitly not attempt all of the following.
 
 1. No extension overrides of built-in commands.
 2. No host lifecycle hooks such as `before every command`.
-3. No extension support under declarative engine verbs.
+3. No command contributions under existing verbs other than `get` and `list`.
 4. No install hooks.
 5. No background daemons started by extensions during installation.
 6. No promise that executable extension capabilities are strongly sandboxed.
@@ -1686,7 +1674,7 @@ into a framework before the basic product loop is proven.
 - define the runtime context contract
 - implement `KONGCTL_EXTENSION_SESSION_DIR` bootstrap
 - implement recursion guard
-- implement `install`, `remove`, `list`, `inspect`, `upgrade`, and `link`
+- implement `install`, `uninstall`, `list`, `inspect`, `upgrade`, and `link`
 - support local path install and GitHub repo install
 
 ## Phase 2: Authoring Deliverables
@@ -1722,7 +1710,8 @@ into a framework before the basic product loop is proven.
 
 These questions should be resolved before implementation begins.
 
-1. Which existing verbs should be allowlisted in v1 beyond `get` and `list`?
+1. Should any existing verbs beyond `get` and `list` be opened in v1, or
+   should the first release stay that narrow?
 2. Should custom verbs be generally allowed, or should policy default them to
    `official` and `verified` extensions only?
 3. Should GitHub repo installation always use a hybrid rule of release assets
