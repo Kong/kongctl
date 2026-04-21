@@ -1,0 +1,19 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+steps:
+  - name: 000-plan-fails-on-duplicate-provider-type
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "multiple portal_identity_provider entries target portal"

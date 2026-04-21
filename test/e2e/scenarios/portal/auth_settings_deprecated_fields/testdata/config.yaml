@@ -6,11 +6,10 @@ portals:
   - ref: portal-auth
     name: portal-auth
     display_name: Portal Auth Settings
-    description: Portal with auth settings managed declaratively
+    description: Portal with deprecated auth settings fields
     kongctl:
       namespace: portal-auth-settings
     auth_settings:
       ref: portal-auth-settings
-      basic_auth_enabled: false
-      konnect_mapping_enabled: true
-      idp_mapping_enabled: false
+      basic_auth_enabled: true
+      oidc_auth_enabled: true

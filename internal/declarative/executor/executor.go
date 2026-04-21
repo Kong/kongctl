@@ -70,11 +70,12 @@ type Executor struct {
 		kkComps.CreateTLSTrustBundleRequest, kkComps.UpdateTLSTrustBundleRequest]
 
 	// Portal child resource executors
-	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
-	portalAuthSettingsExecutor  *BaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest]
-	portalAssetLogoExecutor     *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
-	portalAssetFaviconExecutor  *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
-	portalDomainExecutor        *BaseExecutor[kkComps.CreatePortalCustomDomainRequest,
+	portalCustomizationExecutor    *BaseSingletonExecutor[kkComps.PortalCustomization]
+	portalAuthSettingsExecutor     *BaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest]
+	portalIdentityProviderExecutor *BaseExecutor[kkComps.CreateIdentityProvider, kkComps.UpdateIdentityProvider]
+	portalAssetLogoExecutor        *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
+	portalAssetFaviconExecutor     *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
+	portalDomainExecutor           *BaseExecutor[kkComps.CreatePortalCustomDomainRequest,
 		kkComps.UpdatePortalCustomDomainRequest]
 	portalPageExecutor          *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
 	portalSnippetExecutor       *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
@@ -259,6 +260,11 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 	e.portalAuthSettingsExecutor = NewBaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest](
 		NewPortalAuthSettingsAdapter(client),
+		dryRun,
+	)
+	e.portalIdentityProviderExecutor = NewBaseExecutor[kkComps.CreateIdentityProvider, kkComps.UpdateIdentityProvider](
+		NewPortalIdentityProviderAdapter(client),
+		client,
 		dryRun,
 	)
 	e.portalAssetLogoExecutor = NewBaseSingletonExecutor[kkComps.ReplacePortalImageAsset](
@@ -1762,6 +1768,16 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
+	case "portal_identity_provider":
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		return e.portalIdentityProviderExecutor.Create(ctx, *change)
 	case "portal_asset_logo":
 		// Portal asset logo is a singleton resource - always exists, so we update instead
 		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
@@ -2205,6 +2221,16 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
+	case "portal_identity_provider":
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		return e.portalIdentityProviderExecutor.Update(ctx, *change)
 	case "portal_email_config":
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)

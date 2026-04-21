@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -178,16 +179,11 @@ func (p *Planner) planPortalAuthSettingsUpdateWithFields(
 		if lookupName == "" {
 			lookupName = settings.Portal
 		}
-		change.Parent = &ParentInfo{
-			Ref: settings.Portal,
-			ID:  portalID,
-		}
+		change.Parent = &ParentInfo{Ref: settings.Portal, ID: portalID}
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
-				Ref: settings.Portal,
-				LookupFields: map[string]string{
-					"name": lookupName,
-				},
+				Ref:          settings.Portal,
+				LookupFields: map[string]string{"name": lookupName},
 			},
 		}
 	}
@@ -209,35 +205,7 @@ func (p *Planner) shouldUpdatePortalAuthSettings(
 
 	if desired.BasicAuthEnabled != nil && !p.compareBoolToPtr(current.BasicAuthEnabled, desired.BasicAuthEnabled) {
 		updates["basic_auth_enabled"] = *desired.BasicAuthEnabled
-		changedFields["basic_auth_enabled"] = FieldChange{
-			Old: current.BasicAuthEnabled,
-			New: *desired.BasicAuthEnabled,
-		}
-	}
-
-	if desired.OidcAuthEnabled != nil && !p.compareBoolToPtr(current.OidcAuthEnabled, desired.OidcAuthEnabled) {
-		updates["oidc_auth_enabled"] = *desired.OidcAuthEnabled
-		changedFields["oidc_auth_enabled"] = FieldChange{
-			Old: current.OidcAuthEnabled,
-			New: *desired.OidcAuthEnabled,
-		}
-	}
-
-	if desired.SamlAuthEnabled != nil && !p.comparePtrBools(current.SamlAuthEnabled, desired.SamlAuthEnabled) {
-		updates["saml_auth_enabled"] = *desired.SamlAuthEnabled
-		changedFields["saml_auth_enabled"] = FieldChange{
-			Old: current.SamlAuthEnabled,
-			New: *desired.SamlAuthEnabled,
-		}
-	}
-
-	if desired.OidcTeamMappingEnabled != nil &&
-		!p.compareBoolToPtr(current.OidcTeamMappingEnabled, desired.OidcTeamMappingEnabled) {
-		updates["oidc_team_mapping_enabled"] = *desired.OidcTeamMappingEnabled
-		changedFields["oidc_team_mapping_enabled"] = FieldChange{
-			Old: current.OidcTeamMappingEnabled,
-			New: *desired.OidcTeamMappingEnabled,
-		}
+		changedFields["basic_auth_enabled"] = FieldChange{Old: current.BasicAuthEnabled, New: *desired.BasicAuthEnabled}
 	}
 
 	if desired.KonnectMappingEnabled != nil &&
@@ -257,71 +225,6 @@ func (p *Planner) shouldUpdatePortalAuthSettings(
 		}
 	}
 
-	if desired.OidcIssuer != nil {
-		if current.OidcConfig == nil || current.OidcConfig.Issuer != *desired.OidcIssuer {
-			updates["oidc_issuer"] = *desired.OidcIssuer
-			var oldValue any
-			if current.OidcConfig != nil {
-				oldValue = current.OidcConfig.Issuer
-			}
-			changedFields["oidc_issuer"] = FieldChange{
-				Old: oldValue,
-				New: *desired.OidcIssuer,
-			}
-		}
-	}
-
-	if desired.OidcClientID != nil {
-		if current.OidcConfig == nil || current.OidcConfig.ClientID != *desired.OidcClientID {
-			updates["oidc_client_id"] = *desired.OidcClientID
-			var oldValue any
-			if current.OidcConfig != nil {
-				oldValue = current.OidcConfig.ClientID
-			}
-			changedFields["oidc_client_id"] = FieldChange{
-				Old: oldValue,
-				New: *desired.OidcClientID,
-			}
-		}
-	}
-
-	if desired.OidcClientSecret != nil {
-		updates["oidc_client_secret"] = *desired.OidcClientSecret
-		changedFields["oidc_client_secret"] = FieldChange{
-			Old: nil,
-			New: *desired.OidcClientSecret,
-		}
-	}
-
-	if desired.OidcScopes != nil {
-		if current.OidcConfig == nil || !p.compareStringSlices(current.OidcConfig.Scopes, desired.OidcScopes) {
-			updates["oidc_scopes"] = desired.OidcScopes
-			var oldValue any
-			if current.OidcConfig != nil {
-				oldValue = current.OidcConfig.Scopes
-			}
-			changedFields["oidc_scopes"] = FieldChange{
-				Old: oldValue,
-				New: desired.OidcScopes,
-			}
-		}
-	}
-
-	if desired.OidcClaimMappings != nil {
-		if current.OidcConfig == nil ||
-			!reflect.DeepEqual(current.OidcConfig.ClaimMappings, desired.OidcClaimMappings) {
-			updates["oidc_claim_mappings"] = desired.OidcClaimMappings
-			var oldValue any
-			if current.OidcConfig != nil {
-				oldValue = current.OidcConfig.ClaimMappings
-			}
-			changedFields["oidc_claim_mappings"] = FieldChange{
-				Old: oldValue,
-				New: desired.OidcClaimMappings,
-			}
-		}
-	}
-
 	return len(updates) > 0, updates, changedFields
 }
 
@@ -331,49 +234,336 @@ func (p *Planner) buildAllPortalAuthSettingsFields(settings resources.PortalAuth
 	if settings.BasicAuthEnabled != nil {
 		fields["basic_auth_enabled"] = *settings.BasicAuthEnabled
 	}
-	if settings.OidcAuthEnabled != nil {
-		fields["oidc_auth_enabled"] = *settings.OidcAuthEnabled
-	}
-	if settings.SamlAuthEnabled != nil {
-		fields["saml_auth_enabled"] = *settings.SamlAuthEnabled
-	}
-	if settings.OidcTeamMappingEnabled != nil {
-		fields["oidc_team_mapping_enabled"] = *settings.OidcTeamMappingEnabled
-	}
 	if settings.KonnectMappingEnabled != nil {
 		fields["konnect_mapping_enabled"] = *settings.KonnectMappingEnabled
 	}
 	if settings.IdpMappingEnabled != nil {
 		fields["idp_mapping_enabled"] = *settings.IdpMappingEnabled
 	}
-	if settings.OidcIssuer != nil {
-		fields["oidc_issuer"] = *settings.OidcIssuer
-	}
-	if settings.OidcClientID != nil {
-		fields["oidc_client_id"] = *settings.OidcClientID
-	}
-	if settings.OidcClientSecret != nil {
-		fields["oidc_client_secret"] = *settings.OidcClientSecret
-	}
-	if settings.OidcScopes != nil {
-		fields["oidc_scopes"] = settings.OidcScopes
-	}
-	if settings.OidcClaimMappings != nil {
-		fields["oidc_claim_mappings"] = map[string]any{
-			"name":   safeString(settings.OidcClaimMappings.Name),
-			"email":  safeString(settings.OidcClaimMappings.Email),
-			"groups": safeString(settings.OidcClaimMappings.Groups),
-		}
-	}
 
 	return fields
 }
 
-func safeString(val *string) string {
-	if val != nil {
-		return *val
+// Portal Identity Providers planning (collection)
+
+func (p *Planner) planPortalIdentityProvidersChanges(
+	ctx context.Context, parentNamespace string, portalID string, portalRef string,
+	desired []resources.PortalIdentityProviderResource, plan *Plan,
+) error {
+	existingProviders := make(map[kkComps.IdentityProviderType]state.PortalIdentityProvider)
+	if portalID != "" {
+		providers, err := p.listPortalIdentityProviders(ctx, portalID)
+		if err != nil {
+			if strings.Contains(err.Error(), "portal identity provider API") {
+				return nil
+			}
+			return fmt.Errorf("failed to list existing portal identity providers for portal %s: %w", portalID, err)
+		}
+		for _, provider := range providers {
+			if existing, ok := existingProviders[provider.Type]; ok {
+				return fmt.Errorf(
+					"multiple existing portal identity providers found with type %q in portal %q (%s and %s)",
+					string(provider.Type),
+					portalRef,
+					existing.ID,
+					provider.ID,
+				)
+			}
+			existingProviders[provider.Type] = provider
+		}
 	}
-	return ""
+
+	desiredTypes := make(map[kkComps.IdentityProviderType]bool)
+	for _, provider := range desired {
+		if provider.Type == nil {
+			continue
+		}
+		providerType := *provider.Type
+		if desiredTypes[providerType] {
+			return fmt.Errorf(
+				"duplicate portal identity provider type %q found in portal %q: types must be unique within a portal",
+				string(providerType),
+				portalRef,
+			)
+		}
+		desiredTypes[providerType] = true
+
+		if plan.HasChange(ResourceTypePortalIdentityProvider, provider.GetRef()) {
+			continue
+		}
+
+		if current, ok := existingProviders[providerType]; ok {
+			shouldUpdate, updateFields, changedFields := p.shouldUpdatePortalIdentityProvider(current, provider)
+			if shouldUpdate {
+				p.planPortalIdentityProviderUpdate(
+					parentNamespace,
+					current,
+					provider,
+					portalRef,
+					portalID,
+					updateFields,
+					changedFields,
+					plan,
+				)
+			}
+			continue
+		}
+
+		p.planPortalIdentityProviderCreate(parentNamespace, provider, portalID, plan)
+	}
+
+	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+		for providerType, current := range existingProviders {
+			if !desiredTypes[providerType] {
+				p.planPortalIdentityProviderDelete(parentNamespace, portalRef, portalID, current, plan)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) planPortalIdentityProviderCreate(
+	parentNamespace string, provider resources.PortalIdentityProviderResource, portalID string, plan *Plan,
+) {
+	fields := p.buildAllPortalIdentityProviderFields(provider)
+	dependencies := p.portalChildDependencies(plan, provider.Portal)
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalIdentityProvider, provider.GetRef()),
+		ResourceType: ResourceTypePortalIdentityProvider,
+		ResourceRef:  provider.GetRef(),
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
+	}
+
+	if provider.Portal != "" {
+		portalName := p.findPortalName(provider.Portal)
+		if portalID != "" {
+			change.Parent = &ParentInfo{Ref: provider.Portal, ID: portalID}
+		} else {
+			change.References = map[string]ReferenceInfo{
+				"portal_id": {Ref: provider.Portal, LookupFields: map[string]string{"name": portalName}},
+			}
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) shouldUpdatePortalIdentityProvider(
+	current state.PortalIdentityProvider,
+	desired resources.PortalIdentityProviderResource,
+) (bool, map[string]any, map[string]FieldChange) {
+	updates := make(map[string]any)
+	changedFields := make(map[string]FieldChange)
+
+	if desired.Enabled != nil && !p.comparePtrBools(current.Enabled, desired.Enabled) {
+		updates["enabled"] = *desired.Enabled
+		changedFields["enabled"] = FieldChange{Old: current.Enabled, New: *desired.Enabled}
+	}
+
+	if desired.LoginPath != nil {
+		currentLoginPath := ""
+		if current.LoginPath != nil {
+			currentLoginPath = *current.LoginPath
+		}
+		if current.LoginPath == nil || currentLoginPath != *desired.LoginPath {
+			updates["login_path"] = *desired.LoginPath
+			changedFields["login_path"] = FieldChange{Old: current.LoginPath, New: *desired.LoginPath}
+		}
+	}
+
+	if desired.Config != nil {
+		if portalIdentityProviderConfigNeedsUpdate(current.Config, desired.Config) {
+			updates["config"] = portalIdentityProviderConfigDiffValueFromCreate(desired.Config)
+			changedFields["config"] = FieldChange{
+				Old: portalIdentityProviderConfigDiffValue(current.Config),
+				New: portalIdentityProviderConfigDiffValueFromCreate(desired.Config),
+			}
+		}
+	}
+
+	return len(updates) > 0, updates, changedFields
+}
+
+func (p *Planner) planPortalIdentityProviderUpdate(
+	parentNamespace string,
+	current state.PortalIdentityProvider,
+	desired resources.PortalIdentityProviderResource,
+	portalRef string,
+	portalID string,
+	updateFields map[string]any,
+	changedFields map[string]FieldChange,
+	plan *Plan,
+) {
+	change := PlannedChange{
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypePortalIdentityProvider, desired.GetRef()),
+		ResourceType:  ResourceTypePortalIdentityProvider,
+		ResourceRef:   desired.GetRef(),
+		ResourceID:    current.ID,
+		Action:        ActionUpdate,
+		Fields:        updateFields,
+		ChangedFields: changedFields,
+		DependsOn:     p.portalChildDependencies(plan, portalRef),
+		Namespace:     parentNamespace,
+	}
+
+	if portalRef != "" {
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {Ref: portalRef, LookupFields: map[string]string{"name": p.findPortalName(portalRef)}},
+		}
+		change.Parent = &ParentInfo{Ref: portalRef, ID: portalID}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) planPortalIdentityProviderDelete(
+	parentNamespace string, portalRef string, portalID string, provider state.PortalIdentityProvider, plan *Plan,
+) {
+	fields := map[string]any{"type": string(provider.Type)}
+	if provider.LoginPath != nil {
+		fields["login_path"] = *provider.LoginPath
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalIdentityProvider, provider.ID),
+		ResourceType: ResourceTypePortalIdentityProvider,
+		ResourceRef:  provider.ID,
+		ResourceID:   provider.ID,
+		Action:       ActionDelete,
+		Fields:       fields,
+		Namespace:    parentNamespace,
+	}
+
+	if portalRef != "" {
+		change.Parent = &ParentInfo{Ref: portalRef, ID: portalID}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {Ref: portalRef, LookupFields: map[string]string{"name": p.findPortalName(portalRef)}},
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) buildAllPortalIdentityProviderFields(
+	provider resources.PortalIdentityProviderResource,
+) map[string]any {
+	fields := make(map[string]any)
+	if provider.Type != nil {
+		fields["type"] = string(*provider.Type)
+	}
+	if provider.Enabled != nil {
+		fields["enabled"] = *provider.Enabled
+	}
+	if provider.LoginPath != nil {
+		fields["login_path"] = *provider.LoginPath
+	}
+	if provider.Config != nil {
+		fields["config"] = portalIdentityProviderConfigDiffValueFromCreate(provider.Config)
+	}
+	return fields
+}
+
+func portalIdentityProviderConfigNeedsUpdate(
+	current *kkComps.IdentityProviderConfig,
+	desired *kkComps.CreateIdentityProviderConfig,
+) bool {
+	if desired == nil {
+		return false
+	}
+	if current == nil || current.Type == "" {
+		return true
+	}
+
+	switch desired.Type {
+	case kkComps.CreateIdentityProviderConfigTypeOIDCIdentityProviderConfig:
+		if current.Type != kkComps.IdentityProviderConfigTypeOIDCIdentityProviderConfigOutput {
+			return true
+		}
+		desiredOIDC := desired.OIDCIdentityProviderConfig
+		currentOIDC := current.OIDCIdentityProviderConfigOutput
+		if desiredOIDC == nil || currentOIDC == nil {
+			return true
+		}
+		if currentOIDC.IssuerURL != desiredOIDC.IssuerURL || currentOIDC.ClientID != desiredOIDC.ClientID {
+			return true
+		}
+		if !slices.Equal(currentOIDC.Scopes, desiredOIDC.Scopes) {
+			return true
+		}
+		if !reflect.DeepEqual(currentOIDC.ClaimMappings, desiredOIDC.ClaimMappings) {
+			return true
+		}
+		return desiredOIDC.ClientSecret != nil
+	case kkComps.CreateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:
+		if current.Type != kkComps.IdentityProviderConfigTypeSAMLIdentityProviderConfig {
+			return true
+		}
+		desiredSAML := desired.SAMLIdentityProviderConfigInput
+		currentSAML := current.SAMLIdentityProviderConfig
+		if desiredSAML == nil || currentSAML == nil {
+			return true
+		}
+		return !reflect.DeepEqual(desiredSAML.IdpMetadataURL, currentSAML.IdpMetadataURL) ||
+			!reflect.DeepEqual(desiredSAML.IdpMetadataXML, currentSAML.IdpMetadataXML)
+	default:
+		return true
+	}
+}
+
+func portalIdentityProviderConfigDiffValue(config *kkComps.IdentityProviderConfig) any {
+	if config == nil {
+		return nil
+	}
+	if config.OIDCIdentityProviderConfigOutput != nil {
+		return map[string]any{
+			"type":           "oidc",
+			"issuer_url":     config.OIDCIdentityProviderConfigOutput.IssuerURL,
+			"client_id":      config.OIDCIdentityProviderConfigOutput.ClientID,
+			"scopes":         config.OIDCIdentityProviderConfigOutput.Scopes,
+			"claim_mappings": config.OIDCIdentityProviderConfigOutput.ClaimMappings,
+		}
+	}
+	if config.SAMLIdentityProviderConfig != nil {
+		return map[string]any{
+			"type":             "saml",
+			"idp_metadata_url": config.SAMLIdentityProviderConfig.IdpMetadataURL,
+			"idp_metadata_xml": config.SAMLIdentityProviderConfig.IdpMetadataXML,
+		}
+	}
+	return nil
+}
+
+func portalIdentityProviderConfigDiffValueFromCreate(config *kkComps.CreateIdentityProviderConfig) any {
+	if config == nil {
+		return nil
+	}
+	if config.OIDCIdentityProviderConfig != nil {
+		var clientSecret any
+		if config.OIDCIdentityProviderConfig.ClientSecret != nil {
+			clientSecret = *config.OIDCIdentityProviderConfig.ClientSecret
+		}
+		return map[string]any{
+			"type":           "oidc",
+			"issuer_url":     config.OIDCIdentityProviderConfig.IssuerURL,
+			"client_id":      config.OIDCIdentityProviderConfig.ClientID,
+			"client_secret":  clientSecret,
+			"scopes":         config.OIDCIdentityProviderConfig.Scopes,
+			"claim_mappings": config.OIDCIdentityProviderConfig.ClaimMappings,
+		}
+	}
+	if config.SAMLIdentityProviderConfigInput != nil {
+		return map[string]any{
+			"type":             "saml",
+			"idp_metadata_url": config.SAMLIdentityProviderConfigInput.IdpMetadataURL,
+			"idp_metadata_xml": config.SAMLIdentityProviderConfigInput.IdpMetadataXML,
+		}
+	}
+	return nil
 }
 
 func (p *Planner) planPortalCustomizationUpdate(

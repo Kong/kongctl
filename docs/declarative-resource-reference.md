@@ -358,19 +358,24 @@ portals:
    auth_settings: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/update-portal-authentication-settings
      ref: string
      basic_auth_enabled: boolean
-     oidc_auth_enabled: boolean (deprecated)
-     saml_auth_enabled: boolean (deprecated)
-     oidc_team_mapping_enabled: boolean
      konnect_mapping_enabled: boolean
      idp_mapping_enabled: boolean
-     oidc_issuer: string (deprecated)
-     oidc_client_id: string (deprecated)
-     oidc_client_secret: string (deprecated)
-     oidc_scopes: array[string] (deprecated)
-     oidc_claim_mappings:
-       name: string (deprecated)
-       email: string (deprecated)
-       groups: string (deprecated)
+   identity_providers: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-identity-provider
+     - ref: string
+       type: One of (oidc | saml) required
+       enabled: boolean
+       login_path: string
+       config: object required
+         issuer_url: string # OIDC
+         client_id: string # OIDC
+         client_secret: string # OIDC
+         scopes: array[string] # OIDC
+         claim_mappings: # OIDC
+           name: string
+           email: string
+           groups: string
+         idp_metadata_url: string # SAML
+         idp_metadata_xml: string # SAML
    custom_domain: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-custom-domain
      ref: string
      hostname: string required

@@ -64,6 +64,9 @@ const (
 	// ResourceTypePortalAuthSettings is the resource type for portal auth settings
 	ResourceTypePortalAuthSettings = "portal_auth_settings"
 
+	// ResourceTypePortalIdentityProvider is the resource type for portal identity providers
+	ResourceTypePortalIdentityProvider = "portal_identity_provider"
+
 	// ResourceTypePortalCustomDomain is the resource type for portal custom domains
 	ResourceTypePortalCustomDomain = "portal_custom_domain"
 

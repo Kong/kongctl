@@ -3,6 +3,8 @@ package state
 import (
 	"strings"
 	"time"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // Cache represents cached Konnect state with hierarchical structure
@@ -167,6 +169,15 @@ type PortalSnippet struct {
 	Visibility       string
 	Status           string
 	NormalizedLabels map[string]string
+}
+
+// PortalIdentityProvider represents a portal identity provider.
+type PortalIdentityProvider struct {
+	ID        string
+	Type      kkComps.IdentityProviderType
+	Enabled   *bool
+	LoginPath *string
+	Config    *kkComps.IdentityProviderConfig
 }
 
 // PortalTeam represents a portal team (developer team)

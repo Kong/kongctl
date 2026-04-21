@@ -727,3 +727,69 @@ func extractNestedResourcesForTest(rs *resources.ResourceSet) {
 		api.Implementations = nil
 	}
 }
+
+func TestLoader_validateResourceSet_RejectsDeprecatedPortalAuthSettingsFields(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{{
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+			CreatePortal: kkComps.CreatePortal{Name: "portal-one"},
+		}},
+		PortalAuthSettings: []resources.PortalAuthSettingsResource{{
+			Ref:    "portal-auth-settings",
+			Portal: "portal-1",
+			PortalAuthenticationSettingsUpdateRequest: kkComps.PortalAuthenticationSettingsUpdateRequest{
+				OidcAuthEnabled: new(true),
+			},
+		}},
+	}
+
+	err := loader.validateResourceSet(rs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "uses deprecated field \"oidc_auth_enabled\"")
+	assert.Contains(t, err.Error(), "move identity provider configuration to identity_providers")
+}
+
+func TestLoader_validateResourceSet_RejectsDuplicatePortalIdentityProviderTypesPerPortal(t *testing.T) {
+	loader := New()
+	configA := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(kkComps.OIDCIdentityProviderConfig{
+		IssuerURL: "https://accounts.google.com",
+		ClientID:  "client-id-a",
+	})
+	configB := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(kkComps.OIDCIdentityProviderConfig{
+		IssuerURL: "https://login.microsoftonline.com/common/v2.0",
+		ClientID:  "client-id-b",
+	})
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{{
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+			CreatePortal: kkComps.CreatePortal{Name: "portal-one"},
+		}},
+		PortalIdentityProviders: []resources.PortalIdentityProviderResource{
+			{
+				Ref:    "portal-oidc-a",
+				Portal: "portal-1",
+				CreateIdentityProvider: kkComps.CreateIdentityProvider{
+					Type:   kkComps.IdentityProviderTypeOidc.ToPointer(),
+					Config: &configA,
+				},
+			},
+			{
+				Ref:    "portal-oidc-b",
+				Portal: "portal-1",
+				CreateIdentityProvider: kkComps.CreateIdentityProvider{
+					Type:   kkComps.IdentityProviderTypeOidc.ToPointer(),
+					Config: &configB,
+				},
+			},
+		},
+	}
+
+	err := loader.validateResourceSet(rs)
+	assert.Error(t, err)
+	assert.Contains(
+		t,
+		err.Error(),
+		"multiple portal_identity_provider entries target portal \"portal-1\" and type \"oidc\"",
+	)
+}

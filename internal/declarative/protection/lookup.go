@@ -110,6 +110,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypePortalCustomization,
 		resources.ResourceTypePortalCustomDomain,
 		resources.ResourceTypePortalAuthSettings,
+		resources.ResourceTypePortalIdentityProvider,
 		resources.ResourceTypePortalPage,
 		resources.ResourceTypePortalSnippet,
 		resources.ResourceTypePortalTeam,

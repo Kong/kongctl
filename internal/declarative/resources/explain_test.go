@@ -96,8 +96,11 @@ func TestRenderExplainText_ResourceSubject(t *testing.T) {
 	assert.Contains(t, text, "SUPPORTS ROOT: true")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: false")
 	assert.Contains(t, text, "ACCEPTS kongctl metadata: yes")
-	assert.Contains(t, text,
-		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, pages, snippets, teams")
+	assert.Contains(
+		t,
+		text,
+		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, identity_providers, pages, snippets, teams", //nolint:lll
+	)
 	assert.Contains(t, text, "\nFIELD DETAILS: use --extended")
 	assert.NotContains(t, text, "RESOURCE: portal")
 	assert.NotContains(t, text, "PATH: portal")
@@ -129,8 +132,11 @@ func TestRenderExplainText_FieldSubject(t *testing.T) {
 	assert.Contains(t, text, "\nRESOURCE\nRESOURCE CLASS: top-level")
 	assert.Contains(t, text, "ROOT KEY: portals[]")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: false")
-	assert.Contains(t, text,
-		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, pages, snippets, teams")
+	assert.Contains(
+		t,
+		text,
+		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, identity_providers, pages, snippets, teams", //nolint:lll
+	)
 	assert.NotContains(t, text, "PLACEMENT")
 	assert.NotContains(t, text, "YAML PATH:")
 }

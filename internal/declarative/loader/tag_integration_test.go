@@ -335,3 +335,48 @@ portals:
 	assert.Equal(t, "__ENV__:CUSTOM_CERT", envSources["/ssl/custom_certificate"])
 	assert.Equal(t, "__ENV__:CUSTOM_KEY", envSources["/ssl/custom_private_key"])
 }
+
+func TestLoader_EnvTagIntegration_PortalIdentityProviderConfig(t *testing.T) {
+	t.Setenv("IDP_ISSUER_URL", "https://example.okta.test/oauth2/default")
+	t.Setenv("IDP_CLIENT_ID", "client-id-from-env")
+	t.Setenv("IDP_CLIENT_SECRET", "client-secret-from-env")
+
+	tmpDir, err := os.MkdirTemp("", "loader-env-portal-idp-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	mainContent := `
+portals:
+  - ref: env-portal
+    name: env-portal
+    identity_providers:
+      - ref: env-portal-idp
+        type: oidc
+        config:
+          issuer_url: !env IDP_ISSUER_URL
+          client_id: !env IDP_CLIENT_ID
+          client_secret: !env IDP_CLIENT_SECRET
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	rs, err := loader.LoadFile(mainFile)
+	require.NoError(t, err)
+	require.NotNil(t, rs)
+	require.Len(t, rs.PortalIdentityProviders, 1)
+
+	config := rs.PortalIdentityProviders[0].Config
+	require.NotNil(t, config)
+	require.NotNil(t, config.OIDCIdentityProviderConfig)
+	assert.Equal(t, "https://example.okta.test/oauth2/default", config.OIDCIdentityProviderConfig.IssuerURL)
+	assert.Equal(t, "client-id-from-env", config.OIDCIdentityProviderConfig.ClientID)
+	require.NotNil(t, config.OIDCIdentityProviderConfig.ClientSecret)
+	assert.Equal(t, "client-secret-from-env", *config.OIDCIdentityProviderConfig.ClientSecret)
+
+	envSources := rs.GetEnvSources("env-portal-idp")
+	assert.Equal(t, "__ENV__:IDP_ISSUER_URL", envSources["/config/issuer_url"])
+	assert.Equal(t, "__ENV__:IDP_CLIENT_ID", envSources["/config/client_id"])
+	assert.Equal(t, "__ENV__:IDP_CLIENT_SECRET", envSources["/config/client_secret"])
+}

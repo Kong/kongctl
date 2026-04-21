@@ -1,0 +1,19 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+steps:
+  - name: 000-plan-fails-on-deprecated-auth-settings-fields
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "move identity provider configuration to identity_providers"

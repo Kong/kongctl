@@ -2265,15 +2265,16 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		CatalogServiceAPI:     kkClient.GetCatalogServicesAPI(),
 
 		// Portal child resource APIs
-		PortalPageAPI:          kkClient.GetPortalPageAPI(),
-		PortalAuthSettingsAPI:  kkClient.GetPortalAuthSettingsAPI(),
-		PortalCustomizationAPI: kkClient.GetPortalCustomizationAPI(),
-		PortalCustomDomainAPI:  kkClient.GetPortalCustomDomainAPI(),
-		PortalSnippetAPI:       kkClient.GetPortalSnippetAPI(),
-		PortalTeamAPI:          kkClient.GetPortalTeamAPI(),
-		PortalTeamRolesAPI:     kkClient.GetPortalTeamRolesAPI(),
-		PortalEmailsAPI:        kkClient.GetPortalEmailsAPI(),
-		AssetsAPI:              kkClient.GetAssetsAPI(),
+		PortalPageAPI:             kkClient.GetPortalPageAPI(),
+		PortalAuthSettingsAPI:     kkClient.GetPortalAuthSettingsAPI(),
+		PortalIdentityProviderAPI: kkClient.GetPortalIdentityProviderAPI(),
+		PortalCustomizationAPI:    kkClient.GetPortalCustomizationAPI(),
+		PortalCustomDomainAPI:     kkClient.GetPortalCustomDomainAPI(),
+		PortalSnippetAPI:          kkClient.GetPortalSnippetAPI(),
+		PortalTeamAPI:             kkClient.GetPortalTeamAPI(),
+		PortalTeamRolesAPI:        kkClient.GetPortalTeamRolesAPI(),
+		PortalEmailsAPI:           kkClient.GetPortalEmailsAPI(),
+		AssetsAPI:                 kkClient.GetAssetsAPI(),
 
 		// API child resource APIs
 		APIVersionAPI:        kkClient.GetAPIVersionAPI(),

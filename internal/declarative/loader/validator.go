@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/declarative/validator"
@@ -510,19 +511,62 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 	}
 
 	// Validate portal auth settings
+	// Validate portal auth settings
 	for i := range rs.PortalAuthSettings {
 		settings := &rs.PortalAuthSettings[i]
 		if err := settings.Validate(); err != nil {
 			return fmt.Errorf("invalid portal_auth_settings %q: %w", settings.GetRef(), err)
 		}
+		if settings.Portal == "" {
+			return fmt.Errorf("portal_auth_settings %q must specify portal", settings.GetRef())
+		}
+		if deprecatedField := deprecatedPortalAuthSettingsField(settings); deprecatedField != "" {
+			return fmt.Errorf(
+				"portal_auth_settings %q uses deprecated field %q; move identity provider configuration to identity_providers",
+				settings.GetRef(),
+				deprecatedField,
+			)
+		}
 		for j := i + 1; j < len(rs.PortalAuthSettings); j++ {
 			if rs.PortalAuthSettings[j].GetRef() == settings.GetRef() {
 				return fmt.Errorf(
-					"duplicate ref '%s' (already defined as portal_auth_settings)",
+					"duplicate ref %s (already defined as portal_auth_settings)",
 					settings.GetRef(),
 				)
 			}
 		}
+	}
+
+	// Validate portal identity providers
+	portalProviderRefs := make(map[string]bool)
+	portalProviderTypes := make(map[string]map[kkComps.IdentityProviderType]string)
+	for i := range rs.PortalIdentityProviders {
+		provider := &rs.PortalIdentityProviders[i]
+		if err := provider.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_identity_provider %q: %w", provider.GetRef(), err)
+		}
+		if provider.Portal == "" {
+			return fmt.Errorf("portal_identity_provider %q must specify portal", provider.GetRef())
+		}
+		if portalProviderRefs[provider.GetRef()] {
+			return fmt.Errorf("duplicate ref %s (already defined as portal_identity_provider)", provider.GetRef())
+		}
+		portalProviderRefs[provider.GetRef()] = true
+
+		if _, ok := portalProviderTypes[provider.Portal]; !ok {
+			portalProviderTypes[provider.Portal] = make(map[kkComps.IdentityProviderType]string)
+		}
+		providerType := *provider.Type
+		if existingRef, ok := portalProviderTypes[provider.Portal][providerType]; ok {
+			return fmt.Errorf(
+				"multiple portal_identity_provider entries target portal %q and type %q (%s and %s)",
+				provider.Portal,
+				string(providerType),
+				existingRef,
+				provider.GetRef(),
+			)
+		}
+		portalProviderTypes[provider.Portal][providerType] = provider.GetRef()
 	}
 
 	// Validate portal custom domains
@@ -829,4 +873,27 @@ func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
 	}
 
 	return nil
+}
+
+func deprecatedPortalAuthSettingsField(settings *resources.PortalAuthSettingsResource) string {
+	switch {
+	case settings.OidcAuthEnabled != nil:
+		return "oidc_auth_enabled"
+	case settings.SamlAuthEnabled != nil:
+		return "saml_auth_enabled"
+	case settings.OidcTeamMappingEnabled != nil:
+		return "oidc_team_mapping_enabled"
+	case settings.OidcIssuer != nil:
+		return "oidc_issuer"
+	case settings.OidcClientID != nil:
+		return "oidc_client_id"
+	case settings.OidcClientSecret != nil:
+		return "oidc_client_secret"
+	case settings.OidcScopes != nil:
+		return "oidc_scopes"
+	case settings.OidcClaimMappings != nil:
+		return "oidc_claim_mappings"
+	default:
+		return ""
+	}
 }

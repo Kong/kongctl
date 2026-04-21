@@ -35,6 +35,7 @@ type SDKAPI interface {
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
 	GetPortalAuthSettingsAPI() PortalAuthSettingsAPI
+	GetPortalIdentityProviderAPI() PortalIdentityProviderAPI
 	GetPortalCustomizationAPI() PortalCustomizationAPI
 	GetPortalCustomDomainAPI() PortalCustomDomainAPI
 	GetPortalSnippetAPI() PortalSnippetAPI
@@ -202,6 +203,20 @@ func (k *KonnectSDK) GetPortalAuthSettingsAPI() PortalAuthSettingsAPI {
 	}
 
 	return &PortalAuthSettingsAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalIdentityProviderAPI interface
+func (k *KonnectSDK) GetPortalIdentityProviderAPI() PortalIdentityProviderAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalIdentityProviderAPIImpl{
+		SDK:        k.SDK,
+		BaseURL:    k.BaseURL,
+		Token:      k.Token,
+		HTTPClient: k.HTTPClient,
+	}
 }
 
 // Returns the implementation of the PortalCustomizationAPI interface

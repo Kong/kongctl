@@ -35,15 +35,16 @@ type ClientConfig struct {
 	CatalogServiceAPI     helpers.CatalogServicesAPI
 
 	// Portal child resource APIs
-	PortalPageAPI          helpers.PortalPageAPI
-	PortalAuthSettingsAPI  helpers.PortalAuthSettingsAPI
-	PortalCustomizationAPI helpers.PortalCustomizationAPI
-	PortalCustomDomainAPI  helpers.PortalCustomDomainAPI
-	PortalSnippetAPI       helpers.PortalSnippetAPI
-	PortalTeamAPI          helpers.PortalTeamAPI
-	PortalTeamRolesAPI     helpers.PortalTeamRolesAPI
-	PortalEmailsAPI        helpers.PortalEmailsAPI
-	AssetsAPI              helpers.AssetsAPI
+	PortalPageAPI             helpers.PortalPageAPI
+	PortalAuthSettingsAPI     helpers.PortalAuthSettingsAPI
+	PortalIdentityProviderAPI helpers.PortalIdentityProviderAPI
+	PortalCustomizationAPI    helpers.PortalCustomizationAPI
+	PortalCustomDomainAPI     helpers.PortalCustomDomainAPI
+	PortalSnippetAPI          helpers.PortalSnippetAPI
+	PortalTeamAPI             helpers.PortalTeamAPI
+	PortalTeamRolesAPI        helpers.PortalTeamRolesAPI
+	PortalEmailsAPI           helpers.PortalEmailsAPI
+	AssetsAPI                 helpers.AssetsAPI
 
 	// API child resource APIs
 	APIVersionAPI        helpers.APIVersionAPI
@@ -82,15 +83,16 @@ type Client struct {
 	catalogServiceAPI     helpers.CatalogServicesAPI
 
 	// Portal child resource APIs
-	portalPageAPI          helpers.PortalPageAPI
-	portalAuthSettingsAPI  helpers.PortalAuthSettingsAPI
-	portalCustomizationAPI helpers.PortalCustomizationAPI
-	portalCustomDomainAPI  helpers.PortalCustomDomainAPI
-	portalSnippetAPI       helpers.PortalSnippetAPI
-	portalTeamAPI          helpers.PortalTeamAPI
-	portalTeamRolesAPI     helpers.PortalTeamRolesAPI
-	portalEmailsAPI        helpers.PortalEmailsAPI
-	assetsAPI              helpers.AssetsAPI
+	portalPageAPI             helpers.PortalPageAPI
+	portalAuthSettingsAPI     helpers.PortalAuthSettingsAPI
+	portalIdentityProviderAPI helpers.PortalIdentityProviderAPI
+	portalCustomizationAPI    helpers.PortalCustomizationAPI
+	portalCustomDomainAPI     helpers.PortalCustomDomainAPI
+	portalSnippetAPI          helpers.PortalSnippetAPI
+	portalTeamAPI             helpers.PortalTeamAPI
+	portalTeamRolesAPI        helpers.PortalTeamRolesAPI
+	portalEmailsAPI           helpers.PortalEmailsAPI
+	assetsAPI                 helpers.AssetsAPI
 
 	// API child resource APIs
 	apiVersionAPI        helpers.APIVersionAPI
@@ -130,15 +132,16 @@ func NewClient(config ClientConfig) *Client {
 		catalogServiceAPI:     config.CatalogServiceAPI,
 
 		// Portal child resource APIs
-		portalPageAPI:          config.PortalPageAPI,
-		portalAuthSettingsAPI:  config.PortalAuthSettingsAPI,
-		portalCustomizationAPI: config.PortalCustomizationAPI,
-		portalCustomDomainAPI:  config.PortalCustomDomainAPI,
-		portalSnippetAPI:       config.PortalSnippetAPI,
-		portalTeamAPI:          config.PortalTeamAPI,
-		portalTeamRolesAPI:     config.PortalTeamRolesAPI,
-		portalEmailsAPI:        config.PortalEmailsAPI,
-		assetsAPI:              config.AssetsAPI,
+		portalPageAPI:             config.PortalPageAPI,
+		portalAuthSettingsAPI:     config.PortalAuthSettingsAPI,
+		portalIdentityProviderAPI: config.PortalIdentityProviderAPI,
+		portalCustomizationAPI:    config.PortalCustomizationAPI,
+		portalCustomDomainAPI:     config.PortalCustomDomainAPI,
+		portalSnippetAPI:          config.PortalSnippetAPI,
+		portalTeamAPI:             config.PortalTeamAPI,
+		portalTeamRolesAPI:        config.PortalTeamRolesAPI,
+		portalEmailsAPI:           config.PortalEmailsAPI,
+		assetsAPI:                 config.AssetsAPI,
 
 		// API child resource APIs
 		apiVersionAPI:        config.APIVersionAPI,
@@ -2548,15 +2551,6 @@ func (c *Client) GetPortalAuthSettings(
 		return nil, fmt.Errorf("no portal auth settings data in response")
 	}
 
-	if err := helpers.HydratePortalAuthSettingsOIDCConfig(
-		resp.PortalAuthenticationSettingsResponse,
-		resp.RawResponse,
-	); err != nil {
-		if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
-			logger.Debug("failed to hydrate portal auth settings OIDC config from raw response", "error", err)
-		}
-	}
-
 	return resp.PortalAuthenticationSettingsResponse, nil
 }
 
@@ -2574,15 +2568,8 @@ func (c *Client) UpdatePortalAuthSettings(
 		logger.Debug("updating portal auth settings",
 			"portal_id", portalID,
 			"basic_auth_enabled", settings.BasicAuthEnabled,
-			"oidc_auth_enabled", settings.OidcAuthEnabled,
-			"saml_auth_enabled", settings.SamlAuthEnabled,
-			"oidc_team_mapping_enabled", settings.OidcTeamMappingEnabled,
 			"idp_mapping_enabled", settings.IdpMappingEnabled,
 			"konnect_mapping_enabled", settings.KonnectMappingEnabled,
-			"oidc_issuer", settings.OidcIssuer,
-			"oidc_client_id", settings.OidcClientID,
-			"oidc_scopes", settings.OidcScopes,
-			"oidc_claim_mappings", settings.OidcClaimMappings,
 		)
 	}
 
@@ -2591,6 +2578,162 @@ func (c *Client) UpdatePortalAuthSettings(
 		return WrapAPIError(err, "update portal auth settings", nil)
 	}
 	return nil
+}
+
+// ListPortalIdentityProviders returns all identity providers for a portal.
+func (c *Client) ListPortalIdentityProviders(ctx context.Context, portalID string) ([]PortalIdentityProvider, error) {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalIdentityProviderAPI.ListPortalIdentityProviders(
+		ctx,
+		kkOps.GetPortalIdentityProvidersRequest{PortalID: portalID},
+	)
+	if err != nil {
+		return nil, WrapAPIError(
+			err,
+			"list portal identity providers",
+			&ErrorWrapperOptions{ResourceType: "portal_identity_provider", ResourceName: portalID, UseEnhanced: true},
+		)
+	}
+
+	providers := make([]PortalIdentityProvider, 0, len(resp.IdentityProviders))
+	for _, provider := range resp.IdentityProviders {
+		providers = append(providers, normalizePortalIdentityProvider(provider))
+	}
+
+	return providers, nil
+}
+
+// GetPortalIdentityProvider fetches a single identity provider for a portal.
+func (c *Client) GetPortalIdentityProvider(
+	ctx context.Context,
+	portalID string,
+	id string,
+) (*PortalIdentityProvider, error) {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalIdentityProviderAPI.GetPortalIdentityProvider(ctx, portalID, id)
+	if err != nil {
+		var notFound *kkErrors.NotFoundError
+		if errors.As(err, &notFound) {
+			return nil, nil
+		}
+		return nil, WrapAPIError(
+			err,
+			"get portal identity provider",
+			&ErrorWrapperOptions{ResourceType: "portal_identity_provider", ResourceName: id, UseEnhanced: true},
+		)
+	}
+	if resp == nil || resp.IdentityProvider == nil {
+		return nil, nil
+	}
+
+	provider := normalizePortalIdentityProvider(*resp.IdentityProvider)
+	return &provider, nil
+}
+
+// CreatePortalIdentityProvider creates a new identity provider for a portal.
+func (c *Client) CreatePortalIdentityProvider(
+	ctx context.Context,
+	portalID string,
+	body kkComps.CreateIdentityProvider,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalIdentityProviderAPI.CreatePortalIdentityProvider(ctx, portalID, body)
+	if err != nil {
+		resourceName := portalIdentityProviderName(body)
+		return "", WrapAPIError(
+			err,
+			"create portal identity provider",
+			&ErrorWrapperOptions{
+				ResourceType: "portal_identity_provider",
+				ResourceName: resourceName,
+				Namespace:    namespace,
+				UseEnhanced:  true,
+			},
+		)
+	}
+	if resp == nil || resp.IdentityProvider == nil || resp.IdentityProvider.ID == nil {
+		return "", NewResponseValidationError("create portal identity provider", "IdentityProvider")
+	}
+
+	return *resp.IdentityProvider.ID, nil
+}
+
+// UpdatePortalIdentityProvider updates an identity provider for a portal.
+func (c *Client) UpdatePortalIdentityProvider(
+	ctx context.Context,
+	portalID string,
+	id string,
+	body kkComps.UpdateIdentityProvider,
+	namespace string,
+) error {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return err
+	}
+
+	_, err := c.portalIdentityProviderAPI.UpdatePortalIdentityProvider(
+		ctx,
+		kkOps.UpdatePortalIdentityProviderRequest{PortalID: portalID, ID: id, UpdateIdentityProvider: body},
+	)
+	if err != nil {
+		return WrapAPIError(
+			err,
+			"update portal identity provider",
+			&ErrorWrapperOptions{
+				ResourceType: "portal_identity_provider",
+				ResourceName: id,
+				Namespace:    namespace,
+				UseEnhanced:  true,
+			},
+		)
+	}
+	return nil
+}
+
+// DeletePortalIdentityProvider deletes an identity provider from a portal.
+func (c *Client) DeletePortalIdentityProvider(ctx context.Context, portalID string, id string) error {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return err
+	}
+
+	_, err := c.portalIdentityProviderAPI.DeletePortalIdentityProvider(ctx, portalID, id)
+	if err != nil {
+		return WrapAPIError(
+			err,
+			"delete portal identity provider",
+			&ErrorWrapperOptions{ResourceType: "portal_identity_provider", ResourceName: id, UseEnhanced: true},
+		)
+	}
+	return nil
+}
+
+func normalizePortalIdentityProvider(provider kkComps.IdentityProvider) PortalIdentityProvider {
+	normalized := PortalIdentityProvider{Config: provider.Config}
+	if provider.ID != nil {
+		normalized.ID = *provider.ID
+	}
+	if provider.Type != nil {
+		normalized.Type = *provider.Type
+	}
+	normalized.Enabled = provider.Enabled
+	normalized.LoginPath = provider.LoginPath
+	return normalized
+}
+
+func portalIdentityProviderName(body kkComps.CreateIdentityProvider) string {
+	if body.Type == nil {
+		return ""
+	}
+	return string(*body.Type)
 }
 
 // GetPortalEmailConfig fetches the current email configuration for a portal.
@@ -4966,7 +5109,8 @@ func extractProducePolicyCreateName(req kkComps.EventGatewayProducePolicyCreate)
 	if req.EventGatewayModifyHeadersPolicyCreate != nil && req.EventGatewayModifyHeadersPolicyCreate.Name != nil {
 		return *req.EventGatewayModifyHeadersPolicyCreate.Name
 	}
-	if req.EventGatewayProduceSchemaValidationPolicy != nil && req.EventGatewayProduceSchemaValidationPolicy.Name != nil {
+	if req.EventGatewayProduceSchemaValidationPolicy != nil &&
+		req.EventGatewayProduceSchemaValidationPolicy.Name != nil {
 		return *req.EventGatewayProduceSchemaValidationPolicy.Name
 	}
 	if req.EventGatewayEncryptPolicy != nil && req.EventGatewayEncryptPolicy.Name != nil {
@@ -4980,7 +5124,8 @@ func extractProducePolicyUpdateName(req kkComps.EventGatewayProducePolicyUpdate)
 	if req.EventGatewayModifyHeadersPolicy != nil && req.EventGatewayModifyHeadersPolicy.Name != nil {
 		return *req.EventGatewayModifyHeadersPolicy.Name
 	}
-	if req.EventGatewayProduceSchemaValidationPolicy != nil && req.EventGatewayProduceSchemaValidationPolicy.Name != nil {
+	if req.EventGatewayProduceSchemaValidationPolicy != nil &&
+		req.EventGatewayProduceSchemaValidationPolicy.Name != nil {
 		return *req.EventGatewayProduceSchemaValidationPolicy.Name
 	}
 	if req.EventGatewayEncryptPolicy != nil && req.EventGatewayEncryptPolicy.Name != nil {
