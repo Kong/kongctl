@@ -204,7 +204,10 @@ func readAndRestoreRequestBody(req *http.Request) ([]byte, error) {
 		return nil, nil
 	}
 
-	body, err := io.ReadAll(req.Body)
+	originalBody := req.Body
+	defer originalBody.Close()
+
+	body, err := io.ReadAll(originalBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}

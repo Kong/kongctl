@@ -67,10 +67,16 @@ func (p PortalIdentityProviderResource) Validate() error {
 
 	switch p.Config.Type {
 	case kkComps.CreateIdentityProviderConfigTypeOIDCIdentityProviderConfig:
+		if *p.Type != kkComps.IdentityProviderTypeOidc {
+			return fmt.Errorf("identity provider type %q does not match oidc config", *p.Type)
+		}
 		if p.Config.OIDCIdentityProviderConfig == nil {
 			return fmt.Errorf("oidc identity provider config is required")
 		}
 	case kkComps.CreateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:
+		if *p.Type != kkComps.IdentityProviderTypeSaml {
+			return fmt.Errorf("identity provider type %q does not match saml config", *p.Type)
+		}
 		if p.Config.SAMLIdentityProviderConfigInput == nil {
 			return fmt.Errorf("saml identity provider config is required")
 		}

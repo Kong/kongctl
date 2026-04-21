@@ -3,6 +3,9 @@ package resources
 import (
 	"encoding/json"
 	"testing"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPortalIdentityProviderResourceUnmarshalJSON_OmittedEnabledStaysNil(t *testing.T) {
@@ -57,4 +60,49 @@ func TestPortalIdentityProviderResourceUnmarshalJSON_PreservesExplicitEnabled(t 
 	if !*resource.Enabled {
 		t.Fatal("expected enabled to be true")
 	}
+}
+
+func TestPortalIdentityProviderResourceValidate_RejectsMismatchedOIDCType(t *testing.T) {
+	t.Parallel()
+
+	config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+		kkComps.OIDCIdentityProviderConfig{
+			IssuerURL: "https://accounts.google.com",
+			ClientID:  "client-id-1",
+		},
+	)
+	resource := PortalIdentityProviderResource{
+		Ref: "portal-idp",
+		CreateIdentityProvider: kkComps.CreateIdentityProvider{
+			Type:   kkComps.IdentityProviderTypeSaml.ToPointer(),
+			Config: &config,
+		},
+	}
+
+	err := resource.Validate()
+	require.EqualError(t, err, `identity provider type "saml" does not match oidc config`)
+}
+
+func TestPortalIdentityProviderResourceValidate_RejectsMismatchedSAMLType(t *testing.T) {
+	t.Parallel()
+
+	config := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
+		kkComps.SAMLIdentityProviderConfigInput{
+			IdpMetadataURL: stringPtr("https://example.test/saml.xml"),
+		},
+	)
+	resource := PortalIdentityProviderResource{
+		Ref: "portal-idp",
+		CreateIdentityProvider: kkComps.CreateIdentityProvider{
+			Type:   kkComps.IdentityProviderTypeOidc.ToPointer(),
+			Config: &config,
+		},
+	}
+
+	err := resource.Validate()
+	require.EqualError(t, err, `identity provider type "oidc" does not match saml config`)
+}
+
+func stringPtr(value string) *string {
+	return &value
 }

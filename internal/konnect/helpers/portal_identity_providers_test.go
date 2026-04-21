@@ -109,3 +109,48 @@ func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderStripsEnabledF
 		t.Fatalf("expected identity provider response, got %#v", resp)
 	}
 }
+
+type trackingReadCloser struct {
+	reader io.Reader
+	closed bool
+}
+
+func (t *trackingReadCloser) Read(p []byte) (int, error) {
+	return t.reader.Read(p)
+}
+
+func (t *trackingReadCloser) Close() error {
+	t.closed = true
+	return nil
+}
+
+func TestReadAndRestoreRequestBodyClosesOriginalBody(t *testing.T) {
+	t.Parallel()
+
+	originalBody := &trackingReadCloser{reader: bytes.NewBufferString(`{"type":"oidc"}`)}
+	req, err := http.NewRequest(http.MethodPost, "https://example.test/v3/portals/p/identity-providers", originalBody)
+	if err != nil {
+		t.Fatalf("unexpected error creating request: %v", err)
+	}
+	req.Body = originalBody
+
+	body, err := readAndRestoreRequestBody(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if string(body) != `{"type":"oidc"}` {
+		t.Fatalf("unexpected body: %s", body)
+	}
+	if !originalBody.closed {
+		t.Fatal("expected original request body to be closed")
+	}
+
+	restoredBody, err := io.ReadAll(req.Body)
+	if err != nil {
+		t.Fatalf("unexpected error reading restored body: %v", err)
+	}
+	if string(restoredBody) != `{"type":"oidc"}` {
+		t.Fatalf("unexpected restored body: %s", restoredBody)
+	}
+}

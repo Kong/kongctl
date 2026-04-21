@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 type stubPortalCustomDomainAPI struct {
@@ -727,4 +728,20 @@ func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) 
 	)
 	assert.NoError(t, err)
 	assert.Empty(t, plan.Changes)
+}
+
+func TestPortalIdentityProviderConfigDiffValueFromCreate_OmitsAbsentClientSecret(t *testing.T) {
+	t.Parallel()
+
+	config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+		kkComps.OIDCIdentityProviderConfig{
+			IssuerURL: "https://accounts.google.com",
+			ClientID:  "client-id-1",
+			Scopes:    []string{"openid", "profile"},
+		},
+	)
+
+	diffValue, ok := portalIdentityProviderConfigDiffValueFromCreate(&config).(map[string]any)
+	require.True(t, ok)
+	assert.NotContains(t, diffValue, "client_secret")
 }

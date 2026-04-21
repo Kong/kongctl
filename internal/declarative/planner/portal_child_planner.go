@@ -544,18 +544,17 @@ func portalIdentityProviderConfigDiffValueFromCreate(config *kkComps.CreateIdent
 		return nil
 	}
 	if config.OIDCIdentityProviderConfig != nil {
-		var clientSecret any
-		if config.OIDCIdentityProviderConfig.ClientSecret != nil {
-			clientSecret = *config.OIDCIdentityProviderConfig.ClientSecret
-		}
-		return map[string]any{
+		diffValue := map[string]any{
 			"type":           "oidc",
 			"issuer_url":     config.OIDCIdentityProviderConfig.IssuerURL,
 			"client_id":      config.OIDCIdentityProviderConfig.ClientID,
-			"client_secret":  clientSecret,
 			"scopes":         config.OIDCIdentityProviderConfig.Scopes,
 			"claim_mappings": config.OIDCIdentityProviderConfig.ClaimMappings,
 		}
+		if config.OIDCIdentityProviderConfig.ClientSecret != nil {
+			diffValue["client_secret"] = *config.OIDCIdentityProviderConfig.ClientSecret
+		}
+		return diffValue
 	}
 	if config.SAMLIdentityProviderConfigInput != nil {
 		return map[string]any{

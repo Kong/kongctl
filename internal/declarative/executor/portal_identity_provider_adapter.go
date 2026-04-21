@@ -89,7 +89,7 @@ func (p *PortalIdentityProviderAdapter) Create(
 		return "", err
 	}
 
-	if enabled != nil && *enabled {
+	if enabled != nil {
 		update := kkComps.UpdateIdentityProvider{Enabled: enabled}
 		if err := p.client.UpdatePortalIdentityProvider(
 			ctx,
