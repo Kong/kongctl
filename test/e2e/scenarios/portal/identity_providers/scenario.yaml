@@ -171,3 +171,44 @@ steps:
                 enabled: false
                 config.client_id: "{{ .vars.updateClientID }}"
                 config.claim_mappings.name: full_name
+
+  - name: 003-dump-and-plan-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-portals-with-idps
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--default-namespace={{ .vars.namespace }}"
+          - "--filter-name={{ .vars.portalRef }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              portals[?name=='{{ .vars.portalRef }}'] | [0].identity_providers[?type=='oidc'] | [0]
+            expect:
+              fields:
+                type: oidc
+                enabled: false
+                config.client_id: "{{ .vars.updateClientID }}"
+                config.claim_mappings.name: full_name
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
