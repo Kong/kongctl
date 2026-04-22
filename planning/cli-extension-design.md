@@ -28,9 +28,9 @@ command shape.
 For users, this means they can install an extension from a local path or a
 GitHub repository and then use the new command path as if it were part of the
 CLI. The extension should show up in help and inspection output, follow the
-same command grammar as the rest of `kongctl`, and be managed with normal
-verb-first lifecycle commands such as `install`, `upgrade`, `list`, and
-`uninstall`.
+same command grammar as the rest of `kongctl`, clearly identify its source in
+help and inspection output, and be managed with normal verb-first lifecycle
+commands such as `install`, `upgrade`, `list`, and `uninstall`.
 
 Technically, each extension is a separately executed script or binary described
 by `extension.yaml`. During install or link, `kongctl` runs the extension in a
@@ -66,13 +66,18 @@ The proposed design is driven by the following goals:
 | Contribution type | `command_paths` |
 | Built-in precedence | Built-ins always win |
 | Open existing verbs in v1 | `get`, `list` |
+| Provenance in help | Extension-contributed paths must be visibly labeled |
 | Manifest | Simple `extension.yaml` for package metadata |
 | Command metadata | Runtime descriptor via `__kongctl describe` |
+| Dispatch integration | Synthetic Cobra commands from cached descriptors |
+| Flag boundary | Host parses global flags; extension parses `remaining_args` |
+| Descriptor stability | Install-stable in v1; linked extensions refresh aggressively |
 | Runtime model | Managed external child process |
 | Runtime context transport | `KONGCTL_EXTENSION_SESSION_DIR` |
 | Runtime context file | `context.json` |
 | Nested host callbacks | Re-enter `kongctl` as a subprocess |
-| v1 Go library | Thin wrapper, not a large host SDK |
+| v1 Go SDK | Not required |
+| Performance gate | Validate subprocess cost before locking implementation |
 | Secrets in context | Never include them |
 | Cleanup | Best-effort immediate cleanup plus stale-session reaping |
 | Safety | Install-time conflict checks and recursion guard |
@@ -127,6 +132,34 @@ All other existing verbs should be treated as closed to extension in v1 unless
 explicitly revisited later. This preserves room for future hooks without
 committing to them early.
 
+Because these command paths can appear under built-in verbs, the trust boundary
+must stay visible in the UI. `kongctl get --help`, completion output, and
+inspection commands should visibly label extension-contributed entries with
+their source extension. The command syntax should feel native, but provenance
+should never be hidden.
+
+Short example:
+
+```text
+$ kongctl get --help
+
+Available Commands:
+  api         Get APIs
+  services    Get services
+  foo         Get Foo resources  [extension: acme-foo]
+```
+
+And for inspection:
+
+```text
+$ kongctl inspect extension acme-foo
+
+Name: acme-foo
+Contributed command paths:
+  - get foo
+  - list foo
+```
+
 ### 4. Treat One Extension As A Bundle Of Command Paths
 
 One extension should be able to contribute many command paths. The extension
@@ -167,6 +200,11 @@ In v1, `runtime.command` is needed immediately because it tells `kongctl`
 which executable to invoke for `__kongctl describe` and normal dispatch.
 Install source, upgrade provenance, and any future trust metadata should be
 tracked by `kongctl` itself, not required in the manifest.
+
+`runtime.command` should be treated as the installed entrypoint name, not a
+promise that every platform uses the exact same file suffix. `kongctl` still
+needs explicit platform resolution rules for Windows wrappers and executable
+extensions.
 
 ### 6. Use A Runtime Describe Contract For Command Metadata
 
@@ -241,6 +279,49 @@ This design cleanly separates concerns:
 - environment variables carry ambient runtime context such as
   `KONGCTL_EXTENSION_SESSION_DIR`
 
+This choice also has an important tradeoff: the selected platform entrypoint
+must be executable on the installing machine so `kongctl` can run
+`__kongctl describe`. That is an intentional v1 constraint. It keeps command
+metadata aligned with the implementation, but it means install-time validation
+applies to the local platform artifact, not every artifact a repository might
+publish.
+
+#### Descriptor stability in v1
+
+In v1, the command descriptor should be treated as install-stable metadata.
+
+That means:
+
+- command paths should not change based on the current profile
+- command paths should not change based on the connected organization
+- flags and help text should remain stable for the installed extension version
+
+Dynamic runtime behavior is still fine, but dynamic command registration is not
+part of the v1 design. If an extension needs a different command surface after
+an upgrade or local edit, the descriptor should be refreshed through install,
+upgrade, link, or an explicit refresh path.
+
+Linked extensions are the exception for developer experience. They should
+either be re-described on each invocation or have very aggressive cache
+invalidation so local edits show up immediately.
+
+#### Flag and argument boundary in v1
+
+The host and extension need a strict parsing boundary.
+
+Recommended v1 behavior:
+
+- `kongctl` parses root-level global flags before extension dispatch
+- once a command path is matched, the remaining tokens are passed to the
+  extension verbatim as `remaining_args`
+- extension-specific flags and arg validation belong to the extension, not the
+  host
+- `--help` for an extension command path should be rendered from the cached
+  descriptor so help stays fast and consistent
+
+This keeps the host/extension contract simple and avoids trying to make Cobra
+authoritatively parse two different flag surfaces at once.
+
 ### 7. Discover And Install Extensions Explicitly
 
 The v1 discovery model should be explicit-source installation, not broad
@@ -279,6 +360,13 @@ This gives `kongctl` a clear v1 install story:
 - explicit GitHub repo installs
 - no ambient PATH discovery
 - no broad marketplace search requirement in v1
+
+`kongctl` should also store install provenance in its own local extension state
+so it can later answer questions such as:
+
+- what source was this extension installed from
+- is this extension linked or installed
+- what version or ref should `upgrade` compare against
 
 ### 8. Pass Runtime Context Through An Inherited Environment Variable
 
@@ -346,7 +434,7 @@ The most important existing host callback is:
 
 - `kongctl api`
 
-This is a strong foundation because it already supports:
+This is a useful low-level foundation because it already supports:
 
 - arbitrary Konnect API calls
 - structured JSON output
@@ -358,17 +446,28 @@ especially:
 - `kongctl get config <field>`
 - `kongctl version --json`
 
-### 12. Keep The v1 Go Library Thin
+`kongctl api` is not a full extension API by itself. It still requires
+extension authors to understand Konnect API paths, pagination, and response
+shapes. That is acceptable in v1 if `kongctl` is explicit about the tradeoff:
 
-The v1 Go support should be a small helper library that lives in this
-repository and wraps:
+- scripts and binaries can use it directly as a normal extension path
+- future targeted helpers can raise the abstraction level where the raw API
+  proves too painful
 
-- loading `context.json`
-- locating the `kongctl` binary
-- running session-aware `kongctl` subprocesses
-- decoding JSON output
+### 12. Defer A Go SDK Until It Is Clearly Needed
 
-It should not be a large in-process host SDK in v1.
+The design does not need to require a Go SDK in the first implementation.
+
+Go-based extensions can still be supported in v1 without a host-owned SDK:
+
+- they can read `context.json` directly
+- they can invoke `kongctl api` and other helper commands directly
+- they can import `sdk-konnect-go` themselves when they want richer typed API
+  access
+
+If a clear repeated pattern emerges across real extensions, `kongctl` can add a
+small helper library later. That library should be justified by actual author
+pain, not added speculatively.
 
 ### 13. Add Cleanup And Recursion Protection From The Start
 
@@ -398,7 +497,8 @@ both script authors and Go authors.
 It is especially well suited to `kongctl` because:
 
 1. the current CLI grammar is already verb-first
-2. `kongctl api` already provides a useful host callback surface
+2. `kongctl api` already provides a useful standard low-level path for host
+   callbacks
 3. the root command tree is currently static and easier to extend with managed
    fallback dispatch than with deep in-process plugins
 4. the design can evolve toward richer IPC later without throwing away the v1
@@ -418,11 +518,29 @@ verb and topic. That is a conventional Cobra structure and it is easy to
 reason about, but it means `kongctl` does not already have a dynamic command
 loading model.
 
-This suggests that the safest first extension implementation is:
+This suggests that the safest first extension implementation keeps built-ins
+authoritative and adds extensions through managed registration rather than
+through ad hoc command-not-found interception.
 
-- resolve built-in commands first
-- then fall back to extension lookup
-- only then return an unknown-command error
+However, Cobra does not offer a particularly clean "unknown command" hook for a
+design like this, especially with `TraverseChildren = true` already enabled.
+That makes a purely reactive fallback fragile.
+
+The safer v1 approach is:
+
+- load cached extension descriptors during startup
+- register synthetic Cobra commands for extension command paths
+- keep built-ins authoritative by rejecting install-time collisions
+- use those synthetic commands for dispatch, help, and completion
+
+This is one of the most important implementation details in the design. The
+descriptor cache is not just an optimization. It is the mechanism that makes
+Cobra integration practical.
+
+This also implies a completion strategy: shell completion should be driven by
+runtime descriptor loading, not by asking users to regenerate completion
+scripts after every install or uninstall. The generated shell script can remain
+static while still calling back into `kongctl` dynamically at completion time.
 
 ### The current `skills/` mechanism is not a CLI extension model
 
@@ -437,6 +555,20 @@ That matters because issue #826 should not conflate the two concepts:
 
 - AI agent skills are documentation and prompt assets
 - CLI extensions are runtime command extensions for end users
+
+That said, there is still a practical overlap in command structure. The current
+CLI already has an `install` verb with an `install skills` subcommand. The
+extension design should reuse that existing verb-object pattern rather than
+inventing a separate management namespace.
+
+Recommended coexistence model:
+
+- keep `install skills` for agent skills
+- add `install extension` for CLI extensions
+- mirror that pattern for `list`, `inspect`, `upgrade`, and `uninstall` where
+  it makes sense
+- share lifecycle UX conventions where useful, but do not force skills and
+  extensions into the same runtime model
 
 ## Evaluation Criteria
 
@@ -502,8 +634,9 @@ extensions, which is a notable design choice:
 
 ### Lessons for `kongctl`
 
-GitHub CLI is the best single precedent for a first-generation `kongctl`
-command-extension model.
+GitHub CLI is one of the strongest precedents for the execution model and
+authoring ergonomics of a first-generation `kongctl` extension system, but not
+for namespace injection under existing verbs.
 
 `kongctl` should borrow these specific ideas:
 
@@ -512,6 +645,10 @@ command-extension model.
 - local link/install flow for development
 - scaffolding for authors
 - stable helper APIs rather than internal package exposure
+
+`kongctl` is intentionally deviating from `gh` in one important way: it wants
+to preserve a verb-first grammar such as `kongctl get foo`. That makes visible
+provenance in help and completion more important than it is in `gh`.
 
 ## `kubectl` and Krew
 
@@ -811,6 +948,13 @@ managed directory such as `~/.docker/cli-plugins`, where a binary named
 `docker-foo` becomes `docker foo`
 ([example docs](https://docs.docker.com/dhi/how-to/cli/)).
 
+Docker's CLI plugin ecosystem also defines a metadata subcommand,
+`docker-cli-plugin-metadata`, which plugins use to report structured metadata.
+That is the closest direct precedent in this survey for the proposed
+`__kongctl describe` contract
+([design reference](https://github.com/docker/cli/issues/1534),
+[Go package](https://pkg.go.dev/github.com/docker/cli/cli-plugins/metadata)).
+
 Docker also has daemon-side engine plugins managed with `docker plugin`, which
 are a different category. Those plugins can request privileges such as network,
 devices, and capabilities, and Docker prompts the user to accept those
@@ -836,136 +980,26 @@ permissions during installation
 `kongctl` should strongly prefer a managed extension directory over raw
 `PATH` scanning.
 
-Docker's privilege prompt is also a good reminder that capability disclosure is
-useful even when it is not a perfect sandbox.
+Docker is also strong supporting evidence for the idea that a plugin runtime
+can require a hidden metadata/reporting subcommand without making the user-facing
+command surface awkward.
 
-## Vercel
+## Several SaaS CLIs Avoid Local Plugin Runtimes
 
-### How it works
+Vercel, Fly.io, Railway, and Supabase are useful as a collective counterpoint:
+they show that many modern SaaS CLIs either prefer tightly governed provider
+integration programs or avoid general local plugin execution entirely
+([Vercel CLI docs](https://vercel.com/docs/cli/integration),
+[Vercel integration docs](https://vercel.com/docs/integrations/create-integration),
+[Fly CLI docs](https://fly.io/docs/flyctl/extensions/),
+[Fly program docs](https://fly.io/docs/about/extensions/),
+[Railway CLI docs](https://docs.railway.com/cli),
+[Supabase CLI docs](https://supabase.com/docs/guides/local-development/cli/getting-started)).
 
-Vercel has an `integration` CLI command, but this is not a general local
-plugin system in the same sense as `gh`, `kubectl`, or Helm
-([docs](https://vercel.com/docs/cli/integration)).
-
-Vercel integrations are marketplace and provider constructs:
-
-- they provision and manage provider resources
-- they can expose SSO flows
-- they involve product definitions, provider APIs, and review processes
-- provider integrations are created through Vercel's integration platform
-  ([docs](https://vercel.com/docs/integrations/create-integration))
-
-### Strengths
-
-1. Strong governance.
-2. Good marketplace and provider workflow.
-3. Better fit for platform partnerships than local arbitrary code execution.
-
-### Weaknesses
-
-1. Not a general model for end-user command extensions.
-2. Higher approval and provider burden.
-3. Solves a different problem from local CLI extensibility.
-
-### Lessons for `kongctl`
-
-Vercel is useful mainly as evidence that "integration" can mean marketplace
-provisioning, not local CLI plugin execution.
-
-That matters because `kongctl` may eventually want:
-
-- extension metadata
-- support tiers
-- official provider partnerships
-
-But those are likely later ecosystem concerns, not the first local extension
-mechanism.
-
-## Fly.io
-
-### How it works
-
-Fly.io documents `fly extensions`, but this is a first-party or partner-facing
-platform extension surface, not a general local plugin runtime
-([CLI docs](https://fly.io/docs/flyctl/extensions/),
-[program docs](https://fly.io/docs/about/extensions/)).
-
-Fly's provider requirements focus on:
-
-- resource provisioning
-- account and organization mapping
-- SSO
-- billing detail exchange
-
-That is much closer to a marketplace integration program than a local command
-plugin system.
-
-### Strengths
-
-1. Strong governance and provider alignment.
-2. Good fit for managed service partnerships.
-3. Clear product-level requirements.
-
-### Weaknesses
-
-1. Not a model for arbitrary local user-authored CLI extensions.
-2. More closed and partnership-oriented.
-
-### Lessons for `kongctl`
-
-Like Vercel, Fly shows that many SaaS CLIs prefer tightly governed
-provider-extension programs over open local plugin execution.
-
-That is useful as a strategic reminder:
-
-- open plugin ecosystems increase support and security burden
-- not every product chooses to expose one
-
-## Railway
-
-### How it works
-
-Railway's official CLI documentation exposes commands, global options, upgrade
-flows, and project interactions, but it does not document a general local
-plugin or extension model
-([docs](https://docs.railway.com/cli)).
-
-### Strengths
-
-1. Simpler product surface.
-2. Lower governance burden.
-
-### Weaknesses
-
-1. No obvious extensibility path for third-party command authors.
-
-### Lessons for `kongctl`
-
-Railway is useful primarily as evidence that many modern SaaS CLIs choose not
-to offer general local extensibility at all.
-
-## Supabase
-
-### How it works
-
-Supabase's CLI docs cover local development, deployment, configuration, and
-project management, but they do not document a general local plugin system
-([docs](https://supabase.com/docs/guides/local-development/cli/getting-started)).
-
-### Strengths
-
-1. Product simplicity.
-2. Lower extension-support burden.
-
-### Weaknesses
-
-1. No first-class extension ecosystem for local CLI behavior.
-
-### Lessons for `kongctl`
-
-Supabase reinforces the point that a general plugin model is optional, not
-inevitable. If `kongctl` opens this surface, it should do so intentionally and
-with governance.
+The strategic lesson for `kongctl` is simple: a local extension ecosystem is
+optional, not inevitable. If `kongctl` opens this surface, it should do so
+intentionally and with clear governance, because open local execution always
+expands the support and security burden.
 
 ## Comparable Technology Choices That `kongctl` Should Treat Carefully
 
@@ -1027,6 +1061,10 @@ Examples:
 - Helm adds new plugin commands.
 
 This is the single clearest pattern in the ecosystem.
+
+`kongctl` is intentionally bending this pattern by allowing command paths under
+`get` and `list`. If it does that, it needs stronger provenance labeling and
+stricter collision rules than top-level-only systems such as `gh`.
 
 ### 2. Raw discovery is not enough
 
@@ -1323,7 +1361,7 @@ constraints:
 
 ## Recommended v1 Scope
 
-The first extension release should include only these capabilities.
+The first extension release should include only these features.
 
 ### 1. Command Paths
 
@@ -1561,6 +1599,13 @@ settings that the child should not have to rediscover.
 
 No secrets should be written into this file.
 
+`context.json` also needs an explicit compatibility contract:
+
+- changes within a schema version should be additive only
+- extensions should ignore unknown fields
+- removing or renaming fields should require a new `schema_version`
+- `kongctl` should reject unsupported schema versions rather than guessing
+
 ### 7. Session-Aware Nested `kongctl` Calls
 
 Nested `kongctl` subprocesses should detect `KONGCTL_EXTENSION_SESSION_DIR`
@@ -1585,6 +1630,12 @@ This allows commands such as `kongctl api ...` to stay in the same logical
 session while still allowing an extension to ask for JSON or YAML explicitly
 when needed.
 
+Session lifetime also needs to be safe under concurrency. The cleanup strategy
+must not delete a session directory while nested `kongctl` children still rely
+on it. In practice that means immediate cleanup should only happen when the
+root invocation can prove no nested children are still active, and stale-session
+reaping should remain as the safety net.
+
 ### 8. CLI-First Host Callback Surface
 
 The v1 host callback model should be the `kongctl` CLI itself.
@@ -1595,30 +1646,39 @@ Existing and proposed host callbacks:
 - `kongctl get config <field>`
 - `kongctl version --json`
 
-This is intentionally small. `kongctl api` already gives extensions a useful
-authenticated Konnect API surface with structured output and jq filtering.
+This is intentionally small. `kongctl api` is a useful standard low-level
+foundation,
+not a full extension API. It gives extensions authenticated Konnect requests
+with structured output and jq filtering, but extension authors still need to
+understand API paths, pagination, and response shapes.
 
-### 9. Thin Go SDK Library
+That is acceptable in v1 if `kongctl` is explicit about the tradeoff:
 
-The repository should include a thin Go SDK library for extension authors.
+- scripts and binaries can use it directly as a normal extension path
+- future targeted helpers can raise the abstraction level where the raw API
+  proves too painful
 
-This is now an explicit v1 deliverable.
+### 9. Defer A Go SDK Until It Is Clearly Needed
 
-The SDK should:
+The design does not need to require a Go SDK in the first implementation.
 
-- load the runtime context
-- expose typed accessors for context fields
-- wrap session-aware `kongctl` subprocess execution
-- decode JSON results
+Go-based extensions can still be supported in v1 without a host-owned SDK:
 
-It should not be a large in-process host API in v1.
+- they can read `context.json` directly
+- they can invoke `kongctl api` and other helper commands directly
+- they can import `sdk-konnect-go` themselves when they want richer typed API
+  access
+
+If a clear repeated pattern emerges across real extensions, `kongctl` can add a
+small helper library later. That library should be justified by actual author
+pain, not added speculatively.
 
 ### 10. Example Extensions
 
 The repository should include at least two example extensions:
 
 1. one script-based extension
-2. one Go-based extension using the thin SDK
+2. one Go-based extension without requiring a host-owned SDK
 
 These are important deliverables because they prove:
 
@@ -1640,7 +1700,6 @@ The skill should help a coding agent:
 - choose between script and Go templates
 - fill in `extension.yaml`
 - register command paths
-- wire in the thin Go SDK when appropriate
 - test local install and link workflows
 
 This will make the extension system much easier to use in practice, especially
@@ -1712,8 +1771,7 @@ accidental.
 4. sample extension templates
 5. sample shell extension
 6. sample Go extension
-7. thin Go SDK
-8. `kongctl-extension-builder` skill
+7. `kongctl-extension-builder` skill
 
 ### Why shell support matters
 
@@ -1723,21 +1781,22 @@ as shell scripts.
 
 That means `kongctl` should not force authors into a Go-only model.
 
-### Why a thin Go SDK still matters
+However, script support should be described honestly. It is best suited to
+simple wrappers and lightweight task automation. Once an extension owns
+multiple command paths, richer help metadata, or non-trivial flag parsing, the
+Go-based authoring is likely to be the more maintainable path.
 
-Once extensions need to:
+### Why a Go SDK might come later
 
-- authenticate to Konnect
-- reuse `kongctl api` and configuration helpers
-- decode structured output
-- standardize host re-entry
+Once several Go-based extensions are repeating the same logic around:
 
-a thin helper library becomes meaningfully better than ad hoc shelling out.
+- loading `context.json`
+- invoking session-aware `kongctl` helpers
+- constructing authenticated Konnect clients
+- decoding repeated response shapes
 
-The right v1 design is therefore:
-
-- script-first if you want
-- thin Go SDK when you need it
+then a small helper library may become worthwhile. Until that pattern is clear,
+the first release does not need to commit to shipping one.
 
 ## End-User Experience Recommendations
 
@@ -1748,8 +1807,9 @@ Recommended rules:
 1. `kongctl` owns installation, removal, upgrade, and inspection.
 2. Built-ins always win over extensions.
 3. Extension command path collisions are rejected.
-4. Upgrades are explicit, not silent.
-5. Local development links are clearly marked in `list` and `inspect`.
+4. Extension-contributed commands are visibly labeled in help and completion.
+5. Upgrades are explicit, not silent.
+6. Local development links are clearly marked in `list` and `inspect`.
 
 Example flow:
 
@@ -1790,7 +1850,7 @@ The first release should explicitly not attempt all of the following.
 3. No command contributions under existing verbs other than `get` and `list`.
 4. No install hooks.
 5. No background daemons started by extensions during installation.
-6. No promise that executable extension capabilities are strongly sandboxed.
+6. No promise that executable extensions are strongly sandboxed.
 7. No large in-process host SDK.
 
 Writing these non-goals down will prevent the first implementation from growing
@@ -1798,10 +1858,19 @@ into a framework before the basic product loop is proven.
 
 ## Suggested Phased Roadmap
 
+## Phase 0: Validate Core Runtime Assumptions
+
+- prototype extension dispatch end to end
+- measure the cost of one extension invocation and repeated nested callbacks
+- confirm that subprocess re-entry is acceptable for the expected v1 workloads
+- only lock the transport after that data exists
+
 ## Phase 1: Core Runtime And Install Flows
 
 - finalize `extension.yaml` schema
 - define command-path matching and collision rules
+- implement synthetic Cobra command registration from cached descriptors
+- define the host/extension flag boundary
 - define the runtime context contract
 - implement `KONGCTL_EXTENSION_SESSION_DIR` bootstrap
 - implement recursion guard
@@ -1810,7 +1879,6 @@ into a framework before the basic product loop is proven.
 
 ## Phase 2: Authoring Deliverables
 
-- add the thin Go SDK library to this repository
 - publish one script example extension
 - publish one Go example extension
 - add `create` scaffolding if not already shipped in phase 1
@@ -1832,9 +1900,10 @@ into a framework before the basic product loop is proven.
 
 ## Phase 5: Richer Integration
 
-- evaluate whether subprocess re-entry is fast enough in practice
 - add richer structured output helpers if needed
-- evaluate socket or RPC transport if the thin SDK needs a faster backend
+- evaluate JSON-RPC over stdio or a local socket if extension callback volume
+  needs a faster backend
+- add a small Go helper library only if repeated extension patterns justify it
 - only add lifecycle hooks if concrete use cases justify them
 
 ## Open Questions
@@ -1855,6 +1924,13 @@ These questions should be resolved before implementation begins.
    default when called within an extension session?
 7. Which top-level command paths should be reserved so custom verbs cannot
    overlap with extension management, help, or other CLI-owned namespaces?
+8. How and when should `kongctl` check for extension updates without adding
+   surprising latency or background network traffic?
+9. What exact cross-platform rules should apply when resolving
+   `runtime.command` on Windows, macOS, and Linux?
+10. Should `kongctl` also provide a direct debugging path such as
+    `kongctl run extension <name> [args...]`, or should command-path dispatch
+    remain the only invocation model?
 
 ## Final Recommendation
 
@@ -1867,21 +1943,26 @@ The concrete v1 recommendation is:
 2. support extension-contributed `command_paths`
 3. allow those command paths to land under `get` or `list`, or to define a new
    verb through the first path segment
-4. use a simple `extension.yaml` manifest with `schema_version` for package
+4. visibly label extension-contributed command paths in help, completion, and
+   inspection output
+5. use a simple `extension.yaml` manifest with `schema_version` for package
    metadata only
-5. require the extension runtime to provide command metadata through
+6. require the extension runtime to provide command metadata through
    `__kongctl describe`
-6. invoke extensions as child processes
-7. pass runtime context through `KONGCTL_EXTENSION_SESSION_DIR`
-8. store `context.json` in a temporary session directory
-9. keep secrets out of the runtime context
-10. make nested `kongctl` subprocesses session-aware
-11. use `kongctl api` and small machine-friendly helpers as the v1 host
-    callback surface
-12. ship a thin Go SDK library in this repository
-13. ship one script example and one Go example
-14. ship extension install, remove, list, inspect, upgrade, and link flows
-15. add a `kongctl-extension-builder` skill for coding-agent-assisted
+7. load cached descriptors and register synthetic Cobra commands for dispatch,
+   help, and completion
+8. invoke extensions as child processes
+9. pass runtime context through `KONGCTL_EXTENSION_SESSION_DIR`
+10. store `context.json` in a temporary session directory
+11. keep secrets out of the runtime context
+12. make nested `kongctl` subprocesses session-aware
+13. parse global flags in the host and pass `remaining_args` to the extension
+14. use `kongctl api` and small machine-friendly helpers as the standard
+    low-level v1 host callback surface
+15. ship one script example and one Go example
+16. ship extension install, remove, list, inspect, upgrade, and link flows
+17. validate subprocess performance before locking the transport
+18. add a `kongctl-extension-builder` skill for coding-agent-assisted
     authoring
 
 This design keeps the CLI recognizable, supports both script and Go extension
@@ -1930,6 +2011,10 @@ Primary sources reviewed for this report:
   [`go-plugin`](https://github.com/hashicorp/go-plugin)
 - Docker client plugin example:
   [Use the CLI](https://docs.docker.com/dhi/how-to/cli/)
+- Docker CLI plugin design:
+  [CLI Plugins Design](https://github.com/docker/cli/issues/1534)
+- Docker CLI plugin metadata package:
+  [metadata package](https://pkg.go.dev/github.com/docker/cli/cli-plugins/metadata)
 - Docker engine plugin install:
   [`docker plugin install`](https://docs.docker.com/reference/cli/docker/plugin/install/)
 - Vercel:
