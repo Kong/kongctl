@@ -1,0 +1,48 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalRef: portal-snippets-pagination
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-portal-snippets
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+
+      - name: 001-get-snippets-with-small-page
+        run:
+          - get
+          - portal
+          - snippets
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - --page-size
+          - "1"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 3
+                "[?name=='snippet-banner'] | length(@)": 1
+                "[?name=='snippet-nav'] | length(@)": 1
+                "[?name=='snippet-toc'] | length(@)": 1

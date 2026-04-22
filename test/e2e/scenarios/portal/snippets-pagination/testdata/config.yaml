@@ -1,0 +1,33 @@
+_defaults:
+  kongctl:
+    namespace: portal-snippets-pagination
+
+portals:
+  - ref: portal-snippets-pagination
+    name: portal-snippets-pagination
+    display_name: Portal Snippets Pagination E2E
+    description: Portal for verifying snippet pagination.
+    kongctl:
+      namespace: portal-snippets-pagination
+    snippets:
+      - ref: snippet-banner
+        name: snippet-banner
+        title: "Welcome Banner"
+        description: "A welcome banner shown on the portal home page."
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/banner.md
+      - ref: snippet-nav
+        name: snippet-nav
+        title: "Navigation"
+        description: "A navigation snippet for the guides section."
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/nav.md
+      - ref: snippet-toc
+        name: snippet-toc
+        title: "On This Page"
+        description: "Table of contents snippet for sidebar display."
+        visibility: "private"
+        status: "unpublished"
+        content: !file ./snippets/toc.md

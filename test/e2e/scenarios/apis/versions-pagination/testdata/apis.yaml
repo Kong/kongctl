@@ -1,0 +1,32 @@
+_defaults:
+  kongctl:
+    namespace: apis-pagination
+
+apis:
+  - ref: api-pagination
+    name: "API Pagination"
+    description: "API used to verify multi-page version listing."
+    version: "1.0.0"
+    versions:
+      - ref: api-pagination-v1
+        version: "1.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 1.0.0
+            paths: {}
+      - ref: api-pagination-v2
+        version: "2.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 2.0.0
+            paths: {}
