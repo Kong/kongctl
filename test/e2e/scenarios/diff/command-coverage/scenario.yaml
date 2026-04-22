@@ -19,6 +19,9 @@ vars:
   authStrategyUpdatedDisplayName: "Diff Key Auth (Updated)"
   dcrProviderRef: diff-dcr-http
   dcrProviderUpdatedIssuer: "https://e2ediffissuer-updated.example.com/oauth2/default"
+  teamRef: diff-backend-team
+  teamName: diff-backend-team
+  teamUpdatedDesc: "Backend team for diff coverage (updated)"
 
 defaults:
   mask:
@@ -48,12 +51,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 6
-                by_action.CREATE: 6
+                total_changes: 7
+                by_action.CREATE: 7
           - select: "summary"
             expect:
               fields:
-                applied: 6
+                applied: 7
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='portal' &&
@@ -122,9 +125,9 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 5
+                total_changes: 6
                 by_action.CREATE: 1
-                by_action.UPDATE: 4
+                by_action.UPDATE: 5
           - expect:
               fields:
                 "length(changes[?action=='DELETE'])": 0
@@ -163,6 +166,13 @@ steps:
               fields:
                 action: UPDATE
                 "not_null(changed_fields.issuer.new, fields.issuer)": "{{ .vars.dcrProviderUpdatedIssuer }}"
+          - select: >-
+              changes[?resource_type=='organization_team' &&
+                       resource_ref=='{{ .vars.teamRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.teamUpdatedDesc }}"
 
       - name: 001-diff-delete-mode
         run:
@@ -181,8 +191,8 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 5
-                by_action.DELETE: 5
+                total_changes: 6
+                by_action.DELETE: 6
           - expect:
               fields:
                 "length(changes[?action=='CREATE'])": 0
@@ -217,6 +227,12 @@ steps:
             expect:
               fields:
                 action: DELETE
+          - select: >-
+              changes[?resource_type=='organization_team' &&
+                       resource_ref=='{{ .vars.teamName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
 
       - name: 002-diff-plan-sync-mode
         run:
@@ -236,9 +252,9 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 6
+                total_changes: 7
                 by_action.CREATE: 1
-                by_action.UPDATE: 4
+                by_action.UPDATE: 5
                 by_action.DELETE: 1
           - select: >-
               changes[?resource_type=='control_plane' &&
@@ -282,6 +298,13 @@ steps:
               fields:
                 action: UPDATE
                 "not_null(changed_fields.issuer.new, fields.issuer)": "{{ .vars.dcrProviderUpdatedIssuer }}"
+          - select: >-
+              changes[?resource_type=='organization_team' &&
+                       resource_ref=='{{ .vars.teamRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.teamUpdatedDesc }}"
 
       - name: 003-diff-plan-file
         run:
@@ -294,7 +317,7 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 6
+                total_changes: 7
           - select: >-
               changes[?resource_ref=='{{ .vars.newAPIRef }}'] | [0]
             expect:
