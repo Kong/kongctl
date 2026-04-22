@@ -570,6 +570,52 @@ Keep these as special cases until proven otherwise:
    `internal/declarative/common/pagination.go`.
 3. Align low-value helper duplication with the chosen shared contracts.
 
+## Reviewable Iteration Plan
+
+The phases above are the technical buckets. For implementation and review, the
+recommended sequence is smaller and commit-oriented:
+
+1. Commit 1: add shared-helper unit tests only
+   - add failing tests for `PaginateAll` filtered-empty-page behavior
+   - add failing tests for `PaginateAllFiltered` large-dataset behavior
+   - add exact-page-boundary tests for the shared helpers
+2. Commit 2: make shared page-number helpers pass
+   - change `PaginateAll`
+   - change `PaginateAllFiltered`
+   - update shared helper docs and any affected guide text
+3. Commit 3: add declarative-state regression tests only
+   - add targeted tests for managed-resource listers that currently rely on the
+     broken helper contract
+   - add a focused regression test for `ListPortalTeamRoles`
+4. Commit 4: fix declarative-state callers
+   - adapt managed-resource listers to the corrected helper contract
+   - fix the remaining `ListPortalTeamRoles` off-by-one logic
+5. Commit 5: add tf-import pagination tests only
+   - add integration coverage for child-resource pagination in
+     `dump tf-import --include-child-resources`
+   - keep the scope limited to versions, publications, implementations, and
+     portal snippets
+6. Commit 6: fix tf-import child-resource pagination
+   - thread page-number pagination through the affected helper functions
+   - leave non-paginated SDK endpoints unchanged
+7. Commit 7: add live e2e pagination scenarios
+   - add at least one forced-multi-page scenario against a production Konnect
+     API path
+   - preferred first targets are portal snippets and API versions because the
+     CLI already exposes small `--page-size` values there
+8. Commit 8: normalize lower-risk pagination inconsistencies
+   - unify cursor parsing on `ExtractPageAfterCursor` where the change is
+     mechanical
+   - harden offset walkers to continue only on non-empty tokens
+9. Commit 9: cleanup
+   - remove stale comments
+   - remove or consolidate dead pagination abstractions if still justified
+
+This order is intentional. Each step either introduces failing tests or makes a
+single class of code pass, which keeps review focused and avoids mixing helper
+redesign, declarative changes, tf-import changes, and e2e additions in one
+large patch.
+
 ## Acceptance Criteria
 
 Both issues are only considered resolved when all of the following are true:
