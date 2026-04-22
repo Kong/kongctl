@@ -135,7 +135,7 @@ jobs:
         run: go test -c -tags=e2e -o e2e.test ./test/e2e
 
       - name: Upload E2E binaries
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-binaries-${{ github.run_id }}
           path: |
@@ -365,7 +365,7 @@ jobs:
 
       - name: Upload E2E artifacts
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-artifacts-${{ github.run_id }}-${{ matrix.org_name }}
           path: ${{ env.KONGCTL_E2E_ARTIFACTS_DIR }}
