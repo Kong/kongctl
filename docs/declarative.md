@@ -265,6 +265,67 @@ api_publications:
     portal: main-portal
 ```
 
+### Portal Identity Provider Migration
+
+> Breaking change: portal OIDC and SAML configuration is no longer accepted
+> under `auth_settings` or `portal_auth_settings`.
+>
+> Move provider-specific fields to `identity_providers` when they are nested
+> under a portal, or to `portal_identity_providers` when they are declared at
+> the root of a configuration.
+>
+> `auth_settings` now only supports:
+> `basic_auth_enabled`, `konnect_mapping_enabled`, and
+> `idp_mapping_enabled`.
+
+Previous configuration:
+
+```yaml
+portals:
+  - ref: developer-portal
+    name: "developer-portal"
+    auth_settings:
+      ref: portal-auth
+      basic_auth_enabled: true
+      konnect_mapping_enabled: false
+      idp_mapping_enabled: true
+      oidc_auth_enabled: true
+      oidc_issuer: !env PORTAL_IDP_ISSUER_URL
+      oidc_client_id: !env PORTAL_IDP_CLIENT_ID
+      oidc_client_secret: !env PORTAL_IDP_CLIENT_SECRET
+      oidc_scopes:
+        - openid
+        - profile
+```
+
+Updated configuration:
+
+```yaml
+portals:
+  - ref: developer-portal
+    name: "developer-portal"
+    auth_settings:
+      ref: portal-auth
+      basic_auth_enabled: true
+      konnect_mapping_enabled: false
+      idp_mapping_enabled: true
+    identity_providers:
+      - ref: portal-oidc
+        type: oidc
+        enabled: true
+        config:
+          issuer_url: !env PORTAL_IDP_ISSUER_URL
+          client_id: !env PORTAL_IDP_CLIENT_ID
+          client_secret: !env PORTAL_IDP_CLIENT_SECRET
+          scopes:
+            - openid
+            - profile
+```
+
+If you keep the deprecated OIDC or SAML fields under `auth_settings`,
+`kongctl` will fail validation and tell you to move that configuration to
+`identity_providers`.
+
 ### Control Plane Groups
 
 Control planes can represent Konnect control plane groups by setting their cluster type to `"CLUSTER_TYPE_CONTROL_PLANE_GROUP"`. Group entries manage membership through the `members` array. Each member must resolve to the Konnect ID of a non-group control plane, so you can provide literal UUIDs or reference other declarative control planes with `!ref`.

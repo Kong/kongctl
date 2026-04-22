@@ -357,14 +357,17 @@ portals:
      robots: string (nullable)
    auth_settings: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/update-portal-authentication-settings
      ref: string
+     # OIDC and SAML provider-specific fields are no longer supported here.
+     # Move provider config to identity_providers or portal_identity_providers.
      basic_auth_enabled: boolean
      konnect_mapping_enabled: boolean
      idp_mapping_enabled: boolean
    identity_providers: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-identity-provider
      - ref: string
+       # Use this child for portal OIDC and SAML provider configuration.
+       # At the root of a config, use portal_identity_providers.
        type: One of (oidc | saml) required
        enabled: boolean
-       login_path: string
        config: object required
          issuer_url: string # OIDC
          client_id: string # OIDC

@@ -13,6 +13,25 @@ provide a real issuer URL for an OIDC provider you control or have access to.
 The configuration uses the `portal-idp-example` namespace so it stays isolated
 from other declarative resources in the same Konnect organization.
 
+## Migrating from `auth_settings`
+
+Older portal declarative configs could place OIDC or SAML fields under
+`portals[].auth_settings` or `portal_auth_settings`. That shape is no longer
+accepted.
+
+Use `auth_settings` only for the portal-level flags:
+
+- `basic_auth_enabled`
+- `konnect_mapping_enabled`
+- `idp_mapping_enabled`
+
+Move provider-specific values such as `oidc_issuer`, `oidc_client_id`,
+`oidc_client_secret`, `oidc_scopes`, `oidc_claim_mappings`, and the SAML
+equivalents to `identity_providers` or `portal_identity_providers`.
+
+If you apply an old configuration, `kongctl` now fails validation and tells
+you to move that configuration to `identity_providers`.
+
 ## Files
 
 - `portal-idp.yaml` - creates a portal and configures a nested OIDC identity
