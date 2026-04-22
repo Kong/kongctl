@@ -8,38 +8,40 @@ This document recommends a concrete extension design for `kongctl`, explains
 the reasoning for that design, and then records the supporting peer CLI
 research and previously considered alternatives.
 
-The document is intentionally front-loaded:
+The document structure follows:
 
-1. summary and design decision first
-2. detailed design and defense of the decision second
-3. peer research and earlier design explorations last
-
-The goal is that a reader can understand the proposed plan from the first page
-without reading the full research section.
+1. summary and design decisions
+2. detailed design and defense of the decisions
+3. peer research and earlier design explorations
 
 ## TL;DR
 
-`kongctl` should add an extension system that lets installed extensions
-contribute new `kongctl` command paths. An extension should be able to add
-commands such as `kongctl get foo`, `kongctl list foo`, or a new verb such as
-`kongctl promote foo`, while preserving the normal `kongctl <verb> ...`
-command shape.
+`kongctl` will add a feature that allows users to install extensions
+(plugins) and execute non-built-in functionality. Extensions enable
+developers to expose new `kongctl` command paths or expand a limited set of
+paths. Extensions should preserve the normal `kongctl <verb> ...` pattern.
 
 For users, this means they can install an extension from a local path or a
-GitHub repository and then use the new command path as if it were part of the
-CLI. The extension should show up in help and inspection output, follow the
-same command grammar as the rest of `kongctl`, clearly identify its source in
-help and inspection output, and be managed with normal verb-first lifecycle
-commands such as `install`, `upgrade`, `list`, and `uninstall`.
+GitHub repository and then use the new command path as if it were a native
+feature of the CLI. The extension should show up in usage text, follow the
+same command grammar as the rest of `kongctl`, and clearly identify its
+source. Extensions will be managed with lifecycle commands such as
+`kongctl install extension`, `kongctl upgrade extension`,
+`kongctl list extensions`, and `kongctl uninstall extension`.
 
-Technically, each extension is a separately executed script or binary described
-by `extension.yaml`. During install or link, `kongctl` runs the extension in a
-reserved `__kongctl describe` mode to collect command metadata, validate
-conflicts, and cache help data. During normal execution, `kongctl` launches the
-extension as a child process and passes invocation context through
-`KONGCTL_EXTENSION_SESSION_DIR` and `context.json`, so nested `kongctl`
-subprocesses can reuse the same profile, base URL, and other resolved settings
-without in-process plugins.
+Technically, each extension is a separately executed script or binary
+described by a YAML manifest obtained at installation (`extension.yaml`).
+During execution, the parent `kongctl` process writes a machine-generated
+`context.json` file, stores its full path in `KONGCTL_EXTENSION_CONTEXT`,
+and launches the extension as a child process. The child can read the
+selected profile and resolved configuration values from that file.
+
+Extensions can "re-enter" `kongctl` as another child process and it will
+reload the same context file. This gives extensions a standard way to invoke
+`kongctl api` or other built-in `kongctl` commands while keeping the same
+resolved invocation. We will avoid building a Go SDK too early. It is not
+required for the first implementation and can be added later if repeated
+extension patterns justify it.
 
 ## Proposed Design
 
@@ -73,13 +75,13 @@ The proposed design is driven by the following goals:
 | Flag boundary | Host parses global flags; extension parses `remaining_args` |
 | Descriptor stability | Install-stable in v1; linked extensions refresh aggressively |
 | Runtime model | Managed external child process |
-| Runtime context transport | `KONGCTL_EXTENSION_SESSION_DIR` |
+| Runtime context transport | `KONGCTL_EXTENSION_CONTEXT` |
 | Runtime context file | `context.json` |
 | Nested host callbacks | Re-enter `kongctl` as a subprocess |
 | v1 Go SDK | Not required |
 | Performance gate | Validate subprocess cost before locking implementation |
 | Secrets in context | Never include them |
-| Cleanup | Best-effort immediate cleanup plus stale-session reaping |
+| Cleanup | Best-effort immediate cleanup plus stale-file reaping |
 | Safety | Install-time conflict checks and recursion guard |
 
 ## Detailed Design
@@ -277,7 +279,7 @@ This design cleanly separates concerns:
 
 - argv selects the extension control operation such as `describe`
 - environment variables carry ambient runtime context such as
-  `KONGCTL_EXTENSION_SESSION_DIR`
+  `KONGCTL_EXTENSION_CONTEXT`
 
 This choice also has an important tradeoff: the selected platform entrypoint
 must be executable on the installing machine so `kongctl` can run
@@ -371,11 +373,11 @@ so it can later answer questions such as:
 ### 8. Pass Runtime Context Through An Inherited Environment Variable
 
 The parent `kongctl` process should resolve invocation-bound state, write a
-machine-generated `context.json` into a temporary session directory, and pass
-that directory to the child through:
+machine-generated `context.json` to a temporary runtime location, and pass the
+full file path to the child through:
 
 ```text
-KONGCTL_EXTENSION_SESSION_DIR=/path/to/session-dir
+KONGCTL_EXTENSION_CONTEXT=/path/to/context.json
 ```
 
 This is preferable to:
@@ -384,12 +386,9 @@ This is preferable to:
 - hidden bootstrap flags
 - raw JSON embedded directly in environment variables
 
-The session directory should hold at least:
-
-- `context.json`
-
-Future transport upgrades can add additional files such as `host.sock` without
-breaking the bootstrap contract.
+Future transport upgrades can add additional runtime artifacts alongside this
+file or through additional environment variables without changing the core
+bootstrap contract: the child gets a direct path to `context.json`.
 
 ### 9. Keep Secrets Out Of The Runtime Context
 
@@ -414,7 +413,7 @@ It should not include:
 
 When an extension runs `kongctl api ...` or `kongctl get config <field>`, the
 nested `kongctl` subprocess should inherit
-`KONGCTL_EXTENSION_SESSION_DIR`, reload `context.json`, and bootstrap itself
+`KONGCTL_EXTENSION_CONTEXT`, reload `context.json`, and bootstrap itself
 using the same resolved invocation state.
 
 That means the child does not need to replay:
@@ -487,12 +486,13 @@ pain, not added speculatively.
 
 ### 13. Add Cleanup And Recursion Protection From The Start
 
-Because the runtime model writes temporary session files, the implementation
+Because the runtime model writes temporary context files, the implementation
 must be disciplined:
 
-- remove the session directory on normal exit
-- perform opportunistic stale-session cleanup on future runs
-- keep session files in a runtime or temp location, not the permanent config
+- remove the temporary context file and any related runtime artifacts on
+  normal exit
+- perform opportunistic stale-file cleanup on future runs
+- keep runtime files in a temp or runtime location, not the permanent config
   tree
 
 Because extensions can contribute command paths such as `kongctl get foo`, the
@@ -1358,7 +1358,7 @@ top-level extension commands. The core design choice is:
 3. use a simple `extension.yaml` manifest for package metadata only
 4. require the extension runtime to provide command metadata through a reserved
    argv contract such as `__kongctl describe`
-5. pass runtime context through `KONGCTL_EXTENSION_SESSION_DIR`
+5. pass runtime context through `KONGCTL_EXTENSION_CONTEXT`
 6. keep the v1 host callback model CLI-first
 
 This direction is supported by the peer research and by local `kongctl`
@@ -1574,9 +1574,8 @@ extension. That includes:
 
 The runtime contract should be:
 
-- an inherited `KONGCTL_EXTENSION_SESSION_DIR`
-- pointing at a session directory
-- containing a machine-generated `context.json`
+- an inherited `KONGCTL_EXTENSION_CONTEXT`
+- pointing directly at a machine-generated `context.json`
 
 Example:
 
@@ -1624,7 +1623,7 @@ No secrets should be written into this file.
 
 ### 7. Session-Aware Nested `kongctl` Calls
 
-Nested `kongctl` subprocesses should detect `KONGCTL_EXTENSION_SESSION_DIR`
+Nested `kongctl` subprocesses should detect `KONGCTL_EXTENSION_CONTEXT`
 early during startup, reload `context.json`, and use that session overlay to
 preserve the parent invocation identity.
 
@@ -1646,11 +1645,12 @@ This allows commands such as `kongctl api ...` to stay in the same logical
 session while still allowing an extension to ask for JSON or YAML explicitly
 when needed.
 
-Session lifetime also needs to be safe under concurrency. The cleanup strategy
-must not delete a session directory while nested `kongctl` children still rely
-on it. In practice that means immediate cleanup should only happen when the
-root invocation can prove no nested children are still active, and stale-session
-reaping should remain as the safety net.
+Context-file lifetime also needs to be safe under concurrency. The cleanup
+strategy must not delete the temporary context file, or related runtime
+artifacts, while nested `kongctl` children still rely on them. In practice
+that means immediate cleanup should only happen when the root invocation can
+prove no nested children are still active, and stale-file reaping should
+remain as the safety net.
 
 ### 8. CLI-First Host Callback Surface
 
@@ -1909,7 +1909,7 @@ into a framework before the basic product loop is proven.
 - implement synthetic Cobra command registration from cached descriptors
 - define the host/extension flag boundary
 - define the runtime context contract
-- implement `KONGCTL_EXTENSION_SESSION_DIR` bootstrap
+- implement `KONGCTL_EXTENSION_CONTEXT` bootstrap
 - implement recursion guard
 - implement `install`, `uninstall`, `list`, `inspect`, `upgrade`, and `link`
 - support local path install and GitHub repo install
@@ -1956,7 +1956,7 @@ These questions should be resolved before implementation begins.
    until after direct GitHub and local installs are working?
 4. What exact precedence rules should apply when nested session-aware helper
    commands specify explicit output or log flags?
-5. What stale-session cleanup threshold is appropriate?
+5. What stale-file cleanup threshold is appropriate?
 6. Should `kongctl get config <field>` return machine-oriented output by
    default when called within an extension session?
 7. Which top-level command paths should be reserved so custom verbs cannot
@@ -1989,8 +1989,8 @@ The concrete v1 recommendation is:
 7. load cached descriptors and register synthetic Cobra commands for dispatch,
    help, and completion
 8. invoke extensions as child processes
-9. pass runtime context through `KONGCTL_EXTENSION_SESSION_DIR`
-10. store `context.json` in a temporary session directory
+9. pass runtime context through `KONGCTL_EXTENSION_CONTEXT`
+10. store `context.json` at a temporary runtime path
 11. keep secrets out of the runtime context
 12. make nested `kongctl` subprocesses session-aware
 13. parse global flags in the host and pass `remaining_args` to the extension
