@@ -511,7 +511,6 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 	}
 
 	// Validate portal auth settings
-	// Validate portal auth settings
 	for i := range rs.PortalAuthSettings {
 		settings := &rs.PortalAuthSettings[i]
 		if err := settings.Validate(); err != nil {

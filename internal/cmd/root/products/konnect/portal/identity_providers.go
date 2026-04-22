@@ -198,9 +198,60 @@ func portalIdentityProviderDetailView(provider kkComps.IdentityProvider) string 
 	fmt.Fprintf(&b, "enabled: %s\n", portalIdentityProviderEnabled(provider))
 	fmt.Fprintf(&b, "created_at: %s\n", formatTimePtr(provider.GetCreatedAt()))
 	fmt.Fprintf(&b, "updated_at: %s\n", formatTimePtr(provider.GetUpdatedAt()))
-	fmt.Fprintf(&b, "config:\n")
+	appendPortalIdentityProviderConfigDetail(&b, provider.GetConfig())
 
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func appendPortalIdentityProviderConfigDetail(b *strings.Builder, config *kkComps.IdentityProviderConfig) {
+	if b == nil || config == nil {
+		return
+	}
+
+	switch config.Type {
+	case kkComps.IdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
+		if config.OIDCIdentityProviderConfigOutput == nil {
+			return
+		}
+		fmt.Fprintf(b, "config.type: oidc\n")
+		fmt.Fprintf(b, "config.issuer_url: %s\n", config.OIDCIdentityProviderConfigOutput.IssuerURL)
+		fmt.Fprintf(b, "config.client_id: %s\n", config.OIDCIdentityProviderConfigOutput.ClientID)
+		if len(config.OIDCIdentityProviderConfigOutput.Scopes) > 0 {
+			fmt.Fprintf(b, "config.scopes: %s\n", strings.Join(config.OIDCIdentityProviderConfigOutput.Scopes, ", "))
+		}
+		if config.OIDCIdentityProviderConfigOutput.ClaimMappings != nil {
+			fmt.Fprintf(
+				b,
+				"config.claim_mappings.name: %s\n",
+				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Name),
+			)
+			fmt.Fprintf(
+				b,
+				"config.claim_mappings.email: %s\n",
+				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Email),
+			)
+			fmt.Fprintf(
+				b,
+				"config.claim_mappings.groups: %s\n",
+				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Groups),
+			)
+		}
+	case kkComps.IdentityProviderConfigTypeSAMLIdentityProviderConfig:
+		if config.SAMLIdentityProviderConfig == nil {
+			return
+		}
+		fmt.Fprintf(b, "config.type: saml\n")
+		fmt.Fprintf(
+			b,
+			"config.idp_metadata_url: %s\n",
+			optionalPtr(config.SAMLIdentityProviderConfig.IdpMetadataURL),
+		)
+		fmt.Fprintf(
+			b,
+			"config.idp_metadata_xml: %s\n",
+			optionalPtr(config.SAMLIdentityProviderConfig.IdpMetadataXML),
+		)
+	}
 }
 
 func buildPortalIdentityProvidersChildView(providers []kkComps.IdentityProvider) tableview.ChildView {

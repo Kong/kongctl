@@ -16,6 +16,11 @@ import (
 type stubPortalIdentityProviderAPI struct {
 	createReq kkComps.CreateIdentityProvider
 	updateReq kkOps.UpdatePortalIdentityProviderRequest
+	getResp   *kkOps.GetPortalIdentityProviderResponse
+	deleteReq struct {
+		portalID string
+		id       string
+	}
 }
 
 func (s *stubPortalIdentityProviderAPI) ListPortalIdentityProviders(
@@ -27,11 +32,14 @@ func (s *stubPortalIdentityProviderAPI) ListPortalIdentityProviders(
 }
 
 func (s *stubPortalIdentityProviderAPI) GetPortalIdentityProvider(
-	context.Context,
-	string,
-	string,
-	...kkOps.Option,
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
 ) (*kkOps.GetPortalIdentityProviderResponse, error) {
+	if s.getResp != nil {
+		return s.getResp, nil
+	}
 	return nil, nil
 }
 
@@ -58,11 +66,13 @@ func (s *stubPortalIdentityProviderAPI) UpdatePortalIdentityProvider(
 }
 
 func (s *stubPortalIdentityProviderAPI) DeletePortalIdentityProvider(
-	context.Context,
-	string,
-	string,
-	...kkOps.Option,
+	_ context.Context,
+	portalID string,
+	id string,
+	_ ...kkOps.Option,
 ) (*kkOps.DeletePortalIdentityProviderResponse, error) {
+	s.deleteReq.portalID = portalID
+	s.deleteReq.id = id
 	return nil, nil
 }
 
@@ -92,4 +102,56 @@ func TestPortalIdentityProviderAdapterCreateUpdatesExplicitFalseEnabled(t *testi
 	assert.False(t, *api.updateReq.UpdateIdentityProvider.Enabled)
 	assert.Equal(t, "portal-1", api.updateReq.PortalID)
 	assert.Equal(t, "provider-1", api.updateReq.ID)
+}
+
+func TestPortalIdentityProviderAdapterDeleteUsesResolvedPortalID(t *testing.T) {
+	t.Parallel()
+
+	api := &stubPortalIdentityProviderAPI{}
+	client := state.NewClient(state.ClientConfig{PortalIdentityProviderAPI: api})
+	adapter := NewPortalIdentityProviderAdapter(client)
+
+	execCtx := NewExecutionContext(&planner.PlannedChange{
+		Parent: &planner.ParentInfo{ID: "portal-1"},
+	})
+
+	err := adapter.Delete(testContextWithLogger(), "provider-1", execCtx)
+	require.NoError(t, err)
+	assert.Equal(t, "portal-1", api.deleteReq.portalID)
+	assert.Equal(t, "provider-1", api.deleteReq.id)
+}
+
+func TestExecutorDeleteResourceHandlesPortalIdentityProvider(t *testing.T) {
+	t.Parallel()
+
+	providerID := "provider-1"
+	providerType := kkComps.IdentityProviderTypeOidc
+	api := &stubPortalIdentityProviderAPI{
+		getResp: &kkOps.GetPortalIdentityProviderResponse{
+			IdentityProvider: &kkComps.IdentityProvider{
+				ID:   &providerID,
+				Type: &providerType,
+			},
+		},
+	}
+	client := state.NewClient(state.ClientConfig{PortalIdentityProviderAPI: api})
+	executor := New(client, nil, false)
+
+	change := &planner.PlannedChange{
+		ResourceType: "portal_identity_provider",
+		ResourceID:   providerID,
+		Namespace:    "default",
+		Parent:       &planner.ParentInfo{ID: "portal-1", Ref: "portal-1"},
+		References: map[string]planner.ReferenceInfo{
+			"portal_id": {ID: "portal-1", Ref: "portal-1"},
+		},
+		Fields: map[string]any{
+			"type": "oidc",
+		},
+	}
+
+	err := executor.deleteResource(testContextWithLogger(), change)
+	require.NoError(t, err)
+	assert.Equal(t, "portal-1", api.deleteReq.portalID)
+	assert.Equal(t, providerID, api.deleteReq.id)
 }

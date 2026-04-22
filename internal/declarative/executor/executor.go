@@ -2536,6 +2536,16 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case "portal_custom_domain":
 		// No references to resolve for portal_custom_domain
 		return e.portalDomainExecutor.Delete(ctx, *change)
+	case "portal_identity_provider":
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		return e.portalIdentityProviderExecutor.Delete(ctx, *change)
 	case "portal_page":
 		// First resolve portal reference if needed
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {

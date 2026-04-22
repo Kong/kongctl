@@ -34,7 +34,9 @@ func TestPortalIdentityProviderDetailView_OmitsLoginPath(t *testing.T) {
 
 	require.Contains(t, detail, "type: oidc")
 	require.Contains(t, detail, "enabled: true")
-	require.Contains(t, detail, "config:")
+	require.Contains(t, detail, "config.type: oidc")
+	require.Contains(t, detail, "config.issuer_url: https://issuer.example.test")
+	require.Contains(t, detail, "config.client_id: client-id")
 	require.NotContains(t, strings.ToLower(detail), "login path")
 }
 

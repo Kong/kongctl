@@ -379,6 +379,22 @@ portals:
            groups: string
          idp_metadata_url: string # SAML
          idp_metadata_xml: string # SAML
+portal_identity_providers:
+ - ref: string
+   portal: string required # prefer: !ref <portal-ref>
+   type: One of (oidc | saml) required
+   enabled: boolean
+   config: object required
+     issuer_url: string # OIDC
+     client_id: string # OIDC
+     client_secret: string # OIDC
+     scopes: array[string] # OIDC
+     claim_mappings: # OIDC
+       name: string
+       email: string
+       groups: string
+     idp_metadata_url: string # SAML
+     idp_metadata_xml: string # SAML
    custom_domain: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-custom-domain
      ref: string
      hostname: string required

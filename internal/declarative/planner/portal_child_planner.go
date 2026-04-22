@@ -492,7 +492,11 @@ func portalIdentityProviderConfigNeedsUpdate(
 		if currentOIDC.IssuerURL != desiredOIDC.IssuerURL || currentOIDC.ClientID != desiredOIDC.ClientID {
 			return true
 		}
-		if !slices.Equal(currentOIDC.Scopes, desiredOIDC.Scopes) {
+		currentScopes := slices.Clone(currentOIDC.Scopes)
+		desiredScopes := slices.Clone(desiredOIDC.Scopes)
+		slices.Sort(currentScopes)
+		slices.Sort(desiredScopes)
+		if !slices.Equal(currentScopes, desiredScopes) {
 			return true
 		}
 		if !reflect.DeepEqual(currentOIDC.ClaimMappings, desiredOIDC.ClaimMappings) {
