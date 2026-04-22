@@ -1,0 +1,214 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+test:
+  enabledByEnvVar: KONGCTL_E2E_RUN_PORTAL_IDENTITY_PROVIDERS
+  requiredEnvVars:
+    - KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+    - KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
+    - KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET
+    - KONGCTL_E2E_PORTAL_IDP_UPDATE_ISSUER_URL
+    - KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_ID
+    - KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_SECRET
+  info: >-
+    Requires real Dev Portal IdP values; set KONGCTL_E2E_RUN_PORTAL_IDENTITY_PROVIDERS=1
+    and provide the KONGCTL_E2E_PORTAL_IDP_* env vars to enable.
+
+vars:
+  namespace: portal-identity-providers
+  portalRef: portal-idp
+  providerRef: portal-oidc
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 000-record-idp-env
+    skipInputs: true
+    commands:
+      - name: 000-record-create-client-id
+        parseAs: raw
+        exec:
+          - bash
+          - -c
+          - printf '%s' "${KONGCTL_E2E_PORTAL_IDP_CLIENT_ID:-}"
+        recordVar:
+          name: createClientID
+          responsePath: stdout
+      - name: 001-record-update-client-id
+        parseAs: raw
+        exec:
+          - bash
+          - -c
+          - printf '%s' "${KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_ID:-}"
+        recordVar:
+          name: updateClientID
+          responsePath: stdout
+
+  - name: 001-plan-apply-identity-providers
+    commands:
+      - name: 000-plan-identity-providers
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-identity-providers.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='portal_identity_provider' && resource_ref=='{{ .vars.providerRef }}'] | [0].fields
+            expect:
+              fields:
+                type: oidc
+                enabled: true
+                config.client_id: __ENV__:KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
+                config.issuer_url: __ENV__:KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+      - name: 001-apply-identity-providers
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-identity-providers.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-get-identity-providers
+        run:
+          - get
+          - portal
+          - identity-providers
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - select: '[0]'
+            expect:
+              fields:
+                type: oidc
+                enabled: true
+                config.client_id: "{{ .vars.createClientID }}"
+                config.claim_mappings.email: email
+
+  - name: 002-plan-apply-root-level-update
+    inputOverlayDirs:
+      - overlays/002-root-update
+    commands:
+      - name: 000-plan-root-level-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: >-
+              changes[?resource_type=='portal_identity_provider' && resource_ref=='{{ .vars.providerRef }}'] | [0].fields
+            expect:
+              fields:
+                enabled: false
+                config.client_id: __ENV__:KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_ID
+                config.issuer_url: __ENV__:KONGCTL_E2E_PORTAL_IDP_UPDATE_ISSUER_URL
+      - name: 001-apply-root-level-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-level-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-get-identity-providers-updated
+        run:
+          - get
+          - portal
+          - identity-providers
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - select: '[0]'
+            expect:
+              fields:
+                type: oidc
+                enabled: false
+                config.client_id: "{{ .vars.updateClientID }}"
+                config.claim_mappings.name: full_name
+
+  - name: 003-dump-and-plan-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-portals-with-idps
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--default-namespace={{ .vars.namespace }}"
+          - "--filter-name={{ .vars.portalRef }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              portals[?name=='{{ .vars.portalRef }}'] | [0].identity_providers[?type=='oidc'] | [0]
+            expect:
+              fields:
+                type: oidc
+                enabled: false
+                config.client_id: "{{ .vars.updateClientID }}"
+                config.claim_mappings.name: full_name
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

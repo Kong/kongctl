@@ -584,6 +584,14 @@ func newGetPortalCmd(verb verbs.VerbValue,
 		rv.AddCommand(authSettingsCmd)
 	}
 
+	if identityProvidersCmd := newGetPortalIdentityProvidersCmd(
+		verb,
+		addParentFlags,
+		parentPreRun,
+	); identityProvidersCmd != nil {
+		rv.AddCommand(identityProvidersCmd)
+	}
+
 	if assetsCmd := newGetPortalAssetsCmd(verb, addParentFlags, parentPreRun); assetsCmd != nil {
 		rv.AddCommand(assetsCmd)
 	}

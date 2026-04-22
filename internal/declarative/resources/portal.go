@@ -23,14 +23,15 @@ type PortalResource struct {
 	kkComps.CreatePortal `yaml:",inline" json:",inline"`
 
 	// Child resources that match API endpoints
-	Customization  *PortalCustomizationResource           `yaml:"customization,omitempty"   json:"customization,omitempty"`
-	AuthSettings   *PortalAuthSettingsResource            `yaml:"auth_settings,omitempty"   json:"auth_settings,omitempty"`
-	CustomDomain   *PortalCustomDomainResource            `yaml:"custom_domain,omitempty"   json:"custom_domain,omitempty"`
-	Pages          []PortalPageResource                   `yaml:"pages,omitempty"           json:"pages,omitempty"`
-	Snippets       []PortalSnippetResource                `yaml:"snippets,omitempty"        json:"snippets,omitempty"`
-	Teams          []PortalTeamResource                   `yaml:"teams,omitempty"           json:"teams,omitempty"`
-	EmailConfig    *PortalEmailConfigResource             `yaml:"email_config,omitempty"    json:"email_config,omitempty"`
-	EmailTemplates map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty" json:"email_templates,omitempty"` //nolint:lll
+	Customization     *PortalCustomizationResource           `yaml:"customization,omitempty"      json:"customization,omitempty"`      //nolint:lll
+	AuthSettings      *PortalAuthSettingsResource            `yaml:"auth_settings,omitempty"      json:"auth_settings,omitempty"`      //nolint:lll
+	IdentityProviders []PortalIdentityProviderResource       `yaml:"identity_providers,omitempty" json:"identity_providers,omitempty"` //nolint:lll
+	CustomDomain      *PortalCustomDomainResource            `yaml:"custom_domain,omitempty"      json:"custom_domain,omitempty"`      //nolint:lll
+	Pages             []PortalPageResource                   `yaml:"pages,omitempty"              json:"pages,omitempty"`
+	Snippets          []PortalSnippetResource                `yaml:"snippets,omitempty"           json:"snippets,omitempty"` //nolint:lll
+	Teams             []PortalTeamResource                   `yaml:"teams,omitempty"              json:"teams,omitempty"`
+	EmailConfig       *PortalEmailConfigResource             `yaml:"email_config,omitempty"       json:"email_config,omitempty"`    //nolint:lll
+	EmailTemplates    map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty"    json:"email_templates,omitempty"` //nolint:lll
 
 	// Assets object containing logo and favicon (data URLs from !file tag)
 	Assets *PortalAssetsResource `yaml:"assets,omitempty" json:"assets,omitempty"`
@@ -120,6 +121,17 @@ func (p PortalResource) Validate() error {
 		}
 	}
 
+	providerRefs := make(map[string]bool)
+	for i, provider := range p.IdentityProviders {
+		if err := provider.Validate(); err != nil {
+			return fmt.Errorf("invalid identity provider %d: %w", i, err)
+		}
+		if providerRefs[provider.GetRef()] {
+			return fmt.Errorf("duplicate identity provider ref: %s", provider.GetRef())
+		}
+		providerRefs[provider.GetRef()] = true
+	}
+
 	if p.CustomDomain != nil {
 		if err := p.CustomDomain.Validate(); err != nil {
 			return fmt.Errorf("invalid custom domain: %w", err)
@@ -207,6 +219,10 @@ func (p *PortalResource) SetDefaults() {
 		p.AuthSettings.SetDefaults()
 	}
 
+	for i := range p.IdentityProviders {
+		p.IdentityProviders[i].SetDefaults()
+	}
+
 	if p.CustomDomain != nil {
 		p.CustomDomain.SetDefaults()
 	}
@@ -288,6 +304,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"kongctl",
 		"customization",
 		"auth_settings",
+		"identity_providers",
 		"custom_domain",
 		"pages",
 		"snippets",
@@ -335,6 +352,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		delete(raw, "auth_settings")
+	}
+
+	if v, ok := raw["identity_providers"]; ok {
+		if err := json.Unmarshal(v, &p.IdentityProviders); err != nil {
+			return err
+		}
+		delete(raw, "identity_providers")
 	}
 
 	if v, ok := raw["custom_domain"]; ok {
@@ -439,19 +463,20 @@ func (p PortalResource) MarshalYAML() (any, error) {
 }
 
 type portalAlias struct {
-	portalCreateAlias `                                       json:",inline"                   yaml:",inline"`
-	Ref               string                                 `json:"ref"                       yaml:"ref"`
-	Kongctl           *KongctlMeta                           `json:"kongctl,omitempty"         yaml:"kongctl,omitempty"`
-	Customization     *PortalCustomizationResource           `json:"customization,omitempty"   yaml:"customization,omitempty"` //nolint:lll
-	AuthSettings      *PortalAuthSettingsResource            `json:"auth_settings,omitempty"   yaml:"auth_settings,omitempty"` //nolint:lll
-	CustomDomain      *PortalCustomDomainResource            `json:"custom_domain,omitempty"   yaml:"custom_domain,omitempty"` //nolint:lll
-	Pages             []PortalPageResource                   `json:"pages,omitempty"           yaml:"pages,omitempty"`
-	Snippets          []PortalSnippetResource                `json:"snippets,omitempty"        yaml:"snippets,omitempty"`
-	Teams             []PortalTeamResource                   `json:"teams,omitempty"           yaml:"teams,omitempty"`
-	EmailConfig       *PortalEmailConfigResource             `json:"email_config,omitempty"    yaml:"email_config,omitempty"`    //nolint:lll
-	EmailTemplates    map[string]PortalEmailTemplateResource `json:"email_templates,omitempty" yaml:"email_templates,omitempty"` //nolint:lll
-	Assets            *PortalAssetsResource                  `json:"assets,omitempty"          yaml:"assets,omitempty"`
-	External          *ExternalBlock                         `json:"_external,omitempty"       yaml:"_external,omitempty"`
+	portalCreateAlias `                                       json:",inline"                      yaml:",inline"`
+	Ref               string                                 `json:"ref"                          yaml:"ref"`
+	Kongctl           *KongctlMeta                           `json:"kongctl,omitempty"            yaml:"kongctl,omitempty"`
+	Customization     *PortalCustomizationResource           `json:"customization,omitempty"      yaml:"customization,omitempty"`      //nolint:lll
+	AuthSettings      *PortalAuthSettingsResource            `json:"auth_settings,omitempty"      yaml:"auth_settings,omitempty"`      //nolint:lll
+	IdentityProviders []PortalIdentityProviderResource       `json:"identity_providers,omitempty" yaml:"identity_providers,omitempty"` //nolint:lll
+	CustomDomain      *PortalCustomDomainResource            `json:"custom_domain,omitempty"      yaml:"custom_domain,omitempty"`      //nolint:lll
+	Pages             []PortalPageResource                   `json:"pages,omitempty"              yaml:"pages,omitempty"`
+	Snippets          []PortalSnippetResource                `json:"snippets,omitempty"           yaml:"snippets,omitempty"` //nolint:lll
+	Teams             []PortalTeamResource                   `json:"teams,omitempty"              yaml:"teams,omitempty"`
+	EmailConfig       *PortalEmailConfigResource             `json:"email_config,omitempty"       yaml:"email_config,omitempty"`    //nolint:lll
+	EmailTemplates    map[string]PortalEmailTemplateResource `json:"email_templates,omitempty"    yaml:"email_templates,omitempty"` //nolint:lll
+	Assets            *PortalAssetsResource                  `json:"assets,omitempty"             yaml:"assets,omitempty"`
+	External          *ExternalBlock                         `json:"_external,omitempty"          yaml:"_external,omitempty"` //nolint:lll
 }
 
 type portalCreateAlias kkComps.CreatePortal
@@ -463,6 +488,7 @@ func (p PortalResource) portalAlias() portalAlias {
 		Kongctl:           p.Kongctl,
 		Customization:     p.Customization,
 		AuthSettings:      p.AuthSettings,
+		IdentityProviders: p.IdentityProviders,
 		CustomDomain:      p.CustomDomain,
 		Pages:             p.Pages,
 		Snippets:          p.Snippets,

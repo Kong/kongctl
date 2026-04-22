@@ -265,6 +265,67 @@ api_publications:
     portal: main-portal
 ```
 
+### Portal Identity Provider Migration
+
+> Breaking change: portal OIDC and SAML configuration is no longer accepted
+> under `auth_settings` or `portal_auth_settings`.
+>
+> Move provider-specific fields to `identity_providers` when they are nested
+> under a portal, or to `portal_identity_providers` when they are declared at
+> the root of a configuration.
+>
+> `auth_settings` now only supports:
+> `basic_auth_enabled`, `konnect_mapping_enabled`, and
+> `idp_mapping_enabled`.
+
+Previous configuration:
+
+```yaml
+portals:
+  - ref: developer-portal
+    name: "developer-portal"
+    auth_settings:
+      ref: portal-auth
+      basic_auth_enabled: true
+      konnect_mapping_enabled: false
+      idp_mapping_enabled: true
+      oidc_auth_enabled: true
+      oidc_issuer: !env PORTAL_IDP_ISSUER_URL
+      oidc_client_id: !env PORTAL_IDP_CLIENT_ID
+      oidc_client_secret: !env PORTAL_IDP_CLIENT_SECRET
+      oidc_scopes:
+        - openid
+        - profile
+```
+
+Updated configuration:
+
+```yaml
+portals:
+  - ref: developer-portal
+    name: "developer-portal"
+    auth_settings:
+      ref: portal-auth
+      basic_auth_enabled: true
+      konnect_mapping_enabled: false
+      idp_mapping_enabled: true
+    identity_providers:
+      - ref: portal-oidc
+        type: oidc
+        enabled: true
+        config:
+          issuer_url: !env PORTAL_IDP_ISSUER_URL
+          client_id: !env PORTAL_IDP_CLIENT_ID
+          client_secret: !env PORTAL_IDP_CLIENT_SECRET
+          scopes:
+            - openid
+            - profile
+```
+
+If you keep the deprecated OIDC or SAML fields under `auth_settings`,
+`kongctl` will fail validation and tell you to move that configuration to
+`identity_providers`.
+
 ### Control Plane Groups
 
 Control planes can represent Konnect control plane groups by setting their cluster type to `"CLUSTER_TYPE_CONTROL_PLANE_GROUP"`. Group entries manage membership through the `members` array. Each member must resolve to the Konnect ID of a non-group control plane, so you can provide literal UUIDs or reference other declarative control planes with `!ref`.
@@ -556,6 +617,33 @@ A runnable example is available in
   between them and the executed value may differ from what was observed
   while planning.
 - Human-readable plan and diff output redact `!env` values.
+
+### Write-only Secret Fields
+
+Some Konnect APIs accept secret values on create or update but do not return
+them from `get` or `list` responses. Common examples include:
+
+- Portal identity provider `config.client_secret`
+- DCR provider secrets such as `dcr_token`, `api_key`, and
+  `initial_client_secret`
+- Event Gateway schema registry authentication `password`
+
+For these fields, `kongctl` prefers idempotent planning over perpetual
+updates. When the API does not expose the current value, the planner skips
+that field during diff calculation instead of assuming drift on every run.
+
+This means:
+
+- The initial create or update still sends the configured secret value.
+- Re-applying the same declarative configuration will usually be a no-op
+  instead of planning an update forever.
+- Changing only a write-only secret may not be detectable from live state, so
+  `plan` may show no changes even though the configured secret value differs
+  from what is currently stored in Konnect.
+
+When you need to rotate a write-only secret declaratively, make the change
+alongside another observable field, or recreate the resource if the API does
+not provide a safe observable signal for that update.
 
 ### Path Resolution
 

@@ -1,0 +1,26 @@
+_defaults:
+  kongctl:
+    namespace: portal-identity-providers
+
+portals:
+  - ref: portal-idp
+    name: portal-idp
+    display_name: Portal Identity Providers
+    description: Portal with nested identity providers
+    kongctl:
+      namespace: portal-identity-providers
+    identity_providers:
+      - ref: portal-oidc
+        type: oidc
+        enabled: true
+        config:
+          issuer_url: !env KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+          client_id: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
+          client_secret: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET
+          scopes:
+            - openid
+            - profile
+          claim_mappings:
+            name: name
+            email: email
+            groups: groups

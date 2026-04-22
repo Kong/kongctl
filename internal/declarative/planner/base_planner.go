@@ -115,6 +115,11 @@ func (b *BasePlanner) GetDesiredPortalAuthSettings(namespace string) []resources
 	return b.planner.resources.GetPortalAuthSettingsByNamespace(namespace)
 }
 
+// GetDesiredPortalIdentityProviders returns desired portal identity provider resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalIdentityProviders(namespace string) []resources.PortalIdentityProviderResource {
+	return b.planner.resources.GetPortalIdentityProvidersByNamespace(namespace)
+}
+
 // GetDesiredPortalCustomDomains returns desired portal custom domain resources from the specified namespace
 func (b *BasePlanner) GetDesiredPortalCustomDomains(namespace string) []resources.PortalCustomDomainResource {
 	return b.planner.resources.GetPortalCustomDomainsByNamespace(namespace)

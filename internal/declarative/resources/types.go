@@ -20,6 +20,7 @@ const (
 	ResourceTypePortalCustomization              ResourceType = "portal_customization"
 	ResourceTypePortalCustomDomain               ResourceType = "portal_custom_domain"
 	ResourceTypePortalAuthSettings               ResourceType = "portal_auth_settings"
+	ResourceTypePortalIdentityProvider           ResourceType = "portal_identity_provider"
 	ResourceTypePortalPage                       ResourceType = "portal_page"
 	ResourceTypePortalSnippet                    ResourceType = "portal_snippet"
 	ResourceTypePortalTeam                       ResourceType = "portal_team"
@@ -60,7 +61,7 @@ type ResourceSet struct {
 	Portals []PortalResource `yaml:"portals,omitempty"                               json:"portals,omitempty"`
 	// ApplicationAuthStrategies contains auth strategy configurations
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"           json:"application_auth_strategies,omitempty"` //nolint:lll
-	DCRProviders              []DCRProviderResource             `yaml:"dcr_providers,omitempty"                        json:"dcr_providers,omitempty"`               //nolint:lll
+	DCRProviders              []DCRProviderResource             `yaml:"dcr_providers,omitempty"                        json:"dcr_providers,omitempty"`                //nolint:lll
 	// ControlPlanes contains control plane configurations
 	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty"                        json:"control_planes,omitempty"`   //nolint:lll
 	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty"                      json:"catalog_services,omitempty"` //nolint:lll
@@ -74,6 +75,7 @@ type ResourceSet struct {
 	// Portal child resources can be defined at root level (with parent reference) or nested under Portals
 	PortalCustomizations        []PortalCustomizationResource        `yaml:"portal_customizations,omitempty"                 json:"portal_customizations,omitempty"`          //nolint:lll
 	PortalAuthSettings          []PortalAuthSettingsResource         `yaml:"portal_auth_settings,omitempty"                  json:"portal_auth_settings,omitempty"`           //nolint:lll
+	PortalIdentityProviders     []PortalIdentityProviderResource     `yaml:"portal_identity_providers,omitempty"             json:"portal_identity_providers,omitempty"`      //nolint:lll
 	PortalCustomDomains         []PortalCustomDomainResource         `yaml:"portal_custom_domains,omitempty"                 json:"portal_custom_domains,omitempty"`          //nolint:lll
 	PortalPages                 []PortalPageResource                 `yaml:"portal_pages,omitempty"                          json:"portal_pages,omitempty"`                   //nolint:lll
 	PortalSnippets              []PortalSnippetResource              `yaml:"portal_snippets,omitempty"                       json:"portal_snippets,omitempty"`                //nolint:lll
@@ -427,6 +429,25 @@ func (rs *ResourceSet) GetPortalAuthSettingsByNamespace(namespace string) []Port
 			}
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, settings)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalIdentityProvidersByNamespace returns all portal identity provider resources from the specified namespace
+func (rs *ResourceSet) GetPortalIdentityProvidersByNamespace(namespace string) []PortalIdentityProviderResource {
+	var filtered []PortalIdentityProviderResource
+	for _, provider := range rs.PortalIdentityProviders {
+		if portal := rs.GetPortalByRef(provider.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, provider)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, provider)
 			}
 		}
 	}

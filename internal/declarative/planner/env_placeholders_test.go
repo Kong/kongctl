@@ -158,3 +158,50 @@ func TestApplyDeferredEnvPlaceholders_UnionFields(t *testing.T) {
 	require.Len(t, plan.Warnings, 1)
 	assert.Contains(t, plan.Warnings[0].Message, "Contains deferred !env values")
 }
+
+func TestPlanPortalIdentityProviderCreate_PreservesDeferredEnvPlaceholders(t *testing.T) {
+	planner := &Planner{}
+	plan := NewPlan("1.0", "test", PlanModeApply)
+
+	enabled := true
+	clientSecret := "resolved-client-secret"
+	config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(kkComps.OIDCIdentityProviderConfig{
+		IssuerURL:    "https://resolved.example.test/oauth2/default",
+		ClientID:     "resolved-client-id",
+		ClientSecret: &clientSecret,
+		Scopes:       []string{"openid", "profile"},
+	})
+	provider := resources.PortalIdentityProviderResource{
+		Ref:    "env-portal-idp",
+		Portal: "env-portal",
+		CreateIdentityProvider: kkComps.CreateIdentityProvider{
+			Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
+			Enabled: &enabled,
+			Config:  &config,
+		},
+	}
+
+	planner.planPortalIdentityProviderCreate("test-ns", provider, "", plan)
+
+	rs := &resources.ResourceSet{
+		EnvSources: map[string]map[string]string{
+			"env-portal-idp": { // #nosec G101 -- deferred !env placeholder names are not credentials.
+				"/config/issuer_url":    "__ENV__:PORTAL_IDP_ISSUER_URL",
+				"/config/client_id":     "__ENV__:PORTAL_IDP_CLIENT_ID",
+				// #nosec G101
+				"/config/client_secret": "__ENV__:PORTAL_IDP_CLIENT_SECRET",
+			},
+		},
+	}
+
+	planner.applyDeferredEnvPlaceholders(plan, rs)
+
+	require.Len(t, plan.Changes, 1)
+	configFields, ok := plan.Changes[0].Fields["config"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "__ENV__:PORTAL_IDP_ISSUER_URL", configFields["issuer_url"])
+	assert.Equal(t, "__ENV__:PORTAL_IDP_CLIENT_ID", configFields["client_id"])
+	assert.Equal(t, "__ENV__:PORTAL_IDP_CLIENT_SECRET", configFields["client_secret"])
+	require.Len(t, plan.Warnings, 1)
+	assert.Contains(t, plan.Warnings[0].Message, "Contains deferred !env values")
+}

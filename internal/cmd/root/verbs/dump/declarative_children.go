@@ -52,6 +52,12 @@ func populatePortalChildren(
 			portal.Teams = teams
 		}
 
+		if identityProviders, err := buildPortalIdentityProviders(ctx, client, portalID); err != nil {
+			logWarn(logger, "failed to load portal identity providers", portalID, portal.Name, err)
+		} else if len(identityProviders) > 0 {
+			portal.IdentityProviders = identityProviders
+		}
+
 		if authSettings, err := buildPortalAuthSettings(ctx, client, portalID); err != nil {
 			logWarn(logger, "failed to load portal auth settings", portalID, portal.Name, err)
 		} else if authSettings != nil {
@@ -671,35 +677,70 @@ func buildPortalAuthSettings(
 	resource := declresources.PortalAuthSettingsResource{
 		Ref: ref,
 		PortalAuthenticationSettingsUpdateRequest: kkComps.PortalAuthenticationSettingsUpdateRequest{
-			BasicAuthEnabled:       new(settings.BasicAuthEnabled),
-			OidcAuthEnabled:        new(settings.OidcAuthEnabled),
-			SamlAuthEnabled:        settings.SamlAuthEnabled,
-			OidcTeamMappingEnabled: new(settings.OidcTeamMappingEnabled),
-			KonnectMappingEnabled:  new(settings.KonnectMappingEnabled),
-			IdpMappingEnabled:      settings.IdpMappingEnabled,
+			BasicAuthEnabled:      new(settings.BasicAuthEnabled),
+			KonnectMappingEnabled: new(settings.KonnectMappingEnabled),
+			IdpMappingEnabled:     settings.IdpMappingEnabled,
 		},
 	}
 
-	if settings.OidcConfig != nil {
-		if strings.TrimSpace(settings.OidcConfig.Issuer) != "" {
-			resource.OidcIssuer = stringPointer(settings.OidcConfig.Issuer)
+	return &resource, nil
+}
+
+func buildPortalIdentityProviders(
+	ctx context.Context,
+	client *declstate.Client,
+	portalID string,
+) ([]declresources.PortalIdentityProviderResource, error) {
+	providers, err := client.ListPortalIdentityProviders(ctx, portalID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, nil
 		}
-		if strings.TrimSpace(settings.OidcConfig.ClientID) != "" {
-			resource.OidcClientID = stringPointer(settings.OidcConfig.ClientID)
-		}
-		if len(settings.OidcConfig.Scopes) > 0 {
-			resource.OidcScopes = settings.OidcConfig.Scopes
-		}
-		if settings.OidcConfig.ClaimMappings != nil {
-			resource.OidcClaimMappings = &kkComps.PortalAuthenticationSettingsUpdateRequestPortalClaimMappings{
-				Name:   settings.OidcConfig.ClaimMappings.Name,
-				Email:  settings.OidcConfig.ClaimMappings.Email,
-				Groups: settings.OidcConfig.ClaimMappings.Groups,
-			}
-		}
+		return nil, err
 	}
 
-	return &resource, nil
+	results := make([]declresources.PortalIdentityProviderResource, 0, len(providers))
+	for _, provider := range providers {
+		providerRes := declresources.PortalIdentityProviderResource{
+			Ref: buildChildRef("portal-identity-provider", provider.ID),
+			CreateIdentityProvider: kkComps.CreateIdentityProvider{
+				Type:      provider.Type.ToPointer(),
+				Enabled:   provider.Enabled,
+				LoginPath: provider.LoginPath,
+			},
+		}
+
+		if provider.Config != nil {
+			switch provider.Config.Type {
+			case kkComps.IdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
+				if provider.Config.OIDCIdentityProviderConfigOutput != nil {
+					config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+						kkComps.OIDCIdentityProviderConfig{
+							IssuerURL:     provider.Config.OIDCIdentityProviderConfigOutput.IssuerURL,
+							ClientID:      provider.Config.OIDCIdentityProviderConfigOutput.ClientID,
+							Scopes:        provider.Config.OIDCIdentityProviderConfigOutput.Scopes,
+							ClaimMappings: provider.Config.OIDCIdentityProviderConfigOutput.ClaimMappings,
+						},
+					)
+					providerRes.Config = &config
+				}
+			case kkComps.IdentityProviderConfigTypeSAMLIdentityProviderConfig:
+				if provider.Config.SAMLIdentityProviderConfig != nil {
+					config := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
+						kkComps.SAMLIdentityProviderConfigInput{
+							IdpMetadataURL: provider.Config.SAMLIdentityProviderConfig.IdpMetadataURL,
+							IdpMetadataXML: provider.Config.SAMLIdentityProviderConfig.IdpMetadataXML,
+						},
+					)
+					providerRes.Config = &config
+				}
+			}
+		}
+
+		results = append(results, providerRes)
+	}
+
+	return results, nil
 }
 
 func buildPortalCustomization(
@@ -1612,7 +1653,10 @@ func convertConsumePolicyToResource(
 
 	data, err := json.Marshal(policyMap)
 	if err != nil {
-		return declresources.EventGatewayConsumePolicyResource{}, fmt.Errorf("failed to marshal consume policy: %w", err)
+		return declresources.EventGatewayConsumePolicyResource{}, fmt.Errorf(
+			"failed to marshal consume policy: %w",
+			err,
+		)
 	}
 
 	var createPolicy kkComps.EventGatewayConsumePolicyCreate

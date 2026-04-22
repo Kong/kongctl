@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 type stubPortalCustomDomainAPI struct {
@@ -470,4 +471,346 @@ func TestPlanPortalCustomDomain_CreateWhenAbsent(t *testing.T) {
 	assert.Len(t, plan.Changes, 1)
 	assert.Equal(t, ActionCreate, plan.Changes[0].Action)
 	assert.Equal(t, "developer.example.com", plan.Changes[0].Fields["hostname"])
+}
+
+type stubPortalIdentityProviderAPI struct {
+	listFn func(
+		ctx context.Context,
+		request kkOps.GetPortalIdentityProvidersRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.GetPortalIdentityProvidersResponse, error)
+}
+
+func (s *stubPortalIdentityProviderAPI) ListPortalIdentityProviders(
+	ctx context.Context,
+	request kkOps.GetPortalIdentityProvidersRequest,
+	opts ...kkOps.Option,
+) (*kkOps.GetPortalIdentityProvidersResponse, error) {
+	if s.listFn != nil {
+		return s.listFn(ctx, request, opts...)
+	}
+	return &kkOps.GetPortalIdentityProvidersResponse{IdentityProviders: []kkComps.IdentityProvider{}}, nil
+}
+
+func (s *stubPortalIdentityProviderAPI) GetPortalIdentityProvider(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.GetPortalIdentityProviderResponse, error) {
+	return nil, nil
+}
+
+func (s *stubPortalIdentityProviderAPI) CreatePortalIdentityProvider(
+	_ context.Context,
+	_ string,
+	_ kkComps.CreateIdentityProvider,
+	_ ...kkOps.Option,
+) (*kkOps.CreatePortalIdentityProviderResponse, error) {
+	return nil, nil
+}
+
+func (s *stubPortalIdentityProviderAPI) UpdatePortalIdentityProvider(
+	_ context.Context,
+	_ kkOps.UpdatePortalIdentityProviderRequest,
+	_ ...kkOps.Option,
+) (*kkOps.UpdatePortalIdentityProviderResponse, error) {
+	return nil, nil
+}
+
+func (s *stubPortalIdentityProviderAPI) DeletePortalIdentityProvider(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeletePortalIdentityProviderResponse, error) {
+	return nil, nil
+}
+
+func TestPlanPortalIdentityProviders_CreateWhenAbsent(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubPortalIdentityProviderAPI{}
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{PortalIdentityProviderAPI: stub}),
+		logger: slog.Default(),
+		desiredPortals: []resources.PortalResource{{
+			CreatePortal: kkComps.CreatePortal{Name: "portal"},
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+		}},
+	}
+
+	config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(kkComps.OIDCIdentityProviderConfig{
+		IssuerURL: "https://accounts.google.com",
+		ClientID:  "client-id-1",
+		Scopes:    []string{"openid"},
+	})
+	desired := []resources.PortalIdentityProviderResource{{
+		Ref:    "portal-oidc",
+		Portal: "portal-1",
+		CreateIdentityProvider: kkComps.CreateIdentityProvider{
+			Type:      kkComps.IdentityProviderTypeOidc.ToPointer(),
+			LoginPath: ptr("oidc-login"),
+			Config:    &config,
+		},
+	}}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := planner.planPortalIdentityProvidersChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-1",
+		desired,
+		plan,
+	)
+	assert.NoError(t, err)
+	if assert.Len(t, plan.Changes, 1) {
+		change := plan.Changes[0]
+		assert.Equal(t, ActionCreate, change.Action)
+		assert.Equal(t, ResourceTypePortalIdentityProvider, change.ResourceType)
+		assert.Equal(t, "portal-oidc", change.ResourceRef)
+		assert.Equal(t, "oidc", change.Fields["type"])
+		assert.Equal(t, "oidc-login", change.Fields["login_path"])
+		if assert.NotNil(t, change.Parent) {
+			assert.Equal(t, "portal-1", change.Parent.Ref)
+			assert.Equal(t, "portal-id", change.Parent.ID)
+		}
+	}
+}
+
+func TestPlanPortalIdentityProviders_UpdateWhenStateDiffers(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubPortalIdentityProviderAPI{
+		listFn: func(
+			_ context.Context,
+			_ kkOps.GetPortalIdentityProvidersRequest,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalIdentityProvidersResponse, error) {
+			currentConfig := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
+				kkComps.OIDCIdentityProviderConfigOutput{
+					IssuerURL: "https://accounts.google.com",
+					ClientID:  "client-id-old",
+					Scopes:    []string{"openid"},
+				},
+			)
+			return &kkOps.GetPortalIdentityProvidersResponse{
+				IdentityProviders: []kkComps.IdentityProvider{{
+					ID:        ptr("provider-id"),
+					Type:      kkComps.IdentityProviderTypeOidc.ToPointer(),
+					Enabled:   ptr(false),
+					LoginPath: ptr("oidc-login"),
+					Config:    &currentConfig,
+				}},
+			}, nil
+		},
+	}
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{PortalIdentityProviderAPI: stub}),
+		logger: slog.Default(),
+		desiredPortals: []resources.PortalResource{{
+			CreatePortal: kkComps.CreatePortal{Name: "portal"},
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+		}},
+	}
+
+	desiredConfig := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+		kkComps.OIDCIdentityProviderConfig{
+			IssuerURL: "https://accounts.google.com",
+			ClientID:  "client-id-new",
+			Scopes:    []string{"openid", "profile"},
+		},
+	)
+	desired := []resources.PortalIdentityProviderResource{{
+		Ref:    "portal-oidc",
+		Portal: "portal-1",
+		CreateIdentityProvider: kkComps.CreateIdentityProvider{
+			Type:      kkComps.IdentityProviderTypeOidc.ToPointer(),
+			Enabled:   ptr(true),
+			LoginPath: ptr("oidc-login-updated"),
+			Config:    &desiredConfig,
+		},
+	}}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := planner.planPortalIdentityProvidersChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-1",
+		desired,
+		plan,
+	)
+	assert.NoError(t, err)
+	if assert.Len(t, plan.Changes, 1) {
+		change := plan.Changes[0]
+		assert.Equal(t, ActionUpdate, change.Action)
+		assert.Equal(t, ResourceTypePortalIdentityProvider, change.ResourceType)
+		assert.Equal(t, "provider-id", change.ResourceID)
+		assert.Equal(t, true, change.Fields["enabled"])
+		assert.Equal(t, "oidc-login-updated", change.Fields["login_path"])
+		assert.Contains(t, change.ChangedFields, "config")
+	}
+}
+
+func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubPortalIdentityProviderAPI{
+		listFn: func(
+			_ context.Context,
+			_ kkOps.GetPortalIdentityProvidersRequest,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalIdentityProvidersResponse, error) {
+			currentConfig := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
+				kkComps.OIDCIdentityProviderConfigOutput{
+					IssuerURL: "https://accounts.google.com",
+					ClientID:  "client-id-1",
+					Scopes:    []string{"openid", "profile"},
+					ClaimMappings: &kkComps.OIDCIdentityProviderClaimMappings{
+						Name:   ptr("name"),
+						Email:  ptr("email"),
+						Groups: ptr("groups"),
+					},
+				},
+			)
+			return &kkOps.GetPortalIdentityProvidersResponse{
+				IdentityProviders: []kkComps.IdentityProvider{{
+					ID:      ptr("provider-id"),
+					Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
+					Enabled: ptr(true),
+					Config:  &currentConfig,
+				}},
+			}, nil
+		},
+	}
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{PortalIdentityProviderAPI: stub}),
+		logger: slog.Default(),
+		desiredPortals: []resources.PortalResource{{
+			CreatePortal: kkComps.CreatePortal{Name: "portal"},
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+		}},
+	}
+
+	desiredConfig := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+		kkComps.OIDCIdentityProviderConfig{
+			IssuerURL:    "https://accounts.google.com",
+			ClientID:     "client-id-1",
+			ClientSecret: ptr("placeholder"),
+			Scopes:       []string{"openid", "profile"},
+			ClaimMappings: &kkComps.OIDCIdentityProviderClaimMappings{
+				Name:   ptr("name"),
+				Email:  ptr("email"),
+				Groups: ptr("groups"),
+			},
+		},
+	)
+	desired := []resources.PortalIdentityProviderResource{{
+		Ref:    "portal-oidc",
+		Portal: "portal-1",
+		CreateIdentityProvider: kkComps.CreateIdentityProvider{
+			Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
+			Enabled: ptr(true),
+			Config:  &desiredConfig,
+		},
+	}}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := planner.planPortalIdentityProvidersChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-1",
+		desired,
+		plan,
+	)
+	assert.NoError(t, err)
+	assert.Empty(t, plan.Changes)
+}
+
+func TestPlanPortalIdentityProviders_IgnoresOIDCScopeOrderChanges(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubPortalIdentityProviderAPI{
+		listFn: func(
+			_ context.Context,
+			_ kkOps.GetPortalIdentityProvidersRequest,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalIdentityProvidersResponse, error) {
+			currentConfig := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
+				kkComps.OIDCIdentityProviderConfigOutput{
+					IssuerURL: "https://accounts.google.com",
+					ClientID:  "client-id-1",
+					Scopes:    []string{"profile", "openid"},
+				},
+			)
+			return &kkOps.GetPortalIdentityProvidersResponse{
+				IdentityProviders: []kkComps.IdentityProvider{{
+					ID:      ptr("provider-id"),
+					Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
+					Enabled: ptr(true),
+					Config:  &currentConfig,
+				}},
+			}, nil
+		},
+	}
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{PortalIdentityProviderAPI: stub}),
+		logger: slog.Default(),
+		desiredPortals: []resources.PortalResource{{
+			CreatePortal: kkComps.CreatePortal{Name: "portal"},
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+		}},
+	}
+
+	desiredConfig := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+		kkComps.OIDCIdentityProviderConfig{
+			IssuerURL: "https://accounts.google.com",
+			ClientID:  "client-id-1",
+			Scopes:    []string{"openid", "profile"},
+		},
+	)
+	desired := []resources.PortalIdentityProviderResource{{
+		Ref:    "portal-oidc",
+		Portal: "portal-1",
+		CreateIdentityProvider: kkComps.CreateIdentityProvider{
+			Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
+			Enabled: ptr(true),
+			Config:  &desiredConfig,
+		},
+	}}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := planner.planPortalIdentityProvidersChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-1",
+		desired,
+		plan,
+	)
+	assert.NoError(t, err)
+	assert.Empty(t, plan.Changes)
+}
+
+func TestPortalIdentityProviderConfigDiffValueFromCreate_OmitsAbsentClientSecret(t *testing.T) {
+	t.Parallel()
+
+	config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+		kkComps.OIDCIdentityProviderConfig{
+			IssuerURL: "https://accounts.google.com",
+			ClientID:  "client-id-1",
+			Scopes:    []string{"openid", "profile"},
+		},
+	)
+
+	diffValue, ok := portalIdentityProviderConfigDiffValueFromCreate(&config).(map[string]any)
+	require.True(t, ok)
+	assert.NotContains(t, diffValue, "client_secret")
+}
+
+func ptr[T any](value T) *T {
+	return &value
 }

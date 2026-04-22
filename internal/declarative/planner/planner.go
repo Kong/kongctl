@@ -79,18 +79,19 @@ type Planner struct {
 	resources *resources.ResourceSet
 
 	// Legacy field access for backward compatibility (provides global access)
-	desiredPortals              []resources.PortalResource
-	desiredPortalPages          []resources.PortalPageResource
-	desiredPortalSnippets       []resources.PortalSnippetResource
-	desiredPortalTeams          []resources.PortalTeamResource
-	desiredPortalTeamRoles      []resources.PortalTeamRoleResource
-	desiredPortalCustomizations []resources.PortalCustomizationResource
-	desiredPortalAuthSettings   []resources.PortalAuthSettingsResource
-	desiredPortalCustomDomains  []resources.PortalCustomDomainResource
-	desiredPortalAssetLogos     []resources.PortalAssetLogoResource
-	desiredPortalAssetFavicons  []resources.PortalAssetFaviconResource
-	desiredPortalEmailConfigs   []resources.PortalEmailConfigResource
-	desiredPortalEmailTemplates []resources.PortalEmailTemplateResource
+	desiredPortals                 []resources.PortalResource
+	desiredPortalPages             []resources.PortalPageResource
+	desiredPortalSnippets          []resources.PortalSnippetResource
+	desiredPortalTeams             []resources.PortalTeamResource
+	desiredPortalTeamRoles         []resources.PortalTeamRoleResource
+	desiredPortalCustomizations    []resources.PortalCustomizationResource
+	desiredPortalAuthSettings      []resources.PortalAuthSettingsResource
+	desiredPortalIdentityProviders []resources.PortalIdentityProviderResource
+	desiredPortalCustomDomains     []resources.PortalCustomDomainResource
+	desiredPortalAssetLogos        []resources.PortalAssetLogoResource
+	desiredPortalAssetFavicons     []resources.PortalAssetFaviconResource
+	desiredPortalEmailConfigs      []resources.PortalEmailConfigResource
+	desiredPortalEmailTemplates    []resources.PortalEmailTemplateResource
 }
 
 // NewPlanner creates a new planner
@@ -227,6 +228,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalTeamRoles = rs.PortalTeamRoles
 		namespacePlanner.desiredPortalCustomizations = rs.PortalCustomizations
 		namespacePlanner.desiredPortalAuthSettings = rs.PortalAuthSettings
+		namespacePlanner.desiredPortalIdentityProviders = rs.PortalIdentityProviders
 		namespacePlanner.desiredPortalCustomDomains = rs.PortalCustomDomains
 		namespacePlanner.desiredPortalAssetLogos = rs.PortalAssetLogos
 		namespacePlanner.desiredPortalAssetFavicons = rs.PortalAssetFavicons
