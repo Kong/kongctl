@@ -27,7 +27,6 @@ func newTestConfig(initial map[string]string) (*configtest.MockConfigHook, map[s
 		GetIntMock: func(string) int {
 			return 0
 		},
-		SaveMock: func() error { return nil },
 		BindFlagMock: func(string, *pflag.Flag) error {
 			return nil
 		},

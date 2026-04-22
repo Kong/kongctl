@@ -79,15 +79,10 @@ type Key struct{}
 // Config is a global instance of the Key type
 var ConfigKey = Key{}
 
-// Hook provides a generatlization of the Viper interface
-// but allows some control, specifically over the Save functionality
+// Hook provides a generalization of the Viper interface
+// but allows some control,
 // which we extend to provide safer file management handling
 type Hook interface {
-	// Save writes the configuration to the file system
-	// TODO: Evaluate if writing the credentials is something we want to do at all
-	//   I saw some issues related to writing config which may have been loaded by a variety of sources
-	//   and is that desirable behavior (also security concerns with secrets loaded at runtime)
-	Save() error
 	// GetString returns a string value from the configuration
 	GetString(key string) string
 	// GetBool returns a boolean value from the configuration
@@ -127,14 +122,6 @@ type ProfiledConfig struct {
 
 func (p *ProfiledConfig) GetProfile() string {
 	return p.ProfileName
-}
-
-func (p *ProfiledConfig) Save() error {
-	// For now just defer to the write, but we want to add
-	// file backups and better handling here to protect
-	// user data
-	// TODO: Improve / Evaluate writing of configs (if at all)
-	return p.WriteConfig()
 }
 
 func (p *ProfiledConfig) GetString(key string) string {
