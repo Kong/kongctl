@@ -139,7 +139,8 @@ many small install units.
 ### 5. Use A Simple YAML Manifest For Package Metadata
 
 The manifest should be a plain `extension.yaml` file, and it should describe
-package, install, trust, and compatibility metadata only.
+the minimum package and runtime metadata needed for install validation and
+execution.
 
 It should not be the source of truth for command help, usage text, args, or
 flags.
@@ -155,25 +156,17 @@ version: 0.1.0
 summary: Foo resource support for kongctl
 
 runtime:
-  type: executable
   command: kongctl-ext-foo
 
 compatibility:
   min_version: 0.20.0
   max_version: 0.x
-
-capabilities:
-  - config_read
-  - api
-  - structured_output
-
-distribution:
-  source: github
-  repository: kong/kongctl-ext-foo
-
-trust:
-  tier: official
 ```
+
+In v1, `runtime.command` is needed immediately because it tells `kongctl`
+which executable to invoke for `__kongctl describe` and normal dispatch.
+Install source, upgrade provenance, and any future trust metadata should be
+tracked by `kongctl` itself, not required in the manifest.
 
 ### 6. Use A Runtime Describe Contract For Command Metadata
 
@@ -1413,24 +1406,11 @@ version: 0.1.0
 summary: Foo resource support for kongctl
 
 runtime:
-  type: executable
   command: kongctl-ext-foo
 
 compatibility:
   min_version: 0.20.0
   max_version: 0.x
-
-capabilities:
-  - config_read
-  - api
-  - structured_output
-
-distribution:
-  source: github
-  repository: kong/kongctl-ext-foo
-
-trust:
-  tier: official
 ```
 
 Important design notes:
@@ -1438,9 +1418,18 @@ Important design notes:
 - `schema_version` is simpler than Kubernetes-style object metadata
 - compatibility should express the supported `kongctl` version range without
   repeating `kongctl` in every field name
-- capabilities should be explicit even if enforcement is mostly governance in
-  v1
+- `runtime.command` is the concrete v1 execution hook and tells `kongctl`
+  which executable to run
+- install source and upgrade state should be stored by `kongctl`, not embedded
+  in the extension manifest
 - command metadata should not be duplicated here
+
+Deferred from the v1 manifest:
+
+- capability declarations
+- trust tiers or publisher verification markers
+- distribution metadata for registries, indexes, or signed catalogs
+- alternative runtime types beyond executable child processes
 
 ### 5. Runtime Command Descriptor Contract
 
@@ -1657,45 +1646,51 @@ The skill should help a coding agent:
 This will make the extension system much easier to use in practice, especially
 for internal Kong contributors and users working with coding agents.
 
-## Security And Trust Model
+## Future Plans Beyond v1
 
-This is where `kongctl` should be more opinionated than many peers.
+The following ideas are worth keeping in the design record, but they should not
+be treated as part of the immediate v1 plan.
 
-### What can be improved in v1
+### Future manifest growth
 
-1. Checksums should be required for remote binary assets.
-2. Signatures should be supported for official and verified publishers.
-3. Extensions should declare capabilities.
-4. The install command should show publisher, source, version, checksum, and
-   trust state before proceeding.
-5. Organizations should be able to restrict install sources.
-6. `kongctl` should support an `official only` policy mode.
+Once `kongctl` has concrete install prompts, verification flows, or policy
+controls, the manifest could grow to include:
 
-### What cannot be fully enforced in v1
+- capability declarations
+- trust or verification markers
+- distribution metadata for indexes or catalogs
+- richer runtime types beyond executable child processes
+
+These should be added only when `kongctl` has a clear planned use for them.
+
+### Future trust and policy work
+
+This is where `kongctl` may eventually want to be more opinionated than many
+peer CLIs.
+
+Potential future work:
+
+1. require checksums for remote binary assets
+2. support signatures for verified publishers
+3. add capability declarations for disclosure or policy controls
+4. show publisher, source, version, checksum, and trust state during install
+5. let organizations restrict install sources
+6. add policy modes such as `official only` or `signed only`
+
+Important limitation:
 
 If extensions run as arbitrary scripts or binaries on the user's machine, then
-capability declarations are not a true sandbox. They are:
+capability declarations are not strong technical isolation. At best they become
+disclosure, policy metadata, and install-time risk communication.
 
-- disclosure
-- policy metadata
-- install-time risk communication
-- enterprise policy hooks
-
-They are not strong technical isolation.
-
-That means `kongctl` must be explicit with users:
-
-- executable extensions are trusted-code installation
-- signatures verify identity and integrity, not safety
-
-### Recommended trust tiers
+Possible future trust tiers:
 
 - `official`
 - `verified`
 - `community`
 - `unsigned`
 
-### Recommended policy controls
+Possible future policy controls:
 
 - disable all extensions
 - allow only official extensions
@@ -1846,8 +1841,8 @@ into a framework before the basic product loop is proven.
 
 These questions should be resolved before implementation begins.
 
-1. Should custom verbs be generally allowed, or should policy default them to
-   `official` and `verified` extensions only?
+1. Should custom verbs be generally allowed in v1, or should that be revisited
+   only after a later trust and policy model exists?
 2. Should GitHub repo installation always use a hybrid rule of release assets
    first and repo clone for script extensions, or should users choose
    explicitly?
