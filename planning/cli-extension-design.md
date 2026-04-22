@@ -454,6 +454,15 @@ shapes. That is acceptable in v1 if `kongctl` is explicit about the tradeoff:
 - future targeted helpers can raise the abstraction level where the raw API
   proves too painful
 
+This is especially relevant for Go-based extensions. A child extension process
+cannot reuse the parent `kongctl` process's in-memory authenticated HTTP
+client. If a Go extension imports `sdk-konnect-go` directly, it can inherit
+resolved values like `profile` and `base_url` from `context.json`, but it still
+needs some way to obtain the effective authenticated client behavior. Without a
+host bridge, the extension would need to reproduce `kongctl`'s token
+resolution, refresh handling, timeout settings, transport options, and client
+construction itself.
+
 ### 12. Defer A Go SDK Until It Is Clearly Needed
 
 The design does not need to require a Go SDK in the first implementation.
@@ -464,6 +473,13 @@ Go-based extensions can still be supported in v1 without a host-owned SDK:
 - they can invoke `kongctl api` and other helper commands directly
 - they can import `sdk-konnect-go` themselves when they want richer typed API
   access
+
+However, the third option currently has a real gap. Importing
+`sdk-konnect-go` directly does not automatically give the extension the same
+authorization, profile, refresh-token handling, timeout settings, transport
+options, or logging behavior that `kongctl` uses internally. If the extension
+does not re-enter `kongctl`, it would need to recreate that client setup
+itself.
 
 If a clear repeated pattern emerges across real extensions, `kongctl` can add a
 small helper library later. That library should be justified by actual author
@@ -1658,6 +1674,15 @@ That is acceptable in v1 if `kongctl` is explicit about the tradeoff:
 - future targeted helpers can raise the abstraction level where the raw API
   proves too painful
 
+This is especially relevant for Go-based extensions. A child extension process
+cannot reuse the parent `kongctl` process's in-memory authenticated HTTP
+client. If a Go extension imports `sdk-konnect-go` directly, it can inherit
+resolved values like `profile` and `base_url` from `context.json`, but it still
+needs some way to obtain the effective authenticated client behavior. Without a
+host bridge, the extension would need to reproduce `kongctl`'s token
+resolution, refresh handling, timeout settings, transport options, and client
+construction itself.
+
 ### 9. Defer A Go SDK Until It Is Clearly Needed
 
 The design does not need to require a Go SDK in the first implementation.
@@ -1668,6 +1693,13 @@ Go-based extensions can still be supported in v1 without a host-owned SDK:
 - they can invoke `kongctl api` and other helper commands directly
 - they can import `sdk-konnect-go` themselves when they want richer typed API
   access
+
+However, the third option currently has a real gap. Importing
+`sdk-konnect-go` directly does not automatically give the extension the same
+authorization, profile, refresh-token handling, timeout settings, transport
+options, or logging behavior that `kongctl` uses internally. If the extension
+does not re-enter `kongctl`, it would need to recreate that client setup
+itself.
 
 If a clear repeated pattern emerges across real extensions, `kongctl` can add a
 small helper library later. That library should be justified by actual author
@@ -1797,6 +1829,11 @@ Once several Go-based extensions are repeating the same logic around:
 
 then a small helper library may become worthwhile. Until that pattern is clear,
 the first release does not need to commit to shipping one.
+
+The strongest signal would be repeated extension code that is rebuilding the
+same `sdk-konnect-go` client wiring from resolved config and auth state. That
+would indicate `kongctl` should provide a narrow bridge for authenticated client
+construction rather than forcing each extension to rediscover it.
 
 ## End-User Experience Recommendations
 
