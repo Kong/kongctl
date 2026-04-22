@@ -106,33 +106,32 @@ func GetVersionsForAPI(ctx context.Context, kkClient APIVersionAPI, apiID string
 		return nil, fmt.Errorf("APIVersionAPI client is nil")
 	}
 
-	// Create a request to list API versions for this API
-	req := kkOps.ListAPIVersionsRequest{
-		APIID: apiID,
-	}
+	versions, err := paginateAllPageNumber(func(pageSize, pageNumber int64) (
+		[]kkComps.ListAPIVersionResponseAPIVersionSummary, float64, error,
+	) {
+		req := kkOps.ListAPIVersionsRequest{
+			APIID:      apiID,
+			PageSize:   Int64(pageSize),
+			PageNumber: Int64(pageNumber),
+		}
 
-	// Call the SDK's ListAPIVersions method
-	res, err := kkClient.ListAPIVersions(ctx, req)
+		res, err := kkClient.ListAPIVersions(ctx, req)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if res == nil || res.ListAPIVersionResponse == nil {
+			return []kkComps.ListAPIVersionResponseAPIVersionSummary{}, 0, nil
+		}
+
+		return res.ListAPIVersionResponse.Data, res.ListAPIVersionResponse.Meta.Page.Total, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	if res == nil {
-		return []any{}, nil
-	}
-
-	if res.ListAPIVersionResponse == nil {
-		return []any{}, nil
-	}
-
-	// Check if we have data in the response
-	if len(res.ListAPIVersionResponse.Data) == 0 {
-		return []any{}, nil
-	}
-
-	// Convert to []any and return
-	result := make([]any, len(res.ListAPIVersionResponse.Data))
-	for i, version := range res.ListAPIVersionResponse.Data {
+	result := make([]any, len(versions))
+	for i, version := range versions {
 		result[i] = version
 	}
 
