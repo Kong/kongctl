@@ -31,11 +31,11 @@ func GetAllGatewayPlugins(ctx context.Context, requestPageSize int64, cpID strin
 
 		allData = append(allData, res.Object.Data...)
 
-		if res.Object.Offset != nil {
-			offset = *res.Object.Offset
-		} else {
+		nextOffset, ok := nextOffsetToken(res.Object.Offset)
+		if !ok {
 			break
 		}
+		offset = nextOffset
 	}
 
 	return allData, nil
@@ -72,11 +72,11 @@ func GetAllGatewayServicePlugins(
 
 		allData = append(allData, res.Object.Data...)
 
-		if res.Object.Offset != nil {
-			offset = *res.Object.Offset
-		} else {
+		nextOffset, ok := nextOffsetToken(res.Object.Offset)
+		if !ok {
 			break
 		}
+		offset = nextOffset
 	}
 
 	return allData, nil
@@ -113,11 +113,11 @@ func GetAllGatewayRoutePlugins(
 
 		allData = append(allData, res.Object.Data...)
 
-		if res.Object.Offset != nil {
-			offset = *res.Object.Offset
-		} else {
+		nextOffset, ok := nextOffsetToken(res.Object.Offset)
+		if !ok {
 			break
 		}
+		offset = nextOffset
 	}
 
 	return allData, nil
@@ -154,11 +154,11 @@ func GetAllGatewayConsumerPlugins(
 
 		allData = append(allData, res.Object.Data...)
 
-		if res.Object.Offset != nil {
-			offset = *res.Object.Offset
-		} else {
+		nextOffset, ok := nextOffsetToken(res.Object.Offset)
+		if !ok {
 			break
 		}
+		offset = nextOffset
 	}
 
 	return allData, nil
@@ -195,11 +195,11 @@ func GetAllGatewayConsumerGroupPlugins(
 
 		allData = append(allData, res.Object.Data...)
 
-		if res.Object.Offset != nil {
-			offset = *res.Object.Offset
-		} else {
+		nextOffset, ok := nextOffsetToken(res.Object.Offset)
+		if !ok {
 			break
 		}
+		offset = nextOffset
 	}
 
 	return allData, nil

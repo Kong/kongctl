@@ -33,11 +33,11 @@ func GetAllGatewayServices(ctx context.Context, requestPageSize int64, cpID stri
 
 		allData = append(allData, res.Object.Data...)
 
-		if res.Object.Offset != nil {
-			offset = *res.Object.Offset
-		} else {
+		nextOffset, ok := nextOffsetToken(res.Object.Offset)
+		if !ok {
 			break
 		}
+		offset = nextOffset
 	}
 
 	return allData, nil

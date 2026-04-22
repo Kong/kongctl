@@ -3,7 +3,6 @@ package dump
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"reflect"
 	"sort"
 	"strings"
@@ -492,17 +491,11 @@ func collectDeclarativeEventGateways(
 			allData = append(allData, mapEventGatewayToDeclarativeResource(egw))
 		}
 
-		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewaysResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, err
-		}
-
-		values := u.Query()
-		pageAfter = stringPointer(values.Get("page[after]"))
+		pageAfter = stringPointer(nextCursor)
 	}
 
 	// Client-side filtering for exact name match or ID (not supported server-side)

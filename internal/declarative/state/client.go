@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/url"
 	"slices"
 	"strings"
 
@@ -825,8 +824,8 @@ func (c *Client) ListGatewayServices(ctx context.Context, controlPlaneID string)
 			})
 		}
 
-		if resp.Object.Offset != nil && *resp.Object.Offset != "" && len(resp.Object.Data) > 0 {
-			offsetVal = *resp.Object.Offset
+		if resp.Object.Offset != nil && strings.TrimSpace(*resp.Object.Offset) != "" && len(resp.Object.Data) > 0 {
+			offsetVal = strings.TrimSpace(*resp.Object.Offset)
 			hasOffset = true
 			continue
 		}
@@ -3782,17 +3781,11 @@ func (c *Client) ListManagedEventGatewayControlPlanes(
 
 		allData = append(allData, res.ListEventGatewaysResponse.Data...)
 
-		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewaysResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway control planes: invalid cursor", nil)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var filteredEGWControlPlanes []EventGatewayControlPlane
@@ -3944,17 +3937,11 @@ func (c *Client) ListEventGatewayBackendClusters(
 
 		allData = append(allData, res.ListBackendClustersResponse.Data...)
 
-		if res.ListBackendClustersResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListBackendClustersResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListBackendClustersResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway backend clusters: invalid cursor", nil)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var backendClusters []EventGatewayBackendCluster
@@ -4291,17 +4278,11 @@ func (c *Client) ListEventGatewayVirtualClusters(
 
 		allData = append(allData, res.ListVirtualClustersResponse.Data...)
 
-		if res.ListVirtualClustersResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListVirtualClustersResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListVirtualClustersResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway virtual clusters: invalid cursor", nil)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var virtualClusters []EventGatewayVirtualCluster
@@ -4462,17 +4443,11 @@ func (c *Client) ListEventGatewayListeners(
 
 		allData = append(allData, res.ListEventGatewayListenersResponse.Data...)
 
-		if res.ListEventGatewayListenersResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewayListenersResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListEventGatewayListenersResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway listeners: invalid cursor", nil)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var listeners []EventGatewayListener
@@ -5383,13 +5358,13 @@ func (c *Client) ListEventGatewayDataPlaneCertificates(
 			break
 		}
 
-		u, err := url.Parse(*res.ListEventGatewayDataPlaneCertificatesResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway data plane certificates: invalid cursor", nil)
+		nextCursor := pagination.ExtractPageAfterCursor(
+			res.ListEventGatewayDataPlaneCertificatesResponse.Meta.Page.Next,
+		)
+		if nextCursor == "" {
+			break
 		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var certs []EventGatewayDataPlaneCertificate
@@ -5553,13 +5528,11 @@ func (c *Client) ListEventGatewaySchemaRegistries(
 			break
 		}
 
-		u, err := url.Parse(*res.ListSchemaRegistriesResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway schema registries: invalid cursor", nil)
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListSchemaRegistriesResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
 		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	registries := make([]EventGatewaySchemaRegistry, 0, len(allData))
@@ -5723,14 +5696,11 @@ func (c *Client) ListEventGatewayStaticKeys(
 			break
 		}
 
-		u, err := url.Parse(*res.ListEventGatewayStaticKeysResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway static keys: invalid cursor", nil)
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewayStaticKeysResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
 		}
-
-		values := u.Query()
-		after := values.Get("page[after]")
-		pageAfter = &after
+		pageAfter = &nextCursor
 	}
 
 	result := make([]EventGatewayStaticKey, 0, len(allData))
@@ -5869,14 +5839,11 @@ func (c *Client) ListEventGatewayTLSTrustBundles(
 			break
 		}
 
-		u, err := url.Parse(*res.ListTLSTrustBundlesResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway TLS trust bundles: invalid cursor", nil)
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListTLSTrustBundlesResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
 		}
-
-		values := u.Query()
-		after := values.Get("page[after]")
-		pageAfter = &after
+		pageAfter = &nextCursor
 	}
 
 	result := make([]EventGatewayTLSTrustBundle, 0, len(allData))
