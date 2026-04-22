@@ -139,6 +139,68 @@ func TestPaginateAll_NilMeta(t *testing.T) {
 	}
 }
 
+func TestPaginateAll_DoesNotStopOnFilteredEmptyPage(t *testing.T) {
+	var requestedPages []int64
+
+	lister := func(_ context.Context, _, pageNumber int64) ([]string, *PageMeta, error) {
+		requestedPages = append(requestedPages, pageNumber)
+
+		switch pageNumber {
+		case 1:
+			return nil, &PageMeta{Total: 200}, nil
+		case 2:
+			return []string{"managed-item"}, &PageMeta{Total: 200}, nil
+		default:
+			return nil, nil, fmt.Errorf("unexpected page request: %d", pageNumber)
+		}
+	}
+
+	result, err := PaginateAll(t.Context(), lister)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if len(result) != 1 || result[0] != "managed-item" {
+		t.Fatalf("Expected to collect the later matching item, got: %v", result)
+	}
+
+	if len(requestedPages) != 2 || requestedPages[0] != 1 || requestedPages[1] != 2 {
+		t.Fatalf("Expected to request pages [1 2], got: %v", requestedPages)
+	}
+}
+
+func TestPaginateAll_ExactPageMultipleDoesNotOverFetch(t *testing.T) {
+	pageCalls := 0
+
+	lister := func(_ context.Context, pageSize, pageNumber int64) ([]string, *PageMeta, error) {
+		pageCalls++
+
+		switch pageNumber {
+		case 1, 2:
+			items := make([]string, pageSize)
+			for i := range pageSize {
+				items[i] = fmt.Sprintf("page%d-item%d", pageNumber, i+1)
+			}
+			return items, &PageMeta{Total: 200}, nil
+		default:
+			return nil, nil, fmt.Errorf("unexpected page request: %d", pageNumber)
+		}
+	}
+
+	result, err := PaginateAll(t.Context(), lister)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if len(result) != 200 {
+		t.Fatalf("Expected 200 items, got %d", len(result))
+	}
+
+	if pageCalls != 2 {
+		t.Fatalf("Expected exactly 2 page requests, got %d", pageCalls)
+	}
+}
+
 func TestPaginateAllFiltered_Success(t *testing.T) {
 	mockData := [][]string{
 		{"apple", "banana", "cherry"},
@@ -185,6 +247,46 @@ func TestPaginateAllFiltered_Success(t *testing.T) {
 		if result[i] != item {
 			t.Errorf("Expected item %d to be %s, got %s", i, item, result[i])
 		}
+	}
+}
+
+func TestPaginateAllFiltered_DoesNotSilentlyTruncateAfter10Pages(t *testing.T) {
+	var requestedPages []int64
+
+	lister := func(
+		_ context.Context, _, pageNumber int64, filter func(string) bool,
+	) ([]string, *PageMeta, error) {
+		requestedPages = append(requestedPages, pageNumber)
+
+		if pageNumber > 11 {
+			return nil, nil, fmt.Errorf("unexpected page request: %d", pageNumber)
+		}
+
+		candidate := fmt.Sprintf("item%d", pageNumber)
+		if !filter(candidate) {
+			return nil, &PageMeta{Total: 1100}, nil
+		}
+
+		return []string{candidate}, &PageMeta{Total: 1100}, nil
+	}
+
+	result, err := PaginateAllFiltered(t.Context(), lister, func(string) bool {
+		return true
+	})
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if len(result) != 11 {
+		t.Fatalf("Expected 11 items across 11 pages, got %d", len(result))
+	}
+
+	if len(requestedPages) != 11 {
+		t.Fatalf("Expected 11 page requests, got %d", len(requestedPages))
+	}
+
+	if result[10] != "item11" {
+		t.Fatalf("Expected to collect page 11 data, got: %v", result)
 	}
 }
 
