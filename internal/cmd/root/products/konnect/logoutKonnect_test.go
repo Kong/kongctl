@@ -17,7 +17,6 @@ type stubConfig struct {
 	path    string
 }
 
-func (s stubConfig) Save() error                           { return nil }
 func (s stubConfig) GetString(string) string               { return "" }
 func (s stubConfig) GetBool(string) bool                   { return false }
 func (s stubConfig) GetInt(string) int                     { return 0 }

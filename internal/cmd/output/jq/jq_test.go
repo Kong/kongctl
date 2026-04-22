@@ -15,7 +15,6 @@ type stubConfig struct {
 	boolValues map[string]bool
 }
 
-func (s stubConfig) Save() error                           { return nil }
 func (s stubConfig) GetString(key string) string           { return s.values[key] }
 func (s stubConfig) GetBool(key string) bool               { return s.boolValues[key] }
 func (s stubConfig) GetInt(string) int                     { return 0 }
