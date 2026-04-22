@@ -47,3 +47,11 @@ dcr_providers:
     dcr_config:
       dcr_base_url: https://e2ediff.example.com/v1/dcr
       api_key: e2e_diff_token
+
+organization:
+  teams:
+    - ref: diff-backend-team
+      name: diff-backend-team-name
+      description: "Backend team for diff coverage (updated)"
+      labels:
+        department: engineering
