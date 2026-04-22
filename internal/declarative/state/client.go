@@ -3650,13 +3650,7 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 		return nil, fmt.Errorf("portal team roles API not configured")
 	}
 
-	var (
-		allRoles   []PortalTeamRole
-		pageNumber int64 = 1
-		pageSize   int64 = 100
-	)
-
-	for {
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]PortalTeamRole, *PageMeta, error) {
 		req := kkOps.ListPortalTeamRolesRequest{
 			PortalID:   portalID,
 			TeamID:     teamID,
@@ -3666,17 +3660,17 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 
 		resp, err := c.portalTeamRolesAPI.ListPortalTeamRoles(ctx, req)
 		if err != nil {
-			return nil, WrapAPIError(err, "list portal team roles", &ErrorWrapperOptions{
+			return nil, nil, WrapAPIError(err, "list portal team roles", &ErrorWrapperOptions{
 				ResourceType: "portal_team_role",
 				UseEnhanced:  true,
 			})
 		}
 
-		if resp.AssignedPortalRoleCollectionResponse == nil ||
-			len(resp.AssignedPortalRoleCollectionResponse.Data) == 0 {
-			break
+		if resp.AssignedPortalRoleCollectionResponse == nil {
+			return []PortalTeamRole{}, &PageMeta{Total: 0}, nil
 		}
 
+		var allRoles []PortalTeamRole
 		for _, r := range resp.AssignedPortalRoleCollectionResponse.Data {
 			role := PortalTeamRole{
 				ID:             r.ID,
@@ -3690,13 +3684,12 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 			allRoles = append(allRoles, role)
 		}
 
-		pageNumber++
-		if float64(pageSize*(pageNumber-1)) >= resp.AssignedPortalRoleCollectionResponse.Meta.Page.Total {
-			break
-		}
+		meta := &PageMeta{Total: resp.AssignedPortalRoleCollectionResponse.Meta.Page.Total}
+
+		return allRoles, meta, nil
 	}
 
-	return allRoles, nil
+	return PaginateAll(ctx, lister)
 }
 
 // AssignPortalTeamRole assigns a role to a portal team
