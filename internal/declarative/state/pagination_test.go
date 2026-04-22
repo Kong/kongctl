@@ -205,13 +205,12 @@ func TestPaginateAllFiltered_Success(t *testing.T) {
 	mockData := [][]string{
 		{"apple", "banana", "cherry"},
 		{"apricot", "blueberry"},
-		{},
 	}
 
 	lister := func(_ context.Context, _, pageNumber int64, filter func(string) bool) ([]string, *PageMeta, error) {
 		pageIndex := int(pageNumber - 1)
 		if pageIndex >= len(mockData) {
-			return []string{}, &PageMeta{Total: 5.0}, nil
+			return []string{}, &PageMeta{Total: 105.0}, nil
 		}
 
 		page := mockData[pageIndex]
@@ -224,7 +223,7 @@ func TestPaginateAllFiltered_Success(t *testing.T) {
 			}
 		}
 
-		meta := &PageMeta{Total: 5.0}
+		meta := &PageMeta{Total: 105.0}
 		return filtered, meta, nil
 	}
 

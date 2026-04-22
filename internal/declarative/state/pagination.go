@@ -29,13 +29,13 @@ func PaginateAll[T any](ctx context.Context, lister PaginatedLister[T]) ([]T, er
 		// Add results to our collection
 		allResults = append(allResults, pageResults...)
 
-		// Check if we have more pages to fetch
-		if meta == nil || len(pageResults) == 0 {
+		// Without metadata, the helper cannot prove whether more raw pages exist.
+		if meta == nil {
 			break
 		}
 
-		// Check if we've fetched all available results based on metadata
-		// Calculate how many items we should have fetched so far
+		// Completion must be based on raw-page progress, not on the filtered
+		// result count returned by the caller.
 		expectedTotalFetched := pageSize * pageNumber
 		if meta.Total <= float64(expectedTotalFetched) {
 			break
@@ -70,20 +70,19 @@ func PaginateAllFiltered[T any](
 		// Add results to our collection
 		allResults = append(allResults, pageResults...)
 
-		// Check if we have more pages to fetch
-		if meta == nil || len(pageResults) == 0 {
+		// Without metadata, the helper cannot prove whether more raw pages exist.
+		if meta == nil {
 			break
 		}
 
-		// For filtered results, we can't rely on page size to determine end
-		// We need to check if this is the last page based on page number
-		// This is a simplified approach - in real scenarios, the API would indicate this
+		// Filtering can make page-local result counts sparse or empty, so use the
+		// raw total to determine whether all source pages have been traversed.
+		expectedTotalFetched := pageSize * pageNumber
+		if meta.Total <= float64(expectedTotalFetched) {
+			break
+		}
+
 		pageNumber++
-
-		// Simple heuristic: if we're beyond reasonable page count, stop
-		if pageNumber > 10 {
-			break
-		}
 	}
 
 	return allResults, nil
