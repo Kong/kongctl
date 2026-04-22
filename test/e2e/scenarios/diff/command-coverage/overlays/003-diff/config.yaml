@@ -51,7 +51,7 @@ dcr_providers:
 organization:
   teams:
     - ref: diff-backend-team
-      name: diff-backend-team
+      name: diff-backend-team-name
       description: "Backend team for diff coverage (updated)"
       labels:
         department: engineering

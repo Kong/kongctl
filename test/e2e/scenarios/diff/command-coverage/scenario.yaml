@@ -20,7 +20,7 @@ vars:
   dcrProviderRef: diff-dcr-http
   dcrProviderUpdatedIssuer: "https://e2ediffissuer-updated.example.com/oauth2/default"
   teamRef: diff-backend-team
-  teamName: diff-backend-team
+  teamName: diff-backend-team-name
   teamUpdatedDesc: "Backend team for diff coverage (updated)"
 
 defaults:
