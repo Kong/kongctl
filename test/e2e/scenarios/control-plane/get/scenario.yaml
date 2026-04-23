@@ -83,3 +83,27 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "not found"
+
+  - name: 006-delete-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: delete
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success

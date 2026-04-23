@@ -72,3 +72,28 @@ steps:
             expect:
               fields:
                 name: "e2e-gw-svc-two"
+
+  - name: 002-delete-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - -f
+          - "{{ .workdir }}/gateway-service-one.yaml"
+          - -f
+          - "{{ .workdir }}/gateway-service-two.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

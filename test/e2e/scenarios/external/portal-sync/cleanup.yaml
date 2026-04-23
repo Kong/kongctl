@@ -1,0 +1,9 @@
+portals:
+  - ref: central-portal
+    name: "central-team-portal"
+    display_name: "Central Team Portal"
+    description: "Central portal owned by the platform team"
+    authentication_enabled: false
+    kongctl:
+      namespace: default
+      protected: false

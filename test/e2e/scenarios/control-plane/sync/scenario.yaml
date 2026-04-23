@@ -80,3 +80,29 @@ steps:
             expect:
               fields:
                 "@": "CLUSTER_TYPE_CONTROL_PLANE"
+
+  - name: 003-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-sync-with-delete
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: delete
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success

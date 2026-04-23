@@ -88,3 +88,27 @@ steps:
             expect:
               fields:
                 total_changes: 0
+
+  - name: 004-delete-cleanup
+    commands:
+      - name: 004-000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: delete
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success

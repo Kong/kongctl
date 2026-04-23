@@ -1157,3 +1157,28 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 014-delete-cleanup
+    inputOverlayDirs:
+      - overlays/012-trust-bundles
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                "total_changes > `0`": true
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

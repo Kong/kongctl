@@ -17,6 +17,7 @@
 # 7. List by name              (text output; only alpha name must appear)
 
 vars:
+  namespace: e2e-get-team
   team_alpha_name: e2e-get-team-alpha
   team_beta_name: e2e-get-team-beta
   team_alpha_description: "E2E Get Test Team Alpha"
@@ -38,6 +39,8 @@ steps:
             inline:
               name: "{{ .vars.team_alpha_name }}"
               description: "{{ .vars.team_alpha_description }}"
+              labels:
+                KONGCTL-namespace: "{{ .vars.namespace }}"
           recordVar:
             name: team_alpha_id
             responsePath: id
@@ -49,6 +52,8 @@ steps:
             inline:
               name: "{{ .vars.team_beta_name }}"
               description: "{{ .vars.team_beta_description }}"
+              labels:
+                KONGCTL-namespace: "{{ .vars.namespace }}"
           recordVar:
             name: team_beta_id
             responsePath: id
@@ -177,3 +182,28 @@ steps:
             expect:
               fields:
                 "contains(stdout, 'e2e-get-team-beta')": false
+
+  - name: 007-delete-cleanup
+    skipInputs: true
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .scenario_dir }}/cleanup.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

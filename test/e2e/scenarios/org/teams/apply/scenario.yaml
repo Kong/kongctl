@@ -156,3 +156,29 @@ steps:
                 labels.tier: "core"
                 labels.platform: "web-mobile"
                 system_team: false
+
+  - name: 003-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-update-fields
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

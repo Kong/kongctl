@@ -1,0 +1,8 @@
+organization:
+  teams:
+    - ref: e2e-adopt-test-team
+      name: e2e-adopt-test-team
+      description: E2E test team for adopt and dump workflow
+      kongctl:
+        namespace: team-e2e-test
+        protected: false
