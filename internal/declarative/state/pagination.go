@@ -10,6 +10,8 @@ type PageMeta struct {
 	Total float64
 }
 
+const maxPaginationPages int64 = 10000
+
 // PaginatedLister is a function type that can fetch a page of results
 type PaginatedLister[T any] func(ctx context.Context, pageSize, pageNumber int64) ([]T, *PageMeta, error)
 
@@ -20,6 +22,10 @@ func PaginateAll[T any](ctx context.Context, lister PaginatedLister[T]) ([]T, er
 	pageSize := int64(100)
 
 	for {
+		if pageNumber > maxPaginationPages {
+			return nil, fmt.Errorf("pagination exceeded safety limit of %d pages", maxPaginationPages)
+		}
+
 		// Fetch the current page
 		pageResults, meta, err := lister(ctx, pageSize, pageNumber)
 		if err != nil {
@@ -61,6 +67,10 @@ func PaginateAllFiltered[T any](
 	pageSize := int64(100)
 
 	for {
+		if pageNumber > maxPaginationPages {
+			return nil, fmt.Errorf("pagination exceeded safety limit of %d pages", maxPaginationPages)
+		}
+
 		// Fetch the current page with filtering
 		pageResults, meta, err := lister(ctx, pageSize, pageNumber, filter)
 		if err != nil {
