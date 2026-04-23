@@ -3,10 +3,12 @@ package helpers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
@@ -154,6 +156,33 @@ func TestPaginateAllPageNumber_DoesNotStopOnEmptyPageWhenTotalIndicatesMore(t *t
 	require.Len(t, items, 1)
 	assert.Equal(t, []string{"item-2"}, items)
 	assert.Equal(t, []int64{1, 2}, requestedPages)
+}
+
+func TestPaginateAllPageNumber_ReturnsExplicitErrorWhenPageLimitExceeded(t *testing.T) {
+	sentinel := errors.New("requested page beyond test sentinel")
+
+	items, err := paginateAllPageNumber(func(_ int64, pageNumber int64) ([]string, float64, error) {
+		if pageNumber > 10000 {
+			return nil, 0, sentinel
+		}
+
+		return nil, 1_000_000_000, nil
+	})
+	if err == nil {
+		t.Fatal("Expected pagination limit error, got nil")
+	}
+
+	if errors.Is(err, sentinel) {
+		t.Fatalf("Expected explicit pagination limit error before sentinel, got: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "pagination") {
+		t.Fatalf("Expected pagination-related error, got: %v", err)
+	}
+
+	if items != nil {
+		t.Fatalf("Expected nil result on pagination limit error, got: %v", items)
+	}
 }
 
 func TestGetVersionsForAPI_PaginatesAcrossPages(t *testing.T) {

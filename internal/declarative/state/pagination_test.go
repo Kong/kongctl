@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -201,6 +202,35 @@ func TestPaginateAll_ExactPageMultipleDoesNotOverFetch(t *testing.T) {
 	}
 }
 
+func TestPaginateAll_ReturnsExplicitErrorWhenPageLimitExceeded(t *testing.T) {
+	sentinel := errors.New("requested page beyond test sentinel")
+
+	lister := func(_ context.Context, _, pageNumber int64) ([]string, *PageMeta, error) {
+		if pageNumber > 10000 {
+			return nil, nil, sentinel
+		}
+
+		return nil, &PageMeta{Total: 1_000_000_000}, nil
+	}
+
+	result, err := PaginateAll(t.Context(), lister)
+	if err == nil {
+		t.Fatal("Expected pagination limit error, got nil")
+	}
+
+	if errors.Is(err, sentinel) {
+		t.Fatalf("Expected explicit pagination limit error before sentinel, got: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "pagination") {
+		t.Fatalf("Expected pagination-related error, got: %v", err)
+	}
+
+	if result != nil {
+		t.Fatalf("Expected nil result on pagination limit error, got: %v", result)
+	}
+}
+
 func TestPaginateAllFiltered_Success(t *testing.T) {
 	mockData := [][]string{
 		{"apple", "banana", "cherry"},
@@ -286,6 +316,42 @@ func TestPaginateAllFiltered_DoesNotSilentlyTruncateAfter10Pages(t *testing.T) {
 
 	if result[10] != "item11" {
 		t.Fatalf("Expected to collect page 11 data, got: %v", result)
+	}
+}
+
+func TestPaginateAllFiltered_ReturnsExplicitErrorWhenPageLimitExceeded(t *testing.T) {
+	sentinel := errors.New("requested page beyond test sentinel")
+
+	lister := func(
+		_ context.Context, _, pageNumber int64, filter func(string) bool,
+	) ([]string, *PageMeta, error) {
+		if pageNumber > 10000 {
+			return nil, nil, sentinel
+		}
+
+		candidate := fmt.Sprintf("item-%d", pageNumber)
+		if !filter(candidate) {
+			return nil, &PageMeta{Total: 1_000_000_000}, nil
+		}
+
+		return nil, &PageMeta{Total: 1_000_000_000}, nil
+	}
+
+	result, err := PaginateAllFiltered(t.Context(), lister, func(string) bool { return true })
+	if err == nil {
+		t.Fatal("Expected pagination limit error, got nil")
+	}
+
+	if errors.Is(err, sentinel) {
+		t.Fatalf("Expected explicit pagination limit error before sentinel, got: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "pagination") {
+		t.Fatalf("Expected pagination-related error, got: %v", err)
+	}
+
+	if result != nil {
+		t.Fatalf("Expected nil result on pagination limit error, got: %v", result)
 	}
 }
 
