@@ -192,10 +192,7 @@ func fetchPortalEmailDomains(
 	cfg config.Hook,
 ) ([]kkComps.EmailDomain, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.EmailDomain
 
@@ -219,7 +216,7 @@ func fetchPortalEmailDomains(
 		all = append(all, data...)
 
 		total := int(res.ListDomains.Meta.Page.Total)
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 
