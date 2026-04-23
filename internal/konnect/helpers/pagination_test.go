@@ -135,6 +135,27 @@ func (m *mockAPIImplementationAPI) DeleteAPIImplementation(
 	return nil, fmt.Errorf("DeleteAPIImplementation not implemented")
 }
 
+func TestPaginateAllPageNumber_DoesNotStopOnEmptyPageWhenTotalIndicatesMore(t *testing.T) {
+	var requestedPages []int64
+
+	items, err := paginateAllPageNumber(func(_ int64, pageNumber int64) ([]string, float64, error) {
+		requestedPages = append(requestedPages, pageNumber)
+
+		switch pageNumber {
+		case 1:
+			return []string{}, 200, nil
+		case 2:
+			return []string{"item-2"}, 200, nil
+		default:
+			return nil, 0, fmt.Errorf("unexpected page request: %d", pageNumber)
+		}
+	})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, []string{"item-2"}, items)
+	assert.Equal(t, []int64{1, 2}, requestedPages)
+}
+
 func TestGetVersionsForAPI_PaginatesAcrossPages(t *testing.T) {
 	var requestedPages []int64
 
