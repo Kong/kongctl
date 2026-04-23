@@ -1,8 +1,10 @@
 package pagination
 
-import "testing"
+import (
+	"testing"
 
-import "github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/require"
+)
 
 func TestExtractPageAfterCursor_DecodesFallbackQuerySnippet(t *testing.T) {
 	t.Run("plain key encoded value", func(t *testing.T) {

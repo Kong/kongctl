@@ -1,8 +1,10 @@
 package common
 
-import "testing"
+import (
+	"testing"
 
-import "github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/require"
+)
 
 func TestResolveRequestPageSize(t *testing.T) {
 	t.Run("configured page size", func(t *testing.T) {

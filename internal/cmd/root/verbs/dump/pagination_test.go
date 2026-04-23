@@ -33,7 +33,10 @@ func (p *portalPaginationStub) GetPortal(context.Context, string) (*kkOps.GetPor
 	return nil, nil
 }
 
-func (p *portalPaginationStub) CreatePortal(context.Context, kkComps.CreatePortal) (*kkOps.CreatePortalResponse, error) {
+func (p *portalPaginationStub) CreatePortal(
+	context.Context,
+	kkComps.CreatePortal,
+) (*kkOps.CreatePortalResponse, error) {
 	p.t.Fatalf("unexpected CreatePortal call")
 	return nil, nil
 }
