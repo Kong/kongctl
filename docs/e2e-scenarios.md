@@ -161,8 +161,9 @@ Selectors and Sources
   for the assertion.
 - Set `source.artifact.path` to read a captured command artifact relative to
   the parent command directory. JSON and YAML files are auto-parsed by
-  extension; other files default to text. You can override parsing with
-  `parseAs`.
+  extension; other files are exposed as an object with a `text` field. Use
+  `select: "text"` or `expect.fields.text` when asserting on text artifacts.
+  You can override parsing with `parseAs`.
 - Set `source.artifact.glob` to inspect a group of captured files relative to
   the parent command directory. Glob sources expose
   `{ count, matches }`, which is useful for request-count assertions against
@@ -183,6 +184,15 @@ Selectors and Sources
       expect:
         fields:
           count: 2
+
+  assertions:
+    - source:
+        artifact:
+          path: "stderr.txt"
+      select: "text"
+      expect:
+        fields:
+          text: "warning: example"
 
 JMESPath Examples (Nested Fields)
 
