@@ -16,7 +16,7 @@ func paginateAllPageNumber[T any](fetchPage func(pageSize, pageNumber int64) ([]
 
 		all = append(all, pageItems...)
 
-		if len(pageItems) == 0 || total <= float64(pageSize*pageNumber) {
+		if total <= float64(pageSize*pageNumber) {
 			break
 		}
 
