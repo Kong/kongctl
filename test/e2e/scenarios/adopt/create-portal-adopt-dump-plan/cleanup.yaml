@@ -1,0 +1,9 @@
+portals:
+  - ref: adopt-e2e-portal
+    name: adopt-e2e-portal
+    display_name: "Adopt Scenario Portal"
+    authentication_enabled: false
+    rbac_enabled: false
+    kongctl:
+      namespace: team-e2e
+      protected: false

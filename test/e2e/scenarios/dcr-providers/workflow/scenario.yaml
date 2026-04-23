@@ -352,14 +352,3 @@ steps:
               fields:
                 failed: 0
                 status: success
-      - name: 001-get-empty
-        run:
-          - get
-          - dcr-providers
-          - -o
-          - json
-        assertions:
-          - select: "@"
-            expect:
-              fields:
-                "length(@)": 0

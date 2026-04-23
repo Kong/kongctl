@@ -68,3 +68,25 @@ steps:
             expect:
               fields:
                 "length(@)": 0
+
+  - name: 003-delete-cleanup
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/konnect/"
+          - --base-dir
+          - "{{ .workdir }}"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

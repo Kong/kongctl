@@ -177,3 +177,30 @@ steps:
               fields:
                 description: "Frontend engineering team with expanded capabilities"
                 labels.tier: "core"
+
+  - name: 003-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-plan-update
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

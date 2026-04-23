@@ -175,3 +175,26 @@ steps:
             expect:
               fields:
                 "length(@)": 0
+
+  - name: 005-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-delete-api
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

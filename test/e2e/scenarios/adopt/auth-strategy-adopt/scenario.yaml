@@ -117,3 +117,28 @@ steps:
                 namespace: "{{ .vars.namespace }}"
                 id: "{{ .vars.auth_strategy_id_2 }}"
                 resource_type: auth_strategy
+
+  - name: 006-delete-cleanup
+    skipInputs: true
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .scenario_dir }}/cleanup.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
