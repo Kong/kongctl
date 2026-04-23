@@ -44,7 +44,7 @@ func (p PortalIdentityProviderResource) GetMoniker() string {
 
 // GetDependencies returns references to other resources this provider depends on.
 func (p PortalIdentityProviderResource) GetDependencies() []ResourceRef {
-	deps := []ResourceRef{}
+	var deps []ResourceRef
 	if p.Portal != "" {
 		deps = append(deps, ResourceRef{Kind: "portal", Ref: p.Portal})
 	}
@@ -141,14 +141,12 @@ func (p *PortalIdentityProviderResource) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(v, &p.Ref); err != nil {
 			return err
 		}
-		delete(raw, "ref")
 	}
 
 	if v, ok := raw["portal"]; ok {
 		if err := json.Unmarshal(v, &p.Portal); err != nil {
 			return err
 		}
-		delete(raw, "portal")
 	}
 
 	if v, ok := raw["kongctl"]; ok {
@@ -159,7 +157,6 @@ func (p *PortalIdentityProviderResource) UnmarshalJSON(data []byte) error {
 		if kongctl != nil {
 			return fmt.Errorf("kongctl metadata not supported on portal identity providers")
 		}
-		delete(raw, "kongctl")
 	}
 
 	if v, ok := raw["type"]; ok {
@@ -168,7 +165,6 @@ func (p *PortalIdentityProviderResource) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		p.Type = &providerType
-		delete(raw, "type")
 	}
 
 	if v, ok := raw["enabled"]; ok {
@@ -177,7 +173,6 @@ func (p *PortalIdentityProviderResource) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		p.Enabled = &enabled
-		delete(raw, "enabled")
 	}
 
 	if v, ok := raw["login_path"]; ok {
@@ -186,7 +181,6 @@ func (p *PortalIdentityProviderResource) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		p.LoginPath = &loginPath
-		delete(raw, "login_path")
 	}
 
 	if v, ok := raw["config"]; ok {
@@ -195,7 +189,6 @@ func (p *PortalIdentityProviderResource) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		p.Config = &config
-		delete(raw, "config")
 	}
 
 	return nil

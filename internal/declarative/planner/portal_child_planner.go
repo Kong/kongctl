@@ -365,15 +365,9 @@ func (p *Planner) shouldUpdatePortalIdentityProvider(
 		changedFields["enabled"] = FieldChange{Old: current.Enabled, New: *desired.Enabled}
 	}
 
-	if desired.LoginPath != nil {
-		currentLoginPath := ""
-		if current.LoginPath != nil {
-			currentLoginPath = *current.LoginPath
-		}
-		if current.LoginPath == nil || currentLoginPath != *desired.LoginPath {
-			updates["login_path"] = *desired.LoginPath
-			changedFields["login_path"] = FieldChange{Old: current.LoginPath, New: *desired.LoginPath}
-		}
+	if desired.LoginPath != nil && (current.LoginPath == nil || *current.LoginPath != *desired.LoginPath) {
+		updates["login_path"] = *desired.LoginPath
+		changedFields["login_path"] = FieldChange{Old: current.LoginPath, New: *desired.LoginPath}
 	}
 
 	if desired.Config != nil {
