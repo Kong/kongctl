@@ -24,25 +24,33 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 4
+                applied: 12
                 failed: 0
 
-      - name: 001-get-snippets-with-small-page
+      - name: 001-get-snippets-default-page-size
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - get
           - portal
           - snippets
           - --portal-name
           - "{{ .vars.portalRef }}"
-          - --page-size
-          - "1"
           - -o
           - json
         assertions:
           - select: "@"
             expect:
               fields:
-                "length(@)": 3
+                "length(@)": 11
                 "[?name=='snippet-banner'] | length(@)": 1
                 "[?name=='snippet-nav'] | length(@)": 1
                 "[?name=='snippet-toc'] | length(@)": 1
+                "[?name=='snippet-11'] | length(@)": 1
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                count: 3

@@ -24,24 +24,31 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 11
                 failed: 0
 
-      - name: 001-get-versions-with-small-page
+      - name: 001-get-versions-default-page-size
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - get
           - api
           - versions
           - --api-name
           - "{{ .vars.apiName }}"
-          - --page-size
-          - "1"
           - -o
           - json
         assertions:
           - select: "@"
             expect:
               fields:
-                "length(@)": 2
+                "length(@)": 10
                 "[?version=='1.0.0'] | length(@)": 1
-                "[?version=='2.0.0'] | length(@)": 1
+                "[?version=='10.0.0'] | length(@)": 1
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                count: 2

@@ -6,7 +6,7 @@ portals:
   - ref: portal-snippets-pagination
     name: portal-snippets-pagination
     display_name: Portal Snippets Pagination E2E
-    description: Portal for verifying snippet pagination.
+    description: Portal for verifying default page-size snippet pagination.
     kongctl:
       namespace: portal-snippets-pagination
     snippets:
@@ -31,3 +31,67 @@ portals:
         visibility: "private"
         status: "unpublished"
         content: !file ./snippets/toc.md
+      - ref: snippet-04
+        name: snippet-04
+        title: "Snippet 04"
+        description: "Generated snippet 04."
+        visibility: "public"
+        status: "published"
+        content: |
+          <div>Snippet 04 content</div>
+      - ref: snippet-05
+        name: snippet-05
+        title: "Snippet 05"
+        description: "Generated snippet 05."
+        visibility: "public"
+        status: "published"
+        content: |
+          <div>Snippet 05 content</div>
+      - ref: snippet-06
+        name: snippet-06
+        title: "Snippet 06"
+        description: "Generated snippet 06."
+        visibility: "public"
+        status: "published"
+        content: |
+          <div>Snippet 06 content</div>
+      - ref: snippet-07
+        name: snippet-07
+        title: "Snippet 07"
+        description: "Generated snippet 07."
+        visibility: "public"
+        status: "published"
+        content: |
+          <div>Snippet 07 content</div>
+      - ref: snippet-08
+        name: snippet-08
+        title: "Snippet 08"
+        description: "Generated snippet 08."
+        visibility: "public"
+        status: "published"
+        content: |
+          <div>Snippet 08 content</div>
+      - ref: snippet-09
+        name: snippet-09
+        title: "Snippet 09"
+        description: "Generated snippet 09."
+        visibility: "public"
+        status: "published"
+        content: |
+          <div>Snippet 09 content</div>
+      - ref: snippet-10
+        name: snippet-10
+        title: "Snippet 10"
+        description: "Generated snippet 10."
+        visibility: "public"
+        status: "published"
+        content: |
+          <div>Snippet 10 content</div>
+      - ref: snippet-11
+        name: snippet-11
+        title: "Snippet 11"
+        description: "Generated snippet 11."
+        visibility: "public"
+        status: "published"
+        content: |
+          <div>Snippet 11 content</div>
