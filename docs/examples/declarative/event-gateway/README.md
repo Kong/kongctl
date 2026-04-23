@@ -17,7 +17,7 @@ static_keys:
 `kongctl apply`. The value should be a 256-bit (32-byte)
 base64-encoded string.
 ```
-export ENV_STATIC_KEY_VALUE=YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams=
+export ENV_STATIC_KEY_VALUE=$(printf '%s' 'your-secret-value' | openssl dgst -sha256 -binary | base64 -w0)
 ```
 
 See [static-key.yaml](static-key.yaml) for a minimal example that
