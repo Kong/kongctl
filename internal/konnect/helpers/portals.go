@@ -76,6 +76,10 @@ func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkSDK.S
 
 	var pageNumber int64 = 1
 	for {
+		if pageNumber > maxPaginationPages {
+			return nil, fmt.Errorf("pagination exceeded safety limit of %d pages", maxPaginationPages)
+		}
+
 		req := kkOps.ListPortalsRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
@@ -86,12 +90,17 @@ func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkSDK.S
 			return nil, err
 		}
 
-		if res.ListPortalsResponse != nil && len(res.ListPortalsResponse.Data) > 0 {
-			allData = append(allData, res.ListPortalsResponse.Data...)
-			pageNumber++
-		} else {
+		if res.ListPortalsResponse == nil || len(res.ListPortalsResponse.Data) == 0 {
 			break
 		}
+
+		allData = append(allData, res.ListPortalsResponse.Data...)
+
+		if res.ListPortalsResponse.Meta.Page.Total <= float64(requestPageSize*pageNumber) {
+			break
+		}
+
+		pageNumber++
 	}
 
 	return allData, nil

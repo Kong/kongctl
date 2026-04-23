@@ -426,3 +426,53 @@ func TestGetSnippetsForPortal_PaginatesAcrossPages(t *testing.T) {
 	assert.Equal(t, []int{1, 2}, requestedPages)
 	assert.Equal(t, "snippet-2", snippets[1].ID)
 }
+
+func TestGetAllPortals_ExactPageBoundaryDoesNotRequestExtraPage(t *testing.T) {
+	var requestedPages []int
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Helper()
+		assert.Equal(t, "/v3/portals", r.URL.Path)
+
+		pageNumber := 1
+		if raw := r.URL.Query().Get("page[number]"); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			require.NoError(t, err)
+			pageNumber = parsed
+		}
+		requestedPages = append(requestedPages, pageNumber)
+
+		switch pageNumber {
+		case 1:
+			response := map[string]any{
+				"data": []map[string]any{
+					{
+						"id":   "portal-1",
+						"name": "portal-one",
+					},
+				},
+				"meta": map[string]any{
+					"page": map[string]any{
+						"total": 1,
+					},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		default:
+			t.Fatalf("unexpected page request: %d", pageNumber)
+		}
+	}))
+	defer server.Close()
+
+	client := kkSDK.New(
+		kkSDK.WithServerURL(server.URL),
+		kkSDK.WithClient(server.Client()),
+	)
+
+	portals, err := GetAllPortals(t.Context(), 1, client)
+	require.NoError(t, err)
+	require.Len(t, portals, 1)
+	assert.Equal(t, []int{1}, requestedPages)
+	assert.Equal(t, "portal-1", portals[0].ID)
+}

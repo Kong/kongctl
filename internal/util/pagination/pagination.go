@@ -23,13 +23,33 @@ func ExtractPageAfterCursor(next *string) string {
 		}
 	}
 
+	if cursor, ok := extractPageAfterCursorSnippet(value); ok {
+		return cursor
+	}
+
+	if decoded, err := url.QueryUnescape(value); err == nil {
+		if cursor, ok := extractPageAfterCursorSnippet(decoded); ok {
+			return cursor
+		}
+	}
+
+	return ""
+}
+
+func extractPageAfterCursorSnippet(value string) (string, bool) {
 	if _, after, ok := strings.Cut(value, "page[after]="); ok {
 		cursor := after
 		if end := strings.Index(cursor, "&"); end >= 0 {
 			cursor = cursor[:end]
 		}
-		return cursor
+
+		decoded, err := url.QueryUnescape(cursor)
+		if err == nil {
+			return decoded, true
+		}
+
+		return cursor, true
 	}
 
-	return ""
+	return "", false
 }

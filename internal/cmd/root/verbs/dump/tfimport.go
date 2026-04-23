@@ -358,7 +358,12 @@ func dumpPortals(
 			}
 		}
 
-		return true, nil
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: res.ListPortalsResponse.Meta.Page.Total,
+		}
+		return params.hasMorePages(), nil
 	})
 }
 
