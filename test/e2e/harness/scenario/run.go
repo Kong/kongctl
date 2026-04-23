@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1251,28 +1252,9 @@ func runAssertion(
 	env map[string]string,
 ) error {
 	// Resolve source
-	var src any
-	var err error
-	if as.Source.Get != "" {
-		// run fresh get, carefully tracking the command capture dir to relocate under retries
-		prevCmdDir := cli.LastCommandDir
-		var raw any
-		if _, err = cli.RunJSONWithEnv(context.Background(), env, &raw, "get", as.Source.Get); err != nil {
-			return fmt.Errorf("source.get %s failed: %w", as.Source.Get, err)
-		}
-		src = raw
-		getCmdDir := cli.LastCommandDir
-		// restore parent command dir to avoid confusing subsequent artifact writes
-		cli.LastCommandDir = prevCmdDir
-		// Move captured get command under parent command retries to avoid inflating command counts
-		if getCmdDir != "" && parentDir != "" {
-			dstBase := filepath.Join(parentDir, "assertions", asName, "retries", fmt.Sprintf("%03d", attempt))
-			_ = os.MkdirAll(dstBase, 0o755)
-			dst := filepath.Join(dstBase, filepath.Base(getCmdDir))
-			_ = os.Rename(getCmdDir, dst)
-		}
-	} else {
-		src = parent
+	src, err := resolveAssertionSource(cli, as, parent, asName, attempt, parentDir, tmplCtx, env)
+	if err != nil {
+		return err
 	}
 	// Apply selector
 	var observed any = src
@@ -1397,6 +1379,157 @@ func runAssertion(
 		return nil
 	}
 	return fmt.Errorf("assertion mismatch; see %s", asDir)
+}
+
+func resolveAssertionSource(
+	cli *harness.CLI,
+	as Assertion,
+	parent any,
+	asName string,
+	attempt int,
+	parentDir string,
+	tmplCtx map[string]any,
+	env map[string]string,
+) (any, error) {
+	sourceModes := 0
+	if strings.TrimSpace(as.Source.Get) != "" {
+		sourceModes++
+	}
+	if as.Source.Artifact != nil {
+		sourceModes++
+	}
+	if sourceModes > 1 {
+		return nil, fmt.Errorf("assertion source supports only one of get or artifact")
+	}
+
+	switch {
+	case strings.TrimSpace(as.Source.Get) != "":
+		// run fresh get, carefully tracking the command capture dir to relocate under retries
+		prevCmdDir := cli.LastCommandDir
+		var raw any
+		if _, err := cli.RunJSONWithEnv(context.Background(), env, &raw, "get", as.Source.Get); err != nil {
+			return nil, fmt.Errorf("source.get %s failed: %w", as.Source.Get, err)
+		}
+		getCmdDir := cli.LastCommandDir
+		// restore parent command dir to avoid confusing subsequent artifact writes
+		cli.LastCommandDir = prevCmdDir
+		// Move captured get command under parent command retries to avoid inflating command counts
+		if getCmdDir != "" && parentDir != "" {
+			dstBase := filepath.Join(parentDir, "assertions", asName, "retries", fmt.Sprintf("%03d", attempt))
+			_ = os.MkdirAll(dstBase, 0o755)
+			dst := filepath.Join(dstBase, filepath.Base(getCmdDir))
+			_ = os.Rename(getCmdDir, dst)
+		}
+		return raw, nil
+	case as.Source.Artifact != nil:
+		baseDir := parentDir
+		if strings.TrimSpace(baseDir) == "" {
+			baseDir = cli.LastCommandDir
+		}
+		return loadArtifactAssertionSource(baseDir, *as.Source.Artifact, tmplCtx)
+	default:
+		return parent, nil
+	}
+}
+
+func loadArtifactAssertionSource(
+	baseDir string,
+	src AssertionArtifactSource,
+	tmplCtx map[string]any,
+) (any, error) {
+	if strings.TrimSpace(baseDir) == "" {
+		return nil, fmt.Errorf("artifact source requires a captured command directory")
+	}
+
+	pathTpl := strings.TrimSpace(src.Path)
+	globTpl := strings.TrimSpace(src.Glob)
+	parseMode := strings.TrimSpace(src.ParseAs)
+
+	switch {
+	case pathTpl != "" && globTpl != "":
+		return nil, fmt.Errorf("artifact source supports only one of path or glob")
+	case pathTpl == "" && globTpl == "":
+		return nil, fmt.Errorf("artifact source requires path or glob")
+	}
+
+	if globTpl != "" {
+		if parseMode != "" {
+			return nil, fmt.Errorf("artifact glob does not support parseAs")
+		}
+
+		pattern := renderString(globTpl, tmplCtx)
+		if !filepath.IsAbs(pattern) {
+			pattern = filepath.Join(baseDir, pattern)
+		}
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("artifact glob %q failed: %w", globTpl, err)
+		}
+		slices.Sort(matches)
+
+		relativeMatches := make([]any, 0, len(matches))
+		for _, match := range matches {
+			rel := match
+			if r, err := filepath.Rel(baseDir, match); err == nil {
+				rel = r
+			}
+			relativeMatches = append(relativeMatches, filepath.ToSlash(rel))
+		}
+
+		return map[string]any{
+			"count":   len(matches),
+			"matches": relativeMatches,
+		}, nil
+	}
+
+	path := renderString(pathTpl, tmplCtx)
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(baseDir, path)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read artifact %q failed: %w", pathTpl, err)
+	}
+
+	return parseArtifactAssertionSource(path, parseMode, data)
+}
+
+func parseArtifactAssertionSource(path, parseMode string, data []byte) (any, error) {
+	mode := strings.ToLower(strings.TrimSpace(parseMode))
+	if mode == "" {
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".json":
+			mode = "json"
+		case ".yaml", ".yml":
+			mode = "yaml"
+		default:
+			mode = "text"
+		}
+	}
+
+	switch mode {
+	case "json":
+		decoded, err := decodeJSONOutput(data)
+		if err != nil {
+			return nil, fmt.Errorf("parse artifact as json: %w", err)
+		}
+		return decoded.Value(), nil
+	case "yaml", "yml":
+		jsonBytes, err := yaml.YAMLToJSON(data)
+		if err != nil {
+			return nil, fmt.Errorf("parse artifact as yaml: %w", err)
+		}
+		decoded, err := decodeJSONOutput(jsonBytes)
+		if err != nil {
+			return nil, fmt.Errorf("parse artifact as yaml: %w", err)
+		}
+		return decoded.Value(), nil
+	case "text":
+		return map[string]any{"text": string(data)}, nil
+	default:
+		return nil, fmt.Errorf("unsupported artifact parseAs %q", parseMode)
+	}
 }
 
 func unionKeys(sets ...[]string) []string {

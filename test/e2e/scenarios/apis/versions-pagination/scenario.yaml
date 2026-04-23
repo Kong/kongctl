@@ -1,0 +1,54 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  apiName: "API Pagination"
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-api-versions
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 11
+                failed: 0
+
+      - name: 001-get-versions-default-page-size
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
+        run:
+          - get
+          - api
+          - versions
+          - --api-name
+          - "{{ .vars.apiName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 10
+                "[?version=='1.0.0'] | length(@)": 1
+                "[?version=='10.0.0'] | length(@)": 1
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                count: 2

@@ -15,6 +15,8 @@ import (
 
 type paginationHandler func(pageNumber int64) (bool, error)
 
+const maxPaginationPages int64 = 10000
+
 type paginationParams struct {
 	pageSize   int64
 	pageNumber int64
@@ -29,6 +31,10 @@ func processPaginatedRequests(handler paginationHandler) error {
 	pageNumber := int64(1)
 
 	for {
+		if pageNumber > maxPaginationPages {
+			return fmt.Errorf("pagination exceeded safety limit of %d pages", maxPaginationPages)
+		}
+
 		hasMore, err := handler(pageNumber)
 		if err != nil {
 			return err

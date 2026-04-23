@@ -290,7 +290,8 @@ func (c *Client) ListManagedFoos(ctx context.Context, namespaces []string) ([]Fo
             // Normalize labels
             normalized := normalizeLabels(f.Labels)  // Handle SDK label format
 
-            // Filter by managed status and namespace
+            // Filtering is safe here because pagination completion still uses
+            // raw API totals from resp.ListFoosResponse.Meta.Page.Total.
             if labels.IsManagedResource(normalized) {
                 if shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
                     foo := Foo{
@@ -308,6 +309,11 @@ func (c *Client) ListManagedFoos(ctx context.Context, namespaces []string) ([]Fo
 
     return PaginateAll(ctx, lister)
 }
+
+// Important: if you use PaginateAll with page-local filtering, always return
+// pagination metadata from the raw API response. If an endpoint does not
+// expose reliable raw totals, keep a manual loop instead of relying on
+// PaginateAll.
 
 func (c *Client) CreateFoo(ctx context.Context, foo kkComps.CreateFoo, namespace string) (*kkComps.FooResponse, error) {
     resp, err := c.fooAPI.CreateFoo(ctx, foo)

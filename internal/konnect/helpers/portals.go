@@ -76,6 +76,10 @@ func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkSDK.S
 
 	var pageNumber int64 = 1
 	for {
+		if pageNumber > maxPaginationPages {
+			return nil, fmt.Errorf("pagination exceeded safety limit of %d pages", maxPaginationPages)
+		}
+
 		req := kkOps.ListPortalsRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
@@ -86,12 +90,17 @@ func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkSDK.S
 			return nil, err
 		}
 
-		if res.ListPortalsResponse != nil && len(res.ListPortalsResponse.Data) > 0 {
-			allData = append(allData, res.ListPortalsResponse.Data...)
-			pageNumber++
-		} else {
+		if res.ListPortalsResponse == nil || len(res.ListPortalsResponse.Data) == 0 {
 			break
 		}
+
+		allData = append(allData, res.ListPortalsResponse.Data...)
+
+		if res.ListPortalsResponse.Meta.Page.Total <= float64(requestPageSize*pageNumber) {
+			break
+		}
+
+		pageNumber++
 	}
 
 	return allData, nil
@@ -177,36 +186,37 @@ func GetSnippetsForPortal(ctx context.Context, portalAPI PortalAPI, portalID str
 		return nil, fmt.Errorf("SDK does not support Snippets API")
 	}
 
-	var allSnippets []SnippetInfo
-
-	// Note: The public SDK v0.6.0 doesn't support pagination for ListPortalSnippets
-	// This is a limitation compared to the internal SDK
-	// For now, we'll fetch all snippets in a single request
-	req := kkOps.ListPortalSnippetsRequest{
-		PortalID: portalID,
-	}
-
-	// Call the SDK's ListPortalSnippets method
-	res, err := publicAPI.SDK.Snippets.ListPortalSnippets(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list portal snippets: %w", err)
-	}
-
-	// Check if we have data in the response
-	if res.ListPortalSnippetsResponse == nil || len(res.ListPortalSnippetsResponse.Data) == 0 {
-		return allSnippets, nil
-	}
-
-	// Process all snippets
-	for _, snippet := range res.ListPortalSnippetsResponse.Data {
-		snippetInfo := SnippetInfo{
-			ID:   snippet.ID,
-			Name: snippet.Name,
+	snippets, err := paginateAllPageNumber(func(pageSize, pageNumber int64) ([]SnippetInfo, float64, error) {
+		req := kkOps.ListPortalSnippetsRequest{
+			PortalID:   portalID,
+			PageSize:   Int64(pageSize),
+			PageNumber: Int64(pageNumber),
 		}
-		allSnippets = append(allSnippets, snippetInfo)
+
+		res, err := publicAPI.SDK.Snippets.ListPortalSnippets(ctx, req)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to list portal snippets: %w", err)
+		}
+
+		if res.ListPortalSnippetsResponse == nil {
+			return []SnippetInfo{}, 0, nil
+		}
+
+		pageSnippets := make([]SnippetInfo, 0, len(res.ListPortalSnippetsResponse.Data))
+		for _, snippet := range res.ListPortalSnippetsResponse.Data {
+			pageSnippets = append(pageSnippets, SnippetInfo{
+				ID:   snippet.ID,
+				Name: snippet.Name,
+			})
+		}
+
+		return pageSnippets, res.ListPortalSnippetsResponse.Meta.Page.Total, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return allSnippets, nil
+	return snippets, nil
 }
 
 // HasPortalSettings checks if the portal has settings that can be exported

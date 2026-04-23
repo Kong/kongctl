@@ -2,7 +2,6 @@ package eventgateway
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -360,17 +360,11 @@ func fetchStaticKeys(
 			break
 		}
 
-		u, err := url.Parse(*res.GetListEventGatewayStaticKeysResponse().Meta.Page.Next)
-		if err != nil {
-			return nil, cmd.PrepareExecutionError(
-				"Failed to list static keys: invalid cursor",
-				err,
-				helper.GetCmd(),
-			)
+		nextCursor := pagination.ExtractPageAfterCursor(res.GetListEventGatewayStaticKeysResponse().Meta.Page.Next)
+		if nextCursor == "" {
+			break
 		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	return allKeys, nil

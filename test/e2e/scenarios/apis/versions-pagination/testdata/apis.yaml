@@ -1,0 +1,120 @@
+_defaults:
+  kongctl:
+    namespace: apis-pagination
+
+apis:
+  - ref: api-pagination
+    name: "API Pagination"
+    description: "API used to verify default page-size version listing."
+    version: "1.0.0"
+    versions:
+      - ref: api-pagination-v1
+        version: "1.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 1.0.0
+            paths: {}
+      - ref: api-pagination-v2
+        version: "2.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 2.0.0
+            paths: {}
+      - ref: api-pagination-v3
+        version: "3.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 3.0.0
+            paths: {}
+      - ref: api-pagination-v4
+        version: "4.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 4.0.0
+            paths: {}
+      - ref: api-pagination-v5
+        version: "5.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 5.0.0
+            paths: {}
+      - ref: api-pagination-v6
+        version: "6.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 6.0.0
+            paths: {}
+      - ref: api-pagination-v7
+        version: "7.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 7.0.0
+            paths: {}
+      - ref: api-pagination-v8
+        version: "8.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 8.0.0
+            paths: {}
+      - ref: api-pagination-v9
+        version: "9.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 9.0.0
+            paths: {}
+      - ref: api-pagination-v10
+        version: "10.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 10.0.0
+            paths: {}

@@ -92,40 +92,38 @@ func GetPublicationsForAPI(ctx context.Context, kkClient APIPublicationAPI, apiI
 		return nil, fmt.Errorf("APIPublicationAPI client is nil")
 	}
 
-	// Create a filter to get publications for this API
 	apiIDFilter := &kkComponents.UUIDFieldFilter{
 		Eq: &apiID,
 	}
 
-	// Create a request to list API publications for this API
-	req := kkOps.ListAPIPublicationsRequest{
-		Filter: &kkComponents.APIPublicationFilterParameters{
-			APIID: apiIDFilter,
-		},
-	}
+	publications, err := paginateAllPageNumber(func(pageSize, pageNumber int64) (
+		[]kkComponents.APIPublicationListItem, float64, error,
+	) {
+		req := kkOps.ListAPIPublicationsRequest{
+			PageSize:   Int64(pageSize),
+			PageNumber: Int64(pageNumber),
+			Filter: &kkComponents.APIPublicationFilterParameters{
+				APIID: apiIDFilter,
+			},
+		}
 
-	// Call the SDK's ListAPIPublications method
-	res, err := kkClient.ListAPIPublications(ctx, req)
+		res, err := kkClient.ListAPIPublications(ctx, req)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if res == nil || res.ListAPIPublicationResponse == nil {
+			return []kkComponents.APIPublicationListItem{}, 0, nil
+		}
+
+		return res.ListAPIPublicationResponse.Data, res.ListAPIPublicationResponse.Meta.Page.Total, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	if res == nil {
-		return []any{}, nil
-	}
-
-	if res.ListAPIPublicationResponse == nil {
-		return []any{}, nil
-	}
-
-	// Check if we have data in the response
-	if len(res.ListAPIPublicationResponse.Data) == 0 {
-		return []any{}, nil
-	}
-
-	// Convert to []any and return
-	result := make([]any, len(res.ListAPIPublicationResponse.Data))
-	for i, pub := range res.ListAPIPublicationResponse.Data {
+	result := make([]any, len(publications))
+	for i, pub := range publications {
 		result[i] = pub
 	}
 

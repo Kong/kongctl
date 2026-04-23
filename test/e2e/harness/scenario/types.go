@@ -124,7 +124,14 @@ type Assertion struct {
 }
 
 type AssertionSrc struct {
-	Get string `yaml:"get"`
+	Get      string                   `yaml:"get"`
+	Artifact *AssertionArtifactSource `yaml:"artifact"`
+}
+
+type AssertionArtifactSource struct {
+	Path    string `yaml:"path"`
+	Glob    string `yaml:"glob"`
+	ParseAs string `yaml:"parseAs"`
 }
 
 type Expect struct {

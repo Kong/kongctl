@@ -2,7 +2,6 @@ package eventgateway
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -368,21 +368,13 @@ func fetchDataPlaneCertificates(
 		data := res.GetListEventGatewayDataPlaneCertificatesResponse().Data
 		allData = append(allData, data...)
 
-		if res.GetListEventGatewayDataPlaneCertificatesResponse().Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(
+			res.GetListEventGatewayDataPlaneCertificatesResponse().Meta.Page.Next,
+		)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.GetListEventGatewayDataPlaneCertificatesResponse().Meta.Page.Next)
-		if err != nil {
-			return nil, cmd.PrepareExecutionError(
-				"Failed to list data plane certificates: invalid cursor",
-				err,
-				helper.GetCmd(),
-			)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	return allData, nil

@@ -25,13 +25,17 @@ func GetAllGatewayRoutes(ctx context.Context, requestPageSize int64, cpID string
 			return nil, err
 		}
 
-		allData = append(allData, res.Object.Data...)
-
-		if res.Object.Offset != nil {
-			offset = *res.Object.Offset
-		} else {
+		if res.Object == nil {
 			break
 		}
+
+		allData = append(allData, res.Object.Data...)
+
+		nextOffset, ok := nextOffsetToken(res.Object.Offset)
+		if !ok {
+			break
+		}
+		offset = nextOffset
 	}
 
 	return allData, nil

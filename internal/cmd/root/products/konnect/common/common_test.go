@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"maps"
+	"strconv"
 	"testing"
 	"time"
 
@@ -24,8 +25,12 @@ func newTestConfig(initial map[string]string) (*configtest.MockConfigHook, map[s
 		GetBoolMock: func(string) bool {
 			return false
 		},
-		GetIntMock: func(string) int {
-			return 0
+		GetIntMock: func(key string) int {
+			value, err := strconv.Atoi(store[key])
+			if err != nil {
+				return 0
+			}
+			return value
 		},
 		BindFlagMock: func(string, *pflag.Flag) error {
 			return nil
