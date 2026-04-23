@@ -82,7 +82,43 @@ steps:
                 idp_mapping_enabled: false
                 konnect_mapping_enabled: true
 
-  - name: 002-delete-cleanup
+  - name: 002-dump-and-plan-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-portal-with-auth-settings
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--filter-name={{ .vars.portalRef }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              portals[?name=='{{ .vars.portalRef }}'] | [0].auth_settings
+            expect:
+              fields:
+                basic_auth_enabled: true
+                idp_mapping_enabled: false
+                konnect_mapping_enabled: true
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-delete-cleanup
     commands:
       - name: 000-delete
         outputFormat: json
