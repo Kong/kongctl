@@ -219,15 +219,10 @@ func restoreRequestBody(req *http.Request, body []byte) {
 	if req == nil {
 		return
 	}
-
-	reader := func() io.ReadCloser {
-		return io.NopCloser(bytes.NewReader(body))
-	}
-
-	req.Body = reader()
+	req.Body = io.NopCloser(bytes.NewReader(body))
 	req.ContentLength = int64(len(body))
 	req.GetBody = func() (io.ReadCloser, error) {
-		return reader(), nil
+		return io.NopCloser(bytes.NewReader(body)), nil
 	}
 	req.Header.Set("Content-Length", strconv.Itoa(len(body)))
 }
