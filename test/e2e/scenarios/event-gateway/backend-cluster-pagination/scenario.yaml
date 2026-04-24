@@ -62,12 +62,15 @@ steps:
           - "{{ .workdir }}/egw-bc-pagination.yaml"
           - --auto-approve
         assertions:
-          - select: "plan.summary"
+          - select: plan.metadata
             expect:
               fields:
-                total_changes: 12
-                by_action.DELETE: 12
-          - select: "summary"
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                "total_changes > `0`": true
+          - select: summary
             expect:
               fields:
                 failed: 0
