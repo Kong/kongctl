@@ -52,3 +52,23 @@ steps:
             expect:
               fields:
                 count: 2
+
+  - name: 002-delete-cleanup
+    commands:
+      - name: 002-000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/egw-bc-pagination.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 12
+                by_action.DELETE: 12
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success
