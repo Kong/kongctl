@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -857,12 +858,8 @@ func compareBaseline(cfg config, current suiteResult) (*comparisonResult, error)
 		return nil, fmt.Errorf("read baseline: %w", err)
 	}
 
-	baselinePhases := map[string]phaseResult{}
-	for _, benchmarkCase := range baseline.Cases {
-		for _, phase := range benchmarkCase.Phases {
-			baselinePhases[benchmarkCase.Name+"\x00"+phase.Name] = phase
-		}
-	}
+	baselinePhases := aggregateSuitePhases(baseline)
+	currentPhases := aggregateSuitePhases(current)
 
 	comparison := &comparisonResult{
 		BaselinePath:      cfg.BaselinePath,
@@ -870,40 +867,117 @@ func compareBaseline(cfg config, current suiteResult) (*comparisonResult, error)
 		DurationThreshold: cfg.DurationThreshold,
 		Rows:              []comparisonRow{},
 	}
-	for _, benchmarkCase := range current.Cases {
-		for _, phase := range benchmarkCase.Phases {
-			key := benchmarkCase.Name + "\x00" + phase.Name
-			baselinePhase, ok := baselinePhases[key]
-			if !ok {
-				comparison.MissingBaselineData = append(comparison.MissingBaselineData, benchmarkCase.Name+"/"+phase.Name)
-				continue
-			}
-			row := comparisonRow{
-				CaseName:           benchmarkCase.Name,
-				PhaseName:          phase.Name,
-				BaselineRequests:   baselinePhase.HTTPMetrics.Requests,
-				CurrentRequests:    phase.HTTPMetrics.Requests,
-				RequestDelta:       phase.HTTPMetrics.Requests - baselinePhase.HTTPMetrics.Requests,
-				BaselineDurationMS: baselinePhase.DurationMS,
-				CurrentDurationMS:  phase.DurationMS,
-				DurationDeltaMS:    phase.DurationMS - baselinePhase.DurationMS,
-			}
-			row.RequestDeltaPercent = percentDelta(row.BaselineRequests, row.CurrentRequests)
-			row.DurationDeltaPercent = percentDelta64(row.BaselineDurationMS, row.CurrentDurationMS)
-			row.RequestRegression = row.RequestDelta > 0 && row.RequestDeltaPercent > cfg.RequestCountThreshold
-			row.DurationRegression = row.DurationDeltaMS > 0 && row.DurationDeltaPercent > cfg.DurationThreshold
-			if row.RequestRegression {
-				comparison.RequestRegressions++
-			}
-			if row.DurationRegression {
-				comparison.DurationRegressions++
-			}
-			comparison.ComparedPhases++
-			comparison.Rows = append(comparison.Rows, row)
+	keys := slices.Sorted(maps.Keys(currentPhases))
+	for _, key := range keys {
+		currentPhase := currentPhases[key]
+		baselinePhase, ok := baselinePhases[key]
+		if !ok {
+			comparison.MissingBaselineData = append(comparison.MissingBaselineData, comparisonKeyLabel(key))
+			continue
 		}
+		row := comparisonRow{
+			CaseName:           currentPhase.CaseName,
+			PhaseName:          currentPhase.PhaseName,
+			BaselineRequests:   baselinePhase.Phase.HTTPMetrics.Requests,
+			CurrentRequests:    currentPhase.Phase.HTTPMetrics.Requests,
+			RequestDelta:       currentPhase.Phase.HTTPMetrics.Requests - baselinePhase.Phase.HTTPMetrics.Requests,
+			BaselineDurationMS: baselinePhase.Phase.DurationMS,
+			CurrentDurationMS:  currentPhase.Phase.DurationMS,
+			DurationDeltaMS:    currentPhase.Phase.DurationMS - baselinePhase.Phase.DurationMS,
+		}
+		row.RequestDeltaPercent = percentDelta(row.BaselineRequests, row.CurrentRequests)
+		row.DurationDeltaPercent = percentDelta64(row.BaselineDurationMS, row.CurrentDurationMS)
+		row.RequestRegression = row.RequestDelta > 0 && row.RequestDeltaPercent > cfg.RequestCountThreshold
+		row.DurationRegression = row.DurationDeltaMS > 0 && row.DurationDeltaPercent > cfg.DurationThreshold
+		if row.RequestRegression {
+			comparison.RequestRegressions++
+		}
+		if row.DurationRegression {
+			comparison.DurationRegressions++
+		}
+		comparison.ComparedPhases++
+		comparison.Rows = append(comparison.Rows, row)
 	}
 
 	return comparison, nil
+}
+
+type phaseAggregate struct {
+	CaseName  string
+	PhaseName string
+	Phase     phaseResult
+}
+
+func aggregateSuitePhases(suite suiteResult) map[string]phaseAggregate {
+	phaseSamples := map[string][]phaseAggregate{}
+	for _, benchmarkCase := range suite.Cases {
+		for _, phase := range benchmarkCase.Phases {
+			key := phaseComparisonKey(benchmarkCase.Name, phase.Name)
+			phaseSamples[key] = append(phaseSamples[key], phaseAggregate{
+				CaseName:  benchmarkCase.Name,
+				PhaseName: phase.Name,
+				Phase:     phase,
+			})
+		}
+	}
+
+	aggregated := make(map[string]phaseAggregate, len(phaseSamples))
+	for key, phases := range phaseSamples {
+		aggregated[key] = aggregatePhaseResults(phases)
+	}
+	return aggregated
+}
+
+func aggregatePhaseResults(phases []phaseAggregate) phaseAggregate {
+	if len(phases) == 0 {
+		return phaseAggregate{}
+	}
+	requests := make([]int, 0, len(phases))
+	durations := make([]int64, 0, len(phases))
+	for _, phase := range phases {
+		requests = append(requests, phase.Phase.HTTPMetrics.Requests)
+		durations = append(durations, phase.Phase.DurationMS)
+	}
+
+	aggregated := phases[0]
+	aggregated.Phase.HTTPMetrics.Requests = medianInt(requests)
+	aggregated.Phase.DurationMS = medianInt64(durations)
+	return aggregated
+}
+
+func medianInt(values []int) int {
+	if len(values) == 0 {
+		return 0
+	}
+	values = slices.Clone(values)
+	slices.Sort(values)
+	midpoint := len(values) / 2
+	if len(values)%2 == 1 {
+		return values[midpoint]
+	}
+	return (values[midpoint-1] + values[midpoint]) / 2
+}
+
+func medianInt64(values []int64) int64 {
+	if len(values) == 0 {
+		return 0
+	}
+	values = slices.Clone(values)
+	slices.Sort(values)
+	midpoint := len(values) / 2
+	if len(values)%2 == 1 {
+		return values[midpoint]
+	}
+	return (values[midpoint-1] + values[midpoint]) / 2
+}
+
+func phaseComparisonKey(caseName, phaseName string) string {
+	return caseName + "\x00" + phaseName
+}
+
+func comparisonKeyLabel(key string) string {
+	caseName, phaseName, _ := strings.Cut(key, "\x00")
+	return caseName + "/" + phaseName
 }
 
 func percentDelta(baseline, current int) float64 {

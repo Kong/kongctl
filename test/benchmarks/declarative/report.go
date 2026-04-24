@@ -100,7 +100,7 @@ func writeHistoryOutputs(runDir string, suite suiteResult, cfg config) error {
 
 func buildHistoryReport(cfg config, current suiteResult) (historyReport, error) {
 	historyDir := strings.TrimSpace(cfg.HistoryDir)
-	historicalSamples, err := loadHistorySamples(historyDir, current.RunID)
+	historicalSamples, historyConfigured, err := loadHistorySamples(historyDir, current.RunID)
 	if err != nil {
 		return historyReport{}, err
 	}
@@ -112,7 +112,7 @@ func buildHistoryReport(cfg config, current suiteResult) (historyReport, error) 
 		RunURL:                current.RunURL,
 		GitCommit:             current.GitCommit,
 		HistoryDir:            historyDir,
-		HistoryConfigured:     historyDir != "",
+		HistoryConfigured:     historyConfigured,
 		MinHistorySamples:     cfg.MinHistorySamples,
 		RequestThreshold:      cfg.RequestCountThreshold,
 		DurationThreshold:     cfg.DurationThreshold,
@@ -146,19 +146,19 @@ func buildHistoryReport(cfg config, current suiteResult) (historyReport, error) 
 	return report, nil
 }
 
-func loadHistorySamples(historyDir, currentRunID string) ([]phaseSample, error) {
+func loadHistorySamples(historyDir, currentRunID string) ([]phaseSample, bool, error) {
 	if strings.TrimSpace(historyDir) == "" {
-		return nil, nil
+		return nil, false, nil
 	}
 	info, err := os.Stat(historyDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, false, nil
 		}
-		return nil, err
+		return nil, false, err
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("history dir %s is not a directory", historyDir)
+		return nil, false, fmt.Errorf("history dir %s is not a directory", historyDir)
 	}
 
 	root := historyDir
@@ -192,9 +192,9 @@ func loadHistorySamples(historyDir, currentRunID string) ([]phaseSample, error) 
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, true, err
 	}
-	return samples, nil
+	return samples, true, nil
 }
 
 func samplesFromSuite(suite suiteResult) []phaseSample {

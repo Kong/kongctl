@@ -117,8 +117,10 @@ benchmark-declarative:
 	ART_DIR=$$(cd "$$ART_DIR" && pwd); \
 	( KONGCTL_BENCHMARK_ARTIFACTS_DIR="$$ART_DIR" \
 	  KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" \
-	  go run -tags=e2e ./test/benchmarks/declarative $(BENCHMARK_FLAGS) ; \
-	  echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
+	  code=0; \
+	  go run -tags=e2e ./test/benchmarks/declarative $(BENCHMARK_FLAGS) || code=$$?; \
+	  echo $$code > "$$ART_DIR/.exit_code"; \
+	  exit $$code ) | tee "$$ART_DIR/run.log"; \
 	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
 	if [ -f "$$ART_DIR/summary.txt" ]; then \
 		echo; \

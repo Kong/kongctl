@@ -178,6 +178,67 @@ func TestBuildHistoryReportRequiresMinimumHistory(t *testing.T) {
 	}
 }
 
+func TestBuildHistoryReportMissingHistoryDirNotConfigured(t *testing.T) {
+	t.Parallel()
+
+	report, err := buildHistoryReport(config{
+		HistoryDir:            filepath.Join(t.TempDir(), "missing"),
+		MinHistorySamples:     1,
+		RequestCountThreshold: 0.05,
+		DurationThreshold:     0.50,
+	}, testSuiteResult("current", 10, 1000, 0))
+	if err != nil {
+		t.Fatalf("buildHistoryReport() error = %v", err)
+	}
+	if report.HistoryConfigured {
+		t.Fatalf("HistoryConfigured = true, want false")
+	}
+}
+
+func TestCompareBaselineAggregatesRepeatedSamples(t *testing.T) {
+	t.Parallel()
+
+	baseline := testSuiteResult("baseline", 10, 1000, 0)
+	baseline.Cases = append(baseline.Cases, testCaseResult(12, 1200, 0, 2))
+	current := testSuiteResult("current", 13, 1400, 0)
+	current.Cases = append(current.Cases, testCaseResult(15, 1600, 0, 2))
+
+	baselinePath := filepath.Join(t.TempDir(), "baseline.json")
+	if err := writeJSON(baselinePath, baseline); err != nil {
+		t.Fatal(err)
+	}
+
+	comparison, err := compareBaseline(config{
+		BaselinePath:          baselinePath,
+		RequestCountThreshold: 0.05,
+		DurationThreshold:     0.50,
+	}, current)
+	if err != nil {
+		t.Fatalf("compareBaseline() error = %v", err)
+	}
+	if comparison.ComparedPhases != 1 {
+		t.Fatalf("ComparedPhases = %d, want 1", comparison.ComparedPhases)
+	}
+	if len(comparison.Rows) != 1 {
+		t.Fatalf("len(Rows) = %d, want 1", len(comparison.Rows))
+	}
+	row := comparison.Rows[0]
+	if row.BaselineRequests != 11 || row.CurrentRequests != 14 {
+		t.Fatalf(
+			"requests baseline/current = %d/%d, want 11/14",
+			row.BaselineRequests,
+			row.CurrentRequests,
+		)
+	}
+	if row.BaselineDurationMS != 1100 || row.CurrentDurationMS != 1500 {
+		t.Fatalf(
+			"duration baseline/current = %d/%d, want 1100/1500",
+			row.BaselineDurationMS,
+			row.CurrentDurationMS,
+		)
+	}
+}
+
 func TestNormalizeEnvironmentBenchmarkAuthOverridesE2E(t *testing.T) {
 	t.Setenv("KONGCTL_BENCHMARK_KONNECT_PAT", "benchmark-pat")
 	t.Setenv("KONGCTL_E2E_KONNECT_PAT", "e2e-pat")
@@ -251,26 +312,28 @@ func testSuiteResult(runID string, requests int, durationMS int64, errors int) s
 		RunID:         runID,
 		StartedAt:     startedAt,
 		FinishedAt:    startedAt.Add(time.Duration(durationMS) * time.Millisecond),
-		Cases: []caseResult{
+		Cases:         []caseResult{testCaseResult(requests, durationMS, errors, 1)},
+	}
+}
+
+func testCaseResult(requests int, durationMS int64, errors, repetition int) caseResult {
+	return caseResult{
+		Name:       "small-single-file",
+		Size:       "small",
+		Layout:     "single-file",
+		Repetition: repetition,
+		Resources: resourceCounts{
+			APIs:         1,
+			APIDocuments: 2,
+		},
+		Phases: []phaseResult{
 			{
-				Name:       "small-single-file",
-				Size:       "small",
-				Layout:     "single-file",
-				Repetition: 1,
-				Resources: resourceCounts{
-					APIs:         1,
-					APIDocuments: 2,
-				},
-				Phases: []phaseResult{
-					{
-						Name:       "apply_create",
-						DurationMS: durationMS,
-						HTTPMetrics: httpMetrics{
-							Requests:  requests,
-							Responses: requests,
-							Errors:    errors,
-						},
-					},
+				Name:       "apply_create",
+				DurationMS: durationMS,
+				HTTPMetrics: httpMetrics{
+					Requests:  requests,
+					Responses: requests,
+					Errors:    errors,
 				},
 			},
 		},
