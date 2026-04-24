@@ -1,0 +1,187 @@
+//go:build e2e
+
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/kong/kongctl/internal/declarative/loader"
+)
+
+func TestSelectCasesAliases(t *testing.T) {
+	t.Parallel()
+
+	cases, err := selectCases("medium-single")
+	if err != nil {
+		t.Fatalf("selectCases() error = %v", err)
+	}
+	if len(cases) != 1 {
+		t.Fatalf("len(cases) = %d, want 1", len(cases))
+	}
+	if cases[0].Name != "medium-single-file" {
+		t.Fatalf("case name = %q, want medium-single-file", cases[0].Name)
+	}
+
+	cases, err = selectCases("small")
+	if err != nil {
+		t.Fatalf("selectCases() error = %v", err)
+	}
+	if len(cases) != 2 {
+		t.Fatalf("len(cases) = %d, want 2", len(cases))
+	}
+}
+
+func TestParseHTTPLog(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "kongctl.log")
+	log := stringsJoinLines(
+		`time=now level=debug log_type=http_request method=GET route=/v2/apis`,
+		`time=now level=debug log_type=http_request method=POST route=/v2/apis`,
+		`time=now level=debug log_type=http_response method=GET route=/v2/apis status_code=200 duration=10ms`,
+		`time=now level=debug log_type=http_error method=POST route=/v2/apis duration=2s`,
+	)
+	if err := os.WriteFile(path, []byte(log), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	metrics, err := parseHTTPLog(path)
+	if err != nil {
+		t.Fatalf("parseHTTPLog() error = %v", err)
+	}
+	if metrics.Requests != 2 {
+		t.Fatalf("requests = %d, want 2", metrics.Requests)
+	}
+	if metrics.Responses != 1 {
+		t.Fatalf("responses = %d, want 1", metrics.Responses)
+	}
+	if metrics.Errors != 1 {
+		t.Fatalf("errors = %d, want 1", metrics.Errors)
+	}
+	if metrics.Timing.Combined.Count != 2 {
+		t.Fatalf("combined timing count = %d, want 2", metrics.Timing.Combined.Count)
+	}
+	if metrics.Timing.Combined.SumMS != 2010 {
+		t.Fatalf("combined timing sum = %f, want 2010", metrics.Timing.Combined.SumMS)
+	}
+}
+
+func TestRenderTerminalSummary(t *testing.T) {
+	t.Parallel()
+
+	suite := suiteResult{
+		SchemaVersion: schemaVersion,
+		RunID:         "run-1",
+		GitCommit:     "abc123",
+		BaseURL:       "https://example.test",
+		Summary: suiteSummary{
+			CaseCount:       1,
+			PhaseCount:      1,
+			TotalRequests:   6,
+			TotalResponses:  6,
+			TotalHTTPErrors: 0,
+		},
+		Cases: []caseResult{
+			{
+				Name: "small-single-file",
+				Resources: resourceCounts{
+					APIs:         1,
+					APIDocuments: 2,
+				},
+				Phases: []phaseResult{
+					{
+						Name:       "apply_create",
+						DurationMS: 702,
+						HTTPMetrics: httpMetrics{
+							Requests:  6,
+							Responses: 6,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	summary := renderTerminalSummary(suite)
+	for _, want := range []string{
+		"Declarative benchmark summary",
+		"Suite:",
+		"CASE",
+		"small-single-file",
+		"apply_create",
+		"702ms",
+	} {
+		if !strings.Contains(summary, want) {
+			t.Fatalf("terminal summary missing %q:\n%s", want, summary)
+		}
+	}
+}
+
+func TestNormalizeEnvironmentBenchmarkAuthOverridesE2E(t *testing.T) {
+	t.Setenv("KONGCTL_BENCHMARK_KONNECT_PAT", "benchmark-pat")
+	t.Setenv("KONGCTL_E2E_KONNECT_PAT", "e2e-pat")
+	t.Setenv("KONGCTL_BENCHMARK_KONNECT_BASE_URL", "https://benchmark.example.test")
+	t.Setenv("KONGCTL_E2E_KONNECT_BASE_URL", "https://e2e.example.test")
+	t.Setenv("KONGCTL_BENCHMARK_ARTIFACTS_DIR", t.TempDir())
+
+	if _, err := normalizeEnvironment(); err != nil {
+		t.Fatalf("normalizeEnvironment() error = %v", err)
+	}
+	if got := os.Getenv("KONGCTL_E2E_KONNECT_PAT"); got != "benchmark-pat" {
+		t.Fatalf("KONGCTL_E2E_KONNECT_PAT = %q, want benchmark-pat", got)
+	}
+	if got := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL"); got != "https://benchmark.example.test" {
+		t.Fatalf("KONGCTL_E2E_KONNECT_BASE_URL = %q, want benchmark URL", got)
+	}
+}
+
+func TestGenerateFixturesLoad(t *testing.T) {
+	t.Parallel()
+
+	for _, layout := range layouts {
+		t.Run(layout, func(t *testing.T) {
+			t.Parallel()
+
+			workload := workloadSpec{Size: "test", APICount: 2, DocumentsPerAPI: 3, DocumentBytes: 128}
+			benchmarkCase := benchmarkCase{
+				Name:     "test-" + layout,
+				Layout:   layout,
+				Workload: workload,
+			}
+			fixture, counts, err := generateFixture(t.TempDir(), benchmarkCase)
+			if err != nil {
+				t.Fatalf("generateFixture() error = %v", err)
+			}
+			if counts.APIs != 2 || counts.APIDocuments != 6 {
+				t.Fatalf("counts = %+v, want 2 APIs and 6 API documents", counts)
+			}
+
+			sources := make([]loader.Source, 0, len(fixture.Files))
+			for _, file := range fixture.Files {
+				sources = append(sources, loader.Source{Path: file, Type: loader.SourceTypeFile})
+			}
+			resourceSet, err := loader.New().LoadFromSources(sources, false)
+			if err != nil {
+				t.Fatalf("LoadFromSources() error = %v", err)
+			}
+			if len(resourceSet.APIs) != 2 {
+				t.Fatalf("len(APIs) = %d, want 2", len(resourceSet.APIs))
+			}
+
+			documentCount := len(resourceSet.APIDocuments)
+			for _, api := range resourceSet.APIs {
+				documentCount += len(api.Documents)
+			}
+			if documentCount != 6 {
+				t.Fatalf("document count = %d, want 6", documentCount)
+			}
+		})
+	}
+}
+
+func stringsJoinLines(lines ...string) string {
+	return strings.Join(lines, "\n") + "\n"
+}

@@ -117,6 +117,13 @@ func NewCLI() (*CLI, error) {
 // NewCLIT constructs a CLI instance under the per-run artifacts dir using the test's name.
 func NewCLIT(t *testing.T) (*CLI, error) {
 	t.Helper()
+	return NewCLIForArtifacts(t.Name(), "tests")
+}
+
+// NewCLIForArtifacts constructs a CLI instance under the per-run artifacts dir.
+// The group controls the subdirectory under the run root, for example "tests"
+// or "benchmarks".
+func NewCLIForArtifacts(name, group string) (*CLI, error) {
 	bin, err := BinPath()
 	if err != nil {
 		return nil, err
@@ -125,8 +132,15 @@ func NewCLIT(t *testing.T) (*CLI, error) {
 	if err != nil {
 		return nil, err
 	}
-	name := sanitizeName(t.Name())
-	testDir := filepath.Join(rd, "tests", name)
+	name = sanitizeName(name)
+	group = sanitizeName(group)
+	if strings.TrimSpace(name) == "" {
+		name = "run"
+	}
+	if strings.TrimSpace(group) == "" {
+		group = "runs"
+	}
+	testDir := filepath.Join(rd, group, name)
 	cfgDir := filepath.Join(testDir, "config")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		return nil, err

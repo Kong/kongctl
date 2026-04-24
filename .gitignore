@@ -41,8 +41,11 @@ CLAUDE.local.md
 
 .serena/
 .latest-e2e
+.latest-benchmark
 .e2e-artifacts/
+.benchmark-artifacts/
 .e2e_artifacts/
+.benchmark_artifacts/
 .cache/
 
 # Python cache folders
