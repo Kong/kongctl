@@ -228,7 +228,7 @@ func resolveEventGatewayControlPlane(
 	var pageAfter *string
 	for {
 		req := kkOps.ListEventGatewaysRequest{
-			PageSize: new(pageSize),
+			PageSize: &pageSize,
 		}
 
 		if pageAfter != nil {
