@@ -351,10 +351,7 @@ func fetchSchemaRegistries(
 	cfg config.Hook,
 	nameFilter string,
 ) ([]schemaRegistryEntry, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
-	}
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allEntries []schemaRegistryEntry
 	var pageAfter *string

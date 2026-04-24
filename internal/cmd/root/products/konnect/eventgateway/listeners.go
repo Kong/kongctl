@@ -313,10 +313,7 @@ func fetchListeners(
 	cfg config.Hook,
 	nameFilter string,
 ) ([]kkComps.EventGatewayListener, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
-	}
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allData []kkComps.EventGatewayListener
 	var pageAfter *string

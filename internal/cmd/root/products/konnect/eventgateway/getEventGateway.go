@@ -114,7 +114,7 @@ func runListByName(name string, kkClient helpers.EGWControlPlaneAPI, helper cmd.
 func runList(kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 	cfg config.Hook,
 ) ([]kkComps.EventGatewayInfo, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allData []kkComps.EventGatewayInfo
 	var pageAfter *string

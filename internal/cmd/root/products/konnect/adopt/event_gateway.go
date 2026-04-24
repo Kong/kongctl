@@ -223,15 +223,12 @@ func resolveEventGatewayControlPlane(
 		return egw, nil
 	}
 
-	pageSize := cfg.GetInt(common.RequestPageSizeConfigPath)
-	if pageSize < 1 {
-		pageSize = common.DefaultRequestPageSize
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var pageAfter *string
 	for {
 		req := kkOps.ListEventGatewaysRequest{
-			PageSize: new(int64(pageSize)),
+			PageSize: &pageSize,
 		}
 
 		if pageAfter != nil {

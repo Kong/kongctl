@@ -317,10 +317,7 @@ func fetchStaticKeys(
 	cfg config.Hook,
 	nameFilter string,
 ) ([]kkComps.EventGatewayStaticKey, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
-	}
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allKeys []kkComps.EventGatewayStaticKey
 	var pageAfter *string
