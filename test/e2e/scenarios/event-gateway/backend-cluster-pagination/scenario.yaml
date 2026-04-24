@@ -51,7 +51,7 @@ steps:
                 glob: http-dumps/request-*.txt
             expect:
               fields:
-                count: 2
+                count: 3
 
   - name: 002-delete-cleanup
     commands:
