@@ -1,0 +1,86 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-bc-pagination-test
+
+event_gateways:
+  - ref: egw-cp-for-bc-pagination-test
+    name: egw-cp-for-bc-pagination-test
+    description: "EGW CP for Backend Cluster Pagination Test"
+    backend_clusters:
+      - ref: bc-pagination-01
+        name: bc-pagination-01
+        description: "Backend Cluster 01 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-02
+        name: bc-pagination-02
+        description: "Backend Cluster 02 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-03
+        name: bc-pagination-03
+        description: "Backend Cluster 03 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-04
+        name: bc-pagination-04
+        description: "Backend Cluster 04 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-05
+        name: bc-pagination-05
+        description: "Backend Cluster 05 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-06
+        name: bc-pagination-06
+        description: "Backend Cluster 06 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-07
+        name: bc-pagination-07
+        description: "Backend Cluster 07 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-08
+        name: bc-pagination-08
+        description: "Backend Cluster 08 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-09
+        name: bc-pagination-09
+        description: "Backend Cluster 09 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-10
+        name: bc-pagination-10
+        description: "Backend Cluster 10 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+      - ref: bc-pagination-11
+        name: bc-pagination-11
+        description: "Backend Cluster 11 for Pagination Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
