@@ -71,6 +71,13 @@ make benchmark-declarative-case CASE=small-single \
   BENCHMARK_FLAGS="--command-timeout 10m"
 ```
 
+Repeat each selected case to collect local samples:
+
+```sh
+make benchmark-declarative-case CASE=medium \
+  BENCHMARK_FLAGS="--repeat 3"
+```
+
 Artifacts are written under `.benchmark-artifacts/<timestamp>` by default. The
 latest run is linked from `.latest-benchmark`.
 
@@ -88,6 +95,11 @@ Every run writes:
 
 - `results.json`: structured suite, case, phase, duration, and HTTP metrics
 - `summary.md`: Markdown summary suitable for workflow summaries or issues
+- `summary.txt`: terminal-oriented summary printed by the `make` target
+- `dashboard.md`: generated discussion dashboard body
+- `regressions.md`: generated regression issue body
+- `regressions.json`: machine-readable regression status
+- `history-report.json`: detailed current-vs-history report
 - per-command artifacts under `benchmarks/<case>/commands/`
 - generated fixture files under `benchmarks/<case>/inputs/`
 - `http-metrics.json` next to each measured command
@@ -96,6 +108,21 @@ The primary regression signal is HTTP request count. Wall-clock duration is also
 tracked, but it is noisier because the benchmark runs against SaaS APIs.
 The suite duration includes fixture generation and destructive org reset. The
 per-phase durations measure only `kongctl apply` commands.
+
+When `--history-dir` or `KONGCTL_BENCHMARK_HISTORY_DIR` is set, the runner scans
+prior `results.json` files under that directory. If the directory has a `runs/`
+subdirectory, only `runs/` is scanned so `latest/` copies are not counted twice.
+
+Request-count regressions compare the current median request count to recent
+history. Duration regressions compare the current median wall-clock duration to
+recent history using the larger of:
+
+- the configured duration threshold percentage
+- three median absolute deviations from historical samples
+- a 500 ms absolute floor
+
+The default minimum history is three historical samples per case phase. Override
+it with `--min-history-samples` or `KONGCTL_BENCHMARK_MIN_HISTORY_SAMPLES`.
 
 ## Baseline Comparison
 
@@ -119,36 +146,57 @@ fail the run.
 
 ## GitHub Actions
 
-The `Declarative Benchmark` workflow is manual-only. It accepts:
+The `Declarative Benchmark` workflow can be run manually and also runs on a
+schedule:
+
+- Sunday through Friday at 06:00 UTC: `small,medium`
+- Saturday at 06:00 UTC: `large,xl`
+
+Size selectors include both layouts, so `small,medium` runs single-file and
+multi-file cases for each size.
+
+Manual runs accept:
 
 - `case`: case selector passed to the local runner
 - `command_timeout`: timeout for each measured `kongctl` command
 - `benchmark_flags`: extra runner flags
+- `repeat`: number of times to execute each selected case
 
 Configure these in the `benchmark` environment:
 
-- `KONGCTL_BENCHMARK_KONNECT_PAT`
+- `KONGCTL_BENCHMARK_KONNECT_PAT`: PAT for the dedicated benchmark org
 - optional `KONGCTL_BENCHMARK_KONNECT_BASE_URL`
+- optional `KONGCTL_BENCHMARK_DISCUSSION_NUMBER`: discussion number to update
+  with the generated dashboard
+
+Scheduled runs use `--repeat 3` by default. Manual runs default to one
+repetition unless the `repeat` input or `benchmark_flags` overrides it.
 
 The workflow uploads benchmark artifacts and writes `summary.md` to the GitHub
-Actions job summary.
+Actions job summary. It also stores generated summaries on the
+`benchmark-results` branch:
 
-## Result Storage Options
+- `runs/YYYY/MM/DD/<run-id>-<case>/`
+- `latest/`
 
-For now, artifacts are the source of truth. They preserve raw command output,
-logs, generated fixtures, structured metrics, and the human summary.
+Raw command output, logs, and generated fixtures remain workflow artifacts.
+The branch intentionally stores summaries and structured result JSON only.
 
-Clean follow-up storage options are:
+## Dashboard and Alerts
 
-- **Issue ledger**: keep one tracking issue for benchmark history. Each run
-  appends `summary.md`, links the artifact, and labels request-count
-  regressions.
-- **Discussion ledger**: keep one discussion for benchmark history. This is
-  better for long-running performance records and less noisy than issue
-  comments.
-- **Checked-in baseline**: commit an approved `results.json` snapshot for the
-  current suite. This gives the strictest review path for baseline updates.
+The workflow updates a GitHub Discussion when
+`KONGCTL_BENCHMARK_DISCUSSION_NUMBER` is configured. The discussion body is
+replaced with `dashboard.md` from the latest run, which includes current
+medians, recent-history medians, and regression status.
 
-The issue or discussion ledger should store summaries and links. The raw
-artifact bundle should remain attached to the workflow run so investigations can
-inspect command logs and generated inputs.
+When `regressions.json` reports `has_regressions: true`, the workflow opens or
+updates one rolling issue titled:
+
+```text
+[benchmark-regression] Declarative benchmark regressions
+```
+
+The issue body is replaced with `regressions.md`, and repeated regressions add a
+comment that links to the latest workflow run. Passing runs do not automatically
+close the issue; that remains a human decision while the benchmark signal is
+being tuned.

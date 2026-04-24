@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kong/kongctl/internal/declarative/loader"
 )
@@ -120,6 +121,63 @@ func TestRenderTerminalSummary(t *testing.T) {
 	}
 }
 
+func TestBuildHistoryReportDetectsRequestRegression(t *testing.T) {
+	t.Parallel()
+
+	historyDir := filepath.Join(t.TempDir(), "history")
+	previous := testSuiteResult("previous", 10, 1000, 0)
+	if err := writeJSON(filepath.Join(historyDir, "runs", "previous", "results.json"), previous); err != nil {
+		t.Fatal(err)
+	}
+
+	current := testSuiteResult("current", 12, 1050, 0)
+	report, err := buildHistoryReport(config{
+		HistoryDir:            historyDir,
+		MinHistorySamples:     1,
+		RequestCountThreshold: 0.05,
+		DurationThreshold:     0.50,
+	}, current)
+	if err != nil {
+		t.Fatalf("buildHistoryReport() error = %v", err)
+	}
+	if !report.HasRegressions {
+		t.Fatalf("HasRegressions = false, want true")
+	}
+	if len(report.Rows) != 1 {
+		t.Fatalf("len(Rows) = %d, want 1", len(report.Rows))
+	}
+	if !report.Rows[0].RequestRegression {
+		t.Fatalf("RequestRegression = false, want true")
+	}
+}
+
+func TestBuildHistoryReportRequiresMinimumHistory(t *testing.T) {
+	t.Parallel()
+
+	historyDir := filepath.Join(t.TempDir(), "history")
+	previous := testSuiteResult("previous", 10, 1000, 0)
+	if err := writeJSON(filepath.Join(historyDir, "runs", "previous", "results.json"), previous); err != nil {
+		t.Fatal(err)
+	}
+
+	current := testSuiteResult("current", 12, 1050, 0)
+	report, err := buildHistoryReport(config{
+		HistoryDir:            historyDir,
+		MinHistorySamples:     2,
+		RequestCountThreshold: 0.05,
+		DurationThreshold:     0.50,
+	}, current)
+	if err != nil {
+		t.Fatalf("buildHistoryReport() error = %v", err)
+	}
+	if report.HasRegressions {
+		t.Fatalf("HasRegressions = true, want false")
+	}
+	if report.InsufficientHistoryRows != 1 {
+		t.Fatalf("InsufficientHistoryRows = %d, want 1", report.InsufficientHistoryRows)
+	}
+}
+
 func TestNormalizeEnvironmentBenchmarkAuthOverridesE2E(t *testing.T) {
 	t.Setenv("KONGCTL_BENCHMARK_KONNECT_PAT", "benchmark-pat")
 	t.Setenv("KONGCTL_E2E_KONNECT_PAT", "e2e-pat")
@@ -184,4 +242,37 @@ func TestGenerateFixturesLoad(t *testing.T) {
 
 func stringsJoinLines(lines ...string) string {
 	return strings.Join(lines, "\n") + "\n"
+}
+
+func testSuiteResult(runID string, requests int, durationMS int64, errors int) suiteResult {
+	startedAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	return suiteResult{
+		SchemaVersion: schemaVersion,
+		RunID:         runID,
+		StartedAt:     startedAt,
+		FinishedAt:    startedAt.Add(time.Duration(durationMS) * time.Millisecond),
+		Cases: []caseResult{
+			{
+				Name:       "small-single-file",
+				Size:       "small",
+				Layout:     "single-file",
+				Repetition: 1,
+				Resources: resourceCounts{
+					APIs:         1,
+					APIDocuments: 2,
+				},
+				Phases: []phaseResult{
+					{
+						Name:       "apply_create",
+						DurationMS: durationMS,
+						HTTPMetrics: httpMetrics{
+							Requests:  requests,
+							Responses: requests,
+							Errors:    errors,
+						},
+					},
+				},
+			},
+		},
+	}
 }

@@ -33,6 +33,10 @@ type config struct {
 	RequestCountThreshold float64
 	DurationThreshold     float64
 	CommandTimeout        time.Duration
+	Repeat                int
+	HistoryDir            string
+	RunURL                string
+	MinHistorySamples     int
 }
 
 type workloadSpec struct {
@@ -51,6 +55,7 @@ type benchmarkCase struct {
 type suiteResult struct {
 	SchemaVersion string            `json:"schema_version"`
 	RunID         string            `json:"run_id"`
+	RunURL        string            `json:"run_url,omitempty"`
 	GitCommit     string            `json:"git_commit,omitempty"`
 	BaseURL       string            `json:"base_url"`
 	StartedAt     time.Time         `json:"started_at"`
@@ -77,12 +82,13 @@ type suiteSummary struct {
 }
 
 type caseResult struct {
-	Name      string         `json:"name"`
-	Size      string         `json:"size"`
-	Layout    string         `json:"layout"`
-	Fixture   fixtureResult  `json:"fixture"`
-	Resources resourceCounts `json:"resources"`
-	Phases    []phaseResult  `json:"phases"`
+	Name       string         `json:"name"`
+	Size       string         `json:"size"`
+	Layout     string         `json:"layout"`
+	Repetition int            `json:"repetition,omitempty"`
+	Fixture    fixtureResult  `json:"fixture"`
+	Resources  resourceCounts `json:"resources"`
+	Phases     []phaseResult  `json:"phases"`
 }
 
 type resourceCounts struct {
@@ -199,6 +205,7 @@ func run() error {
 	suite := suiteResult{
 		SchemaVersion: schemaVersion,
 		RunID:         benchmarkRunID(started),
+		RunURL:        cfg.RunURL,
 		GitCommit:     gitCommit(),
 		BaseURL:       os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL"),
 		StartedAt:     started,
@@ -225,7 +232,7 @@ func run() error {
 		}
 	}
 
-	if err := writeSuiteOutputs(runDir, suite); err != nil {
+	if err := writeSuiteOutputs(runDir, suite, cfg); err != nil {
 		runErr = errors.Join(runErr, err)
 	}
 
@@ -243,11 +250,35 @@ func parseConfig() config {
 
 	cfg := config{}
 	flag.StringVar(&cfg.CaseFilter, "case", defaultCase, "benchmark case selector: all, a size, or a case name")
+	flag.IntVar(
+		&cfg.Repeat,
+		"repeat",
+		intEnv("KONGCTL_BENCHMARK_REPEAT", 1),
+		"number of times to execute each selected case",
+	)
 	flag.StringVar(
 		&cfg.BaselinePath,
 		"baseline",
 		os.Getenv("KONGCTL_BENCHMARK_BASELINE"),
 		"optional baseline results.json",
+	)
+	flag.StringVar(
+		&cfg.HistoryDir,
+		"history-dir",
+		os.Getenv("KONGCTL_BENCHMARK_HISTORY_DIR"),
+		"optional benchmark-results history directory used for dashboard and regression reports",
+	)
+	flag.StringVar(
+		&cfg.RunURL,
+		"run-url",
+		os.Getenv("KONGCTL_BENCHMARK_RUN_URL"),
+		"optional URL for the benchmark run included in generated reports",
+	)
+	flag.IntVar(
+		&cfg.MinHistorySamples,
+		"min-history-samples",
+		intEnv("KONGCTL_BENCHMARK_MIN_HISTORY_SAMPLES", 3),
+		"minimum historical samples required before statistical regressions are reported",
 	)
 	flag.BoolVar(
 		&cfg.FailOnRegression,
@@ -269,6 +300,12 @@ func parseConfig() config {
 	)
 	flag.DurationVar(&cfg.CommandTimeout, "command-timeout", defaultTimeout, "timeout for each measured kongctl command")
 	flag.Parse()
+	if cfg.Repeat < 1 {
+		cfg.Repeat = 1
+	}
+	if cfg.MinHistorySamples < 1 {
+		cfg.MinHistorySamples = 1
+	}
 	return cfg
 }
 
@@ -314,17 +351,25 @@ func normalizeEnvironment() (string, error) {
 
 func executeSuite(ctx context.Context, cfg config, cases []benchmarkCase, suite *suiteResult) error {
 	for _, benchmarkCase := range cases {
-		caseResult, err := executeCase(ctx, cfg, benchmarkCase)
-		suite.Cases = append(suite.Cases, caseResult)
-		if err != nil {
-			return fmt.Errorf("case %s failed: %w", benchmarkCase.Name, err)
+		for repetition := 1; repetition <= cfg.Repeat; repetition++ {
+			caseResult, err := executeCase(ctx, cfg, benchmarkCase, repetition)
+			suite.Cases = append(suite.Cases, caseResult)
+			if err != nil {
+				return fmt.Errorf("case %s repetition %d failed: %w", benchmarkCase.Name, repetition, err)
+			}
 		}
 	}
 	return nil
 }
 
-func executeCase(ctx context.Context, cfg config, benchmarkCase benchmarkCase) (caseResult, error) {
-	cli, err := harness.NewCLIForArtifacts("declarative-"+benchmarkCase.Name, "benchmarks")
+func executeCase(ctx context.Context, cfg config, benchmarkCase benchmarkCase, repetition int) (caseResult, error) {
+	artifactName := "declarative-" + benchmarkCase.Name
+	resetStage := "before-" + benchmarkCase.Name
+	if cfg.Repeat > 1 {
+		artifactName = fmt.Sprintf("%s-r%03d", artifactName, repetition)
+		resetStage = fmt.Sprintf("%s-r%03d", resetStage, repetition)
+	}
+	cli, err := harness.NewCLIForArtifacts(artifactName, "benchmarks")
 	if err != nil {
 		return caseResult{}, err
 	}
@@ -333,18 +378,19 @@ func executeCase(ctx context.Context, cfg config, benchmarkCase benchmarkCase) (
 
 	fixture, counts, err := generateFixture(cli.TestDir, benchmarkCase)
 	result := caseResult{
-		Name:      benchmarkCase.Name,
-		Size:      benchmarkCase.Workload.Size,
-		Layout:    benchmarkCase.Layout,
-		Fixture:   fixture,
-		Resources: counts,
-		Phases:    []phaseResult{},
+		Name:       benchmarkCase.Name,
+		Size:       benchmarkCase.Workload.Size,
+		Layout:     benchmarkCase.Layout,
+		Repetition: repetition,
+		Fixture:    fixture,
+		Resources:  counts,
+		Phases:     []phaseResult{},
 	}
 	if err != nil {
 		return result, err
 	}
 
-	if err := harness.ResetOrgWithCapture("before-" + benchmarkCase.Name); err != nil {
+	if err := harness.ResetOrgWithCapture(resetStage); err != nil {
 		return result, err
 	}
 
@@ -880,7 +926,7 @@ func percentDelta64(baseline, current int64) float64 {
 	return float64(current-baseline) / float64(baseline)
 }
 
-func writeSuiteOutputs(runDir string, suite suiteResult) error {
+func writeSuiteOutputs(runDir string, suite suiteResult, cfg config) error {
 	if err := writeJSON(filepath.Join(runDir, "results.json"), suite); err != nil {
 		return err
 	}
@@ -888,6 +934,9 @@ func writeSuiteOutputs(runDir string, suite suiteResult) error {
 		return err
 	}
 	if err := os.WriteFile(filepath.Join(runDir, "summary.txt"), []byte(renderTerminalSummary(suite)), 0o644); err != nil {
+		return err
+	}
+	if err := writeHistoryOutputs(runDir, suite, cfg); err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(runDir, ".benchmark_artifacts_dir"), []byte(runDir+"\n"), 0o644)
@@ -911,15 +960,16 @@ func renderSummary(suite suiteResult) string {
 			"Phase rows measure only `kongctl apply` commands.\n\n",
 	)
 
-	b.WriteString("| Case | Phase | APIs | API documents | Duration | Requests | Responses | Errors |\n")
-	b.WriteString("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |\n")
+	b.WriteString("| Case | Phase | Rep | APIs | API documents | Duration | Requests | Responses | Errors |\n")
+	b.WriteString("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n")
 	for _, benchmarkCase := range suite.Cases {
 		for _, phase := range benchmarkCase.Phases {
 			fmt.Fprintf(
 				&b,
-				"| `%s` | `%s` | %d | %d | %s | %d | %d | %d |\n",
+				"| `%s` | `%s` | %d | %d | %d | %s | %d | %d | %d |\n",
 				benchmarkCase.Name,
 				phase.Name,
+				caseRepetition(benchmarkCase),
 				benchmarkCase.Resources.APIs,
 				benchmarkCase.Resources.APIDocuments,
 				time.Duration(phase.DurationMS)*time.Millisecond,
@@ -979,11 +1029,12 @@ func renderTerminalSummary(suite suiteResult) string {
 	b.WriteString("Note: suite duration includes fixture generation and destructive org reset.\n")
 	b.WriteString("      phase duration measures only the kongctl apply command.\n\n")
 
-	writeTerminalPhaseRow(&b, "CASE", "PHASE", "APIS", "DOCS", "DURATION", "REQ", "RESP", "ERR")
+	writeTerminalPhaseRow(&b, "CASE", "PHASE", "REP", "APIS", "DOCS", "DURATION", "REQ", "RESP", "ERR")
 	writeTerminalPhaseRow(
 		&b,
 		strings.Repeat("-", 24),
 		strings.Repeat("-", 13),
+		strings.Repeat("-", 4),
 		strings.Repeat("-", 5),
 		strings.Repeat("-", 5),
 		strings.Repeat("-", 10),
@@ -997,6 +1048,7 @@ func renderTerminalSummary(suite suiteResult) string {
 				&b,
 				benchmarkCase.Name,
 				phase.Name,
+				strconv.Itoa(caseRepetition(benchmarkCase)),
 				strconv.Itoa(benchmarkCase.Resources.APIs),
 				strconv.Itoa(benchmarkCase.Resources.APIDocuments),
 				formatMilliseconds(phase.DurationMS),
@@ -1045,13 +1097,14 @@ func renderTerminalSummary(suite suiteResult) string {
 
 func writeTerminalPhaseRow(
 	b *strings.Builder,
-	caseName, phase, apis, docs, duration, requests, responses, errors string,
+	caseName, phase, repetition, apis, docs, duration, requests, responses, errors string,
 ) {
 	fmt.Fprintf(
 		b,
-		"%-24s %-13s %5s %5s %10s %6s %6s %6s\n",
+		"%-24s %-13s %4s %5s %5s %10s %6s %6s %6s\n",
 		caseName,
 		phase,
+		repetition,
 		apis,
 		docs,
 		duration,
@@ -1079,6 +1132,13 @@ func writeTerminalComparisonRow(
 
 func formatMilliseconds(ms int64) string {
 	return (time.Duration(ms) * time.Millisecond).String()
+}
+
+func caseRepetition(benchmarkCase caseResult) int {
+	if benchmarkCase.Repetition < 1 {
+		return 1
+	}
+	return benchmarkCase.Repetition
 }
 
 func writeJSON(path string, value any) error {
@@ -1190,6 +1250,18 @@ func floatEnv(key string, fallback float64) float64 {
 		return fallback
 	}
 	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func intEnv(key string, fallback int) int {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
 	if err != nil {
 		return fallback
 	}
