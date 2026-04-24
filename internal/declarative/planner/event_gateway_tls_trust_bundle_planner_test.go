@@ -23,7 +23,8 @@ func newTrustBundlePlanner() *Planner {
 }
 
 func makeTrustBundleCurrent(name string,
-	desc *string, ca string, labels map[string]string) state.EventGatewayTLSTrustBundle {
+	desc *string, ca string, labels map[string]string,
+) state.EventGatewayTLSTrustBundle {
 	normalized := labels
 	if normalized == nil {
 		normalized = map[string]string{}
@@ -41,7 +42,8 @@ func makeTrustBundleCurrent(name string,
 }
 
 func makeTrustBundleDesired(name string,
-	desc *string, ca string, labels map[string]string) resources.EventGatewayTLSTrustBundleResource {
+	desc *string, ca string, labels map[string]string,
+) resources.EventGatewayTLSTrustBundleResource {
 	return resources.EventGatewayTLSTrustBundleResource{
 		CreateTLSTrustBundleRequest: kkComps.CreateTLSTrustBundleRequest{
 			Name:        name,

@@ -66,7 +66,7 @@ type ExplainDoc struct {
 	ParentRelations           []ExplainRelation `json:"parent_relations,omitempty"  yaml:"parent_relations,omitempty"`
 	SupportsKongctl           bool              `json:"supports_kongctl"            yaml:"supports_kongctl"`
 	Schema                    *ExplainNode      `json:"-"                           yaml:"-"`
-	nestedFields    map[string]ResourceType
+	nestedFields              map[string]ResourceType
 }
 
 type ExplainSubject struct {
@@ -463,7 +463,7 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 		ParentRelations:           parentRelations,
 		SupportsKongctl:           node.propertyExists("kongctl"),
 		Schema:                    node,
-		nestedFields:    nestedFieldMap(childRelations),
+		nestedFields:              nestedFieldMap(childRelations),
 	}
 
 	explainDocCacheMu.Lock()

@@ -186,8 +186,8 @@ func TestPlanPortalIdentityProviderCreate_PreservesDeferredEnvPlaceholders(t *te
 	rs := &resources.ResourceSet{
 		EnvSources: map[string]map[string]string{
 			"env-portal-idp": { // #nosec G101 -- deferred !env placeholder names are not credentials.
-				"/config/issuer_url":    "__ENV__:PORTAL_IDP_ISSUER_URL",
-				"/config/client_id":     "__ENV__:PORTAL_IDP_CLIENT_ID",
+				"/config/issuer_url": "__ENV__:PORTAL_IDP_ISSUER_URL",
+				"/config/client_id":  "__ENV__:PORTAL_IDP_CLIENT_ID",
 				// #nosec G101
 				"/config/client_secret": "__ENV__:PORTAL_IDP_CLIENT_SECRET",
 			},

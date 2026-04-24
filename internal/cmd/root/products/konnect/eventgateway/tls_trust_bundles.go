@@ -321,10 +321,7 @@ func fetchTLSTrustBundles(
 	cfg config.Hook,
 	nameFilter string,
 ) ([]kkComps.TLSTrustBundle, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
-	}
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allBundles []kkComps.TLSTrustBundle
 	var pageAfter *string

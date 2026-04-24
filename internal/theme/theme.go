@@ -132,7 +132,7 @@ var (
 	configuredExplicitly bool
 	darkBackgroundOnce   sync.Once
 	darkBackgroundCached bool
-	hasDarkBackground = detectDarkBackground
+	hasDarkBackground    = detectDarkBackground
 )
 
 func detectDarkBackground() bool {
