@@ -366,8 +366,7 @@ func findListenerByName(listeners []kkComps.EventGatewayListener, name string) *
 	lowered := strings.ToLower(name)
 	for _, listener := range listeners {
 		if listener.Name != "" && strings.ToLower(listener.Name) == lowered {
-			listenerCopy := listener
-			return &listenerCopy
+			return &listener
 		}
 	}
 	return nil

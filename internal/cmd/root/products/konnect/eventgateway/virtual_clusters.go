@@ -434,12 +434,10 @@ func findVirtualClusterByName(clusters []kkComps.VirtualCluster, identifier stri
 	lowered := strings.ToLower(identifier)
 	for _, cluster := range clusters {
 		if cluster.ID != "" && strings.ToLower(cluster.ID) == lowered {
-			clusterCopy := cluster
-			return &clusterCopy
+			return &cluster
 		}
 		if cluster.Name != "" && strings.ToLower(cluster.Name) == lowered {
-			clusterCopy := cluster
-			return &clusterCopy
+			return &cluster
 		}
 	}
 	return nil
