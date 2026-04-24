@@ -87,6 +87,35 @@ steps:
               fields:
                 name: "{{ .vars.bcRef }}"
                 description: "First Backend Cluster for Test"
+      - name: 004-record-egw-id
+        run: ["get", "event-gateways", "-o", "json"]
+        recordVar:
+          name: egwID
+          responsePath: "[?name=='{{ .vars.egwName }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.egwName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+      - name: 005-get-by-gateway-id
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-id
+          - "{{ .vars.egwID }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+                description: "First Backend Cluster for Test"
   - name: 002-plan-update
     inputOverlayDirs:
       - overlays/001-update-fields
