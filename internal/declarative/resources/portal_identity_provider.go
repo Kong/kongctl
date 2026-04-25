@@ -24,6 +24,32 @@ type PortalIdentityProviderResource struct {
 	konnectID string `yaml:"-" json:"-"`
 }
 
+// MarshalJSON ensures the embedded SDK request and kongctl fields are preserved when serializing.
+func (p PortalIdentityProviderResource) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.portalIdentityProviderAlias())
+}
+
+// MarshalYAML ensures YAML output mirrors the custom JSON encoding.
+func (p PortalIdentityProviderResource) MarshalYAML() (any, error) {
+	return p.portalIdentityProviderAlias(), nil
+}
+
+type portalIdentityProviderAlias struct {
+	portalIdentityProviderCreateAlias `                       json:",inline"          yaml:",inline"`
+	Ref                               string `json:"ref"              yaml:"ref"`
+	Portal                            string `json:"portal,omitempty" yaml:"portal,omitempty"`
+}
+
+type portalIdentityProviderCreateAlias kkComps.CreateIdentityProvider
+
+func (p PortalIdentityProviderResource) portalIdentityProviderAlias() portalIdentityProviderAlias {
+	return portalIdentityProviderAlias{
+		portalIdentityProviderCreateAlias: portalIdentityProviderCreateAlias(p.CreateIdentityProvider),
+		Ref:                               p.Ref,
+		Portal:                            p.Portal,
+	}
+}
+
 // GetType returns the resource type.
 func (p PortalIdentityProviderResource) GetType() ResourceType {
 	return ResourceTypePortalIdentityProvider

@@ -195,6 +195,7 @@ steps:
               portals[?name=='{{ .vars.portalRef }}'] | [0].identity_providers[?type=='oidc'] | [0]
             expect:
               fields:
+                ref: "{{ .vars.providerRef }}"
                 type: oidc
                 enabled: false
                 config.client_id: "{{ .vars.updateClientID }}"
