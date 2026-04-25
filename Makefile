@@ -6,6 +6,7 @@ GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(GIT_COMMIT) -X main.date=$(BUILD_DATE)
 LATEST_E2E_LINK ?= .latest-e2e
+LATEST_BENCHMARK_LINK ?= .latest-benchmark
 
 .PHONY: lint
 lint:
@@ -101,6 +102,46 @@ test-e2e-scenarios:
 
 .PHONY: scenario
 scenario: test-e2e-scenarios
+
+.PHONY: benchmark-declarative
+benchmark-declarative:
+	@set -eu; \
+	ART_DIR="$${KONGCTL_BENCHMARK_ARTIFACTS_DIR:-}"; \
+	if [ -z "$$ART_DIR" ]; then \
+		ART_DIR=".benchmark-artifacts"; \
+	fi; \
+	mkdir -p "$$ART_DIR"; \
+	run_id=$$(date +%Y%m%d-%H%M%S); \
+	ART_DIR="$$ART_DIR/$$run_id"; \
+	mkdir -p "$$ART_DIR"; \
+	ART_DIR=$$(cd "$$ART_DIR" && pwd); \
+	( KONGCTL_BENCHMARK_ARTIFACTS_DIR="$$ART_DIR" \
+	  KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" \
+	  code=0; \
+	  go run -tags=e2e ./test/benchmarks/declarative $(BENCHMARK_FLAGS) || code=$$?; \
+	  echo $$code > "$$ART_DIR/.exit_code"; \
+	  exit $$code ) | tee "$$ART_DIR/run.log"; \
+	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
+	if [ -f "$$ART_DIR/summary.txt" ]; then \
+		echo; \
+		cat "$$ART_DIR/summary.txt"; \
+		echo; \
+	elif [ -f "$$ART_DIR/summary.md" ]; then \
+		echo; \
+		cat "$$ART_DIR/summary.md"; \
+		echo; \
+	fi; \
+	echo "Declarative benchmark artifacts: $$ART_DIR"; \
+	ln -sfn "$$ART_DIR" "$(LATEST_BENCHMARK_LINK)" || true; \
+	exit $$code
+
+.PHONY: benchmark-declarative-case
+benchmark-declarative-case:
+	@if [ -z "$(CASE)" ]; then \
+		echo "CASE is required, for example: make benchmark-declarative-case CASE=medium-single" >&2; \
+		exit 1; \
+	fi
+	@$(MAKE) benchmark-declarative BENCHMARK_FLAGS="--case $(CASE) $(BENCHMARK_FLAGS)"
 
 .PHONY: open-latest-e2e
 open-latest-e2e:

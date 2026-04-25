@@ -1,0 +1,297 @@
+name: Declarative Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      case:
+        description: "Case selector: all, a size, or a case name"
+        required: false
+        default: "all"
+      command_timeout:
+        description: "Timeout for each measured kongctl command"
+        required: false
+        default: "30m"
+      benchmark_flags:
+        description: "Additional flags passed to the benchmark runner"
+        required: false
+        default: ""
+      repeat:
+        description: "Number of times to execute each selected case"
+        required: false
+        default: "1"
+  schedule:
+    # Nightly small/medium runs, Sunday through Friday at 06:00 UTC.
+    - cron: "0 6 * * 0-5"
+    # Weekly large/xl runs, Saturday at 06:00 UTC.
+    - cron: "0 6 * * 6"
+
+permissions:
+  contents: write
+  discussions: write
+  issues: write
+
+concurrency:
+  group: konnect-declarative-benchmark
+  cancel-in-progress: false
+
+jobs:
+  declarative-benchmark:
+    name: Declarative Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment: benchmark
+    env:
+      KONGCTL_BENCHMARK_ARTIFACTS_DIR: ${{ github.workspace }}/.benchmark-artifacts/${{ github.run_id }}
+      KONGCTL_BENCHMARK_CASE: >-
+        ${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * 6' && 'large,xl' ||
+            github.event_name == 'schedule' && 'small,medium' ||
+            inputs.case }}
+      KONGCTL_BENCHMARK_COMMAND_TIMEOUT: >-
+        ${{ github.event_name == 'workflow_dispatch' && inputs.command_timeout || '30m' }}
+      KONGCTL_BENCHMARK_REPEAT: ${{ github.event_name == 'workflow_dispatch' && inputs.repeat || '3' }}
+      KONGCTL_BENCHMARK_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      KONGCTL_BENCHMARK_DISCUSSION_NUMBER: ${{ vars.KONGCTL_BENCHMARK_DISCUSSION_NUMBER || '' }}
+      KONGCTL_BENCHMARK_FLAGS: ${{ github.event_name == 'workflow_dispatch' && inputs.benchmark_flags || '' }}
+      KONGCTL_BENCHMARK_KONNECT_PAT: ${{ secrets.KONGCTL_BENCHMARK_KONNECT_PAT }}
+      KONGCTL_BENCHMARK_KONNECT_BASE_URL: ${{ vars.KONGCTL_BENCHMARK_KONNECT_BASE_URL || 'https://us.api.konghq.com' }}
+      KONGCTL_E2E_LOG_LEVEL: debug
+      KONGCTL_E2E_CONSOLE_LOG_LEVEL: warn
+      KONGCTL_E2E_RESET: "1"
+      KONGCTL_E2E_HTTP_TIMEOUT: ${{ vars.KONGCTL_BENCHMARK_HTTP_TIMEOUT || '0s' }}
+      KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT: ${{ vars.KONGCTL_BENCHMARK_HTTP_TCP_USER_TIMEOUT || '0s' }}
+      KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES: ${{ vars.KONGCTL_BENCHMARK_HTTP_DISABLE_KEEPALIVES || '' }}
+      KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR: >-
+        ${{ vars.KONGCTL_BENCHMARK_HTTP_RECYCLE_CONNECTIONS_ON_ERROR || '1' }}
+      KONGCTL_E2E_HTTP_RETRY_ATTEMPTS: ${{ vars.KONGCTL_BENCHMARK_HTTP_RETRY_ATTEMPTS || '4' }}
+      KONGCTL_E2E_HTTP_RETRY_INTERVAL: ${{ vars.KONGCTL_BENCHMARK_HTTP_RETRY_INTERVAL || '1s' }}
+      KONGCTL_E2E_HTTP_RETRY_MAX_INTERVAL: ${{ vars.KONGCTL_BENCHMARK_HTTP_RETRY_MAX_INTERVAL || '5s' }}
+      KONGCTL_E2E_HTTP_RETRY_BACKOFF_FACTOR: ${{ vars.KONGCTL_BENCHMARK_HTTP_RETRY_BACKOFF_FACTOR || '2' }}
+      KONGCTL_E2E_HTTP_RETRY_JITTER: ${{ vars.KONGCTL_BENCHMARK_HTTP_RETRY_JITTER || '250ms' }}
+      KONGCTL_E2E_RESET_HTTP_TIMEOUT: ${{ vars.KONGCTL_BENCHMARK_RESET_HTTP_TIMEOUT || '0s' }}
+      KONGCTL_E2E_RESET_TIMEOUT: ${{ vars.KONGCTL_BENCHMARK_RESET_TIMEOUT || '0s' }}
+      KONGCTL_E2E_RESET_RETRY_ATTEMPTS: ${{ vars.KONGCTL_BENCHMARK_RESET_RETRY_ATTEMPTS || '3' }}
+      KONGCTL_E2E_RESET_RETRY_INTERVAL: ${{ vars.KONGCTL_BENCHMARK_RESET_RETRY_INTERVAL || '1s' }}
+      KONGCTL_E2E_RESET_RETRY_MAX_INTERVAL: ${{ vars.KONGCTL_BENCHMARK_RESET_RETRY_MAX_INTERVAL || '5s' }}
+      KONGCTL_E2E_RESET_RETRY_BACKOFF_FACTOR: ${{ vars.KONGCTL_BENCHMARK_RESET_RETRY_BACKOFF_FACTOR || '2' }}
+      KONGCTL_E2E_RESET_RETRY_JITTER: ${{ vars.KONGCTL_BENCHMARK_RESET_RETRY_JITTER || '250ms' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - run: git config --global url.https://$GITHUB_TOKEN@github.com/.insteadOf https://github.com/
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+
+      - name: Prepare benchmark history
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          results_dir="${RUNNER_TEMP}/benchmark-results"
+          rm -rf "${results_dir}"
+          git fetch origin benchmark-results || true
+
+          if git show-ref --verify --quiet refs/remotes/origin/benchmark-results; then
+            git worktree add -B benchmark-results "${results_dir}" origin/benchmark-results
+          else
+            git worktree add --detach "${results_dir}" HEAD
+            git -C "${results_dir}" switch --orphan benchmark-results
+            git -C "${results_dir}" rm -rf . >/dev/null 2>&1 || true
+            mkdir -p "${results_dir}/runs"
+            {
+              echo "# Benchmark Results"
+              echo
+              echo "This branch stores generated declarative benchmark summaries."
+              echo "Raw logs and fixture details remain available as GitHub Actions artifacts."
+            } > "${results_dir}/README.md"
+          fi
+
+          git -C "${results_dir}" remote set-url origin \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          echo "KONGCTL_BENCHMARK_HISTORY_DIR=${results_dir}" >> "${GITHUB_ENV}"
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+
+      - name: Run declarative benchmark
+        run: make benchmark-declarative BENCHMARK_FLAGS="${KONGCTL_BENCHMARK_FLAGS}"
+
+      - name: Publish benchmark summaries
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          run_dir="$(find "${KONGCTL_BENCHMARK_ARTIFACTS_DIR}" -name results.json -print | sort | tail -n 1)"
+          if [ -z "${run_dir}" ]; then
+            echo "No benchmark results found; skipping benchmark-results update."
+            exit 0
+          fi
+          run_dir="$(dirname "${run_dir}")"
+
+          case_slug="$(printf '%s' "${KONGCTL_BENCHMARK_CASE}" \
+            | tr -cs '[:alnum:]._-' '-' \
+            | sed 's/^-//; s/-$//')"
+          if [ -z "${case_slug}" ]; then
+            case_slug="all"
+          fi
+
+          results_dir="${KONGCTL_BENCHMARK_HISTORY_DIR}"
+          destination="${results_dir}/runs/$(date -u +%Y/%m/%d)/${GITHUB_RUN_ID}-${case_slug}"
+          latest="${results_dir}/latest"
+          mkdir -p "${destination}"
+          rm -rf "${latest}"
+          mkdir -p "${latest}"
+
+          for file in \
+            results.json \
+            summary.md \
+            summary.txt \
+            dashboard.md \
+            regressions.md \
+            regressions.json \
+            history-report.json
+          do
+            if [ -f "${run_dir}/${file}" ]; then
+              cp "${run_dir}/${file}" "${destination}/${file}"
+              cp "${run_dir}/${file}" "${latest}/${file}"
+            fi
+          done
+
+          jq -n \
+            --arg run_id "${GITHUB_RUN_ID}" \
+            --arg run_attempt "${GITHUB_RUN_ATTEMPT}" \
+            --arg run_url "${KONGCTL_BENCHMARK_RUN_URL}" \
+            --arg case "${KONGCTL_BENCHMARK_CASE}" \
+            --arg repeat "${KONGCTL_BENCHMARK_REPEAT}" \
+            --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              run_id: $run_id,
+              run_attempt: $run_attempt,
+              run_url: $run_url,
+              case: $case,
+              repeat: $repeat,
+              created_at: $created_at
+            }' > "${destination}/metadata.json"
+          cp "${destination}/metadata.json" "${latest}/metadata.json"
+
+          git -C "${results_dir}" config user.name "github-actions[bot]"
+          git -C "${results_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "${results_dir}" add -A
+          if git -C "${results_dir}" diff --cached --quiet; then
+            echo "No benchmark summary changes to publish."
+            exit 0
+          fi
+
+          git -C "${results_dir}" commit -m "benchmark: add run ${GITHUB_RUN_ID}"
+          git -C "${results_dir}" push origin HEAD:benchmark-results
+
+      - name: Update benchmark discussion dashboard
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          dashboard="$(find "${KONGCTL_BENCHMARK_ARTIFACTS_DIR}" -name dashboard.md -print | sort | tail -n 1)"
+          if [ -z "${dashboard}" ] || [ ! -f "${dashboard}" ]; then
+            echo "No benchmark dashboard found; skipping discussion update."
+            exit 0
+          fi
+          if [ -z "${KONGCTL_BENCHMARK_DISCUSSION_NUMBER}" ]; then
+            echo "KONGCTL_BENCHMARK_DISCUSSION_NUMBER is not configured; skipping discussion update."
+            exit 0
+          fi
+
+          owner="${GITHUB_REPOSITORY%/*}"
+          repo="${GITHUB_REPOSITORY#*/}"
+          discussion_id="$(gh api graphql \
+            -f query='
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  discussion(number: $number) { id }
+                }
+              }' \
+            -F owner="${owner}" \
+            -F repo="${repo}" \
+            -F number="${KONGCTL_BENCHMARK_DISCUSSION_NUMBER}" \
+            --jq '.data.repository.discussion.id // empty')"
+
+          if [ -z "${discussion_id}" ]; then
+            echo "Discussion ${KONGCTL_BENCHMARK_DISCUSSION_NUMBER} was not found; skipping update."
+            exit 0
+          fi
+
+          body="$(cat "${dashboard}")"
+          gh api graphql \
+            -f query='
+              mutation($id: ID!, $body: String!) {
+                updateDiscussion(input: { discussionId: $id, body: $body }) {
+                  discussion { url }
+                }
+              }' \
+            -F id="${discussion_id}" \
+            -F body="${body}"
+
+      - name: Open or update regression issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          regressions_json="$(find "${KONGCTL_BENCHMARK_ARTIFACTS_DIR}" -name regressions.json -print | sort | tail -n 1)"
+          regressions_md="$(find "${KONGCTL_BENCHMARK_ARTIFACTS_DIR}" -name regressions.md -print | sort | tail -n 1)"
+          if [ -z "${regressions_json}" ] || [ ! -f "${regressions_json}" ]; then
+            echo "No regression report found; skipping issue update."
+            exit 0
+          fi
+          if [ "$(jq -r '.has_regressions' "${regressions_json}")" != "true" ]; then
+            echo "No benchmark regressions detected; leaving issues unchanged."
+            exit 0
+          fi
+
+          title="[benchmark-regression] Declarative benchmark regressions"
+          gh label create benchmark-regression \
+            --description "Benchmark regression alert" \
+            --color B60205 >/dev/null 2>&1 || true
+
+          issue_number="$(gh issue list \
+            --state open \
+            --search "${title} in:title" \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [ -n "${issue_number}" ]; then
+            gh issue edit "${issue_number}" --body-file "${regressions_md}"
+            gh issue comment "${issue_number}" \
+              --body "Benchmark regressions reproduced in run ${KONGCTL_BENCHMARK_RUN_URL}."
+          else
+            gh issue create \
+              --title "${title}" \
+              --body-file "${regressions_md}" \
+              --label benchmark-regression
+          fi
+
+      - name: Write workflow summary
+        if: always()
+        run: |
+          summary="$(find "${KONGCTL_BENCHMARK_ARTIFACTS_DIR}" -name summary.md -print | sort | tail -n 1)"
+          if [ -n "${summary}" ] && [ -f "${summary}" ]; then
+            cat "${summary}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "No benchmark summary found." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: declarative-benchmark-${{ github.run_id }}
+          path: ${{ env.KONGCTL_BENCHMARK_ARTIFACTS_DIR }}
+          if-no-files-found: warn
