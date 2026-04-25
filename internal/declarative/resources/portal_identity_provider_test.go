@@ -88,7 +88,7 @@ func TestPortalIdentityProviderResourceValidate_RejectsMismatchedSAMLType(t *tes
 
 	config := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
 		kkComps.SAMLIdentityProviderConfigInput{
-			IdpMetadataURL: stringPtr("https://example.test/saml.xml"),
+			IdpMetadataURL: new("https://example.test/saml.xml"),
 		},
 	)
 	resource := PortalIdentityProviderResource{
@@ -101,8 +101,4 @@ func TestPortalIdentityProviderResourceValidate_RejectsMismatchedSAMLType(t *tes
 
 	err := resource.Validate()
 	require.EqualError(t, err, `identity provider type "oidc" does not match saml config`)
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

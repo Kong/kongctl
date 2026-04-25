@@ -100,8 +100,8 @@ func GetPublicationsForAPI(ctx context.Context, kkClient APIPublicationAPI, apiI
 		[]kkComponents.APIPublicationListItem, float64, error,
 	) {
 		req := kkOps.ListAPIPublicationsRequest{
-			PageSize:   Int64(pageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 			Filter: &kkComponents.APIPublicationFilterParameters{
 				APIID: apiIDFilter,
 			},

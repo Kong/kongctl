@@ -798,12 +798,12 @@ func TestLoader_validateResourceSet_RejectsDuplicatePortalIdentityProviderSAMLTy
 	loader := New()
 	configA := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
 		kkComps.SAMLIdentityProviderConfigInput{
-			IdpMetadataURL: stringPtr("https://example-a.test/saml.xml"),
+			IdpMetadataURL: new("https://example-a.test/saml.xml"),
 		},
 	)
 	configB := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
 		kkComps.SAMLIdentityProviderConfigInput{
-			IdpMetadataURL: stringPtr("https://example-b.test/saml.xml"),
+			IdpMetadataURL: new("https://example-b.test/saml.xml"),
 		},
 	)
 	rs := &resources.ResourceSet{
@@ -848,7 +848,7 @@ func TestLoader_validateResourceSet_AllowsMixedPortalIdentityProviderTypesPerPor
 	})
 	samlConfig := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
 		kkComps.SAMLIdentityProviderConfigInput{
-			IdpMetadataURL: stringPtr("https://example.test/saml.xml"),
+			IdpMetadataURL: new("https://example.test/saml.xml"),
 		},
 	)
 	rs := &resources.ResourceSet{
@@ -878,8 +878,4 @@ func TestLoader_validateResourceSet_AllowsMixedPortalIdentityProviderTypesPerPor
 
 	err := loader.validateResourceSet(rs)
 	assert.NoError(t, err)
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

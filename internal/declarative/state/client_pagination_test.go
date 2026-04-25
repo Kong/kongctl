@@ -686,9 +686,9 @@ func newListPortalTeamsResponse(pageNumber, count int, total float64) *kkOps.Lis
 	data := make([]kkComps.PortalTeamResponse, count)
 	for i := range count {
 		data[i] = kkComps.PortalTeamResponse{
-			ID:                 stringPtr(fmt.Sprintf("team-%d-%d", pageNumber, i+1)),
-			Name:               stringPtr(fmt.Sprintf("team-%d-%d", pageNumber, i+1)),
-			CanOwnApplications: boolPtr(true),
+			ID:                 new(fmt.Sprintf("team-%d-%d", pageNumber, i+1)),
+			Name:               new(fmt.Sprintf("team-%d-%d", pageNumber, i+1)),
+			CanOwnApplications: new(true),
 		}
 	}
 
@@ -700,12 +700,4 @@ func newListPortalTeamsResponse(pageNumber, count int, total float64) *kkOps.Lis
 			},
 		},
 	}
-}
-
-func stringPtr(v string) *string {
-	return &v
-}
-
-func boolPtr(v bool) *bool {
-	return &v
 }

@@ -72,9 +72,9 @@ func TestProducePolicyFlagValidation(t *testing.T) {
 
 func TestFindProducePolicyByName(t *testing.T) {
 	policies := []kkComps.EventGatewayPolicy{
-		{ID: "policy-1", Name: ptr("Alpha-Policy")},
+		{ID: "policy-1", Name: new("Alpha-Policy")},
 		{ID: "policy-2", Name: nil},
-		{ID: "policy-3", Name: ptr("Beta-Policy")},
+		{ID: "policy-3", Name: new("Beta-Policy")},
 	}
 
 	// Case-insensitive match
@@ -91,9 +91,9 @@ func TestProducePolicyToRecord(t *testing.T) {
 	policy := kkComps.EventGatewayPolicy{
 		ID:          "test-id-1234-5678-9abc-def012345678",
 		Type:        "modify_headers",
-		Name:        ptr("Test Policy"),
-		Description: ptr("Test Description"),
-		Enabled:     ptrBool(true),
+		Name:        new("Test Policy"),
+		Description: new("Test Description"),
+		Enabled:     new(true),
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -133,10 +133,10 @@ func TestProducePolicyDetailView(t *testing.T) {
 	policy := &producePolicyWithConfig{
 		ID:          "test-id",
 		Type:        "schema_validation",
-		Name:        ptr("Test Policy"),
-		Description: ptr("Test Description"),
-		Enabled:     ptrBool(true),
-		Condition:   ptr("true"),
+		Name:        new("Test Policy"),
+		Description: new("Test Description"),
+		Enabled:     new(true),
+		Condition:   new("true"),
 		Config:      map[string]any{"key": "value"},
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -149,14 +149,4 @@ func TestProducePolicyDetailView(t *testing.T) {
 	assert.Contains(t, detail, "description: Test Description")
 	assert.Contains(t, detail, "enabled: true")
 	assert.Contains(t, detail, "condition: true")
-}
-
-// Helper to create pointer to string
-func ptr(s string) *string {
-	return &s
-}
-
-// Helper to create pointer to bool
-func ptrBool(b bool) *bool {
-	return &b
 }

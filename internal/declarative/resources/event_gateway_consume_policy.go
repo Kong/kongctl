@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -229,10 +230,8 @@ func validateConsumePolicyType(raw map[string]any) error {
 		return fmt.Errorf("consume policy 'type' must be a string")
 	}
 
-	for _, v := range validTypes {
-		if policyTypeStr == v {
-			return nil
-		}
+	if slices.Contains(validTypes, policyTypeStr) {
+		return nil
 	}
 
 	return fmt.Errorf(

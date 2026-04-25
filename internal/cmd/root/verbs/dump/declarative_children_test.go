@@ -205,9 +205,9 @@ func TestBuildPortalAuthSettings_IncludesOnlySupportedFields(t *testing.T) {
 				PortalAuthenticationSettingsResponse: &kkComps.PortalAuthenticationSettingsResponse{
 					BasicAuthEnabled:       true,
 					KonnectMappingEnabled:  true,
-					IdpMappingEnabled:      boolPtr(false),
+					IdpMappingEnabled:      new(false),
 					OidcAuthEnabled:        true,
-					SamlAuthEnabled:        boolPtr(true),
+					SamlAuthEnabled:        new(true),
 					OidcTeamMappingEnabled: true,
 				},
 			},
@@ -259,7 +259,7 @@ func TestBuildPortalIdentityProviders_MapsOIDCAndSAMLChildren(t *testing.T) {
 								ClientID:  "client-id",
 								Scopes:    []string{"openid", "email"},
 								ClaimMappings: &kkComps.OIDCIdentityProviderClaimMappings{
-									Email: stringPtr("email"),
+									Email: new("email"),
 								},
 							},
 						},
@@ -271,7 +271,7 @@ func TestBuildPortalIdentityProviders_MapsOIDCAndSAMLChildren(t *testing.T) {
 						Config: &kkComps.IdentityProviderConfig{
 							Type: kkComps.IdentityProviderConfigTypeSAMLIdentityProviderConfig,
 							SAMLIdentityProviderConfig: &kkComps.SAMLIdentityProviderConfig{
-								IdpMetadataURL: stringPtr("https://issuer.example.test/saml.xml"),
+								IdpMetadataURL: new("https://issuer.example.test/saml.xml"),
 							},
 						},
 					},
@@ -303,12 +303,4 @@ func TestBuildPortalIdentityProviders_MapsOIDCAndSAMLChildren(t *testing.T) {
 		"https://issuer.example.test/saml.xml",
 		*resources[1].Config.SAMLIdentityProviderConfigInput.IdpMetadataURL,
 	)
-}
-
-func boolPtr(value bool) *bool {
-	return &value
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

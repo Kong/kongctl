@@ -87,8 +87,8 @@ func GetImplementationsForAPI(ctx context.Context, kkClient APIImplementationAPI
 		[]kkComponents.APIImplementationListItem, float64, error,
 	) {
 		req := kkOps.ListAPIImplementationsRequest{
-			PageSize:   Int64(pageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 			Filter: &kkComponents.APIImplementationFilterParameters{
 				APIID: apiIDFilter,
 			},

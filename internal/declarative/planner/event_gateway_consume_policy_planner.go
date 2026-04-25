@@ -340,8 +340,7 @@ func (p *Planner) extractConsumePolicyLabels(
 	policy resources.EventGatewayConsumePolicyResource,
 ) map[string]string {
 	v := reflect.ValueOf(policy.EventGatewayConsumePolicyCreate)
-	for i := range v.NumField() {
-		field := v.Field(i)
+	for _, field := range v.Fields() {
 		if field.Kind() != reflect.Pointer || field.IsNil() {
 			continue
 		}
@@ -360,8 +359,7 @@ func (p *Planner) extractConsumePolicyDescription(
 	policy resources.EventGatewayConsumePolicyResource,
 ) string {
 	v := reflect.ValueOf(policy.EventGatewayConsumePolicyCreate)
-	for i := range v.NumField() {
-		field := v.Field(i)
+	for _, field := range v.Fields() {
 		if field.Kind() != reflect.Pointer || field.IsNil() {
 			continue
 		}
@@ -378,8 +376,7 @@ func (p *Planner) extractConsumePolicyEnabled(
 	policy resources.EventGatewayConsumePolicyResource,
 ) bool {
 	v := reflect.ValueOf(policy.EventGatewayConsumePolicyCreate)
-	for i := range v.NumField() {
-		field := v.Field(i)
+	for _, field := range v.Fields() {
 		if field.Kind() != reflect.Pointer || field.IsNil() {
 			continue
 		}
@@ -396,8 +393,7 @@ func (p *Planner) extractConsumePolicyConfig(
 	policy resources.EventGatewayConsumePolicyResource,
 ) map[string]any {
 	v := reflect.ValueOf(policy.EventGatewayConsumePolicyCreate)
-	for i := range v.NumField() {
-		field := v.Field(i)
+	for _, field := range v.Fields() {
 		if field.Kind() != reflect.Pointer || field.IsNil() {
 			continue
 		}

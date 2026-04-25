@@ -43,7 +43,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 			return value, false
 		}
 		return sanitizeDeferredEnvReflect(value.Elem())
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if value.IsNil() {
 			return value, false
 		}
@@ -117,7 +117,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 		}
 		return copied, true
 	case reflect.Struct:
-		if value.Type() == reflect.TypeOf(planner.FieldChange{}) {
+		if value.Type() == reflect.TypeFor[planner.FieldChange]() {
 			current := value.Interface().(planner.FieldChange)
 			current.Old = SanitizeDeferredEnvValue(current.Old)
 			current.New = SanitizeDeferredEnvValue(current.New)

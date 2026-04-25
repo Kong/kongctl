@@ -22,7 +22,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/help"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/install"
-	"github.com/kong/kongctl/internal/cmd/root/verbs/kai"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/lint"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/list"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/listen"
@@ -207,12 +206,6 @@ func addCommands() error {
 	rootCmd.AddCommand(version.NewVersionCmd())
 
 	command, err := api.NewAPICmd()
-	if err != nil {
-		return err
-	}
-	rootCmd.AddCommand(command)
-
-	command, err = kai.NewKaiCmd()
 	if err != nil {
 		return err
 	}

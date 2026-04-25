@@ -111,8 +111,8 @@ func GetVersionsForAPI(ctx context.Context, kkClient APIVersionAPI, apiID string
 	) {
 		req := kkOps.ListAPIVersionsRequest{
 			APIID:      apiID,
-			PageSize:   Int64(pageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := kkClient.ListAPIVersions(ctx, req)

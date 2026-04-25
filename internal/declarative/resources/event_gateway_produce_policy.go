@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -245,13 +246,7 @@ func validateProducePolicyTypeField(data []byte) error {
 	}
 
 	validTypes := []string{modifyHeadersType, schemaValidationType, encryptType}
-	isValid := false
-	for _, t := range validTypes {
-		if policyTypeStr == t {
-			isValid = true
-			break
-		}
-	}
+	isValid := slices.Contains(validTypes, policyTypeStr)
 
 	if !isValid {
 		return fmt.Errorf(
