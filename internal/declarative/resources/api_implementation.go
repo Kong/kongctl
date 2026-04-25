@@ -58,7 +58,7 @@ func (i APIImplementationResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if i.API != "" {
 		// Dependency on parent API when defined at root level
-		deps = append(deps, ResourceRef{Kind: "api", Ref: i.API})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeAPI, Ref: i.API})
 	}
 	// Note: Control plane dependency is handled through reference field mappings
 	return deps
@@ -197,7 +197,7 @@ func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any)
 // GetParentRef returns the parent API reference for ResourceWithParent interface
 func (i APIImplementationResource) GetParentRef() *ResourceRef {
 	if i.API != "" {
-		return &ResourceRef{Kind: "api", Ref: i.API}
+		return &ResourceRef{Kind: ResourceTypeAPI, Ref: i.API}
 	}
 	return nil
 }

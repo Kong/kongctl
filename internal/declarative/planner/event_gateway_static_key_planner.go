@@ -159,15 +159,15 @@ func (p *Planner) planStaticKeyCreate(
 	plan *Plan,
 ) {
 	fields := make(map[string]any)
-	fields["name"] = key.Name
-	fields["value"] = key.Value
+	fields[FieldName] = key.Name
+	fields[FieldValue] = key.Value
 
 	if key.Description != nil {
-		fields["description"] = *key.Description
+		fields[FieldDescription] = *key.Description
 	}
 
 	if len(key.Labels) > 0 {
-		fields["labels"] = key.Labels
+		fields[FieldLabels] = key.Labels
 	}
 
 	change := PlannedChange{
@@ -188,11 +188,11 @@ func (p *Planner) planStaticKeyCreate(
 	} else {
 		// Gateway doesn't exist yet, add reference for runtime resolution
 		change.References = map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  "", // to be resolved at runtime
 				LookupFields: map[string]string{
-					"name": gatewayName,
+					FieldName: gatewayName,
 				},
 			},
 		}

@@ -215,15 +215,15 @@ func (p *Planner) planClusterPolicyCreate(
 
 	// Both gateway and virtual cluster references are needed for the grandchild pattern
 	change.References = map[string]ReferenceInfo{
-		"event_gateway_id": {
+		FieldEventGatewayID: {
 			Ref: gatewayRef,
 			ID:  gatewayID, // may be empty if gateway doesn't exist yet
 		},
-		"event_gateway_virtual_cluster_id": {
+		FieldEventGatewayVirtualClusterID: {
 			Ref: virtualClusterRef,
 			ID:  virtualClusterID, // may be empty if virtual cluster doesn't exist yet
 			LookupFields: map[string]string{
-				"name": virtualClusterName,
+				FieldName: virtualClusterName,
 			},
 		},
 	}
@@ -268,11 +268,11 @@ func (p *Planner) planClusterPolicyUpdate(
 			ID:  virtualClusterID,
 		},
 		References: map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  gatewayID,
 			},
-			"event_gateway_virtual_cluster_id": {
+			FieldEventGatewayVirtualClusterID: {
 				Ref: virtualClusterRef,
 				ID:  virtualClusterID,
 			},
@@ -308,11 +308,11 @@ func (p *Planner) planClusterPolicyDelete(
 			ID:  virtualClusterID,
 		},
 		References: map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  gatewayID,
 			},
-			"event_gateway_virtual_cluster_id": {
+			FieldEventGatewayVirtualClusterID: {
 				Ref: virtualClusterRef,
 				ID:  virtualClusterID,
 			},
@@ -344,7 +344,7 @@ func (p *Planner) clusterPolicyToFields(policy resources.EventGatewayClusterPoli
 
 	// Add labels from the union variant if present
 	if labels := p.extractClusterPolicyLabels(policy); labels != nil {
-		fields["labels"] = labels
+		fields[FieldLabels] = labels
 	}
 
 	return fields
@@ -376,7 +376,7 @@ func (p *Planner) shouldUpdateClusterPolicy(
 	}
 	if currentName != desiredName {
 		needsUpdate = true
-		changes["name"] = FieldChange{
+		changes[FieldName] = FieldChange{
 			Old: currentName,
 			New: desiredName,
 		}
@@ -390,7 +390,7 @@ func (p *Planner) shouldUpdateClusterPolicy(
 	desiredDesc := p.getClusterPolicyDescription(desired)
 	if currentDesc != desiredDesc {
 		needsUpdate = true
-		changes["description"] = FieldChange{
+		changes[FieldDescription] = FieldChange{
 			Old: currentDesc,
 			New: desiredDesc,
 		}
@@ -404,7 +404,7 @@ func (p *Planner) shouldUpdateClusterPolicy(
 	desiredEnabled := p.getClusterPolicyEnabled(desired)
 	if currentEnabled != desiredEnabled {
 		needsUpdate = true
-		changes["enabled"] = FieldChange{
+		changes[FieldEnabled] = FieldChange{
 			Old: currentEnabled,
 			New: desiredEnabled,
 		}
@@ -415,14 +415,14 @@ func (p *Planner) shouldUpdateClusterPolicy(
 	if desiredLabels != nil {
 		if !compareMaps(current.NormalizedLabels, desiredLabels) {
 			needsUpdate = true
-			changes["labels"] = FieldChange{
+			changes[FieldLabels] = FieldChange{
 				Old: current.NormalizedLabels,
 				New: desiredLabels,
 			}
 		}
 	} else if len(current.NormalizedLabels) > 0 {
 		needsUpdate = true
-		changes["labels"] = FieldChange{
+		changes[FieldLabels] = FieldChange{
 			Old: current.NormalizedLabels,
 			New: map[string]string{},
 		}
@@ -432,7 +432,7 @@ func (p *Planner) shouldUpdateClusterPolicy(
 	desiredConfig := p.extractClusterPolicyConfig(desired)
 	if !configFieldsMatch(current.RawConfig, desiredConfig) {
 		needsUpdate = true
-		changes["config"] = FieldChange{
+		changes[FieldConfig] = FieldChange{
 			Old: current.RawConfig,
 			New: desiredConfig,
 		}

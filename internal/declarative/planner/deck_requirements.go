@@ -46,7 +46,7 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 		cpID := cp.GetKonnectID()
 		cpName := cp.Name
 		if cpName == "" && cp.External != nil && cp.External.Selector != nil {
-			cpName = cp.External.Selector.MatchFields["name"]
+			cpName = cp.External.Selector.MatchFields[FieldName]
 		}
 
 		cpCreateID := findChangeIDByRef(plan.Changes, "control_plane", cpRef, ActionCreate)
@@ -93,12 +93,12 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 			ResourceRef:  cpRef,
 			Action:       ActionExternalTool,
 			Fields: map[string]any{
-				"control_plane_ref":  cpRef,
-				"control_plane_id":   cpID,
-				"control_plane_name": cpName,
-				"deck_base_dir":      deckBaseDir,
-				"files":              deckFiles,
-				"flags":              deckFlags,
+				FieldControlPlaneRef:  cpRef,
+				FieldControlPlaneID:   cpID,
+				FieldControlPlaneName: cpName,
+				FieldDeckBaseDir:      deckBaseDir,
+				FieldFiles:            deckFiles,
+				FieldFlags:            deckFlags,
 			},
 			PostResolutionTargets: postResolutionTargets,
 			Namespace:             resources.NamespaceExternal,
@@ -175,7 +175,7 @@ func collectDeckGatewayServices(
 		if svc.External == nil || svc.External.Selector == nil {
 			continue
 		}
-		selectorName := svc.External.Selector.MatchFields["name"]
+		selectorName := svc.External.Selector.MatchFields[FieldName]
 		if err := ensureDeckSelectorName(selectorName, svc.GetRef()); err != nil {
 			return nil, err
 		}
@@ -198,7 +198,7 @@ func deckPostResolutionTargets(
 	result := make([]PostResolutionTarget, 0, len(services))
 	for _, svc := range services {
 		target := PostResolutionTarget{
-			ResourceType:     "gateway_service",
+			ResourceType:     ResourceTypeGatewayService,
 			ResourceRef:      svc.Ref,
 			ControlPlaneRef:  controlPlaneRef,
 			ControlPlaneID:   controlPlaneID,
@@ -237,7 +237,7 @@ func deckServiceRefFromFields(fields map[string]any, deckChangeIDs map[string]st
 		return ""
 	}
 
-	svcValue, ok := fields["service"]
+	svcValue, ok := fields[FieldService]
 	if !ok {
 		return ""
 	}
@@ -247,7 +247,7 @@ func deckServiceRefFromFields(fields map[string]any, deckChangeIDs map[string]st
 		return ""
 	}
 
-	idValue, ok := svcMap["id"].(string)
+	idValue, ok := svcMap[FieldID].(string)
 	if !ok || idValue == "" {
 		return ""
 	}
@@ -289,7 +289,7 @@ func referencedGatewayServiceRefs(changes []PlannedChange) map[string]bool {
 		if change.Action != ActionCreate && change.Action != ActionUpdate {
 			continue
 		}
-		serviceValue, ok := change.Fields["service"]
+		serviceValue, ok := change.Fields[FieldService]
 		if !ok {
 			continue
 		}
@@ -297,7 +297,7 @@ func referencedGatewayServiceRefs(changes []PlannedChange) map[string]bool {
 		if !ok {
 			continue
 		}
-		ref := gatewayServiceRefFromServiceID(serviceMap["id"])
+		ref := gatewayServiceRefFromServiceID(serviceMap[FieldID])
 		if ref != "" {
 			refs[ref] = true
 		}

@@ -77,7 +77,7 @@ func (p PortalTeamResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if p.Portal != "" {
 		deps = append(deps, ResourceRef{
-			Kind: "portal",
+			Kind: ResourceTypePortal,
 			Ref:  p.Portal,
 		})
 	}
@@ -143,7 +143,7 @@ func (p *PortalTeamResource) TryMatchKonnectResource(konnectResource any) bool {
 // GetParentRef returns the parent portal reference
 func (p PortalTeamResource) GetParentRef() *ResourceRef {
 	if p.Portal != "" {
-		return &ResourceRef{Kind: "portal", Ref: p.Portal}
+		return &ResourceRef{Kind: ResourceTypePortal, Ref: p.Portal}
 	}
 	return nil
 }

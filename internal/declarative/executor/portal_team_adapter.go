@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/log"
 )
@@ -26,17 +27,17 @@ func (p *PortalTeamAdapter) MapCreateFields(
 	create *kkComps.PortalCreateTeamRequest,
 ) error {
 	// Required fields
-	name, ok := fields["name"].(string)
+	name, ok := fields[planner.FieldName].(string)
 	if !ok {
 		return fmt.Errorf("name is required")
 	}
 	create.Name = name
 
 	// Optional fields
-	if description, ok := fields["description"].(string); ok {
+	if description, ok := fields[planner.FieldDescription].(string); ok {
 		create.Description = &description
 	}
-	if canOwnApplications, ok := fields["can_own_applications"].(bool); ok {
+	if canOwnApplications, ok := fields[planner.FieldCanOwnApplications].(bool); ok {
 		create.CanOwnApplications = &canOwnApplications
 	}
 
@@ -48,10 +49,10 @@ func (p *PortalTeamAdapter) MapUpdateFields(_ context.Context, _ *ExecutionConte
 	update *kkComps.PortalUpdateTeamRequest, _ map[string]string,
 ) error {
 	// Name is the identifier; description and can_own_applications can be updated.
-	if description, ok := fields["description"].(string); ok {
+	if description, ok := fields[planner.FieldDescription].(string); ok {
 		update.Description = &description
 	}
-	if canOwnApplications, ok := fields["can_own_applications"].(bool); ok {
+	if canOwnApplications, ok := fields[planner.FieldCanOwnApplications].(bool); ok {
 		update.CanOwnApplications = &canOwnApplications
 	}
 
@@ -201,12 +202,12 @@ func (p *PortalTeamAdapter) GetByID(
 
 // ResourceType returns the resource type name
 func (p *PortalTeamAdapter) ResourceType() string {
-	return "portal_team"
+	return planner.ResourceTypePortalTeam
 }
 
 // RequiredFields returns the required fields for creation
 func (p *PortalTeamAdapter) RequiredFields() []string {
-	return []string{"name"}
+	return []string{planner.FieldName}
 }
 
 // SupportsUpdate returns true as teams support updates (description only)
@@ -223,7 +224,7 @@ func (p *PortalTeamAdapter) getPortalID(execCtx *ExecutionContext) (string, erro
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for Create operations)
-	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
 

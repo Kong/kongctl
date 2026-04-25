@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -27,7 +28,7 @@ func (a *APIImplementationAdapter) MapCreateFields(
 		return fmt.Errorf("create request must not be nil")
 	}
 
-	serviceValue, ok := fields["service"]
+	serviceValue, ok := fields[planner.FieldService]
 	if !ok {
 		return fmt.Errorf("service is required for API implementations")
 	}
@@ -105,12 +106,12 @@ func (a *APIImplementationAdapter) GetByID(_ context.Context, _ string, _ *Execu
 
 // ResourceType identifies the resource handled by this adapter.
 func (a *APIImplementationAdapter) ResourceType() string {
-	return "api_implementation"
+	return planner.ResourceTypeAPIImplementation
 }
 
 // RequiredFields lists the required fields for creation.
 func (a *APIImplementationAdapter) RequiredFields() []string {
-	return []string{"service"}
+	return []string{planner.FieldService}
 }
 
 // MapUpdateFields reports that updates are not supported.
@@ -161,7 +162,7 @@ func (a *APIImplementationAdapter) getAPIIDFromExecutionContext(execCtx *Executi
 
 	change := *execCtx.PlannedChange
 
-	if apiRef, ok := change.References["api_id"]; ok {
+	if apiRef, ok := change.References[planner.FieldAPIID]; ok {
 		if apiRef.ID != "" {
 			return apiRef.ID, nil
 		}

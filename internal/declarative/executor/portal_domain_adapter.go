@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -24,20 +25,20 @@ func (p *PortalDomainAdapter) MapCreateFields(
 	create *kkComps.CreatePortalCustomDomainRequest,
 ) error {
 	// Required fields
-	hostname, ok := fields["hostname"].(string)
+	hostname, ok := fields[planner.FieldHostname].(string)
 	if !ok {
 		return fmt.Errorf("hostname is required")
 	}
 	create.Hostname = hostname
 
-	enabled, ok := fields["enabled"].(bool)
+	enabled, ok := fields[planner.FieldEnabled].(bool)
 	if !ok {
 		return fmt.Errorf("enabled is required")
 	}
 	create.Enabled = enabled
 
 	// Handle SSL settings
-	if sslData, ok := fields["ssl"].(map[string]any); ok {
+	if sslData, ok := fields[planner.FieldSSL].(map[string]any); ok {
 		if ssl, set, err := buildCreatePortalCustomDomainSSL(sslData); err != nil {
 			return err
 		} else if set {
@@ -53,7 +54,7 @@ func (p *PortalDomainAdapter) MapUpdateFields(_ context.Context, _ *ExecutionCon
 	update *kkComps.UpdatePortalCustomDomainRequest, _ map[string]string,
 ) error {
 	// Only enabled field can be updated
-	if enabled, ok := fields["enabled"].(bool); ok {
+	if enabled, ok := fields[planner.FieldEnabled].(bool); ok {
 		update.Enabled = &enabled
 	}
 
@@ -122,12 +123,12 @@ func (p *PortalDomainAdapter) GetByID(_ context.Context, id string, _ *Execution
 
 // ResourceType returns the resource type name
 func (p *PortalDomainAdapter) ResourceType() string {
-	return "portal_custom_domain"
+	return planner.ResourceTypePortalCustomDomain
 }
 
 // RequiredFields returns the required fields for creation
 func (p *PortalDomainAdapter) RequiredFields() []string {
-	return []string{"hostname", "enabled"}
+	return []string{planner.FieldHostname, planner.FieldEnabled}
 }
 
 // SupportsUpdate returns true as custom domains support updates (enabled field only)
@@ -144,7 +145,7 @@ func (p *PortalDomainAdapter) getPortalIDFromExecutionContext(execCtx *Execution
 	change := *execCtx.PlannedChange
 
 	// Get portal ID from references
-	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
 

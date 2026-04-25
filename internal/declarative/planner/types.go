@@ -254,13 +254,13 @@ func (p *Plan) UpdateSummary() {
 func externalToolDependencyFromChange(change PlannedChange) ExternalToolDependency {
 	fields := change.Fields
 	dependency := ExternalToolDependency{
-		ControlPlaneRef:  stringFromField(fields, "control_plane_ref"),
-		ControlPlaneID:   stringFromField(fields, "control_plane_id"),
-		ControlPlaneName: stringFromField(fields, "control_plane_name"),
+		ControlPlaneRef:  stringFromField(fields, FieldControlPlaneRef),
+		ControlPlaneID:   stringFromField(fields, FieldControlPlaneID),
+		ControlPlaneName: stringFromField(fields, FieldControlPlaneName),
 		GatewayServices:  gatewayTargetsFromPostResolutionTargets(change.PostResolutionTargets),
-		Files:            stringSliceFromField(fields, "files"),
-		Flags:            stringSliceFromField(fields, "flags"),
-		DeckBaseDir:      stringFromField(fields, "deck_base_dir"),
+		Files:            stringSliceFromField(fields, FieldFiles),
+		Flags:            stringSliceFromField(fields, FieldFlags),
+		DeckBaseDir:      stringFromField(fields, FieldDeckBaseDir),
 	}
 
 	if len(dependency.GatewayServices) == 0 {
@@ -280,7 +280,7 @@ func gatewayTargetsFromPostResolutionTargets(targets []PostResolutionTarget) []E
 		if strings.TrimSpace(target.ResourceRef) == "" {
 			continue
 		}
-		if target.ResourceType != "" && target.ResourceType != "gateway_service" {
+		if target.ResourceType != "" && target.ResourceType != ResourceTypeGatewayService {
 			continue
 		}
 		out = append(out, ExternalToolGatewayTarget{
@@ -299,7 +299,7 @@ func gatewayTargetsFromFields(fields map[string]any) []ExternalToolGatewayTarget
 		return nil
 	}
 
-	raw, ok := fields["gateway_services"]
+	raw, ok := fields[FieldGatewayServices]
 	if !ok || raw == nil {
 		return nil
 	}
@@ -343,7 +343,7 @@ func selectorFromEntry(entry map[string]any) *ExternalToolSelector {
 		return nil
 	}
 	if name, ok := entry["selector_name"].(string); ok && name != "" {
-		return &ExternalToolSelector{MatchFields: map[string]string{"name": name}}
+		return &ExternalToolSelector{MatchFields: map[string]string{FieldName: name}}
 	}
 	raw, ok := entry["selector"]
 	if !ok || raw == nil {

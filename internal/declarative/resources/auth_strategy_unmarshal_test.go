@@ -172,6 +172,6 @@ configs:
 	require.NotNil(t, strategy.AppAuthStrategyOpenIDConnectRequest)
 	assert.Equal(t, "okta-dcr", *strategy.AppAuthStrategyOpenIDConnectRequest.DcrProviderID)
 	assert.Equal(t, []ResourceRef{
-		{Kind: string(ResourceTypeDCRProvider), Ref: "okta-dcr"},
+		{Kind: ResourceTypeDCRProvider, Ref: "okta-dcr"},
 	}, strategy.GetDependencies())
 }

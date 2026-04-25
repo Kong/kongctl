@@ -31,14 +31,14 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 	create *kkComps.CreateVirtualClusterRequest,
 ) error {
 	// Required fields
-	name, ok := fields["name"].(string)
+	name, ok := fields[planner.FieldName].(string)
 	if !ok {
 		return fmt.Errorf("name is required")
 	}
 	create.Name = name
 
 	// Destination (required)
-	destField, ok := fields["destination"]
+	destField, ok := fields[planner.FieldDestination]
 	if !ok {
 		return fmt.Errorf("destination is required")
 	}
@@ -49,7 +49,7 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 	create.Destination = destination
 
 	// Authentication (required)
-	authField, ok := fields["authentication"]
+	authField, ok := fields[planner.FieldAuthentication]
 	if !ok {
 		return fmt.Errorf("authentication is required")
 	}
@@ -60,7 +60,7 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 	create.Authentication = authentication
 
 	// ACL Mode (required)
-	aclModeField, ok := fields["acl_mode"]
+	aclModeField, ok := fields[planner.FieldACLMode]
 	if !ok {
 		return fmt.Errorf("acl_mode is required")
 	}
@@ -71,18 +71,18 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 	create.ACLMode = aclMode
 
 	// DNS Label (required)
-	dnsLabel, ok := fields["dns_label"].(string)
+	dnsLabel, ok := fields[planner.FieldDNSLabel].(string)
 	if !ok {
 		return fmt.Errorf("dns_label is required")
 	}
 	create.DNSLabel = dnsLabel
 
 	// Optional fields
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		create.Description = &desc
 	}
 
-	if nsField, ok := fields["namespace"]; ok {
+	if nsField, ok := fields[planner.FieldNamespace]; ok {
 		namespace, err := buildVirtualClusterNamespace(nsField)
 		if err != nil {
 			return fmt.Errorf("failed to build namespace: %w", err)
@@ -106,29 +106,29 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 	_ map[string]string,
 ) error {
 	// Required fields - always sent even if not changed
-	if name, ok := fieldsToUpdate["name"].(string); ok {
+	if name, ok := fieldsToUpdate[planner.FieldName].(string); ok {
 		update.Name = name
 	}
-	if destField, ok := fieldsToUpdate["destination"]; ok {
+	if destField, ok := fieldsToUpdate[planner.FieldDestination]; ok {
 		destination, err := buildBackendClusterReference(destField, execCtx)
 		if err != nil {
 			return fmt.Errorf("failed to build destination: %w", err)
 		}
 		update.Destination = destination
 	}
-	if aclModeField, ok := fieldsToUpdate["acl_mode"]; ok {
+	if aclModeField, ok := fieldsToUpdate[planner.FieldACLMode]; ok {
 		aclMode, err := buildACLMode(aclModeField)
 		if err != nil {
 			return fmt.Errorf("failed to build acl_mode: %w", err)
 		}
 		update.ACLMode = aclMode
 	}
-	if dnsLabel, ok := fieldsToUpdate["dns_label"].(string); ok {
+	if dnsLabel, ok := fieldsToUpdate[planner.FieldDNSLabel].(string); ok {
 		update.DNSLabel = dnsLabel
 	}
 
 	// Authentication requires conversion from Scheme to SensitiveDataAwareScheme
-	if authField, ok := fieldsToUpdate["authentication"]; ok {
+	if authField, ok := fieldsToUpdate[planner.FieldAuthentication]; ok {
 		authentication, err := buildVirtualClusterAuthentication(authField)
 		if err != nil {
 			return fmt.Errorf("failed to build authentication: %w", err)
@@ -146,7 +146,7 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 	}
 
 	// Optional fields
-	if description, ok := fieldsToUpdate["description"]; ok {
+	if description, ok := fieldsToUpdate[planner.FieldDescription]; ok {
 		if desc, ok := description.(string); ok {
 			update.Description = &desc
 		} else if description == nil {
@@ -156,7 +156,7 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 		}
 	}
 
-	if nsField, ok := fieldsToUpdate["namespace"]; ok {
+	if nsField, ok := fieldsToUpdate[planner.FieldNamespace]; ok {
 		namespace, err := buildVirtualClusterNamespace(nsField)
 		if err != nil {
 			return fmt.Errorf("failed to build namespace: %w", err)
@@ -164,7 +164,7 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 		update.Namespace = namespace
 	}
 
-	if labels, ok := fieldsToUpdate["labels"].(map[string]string); ok {
+	if labels, ok := fieldsToUpdate[planner.FieldLabels].(map[string]string); ok {
 		update.Labels = labels
 	}
 
@@ -257,7 +257,13 @@ func (a *EventGatewayVirtualClusterAdapter) ResourceType() string {
 
 // RequiredFields returns the list of required fields for this resource
 func (a *EventGatewayVirtualClusterAdapter) RequiredFields() []string {
-	return []string{"name", "destination", "authentication", "acl_mode", "dns_label"}
+	return []string{
+		planner.FieldName,
+		planner.FieldDestination,
+		planner.FieldAuthentication,
+		planner.FieldACLMode,
+		planner.FieldDNSLabel,
+	}
 }
 
 // SupportsUpdate indicates whether this resource supports update operations
@@ -276,7 +282,7 @@ func (a *EventGatewayVirtualClusterAdapter) getEventGatewayIDFromExecutionContex
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for new parent)
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		return gatewayRef.ID, nil
 	}
 
@@ -341,7 +347,7 @@ func buildBackendClusterReference(field any, execCtx *ExecutionContext) (kkComps
 	}
 
 	// Check for id or name
-	if id, ok := refMap["id"].(string); ok {
+	if id, ok := refMap[planner.FieldID].(string); ok {
 		if util.IsValidUUID(id) {
 			return kkComps.BackendClusterReferenceModify{
 				Type: kkComps.BackendClusterReferenceModifyTypeBackendClusterReferenceByID,
@@ -365,7 +371,7 @@ func buildBackendClusterReference(field any, execCtx *ExecutionContext) (kkComps
 		}, nil
 	}
 
-	if name, ok := refMap["name"].(string); ok {
+	if name, ok := refMap[planner.FieldName].(string); ok {
 		return kkComps.BackendClusterReferenceModify{
 			Type: kkComps.BackendClusterReferenceModifyTypeBackendClusterReferenceByName,
 			BackendClusterReferenceByName: &kkComps.BackendClusterReferenceByName{
@@ -385,12 +391,12 @@ func getBackendClusterIDFromExecutionContext(execCtx *ExecutionContext) (string,
 	}
 
 	change := *execCtx.PlannedChange
-	if backendClusterRef, ok := change.References["event_gateway_backend_cluster_id"]; ok &&
+	if backendClusterRef, ok := change.References[planner.FieldEventGatewayBackendClusterID]; ok &&
 		backendClusterRef.ID != "" {
 		return backendClusterRef.ID, nil
 	}
 	// Check fields as fallback
-	if backendClusterID, ok := change.Fields["event_gateway_backend_cluster_id"].(string); ok {
+	if backendClusterID, ok := change.Fields[planner.FieldEventGatewayBackendClusterID].(string); ok {
 		return backendClusterID, nil
 	}
 
@@ -417,7 +423,7 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 			return nil, fmt.Errorf("authentication[%d] must be an object, got %T", i, authItem)
 		}
 
-		authType, ok := authMap["type"].(string)
+		authType, ok := authMap[planner.FieldType].(string)
 		if !ok {
 			return nil, fmt.Errorf("authentication[%d].type is required and must be a string", i)
 		}
@@ -549,7 +555,7 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 						if !ok {
 							return nil, fmt.Errorf("authentication[%d].validate.audiences[%d] must be an object", i, j)
 						}
-						name, ok := audienceMap["name"].(string)
+						name, ok := audienceMap[planner.FieldName].(string)
 						if !ok {
 							return nil, fmt.Errorf("authentication[%d].validate.audiences[%d].name is required", i, j)
 						}
@@ -559,7 +565,7 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 					}
 					validate.Audiences = audiences
 				}
-				if issuer, ok := validateMap["issuer"].(string); ok {
+				if issuer, ok := validateMap[planner.FieldDCRProviderIssuer].(string); ok {
 					validate.Issuer = &issuer
 				}
 				oauthBearer.Validate = validate

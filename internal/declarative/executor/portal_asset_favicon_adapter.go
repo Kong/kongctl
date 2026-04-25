@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -24,7 +25,7 @@ func (p *PortalAssetFaviconAdapter) MapUpdateFields(_ context.Context, fields ma
 	update *kkComps.ReplacePortalImageAsset,
 ) error {
 	// Extract data URL from fields
-	dataURL, ok := fields["data_url"].(string)
+	dataURL, ok := fields[planner.FieldDataURL].(string)
 	if !ok {
 		return fmt.Errorf("data_url field is required and must be a string")
 	}
@@ -46,5 +47,5 @@ func (p *PortalAssetFaviconAdapter) Update(ctx context.Context, portalID string,
 
 // ResourceType returns the resource type name
 func (p *PortalAssetFaviconAdapter) ResourceType() string {
-	return "portal_asset_favicon"
+	return planner.ResourceTypePortalAssetFavicon
 }

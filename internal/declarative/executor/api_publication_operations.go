@@ -30,14 +30,14 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 
 	// First check if we have a resolved reference
 	if change.References != nil {
-		if ref, exists := change.References["portal_id"]; exists && ref.ID != "" && ref.ID != "[unknown]" {
+		if ref, exists := change.References[planner.FieldPortalID]; exists && ref.ID != "" && ref.ID != "[unknown]" {
 			portalID = ref.ID
 		}
 	}
 
 	// If no resolved reference, check field value
 	if portalID == "" {
-		fieldValue, ok := change.Fields["portal_id"].(string)
+		fieldValue, ok := change.Fields[planner.FieldPortalID].(string)
 		if !ok {
 			return "", fmt.Errorf("portal_id is required for API publication")
 		}
@@ -49,7 +49,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 			// It's a reference that needs runtime resolution
 			// Use the reference info from the change if available
 			refInfo := planner.ReferenceInfo{Ref: fieldValue}
-			if ref, exists := change.References["portal_id"]; exists {
+			if ref, exists := change.References[planner.FieldPortalID]; exists {
 				refInfo = ref
 			}
 			resolvedID, err := e.resolvePortalRef(ctx, refInfo)
@@ -64,7 +64,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 	publication := kkComps.APIPublication{}
 
 	// Map fields to SDK request
-	if authStrategyIDs, ok := change.Fields["auth_strategy_ids"].([]any); ok {
+	if authStrategyIDs, ok := change.Fields[planner.FieldAuthStrategyIDs].([]any); ok {
 		ids := make([]string, 0, len(authStrategyIDs))
 		for _, id := range authStrategyIDs {
 			if strID, ok := id.(string); ok {
@@ -84,7 +84,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 		publication.AuthStrategyIds = ids
 	}
 	// Also handle []string type (from planner)
-	if authStrategyIDs, ok := change.Fields["auth_strategy_ids"].([]string); ok {
+	if authStrategyIDs, ok := change.Fields[planner.FieldAuthStrategyIDs].([]string); ok {
 		ids := make([]string, 0, len(authStrategyIDs))
 		for _, strID := range authStrategyIDs {
 			// Check if this is a UUID or a reference
@@ -101,10 +101,10 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 		}
 		publication.AuthStrategyIds = ids
 	}
-	if autoApprove, ok := change.Fields["auto_approve_registrations"].(bool); ok {
+	if autoApprove, ok := change.Fields[planner.FieldAutoApproveRegistrations].(bool); ok {
 		publication.AutoApproveRegistrations = &autoApprove
 	}
-	if visibility, ok := change.Fields["visibility"].(string); ok {
+	if visibility, ok := change.Fields[planner.FieldVisibility].(string); ok {
 		vis := kkComps.APIPublicationVisibility(visibility)
 		publication.Visibility = &vis
 	}
@@ -138,7 +138,7 @@ func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.Plan
 	var portalID string
 
 	// First try to get portal ID from fields (new format)
-	if pid, ok := change.Fields["portal_id"].(string); ok {
+	if pid, ok := change.Fields[planner.FieldPortalID].(string); ok {
 		portalID = pid
 	} else {
 		// Fallback to ResourceID for backward compatibility

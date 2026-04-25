@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -25,13 +26,13 @@ func (a *APIVersionAdapter) MapCreateFields(_ context.Context, _ *ExecutionConte
 	create *kkComps.CreateAPIVersionRequest,
 ) error {
 	// Version field
-	if version, ok := fields["version"].(string); ok {
+	if version, ok := fields[planner.FieldVersion].(string); ok {
 		create.Version = &version
 	}
 
 	// Spec field (optional)
-	if spec, ok := fields["spec"].(map[string]any); ok {
-		if content, ok := spec["content"].(string); ok {
+	if spec, ok := fields[planner.FieldSpec].(map[string]any); ok {
+		if content, ok := spec[planner.FieldContent].(string); ok {
 			create.Spec = kkComps.CreateAPIVersionRequestSpec{
 				Content: &content,
 			}
@@ -110,7 +111,7 @@ func (a *APIVersionAdapter) GetByID(
 
 // ResourceType returns the resource type name
 func (a *APIVersionAdapter) ResourceType() string {
-	return "api_version"
+	return planner.ResourceTypeAPIVersion
 }
 
 // RequiredFields returns the required fields for creation
@@ -123,13 +124,13 @@ func (a *APIVersionAdapter) MapUpdateFields(_ context.Context, _ *ExecutionConte
 	fields map[string]any, update *kkComps.APIVersion, _ map[string]string,
 ) error {
 	// Map version field if changed
-	if version, ok := fields["version"].(string); ok {
+	if version, ok := fields[planner.FieldVersion].(string); ok {
 		update.Version = &version
 	}
 
 	// Map spec field if changed
-	if spec, ok := fields["spec"].(map[string]any); ok {
-		if content, ok := spec["content"].(string); ok {
+	if spec, ok := fields[planner.FieldSpec].(map[string]any); ok {
+		if content, ok := spec[planner.FieldContent].(string); ok {
 			update.Spec = &kkComps.APIVersionSpec{
 				Content: &content,
 			}
@@ -176,7 +177,7 @@ func (a *APIVersionAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionConte
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for Create operations)
-	if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
+	if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID != "" {
 		return apiRef.ID, nil
 	}
 

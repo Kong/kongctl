@@ -173,26 +173,26 @@ func (p *Planner) planBackendClusterCreate(
 	plan *Plan,
 ) {
 	fields := make(map[string]any)
-	fields["name"] = cluster.Name
+	fields[FieldName] = cluster.Name
 
 	if cluster.Description != nil {
-		fields["description"] = *cluster.Description
+		fields[FieldDescription] = *cluster.Description
 	}
 
-	fields["authentication"] = cluster.Authentication
-	fields["bootstrap_servers"] = cluster.BootstrapServers
-	fields["tls"] = cluster.TLS
+	fields[FieldAuthentication] = cluster.Authentication
+	fields[FieldBootstrapServers] = cluster.BootstrapServers
+	fields[FieldTLS] = cluster.TLS
 
 	if cluster.InsecureAllowAnonymousVirtualClusterAuth != nil {
-		fields["insecure_allow_anonymous_virtual_cluster_auth"] = *cluster.InsecureAllowAnonymousVirtualClusterAuth
+		fields[FieldInsecureAllowAnonymousVirtualClusterAuth] = *cluster.InsecureAllowAnonymousVirtualClusterAuth
 	}
 
 	if cluster.MetadataUpdateIntervalSeconds != nil {
-		fields["metadata_update_interval_seconds"] = *cluster.MetadataUpdateIntervalSeconds
+		fields[FieldMetadataUpdateIntervalSeconds] = *cluster.MetadataUpdateIntervalSeconds
 	}
 
 	if len(cluster.Labels) > 0 {
-		fields["labels"] = cluster.Labels
+		fields[FieldLabels] = cluster.Labels
 	}
 
 	change := PlannedChange{
@@ -214,11 +214,11 @@ func (p *Planner) planBackendClusterCreate(
 	} else {
 		// Gateway doesn't exist yet, add reference for runtime resolution
 		change.References = map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  "", // to be resolved at runtime
 				LookupFields: map[string]string{
-					"name": gatewayName,
+					FieldName: gatewayName,
 				},
 			},
 		}
@@ -319,7 +319,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	// Compare name
 	if current.Name != desired.Name {
 		needsUpdate = true
-		changes["name"] = FieldChange{
+		changes[FieldName] = FieldChange{
 			Old: current.Name,
 			New: desired.Name,
 		}
@@ -330,7 +330,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	desiredDesc := getString(desired.Description)
 	if currentDesc != desiredDesc {
 		needsUpdate = true
-		changes["description"] = FieldChange{
+		changes[FieldDescription] = FieldChange{
 			Old: currentDesc,
 			New: desiredDesc,
 		}
@@ -339,7 +339,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	// Compare authentication
 	if !compareAuthenticationSchemes(current.Authentication, desired.Authentication) {
 		needsUpdate = true
-		changes["authentication"] = FieldChange{
+		changes[FieldAuthentication] = FieldChange{
 			Old: current.Authentication,
 			New: desired.Authentication,
 		}
@@ -348,7 +348,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	// Compare bootstrap servers
 	if !compareStringSlices(current.BootstrapServers, desired.BootstrapServers) {
 		needsUpdate = true
-		changes["bootstrap_servers"] = FieldChange{
+		changes[FieldBootstrapServers] = FieldChange{
 			Old: current.BootstrapServers,
 			New: desired.BootstrapServers,
 		}
@@ -357,7 +357,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	// Compare TLS settings
 	if !compareTLSSettings(current.TLS, desired.TLS) {
 		needsUpdate = true
-		changes["tls"] = FieldChange{
+		changes[FieldTLS] = FieldChange{
 			Old: current.TLS,
 			New: desired.TLS,
 		}
@@ -369,7 +369,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 		desired.InsecureAllowAnonymousVirtualClusterAuth,
 	) {
 		needsUpdate = true
-		changes["insecure_allow_anonymous_virtual_cluster_auth"] = FieldChange{
+		changes[FieldInsecureAllowAnonymousVirtualClusterAuth] = FieldChange{
 			Old: current.InsecureAllowAnonymousVirtualClusterAuth,
 			New: *desired.InsecureAllowAnonymousVirtualClusterAuth,
 		}
@@ -379,7 +379,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	if desired.MetadataUpdateIntervalSeconds != nil &&
 		!compareInt64Ptrs(current.MetadataUpdateIntervalSeconds, desired.MetadataUpdateIntervalSeconds) {
 		needsUpdate = true
-		changes["metadata_update_interval_seconds"] = FieldChange{
+		changes[FieldMetadataUpdateIntervalSeconds] = FieldChange{
 			Old: current.MetadataUpdateIntervalSeconds,
 			New: *desired.MetadataUpdateIntervalSeconds,
 		}
@@ -389,7 +389,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	if desired.Labels != nil {
 		if !compareStringMaps(current.Labels, desired.Labels) {
 			needsUpdate = true
-			changes["labels"] = FieldChange{
+			changes[FieldLabels] = FieldChange{
 				Old: current.Labels,
 				New: desired.Labels,
 			}
@@ -398,26 +398,26 @@ func (p *Planner) shouldUpdateBackendCluster(
 
 	// If any changes detected, set ALL properties from desired state for PUT request
 	if needsUpdate {
-		updates["name"] = desired.Name
+		updates[FieldName] = desired.Name
 
 		if desired.Description != nil {
-			updates["description"] = *desired.Description
+			updates[FieldDescription] = *desired.Description
 		}
 
-		updates["authentication"] = desired.Authentication
-		updates["bootstrap_servers"] = desired.BootstrapServers
-		updates["tls"] = desired.TLS
+		updates[FieldAuthentication] = desired.Authentication
+		updates[FieldBootstrapServers] = desired.BootstrapServers
+		updates[FieldTLS] = desired.TLS
 
 		if desired.InsecureAllowAnonymousVirtualClusterAuth != nil {
-			updates["insecure_allow_anonymous_virtual_cluster_auth"] = *desired.InsecureAllowAnonymousVirtualClusterAuth
+			updates[FieldInsecureAllowAnonymousVirtualClusterAuth] = *desired.InsecureAllowAnonymousVirtualClusterAuth
 		}
 
 		if desired.MetadataUpdateIntervalSeconds != nil {
-			updates["metadata_update_interval_seconds"] = *desired.MetadataUpdateIntervalSeconds
+			updates[FieldMetadataUpdateIntervalSeconds] = *desired.MetadataUpdateIntervalSeconds
 		}
 
 		if len(desired.Labels) > 0 {
-			updates["labels"] = desired.Labels
+			updates[FieldLabels] = desired.Labels
 		}
 	}
 

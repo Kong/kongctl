@@ -148,7 +148,7 @@ func (a *DCRProviderAdapter) GetByID(ctx context.Context, id string, _ *Executio
 }
 
 func (a *DCRProviderAdapter) ResourceType() string {
-	return "dcr_provider"
+	return planner.ResourceTypeDCRProvider
 }
 
 func (a *DCRProviderAdapter) RequiredFields() []string {

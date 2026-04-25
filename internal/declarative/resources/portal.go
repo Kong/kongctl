@@ -57,7 +57,7 @@ func (p PortalResource) GetDependencies() []ResourceRef {
 	// Portal may depend on an auth strategy
 	if p.DefaultApplicationAuthStrategyID != nil && *p.DefaultApplicationAuthStrategyID != "" {
 		deps = append(deps, ResourceRef{
-			Kind: "application_auth_strategy",
+			Kind: ResourceTypeApplicationAuthStrategy,
 			Ref:  *p.DefaultApplicationAuthStrategyID,
 		})
 	}

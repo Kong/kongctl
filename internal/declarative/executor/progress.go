@@ -241,28 +241,28 @@ func formatResourceNameForProgress(change planner.PlannedChange) string {
 	// If resource ref is unknown, try to build a meaningful name from monikers
 	if resourceName == "[unknown]" && len(change.ResourceMonikers) > 0 {
 		switch change.ResourceType {
-		case "portal_page":
-			if slug, ok := change.ResourceMonikers["slug"]; ok {
+		case planner.ResourceTypePortalPage:
+			if slug, ok := change.ResourceMonikers[planner.FieldSlug]; ok {
 				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
 					return fmt.Sprintf("page '%s' in portal:%s", slug, parent)
 				}
 				return fmt.Sprintf("page '%s'", slug)
 			}
-		case "portal_snippet":
-			if name, ok := change.ResourceMonikers["name"]; ok {
+		case planner.ResourceTypePortalSnippet:
+			if name, ok := change.ResourceMonikers[planner.FieldName]; ok {
 				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
 					return fmt.Sprintf("snippet '%s' in portal:%s", name, parent)
 				}
 				return fmt.Sprintf("snippet '%s'", name)
 			}
-		case "api_document":
-			if slug, ok := change.ResourceMonikers["slug"]; ok {
+		case planner.ResourceTypeAPIDocument:
+			if slug, ok := change.ResourceMonikers[planner.FieldSlug]; ok {
 				if parent, ok := change.ResourceMonikers["parent_api"]; ok {
 					return fmt.Sprintf("document '%s' in api:%s", slug, parent)
 				}
 				return fmt.Sprintf("document '%s'", slug)
 			}
-		case "api_publication":
+		case planner.ResourceTypeAPIPublication:
 			if portal, ok := change.ResourceMonikers["portal_name"]; ok {
 				if api, ok := change.ResourceMonikers["api_ref"]; ok {
 					return fmt.Sprintf("api:%s published to portal:%s", api, portal)

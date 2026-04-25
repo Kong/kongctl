@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -23,45 +24,45 @@ func (p *PortalPageAdapter) MapCreateFields(_ context.Context, execCtx *Executio
 	create *kkComps.CreatePortalPageRequest,
 ) error {
 	// Required fields
-	slug, ok := fields["slug"].(string)
+	slug, ok := fields[planner.FieldSlug].(string)
 	if !ok {
 		return fmt.Errorf("slug is required")
 	}
 	create.Slug = slug
 
-	content, ok := fields["content"].(string)
+	content, ok := fields[planner.FieldContent].(string)
 	if !ok {
 		return fmt.Errorf("content is required")
 	}
 	create.Content = content
 
 	// Optional fields
-	if title, ok := fields["title"].(string); ok {
+	if title, ok := fields[planner.FieldTitle].(string); ok {
 		create.Title = &title
 	}
 
-	if visibilityStr, ok := fields["visibility"].(string); ok {
+	if visibilityStr, ok := fields[planner.FieldVisibility].(string); ok {
 		visibility := kkComps.PageVisibilityStatus(visibilityStr)
 		create.Visibility = &visibility
 	}
 
-	if statusStr, ok := fields["status"].(string); ok {
+	if statusStr, ok := fields[planner.FieldStatus].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		create.Status = &status
 	}
 
-	if description, ok := fields["description"].(string); ok {
+	if description, ok := fields[planner.FieldDescription].(string); ok {
 		create.Description = &description
 	}
 
 	// Handle parent page reference
 	change := *execCtx.PlannedChange
-	if parentPageRef, ok := change.References["parent_page_id"]; ok {
+	if parentPageRef, ok := change.References[planner.FieldParentPageID]; ok {
 		if parentPageRef.ID != "" {
 			create.ParentPageID = &parentPageRef.ID
 		}
 		// Parent page resolution will be handled by the executor if ID is empty
-	} else if parentPageID, ok := fields["parent_page_id"].(string); ok {
+	} else if parentPageID, ok := fields[planner.FieldParentPageID].(string); ok {
 		create.ParentPageID = &parentPageID
 	}
 
@@ -73,40 +74,40 @@ func (p *PortalPageAdapter) MapUpdateFields(_ context.Context, execCtx *Executio
 	update *kkComps.UpdatePortalPageRequest, _ map[string]string,
 ) error {
 	// Optional fields
-	if slug, ok := fields["slug"].(string); ok {
+	if slug, ok := fields[planner.FieldSlug].(string); ok {
 		update.Slug = &slug
 	}
 
-	if title, ok := fields["title"].(string); ok {
+	if title, ok := fields[planner.FieldTitle].(string); ok {
 		update.Title = &title
 	}
 
-	if content, ok := fields["content"].(string); ok {
+	if content, ok := fields[planner.FieldContent].(string); ok {
 		update.Content = &content
 	}
 
-	if visibilityStr, ok := fields["visibility"].(string); ok {
+	if visibilityStr, ok := fields[planner.FieldVisibility].(string); ok {
 		visibility := kkComps.VisibilityStatus(visibilityStr)
 		update.Visibility = &visibility
 	}
 
-	if statusStr, ok := fields["status"].(string); ok {
+	if statusStr, ok := fields[planner.FieldStatus].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		update.Status = &status
 	}
 
-	if description, ok := fields["description"].(string); ok {
+	if description, ok := fields[planner.FieldDescription].(string); ok {
 		update.Description = &description
 	}
 
 	// Handle parent page reference
 	change := *execCtx.PlannedChange
-	if parentPageRef, ok := change.References["parent_page_id"]; ok {
+	if parentPageRef, ok := change.References[planner.FieldParentPageID]; ok {
 		if parentPageRef.ID != "" {
 			update.ParentPageID = &parentPageRef.ID
 		}
 		// Parent page resolution will be handled by the executor if needed
-	} else if parentPageID, ok := fields["parent_page_id"].(string); ok {
+	} else if parentPageID, ok := fields[planner.FieldParentPageID].(string); ok {
 		update.ParentPageID = &parentPageID
 	}
 
@@ -163,12 +164,12 @@ func (p *PortalPageAdapter) GetByName(_ context.Context, _ string) (ResourceInfo
 
 // ResourceType returns the resource type name
 func (p *PortalPageAdapter) ResourceType() string {
-	return "portal_page"
+	return planner.ResourceTypePortalPage
 }
 
 // RequiredFields returns the required fields for creation
 func (p *PortalPageAdapter) RequiredFields() []string {
-	return []string{"slug", "content"}
+	return []string{planner.FieldSlug, planner.FieldContent}
 }
 
 // SupportsUpdate returns true as pages support updates
@@ -185,7 +186,7 @@ func (p *PortalPageAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionCo
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for Create operations)
-	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
 

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/log"
 )
@@ -24,7 +25,7 @@ func NewPortalTeamRoleAdapter(client *state.Client) *PortalTeamRoleAdapter {
 func (p *PortalTeamRoleAdapter) MapCreateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any, create *kkComps.PortalAssignRoleRequest,
 ) error {
-	roleName, ok := fields["role_name"].(string)
+	roleName, ok := fields[planner.FieldRoleName].(string)
 	if !ok || roleName == "" {
 		return fmt.Errorf("role_name is required")
 	}
@@ -32,13 +33,13 @@ func (p *PortalTeamRoleAdapter) MapCreateFields(
 
 	entityID := ""
 	if execCtx != nil && execCtx.PlannedChange != nil {
-		if refInfo, ok := execCtx.PlannedChange.References["entity_id"]; ok && refInfo.ID != "" &&
+		if refInfo, ok := execCtx.PlannedChange.References[planner.FieldEntityID]; ok && refInfo.ID != "" &&
 			refInfo.ID != "[unknown]" {
 			entityID = refInfo.ID
 		}
 	}
 	if entityID == "" {
-		value, ok := fields["entity_id"].(string)
+		value, ok := fields[planner.FieldEntityID].(string)
 		if ok && value != "" {
 			entityID = value
 		}
@@ -48,13 +49,13 @@ func (p *PortalTeamRoleAdapter) MapCreateFields(
 	}
 	create.EntityID = entityID
 
-	entityTypeName, ok := fields["entity_type_name"].(string)
+	entityTypeName, ok := fields[planner.FieldEntityTypeName].(string)
 	if !ok || entityTypeName == "" {
 		return fmt.Errorf("entity_type_name is required")
 	}
 	create.EntityTypeName = entityTypeName
 
-	entityRegion, ok := fields["entity_region"].(string)
+	entityRegion, ok := fields[planner.FieldEntityRegion].(string)
 	if !ok || entityRegion == "" {
 		return fmt.Errorf("entity_region is required")
 	}
@@ -176,12 +177,12 @@ func (p *PortalTeamRoleAdapter) GetByID(
 
 // ResourceType returns the resource type name
 func (p *PortalTeamRoleAdapter) ResourceType() string {
-	return "portal_team_role"
+	return planner.ResourceTypePortalTeamRole
 }
 
 // RequiredFields returns the required fields for creation
 func (p *PortalTeamRoleAdapter) RequiredFields() []string {
-	return []string{"role_name", "entity_id", "entity_type_name", "entity_region"}
+	return []string{planner.FieldRoleName, planner.FieldEntityID, planner.FieldEntityTypeName, planner.FieldEntityRegion}
 }
 
 // SupportsUpdate indicates update is not supported
@@ -198,7 +199,7 @@ func (p *PortalTeamRoleAdapter) getPortalAndTeamIDs(execCtx *ExecutionContext) (
 	change := *execCtx.PlannedChange
 
 	portalID := ""
-	if portalRef, ok := change.References["portal_id"]; ok {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 		portalID = portalRef.ID
 	}
 	if portalID == "" && change.Parent != nil {
@@ -206,7 +207,7 @@ func (p *PortalTeamRoleAdapter) getPortalAndTeamIDs(execCtx *ExecutionContext) (
 	}
 
 	teamID := ""
-	if teamRef, ok := change.References["team_id"]; ok {
+	if teamRef, ok := change.References[planner.FieldTeamID]; ok {
 		teamID = teamRef.ID
 	}
 	if teamID == "" && change.Parent != nil {

@@ -26,23 +26,23 @@ func (a *ControlPlaneAdapter) MapCreateFields(_ context.Context, execCtx *Execut
 	fields map[string]any, create *kkComps.CreateControlPlaneRequest,
 ) error {
 	create.Name = common.ExtractResourceName(fields)
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
+	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
 
-	if clusterType, ok := extractString(fields["cluster_type"]); ok {
+	if clusterType, ok := extractString(fields[planner.FieldClusterType]); ok {
 		value := kkComps.CreateControlPlaneRequestClusterType(clusterType)
 		create.ClusterType = &value
 	}
 
-	if authType, ok := extractString(fields["auth_type"]); ok {
+	if authType, ok := extractString(fields[planner.FieldAuthType]); ok {
 		value := kkComps.AuthType(authType)
 		create.AuthType = &value
 	}
 
-	if cloudGateway, ok := extractBool(fields["cloud_gateway"]); ok {
+	if cloudGateway, ok := extractBool(fields[planner.FieldCloudGateway]); ok {
 		create.CloudGateway = &cloudGateway
 	}
 
-	if proxyValues, ok := fields["proxy_urls"]; ok && proxyValues != nil {
+	if proxyValues, ok := fields[planner.FieldProxyURLs]; ok && proxyValues != nil {
 		urls, err := convertProxyURLs(proxyValues)
 		if err != nil {
 			return fmt.Errorf("invalid proxy_urls value: %w", err)
@@ -50,7 +50,7 @@ func (a *ControlPlaneAdapter) MapCreateFields(_ context.Context, execCtx *Execut
 		create.ProxyUrls = urls
 	}
 
-	userLabels := labels.ExtractLabelsFromField(fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	create.Labels = labels.BuildCreateLabels(userLabels, execCtx.Namespace, execCtx.Protection)
 
 	return nil
@@ -62,20 +62,20 @@ func (a *ControlPlaneAdapter) MapUpdateFields(_ context.Context, execCtx *Execut
 ) error {
 	for field, value := range fields {
 		switch field {
-		case "name":
+		case planner.FieldName:
 			if name, ok := value.(string); ok {
 				update.Name = &name
 			}
-		case "description":
+		case planner.FieldDescription:
 			if desc, ok := value.(string); ok {
 				update.Description = &desc
 			}
-		case "auth_type":
+		case planner.FieldAuthType:
 			if auth, ok := extractString(value); ok {
 				typed := kkComps.UpdateControlPlaneRequestAuthType(auth)
 				update.AuthType = &typed
 			}
-		case "proxy_urls":
+		case planner.FieldProxyURLs:
 			urls, err := convertProxyURLs(value)
 			if err != nil {
 				return fmt.Errorf("invalid proxy_urls value: %w", err)
@@ -84,7 +84,7 @@ func (a *ControlPlaneAdapter) MapUpdateFields(_ context.Context, execCtx *Execut
 		}
 	}
 
-	desiredLabels := labels.ExtractLabelsFromField(fields["labels"])
+	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	if plannerLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels]); plannerLabels != nil {
 		currentLabels = plannerLabels
 	}
@@ -156,12 +156,12 @@ func (a *ControlPlaneAdapter) GetByID(ctx context.Context, id string, _ *Executi
 
 // ResourceType returns the adapter resource type
 func (a *ControlPlaneAdapter) ResourceType() string {
-	return "control_plane"
+	return planner.ResourceTypeControlPlane
 }
 
 // RequiredFields lists required fields for create
 func (a *ControlPlaneAdapter) RequiredFields() []string {
-	return []string{"name"}
+	return []string{planner.FieldName}
 }
 
 // SupportsUpdate indicates control planes support updates

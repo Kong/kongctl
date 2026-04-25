@@ -181,9 +181,9 @@ func (p *Planner) planPortalAuthSettingsUpdateWithFields(
 		}
 		change.Parent = &ParentInfo{Ref: settings.Portal, ID: portalID}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref:          settings.Portal,
-				LookupFields: map[string]string{"name": lookupName},
+				LookupFields: map[string]string{FieldName: lookupName},
 			},
 		}
 	}
@@ -204,22 +204,22 @@ func (p *Planner) shouldUpdatePortalAuthSettings(
 	changedFields := make(map[string]FieldChange)
 
 	if desired.BasicAuthEnabled != nil && !p.compareBoolToPtr(current.BasicAuthEnabled, desired.BasicAuthEnabled) {
-		updates["basic_auth_enabled"] = *desired.BasicAuthEnabled
-		changedFields["basic_auth_enabled"] = FieldChange{Old: current.BasicAuthEnabled, New: *desired.BasicAuthEnabled}
+		updates[FieldBasicAuthEnabled] = *desired.BasicAuthEnabled
+		changedFields[FieldBasicAuthEnabled] = FieldChange{Old: current.BasicAuthEnabled, New: *desired.BasicAuthEnabled}
 	}
 
 	if desired.KonnectMappingEnabled != nil &&
 		!p.compareBoolToPtr(current.KonnectMappingEnabled, desired.KonnectMappingEnabled) {
-		updates["konnect_mapping_enabled"] = *desired.KonnectMappingEnabled
-		changedFields["konnect_mapping_enabled"] = FieldChange{
+		updates[FieldKonnectMappingEnabled] = *desired.KonnectMappingEnabled
+		changedFields[FieldKonnectMappingEnabled] = FieldChange{
 			Old: current.KonnectMappingEnabled,
 			New: *desired.KonnectMappingEnabled,
 		}
 	}
 
 	if desired.IdpMappingEnabled != nil && !p.comparePtrBools(current.IdpMappingEnabled, desired.IdpMappingEnabled) {
-		updates["idp_mapping_enabled"] = *desired.IdpMappingEnabled
-		changedFields["idp_mapping_enabled"] = FieldChange{
+		updates[FieldIDPMappingEnabled] = *desired.IdpMappingEnabled
+		changedFields[FieldIDPMappingEnabled] = FieldChange{
 			Old: current.IdpMappingEnabled,
 			New: *desired.IdpMappingEnabled,
 		}
@@ -232,13 +232,13 @@ func (p *Planner) buildAllPortalAuthSettingsFields(settings resources.PortalAuth
 	fields := make(map[string]any)
 
 	if settings.BasicAuthEnabled != nil {
-		fields["basic_auth_enabled"] = *settings.BasicAuthEnabled
+		fields[FieldBasicAuthEnabled] = *settings.BasicAuthEnabled
 	}
 	if settings.KonnectMappingEnabled != nil {
-		fields["konnect_mapping_enabled"] = *settings.KonnectMappingEnabled
+		fields[FieldKonnectMappingEnabled] = *settings.KonnectMappingEnabled
 	}
 	if settings.IdpMappingEnabled != nil {
-		fields["idp_mapping_enabled"] = *settings.IdpMappingEnabled
+		fields[FieldIDPMappingEnabled] = *settings.IdpMappingEnabled
 	}
 
 	return fields
@@ -345,7 +345,7 @@ func (p *Planner) planPortalIdentityProviderCreate(
 			change.Parent = &ParentInfo{Ref: provider.Portal, ID: portalID}
 		} else {
 			change.References = map[string]ReferenceInfo{
-				"portal_id": {Ref: provider.Portal, LookupFields: map[string]string{"name": portalName}},
+				FieldPortalID: {Ref: provider.Portal, LookupFields: map[string]string{FieldName: portalName}},
 			}
 		}
 	}
@@ -361,19 +361,19 @@ func (p *Planner) shouldUpdatePortalIdentityProvider(
 	changedFields := make(map[string]FieldChange)
 
 	if desired.Enabled != nil && !p.comparePtrBools(current.Enabled, desired.Enabled) {
-		updates["enabled"] = *desired.Enabled
-		changedFields["enabled"] = FieldChange{Old: current.Enabled, New: *desired.Enabled}
+		updates[FieldEnabled] = *desired.Enabled
+		changedFields[FieldEnabled] = FieldChange{Old: current.Enabled, New: *desired.Enabled}
 	}
 
 	if desired.LoginPath != nil && (current.LoginPath == nil || *current.LoginPath != *desired.LoginPath) {
-		updates["login_path"] = *desired.LoginPath
-		changedFields["login_path"] = FieldChange{Old: current.LoginPath, New: *desired.LoginPath}
+		updates[FieldLoginPath] = *desired.LoginPath
+		changedFields[FieldLoginPath] = FieldChange{Old: current.LoginPath, New: *desired.LoginPath}
 	}
 
 	if desired.Config != nil {
 		if portalIdentityProviderConfigNeedsUpdate(current.Config, desired.Config) {
-			updates["config"] = portalIdentityProviderConfigDiffValueFromCreate(desired.Config)
-			changedFields["config"] = FieldChange{
+			updates[FieldConfig] = portalIdentityProviderConfigDiffValueFromCreate(desired.Config)
+			changedFields[FieldConfig] = FieldChange{
 				Old: portalIdentityProviderConfigDiffValue(current.Config),
 				New: portalIdentityProviderConfigDiffValueFromCreate(desired.Config),
 			}
@@ -407,7 +407,7 @@ func (p *Planner) planPortalIdentityProviderUpdate(
 
 	if portalRef != "" {
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {Ref: portalRef, LookupFields: map[string]string{"name": p.findPortalName(portalRef)}},
+			FieldPortalID: {Ref: portalRef, LookupFields: map[string]string{FieldName: p.findPortalName(portalRef)}},
 		}
 		change.Parent = &ParentInfo{Ref: portalRef, ID: portalID}
 	}
@@ -418,9 +418,9 @@ func (p *Planner) planPortalIdentityProviderUpdate(
 func (p *Planner) planPortalIdentityProviderDelete(
 	parentNamespace string, portalRef string, portalID string, provider state.PortalIdentityProvider, plan *Plan,
 ) {
-	fields := map[string]any{"type": string(provider.Type)}
+	fields := map[string]any{FieldType: string(provider.Type)}
 	if provider.LoginPath != nil {
-		fields["login_path"] = *provider.LoginPath
+		fields[FieldLoginPath] = *provider.LoginPath
 	}
 
 	change := PlannedChange{
@@ -436,7 +436,7 @@ func (p *Planner) planPortalIdentityProviderDelete(
 	if portalRef != "" {
 		change.Parent = &ParentInfo{Ref: portalRef, ID: portalID}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {Ref: portalRef, LookupFields: map[string]string{"name": p.findPortalName(portalRef)}},
+			FieldPortalID: {Ref: portalRef, LookupFields: map[string]string{FieldName: p.findPortalName(portalRef)}},
 		}
 	}
 
@@ -448,16 +448,16 @@ func (p *Planner) buildAllPortalIdentityProviderFields(
 ) map[string]any {
 	fields := make(map[string]any)
 	if provider.Type != nil {
-		fields["type"] = string(*provider.Type)
+		fields[FieldType] = string(*provider.Type)
 	}
 	if provider.Enabled != nil {
-		fields["enabled"] = *provider.Enabled
+		fields[FieldEnabled] = *provider.Enabled
 	}
 	if provider.LoginPath != nil {
-		fields["login_path"] = *provider.LoginPath
+		fields[FieldLoginPath] = *provider.LoginPath
 	}
 	if provider.Config != nil {
-		fields["config"] = portalIdentityProviderConfigDiffValueFromCreate(provider.Config)
+		fields[FieldConfig] = portalIdentityProviderConfigDiffValueFromCreate(provider.Config)
 	}
 	return fields
 }
@@ -520,7 +520,7 @@ func portalIdentityProviderConfigDiffValue(config *kkComps.IdentityProviderConfi
 	}
 	if config.OIDCIdentityProviderConfigOutput != nil {
 		return map[string]any{
-			"type":           "oidc",
+			FieldType:        "oidc",
 			"issuer_url":     config.OIDCIdentityProviderConfigOutput.IssuerURL,
 			"client_id":      config.OIDCIdentityProviderConfigOutput.ClientID,
 			"scopes":         config.OIDCIdentityProviderConfigOutput.Scopes,
@@ -529,7 +529,7 @@ func portalIdentityProviderConfigDiffValue(config *kkComps.IdentityProviderConfi
 	}
 	if config.SAMLIdentityProviderConfig != nil {
 		return map[string]any{
-			"type":             "saml",
+			FieldType:          "saml",
 			"idp_metadata_url": config.SAMLIdentityProviderConfig.IdpMetadataURL,
 			"idp_metadata_xml": config.SAMLIdentityProviderConfig.IdpMetadataXML,
 		}
@@ -543,7 +543,7 @@ func portalIdentityProviderConfigDiffValueFromCreate(config *kkComps.CreateIdent
 	}
 	if config.OIDCIdentityProviderConfig != nil {
 		diffValue := map[string]any{
-			"type":           "oidc",
+			FieldType:        "oidc",
 			"issuer_url":     config.OIDCIdentityProviderConfig.IssuerURL,
 			"client_id":      config.OIDCIdentityProviderConfig.ClientID,
 			"scopes":         config.OIDCIdentityProviderConfig.Scopes,
@@ -556,7 +556,7 @@ func portalIdentityProviderConfigDiffValueFromCreate(config *kkComps.CreateIdent
 	}
 	if config.SAMLIdentityProviderConfigInput != nil {
 		return map[string]any{
-			"type":             "saml",
+			FieldType:          "saml",
 			"idp_metadata_url": config.SAMLIdentityProviderConfigInput.IdpMetadataURL,
 			"idp_metadata_xml": config.SAMLIdentityProviderConfigInput.IdpMetadataXML,
 		}
@@ -616,10 +616,10 @@ func (p *Planner) planPortalCustomizationUpdateWithFields(
 
 		// Also store in References for executor to use
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: customization.Portal,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -640,8 +640,8 @@ func (p *Planner) shouldUpdatePortalCustomization(
 	if !p.compareTheme(current.Theme, desired.Theme) {
 		if desired.Theme != nil {
 			newTheme := p.buildThemeFields(desired.Theme)
-			updates["theme"] = newTheme
-			changedFields["theme"] = FieldChange{
+			updates[FieldTheme] = newTheme
+			changedFields[FieldTheme] = FieldChange{
 				Old: current.Theme,
 				New: newTheme,
 			}
@@ -651,8 +651,8 @@ func (p *Planner) shouldUpdatePortalCustomization(
 	// Compare layout
 	if !p.compareStringPtr(current.Layout, desired.Layout) {
 		if desired.Layout != nil {
-			updates["layout"] = *desired.Layout
-			changedFields["layout"] = FieldChange{
+			updates[FieldLayout] = *desired.Layout
+			changedFields[FieldLayout] = FieldChange{
 				Old: current.Layout,
 				New: *desired.Layout,
 			}
@@ -662,8 +662,8 @@ func (p *Planner) shouldUpdatePortalCustomization(
 	// Compare CSS
 	if !p.compareStringPtr(current.CSS, desired.CSS) {
 		if desired.CSS != nil {
-			updates["css"] = *desired.CSS
-			changedFields["css"] = FieldChange{
+			updates[FieldCSS] = *desired.CSS
+			changedFields[FieldCSS] = FieldChange{
 				Old: current.CSS,
 				New: *desired.CSS,
 			}
@@ -674,8 +674,8 @@ func (p *Planner) shouldUpdatePortalCustomization(
 	if !p.compareMenu(current.Menu, desired.Menu) {
 		if desired.Menu != nil {
 			newMenu := p.buildMenuFields(desired.Menu)
-			updates["menu"] = newMenu
-			changedFields["menu"] = FieldChange{
+			updates[FieldMenu] = newMenu
+			changedFields[FieldMenu] = FieldChange{
 				Old: current.Menu,
 				New: newMenu,
 			}
@@ -693,22 +693,22 @@ func (p *Planner) buildAllCustomizationFields(
 
 	// Add theme settings if present
 	if customization.Theme != nil {
-		fields["theme"] = p.buildThemeFields(customization.Theme)
+		fields[FieldTheme] = p.buildThemeFields(customization.Theme)
 	}
 
 	// Add layout if present
 	if customization.Layout != nil {
-		fields["layout"] = *customization.Layout
+		fields[FieldLayout] = *customization.Layout
 	}
 
 	// Add CSS if present
 	if customization.CSS != nil {
-		fields["css"] = *customization.CSS
+		fields[FieldCSS] = *customization.CSS
 	}
 
 	// Add menu settings if present
 	if customization.Menu != nil {
-		fields["menu"] = p.buildMenuFields(customization.Menu)
+		fields[FieldMenu] = p.buildMenuFields(customization.Menu)
 	}
 
 	return fields
@@ -725,7 +725,7 @@ func (p *Planner) buildThemeFields(theme *kkComps.Theme) map[string]any {
 
 	// Add name if present
 	if theme.Name != nil {
-		themeFields["name"] = *theme.Name
+		themeFields[FieldName] = *theme.Name
 	}
 
 	// Add colors if present
@@ -749,10 +749,10 @@ func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]any {
 		var mainMenuItems []map[string]any
 		for _, item := range menu.Main {
 			menuItem := map[string]any{
-				"path":       item.Path,
-				"title":      item.Title,
-				"external":   item.External,
-				"visibility": string(item.Visibility),
+				"path":          item.Path,
+				FieldTitle:      item.Title,
+				"external":      item.External,
+				FieldVisibility: string(item.Visibility),
 			}
 			mainMenuItems = append(mainMenuItems, menuItem)
 		}
@@ -766,16 +766,16 @@ func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]any {
 			var items []map[string]any
 			for _, item := range section.Items {
 				menuItem := map[string]any{
-					"path":       item.Path,
-					"title":      item.Title,
-					"external":   item.External,
-					"visibility": string(item.Visibility),
+					"path":          item.Path,
+					FieldTitle:      item.Title,
+					"external":      item.External,
+					FieldVisibility: string(item.Visibility),
 				}
 				items = append(items, menuItem)
 			}
 			sectionMap := map[string]any{
-				"title": section.Title,
-				"items": items,
+				FieldTitle: section.Title,
+				"items":    items,
 			}
 			footerSections = append(footerSections, sectionMap)
 		}
@@ -1012,8 +1012,8 @@ func (p *Planner) planPortalCustomDomainCreate(
 	extraDeps ...string,
 ) string {
 	fields := map[string]any{
-		"hostname": domain.Hostname,
-		"enabled":  domain.Enabled,
+		FieldHostname: domain.Hostname,
+		FieldEnabled:  domain.Enabled,
 	}
 
 	switch {
@@ -1026,9 +1026,9 @@ func (p *Planner) planPortalCustomDomainCreate(
 		if skip := domain.Ssl.CustomCertificate.GetSkipCaCheck(); skip != nil {
 			sslFields["skip_ca_check"] = *skip
 		}
-		fields["ssl"] = sslFields
+		fields[FieldSSL] = sslFields
 	case domain.Ssl.HTTP != nil:
-		fields["ssl"] = map[string]any{
+		fields[FieldSSL] = map[string]any{
 			"domain_verification_method": domain.Ssl.HTTP.GetDomainVerificationMethod(),
 		}
 	}
@@ -1043,7 +1043,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 		DependsOn:    uniqueStrings(deps),
 		Namespace:    parentNamespace,
 		ResourceMonikers: map[string]string{
-			"hostname": domain.Hostname,
+			FieldHostname: domain.Hostname,
 		},
 	}
 
@@ -1063,11 +1063,11 @@ func (p *Planner) planPortalCustomDomainCreate(
 		}
 		if portalName != "" {
 			refInfo.LookupFields = map[string]string{
-				"name": portalName,
+				FieldName: portalName,
 			}
 		}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": refInfo,
+			FieldPortalID: refInfo,
 		}
 	}
 
@@ -1086,12 +1086,12 @@ func (p *Planner) planPortalCustomDomainUpdate(
 ) string {
 	deps := p.portalChildDependencies(plan, domain.Portal)
 	fields := map[string]any{
-		"enabled": domain.Enabled,
+		FieldEnabled: domain.Enabled,
 	}
 	var changedFields map[string]FieldChange
 	if currentDomain != nil {
 		changedFields = map[string]FieldChange{
-			"enabled": {
+			FieldEnabled: {
 				Old: currentDomain.Enabled,
 				New: domain.Enabled,
 			},
@@ -1108,7 +1108,7 @@ func (p *Planner) planPortalCustomDomainUpdate(
 		DependsOn:    uniqueStrings(deps),
 		Namespace:    parentNamespace,
 		ResourceMonikers: map[string]string{
-			"hostname": domain.Hostname,
+			FieldHostname: domain.Hostname,
 		},
 	}
 	if len(changedFields) > 0 {
@@ -1130,11 +1130,11 @@ func (p *Planner) planPortalCustomDomainUpdate(
 		}
 		if portalName != "" {
 			refInfo.LookupFields = map[string]string{
-				"name": portalName,
+				FieldName: portalName,
 			}
 		}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": refInfo,
+			FieldPortalID: refInfo,
 		}
 	}
 
@@ -1173,12 +1173,12 @@ func (p *Planner) planPortalCustomDomainDelete(
 
 	if current != nil {
 		change.Fields = map[string]any{
-			"hostname":                   current.Hostname,
+			FieldHostname:                current.Hostname,
 			"domain_verification_method": current.DomainVerificationMethod,
-			"enabled":                    current.Enabled,
+			FieldEnabled:                 current.Enabled,
 		}
 		change.ResourceMonikers = map[string]string{
-			"hostname": current.Hostname,
+			FieldHostname: current.Hostname,
 		}
 	}
 
@@ -1194,11 +1194,11 @@ func (p *Planner) planPortalCustomDomainDelete(
 		}
 		if portalName != "" {
 			refInfo.LookupFields = map[string]string{
-				"name": portalName,
+				FieldName: portalName,
 			}
 		}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": refInfo,
+			FieldPortalID: refInfo,
 		}
 	}
 
@@ -1348,12 +1348,12 @@ func (p *Planner) planPortalAssetLogoUpdate(
 	ref := fmt.Sprintf("%s-logo", portalRef)
 
 	fields := map[string]any{
-		"data_url": dataURL,
+		FieldDataURL: dataURL,
 	}
 	var changedFields map[string]FieldChange
 	if portalID != "" {
 		changedFields = map[string]FieldChange{
-			"data_url": {
+			FieldDataURL: {
 				Old: currentDataURL,
 				New: dataURL,
 			},
@@ -1390,10 +1390,10 @@ func (p *Planner) planPortalAssetLogoUpdate(
 
 	// Also store in References for executor to use
 	change.References = map[string]ReferenceInfo{
-		"portal_id": {
+		FieldPortalID: {
 			Ref: portalRef,
 			LookupFields: map[string]string{
-				"name": portalName,
+				FieldName: portalName,
 			},
 		},
 	}
@@ -1469,12 +1469,12 @@ func (p *Planner) planPortalAssetFaviconUpdate(
 	ref := fmt.Sprintf("%s-favicon", portalRef)
 
 	fields := map[string]any{
-		"data_url": dataURL,
+		FieldDataURL: dataURL,
 	}
 	var changedFields map[string]FieldChange
 	if portalID != "" {
 		changedFields = map[string]FieldChange{
-			"data_url": {
+			FieldDataURL: {
 				Old: currentDataURL,
 				New: dataURL,
 			},
@@ -1511,10 +1511,10 @@ func (p *Planner) planPortalAssetFaviconUpdate(
 
 	// Also store in References for executor to use
 	change.References = map[string]ReferenceInfo{
-		"portal_id": {
+		FieldPortalID: {
 			Ref: portalRef,
 			LookupFields: map[string]string{
-				"name": portalName,
+				FieldName: portalName,
 			},
 		},
 	}
@@ -1705,11 +1705,11 @@ func (p *Planner) planPortalEmailConfigCreate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: ref,
 				ID:  portalID,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -1752,11 +1752,11 @@ func (p *Planner) planPortalEmailConfigUpdate(
 			ID:  portalID,
 		}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: ref,
 				ID:  portalID,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -1793,11 +1793,11 @@ func (p *Planner) planPortalEmailConfigDelete(
 			ID:  portalID,
 		}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: portalRef,
 				ID:  portalID,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -1828,15 +1828,15 @@ func (p *Planner) shouldUpdatePortalEmailConfig(
 		currentDomain := getString(current.DomainName)
 		if desired.DomainName == nil {
 			if currentDomain != "" {
-				updateFields["domain_name"] = nil
-				changedFields["domain_name"] = FieldChange{
+				updateFields[FieldDomainName] = nil
+				changedFields[FieldDomainName] = FieldChange{
 					Old: currentDomain,
 					New: nil,
 				}
 			}
 		} else if currentDomain != *desired.DomainName {
-			updateFields["domain_name"] = *desired.DomainName
-			changedFields["domain_name"] = FieldChange{
+			updateFields[FieldDomainName] = *desired.DomainName
+			changedFields[FieldDomainName] = FieldChange{
 				Old: currentDomain,
 				New: *desired.DomainName,
 			}
@@ -1847,15 +1847,15 @@ func (p *Planner) shouldUpdatePortalEmailConfig(
 		currentFromName := getString(current.FromName)
 		if desired.FromName == nil {
 			if currentFromName != "" {
-				updateFields["from_name"] = nil
-				changedFields["from_name"] = FieldChange{
+				updateFields[FieldFromName] = nil
+				changedFields[FieldFromName] = FieldChange{
 					Old: currentFromName,
 					New: nil,
 				}
 			}
 		} else if *desired.FromName != currentFromName {
-			updateFields["from_name"] = *desired.FromName
-			changedFields["from_name"] = FieldChange{
+			updateFields[FieldFromName] = *desired.FromName
+			changedFields[FieldFromName] = FieldChange{
 				Old: currentFromName,
 				New: *desired.FromName,
 			}
@@ -1866,15 +1866,15 @@ func (p *Planner) shouldUpdatePortalEmailConfig(
 		currentFromEmail := getString(current.FromEmail)
 		if desired.FromEmail == nil {
 			if currentFromEmail != "" {
-				updateFields["from_email"] = nil
-				changedFields["from_email"] = FieldChange{
+				updateFields[FieldFromEmail] = nil
+				changedFields[FieldFromEmail] = FieldChange{
 					Old: currentFromEmail,
 					New: nil,
 				}
 			}
 		} else if *desired.FromEmail != currentFromEmail {
-			updateFields["from_email"] = *desired.FromEmail
-			changedFields["from_email"] = FieldChange{
+			updateFields[FieldFromEmail] = *desired.FromEmail
+			changedFields[FieldFromEmail] = FieldChange{
 				Old: currentFromEmail,
 				New: *desired.FromEmail,
 			}
@@ -1885,15 +1885,15 @@ func (p *Planner) shouldUpdatePortalEmailConfig(
 		currentReplyToEmail := getString(current.ReplyToEmail)
 		if desired.ReplyToEmail == nil {
 			if currentReplyToEmail != "" {
-				updateFields["reply_to_email"] = nil
-				changedFields["reply_to_email"] = FieldChange{
+				updateFields[FieldReplyToEmail] = nil
+				changedFields[FieldReplyToEmail] = FieldChange{
 					Old: currentReplyToEmail,
 					New: nil,
 				}
 			}
 		} else if *desired.ReplyToEmail != currentReplyToEmail {
-			updateFields["reply_to_email"] = *desired.ReplyToEmail
-			changedFields["reply_to_email"] = FieldChange{
+			updateFields[FieldReplyToEmail] = *desired.ReplyToEmail
+			changedFields[FieldReplyToEmail] = FieldChange{
 				Old: currentReplyToEmail,
 				New: *desired.ReplyToEmail,
 			}
@@ -2022,11 +2022,11 @@ func (p *Planner) planPortalEmailTemplateCreate(
 			ID:  portalID,
 		}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: ref,
 				ID:  portalID,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -2046,7 +2046,7 @@ func (p *Planner) planPortalEmailTemplateUpdate(
 	plan *Plan,
 ) {
 	fields := map[string]any{
-		"name": tpl.Name,
+		FieldName: tpl.Name,
 	}
 	maps.Copy(fields, updateFields)
 
@@ -2072,11 +2072,11 @@ func (p *Planner) planPortalEmailTemplateUpdate(
 			ID:  portalID,
 		}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: ref,
 				ID:  portalID,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -2107,7 +2107,7 @@ func (p *Planner) planPortalEmailTemplateDelete(
 		DependsOn:    p.portalChildDependencies(plan, portalRef),
 		Namespace:    parentNamespace,
 		Fields: map[string]any{
-			"name": current.Name,
+			FieldName: current.Name,
 		},
 	}
 
@@ -2117,11 +2117,11 @@ func (p *Planner) planPortalEmailTemplateDelete(
 			ID:  portalID,
 		}
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: portalRef,
 				ID:  portalID,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -2142,8 +2142,8 @@ func (p *Planner) shouldUpdatePortalEmailTemplate(
 	}
 
 	if desired.EnabledSet && desired.Enabled != nil && current.Enabled != *desired.Enabled {
-		updates["enabled"] = *desired.Enabled
-		changedFields["enabled"] = FieldChange{
+		updates[FieldEnabled] = *desired.Enabled
+		changedFields[FieldEnabled] = FieldChange{
 			Old: current.Enabled,
 			New: *desired.Enabled,
 		}
@@ -2152,11 +2152,11 @@ func (p *Planner) shouldUpdatePortalEmailTemplate(
 	if desired.ContentSet {
 		if desired.Content == nil {
 			if current.Content != nil {
-				updates["content"] = nil
-				changedFields["content"] = FieldChange{
+				updates[FieldContent] = nil
+				changedFields[FieldContent] = FieldChange{
 					Old: map[string]any{
 						"subject":      current.Content.Subject,
-						"title":        current.Content.Title,
+						FieldTitle:     current.Content.Title,
 						"body":         current.Content.Body,
 						"button_label": current.Content.ButtonLabel,
 					},
@@ -2188,12 +2188,12 @@ func (p *Planner) shouldUpdatePortalEmailTemplate(
 				}
 				if desired.Content.Title == nil {
 					if currentVal != "" {
-						contentUpdates["title"] = nil
-						contentOldValues["title"] = currentVal
+						contentUpdates[FieldTitle] = nil
+						contentOldValues[FieldTitle] = currentVal
 					}
 				} else if currentVal != *desired.Content.Title {
-					contentUpdates["title"] = *desired.Content.Title
-					contentOldValues["title"] = currentVal
+					contentUpdates[FieldTitle] = *desired.Content.Title
+					contentOldValues[FieldTitle] = currentVal
 				}
 			}
 			if desired.Content.BodySet {
@@ -2228,8 +2228,8 @@ func (p *Planner) shouldUpdatePortalEmailTemplate(
 			}
 
 			if len(contentUpdates) > 0 {
-				updates["content"] = contentUpdates
-				changedFields["content"] = FieldChange{
+				updates[FieldContent] = contentUpdates
+				changedFields[FieldContent] = FieldChange{
 					Old: contentOldValues,
 					New: contentUpdates,
 				}
@@ -2242,24 +2242,24 @@ func (p *Planner) shouldUpdatePortalEmailTemplate(
 
 func (p *Planner) buildPortalEmailTemplateFields(tpl resources.PortalEmailTemplateResource) map[string]any {
 	fields := map[string]any{
-		"name": tpl.Name,
+		FieldName: tpl.Name,
 	}
 
 	if tpl.EnabledSet && tpl.Enabled != nil {
-		fields["enabled"] = *tpl.Enabled
+		fields[FieldEnabled] = *tpl.Enabled
 	}
 
 	contentSet := tpl.ContentSet || tpl.Content != nil
 	if contentSet {
 		if tpl.Content == nil {
-			fields["content"] = nil
+			fields[FieldContent] = nil
 		} else {
 			contentFields := make(map[string]any)
 			if tpl.Content.SubjectSet || tpl.Content.Subject != nil {
 				contentFields["subject"] = tpl.Content.Subject
 			}
 			if tpl.Content.TitleSet || tpl.Content.Title != nil {
-				contentFields["title"] = tpl.Content.Title
+				contentFields[FieldTitle] = tpl.Content.Title
 			}
 			if tpl.Content.BodySet || tpl.Content.Body != nil {
 				contentFields["body"] = tpl.Content.Body
@@ -2268,7 +2268,7 @@ func (p *Planner) buildPortalEmailTemplateFields(tpl resources.PortalEmailTempla
 				contentFields["button_label"] = tpl.Content.ButtonLabel
 			}
 			if len(contentFields) > 0 {
-				fields["content"] = contentFields
+				fields[FieldContent] = contentFields
 			}
 		}
 	}
@@ -2549,27 +2549,27 @@ func (p *Planner) planPortalPageCreate(
 	parentNamespace string, page resources.PortalPageResource, _ string, portalID string, plan *Plan,
 ) {
 	fields := make(map[string]any)
-	fields["slug"] = page.Slug
-	fields["content"] = page.Content
+	fields[FieldSlug] = page.Slug
+	fields[FieldContent] = page.Content
 
 	if page.Title != nil {
-		fields["title"] = *page.Title
+		fields[FieldTitle] = *page.Title
 	}
 
 	if page.Visibility != nil {
-		fields["visibility"] = string(*page.Visibility)
+		fields[FieldVisibility] = string(*page.Visibility)
 	}
 
 	if page.Status != nil {
-		fields["status"] = string(*page.Status)
+		fields[FieldStatus] = string(*page.Status)
 	}
 
 	if page.Description != nil {
-		fields["description"] = *page.Description
+		fields[FieldDescription] = *page.Description
 	}
 
 	if page.ParentPageID != nil {
-		fields["parent_page_id"] = *page.ParentPageID
+		fields[FieldParentPageID] = *page.ParentPageID
 	}
 
 	// Determine dependencies - depends on parent portal
@@ -2612,18 +2612,18 @@ func (p *Planner) planPortalPageCreate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: page.Portal,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
 		// If we already know the Konnect portal ID, include it to avoid name lookup during execution
 		if portalID != "" {
-			ref := change.References["portal_id"]
+			ref := change.References[FieldPortalID]
 			ref.ID = portalID
-			change.References["portal_id"] = ref
+			change.References[FieldPortalID] = ref
 		}
 	}
 
@@ -2655,10 +2655,10 @@ func (p *Planner) planPortalPageCreate(
 		if change.References == nil {
 			change.References = make(map[string]ReferenceInfo)
 		}
-		change.References["parent_page_id"] = ReferenceInfo{
+		change.References[FieldParentPageID] = ReferenceInfo{
 			Ref: page.ParentPageRef,
 			LookupFields: map[string]string{
-				"parent_path": parentPath,
+				FieldParentPath: parentPath,
 			},
 		}
 	}
@@ -2676,8 +2676,8 @@ func (p *Planner) shouldUpdatePortalPage(
 
 	// Compare content (always present)
 	if current.Content != desired.Content {
-		updates["content"] = desired.Content
-		changedFields["content"] = FieldChange{
+		updates[FieldContent] = desired.Content
+		changedFields[FieldContent] = FieldChange{
 			Old: current.Content,
 			New: desired.Content,
 		}
@@ -2685,8 +2685,8 @@ func (p *Planner) shouldUpdatePortalPage(
 
 	// Compare title if set
 	if desired.Title != nil && current.Title != *desired.Title {
-		updates["title"] = *desired.Title
-		changedFields["title"] = FieldChange{
+		updates[FieldTitle] = *desired.Title
+		changedFields[FieldTitle] = FieldChange{
 			Old: current.Title,
 			New: *desired.Title,
 		}
@@ -2694,8 +2694,8 @@ func (p *Planner) shouldUpdatePortalPage(
 
 	// Compare description if set
 	if desired.Description != nil && current.Description != *desired.Description {
-		updates["description"] = *desired.Description
-		changedFields["description"] = FieldChange{
+		updates[FieldDescription] = *desired.Description
+		changedFields[FieldDescription] = FieldChange{
 			Old: current.Description,
 			New: *desired.Description,
 		}
@@ -2705,8 +2705,8 @@ func (p *Planner) shouldUpdatePortalPage(
 	if desired.Visibility != nil {
 		desiredVis := string(*desired.Visibility)
 		if current.Visibility != desiredVis {
-			updates["visibility"] = desiredVis
-			changedFields["visibility"] = FieldChange{
+			updates[FieldVisibility] = desiredVis
+			changedFields[FieldVisibility] = FieldChange{
 				Old: current.Visibility,
 				New: desiredVis,
 			}
@@ -2717,8 +2717,8 @@ func (p *Planner) shouldUpdatePortalPage(
 	if desired.Status != nil {
 		desiredStatus := string(*desired.Status)
 		if current.Status != desiredStatus {
-			updates["status"] = desiredStatus
-			changedFields["status"] = FieldChange{
+			updates[FieldStatus] = desiredStatus
+			changedFields[FieldStatus] = FieldChange{
 				Old: current.Status,
 				New: desiredStatus,
 			}
@@ -2743,7 +2743,7 @@ func (p *Planner) planPortalPageUpdate(
 	fields := make(map[string]any)
 
 	// Always include slug for identification
-	fields["slug"] = current.Slug
+	fields[FieldSlug] = current.Slug
 
 	// Add fields that need updating
 	maps.Copy(fields, updateFields)
@@ -2790,10 +2790,10 @@ func (p *Planner) planPortalPageUpdate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: portalRef,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -2812,12 +2812,12 @@ func (p *Planner) planPortalPageDelete(
 		ResourceRef:  "[unknown]",
 		ResourceID:   pageID,
 		ResourceMonikers: map[string]string{
-			"slug":          slug,
+			FieldSlug:       slug,
 			"parent_portal": portalRef,
 		},
 		Parent:    &ParentInfo{Ref: portalRef, ID: portalID},
 		Action:    ActionDelete,
-		Fields:    map[string]any{"slug": slug},
+		Fields:    map[string]any{FieldSlug: slug},
 		DependsOn: []string{},
 	}
 
@@ -2833,10 +2833,10 @@ func (p *Planner) planPortalPageDelete(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: portalRef,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -2961,7 +2961,7 @@ func (p *Planner) planPortalSnippetDelete(
 		ResourceRef:  snippet.Name,
 		ResourceID:   snippet.ID,
 		Action:       ActionDelete,
-		Fields:       map[string]any{"name": snippet.Name},
+		Fields:       map[string]any{FieldName: snippet.Name},
 		Namespace:    parentNamespace,
 	}
 
@@ -2982,10 +2982,10 @@ func (p *Planner) planPortalSnippetDelete(
 			}
 		} else {
 			change.References = map[string]ReferenceInfo{
-				"portal_id": {
+				FieldPortalID: {
 					Ref: portalRef,
 					LookupFields: map[string]string{
-						"name": portalName,
+						FieldName: portalName,
 					},
 				},
 			}
@@ -2999,21 +2999,21 @@ func (p *Planner) planPortalSnippetCreate(
 	parentNamespace string, snippet resources.PortalSnippetResource, _ string, portalID string, plan *Plan,
 ) {
 	fields := make(map[string]any)
-	fields["name"] = snippet.Name
-	fields["content"] = snippet.Content
+	fields[FieldName] = snippet.Name
+	fields[FieldContent] = snippet.Content
 
 	// Include optional fields if present
 	if snippet.Title != nil {
-		fields["title"] = *snippet.Title
+		fields[FieldTitle] = *snippet.Title
 	}
 	if snippet.Visibility != nil {
-		fields["visibility"] = string(*snippet.Visibility)
+		fields[FieldVisibility] = string(*snippet.Visibility)
 	}
 	if snippet.Status != nil {
-		fields["status"] = string(*snippet.Status)
+		fields[FieldStatus] = string(*snippet.Status)
 	}
 	if snippet.Description != nil {
-		fields["description"] = *snippet.Description
+		fields[FieldDescription] = *snippet.Description
 	}
 
 	// Determine dependencies - depends on parent portal
@@ -3056,18 +3056,18 @@ func (p *Planner) planPortalSnippetCreate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: snippet.Portal,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
 		// If we already know the Konnect portal ID, include it to avoid name lookup during execution
 		if portalID != "" {
-			ref := change.References["portal_id"]
+			ref := change.References[FieldPortalID]
 			ref.ID = portalID
-			change.References["portal_id"] = ref
+			change.References[FieldPortalID] = ref
 		}
 	}
 
@@ -3082,8 +3082,8 @@ func (p *Planner) shouldUpdatePortalSnippet(
 
 	// Compare content (always present)
 	if current.Content != desired.Content {
-		updates["content"] = desired.Content
-		changedFields["content"] = FieldChange{
+		updates[FieldContent] = desired.Content
+		changedFields[FieldContent] = FieldChange{
 			Old: current.Content,
 			New: desired.Content,
 		}
@@ -3091,8 +3091,8 @@ func (p *Planner) shouldUpdatePortalSnippet(
 
 	// Compare title if set
 	if desired.Title != nil && current.Title != *desired.Title {
-		updates["title"] = *desired.Title
-		changedFields["title"] = FieldChange{
+		updates[FieldTitle] = *desired.Title
+		changedFields[FieldTitle] = FieldChange{
 			Old: current.Title,
 			New: *desired.Title,
 		}
@@ -3100,8 +3100,8 @@ func (p *Planner) shouldUpdatePortalSnippet(
 
 	// Compare description if set
 	if desired.Description != nil && current.Description != *desired.Description {
-		updates["description"] = *desired.Description
-		changedFields["description"] = FieldChange{
+		updates[FieldDescription] = *desired.Description
+		changedFields[FieldDescription] = FieldChange{
 			Old: current.Description,
 			New: *desired.Description,
 		}
@@ -3111,8 +3111,8 @@ func (p *Planner) shouldUpdatePortalSnippet(
 	if desired.Visibility != nil {
 		desiredVis := string(*desired.Visibility)
 		if current.Visibility != desiredVis {
-			updates["visibility"] = desiredVis
-			changedFields["visibility"] = FieldChange{
+			updates[FieldVisibility] = desiredVis
+			changedFields[FieldVisibility] = FieldChange{
 				Old: current.Visibility,
 				New: desiredVis,
 			}
@@ -3123,8 +3123,8 @@ func (p *Planner) shouldUpdatePortalSnippet(
 	if desired.Status != nil {
 		desiredStatus := string(*desired.Status)
 		if current.Status != desiredStatus {
-			updates["status"] = desiredStatus
-			changedFields["status"] = FieldChange{
+			updates[FieldStatus] = desiredStatus
+			changedFields[FieldStatus] = FieldChange{
 				Old: current.Status,
 				New: desiredStatus,
 			}
@@ -3149,7 +3149,7 @@ func (p *Planner) planPortalSnippetUpdate(
 	fields := make(map[string]any)
 
 	// Always include name for identification
-	fields["name"] = current.Name
+	fields[FieldName] = current.Name
 
 	// Add fields that need updating
 	maps.Copy(fields, updateFields)
@@ -3190,10 +3190,10 @@ func (p *Planner) planPortalSnippetUpdate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: portalRef,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -3317,12 +3317,12 @@ func (p *Planner) planPortalTeamCreate(
 	}
 
 	fields := make(map[string]any)
-	fields["name"] = team.Name
+	fields[FieldName] = team.Name
 	if team.Description != nil {
-		fields["description"] = *team.Description
+		fields[FieldDescription] = *team.Description
 	}
 	if team.CanOwnApplications != nil {
-		fields["can_own_applications"] = *team.CanOwnApplications
+		fields[FieldCanOwnApplications] = *team.CanOwnApplications
 	}
 
 	// Determine dependencies - depends on parent portal
@@ -3365,10 +3365,10 @@ func (p *Planner) planPortalTeamCreate(
 			}
 		} else {
 			change.References = map[string]ReferenceInfo{
-				"portal_id": {
+				FieldPortalID: {
 					Ref: team.Portal,
 					LookupFields: map[string]string{
-						"name": portalName,
+						FieldName: portalName,
 					},
 				},
 			}
@@ -3398,8 +3398,8 @@ func (p *Planner) shouldUpdatePortalTeam(
 	}
 
 	if current.Description != desiredDesc {
-		updateFields["description"] = desiredDesc
-		changedFields["description"] = FieldChange{
+		updateFields[FieldDescription] = desiredDesc
+		changedFields[FieldDescription] = FieldChange{
 			Old: current.Description,
 			New: desiredDesc,
 		}
@@ -3412,8 +3412,8 @@ func (p *Planner) shouldUpdatePortalTeam(
 		}
 
 		if current.CanOwnApplications == nil || currentCanOwnApplications != *desired.CanOwnApplications {
-			updateFields["can_own_applications"] = *desired.CanOwnApplications
-			changedFields["can_own_applications"] = FieldChange{
+			updateFields[FieldCanOwnApplications] = *desired.CanOwnApplications
+			changedFields[FieldCanOwnApplications] = FieldChange{
 				Old: current.CanOwnApplications,
 				New: *desired.CanOwnApplications,
 			}
@@ -3472,10 +3472,10 @@ func (p *Planner) planPortalTeamUpdate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
+			FieldPortalID: {
 				Ref: portalRef,
 				LookupFields: map[string]string{
-					"name": portalName,
+					FieldName: portalName,
 				},
 			},
 		}
@@ -3501,7 +3501,7 @@ func (p *Planner) planPortalTeamDelete(
 		ResourceRef:  team.Name,
 		ResourceID:   team.ID,
 		Action:       ActionDelete,
-		Fields:       map[string]any{"name": team.Name},
+		Fields:       map[string]any{FieldName: team.Name},
 		Namespace:    parentNamespace,
 	}
 
@@ -3523,10 +3523,10 @@ func (p *Planner) planPortalTeamDelete(
 			}
 		} else {
 			change.References = map[string]ReferenceInfo{
-				"portal_id": {
+				FieldPortalID: {
 					Ref: portalRef,
 					LookupFields: map[string]string{
-						"name": portalName,
+						FieldName: portalName,
 					},
 				},
 			}
@@ -3728,10 +3728,10 @@ func (p *Planner) planPortalTeamRoleCreate(
 	plan *Plan,
 ) {
 	fields := map[string]any{
-		"role_name":        role.RoleName,
-		"entity_id":        role.EntityID,
-		"entity_type_name": role.EntityTypeName,
-		"entity_region":    role.EntityRegion,
+		FieldRoleName:       role.RoleName,
+		FieldEntityID:       role.EntityID,
+		FieldEntityTypeName: role.EntityTypeName,
+		FieldEntityRegion:   role.EntityRegion,
 	}
 
 	var dependencies []string
@@ -3753,33 +3753,33 @@ func (p *Planner) planPortalTeamRoleCreate(
 	}
 
 	refs := map[string]ReferenceInfo{
-		"portal_id": {
+		FieldPortalID: {
 			Ref: portalRef,
 			LookupFields: map[string]string{
-				"name": portalName,
+				FieldName: portalName,
 			},
 		},
-		"team_id": {
+		FieldTeamID: {
 			Ref: teamRef,
 			LookupFields: map[string]string{
-				"name": teamName,
+				FieldName: teamName,
 			},
 		},
 	}
 
 	if portalID != "" {
-		refs["portal_id"] = ReferenceInfo{
+		refs[FieldPortalID] = ReferenceInfo{
 			Ref: portalRef,
 			ID:  portalID,
 		}
 	}
 
 	if teamID != "" {
-		refs["team_id"] = ReferenceInfo{
+		refs[FieldTeamID] = ReferenceInfo{
 			Ref: teamRef,
 			ID:  teamID,
 			LookupFields: map[string]string{
-				"name": teamName,
+				FieldName: teamName,
 			},
 		}
 	}
@@ -3818,18 +3818,18 @@ func (p *Planner) planPortalTeamRoleDelete(
 	plan *Plan,
 ) {
 	refs := map[string]ReferenceInfo{
-		"portal_id": {
+		FieldPortalID: {
 			Ref: portalRef,
 			ID:  portalID,
 			LookupFields: map[string]string{
-				"name": portalName,
+				FieldName: portalName,
 			},
 		},
-		"team_id": {
+		FieldTeamID: {
 			Ref: teamRef,
 			ID:  teamID,
 			LookupFields: map[string]string{
-				"name": teamName,
+				FieldName: teamName,
 			},
 		},
 	}
@@ -3841,10 +3841,10 @@ func (p *Planner) planPortalTeamRoleDelete(
 		ResourceID:   role.ID,
 		Action:       ActionDelete,
 		Fields: map[string]any{
-			"role_name":        role.RoleName,
-			"entity_id":        role.EntityID,
-			"entity_type_name": role.EntityTypeName,
-			"entity_region":    role.EntityRegion,
+			FieldRoleName:       role.RoleName,
+			FieldEntityID:       role.EntityID,
+			FieldEntityTypeName: role.EntityTypeName,
+			FieldEntityRegion:   role.EntityRegion,
 		},
 		DependsOn:  []string{},
 		Namespace:  parentNamespace,

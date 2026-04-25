@@ -86,7 +86,7 @@ func resolveVirtualClusterDestination(fields map[string]any, execCtx *ExecutionC
 		return
 	}
 
-	config, hasConfig := fields["config"]
+	config, hasConfig := fields[planner.FieldConfig]
 	if !hasConfig {
 		return
 	}
@@ -96,7 +96,7 @@ func resolveVirtualClusterDestination(fields map[string]any, execCtx *ExecutionC
 		return
 	}
 
-	destination, hasDestination := configMap["destination"]
+	destination, hasDestination := configMap[planner.FieldDestination]
 	if !hasDestination {
 		return
 	}
@@ -106,7 +106,7 @@ func resolveVirtualClusterDestination(fields map[string]any, execCtx *ExecutionC
 		return
 	}
 
-	id, hasID := destMap["id"]
+	id, hasID := destMap[planner.FieldID]
 	if !hasID {
 		return
 	}
@@ -118,9 +118,9 @@ func resolveVirtualClusterDestination(fields map[string]any, execCtx *ExecutionC
 
 	// Get the resolved virtual cluster ID from execution context
 	change := *execCtx.PlannedChange
-	if virtualClusterRef, refOK := change.References["event_gateway_virtual_cluster_id"]; refOK &&
+	if virtualClusterRef, refOK := change.References[planner.FieldEventGatewayVirtualClusterID]; refOK &&
 		virtualClusterRef.ID != "" {
-		destMap["id"] = virtualClusterRef.ID
+		destMap[planner.FieldID] = virtualClusterRef.ID
 	}
 }
 
@@ -208,7 +208,7 @@ func (a *EventGatewayListenerPolicyAdapter) ResourceType() string {
 // For union types, the required fields depend on which variant is set,
 // so validation is delegated to the SDK type.
 func (a *EventGatewayListenerPolicyAdapter) RequiredFields() []string {
-	return []string{"type"}
+	return []string{planner.FieldType}
 }
 
 // SupportsUpdate indicates whether this resource supports update operations
@@ -218,8 +218,8 @@ func (a *EventGatewayListenerPolicyAdapter) SupportsUpdate() bool {
 
 // getGatewayAndListenerIDs extracts both the event gateway ID and listener ID from the execution context.
 // Listener policies are grandchildren and require both parent IDs.
-// The listener ID comes from Parent or References["event_gateway_listener_id"].
-// The gateway ID comes from References["event_gateway_id"].
+// The listener ID comes from Parent or References[planner.FieldEventGatewayListenerID].
+// The gateway ID comes from References[planner.FieldEventGatewayID].
 func (a *EventGatewayListenerPolicyAdapter) getGatewayAndListenerIDs(
 	execCtx *ExecutionContext,
 ) (string, string, error) {
@@ -232,7 +232,7 @@ func (a *EventGatewayListenerPolicyAdapter) getGatewayAndListenerIDs(
 	var gatewayID, listenerID string
 
 	// Resolve listener ID: Priority 1 = References, Priority 2 = Parent
-	if listenerRef, ok := change.References["event_gateway_listener_id"]; ok && listenerRef.ID != "" {
+	if listenerRef, ok := change.References[planner.FieldEventGatewayListenerID]; ok && listenerRef.ID != "" {
 		listenerID = listenerRef.ID
 	}
 	if listenerID == "" && change.Parent != nil && change.Parent.ID != "" {
@@ -243,7 +243,7 @@ func (a *EventGatewayListenerPolicyAdapter) getGatewayAndListenerIDs(
 	}
 
 	// Resolve gateway ID from References
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		gatewayID = gatewayRef.ID
 	}
 	if gatewayID == "" {

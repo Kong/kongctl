@@ -171,12 +171,12 @@ func (p *Planner) planDataPlaneCertificateCreate(
 	plan *Plan,
 ) {
 	fields := make(map[string]any)
-	fields["certificate"] = cert.Certificate
+	fields[FieldCertificate] = cert.Certificate
 	if cert.Name != nil {
-		fields["name"] = *cert.Name
+		fields[FieldName] = *cert.Name
 	}
 	if cert.Description != nil {
-		fields["description"] = *cert.Description
+		fields[FieldDescription] = *cert.Description
 	}
 
 	change := PlannedChange{
@@ -198,11 +198,11 @@ func (p *Planner) planDataPlaneCertificateCreate(
 	} else {
 		// Gateway doesn't exist yet, add reference for runtime resolution
 		change.References = map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  "", // to be resolved at runtime
 				LookupFields: map[string]string{
-					"name": gatewayName,
+					FieldName: gatewayName,
 				},
 			},
 		}
@@ -323,14 +323,14 @@ func (p *Planner) shouldUpdateDataPlaneCertificate(
 
 	// If any changes detected, set ALL properties from desired state for PUT request
 	if needsUpdate {
-		updates["certificate"] = desired.Certificate
+		updates[FieldCertificate] = desired.Certificate
 
 		if desired.Name != nil {
-			updates["name"] = *desired.Name
+			updates[FieldName] = *desired.Name
 		}
 
 		if desired.Description != nil {
-			updates["description"] = *desired.Description
+			updates[FieldDescription] = *desired.Description
 		}
 	}
 

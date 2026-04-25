@@ -28,13 +28,13 @@ func (a *EventGatewayTLSTrustBundleAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateTLSTrustBundleRequest,
 ) error {
-	name, ok := fields["name"].(string)
+	name, ok := fields[planner.FieldName].(string)
 	if !ok || name == "" {
 		return fmt.Errorf("name is required")
 	}
 	create.Name = name
 
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		create.Description = &desc
 	}
 
@@ -44,7 +44,7 @@ func (a *EventGatewayTLSTrustBundleAdapter) MapCreateFields(
 	}
 	create.Config = cfg
 
-	if labelsRaw, ok := fields["labels"].(map[string]any); ok {
+	if labelsRaw, ok := fields[planner.FieldLabels].(map[string]any); ok {
 		lbls := make(map[string]string, len(labelsRaw))
 		for k, v := range labelsRaw {
 			if sv, ok := v.(string); ok {
@@ -52,7 +52,7 @@ func (a *EventGatewayTLSTrustBundleAdapter) MapCreateFields(
 			}
 		}
 		create.Labels = lbls
-	} else if lbls, ok := fields["labels"].(map[string]string); ok {
+	} else if lbls, ok := fields[planner.FieldLabels].(map[string]string); ok {
 		create.Labels = lbls
 	}
 
@@ -67,15 +67,15 @@ func (a *EventGatewayTLSTrustBundleAdapter) MapUpdateFields(
 	update *kkComps.UpdateTLSTrustBundleRequest,
 	_ map[string]string,
 ) error {
-	if name, ok := fields["name"].(string); ok && name != "" {
+	if name, ok := fields[planner.FieldName].(string); ok && name != "" {
 		update.Name = &name
 	}
 
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		update.Description = &desc
 	}
 
-	if _, hasConfig := fields["config"]; hasConfig {
+	if _, hasConfig := fields[planner.FieldConfig]; hasConfig {
 		cfg, err := extractTrustBundleConfig(fields)
 		if err != nil {
 			return err
@@ -83,7 +83,7 @@ func (a *EventGatewayTLSTrustBundleAdapter) MapUpdateFields(
 		update.Config = &cfg
 	}
 
-	if labelsRaw, ok := fields["labels"].(map[string]any); ok {
+	if labelsRaw, ok := fields[planner.FieldLabels].(map[string]any); ok {
 		lbls := make(map[string]string, len(labelsRaw))
 		for k, v := range labelsRaw {
 			if sv, ok := v.(string); ok {
@@ -91,7 +91,7 @@ func (a *EventGatewayTLSTrustBundleAdapter) MapUpdateFields(
 			}
 		}
 		update.Labels = lbls
-	} else if lbls, ok := fields["labels"].(map[string]string); ok {
+	} else if lbls, ok := fields[planner.FieldLabels].(map[string]string); ok {
 		update.Labels = lbls
 	}
 
@@ -180,7 +180,7 @@ func (a *EventGatewayTLSTrustBundleAdapter) ResourceType() string {
 
 // RequiredFields returns the list of required fields for this resource.
 func (a *EventGatewayTLSTrustBundleAdapter) RequiredFields() []string {
-	return []string{"name", "config"}
+	return []string{planner.FieldName, planner.FieldConfig}
 }
 
 // SupportsUpdate returns true – TLS trust bundles support update operations.
@@ -199,7 +199,7 @@ func (a *EventGatewayTLSTrustBundleAdapter) getEventGatewayIDFromExecutionContex
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for new parent)
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		return gatewayRef.ID, nil
 	}
 
@@ -236,7 +236,7 @@ func (e *EventGatewayTLSTrustBundleResourceInfo) GetNormalizedLabels() map[strin
 func extractTrustBundleConfig(fields map[string]any) (kkComps.TLSTrustBundleConfig, error) {
 	var cfg kkComps.TLSTrustBundleConfig
 
-	switch v := fields["config"].(type) {
+	switch v := fields[planner.FieldConfig].(type) {
 	case kkComps.TLSTrustBundleConfig:
 		cfg = v
 	case map[string]any:

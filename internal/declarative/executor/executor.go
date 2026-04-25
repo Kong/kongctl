@@ -645,7 +645,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 		// Perform resource-specific validation for updates/deletes without ResourceID
 		// (This is mainly for portal_customization which is a singleton)
 		switch change.ResourceType {
-		case "portal":
+		case planner.ResourceTypePortal:
 			if e.client != nil {
 				portal, err := e.client.GetPortalByName(ctx, getResourceName(change.Fields))
 				if err != nil {
@@ -667,7 +667,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 					return err
 				}
 			}
-		case "api":
+		case planner.FieldAPI:
 			if e.client != nil {
 				api, err := e.client.GetAPIByName(ctx, getResourceName(change.Fields))
 				if err != nil {
@@ -721,7 +721,7 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 	}
 
 	// First check if it was created in this execution
-	if authStrategies, ok := e.refToID["application_auth_strategy"]; ok {
+	if authStrategies, ok := e.refToID[planner.ResourceTypeApplicationAuthStrategy]; ok {
 		if id, found := authStrategies[lookupRef]; found {
 			return id, nil
 		}
@@ -736,7 +736,7 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
-		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
 		}
 	}
@@ -761,7 +761,7 @@ func (e *Executor) resolveDCRProviderRef(ctx context.Context, refInfo planner.Re
 		}
 	}
 
-	if providers, ok := e.refToID["dcr_provider"]; ok {
+	if providers, ok := e.refToID[planner.ResourceTypeDCRProvider]; ok {
 		if id, found := providers[lookupRef]; found {
 			return id, nil
 		}
@@ -822,7 +822,7 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 	}
 
 	// Check if it was created in this execution
-	if portals, ok := e.refToID["portal"]; ok {
+	if portals, ok := e.refToID[planner.ResourceTypePortal]; ok {
 		if id, found := portals[refInfo.Ref]; found {
 			return id, nil
 		}
@@ -831,7 +831,7 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := refInfo.Ref
 	if refInfo.LookupFields != nil {
-		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
 		}
 	}
@@ -857,7 +857,7 @@ func (e *Executor) resolvePortalTeamRef(
 		return "", fmt.Errorf("portal ID is required to resolve portal team")
 	}
 
-	if teams, ok := e.refToID["portal_team"]; ok {
+	if teams, ok := e.refToID[planner.ResourceTypePortalTeam]; ok {
 		if id, found := teams[refInfo.Ref]; found && id != "" {
 			return id, nil
 		}
@@ -865,7 +865,7 @@ func (e *Executor) resolvePortalTeamRef(
 
 	lookupValue := refInfo.Ref
 	if refInfo.LookupFields != nil {
-		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
 		}
 	}
@@ -892,7 +892,7 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 		}
 	}
 
-	if controlPlanes, ok := e.refToID["control_plane"]; ok {
+	if controlPlanes, ok := e.refToID[planner.ResourceTypeControlPlane]; ok {
 		if id, found := controlPlanes[lookupRef]; found && id != "" && id != "[unknown]" {
 			return id, nil
 		}
@@ -900,7 +900,7 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 
 	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
-		if name, ok := refInfo.LookupFields["name"]; ok && name != "" {
+		if name, ok := refInfo.LookupFields[planner.FieldName]; ok && name != "" {
 			lookupValue = name
 		}
 	}
@@ -921,7 +921,7 @@ func (e *Executor) syncControlPlaneGroupMembers(
 	change *planner.PlannedChange,
 	controlPlaneID string,
 ) error {
-	field, ok := change.Fields["members"]
+	field, ok := change.Fields[planner.FieldMembers]
 	if !ok {
 		return nil
 	}
@@ -937,7 +937,7 @@ func (e *Executor) syncControlPlaneGroupMembers(
 	resolved := make([]string, len(desiredIDs))
 	copy(resolved, desiredIDs)
 
-	refInfo, hasRefs := change.References["members"]
+	refInfo, hasRefs := change.References[planner.FieldMembers]
 	for idx, id := range desiredIDs {
 		if !tags.IsRefPlaceholder(id) {
 			continue
@@ -1007,7 +1007,7 @@ func buildLookupFieldsForIndex(refInfo planner.ReferenceInfo, index int) map[str
 	fields := make(map[string]string)
 	if names, ok := refInfo.LookupArrays["names"]; ok {
 		if index < len(names) && names[index] != "" {
-			fields["name"] = names[index]
+			fields[planner.FieldName] = names[index]
 		}
 	}
 
@@ -1022,13 +1022,13 @@ func extractMemberIDsFromField(field any) ([]string, error) {
 	case []map[string]string:
 		ids := make([]string, 0, len(v))
 		for _, item := range v {
-			ids = append(ids, item["id"])
+			ids = append(ids, item[planner.FieldID])
 		}
 		return ids, nil
 	case []map[string]any:
 		ids := make([]string, 0, len(v))
 		for _, item := range v {
-			id, ok := item["id"].(string)
+			id, ok := item[planner.FieldID].(string)
 			if !ok {
 				return nil, fmt.Errorf("control plane member entry missing id")
 			}
@@ -1040,9 +1040,9 @@ func extractMemberIDsFromField(field any) ([]string, error) {
 		for _, item := range v {
 			switch entry := item.(type) {
 			case map[string]string:
-				ids = append(ids, entry["id"])
+				ids = append(ids, entry[planner.FieldID])
 			case map[string]any:
-				id, ok := entry["id"].(string)
+				id, ok := entry[planner.FieldID].(string)
 				if !ok {
 					return nil, fmt.Errorf("control plane member entry missing id")
 				}
@@ -1067,7 +1067,7 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 	}
 
 	// First check if it was created in this execution
-	if apis, ok := e.refToID["api"]; ok {
+	if apis, ok := e.refToID[planner.FieldAPI]; ok {
 		if id, found := apis[lookupRef]; found {
 			slog.Debug("Resolved API reference from created resources",
 				"api_ref", lookupRef,
@@ -1080,7 +1080,7 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
-		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
 		}
 	}
@@ -1103,7 +1103,7 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 			)
 
 			// Cache this resolution
-			if apis, ok := e.refToID["api"]; ok {
+			if apis, ok := e.refToID[planner.FieldAPI]; ok {
 				apis[refInfo.Ref] = apiID
 			}
 			return apiID, nil
@@ -1125,7 +1125,7 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 	}
 
 	// First check if it was created in this execution
-	if gateways, ok := e.refToID["event_gateway"]; ok {
+	if gateways, ok := e.refToID[planner.ResourceTypeEventGatewayControlPlane]; ok {
 		if id, found := gateways[lookupRef]; found {
 			slog.Debug("Resolved event gateway reference from created resources",
 				"gateway_ref", lookupRef,
@@ -1138,7 +1138,7 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
-		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
 		}
 	}
@@ -1160,7 +1160,7 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 	)
 
 	// Cache this resolution
-	if gateways, ok := e.refToID["event_gateway"]; ok {
+	if gateways, ok := e.refToID[planner.ResourceTypeEventGatewayControlPlane]; ok {
 		gateways[refInfo.Ref] = gatewayID
 	}
 
@@ -1179,7 +1179,7 @@ func (e *Executor) resolveEventGatewayBackendClusterRef(
 	}
 
 	// First check if it was created in this execution
-	if backendCluster, ok := e.refToID["event_gateway_backend_cluster"]; ok {
+	if backendCluster, ok := e.refToID[planner.ResourceTypeEventGatewayBackendCluster]; ok {
 		if id, found := backendCluster[lookupRef]; found {
 			slog.Debug("Resolved event gateway backend cluster reference from created resources",
 				"backend_cluster_ref", lookupRef,
@@ -1192,7 +1192,7 @@ func (e *Executor) resolveEventGatewayBackendClusterRef(
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
-		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
 		}
 	}
@@ -1215,7 +1215,7 @@ func (e *Executor) resolveEventGatewayBackendClusterRef(
 	)
 
 	// Cache this resolution
-	if backendClusters, ok := e.refToID["event_gateway_backend_cluster"]; ok {
+	if backendClusters, ok := e.refToID[planner.ResourceTypeEventGatewayBackendCluster]; ok {
 		backendClusters[refInfo.Ref] = backendClusterID
 	}
 
@@ -1235,7 +1235,7 @@ func (e *Executor) resolveEventGatewayVirtualClusterRef(
 	}
 
 	// First check if it was created in this execution
-	if virtualClusters, ok := e.refToID["event_gateway_virtual_cluster"]; ok {
+	if virtualClusters, ok := e.refToID[planner.ResourceTypeEventGatewayVirtualCluster]; ok {
 		if id, found := virtualClusters[lookupRef]; found {
 			slog.Debug("Resolved event gateway virtual cluster reference from created resources",
 				"virtual_cluster_ref", lookupRef,
@@ -1248,7 +1248,7 @@ func (e *Executor) resolveEventGatewayVirtualClusterRef(
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
-		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
 		}
 	}
@@ -1271,7 +1271,7 @@ func (e *Executor) resolveEventGatewayVirtualClusterRef(
 	)
 
 	// Cache this resolution
-	if virtualClusters, ok := e.refToID["event_gateway_virtual_cluster"]; ok {
+	if virtualClusters, ok := e.refToID[planner.ResourceTypeEventGatewayVirtualCluster]; ok {
 		virtualClusters[refInfo.Ref] = virtualClusterID
 	}
 
@@ -1291,7 +1291,7 @@ func (e *Executor) resolveEventGatewayListenerRef(
 	}
 
 	// First check if it was created in this execution
-	if listeners, ok := e.refToID["event_gateway_listener"]; ok {
+	if listeners, ok := e.refToID[planner.ResourceTypeEventGatewayListener]; ok {
 		if id, found := listeners[lookupRef]; found {
 			slog.Debug("Resolved event gateway listener reference from created resources",
 				"listener_ref", lookupRef,
@@ -1303,7 +1303,7 @@ func (e *Executor) resolveEventGatewayListenerRef(
 
 	// Need the gateway ID to look up listeners
 	var gatewayID string
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		gatewayID = gatewayRef.ID
 	}
 	if gatewayID == "" && change.Parent != nil && change.Parent.ID != "" {
@@ -1316,7 +1316,7 @@ func (e *Executor) resolveEventGatewayListenerRef(
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
-		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
 		}
 	}
@@ -1336,7 +1336,7 @@ func (e *Executor) resolveEventGatewayListenerRef(
 			)
 
 			// Cache this resolution
-			if listenerMap, ok := e.refToID["event_gateway_listener"]; ok {
+			if listenerMap, ok := e.refToID[planner.ResourceTypeEventGatewayListener]; ok {
 				listenerMap[refInfo.Ref] = listener.ID
 			}
 
@@ -1457,7 +1457,7 @@ func (e *Executor) resolvePortalPageRef(
 	ctx context.Context, portalID string, pageRef string, lookupFields map[string]string,
 ) (string, error) {
 	// First check if it was created in this execution
-	if pages, ok := e.refToID["portal_page"]; ok {
+	if pages, ok := e.refToID[planner.ResourceTypePortalPage]; ok {
 		if id, found := pages[pageRef]; found {
 			return id, nil
 		}
@@ -1474,8 +1474,8 @@ func (e *Executor) resolvePortalPageRef(
 	portal := e.stateCache.Portals[portalID]
 
 	// If we have a parent path, use it for more accurate matching
-	if lookupFields != nil && lookupFields["parent_path"] != "" {
-		targetPath := lookupFields["parent_path"]
+	if lookupFields != nil && lookupFields[planner.FieldParentPath] != "" {
+		targetPath := lookupFields[planner.FieldParentPath]
 
 		if page := portal.FindPageBySlugPath(targetPath); page != nil {
 			return page.ID, nil
@@ -1520,7 +1520,7 @@ func (e *Executor) resolveAPIDocumentRef(
 		}
 	}
 
-	if docs, ok := e.refToID["api_document"]; ok {
+	if docs, ok := e.refToID[planner.ResourceTypeAPIDocument]; ok {
 		if id, found := docs[actualRef]; found {
 			return id, nil
 		}
@@ -1540,12 +1540,12 @@ func (e *Executor) resolveAPIDocumentRef(
 	}
 
 	if refInfo.LookupFields != nil {
-		if path, ok := refInfo.LookupFields["slug_path"]; ok && path != "" {
+		if path, ok := refInfo.LookupFields[planner.FieldSlugPath]; ok && path != "" {
 			if doc := findCachedAPIDocumentByPath(cachedAPI.Documents, path); doc != nil {
 				return doc.ID, nil
 			}
 		}
-		if slug, ok := refInfo.LookupFields["slug"]; ok && slug != "" {
+		if slug, ok := refInfo.LookupFields[planner.FieldSlug]; ok && slug != "" {
 			if doc := findCachedAPIDocumentByPath(cachedAPI.Documents, slug); doc != nil {
 				return doc.ID, nil
 			}
@@ -1604,9 +1604,9 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 	// Note: ExecutionContext is now passed explicitly to executors instead of using context.WithValue
 
 	switch change.ResourceType {
-	case "portal":
+	case planner.ResourceTypePortal:
 		// Resolve auth strategy reference if present
-		if authStrategyRef, ok := change.References["default_application_auth_strategy_id"]; ok &&
+		if authStrategyRef, ok := change.References[planner.FieldDefaultApplicationStrategyID]; ok &&
 			authStrategyRef.ID == "" {
 			authStrategyID, err := e.resolveAuthStrategyRef(ctx, authStrategyRef)
 			if err != nil {
@@ -1614,13 +1614,13 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			}
 			// Update the reference with the resolved ID
 			authStrategyRef.ID = authStrategyID
-			change.References["default_application_auth_strategy_id"] = authStrategyRef
+			change.References[planner.FieldDefaultApplicationStrategyID] = authStrategyRef
 
 			// Also update the field value to use the resolved ID instead of the placeholder
-			change.Fields["default_application_auth_strategy_id"] = authStrategyID
+			change.Fields[planner.FieldDefaultApplicationStrategyID] = authStrategyID
 		}
 		return e.portalExecutor.Create(ctx, *change)
-	case "control_plane":
+	case planner.ResourceTypeControlPlane:
 		id, err := e.controlPlaneExecutor.Create(ctx, *change)
 		if err != nil {
 			return "", err
@@ -1629,48 +1629,48 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return id, nil
-	case "api":
+	case planner.FieldAPI:
 		// No references to resolve for api
 		return e.apiExecutor.Create(ctx, *change)
-	case "catalog_service":
+	case planner.ResourceTypeCatalogService:
 		return e.catalogServiceExecutor.Create(ctx, *change)
-	case "dcr_provider":
+	case planner.ResourceTypeDCRProvider:
 		return e.dcrProviderExecutor.Create(ctx, *change)
-	case "api_version":
+	case planner.ResourceTypeAPIVersion:
 		// First resolve API reference if needed
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
 			apiID, err := e.resolveAPIRef(ctx, apiRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve API reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			apiRef.ID = apiID
-			change.References["api_id"] = apiRef
+			change.References[planner.FieldAPIID] = apiRef
 		}
 		return e.apiVersionExecutor.Create(ctx, *change)
-	case "api_publication":
+	case planner.ResourceTypeAPIPublication:
 		// First resolve API reference if needed
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
 			apiID, err := e.resolveAPIRef(ctx, apiRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve API reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			apiRef.ID = apiID
-			change.References["api_id"] = apiRef
+			change.References[planner.FieldAPIID] = apiRef
 		}
 		// Also resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		// Resolve auth_strategy_ids array references if needed
-		if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok && authStrategyRefs.IsArray {
+		if authStrategyRefs, ok := change.References[planner.FieldAuthStrategyIDs]; ok && authStrategyRefs.IsArray {
 			resolvedIDs := make([]string, 0, len(authStrategyRefs.Refs))
 
 			for i, ref := range authStrategyRefs.Refs {
@@ -1689,7 +1689,7 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 					// Add lookup fields if available
 					if names, ok := authStrategyRefs.LookupArrays["names"]; ok && i < len(names) {
 						refInfo.LookupFields = map[string]string{
-							"name": names[i],
+							planner.FieldName: names[i],
 						}
 					}
 
@@ -1708,35 +1708,36 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 
 			// Update the reference with resolved IDs
 			authStrategyRefs.ResolvedIDs = resolvedIDs
-			change.References["auth_strategy_ids"] = authStrategyRefs
+			change.References[planner.FieldAuthStrategyIDs] = authStrategyRefs
 		}
 		return e.apiPublicationExecutor.Create(ctx, *change)
-	case "api_implementation":
+	case planner.ResourceTypeAPIImplementation:
 		// First resolve API reference if needed
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
 			apiID, err := e.resolveAPIRef(ctx, apiRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve API reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			apiRef.ID = apiID
-			change.References["api_id"] = apiRef
+			change.References[planner.FieldAPIID] = apiRef
 		}
 		return e.apiImplementationExecutor.Create(ctx, *change)
-	case "api_document":
+	case planner.ResourceTypeAPIDocument:
 		// First resolve API reference if needed
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
 			apiID, err := e.resolveAPIRef(ctx, apiRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve API reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			apiRef.ID = apiID
-			change.References["api_id"] = apiRef
+			change.References[planner.FieldAPIID] = apiRef
 		}
-		if parentRef, ok := change.References["parent_document_id"]; ok && parentRef.Ref != "" && parentRef.ID == "" {
+		if parentRef, ok := change.References[planner.FieldParentDocumentID]; ok &&
+			parentRef.Ref != "" && parentRef.ID == "" {
 			apiID := ""
-			if apiInfo, exists := change.References["api_id"]; exists {
+			if apiInfo, exists := change.References[planner.FieldAPIID]; exists {
 				apiID = apiInfo.ID
 			}
 			if apiID == "" && change.Parent != nil {
@@ -1747,123 +1748,123 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 				return "", fmt.Errorf("failed to resolve parent document reference: %w", err)
 			}
 			parentRef.ID = resolvedParentID
-			change.References["parent_document_id"] = parentRef
+			change.References[planner.FieldParentDocumentID] = parentRef
 		}
 		return e.apiDocumentExecutor.Create(ctx, *change)
-	case "application_auth_strategy":
+	case planner.ResourceTypeApplicationAuthStrategy:
 		if err := e.syncResolvedDCRProviderID(ctx, change); err != nil {
 			return "", err
 		}
 		return e.authStrategyExecutor.Create(ctx, *change)
-	case "portal_customization":
+	case planner.ResourceTypePortalCustomization:
 		// Portal customization is a singleton resource - always exists, so we update instead
-		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
 			return "", err
 		}
 		return e.portalCustomizationExecutor.Update(ctx, *change, portalID)
-	case "portal_auth_settings":
-		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+	case planner.ResourceTypePortalAuthSettings:
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
-	case "portal_identity_provider":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalIdentityProvider:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalIdentityProviderExecutor.Create(ctx, *change)
-	case "portal_asset_logo":
+	case planner.ResourceTypePortalAssetLogo:
 		// Portal asset logo is a singleton resource - always exists, so we update instead
-		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
 			return "", err
 		}
 		return e.portalAssetLogoExecutor.Update(ctx, *change, portalID)
-	case "portal_asset_favicon":
+	case planner.ResourceTypePortalAssetFavicon:
 		// Portal asset favicon is a singleton resource - always exists, so we update instead
-		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
 			return "", err
 		}
 		return e.portalAssetFaviconExecutor.Update(ctx, *change, portalID)
-	case "portal_custom_domain":
+	case planner.ResourceTypePortalCustomDomain:
 		// Resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalDomainExecutor.Create(ctx, *change)
-	case "portal_page":
+	case planner.ResourceTypePortalPage:
 		// First resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		// Handle parent page reference resolution if needed
-		if parentPageRef, ok := change.References["parent_page_id"]; ok && parentPageRef.ID == "" {
-			portalID := change.References["portal_id"].ID
+		if parentPageRef, ok := change.References[planner.FieldParentPageID]; ok && parentPageRef.ID == "" {
+			portalID := change.References[planner.FieldPortalID].ID
 			parentPageID, err := e.resolvePortalPageRef(ctx, portalID, parentPageRef.Ref, parentPageRef.LookupFields)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve parent page reference: %w", err)
 			}
 			// Create a new reference with the resolved ID
 			parentPageRef.ID = parentPageID
-			change.References["parent_page_id"] = parentPageRef
+			change.References[planner.FieldParentPageID] = parentPageRef
 		}
 		return e.portalPageExecutor.Create(ctx, *change)
-	case "portal_snippet":
+	case planner.ResourceTypePortalSnippet:
 		// First resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalSnippetExecutor.Create(ctx, *change)
-	case "portal_team":
+	case planner.ResourceTypePortalTeam:
 		// First resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalTeamExecutor.Create(ctx, *change)
-	case "portal_team_role":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalTeamRole:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 
-		if teamRef, ok := change.References["team_id"]; ok && teamRef.ID == "" {
+		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
 			portalID := ""
-			if portalInfo, exists := change.References["portal_id"]; exists {
+			if portalInfo, exists := change.References[planner.FieldPortalID]; exists {
 				portalID = portalInfo.ID
 			}
 			if portalID == "" && change.Parent != nil {
@@ -1875,67 +1876,68 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 				return "", fmt.Errorf("failed to resolve portal team reference: %w", err)
 			}
 			teamRef.ID = teamID
-			change.References["team_id"] = teamRef
+			change.References[planner.FieldTeamID] = teamRef
 		}
 
-		if entityRef, ok := change.References["entity_id"]; ok && (entityRef.ID == "" || entityRef.ID == "[unknown]") {
+		if entityRef, ok := change.References[planner.FieldEntityID]; ok &&
+			(entityRef.ID == "" || entityRef.ID == "[unknown]") {
 			apiID, err := e.resolveAPIRef(ctx, entityRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
 			}
 			entityRef.ID = apiID
-			change.References["entity_id"] = entityRef
+			change.References[planner.FieldEntityID] = entityRef
 		}
 
 		return e.portalTeamRoleExecutor.Create(ctx, *change)
-	case "portal_email_config":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalEmailConfig:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailConfigExecutor.Create(ctx, *change)
-	case "portal_email_template":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalEmailTemplate:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailTemplateExecutor.Create(ctx, *change)
-	case "event_gateway":
+	case planner.ResourceTypeEventGatewayControlPlane:
 		return e.eventGatewayControlPlaneExecutor.Create(ctx, *change)
-	case "event_gateway_backend_cluster":
+	case planner.ResourceTypeEventGatewayBackendCluster:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayBackendClusterExecutor.Create(ctx, *change)
-	case "event_gateway_virtual_cluster":
+	case planner.ResourceTypeEventGatewayVirtualCluster:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 
 		// Resolve event gateway backend cluster reference if needed
-		if backendClusterRef, ok := change.References["event_gateway_backend_cluster_id"]; ok &&
+		if backendClusterRef, ok := change.References[planner.FieldEventGatewayBackendClusterID]; ok &&
 			backendClusterRef.ID == "" {
 			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, change.Parent.ID, backendClusterRef)
 			if err != nil {
@@ -1943,160 +1945,163 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			}
 			// Update the reference with the resolved ID
 			backendClusterRef.ID = backendClusterID
-			change.References["event_gateway_backend_cluster_id"] = backendClusterRef
+			change.References[planner.FieldEventGatewayBackendClusterID] = backendClusterRef
 		}
 		return e.eventGatewayVirtualClusterExecutor.Create(ctx, *change)
-	case "organization_team":
+	case planner.ResourceTypeOrganizationTeam:
 		return e.organizationTeamExecutor.Create(ctx, *change)
 
 	case planner.ResourceTypeEventGatewayListener:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayListenerExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayListenerPolicy:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		// Resolve event gateway listener reference if needed
-		if listenerRef, ok := change.References["event_gateway_listener_id"]; ok && listenerRef.ID == "" {
+		if listenerRef, ok := change.References[planner.FieldEventGatewayListenerID]; ok && listenerRef.ID == "" {
 			listenerID, err := e.resolveEventGatewayListenerRef(ctx, change, listenerRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway listener reference: %w", err)
 			}
 			listenerRef.ID = listenerID
-			change.References["event_gateway_listener_id"] = listenerRef
+			change.References[planner.FieldEventGatewayListenerID] = listenerRef
 		}
 		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok &&
+		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
 			virtualClusterRef.ID == "" {
-			gatewayID := change.References["event_gateway_id"].ID
+			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
 			}
 			virtualClusterRef.ID = virtualClusterID
-			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
 		}
 		return e.eventGatewayListenerPolicyExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayDataPlaneCertificate:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayDataPlaneCertificateExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewaySchemaRegistry:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewaySchemaRegistryExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayStaticKey:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayStaticKeyExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayTLSTrustBundle:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayTLSTrustBundleExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayClusterPolicy:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
-			gatewayID := change.References["event_gateway_id"].ID
+		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
+			virtualClusterRef.ID == "" {
+			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
 			}
 			virtualClusterRef.ID = virtualClusterID
-			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
 		}
 		return e.eventGatewayClusterPolicyExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayProducePolicy:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
-			gatewayID := change.References["event_gateway_id"].ID
+		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
+			virtualClusterRef.ID == "" {
+			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
 			}
 			virtualClusterRef.ID = virtualClusterID
-			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
 		}
 		return e.eventGatewayProducePolicyExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayConsumePolicy:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
-			gatewayID := change.References["event_gateway_id"].ID
+		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
+			virtualClusterRef.ID == "" {
+			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
 			}
 			virtualClusterRef.ID = virtualClusterID
-			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
 		}
 		return e.eventGatewayConsumePolicyExecutor.Create(ctx, *change)
 	default:
@@ -2108,9 +2113,9 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 	// Note: ExecutionContext is now passed explicitly to executors instead of using context.WithValue
 
 	switch change.ResourceType {
-	case "portal":
+	case planner.ResourceTypePortal:
 		return e.portalExecutor.Update(ctx, *change)
-	case "control_plane":
+	case planner.ResourceTypeControlPlane:
 		id, err := e.controlPlaneExecutor.Update(ctx, *change)
 		if err != nil {
 			return "", err
@@ -2119,24 +2124,25 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return id, nil
-	case "api":
+	case planner.FieldAPI:
 		return e.apiExecutor.Update(ctx, *change)
-	case "catalog_service":
+	case planner.ResourceTypeCatalogService:
 		return e.catalogServiceExecutor.Update(ctx, *change)
-	case "api_document":
+	case planner.ResourceTypeAPIDocument:
 		// First resolve API reference if needed
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
 			apiID, err := e.resolveAPIRef(ctx, apiRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve API reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			apiRef.ID = apiID
-			change.References["api_id"] = apiRef
+			change.References[planner.FieldAPIID] = apiRef
 		}
-		if parentRef, ok := change.References["parent_document_id"]; ok && parentRef.Ref != "" && parentRef.ID == "" {
+		if parentRef, ok := change.References[planner.FieldParentDocumentID]; ok &&
+			parentRef.Ref != "" && parentRef.ID == "" {
 			apiID := ""
-			if apiInfo, exists := change.References["api_id"]; exists {
+			if apiInfo, exists := change.References[planner.FieldAPIID]; exists {
 				apiID = apiInfo.ID
 			}
 			if apiID == "" && change.Parent != nil {
@@ -2147,33 +2153,33 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 				return "", fmt.Errorf("failed to resolve parent document reference: %w", err)
 			}
 			parentRef.ID = resolvedParentID
-			change.References["parent_document_id"] = parentRef
+			change.References[planner.FieldParentDocumentID] = parentRef
 		}
 		return e.apiDocumentExecutor.Update(ctx, *change)
-	case "api_publication":
+	case planner.ResourceTypeAPIPublication:
 		// API publications use PUT for both create and update
 		// First resolve API reference if needed
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
 			apiID, err := e.resolveAPIRef(ctx, apiRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve API reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			apiRef.ID = apiID
-			change.References["api_id"] = apiRef
+			change.References[planner.FieldAPIID] = apiRef
 		}
 		// Also resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		// Resolve auth strategy references if present
-		if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok && authStrategyRefs.IsArray {
+		if authStrategyRefs, ok := change.References[planner.FieldAuthStrategyIDs]; ok && authStrategyRefs.IsArray {
 			resolvedIDs := make([]string, 0, len(authStrategyRefs.Refs))
 			for _, ref := range authStrategyRefs.Refs {
 				strategyRef := planner.ReferenceInfo{
@@ -2185,7 +2191,7 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 					// Find corresponding name for this ref
 					for i, r := range authStrategyRefs.Refs {
 						if r == ref && i < len(authStrategyRefs.LookupArrays["names"]) {
-							strategyRef.LookupFields["name"] = authStrategyRefs.LookupArrays["names"][i]
+							strategyRef.LookupFields[planner.FieldName] = authStrategyRefs.LookupArrays["names"][i]
 							break
 						}
 					}
@@ -2198,295 +2204,298 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			}
 			// Update the reference with resolved IDs
 			authStrategyRefs.ResolvedIDs = resolvedIDs
-			change.References["auth_strategy_ids"] = authStrategyRefs
+			change.References[planner.FieldAuthStrategyIDs] = authStrategyRefs
 		}
 		// Use Create method which handles PUT (both create and update)
 		return e.apiPublicationExecutor.Create(ctx, *change)
-	case "application_auth_strategy":
+	case planner.ResourceTypeApplicationAuthStrategy:
 		if err := e.syncResolvedDCRProviderID(ctx, change); err != nil {
 			return "", err
 		}
 		return e.authStrategyExecutor.Update(ctx, *change)
-	case "dcr_provider":
+	case planner.ResourceTypeDCRProvider:
 		return e.dcrProviderExecutor.Update(ctx, *change)
-	case "portal_customization":
-		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+	case planner.ResourceTypePortalCustomization:
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
 			return "", err
 		}
 		return e.portalCustomizationExecutor.Update(ctx, *change, portalID)
-	case "portal_auth_settings":
-		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+	case planner.ResourceTypePortalAuthSettings:
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
-	case "portal_identity_provider":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalIdentityProvider:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalIdentityProviderExecutor.Update(ctx, *change)
-	case "portal_email_config":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalEmailConfig:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailConfigExecutor.Update(ctx, *change)
-	case "portal_email_template":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalEmailTemplate:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailTemplateExecutor.Update(ctx, *change)
-	case "portal_asset_logo":
-		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+	case planner.ResourceTypePortalAssetLogo:
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
 			return "", err
 		}
 		return e.portalAssetLogoExecutor.Update(ctx, *change, portalID)
-	case "portal_asset_favicon":
-		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+	case planner.ResourceTypePortalAssetFavicon:
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
 			return "", err
 		}
 		return e.portalAssetFaviconExecutor.Update(ctx, *change, portalID)
-	case "portal_custom_domain":
+	case planner.ResourceTypePortalCustomDomain:
 		return e.portalDomainExecutor.Update(ctx, *change)
-	case "portal_page":
+	case planner.ResourceTypePortalPage:
 		// First resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		// Handle parent page reference resolution if needed
-		if parentPageRef, ok := change.References["parent_page_id"]; ok && parentPageRef.ID == "" {
-			portalID := change.References["portal_id"].ID
+		if parentPageRef, ok := change.References[planner.FieldParentPageID]; ok && parentPageRef.ID == "" {
+			portalID := change.References[planner.FieldPortalID].ID
 			parentPageID, err := e.resolvePortalPageRef(ctx, portalID, parentPageRef.Ref, parentPageRef.LookupFields)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve parent page reference: %w", err)
 			}
 			// Create a new reference with the resolved ID
 			parentPageRef.ID = parentPageID
-			change.References["parent_page_id"] = parentPageRef
+			change.References[planner.FieldParentPageID] = parentPageRef
 		}
 		return e.portalPageExecutor.Update(ctx, *change)
-	case "portal_snippet":
+	case planner.ResourceTypePortalSnippet:
 		// First resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalSnippetExecutor.Update(ctx, *change)
-	case "portal_team":
+	case planner.ResourceTypePortalTeam:
 		// First resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalTeamExecutor.Update(ctx, *change)
-	case "api_version":
+	case planner.ResourceTypeAPIVersion:
 		// First resolve API reference if needed
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
 			apiID, err := e.resolveAPIRef(ctx, apiRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve API reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			apiRef.ID = apiID
-			change.References["api_id"] = apiRef
+			change.References[planner.FieldAPIID] = apiRef
 		}
 		return e.apiVersionExecutor.Update(ctx, *change)
 	// Note: api_publication and api_implementation don't support update
-	case "event_gateway":
+	case planner.ResourceTypeEventGatewayControlPlane:
 		return e.eventGatewayControlPlaneExecutor.Update(ctx, *change)
-	case "event_gateway_backend_cluster":
+	case planner.ResourceTypeEventGatewayBackendCluster:
 		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayBackendClusterExecutor.Update(ctx, *change)
-	case "event_gateway_virtual_cluster":
+	case planner.ResourceTypeEventGatewayVirtualCluster:
 		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayVirtualClusterExecutor.Update(ctx, *change)
-	case "organization_team":
+	case planner.ResourceTypeOrganizationTeam:
 		return e.organizationTeamExecutor.Update(ctx, *change)
-	case "event_gateway_listener":
+	case planner.ResourceTypeEventGatewayListener:
 		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayListenerExecutor.Update(ctx, *change)
 	case planner.ResourceTypeEventGatewayListenerPolicy:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		// Resolve event gateway listener reference if needed
-		if listenerRef, ok := change.References["event_gateway_listener_id"]; ok && listenerRef.ID == "" {
+		if listenerRef, ok := change.References[planner.FieldEventGatewayListenerID]; ok && listenerRef.ID == "" {
 			listenerID, err := e.resolveEventGatewayListenerRef(ctx, change, listenerRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway listener reference: %w", err)
 			}
 			listenerRef.ID = listenerID
-			change.References["event_gateway_listener_id"] = listenerRef
+			change.References[planner.FieldEventGatewayListenerID] = listenerRef
 		}
 		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok &&
+		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
 			virtualClusterRef.ID == "" {
-			gatewayID := change.References["event_gateway_id"].ID
+			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
 			}
 			virtualClusterRef.ID = virtualClusterID
-			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
 		}
 		return e.eventGatewayListenerPolicyExecutor.Update(ctx, *change)
 	case planner.ResourceTypeEventGatewayDataPlaneCertificate:
 		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayDataPlaneCertificateExecutor.Update(ctx, *change)
 	case planner.ResourceTypeEventGatewaySchemaRegistry:
 		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewaySchemaRegistryExecutor.Update(ctx, *change)
 	case planner.ResourceTypeEventGatewayTLSTrustBundle:
 		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		return e.eventGatewayTLSTrustBundleExecutor.Update(ctx, *change)
 	case planner.ResourceTypeEventGatewayClusterPolicy:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
-			gatewayID := change.References["event_gateway_id"].ID
+		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
+			virtualClusterRef.ID == "" {
+			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
 			}
 			virtualClusterRef.ID = virtualClusterID
-			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
 		}
 		return e.eventGatewayClusterPolicyExecutor.Update(ctx, *change)
 	case planner.ResourceTypeEventGatewayProducePolicy:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
-			gatewayID := change.References["event_gateway_id"].ID
+		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
+			virtualClusterRef.ID == "" {
+			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
 			}
 			virtualClusterRef.ID = virtualClusterID
-			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
 		}
 		return e.eventGatewayProducePolicyExecutor.Update(ctx, *change)
 	case planner.ResourceTypeEventGatewayConsumePolicy:
 		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
 			}
 			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
+			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
-			gatewayID := change.References["event_gateway_id"].ID
+		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
+			virtualClusterRef.ID == "" {
+			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
 			}
 			virtualClusterRef.ID = virtualClusterID
-			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
 		}
 		return e.eventGatewayConsumePolicyExecutor.Update(ctx, *change)
 	default:
@@ -2498,102 +2507,102 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	// Note: ExecutionContext is now passed explicitly to executors instead of using context.WithValue
 
 	switch change.ResourceType {
-	case "portal":
+	case planner.ResourceTypePortal:
 		// No references to resolve for portal
 		return e.portalExecutor.Delete(ctx, *change)
-	case "control_plane":
+	case planner.ResourceTypeControlPlane:
 		return e.controlPlaneExecutor.Delete(ctx, *change)
-	case "api":
+	case planner.FieldAPI:
 		// No references to resolve for api
 		return e.apiExecutor.Delete(ctx, *change)
-	case "catalog_service":
+	case planner.ResourceTypeCatalogService:
 		return e.catalogServiceExecutor.Delete(ctx, *change)
-	case "api_version":
+	case planner.ResourceTypeAPIVersion:
 		// No references to resolve for api_version delete
 		return e.apiVersionExecutor.Delete(ctx, *change)
-	case "api_publication":
+	case planner.ResourceTypeAPIPublication:
 		// No references to resolve for api_publication delete
 		return e.apiPublicationExecutor.Delete(ctx, *change)
-	case "api_implementation":
+	case planner.ResourceTypeAPIImplementation:
 		// No references to resolve for api_implementation delete
 		return e.apiImplementationExecutor.Delete(ctx, *change)
-	case "api_document":
+	case planner.ResourceTypeAPIDocument:
 		// First resolve API reference if needed
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
 			apiID, err := e.resolveAPIRef(ctx, apiRef)
 			if err != nil {
 				return fmt.Errorf("failed to resolve API reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			apiRef.ID = apiID
-			change.References["api_id"] = apiRef
+			change.References[planner.FieldAPIID] = apiRef
 		}
 		return e.apiDocumentExecutor.Delete(ctx, *change)
-	case "application_auth_strategy":
+	case planner.ResourceTypeApplicationAuthStrategy:
 		return e.authStrategyExecutor.Delete(ctx, *change)
-	case "dcr_provider":
+	case planner.ResourceTypeDCRProvider:
 		return e.dcrProviderExecutor.Delete(ctx, *change)
-	case "portal_custom_domain":
+	case planner.ResourceTypePortalCustomDomain:
 		// No references to resolve for portal_custom_domain
 		return e.portalDomainExecutor.Delete(ctx, *change)
-	case "portal_identity_provider":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalIdentityProvider:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalIdentityProviderExecutor.Delete(ctx, *change)
-	case "portal_page":
+	case planner.ResourceTypePortalPage:
 		// First resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalPageExecutor.Delete(ctx, *change)
-	case "portal_snippet":
+	case planner.ResourceTypePortalSnippet:
 		// First resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalSnippetExecutor.Delete(ctx, *change)
-	case "portal_team":
+	case planner.ResourceTypePortalTeam:
 		// First resolve portal reference if needed
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			// Update the reference with the resolved ID
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalTeamExecutor.Delete(ctx, *change)
-	case "portal_team_role":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalTeamRole:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
-		if teamRef, ok := change.References["team_id"]; ok && teamRef.ID == "" {
+		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
 			portalID := ""
-			if portalInfo, exists := change.References["portal_id"]; exists {
+			if portalInfo, exists := change.References[planner.FieldPortalID]; exists {
 				portalID = portalInfo.ID
 			}
 			if portalID == "" && change.Parent != nil {
@@ -2604,39 +2613,39 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 				return fmt.Errorf("failed to resolve portal team reference: %w", err)
 			}
 			teamRef.ID = teamID
-			change.References["team_id"] = teamRef
+			change.References[planner.FieldTeamID] = teamRef
 		}
 		return e.portalTeamRoleExecutor.Delete(ctx, *change)
-	case "portal_email_config":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalEmailConfig:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailConfigExecutor.Delete(ctx, *change)
-	case "portal_email_template":
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+	case planner.ResourceTypePortalEmailTemplate:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
 			portalRef.ID = portalID
-			change.References["portal_id"] = portalRef
+			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailTemplateExecutor.Delete(ctx, *change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
-	case "event_gateway":
+	case planner.ResourceTypeEventGatewayControlPlane:
 		return e.eventGatewayControlPlaneExecutor.Delete(ctx, *change)
-	case "event_gateway_backend_cluster":
+	case planner.ResourceTypeEventGatewayBackendCluster:
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewayBackendClusterExecutor.Delete(ctx, *change)
-	case "event_gateway_virtual_cluster":
+	case planner.ResourceTypeEventGatewayVirtualCluster:
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewayVirtualClusterExecutor.Delete(ctx, *change)
-	case "event_gateway_listener":
+	case planner.ResourceTypeEventGatewayListener:
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewayListenerExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeEventGatewayListenerPolicy:
@@ -2663,7 +2672,7 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case planner.ResourceTypeEventGatewayConsumePolicy:
 		// Both gateway ID and virtual cluster ID should be in References for delete
 		return e.eventGatewayConsumePolicyExecutor.Delete(ctx, *change)
-	case "organization_team":
+	case planner.ResourceTypeOrganizationTeam:
 		return e.organizationTeamExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)

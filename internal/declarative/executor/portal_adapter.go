@@ -34,24 +34,24 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	create.Name = common.ExtractResourceName(fields)
 
 	// Map optional fields using utilities (SDK uses double pointers)
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
-	common.MapOptionalStringFieldToPtr(&create.DisplayName, fields, "display_name")
-	common.MapOptionalBoolFieldToPtr(&create.AuthenticationEnabled, fields, "authentication_enabled")
-	common.MapOptionalBoolFieldToPtr(&create.RbacEnabled, fields, "rbac_enabled")
-	common.MapOptionalBoolFieldToPtr(&create.AutoApproveDevelopers, fields, "auto_approve_developers")
-	common.MapOptionalBoolFieldToPtr(&create.AutoApproveApplications, fields, "auto_approve_applications")
+	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
+	common.MapOptionalStringFieldToPtr(&create.DisplayName, fields, planner.FieldDisplayName)
+	common.MapOptionalBoolFieldToPtr(&create.AuthenticationEnabled, fields, planner.FieldAuthenticationEnabled)
+	common.MapOptionalBoolFieldToPtr(&create.RbacEnabled, fields, planner.FieldRBACEnabled)
+	common.MapOptionalBoolFieldToPtr(&create.AutoApproveDevelopers, fields, planner.FieldAutoApproveDevelopers)
+	common.MapOptionalBoolFieldToPtr(&create.AutoApproveApplications, fields, planner.FieldAutoApproveApplications)
 
-	if defaultAPIVisibility, ok := fields["default_api_visibility"].(string); ok {
+	if defaultAPIVisibility, ok := fields[planner.FieldDefaultAPIVisibility].(string); ok {
 		visibility := kkComps.DefaultAPIVisibility(defaultAPIVisibility)
 		create.DefaultAPIVisibility = &visibility
 	}
 
-	if defaultPageVisibility, ok := fields["default_page_visibility"].(string); ok {
+	if defaultPageVisibility, ok := fields[planner.FieldDefaultPageVisibility].(string); ok {
 		visibility := kkComps.DefaultPageVisibility(defaultPageVisibility)
 		create.DefaultPageVisibility = &visibility
 	}
 
-	if defaultAppAuthStrategyID, ok := fields["default_application_auth_strategy_id"].(string); ok {
+	if defaultAppAuthStrategyID, ok := fields[planner.FieldDefaultApplicationStrategyID].(string); ok {
 		// Defensive: skip if this is a reference placeholder that wasn't resolved
 		// (should have been resolved by executor, but be defensive)
 		if !strings.HasPrefix(defaultAppAuthStrategyID, tags.RefPlaceholderPrefix) {
@@ -61,7 +61,7 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	}
 
 	// Handle labels using centralized helper
-	userLabels := labels.ExtractLabelsFromField(fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	portalLabels := labels.BuildCreateLabels(userLabels, namespace, protection)
 
 	// Convert to pointer map since portals use map[string]*string
@@ -82,35 +82,35 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 	// These represent actual changes detected by the planner
 	for field, value := range fields {
 		switch field {
-		case "name":
+		case planner.FieldName:
 			if name, ok := value.(string); ok {
 				update.Name = &name
 			}
-		case "description":
+		case planner.FieldDescription:
 			if desc, ok := value.(string); ok {
 				update.Description = &desc
 			}
-		case "display_name":
+		case planner.FieldDisplayName:
 			if displayName, ok := value.(string); ok {
 				update.DisplayName = &displayName
 			}
-		case "authentication_enabled":
+		case planner.FieldAuthenticationEnabled:
 			if authEnabled, ok := value.(bool); ok {
 				update.AuthenticationEnabled = &authEnabled
 			}
-		case "rbac_enabled":
+		case planner.FieldRBACEnabled:
 			if rbacEnabled, ok := value.(bool); ok {
 				update.RbacEnabled = &rbacEnabled
 			}
-		case "auto_approve_developers":
+		case planner.FieldAutoApproveDevelopers:
 			if autoApproveDevelopers, ok := value.(bool); ok {
 				update.AutoApproveDevelopers = &autoApproveDevelopers
 			}
-		case "auto_approve_applications":
+		case planner.FieldAutoApproveApplications:
 			if autoApproveApplications, ok := value.(bool); ok {
 				update.AutoApproveApplications = &autoApproveApplications
 			}
-		case "default_application_auth_strategy_id":
+		case planner.FieldDefaultApplicationStrategyID:
 			if authID, ok := value.(string); ok {
 				// Defensive: skip if this is a reference placeholder that wasn't resolved
 				if !strings.HasPrefix(authID, tags.RefPlaceholderPrefix) {
@@ -118,12 +118,12 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 				}
 				// If it's still a placeholder, skip setting it to avoid sending invalid data to API
 			}
-		case "default_api_visibility":
+		case planner.FieldDefaultAPIVisibility:
 			if visibility, ok := value.(string); ok {
 				vis := kkComps.UpdatePortalDefaultAPIVisibility(visibility)
 				update.DefaultAPIVisibility = &vis
 			}
-		case "default_page_visibility":
+		case planner.FieldDefaultPageVisibility:
 			if visibility, ok := value.(string); ok {
 				vis := kkComps.UpdatePortalDefaultPageVisibility(visibility)
 				update.DefaultPageVisibility = &vis
@@ -133,7 +133,7 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 	}
 
 	// Handle labels using centralized helper
-	desiredLabels := labels.ExtractLabelsFromField(fields["labels"])
+	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	if desiredLabels != nil {
 		// Get current labels if passed from planner
 		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
@@ -199,12 +199,12 @@ func (p *PortalAdapter) GetByID(_ context.Context, _ string, _ *ExecutionContext
 
 // ResourceType returns the resource type name
 func (p *PortalAdapter) ResourceType() string {
-	return "portal"
+	return planner.ResourceTypePortal
 }
 
 // RequiredFields returns the required fields for creation
 func (p *PortalAdapter) RequiredFields() []string {
-	return []string{"name"}
+	return []string{planner.FieldName}
 }
 
 // SupportsUpdate returns true as portals support updates

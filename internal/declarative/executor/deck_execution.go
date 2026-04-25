@@ -28,12 +28,12 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 
 	logger := deckLoggerFromContext(ctx)
 
-	cpRef := stringField(change.Fields, "control_plane_ref")
+	cpRef := stringField(change.Fields, planner.FieldControlPlaneRef)
 	if cpRef == "" {
 		cpRef = change.ResourceRef
 	}
-	cpID := stringField(change.Fields, "control_plane_id")
-	cpName := stringField(change.Fields, "control_plane_name")
+	cpID := stringField(change.Fields, planner.FieldControlPlaneID)
+	cpName := stringField(change.Fields, planner.FieldControlPlaneName)
 
 	resolvedID, err := e.resolveDeckControlPlaneID(ctx, cpID, cpRef)
 	if err != nil {
@@ -51,19 +51,19 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 		}
 	}
 
-	change.Fields["control_plane_id"] = cpID
-	change.Fields["control_plane_name"] = cpName
+	change.Fields[planner.FieldControlPlaneID] = cpID
+	change.Fields[planner.FieldControlPlaneName] = cpName
 
 	mode, err := e.resolveDeckMode(plan)
 	if err != nil {
 		return err
 	}
 
-	files, err := parseDeckFiles(change.Fields["files"])
+	files, err := parseDeckFiles(change.Fields[planner.FieldFiles])
 	if err != nil {
 		return fmt.Errorf("deck step %s: %w", cpRef, err)
 	}
-	flags, err := parseDeckFlags(change.Fields["flags"])
+	flags, err := parseDeckFlags(change.Fields[planner.FieldFlags])
 	if err != nil {
 		return fmt.Errorf("deck step %s: %w", cpRef, err)
 	}
@@ -277,7 +277,7 @@ func deckGatewayServicesFromTargets(targets []planner.PostResolutionTarget) []de
 		}
 		name := ""
 		if target.Selector != nil {
-			name = target.Selector.MatchFields["name"]
+			name = target.Selector.MatchFields[planner.FieldName]
 		}
 		services = append(services, deckGatewayServiceRef{
 			Ref:          target.ResourceRef,
@@ -296,7 +296,7 @@ func deckGatewayServicesFromFields(fields map[string]any) ([]deckGatewayServiceR
 	if len(fields) == 0 {
 		return nil, nil
 	}
-	raw, ok := fields["gateway_services"]
+	raw, ok := fields[planner.FieldGatewayServices]
 	if !ok || raw == nil {
 		return nil, nil
 	}
@@ -349,14 +349,14 @@ func deckGatewayServiceFromEntry(entry map[string]any) deckGatewayServiceRef {
 	switch v := raw.(type) {
 	case map[string]any:
 		if matchFields, ok := v["matchFields"].(map[string]string); ok {
-			svc.SelectorName = matchFields["name"]
+			svc.SelectorName = matchFields[planner.FieldName]
 		} else if matchFields, ok := v["matchFields"].(map[string]any); ok {
-			if name, ok := matchFields["name"].(string); ok {
+			if name, ok := matchFields[planner.FieldName].(string); ok {
 				svc.SelectorName = name
 			}
 		}
 	case map[string]string:
-		svc.SelectorName = v["name"]
+		svc.SelectorName = v[planner.FieldName]
 	}
 
 	return svc
@@ -446,10 +446,10 @@ func (e *Executor) resolveGatewayServiceByName(
 }
 
 func (e *Executor) storeGatewayServiceRef(ref, id string) {
-	if e.refToID["gateway_service"] == nil {
-		e.refToID["gateway_service"] = make(map[string]string)
+	if e.refToID[planner.ResourceTypeGatewayService] == nil {
+		e.refToID[planner.ResourceTypeGatewayService] = make(map[string]string)
 	}
-	e.refToID["gateway_service"][ref] = id
+	e.refToID[planner.ResourceTypeGatewayService][ref] = id
 }
 
 func (e *Executor) updateGatewayServiceReferences(
@@ -464,11 +464,11 @@ func (e *Executor) updateGatewayServiceReferences(
 
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
-		if change.ResourceType != "api_implementation" || change.Action != planner.ActionCreate {
+		if change.ResourceType != planner.ResourceTypeAPIImplementation || change.Action != planner.ActionCreate {
 			continue
 		}
 
-		serviceValue, ok := change.Fields["service"]
+		serviceValue, ok := change.Fields[planner.FieldService]
 		if !ok {
 			continue
 		}
@@ -478,15 +478,15 @@ func (e *Executor) updateGatewayServiceReferences(
 			continue
 		}
 
-		if !matchesGatewayServiceRef(serviceMap["id"], gatewayRef) {
+		if !matchesGatewayServiceRef(serviceMap[planner.FieldID], gatewayRef) {
 			continue
 		}
 
-		serviceMap["id"] = serviceID
+		serviceMap[planner.FieldID] = serviceID
 		if strings.TrimSpace(controlPlaneID) != "" {
-			serviceMap["control_plane_id"] = controlPlaneID
+			serviceMap[planner.FieldControlPlaneID] = controlPlaneID
 		}
-		change.Fields["service"] = serviceMap
+		change.Fields[planner.FieldService] = serviceMap
 	}
 }
 
@@ -511,7 +511,7 @@ func controlPlaneNameFromPlan(plan *planner.Plan, cpRef string) string {
 		if change.ResourceType != "control_plane" || change.ResourceRef != cpRef {
 			continue
 		}
-		if name, ok := change.Fields["name"].(string); ok && strings.TrimSpace(name) != "" {
+		if name, ok := change.Fields[planner.FieldName].(string); ok && strings.TrimSpace(name) != "" {
 			return name
 		}
 	}
@@ -544,7 +544,7 @@ func gatewayRefMatches(fields map[string]any, gatewayRef string) bool {
 		return false
 	}
 
-	svcValue, ok := fields["service"]
+	svcValue, ok := fields[planner.FieldService]
 	if !ok {
 		return false
 	}
@@ -554,7 +554,7 @@ func gatewayRefMatches(fields map[string]any, gatewayRef string) bool {
 		return false
 	}
 
-	idValue, ok := svcMap["id"].(string)
+	idValue, ok := svcMap[planner.FieldID].(string)
 	if !ok || strings.TrimSpace(idValue) == "" {
 		return false
 	}

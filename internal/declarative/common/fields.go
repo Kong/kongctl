@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
@@ -56,7 +57,7 @@ func MapOptionalSliceField(target *[]string, source map[string]any, key string) 
 
 // ExtractResourceName extracts the resource name from fields map
 func ExtractResourceName(fields map[string]any) string {
-	if name, ok := fields["name"].(string); ok {
+	if name, ok := fields[planner.FieldName].(string); ok {
 		return name
 	}
 	return resources.UnknownReferenceID
@@ -64,7 +65,7 @@ func ExtractResourceName(fields map[string]any) string {
 
 // ExtractResourceID extracts the resource ID from fields map
 func ExtractResourceID(fields map[string]any) string {
-	if id, ok := fields["id"].(string); ok {
+	if id, ok := fields[planner.FieldID].(string); ok {
 		return id
 	}
 	return ""

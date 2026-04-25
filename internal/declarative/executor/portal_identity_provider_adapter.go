@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -23,21 +24,21 @@ func NewPortalIdentityProviderAdapter(client *state.Client) *PortalIdentityProvi
 func (p *PortalIdentityProviderAdapter) MapCreateFields(
 	_ context.Context, _ *ExecutionContext, fields map[string]any, create *kkComps.CreateIdentityProvider,
 ) error {
-	typeName, ok := fields["type"].(string)
+	typeName, ok := fields[planner.FieldType].(string)
 	if !ok || typeName == "" {
 		return fmt.Errorf("type is required")
 	}
 	providerType := kkComps.IdentityProviderType(typeName)
 	create.Type = providerType.ToPointer()
 
-	if enabled, ok := fields["enabled"].(bool); ok {
+	if enabled, ok := fields[planner.FieldEnabled].(bool); ok {
 		create.Enabled = &enabled
 	}
-	if loginPath, ok := fields["login_path"].(string); ok {
+	if loginPath, ok := fields[planner.FieldLoginPath].(string); ok {
 		create.LoginPath = &loginPath
 	}
 
-	config, err := createIdentityProviderConfigFromField(fields["config"])
+	config, err := createIdentityProviderConfigFromField(fields[planner.FieldConfig])
 	if err != nil {
 		return err
 	}
@@ -53,13 +54,13 @@ func (p *PortalIdentityProviderAdapter) MapUpdateFields(
 	update *kkComps.UpdateIdentityProvider,
 	_ map[string]string,
 ) error {
-	if enabled, ok := fields["enabled"].(bool); ok {
+	if enabled, ok := fields[planner.FieldEnabled].(bool); ok {
 		update.Enabled = &enabled
 	}
-	if loginPath, ok := fields["login_path"].(string); ok {
+	if loginPath, ok := fields[planner.FieldLoginPath].(string); ok {
 		update.LoginPath = &loginPath
 	}
-	if rawConfig, ok := fields["config"]; ok {
+	if rawConfig, ok := fields[planner.FieldConfig]; ok {
 		config, err := createIdentityProviderConfigFromField(rawConfig)
 		if err != nil {
 			return err
@@ -157,12 +158,12 @@ func (p *PortalIdentityProviderAdapter) GetByID(
 
 // ResourceType returns the resource type name.
 func (p *PortalIdentityProviderAdapter) ResourceType() string {
-	return "portal_identity_provider"
+	return planner.ResourceTypePortalIdentityProvider
 }
 
 // RequiredFields returns the required fields for creation.
 func (p *PortalIdentityProviderAdapter) RequiredFields() []string {
-	return []string{"type", "config"}
+	return []string{planner.FieldType, planner.FieldConfig}
 }
 
 // SupportsUpdate returns true.
@@ -176,7 +177,7 @@ func (p *PortalIdentityProviderAdapter) getPortalID(execCtx *ExecutionContext) (
 	}
 
 	change := *execCtx.PlannedChange
-	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
 	if change.Parent != nil && change.Parent.ID != "" {

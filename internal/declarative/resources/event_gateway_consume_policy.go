@@ -64,7 +64,7 @@ func (e EventGatewayConsumePolicyResource) GetMoniker() string {
 func (e EventGatewayConsumePolicyResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if e.VirtualCluster != "" {
-		deps = append(deps, ResourceRef{Kind: "event_gateway_virtual_cluster", Ref: e.VirtualCluster})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeEventGatewayVirtualCluster, Ref: e.VirtualCluster})
 	}
 	return deps
 }
@@ -133,7 +133,7 @@ func (e *EventGatewayConsumePolicyResource) TryMatchKonnectResource(konnectResou
 // REQUIRED: Implement ResourceWithParent
 func (e EventGatewayConsumePolicyResource) GetParentRef() *ResourceRef {
 	if e.VirtualCluster != "" {
-		return &ResourceRef{Kind: "event_gateway_virtual_cluster", Ref: e.VirtualCluster}
+		return &ResourceRef{Kind: ResourceTypeEventGatewayVirtualCluster, Ref: e.VirtualCluster}
 	}
 	return nil
 }

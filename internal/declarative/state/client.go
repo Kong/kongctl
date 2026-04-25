@@ -16,6 +16,7 @@ import (
 	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
 	decerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/util/pagination"
@@ -517,7 +518,7 @@ func (c *Client) CreatePortal(
 	resp, err := c.portalAPI.CreatePortal(ctx, portal)
 	if err != nil {
 		return nil, WrapAPIError(err, "create portal", &ErrorWrapperOptions{
-			ResourceType: "portal",
+			ResourceType: string(resources.ResourceTypePortal),
 			ResourceName: portal.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -548,7 +549,7 @@ func (c *Client) UpdatePortal(
 
 		// Create enhanced error with context and hints
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "portal",
+			ResourceType: string(resources.ResourceTypePortal),
 			ResourceName: func() string {
 				if portal.Name != nil {
 					return *portal.Name
@@ -578,7 +579,7 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 
 		// Create enhanced error with context and hints
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "portal",
+			ResourceType: string(resources.ResourceTypePortal),
 			ResourceName: id, // Using ID since we don't have name in delete context
 			Operation:    "delete",
 			StatusCode:   statusCode,
@@ -716,7 +717,7 @@ func (c *Client) ListControlPlaneGroupMemberships(ctx context.Context, groupID s
 		resp, err := c.controlPlaneGroupsAPI.GetControlPlanesIDGroupMemberships(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list control plane group memberships", &ErrorWrapperOptions{
-				ResourceType: "control_plane_group",
+				ResourceType: string(resources.ResourceTypeControlPlaneGroup),
 				ResourceName: groupID,
 				UseEnhanced:  true,
 			})
@@ -763,7 +764,7 @@ func (c *Client) UpsertControlPlaneGroupMemberships(ctx context.Context, groupID
 
 	if _, err := c.controlPlaneGroupsAPI.PutControlPlanesIDGroupMemberships(ctx, groupID, &req); err != nil {
 		return WrapAPIError(err, "upsert control plane group memberships", &ErrorWrapperOptions{
-			ResourceType: "control_plane_group",
+			ResourceType: string(resources.ResourceTypeControlPlaneGroup),
 			ResourceName: groupID,
 			UseEnhanced:  true,
 		})
@@ -931,7 +932,7 @@ func (c *Client) CreateControlPlane(
 	resp, err := c.controlPlaneAPI.CreateControlPlane(ctx, controlPlane)
 	if err != nil {
 		return nil, WrapAPIError(err, "create control plane", &ErrorWrapperOptions{
-			ResourceType: "control_plane",
+			ResourceType: string(resources.ResourceTypeControlPlane),
 			ResourceName: controlPlane.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -961,7 +962,7 @@ func (c *Client) UpdateControlPlane(
 		statusCode := decerrors.ExtractStatusCodeFromError(err)
 
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "control_plane",
+			ResourceType: string(resources.ResourceTypeControlPlane),
 			ResourceName: func() string {
 				if controlPlane.Name != nil {
 					return *controlPlane.Name
@@ -993,7 +994,7 @@ func (c *Client) DeleteControlPlane(ctx context.Context, id string) error {
 	if err != nil {
 		statusCode := decerrors.ExtractStatusCodeFromError(err)
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "control_plane",
+			ResourceType: string(resources.ResourceTypeControlPlane),
 			ResourceName: id,
 			Operation:    "delete",
 			StatusCode:   statusCode,
@@ -1192,7 +1193,7 @@ func (c *Client) CreateAPI(
 
 		// Create enhanced error with context and hints
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "api",
+			ResourceType: string(resources.ResourceTypeAPI),
 			ResourceName: api.Name,
 			Namespace:    namespace,
 			Operation:    "create",
@@ -1352,7 +1353,7 @@ func (c *Client) CreateCatalogService(
 	resp, err := c.catalogServiceAPI.CreateCatalogService(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "create catalog service", &ErrorWrapperOptions{
-			ResourceType: "catalog_service",
+			ResourceType: string(resources.ResourceTypeCatalogService),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -1384,7 +1385,7 @@ func (c *Client) UpdateCatalogService(
 			resourceName = *req.Name
 		}
 		return nil, WrapAPIError(err, "update catalog service", &ErrorWrapperOptions{
-			ResourceType: "catalog_service",
+			ResourceType: string(resources.ResourceTypeCatalogService),
 			ResourceName: resourceName,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -2456,7 +2457,7 @@ func (c *Client) GetAuthStrategyByID(ctx context.Context, id string) (*Applicati
 	resp, err := c.appAuthAPI.GetAppAuthStrategy(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get application auth strategy by ID", &ErrorWrapperOptions{
-			ResourceType: "application_auth_strategy",
+			ResourceType: string(resources.ResourceTypeApplicationAuthStrategy),
 			UseEnhanced:  true,
 		})
 	}
@@ -2593,7 +2594,11 @@ func (c *Client) ListPortalIdentityProviders(ctx context.Context, portalID strin
 		return nil, WrapAPIError(
 			err,
 			"list portal identity providers",
-			&ErrorWrapperOptions{ResourceType: "portal_identity_provider", ResourceName: portalID, UseEnhanced: true},
+			&ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
+				ResourceName: portalID,
+				UseEnhanced:  true,
+			},
 		)
 	}
 
@@ -2624,7 +2629,11 @@ func (c *Client) GetPortalIdentityProvider(
 		return nil, WrapAPIError(
 			err,
 			"get portal identity provider",
-			&ErrorWrapperOptions{ResourceType: "portal_identity_provider", ResourceName: id, UseEnhanced: true},
+			&ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
+				ResourceName: id,
+				UseEnhanced:  true,
+			},
 		)
 	}
 	if resp == nil || resp.IdentityProvider == nil {
@@ -2653,7 +2662,7 @@ func (c *Client) CreatePortalIdentityProvider(
 			err,
 			"create portal identity provider",
 			&ErrorWrapperOptions{
-				ResourceType: "portal_identity_provider",
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
 				ResourceName: resourceName,
 				Namespace:    namespace,
 				UseEnhanced:  true,
@@ -2688,7 +2697,7 @@ func (c *Client) UpdatePortalIdentityProvider(
 			err,
 			"update portal identity provider",
 			&ErrorWrapperOptions{
-				ResourceType: "portal_identity_provider",
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
 				ResourceName: id,
 				Namespace:    namespace,
 				UseEnhanced:  true,
@@ -2709,7 +2718,11 @@ func (c *Client) DeletePortalIdentityProvider(ctx context.Context, portalID stri
 		return WrapAPIError(
 			err,
 			"delete portal identity provider",
-			&ErrorWrapperOptions{ResourceType: "portal_identity_provider", ResourceName: id, UseEnhanced: true},
+			&ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
+				ResourceName: id,
+				UseEnhanced:  true,
+			},
 		)
 	}
 	return nil
@@ -2770,7 +2783,7 @@ func (c *Client) CreatePortalEmailConfig(
 	resp, err := c.portalEmailsAPI.CreatePortalEmailConfig(ctx, portalID, body)
 	if err != nil {
 		return "", WrapAPIError(err, "create portal email config", &ErrorWrapperOptions{
-			ResourceType: "portal_email_config",
+			ResourceType: string(resources.ResourceTypePortalEmailConfig),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -2794,7 +2807,7 @@ func (c *Client) UpdatePortalEmailConfig(
 	resp, err := c.portalEmailsAPI.UpdatePortalEmailConfig(ctx, portalID, body)
 	if err != nil {
 		return "", WrapAPIError(err, "update portal email config", &ErrorWrapperOptions{
-			ResourceType: "portal_email_config",
+			ResourceType: string(resources.ResourceTypePortalEmailConfig),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -2813,7 +2826,7 @@ func (c *Client) DeletePortalEmailConfig(ctx context.Context, portalID string) e
 
 	if _, err := c.portalEmailsAPI.DeletePortalEmailConfig(ctx, portalID); err != nil {
 		return WrapAPIError(err, "delete portal email config", &ErrorWrapperOptions{
-			ResourceType: "portal_email_config",
+			ResourceType: string(resources.ResourceTypePortalEmailConfig),
 			ResourceName: portalID,
 		})
 	}
@@ -2829,7 +2842,7 @@ func (c *Client) ListPortalCustomEmailTemplates(ctx context.Context, portalID st
 	resp, err := c.portalEmailsAPI.ListPortalCustomEmailTemplates(ctx, portalID)
 	if err != nil {
 		return nil, WrapAPIError(err, "list portal email templates", &ErrorWrapperOptions{
-			ResourceType: "portal_email_template",
+			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
 			ResourceName: portalID,
 		})
 	}
@@ -2862,7 +2875,7 @@ func (c *Client) GetPortalCustomEmailTemplate(
 			return nil, nil
 		}
 		return nil, WrapAPIError(err, "get portal email template", &ErrorWrapperOptions{
-			ResourceType: "portal_email_template",
+			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
 			ResourceName: string(name),
 			UseEnhanced:  true,
 		})
@@ -2896,7 +2909,7 @@ func (c *Client) UpdatePortalEmailTemplate(
 	resp, err := c.portalEmailsAPI.UpdatePortalCustomEmailTemplate(ctx, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update portal email template", &ErrorWrapperOptions{
-			ResourceType: "portal_email_template",
+			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
 			ResourceName: string(name),
 			UseEnhanced:  true,
 		})
@@ -2921,7 +2934,7 @@ func (c *Client) DeletePortalEmailTemplate(
 
 	if _, err := c.portalEmailsAPI.DeletePortalCustomEmailTemplate(ctx, portalID, name); err != nil {
 		return WrapAPIError(err, "delete portal email template", &ErrorWrapperOptions{
-			ResourceType: "portal_email_template",
+			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
 			ResourceName: string(name),
 		})
 	}
@@ -2996,7 +3009,7 @@ func (c *Client) GetPortalAssetLogo(ctx context.Context, portalID string) (strin
 	resp, err := c.assetsAPI.GetPortalAssetLogo(ctx, portalID)
 	if err != nil {
 		return "", WrapAPIError(err, "get portal logo", &ErrorWrapperOptions{
-			ResourceType: "portal_asset_logo",
+			ResourceType: string(resources.ResourceTypePortalAssetLogo),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -3022,7 +3035,7 @@ func (c *Client) ReplacePortalAssetLogo(ctx context.Context, portalID, dataURL s
 	_, err := c.assetsAPI.ReplacePortalAssetLogo(ctx, portalID, req)
 	if err != nil {
 		return WrapAPIError(err, "replace portal logo", &ErrorWrapperOptions{
-			ResourceType: "portal_asset_logo",
+			ResourceType: string(resources.ResourceTypePortalAssetLogo),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -3040,7 +3053,7 @@ func (c *Client) GetPortalAssetFavicon(ctx context.Context, portalID string) (st
 	resp, err := c.assetsAPI.GetPortalAssetFavicon(ctx, portalID)
 	if err != nil {
 		return "", WrapAPIError(err, "get portal favicon", &ErrorWrapperOptions{
-			ResourceType: "portal_asset_favicon",
+			ResourceType: string(resources.ResourceTypePortalAssetFavicon),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -3066,7 +3079,7 @@ func (c *Client) ReplacePortalAssetFavicon(ctx context.Context, portalID, dataUR
 	_, err := c.assetsAPI.ReplacePortalAssetFavicon(ctx, portalID, req)
 	if err != nil {
 		return WrapAPIError(err, "replace portal favicon", &ErrorWrapperOptions{
-			ResourceType: "portal_asset_favicon",
+			ResourceType: string(resources.ResourceTypePortalAssetFavicon),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -3517,7 +3530,7 @@ func (c *Client) ListPortalTeams(ctx context.Context, portalID string) ([]Portal
 		resp, err := c.portalTeamAPI.ListPortalTeams(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list portal teams", &ErrorWrapperOptions{
-				ResourceType: "portal_team",
+				ResourceType: string(resources.ResourceTypePortalTeam),
 				UseEnhanced:  true,
 			})
 		}
@@ -3573,7 +3586,7 @@ func (c *Client) CreatePortalTeam(
 	resp, err := c.portalTeamAPI.CreatePortalTeam(ctx, portalID, &req)
 	if err != nil {
 		return "", WrapAPIError(err, "create portal team", &ErrorWrapperOptions{
-			ResourceType: "portal_team",
+			ResourceType: string(resources.ResourceTypePortalTeam),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3617,7 +3630,7 @@ func (c *Client) UpdatePortalTeam(
 			teamName = *req.Name
 		}
 		return WrapAPIError(err, "update portal team", &ErrorWrapperOptions{
-			ResourceType: "portal_team",
+			ResourceType: string(resources.ResourceTypePortalTeam),
 			ResourceName: teamName,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3636,7 +3649,7 @@ func (c *Client) DeletePortalTeam(ctx context.Context, portalID string, teamID s
 	_, err := c.portalTeamAPI.DeletePortalTeam(ctx, teamID, portalID)
 	if err != nil {
 		return WrapAPIError(err, "delete portal team", &ErrorWrapperOptions{
-			ResourceType: "portal_team",
+			ResourceType: string(resources.ResourceTypePortalTeam),
 			UseEnhanced:  true,
 		})
 	}
@@ -3660,7 +3673,7 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 		resp, err := c.portalTeamRolesAPI.ListPortalTeamRoles(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list portal team roles", &ErrorWrapperOptions{
-				ResourceType: "portal_team_role",
+				ResourceType: string(resources.ResourceTypePortalTeamRole),
 				UseEnhanced:  true,
 			})
 		}
@@ -3713,7 +3726,7 @@ func (c *Client) AssignPortalTeamRole(
 	if err != nil {
 		roleName := req.RoleName
 		return "", WrapAPIError(err, "assign portal team role", &ErrorWrapperOptions{
-			ResourceType: "portal_team_role",
+			ResourceType: string(resources.ResourceTypePortalTeamRole),
 			ResourceName: roleName,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3742,7 +3755,7 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 	_, err := c.portalTeamRolesAPI.RemoveRoleFromPortalTeam(ctx, removeReq)
 	if err != nil {
 		return WrapAPIError(err, "remove portal team role", &ErrorWrapperOptions{
-			ResourceType: "portal_team_role",
+			ResourceType: string(resources.ResourceTypePortalTeamRole),
 			UseEnhanced:  true,
 		})
 	}
@@ -3812,7 +3825,7 @@ func (c *Client) CreateEventGatewayControlPlane(
 	resp, err := c.egwControlPlaneAPI.CreateEGWControlPlane(ctx, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway control plane", &ErrorWrapperOptions{
-			ResourceType: "event_gateway",
+			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 			ResourceName: "", // Adjust based on SDK
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3835,7 +3848,7 @@ func (c *Client) UpdateEventGatewayControlPlane(
 	resp, err := c.egwControlPlaneAPI.UpdateEGWControlPlane(ctx, id, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway control plane", &ErrorWrapperOptions{
-			ResourceType: "event_gateway",
+			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 			ResourceName: "", // Adjust based on SDK
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3849,7 +3862,7 @@ func (c *Client) GetEventGatewayControlPlaneByID(ctx context.Context, id string)
 	resp, err := c.egwControlPlaneAPI.FetchEGWControlPlane(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway control plane by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway",
+			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 			ResourceName: "", // Adjust based on SDK
 			UseEnhanced:  true,
 		})
@@ -3880,7 +3893,7 @@ func (c *Client) GetEventGatewayControlPlaneByName(
 	gateways, err := c.ListManagedEventGatewayControlPlanes(ctx, []string{"*"})
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateways to find by name", &ErrorWrapperOptions{
-			ResourceType: "event_gateway",
+			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 			ResourceName: name,
 			UseEnhanced:  true,
 		})
@@ -3970,7 +3983,7 @@ func (c *Client) CreateEventGatewayBackendCluster(
 	resp, err := c.eventGatewayBackendClusterAPI.CreateEventGatewayBackendCluster(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway backend cluster", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_backend_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3992,7 +4005,7 @@ func (c *Client) GetEventGatewayBackendCluster(
 	resp, err := c.eventGatewayBackendClusterAPI.FetchEventGatewayBackendCluster(ctx, gatewayID, clusterID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway backend cluster by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_backend_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
 			UseEnhanced:  true,
 		})
 	}
@@ -4022,7 +4035,7 @@ func (c *Client) GetEventGatewayBackendClusterByName(
 	backendClusters, err := c.ListEventGatewayBackendClusters(ctx, gatewayID)
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateway backend clusters to find by name", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_backend_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
 			ResourceName: name,
 			UseEnhanced:  true,
 		})
@@ -4047,7 +4060,7 @@ func (c *Client) UpdateEventGatewayBackendCluster(
 	resp, err := c.eventGatewayBackendClusterAPI.UpdateEventGatewayBackendCluster(ctx, gatewayID, clusterID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway backend cluster", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_backend_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4136,7 +4149,7 @@ func (c *Client) GetOrganizationTeamByID(ctx context.Context, id string) (*Organ
 	resp, err := c.organizationTeamAPI.GetOrganizationTeam(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get team by ID", &ErrorWrapperOptions{
-			ResourceType: "team",
+			ResourceType: string(resources.ResourceTypeTeam),
 			ResourceName: "",
 			UseEnhanced:  true,
 		})
@@ -4165,7 +4178,7 @@ func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.Creat
 	resp, err := c.organizationTeamAPI.CreateOrganizationTeam(ctx, team)
 	if err != nil {
 		return "", WrapAPIError(err, "create organization team", &ErrorWrapperOptions{
-			ResourceType: "organization_team",
+			ResourceType: string(resources.ResourceTypeOrganizationTeam),
 			ResourceName: team.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4189,7 +4202,7 @@ func (c *Client) UpdateOrganizationTeam(ctx context.Context, teamID string,
 	resp, err := c.organizationTeamAPI.UpdateOrganizationTeam(ctx, teamID, team)
 	if err != nil {
 		return "", WrapAPIError(err, "update organization team", &ErrorWrapperOptions{
-			ResourceType: "organization_team",
+			ResourceType: string(resources.ResourceTypeOrganizationTeam),
 			ResourceName: getString(team.Name),
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4211,7 +4224,7 @@ func (c *Client) DeleteOrganizationTeam(ctx context.Context, teamID string) erro
 	_, err := c.organizationTeamAPI.DeleteOrganizationTeam(ctx, teamID)
 	if err != nil {
 		return WrapAPIError(err, "delete organization team", &ErrorWrapperOptions{
-			ResourceType: "organization_team",
+			ResourceType: string(resources.ResourceTypeOrganizationTeam),
 			ResourceName: teamID,
 			UseEnhanced:  true,
 		})
@@ -4311,7 +4324,7 @@ func (c *Client) CreateEventGatewayVirtualCluster(
 	resp, err := c.eventGatewayVirtualClusterAPI.CreateEventGatewayVirtualCluster(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway virtual cluster", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4333,7 +4346,7 @@ func (c *Client) GetEventGatewayVirtualCluster(
 	resp, err := c.eventGatewayVirtualClusterAPI.FetchEventGatewayVirtualCluster(ctx, gatewayID, clusterID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway virtual cluster by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
 			UseEnhanced:  true,
 		})
 	}
@@ -4386,7 +4399,7 @@ func (c *Client) UpdateEventGatewayVirtualCluster(
 	resp, err := c.eventGatewayVirtualClusterAPI.UpdateEventGatewayVirtualCluster(ctx, gatewayID, clusterID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway virtual cluster", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4476,7 +4489,7 @@ func (c *Client) CreateEventGatewayListener(
 	resp, err := c.eventGatewayListenerAPI.CreateEventGatewayListener(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway listener", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener",
+			ResourceType: string(resources.ResourceTypeEventGatewayListener),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4498,7 +4511,7 @@ func (c *Client) GetEventGatewayListener(
 	resp, err := c.eventGatewayListenerAPI.FetchEventGatewayListener(ctx, gatewayID, listenerID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway listener by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener",
+			ResourceType: string(resources.ResourceTypeEventGatewayListener),
 			UseEnhanced:  true,
 		})
 	}
@@ -4531,7 +4544,7 @@ func (c *Client) UpdateEventGatewayListener(
 	resp, err := c.eventGatewayListenerAPI.UpdateEventGatewayListener(ctx, gatewayID, listenerID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway listener", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener",
+			ResourceType: string(resources.ResourceTypeEventGatewayListener),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4649,7 +4662,7 @@ func (c *Client) CreateEventGatewayListenerPolicy(
 	resp, err := c.eventGatewayListenerPolicyAPI.CreateEventGatewayListenerPolicy(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway listener policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayListenerPolicy),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -4680,7 +4693,7 @@ func (c *Client) UpdateEventGatewayListenerPolicy(
 	resp, err := c.eventGatewayListenerPolicyAPI.UpdateEventGatewayListenerPolicy(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway listener policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayListenerPolicy),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -4834,7 +4847,7 @@ func (c *Client) CreateEventGatewayClusterPolicy(
 	resp, err := c.eventGatewayClusterPolicyAPI.CreateEventGatewayVirtualClusterClusterLevelPolicy(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway cluster policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster_cluster_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayClusterPolicy),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -4865,7 +4878,7 @@ func (c *Client) UpdateEventGatewayClusterPolicy(
 	resp, err := c.eventGatewayClusterPolicyAPI.UpdateEventGatewayVirtualClusterClusterLevelPolicy(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway cluster policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster_cluster_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayClusterPolicy),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -5008,7 +5021,7 @@ func (c *Client) CreateEventGatewayVirtualClusterProducePolicy(
 	if err != nil {
 		name := extractProducePolicyCreateName(req)
 		return "", WrapAPIError(err, "create event gateway virtual cluster produce policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster_produce_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayProducePolicy),
 			ResourceName: name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -5043,7 +5056,7 @@ func (c *Client) UpdateEventGatewayVirtualClusterProducePolicy(
 	if err != nil {
 		name := extractProducePolicyUpdateName(req)
 		return "", WrapAPIError(err, "update event gateway virtual cluster produce policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster_produce_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayProducePolicy),
 			ResourceName: name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -5226,7 +5239,7 @@ func (c *Client) CreateEventGatewayConsumePolicy(
 	resp, err := c.eventGatewayConsumePolicyAPI.CreateEventGatewayVirtualClusterConsumePolicy(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway consume policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster_consume_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -5257,7 +5270,7 @@ func (c *Client) UpdateEventGatewayConsumePolicy(
 	resp, err := c.eventGatewayConsumePolicyAPI.UpdateEventGatewayVirtualClusterConsumePolicy(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway consume policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster_consume_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -5390,7 +5403,7 @@ func (c *Client) CreateEventGatewayDataPlaneCertificate(
 			name = *req.Name
 		}
 		return "", WrapAPIError(err, "create event gateway data plane certificate", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_data_plane_certificate",
+			ResourceType: string(resources.ResourceTypeEventGatewayDataPlaneCertificate),
 			ResourceName: name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -5414,7 +5427,7 @@ func (c *Client) GetEventGatewayDataPlaneCertificate(
 		ctx, gatewayID, certificateID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway data plane certificate by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_data_plane_certificate",
+			ResourceType: string(resources.ResourceTypeEventGatewayDataPlaneCertificate),
 			UseEnhanced:  true,
 		})
 	}
@@ -5443,7 +5456,7 @@ func (c *Client) UpdateEventGatewayDataPlaneCertificate(
 			name = *req.Name
 		}
 		return "", WrapAPIError(err, "update event gateway data plane certificate", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_data_plane_certificate",
+			ResourceType: string(resources.ResourceTypeEventGatewayDataPlaneCertificate),
 			ResourceName: name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -5730,7 +5743,7 @@ func (c *Client) CreateEventGatewayStaticKey(
 	resp, err := c.eventGatewayStaticKeyAPI.CreateEventGatewayStaticKey(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway static key", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_static_key",
+			ResourceType: string(resources.ResourceTypeEventGatewayStaticKey),
 			ResourceName: req.Name,
 			UseEnhanced:  true,
 		})
@@ -5761,7 +5774,7 @@ func (c *Client) GetEventGatewayStaticKey(
 	resp, err := c.eventGatewayStaticKeyAPI.GetEventGatewayStaticKey(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway static key", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_static_key",
+			ResourceType: string(resources.ResourceTypeEventGatewayStaticKey),
 			UseEnhanced:  true,
 		})
 	}
@@ -5876,7 +5889,7 @@ func (c *Client) CreateEventGatewayTLSTrustBundle(
 	resp, err := c.eventGatewayTLSTrustBundleAPI.CreateEventGatewayTLSTrustBundle(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway TLS trust bundle", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_tls_trust_bundle",
+			ResourceType: string(resources.ResourceTypeEventGatewayTLSTrustBundle),
 			ResourceName: req.Name,
 			UseEnhanced:  true,
 		})
@@ -5907,7 +5920,7 @@ func (c *Client) GetEventGatewayTLSTrustBundle(
 	resp, err := c.eventGatewayTLSTrustBundleAPI.GetEventGatewayTLSTrustBundle(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway TLS trust bundle", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_tls_trust_bundle",
+			ResourceType: string(resources.ResourceTypeEventGatewayTLSTrustBundle),
 			UseEnhanced:  true,
 		})
 	}
@@ -5943,7 +5956,7 @@ func (c *Client) UpdateEventGatewayTLSTrustBundle(
 	resp, err := c.eventGatewayTLSTrustBundleAPI.UpdateEventGatewayTLSTrustBundle(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway TLS trust bundle", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_tls_trust_bundle",
+			ResourceType: string(resources.ResourceTypeEventGatewayTLSTrustBundle),
 			UseEnhanced:  true,
 		})
 	}

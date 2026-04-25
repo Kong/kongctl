@@ -27,14 +27,14 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 	create *kkComps.CreateBackendClusterRequest,
 ) error {
 	// Required fields
-	name, ok := fields["name"].(string)
+	name, ok := fields[planner.FieldName].(string)
 	if !ok {
 		return fmt.Errorf("name is required")
 	}
 	create.Name = name
 
 	// Authentication (required)
-	authField, ok := fields["authentication"]
+	authField, ok := fields[planner.FieldAuthentication]
 	if !ok {
 		return fmt.Errorf("authentication is required")
 	}
@@ -46,7 +46,7 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 	create.Authentication = auth
 
 	// Bootstrap servers (required)
-	if servers, ok := fields["bootstrap_servers"].([]any); ok {
+	if servers, ok := fields[planner.FieldBootstrapServers].([]any); ok {
 		create.BootstrapServers = make([]string, len(servers))
 		for i, srv := range servers {
 			if srvStr, ok := srv.(string); ok {
@@ -55,19 +55,19 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 				return fmt.Errorf("bootstrap_servers must be a list of strings")
 			}
 		}
-	} else if servers, ok := fields["bootstrap_servers"].([]string); ok {
+	} else if servers, ok := fields[planner.FieldBootstrapServers].([]string); ok {
 		create.BootstrapServers = servers
 	} else {
 		return fmt.Errorf("bootstrap_servers is required")
 	}
 
 	// TLS (required)
-	if tls, ok := fields["tls"]; ok {
+	if tls, ok := fields[planner.FieldTLS]; ok {
 		if tlsSdkType, ok := tls.(kkComps.BackendClusterTLS); ok {
 			create.TLS = tlsSdkType
 		} else if tlsMap, ok := tls.(map[string]any); ok {
 			var backendTLS kkComps.BackendClusterTLS
-			if enabled, ok := tlsMap["enabled"].(bool); ok {
+			if enabled, ok := tlsMap[planner.FieldEnabled].(bool); ok {
 				backendTLS.Enabled = enabled
 			} else {
 				return fmt.Errorf("tls.enabled is required and must be a boolean")
@@ -101,11 +101,11 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 	}
 
 	// Optional fields
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		create.Description = &desc
 	}
 
-	if insecure, ok := fields["insecure_allow_anonymous_virtual_cluster_auth"].(bool); ok {
+	if insecure, ok := fields[planner.FieldInsecureAllowAnonymousVirtualClusterAuth].(bool); ok {
 		create.InsecureAllowAnonymousVirtualClusterAuth = &insecure
 	}
 
@@ -131,17 +131,17 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	_ map[string]string,
 ) error {
 	// Only include changed fields
-	if name, ok := fields["name"].(string); ok {
+	if name, ok := fields[planner.FieldName].(string); ok {
 		update.Name = name
 	}
 
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		update.Description = &desc
 	}
 
 	// Note: Authentication type differs between create and update in SDK
 	// Convert from BackendClusterAuthenticationScheme to BackendClusterAuthenticationSensitiveDataAwareScheme
-	if authField, ok := fields["authentication"]; ok {
+	if authField, ok := fields[planner.FieldAuthentication]; ok {
 		auth, err := buildAuthenticationScheme(authField)
 		if err != nil {
 			return fmt.Errorf("failed to build authentication: %w", err)
@@ -155,7 +155,7 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	}
 
 	// Handle bootstrap_servers as []interface{} or []string
-	if servers, ok := fields["bootstrap_servers"].([]any); ok {
+	if servers, ok := fields[planner.FieldBootstrapServers].([]any); ok {
 		update.BootstrapServers = make([]string, len(servers))
 		for i, srv := range servers {
 			if srvStr, ok := srv.(string); ok {
@@ -164,16 +164,16 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 				return fmt.Errorf("bootstrap_servers must be a list of strings")
 			}
 		}
-	} else if servers, ok := fields["bootstrap_servers"].([]string); ok {
+	} else if servers, ok := fields[planner.FieldBootstrapServers].([]string); ok {
 		update.BootstrapServers = servers
 	}
 
 	// Handle TLS as SDK type or map[string]any
-	if tls, ok := fields["tls"].(kkComps.BackendClusterTLS); ok {
+	if tls, ok := fields[planner.FieldTLS].(kkComps.BackendClusterTLS); ok {
 		update.TLS = tls
-	} else if tlsMap, ok := fields["tls"].(map[string]any); ok {
+	} else if tlsMap, ok := fields[planner.FieldTLS].(map[string]any); ok {
 		var backendTLS kkComps.BackendClusterTLS
-		if enabled, ok := tlsMap["enabled"].(bool); ok {
+		if enabled, ok := tlsMap[planner.FieldEnabled].(bool); ok {
 			backendTLS.Enabled = enabled
 		}
 		if insecure, ok := tlsMap["insecure_skip_verify"].(bool); ok {
@@ -195,7 +195,7 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 		update.TLS = backendTLS
 	}
 
-	if insecure, ok := fields["insecure_allow_anonymous_virtual_cluster_auth"].(bool); ok {
+	if insecure, ok := fields[planner.FieldInsecureAllowAnonymousVirtualClusterAuth].(bool); ok {
 		update.InsecureAllowAnonymousVirtualClusterAuth = &insecure
 	}
 
@@ -239,7 +239,7 @@ func extractInt64Field(fields map[string]any, key string) *int64 {
 
 // extractLabelsField extracts labels from fields, handling various map types
 func extractLabelsField(fields map[string]any) map[string]string {
-	val, ok := fields["labels"]
+	val, ok := fields[planner.FieldLabels]
 	if !ok {
 		return nil
 	}
@@ -277,7 +277,7 @@ func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticat
 			fmt.Errorf("authentication must be an object, got %T", authField)
 	}
 
-	authType, ok := authMap["type"].(string)
+	authType, ok := authMap[planner.FieldType].(string)
 	if !ok {
 		return kkComps.BackendClusterAuthenticationScheme{},
 			fmt.Errorf("authentication.type is required and must be a string")
@@ -470,7 +470,7 @@ func (a *EventGatewayBackendClusterAdapter) ResourceType() string {
 
 // RequiredFields returns the list of required fields for this resource
 func (a *EventGatewayBackendClusterAdapter) RequiredFields() []string {
-	return []string{"name", "authentication", "bootstrap_servers", "tls"}
+	return []string{planner.FieldName, planner.FieldAuthentication, planner.FieldBootstrapServers, planner.FieldTLS}
 }
 
 // SupportsUpdate indicates whether this resource supports update operations
@@ -489,7 +489,7 @@ func (a *EventGatewayBackendClusterAdapter) getEventGatewayIDFromExecutionContex
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for new parent)
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		return gatewayRef.ID, nil
 	}
 

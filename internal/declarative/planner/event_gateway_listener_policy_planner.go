@@ -215,15 +215,15 @@ func (p *Planner) planListenerPolicyCreate(
 
 	// Both gateway and listener references are needed for the grandchild pattern
 	change.References = map[string]ReferenceInfo{
-		"event_gateway_id": {
+		FieldEventGatewayID: {
 			Ref: gatewayRef,
 			ID:  gatewayID, // may be empty if gateway doesn't exist yet
 		},
-		"event_gateway_listener_id": {
+		FieldEventGatewayListenerID: {
 			Ref: listenerRef,
 			ID:  listenerID, // may be empty if listener doesn't exist yet
 			LookupFields: map[string]string{
-				"name": listenerName,
+				FieldName: listenerName,
 			},
 		},
 	}
@@ -271,11 +271,11 @@ func (p *Planner) planListenerPolicyUpdate(
 			ID:  listenerID,
 		},
 		References: map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  gatewayID,
 			},
-			"event_gateway_listener_id": {
+			FieldEventGatewayListenerID: {
 				Ref: listenerRef,
 				ID:  listenerID,
 			},
@@ -314,11 +314,11 @@ func (p *Planner) planListenerPolicyDelete(
 			ID:  listenerID,
 		},
 		References: map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  gatewayID,
 			},
-			"event_gateway_listener_id": {
+			FieldEventGatewayListenerID: {
 				Ref: listenerRef,
 				ID:  listenerID,
 			},
@@ -350,7 +350,7 @@ func (p *Planner) listenerPolicyToFields(policy resources.EventGatewayListenerPo
 
 	// Add labels from the union variant if present
 	if labels := p.extractListenerPolicyLabels(policy); labels != nil {
-		fields["labels"] = labels
+		fields[FieldLabels] = labels
 	}
 
 	return fields
@@ -385,7 +385,7 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	}
 	if currentName != desiredName {
 		needsUpdate = true
-		changes["name"] = FieldChange{
+		changes[FieldName] = FieldChange{
 			Old: currentName,
 			New: desiredName,
 		}
@@ -399,7 +399,7 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	desiredDesc := p.getListenerPolicyDescription(desired)
 	if currentDesc != desiredDesc {
 		needsUpdate = true
-		changes["description"] = FieldChange{
+		changes[FieldDescription] = FieldChange{
 			Old: currentDesc,
 			New: desiredDesc,
 		}
@@ -413,7 +413,7 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	desiredEnabled := p.getListenerPolicyEnabled(desired)
 	if currentEnabled != desiredEnabled {
 		needsUpdate = true
-		changes["enabled"] = FieldChange{
+		changes[FieldEnabled] = FieldChange{
 			Old: currentEnabled,
 			New: desiredEnabled,
 		}
@@ -424,14 +424,14 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	if desiredLabels != nil {
 		if !compareMaps(current.Labels, desiredLabels) {
 			needsUpdate = true
-			changes["labels"] = FieldChange{
+			changes[FieldLabels] = FieldChange{
 				Old: current.Labels,
 				New: desiredLabels,
 			}
 		}
 	} else if len(current.Labels) > 0 {
 		needsUpdate = true
-		changes["labels"] = FieldChange{
+		changes[FieldLabels] = FieldChange{
 			Old: current.Labels,
 			New: map[string]string{},
 		}
@@ -440,9 +440,9 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	// Compare config based on policy type
 	if p.listenerPolicyConfigNeedsUpdate(current, desired) {
 		needsUpdate = true
-		changes["config"] = FieldChange{
+		changes[FieldConfig] = FieldChange{
 			Old: current.RawConfig,
-			New: p.listenerPolicyToFields(desired)["config"],
+			New: p.listenerPolicyToFields(desired)[FieldConfig],
 		}
 	}
 
@@ -450,8 +450,8 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	if needsUpdate {
 		updateFields := p.listenerPolicyToFields(desired)
 		if current.Type != "" {
-			if desiredType, ok := updateFields["type"].(string); ok && desiredType != current.Type {
-				changes["type"] = FieldChange{
+			if desiredType, ok := updateFields[FieldType].(string); ok && desiredType != current.Type {
+				changes[FieldType] = FieldChange{
 					Old: current.Type,
 					New: desiredType,
 				}
@@ -751,7 +751,7 @@ func getBoolFromNestedMap(m map[string]any, keys ...string) bool {
 // and adds the appropriate reference to the change for runtime resolution.
 func (p *Planner) addVirtualClusterReference(change *PlannedChange, fields map[string]any) {
 	// Check if the policy has a config.destination.id that is a ref placeholder
-	config, hasConfig := fields["config"]
+	config, hasConfig := fields[FieldConfig]
 	if !hasConfig {
 		return
 	}
@@ -761,7 +761,7 @@ func (p *Planner) addVirtualClusterReference(change *PlannedChange, fields map[s
 		return
 	}
 
-	destination, hasDestination := configMap["destination"]
+	destination, hasDestination := configMap[FieldDestination]
 	if !hasDestination {
 		return
 	}
@@ -772,7 +772,7 @@ func (p *Planner) addVirtualClusterReference(change *PlannedChange, fields map[s
 	}
 
 	// Check for id field with ref placeholder
-	id, hasID := destMap["id"]
+	id, hasID := destMap[FieldID]
 	if !hasID {
 		return
 	}
@@ -796,10 +796,10 @@ func (p *Planner) addVirtualClusterReference(change *PlannedChange, fields map[s
 		"virtual_cluster_name", virtualClusterName,
 	)
 
-	change.References["event_gateway_virtual_cluster_id"] = ReferenceInfo{
+	change.References[FieldEventGatewayVirtualClusterID] = ReferenceInfo{
 		Ref: idStr,
 		LookupFields: map[string]string{
-			"name": virtualClusterName,
+			FieldName: virtualClusterName,
 		},
 	}
 }

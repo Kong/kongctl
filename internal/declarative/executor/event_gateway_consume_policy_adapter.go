@@ -154,7 +154,7 @@ func (a *EventGatewayConsumePolicyAdapter) ResourceType() string {
 // For union types, the required fields depend on which variant is set,
 // so validation is delegated to the SDK type.
 func (a *EventGatewayConsumePolicyAdapter) RequiredFields() []string {
-	return []string{"type"}
+	return []string{planner.FieldType}
 }
 
 // SupportsUpdate indicates whether this resource supports update operations
@@ -165,8 +165,8 @@ func (a *EventGatewayConsumePolicyAdapter) SupportsUpdate() bool {
 // getGatewayAndVirtualClusterIDs extracts both the event gateway ID and virtual cluster ID
 // from the execution context.
 // Consume policies are grandchildren and require both parent IDs.
-// The virtual cluster ID comes from Parent or References["event_gateway_virtual_cluster_id"].
-// The gateway ID comes from References["event_gateway_id"].
+// The virtual cluster ID comes from Parent or References[planner.FieldEventGatewayVirtualClusterID].
+// The gateway ID comes from References[planner.FieldEventGatewayID].
 func (a *EventGatewayConsumePolicyAdapter) getGatewayAndVirtualClusterIDs(
 	execCtx *ExecutionContext,
 ) (string, string, error) {
@@ -179,7 +179,7 @@ func (a *EventGatewayConsumePolicyAdapter) getGatewayAndVirtualClusterIDs(
 	var gatewayID, virtualClusterID string
 
 	// Resolve virtual cluster ID: Priority 1 = References, Priority 2 = Parent
-	if vcRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && vcRef.ID != "" {
+	if vcRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok && vcRef.ID != "" {
 		virtualClusterID = vcRef.ID
 	}
 	if virtualClusterID == "" && change.Parent != nil && change.Parent.ID != "" {
@@ -190,7 +190,7 @@ func (a *EventGatewayConsumePolicyAdapter) getGatewayAndVirtualClusterIDs(
 	}
 
 	// Resolve gateway ID from References
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		gatewayID = gatewayRef.ID
 	}
 	if gatewayID == "" {

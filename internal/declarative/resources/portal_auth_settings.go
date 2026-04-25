@@ -68,7 +68,7 @@ func (a PortalAuthSettingsResource) GetParentRef() *ResourceRef {
 	if a.Portal == "" {
 		return nil
 	}
-	return &ResourceRef{Kind: string(ResourceTypePortal), Ref: a.Portal}
+	return &ResourceRef{Kind: ResourceTypePortal, Ref: a.Portal}
 }
 
 // UnmarshalJSON rejects kongctl metadata on child resources.

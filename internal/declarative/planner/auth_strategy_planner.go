@@ -86,7 +86,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection("auth_strategy", name, isProtected, ActionDelete)
+			err := p.ValidateProtection(ResourceTypeApplicationAuthStrategy, name, isProtected, ActionDelete)
 			protectionErrors.Add(err)
 			if err == nil {
 				p.planAuthStrategyDelete(current, plan)
@@ -145,7 +145,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 				}
 
 				// Validate protection change
-				err := p.ValidateProtectionWithChange("auth_strategy", name, isProtected, ActionUpdate,
+				err := p.ValidateProtectionWithChange(ResourceTypeApplicationAuthStrategy, name, isProtected, ActionUpdate,
 					protectionChange, needsUpdate)
 				protectionErrors.Add(err)
 				if err == nil {
@@ -161,7 +161,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 						protectionErrors.Add(fmt.Errorf("%s", errMsg))
 					} else {
 						// Regular update - check protection
-						err := p.ValidateProtection("auth_strategy", name, isProtected, ActionUpdate)
+						err := p.ValidateProtection(ResourceTypeApplicationAuthStrategy, name, isProtected, ActionUpdate)
 						protectionErrors.Add(err)
 						if err == nil {
 							p.planAuthStrategyUpdateWithFields(current, desiredStrategy, updateFields, changedFields, plan)
@@ -198,7 +198,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			if !desiredNames[name] {
 				// Validate protection before adding DELETE
 				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				err := p.ValidateProtection("auth_strategy", name, isProtected, ActionDelete)
+				err := p.ValidateProtection(ResourceTypeApplicationAuthStrategy, name, isProtected, ActionDelete)
 				protectionErrors.Add(err)
 				if err == nil {
 					p.planAuthStrategyDelete(current, plan)
@@ -235,7 +235,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			labels = strategy.AppAuthStrategyKeyAuthRequest.Labels
 
 			// Set strategy type
-			fields["strategy_type"] = "key_auth"
+			fields[FieldAuthStrategyType] = "key_auth"
 
 			// Set config under configs map
 			keyAuthConfig := make(map[string]any)
@@ -243,7 +243,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 				keyAuthConfig["key_names"] = strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
 			}
 
-			fields["configs"] = map[string]any{
+			fields[FieldConfigs] = map[string]any{
 				"key-auth": keyAuthConfig,
 			}
 		}
@@ -254,12 +254,12 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			labels = strategy.AppAuthStrategyOpenIDConnectRequest.Labels
 
 			// Set strategy type
-			fields["strategy_type"] = "openid_connect"
+			fields[FieldAuthStrategyType] = "openid_connect"
 
 			// Set config under configs map
 			oidcConfig := make(map[string]any)
 			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer != "" {
-				oidcConfig["issuer"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer
+				oidcConfig[FieldDCRProviderIssuer] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer
 			}
 			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim != nil {
 				oidcConfig["credential_claim"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim
@@ -271,7 +271,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 				oidcConfig["auth_methods"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods
 			}
 
-			fields["configs"] = map[string]any{
+			fields[FieldConfigs] = map[string]any{
 				"openid-connect": oidcConfig,
 			}
 			if providerID := strategy.GetDCRProviderID(); providerID != "" {
@@ -282,14 +282,14 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 
 	kongctl = strategy.Kongctl
 
-	fields["name"] = name
+	fields[FieldName] = name
 	if displayName != "" {
-		fields["display_name"] = displayName
+		fields[FieldDisplayName] = displayName
 	}
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionCreate, "application_auth_strategy", strategy.GetRef()),
-		ResourceType: "application_auth_strategy",
+		ID:           p.NextChangeID(ActionCreate, ResourceTypeApplicationAuthStrategy, strategy.GetRef()),
+		ResourceType: ResourceTypeApplicationAuthStrategy,
 		ResourceRef:  strategy.GetRef(),
 		Action:       ActionCreate,
 		Fields:       fields,
@@ -315,7 +315,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 		for k, v := range labels {
 			labelsMap[k] = v
 		}
-		fields["labels"] = labelsMap
+		fields[FieldLabels] = labelsMap
 	}
 
 	plan.AddChange(change)
@@ -366,8 +366,8 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 	// Only compare fields present in desired configuration
 	if displayName != "" {
 		if current.DisplayName != displayName {
-			updateFields["display_name"] = displayName
-			changedFields["display_name"] = FieldChange{
+			updateFields[FieldDisplayName] = displayName
+			changedFields[FieldDisplayName] = FieldChange{
 				Old: current.DisplayName,
 				New: displayName,
 			}
@@ -416,8 +416,8 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 							"key_names": desiredKeyNames,
 						},
 					}
-					updateFields["configs"] = newConfigs
-					changedFields["configs"] = FieldChange{
+					updateFields[FieldConfigs] = newConfigs
+					changedFields[FieldConfigs] = FieldChange{
 						Old: map[string]any{
 							"key-auth": map[string]any{
 								"key_names": currentKeyNames,
@@ -447,10 +447,10 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 
 			// Check issuer
 			if oidcConfig.Issuer != "" {
-				currentIssuer, _ := currentOIDC["issuer"].(string)
+				currentIssuer, _ := currentOIDC[FieldDCRProviderIssuer].(string)
 				if currentIssuer != oidcConfig.Issuer {
-					oidcUpdates["issuer"] = oidcConfig.Issuer
-					oidcOldValues["issuer"] = currentIssuer
+					oidcUpdates[FieldDCRProviderIssuer] = oidcConfig.Issuer
+					oidcOldValues[FieldDCRProviderIssuer] = currentIssuer
 					hasUpdates = true
 				}
 			}
@@ -489,8 +489,8 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 				newConfigs := map[string]any{
 					"openid-connect": oidcUpdates,
 				}
-				updateFields["configs"] = newConfigs
-				changedFields["configs"] = FieldChange{
+				updateFields[FieldConfigs] = newConfigs
+				changedFields[FieldConfigs] = FieldChange{
 					Old: map[string]any{
 						"openid-connect": oidcOldValues,
 					},
@@ -517,8 +517,8 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 		// Compare only user labels to determine if update is needed
 		if labels.CompareUserLabels(current.NormalizedLabels, desiredLabels) {
 			// User labels differ, include all labels in update
-			updateFields["labels"] = desiredLabels
-			changedFields["labels"] = FieldChange{
+			updateFields[FieldLabels] = desiredLabels
+			changedFields[FieldLabels] = FieldChange{
 				Old: labels.GetUserLabels(current.NormalizedLabels),
 				New: labels.GetUserLabels(desiredLabels),
 			}
@@ -608,13 +608,13 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 	fields[FieldStrategyType] = current.StrategyType
 
 	// Pass current labels so executor can properly handle removals
-	if _, hasLabels := updateFields["labels"]; hasLabels {
+	if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 		fields[FieldCurrentLabels] = current.NormalizedLabels
 	}
 
 	change := PlannedChange{
-		ID:            p.NextChangeID(ActionUpdate, "application_auth_strategy", desired.GetRef()),
-		ResourceType:  "application_auth_strategy",
+		ID:            p.NextChangeID(ActionUpdate, ResourceTypeApplicationAuthStrategy, desired.GetRef()),
+		ResourceType:  ResourceTypeApplicationAuthStrategy,
 		ResourceRef:   desired.GetRef(),
 		ResourceID:    current.ID,
 		Action:        ActionUpdate,
@@ -654,14 +654,14 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 	}
 
 	// Always include name for identification
-	fields["name"] = current.Name
+	fields[FieldName] = current.Name
 
 	// Don't add protection label here - it will be added during execution
 	// based on the Protection field
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionUpdate, "application_auth_strategy", desired.GetRef()),
-		ResourceType: "application_auth_strategy",
+		ID:           p.NextChangeID(ActionUpdate, ResourceTypeApplicationAuthStrategy, desired.GetRef()),
+		ResourceType: ResourceTypeApplicationAuthStrategy,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
 		Action:       ActionUpdate,
@@ -690,12 +690,12 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 // planAuthStrategyDelete creates a DELETE change for an auth strategy
 func (p *authStrategyPlannerImpl) planAuthStrategyDelete(strategy state.ApplicationAuthStrategy, plan *Plan) {
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionDelete, "application_auth_strategy", strategy.Name),
-		ResourceType: "application_auth_strategy",
+		ID:           p.NextChangeID(ActionDelete, ResourceTypeApplicationAuthStrategy, strategy.Name),
+		ResourceType: ResourceTypeApplicationAuthStrategy,
 		ResourceRef:  strategy.Name,
 		ResourceID:   strategy.ID,
 		Action:       ActionDelete,
-		Fields:       map[string]any{"name": strategy.Name},
+		Fields:       map[string]any{FieldName: strategy.Name},
 		DependsOn:    []string{},
 	}
 

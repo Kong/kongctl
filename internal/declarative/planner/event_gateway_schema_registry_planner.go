@@ -180,11 +180,11 @@ func (p *Planner) planSchemaRegistryCreate(
 		}
 	} else {
 		change.References = map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  "", // to be resolved at runtime
 				LookupFields: map[string]string{
-					"name": gatewayName,
+					FieldName: gatewayName,
 				},
 			},
 		}
@@ -266,7 +266,7 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 
 	// Compare name
 	if current.Name != conf.Name {
-		changes["name"] = FieldChange{Old: current.Name, New: conf.Name}
+		changes[FieldName] = FieldChange{Old: current.Name, New: conf.Name}
 	}
 
 	// Compare description
@@ -279,12 +279,12 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 		desiredDesc = *conf.Description
 	}
 	if currentDesc != desiredDesc {
-		changes["description"] = FieldChange{Old: currentDesc, New: desiredDesc}
+		changes[FieldDescription] = FieldChange{Old: currentDesc, New: desiredDesc}
 	}
 
 	// Compare type (structural)
 	if current.Type != conf.GetType() {
-		changes["type"] = FieldChange{Old: current.Type, New: conf.GetType()}
+		changes[FieldType] = FieldChange{Old: current.Type, New: conf.GetType()}
 	}
 
 	// Compare config fields using RawConfig (SDK Config struct is opaque/empty).
@@ -316,8 +316,8 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 	// Compare authentication fields (skip password — write-only).
 	if desiredConf.Authentication != nil && desiredConf.Authentication.SchemaRegistryAuthenticationBasic != nil {
 		desiredAuth := desiredConf.Authentication.SchemaRegistryAuthenticationBasic
-		if currentAuth, ok := current.RawConfig["authentication"].(map[string]any); ok {
-			currentAuthType, _ := currentAuth["type"].(string)
+		if currentAuth, ok := current.RawConfig[FieldAuthentication].(map[string]any); ok {
+			currentAuthType, _ := currentAuth[FieldType].(string)
 			if currentAuthType != desiredAuth.GetType() {
 				changes["config.authentication.type"] = FieldChange{Old: currentAuthType, New: desiredAuth.GetType()}
 			}
@@ -330,14 +330,14 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 			changes["config.authentication"] = FieldChange{Old: nil, New: desiredConf.Authentication}
 		}
 	} else if desiredConf.Authentication == nil {
-		if _, hasAuth := current.RawConfig["authentication"]; hasAuth {
-			changes["config.authentication"] = FieldChange{Old: current.RawConfig["authentication"], New: nil}
+		if _, hasAuth := current.RawConfig[FieldAuthentication]; hasAuth {
+			changes["config.authentication"] = FieldChange{Old: current.RawConfig[FieldAuthentication], New: nil}
 		}
 	}
 
 	// Compare labels
 	if !labelsEqual(current.NormalizedLabels, conf.Labels) {
-		changes["labels"] = FieldChange{Old: current.NormalizedLabels, New: conf.Labels}
+		changes[FieldLabels] = FieldChange{Old: current.NormalizedLabels, New: conf.Labels}
 	}
 
 	if len(changes) > 0 {
@@ -369,14 +369,14 @@ func buildSchemaRegistryFields(sr resources.EventGatewaySchemaRegistryResource) 
 		return fields
 	}
 
-	fields["name"] = conf.Name
-	fields["type"] = conf.GetType()
+	fields[FieldName] = conf.Name
+	fields[FieldType] = conf.GetType()
 
 	if conf.Description != nil {
-		fields["description"] = *conf.Description
+		fields[FieldDescription] = *conf.Description
 	}
 
-	fields["config"] = kkComps.SchemaRegistryConfluentConfig{
+	fields[FieldConfig] = kkComps.SchemaRegistryConfluentConfig{
 		SchemaType:     conf.Config.SchemaType,
 		Endpoint:       conf.Config.Endpoint,
 		TimeoutSeconds: conf.Config.TimeoutSeconds,
@@ -384,7 +384,7 @@ func buildSchemaRegistryFields(sr resources.EventGatewaySchemaRegistryResource) 
 	}
 
 	if len(conf.Labels) > 0 {
-		fields["labels"] = conf.Labels
+		fields[FieldLabels] = conf.Labels
 	}
 
 	return fields
