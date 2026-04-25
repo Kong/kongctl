@@ -86,10 +86,8 @@ func referenceFieldUsesDeferredEnv(envSources map[string]string, field string) b
 
 	for path := range envSources {
 		segments := decodeJSONPointer(path)
-		for _, candidate := range referenceFieldCandidates(segments) {
-			if candidate == field {
-				return true
-			}
+		if slices.Contains(referenceFieldCandidates(segments), field) {
+			return true
 		}
 	}
 
@@ -204,7 +202,7 @@ func applyDeferredEnvPlaceholderReflect(
 			return value, false
 		}
 		return applyDeferredEnvPlaceholderReflect(value.Elem(), segments, placeholder)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if value.IsNil() {
 			return value, false
 		}

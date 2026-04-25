@@ -550,7 +550,7 @@ func TestPlanPortalIdentityProviders_CreateWhenAbsent(t *testing.T) {
 		Portal: "portal-1",
 		CreateIdentityProvider: kkComps.CreateIdentityProvider{
 			Type:      kkComps.IdentityProviderTypeOidc.ToPointer(),
-			LoginPath: ptr("oidc-login"),
+			LoginPath: new("oidc-login"),
 			Config:    &config,
 		},
 	}}
@@ -597,10 +597,10 @@ func TestPlanPortalIdentityProviders_UpdateWhenStateDiffers(t *testing.T) {
 			)
 			return &kkOps.GetPortalIdentityProvidersResponse{
 				IdentityProviders: []kkComps.IdentityProvider{{
-					ID:        ptr("provider-id"),
+					ID:        new("provider-id"),
 					Type:      kkComps.IdentityProviderTypeOidc.ToPointer(),
-					Enabled:   ptr(false),
-					LoginPath: ptr("oidc-login"),
+					Enabled:   new(false),
+					LoginPath: new("oidc-login"),
 					Config:    &currentConfig,
 				}},
 			}, nil
@@ -627,8 +627,8 @@ func TestPlanPortalIdentityProviders_UpdateWhenStateDiffers(t *testing.T) {
 		Portal: "portal-1",
 		CreateIdentityProvider: kkComps.CreateIdentityProvider{
 			Type:      kkComps.IdentityProviderTypeOidc.ToPointer(),
-			Enabled:   ptr(true),
-			LoginPath: ptr("oidc-login-updated"),
+			Enabled:   new(true),
+			LoginPath: new("oidc-login-updated"),
 			Config:    &desiredConfig,
 		},
 	}}
@@ -669,17 +669,17 @@ func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) 
 					ClientID:  "client-id-1",
 					Scopes:    []string{"openid", "profile"},
 					ClaimMappings: &kkComps.OIDCIdentityProviderClaimMappings{
-						Name:   ptr("name"),
-						Email:  ptr("email"),
-						Groups: ptr("groups"),
+						Name:   new("name"),
+						Email:  new("email"),
+						Groups: new("groups"),
 					},
 				},
 			)
 			return &kkOps.GetPortalIdentityProvidersResponse{
 				IdentityProviders: []kkComps.IdentityProvider{{
-					ID:      ptr("provider-id"),
+					ID:      new("provider-id"),
 					Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
-					Enabled: ptr(true),
+					Enabled: new(true),
 					Config:  &currentConfig,
 				}},
 			}, nil
@@ -698,12 +698,12 @@ func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) 
 		kkComps.OIDCIdentityProviderConfig{
 			IssuerURL:    "https://accounts.google.com",
 			ClientID:     "client-id-1",
-			ClientSecret: ptr("placeholder"),
+			ClientSecret: new("placeholder"),
 			Scopes:       []string{"openid", "profile"},
 			ClaimMappings: &kkComps.OIDCIdentityProviderClaimMappings{
-				Name:   ptr("name"),
-				Email:  ptr("email"),
-				Groups: ptr("groups"),
+				Name:   new("name"),
+				Email:  new("email"),
+				Groups: new("groups"),
 			},
 		},
 	)
@@ -712,7 +712,7 @@ func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) 
 		Portal: "portal-1",
 		CreateIdentityProvider: kkComps.CreateIdentityProvider{
 			Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
-			Enabled: ptr(true),
+			Enabled: new(true),
 			Config:  &desiredConfig,
 		},
 	}}
@@ -748,9 +748,9 @@ func TestPlanPortalIdentityProviders_IgnoresOIDCScopeOrderChanges(t *testing.T) 
 			)
 			return &kkOps.GetPortalIdentityProvidersResponse{
 				IdentityProviders: []kkComps.IdentityProvider{{
-					ID:      ptr("provider-id"),
+					ID:      new("provider-id"),
 					Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
-					Enabled: ptr(true),
+					Enabled: new(true),
 					Config:  &currentConfig,
 				}},
 			}, nil
@@ -777,7 +777,7 @@ func TestPlanPortalIdentityProviders_IgnoresOIDCScopeOrderChanges(t *testing.T) 
 		Portal: "portal-1",
 		CreateIdentityProvider: kkComps.CreateIdentityProvider{
 			Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
-			Enabled: ptr(true),
+			Enabled: new(true),
 			Config:  &desiredConfig,
 		},
 	}}
@@ -809,8 +809,4 @@ func TestPortalIdentityProviderConfigDiffValueFromCreate_OmitsAbsentClientSecret
 	diffValue, ok := portalIdentityProviderConfigDiffValueFromCreate(&config).(map[string]any)
 	require.True(t, ok)
 	assert.NotContains(t, diffValue, "client_secret")
-}
-
-func ptr[T any](value T) *T {
-	return &value
 }

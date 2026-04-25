@@ -12,13 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
-
-func strPtr(s string) *string { return &s }
-func boolPtr(b bool) *bool    { return &b }
-
 func newTestPlanner() *Planner {
 	return &Planner{logger: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))}
 }
@@ -31,9 +24,9 @@ func modifyHeadersResource(
 	return resources.EventGatewayProducePolicyResource{
 		EventGatewayProducePolicyCreate: kkComps.EventGatewayProducePolicyCreate{
 			EventGatewayModifyHeadersPolicyCreate: &kkComps.EventGatewayModifyHeadersPolicyCreate{
-				Name:        strPtr(name),
-				Description: strPtr(desc),
-				Enabled:     boolPtr(enabled),
+				Name:        new(name),
+				Description: new(desc),
+				Enabled:     new(enabled),
 				Config: kkComps.EventGatewayModifyHeadersPolicyCreateConfig{
 					Actions: actions,
 				},
@@ -51,9 +44,9 @@ func modifyHeadersCurrentPolicy(
 	return state.EventGatewayVirtualClusterProducePolicyInfo{
 		EventGatewayPolicy: kkComps.EventGatewayPolicy{
 			ID:          id,
-			Name:        strPtr(name),
-			Description: strPtr(desc),
-			Enabled:     boolPtr(enabled),
+			Name:        new(name),
+			Description: new(desc),
+			Enabled:     new(enabled),
 			Type:        "modify_headers",
 		},
 		RawConfig: rawConfig,
@@ -155,9 +148,9 @@ func TestShouldUpdateProducePolicy_SchemaValidationConfigChanged(t *testing.T) {
 	current := state.EventGatewayVirtualClusterProducePolicyInfo{
 		EventGatewayPolicy: kkComps.EventGatewayPolicy{
 			ID:          "sv-1",
-			Name:        strPtr("sv-policy"),
-			Description: strPtr("schema val desc"),
-			Enabled:     boolPtr(true),
+			Name:        new("sv-policy"),
+			Description: new("schema val desc"),
+			Enabled:     new(true),
 			Type:        "modify_headers",
 		},
 		RawConfig: rawConfigFromSetAction("X-Foo", "bar"),
@@ -166,9 +159,9 @@ func TestShouldUpdateProducePolicy_SchemaValidationConfigChanged(t *testing.T) {
 	desired := resources.EventGatewayProducePolicyResource{
 		EventGatewayProducePolicyCreate: kkComps.EventGatewayProducePolicyCreate{
 			EventGatewayProduceSchemaValidationPolicy: &kkComps.EventGatewayProduceSchemaValidationPolicy{
-				Name:        strPtr("sv-policy"),
-				Description: strPtr("schema val desc"),
-				Enabled:     boolPtr(true),
+				Name:        new("sv-policy"),
+				Description: new("schema val desc"),
+				Enabled:     new(true),
 				Config: kkComps.CreateEventGatewayProduceSchemaValidationPolicyConfigJSON(
 					kkComps.EventGatewayProduceSchemaValidationPolicyJSONConfig{
 						KeyValidationAction: &keyActionMark,

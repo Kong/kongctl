@@ -118,7 +118,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 			return nil, nil
 		}
 		return resolveDeferredEnvReflect(value.Elem())
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if value.IsNil() {
 			return value.Interface(), nil
 		}
@@ -189,7 +189,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 		}
 		return resolved.Interface(), nil
 	case reflect.Struct:
-		if value.Type() == reflect.TypeOf(planner.FieldChange{}) {
+		if value.Type() == reflect.TypeFor[planner.FieldChange]() {
 			current := value.Interface().(planner.FieldChange)
 			resolvedNew, err := resolveDeferredEnvValue(current.New)
 			if err != nil {

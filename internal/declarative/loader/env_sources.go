@@ -41,7 +41,7 @@ func visitResourceSetResources(rs *resources.ResourceSet, fn func(resources.Reso
 	}
 
 	value := reflect.ValueOf(rs).Elem()
-	resourceType := reflect.TypeOf((*resources.Resource)(nil)).Elem()
+	resourceType := reflect.TypeFor[resources.Resource]()
 
 	for i := range value.NumField() {
 		fieldValue := value.Field(i)
@@ -72,7 +72,7 @@ func visitResourceSetResources(rs *resources.ResourceSet, fn func(resources.Reso
 					}
 				}
 			}
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if fieldValue.IsNil() || !fieldValue.Type().Implements(resourceType) {
 				continue
 			}
@@ -90,7 +90,7 @@ func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(
 		return nil
 	}
 
-	for value.Kind() == reflect.Ptr {
+	for value.Kind() == reflect.Pointer {
 		if value.IsNil() {
 			return nil
 		}

@@ -27,12 +27,13 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/glamour"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/iostreams"
-	kairender "github.com/kong/kongctl/internal/kai/render"
 	"github.com/kong/kongctl/internal/theme"
+	"github.com/muesli/termenv"
 	"github.com/segmentio/cli"
 )
 
@@ -1062,7 +1063,34 @@ func renderMarkdownContent(raw string, width int) string {
 	if width <= 0 {
 		width = 80
 	}
-	return kairender.Markdown(raw, kairender.Options{Width: width})
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithColorProfile(termenv.TrueColor),
+		glamour.WithWordWrap(width),
+	)
+	if err != nil {
+		return raw
+	}
+	rendered, err := renderer.Render(raw)
+	if err != nil {
+		return raw
+	}
+	return normalizeMarkdownSpacing(rendered)
+}
+
+func normalizeMarkdownSpacing(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return trimmed
+	}
+	lines := strings.Split(trimmed, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " ")
+		if i == 0 {
+			lines[i] = strings.TrimLeft(lines[i], " ")
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func defaultRootLabel(_ []string) string {

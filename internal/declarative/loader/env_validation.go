@@ -14,7 +14,7 @@ func validateEnvTagStringFields(rawContent []byte) error {
 		return err
 	}
 
-	return validateEnvNode(&node, reflect.TypeOf(temporaryParseResult{}), nil)
+	return validateEnvNode(&node, reflect.TypeFor[temporaryParseResult](), nil)
 }
 
 func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) error {
@@ -126,8 +126,7 @@ func lookupStructFieldType(targetType reflect.Type, name string) (reflect.Type, 
 		}
 	}
 
-	for i := 0; i < targetType.NumField(); i++ {
-		field := targetType.Field(i)
+	for field := range targetType.Fields() {
 		if field.PkgPath != "" {
 			continue
 		}
@@ -182,7 +181,7 @@ func isEnvStringFieldType(fieldType reflect.Type) bool {
 }
 
 func derefType(t reflect.Type) reflect.Type {
-	for t != nil && t.Kind() == reflect.Ptr {
+	for t != nil && t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	return t

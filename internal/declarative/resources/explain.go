@@ -399,10 +399,8 @@ func explainDocByAlias(alias string) (*ExplainDoc, bool) {
 		if err != nil {
 			continue
 		}
-		for _, candidate := range doc.Aliases {
-			if candidate == alias {
-				return doc, true
-			}
+		if slices.Contains(doc.Aliases, alias) {
+			return doc, true
 		}
 	}
 	return nil, false
@@ -533,12 +531,12 @@ func buildExplainSchema(rt ResourceType, reg ExplainRegistration) (*ExplainNode,
 
 func defaultExplainHints(rt ResourceType) map[string]ExplainFieldHint {
 	hints := make(map[string]ExplainFieldHint)
-	hints["ref"] = ExplainFieldHint{Recommended: boolPtr(true)}
+	hints["ref"] = ExplainFieldHint{Recommended: new(true)}
 
 	if hasBaseResource(rt) {
 		hints["name"] = ExplainFieldHint{
 			DefaultFrom: "ref",
-			Recommended: boolPtr(true),
+			Recommended: new(true),
 		}
 	}
 
@@ -965,8 +963,8 @@ func RenderExplainSchema(subject *ExplainSubject) *JSONSchema {
 		schema.XSubject = &ExplainSchemaSubject{
 			Kind:        "field",
 			Path:        subject.DisplayPath,
-			Required:    boolPtr(subject.FieldRequired),
-			Recommended: boolPtr(subject.FieldRecommended),
+			Required:    new(subject.FieldRequired),
+			Recommended: new(subject.FieldRecommended),
 		}
 		schema.XPlacement = explainFieldPlacement(subject)
 		schema.XResource = &ExplainSchemaResource{
@@ -981,8 +979,8 @@ func RenderExplainSchema(subject *ExplainSubject) *JSONSchema {
 		schema.XRootKey = subject.Doc.RootKey
 	}
 	schema.XClass = subject.Doc.ResourceClass
-	schema.XRoot = boolPtr(subject.Doc.SupportsRoot)
-	schema.XNestedDecl = boolPtr(subject.Doc.SupportsNestedDeclaration)
+	schema.XRoot = new(subject.Doc.SupportsRoot)
+	schema.XNestedDecl = new(subject.Doc.SupportsNestedDeclaration)
 	return schema
 }
 
@@ -1528,10 +1526,6 @@ func derefExplainType(typ reflect.Type) reflect.Type {
 		typ = typ.Elem()
 	}
 	return typ
-}
-
-func boolPtr(value bool) *bool {
-	return &value
 }
 
 func hasBaseResource(rt ResourceType) bool {

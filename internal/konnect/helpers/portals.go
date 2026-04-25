@@ -189,8 +189,8 @@ func GetSnippetsForPortal(ctx context.Context, portalAPI PortalAPI, portalID str
 	snippets, err := paginateAllPageNumber(func(pageSize, pageNumber int64) ([]SnippetInfo, float64, error) {
 		req := kkOps.ListPortalSnippetsRequest{
 			PortalID:   portalID,
-			PageSize:   Int64(pageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := publicAPI.SDK.Snippets.ListPortalSnippets(ctx, req)

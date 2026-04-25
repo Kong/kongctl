@@ -11,7 +11,6 @@ const (
 	Listen   = VerbValue("listen")
 	Apply    = VerbValue("apply")
 	Adopt    = VerbValue("adopt")
-	Kai      = VerbValue("kai")
 	Lint     = VerbValue("lint")
 	API      = VerbValue("api")
 	Get      = VerbValue("get")
