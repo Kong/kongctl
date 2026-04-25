@@ -1,0 +1,322 @@
+{
+  "schema_version": "kongctl.declarative-benchmark.v1",
+  "run_id": "24936880597",
+  "run_url": "https://github.com/Kong/kongctl/actions/runs/24936880597",
+  "git_commit": "95c89ae",
+  "base_url": "https://us.api.konghq.com",
+  "started_at": "2026-04-25T17:48:36.463888733Z",
+  "finished_at": "2026-04-25T17:51:26.545893654Z",
+  "duration_ms": 170082,
+  "cases": [
+    {
+      "name": "small-single-file",
+      "size": "small",
+      "layout": "single-file",
+      "repetition": 1,
+      "fixture": {
+        "root_dir": "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-single-file/inputs/small-single-file",
+        "files": [
+          "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-single-file/inputs/small-single-file/config.yaml"
+        ],
+        "args": [
+          "-f",
+          "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-single-file/inputs/small-single-file/config.yaml"
+        ]
+      },
+      "resources": {
+        "apis": 1,
+        "api_documents": 2,
+        "api_document_bytes": 2048
+      },
+      "phases": [
+        {
+          "name": "apply_create",
+          "command_dir": "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-single-file/commands/apply_create",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 939,
+          "http_metrics": {
+            "requests": 6,
+            "responses": 6,
+            "errors": 0,
+            "request_counts_by_route": [
+              {
+                "method": "GET",
+                "route": "/v3/apis",
+                "count": 3
+              },
+              {
+                "method": "POST",
+                "route": "/v3/apis/fb7a7666-05a8-4033-839c-68e964490b5b/documents",
+                "count": 2
+              },
+              {
+                "method": "POST",
+                "route": "/v3/apis",
+                "count": 1
+              }
+            ],
+            "response_status_counts": [
+              {
+                "status": "200",
+                "count": 3
+              },
+              {
+                "status": "201",
+                "count": 3
+              }
+            ],
+            "timing": {
+              "responses": {
+                "count": 6,
+                "sum_ms": 904.316726,
+                "min_ms": 74.182734,
+                "max_ms": 311.279832,
+                "avg_ms": 150.71945433333335
+              },
+              "errors": {
+                "count": 0,
+                "sum_ms": 0,
+                "min_ms": 0,
+                "max_ms": 0,
+                "avg_ms": 0
+              },
+              "combined": {
+                "count": 6,
+                "sum_ms": 904.316726,
+                "min_ms": 74.182734,
+                "max_ms": 311.279832,
+                "avg_ms": 150.71945433333335
+              }
+            }
+          }
+        },
+        {
+          "name": "apply_noop",
+          "command_dir": "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-single-file/commands/apply_noop",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 560,
+          "http_metrics": {
+            "requests": 4,
+            "responses": 4,
+            "errors": 0,
+            "request_counts_by_route": [
+              {
+                "method": "GET",
+                "route": "/v3/apis",
+                "count": 1
+              },
+              {
+                "method": "GET",
+                "route": "/v3/apis/fb7a7666-05a8-4033-839c-68e964490b5b/documents",
+                "count": 1
+              },
+              {
+                "method": "GET",
+                "route": "/v3/apis/fb7a7666-05a8-4033-839c-68e964490b5b/documents/53e0dcdf-acdd-4526-8898-837279b9ac74",
+                "count": 1
+              },
+              {
+                "method": "GET",
+                "route": "/v3/apis/fb7a7666-05a8-4033-839c-68e964490b5b/documents/fcf7608c-9116-49bb-9870-7209eba409f5",
+                "count": 1
+              }
+            ],
+            "response_status_counts": [
+              {
+                "status": "200",
+                "count": 4
+              }
+            ],
+            "timing": {
+              "responses": {
+                "count": 4,
+                "sum_ms": 529.232524,
+                "min_ms": 81.784963,
+                "max_ms": 272.526085,
+                "avg_ms": 132.308131
+              },
+              "errors": {
+                "count": 0,
+                "sum_ms": 0,
+                "min_ms": 0,
+                "max_ms": 0,
+                "avg_ms": 0
+              },
+              "combined": {
+                "count": 4,
+                "sum_ms": 529.232524,
+                "min_ms": 81.784963,
+                "max_ms": 272.526085,
+                "avg_ms": 132.308131
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "small-multi-file",
+      "size": "small",
+      "layout": "multi-file",
+      "repetition": 1,
+      "fixture": {
+        "root_dir": "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-multi-file/inputs/small-multi-file",
+        "files": [
+          "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-multi-file/inputs/small-multi-file/apis.yaml",
+          "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-multi-file/inputs/small-multi-file/api-001-documents.yaml"
+        ],
+        "args": [
+          "-f",
+          "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-multi-file/inputs/small-multi-file/apis.yaml",
+          "-f",
+          "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-multi-file/inputs/small-multi-file/api-001-documents.yaml"
+        ]
+      },
+      "resources": {
+        "apis": 1,
+        "api_documents": 2,
+        "api_document_bytes": 2048
+      },
+      "phases": [
+        {
+          "name": "apply_create",
+          "command_dir": "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-multi-file/commands/apply_create",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 936,
+          "http_metrics": {
+            "requests": 6,
+            "responses": 6,
+            "errors": 0,
+            "request_counts_by_route": [
+              {
+                "method": "GET",
+                "route": "/v3/apis",
+                "count": 3
+              },
+              {
+                "method": "POST",
+                "route": "/v3/apis/5fd0319e-4776-49a4-8e73-02cd3a7f8ea4/documents",
+                "count": 2
+              },
+              {
+                "method": "POST",
+                "route": "/v3/apis",
+                "count": 1
+              }
+            ],
+            "response_status_counts": [
+              {
+                "status": "200",
+                "count": 3
+              },
+              {
+                "status": "201",
+                "count": 3
+              }
+            ],
+            "timing": {
+              "responses": {
+                "count": 6,
+                "sum_ms": 902.92654,
+                "min_ms": 81.411204,
+                "max_ms": 278.032373,
+                "avg_ms": 150.48775666666668
+              },
+              "errors": {
+                "count": 0,
+                "sum_ms": 0,
+                "min_ms": 0,
+                "max_ms": 0,
+                "avg_ms": 0
+              },
+              "combined": {
+                "count": 6,
+                "sum_ms": 902.92654,
+                "min_ms": 81.411204,
+                "max_ms": 278.032373,
+                "avg_ms": 150.48775666666668
+              }
+            }
+          }
+        },
+        {
+          "name": "apply_noop",
+          "command_dir": "/home/runner/work/kongctl/kongctl/.benchmark-artifacts/24936880597/20260425-174835/benchmarks/declarative-small-multi-file/commands/apply_noop",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_ms": 460,
+          "http_metrics": {
+            "requests": 4,
+            "responses": 4,
+            "errors": 0,
+            "request_counts_by_route": [
+              {
+                "method": "GET",
+                "route": "/v3/apis",
+                "count": 1
+              },
+              {
+                "method": "GET",
+                "route": "/v3/apis/5fd0319e-4776-49a4-8e73-02cd3a7f8ea4/documents",
+                "count": 1
+              },
+              {
+                "method": "GET",
+                "route": "/v3/apis/5fd0319e-4776-49a4-8e73-02cd3a7f8ea4/documents/58bec876-e117-4cf5-bff0-f545ad438670",
+                "count": 1
+              },
+              {
+                "method": "GET",
+                "route": "/v3/apis/5fd0319e-4776-49a4-8e73-02cd3a7f8ea4/documents/f0ddcd82-c2a8-4466-b52e-85a8dbe9fb41",
+                "count": 1
+              }
+            ],
+            "response_status_counts": [
+              {
+                "status": "200",
+                "count": 4
+              }
+            ],
+            "timing": {
+              "responses": {
+                "count": 4,
+                "sum_ms": 428.504838,
+                "min_ms": 80.081089,
+                "max_ms": 183.454747,
+                "avg_ms": 107.1262095
+              },
+              "errors": {
+                "count": 0,
+                "sum_ms": 0,
+                "min_ms": 0,
+                "max_ms": 0,
+                "avg_ms": 0
+              },
+              "combined": {
+                "count": 4,
+                "sum_ms": 428.504838,
+                "min_ms": 80.081089,
+                "max_ms": 183.454747,
+                "avg_ms": 107.1262095
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "case_count": 2,
+    "phase_count": 4,
+    "failed_phases": 0,
+    "total_apis": 2,
+    "total_api_documents": 4,
+    "total_http_requests": 20,
+    "total_http_responses": 20,
+    "total_http_errors": 0,
+    "total_duration_ms": 2895
+  }
+}

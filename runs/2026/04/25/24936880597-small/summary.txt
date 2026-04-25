@@ -1,0 +1,13 @@
+Declarative benchmark summary
+Run: 24936880597  Commit: 95c89ae
+Base URL: https://us.api.konghq.com
+Suite: 2m50.082s  Cases: 2  Phases: 4  Requests: 20  Responses: 20  Errors: 0
+Note: suite duration includes fixture generation and destructive org reset.
+      phase duration measures only the kongctl apply command.
+
+CASE                     PHASE          REP  APIS  DOCS   DURATION    REQ   RESP    ERR
+------------------------ ------------- ---- ----- ----- ---------- ------ ------ ------
+small-single-file        apply_create     1     1     2      939ms      6      6      0
+small-single-file        apply_noop       1     1     2      560ms      4      4      0
+small-multi-file         apply_create     1     1     2      936ms      6      6      0
+small-multi-file         apply_noop       1     1     2      460ms      4      4      0
