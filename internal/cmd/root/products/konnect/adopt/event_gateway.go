@@ -253,8 +253,7 @@ func resolveEventGatewayControlPlane(
 
 		for _, egw := range list.Data {
 			if egw.Name == identifier {
-				egwCopy := egw
-				return &egwCopy, nil
+				return &egw, nil
 			}
 		}
 

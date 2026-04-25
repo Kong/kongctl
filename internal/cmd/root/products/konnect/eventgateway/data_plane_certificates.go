@@ -384,8 +384,7 @@ func findDataPlaneCertByName(
 	lowered := strings.ToLower(name)
 	for _, cert := range certs {
 		if cert.Name != nil && strings.ToLower(*cert.Name) == lowered {
-			certCopy := cert
-			return &certCopy
+			return &cert
 		}
 	}
 	return nil

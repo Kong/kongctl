@@ -492,8 +492,7 @@ func findClusterPolicyByName(
 	lowered := strings.ToLower(identifier)
 	for _, policy := range policies {
 		if policy.Name != nil && strings.ToLower(*policy.Name) == lowered {
-			policyCopy := policy
-			return &policyCopy
+			return &policy
 		}
 	}
 	return nil
