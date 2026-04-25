@@ -49,6 +49,47 @@ steps:
             expect:
               file: "expect/001-initial-apply/change-api-document-voice-authentication.json"
 
+      - name: 001-get-sms-api-documents
+        run:
+          - get
+          - api
+          - documents
+          - --api-name
+          - "SMS API"
+          - -o
+          - json
+        assertions:
+          - select: "[?slug=='sms-errors'] | [0]"
+            expect:
+              fields:
+                slug: sms-errors
+                status: published
+          - select: "[?slug=='sms-authentication'] | [0]"
+            expect:
+              fields:
+                slug: sms-authentication
+                status: published
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 4
+
+      - name: 002-idempotency
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 002-update-document-content
     inputOverlayDirs:
       - overlays/002-update-document-content
