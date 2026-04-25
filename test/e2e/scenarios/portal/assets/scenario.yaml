@@ -108,7 +108,42 @@ steps:
                 "starts_with(data, 'data:image/')": true
                 type: favicon
 
-  - name: 002-plan-apply-assets-update
+  - name: 002-dump-and-plan-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-portal-with-assets
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--filter-name={{ .vars.portalRef }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              portals[?name=='{{ .vars.portalRef }}'] | [0].assets
+            expect:
+              fields:
+                "starts_with(logo, 'data:image/')": true
+                "starts_with(favicon, 'data:image/')": true
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-plan-apply-assets-update
     inputOverlayDirs:
       - overlays/002-update
     commands:
@@ -170,7 +205,7 @@ steps:
                 "starts_with(data, 'data:image/')": true
                 type: logo
 
-  - name: 003-test-sync-mode
+  - name: 004-test-sync-mode
     # Test that assets are NOT deleted in sync mode when omitted from config
     inputOverlayDirs:
       - overlays/003-no-assets
@@ -195,7 +230,7 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 004-delete-cleanup
+  - name: 005-delete-cleanup
     inputOverlayDirs:
       - overlays/002-update
     commands:
