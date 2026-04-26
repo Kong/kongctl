@@ -310,6 +310,10 @@ after making changes to catch regressions.
   `internal/cmd/root/products/konnect/common`. Use `ViewParent*`,
   `ViewField*`, and `ViewResource*` constants for tableview parent types, child
   loader fields, detail contexts, and navigator resource selectors.
+- For `kongctl view` detail panels, label direct API response fields with the
+  API JSON field name, such as `created_at` or `display_name`. Use `snake_case`
+  for kongctl-derived fields, such as `value_count`. Avoid title-cased friendly
+  labels in detail renderers.
 - Do not introduce new string literals for resource types, plan fields,
   tableview parent types, child loader keys, or navigator resource selectors.
 - Keep user-facing help text, table headers, command aliases, API payload keys,

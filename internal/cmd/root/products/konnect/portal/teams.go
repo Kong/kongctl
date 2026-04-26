@@ -369,11 +369,11 @@ func portalTeamDetailView(team kkComps.PortalTeamResponse) string {
 	if id != valueNA {
 		id = util.AbbreviateUUID(id)
 	}
-	fmt.Fprintf(&b, "Name: %s\n", optionalPtr(team.GetName()))
-	fmt.Fprintf(&b, "ID: %s\n", id)
-	fmt.Fprintf(&b, "Description: %s\n", optionalPtr(team.GetDescription()))
-	fmt.Fprintf(&b, "Created: %s\n", formatTimePtr(team.GetCreatedAt()))
-	fmt.Fprintf(&b, "Updated: %s\n", formatTimePtr(team.GetUpdatedAt()))
+	fmt.Fprintf(&b, "name: %s\n", optionalPtr(team.GetName()))
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "description: %s\n", optionalPtr(team.GetDescription()))
+	fmt.Fprintf(&b, "created_at: %s\n", formatTimePtr(team.GetCreatedAt()))
+	fmt.Fprintf(&b, "updated_at: %s\n", formatTimePtr(team.GetUpdatedAt()))
 
 	return b.String()
 }

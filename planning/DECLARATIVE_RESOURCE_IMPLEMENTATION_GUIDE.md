@@ -46,6 +46,10 @@ resource, plan, or view contracts.
   `internal/cmd/root/products/konnect/common`. Use `ViewParent*`, `ViewField*`,
   and `ViewResource*` constants for tableview parent types, child loader fields,
   detail contexts, and navigator resource selectors.
+- `kongctl view` detail renderers should label direct API response fields with
+  the API JSON field name, such as `created_at` or `display_name`. Use
+  `snake_case` for kongctl-derived fields, such as `value_count`. Avoid
+  title-cased friendly labels in detail renderers.
 - Leave user-facing help text, table headers, Cobra command aliases,
   JSON/YAML tags, API payload keys, and external schema field names as literals
   unless they are also used as one of the internal identifiers above.
@@ -1702,6 +1706,8 @@ After implementing new resource:
 - [ ] Child resource subcommands (if applicable)
 - [ ] View/tableview identifiers use `konnect/common` `ViewParent*`,
       `ViewField*`, and `ViewResource*` constants
+- [ ] View detail labels use API JSON field names for direct fields and
+      `snake_case` names for kongctl-derived fields
 - [ ] Output formatting (JSON, YAML, table, detail)
 - [ ] Command added to get.go
 
