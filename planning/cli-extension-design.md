@@ -2,6 +2,8 @@
 
 Reviewed on 2026-04-21.
 
+Updated on 2026-04-26 after implementation-planning decisions.
+
 ## Summary
 
 This document recommends a concrete extension design for `kongctl`, explains
@@ -31,10 +33,12 @@ source. Extensions will be managed with lifecycle commands such as
 
 Technically, each extension is a separately executed script or binary
 described by a YAML manifest obtained at installation (`extension.yaml`).
-During execution, the parent `kongctl` process writes a machine-generated
-`context.json` file, stores its full path in `KONGCTL_EXTENSION_CONTEXT`,
-and launches the extension as a child process. The child can read the
-selected profile and resolved configuration values from that file.
+The manifest is the v1 source of truth for package metadata, runtime
+selection, and command metadata. During execution, the parent `kongctl`
+process writes a machine-generated `context.json` file, stores its full path
+in `KONGCTL_EXTENSION_CONTEXT`, and launches the extension as a child process.
+The child can read the selected profile and resolved non-secret configuration
+values from that file.
 
 Extensions can "re-enter" `kongctl` as another child process and it will
 reload the same context file. This gives extensions a standard way to invoke
@@ -69,11 +73,11 @@ The proposed design is driven by the following goals:
 | Built-in precedence | Built-ins always win |
 | Open existing verbs in v1 | `get`, `list` |
 | Provenance in help | Extension-contributed paths must be visibly labeled |
-| Manifest | Simple `extension.yaml` for package metadata |
-| Command metadata | Runtime descriptor via `__kongctl describe` |
-| Dispatch integration | Synthetic Cobra commands from cached descriptors |
+| Manifest | `extension.yaml` for package, runtime, and command metadata |
+| Command metadata | Static command metadata in `extension.yaml` |
+| Dispatch integration | Synthetic Cobra commands from cached validated manifests |
 | Flag boundary | Host parses global flags; extension parses `remaining_args` |
-| Descriptor stability | Install-stable in v1; linked extensions refresh aggressively |
+| Metadata stability | Install-stable in v1; linked extensions refresh aggressively |
 | Runtime model | Managed external child process |
 | Runtime context transport | `KONGCTL_EXTENSION_CONTEXT` |
 | Runtime context file | `context.json` |
@@ -81,6 +85,10 @@ The proposed design is driven by the following goals:
 | v1 Go SDK | Not required |
 | Performance gate | Validate subprocess cost before locking implementation |
 | Secrets in context | Never include them |
+| Install integrity | Store manifest/runtime hashes; verify installed runtime before execution |
+| GitHub installs | `gh`-style release artifact first, source fallback for runnable script/binary |
+| Install builds | No source compilation during install |
+| Storage | Existing kongctl config home (`$XDG_CONFIG_HOME/kongctl` or fallback) |
 | Cleanup | Best-effort immediate cleanup plus stale-file reaping |
 | Safety | Install-time conflict checks and recursion guard |
 
@@ -109,17 +117,46 @@ and, when needed:
 
 ### 2. Use A Single Command Path Model
 
-An extension should describe its contributed commands as `command_paths`.
+An extension should describe its contributed commands as `command_paths` in
+`extension.yaml`.
 
 Examples:
 
-- `[get, foo]`
-- `[list, foo]`
-- `[promote, foo]`
+- `get foo`
+- `list foo`
+- `promote foo`
+- `get foo bar`
 
 This is simpler than splitting the model into separate `commands` and `verbs`.
 Whether a contribution lands under an existing verb or defines a new verb is
 determined entirely by the first segment of the command path.
+
+Each command path is represented as an array of segment objects so aliases can
+be attached to the segment they alias:
+
+```yaml
+command_paths:
+  - id: get_foo_bar
+    path:
+      - name: get
+      - name: foo
+        aliases: [foos]
+      - name: bar
+        aliases: [bars]
+    summary: Get Foo Bar resources
+```
+
+This allows multi-segment child-resource paths such as:
+
+- `kongctl get foo bar`
+- `kongctl get foos bar`
+- `kongctl get foo bars`
+- `kongctl get foos bars`
+
+For built-in root verbs such as `get` and `list`, the root segment is reserved
+and cannot declare aliases. For custom root verbs, aliases are allowed if they
+do not collide with built-in command names, built-in aliases, reserved names,
+or other extension paths.
 
 ### 3. Open Only A Narrow Set Of Existing Verbs In v1
 
@@ -165,20 +202,19 @@ Contributed command paths:
 ### 4. Treat One Extension As A Bundle Of Command Paths
 
 One extension should be able to contribute many command paths. The extension
-should be the installation unit, while the extension runtime should describe
-the set of command paths it owns.
+should be the installation unit, while `extension.yaml` should describe the set
+of command paths it owns.
 
 This lets one extension support a full resource family rather than forcing
 many small install units.
 
-### 5. Use A Simple YAML Manifest For Package Metadata
+### 5. Use A YAML Manifest For Package And Command Metadata
 
 The manifest should be a plain `extension.yaml` file, and it should describe
-the minimum package and runtime metadata needed for install validation and
-execution.
-
-It should not be the source of truth for command help, usage text, args, or
-flags.
+the package metadata, runtime metadata, and command metadata needed for install
+validation, command registration, help, completion, inspection, and execution.
+In v1, this manifest is the source of truth for command help, usage text, args,
+and flags.
 
 Recommended shape:
 
@@ -196,21 +232,45 @@ runtime:
 compatibility:
   min_version: 0.20.0
   max_version: 0.x
+
+command_paths:
+  - id: get_foo
+    path:
+      - name: get
+      - name: foo
+        aliases: [foos]
+    summary: Get Foo resources
+    description: Retrieves Foo resources from Konnect.
+    usage: kongctl get foo [name] [flags]
+    examples:
+      - kongctl get foo
+      - kongctl get foo my-foo --output json
+    args:
+      - name: name
+        required: false
+        repeatable: false
+        description: Optional Foo resource name.
+    flags:
+      - name: filter
+        type: string
+        description: Filter Foo resources by label.
 ```
 
 In v1, `runtime.command` is needed immediately because it tells `kongctl`
-which executable to invoke for `__kongctl describe` and normal dispatch.
-Install source, upgrade provenance, and any future trust metadata should be
-tracked by `kongctl` itself, not required in the manifest.
+which executable to invoke for normal dispatch. Install source, upgrade
+provenance, and trust observations such as manifest and runtime hashes should
+be tracked by `kongctl` itself, not required in the manifest.
 
-`runtime.command` should be treated as the installed entrypoint name, not a
-promise that every platform uses the exact same file suffix. `kongctl` still
-needs explicit platform resolution rules for Windows wrappers and executable
+`runtime.command` is a path relative to the installed extension root. It must
+not be absolute, must not contain `..`, and must resolve inside the extension
+root. It must point to an already-runnable script or binary; `kongctl` does
+not compile extension source during install in v1. `kongctl` still needs
+explicit platform resolution rules for Windows wrappers and executable
 extensions.
 
-### 6. Use A Runtime Describe Contract For Command Metadata
+### 6. Use Static Manifest Command Metadata In v1
 
-All command metadata should come from the extension runtime itself.
+All command metadata should come from `extension.yaml` in v1.
 
 That includes:
 
@@ -222,75 +282,31 @@ That includes:
 - args
 - flags
 
-This avoids splitting command metadata between the manifest and the extension
-implementation.
+The earlier design considered a runtime metadata contract such as
+`kongctl-ext-foo __kongctl describe`. That remains a possible future extension
+authoring convenience, but it should not be required in v1 because it would
+execute extension code during install or link just to discover metadata.
 
-The host should invoke the extension using a reserved internal argument
-contract, for example:
+In v1, `kongctl` should validate command metadata directly from
+`extension.yaml`, then cache the validated metadata for:
 
-```text
-kongctl-ext-foo __kongctl describe
-```
+- help
+- completion
+- `inspect extension`
+- conflict checks
+- startup command registration
 
-The extension should return structured JSON on stdout. Example:
+This creates a possible metadata drift risk: a runtime can behave differently
+than its manifest declares. `kongctl` should reduce accidental drift by
+installing the manifest and runtime together, recording manifest and runtime
+hashes, and verifying the installed runtime hash before execution. These hashes
+prove package integrity, not behavioral truth. A malicious executable can still
+ignore or misrepresent its declared metadata, so extension installation remains
+arbitrary local code execution.
 
-```json
-{
-  "command_paths": [
-    {
-      "id": "get_foo",
-      "path": ["get", "foo"],
-      "summary": "Get Foo resources",
-      "description": "Retrieves Foo resources from Konnect.",
-      "usage": "kongctl get foo [name] [flags]",
-      "examples": [
-        "kongctl get foo",
-        "kongctl get foo my-foo --output json"
-      ],
-      "args": [
-        {
-          "name": "name",
-          "required": false,
-          "repeatable": false,
-          "description": "Optional Foo resource name."
-        }
-      ],
-      "flags": [
-        {
-          "name": "filter",
-          "type": "string",
-          "description": "Filter Foo resources by label."
-        }
-      ]
-    },
-    {
-      "id": "promote_foo",
-      "path": ["promote", "foo"],
-      "summary": "Promote Foo resources"
-    }
-  ]
-}
-```
+#### Command Metadata Stability In v1
 
-`kongctl` should validate this descriptor at install or link time, then cache
-it for help, completion, inspection, and collision checks.
-
-This design cleanly separates concerns:
-
-- argv selects the extension control operation such as `describe`
-- environment variables carry ambient runtime context such as
-  `KONGCTL_EXTENSION_CONTEXT`
-
-This choice also has an important tradeoff: the selected platform entrypoint
-must be executable on the installing machine so `kongctl` can run
-`__kongctl describe`. That is an intentional v1 constraint. It keeps command
-metadata aligned with the implementation, but it means install-time validation
-applies to the local platform artifact, not every artifact a repository might
-publish.
-
-#### Descriptor stability in v1
-
-In v1, the command descriptor should be treated as install-stable metadata.
+In v1, the command metadata should be treated as install-stable metadata.
 
 That means:
 
@@ -300,12 +316,14 @@ That means:
 
 Dynamic runtime behavior is still fine, but dynamic command registration is not
 part of the v1 design. If an extension needs a different command surface after
-an upgrade or local edit, the descriptor should be refreshed through install,
+an upgrade or local edit, the metadata should be refreshed through install,
 upgrade, link, or an explicit refresh path.
 
 Linked extensions are the exception for developer experience. They should
-either be re-described on each invocation or have very aggressive cache
-invalidation so local edits show up immediately.
+re-read the manifest on each invocation or have very aggressive cache
+invalidation so local edits show up immediately. Linked extensions should not
+use strict runtime hash verification because local drift is expected during
+development.
 
 #### Flag and argument boundary in v1
 
@@ -319,7 +337,7 @@ Recommended v1 behavior:
 - extension-specific flags and arg validation belong to the extension, not the
   host
 - `--help` for an extension command path should be rendered from the cached
-  descriptor so help stays fast and consistent
+  manifest metadata so help stays fast and consistent
 
 This keeps the host/extension contract simple and avoids trying to make Cobra
 authoritatively parse two different flag surfaces at once.
@@ -348,13 +366,55 @@ For local path installs:
 
 For GitHub repo installs:
 
-1. the repository must contain `extension.yaml`
-2. if the repo publishes a compatible release asset for the current platform,
-   prefer downloading that asset
-3. if the extension is a script-based extension without release assets, clone
-   the repository at the selected ref into the managed extension home
-4. record the source and installed version so `upgrade` can repeat the same
+1. follow the GitHub CLI model: prefer a compatible release artifact for the
+   current platform
+2. if no compatible release artifact exists, clone the repository only when
+   it contains an `extension.yaml` and an already-runnable root-level script or
+   binary referenced by `runtime.command`
+3. do not compile extension source during install
+4. record the source, selected ref, resolved commit, manifest hash, runtime
+   hash, and package hash where available so `upgrade` can repeat the same
    strategy later
+
+For release artifacts, the archive should extract to an extension root that
+contains `extension.yaml` and the runtime referenced by `runtime.command`.
+Example:
+
+```text
+extension.yaml
+bin/kongctl-ext-foo
+README.md
+```
+
+With:
+
+```yaml
+runtime:
+  command: bin/kongctl-ext-foo
+```
+
+Release asset names should follow a strict platform convention:
+
+```text
+kongctl-ext-foo_0.1.0_linux_amd64.tar.gz
+kongctl-ext-foo_0.1.0_darwin_arm64.tar.gz
+kongctl-ext-foo_0.1.0_windows_amd64.zip
+```
+
+For source fallback and local path installs, the canonical root-level runtime
+name should be `kongctl-ext-<name>`, for example:
+
+```text
+extension.yaml
+kongctl-ext-foo
+```
+
+With:
+
+```yaml
+runtime:
+  command: kongctl-ext-foo
+```
 
 This gives `kongctl` a clear v1 install story:
 
@@ -370,7 +430,53 @@ so it can later answer questions such as:
 - is this extension linked or installed
 - what version or ref should `upgrade` compare against
 
-### 8. Pass Runtime Context Through An Inherited Environment Variable
+### 8. Store Extensions Under The Existing Kongctl Config Home
+
+Persistent extension files should live under the same kongctl config home used
+for config, logs, and process-management state:
+
+- `$XDG_CONFIG_HOME/kongctl`
+- or the existing user-home fallback used by `config.GetDefaultConfigPath()`
+
+Recommended v1 layout:
+
+The examples below use `$KONGCTL_CONFIG_HOME` as shorthand for the resolved
+kongctl config directory.
+
+```text
+$KONGCTL_CONFIG_HOME/
+  extensions/
+    installed/
+      foo/
+        extension.yaml
+        bin/kongctl-ext-foo
+    linked/
+      foo.json
+    state/
+      foo.json
+    cache/
+      foo.json
+    runtime/
+      <session-id>/
+        context.json
+```
+
+The exact file names can change during implementation, but the separation
+should remain:
+
+- `installed/` contains copied release or source fallback packages.
+- `linked/` records local development links to working trees.
+- `state/` records source, selected ref, resolved commit, package hash,
+  manifest hash, runtime hash, install mode, and timestamps.
+- `cache/` records validated manifest command metadata for startup command
+  registration, help, completion, inspection, and collision checks.
+- `runtime/` contains ephemeral context files and related session artifacts.
+
+Runtime files should be best-effort cleaned up after execution and reaped
+opportunistically on later runs. A conservative initial stale threshold such as
+24 hours is appropriate and should be easy to adjust.
+
+### 9. Pass Runtime Context Through An Inherited Environment Variable
 
 The parent `kongctl` process should resolve invocation-bound state, write a
 machine-generated `context.json` to a temporary runtime location, and pass the
@@ -390,7 +496,7 @@ Future transport upgrades can add additional runtime artifacts alongside this
 file or through additional environment variables without changing the core
 bootstrap contract: the child gets a direct path to `context.json`.
 
-### 9. Keep Secrets Out Of The Runtime Context
+### 10. Keep Secrets Out Of The Runtime Context
 
 The runtime context should include resolved invocation state such as:
 
@@ -401,6 +507,7 @@ The runtime context should include resolved invocation state such as:
 - log level
 - config file path
 - remaining args
+- auth mode and auth source metadata
 - active session metadata
 
 It should not include:
@@ -409,7 +516,14 @@ It should not include:
 - refresh credentials
 - copied secrets from the host environment
 
-### 10. Make Nested `kongctl` Calls Session-Aware
+Transient secrets that are already part of the invocation, such as a PAT passed
+with `--pat`, may still be propagated to the extension process and nested
+`kongctl` subprocesses through the normal process environment or existing
+configuration mechanisms. The important boundary is that `context.json` never
+serializes those secrets. It should record non-secret metadata such as
+`auth_mode: pat` or `auth_mode: device`.
+
+### 11. Make Nested `kongctl` Calls Session-Aware
 
 When an extension runs `kongctl api ...` or `kongctl get config <field>`, the
 nested `kongctl` subprocess should inherit
@@ -423,9 +537,13 @@ That means the child does not need to replay:
 - config file selection
 - other session-bound settings
 
+Nested calls should inherit the effective auth context from the parent
+invocation. If the parent used a transient PAT, nested `kongctl` helpers should
+continue to work without writing that PAT into `context.json`.
+
 This is the key design point that makes CLI-first callbacks workable.
 
-### 11. Use A CLI-First Host Callback Model In v1
+### 12. Use A CLI-First Host Callback Model In v1
 
 For v1, the main host callback surface should be the `kongctl` CLI itself.
 
@@ -462,7 +580,7 @@ host bridge, the extension would need to reproduce `kongctl`'s token
 resolution, refresh handling, timeout settings, transport options, and client
 construction itself.
 
-### 12. Defer A Go SDK Until It Is Clearly Needed
+### 13. Defer A Go SDK Until It Is Clearly Needed
 
 The design does not need to require a Go SDK in the first implementation.
 
@@ -484,7 +602,7 @@ If a clear repeated pattern emerges across real extensions, `kongctl` can add a
 small helper library later. That library should be justified by actual author
 pain, not added speculatively.
 
-### 13. Add Cleanup And Recursion Protection From The Start
+### 14. Add Cleanup And Recursion Protection From The Start
 
 Because the runtime model writes temporary context files, the implementation
 must be disciplined:
@@ -544,19 +662,20 @@ That makes a purely reactive fallback fragile.
 
 The safer v1 approach is:
 
-- load cached extension descriptors during startup
+- load cached validated manifest metadata during startup
 - register synthetic Cobra commands for extension command paths
 - keep built-ins authoritative by rejecting install-time collisions
 - use those synthetic commands for dispatch, help, and completion
 
 This is one of the most important implementation details in the design. The
-descriptor cache is not just an optimization. It is the mechanism that makes
-Cobra integration practical.
+manifest metadata cache is not just an optimization. It is the mechanism that
+makes Cobra integration practical.
 
 This also implies a completion strategy: shell completion should be driven by
-runtime descriptor loading, not by asking users to regenerate completion
-scripts after every install or uninstall. The generated shell script can remain
-static while still calling back into `kongctl` dynamically at completion time.
+runtime manifest metadata loading, not by asking users to regenerate completion
+scripts after every install or uninstall. The generated shell script can
+remain static while still calling back into `kongctl` dynamically at completion
+time.
 
 ### The current `skills/` mechanism is not a CLI extension model
 
@@ -966,8 +1085,8 @@ managed directory such as `~/.docker/cli-plugins`, where a binary named
 
 Docker's CLI plugin ecosystem also defines a metadata subcommand,
 `docker-cli-plugin-metadata`, which plugins use to report structured metadata.
-That is the closest direct precedent in this survey for the proposed
-`__kongctl describe` contract
+That is a useful precedent for a possible future generated-metadata mode, even
+though v1 `kongctl` should use static command metadata from `extension.yaml`
 ([design reference](https://github.com/docker/cli/issues/1534),
 [Go package](https://pkg.go.dev/github.com/docker/cli/cli-plugins/metadata)).
 
@@ -996,9 +1115,10 @@ permissions during installation
 `kongctl` should strongly prefer a managed extension directory over raw
 `PATH` scanning.
 
-Docker is also strong supporting evidence for the idea that a plugin runtime
-can require a hidden metadata/reporting subcommand without making the user-facing
-command surface awkward.
+Docker is also supporting evidence that a future plugin runtime could add a
+hidden metadata/reporting subcommand without making the user-facing command
+surface awkward. For v1, `kongctl` should prefer static command metadata from
+`extension.yaml`.
 
 ## Several SaaS CLIs Avoid Local Plugin Runtimes
 
@@ -1350,14 +1470,14 @@ Good as a phased strategy, not as a day-one everything model.
 
 `kongctl` should implement a managed external-command extension system that
 preserves the `kongctl <verb> ...` model instead of replacing it with isolated
-top-level extension commands. The core design choice is:
+top-level extension commands. The core design choices are:
 
 1. allow extension-contributed `command_paths`
 2. allow those command paths to land under the open existing verbs `get` and
    `list`, or to define a new verb naturally through the first path segment
-3. use a simple `extension.yaml` manifest for package metadata only
-4. require the extension runtime to provide command metadata through a reserved
-   argv contract such as `__kongctl describe`
+3. use `extension.yaml` for package, runtime, and command metadata
+4. validate and cache command metadata from the manifest without executing the
+   extension during install or link
 5. pass runtime context through `KONGCTL_EXTENSION_CONTEXT`
 6. keep the v1 host callback model CLI-first
 
@@ -1386,6 +1506,8 @@ Allowed in v1:
 - `command_paths` whose first segment is `get` or `list`
 - `command_paths` whose first segment is a new verb not claimed by a built-in
   command
+- multi-segment command paths such as `get foo bar`
+- per-segment aliases, except aliases on reserved built-in root segments
 
 Disallowed in v1:
 
@@ -1396,6 +1518,27 @@ Disallowed in v1:
 
 This lets `kongctl` preserve its existing grammar without opening the most
 dangerous integration points too early.
+
+Each path segment should be represented as an object:
+
+```yaml
+command_paths:
+  - id: get_foo_bar
+    path:
+      - name: get
+      - name: foo
+        aliases: [foos]
+      - name: bar
+        aliases: [bars]
+    summary: Get Foo Bar resources
+```
+
+Built-in root segments such as `get` and `list` are reserved and cannot define
+aliases. Custom root verbs can define aliases when they do not collide with
+built-in command names, built-in aliases, reserved names, or other extensions.
+Every canonical segment and alias is collision-checked at its parent node. If
+an extension contributes `get foo bar` but not a runnable `get foo`, `kongctl`
+may synthesize `get foo` as a non-runnable namespace/help node.
 
 ### 2. Managed Install, Remove, Upgrade, And Link Workflow
 
@@ -1429,13 +1572,76 @@ Recommended install rules:
 
 1. local path installs require `extension.yaml`
 2. `link` should be used for local development workflows
-3. after install or link, `kongctl` should invoke the extension with
-   `__kongctl describe`
-4. the returned command descriptor should be validated and cached
-5. GitHub repo installs require `extension.yaml`
-6. for binary extensions, prefer compatible release assets when present
-7. for script extensions, clone the repo into the managed extension home
-8. store the install source and ref so `upgrade` can reuse the same strategy
+3. command metadata should be read from `extension.yaml`, validated, and cached
+4. GitHub installs should follow the GitHub CLI model: prefer compatible
+   release artifacts and fall back to source clone only for already-runnable
+   script or binary extensions
+5. no source compilation should happen during install
+6. store source, selected ref, resolved commit, package hash where available,
+   manifest hash, and runtime hash so `upgrade` can reuse the same strategy
+7. installed runtime hashes should be verified before execution
+
+Release artifacts should use a strict archive layout. The archive root must
+contain `extension.yaml`; `runtime.command` points to an already-runnable
+script or binary inside that extracted root:
+
+```text
+extension.yaml
+bin/kongctl-ext-foo
+README.md
+```
+
+```yaml
+runtime:
+  command: bin/kongctl-ext-foo
+```
+
+Release asset names should follow:
+
+```text
+kongctl-ext-foo_0.1.0_linux_amd64.tar.gz
+kongctl-ext-foo_0.1.0_darwin_arm64.tar.gz
+kongctl-ext-foo_0.1.0_windows_amd64.zip
+```
+
+Source fallback repositories and local path installs use the same
+`runtime.command` rule. The canonical source fallback layout is:
+
+```text
+extension.yaml
+kongctl-ext-foo
+```
+
+```yaml
+runtime:
+  command: kongctl-ext-foo
+```
+
+`runtime.command` is relative to the extension root. It must not be absolute,
+must not contain `..`, and must resolve inside the extension root. On Unix, it
+must be executable. On Windows, the manifest should name a runnable file for
+the platform, such as `.exe`, `.cmd`, or `.bat`; v1 should avoid ambiguous
+PATH-style suffix guessing.
+
+Persistent extension storage should live under the existing kongctl config
+home:
+
+The examples below use `$KONGCTL_CONFIG_HOME` as shorthand for the resolved
+kongctl config directory.
+
+```text
+$KONGCTL_CONFIG_HOME/
+  extensions/
+    installed/
+    linked/
+    state/
+    cache/
+    runtime/
+```
+
+`installed/` contains copied packages, `linked/` records local development
+links, `state/` records provenance and hashes, `cache/` records validated
+manifest metadata, and `runtime/` contains ephemeral context files.
 
 Recommended non-goal for v1:
 
@@ -1465,6 +1671,28 @@ runtime:
 compatibility:
   min_version: 0.20.0
   max_version: 0.x
+
+command_paths:
+  - id: get_foo
+    path:
+      - name: get
+      - name: foo
+        aliases: [foos]
+    summary: Get Foo resources
+    description: Retrieves Foo resources from Konnect.
+    usage: kongctl get foo [name] [flags]
+    examples:
+      - kongctl get foo
+      - kongctl get foo my-foo --output json
+    args:
+      - name: name
+        required: false
+        repeatable: false
+        description: Optional Foo resource name.
+    flags:
+      - name: filter
+        type: string
+        description: Filter Foo resources by label.
 ```
 
 Important design notes:
@@ -1474,9 +1702,9 @@ Important design notes:
   repeating `kongctl` in every field name
 - `runtime.command` is the concrete v1 execution hook and tells `kongctl`
   which executable to run
-- install source and upgrade state should be stored by `kongctl`, not embedded
-  in the extension manifest
-- command metadata should not be duplicated here
+- install source, upgrade state, and hash observations should be stored by
+  `kongctl`, not embedded in the extension manifest
+- command metadata belongs in the manifest for v1
 
 Deferred from the v1 manifest:
 
@@ -1485,9 +1713,9 @@ Deferred from the v1 manifest:
 - distribution metadata for registries, indexes, or signed catalogs
 - alternative runtime types beyond executable child processes
 
-### 5. Runtime Command Descriptor Contract
+### 5. Static Command Metadata Contract
 
-All command metadata should come from the extension runtime, not the manifest.
+All command metadata should come from the manifest in v1.
 
 That includes:
 
@@ -1499,63 +1727,23 @@ That includes:
 - args
 - flags
 
-The host should invoke the extension using a reserved internal argument
-contract:
-
-```text
-kongctl-ext-foo __kongctl describe
-```
-
-The extension should return structured JSON on stdout. Example:
-
-```json
-{
-  "command_paths": [
-    {
-      "id": "get_foo",
-      "path": ["get", "foo"],
-      "summary": "Get Foo resources",
-      "description": "Retrieves Foo resources from Konnect.",
-      "usage": "kongctl get foo [name] [flags]",
-      "examples": [
-        "kongctl get foo",
-        "kongctl get foo my-foo --output json"
-      ],
-      "args": [
-        {
-          "name": "name",
-          "required": false,
-          "repeatable": false,
-          "description": "Optional Foo resource name."
-        }
-      ],
-      "flags": [
-        {
-          "name": "filter",
-          "type": "string",
-          "description": "Filter Foo resources by label."
-        }
-      ]
-    },
-    {
-      "id": "promote_foo",
-      "path": ["promote", "foo"],
-      "summary": "Promote Foo resources"
-    }
-  ]
-}
-```
-
-`kongctl` should validate this descriptor at install or link time, reject any
-restricted or colliding command paths, and cache the validated descriptor for:
+`kongctl` should validate this metadata at install or link time, reject any
+restricted or colliding command paths, and cache the validated metadata for:
 
 - `help`
 - completion
 - `inspect extension`
 - conflict checks
 
-This avoids splitting command metadata between the manifest and the extension
-implementation.
+The earlier `__kongctl describe` concept should be deferred. It can be added
+later as an optional authoring convenience for trusted or linked development
+workflows, but v1 should not execute extension code during install or link just
+to discover metadata.
+
+The tradeoff is that manifest metadata can drift from executable behavior.
+`kongctl` should reduce accidental drift by storing manifest/runtime hashes
+for installed extensions and verifying the installed runtime hash before
+execution. This is package-integrity checking, not a behavioral guarantee.
 
 ### 6. Runtime Context Contract
 
@@ -1570,6 +1758,7 @@ extension. That includes:
 - config file path
 - CLI version
 - original and remaining args
+- auth mode and auth source metadata
 - active extension session metadata
 
 The runtime contract should be:
@@ -1595,7 +1784,9 @@ Example:
     "base_url": "https://us.api.konghq.com",
     "output": "json",
     "log_level": "debug",
-    "config_file": "/home/me/.config/kongctl/config.yaml"
+    "config_file": "/home/me/.config/kongctl/config.yaml",
+    "auth_mode": "pat",
+    "auth_source": "flag"
   },
   "host": {
     "kongctl_path": "/usr/local/bin/kongctl",
@@ -1613,6 +1804,11 @@ This is the right place to preserve `profile`, `base_url`, and other resolved
 settings that the child should not have to rediscover.
 
 No secrets should be written into this file.
+
+Transient secrets such as a PAT supplied by `--pat` may be propagated through
+the normal process environment or existing config/auth mechanisms so nested
+`kongctl` helpers can keep using the effective parent auth context. The context
+file records only non-secret metadata about the selected auth mode and source.
 
 `context.json` also needs an explicit compatibility contract:
 
@@ -1889,6 +2085,8 @@ The first release should explicitly not attempt all of the following.
 5. No background daemons started by extensions during installation.
 6. No promise that executable extensions are strongly sandboxed.
 7. No large in-process host SDK.
+8. No source compilation during extension install.
+9. No required runtime metadata command such as `__kongctl describe` in v1.
 
 Writing these non-goals down will prevent the first implementation from growing
 into a framework before the basic product loop is proven.
@@ -1906,13 +2104,17 @@ into a framework before the basic product loop is proven.
 
 - finalize `extension.yaml` schema
 - define command-path matching and collision rules
-- implement synthetic Cobra command registration from cached descriptors
+- implement synthetic Cobra command registration from cached manifest metadata
 - define the host/extension flag boundary
 - define the runtime context contract
 - implement `KONGCTL_EXTENSION_CONTEXT` bootstrap
 - implement recursion guard
 - implement `install`, `uninstall`, `list`, `inspect`, `upgrade`, and `link`
 - support local path install and GitHub repo install
+- support GitHub release artifacts first, with source clone fallback only for
+  already-runnable script or binary extensions
+- record manifest/runtime hashes and verify installed runtime hashes before
+  dispatch
 
 ## Phase 2: Authoring Deliverables
 
@@ -1943,31 +2145,63 @@ into a framework before the basic product loop is proven.
 - add a small Go helper library only if repeated extension patterns justify it
 - only add lifecycle hooks if concrete use cases justify them
 
-## Open Questions
+## Resolved Implementation Decisions
 
-These questions should be resolved before implementation begins.
+These decisions should be treated as settled for v1 implementation.
 
-1. Should custom verbs be generally allowed in v1, or should that be revisited
-   only after a later trust and policy model exists?
-2. Should GitHub repo installation always use a hybrid rule of release assets
-   first and repo clone for script extensions, or should users choose
-   explicitly?
-3. Should there be an official extension index in v1, or should that wait
-   until after direct GitHub and local installs are working?
-4. What exact precedence rules should apply when nested session-aware helper
-   commands specify explicit output or log flags?
-5. What stale-file cleanup threshold is appropriate?
-6. Should `kongctl get config <field>` return machine-oriented output by
-   default when called within an extension session?
-7. Which top-level command paths should be reserved so custom verbs cannot
-   overlap with extension management, help, or other CLI-owned namespaces?
-8. How and when should `kongctl` check for extension updates without adding
+1. Custom verbs are allowed in v1, and extensions may also contribute below
+   `get` and `list`.
+2. Existing built-in root commands other than `get` and `list` are closed to
+   extension contributions.
+3. Command paths are arrays of segment objects. Segments may define aliases.
+   Built-in root segments such as `get` and `list` cannot define aliases.
+4. Every canonical segment and alias is collision-checked at its parent node.
+   Built-in command names, built-in aliases, extension lifecycle namespaces,
+   help/completion internals, and other extension paths are reserved.
+5. GitHub installs follow the GitHub CLI model: release artifact first, source
+   clone fallback only for already-runnable script or binary extensions, and no
+   source compilation during install.
+6. Release artifacts are archives whose root contains `extension.yaml` and the
+   runtime referenced by `runtime.command`.
+7. `runtime.command` is a relative path inside the extension root. It cannot be
+   absolute, cannot contain `..`, and is not resolved through `PATH`.
+8. Installed extensions store install source, selected ref, resolved commit,
+   package hash where available, manifest hash, and runtime hash. Installed
+   runtime hashes are verified before execution. Linked extensions skip strict
+   runtime hash verification.
+9. Extension state is stored under the existing kongctl config home, which uses
+   `$XDG_CONFIG_HOME/kongctl` or the existing user-home fallback.
+10. The host parses global/root flags and passes extension-specific args and
+    flags through verbatim as `remaining_args`.
+11. Nested `kongctl` subprocesses inherit the effective invocation context,
+    including transient auth, without writing secrets into `context.json`.
+12. `profile`, `base_url`, selected config file, and auth selection context are
+    locked for nested helper calls. `output` and `log_level` are defaulted from
+    the parent session but can be explicitly overridden by nested commands.
+13. `context.json` changes within a schema version are additive only; removing
+    or renaming fields requires a new schema version.
+14. `kongctl get config <field>` should be machine-oriented when used as an
+    extension helper. Text output should print raw scalar values without
+    decoration, while JSON/YAML output should remain structured.
+15. V1 does not need `kongctl run extension <name> [args...]`; command-path
+    dispatch is the primary invocation model. A direct debug runner can be
+    added later if real debugging workflows need it.
+16. Stale extension runtime context files should be reaped opportunistically.
+    The initial implementation should use a conservative default threshold,
+    such as 24 hours, and make it easy to adjust.
+
+## Deferred Questions
+
+These questions are intentionally not blockers for v1.
+
+1. Should there be an official extension index for search, trust tiering, and
+   discoverability?
+2. How and when should `kongctl` check for extension updates without adding
    surprising latency or background network traffic?
-9. What exact cross-platform rules should apply when resolving
-   `runtime.command` on Windows, macOS, and Linux?
-10. Should `kongctl` also provide a direct debugging path such as
-    `kongctl run extension <name> [args...]`, or should command-path dispatch
-    remain the only invocation model?
+3. Should a future trusted or linked-development mode support generated
+   metadata through an optional runtime command such as `__kongctl describe`?
+4. Should `kongctl` eventually provide a direct debug runner such as
+   `kongctl run extension <name> [args...]`?
 
 ## Final Recommendation
 
@@ -1980,26 +2214,34 @@ The concrete v1 recommendation is:
 2. support extension-contributed `command_paths`
 3. allow those command paths to land under `get` or `list`, or to define a new
    verb through the first path segment
-4. visibly label extension-contributed command paths in help, completion, and
+4. represent command paths as arrays of segment objects with optional
+   per-segment aliases
+5. visibly label extension-contributed command paths in help, completion, and
    inspection output
-5. use a simple `extension.yaml` manifest with `schema_version` for package
-   metadata only
-6. require the extension runtime to provide command metadata through
+6. use `extension.yaml` with `schema_version` for package, runtime, and command
+   metadata
+7. validate command metadata from the manifest instead of requiring
    `__kongctl describe`
-7. load cached descriptors and register synthetic Cobra commands for dispatch,
+8. load cached manifest metadata and register synthetic Cobra commands for dispatch,
    help, and completion
-8. invoke extensions as child processes
-9. pass runtime context through `KONGCTL_EXTENSION_CONTEXT`
-10. store `context.json` at a temporary runtime path
-11. keep secrets out of the runtime context
-12. make nested `kongctl` subprocesses session-aware
-13. parse global flags in the host and pass `remaining_args` to the extension
-14. use `kongctl api` and small machine-friendly helpers as the standard
+9. invoke extensions as child processes
+10. pass runtime context through `KONGCTL_EXTENSION_CONTEXT`
+11. store `context.json` at a temporary runtime path
+12. keep secrets out of the runtime context
+13. make nested `kongctl` subprocesses session-aware
+14. parse global flags in the host and pass `remaining_args` to the extension
+15. follow the GitHub CLI install model: release artifact first, source clone
+    fallback only for already-runnable script or binary extensions, and no
+    source compilation during install
+16. store manifest/runtime hashes and verify installed runtime hashes before
+    execution
+17. store installed extension state under the existing kongctl config home
+18. use `kongctl api` and small machine-friendly helpers as the standard
     low-level v1 host callback surface
-15. ship one script example and one Go example
-16. ship extension install, remove, list, inspect, upgrade, and link flows
-17. validate subprocess performance before locking the transport
-18. add a `kongctl-extension-builder` skill for coding-agent-assisted
+19. ship one script example and one Go example
+20. ship extension install, remove, list, inspect, upgrade, and link flows
+21. validate subprocess performance before locking the transport
+22. add a `kongctl-extension-builder` skill for coding-agent-assisted
     authoring
 
 This design keeps the CLI recognizable, supports both script and Go extension
