@@ -488,13 +488,10 @@ func allBenchmarkCases() []benchmarkCase {
 }
 
 func caseTokenMatches(token string, candidate benchmarkCase) bool {
-	if token == candidate.Name ||
+	return token == candidate.Name ||
 		token == candidate.Workload.Size ||
 		token == candidate.Layout ||
-		token == strings.TrimSuffix(candidate.Name, "-file") {
-		return true
-	}
-	return false
+		token == strings.TrimSuffix(candidate.Name, "-file")
 }
 
 func normalizeCaseToken(token string) string {
@@ -886,7 +883,7 @@ func compareBaseline(cfg config, current suiteResult) (*comparisonResult, error)
 			DurationDeltaMS:    currentPhase.Phase.DurationMS - baselinePhase.Phase.DurationMS,
 		}
 		row.RequestDeltaPercent = percentDelta(row.BaselineRequests, row.CurrentRequests)
-		row.DurationDeltaPercent = percentDelta64(row.BaselineDurationMS, row.CurrentDurationMS)
+		row.DurationDeltaPercent = percentDelta(row.BaselineDurationMS, row.CurrentDurationMS)
 		row.RequestRegression = row.RequestDelta > 0 && row.RequestDeltaPercent > cfg.RequestCountThreshold
 		row.DurationRegression = row.DurationDeltaMS > 0 && row.DurationDeltaPercent > cfg.DurationThreshold
 		if row.RequestRegression {
@@ -940,25 +937,12 @@ func aggregatePhaseResults(phases []phaseAggregate) phaseAggregate {
 	}
 
 	aggregated := phases[0]
-	aggregated.Phase.HTTPMetrics.Requests = medianInt(requests)
-	aggregated.Phase.DurationMS = medianInt64(durations)
+	aggregated.Phase.HTTPMetrics.Requests = median(requests)
+	aggregated.Phase.DurationMS = median(durations)
 	return aggregated
 }
 
-func medianInt(values []int) int {
-	if len(values) == 0 {
-		return 0
-	}
-	values = slices.Clone(values)
-	slices.Sort(values)
-	midpoint := len(values) / 2
-	if len(values)%2 == 1 {
-		return values[midpoint]
-	}
-	return (values[midpoint-1] + values[midpoint]) / 2
-}
-
-func medianInt64(values []int64) int64 {
+func median[T int | int64](values []T) T {
 	if len(values) == 0 {
 		return 0
 	}
@@ -980,17 +964,7 @@ func comparisonKeyLabel(key string) string {
 	return caseName + "/" + phaseName
 }
 
-func percentDelta(baseline, current int) float64 {
-	if baseline == 0 {
-		if current == 0 {
-			return 0
-		}
-		return 1
-	}
-	return float64(current-baseline) / float64(baseline)
-}
-
-func percentDelta64(baseline, current int64) float64 {
+func percentDelta[T int | int64](baseline, current T) float64 {
 	if baseline == 0 {
 		if current == 0 {
 			return 0
@@ -1305,14 +1279,11 @@ func durationEnv(key string, fallback time.Duration) time.Duration {
 }
 
 func boolEnv(key string, fallback bool) bool {
-	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
-	switch value {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
 	case "1", "true", "yes", "on", "y":
 		return true
 	case "0", "false", "no", "off", "n":
 		return false
-	case "":
-		return fallback
 	default:
 		return fallback
 	}
