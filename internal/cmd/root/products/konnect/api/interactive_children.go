@@ -10,16 +10,17 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/util"
 )
 
 func init() {
-	tableview.RegisterChildLoader("api", "documents", loadAPIDocuments)
-	tableview.RegisterChildLoader("api", "versions", loadAPIVersions)
-	tableview.RegisterChildLoader("api", "publications", loadAPIPublications)
-	tableview.RegisterChildLoader("api", "implementations", loadAPIImplementations)
-	tableview.RegisterChildLoader("api-document", "content", loadAPIDocumentContent)
-	tableview.RegisterChildLoader("api-version", "spec", loadAPIVersionSpec)
+	tableview.RegisterChildLoader(common.ViewParentAPI, common.ViewFieldDocuments, loadAPIDocuments)
+	tableview.RegisterChildLoader(common.ViewParentAPI, common.ViewFieldVersions, loadAPIVersions)
+	tableview.RegisterChildLoader(common.ViewParentAPI, common.ViewFieldPublications, loadAPIPublications)
+	tableview.RegisterChildLoader(common.ViewParentAPI, common.ViewFieldImplementations, loadAPIImplementations)
+	tableview.RegisterChildLoader(common.ViewParentAPIDocument, common.ViewFieldContent, loadAPIDocumentContent)
+	tableview.RegisterChildLoader(common.ViewParentAPIVersion, common.ViewFieldSpec, loadAPIVersionSpec)
 }
 
 func loadAPIDocuments(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -81,7 +82,7 @@ func loadAPIDocuments(_ context.Context, helper cmd.Helper, parent any) (tablevi
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Documents",
-		ParentType:     "api-document",
+		ParentType:     common.ViewParentAPIDocument,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(flattened) {
 				return nil
@@ -153,7 +154,7 @@ func loadAPIVersions(_ context.Context, helper cmd.Helper, parent any) (tablevie
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Versions",
-		ParentType:     "api-version",
+		ParentType:     common.ViewParentAPIVersion,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(summaries) {
 				return nil
@@ -221,7 +222,7 @@ func loadAPIPublications(_ context.Context, helper cmd.Helper, parent any) (tabl
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Publications",
-		ParentType:     "api-publication",
+		ParentType:     common.ViewParentAPIPublication,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(publications) {
 				return nil
@@ -283,7 +284,7 @@ func loadAPIImplementations(_ context.Context, helper cmd.Helper, parent any) (t
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Implementations",
-		ParentType:     "api-implementation",
+		ParentType:     common.ViewParentAPIImplementation,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(implementations) {
 				return nil

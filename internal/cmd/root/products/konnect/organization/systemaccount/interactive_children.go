@@ -8,10 +8,15 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 )
 
 func init() {
-	tableview.RegisterChildLoader("organization", "system-accounts", loadOrganizationSystemAccounts)
+	tableview.RegisterChildLoader(
+		common.ViewParentOrganization,
+		common.ViewFieldSystemAccounts,
+		loadOrganizationSystemAccounts,
+	)
 }
 
 func loadOrganizationSystemAccounts(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

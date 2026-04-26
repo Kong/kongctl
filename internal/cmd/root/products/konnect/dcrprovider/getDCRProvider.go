@@ -395,7 +395,7 @@ func buildDCRProviderChildView(providers []dcrProvider) tableview.ChildView {
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "DCR Providers",
-		ParentType:     "dcr-provider",
+		ParentType:     common.ViewParentDCRProvider,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(providers) {
 				return nil

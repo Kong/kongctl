@@ -3,6 +3,7 @@ package authstrategy
 import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 )
 
@@ -34,8 +35,12 @@ func BuildListView(helper cmd.Helper) (tableview.ChildView, error) {
 
 func init() {
 	navigator.RegisterResource(
-		"auth-strategies",
-		[]string{"auth-strategies", "application-auth-strategies", "auth-strategy"},
+		common.ViewResourceAuthStrategies,
+		[]string{
+			common.ViewAliasAuthStrategies,
+			common.ViewAliasApplicationAuthStrategies,
+			common.ViewParentAuthStrategy,
+		},
 		BuildListView,
 	)
 }

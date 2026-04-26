@@ -277,7 +277,7 @@ func buildBackendClusterChildView(clusters []kkComps.BackendCluster) tableview.C
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Backend Clusters",
-		ParentType:     "backend-cluster",
+		ParentType:     common.ViewParentBackendCluster,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(clusters) {
 				return nil

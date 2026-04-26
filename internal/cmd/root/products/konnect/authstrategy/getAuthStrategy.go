@@ -584,7 +584,7 @@ func buildAuthStrategyChildView(strategies []kkComps.AppAuthStrategy) tableview.
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Application Auth Strategies",
-		ParentType:     "auth-strategy",
+		ParentType:     common.ViewParentAuthStrategy,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(strategies) {
 				return nil

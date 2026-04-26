@@ -15,6 +15,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -270,7 +271,7 @@ func (h portalPagesHandler) listPages(
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("portal-page", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentPortalPage, func(index int) any {
 			if index < 0 || index >= len(flattened) {
 				return nil
 			}
@@ -345,7 +346,7 @@ func (h portalPagesHandler) getSinglePage(
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailRenderer(detailRenderer),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("portal-page", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentPortalPage, func(index int) any {
 			if index != 0 {
 				return nil
 			}

@@ -110,9 +110,15 @@ Resources have multiple identifiers:
 - **ref**: Required field for each reference in declarative configuration. 
     `ref` must be unique across any loaded set of configuration files.
 - **id**: Most Konnect resources have an `id` field which is a Konnect
-    assigned UUID. This field is not represented in declarative configuration files.
-- **name**: Many Konnect resources have a `name` field which may or may not be 
-    unique within an organization for that resource type. 
+    assigned UUID. This field is not represented in declarative configuration
+    files.
+- **name**: Many Konnect resources have a `name` field which may or may not be
+    unique within an organization for that resource type.
+
+Top-level resource keys and field names in declarative YAML are stable
+configuration contract names. Use the names documented in the
+[Declarative Resource Reference](declarative-resource-reference.md), and use
+`ref` values when one resource needs to refer to another.
 
 ```yaml
 application_auth_strategies:

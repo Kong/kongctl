@@ -71,7 +71,7 @@ func buildCatalogServiceChildView(services []kkComps.CatalogService) tableview.C
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Catalog Services",
-		ParentType:     "catalog_service",
+		ParentType:     common.ViewParentCatalogService,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(views) {
 				return nil
@@ -176,8 +176,13 @@ func catalogServiceDetailView(view catalogServiceView) string {
 
 func init() {
 	navigator.RegisterResource(
-		"catalog-services",
-		[]string{"catalog-services", "catalog_service", "catalog_services", "catalog"},
+		common.ViewResourceCatalogServices,
+		[]string{
+			common.ViewAliasCatalogServices,
+			common.ViewParentCatalogService,
+			common.ViewAliasCatalogServicesUnderscore,
+			common.ViewAliasCatalog,
+		},
 		BuildListView,
 	)
 }

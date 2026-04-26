@@ -532,7 +532,7 @@ func buildSchemaRegistryChildView(registries []schemaRegistryEntry) tableview.Ch
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Schema Registries",
-		ParentType:     "schema-registry",
+		ParentType:     common.ViewParentSchemaRegistry,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(registries) {
 				return nil

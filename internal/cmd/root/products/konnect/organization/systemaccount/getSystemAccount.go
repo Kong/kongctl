@@ -197,7 +197,7 @@ func (s *getSystemAccountCmd) runE(c *cobra.Command, args []string) error {
 			systemAccount,
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
-			tableview.WithDetailContext("system_account", func(int) any {
+			tableview.WithDetailContext(common.ViewParentSystemAccount, func(int) any {
 				return systemAccount
 			}),
 			tableview.WithDetailHelper(helper),
@@ -310,7 +310,7 @@ func buildSystemAccountChildView(accounts []kkComps.SystemAccount) tableview.Chi
 		Rows:           rows,
 		DetailRenderer: detailFn,
 		Title:          "System Accounts",
-		ParentType:     "system-account",
+		ParentType:     common.ViewParentSystemAccount,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(accounts) {
 				return nil

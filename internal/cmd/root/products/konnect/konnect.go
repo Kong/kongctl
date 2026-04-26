@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	Product = products.ProductValue("konnect")
+	Product = products.ProductKonnect
 )
 
 var (

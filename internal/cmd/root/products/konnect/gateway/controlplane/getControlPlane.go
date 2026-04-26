@@ -348,7 +348,7 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 			cp,
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
-			tableview.WithDetailContext("control-plane", func(int) any {
+			tableview.WithDetailContext(common.ViewParentControlPlane, func(int) any {
 				return cp
 			}),
 			tableview.WithDetailHelper(helper),
@@ -420,7 +420,7 @@ func buildControlPlaneChildView(cps []kkComps.ControlPlane) tableview.ChildView 
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Control Planes",
-		ParentType:     "control-plane",
+		ParentType:     common.ViewParentControlPlane,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(cps) {
 				return nil

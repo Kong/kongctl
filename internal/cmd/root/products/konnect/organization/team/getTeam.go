@@ -205,7 +205,7 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 			team,
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
-			tableview.WithDetailContext("team", func(int) any {
+			tableview.WithDetailContext(common.ViewParentTeam, func(int) any {
 				return team
 			}),
 			tableview.WithDetailHelper(helper),
@@ -346,7 +346,7 @@ func buildTeamChildView(teams []kkComps.Team) tableview.ChildView {
 		Rows:           rows,
 		DetailRenderer: detailFn,
 		Title:          "Teams",
-		ParentType:     "team",
+		ParentType:     common.ViewParentTeam,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(teams) {
 				return nil

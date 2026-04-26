@@ -269,7 +269,7 @@ func (h apiVersionsHandler) listVersions(
 		tableview.WithCustomTable([]string{"VERSION", "ID"}, rows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
-		tableview.WithDetailContext("api-version", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIVersion, func(index int) any {
 			if index < 0 || index >= len(summaries) {
 				return nil
 			}
@@ -349,7 +349,7 @@ func (h apiVersionsHandler) getSingleVersion(
 		}),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("api-version", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIVersion, func(index int) any {
 			if index != 0 {
 				return nil
 			}
