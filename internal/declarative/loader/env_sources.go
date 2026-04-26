@@ -3,6 +3,7 @@ package loader
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -197,12 +198,7 @@ func parseStructuredFieldTag(tag string) (name string, inline bool, skip bool) {
 	if parts[0] != "" {
 		name = parts[0]
 	}
-	for _, part := range parts[1:] {
-		if part == "inline" {
-			inline = true
-		}
-	}
-	return name, inline, false
+	return name, slices.Contains(parts[1:], "inline"), false
 }
 
 var jsonPointerEscaper = strings.NewReplacer("~", "~0", "/", "~1")

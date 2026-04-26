@@ -197,15 +197,20 @@ func (e *EventGatewayProducePolicyResource) UnmarshalJSON(data []byte) error {
 	e.VirtualCluster = meta.VirtualCluster
 	e.EventGateway = meta.EventGateway
 
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
 	// Validate required type field
-	if err := validateProducePolicyTypeField(data); err != nil {
+	if err := validateProducePolicyTypeField(raw); err != nil {
 		return err
 	}
 
 	// Validate config is present (variant-specific required-field validation is
 	// handled by the SDK union unmarshaler; we just check the key exists here
 	// to give users a clear error rather than an SDK-level "missing required fields").
-	if err := validateProducePolicyConfigField(data); err != nil {
+	if err := validateProducePolicyConfigField(raw); err != nil {
 		return err
 	}
 
@@ -218,25 +223,19 @@ func (e *EventGatewayProducePolicyResource) UnmarshalJSON(data []byte) error {
 }
 
 // validateProducePolicyTypeField ensures the required type discriminator is present.
-func validateProducePolicyTypeField(data []byte) error {
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
+func validateProducePolicyTypeField(raw map[string]any) error {
+	validTypes := []string{
+		string(kkComps.EventGatewayProducePolicyCreateTypeModifyHeaders),
+		string(kkComps.EventGatewayProducePolicyCreateTypeSchemaValidation),
+		string(kkComps.EventGatewayProducePolicyCreateTypeEncrypt),
 	}
-
-	// Define allowed types from SDK constants
-	modifyHeadersType := string(kkComps.EventGatewayProducePolicyCreateTypeModifyHeaders)
-	schemaValidationType := string(kkComps.EventGatewayProducePolicyCreateTypeSchemaValidation)
-	encryptType := string(kkComps.EventGatewayProducePolicyCreateTypeEncrypt)
 
 	// Validate policy type
 	policyType, hasType := raw["type"]
 	if !hasType {
 		return fmt.Errorf(
 			"produce policy requires 'type' field (one of: '%s', '%s', '%s')",
-			modifyHeadersType,
-			schemaValidationType,
-			encryptType,
+			validTypes[0], validTypes[1], validTypes[2],
 		)
 	}
 
@@ -245,16 +244,10 @@ func validateProducePolicyTypeField(data []byte) error {
 		return fmt.Errorf("produce policy 'type' must be a string")
 	}
 
-	validTypes := []string{modifyHeadersType, schemaValidationType, encryptType}
-	isValid := slices.Contains(validTypes, policyTypeStr)
-
-	if !isValid {
+	if !slices.Contains(validTypes, policyTypeStr) {
 		return fmt.Errorf(
 			"produce policy 'type' must be one of '%s', '%s', or '%s', got '%s'",
-			modifyHeadersType,
-			schemaValidationType,
-			encryptType,
-			policyTypeStr,
+			validTypes[0], validTypes[1], validTypes[2], policyTypeStr,
 		)
 	}
 
@@ -264,12 +257,7 @@ func validateProducePolicyTypeField(data []byte) error {
 // validateProducePolicyConfigField ensures the required 'config' field is present and is an object.
 // Variant-specific required sub-fields are validated by the SDK union unmarshaler; this
 // function provides a clearer user-facing error message when config is missing entirely.
-func validateProducePolicyConfigField(data []byte) error {
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
+func validateProducePolicyConfigField(raw map[string]any) error {
 	config, hasConfig := raw["config"]
 	if !hasConfig {
 		return fmt.Errorf("produce policy requires 'config' field")
