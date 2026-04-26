@@ -129,7 +129,7 @@ func (a *EventGatewaySchemaRegistryAdapter) ResourceType() string {
 
 // RequiredFields returns the list of required fields for this resource.
 func (a *EventGatewaySchemaRegistryAdapter) RequiredFields() []string {
-	return []string{"name", "type", "config"}
+	return []string{planner.FieldName, planner.FieldType, planner.FieldConfig}
 }
 
 // SupportsUpdate indicates whether this resource supports update operations.
@@ -148,7 +148,7 @@ func (a *EventGatewaySchemaRegistryAdapter) getGatewayIDFromContext(
 	change := *execCtx.PlannedChange
 
 	// Priority 1: References (for new parent)
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		return gatewayRef.ID, nil
 	}
 
@@ -164,13 +164,13 @@ func (a *EventGatewaySchemaRegistryAdapter) getGatewayIDFromContext(
 func buildConfluentCreate(fields map[string]any) (kkComps.SchemaRegistryConfluent, error) {
 	var confluent kkComps.SchemaRegistryConfluent
 
-	name, ok := fields["name"].(string)
+	name, ok := fields[planner.FieldName].(string)
 	if !ok || name == "" {
 		return confluent, fmt.Errorf("name is required for schema registry")
 	}
 	confluent.Name = name
 
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		confluent.Description = &desc
 	}
 
@@ -180,7 +180,7 @@ func buildConfluentCreate(fields map[string]any) (kkComps.SchemaRegistryConfluen
 	}
 	confluent.Config = config
 
-	if labelsRaw, ok := fields["labels"]; ok {
+	if labelsRaw, ok := fields[planner.FieldLabels]; ok {
 		switch v := labelsRaw.(type) {
 		case map[string]string:
 			confluent.Labels = v
@@ -202,13 +202,13 @@ func buildConfluentCreate(fields map[string]any) (kkComps.SchemaRegistryConfluen
 func buildConfluentUpdate(fields map[string]any) (kkComps.SchemaRegistryConfluentSensitiveDataAware, error) {
 	var confluent kkComps.SchemaRegistryConfluentSensitiveDataAware
 
-	name, ok := fields["name"].(string)
+	name, ok := fields[planner.FieldName].(string)
 	if !ok || name == "" {
 		return confluent, fmt.Errorf("name is required for schema registry update")
 	}
 	confluent.Name = name
 
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		confluent.Description = &desc
 	}
 
@@ -218,7 +218,7 @@ func buildConfluentUpdate(fields map[string]any) (kkComps.SchemaRegistryConfluen
 	}
 	confluent.Config = configSDA
 
-	if labelsRaw, ok := fields["labels"]; ok {
+	if labelsRaw, ok := fields[planner.FieldLabels]; ok {
 		switch v := labelsRaw.(type) {
 		case map[string]string:
 			confluent.Labels = v
@@ -241,12 +241,12 @@ func extractConfluentConfig(fields map[string]any) (kkComps.SchemaRegistryConflu
 	var cfg kkComps.SchemaRegistryConfluentConfig
 
 	// Accept pre-built SDK struct
-	if sdkCfg, ok := fields["config"].(kkComps.SchemaRegistryConfluentConfig); ok {
+	if sdkCfg, ok := fields[planner.FieldConfig].(kkComps.SchemaRegistryConfluentConfig); ok {
 		return sdkCfg, nil
 	}
 
 	// Accept a map
-	cfgRaw, ok := fields["config"]
+	cfgRaw, ok := fields[planner.FieldConfig]
 	if !ok {
 		return cfg, fmt.Errorf("config is required for schema registry")
 	}
@@ -276,7 +276,7 @@ func extractConfluentConfig(fields map[string]any) (kkComps.SchemaRegistryConflu
 	}
 
 	// Authentication is optional
-	if authRaw, ok := cfgMap["authentication"]; ok {
+	if authRaw, ok := cfgMap[planner.FieldAuthentication]; ok {
 		auth, err := extractSchemaRegistryAuth(authRaw)
 		if err != nil {
 			return cfg, fmt.Errorf("config.authentication: %w", err)
@@ -293,11 +293,11 @@ func extractConfluentConfigSensitiveDataAware(
 ) (kkComps.SchemaRegistryConfluentConfigSensitiveDataAware, error) {
 	var cfg kkComps.SchemaRegistryConfluentConfigSensitiveDataAware
 
-	if sdkCfg, ok := fields["config"].(kkComps.SchemaRegistryConfluentConfigSensitiveDataAware); ok {
+	if sdkCfg, ok := fields[planner.FieldConfig].(kkComps.SchemaRegistryConfluentConfigSensitiveDataAware); ok {
 		return sdkCfg, nil
 	}
 
-	cfgRaw, ok := fields["config"]
+	cfgRaw, ok := fields[planner.FieldConfig]
 	if !ok {
 		return cfg, fmt.Errorf("config is required for schema registry update")
 	}
@@ -340,7 +340,7 @@ func extractConfluentConfigSensitiveDataAware(
 		cfg.TimeoutSeconds = &t
 	}
 
-	if authRaw, ok := cfgMap["authentication"]; ok {
+	if authRaw, ok := cfgMap[planner.FieldAuthentication]; ok {
 		auth, err := extractSchemaRegistryAuth(authRaw)
 		if err != nil {
 			return cfg, fmt.Errorf("config.authentication: %w", err)
@@ -368,7 +368,7 @@ func extractSchemaRegistryAuth(raw any) (kkComps.SchemaRegistryAuthenticationSch
 		return auth, fmt.Errorf("authentication must be an object")
 	}
 
-	authType, _ := authMap["type"].(string)
+	authType, _ := authMap[planner.FieldType].(string)
 	if authType == "" {
 		return auth, fmt.Errorf("authentication.type is required (currently only 'basic')")
 	}

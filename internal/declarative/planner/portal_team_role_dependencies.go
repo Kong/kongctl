@@ -24,7 +24,7 @@ func adjustPortalTeamRoleDependencies(plan *Plan) {
 			continue
 		}
 
-		refInfo, ok := change.References["entity_id"]
+		refInfo, ok := change.References[FieldEntityID]
 		if !ok {
 			continue
 		}

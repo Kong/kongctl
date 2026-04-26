@@ -503,16 +503,16 @@ func adjustAuthStrategyDeleteDependencies(changes []PlannedChange) {
 		}
 
 		switch change.ResourceType {
-		case "api":
+		case ResourceTypeAPI:
 			apiDeletes = append(apiDeletes, change)
-		case "api_publication":
+		case ResourceTypeAPIPublication:
 			publicationDeletes = append(publicationDeletes, change)
 		}
 	}
 
 	for i := range changes {
 		change := &changes[i]
-		if change.Action != ActionDelete || change.ResourceType != "application_auth_strategy" {
+		if change.Action != ActionDelete || change.ResourceType != ResourceTypeApplicationAuthStrategy {
 			continue
 		}
 
@@ -538,14 +538,14 @@ func adjustDCRProviderDeleteDependencies(changes []PlannedChange) {
 
 	for i := range changes {
 		change := &changes[i]
-		if change.Action == ActionDelete && change.ResourceType == "application_auth_strategy" {
+		if change.Action == ActionDelete && change.ResourceType == ResourceTypeApplicationAuthStrategy {
 			authStrategyDeletes = append(authStrategyDeletes, change)
 		}
 	}
 
 	for i := range changes {
 		change := &changes[i]
-		if change.Action != ActionDelete || change.ResourceType != "dcr_provider" {
+		if change.Action != ActionDelete || change.ResourceType != ResourceTypeDCRProvider {
 			continue
 		}
 
@@ -573,7 +573,7 @@ func shouldLinkAuthStrategy(authDelete, dep *PlannedChange) bool {
 		return authDelete.Namespace == dep.Namespace
 	}
 
-	if dep.ResourceType == "api_publication" {
+	if dep.ResourceType == ResourceTypeAPIPublication {
 		return publicationReferencesAuthStrategy(dep, authDelete)
 	}
 
@@ -586,7 +586,7 @@ func publicationReferencesAuthStrategy(publication, authDelete *PlannedChange) b
 		return false
 	}
 
-	rawIDs, ok := publication.Fields["auth_strategy_ids"]
+	rawIDs, ok := publication.Fields[FieldAuthStrategyIDs]
 	if !ok {
 		return false
 	}
@@ -998,7 +998,7 @@ func (p *Planner) resolveControlPlaneIdentities(
 					return fmt.Errorf("external control_plane %s: not found with id %s", cp.GetRef(), cp.External.ID)
 				}
 			} else if cp.External.Selector != nil {
-				name, ok := cp.External.Selector.MatchFields["name"]
+				name, ok := cp.External.Selector.MatchFields[FieldName]
 				if !ok {
 					return fmt.Errorf("external control_plane %s: selector currently supports 'name' field", cp.GetRef())
 				}
@@ -1193,7 +1193,7 @@ func (p *Planner) resolveGatewayServiceControlPlaneID(
 		if !ok {
 			return "", fmt.Errorf("gateway_service %s: invalid control_plane reference", service.GetRef())
 		}
-		if field != "id" {
+		if field != FieldID {
 			return "", fmt.Errorf("gateway_service %s: control_plane references support '#id' only", service.GetRef())
 		}
 		value = ref
@@ -1415,7 +1415,7 @@ func (p *Planner) resolveGatewayServiceReference(
 		if !ok {
 			return "", nil, fmt.Errorf("api_implementation %s: invalid service.id reference", implRef)
 		}
-		if field != "id" {
+		if field != FieldID {
 			return "", nil, fmt.Errorf("api_implementation %s: service.id references support '#id' only", implRef)
 		}
 		svc, ok := serviceByRef[ref]
@@ -1470,7 +1470,7 @@ func (p *Planner) resolveImplementationControlPlaneID(
 		if !ok {
 			return "", fmt.Errorf("api_implementation %s: invalid control_plane reference", implRef)
 		}
-		if field != "id" {
+		if field != FieldID {
 			return "", fmt.Errorf("api_implementation %s: control_plane references support '#id' only", implRef)
 		}
 		value = ref
@@ -1570,7 +1570,7 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 			}
 		} else if portal.External.Selector != nil {
 			// Selector-based lookup
-			if name, ok := portal.External.Selector.MatchFields["name"]; ok {
+			if name, ok := portal.External.Selector.MatchFields[FieldName]; ok {
 				// Name-based lookup
 				allPortals, err := p.client.ListAllPortals(ctx)
 				if err != nil {

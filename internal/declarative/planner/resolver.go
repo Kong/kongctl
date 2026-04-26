@@ -153,16 +153,16 @@ func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 // getResourceTypeForField maps field names to resource types
 func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 	switch fieldName {
-	case "default_application_auth_strategy_id", "auth_strategy_ids":
-		return "application_auth_strategy"
+	case FieldDefaultApplicationStrategyID, FieldAuthStrategyIDs:
+		return ResourceTypeApplicationAuthStrategy
 	case FieldDCRProviderID:
-		return "dcr_provider"
+		return ResourceTypeDCRProvider
 	case "control_plane_id", "gateway_service.control_plane_id", "service.control_plane_id":
-		return "control_plane"
-	case "portal_id":
+		return ResourceTypeControlPlane
+	case FieldPortalID:
 		return ResourceTypePortal
-	case "entity_id":
-		return "api"
+	case FieldEntityID:
+		return ResourceTypeAPI
 	default:
 		return ""
 	}
@@ -171,7 +171,7 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 // resolveReference looks up a reference in existing resources
 func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, ref string) (string, error) {
 	var targetRef string
-	fieldName := "id" // Default field
+	fieldName := FieldID // Default field
 
 	// Parse __REF__ placeholder format
 	if strings.HasPrefix(ref, "__REF__:") {
@@ -191,7 +191,7 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 		resource, exists := r.resources.GetResourceByRef(targetRef)
 		if exists {
 			// Special handling for "id" field - return konnectID
-			if fieldName == "id" || fieldName == "ID" {
+			if fieldName == FieldID || fieldName == "ID" {
 				konnectID := resource.GetKonnectID()
 				if konnectID == "" {
 					// Resource exists but no Konnect ID (will be created)
@@ -207,11 +207,11 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 
 	// Fallback to original resolution for backward compatibility
 	switch resourceType {
-	case "application_auth_strategy":
+	case ResourceTypeApplicationAuthStrategy:
 		return r.resolveAuthStrategyRef(ctx, targetRef)
-	case "dcr_provider":
+	case ResourceTypeDCRProvider:
 		return r.resolveDCRProviderRef(ctx, targetRef)
-	case "control_plane":
+	case ResourceTypeControlPlane:
 		return r.resolveControlPlaneRef(ctx, targetRef)
 	case ResourceTypePortal:
 		return r.resolvePortalRef(ctx, targetRef)

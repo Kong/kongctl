@@ -151,7 +151,7 @@ func (t PortalEmailTemplateResource) GetParentRef() *ResourceRef {
 	if t.Portal == "" {
 		return nil
 	}
-	return &ResourceRef{Kind: string(ResourceTypePortal), Ref: t.Portal}
+	return &ResourceRef{Kind: ResourceTypePortal, Ref: t.Portal}
 }
 
 // UnmarshalJSON rejects kongctl metadata on child resources and tracks field presence.

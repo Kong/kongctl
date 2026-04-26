@@ -50,7 +50,7 @@ func (e EventGatewayClusterPolicyResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if e.VirtualCluster != "" {
 		// Dependency on parent Event Gateway Virtual Cluster when defined at root level
-		deps = append(deps, ResourceRef{Kind: "event_gateway_virtual_cluster", Ref: e.VirtualCluster})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeEventGatewayVirtualCluster, Ref: e.VirtualCluster})
 	}
 	return deps
 }
@@ -115,7 +115,7 @@ func (e *EventGatewayClusterPolicyResource) TryMatchKonnectResource(konnectResou
 // REQUIRED: Implement ResourceWithParent
 func (e EventGatewayClusterPolicyResource) GetParentRef() *ResourceRef {
 	if e.VirtualCluster != "" {
-		return &ResourceRef{Kind: "event_gateway_virtual_cluster", Ref: e.VirtualCluster}
+		return &ResourceRef{Kind: ResourceTypeEventGatewayVirtualCluster, Ref: e.VirtualCluster}
 	}
 	return nil
 }

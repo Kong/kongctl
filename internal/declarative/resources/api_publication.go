@@ -49,7 +49,7 @@ func (p APIPublicationResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if p.API != "" {
 		// Dependency on parent API when defined at root level
-		deps = append(deps, ResourceRef{Kind: "api", Ref: p.API})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeAPI, Ref: p.API})
 	}
 	// Note: Portal dependency is handled through reference field mappings
 	return deps
@@ -111,7 +111,7 @@ func (p *APIPublicationResource) TryMatchKonnectResource(konnectResource any) bo
 // GetParentRef returns the parent API reference for ResourceWithParent interface
 func (p APIPublicationResource) GetParentRef() *ResourceRef {
 	if p.API != "" {
-		return &ResourceRef{Kind: "api", Ref: p.API}
+		return &ResourceRef{Kind: ResourceTypeAPI, Ref: p.API}
 	}
 	return nil
 }

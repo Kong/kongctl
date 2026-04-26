@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/log"
@@ -32,13 +33,13 @@ func (p *PortalAuthSettingsAdapter) MapUpdateFields(
 		logger.Debug("mapping portal auth settings update fields", "fields", fields)
 	}
 
-	if v, ok := fields["basic_auth_enabled"].(bool); ok {
+	if v, ok := fields[planner.FieldBasicAuthEnabled].(bool); ok {
 		update.BasicAuthEnabled = &v
 	}
-	if v, ok := fields["konnect_mapping_enabled"].(bool); ok {
+	if v, ok := fields[planner.FieldKonnectMappingEnabled].(bool); ok {
 		update.KonnectMappingEnabled = &v
 	}
-	if v, ok := fields["idp_mapping_enabled"].(bool); ok {
+	if v, ok := fields[planner.FieldIDPMappingEnabled].(bool); ok {
 		update.IdpMappingEnabled = &v
 	}
 

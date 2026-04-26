@@ -339,10 +339,16 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 // getParentResourceType returns the parent resource type for a given child type
 func getParentResourceType(childType string) string {
 	switch childType {
-	case "api_version", "api_publication", "api_implementation", "api_document":
-		return "api"
-	case "portal_page", "portal_snippet", "portal_customization", "portal_custom_domain":
-		return "portal"
+	case planner.ResourceTypeAPIVersion,
+		planner.ResourceTypeAPIPublication,
+		planner.ResourceTypeAPIImplementation,
+		planner.ResourceTypeAPIDocument:
+		return planner.ResourceTypeAPI
+	case planner.ResourceTypePortalPage,
+		planner.ResourceTypePortalSnippet,
+		planner.ResourceTypePortalCustomization,
+		planner.ResourceTypePortalCustomDomain:
+		return planner.ResourceTypePortal
 	default:
 		return ""
 	}
@@ -442,28 +448,28 @@ func formatResourceName(change planner.PlannedChange) string {
 	// If resource ref is unknown, try to build a meaningful name from monikers
 	if resourceName == "[unknown]" && len(change.ResourceMonikers) > 0 {
 		switch change.ResourceType {
-		case "portal_page":
+		case planner.ResourceTypePortalPage:
 			if slug, ok := change.ResourceMonikers["slug"]; ok {
 				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
 					return fmt.Sprintf("page '%s' in portal:%s", slug, parent)
 				}
 				return fmt.Sprintf("page '%s'", slug)
 			}
-		case "portal_snippet":
+		case planner.ResourceTypePortalSnippet:
 			if name, ok := change.ResourceMonikers["name"]; ok {
 				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
 					return fmt.Sprintf("snippet '%s' in portal:%s", name, parent)
 				}
 				return fmt.Sprintf("snippet '%s'", name)
 			}
-		case "api_document":
+		case planner.ResourceTypeAPIDocument:
 			if slug, ok := change.ResourceMonikers["slug"]; ok {
 				if parent, ok := change.ResourceMonikers["parent_api"]; ok {
 					return fmt.Sprintf("document '%s' in api:%s", slug, parent)
 				}
 				return fmt.Sprintf("document '%s'", slug)
 			}
-		case "api_publication":
+		case planner.ResourceTypeAPIPublication:
 			if portal, ok := change.ResourceMonikers["portal_name"]; ok {
 				if api, ok := change.ResourceMonikers["api_ref"]; ok {
 					return fmt.Sprintf("api:%s published to portal:%s", api, portal)
@@ -485,7 +491,7 @@ func formatResourceName(change planner.PlannedChange) string {
 	// Fallback to normal behavior
 	if resourceName == "" {
 		// Try to get name from fields
-		if name, ok := change.Fields["name"].(string); ok {
+		if name, ok := change.Fields[planner.FieldName].(string); ok {
 			resourceName = name
 		}
 	}

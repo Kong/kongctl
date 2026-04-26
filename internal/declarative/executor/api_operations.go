@@ -26,16 +26,16 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 	var api kkComps.CreateAPIRequest
 
 	// Map required fields
-	if err := common.ValidateRequiredFields(change.Fields, []string{"name"}); err != nil {
-		return "", common.WrapWithResourceContext(err, "api", "")
+	if err := common.ValidateRequiredFields(change.Fields, []string{planner.FieldName}); err != nil {
+		return "", common.WrapWithResourceContext(err, planner.ResourceTypeAPI, "")
 	}
 	api.Name = common.ExtractResourceName(change.Fields)
 
 	// Map optional fields using utilities (SDK uses double pointers)
-	common.MapOptionalStringFieldToPtr(&api.Description, change.Fields, "description")
+	common.MapOptionalStringFieldToPtr(&api.Description, change.Fields, planner.FieldDescription)
 
 	// Handle labels using centralized helper
-	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldLabels])
 	api.Labels = labels.BuildCreateLabels(userLabels, change.Namespace, change.Protection)
 
 	logger.Debug("API will have labels",
@@ -47,7 +47,7 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 		slog.Any("labels", api.Labels))
 	resp, err := e.client.CreateAPI(ctx, api, change.Namespace)
 	if err != nil {
-		return "", common.FormatAPIError("api", api.Name, "create", err)
+		return "", common.FormatAPIError(planner.ResourceTypeAPI, api.Name, "create", err)
 	}
 
 	return resp.ID, nil

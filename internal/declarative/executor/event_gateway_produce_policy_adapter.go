@@ -137,7 +137,7 @@ func (a *EventGatewayProducePolicyAdapter) ResourceType() string {
 
 // RequiredFields returns the required fields (validation is handled by the SDK union type).
 func (a *EventGatewayProducePolicyAdapter) RequiredFields() []string {
-	return []string{"type"}
+	return []string{planner.FieldType}
 }
 
 // SupportsUpdate indicates whether this resource supports update operations.
@@ -159,7 +159,7 @@ func (a *EventGatewayProducePolicyAdapter) getGatewayAndVirtualClusterIDs(
 	var gatewayID, virtualClusterID string
 
 	// Resolve virtual cluster ID: Priority 1 = References, Priority 2 = Parent
-	if vcRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && vcRef.ID != "" {
+	if vcRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok && vcRef.ID != "" {
 		virtualClusterID = vcRef.ID
 	}
 	if virtualClusterID == "" && change.Parent != nil && change.Parent.ID != "" {
@@ -170,7 +170,7 @@ func (a *EventGatewayProducePolicyAdapter) getGatewayAndVirtualClusterIDs(
 	}
 
 	// Resolve gateway ID from References
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		gatewayID = gatewayRef.ID
 	}
 	if gatewayID == "" {

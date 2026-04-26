@@ -29,7 +29,7 @@ func (a *AuthStrategyAdapter) MapCreateFields(
 	create *kkComps.CreateAppAuthStrategyRequest,
 ) error {
 	// Validate required fields
-	strategyType, ok := fields["strategy_type"].(string)
+	strategyType, ok := fields[planner.FieldAuthStrategyType].(string)
 	if !ok {
 		return fmt.Errorf("strategy_type is required")
 	}
@@ -37,10 +37,10 @@ func (a *AuthStrategyAdapter) MapCreateFields(
 	name := common.ExtractResourceName(fields)
 
 	var displayName string
-	common.MapOptionalStringField(&displayName, fields, "display_name")
+	common.MapOptionalStringField(&displayName, fields, planner.FieldDisplayName)
 
 	// Handle labels using centralized helper
-	userLabels := labels.ExtractLabelsFromField(fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	authLabels := labels.BuildCreateLabels(userLabels, execCtx.Namespace, execCtx.Protection)
 
 	// Build the request based on strategy type
@@ -72,12 +72,12 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 	update *kkComps.UpdateAppAuthStrategyRequest, currentLabels map[string]string,
 ) error {
 	// Update display name if present
-	if displayName, ok := fields["display_name"].(string); ok {
+	if displayName, ok := fields[planner.FieldDisplayName].(string); ok {
 		update.DisplayName = &displayName
 	}
 
 	// Handle labels using centralized helper
-	desiredLabels := labels.ExtractLabelsFromField(fields["labels"])
+	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	if desiredLabels != nil {
 		// Get current labels if passed from planner
 		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
@@ -90,7 +90,7 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 	}
 
 	// Handle config updates if present
-	if configs, ok := fields["configs"].(map[string]any); ok {
+	if configs, ok := fields[planner.FieldConfigs].(map[string]any); ok {
 		// Get strategy type from fields (passed by planner)
 		strategyType, _ := fields[planner.FieldStrategyType].(string)
 
@@ -181,12 +181,12 @@ func (a *AuthStrategyAdapter) GetByID(ctx context.Context, id string, _ *Executi
 
 // ResourceType returns the resource type name
 func (a *AuthStrategyAdapter) ResourceType() string {
-	return "application_auth_strategy"
+	return planner.ResourceTypeApplicationAuthStrategy
 }
 
 // RequiredFields returns the required fields for creation
 func (a *AuthStrategyAdapter) RequiredFields() []string {
-	return []string{"strategy_type"}
+	return []string{planner.FieldAuthStrategyType}
 }
 
 // SupportsUpdate returns true as auth strategies support updates
@@ -199,7 +199,7 @@ func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labe
 	fields map[string]any,
 ) (*kkComps.AppAuthStrategyKeyAuthRequest, error) {
 	// Extract key auth config
-	configs, ok := fields["configs"].(map[string]any)
+	configs, ok := fields[planner.FieldConfigs].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs is required for key_auth strategy")
 	}
@@ -244,7 +244,7 @@ func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string
 	fields map[string]any,
 ) (*kkComps.AppAuthStrategyOpenIDConnectRequest, error) {
 	// Extract openid connect config
-	configs, ok := fields["configs"].(map[string]any)
+	configs, ok := fields[planner.FieldConfigs].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs is required for openid_connect strategy")
 	}
@@ -266,7 +266,7 @@ func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string
 	}
 
 	// Extract issuer (required)
-	issuer, ok := oidcConfig["issuer"].(string)
+	issuer, ok := oidcConfig[planner.FieldDCRProviderIssuer].(string)
 	if !ok {
 		return nil, fmt.Errorf("issuer is required for openid_connect strategy")
 	}
@@ -316,7 +316,7 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		oidc := kkComps.PartialAppAuthStrategyConfigOpenIDConnect{}
 
 		// Extract issuer
-		if issuer, ok := oidcConfig["issuer"].(string); ok {
+		if issuer, ok := oidcConfig[planner.FieldDCRProviderIssuer].(string); ok {
 			oidc.Issuer = &issuer
 		}
 

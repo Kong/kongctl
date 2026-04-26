@@ -11,6 +11,7 @@ const (
 	ResourceTypeApplicationAuthStrategy          ResourceType = "application_auth_strategy"
 	ResourceTypeDCRProvider                      ResourceType = "dcr_provider"
 	ResourceTypeControlPlane                     ResourceType = "control_plane"
+	ResourceTypeControlPlaneGroup                ResourceType = "control_plane_group"
 	ResourceTypeAPI                              ResourceType = "api"
 	ResourceTypeAPIVersion                       ResourceType = "api_version"
 	ResourceTypeAPIPublication                   ResourceType = "api_publication"
@@ -34,6 +35,7 @@ const (
 	ResourceTypeEventGatewayBackendCluster       ResourceType = "event_gateway_backend_cluster"
 	ResourceTypeEventGatewayVirtualCluster       ResourceType = "event_gateway_virtual_cluster"
 	ResourceTypeOrganizationTeam                 ResourceType = "organization_team"
+	ResourceTypeTeam                             ResourceType = "team"
 	ResourceTypeEventGatewayListener             ResourceType = "event_gateway_listener"
 	ResourceTypeEventGatewayListenerPolicy       ResourceType = "event_gateway_listener_policy"
 	ResourceTypeEventGatewayDataPlaneCertificate ResourceType = "event_gateway_data_plane_certificate"
@@ -52,8 +54,8 @@ const (
 
 // ResourceRef represents a reference to another resource
 type ResourceRef struct {
-	Kind string `json:"kind" yaml:"kind"`
-	Ref  string `json:"ref"  yaml:"ref"`
+	Kind ResourceType `json:"kind" yaml:"kind"`
+	Ref  string       `json:"ref"  yaml:"ref"`
 }
 
 // ResourceSet contains all declarative resources from configuration files

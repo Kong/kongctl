@@ -4,6 +4,7 @@ import (
 	"context"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -23,10 +24,10 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 	update *kkComps.PortalCustomization,
 ) error {
 	// Handle theme
-	if themeData, ok := fields["theme"].(map[string]any); ok {
+	if themeData, ok := fields[planner.FieldTheme].(map[string]any); ok {
 		theme := &kkComps.Theme{}
 
-		if name, ok := themeData["name"].(string); ok {
+		if name, ok := themeData[planner.FieldName].(string); ok {
 			theme.Name = &name
 		}
 		if mode, ok := themeData["mode"].(string); ok {
@@ -47,17 +48,17 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 	}
 
 	// Handle layout
-	if layout, ok := fields["layout"].(string); ok {
+	if layout, ok := fields[planner.FieldLayout].(string); ok {
 		update.Layout = &layout
 	}
 
 	// Handle CSS
-	if css, ok := fields["css"].(string); ok {
+	if css, ok := fields[planner.FieldCSS].(string); ok {
 		update.CSS = &css
 	}
 
 	// Handle menu
-	if menuData, ok := fields["menu"].(map[string]any); ok {
+	if menuData, ok := fields[planner.FieldMenu].(map[string]any); ok {
 		menu := &kkComps.Menu{}
 
 		// Handle main menu items
@@ -66,10 +67,10 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 			for _, itemMap := range mainItems {
 				menuItem := kkComps.PortalMenuItem{
 					Path:  itemMap["path"].(string),
-					Title: itemMap["title"].(string),
+					Title: itemMap[planner.FieldTitle].(string),
 				}
 
-				if visibility, ok := itemMap["visibility"].(string); ok {
+				if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
 					visValue := kkComps.PortalMenuItemVisibility(visibility)
 					menuItem.Visibility = visValue
 				}
@@ -87,10 +88,10 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 				if itemMap, ok := item.(map[string]any); ok {
 					menuItem := kkComps.PortalMenuItem{
 						Path:  itemMap["path"].(string),
-						Title: itemMap["title"].(string),
+						Title: itemMap[planner.FieldTitle].(string),
 					}
 
-					if visibility, ok := itemMap["visibility"].(string); ok {
+					if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
 						visValue := kkComps.PortalMenuItemVisibility(visibility)
 						menuItem.Visibility = visValue
 					}
@@ -109,7 +110,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 			var footerSectionsList []kkComps.PortalFooterMenuSection
 			for _, sectionMap := range footerSections {
 				footerSection := kkComps.PortalFooterMenuSection{
-					Title: sectionMap["title"].(string),
+					Title: sectionMap[planner.FieldTitle].(string),
 				}
 
 				// Process items in the section
@@ -118,10 +119,10 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 					for _, itemMap := range items {
 						footerItem := kkComps.PortalMenuItem{
 							Path:  itemMap["path"].(string),
-							Title: itemMap["title"].(string),
+							Title: itemMap[planner.FieldTitle].(string),
 						}
 
-						if visibility, ok := itemMap["visibility"].(string); ok {
+						if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
 							visValue := kkComps.PortalMenuItemVisibility(visibility)
 							footerItem.Visibility = visValue
 						}
@@ -139,10 +140,10 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 						if itemMap, ok := item.(map[string]any); ok {
 							footerItem := kkComps.PortalMenuItem{
 								Path:  itemMap["path"].(string),
-								Title: itemMap["title"].(string),
+								Title: itemMap[planner.FieldTitle].(string),
 							}
 
-							if visibility, ok := itemMap["visibility"].(string); ok {
+							if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
 								visValue := kkComps.PortalMenuItemVisibility(visibility)
 								footerItem.Visibility = visValue
 							}
@@ -165,7 +166,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 			for _, section := range footerSectionsInterface {
 				if sectionMap, ok := section.(map[string]any); ok {
 					footerSection := kkComps.PortalFooterMenuSection{
-						Title: sectionMap["title"].(string),
+						Title: sectionMap[planner.FieldTitle].(string),
 					}
 
 					// Process items - handle both types
@@ -174,10 +175,10 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 						for _, itemMap := range items {
 							footerItem := kkComps.PortalMenuItem{
 								Path:  itemMap["path"].(string),
-								Title: itemMap["title"].(string),
+								Title: itemMap[planner.FieldTitle].(string),
 							}
 
-							if visibility, ok := itemMap["visibility"].(string); ok {
+							if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
 								visValue := kkComps.PortalMenuItemVisibility(visibility)
 								footerItem.Visibility = visValue
 							}
@@ -192,10 +193,10 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 							if itemMap, ok := item.(map[string]any); ok {
 								footerItem := kkComps.PortalMenuItem{
 									Path:  itemMap["path"].(string),
-									Title: itemMap["title"].(string),
+									Title: itemMap[planner.FieldTitle].(string),
 								}
 
-								if visibility, ok := itemMap["visibility"].(string); ok {
+								if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
 									visValue := kkComps.PortalMenuItemVisibility(visibility)
 									footerItem.Visibility = visValue
 								}
@@ -229,5 +230,5 @@ func (p *PortalCustomizationAdapter) Update(ctx context.Context, portalID string
 
 // ResourceType returns the resource type name
 func (p *PortalCustomizationAdapter) ResourceType() string {
-	return "portal_customization"
+	return planner.ResourceTypePortalCustomization
 }

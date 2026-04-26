@@ -20,14 +20,14 @@ func TestAPIVersionResource_Interfaces(t *testing.T) {
 
 	deps := version.GetDependencies()
 	assert.Len(t, deps, 1)
-	assert.Equal(t, "api", deps[0].Kind)
+	assert.Equal(t, ResourceTypeAPI, deps[0].Kind)
 	assert.Equal(t, "my-api", deps[0].Ref)
 
 	// Test ResourceWithParent interface
 	var _ ResourceWithParent = version
 	parentRef := version.GetParentRef()
 	assert.NotNil(t, parentRef)
-	assert.Equal(t, "api", parentRef.Kind)
+	assert.Equal(t, ResourceTypeAPI, parentRef.Kind)
 	assert.Equal(t, "my-api", parentRef.Ref)
 
 	// Test with no parent
@@ -51,14 +51,14 @@ func TestAPIPublicationResource_Interfaces(t *testing.T) {
 
 	deps := pub.GetDependencies()
 	assert.Len(t, deps, 1)
-	assert.Equal(t, "api", deps[0].Kind)
+	assert.Equal(t, ResourceTypeAPI, deps[0].Kind)
 	assert.Equal(t, "my-api", deps[0].Ref)
 
 	// Test ResourceWithParent interface
 	var _ ResourceWithParent = pub
 	parentRef := pub.GetParentRef()
 	assert.NotNil(t, parentRef)
-	assert.Equal(t, "api", parentRef.Kind)
+	assert.Equal(t, ResourceTypeAPI, parentRef.Kind)
 	assert.Equal(t, "my-api", parentRef.Ref)
 
 	// Test reference field mappings
@@ -81,14 +81,14 @@ func TestAPIImplementationResource_Interfaces(t *testing.T) {
 
 	deps := impl.GetDependencies()
 	assert.Len(t, deps, 1)
-	assert.Equal(t, "api", deps[0].Kind)
+	assert.Equal(t, ResourceTypeAPI, deps[0].Kind)
 	assert.Equal(t, "my-api", deps[0].Ref)
 
 	// Test ResourceWithParent interface
 	var _ ResourceWithParent = impl
 	parentRef := impl.GetParentRef()
 	assert.NotNil(t, parentRef)
-	assert.Equal(t, "api", parentRef.Kind)
+	assert.Equal(t, ResourceTypeAPI, parentRef.Kind)
 	assert.Equal(t, "my-api", parentRef.Ref)
 }
 

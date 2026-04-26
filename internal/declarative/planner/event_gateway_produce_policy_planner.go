@@ -96,7 +96,7 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 		} else {
 			needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desiredPolicy)
 			if needsUpdate {
-				if _, typeChanged := changedFields["type"]; typeChanged {
+				if _, typeChanged := changedFields[FieldType]; typeChanged {
 					// Type changes are not supported by the API; force DELETE + CREATE.
 					p.logger.Debug("Planning produce policy DELETE+CREATE due to type change",
 						"policy_name", policyName,
@@ -199,15 +199,15 @@ func (p *Planner) planProducePolicyCreate(
 	}
 
 	change.References = map[string]ReferenceInfo{
-		"event_gateway_id": {
+		FieldEventGatewayID: {
 			Ref: gatewayRef,
 			ID:  gatewayID,
 		},
-		"event_gateway_virtual_cluster_id": {
+		FieldEventGatewayVirtualClusterID: {
 			Ref: virtualClusterRef,
 			ID:  virtualClusterID,
 			LookupFields: map[string]string{
-				"name": virtualClusterName,
+				FieldName: virtualClusterName,
 			},
 		},
 	}
@@ -249,11 +249,11 @@ func (p *Planner) planProducePolicyUpdate(
 			ID:  virtualClusterID,
 		},
 		References: map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  gatewayID,
 			},
-			"event_gateway_virtual_cluster_id": {
+			FieldEventGatewayVirtualClusterID: {
 				Ref: virtualClusterRef,
 				ID:  virtualClusterID,
 			},
@@ -288,11 +288,11 @@ func (p *Planner) planProducePolicyDelete(
 			ID:  virtualClusterID,
 		},
 		References: map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  gatewayID,
 			},
-			"event_gateway_virtual_cluster_id": {
+			FieldEventGatewayVirtualClusterID: {
 				Ref: virtualClusterRef,
 				ID:  virtualClusterID,
 			},
@@ -339,7 +339,7 @@ func (p *Planner) producePolicyToFields(policy resources.EventGatewayProducePoli
 
 	// Explicitly add labels from the active variant (mirrors clusterPolicyToFields).
 	if lbl := extractProducePolicyVariantLabels(policy); lbl != nil {
-		fields["labels"] = lbl
+		fields[FieldLabels] = lbl
 	}
 
 	return fields
@@ -380,7 +380,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	}
 	if currentType != desiredType {
 		needsUpdate = true
-		changes["type"] = FieldChange{Old: currentType, New: desiredType}
+		changes[FieldType] = FieldChange{Old: currentType, New: desiredType}
 	}
 
 	desiredName := desired.GetMoniker()
@@ -390,7 +390,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	}
 	if currentName != desiredName {
 		needsUpdate = true
-		changes["name"] = FieldChange{Old: currentName, New: desiredName}
+		changes[FieldName] = FieldChange{Old: currentName, New: desiredName}
 	}
 
 	// Description comparison (if present) - use the union discriminator to pick the desired variant
@@ -411,7 +411,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	}
 	if currentDesc != desiredDesc {
 		needsUpdate = true
-		changes["description"] = FieldChange{Old: currentDesc, New: desiredDesc}
+		changes[FieldDescription] = FieldChange{Old: currentDesc, New: desiredDesc}
 	}
 
 	// Enabled - variant-aware
@@ -431,14 +431,14 @@ func (p *Planner) shouldUpdateProducePolicy(
 	}
 	if currentEnabled != desiredEnabled {
 		needsUpdate = true
-		changes["enabled"] = FieldChange{Old: currentEnabled, New: desiredEnabled}
+		changes[FieldEnabled] = FieldChange{Old: currentEnabled, New: desiredEnabled}
 	}
 
 	// Config comparison
 	desiredConfig := p.extractProducePolicyConfig(desired)
 	if !configFieldsMatch(current.RawConfig, desiredConfig) {
 		needsUpdate = true
-		changes["config"] = FieldChange{Old: current.RawConfig, New: desiredConfig}
+		changes[FieldConfig] = FieldChange{Old: current.RawConfig, New: desiredConfig}
 	}
 
 	// Labels comparison
@@ -446,11 +446,11 @@ func (p *Planner) shouldUpdateProducePolicy(
 	if desiredLabels != nil {
 		if !compareMaps(current.Labels, desiredLabels) {
 			needsUpdate = true
-			changes["labels"] = FieldChange{Old: current.Labels, New: desiredLabels}
+			changes[FieldLabels] = FieldChange{Old: current.Labels, New: desiredLabels}
 		}
 	} else if len(current.Labels) > 0 {
 		needsUpdate = true
-		changes["labels"] = FieldChange{Old: current.Labels, New: map[string]string{}}
+		changes[FieldLabels] = FieldChange{Old: current.Labels, New: map[string]string{}}
 	}
 
 	var updateFields map[string]any

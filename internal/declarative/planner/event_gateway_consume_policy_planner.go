@@ -206,15 +206,15 @@ func (p *Planner) planConsumePolicyCreate(
 	}
 
 	change.References = map[string]ReferenceInfo{
-		"event_gateway_id": {
+		FieldEventGatewayID: {
 			Ref: gatewayRef,
 			ID:  gatewayID,
 		},
-		"event_gateway_virtual_cluster_id": {
+		FieldEventGatewayVirtualClusterID: {
 			Ref: virtualClusterRef,
 			ID:  virtualClusterID,
 			LookupFields: map[string]string{
-				"name": virtualClusterName,
+				FieldName: virtualClusterName,
 			},
 		},
 	}
@@ -259,11 +259,11 @@ func (p *Planner) planConsumePolicyUpdate(
 			ID:  virtualClusterID,
 		},
 		References: map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  gatewayID,
 			},
-			"event_gateway_virtual_cluster_id": {
+			FieldEventGatewayVirtualClusterID: {
 				Ref: virtualClusterRef,
 				ID:  virtualClusterID,
 			},
@@ -299,11 +299,11 @@ func (p *Planner) planConsumePolicyDelete(
 			ID:  virtualClusterID,
 		},
 		References: map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  gatewayID,
 			},
-			"event_gateway_virtual_cluster_id": {
+			FieldEventGatewayVirtualClusterID: {
 				Ref: virtualClusterRef,
 				ID:  virtualClusterID,
 			},
@@ -435,7 +435,7 @@ func (p *Planner) shouldUpdateConsumePolicy(
 	}
 	if currentName != desiredName {
 		needsUpdate = true
-		changes["name"] = FieldChange{Old: currentName, New: desiredName}
+		changes[FieldName] = FieldChange{Old: currentName, New: desiredName}
 	}
 
 	// Compare description
@@ -446,7 +446,7 @@ func (p *Planner) shouldUpdateConsumePolicy(
 	desiredDesc := p.extractConsumePolicyDescription(desired)
 	if currentDesc != desiredDesc {
 		needsUpdate = true
-		changes["description"] = FieldChange{Old: currentDesc, New: desiredDesc}
+		changes[FieldDescription] = FieldChange{Old: currentDesc, New: desiredDesc}
 	}
 
 	// Compare enabled
@@ -457,7 +457,7 @@ func (p *Planner) shouldUpdateConsumePolicy(
 	desiredEnabled := p.extractConsumePolicyEnabled(desired)
 	if currentEnabled != desiredEnabled {
 		needsUpdate = true
-		changes["enabled"] = FieldChange{Old: currentEnabled, New: desiredEnabled}
+		changes[FieldEnabled] = FieldChange{Old: currentEnabled, New: desiredEnabled}
 	}
 
 	// Compare labels
@@ -465,18 +465,18 @@ func (p *Planner) shouldUpdateConsumePolicy(
 	if desiredLabels != nil {
 		if !compareMaps(current.NormalizedLabels, desiredLabels) {
 			needsUpdate = true
-			changes["labels"] = FieldChange{Old: current.NormalizedLabels, New: desiredLabels}
+			changes[FieldLabels] = FieldChange{Old: current.NormalizedLabels, New: desiredLabels}
 		}
 	} else if len(current.NormalizedLabels) > 0 {
 		needsUpdate = true
-		changes["labels"] = FieldChange{Old: current.NormalizedLabels, New: map[string]string{}}
+		changes[FieldLabels] = FieldChange{Old: current.NormalizedLabels, New: map[string]string{}}
 	}
 
 	// Compare config
 	desiredConfig := p.extractConsumePolicyConfig(desired)
 	if desiredConfig != nil && !configFieldsMatch(current.RawConfig, desiredConfig) {
 		needsUpdate = true
-		changes["config"] = FieldChange{Old: current.RawConfig, New: desiredConfig}
+		changes[FieldConfig] = FieldChange{Old: current.RawConfig, New: desiredConfig}
 	}
 
 	var updateFields map[string]any

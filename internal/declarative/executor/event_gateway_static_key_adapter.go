@@ -28,23 +28,23 @@ func (a *EventGatewayStaticKeyAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.EventGatewayStaticKeyCreate,
 ) error {
-	name, ok := fields["name"].(string)
+	name, ok := fields[planner.FieldName].(string)
 	if !ok || name == "" {
 		return fmt.Errorf("name is required")
 	}
 	create.Name = name
 
-	value, ok := fields["value"].(string)
+	value, ok := fields[planner.FieldValue].(string)
 	if !ok || value == "" {
 		return fmt.Errorf("value is required")
 	}
 	create.Value = value
 
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		create.Description = &desc
 	}
 
-	if labelsRaw, ok := fields["labels"].(map[string]any); ok {
+	if labelsRaw, ok := fields[planner.FieldLabels].(map[string]any); ok {
 		labels := make(map[string]string, len(labelsRaw))
 		for k, v := range labelsRaw {
 			if sv, ok := v.(string); ok {
@@ -52,7 +52,7 @@ func (a *EventGatewayStaticKeyAdapter) MapCreateFields(
 			}
 		}
 		create.Labels = labels
-	} else if labels, ok := fields["labels"].(map[string]string); ok {
+	} else if labels, ok := fields[planner.FieldLabels].(map[string]string); ok {
 		create.Labels = labels
 	}
 
@@ -147,7 +147,7 @@ func (a *EventGatewayStaticKeyAdapter) ResourceType() string {
 
 // RequiredFields returns the list of required fields for this resource.
 func (a *EventGatewayStaticKeyAdapter) RequiredFields() []string {
-	return []string{"name", "value"}
+	return []string{planner.FieldName, planner.FieldValue}
 }
 
 // SupportsUpdate returns false – static keys must be deleted and re-created on change.
@@ -166,7 +166,7 @@ func (a *EventGatewayStaticKeyAdapter) getEventGatewayIDFromExecutionContext(
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for new parent)
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		return gatewayRef.ID, nil
 	}
 

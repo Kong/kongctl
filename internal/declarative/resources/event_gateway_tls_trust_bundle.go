@@ -46,7 +46,7 @@ func (e EventGatewayTLSTrustBundleResource) GetMoniker() string {
 func (e EventGatewayTLSTrustBundleResource) GetDependencies() []ResourceRef {
 	var deps []ResourceRef
 	if e.EventGateway != "" {
-		deps = append(deps, ResourceRef{Kind: "event_gateway", Ref: e.EventGateway})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeEventGatewayControlPlane, Ref: e.EventGateway})
 	}
 	return deps
 }
@@ -89,7 +89,7 @@ func (e *EventGatewayTLSTrustBundleResource) TryMatchKonnectResource(konnectReso
 // GetParentRef REQUIRED: marks resource as a child of Event Gateway.
 func (e EventGatewayTLSTrustBundleResource) GetParentRef() *ResourceRef {
 	if e.EventGateway != "" {
-		return &ResourceRef{Kind: "event_gateway", Ref: e.EventGateway}
+		return &ResourceRef{Kind: ResourceTypeEventGatewayControlPlane, Ref: e.EventGateway}
 	}
 	return nil
 }

@@ -102,14 +102,14 @@ func (r PortalTeamRoleResource) GetDependencies() []ResourceRef {
 
 	if r.Portal != "" {
 		deps = append(deps, ResourceRef{
-			Kind: "portal",
+			Kind: ResourceTypePortal,
 			Ref:  r.Portal,
 		})
 	}
 
 	if r.Team != "" {
 		deps = append(deps, ResourceRef{
-			Kind: "portal_team",
+			Kind: ResourceTypePortalTeam,
 			Ref:  r.Team,
 		})
 	}
@@ -117,7 +117,7 @@ func (r PortalTeamRoleResource) GetDependencies() []ResourceRef {
 	if tags.IsRefPlaceholder(r.EntityID) {
 		if ref, _, ok := tags.ParseRefPlaceholder(r.EntityID); ok && ref != "" {
 			deps = append(deps, ResourceRef{
-				Kind: "api",
+				Kind: ResourceTypeAPI,
 				Ref:  ref,
 			})
 		}
@@ -193,7 +193,7 @@ func (r *PortalTeamRoleResource) TryMatchKonnectResource(konnectResource any) bo
 // GetParentRef returns the immediate parent reference (portal team)
 func (r PortalTeamRoleResource) GetParentRef() *ResourceRef {
 	if r.Team != "" {
-		return &ResourceRef{Kind: "portal_team", Ref: r.Team}
+		return &ResourceRef{Kind: ResourceTypePortalTeam, Ref: r.Team}
 	}
 	return nil
 }

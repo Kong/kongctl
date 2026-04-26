@@ -178,11 +178,11 @@ func (p *Planner) planTrustBundleCreate(
 		}
 	} else {
 		change.References = map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  "", // to be resolved at runtime
 				LookupFields: map[string]string{
-					"name": gatewayName,
+					FieldName: gatewayName,
 				},
 			},
 		}
@@ -258,7 +258,7 @@ func (p *Planner) shouldUpdateTrustBundle(
 
 	// Compare name
 	if current.Name != desired.Name {
-		changes["name"] = FieldChange{Old: current.Name, New: desired.Name}
+		changes[FieldName] = FieldChange{Old: current.Name, New: desired.Name}
 	}
 
 	// Compare description
@@ -271,7 +271,7 @@ func (p *Planner) shouldUpdateTrustBundle(
 		desiredDesc = *desired.Description
 	}
 	if currentDesc != desiredDesc {
-		changes["description"] = FieldChange{Old: currentDesc, New: desiredDesc}
+		changes[FieldDescription] = FieldChange{Old: currentDesc, New: desiredDesc}
 	}
 
 	// Compare config.trusted_ca (nested object comparison)
@@ -281,7 +281,7 @@ func (p *Planner) shouldUpdateTrustBundle(
 
 	// Compare labels
 	if !labelsEqual(current.NormalizedLabels, desired.Labels) {
-		changes["labels"] = FieldChange{Old: current.NormalizedLabels, New: desired.Labels}
+		changes[FieldLabels] = FieldChange{Old: current.NormalizedLabels, New: desired.Labels}
 	}
 
 	if len(changes) > 0 {
@@ -295,18 +295,18 @@ func (p *Planner) shouldUpdateTrustBundle(
 func buildTrustBundleFields(tb resources.EventGatewayTLSTrustBundleResource) map[string]any {
 	fields := make(map[string]any)
 
-	fields["name"] = tb.Name
+	fields[FieldName] = tb.Name
 
 	if tb.Description != nil {
-		fields["description"] = *tb.Description
+		fields[FieldDescription] = *tb.Description
 	}
 
-	fields["config"] = kkComps.TLSTrustBundleConfig{
+	fields[FieldConfig] = kkComps.TLSTrustBundleConfig{
 		TrustedCa: tb.Config.TrustedCa,
 	}
 
 	if len(tb.Labels) > 0 {
-		fields["labels"] = tb.Labels
+		fields[FieldLabels] = tb.Labels
 	}
 
 	return fields

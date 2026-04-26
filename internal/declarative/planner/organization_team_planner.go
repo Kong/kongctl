@@ -79,7 +79,7 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := t.ValidateProtection("organization_team", desiredTeam.Name, isProtected, ActionDelete)
+			err := t.ValidateProtection(ResourceTypeOrganizationTeam, desiredTeam.Name, isProtected, ActionDelete)
 			protectionErrors.Add(err)
 			if err == nil {
 				t.planOrganizationTeamDelete(current, plan)
@@ -133,7 +133,7 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 			}
 
 			// Validate protection change
-			err := t.ValidateProtectionWithChange("organization_team", desiredTeam.Name, currentProtected, ActionUpdate,
+			err := t.ValidateProtectionWithChange(ResourceTypeOrganizationTeam, desiredTeam.Name, currentProtected, ActionUpdate,
 				protectionChange, needsUpdate)
 			protectionErrors.Add(err)
 			if err == nil {
@@ -152,7 +152,7 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 			needsUpdate, updateFields, changedFields := t.shouldUpdateOrganizationTeam(current, desiredTeam)
 			if needsUpdate {
 				// Regular update - check protection
-				err := t.ValidateProtection("organization_team", desiredTeam.Name, currentProtected, ActionUpdate)
+				err := t.ValidateProtection(ResourceTypeOrganizationTeam, desiredTeam.Name, currentProtected, ActionUpdate)
 				protectionErrors.Add(err)
 				if err == nil {
 					t.planOrganizationTeamUpdateWithFields(current, desiredTeam, updateFields, changedFields, plan)
@@ -174,7 +174,7 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 			if !desiredNames[name] {
 				// Validate protection before adding DELETE
 				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				err := t.ValidateProtection("organization_team", name, isProtected, ActionDelete)
+				err := t.ValidateProtection(ResourceTypeOrganizationTeam, name, isProtected, ActionDelete)
 				protectionErrors.Add(err)
 				if err == nil {
 					t.planOrganizationTeamDelete(current, plan)
@@ -199,13 +199,13 @@ func extractTeamFields(resource any) map[string]any {
 		return fields
 	}
 
-	fields["name"] = team.Name
+	fields[FieldName] = team.Name
 	if team.Description != nil {
-		fields["description"] = util.GetString(team.Description)
+		fields[FieldDescription] = util.GetString(team.Description)
 	}
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(team.GetLabels()) > 0 {
-		fields["labels"] = team.GetLabels()
+		fields[FieldLabels] = team.GetLabels()
 	}
 
 	return fields
@@ -217,10 +217,10 @@ func (t *OrganizationTeamPlannerImpl) planTeamCreate(team resources.Organization
 	if generic == nil {
 		// During tests, generic planner might not be initialized
 		// Fall back to inline implementation
-		changeID := t.NextChangeID(ActionCreate, "organization_team", team.GetRef())
+		changeID := t.NextChangeID(ActionCreate, ResourceTypeOrganizationTeam, team.GetRef())
 		change := PlannedChange{
 			ID:           changeID,
-			ResourceType: "organization_team",
+			ResourceType: ResourceTypeOrganizationTeam,
 			ResourceRef:  team.GetRef(),
 			Action:       ActionCreate,
 			Fields:       extractTeamFields(team),
@@ -251,10 +251,10 @@ func (t *OrganizationTeamPlannerImpl) planTeamCreate(team resources.Organization
 	}
 
 	config := CreateConfig{
-		ResourceType:   "organization_team",
+		ResourceType:   ResourceTypeOrganizationTeam,
 		ResourceName:   team.Name,
 		ResourceRef:    team.GetRef(),
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{FieldName},
 		FieldExtractor: func(_ any) map[string]any {
 			return extractTeamFields(team)
 		},
@@ -287,8 +287,8 @@ func (t *OrganizationTeamPlannerImpl) shouldUpdateOrganizationTeam(
 	if desired.Description != nil {
 		currentDesc := t.GetString(current.Description)
 		if currentDesc != *desired.Description {
-			updates["description"] = *desired.Description
-			changedFields["description"] = FieldChange{
+			updates[FieldDescription] = *desired.Description
+			changedFields[FieldDescription] = FieldChange{
 				Old: currentDesc,
 				New: *desired.Description,
 			}
@@ -304,8 +304,8 @@ func (t *OrganizationTeamPlannerImpl) shouldUpdateOrganizationTeam(
 			for k, v := range desired.Labels {
 				labelsMap[k] = v
 			}
-			updates["labels"] = labelsMap
-			changedFields["labels"] = FieldChange{
+			updates[FieldLabels] = labelsMap
+			changedFields[FieldLabels] = FieldChange{
 				Old: labels.GetUserLabels(current.NormalizedLabels),
 				New: labels.GetUserLabels(desired.Labels),
 			}
@@ -324,10 +324,10 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamUpdateWithFields(
 	plan *Plan,
 ) {
 	// Always include name for identification
-	updateFields["name"] = util.GetString(current.Name)
+	updateFields[FieldName] = util.GetString(current.Name)
 
 	// Pass current labels so executor can properly handle removals
-	if _, hasLabels := updateFields["labels"]; hasLabels {
+	if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
 
@@ -338,14 +338,14 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamUpdateWithFields(
 	}
 
 	config := UpdateConfig{
-		ResourceType:   "organization_team",
+		ResourceType:   ResourceTypeOrganizationTeam,
 		ResourceName:   desired.Name,
 		ResourceRef:    desired.GetRef(),
 		ResourceID:     util.GetString(current.ID),
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
 		ChangedFields:  changedFields,
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{FieldName},
 		Namespace:      namespace,
 	}
 
@@ -354,16 +354,16 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamUpdateWithFields(
 		// During tests, generic planner might not be initialized
 		// Fall back to inline implementation
 		fields := make(map[string]any)
-		fields["name"] = util.GetString(current.Name)
+		fields[FieldName] = util.GetString(current.Name)
 		maps.Copy(fields, updateFields)
-		if _, hasLabels := updateFields["labels"]; hasLabels {
+		if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 			fields[FieldCurrentLabels] = current.NormalizedLabels
 		}
 
-		changeID := t.NextChangeID(ActionUpdate, "organization_team", desired.GetRef())
+		changeID := t.NextChangeID(ActionUpdate, ResourceTypeOrganizationTeam, desired.GetRef())
 		change := PlannedChange{
 			ID:            changeID,
-			ResourceType:  "organization_team",
+			ResourceType:  ResourceTypeOrganizationTeam,
 			ResourceRef:   desired.GetRef(),
 			ResourceID:    util.GetString(current.ID),
 			Action:        ActionUpdate,
@@ -414,7 +414,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamProtectionChangeWithFi
 
 	// Use generic protection change planner
 	config := ProtectionChangeConfig{
-		ResourceType: "organization_team",
+		ResourceType: ResourceTypeOrganizationTeam,
 		ResourceName: desired.Name,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   util.GetString(current.ID),
@@ -429,10 +429,10 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamProtectionChangeWithFi
 		change = generic.PlanProtectionChange(context.Background(), config)
 	} else {
 		// Fallback for tests
-		changeID := t.NextChangeID(ActionUpdate, "organization_team", desired.GetRef())
+		changeID := t.NextChangeID(ActionUpdate, ResourceTypeOrganizationTeam, desired.GetRef())
 		change = PlannedChange{
 			ID:           changeID,
-			ResourceType: "organization_team",
+			ResourceType: ResourceTypeOrganizationTeam,
 			ResourceRef:  desired.GetRef(),
 			ResourceID:   util.GetString(current.ID),
 			Action:       ActionUpdate,
@@ -446,7 +446,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamProtectionChangeWithFi
 
 	// Always include name field for identification
 	fields := make(map[string]any)
-	fields["name"] = util.GetString(current.Name)
+	fields[FieldName] = util.GetString(current.Name)
 
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
@@ -473,7 +473,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamDelete(team state.Orga
 
 	if generic != nil {
 		config := DeleteConfig{
-			ResourceType: "organization_team",
+			ResourceType: ResourceTypeOrganizationTeam,
 			ResourceName: util.GetString(team.Name),
 			ResourceRef:  util.GetString(team.Name),
 			ResourceID:   util.GetString(team.ID),
@@ -482,10 +482,10 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamDelete(team state.Orga
 		change = generic.PlanDelete(context.Background(), config)
 	} else {
 		// Fallback for tests
-		changeID := t.NextChangeID(ActionDelete, "organization_team", util.GetString(team.Name))
+		changeID := t.NextChangeID(ActionDelete, ResourceTypeOrganizationTeam, util.GetString(team.Name))
 		change = PlannedChange{
 			ID:           changeID,
-			ResourceType: "organization_team",
+			ResourceType: ResourceTypeOrganizationTeam,
 			ResourceRef:  util.GetString(team.Name),
 			ResourceID:   util.GetString(team.ID),
 			Action:       ActionDelete,
@@ -494,7 +494,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamDelete(team state.Orga
 	}
 
 	// Add the name field for backward compatibility
-	change.Fields = map[string]any{"name": util.GetString(team.Name)}
+	change.Fields = map[string]any{FieldName: util.GetString(team.Name)}
 
 	plan.AddChange(change)
 }

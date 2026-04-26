@@ -24,18 +24,18 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 		slog.Any("fields", change.Fields))
 
 	// Validate required fields
-	if err := common.ValidateRequiredFields(change.Fields, []string{"strategy_type"}); err != nil {
-		return "", common.WrapWithResourceContext(err, "auth_strategy", "")
+	if err := common.ValidateRequiredFields(change.Fields, []string{planner.FieldAuthStrategyType}); err != nil {
+		return "", common.WrapWithResourceContext(err, planner.ResourceTypeApplicationAuthStrategy, "")
 	}
 
-	strategyType, _ := change.Fields["strategy_type"].(string)
+	strategyType, _ := change.Fields[planner.FieldAuthStrategyType].(string)
 	name := common.ExtractResourceName(change.Fields)
 
 	var displayName string
-	common.MapOptionalStringField(&displayName, change.Fields, "display_name")
+	common.MapOptionalStringField(&displayName, change.Fields, planner.FieldDisplayName)
 
 	// Handle labels using centralized helper
-	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldLabels])
 	authLabels := labels.BuildCreateLabels(userLabels, change.Namespace, change.Protection)
 
 	logger.Debug("Created labels for auth strategy",
@@ -45,7 +45,7 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 	switch strategyType {
 	case "key_auth":
 		// Extract key auth config
-		configs, ok := change.Fields["configs"].(map[string]any)
+		configs, ok := change.Fields[planner.FieldConfigs].(map[string]any)
 		if !ok {
 			return "", fmt.Errorf("configs is required for key_auth strategy")
 		}
@@ -112,7 +112,7 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 
 	case "openid_connect":
 		// Extract openid connect config
-		configs, ok := change.Fields["configs"].(map[string]any)
+		configs, ok := change.Fields[planner.FieldConfigs].(map[string]any)
 		if !ok {
 			return "", fmt.Errorf("configs is required for openid_connect strategy")
 		}
@@ -134,7 +134,7 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 		}
 
 		// Extract issuer (required)
-		if issuer, ok := oidcConfig["issuer"].(string); ok {
+		if issuer, ok := oidcConfig[planner.FieldDCRProviderIssuer].(string); ok {
 			req.Configs.OpenidConnect.Issuer = issuer
 		} else {
 			return "", fmt.Errorf("issuer is required for openid_connect strategy")
@@ -246,12 +246,12 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 	updateReq := kkComps.UpdateAppAuthStrategyRequest{}
 
 	// Update display name if present
-	if displayName, ok := change.Fields["display_name"].(string); ok {
+	if displayName, ok := change.Fields[planner.FieldDisplayName].(string); ok {
 		updateReq.DisplayName = &displayName
 	}
 
 	// Handle labels using centralized helper
-	desiredLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
+	desiredLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldLabels])
 	if desiredLabels != nil {
 		// Get current labels if passed from planner
 		currentLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldCurrentLabels])
@@ -264,7 +264,7 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 	}
 
 	// Handle config updates if present
-	if configs, ok := change.Fields["configs"].(map[string]any); ok {
+	if configs, ok := change.Fields[planner.FieldConfigs].(map[string]any); ok {
 		// Get strategy type from fields (passed by planner)
 		strategyType, _ := change.Fields[planner.FieldStrategyType].(string)
 
@@ -365,7 +365,7 @@ func buildOpenIDConnectConfigs(oidcConfig map[string]any) (*kkComps.Configs, err
 	oidc := kkComps.PartialAppAuthStrategyConfigOpenIDConnect{}
 
 	// Extract issuer
-	if issuer, ok := oidcConfig["issuer"].(string); ok {
+	if issuer, ok := oidcConfig[planner.FieldDCRProviderIssuer].(string); ok {
 		oidc.Issuer = &issuer
 	}
 

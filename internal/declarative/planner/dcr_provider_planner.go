@@ -55,7 +55,7 @@ func (p *dcrProviderPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Co
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection("dcr_provider", desiredProvider.Name, isProtected, ActionDelete)
+			err := p.ValidateProtection(ResourceTypeDCRProvider, desiredProvider.Name, isProtected, ActionDelete)
 			protectionErrors.Add(err)
 			if err == nil {
 				p.planDCRProviderDelete(current, plan)
@@ -85,7 +85,7 @@ func (p *dcrProviderPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Co
 		if isProtected != shouldProtect {
 			protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
 			err := p.ValidateProtectionWithChange(
-				"dcr_provider", desiredProvider.Name, isProtected, ActionUpdate, protectionChange, needsUpdate,
+				ResourceTypeDCRProvider, desiredProvider.Name, isProtected, ActionUpdate, protectionChange, needsUpdate,
 			)
 			protectionErrors.Add(err)
 			if err == nil {
@@ -100,7 +100,7 @@ func (p *dcrProviderPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Co
 			if errMsg, hasError := updateFields[FieldError].(string); hasError {
 				protectionErrors.Add(fmt.Errorf("%s", errMsg))
 			} else {
-				err := p.ValidateProtection("dcr_provider", desiredProvider.Name, isProtected, ActionUpdate)
+				err := p.ValidateProtection(ResourceTypeDCRProvider, desiredProvider.Name, isProtected, ActionUpdate)
 				protectionErrors.Add(err)
 				if err == nil {
 					p.planDCRProviderUpdateWithFields(current, desiredProvider, updateFields, changedFields, plan)
@@ -121,7 +121,7 @@ func (p *dcrProviderPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Co
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection("dcr_provider", name, isProtected, ActionDelete)
+			err := p.ValidateProtection(ResourceTypeDCRProvider, name, isProtected, ActionDelete)
 			protectionErrors.Add(err)
 			if err == nil {
 				p.planDCRProviderDelete(current, plan)
@@ -144,8 +144,8 @@ func (p *dcrProviderPlannerImpl) planDCRProviderCreate(
 	fields[FieldName] = provider.Name
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionCreate, "dcr_provider", provider.GetRef()),
-		ResourceType: "dcr_provider",
+		ID:           p.NextChangeID(ActionCreate, ResourceTypeDCRProvider, provider.GetRef()),
+		ResourceType: ResourceTypeDCRProvider,
 		ResourceRef:  provider.GetRef(),
 		Action:       ActionCreate,
 		Fields:       fields,
@@ -291,8 +291,8 @@ func (p *dcrProviderPlannerImpl) planDCRProviderUpdateWithFields(
 	}
 
 	change := PlannedChange{
-		ID:            p.NextChangeID(ActionUpdate, "dcr_provider", desired.GetRef()),
-		ResourceType:  "dcr_provider",
+		ID:            p.NextChangeID(ActionUpdate, ResourceTypeDCRProvider, desired.GetRef()),
+		ResourceType:  ResourceTypeDCRProvider,
 		ResourceRef:   desired.GetRef(),
 		ResourceID:    current.ID,
 		Action:        ActionUpdate,
@@ -324,8 +324,8 @@ func (p *dcrProviderPlannerImpl) planDCRProviderProtectionChangeWithFields(
 	}
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionUpdate, "dcr_provider", desired.GetRef()),
-		ResourceType: "dcr_provider",
+		ID:           p.NextChangeID(ActionUpdate, ResourceTypeDCRProvider, desired.GetRef()),
+		ResourceType: ResourceTypeDCRProvider,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
 		Action:       ActionUpdate,
@@ -346,8 +346,8 @@ func (p *dcrProviderPlannerImpl) planDCRProviderProtectionChangeWithFields(
 
 func (p *dcrProviderPlannerImpl) planDCRProviderDelete(provider state.DCRProvider, plan *Plan) {
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionDelete, "dcr_provider", provider.Name),
-		ResourceType: "dcr_provider",
+		ID:           p.NextChangeID(ActionDelete, ResourceTypeDCRProvider, provider.Name),
+		ResourceType: ResourceTypeDCRProvider,
 		ResourceRef:  provider.Name,
 		ResourceID:   provider.ID,
 		Action:       ActionDelete,

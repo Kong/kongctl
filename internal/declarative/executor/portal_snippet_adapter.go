@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -24,34 +25,34 @@ func (p *PortalSnippetAdapter) MapCreateFields(
 	create *kkComps.CreatePortalSnippetRequest,
 ) error {
 	// Required fields
-	name, ok := fields["name"].(string)
+	name, ok := fields[planner.FieldName].(string)
 	if !ok {
 		return fmt.Errorf("name is required")
 	}
 	create.Name = name
 
-	content, ok := fields["content"].(string)
+	content, ok := fields[planner.FieldContent].(string)
 	if !ok {
 		return fmt.Errorf("content is required")
 	}
 	create.Content = content
 
 	// Optional fields
-	if title, ok := fields["title"].(string); ok {
+	if title, ok := fields[planner.FieldTitle].(string); ok {
 		create.Title = &title
 	}
 
-	if visibilityStr, ok := fields["visibility"].(string); ok {
+	if visibilityStr, ok := fields[planner.FieldVisibility].(string); ok {
 		visibility := kkComps.SnippetVisibilityStatus(visibilityStr)
 		create.Visibility = &visibility
 	}
 
-	if statusStr, ok := fields["status"].(string); ok {
+	if statusStr, ok := fields[planner.FieldStatus].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		create.Status = &status
 	}
 
-	if description, ok := fields["description"].(string); ok {
+	if description, ok := fields[planner.FieldDescription].(string); ok {
 		create.Description = &description
 	}
 
@@ -63,29 +64,29 @@ func (p *PortalSnippetAdapter) MapUpdateFields(_ context.Context, _ *ExecutionCo
 	update *kkComps.UpdatePortalSnippetRequest, _ map[string]string,
 ) error {
 	// Optional fields
-	if name, ok := fields["name"].(string); ok {
+	if name, ok := fields[planner.FieldName].(string); ok {
 		update.Name = &name
 	}
 
-	if content, ok := fields["content"].(string); ok {
+	if content, ok := fields[planner.FieldContent].(string); ok {
 		update.Content = &content
 	}
 
-	if title, ok := fields["title"].(string); ok {
+	if title, ok := fields[planner.FieldTitle].(string); ok {
 		update.Title = &title
 	}
 
-	if visibilityStr, ok := fields["visibility"].(string); ok {
+	if visibilityStr, ok := fields[planner.FieldVisibility].(string); ok {
 		visibility := kkComps.VisibilityStatus(visibilityStr)
 		update.Visibility = &visibility
 	}
 
-	if statusStr, ok := fields["status"].(string); ok {
+	if statusStr, ok := fields[planner.FieldStatus].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		update.Status = &status
 	}
 
-	if description, ok := fields["description"].(string); ok {
+	if description, ok := fields[planner.FieldDescription].(string); ok {
 		update.Description = &description
 	}
 
@@ -161,12 +162,12 @@ func (p *PortalSnippetAdapter) GetByID(
 
 // ResourceType returns the resource type name
 func (p *PortalSnippetAdapter) ResourceType() string {
-	return "portal_snippet"
+	return planner.ResourceTypePortalSnippet
 }
 
 // RequiredFields returns the required fields for creation
 func (p *PortalSnippetAdapter) RequiredFields() []string {
-	return []string{"name", "content"}
+	return []string{planner.FieldName, planner.FieldContent}
 }
 
 // SupportsUpdate returns true as snippets support updates
@@ -183,7 +184,7 @@ func (p *PortalSnippetAdapter) getPortalID(execCtx *ExecutionContext) (string, e
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for Create operations)
-	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
 

@@ -261,7 +261,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 
 	// Strategy 3: For protection changes, try lookup with preserved labels context
 	if isProtectionChange(change) && change.Fields != nil {
-		if namespace, ok := change.Fields["namespace"].(string); ok {
+		if namespace, ok := change.Fields[planner.FieldNamespace].(string); ok {
 			// Try namespace-specific lookup
 			if nsLookup, ok := b.ops.(interface {
 				GetByNameInNamespace(context.Context, string, string) (ResourceInfo, error)

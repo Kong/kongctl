@@ -72,7 +72,7 @@ func (p PortalIdentityProviderResource) GetMoniker() string {
 func (p PortalIdentityProviderResource) GetDependencies() []ResourceRef {
 	var deps []ResourceRef
 	if p.Portal != "" {
-		deps = append(deps, ResourceRef{Kind: "portal", Ref: p.Portal})
+		deps = append(deps, ResourceRef{Kind: ResourceTypePortal, Ref: p.Portal})
 	}
 	return deps
 }
@@ -136,7 +136,7 @@ func (p PortalIdentityProviderResource) GetParentRef() *ResourceRef {
 	if p.Portal == "" {
 		return nil
 	}
-	return &ResourceRef{Kind: string(ResourceTypePortal), Ref: p.Portal}
+	return &ResourceRef{Kind: ResourceTypePortal, Ref: p.Portal}
 }
 
 // UnmarshalJSON rejects kongctl metadata on child resources.

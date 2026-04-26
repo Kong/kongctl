@@ -283,19 +283,19 @@ func (p *Planner) planVirtualClusterCreate(
 	plan *Plan,
 ) string {
 	fields := make(map[string]any)
-	fields["name"] = cluster.Name
+	fields[FieldName] = cluster.Name
 	if cluster.Description != nil {
-		fields["description"] = *cluster.Description
+		fields[FieldDescription] = *cluster.Description
 	}
-	fields["destination"] = cluster.Destination
-	fields["authentication"] = cluster.Authentication
-	fields["acl_mode"] = cluster.ACLMode
-	fields["dns_label"] = cluster.DNSLabel
+	fields[FieldDestination] = cluster.Destination
+	fields[FieldAuthentication] = cluster.Authentication
+	fields[FieldACLMode] = cluster.ACLMode
+	fields[FieldDNSLabel] = cluster.DNSLabel
 	if cluster.Namespace != nil {
-		fields["namespace"] = cluster.Namespace
+		fields[FieldNamespace] = cluster.Namespace
 	}
 	if len(cluster.Labels) > 0 {
-		fields["labels"] = cluster.Labels
+		fields[FieldLabels] = cluster.Labels
 	}
 
 	change := PlannedChange{
@@ -317,11 +317,11 @@ func (p *Planner) planVirtualClusterCreate(
 	} else {
 		// Gateway doesn't exist yet, add reference for runtime resolution
 		change.References = map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  "", // to be resolved at runtime
 				LookupFields: map[string]string{
-					"name": gatewayName,
+					FieldName: gatewayName,
 				},
 			},
 		}
@@ -340,10 +340,10 @@ func (p *Planner) planVirtualClusterCreate(
 			backendClusterName = backendCluster.Name
 		}
 
-		change.References["event_gateway_backend_cluster_id"] = ReferenceInfo{
+		change.References[FieldEventGatewayBackendClusterID] = ReferenceInfo{
 			Ref: cluster.Destination.BackendClusterReferenceByID.ID,
 			LookupFields: map[string]string{
-				"name": backendClusterName,
+				FieldName: backendClusterName,
 			},
 		}
 	}
@@ -438,7 +438,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare name
 	if current.Name != desired.Name {
 		needsUpdate = true
-		changes["name"] = FieldChange{
+		changes[FieldName] = FieldChange{
 			Old: current.Name,
 			New: desired.Name,
 		}
@@ -455,7 +455,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	}
 	if currentDesc != desiredDesc {
 		needsUpdate = true
-		changes["description"] = FieldChange{
+		changes[FieldDescription] = FieldChange{
 			Old: currentDesc,
 			New: desiredDesc,
 		}
@@ -464,7 +464,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare destination
 	if !compareBackendClusterReferences(current.Destination, desired.Destination) {
 		needsUpdate = true
-		changes["destination"] = FieldChange{
+		changes[FieldDestination] = FieldChange{
 			Old: current.Destination,
 			New: desired.Destination,
 		}
@@ -473,7 +473,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare authentication
 	if !compareAuthentication(current.Authentication, desired.Authentication) {
 		needsUpdate = true
-		changes["authentication"] = FieldChange{
+		changes[FieldAuthentication] = FieldChange{
 			Old: current.Authentication,
 			New: desired.Authentication,
 		}
@@ -482,7 +482,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare ACL mode
 	if current.ACLMode != desired.ACLMode {
 		needsUpdate = true
-		changes["acl_mode"] = FieldChange{
+		changes[FieldACLMode] = FieldChange{
 			Old: current.ACLMode,
 			New: desired.ACLMode,
 		}
@@ -491,7 +491,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare DNS label
 	if current.DNSLabel != desired.DNSLabel {
 		needsUpdate = true
-		changes["dns_label"] = FieldChange{
+		changes[FieldDNSLabel] = FieldChange{
 			Old: current.DNSLabel,
 			New: desired.DNSLabel,
 		}
@@ -500,7 +500,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare namespace
 	if !compareVirtualClusterNamespaces(current.Namespace, desired.Namespace) {
 		needsUpdate = true
-		changes["namespace"] = FieldChange{
+		changes[FieldNamespace] = FieldChange{
 			Old: current.Namespace,
 			New: desired.Namespace,
 		}
@@ -510,7 +510,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	if desired.Labels != nil {
 		if !compareMaps(current.Labels, desired.Labels) {
 			needsUpdate = true
-			changes["labels"] = FieldChange{
+			changes[FieldLabels] = FieldChange{
 				Old: current.Labels,
 				New: desired.Labels,
 			}
@@ -519,23 +519,23 @@ func (p *Planner) shouldUpdateVirtualCluster(
 
 	// If any changes detected, set ALL properties from desired state for PUT request
 	if needsUpdate {
-		updates["name"] = desired.Name
+		updates[FieldName] = desired.Name
 
 		if desired.Description != nil {
-			updates["description"] = *desired.Description
+			updates[FieldDescription] = *desired.Description
 		}
 
-		updates["destination"] = desired.Destination
-		updates["authentication"] = desired.Authentication
-		updates["acl_mode"] = desired.ACLMode
-		updates["dns_label"] = desired.DNSLabel
+		updates[FieldDestination] = desired.Destination
+		updates[FieldAuthentication] = desired.Authentication
+		updates[FieldACLMode] = desired.ACLMode
+		updates[FieldDNSLabel] = desired.DNSLabel
 
 		if desired.Namespace != nil {
-			updates["namespace"] = desired.Namespace
+			updates[FieldNamespace] = desired.Namespace
 		}
 
 		if len(desired.Labels) > 0 {
-			updates["labels"] = desired.Labels
+			updates[FieldLabels] = desired.Labels
 		}
 	}
 

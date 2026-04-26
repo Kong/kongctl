@@ -164,10 +164,10 @@ func (d *DependencyResolver) findParentChange(parentRef, childResourceType strin
 // getParentType determines parent resource type from child type
 func (d *DependencyResolver) getParentType(childType string) string {
 	switch childType {
-	case "api_version", "api_publication", "api_implementation", "api_document":
-		return "api"
-	case "portal_page":
-		return "portal"
+	case ResourceTypeAPIVersion, ResourceTypeAPIPublication, ResourceTypeAPIImplementation, ResourceTypeAPIDocument:
+		return ResourceTypeAPI
+	case ResourceTypePortalPage:
+		return ResourceTypePortal
 	default:
 		return ""
 	}

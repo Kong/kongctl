@@ -37,7 +37,7 @@ func (a ApplicationAuthStrategyResource) GetDependencies() []ResourceRef {
 	}
 	if providerID := a.GetDCRProviderID(); providerID != "" {
 		return []ResourceRef{{
-			Kind: string(ResourceTypeDCRProvider),
+			Kind: ResourceTypeDCRProvider,
 			Ref:  providerID,
 		}}
 	}
