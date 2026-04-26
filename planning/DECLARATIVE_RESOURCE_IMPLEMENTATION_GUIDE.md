@@ -689,8 +689,11 @@ package executor
 
 import (
     "context"
+
     "github.com/Kong/sdk-konnect-go/models/components"
+    "github.com/kong/kongctl/internal/declarative/common"
     "github.com/kong/kongctl/internal/declarative/labels"
+    "github.com/kong/kongctl/internal/declarative/planner"
     "github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -753,7 +756,7 @@ func (a *FooAdapter) MapUpdateFields(
     }
 
     // Handle labels
-    desiredLabels := labels.ExtractLabelsFromField(fields[FieldLabels])
+    desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
     if desiredLabels != nil {
         plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
         if plannerCurrentLabels != nil {
