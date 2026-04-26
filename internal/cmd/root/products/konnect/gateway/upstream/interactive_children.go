@@ -18,8 +18,8 @@ import (
 )
 
 func init() {
-	tableview.RegisterChildLoader("control-plane", "upstreams", loadControlPlaneUpstreams)
-	tableview.RegisterChildLoader("upstream", "targets", loadUpstreamTargets)
+	tableview.RegisterChildLoader(kkCommon.ViewParentControlPlane, kkCommon.ViewFieldUpstreams, loadControlPlaneUpstreams)
+	tableview.RegisterChildLoader(kkCommon.ViewParentUpstream, kkCommon.ViewFieldTargets, loadUpstreamTargets)
 }
 
 func loadControlPlaneUpstreams(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -83,7 +83,7 @@ func loadControlPlaneUpstreams(_ context.Context, helper cmd.Helper, parent any)
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Upstreams",
-		ParentType:     "upstream",
+		ParentType:     kkCommon.ViewParentUpstream,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(upstreams) {
 				return nil
@@ -162,7 +162,7 @@ func loadUpstreamTargets(_ context.Context, helper cmd.Helper, parent any) (tabl
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Targets",
-		ParentType:     "upstream-target",
+		ParentType:     kkCommon.ViewParentUpstreamTarget,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(targets) {
 				return nil

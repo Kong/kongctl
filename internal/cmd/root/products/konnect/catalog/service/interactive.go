@@ -71,7 +71,7 @@ func buildCatalogServiceChildView(services []kkComps.CatalogService) tableview.C
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Catalog Services",
-		ParentType:     "catalog_service",
+		ParentType:     common.ViewParentCatalogService,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(views) {
 				return nil
@@ -154,20 +154,20 @@ func catalogServiceDetailView(view catalogServiceView) string {
 	record := view.DisplayRecord
 
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "Name         : %s\n", record.Name)
-	fmt.Fprintf(&sb, "Display Name : %s\n", record.DisplayName)
-	fmt.Fprintf(&sb, "ID           : %s\n", record.ID)
-	fmt.Fprintf(&sb, "Description  : %s\n", record.Description)
+	fmt.Fprintf(&sb, "name: %s\n", record.Name)
+	fmt.Fprintf(&sb, "display_name: %s\n", record.DisplayName)
+	fmt.Fprintf(&sb, "id: %s\n", record.ID)
+	fmt.Fprintf(&sb, "description: %s\n", record.Description)
 
 	if len(view.Labels) > 0 {
 		if data, err := json.MarshalIndent(view.Labels, "", "  "); err == nil {
-			fmt.Fprintf(&sb, "Labels       : %s\n", string(data))
+			fmt.Fprintf(&sb, "labels: %s\n", string(data))
 		}
 	}
 
 	if view.RawCustom != nil {
 		if data, err := json.MarshalIndent(view.RawCustom, "", "  "); err == nil {
-			fmt.Fprintf(&sb, "Custom Fields: %s\n", string(data))
+			fmt.Fprintf(&sb, "custom_fields: %s\n", string(data))
 		}
 	}
 
@@ -176,8 +176,13 @@ func catalogServiceDetailView(view catalogServiceView) string {
 
 func init() {
 	navigator.RegisterResource(
-		"catalog-services",
-		[]string{"catalog-services", "catalog_service", "catalog_services", "catalog"},
+		common.ViewResourceCatalogServices,
+		[]string{
+			common.ViewAliasCatalogServices,
+			common.ViewParentCatalogService,
+			common.ViewAliasCatalogServicesUnderscore,
+			common.ViewAliasCatalog,
+		},
 		BuildListView,
 	)
 }

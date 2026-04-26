@@ -454,7 +454,7 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 				"",
 				tableview.WithRootLabel(helper.GetCmd().Name()),
 				tableview.WithDetailHelper(helper),
-				tableview.WithDetailContext("api", func(index int) any {
+				tableview.WithDetailContext(common.ViewParentAPI, func(index int) any {
 					if index != 0 {
 						return nil
 					}
@@ -478,7 +478,7 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
 			tableview.WithDetailHelper(helper),
-			tableview.WithDetailContext("api", func(index int) any {
+			tableview.WithDetailContext(common.ViewParentAPI, func(index int) any {
 				if index != 0 {
 					return nil
 				}
@@ -552,7 +552,7 @@ func buildAPIChildView(apis []kkComps.APIResponseSchema) tableview.ChildView {
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "APIs",
-		ParentType:     "api",
+		ParentType:     common.ViewParentAPI,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(apis) {
 				return nil

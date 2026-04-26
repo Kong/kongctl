@@ -538,7 +538,7 @@ func buildDataPlaneCertChildView(certs []kkComps.EventGatewayDataPlaneCertificat
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Data Plane Certificates",
-		ParentType:     "data-plane-certificate",
+		ParentType:     common.ViewParentDataPlaneCertificate,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(certs) {
 				return nil

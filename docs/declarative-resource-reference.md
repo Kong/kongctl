@@ -2,10 +2,15 @@
 
 This document is the reference for `kongctl` declarative configuration. It
 lists supported resource types and their field-level values.
-Resource configurations are provided as YAML files and can be expressed as one or more
-files passed to `kongctl` declarative commands. 
+Resource configurations are provided as YAML files and can be expressed as one
+or more files passed to `kongctl` declarative commands.
 
-See the [declarative configuration guide](declarative.md) for information on 
+The resource keys and field names shown here are the canonical declarative
+configuration names accepted by `kongctl`. Keep this reference aligned with
+`kongctl explain` and `kongctl scaffold` when adding or changing resource
+support.
+
+See the [declarative configuration guide](declarative.md) for information on
 the feature, commands, and options.
 
 ## File-level defaults (`_defaults`)

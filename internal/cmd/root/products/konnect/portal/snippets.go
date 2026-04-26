@@ -272,7 +272,7 @@ func (h portalSnippetsHandler) listSnippets(
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("portal-snippet", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentPortalSnippet, func(index int) any {
 			if index < 0 || index >= len(snippets) {
 				return nil
 			}
@@ -345,7 +345,7 @@ func (h portalSnippetsHandler) getSingleSnippet(
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailRenderer(detailRenderer),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("portal-snippet", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentPortalSnippet, func(index int) any {
 			if index != 0 {
 				return nil
 			}

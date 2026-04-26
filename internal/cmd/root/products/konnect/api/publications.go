@@ -198,7 +198,7 @@ func (h apiPublicationsHandler) run(args []string) error {
 		tableview.WithCustomTable([]string{"PORTAL", "VISIBILITY"}, rows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
-		tableview.WithDetailContext("api-publication", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIPublication, func(index int) any {
 			if index < 0 || index >= len(publications) {
 				return nil
 			}

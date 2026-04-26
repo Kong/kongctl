@@ -468,7 +468,7 @@ func buildStaticKeyChildView(keys []kkComps.EventGatewayStaticKey) tableview.Chi
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Static Keys",
-		ParentType:     "static-key",
+		ParentType:     common.ViewParentStaticKey,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(keys) {
 				return nil

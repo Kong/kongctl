@@ -11,22 +11,27 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 )
 
 func init() {
-	tableview.RegisterChildLoader("portal", "auth-settings", loadPortalAuthSettings)
-	tableview.RegisterChildLoader("portal", "identity-providers", loadPortalIdentityProviders)
-	tableview.RegisterChildLoader("portal", "pages", loadPortalPages)
-	tableview.RegisterChildLoader("portal", "snippets", loadPortalSnippets)
-	tableview.RegisterChildLoader("portal", "applications", loadPortalApplications)
-	tableview.RegisterChildLoader("portal", "developers", loadPortalDevelopers)
-	tableview.RegisterChildLoader("portal", "registrations", loadPortalRegistrations)
-	tableview.RegisterChildLoader("portal-application", "registrations", loadPortalApplicationRegistrations)
-	tableview.RegisterChildLoader("portal", "teams", loadPortalTeams)
-	tableview.RegisterChildLoader("portal", "team-roles", loadPortalTeamRoles)
-	tableview.RegisterChildLoader("portal-team", "team-roles", loadPortalTeamRolesForTeam)
-	tableview.RegisterChildLoader("portal-page", "content", loadPortalPageContent)
-	tableview.RegisterChildLoader("portal-snippet", "content", loadPortalSnippetContent)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldAuthSettings, loadPortalAuthSettings)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldIdentityProviders, loadPortalIdentityProviders)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldPages, loadPortalPages)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldSnippets, loadPortalSnippets)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldApplications, loadPortalApplications)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldDevelopers, loadPortalDevelopers)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldRegistrations, loadPortalRegistrations)
+	tableview.RegisterChildLoader(
+		common.ViewParentPortalApplication,
+		common.ViewFieldRegistrations,
+		loadPortalApplicationRegistrations,
+	)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldTeams, loadPortalTeams)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldTeamRoles, loadPortalTeamRoles)
+	tableview.RegisterChildLoader(common.ViewParentPortalTeam, common.ViewFieldTeamRoles, loadPortalTeamRolesForTeam)
+	tableview.RegisterChildLoader(common.ViewParentPortalPage, common.ViewFieldContent, loadPortalPageContent)
+	tableview.RegisterChildLoader(common.ViewParentPortalSnippet, common.ViewFieldContent, loadPortalSnippetContent)
 }
 
 func loadPortalAuthSettings(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -159,7 +164,7 @@ func loadPortalPages(_ context.Context, helper cmd.Helper, parent any) (tablevie
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Pages",
-		ParentType:     "portal-page",
+		ParentType:     common.ViewParentPortalPage,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(flattened) {
 				return nil
@@ -229,7 +234,7 @@ func loadPortalSnippets(_ context.Context, helper cmd.Helper, parent any) (table
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Snippets",
-		ParentType:     "portal-snippet",
+		ParentType:     common.ViewParentPortalSnippet,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(summaries) {
 				return nil
@@ -293,7 +298,7 @@ func loadPortalApplications(_ context.Context, helper cmd.Helper, parent any) (t
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Applications",
-		ParentType:     "portal-application",
+		ParentType:     common.ViewParentPortalApplication,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(apps) {
 				return nil
@@ -355,7 +360,7 @@ func loadPortalDevelopers(_ context.Context, helper cmd.Helper, parent any) (tab
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Developers",
-		ParentType:     "portal-developer",
+		ParentType:     common.ViewParentPortalDeveloper,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(developers) {
 				return nil
@@ -417,7 +422,7 @@ func loadPortalRegistrations(_ context.Context, helper cmd.Helper, parent any) (
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Registrations",
-		ParentType:     "portal-application-registration",
+		ParentType:     common.ViewParentPortalApplicationRegistration,
 	}, nil
 }
 
@@ -476,7 +481,7 @@ func loadPortalApplicationRegistrations(
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Registrations",
-		ParentType:     "portal-application-registration",
+		ParentType:     common.ViewParentPortalApplicationRegistration,
 	}, nil
 }
 
@@ -529,7 +534,7 @@ func loadPortalTeams(_ context.Context, helper cmd.Helper, parent any) (tablevie
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Teams",
-		ParentType:     "portal-team",
+		ParentType:     common.ViewParentPortalTeam,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(teams) {
 				return nil

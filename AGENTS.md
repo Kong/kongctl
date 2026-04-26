@@ -298,6 +298,28 @@ after making changes to catch regressions.
 - **Comments**: Only add if they match existing style or explain complexity
 - **Documentation markdown**: Wrap at 80 characters
 
+### Identifier Constants
+
+- Declarative resource type identifiers live in
+  `internal/declarative/resources`. Planner and executor compatibility aliases
+  live in `internal/declarative/planner`.
+- Plan field identifiers live in `internal/declarative/planner`. Use `Field*`
+  constants for plan `Fields`, `References`, required fields, and executor field
+  access.
+- Konnect view/tableview identifiers live in
+  `internal/cmd/root/products/konnect/common`. Use `ViewParent*`,
+  `ViewField*`, and `ViewResource*` constants for tableview parent types, child
+  loader fields, detail contexts, and navigator resource selectors.
+- For `kongctl view` detail panels, label direct API response fields with the
+  API JSON field name, such as `created_at` or `display_name`. Use `snake_case`
+  for kongctl-derived fields, such as `value_count`. Avoid title-cased friendly
+  labels in detail renderers.
+- Do not introduce new string literals for resource types, plan fields,
+  tableview parent types, child loader keys, or navigator resource selectors.
+- Keep user-facing help text, table headers, command aliases, API payload keys,
+  JSON/YAML tags, and external schema field names as literals unless they are
+  also used as an internal contract identifier.
+
 ## Testing Guidelines
 
 - Place tests in `*_test.go` with `TestXxx` functions.

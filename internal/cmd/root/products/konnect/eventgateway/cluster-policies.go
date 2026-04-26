@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -655,7 +656,7 @@ func buildClusterPolicyChildView(policies []clusterPolicyWithConfig) tableview.C
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Cluster Policies",
-		ParentType:     "cluster-policy",
+		ParentType:     common.ViewParentVirtualClusterClusterPolicy,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(policies) {
 				return nil

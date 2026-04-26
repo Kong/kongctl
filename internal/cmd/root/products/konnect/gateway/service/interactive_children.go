@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	tableview.RegisterChildLoader("control-plane", "services", loadControlPlaneServices)
+	tableview.RegisterChildLoader(kkCommon.ViewParentControlPlane, kkCommon.ViewFieldServices, loadControlPlaneServices)
 }
 
 func loadControlPlaneServices(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -75,7 +75,7 @@ func loadControlPlaneServices(_ context.Context, helper cmd.Helper, parent any) 
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Services",
-		ParentType:     "gateway-service",
+		ParentType:     kkCommon.ViewParentGatewayService,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(services) {
 				return nil

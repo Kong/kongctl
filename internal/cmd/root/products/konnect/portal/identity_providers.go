@@ -9,6 +9,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -271,7 +272,7 @@ func buildPortalIdentityProvidersChildView(providers []kkComps.IdentityProvider)
 			}
 			return portalIdentityProviderDetailView(providers[index])
 		},
-		ParentType: "portal-identity-provider",
+		ParentType: common.ViewParentPortalIdentityProvider,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(providers) {
 				return nil

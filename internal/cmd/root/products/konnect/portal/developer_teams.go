@@ -324,12 +324,12 @@ func portalTeamDeveloperDetailView(dev kkComps.BasicDeveloper) string {
 	if dev.GetID() != nil && *dev.GetID() != "" {
 		id = util.AbbreviateUUID(*dev.GetID())
 	}
-	fmt.Fprintf(&b, "Email: %s\n", optionalPtr(dev.GetEmail()))
-	fmt.Fprintf(&b, "ID: %s\n", id)
-	fmt.Fprintf(&b, "Full Name: %s\n", optionalPtr(dev.GetFullName()))
-	fmt.Fprintf(&b, "Active: %s\n", optionalBool(dev.GetActive()))
-	fmt.Fprintf(&b, "Created: %s\n", formatTimePtr(dev.GetCreatedAt()))
-	fmt.Fprintf(&b, "Updated: %s\n", formatTimePtr(dev.GetUpdatedAt()))
+	fmt.Fprintf(&b, "email: %s\n", optionalPtr(dev.GetEmail()))
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "full_name: %s\n", optionalPtr(dev.GetFullName()))
+	fmt.Fprintf(&b, "active: %s\n", optionalBool(dev.GetActive()))
+	fmt.Fprintf(&b, "created_at: %s\n", formatTimePtr(dev.GetCreatedAt()))
+	fmt.Fprintf(&b, "updated_at: %s\n", formatTimePtr(dev.GetUpdatedAt()))
 
 	return b.String()
 }

@@ -28,6 +28,32 @@ New resource implementations should follow these refactored patterns.
   files. Ensure your new resource has `GetType()` and `GetRef()` implemented and
   is wired into `ResourceSet`.
 
+## IDENTIFIER CONSTANTS
+
+Do not add new string literals for identifiers that are part of internal
+resource, plan, or view contracts.
+
+- Declarative resource type identifiers are canonical in
+  `internal/declarative/resources/types.go`.
+- Planner and executor code should use the compatibility aliases in
+  `internal/declarative/planner/constants.go`, such as `ResourceTypeFoo`.
+- Plan field names belong in `internal/declarative/planner/constants.go`.
+  Use `Field*` constants for plan `Fields`, `References`, required fields, and
+  executor field access.
+- Resource dependencies use `resources.ResourceRef{Kind: ResourceTypeFoo}` or
+  another typed `resources.ResourceType` value, not a raw string.
+- Konnect view/tableview identifiers belong in
+  `internal/cmd/root/products/konnect/common`. Use `ViewParent*`, `ViewField*`,
+  and `ViewResource*` constants for tableview parent types, child loader fields,
+  detail contexts, and navigator resource selectors.
+- `kongctl view` detail renderers should label direct API response fields with
+  the API JSON field name, such as `created_at` or `display_name`. Use
+  `snake_case` for kongctl-derived fields, such as `value_count`. Avoid
+  title-cased friendly labels in detail renderers.
+- Leave user-facing help text, table headers, Cobra command aliases,
+  JSON/YAML tags, API payload keys, and external schema field names as literals
+  unless they are also used as one of the internal identifiers above.
+
 ## RESOURCE TYPES
 
 ### PARENT RESOURCES
@@ -252,6 +278,17 @@ type ResourceSet struct {
 `ResourceSet` operations will not include the new type, and the resource will
 not participate in `kongctl explain` or `kongctl scaffold`.
 
+**ADD TO**: `internal/declarative/planner/constants.go`
+```go
+const (
+    ResourceTypeFoo = string(resources.ResourceTypeFoo)
+    FieldFooID      = "foo_id"
+)
+```
+
+Add any new plan field constants in the planner package before using them in
+`Fields`, `References`, `RequiredFields`, or executor adapters.
+
 #### 2. STATE CLIENT METHODS
 **Location**: `internal/declarative/state/client.go`
 
@@ -319,7 +356,7 @@ func (c *Client) CreateFoo(ctx context.Context, foo kkComps.CreateFoo, namespace
     resp, err := c.fooAPI.CreateFoo(ctx, foo)
     if err != nil {
         return nil, WrapAPIError(err, "create foo", &ErrorWrapperOptions{
-            ResourceType: "foo",
+            ResourceType: string(resources.ResourceTypeFoo),
             ResourceName: foo.Name,
             Namespace:    namespace,
             UseEnhanced:  true,
@@ -337,7 +374,7 @@ func (c *Client) UpdateFoo(ctx context.Context, id string, foo kkComps.UpdateFoo
     resp, err := c.fooAPI.UpdateFoo(ctx, id, foo)
     if err != nil {
         return nil, WrapAPIError(err, "update foo", &ErrorWrapperOptions{
-            ResourceType: "foo",
+            ResourceType: string(resources.ResourceTypeFoo),
             ResourceName: *foo.Name,  // Adjust based on SDK
             Namespace:    namespace,
             UseEnhanced:  true,
@@ -453,7 +490,7 @@ func (p *Planner) planFooChanges(
                 needsUpdate, updateFields := p.shouldUpdateFoo(current, desiredFoo)
                 protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
 
-                if err := p.validateProtectionWithChange("foo", desiredFoo.Name,
+                if err := p.validateProtectionWithChange(ResourceTypeFoo, desiredFoo.Name,
                                                           protectionChange, ActionUpdate); err != nil {
                     protectionErrors = append(protectionErrors, err)
                 } else {
@@ -464,7 +501,7 @@ func (p *Planner) planFooChanges(
                 // Regular update
                 needsUpdate, updateFields := p.shouldUpdateFoo(current, desiredFoo)
                 if needsUpdate {
-                    if err := p.validateProtection("foo", desiredFoo.Name, isProtected, ActionUpdate); err != nil {
+                    if err := p.validateProtection(ResourceTypeFoo, desiredFoo.Name, isProtected, ActionUpdate); err != nil {
                         protectionErrors = append(protectionErrors, err)
                     } else {
                         p.planFooUpdateWithFields(current, desiredFoo, updateFields, plan)
@@ -482,7 +519,7 @@ func (p *Planner) planFooChanges(
         for name, current := range currentByName {
             if !desiredNames[name] {
                 isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-                if err := p.validateProtection("foo", name, isProtected, ActionDelete); err != nil {
+                if err := p.validateProtection(ResourceTypeFoo, name, isProtected, ActionDelete); err != nil {
                     protectionErrors = append(protectionErrors, err)
                 } else {
                     p.planFooDelete(current, plan)
@@ -506,7 +543,7 @@ func (p *Planner) shouldUpdateFoo(current state.Foo, desired resources.FooResour
     if desired.Description != nil {
         currentDesc := getString(current.Description)
         if currentDesc != *desired.Description {
-            updates["description"] = *desired.Description
+            updates[FieldDescription] = *desired.Description
         }
     }
 
@@ -514,7 +551,7 @@ func (p *Planner) shouldUpdateFoo(current state.Foo, desired resources.FooResour
     // NOTE: CompareUserLabels returns TRUE when labels DIFFER (not when equal)
     if desired.Labels != nil {
         if labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
-            updates["labels"] = desired.GetLabels()
+            updates[FieldLabels] = desired.GetLabels()
         }
     }
 
@@ -528,10 +565,10 @@ func (p *Planner) planFooCreate(foo resources.FooResource, plan *Plan) string {
     namespace := extractNamespace(foo.Kongctl)
 
     config := CreateConfig{
-        ResourceType:   "foo",
+        ResourceType:   ResourceTypeFoo,
         ResourceName:   foo.Name,
         ResourceRef:    foo.GetRef(),
-        RequiredFields: []string{"name"},
+        RequiredFields: []string{FieldName},
         FieldExtractor: func(_ any) map[string]any {
             return extractFooFields(foo)
         },
@@ -555,14 +592,14 @@ func extractFooFields(resource any) map[string]any {
     fields := make(map[string]any)
     foo := resource.(resources.FooResource)
 
-    fields["name"] = foo.Name
+    fields[FieldName] = foo.Name
     if foo.Description != nil {
-        fields["description"] = *foo.Description
+        fields[FieldDescription] = *foo.Description
     }
 
     // Copy user labels (namespace/protection added during execution)
     if len(foo.Labels) > 0 {
-        fields["labels"] = foo.GetLabels()
+        fields[FieldLabels] = foo.GetLabels()
     }
 
     return fields
@@ -579,7 +616,7 @@ func (p *Planner) planFooUpdateWithFields(
     updateFields[FieldCurrentLabels] = current.NormalizedLabels
 
     config := UpdateConfig{
-        ResourceType:   "foo",
+        ResourceType:   ResourceTypeFoo,
         ResourceName:   desired.Name,
         ResourceRef:    desired.GetRef(),
         ResourceID:     current.ID,
@@ -607,7 +644,7 @@ func (p *Planner) planFooDelete(foo state.Foo, plan *Plan) {
     }
 
     config := DeleteConfig{
-        ResourceType: "foo",
+        ResourceType: ResourceTypeFoo,
         ResourceName: foo.Name,
         ResourceRef:  foo.Name,
         ResourceID:   foo.ID,
@@ -652,8 +689,11 @@ package executor
 
 import (
     "context"
+
     "github.com/Kong/sdk-konnect-go/models/components"
+    "github.com/kong/kongctl/internal/declarative/common"
     "github.com/kong/kongctl/internal/declarative/labels"
+    "github.com/kong/kongctl/internal/declarative/planner"
     "github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -676,10 +716,10 @@ func (a *FooAdapter) MapCreateFields(
     create.Name = common.ExtractResourceName(fields)
 
     // Map optional fields
-    common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
+    common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
 
     // Handle labels
-    userLabels := labels.ExtractLabelsFromField(fields["labels"])
+    userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
     labelsMap := labels.BuildCreateLabels(userLabels, namespace, protection)
 
     // Convert to SDK format
@@ -704,11 +744,11 @@ func (a *FooAdapter) MapUpdateFields(
     // Only include changed fields
     for field, value := range fields {
         switch field {
-        case "name":
+        case planner.FieldName:
             if name, ok := value.(string); ok {
                 update.Name = &name
             }
-        case "description":
+        case planner.FieldDescription:
             if desc, ok := value.(string); ok {
                 update.Description = &desc
             }
@@ -716,7 +756,7 @@ func (a *FooAdapter) MapUpdateFields(
     }
 
     // Handle labels
-    desiredLabels := labels.ExtractLabelsFromField(fields["labels"])
+    desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
     if desiredLabels != nil {
         plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
         if plannerCurrentLabels != nil {
@@ -764,11 +804,11 @@ func (a *FooAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext)
 }
 
 func (a *FooAdapter) ResourceType() string {
-    return "foo"
+    return planner.ResourceTypeFoo
 }
 
 func (a *FooAdapter) RequiredFields() []string {
-    return []string{"name"}
+    return []string{planner.FieldName}
 }
 
 func (a *FooAdapter) SupportsUpdate() bool {
@@ -792,7 +832,7 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 
 func (e *Executor) executeChange(ctx context.Context, change planner.PlannedChange) error {
     switch change.ResourceType {
-    case "foo":
+    case planner.ResourceTypeFoo:
         return e.executeFooChange(ctx, change)
     // ... other cases
     }
@@ -875,7 +915,7 @@ func (f FooChildResource) GetMoniker() string {
 func (f FooChildResource) GetDependencies() []ResourceRef {
     deps := []ResourceRef{}
     if f.Foo != "" {
-        deps = append(deps, ResourceRef{Kind: "foo", Ref: f.Foo})
+        deps = append(deps, ResourceRef{Kind: ResourceTypeFoo, Ref: f.Foo})
     }
     return deps
 }
@@ -931,7 +971,7 @@ func (f *FooChildResource) TryMatchKonnectResource(konnectResource any) bool {
 // REQUIRED: Implement ResourceWithParent
 func (f FooChildResource) GetParentRef() *ResourceRef {
     if f.Foo != "" {
-        return &ResourceRef{Kind: "foo", Ref: f.Foo}
+        return &ResourceRef{Kind: ResourceTypeFoo, Ref: f.Foo}
     }
     return nil
 }
@@ -1169,12 +1209,12 @@ func (p *Planner) planFooChildCreate(
     child resources.FooChildResource, dependsOn []string, plan *Plan,
 ) {
     fields := make(map[string]any)
-    fields["slug"] = child.Slug
-    fields["content"] = child.Content
+    fields[FieldSlug] = child.Slug
+    fields[FieldContent] = child.Content
 
     change := &planner.PlannedChange{
         ID:           fmt.Sprintf("change-%d", len(plan.Changes)+1),
-        ResourceType: "foo_child",
+        ResourceType: ResourceTypeFooChild,
         ResourceRef:  child.GetRef(),
         Action:       planner.ActionCreate,
         Fields:       fields,
@@ -1185,18 +1225,18 @@ func (p *Planner) planFooChildCreate(
     // Set parent reference
     if fooID != "" {
         change.Parent = &planner.ParentInfo{
-            Type: "foo",
+            Type: ResourceTypeFoo,
             Ref:  fooRef,
             ID:   fooID,
         }
     } else {
         // Parent doesn't exist yet, add reference for runtime resolution
         change.References = map[string]planner.ReferenceInfo{
-            "foo_id": {
+            FieldFooID: {
                 Ref: fooRef,
                 ID:  "",  // Will be resolved at execution
                 LookupFields: map[string]string{
-                    "name": fooRef,
+                    FieldName: fooRef,
                 },
             },
         }
@@ -1222,10 +1262,10 @@ func (p *Planner) planFooCreate(foo resources.FooResource, plan *Plan) string {
     namespace := extractNamespace(foo.Kongctl)
 
     config := CreateConfig{
-        ResourceType:   "foo",
+        ResourceType:   ResourceTypeFoo,
         ResourceName:   foo.Name,
         ResourceRef:    foo.GetRef(),
-        RequiredFields: []string{"name"},
+        RequiredFields: []string{FieldName},
         FieldExtractor: func(_ any) map[string]any {
             return extractFooFields(foo)
         },
@@ -1275,13 +1315,13 @@ func (a *FooChildAdapter) MapCreateFields(
     _ context.Context, execCtx *ExecutionContext,
     fields map[string]any, create *components.CreateFooChildRequest,
 ) error {
-    slug, ok := fields["slug"].(string)
+    slug, ok := fields[FieldSlug].(string)
     if !ok {
         return fmt.Errorf("slug is required")
     }
     create.Slug = slug
 
-    content, ok := fields["content"].(string)
+    content, ok := fields[FieldContent].(string)
     if !ok {
         return fmt.Errorf("content is required")
     }
@@ -1304,11 +1344,11 @@ func (a *FooChildAdapter) MapUpdateFields(
     fields map[string]any, update *components.UpdateFooChildRequest,
     _ map[string]string,
 ) error {
-    if slug, ok := fields["slug"].(string); ok {
+    if slug, ok := fields[FieldSlug].(string); ok {
         update.Slug = &slug
     }
 
-    if content, ok := fields["content"].(string); ok {
+    if content, ok := fields[FieldContent].(string); ok {
         update.Content = &content
     }
 
@@ -1352,11 +1392,11 @@ func (a *FooChildAdapter) Delete(ctx context.Context, id string, execCtx *Execut
 }
 
 func (a *FooChildAdapter) ResourceType() string {
-    return "foo_child"
+    return planner.ResourceTypeFooChild
 }
 
 func (a *FooChildAdapter) RequiredFields() []string {
-    return []string{"slug", "content"}
+    return []string{planner.FieldSlug, planner.FieldContent}
 }
 
 func (a *FooChildAdapter) SupportsUpdate() bool {
@@ -1371,7 +1411,7 @@ func (a *FooChildAdapter) getFooIDFromExecutionContext(execCtx *ExecutionContext
     change := *execCtx.PlannedChange
 
     // Priority 1: Check References (for new parent)
-    if fooRef, ok := change.References["foo_id"]; ok && fooRef.ID != "" {
+    if fooRef, ok := change.References[planner.FieldFooID]; ok && fooRef.ID != "" {
         return fooRef.ID, nil
     }
 
@@ -1400,7 +1440,7 @@ func New(...) *Executor {
 
 func (e *Executor) executeChange(ctx context.Context, change planner.PlannedChange) error {
     switch change.ResourceType {
-    case "foo_child":
+    case planner.ResourceTypeFooChild:
         return e.executeFooChildChange(ctx, change)
     // ...
     }
@@ -1642,6 +1682,8 @@ After implementing new resource:
 ### Declarative Configuration
 - [ ] Resource definition in `resources/` with all interface methods
 - [ ] Resource type constant added to `types.go`
+- [ ] Planner resource type alias added to `planner/constants.go`
+- [ ] Plan field constants added to `planner/constants.go`
 - [ ] ResourceSet includes new resource array
 - [ ] Resource type registered via `registerResourceType(...)` in `init()`
 - [ ] Explain registration provided, usually via `AutoExplain[...]`
@@ -1655,6 +1697,8 @@ After implementing new resource:
 - [ ] Executor adapter handles parent ID resolution (if child)
 - [ ] Executor change handler added to executeChange switch
 - [ ] Labels properly converted between SDK and internal formats
+- [ ] Literal audit completed for resource types, plan fields, references, and
+      view identifiers
 - [ ] `docs/declarative-resource-reference.md` updated for new parent/child resources
 
 ### Imperative Get Command
@@ -1663,6 +1707,10 @@ After implementing new resource:
 - [ ] Resource command in `products/konnect/<resource>/`
 - [ ] GET handler with list/get by ID/name
 - [ ] Child resource subcommands (if applicable)
+- [ ] View/tableview identifiers use `konnect/common` `ViewParent*`,
+      `ViewField*`, and `ViewResource*` constants
+- [ ] View detail labels use API JSON field names for direct fields and
+      `snake_case` names for kongctl-derived fields
 - [ ] Output formatting (JSON, YAML, table, detail)
 - [ ] Command added to get.go
 

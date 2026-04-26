@@ -18,8 +18,8 @@ import (
 )
 
 func init() {
-	tableview.RegisterChildLoader("control-plane", "routes", loadControlPlaneRoutes)
-	tableview.RegisterChildLoader("gateway-service", "routes", loadServiceRoutes)
+	tableview.RegisterChildLoader(kkCommon.ViewParentControlPlane, kkCommon.ViewFieldRoutes, loadControlPlaneRoutes)
+	tableview.RegisterChildLoader(kkCommon.ViewParentGatewayService, kkCommon.ViewFieldRoutes, loadServiceRoutes)
 }
 
 func loadControlPlaneRoutes(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -81,7 +81,7 @@ func loadControlPlaneRoutes(_ context.Context, helper cmd.Helper, parent any) (t
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Routes",
-		ParentType:     "gateway-route",
+		ParentType:     kkCommon.ViewParentGatewayRoute,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(routes) {
 				return nil
@@ -163,7 +163,7 @@ func loadServiceRoutes(_ context.Context, helper cmd.Helper, parent any) (tablev
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Routes",
-		ParentType:     "gateway-route",
+		ParentType:     kkCommon.ViewParentGatewayRoute,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(routes) {
 				return nil

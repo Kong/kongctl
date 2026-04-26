@@ -264,11 +264,11 @@ func normalizeAttributes(attributes any) (map[string][]string, error) {
 
 func attributeDetailView(key string, values []string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Key: %s\n", key)
-	fmt.Fprintf(&b, "Value Count: %d\n", len(values))
+	fmt.Fprintf(&b, "key: %s\n", key)
+	fmt.Fprintf(&b, "value_count: %d\n", len(values))
 
 	if len(values) > 0 {
-		fmt.Fprintf(&b, "\nValues:\n")
+		fmt.Fprintf(&b, "\nvalues:\n")
 		for _, v := range values {
 			fmt.Fprintf(&b, "  - %s\n", v)
 		}

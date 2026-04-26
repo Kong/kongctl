@@ -201,7 +201,7 @@ func (h apiImplementationsHandler) run(args []string) error {
 		tableview.WithCustomTable([]string{"IMPLEMENTATION", "SERVICE"}, tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
-		tableview.WithDetailContext("api-implementation", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIImplementation, func(index int) any {
 			if index < 0 || index >= len(implementations) {
 				return nil
 			}

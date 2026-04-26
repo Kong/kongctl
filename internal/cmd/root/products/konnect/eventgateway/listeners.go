@@ -474,7 +474,7 @@ func buildListenerChildView(listeners []kkComps.EventGatewayListener, gatewayID 
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Listeners",
-		ParentType:     "listener",
+		ParentType:     common.ViewParentListener,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(listeners) {
 				return nil

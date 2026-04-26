@@ -506,7 +506,7 @@ func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster, gatewayID s
 		Rows:           rows,
 		DetailRenderer: detailFn,
 		Title:          "Virtual Clusters",
-		ParentType:     "virtual-cluster",
+		ParentType:     common.ViewParentVirtualCluster,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(clusters) {
 				return nil

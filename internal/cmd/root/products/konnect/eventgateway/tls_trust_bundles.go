@@ -472,7 +472,7 @@ func buildTLSTrustBundleChildView(bundles []kkComps.TLSTrustBundle) tableview.Ch
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "TLS Trust Bundles",
-		ParentType:     "tls-trust-bundle",
+		ParentType:     common.ViewParentTLSTrustBundle,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(bundles) {
 				return nil

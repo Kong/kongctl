@@ -9,20 +9,53 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 )
 
 func init() {
-	tableview.RegisterChildLoader("event-gateway", "backend-clusters", loadEventGatewayBackendClusters)
-	tableview.RegisterChildLoader("event-gateway", "virtual-clusters", loadEventGatewayVirtualClusters)
-	tableview.RegisterChildLoader("event-gateway", "data-plane-certificates", loadEventGatewayDataPlaneCertificates)
-	tableview.RegisterChildLoader("event-gateway", "listeners", loadEventGatewayListeners)
-	tableview.RegisterChildLoader("event-gateway", "schema-registries", loadEventGatewaySchemaRegistries)
-	tableview.RegisterChildLoader("event-gateway", "static-keys", loadEventGatewayStaticKeys)
-	tableview.RegisterChildLoader("event-gateway", "tls-trust-bundles", loadEventGatewayTLSTrustBundles)
-	tableview.RegisterChildLoader("listener", "policies", loadEventGatewayListenerPolicies)
-	tableview.RegisterChildLoader("virtual-cluster", "cluster-policies", loadEventGatewayVirtualClusterClusterPolicies)
-	tableview.RegisterChildLoader("virtual-cluster", "produce-policies", loadEventGatewayVirtualClusterProducePolicies)
-	tableview.RegisterChildLoader("virtual-cluster", "consume-policies", loadEventGatewayVirtualClusterConsumePolicies)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldBackendClusters,
+		loadEventGatewayBackendClusters,
+	)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldVirtualClusters,
+		loadEventGatewayVirtualClusters,
+	)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldDataPlaneCertificates,
+		loadEventGatewayDataPlaneCertificates,
+	)
+	tableview.RegisterChildLoader(common.ViewParentEventGateway, common.ViewFieldListeners, loadEventGatewayListeners)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldSchemaRegistries,
+		loadEventGatewaySchemaRegistries,
+	)
+	tableview.RegisterChildLoader(common.ViewParentEventGateway, common.ViewFieldStaticKeys, loadEventGatewayStaticKeys)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldTLSTrustBundles,
+		loadEventGatewayTLSTrustBundles,
+	)
+	tableview.RegisterChildLoader(common.ViewParentListener, common.ViewFieldPolicies, loadEventGatewayListenerPolicies)
+	tableview.RegisterChildLoader(
+		common.ViewParentVirtualCluster,
+		common.ViewFieldClusterPolicies,
+		loadEventGatewayVirtualClusterClusterPolicies,
+	)
+	tableview.RegisterChildLoader(
+		common.ViewParentVirtualCluster,
+		common.ViewFieldProducePolicies,
+		loadEventGatewayVirtualClusterProducePolicies,
+	)
+	tableview.RegisterChildLoader(
+		common.ViewParentVirtualCluster,
+		common.ViewFieldConsumePolicies,
+		loadEventGatewayVirtualClusterConsumePolicies,
+	)
 }
 
 func loadEventGatewayBackendClusters(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

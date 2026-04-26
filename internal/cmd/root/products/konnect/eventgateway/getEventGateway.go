@@ -242,7 +242,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 				"",
 				tableview.WithRootLabel(helper.GetCmd().Name()),
 				tableview.WithDetailHelper(helper),
-				tableview.WithDetailContext("eventGatewayControlPlane", func(index int) any {
+				tableview.WithDetailContext(common.ViewParentEventGateway, func(index int) any {
 					if index != 0 {
 						return nil
 					}
@@ -266,7 +266,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
 			tableview.WithDetailHelper(helper),
-			tableview.WithDetailContext("eventGatewayControlPlane", func(index int) any {
+			tableview.WithDetailContext(common.ViewParentEventGateway, func(index int) any {
 				if index != 0 {
 					return nil
 				}
@@ -339,7 +339,7 @@ func buildEventGatewayChildView(eventGatewayControlPlanes []kkComps.EventGateway
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Event Gateways",
-		ParentType:     "event-gateway",
+		ParentType:     common.ViewParentEventGateway,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(eventGatewayControlPlanes) {
 				return nil

@@ -319,7 +319,7 @@ func buildPortalTeamRolesChildView(records []portalTeamRoleRecord) tableview.Chi
 		Rows:           portalTeamRoleTableRows(records),
 		DetailRenderer: detailFn,
 		Title:          "Team Roles",
-		ParentType:     "portal-team-role",
+		ParentType:     common.ViewParentPortalTeamRole,
 	}
 }
 
