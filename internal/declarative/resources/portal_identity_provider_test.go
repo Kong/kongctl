@@ -6,7 +6,8 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/require"
-	"sigs.k8s.io/yaml"
+	yamlv3 "gopkg.in/yaml.v3" //nolint:gomodguard // yaml.v3 required to exercise MarshalYAML directly
+	sigsyaml "sigs.k8s.io/yaml"
 )
 
 func TestPortalIdentityProviderResourceMarshalIncludesMetadata(t *testing.T) {
@@ -49,14 +50,29 @@ func TestPortalIdentityProviderResourceMarshalIncludesMetadata(t *testing.T) {
 	require.Equal(t, "client-id-1", configPayload["client_id"])
 	require.Equal(t, "https://accounts.google.com", configPayload["issuer_url"])
 
-	yamlBytes, err := yaml.Marshal(resource)
+	yamlBytes, err := sigsyaml.Marshal(resource)
 	require.NoError(t, err)
 
-	output := string(yamlBytes)
-	require.Contains(t, output, "ref: portal-oidc")
-	require.Contains(t, output, "portal: portal-1")
-	require.Contains(t, output, "type: oidc")
-	require.NotContains(t, output, "konnectID")
+	var yamlPayload map[string]any
+	require.NoError(t, sigsyaml.Unmarshal(yamlBytes, &yamlPayload))
+	requirePortalIdentityProviderYAMLMetadata(t, yamlPayload)
+
+	directYAMLBytes, err := yamlv3.Marshal(resource)
+	require.NoError(t, err)
+
+	var directYAMLPayload map[string]any
+	require.NoError(t, yamlv3.Unmarshal(directYAMLBytes, &directYAMLPayload))
+	requirePortalIdentityProviderYAMLMetadata(t, directYAMLPayload)
+}
+
+func requirePortalIdentityProviderYAMLMetadata(t *testing.T, payload map[string]any) {
+	t.Helper()
+
+	require.Equal(t, "portal-oidc", payload["ref"])
+	require.Equal(t, "portal-1", payload["portal"])
+	require.Equal(t, "oidc", payload["type"])
+	_, exists := payload["konnectID"]
+	require.False(t, exists)
 }
 
 func TestPortalIdentityProviderResourceUnmarshalJSON_OmittedEnabledStaysNil(t *testing.T) {

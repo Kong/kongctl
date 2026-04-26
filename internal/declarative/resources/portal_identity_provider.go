@@ -35,7 +35,7 @@ func (p PortalIdentityProviderResource) MarshalYAML() (any, error) {
 }
 
 type portalIdentityProviderAlias struct {
-	portalIdentityProviderCreateAlias `                       json:",inline"          yaml:",inline"`
+	portalIdentityProviderCreateAlias `yaml:",inline"`
 	Ref                               string `json:"ref"              yaml:"ref"`
 	Portal                            string `json:"portal,omitempty" yaml:"portal,omitempty"`
 }
