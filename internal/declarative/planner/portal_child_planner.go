@@ -39,7 +39,7 @@ func (p *Planner) planPortalCustomizationsChanges(
 
 	// For each desired customization
 	for _, desiredCustomization := range desired {
-		if plan.HasChange("portal_customization", desiredCustomization.GetRef()) {
+		if plan.HasChange(ResourceTypePortalCustomization, desiredCustomization.GetRef()) {
 			continue
 		}
 		// Find the portal ID
@@ -2448,7 +2448,7 @@ func (p *Planner) planPortalPagesChanges(
 
 	// Process desired pages
 	for _, desiredPage := range desired {
-		if plan.HasChange("portal_page", desiredPage.GetRef()) {
+		if plan.HasChange(ResourceTypePortalPage, desiredPage.GetRef()) {
 			continue
 		}
 		// Build the full path for this desired page to check if it exists
@@ -2907,7 +2907,7 @@ func (p *Planner) planPortalSnippetsChanges(
 	// Process desired snippets
 	desiredNames := make(map[string]bool)
 	for _, desiredSnippet := range desired {
-		if plan.HasChange("portal_snippet", desiredSnippet.GetRef()) {
+		if plan.HasChange(ResourceTypePortalSnippet, desiredSnippet.GetRef()) {
 			continue
 		}
 		desiredNames[desiredSnippet.Name] = true
@@ -3622,7 +3622,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 			}
 
 			ref, field, ok := tags.ParseRefPlaceholder(entityID)
-			if !ok || (field != "" && field != "id" && field != "ID") {
+			if !ok || (field != "" && field != FieldID && field != "ID") {
 				return entityID
 			}
 

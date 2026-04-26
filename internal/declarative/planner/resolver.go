@@ -171,7 +171,7 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 // resolveReference looks up a reference in existing resources
 func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, ref string) (string, error) {
 	var targetRef string
-	fieldName := "id" // Default field
+	fieldName := FieldID // Default field
 
 	// Parse __REF__ placeholder format
 	if strings.HasPrefix(ref, "__REF__:") {
@@ -191,7 +191,7 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 		resource, exists := r.resources.GetResourceByRef(targetRef)
 		if exists {
 			// Special handling for "id" field - return konnectID
-			if fieldName == "id" || fieldName == "ID" {
+			if fieldName == FieldID || fieldName == "ID" {
 				konnectID := resource.GetKonnectID()
 				if konnectID == "" {
 					// Resource exists but no Konnect ID (will be created)

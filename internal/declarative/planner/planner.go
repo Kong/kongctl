@@ -503,7 +503,7 @@ func adjustAuthStrategyDeleteDependencies(changes []PlannedChange) {
 		}
 
 		switch change.ResourceType {
-		case FieldAPI:
+		case ResourceTypeAPI:
 			apiDeletes = append(apiDeletes, change)
 		case ResourceTypeAPIPublication:
 			publicationDeletes = append(publicationDeletes, change)
@@ -545,7 +545,7 @@ func adjustDCRProviderDeleteDependencies(changes []PlannedChange) {
 
 	for i := range changes {
 		change := &changes[i]
-		if change.Action != ActionDelete || change.ResourceType != "dcr_provider" {
+		if change.Action != ActionDelete || change.ResourceType != ResourceTypeDCRProvider {
 			continue
 		}
 
@@ -573,7 +573,7 @@ func shouldLinkAuthStrategy(authDelete, dep *PlannedChange) bool {
 		return authDelete.Namespace == dep.Namespace
 	}
 
-	if dep.ResourceType == "api_publication" {
+	if dep.ResourceType == ResourceTypeAPIPublication {
 		return publicationReferencesAuthStrategy(dep, authDelete)
 	}
 
@@ -1193,7 +1193,7 @@ func (p *Planner) resolveGatewayServiceControlPlaneID(
 		if !ok {
 			return "", fmt.Errorf("gateway_service %s: invalid control_plane reference", service.GetRef())
 		}
-		if field != "id" {
+		if field != FieldID {
 			return "", fmt.Errorf("gateway_service %s: control_plane references support '#id' only", service.GetRef())
 		}
 		value = ref
@@ -1415,7 +1415,7 @@ func (p *Planner) resolveGatewayServiceReference(
 		if !ok {
 			return "", nil, fmt.Errorf("api_implementation %s: invalid service.id reference", implRef)
 		}
-		if field != "id" {
+		if field != FieldID {
 			return "", nil, fmt.Errorf("api_implementation %s: service.id references support '#id' only", implRef)
 		}
 		svc, ok := serviceByRef[ref]
@@ -1470,7 +1470,7 @@ func (p *Planner) resolveImplementationControlPlaneID(
 		if !ok {
 			return "", fmt.Errorf("api_implementation %s: invalid control_plane reference", implRef)
 		}
-		if field != "id" {
+		if field != FieldID {
 			return "", fmt.Errorf("api_implementation %s: control_plane references support '#id' only", implRef)
 		}
 		value = ref

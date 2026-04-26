@@ -536,7 +536,7 @@ func (p *authStrategyPlannerImpl) resolveComparableDCRProviderValue(desiredProvi
 	ref := desiredProviderID
 	if tags.IsRefPlaceholder(desiredProviderID) {
 		parsedRef, field, ok := tags.ParseRefPlaceholder(desiredProviderID)
-		if !ok || (field != "" && field != "id" && field != "ID") {
+		if !ok || (field != "" && field != FieldID && field != "ID") {
 			return desiredProviderID
 		}
 		ref = parsedRef

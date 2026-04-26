@@ -600,7 +600,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 ) {
 	// Plan version creation - API ID is not yet known
 	for _, version := range p.getAPIVersionsForAPI(api) {
-		if plan.HasChange("api_version", version.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIVersion, version.GetRef()) {
 			continue
 		}
 		p.planAPIVersionCreate(parentNamespace, api.GetRef(), "", version, []string{apiChangeID}, plan)
@@ -608,7 +608,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 	// Plan publication creation - API ID is not yet known
 	for _, publication := range p.getAPIPublicationsForAPI(api) {
-		if plan.HasChange("api_publication", publication.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIPublication, publication.GetRef()) {
 			continue
 		}
 		p.planAPIPublicationCreate(parentNamespace, api.GetRef(), "", publication, []string{apiChangeID}, plan)
@@ -616,7 +616,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 	// Plan implementation creation - API ID is not yet known
 	for _, implementation := range p.getAPIImplementationsForAPI(api) {
-		if plan.HasChange("api_implementation", implementation.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIImplementation, implementation.GetRef()) {
 			continue
 		}
 		p.planAPIImplementationCreate(parentNamespace, api.GetRef(), "", implementation, []string{apiChangeID}, plan)
@@ -624,7 +624,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 	// Plan document creation - API ID is not yet known
 	for _, document := range p.getAPIDocumentsForAPI(api) {
-		if plan.HasChange("api_document", document.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIDocument, document.GetRef()) {
 			continue
 		}
 		p.planAPIDocumentCreate(
@@ -783,7 +783,7 @@ func (p *Planner) planAPIVersionChanges(
 
 	// Compare desired versions
 	for _, desiredVersion := range desired {
-		if plan.HasChange("api_version", desiredVersion.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIVersion, desiredVersion.GetRef()) {
 			continue
 		}
 		versionStr := ""
@@ -1017,7 +1017,7 @@ func (p *Planner) planAPIPublicationChanges(
 
 	// Compare desired publications
 	for _, desiredPub := range desired {
-		if plan.HasChange("api_publication", desiredPub.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIPublication, desiredPub.GetRef()) {
 			continue
 		}
 		// Resolve portal reference to ID before comparing
@@ -1508,7 +1508,7 @@ func (p *Planner) planAPIImplementationChanges(
 
 	// Compare desired implementations
 	for _, desiredImpl := range desired {
-		if plan.HasChange("api_implementation", desiredImpl.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIImplementation, desiredImpl.GetRef()) {
 			continue
 		}
 		if service := desiredImpl.ServiceReference.GetService(); service != nil {
@@ -1689,7 +1689,7 @@ func (p *Planner) planAPIDocumentChanges(
 
 	// Compare desired documents
 	for _, desiredDoc := range desired {
-		if plan.HasChange("api_document", desiredDoc.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIDocument, desiredDoc.GetRef()) {
 			continue
 		}
 		desiredPath := desiredPaths[desiredDoc.Ref]
@@ -1938,7 +1938,7 @@ func (p *Planner) planAPIDocumentCreate(
 
 		// Ensure the parent document change executes first if present in the plan
 		for _, depChange := range plan.Changes {
-			if depChange.ResourceType == "api_document" && depChange.ResourceRef == document.ParentDocumentRef {
+			if depChange.ResourceType == ResourceTypeAPIDocument && depChange.ResourceRef == document.ParentDocumentRef {
 				change.DependsOn = append(change.DependsOn, depChange.ID)
 				break
 			}
@@ -2048,7 +2048,7 @@ func (p *Planner) planAPIDocumentUpdate(
 
 		// If parent document change exists, ensure it runs before this update
 		for _, depChange := range plan.Changes {
-			if depChange.ResourceType == "api_document" && depChange.ResourceRef == document.ParentDocumentRef {
+			if depChange.ResourceType == ResourceTypeAPIDocument && depChange.ResourceRef == document.ParentDocumentRef {
 				change.DependsOn = append(change.DependsOn, depChange.ID)
 				break
 			}
@@ -2111,7 +2111,7 @@ func (p *Planner) planAPIVersionsChanges(
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
-			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
 					// Get parent namespace from the API change
@@ -2120,7 +2120,7 @@ func (p *Planner) planAPIVersionsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, v := range versions {
-						if plan.HasChange("api_version", v.GetRef()) {
+						if plan.HasChange(ResourceTypeAPIVersion, v.GetRef()) {
 							continue
 						}
 						p.planAPIVersionCreate(parentNamespace, apiRef, "", v, []string{change.ID}, plan)
@@ -2182,7 +2182,7 @@ func (p *Planner) planAPIPublicationsChanges(
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
-			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
 					// Get parent namespace from the API change
@@ -2191,7 +2191,7 @@ func (p *Planner) planAPIPublicationsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, pub := range publications {
-						if plan.HasChange("api_publication", pub.GetRef()) {
+						if plan.HasChange(ResourceTypeAPIPublication, pub.GetRef()) {
 							continue
 						}
 						p.planAPIPublicationCreate(parentNamespace, apiRef, "", pub, []string{change.ID}, plan)
@@ -2255,14 +2255,14 @@ func (p *Planner) planAPIImplementationsChanges(
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
-			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					parentNamespace := change.Namespace
 					if parentNamespace == "" {
 						parentNamespace = DefaultNamespace
 					}
 					for _, impl := range implementations {
-						if plan.HasChange("api_implementation", impl.GetRef()) {
+						if plan.HasChange(ResourceTypeAPIImplementation, impl.GetRef()) {
 							continue
 						}
 						p.planAPIImplementationCreate(parentNamespace, apiRef, "", impl, []string{change.ID}, plan)
@@ -2327,7 +2327,7 @@ func (p *Planner) planAPIDocumentsChanges(
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
-			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
 					// Get parent namespace from the API change
@@ -2336,7 +2336,7 @@ func (p *Planner) planAPIDocumentsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, doc := range documents {
-						if plan.HasChange("api_document", doc.GetRef()) {
+						if plan.HasChange(ResourceTypeAPIDocument, doc.GetRef()) {
 							continue
 						}
 						p.planAPIDocumentCreate(parentNamespace, apiRef, "", doc, []string{change.ID}, lookup, plan)

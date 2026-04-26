@@ -49,7 +49,7 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 			cpName = cp.External.Selector.MatchFields[FieldName]
 		}
 
-		cpCreateID := findChangeIDByRef(plan.Changes, "control_plane", cpRef, ActionCreate)
+		cpCreateID := findChangeIDByRef(plan.Changes, ResourceTypeControlPlane, cpRef, ActionCreate)
 
 		if cpName == "" && cpID != "" {
 			resolved, err := p.resolveDeckControlPlaneName(ctx, cpID)
@@ -134,7 +134,7 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
-		if change.ResourceType != "api_implementation" ||
+		if change.ResourceType != ResourceTypeAPIImplementation ||
 			(change.Action != ActionCreate && change.Action != ActionUpdate) {
 			continue
 		}
@@ -216,7 +216,7 @@ func deckPostResolutionTargets(
 func normalizeControlPlaneRef(raw string) string {
 	if tags.IsRefPlaceholder(raw) {
 		ref, field, ok := tags.ParseRefPlaceholder(raw)
-		if ok && field == "id" {
+		if ok && field == FieldID {
 			return ref
 		}
 	}
@@ -254,7 +254,7 @@ func deckServiceRefFromFields(fields map[string]any, deckChangeIDs map[string]st
 
 	if tags.IsRefPlaceholder(idValue) {
 		ref, field, ok := tags.ParseRefPlaceholder(idValue)
-		if ok && field == "id" {
+		if ok && field == FieldID {
 			if _, exists := deckChangeIDs[ref]; exists {
 				return ref
 			}
@@ -283,7 +283,7 @@ func referencedGatewayServiceRefs(changes []PlannedChange) map[string]bool {
 
 	refs := make(map[string]bool)
 	for _, change := range changes {
-		if change.ResourceType != "api_implementation" {
+		if change.ResourceType != ResourceTypeAPIImplementation {
 			continue
 		}
 		if change.Action != ActionCreate && change.Action != ActionUpdate {
@@ -316,7 +316,7 @@ func gatewayServiceRefFromServiceID(value any) string {
 	}
 	if tags.IsRefPlaceholder(id) {
 		ref, field, ok := tags.ParseRefPlaceholder(id)
-		if ok && field == "id" {
+		if ok && field == FieldID {
 			return ref
 		}
 		return ""

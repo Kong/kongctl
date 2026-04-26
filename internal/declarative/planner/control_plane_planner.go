@@ -555,7 +555,7 @@ func (p *controlPlanePlannerImpl) buildMemberReferenceInfo(ids []string) Referen
 
 		if tags.IsRefPlaceholder(id) {
 			ref, field, ok := tags.ParseRefPlaceholder(id)
-			if ok && field == "id" && ref != "" && p.planner != nil && p.planner.resources != nil {
+			if ok && field == FieldID && ref != "" && p.planner != nil && p.planner.resources != nil {
 				if cp := p.planner.resources.GetControlPlaneByRef(ref); cp != nil {
 					if names == nil {
 						names = make([]string, len(ids))
@@ -589,7 +589,7 @@ func (p *controlPlanePlannerImpl) resolveDesiredGroupMemberIDs(desired resources
 		}
 
 		ref, field, ok := tags.ParseRefPlaceholder(memberID)
-		if !ok || field != "id" || ref == "" || p.planner == nil || p.planner.resources == nil {
+		if !ok || field != FieldID || ref == "" || p.planner == nil || p.planner.resources == nil {
 			resolved = append(resolved, memberID)
 			continue
 		}

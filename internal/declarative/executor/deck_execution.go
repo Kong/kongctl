@@ -272,7 +272,7 @@ func deckGatewayServicesFromTargets(targets []planner.PostResolutionTarget) []de
 		if strings.TrimSpace(target.ResourceRef) == "" {
 			continue
 		}
-		if target.ResourceType != "" && target.ResourceType != "gateway_service" {
+		if target.ResourceType != "" && target.ResourceType != planner.ResourceTypeGatewayService {
 			continue
 		}
 		name := ""
@@ -497,7 +497,7 @@ func matchesGatewayServiceRef(raw any, gatewayRef string) bool {
 	}
 	if tags.IsRefPlaceholder(id) {
 		ref, field, ok := tags.ParseRefPlaceholder(id)
-		return ok && field == "id" && ref == gatewayRef
+		return ok && field == planner.FieldID && ref == gatewayRef
 	}
 	return id == gatewayRef
 }
@@ -508,7 +508,7 @@ func controlPlaneNameFromPlan(plan *planner.Plan, cpRef string) string {
 	}
 	for i := range plan.Changes {
 		change := plan.Changes[i]
-		if change.ResourceType != "control_plane" || change.ResourceRef != cpRef {
+		if change.ResourceType != planner.ResourceTypeControlPlane || change.ResourceRef != cpRef {
 			continue
 		}
 		if name, ok := change.Fields[planner.FieldName].(string); ok && strings.TrimSpace(name) != "" {
@@ -525,7 +525,7 @@ func planNeedsGatewayServiceResolution(plan *planner.Plan, gatewayRef string) bo
 
 	for i := range plan.Changes {
 		change := plan.Changes[i]
-		if change.ResourceType != "api_implementation" {
+		if change.ResourceType != planner.ResourceTypeAPIImplementation {
 			continue
 		}
 		if change.Action != planner.ActionCreate && change.Action != planner.ActionUpdate {
@@ -561,7 +561,7 @@ func gatewayRefMatches(fields map[string]any, gatewayRef string) bool {
 
 	if tags.IsRefPlaceholder(idValue) {
 		ref, field, ok := tags.ParseRefPlaceholder(idValue)
-		if ok && field == "id" {
+		if ok && field == planner.FieldID {
 			return ref == gatewayRef
 		}
 		return false

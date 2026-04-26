@@ -625,10 +625,10 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 		// For update/delete, verify resource still exists and check protection
 		// Special case: singleton portal children without their own ID
 		if change.ResourceID == "" &&
-			change.ResourceType != "portal_customization" &&
-			change.ResourceType != "portal_auth_settings" &&
-			change.ResourceType != "portal_asset_logo" &&
-			change.ResourceType != "portal_asset_favicon" {
+			change.ResourceType != planner.ResourceTypePortalCustomization &&
+			change.ResourceType != planner.ResourceTypePortalAuthSettings &&
+			change.ResourceType != planner.ResourceTypePortalAssetLogo &&
+			change.ResourceType != planner.ResourceTypePortalAssetFavicon {
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
 
