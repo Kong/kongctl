@@ -19,6 +19,9 @@ on:
       - '**'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   up-to-date:
     runs-on: ubuntu-latest

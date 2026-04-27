@@ -14,7 +14,9 @@ description: |
   reproduction steps, and resource links. Helps maintainers quickly understand and
   prioritize incoming issues.
 
-permissions: read-all
+permissions:
+  contents: read
+  issues: read
 
 network: defaults
 
