@@ -1,0 +1,22 @@
+schema_version: 1
+
+publisher: kong
+name: hello-script
+version: 0.1.0
+summary: Example script-based kongctl extension
+
+runtime:
+  command: kongctl-ext-hello-script
+
+command_paths:
+  - id: get_hello_script
+    path:
+      - name: get
+      - name: hello-script
+        aliases: [hello-scripts]
+    summary: Get script extension context
+    description: Prints the extension context path and remaining arguments.
+    usage: kongctl get hello-script [args] [flags]
+    examples:
+      - kongctl link extension docs/examples/extensions/script
+      - kongctl get hello-script -- --example

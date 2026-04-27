@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -48,6 +49,7 @@ func NewInstallCmd() (*cobra.Command, error) {
 		},
 	}
 
+	cmd.AddCommand(extensioncmd.NewInstallExtensionCmd())
 	cmd.AddCommand(newInstallSkillsCmd())
 
 	return cmd, nil

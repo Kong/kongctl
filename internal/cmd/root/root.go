@@ -19,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/dump"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/explain"
+	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/help"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/install"
@@ -35,6 +36,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/view"
 	"github.com/kong/kongctl/internal/cmd/root/version"
 	"github.com/kong/kongctl/internal/config"
+	extensioncore "github.com/kong/kongctl/internal/extensions"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
@@ -236,6 +238,30 @@ func addCommands() error {
 	rootCmd.AddCommand(command)
 
 	command, err = listen.NewTailCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = extensioncmd.NewInspectCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = extensioncmd.NewLinkCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = extensioncmd.NewUninstallCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = extensioncmd.NewUpgradeCmd()
 	if err != nil {
 		return err
 	}
@@ -493,6 +519,9 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		}
 	}
 	if err == nil {
+		err = registerExtensions()
+	}
+	if err == nil {
 		err = rootCmd.ExecuteContext(ctx)
 	}
 	if err != nil {
@@ -513,6 +542,14 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		os.Exit(1)
 	}
 	closeLogFile()
+}
+
+func registerExtensions() error {
+	store, err := extensioncore.DefaultStore()
+	if err != nil {
+		return err
+	}
+	return extensioncore.RegisterInstalledCommands(rootCmd, store)
 }
 
 func closeLogFile() {
