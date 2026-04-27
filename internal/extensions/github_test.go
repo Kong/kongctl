@@ -199,7 +199,18 @@ func TestExtractGitHubReleaseArchiveRejectsUnsafeZipPath(t *testing.T) {
 
 	err := extractGitHubReleaseArchive(archivePath, "bad.zip", t.TempDir())
 
-	require.ErrorContains(t, err, "escapes the extension root")
+	require.ErrorContains(t, err, "parent-directory marker")
+}
+
+func TestExtractGitHubReleaseArchiveRejectsUnsafeTarPath(t *testing.T) {
+	archivePath := filepath.Join(t.TempDir(), "bad.tar.gz")
+	writeTestTarGzipArchive(t, archivePath, []testTarEntry{
+		{Name: "nested/../extension.yaml", Body: "nope", Mode: 0o644},
+	})
+
+	err := extractGitHubReleaseArchive(archivePath, "bad.tar.gz", t.TempDir())
+
+	require.ErrorContains(t, err, "parent-directory marker")
 }
 
 func testReleaseTarGzip(t *testing.T) []byte {
@@ -274,4 +285,32 @@ func writeTestZipArchive(t *testing.T, archivePath string, entries []testZipEntr
 		require.NoError(t, err)
 	}
 	require.NoError(t, writer.Close())
+}
+
+type testTarEntry struct {
+	Name string
+	Body string
+	Mode int64
+}
+
+func writeTestTarGzipArchive(t *testing.T, archivePath string, entries []testTarEntry) {
+	t.Helper()
+
+	file, err := os.Create(archivePath)
+	require.NoError(t, err)
+	defer file.Close()
+
+	gzipWriter := gzip.NewWriter(file)
+	tarWriter := tar.NewWriter(gzipWriter)
+	for _, entry := range entries {
+		require.NoError(t, tarWriter.WriteHeader(&tar.Header{
+			Name: entry.Name,
+			Mode: entry.Mode,
+			Size: int64(len(entry.Body)),
+		}))
+		_, err := tarWriter.Write([]byte(entry.Body))
+		require.NoError(t, err)
+	}
+	require.NoError(t, tarWriter.Close())
+	require.NoError(t, gzipWriter.Close())
 }

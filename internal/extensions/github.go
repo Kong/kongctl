@@ -445,6 +445,9 @@ func extractGitHubReleaseZip(archivePath, targetDir string) error {
 	defer reader.Close()
 
 	for _, file := range reader.File {
+		if strings.Contains(file.Name, "..") {
+			return fmt.Errorf("release archive entry %q contains a parent-directory marker", file.Name)
+		}
 		target, err := safeArchiveTarget(targetDir, file.Name)
 		if err != nil {
 			return err
@@ -465,49 +468,49 @@ func extractGitHubReleaseZip(archivePath, targetDir string) error {
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("unsupported release archive entry %q", file.Name)
 		}
-		if err := extractGitHubReleaseZipFile(file, target); err != nil {
+		if file.UncompressedSize64 > maxGitHubReleaseArchiveEntryBytes {
+			return fmt.Errorf(
+				"release archive entry %q exceeds %d bytes",
+				file.Name,
+				maxGitHubReleaseArchiveEntryBytes,
+			)
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		in, err := file.Open()
+		if err != nil {
+			return err
+		}
+		mode := archiveFileMode(info.Mode())
+		out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
+		if err != nil {
+			_ = in.Close()
+			return err
+		}
+		written, copyErr := io.Copy(out, io.LimitReader(in, maxGitHubReleaseArchiveEntryBytes+1))
+		closeInErr := in.Close()
+		if copyErr != nil {
+			_ = out.Close()
+			return copyErr
+		}
+		if closeInErr != nil {
+			_ = out.Close()
+			return closeInErr
+		}
+		if written > maxGitHubReleaseArchiveEntryBytes {
+			_ = out.Close()
+			return fmt.Errorf(
+				"release archive entry %q exceeds %d bytes",
+				file.Name,
+				maxGitHubReleaseArchiveEntryBytes,
+			)
+		}
+		if err := out.Close(); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func extractGitHubReleaseZipFile(file *zip.File, target string) error {
-	if file.UncompressedSize64 > maxGitHubReleaseArchiveEntryBytes {
-		return fmt.Errorf(
-			"release archive entry %q exceeds %d bytes",
-			file.Name,
-			maxGitHubReleaseArchiveEntryBytes,
-		)
-	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return err
-	}
-	in, err := file.Open()
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	mode := archiveFileMode(file.FileInfo().Mode())
-	out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
-	if err != nil {
-		return err
-	}
-	written, err := io.Copy(out, io.LimitReader(in, maxGitHubReleaseArchiveEntryBytes+1))
-	if err != nil {
-		_ = out.Close()
-		return err
-	}
-	if written > maxGitHubReleaseArchiveEntryBytes {
-		_ = out.Close()
-		return fmt.Errorf(
-			"release archive entry %q exceeds %d bytes",
-			file.Name,
-			maxGitHubReleaseArchiveEntryBytes,
-		)
-	}
-	return out.Close()
 }
 
 func extractGitHubReleaseTarGzip(archivePath, targetDir string) error {
@@ -544,6 +547,9 @@ func extractGitHubReleaseTarEntry(reader *tar.Reader, header *tar.Header, target
 		return nil
 	case tar.TypeSymlink, tar.TypeLink:
 		return fmt.Errorf("release archive entry %q is a link; links are not supported", header.Name)
+	}
+	if strings.Contains(header.Name, "..") {
+		return fmt.Errorf("release archive entry %q contains a parent-directory marker", header.Name)
 	}
 
 	target, err := safeArchiveTarget(targetDir, header.Name)
@@ -592,6 +598,9 @@ func safeArchiveTarget(root, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "", nil
+	}
+	if strings.Contains(name, "..") {
+		return "", fmt.Errorf("release archive entry %q contains a parent-directory marker", name)
 	}
 	if strings.Contains(name, `\`) || strings.Contains(name, ":") {
 		return "", fmt.Errorf("release archive entry %q contains a reserved path character", name)
