@@ -1,6 +1,0 @@
-#!/bin/sh
-set -eu
-
-echo "hello from script extension"
-echo "context=${KONGCTL_EXTENSION_CONTEXT:-}"
-echo "args=$*"

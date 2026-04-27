@@ -10,5 +10,8 @@ cd docs/examples/extensions/go
 go build -o bin/kongctl-ext-hello-go .
 cd ../../../..
 kongctl link extension docs/examples/extensions/go
-kongctl get hello-go -- --example
+kongctl get hello-go --example
 ```
+
+The runtime invokes `kongctl get me` as a child process; the child command
+inherits the parent command's output format.

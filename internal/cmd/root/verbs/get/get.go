@@ -10,6 +10,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -107,6 +108,7 @@ Setting this value overrides tokens obtained from the login command.
 	cmd.AddCommand(c)
 
 	cmd.AddCommand(profileCmd.NewProfileCmd())
+	cmd.AddCommand(extensioncmd.NewGetExtensionCmd())
 
 	// Add portal command directly for Konnect-first pattern
 	portalCmd, err := NewDirectPortalCmd()

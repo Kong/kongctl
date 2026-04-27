@@ -47,7 +47,8 @@ func TestPlanCmdHelpText(t *testing.T) {
 	}
 
 	// Test that help text contains expected content
-	assert.Contains(t, cmd.Short, "Generate a declarative configuration execution plan", "Short should mention preview changes")
+	assert.Contains(t, cmd.Short, "Generate a declarative configuration execution plan",
+		"Short should mention preview changes")
 	assert.Contains(t, cmd.Long, "execution plan", "Long should mention execution plan")
 	assert.Contains(t, cmd.Example, "-f", "Examples should show -f flag usage")
 	assert.Contains(t, cmd.Example, "help plan", "Examples should mention extended help")

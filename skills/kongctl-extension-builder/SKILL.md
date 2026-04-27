@@ -48,7 +48,7 @@ Help users create a runnable `kongctl` CLI extension with a valid
 5. Test with a development link:
    ```sh
    kongctl link extension <extension-dir>
-   kongctl inspect extension <publisher>/<name>
+   kongctl get extension <publisher>/<name>
    kongctl get <resource>
    ```
 6. Use local install when testing managed package copying:
@@ -87,11 +87,13 @@ generated `context.json` file. Read this file for:
 - resolved base URL
 - output and log settings
 - extension data directory
-- host `kongctl` version
+- host `kongctl` path and version
 
 Never expect secrets in `context.json`. Extensions can invoke `kongctl api`
 or other built-in commands as subprocesses when they need host-authenticated
-Konnect calls.
+Konnect calls. Child `kongctl` commands inherit the parent extension context
+unless they explicitly override flags such as `--profile`, `--output`, or
+`--base-url`.
 
 ## Examples
 

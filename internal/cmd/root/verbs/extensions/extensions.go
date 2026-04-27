@@ -66,21 +66,6 @@ func NewListExtensionsCmd() *cobra.Command {
 	return cmd
 }
 
-func NewInspectCmd() (*cobra.Command, error) {
-	cmd := &cobra.Command{
-		Use:   "inspect",
-		Short: i18n.T("root.verbs.inspect.short", "Inspect declarative configuration resource types"),
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
-		PersistentPreRun: func(c *cobra.Command, _ []string) {
-			c.SetContext(context.WithValue(c.Context(), verbs.Verb, verbs.Inspect))
-		},
-	}
-	cmd.AddCommand(newInspectExtensionCmd())
-	return cmd, nil
-}
-
 func NewLinkCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   "link",
@@ -126,13 +111,13 @@ func NewUpgradeCmd() (*cobra.Command, error) {
 	return cmd, nil
 }
 
-func newInspectExtensionCmd() *cobra.Command {
+func NewGetExtensionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "extension <publisher/name>",
-		Short: i18n.T("root.verbs.inspect.extension.short", "Inspect a kongctl CLI extension"),
+		Short: i18n.T("root.verbs.get.extension.short", "Get a kongctl CLI extension"),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			return runInspectExtension(command, args, args[0])
+			return runGetExtension(command, args, args[0])
 		},
 	}
 	return cmd
@@ -258,7 +243,7 @@ func runListExtensions(command *cobra.Command, args []string) error {
 	})
 }
 
-func runInspectExtension(command *cobra.Command, args []string, id string) error {
+func runGetExtension(command *cobra.Command, args []string, id string) error {
 	helper := cmdpkg.BuildHelper(command, args)
 	store, err := extensioncore.DefaultStore()
 	if err != nil {
@@ -269,7 +254,7 @@ func runInspectExtension(command *cobra.Command, args []string, id string) error
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
 	return writeCommandResult(helper, ext, func() error {
-		return writeInspectSummary(helper.GetStreams().Out, ext)
+		return writeExtensionSummary(helper.GetStreams().Out, ext)
 	})
 }
 
@@ -413,7 +398,7 @@ func writeListSummary(w io.Writer, extensions []extensioncore.Extension) error {
 	return nil
 }
 
-func writeInspectSummary(w io.Writer, ext extensioncore.Extension) error {
+func writeExtensionSummary(w io.Writer, ext extensioncore.Extension) error {
 	ui := extensionUI()
 	if _, err := fmt.Fprintf(w, "%s %s\n", ui.heading.Render("Extension"), ui.strong.Render(ext.ID)); err != nil {
 		return err

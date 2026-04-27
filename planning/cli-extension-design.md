@@ -202,7 +202,7 @@ Available Commands:
 And for inspection:
 
 ```text
-$ kongctl inspect extension acme/foo
+$ kongctl get extension acme/foo
 
 ID: acme/foo
 Name: foo
@@ -386,7 +386,7 @@ validated metadata for:
 
 - help
 - completion
-- `inspect extension`
+- `get extension`
 - conflict checks
 - startup command registration
 
@@ -1864,7 +1864,7 @@ Required v1 commands:
 - `kongctl uninstall extension <extension-id>`
 - `kongctl upgrade extension <extension-id>`
 - `kongctl list extensions`
-- `kongctl inspect extension <extension-id>`
+- `kongctl get extension <extension-id>`
 - `kongctl link extension <path>`
 
 Recommended but optional for the earliest cut:
@@ -2148,7 +2148,7 @@ command paths, and cache the validated metadata for:
 
 - `help`
 - completion
-- `inspect extension`
+- `get extension`
 - conflict checks
 
 The earlier `__kongctl describe` concept should be deferred. It can be added
@@ -2448,7 +2448,7 @@ should stay in the design record for future versions.
 5. Define machine-readable help metadata. V1 host-rendered extension help can
    be text-first. A future version should decide whether commands such as
    `kongctl get foo --help --output json` return structured command metadata,
-   or whether users should rely on `inspect extension` for that.
+   or whether users should rely on `get extension` for that.
 6. Add atomic install and upgrade staging. A future hardening pass should
    extract and validate packages under a staging directory, then commit with a
    rename or equivalent atomic operation so failed installs do not leave partial
@@ -2481,7 +2481,7 @@ accidental.
 
 1. `kongctl create extension <publisher>/<name>`
 2. `kongctl link extension <path>`
-3. `kongctl inspect extension <publisher>/<name>`
+3. `kongctl get extension <publisher>/<name>`
 4. sample extension templates
 5. sample shell extension
 6. sample Go extension
@@ -2535,7 +2535,7 @@ Example flow:
 ```text
 kongctl install extension kong/kongctl-ext-foo
 kongctl get foo
-kongctl inspect extension kong/foo
+kongctl get extension kong/foo
 kongctl upgrade extension kong/foo
 kongctl uninstall extension kong/foo
 ```
