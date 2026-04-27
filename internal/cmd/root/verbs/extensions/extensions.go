@@ -53,7 +53,7 @@ func NewInstallExtensionCmd() *cobra.Command {
 			return runInstallExtension(command, args, *opts)
 		},
 	}
-	cmd.Flags().StringVar(&opts.ref, "ref", "", "GitHub branch or tag to install for owner/repo sources.")
+	cmd.Flags().StringVar(&opts.ref, "ref", "", "GitHub release tag, branch, or source ref to install.")
 	return cmd
 }
 
@@ -390,7 +390,12 @@ func writeInstallSummary(w io.Writer, result extensioncore.InstallResult, source
 	if _, err := fmt.Fprintf(w, "%s %s %s\n", ui.success.Render("✓"), ui.strong.Render("Installed"), ext.ID); err != nil {
 		return err
 	}
-	writeField(w, ui, "Source", source)
+	if ext.Install != nil {
+		writeField(w, ui, "Source", installSourceLabel(ext.Install.Source, source))
+		writeOptionalField(w, ui, "Asset", ext.Install.Source.AssetName)
+	} else {
+		writeField(w, ui, "Source", source)
+	}
 	writeField(w, ui, "Runtime", ext.Manifest.Runtime.Command)
 	writeOptionalField(w, ui, "Version", ext.Manifest.Version)
 	writeCommands(w, ui, ext.CommandPaths)
@@ -454,6 +459,10 @@ func writeExtensionSummary(w io.Writer, ext extensioncore.Extension) error {
 	switch ext.InstallType {
 	case extensioncore.InstallTypeInstalled:
 		writeOptionalField(w, ui, "Package", ext.PackageDir)
+		if ext.Install != nil {
+			writeOptionalField(w, ui, "Source", installSourceLabel(ext.Install.Source, ""))
+			writeOptionalField(w, ui, "Asset", ext.Install.Source.AssetName)
+		}
 	case extensioncore.InstallTypeLinked:
 		writeOptionalField(w, ui, "Path", ext.LinkedDir)
 	}
@@ -502,6 +511,38 @@ func writeOptionalField(w io.Writer, ui extensionUIStyles, label, value string) 
 		return
 	}
 	writeField(w, ui, label, value)
+}
+
+func installSourceLabel(source extensioncore.SourceState, fallback string) string {
+	switch source.Type {
+	case extensioncore.SourceTypeGitHubReleaseAsset:
+		value := source.Repository
+		tag := source.ReleaseTag
+		if tag == "" {
+			tag = source.Ref
+		}
+		if tag != "" {
+			value += "@" + tag
+		}
+		if value != "" {
+			return value
+		}
+	case extensioncore.SourceTypeGitHubSource:
+		value := source.Repository
+		if source.Ref != "" {
+			value += "@" + source.Ref
+		} else if source.ResolvedCommit != "" {
+			value += "@" + source.ResolvedCommit
+		}
+		if value != "" {
+			return value
+		}
+	case extensioncore.SourceTypeLocalPath:
+		if source.Path != "" {
+			return source.Path
+		}
+	}
+	return fallback
 }
 
 type extensionUIStyles struct {
