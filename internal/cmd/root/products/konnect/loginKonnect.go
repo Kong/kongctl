@@ -35,7 +35,27 @@ type loginKonnectCmd struct {
 	*cobra.Command
 }
 
-func (c *loginKonnectCmd) validate(_ cmd.Helper) error {
+func (c *loginKonnectCmd) validate(helper cmd.Helper) error {
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	authBaseURL := cfg.GetString(common.AuthBaseURLConfigPath)
+	if authBaseURL == "" {
+		authBaseURL = common.AuthBaseURLDefault
+	}
+
+	authURL := authBaseURL + cfg.GetString(common.AuthPathConfigPath)
+	if err := auth.ValidateKonnectURL(authURL); err != nil {
+		return cmd.PrepareExecutionErrorWithHelper(helper, "invalid auth URL", err)
+	}
+
+	pollURL := authBaseURL + cfg.GetString(common.TokenURLPathConfigPath)
+	if err := auth.ValidateKonnectURL(pollURL); err != nil {
+		return cmd.PrepareExecutionErrorWithHelper(helper, "invalid token poll URL", err)
+	}
+
 	return nil
 }
 

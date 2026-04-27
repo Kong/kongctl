@@ -105,9 +105,29 @@ func (t *AccessToken) IsExpired() bool {
 	return time.Now().After(t.ReceivedAt.Add(time.Duration(t.Token.ExpiresAfter) * time.Second))
 }
 
+// ValidateKonnectURL parses rawURL and ensures it uses HTTPS and targets a
+// trusted *.konghq.com domain
+func ValidateKonnectURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid Konnect URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("Konnect URL must use HTTPS, got %q", u.Scheme)
+	}
+	host := u.Hostname()
+	if host != "konghq.com" && !strings.HasSuffix(host, ".konghq.com") {
+		return fmt.Errorf("Konnect URL host %q is not a trusted konghq.com domain", host)
+	}
+	return nil
+}
+
 func RequestDeviceCode(httpClient *http.Client,
 	url string, clientID string, logger *slog.Logger,
 ) (DeviceCodeResponse, error) {
+	if err := ValidateKonnectURL(url); err != nil {
+		return DeviceCodeResponse{}, err
+	}
 	logger.Info("Requesting device code", "url", url, "client_id", clientID)
 	requestBody := struct {
 		ClientID uuid.UUID `form:"client_id"`
@@ -160,6 +180,10 @@ func RefreshAccessToken(
 ) (*AccessToken, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := ValidateKonnectURL(refreshURL); err != nil {
 		return nil, err
 	}
 
@@ -230,6 +254,9 @@ func RefreshAccessToken(
 func PollForToken(ctx context.Context, httpClient *http.Client,
 	url string, clientID string, deviceCode string, logger *slog.Logger,
 ) (*AccessToken, error) {
+	if err := ValidateKonnectURL(url); err != nil {
+		return nil, err
+	}
 	logger.Info("Polling for token", "url", url, "client_id", clientID, "device_code", deviceCode)
 	requestBody := struct {
 		GrantType  string    `form:"grant_type"`
@@ -401,6 +428,9 @@ func GetAuthenticatedClient(
 	transportOptions httpclient.TransportOptions,
 	logger *slog.Logger,
 ) (*kk.SDK, kk.HTTPClient, error) {
+	if err := ValidateKonnectURL(baseURL); err != nil {
+		return nil, nil, err
+	}
 	kkMetadata.SetUserAgent(meta.UserAgent())
 
 	opts := []kk.SDKOption{
