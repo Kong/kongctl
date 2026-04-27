@@ -1,0 +1,22 @@
+schema_version: 1
+
+publisher: kong
+name: hello-go
+version: 0.1.0
+summary: Example Go-based kongctl extension
+
+runtime:
+  command: bin/kongctl-ext-hello-go
+
+command_paths:
+  - id: get_hello_go
+    path:
+      - name: get
+      - name: hello-go
+    summary: Get Go extension context
+    description: Prints selected fields from the kongctl extension context.
+    usage: kongctl get hello-go [args] [flags]
+    examples:
+      - go build -o bin/kongctl-ext-hello-go .
+      - kongctl link extension docs/examples/extensions/go
+      - kongctl get hello-go -- --example

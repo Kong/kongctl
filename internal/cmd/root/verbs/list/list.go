@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -131,6 +132,7 @@ Setting this value overrides tokens obtained from the login command.
 	cmd.AddCommand(gatewayCmd)
 
 	cmd.AddCommand(newThemesCmd())
+	cmd.AddCommand(extensioncmd.NewListExtensionsCmd())
 
 	organizationCmd, err := NewDirectOrganizationCmd()
 	if err != nil {
