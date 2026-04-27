@@ -58,6 +58,9 @@ type SourceState struct {
 	URL            string `json:"url,omitempty"`
 	Ref            string `json:"ref,omitempty"`
 	ResolvedCommit string `json:"resolved_commit,omitempty"`
+	ReleaseTag     string `json:"release_tag,omitempty"`
+	AssetName      string `json:"asset_name,omitempty"`
+	AssetURL       string `json:"asset_url,omitempty"`
 }
 
 type TrustState struct {
@@ -138,7 +141,7 @@ func (s Store) InstallLocal(source, cliVersion string, now time.Time) (InstallRe
 	sourceRoot := candidate.PackageDir
 	return s.installDirectory(sourceRoot, cliVersion, now, installDirectoryOptions{
 		Source: SourceState{
-			Type: "local_path",
+			Type: SourceTypeLocalPath,
 			Path: sourceRoot,
 		},
 		Trust: TrustState{
@@ -157,20 +160,33 @@ func (s Store) InstallGitHubSource(
 	cliVersion string,
 	now time.Time,
 ) (InstallResult, error) {
+	sourceType := fetched.SourceType
+	if sourceType == "" {
+		sourceType = SourceTypeGitHubSource
+	}
+	trustModel := "github_source_clone"
+	upgradePolicy := "explicit_ref"
+	if sourceType == SourceTypeGitHubReleaseAsset {
+		trustModel = "github_release_asset"
+		upgradePolicy = "github_release"
+	}
 	return s.installDirectory(sourceRoot, cliVersion, now, installDirectoryOptions{
 		Source: SourceState{
-			Type:           "github_source",
+			Type:           sourceType,
 			Repository:     fetched.Repository,
 			URL:            fetched.URL,
 			Ref:            fetched.Ref,
 			ResolvedCommit: fetched.ResolvedCommit,
+			ReleaseTag:     fetched.ReleaseTag,
+			AssetName:      fetched.AssetName,
+			AssetURL:       fetched.AssetURL,
 		},
 		Trust: TrustState{
 			Confirmed: false,
-			Model:     "github_source_clone",
+			Model:     trustModel,
 		},
 		Upgrade: UpgradeState{
-			Policy: "explicit_ref",
+			Policy: upgradePolicy,
 		},
 	})
 }

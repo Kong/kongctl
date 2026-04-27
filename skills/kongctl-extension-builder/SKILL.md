@@ -34,6 +34,8 @@ Help users create a runnable `kongctl` CLI extension with a valid
 - Built-in root segments such as `get` and `list` cannot declare aliases.
 - `runtime.command` must be relative to the extension root and already
   executable. `kongctl` does not compile source during install.
+- GitHub repository names do not need a `kongctl-*` prefix. Use names that are
+  clear for humans and keep the manifest ID in `publisher/name` form.
 - Extension-specific flags are parsed by the extension runtime. Use `--` when
   a user needs to pass a token that looks like a host flag.
 - Put extension diagnostics on stderr when stdout needs to preserve structured
@@ -59,16 +61,24 @@ Help users create a runnable `kongctl` CLI extension with a valid
    kongctl list extensions
    kongctl uninstall extension <publisher>/<name>
    ```
-7. Prepare remote repositories so install can consume already-runnable files:
-   - script repos commit the executable runtime directly
-   - Go repos must include an already-built runtime until release artifacts are
-     supported
-   - `extension.yaml` lives at the repository root
-   - `runtime.command` points to a file inside the repository
+7. Prepare remote repositories so install can consume release archives:
+   - release archives are preferred over source clone fallback
+   - `extension.yaml` must be at the archive root
+   - `runtime.command` points to a runnable file inside the archive
+   - publish one archive asset per release, or include the target platform in
+     each platform-specific asset name
+   - use `.tar.gz` for Go binary releases because it preserves executable bits
+     reliably
    ```sh
    kongctl install extension <owner>/<repo>
    kongctl install extension <owner>/<repo> --ref <branch-or-tag>
+   kongctl install extension <owner>/<repo>@<tag>
    ```
+
+When no compatible release archive exists, `kongctl install extension
+<owner>/<repo>` falls back to cloning the repository. Source fallback is only
+valid when the repository root already contains `extension.yaml` and an
+already-runnable script or binary referenced by `runtime.command`.
 
 ## Minimal Manifest
 
@@ -114,6 +124,82 @@ fi
 Use Go when argument parsing, JSON handling, or richer errors matter. Keep the
 runtime independent from `kongctl/internal/...`; read `context.json` into a
 local struct and call `kongctl` as a subprocess for authenticated host access.
+
+## Release Artifact Workflow
+
+For GitHub installs, prefer a release artifact that extracts to this shape:
+
+```text
+extension.yaml
+bin/kongctl-ext-foo
+README.md
+```
+
+With:
+
+```yaml
+runtime:
+  command: bin/kongctl-ext-foo
+```
+
+For a Go extension, add a workflow like this and adjust the binary package path
+and artifact names for the repository:
+
+```yaml
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: mkdir -p dist/package/bin
+      - run: |
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -o dist/package/bin/kongctl-ext-foo ./cmd/kongctl-ext-foo
+          cp extension.yaml README.md dist/package/
+          chmod +x dist/package/bin/kongctl-ext-foo
+          tar -C dist/package -czf \
+            dist/kongctl-ext-foo-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
+            extension.yaml README.md bin/kongctl-ext-foo
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz
+```
+
+For a script extension, publish a single universal archive:
+
+```sh
+mkdir -p dist/package/bin
+cp extension.yaml README.md dist/package/
+cp kongctl-ext-foo dist/package/bin/
+chmod +x dist/package/bin/kongctl-ext-foo
+tar -C dist/package -czf dist/kongctl-ext-foo-universal.tar.gz \
+  extension.yaml README.md bin/kongctl-ext-foo
+```
+
+The installer accepts `.tar.gz`, `.tgz`, and `.zip` assets. If a release has
+more than one archive asset, platform-specific assets should include the current
+`GOOS` and `GOARCH` in the name, such as
+`kongctl-ext-foo-linux-amd64.tar.gz`.
 
 ## Runtime Context
 
