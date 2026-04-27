@@ -20,7 +20,7 @@ var (
 	syncUse = Verb.String()
 
 	syncShort = i18n.T("root.verbs.sync.syncShort",
-		"Full state synchronization (create/update/delete)")
+		"Synchronize declarative configuration changes (create/update/delete)")
 
 	syncLong = normalizers.LongDesc(i18n.T("root.verbs.sync.syncLong",
 		`Synchronize configuration with Kong Konnect. Creates, updates, and DELETES resources.`))

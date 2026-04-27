@@ -22,10 +22,10 @@ var (
 	planUse = Verb.String()
 
 	planShort = i18n.T("root.verbs.plan.planShort",
-		"Preview changes to Kong Konnect resources")
+		"Generate a declarative configuration execution plan")
 
 	planLong = normalizers.LongDesc(i18n.T("root.verbs.plan.planLong",
-		`Generate an execution plan showing what changes will be made.`))
+		`Generate an execution plan showing what changes will be made to a set of declarative configurations.`))
 
 	planExamples = normalizers.Examples(i18n.T("root.verbs.plan.planExamples",
 		fmt.Sprintf(`  %[1]s plan -f api.yaml

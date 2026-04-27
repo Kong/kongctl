@@ -24,7 +24,7 @@ const (
 var (
 	deleteuse = Verb.String()
 
-	deleteShort = i18n.T("root.verbs.delete.deleteShort", "Delete objects")
+	deleteShort = i18n.T("root.verbs.delete.deleteShort", "Delete resources or local objects")
 
 	deleteLong = normalizers.LongDesc(i18n.T("root.verbs.delete.deleteLong",
 		`Use delete to delete objects.

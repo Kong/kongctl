@@ -28,7 +28,7 @@ func TestNewApplyCmd(t *testing.T) {
 
 	// Test basic command properties
 	assert.Equal(t, "apply", cmd.Use, "Command use should be 'apply'")
-	assert.Contains(t, cmd.Short, "Apply configuration changes",
+	assert.Contains(t, cmd.Short, "Apply declarative configuration changes",
 		"Short description should mention applying configuration")
 	assert.Contains(t, cmd.Long, "Apply configuration changes to Kong Konnect",
 		"Long description should mention applying changes")
@@ -49,7 +49,7 @@ func TestApplyCmdHelpText(t *testing.T) {
 	}
 
 	// Test that help text contains expected content
-	assert.Contains(t, cmd.Short, "Apply configuration", "Short should mention applying configuration")
+	assert.Contains(t, cmd.Short, "Apply declarative configuration", "Short should mention applying configuration")
 	assert.Contains(t, cmd.Long, "configuration changes", "Long should mention configuration changes")
 	assert.Contains(t, cmd.Example, "--plan", "Examples should show --plan flag usage")
 	assert.Contains(t, cmd.Example, "help apply", "Examples should mention extended help")
