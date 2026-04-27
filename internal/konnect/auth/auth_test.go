@@ -136,3 +136,55 @@ func TestJWTExpiresIn_APIResponseMismatch(t *testing.T) {
 	require.NotEqual(t, apiExpiresIn, secs, "jwtExpiresIn should return JWT exp, not API expires_in")
 	require.InDelta(t, int(jwtLifetime.Seconds()), secs, 5)
 }
+
+func TestValidateKonnectURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr string
+	}{
+		// valid URLs
+		{name: "production base URL", url: "https://us.api.konghq.com"},
+		{name: "global API URL", url: "https://global.api.konghq.com"},
+		{name: "refresh endpoint", url: "https://global.api.konghq.com/kauth/api/v1/refresh"},
+		{name: "apex domain", url: "https://konghq.com"},
+		{name: "staging base URL", url: "https://api.konghq.tech"},
+		{name: "staging subdomain", url: "https://us.api.konghq.tech"},
+		{name: "uppercase host normalized", url: "https://US.API.KONGHQ.COM"},
+		{name: "trailing dot normalized", url: "https://us.api.konghq.com."},
+
+		// scheme errors
+		{name: "http not allowed", url: "http://us.api.konghq.com",
+			wantErr: "must use HTTPS"},
+		{name: "empty scheme", url: "//us.api.konghq.com",
+			wantErr: "must use HTTPS"},
+
+		// untrusted hosts
+		{name: "arbitrary host", url: "https://evil.com",
+			wantErr: "not a trusted konghq.com domain"},
+		{name: "subdomain typosquat", url: "https://us.api.konghq.com.evil.com",
+			wantErr: "not a trusted konghq.com domain"},
+		{name: "konghq.com prefix only", url: "https://konghq.com.evil.com",
+			wantErr: "not a trusted konghq.com domain"},
+		{name: "localhost", url: "https://localhost",
+			wantErr: "not a trusted konghq.com domain"},
+		{name: "link-local", url: "https://169.254.169.254",
+			wantErr: "not a trusted konghq.com domain"},
+
+		// parse errors
+		{name: "invalid URL", url: "://bad-url",
+			wantErr: "invalid Konnect URL"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateKonnectURL(tt.url)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr)
+			}
+		})
+	}
+}

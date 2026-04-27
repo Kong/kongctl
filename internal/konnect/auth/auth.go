@@ -105,21 +105,27 @@ func (t *AccessToken) IsExpired() bool {
 	return time.Now().After(t.ReceivedAt.Add(time.Duration(t.Token.ExpiresAfter) * time.Second))
 }
 
+// trustedKonnectDomains is the allow list of Kong-owned domains accepted as
+// Konnect API endpoints. konghq.tech is used for staging/test environments.
+var trustedKonnectDomains = []string{"konghq.com", "konghq.tech"}
+
 // ValidateKonnectURL parses rawURL and ensures it uses HTTPS and targets a
-// trusted *.konghq.com domain
+// trusted Kong-owned domains.
 func ValidateKonnectURL(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("invalid Konnect URL: %w", err)
 	}
 	if u.Scheme != "https" {
-		return fmt.Errorf("Konnect URL must use HTTPS, got %q", u.Scheme)
+		return fmt.Errorf("konnect URL must use HTTPS, got %q", u.Scheme)
 	}
-	host := u.Hostname()
-	if host != "konghq.com" && !strings.HasSuffix(host, ".konghq.com") {
-		return fmt.Errorf("Konnect URL host %q is not a trusted konghq.com domain", host)
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	for _, domain := range trustedKonnectDomains {
+		if host == domain || strings.HasSuffix(host, "."+domain) {
+			return nil
+		}
 	}
-	return nil
+	return fmt.Errorf("konnect URL host %q is not a trusted konghq.com domain", host)
 }
 
 func RequestDeviceCode(httpClient *http.Client,
