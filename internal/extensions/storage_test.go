@@ -10,7 +10,7 @@ import (
 )
 
 func TestStoreInstallLocalCopiesPackageAndRecordsHashes(t *testing.T) {
-	source := writeTestExtension(t, "kong", "foo", "get", "foo")
+	source := writeTestExtension(t)
 	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
 
 	result, err := store.InstallLocal(source, "test-version", time.Unix(100, 0))
@@ -34,7 +34,7 @@ func TestStoreInstallLocalCopiesPackageAndRecordsHashes(t *testing.T) {
 }
 
 func TestStoreLinkLocalRefreshesManifestFromSource(t *testing.T) {
-	source := writeTestExtension(t, "kong", "foo", "get", "foo")
+	source := writeTestExtension(t)
 	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
 
 	linked, err := store.LinkLocal(source, "test-version", time.Unix(100, 0))
@@ -47,8 +47,35 @@ func TestStoreLinkLocalRefreshesManifestFromSource(t *testing.T) {
 	require.Equal(t, "list foo", CommandPathString(reloaded.CommandPaths[0]))
 }
 
+func TestStoreInstallGitHubSourceRecordsRemoteProvenance(t *testing.T) {
+	source := writeTestExtension(t)
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	fetched := FetchedGitHubSource{
+		Repository:     "kong/kongctl-ext-foo",
+		URL:            "https://github.com/kong/kongctl-ext-foo.git",
+		Ref:            "v1.0.0",
+		ResolvedCommit: "abc123",
+	}
+
+	result, err := store.InstallGitHubSource(source, fetched, "test-version", time.Unix(100, 0))
+
+	require.NoError(t, err)
+	require.Equal(t, "kong/foo", result.Extension.ID)
+	installed, err := store.Get("kong/foo")
+	require.NoError(t, err)
+	require.Equal(t, "github_source", installed.Install.Source.Type)
+	require.Empty(t, installed.Install.Source.Path)
+	require.Equal(t, fetched.Repository, installed.Install.Source.Repository)
+	require.Equal(t, fetched.URL, installed.Install.Source.URL)
+	require.Equal(t, fetched.Ref, installed.Install.Source.Ref)
+	require.Equal(t, fetched.ResolvedCommit, installed.Install.Source.ResolvedCommit)
+	require.False(t, installed.Install.Trust.Confirmed)
+	require.Equal(t, "github_source_clone", installed.Install.Trust.Model)
+	require.Equal(t, "explicit_ref", installed.Install.Upgrade.Policy)
+}
+
 func TestStoreUninstallPreservesDataByDefault(t *testing.T) {
-	source := writeTestExtension(t, "kong", "foo", "get", "foo")
+	source := writeTestExtension(t)
 	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
 	_, err := store.InstallLocal(source, "test-version", time.Unix(100, 0))
 	require.NoError(t, err)
@@ -65,11 +92,11 @@ func TestStoreUninstallPreservesDataByDefault(t *testing.T) {
 	require.FileExists(t, filepath.Join(dataDir, "state.json"))
 }
 
-func writeTestExtension(t *testing.T, publisher, name, verb, resource string) string {
+func writeTestExtension(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	writeManifest(t, root, publisher, name, verb, resource)
-	runtime := filepath.Join(root, "kongctl-ext-"+name)
+	writeManifest(t, root, "kong", "foo", "get", "foo")
+	runtime := filepath.Join(root, "kongctl-ext-foo")
 	require.NoError(t, os.WriteFile(runtime, []byte("#!/bin/sh\necho ok\n"), 0o600))
 	require.NoError(t, os.Chmod(runtime, 0o755))
 	return root

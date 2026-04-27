@@ -61,9 +61,14 @@ Help users create a runnable `kongctl` CLI extension with a valid
    ```
 7. Prepare remote repositories so install can consume already-runnable files:
    - script repos commit the executable runtime directly
-   - Go repos commit a release artifact that contains the built binary
-   - `extension.yaml` lives at the archive root
-   - `runtime.command` points to a file inside the archive or repository
+   - Go repos must include an already-built runtime until release artifacts are
+     supported
+   - `extension.yaml` lives at the repository root
+   - `runtime.command` points to a file inside the repository
+   ```sh
+   kongctl install extension <owner>/<repo>
+   kongctl install extension <owner>/<repo> --ref <branch-or-tag>
+   ```
 
 ## Minimal Manifest
 

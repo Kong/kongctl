@@ -52,8 +52,12 @@ type LinkState struct {
 }
 
 type SourceState struct {
-	Type string `json:"type"`
-	Path string `json:"path,omitempty"`
+	Type           string `json:"type"`
+	Path           string `json:"path,omitempty"`
+	Repository     string `json:"repository,omitempty"`
+	URL            string `json:"url,omitempty"`
+	Ref            string `json:"ref,omitempty"`
+	ResolvedCommit string `json:"resolved_commit,omitempty"`
 }
 
 type TrustState struct {
@@ -88,6 +92,12 @@ type UninstallResult struct {
 	RemovedData    bool   `json:"removed_data"`
 }
 
+type installDirectoryOptions struct {
+	Source  SourceState
+	Trust   TrustState
+	Upgrade UpgradeState
+}
+
 func NewStore(root string) Store {
 	return Store{root: root}
 }
@@ -108,6 +118,10 @@ func (s Store) RuntimeDir() string {
 	return filepath.Join(s.root, "runtime")
 }
 
+func (s Store) TempDir() string {
+	return filepath.Join(s.root, "tmp")
+}
+
 func (s Store) DataDir(id string) (string, error) {
 	publisher, name, err := SplitExtensionID(id)
 	if err != nil {
@@ -122,8 +136,52 @@ func (s Store) InstallLocal(source, cliVersion string, now time.Time) (InstallRe
 		return InstallResult{}, err
 	}
 	sourceRoot := candidate.PackageDir
-	manifest := candidate.Manifest
-	_, manifestBytes, err := LoadManifestFile(filepath.Join(sourceRoot, ManifestFileName))
+	return s.installDirectory(sourceRoot, cliVersion, now, installDirectoryOptions{
+		Source: SourceState{
+			Type: "local_path",
+			Path: sourceRoot,
+		},
+		Trust: TrustState{
+			Confirmed: true,
+			Model:     "local",
+		},
+		Upgrade: UpgradeState{
+			Policy: "reinstall",
+		},
+	})
+}
+
+func (s Store) InstallGitHubSource(
+	sourceRoot string,
+	fetched FetchedGitHubSource,
+	cliVersion string,
+	now time.Time,
+) (InstallResult, error) {
+	return s.installDirectory(sourceRoot, cliVersion, now, installDirectoryOptions{
+		Source: SourceState{
+			Type:           "github_source",
+			Repository:     fetched.Repository,
+			URL:            fetched.URL,
+			Ref:            fetched.Ref,
+			ResolvedCommit: fetched.ResolvedCommit,
+		},
+		Trust: TrustState{
+			Confirmed: false,
+			Model:     "github_source_clone",
+		},
+		Upgrade: UpgradeState{
+			Policy: "explicit_ref",
+		},
+	})
+}
+
+func (s Store) installDirectory(
+	sourceRoot string,
+	cliVersion string,
+	now time.Time,
+	opts installDirectoryOptions,
+) (InstallResult, error) {
+	manifest, manifestBytes, err := LoadManifestFile(filepath.Join(sourceRoot, ManifestFileName))
 	if err != nil {
 		return InstallResult{}, err
 	}
@@ -150,10 +208,6 @@ func (s Store) InstallLocal(source, cliVersion string, now time.Time) (InstallRe
 	if err := copyExtensionTree(sourceRoot, packageDir); err != nil {
 		return InstallResult{}, err
 	}
-	if _, err := ResolveRuntime(packageDir, manifest.Runtime.Command); err != nil {
-		return InstallResult{}, err
-	}
-
 	runtimePath, err := ResolveRuntime(packageDir, manifest.Runtime.Command)
 	if err != nil {
 		return InstallResult{}, err
@@ -172,25 +226,17 @@ func (s Store) InstallLocal(source, cliVersion string, now time.Time) (InstallRe
 	}
 
 	state := InstallState{
-		SchemaVersion: stateSchemaVersion,
-		ID:            id,
-		InstalledAt:   now.UTC().Format(time.RFC3339),
-		CLIVersion:    cliVersion,
-		Source: SourceState{
-			Type: "local_path",
-			Path: sourceRoot,
-		},
+		SchemaVersion:  stateSchemaVersion,
+		ID:             id,
+		InstalledAt:    now.UTC().Format(time.RFC3339),
+		CLIVersion:     cliVersion,
+		Source:         opts.Source,
 		ManifestHash:   manifestHash,
 		RuntimeHash:    runtimeHash,
 		PackageHash:    packageHash,
 		RuntimeCommand: manifest.Runtime.Command,
-		Trust: TrustState{
-			Confirmed: true,
-			Model:     "local",
-		},
-		Upgrade: UpgradeState{
-			Policy: "reinstall",
-		},
+		Trust:          opts.Trust,
+		Upgrade:        opts.Upgrade,
 	}
 	if err := writeJSON(filepath.Join(installDir, installStateName), state); err != nil {
 		return InstallResult{}, err
