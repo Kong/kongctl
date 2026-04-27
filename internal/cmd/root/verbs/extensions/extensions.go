@@ -25,6 +25,7 @@ import (
 
 type installExtensionOptions struct {
 	source string
+	ref    string
 }
 
 type uninstallExtensionOptions struct {
@@ -52,6 +53,7 @@ func NewInstallExtensionCmd() *cobra.Command {
 			return runInstallExtension(command, args, *opts)
 		},
 	}
+	cmd.Flags().StringVar(&opts.ref, "ref", "", "GitHub branch or tag to install for owner/repo sources.")
 	return cmd
 }
 
@@ -175,12 +177,13 @@ func runInstallExtension(command *cobra.Command, args []string, opts installExte
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to resolve extension store", err)
 	}
 	if _, err := os.Stat(opts.source); err != nil {
-		if isLikelyGitHubSource(opts.source) {
-			return &cmdpkg.ConfigurationError{Err: errors.New(
-				"GitHub extension install is not implemented yet; use a local path or link extension",
-			)}
+		if !os.IsNotExist(err) {
+			return &cmdpkg.ConfigurationError{Err: err}
 		}
-		return &cmdpkg.ConfigurationError{Err: err}
+		return runInstallGitHubExtension(command, args, opts, store)
+	}
+	if strings.TrimSpace(opts.ref) != "" {
+		return &cmdpkg.ConfigurationError{Err: errors.New("--ref is only supported for GitHub extension sources")}
 	}
 	candidate, err := extensioncore.LoadLocalExtension(opts.source, extensioncore.InstallTypeInstalled)
 	if err != nil {
@@ -199,6 +202,46 @@ func runInstallExtension(command *cobra.Command, args []string, opts installExte
 	}
 	return writeCommandResult(helper, result, func() error {
 		return writeInstallSummary(helper.GetStreams().Out, result, opts.source)
+	})
+}
+
+func runInstallGitHubExtension(
+	command *cobra.Command,
+	args []string,
+	opts installExtensionOptions,
+	store extensioncore.Store,
+) error {
+	helper := cmdpkg.BuildHelper(command, args)
+	githubSource, ok, err := extensioncore.ParseGitHubSource(opts.source, opts.ref)
+	if err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
+	if !ok {
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf("extension source %q does not exist", opts.source)}
+	}
+	fetched, err := extensioncore.FetchGitHubSource(helper.GetContext(), githubSource, store.TempDir())
+	if err != nil {
+		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to fetch GitHub extension", err)
+	}
+	defer fetched.Cleanup()
+
+	candidate, err := extensioncore.LoadLocalExtension(fetched.Dir, extensioncore.InstallTypeInstalled)
+	if err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
+	if err := extensioncore.ValidateExtensionCommands(command.Root(), candidate); err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
+	version, err := cliVersion(helper)
+	if err != nil {
+		return err
+	}
+	result, err := store.InstallGitHubSource(fetched.Dir, fetched, version, time.Now())
+	if err != nil {
+		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to install extension", err)
+	}
+	return writeCommandResult(helper, result, func() error {
+		return writeInstallSummary(helper.GetStreams().Out, result, fetched.Repository)
 	})
 }
 
@@ -491,12 +534,4 @@ func cliVersion(helper cmdpkg.Helper) (string, error) {
 		return buildInfo.Version, nil
 	}
 	return meta.DefaultCLIVersion, nil
-}
-
-func isLikelyGitHubSource(source string) bool {
-	if strings.HasPrefix(source, ".") || strings.HasPrefix(source, "/") || strings.HasPrefix(source, "~") {
-		return false
-	}
-	owner, repo, ok := strings.Cut(source, "/")
-	return ok && owner != "" && repo != "" && !strings.Contains(repo, "/")
 }
