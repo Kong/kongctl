@@ -23,10 +23,10 @@ const (
 var (
 	listUse = Verb.String()
 
-	listShort = i18n.T("root.verbs.list.listShort", "Retrieve object lists")
+	listShort = i18n.T("root.verbs.list.listShort", "List resources or other collections")
 
 	listLong = normalizers.LongDesc(i18n.T("root.verbs.list.listLong",
-		`Use list to retrieve a list of objects.
+		`Use list to retrieve resources or other local collections.
 
 Further sub-commands are required to determine which remote system is contacted (if necessary). 
 The command will return a list depending on further arguments.
@@ -34,18 +34,18 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 	listExamples = normalizers.Examples(i18n.T("root.verbs.list.listExamples",
 		fmt.Sprintf(`
+		# Retrieve Konnect control planes
+		%[1]s list konnect gateway control-planes
+		# Retrieve Konnect control planes ('konnect' is implied)
+		%[1]s list gateway control-planes
 		# Retrieve Konnect portals
 		%[1]s list portals
 		# Retrieve Konnect APIs
 		%[1]s list apis
 		# Retrieve Konnect auth strategies
 		%[1]s list auth-strategies
-		# Retrieve Konnect DCR providers
-		%[1]s list dcr-providers
-		# Retrieve Konnect control planes (Konnect-first)
-		%[1]s list gateway control-planes
-		# Retrieve Konnect control planes (explicit)
-		%[1]s list konnect gateway control-planes
+		# Retrieve kongctl extensions
+		%[1]s list extensions
 		`, meta.CLIName)))
 )
 

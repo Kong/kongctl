@@ -69,7 +69,7 @@ func NewListExtensionsCmd() *cobra.Command {
 func NewInspectCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   "inspect",
-		Short: i18n.T("root.verbs.inspect.short", "Inspect local kongctl resources"),
+		Short: i18n.T("root.verbs.inspect.short", "Inspect declarative configuration resource types"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
@@ -84,7 +84,7 @@ func NewInspectCmd() (*cobra.Command, error) {
 func NewLinkCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   "link",
-		Short: i18n.T("root.verbs.link.short", "Link local development assets"),
+		Short: i18n.T("root.verbs.link.short", "Link locally developed features"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
@@ -99,7 +99,7 @@ func NewLinkCmd() (*cobra.Command, error) {
 func NewUninstallCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   "uninstall",
-		Short: i18n.T("root.verbs.uninstall.short", "Uninstall local kongctl assets"),
+		Short: i18n.T("root.verbs.uninstall.short", "Uninstall features"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
@@ -114,7 +114,7 @@ func NewUninstallCmd() (*cobra.Command, error) {
 func NewUpgradeCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   "upgrade",
-		Short: i18n.T("root.verbs.upgrade.short", "Upgrade local kongctl assets"),
+		Short: i18n.T("root.verbs.upgrade.short", "Upgrade kongctl features"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},

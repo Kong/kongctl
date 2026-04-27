@@ -23,7 +23,7 @@ const (
 var (
 	dumpUse = Verb.String()
 
-	dumpShort = i18n.T("root.verbs.dump.dumpShort", "Dump objects")
+	dumpShort = i18n.T("root.verbs.dump.dumpShort", "Dump existing resources into local declarative configuration")
 
 	dumpLong = normalizers.LongDesc(i18n.T("root.verbs.dump.dumpLong",
 		`Use dump to export an object or list of objects.`))
