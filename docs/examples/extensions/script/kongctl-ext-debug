@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+
+echo "kongctl extension debug info"
+echo "context_path=${KONGCTL_EXTENSION_CONTEXT:-}"
+echo "args=$*"
+echo
+
+echo "context_json:"
+if [ -n "${KONGCTL_EXTENSION_CONTEXT:-}" ] && [ -r "$KONGCTL_EXTENSION_CONTEXT" ]; then
+  cat "$KONGCTL_EXTENSION_CONTEXT"
+else
+  echo "context file unavailable"
+fi
+echo
+
+kongctl_bin="kongctl"
+if [ -n "${KONGCTL_EXTENSION_CONTEXT:-}" ] && [ -r "$KONGCTL_EXTENSION_CONTEXT" ]; then
+  resolved_bin=$(sed -n \
+    's/^[[:space:]]*"kongctl_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+    "$KONGCTL_EXTENSION_CONTEXT")
+  if [ -n "$resolved_bin" ]; then
+    kongctl_bin="$resolved_bin"
+  fi
+fi
+
+echo "reentrant_kongctl_get_me:"
+if ! "$kongctl_bin" get me; then
+  echo "kongctl get me failed; authenticate with kongctl login or provide a Konnect PAT to try the reentrant call." >&2
+fi

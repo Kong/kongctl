@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 )
 
 type extensionContext struct {
@@ -18,6 +19,9 @@ type extensionContext struct {
 		Output           string `json:"output"`
 		ExtensionDataDir string `json:"extension_data_dir"`
 	} `json:"resolved"`
+	Host struct {
+		KongctlPath string `json:"kongctl_path"`
+	} `json:"host"`
 }
 
 func main() {
@@ -40,9 +44,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("extension=%s\n", ctx.MatchedCommandPath.ExtensionID)
-	fmt.Printf("profile=%s\n", ctx.Resolved.Profile)
-	fmt.Printf("base_url=%s\n", ctx.Resolved.BaseURL)
-	fmt.Printf("data_dir=%s\n", ctx.Resolved.ExtensionDataDir)
-	fmt.Printf("args=%v\n", os.Args[1:])
+	fmt.Fprintf(os.Stderr, "extension=%s\n", ctx.MatchedCommandPath.ExtensionID)
+	fmt.Fprintf(os.Stderr, "profile=%s\n", ctx.Resolved.Profile)
+	fmt.Fprintf(os.Stderr, "base_url=%s\n", ctx.Resolved.BaseURL)
+	fmt.Fprintf(os.Stderr, "data_dir=%s\n", ctx.Resolved.ExtensionDataDir)
+	fmt.Fprintf(os.Stderr, "args=%v\n", os.Args[1:])
+
+	kongctlPath := ctx.Host.KongctlPath
+	if kongctlPath == "" {
+		kongctlPath = "kongctl"
+	}
+	command := exec.Command(kongctlPath, "get", "me")
+	command.Stdin = os.Stdin
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	command.Env = os.Environ()
+	if err := command.Run(); err != nil {
+		fmt.Fprintf(os.Stderr,
+			"kongctl get me failed; authenticate with kongctl login or provide a Konnect PAT to try the reentrant call: %v\n",
+			err)
+	}
 }

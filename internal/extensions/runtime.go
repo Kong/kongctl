@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	ContextEnvName = "KONGCTL_EXTENSION_CONTEXT"
-	MaxDepth       = 5
+	ContextEnvName    = "KONGCTL_EXTENSION_CONTEXT"
+	KonnectPATEnvName = "KONGCTL_EXTENSION_KONNECT_PAT" // #nosec G101
+	MaxDepth          = 5
 )
 
 type RuntimeContext struct {
@@ -168,7 +169,7 @@ func (s Store) Dispatch(
 	command.Stdin = streams.In
 	command.Stdout = streams.Out
 	command.Stderr = streams.ErrOut
-	command.Env = append(os.Environ(), ContextEnvName+"="+contextPath)
+	command.Env = hostEnvironment(cfg, contextPath)
 	return command.Run()
 }
 
@@ -268,6 +269,27 @@ func authMetadata(cfg config.Hook) (string, string) {
 		return "device", "token_store"
 	}
 	return "unknown", "none"
+}
+
+func hostEnvironment(cfg config.Hook, contextPath string) []string {
+	env := append(os.Environ(), ContextEnvName+"="+contextPath)
+	profile := strings.TrimSpace(cfg.GetProfile())
+	if profile != "" {
+		env = append(env, fmt.Sprintf("%s_PROFILE=%s", strings.ToUpper(meta.CLIName), profile))
+	}
+	if pat := strings.TrimSpace(cfg.GetString(konnectcommon.PATConfigPath)); pat != "" {
+		env = append(env, KonnectPATEnvName+"="+pat)
+		if profile != "" {
+			env = append(env, profileEnvName(profile, konnectcommon.PATConfigPath)+"="+pat)
+		}
+	}
+	return env
+}
+
+func profileEnvName(profile, configPath string) string {
+	prefix := strings.ToUpper(meta.CLIName) + "_" + strings.ToUpper(strings.ReplaceAll(profile, "-", "_"))
+	key := strings.ToUpper(strings.NewReplacer(".", "_", "-", "_").Replace(configPath))
+	return prefix + "_" + key
 }
 
 func randomSessionID() (string, error) {

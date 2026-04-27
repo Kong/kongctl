@@ -19,4 +19,4 @@ command_paths:
     examples:
       - go build -o bin/kongctl-ext-hello-go .
       - kongctl link extension docs/examples/extensions/go
-      - kongctl get hello-go -- --example
+      - kongctl get hello-go --example

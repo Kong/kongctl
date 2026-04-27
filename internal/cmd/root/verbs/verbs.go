@@ -22,7 +22,6 @@ const (
 	List      = VerbValue("list")
 	Login     = VerbValue("login")
 	Install   = VerbValue("install")
-	Inspect   = VerbValue("inspect")
 	Link      = VerbValue("link")
 	Logout    = VerbValue("logout")
 	Plan      = VerbValue("plan")

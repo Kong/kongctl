@@ -1,22 +1,28 @@
 schema_version: 1
 
 publisher: kong
-name: hello-script
+name: debug
 version: 0.1.0
-summary: Example script-based kongctl extension
+summary: Debug kongctl extension runtime context
 
 runtime:
-  command: kongctl-ext-hello-script
+  command: kongctl-ext-debug
 
 command_paths:
-  - id: get_hello_script
+  - id: get_debug_info
     path:
       - name: get
-      - name: hello-script
-        aliases: [hello-scripts]
-    summary: Get script extension context
-    description: Prints the extension context path and remaining arguments.
-    usage: kongctl get hello-script [args] [flags]
+      - name: debug-info
+    summary: Get extension debug information
+    description: Prints the extension context path, context JSON, remaining arguments, and a reentrant kongctl call.
+    usage: kongctl get debug-info [args] [flags]
     examples:
-      - kongctl link extension docs/examples/extensions/script
-      - kongctl get hello-script -- --example
+      - kongctl get debug-info --example
+  - id: print_debug_info
+    path:
+      - name: print-debug-info
+    summary: Print extension debug information
+    description: Prints the extension context path, context JSON, remaining arguments, and a reentrant kongctl call.
+    usage: kongctl print-debug-info [args] [flags]
+    examples:
+      - kongctl print-debug-info --example

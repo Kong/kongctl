@@ -1,12 +1,16 @@
-# Script Extension Example
+# Debug Script Extension Example
 
-This extension contributes `kongctl get hello-script`.
+This extension contributes `kongctl get debug-info` and
+`kongctl print-debug-info`.
 
 ```sh
-chmod +x docs/examples/extensions/script/kongctl-ext-hello-script
+chmod +x docs/examples/extensions/script/kongctl-ext-debug
 kongctl link extension docs/examples/extensions/script
-kongctl get hello-script -- --example
+kongctl get debug-info --example
+kongctl print-debug-info --example
 ```
 
 The runtime reads `KONGCTL_EXTENSION_CONTEXT` to find the generated
-`context.json` file.
+`context.json` file, prints the context path and context contents, and invokes
+`kongctl get me` as a child process. The child command inherits the parent
+command's output format.

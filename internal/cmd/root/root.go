@@ -12,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/api"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
@@ -243,12 +244,6 @@ func addCommands() error {
 	}
 	rootCmd.AddCommand(command)
 
-	command, err = extensioncmd.NewInspectCmd()
-	if err != nil {
-		return err
-	}
-	rootCmd.AddCommand(command)
-
 	command, err = extensioncmd.NewLinkCmd()
 	if err != nil {
 		return err
@@ -427,17 +422,86 @@ func bindFlags(config config.Hook) {
 	util.CheckError(config.BindFlag(common.ColorThemeConfigPath, f))
 }
 
+func applyExtensionRuntimeDefaultsBeforeConfig(runtimeCtx *extensioncore.RuntimeContext) {
+	if runtimeCtx == nil {
+		return
+	}
+	if value := strings.TrimSpace(runtimeCtx.Resolved.ConfigFile); value != "" &&
+		!commandTreeFlagChanged(rootCmd, common.ConfigFilePathFlagName) {
+		configFilePath = value
+	}
+	if value := strings.TrimSpace(runtimeCtx.Resolved.Profile); value != "" &&
+		!commandTreeFlagChanged(rootCmd, common.ProfileFlagName) {
+		currProfile = value
+	}
+}
+
+func applyExtensionRuntimeDefaults(runtimeCtx *extensioncore.RuntimeContext, cfg config.Hook) {
+	if runtimeCtx == nil || cfg == nil {
+		return
+	}
+	if value := strings.TrimSpace(runtimeCtx.Resolved.Output); value != "" &&
+		!commandTreeFlagChanged(rootCmd, common.OutputFlagName) {
+		util.CheckError(outputFormat.Set(value))
+		cfg.SetString(common.OutputConfigPath, value)
+	}
+	if value := strings.TrimSpace(runtimeCtx.Resolved.LogLevel); value != "" &&
+		!commandTreeFlagChanged(rootCmd, common.LogLevelFlagName) {
+		util.CheckError(logLevel.Set(value))
+		cfg.SetString(common.LogLevelConfigPath, value)
+	}
+	if value := strings.TrimSpace(runtimeCtx.Resolved.BaseURL); value != "" &&
+		!commandTreeFlagChanged(rootCmd, konnectcommon.BaseURLFlagName) &&
+		!commandTreeFlagChanged(rootCmd, konnectcommon.RegionFlagName) {
+		cfg.SetString(konnectcommon.BaseURLConfigPath, value)
+	}
+	if value := strings.TrimSpace(os.Getenv(extensioncore.KonnectPATEnvName)); value != "" &&
+		!commandTreeFlagChanged(rootCmd, konnectcommon.PATFlagName) {
+		cfg.SetString(konnectcommon.PATConfigPath, value)
+	}
+}
+
+func commandTreeFlagChanged(command *cobra.Command, name string) bool {
+	if command == nil {
+		return false
+	}
+	for _, flags := range []*pflag.FlagSet{
+		command.Flags(),
+		command.PersistentFlags(),
+		command.LocalNonPersistentFlags(),
+		command.InheritedFlags(),
+	} {
+		if flags == nil {
+			continue
+		}
+		if flag := flags.Lookup(name); flag != nil && flag.Changed {
+			return true
+		}
+	}
+	for _, child := range command.Commands() {
+		if commandTreeFlagChanged(child, name) {
+			return true
+		}
+	}
+	return false
+}
+
 func initConfig() {
+	runtimeCtx, runtimeCtxErr := extensioncore.LoadRuntimeContextFromEnv()
+	util.CheckError(runtimeCtxErr)
+	applyExtensionRuntimeDefaultsBeforeConfig(runtimeCtx)
+
 	if configFilePath == "" {
 		configFilePath = defaultConfigFilePath
 	}
-	config, e1 := config.GetConfig(configFilePath, currProfile, defaultConfigFilePath)
+	cfg, e1 := config.GetConfig(configFilePath, currProfile, defaultConfigFilePath)
 	util.CheckError(e1)
-	currConfig = config
+	currConfig = cfg
 
-	pMgr = profile.NewManager(config.Viper)
+	pMgr = profile.NewManager(cfg.Viper)
 
 	bindFlags(currConfig)
+	applyExtensionRuntimeDefaults(runtimeCtx, currConfig)
 
 	themeName := strings.TrimSpace(currConfig.GetString(common.ColorThemeConfigPath))
 	if themeName == "" {
@@ -458,7 +522,7 @@ func initConfig() {
 	theme.SetConfiguredExplicitly(themeName != common.DefaultColorTheme)
 
 	loggerOpts := &slog.HandlerOptions{
-		Level: log.ConfigLevelStringToSlogLevel(config.GetString(common.LogLevelConfigPath)),
+		Level: log.ConfigLevelStringToSlogLevel(cfg.GetString(common.LogLevelConfigPath)),
 	}
 
 	if logFile != nil {
@@ -466,17 +530,17 @@ func initConfig() {
 		logFile = nil
 	}
 
-	logPath := strings.TrimSpace(config.GetString(common.LogFileConfigPath))
+	logPath := strings.TrimSpace(cfg.GetString(common.LogFileConfigPath))
 	if logPath == "" {
-		configPath := config.GetPath()
+		configPath := cfg.GetPath()
 		configDir := filepath.Dir(configPath)
 		defaultLogPath := filepath.Join(configDir, "logs", meta.CLIName+".log")
 		logPath = defaultLogPath
-		config.SetString(common.LogFileConfigPath, logPath)
+		cfg.SetString(common.LogFileConfigPath, logPath)
 	}
 	if strings.Contains(logPath, logFilePIDToken) {
 		logPath = strings.ReplaceAll(logPath, logFilePIDToken, fmt.Sprintf("%d", os.Getpid()))
-		config.SetString(common.LogFileConfigPath, logPath)
+		cfg.SetString(common.LogFileConfigPath, logPath)
 	}
 
 	var handler slog.Handler
