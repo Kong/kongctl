@@ -14,7 +14,7 @@ metadata:
 ## Goal
 
 Help users create a runnable `kongctl` CLI extension with a valid
-`extension.yaml`, an executable runtime, and a local test workflow.
+`extension.yaml`, an executable runtime, and local and remote test workflows.
 
 ## Core Rules
 
@@ -36,6 +36,8 @@ Help users create a runnable `kongctl` CLI extension with a valid
   executable. `kongctl` does not compile source during install.
 - Extension-specific flags are parsed by the extension runtime. Use `--` when
   a user needs to pass a token that looks like a host flag.
+- Put extension diagnostics on stderr when stdout needs to preserve structured
+  output from a reentrant `kongctl` command.
 
 ## Workflow
 
@@ -57,6 +59,11 @@ Help users create a runnable `kongctl` CLI extension with a valid
    kongctl list extensions
    kongctl uninstall extension <publisher>/<name>
    ```
+7. Prepare remote repositories so install can consume already-runnable files:
+   - script repos commit the executable runtime directly
+   - Go repos commit a release artifact that contains the built binary
+   - `extension.yaml` lives at the archive root
+   - `runtime.command` points to a file inside the archive or repository
 
 ## Minimal Manifest
 
@@ -76,6 +83,33 @@ command_paths:
         aliases: [foos]
 ```
 
+## Script Runtime Pattern
+
+Use shell for lightweight wrappers and debugging helpers.
+
+```sh
+#!/bin/sh
+set -eu
+
+echo "context_path=${KONGCTL_EXTENSION_CONTEXT:-}" >&2
+
+kongctl_bin="kongctl"
+if [ -n "${KONGCTL_EXTENSION_CONTEXT:-}" ] &&
+  [ -r "$KONGCTL_EXTENSION_CONTEXT" ]; then
+  kongctl_bin=$(sed -n \
+    's/^[[:space:]]*"kongctl_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+    "$KONGCTL_EXTENSION_CONTEXT")
+fi
+
+"$kongctl_bin" api get /v2/control-planes
+```
+
+## Go Runtime Pattern
+
+Use Go when argument parsing, JSON handling, or richer errors matter. Keep the
+runtime independent from `kongctl/internal/...`; read `context.json` into a
+local struct and call `kongctl` as a subprocess for authenticated host access.
+
 ## Runtime Context
 
 When an extension runs, `kongctl` sets `KONGCTL_EXTENSION_CONTEXT` to a
@@ -94,6 +128,22 @@ or other built-in commands as subprocesses when they need host-authenticated
 Konnect calls. Child `kongctl` commands inherit the parent extension context
 unless they explicitly override flags such as `--profile`, `--output`, or
 `--base-url`.
+
+## Good Educational Extension Ideas
+
+- Debug context: print `context.json`, remaining args, and reentrant command
+  behavior.
+- Who am I: call `kongctl get me` and render the current user in the parent
+  output format.
+- Control plane summary: call `kongctl api` to list control planes and print a
+  compact operational summary.
+- Portal/API report: combine a few `kongctl api` calls into a read-only report
+  that would be awkward as a one-liner.
+- Declarative helper: wrap existing `kongctl plan`, `diff`, or `apply` command
+  sequences for a team-specific workflow.
+
+Prefer read-only examples for public educational repositories. They are easier
+to try safely and demonstrate auth/context reuse without destructive setup.
 
 ## Examples
 
