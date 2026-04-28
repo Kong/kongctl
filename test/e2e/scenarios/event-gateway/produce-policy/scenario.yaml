@@ -14,6 +14,8 @@ vars:
   producePolicyRef: default-produce-policy
   producePolicyName: default-produce-policy-name-for-test
   producePolicyDescription: Default Produce Policy description
+  svPolicyRef: schema-validation-produce-policy
+  svPolicyName: schema-validation-produce-policy-name-for-test
 
 defaults:
   mask:
@@ -368,6 +370,214 @@ steps:
                 applied: 1
                 failed: 0
       - name: 003-verify-root-level-sync-delete
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 006-schema-validation-create
+    inputOverlayDirs:
+      - overlays/005-schema-validation-policy
+    commands:
+      - name: 001-plan-schema-validation-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-schema-validation-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.svPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.svPolicyRef }}"
+      - name: 002-apply-schema-validation-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-schema-validation-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-schema-validation-create
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.svPolicyName }}"
+                type: schema_validation
+                description: "Schema Validation Produce Policy description"
+                enabled: true
+                labels:
+                  env: staging
+                  team: payments
+                config:
+                  key_validation_action: mark
+                  value_validation_action: enforce
+                  type: json
+
+  - name: 007-schema-validation-update
+    inputOverlayDirs:
+      - overlays/006-update-schema-validation
+    commands:
+      - name: 001-plan-schema-validation-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-schema-validation-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.svPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.svPolicyRef }}"
+      - name: 002-apply-schema-validation-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-schema-validation-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-schema-validation-update
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.svPolicyName }}"
+                type: schema_validation
+                description: "Schema Validation Produce Policy description updated"
+                enabled: false
+                labels:
+                  env: production
+                  version: v2
+                config:
+                  key_validation_action: mark
+                  value_validation_action: mark
+                  type: json
+
+  - name: 008-schema-validation-sync-delete
+    inputOverlayDirs:
+      - overlays/007-sync-delete-schema-validation
+    commands:
+      - name: 001-plan-schema-validation-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-schema-validation-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.svPolicyName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.svPolicyName }}"
+      - name: 002-sync-delete-schema-validation
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-schema-validation-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-schema-validation-sync-delete
         run:
           - get
           - event-gateway
