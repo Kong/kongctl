@@ -1,0 +1,28 @@
+schema_version: 1
+
+publisher: kong
+name: e2e-go
+summary: E2E Go SDK extension fixture
+
+runtime:
+  command: bin/kongctl-ext-e2e-go
+
+command_paths:
+  - id: get_e2e_go
+    path:
+      - name: get
+      - name: e2e-go
+    summary: Get E2E Go SDK output
+    description: Renders deterministic output through the kongctl Go SDK.
+    usage: kongctl get e2e-go [args] [flags]
+    examples:
+      - kongctl get e2e-go
+      - kongctl get e2e-go --output json --jq .kind --jq-raw-output
+    args:
+      - name: arg
+        repeatable: true
+        description: Optional arguments returned by the fixture.
+    flags:
+      - name: fixture-flag
+        type: string
+        description: Example extension-owned flag.
