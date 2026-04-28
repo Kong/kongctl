@@ -161,6 +161,14 @@ func RequestDeviceCode(httpClient *http.Client,
 		logger.Error("Device code request failed", "error", err)
 		return DeviceCodeResponse{}, err
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return DeviceCodeResponse{}, fmt.Errorf(
+			"device code request to %s failed with HTTP %d",
+			url, resp.StatusCode,
+		)
+	}
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
