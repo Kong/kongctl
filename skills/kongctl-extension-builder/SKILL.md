@@ -36,8 +36,10 @@ Help users create a runnable `kongctl` CLI extension with a valid
   executable. `kongctl` does not compile source during install.
 - GitHub repository names do not need a `kongctl-*` prefix. Use names that are
   clear for humans and keep the manifest ID in `publisher/name` form.
-- Extension-specific flags are parsed by the extension runtime. Use `--` when
-  a user needs to pass a token that looks like a host flag.
+- Extension-specific args and flags should be shown directly in examples, such
+  as `kongctl get foo --limit 10`. Use `--` only as an escape hatch when an
+  extension needs to receive a token that collides with a host `kongctl` flag,
+  such as `--output`, `--profile`, `--help`, or their shorthands.
 - Put extension diagnostics on stderr when stdout needs to preserve structured
   output from a reentrant `kongctl` command.
 
