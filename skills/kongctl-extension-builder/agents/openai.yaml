@@ -1,4 +1,4 @@
 interface:
   display_name: "Kongctl Extension Builder"
   short_description: "Create and test kongctl CLI extensions"
-  default_prompt: "Help create a kongctl CLI extension with a valid extension.yaml, runnable runtime, and link/install test workflow."
+  default_prompt: "Help create a kongctl CLI extension with a valid kongctl-extension.yaml, runnable runtime, and link/install test workflow."

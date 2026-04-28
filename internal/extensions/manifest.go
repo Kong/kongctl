@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	ManifestFileName   = "extension.yaml"
+	ManifestFileName   = "kongctl-extension.yaml"
 	ManifestSchemaV1   = 1
 	MaxManifestBytes   = 256 * 1024
 	maxCommandPaths    = 64

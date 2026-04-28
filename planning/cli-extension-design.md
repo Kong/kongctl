@@ -32,7 +32,7 @@ source. Extensions will be managed with lifecycle commands such as
 `kongctl list extensions`, and `kongctl uninstall extension`.
 
 Technically, each extension is a separately executed script or binary
-described by a YAML manifest obtained at installation (`extension.yaml`).
+described by a YAML manifest obtained at installation (`kongctl-extension.yaml`).
 The manifest is the v1 source of truth for package metadata, runtime
 selection, and command metadata. During execution, the parent `kongctl`
 process writes a machine-generated `context.json` file, stores its full path
@@ -79,9 +79,9 @@ The proposed design is driven by the following goals:
 | Built-in precedence | Built-ins always win |
 | Open existing verbs in v1 | `get`, `list` |
 | Provenance in help | Extension-contributed paths must be visibly labeled |
-| Manifest | Minimal `extension.yaml`; rich metadata optional |
+| Manifest | Minimal `kongctl-extension.yaml`; rich metadata optional |
 | Extension identity | Fully qualified `publisher/name` |
-| Command metadata | Static command metadata in `extension.yaml` when present |
+| Command metadata | Static command metadata in `kongctl-extension.yaml` when present |
 | Dispatch integration | Synthetic Cobra commands from cached manifests |
 | Flag boundary | Host owns global/help flags before `--`; extension gets the rest |
 | Metadata stability | Install-stable; linked extensions refresh aggressively |
@@ -129,7 +129,7 @@ and, when needed:
 ### 2. Use A Single Command Path Model
 
 An extension should describe its contributed commands as `command_paths` in
-`extension.yaml`.
+`kongctl-extension.yaml`.
 
 Examples:
 
@@ -215,7 +215,7 @@ Contributed command paths:
 ### 4. Treat One Extension As A Bundle Of Command Paths
 
 One extension should be able to contribute many command paths. The extension
-should be the installation unit, while `extension.yaml` should describe the set
+should be the installation unit, while `kongctl-extension.yaml` should describe the set
 of command paths it owns.
 
 This lets one extension support a full resource family rather than forcing
@@ -223,7 +223,7 @@ many small install units.
 
 ### 5. Use A YAML Manifest For Package And Command Metadata
 
-The manifest should be a plain `extension.yaml` file, and it should describe
+The manifest should be a plain `kongctl-extension.yaml` file, and it should describe
 the package metadata, runtime metadata, and command metadata needed for install
 validation, command registration, help, completion, inspection, and execution.
 In v1, this manifest is the source of truth for command registration and, when
@@ -340,7 +340,7 @@ be tracked by `kongctl` itself, not required in the manifest.
 The manifest is attacker-controlled input and is parsed before any extension
 execution. Manifest parsing should therefore be deliberately strict:
 
-- cap the maximum `extension.yaml` size before decoding
+- cap the maximum `kongctl-extension.yaml` size before decoding
 - accept exactly one YAML document
 - reject unknown top-level keys
 - do not install custom YAML tag handlers
@@ -363,7 +363,7 @@ extensions.
 
 ### 6. Use Static Manifest Command Metadata In v1
 
-All command metadata should come from `extension.yaml` in v1.
+All command metadata should come from `kongctl-extension.yaml` in v1.
 
 That includes:
 
@@ -381,7 +381,7 @@ authoring convenience, but it should not be required in v1 because it would
 execute extension code during install or link just to discover metadata.
 
 In v1, `kongctl` should validate command metadata directly from
-`extension.yaml`, derive defaults for omitted optional fields, then cache the
+`kongctl-extension.yaml`, derive defaults for omitted optional fields, then cache the
 validated metadata for:
 
 - help
@@ -495,7 +495,7 @@ Recommended install behavior:
 
 For local path installs:
 
-1. the target path must contain `extension.yaml`
+1. the target path must contain `kongctl-extension.yaml`
 2. `kongctl link extension` should be preferred for local development
 3. `kongctl install extension <path>` should copy the extension into the
    managed extension home for normal use
@@ -505,8 +505,8 @@ For GitHub repo installs:
 1. follow the GitHub CLI model: prefer a compatible release artifact for the
    current platform
 2. if no compatible release artifact exists, clone the repository only when
-   it contains an `extension.yaml` and an already-runnable root-level script or
-   binary referenced by `runtime.command`
+   it contains a `kongctl-extension.yaml` and an already-runnable root-level
+   script or binary referenced by `runtime.command`
 3. do not compile extension source during install
 4. pin release-artifact installs to a concrete release tag by default
 5. validate archive entries and extracted paths before installing files
@@ -594,11 +594,11 @@ development. Linked extensions do not use `upgrade`; they read from the linked
 working tree.
 
 For release artifacts, the archive should extract to an extension root that
-contains `extension.yaml` and the runtime referenced by `runtime.command`.
+contains `kongctl-extension.yaml` and the runtime referenced by `runtime.command`.
 Example:
 
 ```text
-extension.yaml
+kongctl-extension.yaml
 bin/kongctl-ext-foo
 README.md
 ```
@@ -639,7 +639,7 @@ For source fallback and local path installs, the canonical root-level runtime
 name should be `kongctl-ext-<name>`, for example:
 
 ```text
-extension.yaml
+kongctl-extension.yaml
 kongctl-ext-foo
 ```
 
@@ -685,7 +685,7 @@ $KONGCTL_CONFIG_HOME/
       kong/
         foo/
           package/
-            extension.yaml
+            kongctl-extension.yaml
             bin/kongctl-ext-foo
           install.json
           commands.cache.json
@@ -1400,7 +1400,7 @@ managed directory such as `~/.docker/cli-plugins`, where a binary named
 Docker's CLI plugin ecosystem also defines a metadata subcommand,
 `docker-cli-plugin-metadata`, which plugins use to report structured metadata.
 That is a useful precedent for a possible future generated-metadata mode, even
-though v1 `kongctl` should use static command metadata from `extension.yaml`
+though v1 `kongctl` should use static command metadata from `kongctl-extension.yaml`
 ([design reference](https://github.com/docker/cli/issues/1534),
 [Go package](https://pkg.go.dev/github.com/docker/cli/cli-plugins/metadata)).
 
@@ -1432,7 +1432,7 @@ permissions during installation
 Docker is also supporting evidence that a future plugin runtime could add a
 hidden metadata/reporting subcommand without making the user-facing command
 surface awkward. For v1, `kongctl` should prefer static command metadata from
-`extension.yaml`.
+`kongctl-extension.yaml`.
 
 ## Several SaaS CLIs Avoid Local Plugin Runtimes
 
@@ -1789,7 +1789,7 @@ top-level extension commands. The core design choices are:
 1. allow extension-contributed `command_paths`
 2. allow those command paths to land under the open existing verbs `get` and
    `list`, or to define a new verb naturally through the first path segment
-3. use `extension.yaml` for package, runtime, and command metadata
+3. use `kongctl-extension.yaml` for package, runtime, and command metadata
 4. validate and cache command metadata from the manifest without executing the
    extension during install or link
 5. pass runtime context through `KONGCTL_EXTENSION_CONTEXT`
@@ -1884,9 +1884,9 @@ Supported v1 sources:
 
 Recommended install rules:
 
-1. local path installs require `extension.yaml`
+1. local path installs require `kongctl-extension.yaml`
 2. `link` should be used for local development workflows
-3. command metadata should be read from `extension.yaml`, validated, and cached
+3. command metadata should be read from `kongctl-extension.yaml`, validated, and cached
 4. installed extension identity should be `publisher/name`, derived from the
    manifest and validated as path-safe identifier segments
 5. GitHub installs should follow the GitHub CLI model: prefer compatible
@@ -1917,11 +1917,11 @@ Recommended upgrade rules:
    never `latest`
 
 Release artifacts should use a strict archive layout. The archive root must
-contain `extension.yaml`; `runtime.command` points to an already-runnable
+contain `kongctl-extension.yaml`; `runtime.command` points to an already-runnable
 script or binary inside that extracted root:
 
 ```text
-extension.yaml
+kongctl-extension.yaml
 bin/kongctl-ext-foo
 README.md
 ```
@@ -1948,7 +1948,7 @@ Source fallback repositories and local path installs use the same
 `runtime.command` rule. The canonical source fallback layout is:
 
 ```text
-extension.yaml
+kongctl-extension.yaml
 kongctl-ext-foo
 ```
 
@@ -1977,7 +1977,7 @@ $KONGCTL_CONFIG_HOME/
       kong/
         foo/
           package/
-            extension.yaml
+            kongctl-extension.yaml
             kongctl-ext-foo
           install.json
           commands.cache.json
@@ -2034,7 +2034,7 @@ Recommended later addition:
 
 ### 4. Extension Manifest
 
-Every installable extension should include an `extension.yaml` manifest.
+Every installable extension should include a `kongctl-extension.yaml` manifest.
 
 Minimal valid manifest:
 
@@ -2365,7 +2365,7 @@ The skill should help a coding agent:
 
 - scaffold a new extension
 - choose between script and Go templates
-- fill in `extension.yaml`
+- fill in `kongctl-extension.yaml`
 - register command paths
 - test local install and link workflows
 
@@ -2588,7 +2588,7 @@ into a framework before the basic product loop is proven.
 
 ## Phase 1: Core Runtime And Install Flows
 
-- finalize `extension.yaml` schema
+- finalize `kongctl-extension.yaml` schema
 - implement strict manifest parsing and size validation
 - implement canonical `publisher/name` extension identity and namespaced
   storage
@@ -2677,7 +2677,7 @@ These decisions should be treated as settled for v1 implementation.
    and prompt before changing state. GitHub source fallback installs require an
    explicit `--to` target. Local path installs should be reinstalled or linked,
    and linked extensions do not use upgrade.
-10. Release artifacts are archives whose root contains `extension.yaml` and the
+10. Release artifacts are archives whose root contains `kongctl-extension.yaml` and the
    runtime referenced by `runtime.command`.
 11. Archive extraction rejects absolute paths, `..` segments, hardlinks,
    symlink escapes, and symlink chains that escape the extension root.
@@ -2714,7 +2714,7 @@ These decisions should be treated as settled for v1 implementation.
     or renaming fields requires a new schema version.
 22. Recursion protection uses both a contribution call stack and a maximum
     extension-dispatch depth.
-23. `extension.yaml` parsing is strict: size-capped, single-document, no custom
+23. `kongctl-extension.yaml` parsing is strict: size-capped, single-document, no custom
     tag handlers, no anchors or aliases, no merge keys, unknown top-level keys
     rejected, and all cached strings and lists length-limited.
 24. `compatibility.min_version` and `compatibility.max_version` are
@@ -2757,12 +2757,12 @@ The concrete v1 recommendation is:
    per-segment aliases
 5. visibly label extension-contributed command paths in help, completion, and
    inspection output
-6. use a minimal `extension.yaml` with required `schema_version`, `publisher`,
+6. use a minimal `kongctl-extension.yaml` with required `schema_version`, `publisher`,
    `name`, `runtime.command`, and `command_paths[].path`; rich command
    metadata is optional
 7. use `publisher/name` as the canonical extension identity for storage paths,
    install receipts, command caches, and lifecycle commands
-8. parse `extension.yaml` as attacker-controlled input, with strict size,
+8. parse `kongctl-extension.yaml` as attacker-controlled input, with strict size,
    schema, anchor, alias, tag, and string-length validation
 9. treat compatibility ranges as publisher-asserted compatibility metadata,
    not trust signals
