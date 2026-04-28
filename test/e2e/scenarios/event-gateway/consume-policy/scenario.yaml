@@ -312,7 +312,147 @@ steps:
                 labels:
                   env: staging
                   team: payments
-  - name: 005-sync-delete-root-level
+  - name: 005-skip-record-policy
+    inputOverlayDirs:
+      - overlays/005-skip-record-policy
+    commands:
+      - name: 001-plan-skip-record
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-skip-record.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='{{ .vars.consumePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.consumePolicyRef }}"
+      - name: 002-apply-skip-record
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-skip-record.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-skip-record
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: skip_record
+                enabled: true
+                config:
+                  topics:
+                    - pattern: "dead-letter-*"
+                      match_type: prefix
+
+  - name: 006-schema-validation-policy
+    inputOverlayDirs:
+      - overlays/006-schema-validation-policy
+    commands:
+      - name: 001-plan-schema-validation
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-schema-validation.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='{{ .vars.consumePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.consumePolicyRef }}"
+      - name: 002-apply-schema-validation
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-schema-validation.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-schema-validation
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: schema_validation
+                enabled: true
+                config:
+                  key_validation_action: skip
+                  value_validation_action: mark
+                  type: json
+
+  - name: 007-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:
