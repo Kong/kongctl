@@ -73,12 +73,17 @@ Help users create a runnable `kongctl` CLI extension with a valid
    kongctl install extension <owner>/<repo>
    kongctl install extension <owner>/<repo> --ref <branch-or-tag>
    kongctl install extension <owner>/<repo>@<tag>
+   kongctl install extension <owner>/<repo>@<tag> --yes
    ```
 
 When no compatible release archive exists, `kongctl install extension
 <owner>/<repo>` falls back to cloning the repository. Source fallback is only
 valid when the repository root already contains `extension.yaml` and an
 already-runnable script or binary referenced by `runtime.command`.
+
+Remote installs show a trust confirmation prompt with the selected source,
+asset or ref, runtime command, command paths, and package/manifest/runtime
+hashes. Use `--yes` for automated tests or release workflow verification.
 
 ## Minimal Manifest
 

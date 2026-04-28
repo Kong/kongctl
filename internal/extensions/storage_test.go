@@ -58,7 +58,7 @@ func TestStoreInstallGitHubSourceRecordsRemoteProvenance(t *testing.T) {
 		ResolvedCommit: "abc123",
 	}
 
-	result, err := store.InstallGitHubSource(source, fetched, "test-version", time.Unix(100, 0))
+	result, err := store.InstallGitHubSource(source, fetched, "test-version", time.Unix(100, 0), true)
 
 	require.NoError(t, err)
 	require.Equal(t, "kong/foo", result.Extension.ID)
@@ -70,7 +70,7 @@ func TestStoreInstallGitHubSourceRecordsRemoteProvenance(t *testing.T) {
 	require.Equal(t, fetched.URL, installed.Install.Source.URL)
 	require.Equal(t, fetched.Ref, installed.Install.Source.Ref)
 	require.Equal(t, fetched.ResolvedCommit, installed.Install.Source.ResolvedCommit)
-	require.False(t, installed.Install.Trust.Confirmed)
+	require.True(t, installed.Install.Trust.Confirmed)
 	require.Equal(t, "github_source_clone", installed.Install.Trust.Model)
 	require.Equal(t, "explicit_ref", installed.Install.Upgrade.Policy)
 }
@@ -88,7 +88,7 @@ func TestStoreInstallGitHubReleaseAssetRecordsRemoteProvenance(t *testing.T) {
 		AssetURL:   "https://github.com/kong/kongctl-ext-foo/releases/download/v1.0.0/kongctl-ext-foo-linux-amd64.tar.gz",
 	}
 
-	result, err := store.InstallGitHubSource(source, fetched, "test-version", time.Unix(100, 0))
+	result, err := store.InstallGitHubSource(source, fetched, "test-version", time.Unix(100, 0), true)
 
 	require.NoError(t, err)
 	require.Equal(t, "kong/foo", result.Extension.ID)
@@ -102,7 +102,7 @@ func TestStoreInstallGitHubReleaseAssetRecordsRemoteProvenance(t *testing.T) {
 	require.Equal(t, fetched.AssetName, installed.Install.Source.AssetName)
 	require.Equal(t, fetched.AssetURL, installed.Install.Source.AssetURL)
 	require.Empty(t, installed.Install.Source.ResolvedCommit)
-	require.False(t, installed.Install.Trust.Confirmed)
+	require.True(t, installed.Install.Trust.Confirmed)
 	require.Equal(t, "github_release_asset", installed.Install.Trust.Model)
 	require.Equal(t, "github_release", installed.Install.Upgrade.Policy)
 }
