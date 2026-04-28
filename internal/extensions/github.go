@@ -104,6 +104,20 @@ func (s GitHubSource) CloneURL() string {
 }
 
 func FetchGitHubSource(ctx context.Context, source GitHubSource, tempRoot string) (FetchedGitHubSource, error) {
+	fetched, err := FetchGitHubReleaseAsset(ctx, source, tempRoot)
+	if err == nil {
+		return fetched, nil
+	}
+	if !errors.Is(err, errGitHubReleaseUnavailable) {
+		return FetchedGitHubSource{}, err
+	}
+	if isLatestGitHubRef(source.Ref) {
+		source.Ref = ""
+	}
+	return FetchGitHubSourceClone(ctx, source, tempRoot)
+}
+
+func FetchGitHubReleaseAsset(ctx context.Context, source GitHubSource, tempRoot string) (FetchedGitHubSource, error) {
 	if strings.TrimSpace(source.Owner) == "" || strings.TrimSpace(source.Repo) == "" {
 		return FetchedGitHubSource{}, fmt.Errorf("GitHub source owner and repo are required")
 	}
@@ -118,14 +132,39 @@ func FetchGitHubSource(ctx context.Context, source GitHubSource, tempRoot string
 	if err == nil {
 		return fetched, nil
 	}
-	if !errors.Is(err, errGitHubReleaseUnavailable) {
+	if errors.Is(err, errGitHubReleaseUnavailable) &&
+		source.Ref != "" &&
+		!isLatestGitHubRef(source.Ref) &&
+		!strings.HasPrefix(source.Ref, "v") {
+		source.Ref = "v" + source.Ref
+		vFetched, vErr := fetchGitHubReleaseAsset(ctx, source, tempRoot)
+		if vErr == nil {
+			return vFetched, nil
+		}
+		if !errors.Is(vErr, errGitHubReleaseUnavailable) {
+			return FetchedGitHubSource{}, vErr
+		}
+	}
+	return FetchedGitHubSource{}, err
+}
+
+func FetchGitHubSourceClone(ctx context.Context, source GitHubSource, tempRoot string) (FetchedGitHubSource, error) {
+	if strings.TrimSpace(source.Owner) == "" || strings.TrimSpace(source.Repo) == "" {
+		return FetchedGitHubSource{}, fmt.Errorf("GitHub source owner and repo are required")
+	}
+	if tempRoot == "" {
+		tempRoot = os.TempDir()
+	}
+	if err := os.MkdirAll(tempRoot, 0o700); err != nil {
 		return FetchedGitHubSource{}, err
 	}
-
 	return fetchGitHubSourceClone(ctx, source, tempRoot)
 }
 
 func fetchGitHubReleaseAsset(ctx context.Context, source GitHubSource, tempRoot string) (FetchedGitHubSource, error) {
+	if isLatestGitHubRef(source.Ref) {
+		source.Ref = ""
+	}
 	release, err := getGitHubRelease(ctx, source)
 	if err != nil {
 		return FetchedGitHubSource{}, err
@@ -193,16 +232,12 @@ func fetchGitHubSourceClone(ctx context.Context, source GitHubSource, tempRoot s
 	}
 
 	cloneDir := filepath.Join(workDir, "repo")
-	args := []string{"clone", "--depth", "1"}
-	if source.Ref != "" {
-		args = append(args, "--branch", source.Ref)
-	}
-	args = append(args, source.CloneURL(), cloneDir)
-	if output, err := exec.CommandContext(ctx, "git", args...).CombinedOutput(); err != nil {
+	resolvedRef, err := cloneGitHubSource(ctx, source, cloneDir)
+	if err != nil {
 		cleanup()
-		return FetchedGitHubSource{}, fmt.Errorf("git clone %s failed: %w\n%s",
-			source.Repository(), err, strings.TrimSpace(string(output)))
+		return FetchedGitHubSource{}, err
 	}
+	source.Ref = resolvedRef
 
 	commit, err := gitOutput(ctx, cloneDir, "rev-parse", "HEAD")
 	if err != nil {
@@ -219,6 +254,43 @@ func fetchGitHubSourceClone(ctx context.Context, source GitHubSource, tempRoot s
 		ResolvedCommit: strings.TrimSpace(commit),
 		Cleanup:        cleanup,
 	}, nil
+}
+
+func cloneGitHubSource(ctx context.Context, source GitHubSource, cloneDir string) (string, error) {
+	if source.Ref == "" {
+		return "", shallowCloneGitHubSource(ctx, source, "", cloneDir)
+	}
+	if err := shallowCloneGitHubSource(ctx, source, source.Ref, cloneDir); err == nil {
+		return source.Ref, nil
+	}
+	if !strings.HasPrefix(source.Ref, "v") {
+		vRef := "v" + source.Ref
+		_ = os.RemoveAll(cloneDir)
+		if err := shallowCloneGitHubSource(ctx, source, vRef, cloneDir); err == nil {
+			return vRef, nil
+		}
+	}
+	_ = os.RemoveAll(cloneDir)
+	if err := fullCloneGitHubSource(ctx, source, cloneDir); err != nil {
+		return "", err
+	}
+	if err := gitRun(ctx, cloneDir, "checkout", "--detach", source.Ref); err != nil {
+		return "", fmt.Errorf("git checkout %s failed: %w", source.Ref, err)
+	}
+	return source.Ref, nil
+}
+
+func shallowCloneGitHubSource(ctx context.Context, source GitHubSource, ref, cloneDir string) error {
+	args := []string{"clone", "--depth", "1"}
+	if ref != "" {
+		args = append(args, "--branch", ref)
+	}
+	args = append(args, source.CloneURL(), cloneDir)
+	return gitRun(ctx, "", args...)
+}
+
+func fullCloneGitHubSource(ctx context.Context, source GitHubSource, cloneDir string) error {
+	return gitRun(ctx, "", "clone", source.CloneURL(), cloneDir)
 }
 
 type githubRelease struct {
@@ -412,6 +484,10 @@ func githubToken() string {
 		return token
 	}
 	return strings.TrimSpace(os.Getenv("GH_TOKEN"))
+}
+
+func isLatestGitHubRef(ref string) bool {
+	return strings.EqualFold(strings.TrimSpace(ref), "latest")
 }
 
 func extractGitHubReleaseArchive(archivePath, assetName, targetDir string) error {
@@ -653,6 +729,11 @@ func gitOutput(ctx context.Context, dir string, args ...string) (string, error) 
 	return strings.TrimSpace(string(output)), nil
 }
 
+func gitRun(ctx context.Context, dir string, args ...string) error {
+	_, err := gitOutput(ctx, dir, args...)
+	return err
+}
+
 func splitGitHubInlineRef(source string) (string, string) {
 	if strings.HasPrefix(source, "git@") || strings.Contains(source, "://") {
 		return source, ""
@@ -669,8 +750,8 @@ func splitGitHubInlineRef(source string) (string, string) {
 
 func parseGitHubOwnerRepo(source string) (string, string, bool) {
 	source = strings.TrimSpace(strings.TrimSuffix(source, ".git"))
-	if strings.HasPrefix(source, "git@github.com:") {
-		source = strings.TrimPrefix(source, "git@github.com:")
+	if after, ok := strings.CutPrefix(source, "git@github.com:"); ok {
+		source = after
 		return splitOwnerRepo(source)
 	}
 
@@ -682,8 +763,8 @@ func parseGitHubOwnerRepo(source string) (string, string, bool) {
 		return splitOwnerRepo(strings.TrimPrefix(parsed.Path, "/"))
 	}
 
-	if strings.HasPrefix(source, "github.com/") {
-		return splitOwnerRepo(strings.TrimPrefix(source, "github.com/"))
+	if after, ok := strings.CutPrefix(source, "github.com/"); ok {
+		return splitOwnerRepo(after)
 	}
 
 	return splitOwnerRepo(source)

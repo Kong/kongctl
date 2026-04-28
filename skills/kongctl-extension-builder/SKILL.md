@@ -74,12 +74,22 @@ Help users create a runnable `kongctl` CLI extension with a valid
    kongctl install extension <owner>/<repo> --ref <branch-or-tag>
    kongctl install extension <owner>/<repo>@<tag>
    kongctl install extension <owner>/<repo>@<tag> --yes
+   kongctl upgrade extension <publisher>/<name>
+   kongctl upgrade extension <publisher>/<name>@<tag-or-version> --yes
    ```
 
 When no compatible release archive exists, `kongctl install extension
 <owner>/<repo>` falls back to cloning the repository. Source fallback is only
 valid when the repository root already contains `extension.yaml` and an
 already-runnable script or binary referenced by `runtime.command`.
+
+For release-artifact installs, `kongctl upgrade extension <publisher>/<name>`
+selects the latest compatible GitHub release asset from the originally
+recorded repository. Add `@<tag-or-version>` to pin the upgrade target, for
+example `kongctl upgrade extension kong/debug@0.2.0`. A bare semantic version
+tries the exact release tag first and then a `v`-prefixed tag. Source-clone
+installs require an explicit `@<tag|ref|commit>` target because there is no
+stable "latest" release asset to resolve.
 
 Remote installs show a trust confirmation prompt with the selected source,
 asset or ref, runtime command, command paths, and package/manifest/runtime
