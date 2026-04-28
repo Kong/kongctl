@@ -184,7 +184,7 @@ committing to them early.
 
 Because these command paths can appear under built-in verbs, the trust boundary
 must stay visible in the UI. `kongctl get --help`, completion output, and
-inspection commands should visibly label extension-contributed entries with
+`kongctl get extension` should visibly label extension-contributed entries with
 their source extension. The command syntax should feel native, but provenance
 should never be hidden.
 
@@ -199,7 +199,7 @@ Available Commands:
   foo         Get Foo resources  [extension: acme/foo]
 ```
 
-And for inspection:
+And for extension detail:
 
 ```text
 $ kongctl get extension acme/foo
@@ -579,14 +579,14 @@ channel pinning can be added later if real workflows need it. Users who want a
 specific target should use an explicit target flag such as:
 
 ```text
-kongctl upgrade extension kong/foo --to v0.2.0
+kongctl upgrade extension kong/foo@v0.2.0
 ```
 
 For GitHub source fallback installs pinned to a commit SHA, `upgrade` without
 an explicit target should refuse because there is no safe moving ref to follow
 in install state. The user should provide an explicit tag, ref, or commit with
-`--to`, and `kongctl` should resolve that target to a concrete commit before
-prompting and writing state.
+an `@tag|ref|commit` selector, and `kongctl` should resolve that target to a
+concrete commit before prompting and writing state.
 
 For local path installs, `upgrade` should not infer a source of truth. The user
 should reinstall from the local path or use `link` for active local
@@ -1014,8 +1014,8 @@ Recommended coexistence model:
 
 - keep `install skills` for agent skills
 - add `install extension` for CLI extensions
-- mirror that pattern for `list`, `inspect`, `upgrade`, and `uninstall` where
-  it makes sense
+- mirror that pattern for `list`, `get`, `upgrade`, and `uninstall` where it
+  makes sense
 - share lifecycle UX conventions where useful, but do not force skills and
   extensions into the same runtime model
 
@@ -1272,7 +1272,7 @@ Heroku is useful as a "do later if needed" precedent, not as the first move.
 
 The big ideas worth borrowing are:
 
-- `install`, `link`, `inspect`, `update`
+- `install`, `link`, detail views, and update
 - structured migration and aliasing support
 - good local author workflow
 
@@ -1863,13 +1863,14 @@ Required v1 commands:
 - `kongctl install extension <source>`
 - `kongctl uninstall extension <extension-id>`
 - `kongctl upgrade extension <extension-id>`
+- `kongctl upgrade extension` and `kongctl upgrade extensions` for batch
+  upgrades
 - `kongctl list extensions`
 - `kongctl get extension <extension-id>`
 - `kongctl link extension <path>`
 
-Recommended but optional for the earliest cut:
+Recommended but optional for a later cut:
 
-- `kongctl upgrade extension --all`
 - `kongctl create extension <publisher>/<name>`
 - `kongctl search extensions`
 
@@ -1898,7 +1899,8 @@ Recommended install rules:
 8. release-artifact installs should pin to a concrete release tag by default;
    source fallback installs should pin to the resolved commit SHA
 9. remote installs should show a TOFU prompt with source, tag or ref, resolved
-   commit, asset identity, and package, manifest, and runtime hashes
+   commit, asset identity, executable, and package, manifest, and executable
+   hashes
 10. store source, selected tag or ref, resolved commit, package hash where
    available, manifest hash, runtime hash, upgrade policy, and trust
    confirmation so `upgrade` can reuse the same strategy
@@ -1909,7 +1911,7 @@ Recommended upgrade rules:
 1. GitHub release-artifact installs upgrade to the newest compatible release
    tag from the same repository after an explicit TOFU prompt
 2. GitHub source fallback installs pinned to a commit require an explicit
-   `--to` target for upgrade
+   `@tag|ref|commit` target for upgrade
 3. local path installs should be reinstalled or linked, not upgraded
 4. linked extensions do not use upgrade because they read from the linked
    working tree
@@ -2523,12 +2525,12 @@ The user experience should be boring and predictable.
 
 Recommended rules:
 
-1. `kongctl` owns installation, removal, upgrade, and inspection.
+1. `kongctl` owns installation, removal, upgrade, and detail views.
 2. Built-ins always win over extensions.
 3. Extension command path collisions are rejected.
 4. Extension-contributed commands are visibly labeled in help and completion.
 5. Upgrades are explicit, not silent.
-6. Local development links are clearly marked in `list` and `inspect`.
+6. Local development links are clearly marked in `list` and `get extension`.
 
 Example flow:
 
@@ -2601,7 +2603,8 @@ into a framework before the basic product loop is proven.
 - implement `KONGCTL_EXTENSION_CONTEXT` bootstrap
 - write runtime context files with private file and directory permissions
 - implement recursion guard with call-stack tracking and max depth
-- implement `install`, `uninstall`, `list`, `inspect`, `upgrade`, and `link`
+- implement `install`, `uninstall`, `list`, `get extension`, `upgrade`, and
+  `link`
 - support local path install and GitHub repo install
 - support GitHub release artifacts first, with source clone fallback only for
   already-runnable script or binary extensions
@@ -2609,9 +2612,9 @@ into a framework before the basic product loop is proven.
 - pin GitHub release-artifact installs to a concrete release tag by default
 - pin GitHub source fallback installs to the resolved commit SHA
 - define explicit upgrade semantics: release installs discover the newest
-  compatible release tag; source fallback upgrades require `--to`
+  compatible release tag; source fallback upgrades require `@tag|ref|commit`
 - show a TOFU install prompt with source, tag or ref, resolved commit, asset
-  identity, and package, manifest, and runtime hashes
+  identity, executable, and package, manifest, and executable hashes
 - record package, manifest, and runtime hashes and verify installed runtime
   hashes before dispatch
 
@@ -2670,13 +2673,13 @@ These decisions should be treated as settled for v1 implementation.
    install state records the selected tag, not `latest`. Source fallback
    installs pin to the resolved commit SHA.
 8. Remote installs use a TOFU prompt that shows source, tag or ref, resolved
-   commit when available, asset identity, package hash, manifest hash, runtime
-   command, and runtime hash before installation completes.
+   commit when available, asset identity, executable, package hash, manifest
+   hash, and executable hash before installation completes.
 9. `upgrade extension` has explicit source-specific behavior. GitHub release
    installs discover the newest compatible release tag from the same repository
    and prompt before changing state. GitHub source fallback installs require an
-   explicit `--to` target. Local path installs should be reinstalled or linked,
-   and linked extensions do not use upgrade.
+   explicit `@tag|ref|commit` target. Local path installs should be reinstalled
+   or linked, and linked extensions do not use upgrade.
 10. Release artifacts are archives whose root contains `kongctl-extension.yaml` and the
    runtime referenced by `runtime.command`.
 11. Archive extraction rejects absolute paths, `..` segments, hardlinks,
@@ -2756,7 +2759,7 @@ The concrete v1 recommendation is:
 4. represent command paths as arrays of segment objects with optional
    per-segment aliases
 5. visibly label extension-contributed command paths in help, completion, and
-   inspection output
+   `get extension` output
 6. use a minimal `kongctl-extension.yaml` with required `schema_version`, `publisher`,
    `name`, `runtime.command`, and `command_paths[].path`; rich command
    metadata is optional
@@ -2790,17 +2793,17 @@ The concrete v1 recommendation is:
 23. pin release-artifact installs to a concrete release tag by default; pin
     source fallback installs to the resolved commit SHA
 24. define explicit upgrade semantics: release installs discover the newest
-    compatible release tag; source fallback upgrades require `--to`; local
-    path installs are reinstalled or linked
+    compatible release tag; source fallback upgrades require
+    `@tag|ref|commit`; local path installs are reinstalled or linked
 25. show a TOFU install prompt with source, tag or ref, resolved commit, asset
-    identity, and package, manifest, and runtime hashes
+    identity, executable, and package, manifest, and executable hashes
 26. store package, manifest, and runtime hashes and verify installed runtime
     hashes before execution
 27. store installed extension state under the existing kongctl config home
 28. use `kongctl api` and small machine-friendly helpers as the standard
     low-level v1 host callback surface
 29. ship one script example and one Go example
-30. ship extension install, remove, list, inspect, upgrade, and link flows
+30. ship extension install, remove, list, get, upgrade, and link flows
 31. validate subprocess performance before locking the transport
 32. add a `kongctl-extension-builder` skill for coding-agent-assisted
     authoring

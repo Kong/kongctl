@@ -1,8 +1,8 @@
 ---
 name: kongctl-extension-builder
 description: Scaffold and maintain kongctl CLI extensions. Use when a user
-  wants to create a script or Go extension, define kongctl-extension.yaml command
-  paths, test install/link workflows, or debug extension context handling.
+  wants to create a script or Go extension, define extension command paths,
+  test install/link workflows, or debug extension context handling.
 license: Apache-2.0
 metadata:
   product: kongctl
@@ -84,6 +84,8 @@ workflows.
    kongctl upgrade extension <publisher>/<name>
    kongctl upgrade extension <owner>/<repo>
    kongctl upgrade extension <publisher>/<name>@<tag-or-version> --yes
+   kongctl upgrade extension
+   kongctl upgrade extensions
    ```
 
 When no compatible release archive exists, `kongctl install extension
@@ -101,8 +103,12 @@ version tries the exact release tag first and then a `v`-prefixed tag.
 Source-clone installs require an explicit `@<tag|ref|commit>` target because
 there is no stable "latest" release asset to resolve.
 
-Remote installs show a trust confirmation prompt with the selected source,
-asset or ref, runtime command, command paths, and package/manifest/runtime
+`kongctl upgrade extension` and `kongctl upgrade extensions` without a selector
+upgrade all installed GitHub release-asset extensions. Linked extensions, local
+path installs, and GitHub source-clone installs are skipped in batch mode.
+
+Remote installs show a trust warning prompt with the selected source, extension
+name, asset or ref, executable, command paths, and package/manifest/executable
 hashes. Use `--yes` for automated tests or release workflow verification.
 
 ## Minimal Manifest
@@ -202,8 +208,9 @@ jobs:
             go build -o dist/package/bin/kongctl-ext-foo ./cmd/kongctl-ext-foo
           cp kongctl-extension.yaml README.md dist/package/
           chmod +x dist/package/bin/kongctl-ext-foo
-          tar -C dist/package -czf \
-            dist/kongctl-ext-foo-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
+          archive="dist/kongctl-ext-foo-${{ matrix.goos }}-"
+          archive="${archive}${{ matrix.goarch }}.tar.gz"
+          tar -C dist/package -czf "$archive" \
             kongctl-extension.yaml README.md bin/kongctl-ext-foo
       - uses: softprops/action-gh-release@v2
         with:

@@ -2,6 +2,9 @@
 
 This extension contributes `kongctl get hello-go`.
 
+For the full extension builder guide, see
+[docs/extensions.md](../../../extensions.md).
+
 Build the runtime before installing or linking. `kongctl` does not compile
 extension source during install.
 

@@ -3,6 +3,9 @@
 This extension contributes `kongctl get debug-info` and
 `kongctl print-debug-info`.
 
+For the full extension builder guide, see
+[docs/extensions.md](../../../extensions.md).
+
 ```sh
 chmod +x docs/examples/extensions/script/kongctl-ext-debug
 kongctl link extension docs/examples/extensions/script
