@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -229,14 +230,12 @@ func validateProducePolicyTypeField(raw map[string]any) error {
 		string(kkComps.EventGatewayProducePolicyCreateTypeSchemaValidation),
 		string(kkComps.EventGatewayProducePolicyCreateTypeEncrypt),
 	}
+	validTypesFmt := "[" + strings.Join(validTypes, ", ") + "]"
 
 	// Validate policy type
 	policyType, hasType := raw["type"]
 	if !hasType {
-		return fmt.Errorf(
-			"produce policy requires 'type' field (one of: '%s', '%s', '%s')",
-			validTypes[0], validTypes[1], validTypes[2],
-		)
+		return fmt.Errorf("produce policy requires 'type' field (one of: %s)", validTypesFmt)
 	}
 
 	policyTypeStr, ok := policyType.(string)
@@ -245,10 +244,7 @@ func validateProducePolicyTypeField(raw map[string]any) error {
 	}
 
 	if !slices.Contains(validTypes, policyTypeStr) {
-		return fmt.Errorf(
-			"produce policy 'type' must be one of '%s', '%s', or '%s', got '%s'",
-			validTypes[0], validTypes[1], validTypes[2], policyTypeStr,
-		)
+		return fmt.Errorf("produce policy 'type' must be one of %s, got %q", validTypesFmt, policyTypeStr)
 	}
 
 	return nil
