@@ -49,9 +49,10 @@ does not isolate credentials from the extension process.
 Extensions can "re-enter" `kongctl` as another child process and it will
 reload the same context file. This gives extensions a standard way to invoke
 `kongctl api` or other built-in `kongctl` commands while keeping the same
-resolved invocation. We will avoid building a Go SDK too early. It is not
-required for the first implementation and can be added later if repeated
-extension patterns justify it.
+resolved invocation. Go-based extensions can also use the public
+`github.com/kong/kongctl/pkg/sdk` package to load the same runtime context,
+create an authenticated `sdk-konnect-go` client, run reentrant `kongctl`
+commands, and render output using the parent command's output settings.
 
 ## Proposed Design
 
@@ -89,7 +90,7 @@ The proposed design is driven by the following goals:
 | Runtime context transport | `KONGCTL_EXTENSION_CONTEXT` |
 | Runtime context file | `context.json` |
 | Nested host callbacks | Re-enter `kongctl` as a subprocess |
-| v1 Go SDK | Not required |
+| v1 Go SDK | Public `pkg/sdk` helper for Go extensions |
 | Performance gate | Validate subprocess cost before locking implementation |
 | Secrets in context | Never include them |
 | Credential access | Extensions get effective `kongctl` credential access |
@@ -884,27 +885,23 @@ host bridge, the extension would need to reproduce `kongctl`'s token
 resolution, refresh handling, timeout settings, transport options, and client
 construction itself.
 
-### 13. Defer A Go SDK Until It Is Clearly Needed
+### 13. Provide A Narrow Go Extension SDK
 
-The design does not need to require a Go SDK in the first implementation.
+Go-based extensions should not import `internal/...` packages or recreate
+kongctl auth and output behavior themselves. The v1 branch provides a public
+`github.com/kong/kongctl/pkg/sdk` package with a narrow author-facing surface:
 
-Go-based extensions can still be supported in v1 without a host-owned SDK:
+- load `KONGCTL_EXTENSION_CONTEXT`
+- read remaining extension arguments and extension data directory
+- create an authenticated `sdk-konnect-go` client from the same profile,
+  base URL, token source, timeout, and transport settings as the parent
+- run reentrant `kongctl` commands with the inherited runtime context
+- render output using the parent `--output`, `--jq`, `--jq-raw-output`, and
+  jq color settings
 
-- they can read `context.json` directly
-- they can invoke `kongctl api` and other helper commands directly
-- they can import `sdk-konnect-go` themselves when they want richer typed API
-  access
-
-However, the third option currently has a real gap. Importing
-`sdk-konnect-go` directly does not automatically give the extension the same
-authorization, profile, refresh-token handling, timeout settings, transport
-options, or logging behavior that `kongctl` uses internally. If the extension
-does not re-enter `kongctl`, it would need to recreate that client setup
-itself.
-
-If a clear repeated pattern emerges across real extensions, `kongctl` can add a
-small helper library later. That library should be justified by actual author
-pain, not added speculatively.
+This package is intentionally a facade, not a public export of kongctl's
+internal command framework. Exported types should remain small and stable so
+the package can move to a separate module later if needed.
 
 ### 14. Add Cleanup And Recursion Protection From The Start
 
@@ -2320,27 +2317,17 @@ host bridge, the extension would need to reproduce `kongctl`'s token
 resolution, refresh handling, timeout settings, transport options, and client
 construction itself.
 
-### 9. Defer A Go SDK Until It Is Clearly Needed
+### 9. Provide A Narrow Go Extension SDK
 
-The design does not need to require a Go SDK in the first implementation.
+Go extensions can use `github.com/kong/kongctl/pkg/sdk` instead of parsing
+`context.json`, rebuilding auth, or hand-rolling output behavior. The package
+loads the runtime context, creates a configured `sdk-konnect-go` client, runs
+reentrant `kongctl` commands, and renders output with parent output and jq
+settings.
 
-Go-based extensions can still be supported in v1 without a host-owned SDK:
-
-- they can read `context.json` directly
-- they can invoke `kongctl api` and other helper commands directly
-- they can import `sdk-konnect-go` themselves when they want richer typed API
-  access
-
-However, the third option currently has a real gap. Importing
-`sdk-konnect-go` directly does not automatically give the extension the same
-authorization, profile, refresh-token handling, timeout settings, transport
-options, or logging behavior that `kongctl` uses internally. If the extension
-does not re-enter `kongctl`, it would need to recreate that client setup
-itself.
-
-If a clear repeated pattern emerges across real extensions, `kongctl` can add a
-small helper library later. That library should be justified by actual author
-pain, not added speculatively.
+The SDK should remain a thin facade over stable extension concepts. It should
+not expose internal command construction, storage, or lifecycle machinery as a
+public compatibility promise.
 
 ### 10. Example Extensions
 
@@ -2502,22 +2489,19 @@ simple wrappers and lightweight task automation. Once an extension owns
 multiple command paths, richer help metadata, or non-trivial flag parsing, the
 Go-based authoring is likely to be the more maintainable path.
 
-### Why a Go SDK might come later
+### Why The Go SDK Stays Narrow
 
-Once several Go-based extensions are repeating the same logic around:
+The Go SDK should solve repeated extension-author friction without becoming a
+second public command framework. Its first responsibilities are:
 
 - loading `context.json`
 - invoking session-aware `kongctl` helpers
 - constructing authenticated Konnect clients
-- decoding repeated response shapes
+- rendering output with parent output and jq settings
 
-then a small helper library may become worthwhile. Until that pattern is clear,
-the first release does not need to commit to shipping one.
-
-The strongest signal would be repeated extension code that is rebuilding the
-same `sdk-konnect-go` client wiring from resolved config and auth state. That
-would indicate `kongctl` should provide a narrow bridge for authenticated client
-construction rather than forcing each extension to rediscover it.
+The package should grow only when real extensions repeat the same integration
+code. Broader host protocols, lifecycle hooks, or command construction APIs can
+remain future work until concrete use cases justify them.
 
 ## End-User Experience Recommendations
 
@@ -2644,7 +2628,7 @@ into a framework before the basic product loop is proven.
 - add richer structured output helpers if needed
 - evaluate JSON-RPC over stdio or a local socket if extension callback volume
   needs a faster backend
-- add a small Go helper library only if repeated extension patterns justify it
+- evolve `pkg/sdk` only when real extension authoring patterns justify it
 - only add lifecycle hooks if concrete use cases justify them
 
 ## Resolved Implementation Decisions

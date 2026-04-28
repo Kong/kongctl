@@ -1,67 +1,69 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
+
+	"github.com/kong/kongctl/pkg/sdk"
 )
 
-type extensionContext struct {
-	MatchedCommandPath struct {
-		ID          string   `json:"id"`
-		ExtensionID string   `json:"extension_id"`
-		Path        []string `json:"path"`
-	} `json:"matched_command_path"`
-	Resolved struct {
-		Profile          string `json:"profile"`
-		BaseURL          string `json:"base_url"`
-		Output           string `json:"output"`
-		ExtensionDataDir string `json:"extension_data_dir"`
-	} `json:"resolved"`
-	Host struct {
-		KongctlPath string `json:"kongctl_path"`
-	} `json:"host"`
+type userDisplayRecord struct {
+	ID      string `json:"id"      yaml:"id"`
+	Email   string `json:"email"   yaml:"email"`
+	Name    string `json:"name"    yaml:"name"`
+	Active  string `json:"active"  yaml:"active"`
+	Profile string `json:"profile" yaml:"profile"`
 }
 
 func main() {
-	contextPath := os.Getenv("KONGCTL_EXTENSION_CONTEXT")
-	if contextPath == "" {
-		fmt.Fprintln(os.Stderr, "KONGCTL_EXTENSION_CONTEXT is not set")
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
 
-	file, err := os.Open(contextPath)
+func run() error {
+	runtimeCtx, err := sdk.LoadRuntimeContextFromEnv()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "open context: %v\n", err)
-		os.Exit(1)
-	}
-	defer file.Close()
-
-	var ctx extensionContext
-	if err := json.NewDecoder(file).Decode(&ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "decode context: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
-	fmt.Fprintf(os.Stderr, "extension=%s\n", ctx.MatchedCommandPath.ExtensionID)
-	fmt.Fprintf(os.Stderr, "profile=%s\n", ctx.Resolved.Profile)
-	fmt.Fprintf(os.Stderr, "base_url=%s\n", ctx.Resolved.BaseURL)
-	fmt.Fprintf(os.Stderr, "data_dir=%s\n", ctx.Resolved.ExtensionDataDir)
-	fmt.Fprintf(os.Stderr, "args=%v\n", os.Args[1:])
+	ctx := context.Background()
+	konnect, err := runtimeCtx.KonnectSDK(ctx)
+	if err != nil {
+		return fmt.Errorf("create Konnect SDK client: %w", err)
+	}
 
-	kongctlPath := ctx.Host.KongctlPath
-	if kongctlPath == "" {
-		kongctlPath = "kongctl"
+	res, err := konnect.Me.GetUsersMe(ctx)
+	if err != nil {
+		return fmt.Errorf("get current user: %w", err)
 	}
-	command := exec.Command(kongctlPath, "get", "me")
-	command.Stdin = os.Stdin
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	command.Env = os.Environ()
-	if err := command.Run(); err != nil {
-		fmt.Fprintf(os.Stderr,
-			"kongctl get me failed; authenticate with kongctl login or provide a Konnect PAT to try the reentrant call: %v\n",
-			err)
+	user := res.GetUser()
+	if user == nil {
+		return fmt.Errorf("current user response did not include a user")
 	}
+
+	record := userDisplayRecord{
+		ID:      "n/a",
+		Email:   "n/a",
+		Name:    "n/a",
+		Active:  "n/a",
+		Profile: runtimeCtx.Resolved.Profile,
+	}
+
+	if user.ID != nil && *user.ID != "" {
+		record.ID = *user.ID
+	}
+	if user.Email != nil && *user.Email != "" {
+		record.Email = *user.Email
+	}
+	if user.FullName != nil && *user.FullName != "" {
+		record.Name = *user.FullName
+	}
+	if user.Active != nil {
+		record.Active = fmt.Sprintf("%t", *user.Active)
+	}
+
+	return runtimeCtx.Output().Render(record, user)
 }

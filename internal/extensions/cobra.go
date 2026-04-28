@@ -9,6 +9,7 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/meta"
@@ -198,6 +199,7 @@ func configureTerminalCommand(command *cobra.Command, ext Extension, contributio
 	command.Example = strings.Join(contribution.Examples, "\n")
 	command.DisableFlagParsing = true
 	command.SilenceUsage = true
+	ensureExtensionHostFlags(command)
 	if command.Annotations == nil {
 		command.Annotations = map[string]string{}
 	}
@@ -312,6 +314,31 @@ func SplitExtensionArgs(command *cobra.Command, args []string, cfg config.Hook) 
 	return result, nil
 }
 
+func ensureExtensionHostFlags(command *cobra.Command) {
+	if findFlag(command, jqoutput.FlagName) != nil {
+		return
+	}
+	jqoutput.AddFlags(command.Flags())
+}
+
+func findFlag(command *cobra.Command, name string) *pflag.Flag {
+	for current := command; current != nil; current = current.Parent() {
+		for _, flags := range []*pflag.FlagSet{
+			current.Flags(),
+			current.PersistentFlags(),
+			current.InheritedFlags(),
+		} {
+			if flags == nil {
+				continue
+			}
+			if flag := flags.Lookup(name); flag != nil {
+				return flag
+			}
+		}
+	}
+	return nil
+}
+
 func longFlagValue(args []string, index int, name string) (string, int, error) {
 	next := index + 1
 	if next >= len(args) {
@@ -375,6 +402,9 @@ func PrintExtensionHelp(w io.Writer, extensionID string, contribution CommandPat
 			}
 		}
 	}
+	if err := printExtensionHostFlags(w); err != nil {
+		return err
+	}
 	if len(contribution.Examples) > 0 {
 		if _, err := fmt.Fprintln(w, "\nExamples:"); err != nil {
 			return err
@@ -388,12 +418,50 @@ func PrintExtensionHelp(w io.Writer, extensionID string, contribution CommandPat
 	return nil
 }
 
+func printExtensionHostFlags(w io.Writer) error {
+	hostFlags := []struct {
+		flag        string
+		description string
+	}{
+		{"-o, --output string", "Output format: text, json, or yaml"},
+		{"--jq string", "Filter JSON or YAML output using a jq expression"},
+		{"-r, --jq-raw-output", "Output string jq results without JSON quotes"},
+		{"--jq-color string", "Color mode for jq output: auto, always, or never"},
+		{"--jq-color-theme string", "Color theme for jq output"},
+		{"-p, --profile string", "Configuration profile to use"},
+		{"--color-theme string", "kongctl color theme"},
+	}
+	if _, err := fmt.Fprintln(w, "\nHost Flags:"); err != nil {
+		return err
+	}
+	for _, hostFlag := range hostFlags {
+		if _, err := fmt.Fprintf(w, "  %s\t%s\n", hostFlag.flag, hostFlag.description); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func collectHostFlags(command *cobra.Command) *pflag.FlagSet {
 	flags := pflag.NewFlagSet(command.Name(), pflag.ContinueOnError)
 	flags.SortFlags = false
+	addFlags := func(source *pflag.FlagSet) {
+		if source == nil {
+			return
+		}
+		source.VisitAll(func(flag *pflag.Flag) {
+			if flags.Lookup(flag.Name) != nil {
+				return
+			}
+			if flag.Shorthand != "" && flags.ShorthandLookup(flag.Shorthand) != nil {
+				return
+			}
+			flags.AddFlag(flag)
+		})
+	}
 	for current := command; current != nil; current = current.Parent() {
-		flags.AddFlagSet(current.LocalNonPersistentFlags())
-		flags.AddFlagSet(current.PersistentFlags())
+		addFlags(current.LocalNonPersistentFlags())
+		addFlags(current.PersistentFlags())
 	}
 	return flags
 }
@@ -414,6 +482,18 @@ func applyHostFlag(flag *pflag.Flag, value string, cfg config.Hook, result *Spli
 		cfg.SetString(cmdcommon.LogFileConfigPath, value)
 	case cmdcommon.ColorThemeFlagName:
 		cfg.SetString(cmdcommon.ColorThemeConfigPath, value)
+	case jqoutput.FlagName:
+		cfg.SetString(jqoutput.DefaultExpressionConfigPath, value)
+	case jqoutput.ColorFlagName:
+		cfg.SetString(jqoutput.ColorEnabledConfigPath, value)
+	case jqoutput.ColorThemeFlagName:
+		cfg.SetString(jqoutput.ColorThemeConfigPath, value)
+	case jqoutput.RawOutputFlagName:
+		rawOutput, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Set(jqoutput.RawOutputConfigPath, rawOutput)
 	case konnectcommon.BaseURLFlagName:
 		cfg.SetString(konnectcommon.BaseURLConfigPath, value)
 	case konnectcommon.RegionFlagName:
