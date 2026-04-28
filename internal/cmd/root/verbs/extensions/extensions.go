@@ -41,8 +41,9 @@ type linkExtensionOptions struct {
 }
 
 type upgradeExtensionOptions struct {
-	id string
-	to string
+	id     string
+	target string
+	yes    bool
 }
 
 func NewInstallExtensionCmd() *cobra.Command {
@@ -162,15 +163,20 @@ func newUninstallExtensionCmd() *cobra.Command {
 func newUpgradeExtensionCmd() *cobra.Command {
 	opts := &upgradeExtensionOptions{}
 	cmd := &cobra.Command{
-		Use:   "extension <publisher/name>",
+		Use:   "extension <publisher/name[@tag|ref|version]>",
 		Short: i18n.T("root.verbs.upgrade.extension.short", "Upgrade a kongctl CLI extension"),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			opts.id = args[0]
+			id, target, err := parseUpgradeExtensionTarget(args[0])
+			if err != nil {
+				return &cmdpkg.ConfigurationError{Err: err}
+			}
+			opts.id = id
+			opts.target = target
 			return runUpgradeExtension(command, args, *opts)
 		},
 	}
-	cmd.Flags().StringVar(&opts.to, "to", "", "Explicit tag, ref, or version target for source-backed upgrades.")
+	cmd.Flags().BoolVar(&opts.yes, "yes", false, "Accept the remote extension trust prompt.")
 	return cmd
 }
 
@@ -343,18 +349,269 @@ func runUpgradeExtension(command *cobra.Command, args []string, opts upgradeExte
 			"extension %s is linked; linked extensions read directly from the linked working tree", ext.ID,
 		)}
 	}
-	if ext.Install != nil && ext.Install.Source.Type == "local_path" {
+	if ext.Install == nil {
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf("extension %s is missing install metadata", ext.ID)}
+	}
+	switch ext.Install.Source.Type {
+	case extensioncore.SourceTypeLocalPath:
 		return &cmdpkg.ConfigurationError{Err: fmt.Errorf(
 			"extension %s was installed from a local path; reinstall it from the source path to upgrade", ext.ID,
 		)}
+	case extensioncore.SourceTypeGitHubReleaseAsset:
+		return runUpgradeGitHubReleaseExtension(command, args, store, ext, opts)
+	case extensioncore.SourceTypeGitHubSource, "":
+		return runUpgradeGitHubSourceExtension(command, args, store, ext, opts)
+	default:
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf(
+			"extension %s has unsupported source type %q", ext.ID, ext.Install.Source.Type,
+		)}
 	}
-	return &cmdpkg.ConfigurationError{Err: errors.New(
-		"remote extension upgrade is not implemented yet",
-	)}
+}
+
+func runUpgradeGitHubReleaseExtension(
+	command *cobra.Command,
+	args []string,
+	store extensioncore.Store,
+	current extensioncore.Extension,
+	opts upgradeExtensionOptions,
+) error {
+	helper := cmdpkg.BuildHelper(command, args)
+	repository := strings.TrimSpace(current.Install.Source.Repository)
+	if repository == "" {
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf(
+			"extension %s is missing its GitHub repository; reinstall it before upgrading", current.ID,
+		)}
+	}
+	target := normalizedUpgradeTarget(opts.target)
+	githubSource, ok, err := extensioncore.ParseGitHubSource(repository, target)
+	if err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
+	if !ok {
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf(
+			"extension %s has invalid GitHub repository %q", current.ID, repository,
+		)}
+	}
+
+	fetched, err := extensioncore.FetchGitHubReleaseAsset(helper.GetContext(), githubSource, store.TempDir())
+	if err != nil {
+		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to fetch GitHub release artifact", err)
+	}
+	defer fetched.Cleanup()
+
+	candidate, observation, err := validateRemoteUpgradeCandidate(command, current, fetched.Dir)
+	if err != nil {
+		return err
+	}
+	if extensionPackageMatchesInstall(current, fetched, observation) {
+		result := installResultFromExtension(current)
+		return writeCommandResult(helper, result, func() error {
+			return writeUpgradeUpToDateSummary(helper.GetStreams().Out, current)
+		})
+	}
+
+	trustConfirmed, err := confirmRemoteUpgradeTrust(helper, current, fetched, candidate, observation, opts.yes)
+	if err != nil {
+		return err
+	}
+	version, err := cliVersion(helper)
+	if err != nil {
+		return err
+	}
+	result, err := store.InstallGitHubSource(fetched.Dir, fetched, version, time.Now(), trustConfirmed)
+	if err != nil {
+		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to upgrade extension", err)
+	}
+	return writeCommandResult(helper, result, func() error {
+		return writeUpgradeSummary(helper.GetStreams().Out, result.Extension, current)
+	})
+}
+
+func runUpgradeGitHubSourceExtension(
+	command *cobra.Command,
+	args []string,
+	store extensioncore.Store,
+	current extensioncore.Extension,
+	opts upgradeExtensionOptions,
+) error {
+	helper := cmdpkg.BuildHelper(command, args)
+	if normalizedUpgradeTarget(opts.target) == "" {
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf(
+			"extension %s was installed from a GitHub source clone; upgrade it with %s upgrade extension %s@<tag|ref|commit>",
+			current.ID,
+			meta.CLIName,
+			current.ID,
+		)}
+	}
+	repository := strings.TrimSpace(current.Install.Source.Repository)
+	if repository == "" {
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf(
+			"extension %s is missing its GitHub repository; reinstall it before upgrading", current.ID,
+		)}
+	}
+	githubSource, ok, err := extensioncore.ParseGitHubSource(repository, opts.target)
+	if err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
+	if !ok {
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf(
+			"extension %s has invalid GitHub repository %q", current.ID, repository,
+		)}
+	}
+
+	fetched, err := extensioncore.FetchGitHubSourceClone(helper.GetContext(), githubSource, store.TempDir())
+	if err != nil {
+		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to fetch GitHub source", err)
+	}
+	defer fetched.Cleanup()
+
+	candidate, observation, err := validateRemoteUpgradeCandidate(command, current, fetched.Dir)
+	if err != nil {
+		return err
+	}
+	if extensionPackageMatchesInstall(current, fetched, observation) {
+		result := installResultFromExtension(current)
+		return writeCommandResult(helper, result, func() error {
+			return writeUpgradeUpToDateSummary(helper.GetStreams().Out, current)
+		})
+	}
+
+	trustConfirmed, err := confirmRemoteUpgradeTrust(helper, current, fetched, candidate, observation, opts.yes)
+	if err != nil {
+		return err
+	}
+	version, err := cliVersion(helper)
+	if err != nil {
+		return err
+	}
+	result, err := store.InstallGitHubSource(fetched.Dir, fetched, version, time.Now(), trustConfirmed)
+	if err != nil {
+		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to upgrade extension", err)
+	}
+	return writeCommandResult(helper, result, func() error {
+		return writeUpgradeSummary(helper.GetStreams().Out, result.Extension, current)
+	})
+}
+
+func validateRemoteUpgradeCandidate(
+	command *cobra.Command,
+	current extensioncore.Extension,
+	sourceRoot string,
+) (extensioncore.Extension, extensioncore.PackageObservation, error) {
+	candidate, err := extensioncore.LoadLocalExtension(sourceRoot, extensioncore.InstallTypeInstalled)
+	if err != nil {
+		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{Err: err}
+	}
+	if candidate.ID != current.ID {
+		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{Err: fmt.Errorf(
+			"upgrade candidate id %q does not match installed extension %q", candidate.ID, current.ID,
+		)}
+	}
+	if err := extensioncore.ValidateExtensionCommands(command.Root(), candidate); err != nil {
+		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{Err: err}
+	}
+	observation, err := extensioncore.ObservePackage(sourceRoot)
+	if err != nil {
+		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{Err: err}
+	}
+	return candidate, observation, nil
+}
+
+func extensionPackageMatchesInstall(
+	current extensioncore.Extension,
+	fetched extensioncore.FetchedGitHubSource,
+	observation extensioncore.PackageObservation,
+) bool {
+	if current.Install == nil {
+		return false
+	}
+	switch fetched.SourceType {
+	case extensioncore.SourceTypeGitHubReleaseAsset:
+		currentTag := current.Install.Source.ReleaseTag
+		if currentTag == "" {
+			currentTag = current.Install.Source.Ref
+		}
+		targetTag := fetched.ReleaseTag
+		if targetTag == "" {
+			targetTag = fetched.Ref
+		}
+		return currentTag != "" &&
+			currentTag == targetTag &&
+			current.Install.PackageHash != "" &&
+			current.Install.PackageHash == observation.PackageHash
+	case extensioncore.SourceTypeGitHubSource:
+		return fetched.ResolvedCommit != "" &&
+			current.Install.Source.ResolvedCommit == fetched.ResolvedCommit &&
+			current.Install.PackageHash != "" &&
+			current.Install.PackageHash == observation.PackageHash
+	default:
+		return false
+	}
+}
+
+func installResultFromExtension(ext extensioncore.Extension) extensioncore.InstallResult {
+	result := extensioncore.InstallResult{Extension: ext}
+	if ext.Install != nil {
+		result.ManifestHash = ext.Install.ManifestHash
+		result.RuntimeHash = ext.Install.RuntimeHash
+		result.PackageHash = ext.Install.PackageHash
+	}
+	return result
+}
+
+func parseUpgradeExtensionTarget(value string) (string, string, error) {
+	value = strings.TrimSpace(value)
+	id, target, hasTarget := strings.Cut(value, "@")
+	id = strings.TrimSpace(id)
+	target = strings.TrimSpace(target)
+	if id == "" {
+		return "", "", fmt.Errorf("extension id is required")
+	}
+	if err := extensioncore.ValidateExtensionID(id); err != nil {
+		return "", "", err
+	}
+	if hasTarget && target == "" {
+		return "", "", fmt.Errorf("extension upgrade target is required after @")
+	}
+	if strings.Contains(target, "@") {
+		return "", "", fmt.Errorf("extension upgrade target must not contain @")
+	}
+	return id, target, nil
+}
+
+func normalizedUpgradeTarget(target string) string {
+	target = strings.TrimSpace(target)
+	if strings.EqualFold(target, "latest") {
+		return ""
+	}
+	return target
 }
 
 func confirmRemoteInstallTrust(
 	helper cmdpkg.Helper,
+	fetched extensioncore.FetchedGitHubSource,
+	candidate extensioncore.Extension,
+	observation extensioncore.PackageObservation,
+	yes bool,
+) (bool, error) {
+	return confirmRemoteExtensionTrust(helper, "install", nil, fetched, candidate, observation, yes)
+}
+
+func confirmRemoteUpgradeTrust(
+	helper cmdpkg.Helper,
+	current extensioncore.Extension,
+	fetched extensioncore.FetchedGitHubSource,
+	candidate extensioncore.Extension,
+	observation extensioncore.PackageObservation,
+	yes bool,
+) (bool, error) {
+	return confirmRemoteExtensionTrust(helper, "upgrade", &current, fetched, candidate, observation, yes)
+}
+
+func confirmRemoteExtensionTrust(
+	helper cmdpkg.Helper,
+	action string,
+	current *extensioncore.Extension,
 	fetched extensioncore.FetchedGitHubSource,
 	candidate extensioncore.Extension,
 	observation extensioncore.PackageObservation,
@@ -365,12 +622,13 @@ func confirmRemoteInstallTrust(
 	}
 	if explicitOutputRequested(helper.GetCmd()) {
 		return false, &cmdpkg.ConfigurationError{Err: fmt.Errorf(
-			"remote extension install confirmation is not available with structured output; use --yes to accept",
+			"remote extension %s confirmation is not available with structured output; use --yes to accept",
+			action,
 		)}
 	}
 
 	streams := helper.GetStreams()
-	if err := writeRemoteInstallTrustPrompt(streams.Out, fetched, candidate, observation); err != nil {
+	if err := writeRemoteTrustPrompt(streams.Out, action, current, fetched, candidate, observation); err != nil {
 		return false, err
 	}
 
@@ -404,22 +662,24 @@ func confirmRemoteInstallTrust(
 
 	select {
 	case <-ctx.Done():
-		return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension install cancelled")
+		return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension "+action+" cancelled")
 	case <-sigCh:
-		return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension install cancelled")
+		return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension "+action+" cancelled")
 	case err := <-errCh:
 		_ = err
-		return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension install cancelled")
+		return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension "+action+" cancelled")
 	case line := <-lineCh:
 		if strings.ToLower(strings.TrimSpace(line)) != "yes" {
-			return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension install cancelled")
+			return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension "+action+" cancelled")
 		}
 		return true, nil
 	}
 }
 
-func writeRemoteInstallTrustPrompt(
+func writeRemoteTrustPrompt(
 	w io.Writer,
+	action string,
+	current *extensioncore.Extension,
 	fetched extensioncore.FetchedGitHubSource,
 	candidate extensioncore.Extension,
 	observation extensioncore.PackageObservation,
@@ -434,11 +694,17 @@ func writeRemoteInstallTrustPrompt(
 		return err
 	}
 	if _, err := fmt.Fprintln(w,
-		"  This extension is executable code. Install it only if you trust the source and reviewed the package.",
+		"  This extension is executable code. "+remoteTrustActionTitle(action)+
+			" it only if you trust the source and reviewed the package.",
 	); err != nil {
 		return err
 	}
-	writeField(w, ui, "Source", installSourceLabel(source, fetched.Repository))
+	if current != nil && current.Install != nil {
+		writeField(w, ui, "Current", installSourceLabel(current.Install.Source, current.ID))
+		writeField(w, ui, "Target", installSourceLabel(source, fetched.Repository))
+	} else {
+		writeField(w, ui, "Source", installSourceLabel(source, fetched.Repository))
+	}
 	writeField(w, ui, "Source type", remoteSourceTypeLabel(fetched.SourceType))
 	writeOptionalField(w, ui, "Release tag", fetched.ReleaseTag)
 	if fetched.SourceType != extensioncore.SourceTypeGitHubReleaseAsset {
@@ -453,8 +719,15 @@ func writeRemoteInstallTrustPrompt(
 	writeField(w, ui, "Manifest SHA256", observation.ManifestHash)
 	writeField(w, ui, "Runtime SHA256", observation.RuntimeHash)
 	writeCommands(w, ui, candidate.CommandPaths)
-	_, err := fmt.Fprint(w, "\nDo you want to install this extension? Type 'yes' to confirm: ")
+	_, err := fmt.Fprintf(w, "\nDo you want to %s this extension? Type 'yes' to confirm: ", action)
 	return err
+}
+
+func remoteTrustActionTitle(action string) string {
+	if action == "" {
+		return "Install"
+	}
+	return strings.ToUpper(action[:1]) + action[1:]
 }
 
 func remoteSourceTypeLabel(sourceType string) string {
@@ -629,6 +902,44 @@ func writeUninstallSummary(w io.Writer, result extensioncore.UninstallResult) er
 	} else {
 		writeField(w, ui, "Data", "preserved")
 	}
+	return nil
+}
+
+func writeUpgradeSummary(w io.Writer, upgraded, previous extensioncore.Extension) error {
+	ui := extensionUI()
+	if _, err := fmt.Fprintf(w, "%s %s %s\n",
+		ui.success.Render("✓"),
+		ui.strong.Render("Upgraded"),
+		upgraded.ID,
+	); err != nil {
+		return err
+	}
+	if previous.Install != nil {
+		writeField(w, ui, "From", installSourceLabel(previous.Install.Source, previous.ID))
+	}
+	if upgraded.Install != nil {
+		writeField(w, ui, "To", installSourceLabel(upgraded.Install.Source, upgraded.ID))
+		writeOptionalField(w, ui, "Asset", upgraded.Install.Source.AssetName)
+	}
+	writeField(w, ui, "Runtime", upgraded.Manifest.Runtime.Command)
+	writeOptionalField(w, ui, "Version", upgraded.Manifest.Version)
+	writeCommands(w, ui, upgraded.CommandPaths)
+	return nil
+}
+
+func writeUpgradeUpToDateSummary(w io.Writer, ext extensioncore.Extension) error {
+	ui := extensionUI()
+	if _, err := fmt.Fprintf(w, "%s %s %s\n",
+		ui.success.Render("✓"),
+		ui.strong.Render("Extension is up to date"),
+		ext.ID,
+	); err != nil {
+		return err
+	}
+	if ext.Install != nil {
+		writeField(w, ui, "Current", installSourceLabel(ext.Install.Source, ext.ID))
+	}
+	writeOptionalField(w, ui, "Version", ext.Manifest.Version)
 	return nil
 }
 

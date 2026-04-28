@@ -159,6 +159,86 @@ func TestFetchGitHubSourcePrefersReleaseAsset(t *testing.T) {
 	require.NotZero(t, runtimeInfo.Mode().Perm()&0o111)
 }
 
+func TestFetchGitHubReleaseAssetFallsBackToVPrefixedTag(t *testing.T) {
+	archive := testReleaseTarGzip(t)
+
+	var requested []string
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requested = append(requested, r.URL.Path)
+		switch r.URL.Path {
+		case "/repos/kong/kongctl-ext-foo/releases/tags/0.2.0":
+			http.NotFound(w, r)
+		case "/repos/kong/kongctl-ext-foo/releases/tags/v0.2.0":
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(githubRelease{
+				TagName: "v0.2.0",
+				Assets: []githubReleaseAsset{
+					{
+						Name:        "kongctl-ext-foo.tar.gz",
+						DownloadURL: server.URL + "/downloads/kongctl-ext-foo.tar.gz",
+					},
+				},
+			}))
+		case "/downloads/kongctl-ext-foo.tar.gz":
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write(archive)
+			require.NoError(t, err)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	previousAPIBaseURL := githubAPIBaseURL
+	previousHTTPClient := githubHTTPClient
+	githubAPIBaseURL = server.URL
+	githubHTTPClient = server.Client()
+	t.Cleanup(func() {
+		githubAPIBaseURL = previousAPIBaseURL
+		githubHTTPClient = previousHTTPClient
+	})
+
+	fetched, err := FetchGitHubReleaseAsset(context.Background(), GitHubSource{
+		Owner: "kong",
+		Repo:  "kongctl-ext-foo",
+		Ref:   "0.2.0",
+	}, t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(fetched.Cleanup)
+
+	require.Equal(t, "v0.2.0", fetched.ReleaseTag)
+	require.Contains(t, requested, "/repos/kong/kongctl-ext-foo/releases/tags/0.2.0")
+	require.Contains(t, requested, "/repos/kong/kongctl-ext-foo/releases/tags/v0.2.0")
+}
+
+func TestFetchGitHubReleaseAssetLatestDoesNotProbeVLatest(t *testing.T) {
+	var requested []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requested = append(requested, r.URL.Path)
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(server.Close)
+
+	previousAPIBaseURL := githubAPIBaseURL
+	previousHTTPClient := githubHTTPClient
+	githubAPIBaseURL = server.URL
+	githubHTTPClient = server.Client()
+	t.Cleanup(func() {
+		githubAPIBaseURL = previousAPIBaseURL
+		githubHTTPClient = previousHTTPClient
+	})
+
+	_, err := FetchGitHubReleaseAsset(context.Background(), GitHubSource{
+		Owner: "kong",
+		Repo:  "kongctl-ext-foo",
+		Ref:   "latest",
+	}, t.TempDir())
+	require.ErrorIs(t, err, errGitHubReleaseUnavailable)
+
+	require.Equal(t, []string{"/repos/kong/kongctl-ext-foo/releases/latest"}, requested)
+}
+
 func TestSelectGitHubReleaseAssetRequiresUnambiguousArchive(t *testing.T) {
 	_, err := selectGitHubReleaseAsset([]githubReleaseAsset{
 		{Name: "one.tar.gz", DownloadURL: "https://example.test/one.tar.gz"},

@@ -84,6 +84,89 @@ func TestConfirmRemoteInstallTrustRejectsStructuredOutputWithoutYes(t *testing.T
 	require.False(t, confirmed)
 }
 
+func TestConfirmRemoteUpgradeTrustShowsCurrentAndTarget(t *testing.T) {
+	helper, in, out := newTrustPromptTestHelper(t)
+	_, err := in.WriteString("yes\n")
+	require.NoError(t, err)
+
+	confirmed, err := confirmRemoteUpgradeTrust(
+		helper,
+		testInstalledRemoteExtension(),
+		testFetchedGitHubSource(),
+		testRemoteCandidate(),
+		testPackageObservation(),
+		false,
+	)
+
+	require.NoError(t, err)
+	require.True(t, confirmed)
+	require.Contains(t, out.String(), "Current")
+	require.Contains(t, out.String(), "Target")
+	require.Contains(t, out.String(), "Do you want to upgrade this extension?")
+}
+
+func TestParseUpgradeExtensionTarget(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      string
+		wantID     string
+		wantTarget string
+		wantErr    string
+	}{
+		{
+			name:   "id only",
+			value:  "kong/debug",
+			wantID: "kong/debug",
+		},
+		{
+			name:       "tag target",
+			value:      "kong/debug@v0.2.0",
+			wantID:     "kong/debug",
+			wantTarget: "v0.2.0",
+		},
+		{
+			name:       "version target",
+			value:      "kong/debug@0.2.0",
+			wantID:     "kong/debug",
+			wantTarget: "0.2.0",
+		},
+		{
+			name:       "latest target",
+			value:      "kong/debug@latest",
+			wantID:     "kong/debug",
+			wantTarget: "latest",
+		},
+		{
+			name:    "missing target",
+			value:   "kong/debug@",
+			wantErr: "target is required",
+		},
+		{
+			name:    "invalid id",
+			value:   "debug",
+			wantErr: "publisher/name",
+		},
+		{
+			name:    "extra at",
+			value:   "kong/debug@v1@other",
+			wantErr: "must not contain @",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id, target, err := parseUpgradeExtensionTarget(tt.value)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantID, id)
+			require.Equal(t, tt.wantTarget, target)
+		})
+	}
+}
+
 func newTrustPromptTestHelper(t *testing.T) (cmdpkg.Helper, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 
@@ -125,6 +208,21 @@ func testRemoteCandidate() extensions.Extension {
 			},
 		},
 	}
+}
+
+func testInstalledRemoteExtension() extensions.Extension {
+	ext := testRemoteCandidate()
+	ext.InstallType = extensions.InstallTypeInstalled
+	ext.Install = &extensions.InstallState{
+		Source: extensions.SourceState{
+			Type:       extensions.SourceTypeGitHubReleaseAsset,
+			Repository: "kong/kongctl-ext-debug",
+			Ref:        "v0.1.0",
+			ReleaseTag: "v0.1.0",
+		},
+		PackageHash: "old-package-sha",
+	}
+	return ext
 }
 
 func testPackageObservation() extensions.PackageObservation {
