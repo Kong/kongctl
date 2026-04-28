@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -18,13 +19,16 @@ const (
 var (
 	installUse = Verb.String()
 
-	installShort = i18n.T("root.verbs.install.short", "Install local kongctl integration assets")
+	installShort = i18n.T("root.verbs.install.short", "Install kongctl features")
 
 	installLong = normalizers.LongDesc(i18n.T("root.verbs.install.long",
-		`Install local assets that help coding agents work with Kong Konnect using kongctl.`))
+		`Locally install extensions, skills or other plugin type functionality.`))
 
 	installExamples = normalizers.Examples(i18n.T("root.verbs.install.examples",
 		fmt.Sprintf(`
+	# Install a kongctl extension
+	%[1]s install extension
+
   # Install kongctl skills into the current repository
   %[1]s install skills
 
@@ -48,6 +52,7 @@ func NewInstallCmd() (*cobra.Command, error) {
 		},
 	}
 
+	cmd.AddCommand(extensioncmd.NewInstallExtensionCmd())
 	cmd.AddCommand(newInstallSkillsCmd())
 
 	return cmd, nil

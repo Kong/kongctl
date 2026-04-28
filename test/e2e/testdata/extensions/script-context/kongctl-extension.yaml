@@ -1,0 +1,29 @@
+schema_version: 1
+
+publisher: kong
+name: e2e-script
+summary: E2E script extension fixture
+
+runtime:
+  command: bin/kongctl-ext-e2e-script
+
+command_paths:
+  - id: get_e2e_script
+    path:
+      - name: get
+      - name: e2e-script
+        aliases: [e2e-scripts]
+    summary: Get E2E script extension context
+    description: Prints the kongctl extension runtime context as JSON.
+    usage: kongctl get e2e-script [args] [flags]
+    examples:
+      - kongctl get e2e-script
+      - kongctl get e2e-script -- --output literal
+    args:
+      - name: arg
+        repeatable: true
+        description: Optional arguments echoed through the runtime context.
+    flags:
+      - name: script-flag
+        type: string
+        description: Example extension-owned flag.

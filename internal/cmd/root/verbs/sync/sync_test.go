@@ -24,7 +24,7 @@ func TestNewSyncCmd(t *testing.T) {
 
 	// Test basic command properties
 	assert.Equal(t, "sync", cmd.Use, "Command use should be 'sync'")
-	assert.Contains(t, cmd.Short, "Full state synchronization",
+	assert.Contains(t, cmd.Short, "Synchronize declarative configuration",
 		"Short description should mention synchronization")
 	assert.Contains(t, cmd.Long, "Synchronize configuration with Kong Konnect",
 		"Long description should mention synchronize")
@@ -50,7 +50,7 @@ func TestSyncCmdHelpText(t *testing.T) {
 	}
 
 	// Test that help text contains expected content
-	assert.Contains(t, cmd.Short, "Full state synchronization", "Short should mention synchronization")
+	assert.Contains(t, cmd.Short, "Synchronize declarative configuration", "Short should mention synchronization")
 	assert.Contains(t, cmd.Long, "Synchronize configuration", "Long should mention configuration")
 	assert.Contains(t, cmd.Example, "-f", "Examples should show -f flag usage")
 	assert.Contains(t, cmd.Example, "--dry-run", "Examples should show dry-run option")
