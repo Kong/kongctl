@@ -458,7 +458,7 @@ steps:
                   team: payments
                 config:
                   key_validation_action: mark
-                  value_validation_action: enforce
+                  value_validation_action: reject
                   type: json
 
   - name: 007-schema-validation-update
