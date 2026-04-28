@@ -3,7 +3,7 @@ package extensions
 import (
 	"bytes"
 	"context"
-	"strings"
+	"regexp"
 	"testing"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
+
+var ansiEscapeSequencePattern = regexp.MustCompile(`\x1b\[[0-9;:]*m`)
 
 func TestConfirmRemoteInstallTrustRequiresYes(t *testing.T) {
 	helper, in, out := newTrustPromptTestHelper(t)
@@ -29,7 +31,7 @@ func TestConfirmRemoteInstallTrustRequiresYes(t *testing.T) {
 
 	require.NoError(t, err)
 	require.True(t, confirmed)
-	require.Contains(t, out.String(), "Remote extension trust confirmation")
+	require.Contains(t, out.String(), "Remote extension trust warning!!")
 	require.Contains(t, out.String(), "Package SHA256")
 	require.Contains(t, out.String(), "Type 'yes' to confirm")
 }
@@ -103,10 +105,12 @@ func TestConfirmRemoteUpgradeTrustShowsCurrentAndTarget(t *testing.T) {
 	require.True(t, confirmed)
 	require.Contains(t, out.String(), "Current")
 	require.Contains(t, out.String(), "Target")
+	require.Contains(t, stripANSIEscapeSequences(out.String()), "  Target: kong/kongctl-ext-debug@v0.1.0\n"+
+		"  Extension name: kong/debug\n")
 	require.Contains(t, out.String(), "Do you want to upgrade this extension?")
 }
 
-func TestWriteRemoteTrustPromptCompactsWideValues(t *testing.T) {
+func TestWriteRemoteTrustPromptKeepsAssetURLAndCompactsHashes(t *testing.T) {
 	var out bytes.Buffer
 	fetched := testFetchedGitHubSource()
 	fetched.AssetURL = "https://github.com/kong/kongctl-ext-debug/releases/download/v0.1.0/" +
@@ -120,15 +124,49 @@ func TestWriteRemoteTrustPromptCompactsWideValues(t *testing.T) {
 	err := writeRemoteTrustPrompt(&out, "upgrade", &extensions.Extension{}, fetched, testRemoteCandidate(), observation)
 
 	require.NoError(t, err)
+	plain := stripANSIEscapeSequences(out.String())
 	require.NotContains(t, out.String(), fullHash)
 	require.Contains(t, out.String(), abbreviateTrustHash(fullHash))
-	require.Contains(t, out.String(), "Asset URL")
-	require.Contains(t, out.String(), "\n    https://")
-	for _, line := range strings.Split(out.String(), "\n") {
-		if strings.HasPrefix(line, "    https://") || strings.HasPrefix(line, "    kongctl-ext-debug-universal") {
-			require.LessOrEqual(t, len(line), remoteTrustWrapWidth, line)
-		}
+	require.Contains(t, plain, "  Asset URL: "+fetched.AssetURL)
+	require.Contains(t, plain, "  Executable: kongctl-ext-debug\n")
+	require.Contains(t, plain, "  Executable SHA256: "+abbreviateTrustHash(fullHash)+"\n")
+	require.NotContains(t, plain, "\n    https://")
+}
+
+func TestWriteRemoteTrustPromptUsesShortTopCopy(t *testing.T) {
+	var out bytes.Buffer
+
+	err := writeRemoteTrustPrompt(
+		&out,
+		"install",
+		nil,
+		testFetchedGitHubSource(),
+		testRemoteCandidate(),
+		testPackageObservation(),
+	)
+
+	require.NoError(t, err)
+	plain := stripANSIEscapeSequences(out.String())
+	require.Contains(t, plain, "! Remote extension trust warning!!\n")
+	require.Contains(t, plain, "  Source: kong/kongctl-ext-debug@v0.1.0\n"+
+		"  Extension name: kong/debug\n")
+
+	shortLines := []string{
+		"Remote extension trust warning!!",
+		"This extension is executable code.",
+		"Install it only if you trust the source.",
+		"Review the package before installing.",
+		"Do you want to install this extension?",
+		"Type 'yes' to confirm:",
 	}
+	for _, line := range shortLines {
+		require.LessOrEqual(t, len(line), 40, line)
+		require.Contains(t, plain, line)
+	}
+}
+
+func stripANSIEscapeSequences(value string) string {
+	return ansiEscapeSequencePattern.ReplaceAllString(value, "")
 }
 
 func TestExtensionDisplayVersionPrefersManifestVersion(t *testing.T) {
@@ -173,6 +211,96 @@ func TestWriteListSummaryUsesSourceVersionFallback(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "v0.2.0")
 	require.NotContains(t, out.String(), "unversioned")
+}
+
+func TestUpgradeExtensionCommandSupportsUpgradeAll(t *testing.T) {
+	cmd := newUpgradeExtensionCmd()
+
+	require.Equal(t, "extension [publisher/name|owner/repo[@tag|ref|version]]", cmd.Use)
+	require.Contains(t, cmd.Aliases, "extensions")
+	require.NoError(t, cmd.Args(cmd, []string{}))
+	require.NoError(t, cmd.Args(cmd, []string{"kong/debug"}))
+	require.Error(t, cmd.Args(cmd, []string{"kong/debug", "kong/other"}))
+}
+
+func TestUpgradeAllSkipReason(t *testing.T) {
+	tests := []struct {
+		name string
+		ext  extensions.Extension
+		want string
+	}{
+		{
+			name: "GitHub release asset",
+			ext:  testInstalledRemoteExtension(),
+		},
+		{
+			name: "linked",
+			ext: extensions.Extension{
+				ID:          "kong/linked",
+				InstallType: extensions.InstallTypeLinked,
+			},
+			want: "linked extension",
+		},
+		{
+			name: "local path",
+			ext: extensions.Extension{
+				ID:          "kong/local",
+				InstallType: extensions.InstallTypeInstalled,
+				Install: &extensions.InstallState{
+					Source: extensions.SourceState{Type: extensions.SourceTypeLocalPath},
+				},
+			},
+			want: "local path install",
+		},
+		{
+			name: "GitHub source clone",
+			ext: extensions.Extension{
+				ID:          "kong/source",
+				InstallType: extensions.InstallTypeInstalled,
+				Install: &extensions.InstallState{
+					Source: extensions.SourceState{Type: extensions.SourceTypeGitHubSource},
+				},
+			},
+			want: "GitHub source clone",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reason := upgradeAllSkipReason(tt.ext)
+			if tt.want == "" {
+				require.Empty(t, reason)
+				return
+			}
+			require.Contains(t, reason, tt.want)
+		})
+	}
+}
+
+func TestWriteUpgradeAllSummary(t *testing.T) {
+	var out bytes.Buffer
+
+	err := writeUpgradeAllSummary(&out, upgradeAllExtensionResult{
+		Upgraded: []string{"kong/debug"},
+		UpToDate: []string{"kong/cowsay"},
+		Skipped: []upgradeAllExtensionEntry{{
+			ID:     "kong/local",
+			Reason: "local path install",
+		}},
+		Failed: []upgradeAllExtensionEntry{{
+			ID:    "kong/broken",
+			Error: "fetch failed",
+		}},
+	})
+
+	require.NoError(t, err)
+	plain := stripANSIEscapeSequences(out.String())
+	require.Contains(t, plain, "Extension upgrades\n")
+	require.Contains(t, plain, "kong/debug  upgraded\n")
+	require.Contains(t, plain, "kong/cowsay  up to date\n")
+	require.Contains(t, plain, "kong/local  skipped  local path install\n")
+	require.Contains(t, plain, "kong/broken  failed  fetch failed\n")
+	require.Contains(t, plain, "Summary: 1 upgraded, 1 up to date, 1 skipped, 1 failed\n")
 }
 
 func TestParseUpgradeExtensionTarget(t *testing.T) {
