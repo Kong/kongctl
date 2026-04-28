@@ -3,7 +3,7 @@ schema_version: 1
 publisher: kong
 name: hello-go
 version: 0.1.0
-summary: Example Go-based kongctl extension
+summary: Example Go-based kongctl SDK extension
 
 runtime:
   command: bin/kongctl-ext-hello-go
@@ -13,10 +13,10 @@ command_paths:
     path:
       - name: get
       - name: hello-go
-    summary: Get Go extension context
-    description: Prints selected fields from the kongctl extension context.
+    summary: Get current user with a Go extension
+    description: Calls Konnect through the kongctl Go SDK helper.
     usage: kongctl get hello-go [args] [flags]
     examples:
       - go build -o bin/kongctl-ext-hello-go .
       - kongctl link extension docs/examples/extensions/go
-      - kongctl get hello-go --example
+      - kongctl get hello-go --output json --jq '{id, email}'

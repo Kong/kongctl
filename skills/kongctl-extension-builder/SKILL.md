@@ -2,7 +2,8 @@
 name: kongctl-extension-builder
 description: Scaffold and maintain kongctl CLI extensions. Use when a user
   wants to create a script or Go extension, define extension command paths,
-  test install/link workflows, or debug extension context handling.
+  use the kongctl Go SDK helper, test install/link workflows, or debug
+  extension context handling.
 license: Apache-2.0
 metadata:
   product: kongctl
@@ -45,6 +46,14 @@ workflows.
   as `kongctl get foo --limit 10`. Use `--` only as an escape hatch when an
   extension needs to receive a token that collides with a host `kongctl` flag,
   such as `--output`, `--profile`, `--help`, or their shorthands.
+- For Go extensions, prefer `github.com/kong/kongctl/pkg/sdk` over hand-rolled
+  context parsing. Use it to load the runtime context, create an authenticated
+  `sdk-konnect-go` client, run reentrant `kongctl` commands, and render output
+  with parent `--output` and `--jq` settings.
+- Do not make Go extensions call `kongctl api` as the primary Konnect access
+  path when typed SDK access is appropriate. Use reentrant `kongctl` only for
+  script extensions, debugging, or commands that are easier to delegate back to
+  the host.
 - Put extension diagnostics on stderr when stdout needs to preserve structured
   output from a reentrant `kongctl` command.
 
@@ -152,9 +161,73 @@ fi
 
 ## Go Runtime Pattern
 
-Use Go when argument parsing, JSON handling, or richer errors matter. Keep the
-runtime independent from `kongctl/internal/...`; read `context.json` into a
-local struct and call `kongctl` as a subprocess for authenticated host access.
+Use Go when argument parsing, typed Konnect access, JSON handling, or richer
+errors matter. Import the public kongctl SDK helper, never
+`github.com/kong/kongctl/internal/...`.
+
+```go
+import "github.com/kong/kongctl/pkg/sdk"
+```
+
+`pkg/sdk` provides:
+
+- `sdk.LoadRuntimeContextFromEnv()`
+- `runtimeCtx.Args()` for extension-specific args after host flags are removed
+- `runtimeCtx.DataDir()` for extension-owned persistent files
+- `runtimeCtx.KonnectSDK(ctx)` for an authenticated `sdk-konnect-go` client
+- `runtimeCtx.Output().Render(display, raw)` for native output and jq behavior
+- `runtimeCtx.RunKongctl(ctx, args...)` for deliberate reentrant host calls
+
+Use this shape for Go runtimes:
+
+```go
+func run() error {
+    runtimeCtx, err := sdk.LoadRuntimeContextFromEnv()
+    if err != nil {
+        return err
+    }
+
+    ctx := context.Background()
+    konnect, err := runtimeCtx.KonnectSDK(ctx)
+    if err != nil {
+        return fmt.Errorf("create Konnect SDK client: %w", err)
+    }
+
+    res, err := konnect.Me.GetUsersMe(ctx)
+    if err != nil {
+        return fmt.Errorf("get current user: %w", err)
+    }
+
+    display := map[string]any{
+        "profile": runtimeCtx.Resolved.Profile,
+        "user":    res.GetUser(),
+    }
+    return runtimeCtx.Output().Render(display, res.GetUser())
+}
+```
+
+For `Render(display, raw)`, text output uses `display`; JSON/YAML and jq use
+`raw`. When raw is omitted, the display value is used for all formats. Keep
+stdout for command data and send diagnostics to stderr.
+
+For a dedicated Go extension repository, use a normal module:
+
+```sh
+go mod init github.com/<owner>/<repo>
+go get github.com/kong/kongctl@<released-version>
+go mod tidy
+```
+
+While developing against an unreleased local kongctl checkout, use a temporary
+replace directive:
+
+```go
+replace github.com/kong/kongctl => /path/to/kongctl
+```
+
+Remove local replace directives before publishing release artifacts unless the
+repository intentionally vendors or pins an internal development checkout.
+Commit `go.sum` for Go extension repositories.
 
 ## Release Artifact Workflow
 
@@ -242,14 +315,16 @@ generated `context.json` file. Read this file for:
 - remaining extension arguments
 - selected profile
 - resolved base URL
-- output and log settings
+- output, jq, color theme, and log settings
 - extension data directory
 - host `kongctl` path and version
 
-Never expect secrets in `context.json`. Extensions can invoke `kongctl api`
-or other built-in commands as subprocesses when they need host-authenticated
-Konnect calls. Child `kongctl` commands inherit the parent extension context
-unless they explicitly override flags such as `--profile`, `--output`, or
+Never expect secrets in `context.json`. Go extensions should use
+`github.com/kong/kongctl/pkg/sdk` when they need a configured Konnect client or
+native output rendering. Script extensions can invoke `kongctl api` or other
+built-in commands as subprocesses when they need host-authenticated Konnect
+calls. Child `kongctl` commands inherit the parent extension context unless
+they explicitly override flags such as `--profile`, `--output`, or
 `--base-url`.
 
 ## Good Educational Extension Ideas
@@ -258,6 +333,8 @@ unless they explicitly override flags such as `--profile`, `--output`, or
   behavior.
 - Who am I: call `kongctl get me` and render the current user in the parent
   output format.
+- Go current user: use `pkg/sdk` to create a Konnect client and render
+  `sdk-konnect-go` results with parent output settings.
 - Control plane summary: call `kongctl api` to list control planes and print a
   compact operational summary.
 - Portal/API report: combine a few `kongctl api` calls into a read-only report

@@ -450,6 +450,10 @@ func applyExtensionRuntimeDefaults(runtimeCtx *extensioncore.RuntimeContext, cfg
 		util.CheckError(logLevel.Set(value))
 		cfg.SetString(common.LogLevelConfigPath, value)
 	}
+	if value := strings.TrimSpace(runtimeCtx.Resolved.ColorTheme); value != "" &&
+		!commandTreeFlagChanged(rootCmd, common.ColorThemeFlagName) {
+		cfg.SetString(common.ColorThemeConfigPath, value)
+	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.BaseURL); value != "" &&
 		!commandTreeFlagChanged(rootCmd, konnectcommon.BaseURLFlagName) &&
 		!commandTreeFlagChanged(rootCmd, konnectcommon.RegionFlagName) {

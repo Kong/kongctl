@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -82,6 +83,47 @@ func TestSplitExtensionArgsConsumesHostFlagsBeforeTerminator(t *testing.T) {
 	require.Equal(t, "json", cfg.values[cmdcommon.OutputConfigPath])
 	require.Equal(t, "https://example.test", cfg.values[konnectcommon.BaseURLConfigPath])
 	require.Equal(t, []string{"--limit", "10", "--profile", "literal"}, split.Remaining)
+}
+
+func TestSplitExtensionArgsConsumesJQFlagsForCustomRoot(t *testing.T) {
+	root := testRootCommand()
+	root.PersistentFlags().StringP(cmdcommon.OutputFlagName, cmdcommon.OutputFlagShort, "text", "")
+	ext := mustExtension(t, `
+schema_version: 1
+publisher: kong
+name: debug
+runtime:
+  command: kongctl-ext-debug
+command_paths:
+  - path:
+      - name: debug
+    summary: Show debug information
+`)
+	require.NoError(t, RegisterCommands(root, NewStore(t.TempDir()), []Extension{ext}))
+	debugCmd, _, err := root.Find([]string{"debug"})
+	require.NoError(t, err)
+	cfg := newTestHook()
+
+	split, err := SplitExtensionArgs(
+		debugCmd,
+		[]string{
+			"--output", "json",
+			"--jq", ".id",
+			"--jq-raw-output",
+			"--jq-color", "never",
+			"--jq-color-theme=github",
+			"remaining",
+		},
+		cfg,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, "json", cfg.values[cmdcommon.OutputConfigPath])
+	require.Equal(t, ".id", cfg.values[jqoutput.DefaultExpressionConfigPath])
+	require.Equal(t, true, cfg.values[jqoutput.RawOutputConfigPath])
+	require.Equal(t, "never", cfg.values[jqoutput.ColorEnabledConfigPath])
+	require.Equal(t, "github", cfg.values[jqoutput.ColorThemeConfigPath])
+	require.Equal(t, []string{"remaining"}, split.Remaining)
 }
 
 func testRootCommand() *cobra.Command {

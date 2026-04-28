@@ -14,6 +14,7 @@ import (
 
 	"github.com/kong/kongctl/internal/build"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
@@ -31,6 +32,7 @@ type RuntimeContext struct {
 	MatchedCommandPath MatchedCommandPath `json:"matched_command_path"`
 	Invocation         InvocationContext  `json:"invocation"`
 	Resolved           ResolvedContext    `json:"resolved"`
+	Output             OutputContext      `json:"output"`
 	Host               HostContext        `json:"host"`
 	Session            SessionContext     `json:"session"`
 }
@@ -51,10 +53,24 @@ type ResolvedContext struct {
 	BaseURL          string `json:"base_url"`
 	Output           string `json:"output"`
 	LogLevel         string `json:"log_level"`
+	ColorTheme       string `json:"color_theme,omitempty"`
 	ConfigFile       string `json:"config_file"`
 	ExtensionDataDir string `json:"extension_data_dir"`
 	AuthMode         string `json:"auth_mode"`
 	AuthSource       string `json:"auth_source"`
+}
+
+type OutputContext struct {
+	Format     string    `json:"format"`
+	ColorTheme string    `json:"color_theme,omitempty"`
+	JQ         JQContext `json:"jq,omitempty"`
+}
+
+type JQContext struct {
+	Expression string `json:"expression,omitempty"`
+	RawOutput  bool   `json:"raw_output,omitempty"`
+	Color      string `json:"color,omitempty"`
+	ColorTheme string `json:"color_theme,omitempty"`
 }
 
 type HostContext struct {
@@ -198,6 +214,10 @@ func (s Store) buildRuntimeContext(
 	if logLevel == "" {
 		logLevel = cmdcommon.DefaultLogLevel
 	}
+	colorTheme := strings.TrimSpace(cfg.GetString(cmdcommon.ColorThemeConfigPath))
+	if colorTheme == "" {
+		colorTheme = cmdcommon.DefaultColorTheme
+	}
 	profile := strings.TrimSpace(profileOverride)
 	if profile == "" {
 		profile = cfg.GetProfile()
@@ -225,11 +245,13 @@ func (s Store) buildRuntimeContext(
 			BaseURL:          baseURL,
 			Output:           output,
 			LogLevel:         logLevel,
+			ColorTheme:       colorTheme,
 			ConfigFile:       cfg.GetPath(),
 			ExtensionDataDir: dataDir,
 			AuthMode:         authMode,
 			AuthSource:       authSource,
 		},
+		Output: buildOutputContext(cfg, output, colorTheme),
 		Host: HostContext{
 			KongctlPath:    kongctlPath,
 			KongctlVersion: version,
@@ -241,6 +263,27 @@ func (s Store) buildRuntimeContext(
 			MaxDepth:          MaxDepth,
 		},
 	}, nil
+}
+
+func buildOutputContext(cfg config.Hook, format, colorTheme string) OutputContext {
+	jqColor := strings.TrimSpace(cfg.GetString(jqoutput.ColorEnabledConfigPath))
+	if jqColor == "" {
+		jqColor = cmdcommon.DefaultColorMode
+	}
+	jqTheme := strings.TrimSpace(cfg.GetString(jqoutput.ColorThemeConfigPath))
+	if jqTheme == "" {
+		jqTheme = jqoutput.DefaultTheme
+	}
+	return OutputContext{
+		Format:     format,
+		ColorTheme: colorTheme,
+		JQ: JQContext{
+			Expression: strings.TrimSpace(cfg.GetString(jqoutput.DefaultExpressionConfigPath)),
+			RawOutput:  cfg.GetBool(jqoutput.RawOutputConfigPath),
+			Color:      jqColor,
+			ColorTheme: jqTheme,
+		},
+	}
 }
 
 func (s Store) writeRuntimeContext(runtimeContext RuntimeContext) (string, func(), error) {

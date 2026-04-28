@@ -13,8 +13,10 @@ cd docs/examples/extensions/go
 go build -o bin/kongctl-ext-hello-go .
 cd ../../../..
 kongctl link extension docs/examples/extensions/go
-kongctl get hello-go --example
+kongctl get hello-go
+kongctl get hello-go --output json --jq '{id, email}'
 ```
 
-The runtime invokes `kongctl get me` as a child process; the child command
-inherits the parent command's output format.
+The runtime uses `github.com/kong/kongctl/pkg/sdk` to load the extension
+runtime context, create an authenticated `sdk-konnect-go` client, and render
+output using the parent command's output settings.

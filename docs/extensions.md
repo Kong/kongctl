@@ -136,18 +136,63 @@ The context contains:
 - original and remaining arguments
 - selected profile
 - resolved Konnect base URL
-- output and log settings
+- output, jq, color theme, and log settings
 - extension data directory
 - host `kongctl` path and version
 - recursion guard session data
 
-The context file does not contain secrets. Extensions that need authenticated
-Konnect access should invoke `kongctl` as a subprocess, usually through
-`kongctl api` or another built-in command. Child `kongctl` commands inherit the
+The context file does not contain secrets. Script extensions that need
+authenticated Konnect access should invoke `kongctl` as a subprocess, usually
+through `kongctl api` or another built-in command. Go extensions can use
+`github.com/kong/kongctl/pkg/sdk` to create an authenticated `sdk-konnect-go`
+client from the same runtime context. Child `kongctl` commands inherit the
 parent extension context.
 
 Keep stdout clean when the parent command is expected to emit structured
 output. Send diagnostics to stderr.
+
+## Go Extension SDK
+
+Go extensions can import the kongctl extension SDK:
+
+```go
+import "github.com/kong/kongctl/pkg/sdk"
+```
+
+The package loads the runtime context, creates a configured Konnect SDK client,
+runs reentrant `kongctl` commands, and renders output with the parent command's
+`--output`, `--jq`, `--jq-raw-output`, and jq color settings.
+
+Small example:
+
+```go
+runtimeCtx, err := sdk.LoadRuntimeContextFromEnv()
+if err != nil {
+    return err
+}
+
+konnect, err := runtimeCtx.KonnectSDK(context.Background())
+if err != nil {
+    return err
+}
+
+res, err := konnect.Me.GetUsersMe(context.Background())
+if err != nil {
+    return err
+}
+
+return runtimeCtx.Output().Render(displayUser(res.GetUser()), res.GetUser())
+```
+
+During local development against a kongctl checkout, add a temporary replace
+directive in the extension's `go.mod`:
+
+```go
+replace github.com/kong/kongctl => /path/to/kongctl
+```
+
+Remove the replace directive before publishing, and pin a released kongctl
+module version once the SDK is available from a release tag.
 
 ## Security Model
 
@@ -325,6 +370,7 @@ Prefer read-only examples for public educational repositories.
 
 - print extension context and remaining args
 - call `kongctl get me` and preserve the parent output format
+- use `pkg/sdk` to call `sdk-konnect-go` and preserve output settings
 - call `kongctl api get /v2/control-planes`
 - summarize APIs, portals, or control planes
 - wrap team-specific read-only reporting workflows
