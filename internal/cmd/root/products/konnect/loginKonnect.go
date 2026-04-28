@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
@@ -35,7 +36,30 @@ type loginKonnectCmd struct {
 	*cobra.Command
 }
 
-func (c *loginKonnectCmd) validate(_ cmd.Helper) error {
+// resolveAuthURLs returns the fully constructed auth and token poll URLs from cfg.
+func resolveAuthURLs(cfg config.Hook) (authURL, pollURL string) {
+	authBaseURL := cfg.GetString(common.AuthBaseURLConfigPath)
+	if authBaseURL == "" {
+		authBaseURL = common.AuthBaseURLDefault
+	}
+	return authBaseURL + cfg.GetString(common.AuthPathConfigPath),
+		authBaseURL + cfg.GetString(common.TokenURLPathConfigPath)
+}
+
+func (c *loginKonnectCmd) validate(helper cmd.Helper) error {
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	authURL, pollURL := resolveAuthURLs(cfg)
+	if err := auth.ValidateKonnectURL(authURL); err != nil {
+		return cmd.PrepareExecutionErrorWithHelper(helper, "invalid auth URL", err)
+	}
+	if err := auth.ValidateKonnectURL(pollURL); err != nil {
+		return cmd.PrepareExecutionErrorWithHelper(helper, "invalid token poll URL", err)
+	}
+
 	return nil
 }
 
@@ -65,16 +89,8 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		return err
 	}
 
-	authBaseURL := cfg.GetString(common.AuthBaseURLConfigPath)
-	if authBaseURL == "" {
-		authBaseURL = common.AuthBaseURLDefault
-	}
-	authPath := cfg.GetString(common.AuthPathConfigPath)
 	// Device authorization endpoints default to the global Konnect API host but can be overridden.
-	authURL := authBaseURL + authPath
-
-	pollPath := cfg.GetString(common.TokenURLPathConfigPath)
-	pollURL := authBaseURL + pollPath
+	authURL, pollURL := resolveAuthURLs(cfg)
 
 	clientID := cfg.GetString(common.MachineClientIDConfigPath)
 
