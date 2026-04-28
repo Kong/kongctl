@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+if [ -z "${KONGCTL_EXTENSION_CONTEXT:-}" ]; then
+  echo "KONGCTL_EXTENSION_CONTEXT is not set" >&2
+  exit 1
+fi
+
+cat "$KONGCTL_EXTENSION_CONTEXT"
