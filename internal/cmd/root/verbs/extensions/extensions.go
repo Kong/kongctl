@@ -1,12 +1,14 @@
 package extensions
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 type installExtensionOptions struct {
 	source string
 	ref    string
+	yes    bool
 }
 
 type uninstallExtensionOptions struct {
@@ -54,6 +57,7 @@ func NewInstallExtensionCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&opts.ref, "ref", "", "GitHub release tag, branch, or source ref to install.")
+	cmd.Flags().BoolVar(&opts.yes, "yes", false, "Accept the remote extension trust prompt.")
 	return cmd
 }
 
@@ -232,11 +236,19 @@ func runInstallGitHubExtension(
 	if err := extensioncore.ValidateExtensionCommands(command.Root(), candidate); err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
+	observation, err := extensioncore.ObservePackage(fetched.Dir)
+	if err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
+	trustConfirmed, err := confirmRemoteInstallTrust(helper, fetched, candidate, observation, opts.yes)
+	if err != nil {
+		return err
+	}
 	version, err := cliVersion(helper)
 	if err != nil {
 		return err
 	}
-	result, err := store.InstallGitHubSource(fetched.Dir, fetched, version, time.Now())
+	result, err := store.InstallGitHubSource(fetched.Dir, fetched, version, time.Now(), trustConfirmed)
 	if err != nil {
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to install extension", err)
 	}
@@ -339,6 +351,138 @@ func runUpgradeExtension(command *cobra.Command, args []string, opts upgradeExte
 	return &cmdpkg.ConfigurationError{Err: errors.New(
 		"remote extension upgrade is not implemented yet",
 	)}
+}
+
+func confirmRemoteInstallTrust(
+	helper cmdpkg.Helper,
+	fetched extensioncore.FetchedGitHubSource,
+	candidate extensioncore.Extension,
+	observation extensioncore.PackageObservation,
+	yes bool,
+) (bool, error) {
+	if yes {
+		return true, nil
+	}
+	if explicitOutputRequested(helper.GetCmd()) {
+		return false, &cmdpkg.ConfigurationError{Err: fmt.Errorf(
+			"remote extension install confirmation is not available with structured output; use --yes to accept",
+		)}
+	}
+
+	streams := helper.GetStreams()
+	if err := writeRemoteInstallTrustPrompt(streams.Out, fetched, candidate, observation); err != nil {
+		return false, err
+	}
+
+	input := streams.In
+	if f, ok := input.(*os.File); ok && f.Fd() == os.Stdin.Fd() {
+		if tty, err := os.OpenFile("/dev/tty", os.O_RDONLY, 0); err == nil {
+			defer tty.Close()
+			input = tty
+		}
+	}
+
+	reader := bufio.NewReader(input)
+	lineCh := make(chan string, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			errCh <- err
+			return
+		}
+		lineCh <- line
+	}()
+
+	ctx := helper.GetCmd().Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	defer signal.Stop(sigCh)
+
+	select {
+	case <-ctx.Done():
+		return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension install cancelled")
+	case <-sigCh:
+		return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension install cancelled")
+	case err := <-errCh:
+		_ = err
+		return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension install cancelled")
+	case line := <-lineCh:
+		if strings.ToLower(strings.TrimSpace(line)) != "yes" {
+			return false, cmdpkg.PrepareExecutionErrorMsg(helper, "extension install cancelled")
+		}
+		return true, nil
+	}
+}
+
+func writeRemoteInstallTrustPrompt(
+	w io.Writer,
+	fetched extensioncore.FetchedGitHubSource,
+	candidate extensioncore.Extension,
+	observation extensioncore.PackageObservation,
+) error {
+	ui := extensionUI()
+	source := sourceStateFromFetched(fetched)
+	if _, err := fmt.Fprintf(w, "%s %s %s\n",
+		ui.warning.Render("!"),
+		ui.strong.Render("Remote extension trust confirmation"),
+		candidate.ID,
+	); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w,
+		"  This extension is executable code. Install it only if you trust the source and reviewed the package.",
+	); err != nil {
+		return err
+	}
+	writeField(w, ui, "Source", installSourceLabel(source, fetched.Repository))
+	writeField(w, ui, "Source type", remoteSourceTypeLabel(fetched.SourceType))
+	writeOptionalField(w, ui, "Release tag", fetched.ReleaseTag)
+	if fetched.SourceType != extensioncore.SourceTypeGitHubReleaseAsset {
+		writeOptionalField(w, ui, "Source ref", source.Ref)
+	}
+	writeOptionalField(w, ui, "Resolved commit", fetched.ResolvedCommit)
+	writeOptionalField(w, ui, "Asset", fetched.AssetName)
+	writeOptionalField(w, ui, "Asset URL", fetched.AssetURL)
+	writeOptionalField(w, ui, "Version", observation.Manifest.Version)
+	writeField(w, ui, "Runtime", observation.RuntimeCommand)
+	writeField(w, ui, "Package SHA256", observation.PackageHash)
+	writeField(w, ui, "Manifest SHA256", observation.ManifestHash)
+	writeField(w, ui, "Runtime SHA256", observation.RuntimeHash)
+	writeCommands(w, ui, candidate.CommandPaths)
+	_, err := fmt.Fprint(w, "\nDo you want to install this extension? Type 'yes' to confirm: ")
+	return err
+}
+
+func remoteSourceTypeLabel(sourceType string) string {
+	switch sourceType {
+	case extensioncore.SourceTypeGitHubReleaseAsset:
+		return "GitHub release asset"
+	case extensioncore.SourceTypeGitHubSource, "":
+		return "GitHub source clone"
+	default:
+		return sourceType
+	}
+}
+
+func sourceStateFromFetched(fetched extensioncore.FetchedGitHubSource) extensioncore.SourceState {
+	sourceType := fetched.SourceType
+	if sourceType == "" {
+		sourceType = extensioncore.SourceTypeGitHubSource
+	}
+	return extensioncore.SourceState{
+		Type:           sourceType,
+		Repository:     fetched.Repository,
+		URL:            fetched.URL,
+		Ref:            fetched.Ref,
+		ResolvedCommit: fetched.ResolvedCommit,
+		ReleaseTag:     fetched.ReleaseTag,
+		AssetName:      fetched.AssetName,
+		AssetURL:       fetched.AssetURL,
+	}
 }
 
 func writeCommandResult(helper cmdpkg.Helper, value any, writeText func() error) error {
@@ -551,6 +695,7 @@ type extensionUIStyles struct {
 	label   lipgloss.Style
 	muted   lipgloss.Style
 	success lipgloss.Style
+	warning lipgloss.Style
 	command lipgloss.Style
 }
 
@@ -562,6 +707,7 @@ func extensionUI() extensionUIStyles {
 		label:   palette.ForegroundStyle(theme.ColorTextSecondary).Bold(true),
 		muted:   palette.ForegroundStyle(theme.ColorTextMuted),
 		success: palette.ForegroundStyle(theme.ColorSuccess).Bold(true),
+		warning: palette.ForegroundStyle(theme.ColorWarning).Bold(true),
 		command: palette.ForegroundStyle(theme.ColorAccent),
 	}
 }

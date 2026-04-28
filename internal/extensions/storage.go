@@ -88,6 +88,16 @@ type InstallResult struct {
 	PackageHash  string    `json:"package_hash"`
 }
 
+// PackageObservation captures the observable package identity shown before a
+// remote executable extension is trusted.
+type PackageObservation struct {
+	Manifest       Manifest `json:"manifest"`
+	ManifestHash   string   `json:"manifest_hash"`
+	RuntimeHash    string   `json:"runtime_hash"`
+	PackageHash    string   `json:"package_hash"`
+	RuntimeCommand string   `json:"runtime_command"`
+}
+
 type UninstallResult struct {
 	ID             string `json:"id"`
 	RemovedInstall bool   `json:"removed_install"`
@@ -159,6 +169,7 @@ func (s Store) InstallGitHubSource(
 	fetched FetchedGitHubSource,
 	cliVersion string,
 	now time.Time,
+	trustConfirmed bool,
 ) (InstallResult, error) {
 	sourceType := fetched.SourceType
 	if sourceType == "" {
@@ -182,7 +193,7 @@ func (s Store) InstallGitHubSource(
 			AssetURL:       fetched.AssetURL,
 		},
 		Trust: TrustState{
-			Confirmed: false,
+			Confirmed: trustConfirmed,
 			Model:     trustModel,
 		},
 		Upgrade: UpgradeState{
@@ -197,10 +208,11 @@ func (s Store) installDirectory(
 	now time.Time,
 	opts installDirectoryOptions,
 ) (InstallResult, error) {
-	manifest, manifestBytes, err := LoadManifestFile(filepath.Join(sourceRoot, ManifestFileName))
+	observation, err := ObservePackage(sourceRoot)
 	if err != nil {
 		return InstallResult{}, err
 	}
+	manifest := observation.Manifest
 
 	id := ExtensionID(manifest.Publisher, manifest.Name)
 	if err := s.ensureNotLinked(id); err != nil {
@@ -236,7 +248,6 @@ func (s Store) installDirectory(
 	if err != nil {
 		return InstallResult{}, err
 	}
-	manifestHash := hashBytes(manifestBytes)
 	if cliVersion == "" {
 		cliVersion = meta.DefaultCLIVersion
 	}
@@ -247,7 +258,7 @@ func (s Store) installDirectory(
 		InstalledAt:    now.UTC().Format(time.RFC3339),
 		CLIVersion:     cliVersion,
 		Source:         opts.Source,
-		ManifestHash:   manifestHash,
+		ManifestHash:   observation.ManifestHash,
 		RuntimeHash:    runtimeHash,
 		PackageHash:    packageHash,
 		RuntimeCommand: manifest.Runtime.Command,
@@ -272,9 +283,37 @@ func (s Store) installDirectory(
 
 	return InstallResult{
 		Extension:    ext,
-		ManifestHash: manifestHash,
+		ManifestHash: observation.ManifestHash,
 		RuntimeHash:  runtimeHash,
 		PackageHash:  packageHash,
+	}, nil
+}
+
+// ObservePackage computes package identity and integrity hashes without
+// modifying managed extension state.
+func ObservePackage(sourceRoot string) (PackageObservation, error) {
+	manifest, manifestBytes, err := LoadManifestFile(filepath.Join(sourceRoot, ManifestFileName))
+	if err != nil {
+		return PackageObservation{}, err
+	}
+	runtimePath, err := ResolveRuntime(sourceRoot, manifest.Runtime.Command)
+	if err != nil {
+		return PackageObservation{}, err
+	}
+	runtimeHash, err := hashFile(runtimePath)
+	if err != nil {
+		return PackageObservation{}, err
+	}
+	packageHash, err := hashTree(sourceRoot)
+	if err != nil {
+		return PackageObservation{}, err
+	}
+	return PackageObservation{
+		Manifest:       manifest,
+		ManifestHash:   hashBytes(manifestBytes),
+		RuntimeHash:    runtimeHash,
+		PackageHash:    packageHash,
+		RuntimeCommand: manifest.Runtime.Command,
 	}, nil
 }
 
