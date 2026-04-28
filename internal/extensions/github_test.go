@@ -274,7 +274,7 @@ func TestSelectGitHubReleaseAssetPrefersCurrentPlatform(t *testing.T) {
 func TestExtractGitHubReleaseArchiveRejectsUnsafeZipPath(t *testing.T) {
 	archivePath := filepath.Join(t.TempDir(), "bad.zip")
 	writeTestZipArchive(t, archivePath, []testZipEntry{
-		{Name: "../extension.yaml", Body: "nope", Mode: 0o644},
+		{Name: "../kongctl-extension.yaml", Body: "nope", Mode: 0o644},
 	})
 
 	err := extractGitHubReleaseArchive(archivePath, "bad.zip", t.TempDir())
@@ -285,7 +285,7 @@ func TestExtractGitHubReleaseArchiveRejectsUnsafeZipPath(t *testing.T) {
 func TestExtractGitHubReleaseArchiveRejectsUnsafeTarPath(t *testing.T) {
 	archivePath := filepath.Join(t.TempDir(), "bad.tar.gz")
 	writeTestTarGzipArchive(t, archivePath, []testTarEntry{
-		{Name: "nested/../extension.yaml", Body: "nope", Mode: 0o644},
+		{Name: "nested/../kongctl-extension.yaml", Body: "nope", Mode: 0o644},
 	})
 
 	err := extractGitHubReleaseArchive(archivePath, "bad.tar.gz", t.TempDir())

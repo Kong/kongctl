@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"time"
 
@@ -31,6 +32,11 @@ type installExtensionOptions struct {
 	yes    bool
 }
 
+const (
+	remoteTrustHashEdgeLength = 12
+	remoteTrustWrapWidth      = 88
+)
+
 type uninstallExtensionOptions struct {
 	id         string
 	removeData bool
@@ -41,9 +47,9 @@ type linkExtensionOptions struct {
 }
 
 type upgradeExtensionOptions struct {
-	id     string
-	target string
-	yes    bool
+	selector string
+	target   string
+	yes      bool
 }
 
 func NewInstallExtensionCmd() *cobra.Command {
@@ -163,15 +169,15 @@ func newUninstallExtensionCmd() *cobra.Command {
 func newUpgradeExtensionCmd() *cobra.Command {
 	opts := &upgradeExtensionOptions{}
 	cmd := &cobra.Command{
-		Use:   "extension <publisher/name[@tag|ref|version]>",
+		Use:   "extension <publisher/name|owner/repo[@tag|ref|version]>",
 		Short: i18n.T("root.verbs.upgrade.extension.short", "Upgrade a kongctl CLI extension"),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			id, target, err := parseUpgradeExtensionTarget(args[0])
+			selector, target, err := parseUpgradeExtensionTarget(args[0])
 			if err != nil {
 				return &cmdpkg.ConfigurationError{Err: err}
 			}
-			opts.id = id
+			opts.selector = selector
 			opts.target = target
 			return runUpgradeExtension(command, args, *opts)
 		},
@@ -340,7 +346,7 @@ func runUpgradeExtension(command *cobra.Command, args []string, opts upgradeExte
 	if err != nil {
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to resolve extension store", err)
 	}
-	ext, err := store.Get(opts.id)
+	ext, err := resolveUpgradeExtension(store, opts.selector)
 	if err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
@@ -559,16 +565,88 @@ func installResultFromExtension(ext extensioncore.Extension) extensioncore.Insta
 	return result
 }
 
+func resolveUpgradeExtension(store extensioncore.Store, selector string) (extensioncore.Extension, error) {
+	selector = strings.TrimSpace(selector)
+	if selector == "" {
+		return extensioncore.Extension{}, fmt.Errorf("extension id or GitHub repository is required")
+	}
+
+	if err := extensioncore.ValidateExtensionID(selector); err == nil {
+		if ext, getErr := store.Get(selector); getErr == nil {
+			return ext, nil
+		}
+	}
+
+	githubSource, ok, err := extensioncore.ParseGitHubSource(selector, "")
+	if err != nil {
+		return extensioncore.Extension{}, err
+	}
+	if ok {
+		extensions, err := store.List()
+		if err != nil {
+			return extensioncore.Extension{}, err
+		}
+		ext, found, err := matchUpgradeExtensionByGitHubRepository(extensions, githubSource.Repository())
+		if err != nil {
+			return extensioncore.Extension{}, err
+		}
+		if found {
+			return ext, nil
+		}
+		return extensioncore.Extension{}, fmt.Errorf(
+			"no installed extension was found for GitHub repository %q", githubSource.Repository(),
+		)
+	}
+
+	if err := extensioncore.ValidateExtensionID(selector); err != nil {
+		return extensioncore.Extension{}, err
+	}
+	return extensioncore.Extension{}, fmt.Errorf("extension %q is not installed or linked", selector)
+}
+
+func matchUpgradeExtensionByGitHubRepository(
+	extensions []extensioncore.Extension,
+	repository string,
+) (extensioncore.Extension, bool, error) {
+	repository = strings.TrimSpace(repository)
+	matches := make([]extensioncore.Extension, 0, 1)
+	for _, ext := range extensions {
+		if ext.InstallType != extensioncore.InstallTypeInstalled || ext.Install == nil {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(ext.Install.Source.Repository), repository) {
+			matches = append(matches, ext)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return extensioncore.Extension{}, false, nil
+	case 1:
+		return matches[0], true, nil
+	default:
+		ids := make([]string, 0, len(matches))
+		for _, match := range matches {
+			ids = append(ids, match.ID)
+		}
+		slices.Sort(ids)
+		return extensioncore.Extension{}, false, fmt.Errorf(
+			"GitHub repository %q matches multiple installed extensions: %s; upgrade by extension id",
+			repository,
+			strings.Join(ids, ", "),
+		)
+	}
+}
+
 func parseUpgradeExtensionTarget(value string) (string, string, error) {
 	value = strings.TrimSpace(value)
-	id, target, hasTarget := strings.Cut(value, "@")
-	id = strings.TrimSpace(id)
-	target = strings.TrimSpace(target)
-	if id == "" {
-		return "", "", fmt.Errorf("extension id is required")
+	if value == "" {
+		return "", "", fmt.Errorf("extension id or GitHub repository is required")
 	}
-	if err := extensioncore.ValidateExtensionID(id); err != nil {
-		return "", "", err
+	selector, target, hasTarget := splitUpgradeTargetSuffix(value)
+	selector = strings.TrimSpace(selector)
+	target = strings.TrimSpace(target)
+	if selector == "" {
+		return "", "", fmt.Errorf("extension id or GitHub repository is required")
 	}
 	if hasTarget && target == "" {
 		return "", "", fmt.Errorf("extension upgrade target is required after @")
@@ -576,7 +654,36 @@ func parseUpgradeExtensionTarget(value string) (string, string, error) {
 	if strings.Contains(target, "@") {
 		return "", "", fmt.Errorf("extension upgrade target must not contain @")
 	}
-	return id, target, nil
+	return selector, target, nil
+}
+
+func splitUpgradeTargetSuffix(value string) (string, string, bool) {
+	if !strings.Contains(value, "@") {
+		return value, "", false
+	}
+	if strings.HasPrefix(value, "git@") {
+		index := strings.LastIndex(value, "@")
+		if index == strings.Index(value, "@") {
+			return value, "", false
+		}
+		return value[:index], value[index+1:], true
+	}
+	if strings.Contains(value, "://") {
+		index := strings.LastIndex(value, "@")
+		if index == -1 {
+			return value, "", false
+		}
+		selector := value[:index]
+		target := value[index+1:]
+		if strings.Contains(target, "/") {
+			return value, "", false
+		}
+		if _, ok, err := extensioncore.ParseGitHubSource(selector, ""); err == nil && ok {
+			return selector, target, true
+		}
+		return value, "", false
+	}
+	return strings.Cut(value, "@")
 }
 
 func normalizedUpgradeTarget(target string) string {
@@ -712,12 +819,12 @@ func writeRemoteTrustPrompt(
 	}
 	writeOptionalField(w, ui, "Resolved commit", fetched.ResolvedCommit)
 	writeOptionalField(w, ui, "Asset", fetched.AssetName)
-	writeOptionalField(w, ui, "Asset URL", fetched.AssetURL)
+	writeOptionalWrappedField(w, ui, "Asset URL", fetched.AssetURL)
 	writeOptionalField(w, ui, "Version", observation.Manifest.Version)
 	writeField(w, ui, "Runtime", observation.RuntimeCommand)
-	writeField(w, ui, "Package SHA256", observation.PackageHash)
-	writeField(w, ui, "Manifest SHA256", observation.ManifestHash)
-	writeField(w, ui, "Runtime SHA256", observation.RuntimeHash)
+	writeHashField(w, ui, "Package SHA256", observation.PackageHash)
+	writeHashField(w, ui, "Manifest SHA256", observation.ManifestHash)
+	writeHashField(w, ui, "Runtime SHA256", observation.RuntimeHash)
 	writeCommands(w, ui, candidate.CommandPaths)
 	_, err := fmt.Fprintf(w, "\nDo you want to %s this extension? Type 'yes' to confirm: ", action)
 	return err
@@ -814,7 +921,7 @@ func writeInstallSummary(w io.Writer, result extensioncore.InstallResult, source
 		writeField(w, ui, "Source", source)
 	}
 	writeField(w, ui, "Runtime", ext.Manifest.Runtime.Command)
-	writeOptionalField(w, ui, "Version", ext.Manifest.Version)
+	writeOptionalField(w, ui, "Version", extensionDisplayVersion(ext))
 	writeCommands(w, ui, ext.CommandPaths)
 	writeField(w, ui, "Next", meta.CLIName+" "+extensioncore.CommandPathString(ext.CommandPaths[0])+" --help")
 	return nil
@@ -827,7 +934,7 @@ func writeLinkSummary(w io.Writer, ext extensioncore.Extension, source string) e
 	}
 	writeField(w, ui, "Path", source)
 	writeField(w, ui, "Runtime", ext.Manifest.Runtime.Command)
-	writeOptionalField(w, ui, "Version", ext.Manifest.Version)
+	writeOptionalField(w, ui, "Version", extensionDisplayVersion(ext))
 	writeCommands(w, ui, ext.CommandPaths)
 	writeField(w, ui, "Next", meta.CLIName+" "+extensioncore.CommandPathString(ext.CommandPaths[0])+" --help")
 	return nil
@@ -846,7 +953,7 @@ func writeListSummary(w io.Writer, extensions []extensioncore.Extension) error {
 		return err
 	}
 	for _, ext := range extensions {
-		version := ext.Manifest.Version
+		version := extensionDisplayVersion(ext)
 		if version == "" {
 			version = "unversioned"
 		}
@@ -871,7 +978,7 @@ func writeExtensionSummary(w io.Writer, ext extensioncore.Extension) error {
 	writeField(w, ui, "Name", ext.Manifest.Name)
 	writeField(w, ui, "Publisher", ext.Manifest.Publisher)
 	writeField(w, ui, "Type", string(ext.InstallType))
-	writeOptionalField(w, ui, "Version", ext.Manifest.Version)
+	writeOptionalField(w, ui, "Version", extensionDisplayVersion(ext))
 	writeOptionalField(w, ui, "Summary", ext.Manifest.Summary)
 	switch ext.InstallType {
 	case extensioncore.InstallTypeInstalled:
@@ -922,7 +1029,7 @@ func writeUpgradeSummary(w io.Writer, upgraded, previous extensioncore.Extension
 		writeOptionalField(w, ui, "Asset", upgraded.Install.Source.AssetName)
 	}
 	writeField(w, ui, "Runtime", upgraded.Manifest.Runtime.Command)
-	writeOptionalField(w, ui, "Version", upgraded.Manifest.Version)
+	writeOptionalField(w, ui, "Version", extensionDisplayVersion(upgraded))
 	writeCommands(w, ui, upgraded.CommandPaths)
 	return nil
 }
@@ -939,7 +1046,7 @@ func writeUpgradeUpToDateSummary(w io.Writer, ext extensioncore.Extension) error
 	if ext.Install != nil {
 		writeField(w, ui, "Current", installSourceLabel(ext.Install.Source, ext.ID))
 	}
-	writeOptionalField(w, ui, "Version", ext.Manifest.Version)
+	writeOptionalField(w, ui, "Version", extensionDisplayVersion(ext))
 	return nil
 }
 
@@ -961,11 +1068,100 @@ func writeField(w io.Writer, ui extensionUIStyles, label, value string) {
 	fmt.Fprintf(w, "  %s %s\n", ui.label.Render(label+":"), value)
 }
 
+func writeHashField(w io.Writer, ui extensionUIStyles, label, value string) {
+	writeField(w, ui, label, abbreviateTrustHash(value))
+}
+
 func writeOptionalField(w io.Writer, ui extensionUIStyles, label, value string) {
 	if strings.TrimSpace(value) == "" {
 		return
 	}
 	writeField(w, ui, label, value)
+}
+
+func writeOptionalWrappedField(w io.Writer, ui extensionUIStyles, label, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return
+	}
+	if len("  "+label+": "+value) <= remoteTrustWrapWidth {
+		writeField(w, ui, label, value)
+		return
+	}
+	fmt.Fprintf(w, "  %s\n", ui.label.Render(label+":"))
+	for _, line := range wrapTrustValue(value, remoteTrustWrapWidth-4) {
+		fmt.Fprintf(w, "    %s\n", line)
+	}
+}
+
+func abbreviateTrustHash(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) <= remoteTrustHashEdgeLength*2 {
+		return value
+	}
+	return value[:remoteTrustHashEdgeLength] + "..." + value[len(value)-remoteTrustHashEdgeLength:]
+}
+
+func wrapTrustValue(value string, width int) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if width <= 0 || len(value) <= width {
+		return []string{value}
+	}
+	lines := []string{}
+	for len(value) > width {
+		split := trustValueSplitIndex(value, width)
+		lines = append(lines, strings.TrimSpace(value[:split]))
+		value = strings.TrimSpace(value[split:])
+	}
+	if value != "" {
+		lines = append(lines, value)
+	}
+	return lines
+}
+
+func trustValueSplitIndex(value string, width int) int {
+	limit := min(width, len(value))
+	window := value[:limit]
+	split := strings.LastIndexAny(window, "/?&=")
+	if split > 0 && split >= width/2 {
+		return split + 1
+	}
+	return limit
+}
+
+func extensionDisplayVersion(ext extensioncore.Extension) string {
+	if version := strings.TrimSpace(ext.Manifest.Version); version != "" {
+		return version
+	}
+	if ext.Install == nil {
+		return ""
+	}
+	source := ext.Install.Source
+	switch source.Type {
+	case extensioncore.SourceTypeGitHubReleaseAsset:
+		if source.ReleaseTag != "" {
+			return source.ReleaseTag
+		}
+		return source.Ref
+	case extensioncore.SourceTypeGitHubSource, "":
+		if source.Ref != "" {
+			return source.Ref
+		}
+		return shortSourceCommit(source.ResolvedCommit)
+	default:
+		return ""
+	}
+}
+
+func shortSourceCommit(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) <= 12 {
+		return value
+	}
+	return value[:12]
 }
 
 func installSourceLabel(source extensioncore.SourceState, fallback string) string {

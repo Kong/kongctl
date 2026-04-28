@@ -1,7 +1,7 @@
 ---
 name: kongctl-extension-builder
 description: Scaffold and maintain kongctl CLI extensions. Use when a user
-  wants to create a script or Go extension, define extension.yaml command
+  wants to create a script or Go extension, define kongctl-extension.yaml command
   paths, test install/link workflows, or debug extension context handling.
 license: Apache-2.0
 metadata:
@@ -14,13 +14,14 @@ metadata:
 ## Goal
 
 Help users create a runnable `kongctl` CLI extension with a valid
-`extension.yaml`, an executable runtime, and local and remote test workflows.
+`kongctl-extension.yaml`, an executable runtime, and local and remote test
+workflows.
 
 ## Core Rules
 
 - Extensions run as separate processes; do not import `internal/...` packages
   from `kongctl`.
-- The manifest file must be named `extension.yaml`.
+- The manifest file must be named `kongctl-extension.yaml`.
 - Required manifest fields are:
   - `schema_version: 1`
   - `publisher`
@@ -34,6 +35,10 @@ Help users create a runnable `kongctl` CLI extension with a valid
 - Built-in root segments such as `get` and `list` cannot declare aliases.
 - `runtime.command` must be relative to the extension root and already
   executable. `kongctl` does not compile source during install.
+- `version` in `kongctl-extension.yaml` is optional. For remotely installed
+  extensions, prefer Git tags/releases as the package version source; kongctl
+  displays the release tag, ref, or short commit when the manifest omits a
+  version.
 - GitHub repository names do not need a `kongctl-*` prefix. Use names that are
   clear for humans and keep the manifest ID in `publisher/name` form.
 - Extension-specific args and flags should be shown directly in examples, such
@@ -48,7 +53,7 @@ Help users create a runnable `kongctl` CLI extension with a valid
 1. Choose a runtime style:
    - shell script for small wrappers
    - Go binary for richer parsing or reusable logic
-2. Create `extension.yaml` with one or more command paths.
+2. Create `kongctl-extension.yaml` with one or more command paths.
 3. Add the runtime file named by `runtime.command`.
 4. Make script runtimes executable with `chmod +x`.
 5. Test with a development link:
@@ -65,7 +70,7 @@ Help users create a runnable `kongctl` CLI extension with a valid
    ```
 7. Prepare remote repositories so install can consume release archives:
    - release archives are preferred over source clone fallback
-   - `extension.yaml` must be at the archive root
+   - `kongctl-extension.yaml` must be at the archive root
    - `runtime.command` points to a runnable file inside the archive
    - publish one archive asset per release, or include the target platform in
      each platform-specific asset name
@@ -77,21 +82,24 @@ Help users create a runnable `kongctl` CLI extension with a valid
    kongctl install extension <owner>/<repo>@<tag>
    kongctl install extension <owner>/<repo>@<tag> --yes
    kongctl upgrade extension <publisher>/<name>
+   kongctl upgrade extension <owner>/<repo>
    kongctl upgrade extension <publisher>/<name>@<tag-or-version> --yes
    ```
 
 When no compatible release archive exists, `kongctl install extension
 <owner>/<repo>` falls back to cloning the repository. Source fallback is only
-valid when the repository root already contains `extension.yaml` and an
+valid when the repository root already contains `kongctl-extension.yaml` and an
 already-runnable script or binary referenced by `runtime.command`.
 
 For release-artifact installs, `kongctl upgrade extension <publisher>/<name>`
-selects the latest compatible GitHub release asset from the originally
-recorded repository. Add `@<tag-or-version>` to pin the upgrade target, for
-example `kongctl upgrade extension kong/debug@0.2.0`. A bare semantic version
-tries the exact release tag first and then a `v`-prefixed tag. Source-clone
-installs require an explicit `@<tag|ref|commit>` target because there is no
-stable "latest" release asset to resolve.
+or `kongctl upgrade extension <owner>/<repo>` selects the latest compatible
+GitHub release asset from the originally recorded repository. Add
+`@<tag-or-version>` to pin the upgrade target, for example
+`kongctl upgrade extension kong/debug@0.2.0` or
+`kongctl upgrade extension kong/kongctl-ext-debug@0.2.0`. A bare semantic
+version tries the exact release tag first and then a `v`-prefixed tag.
+Source-clone installs require an explicit `@<tag|ref|commit>` target because
+there is no stable "latest" release asset to resolve.
 
 Remote installs show a trust confirmation prompt with the selected source,
 asset or ref, runtime command, command paths, and package/manifest/runtime
@@ -147,7 +155,7 @@ local struct and call `kongctl` as a subprocess for authenticated host access.
 For GitHub installs, prefer a release artifact that extracts to this shape:
 
 ```text
-extension.yaml
+kongctl-extension.yaml
 bin/kongctl-ext-foo
 README.md
 ```
@@ -192,11 +200,11 @@ jobs:
       - run: |
           CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o dist/package/bin/kongctl-ext-foo ./cmd/kongctl-ext-foo
-          cp extension.yaml README.md dist/package/
+          cp kongctl-extension.yaml README.md dist/package/
           chmod +x dist/package/bin/kongctl-ext-foo
           tar -C dist/package -czf \
             dist/kongctl-ext-foo-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
-            extension.yaml README.md bin/kongctl-ext-foo
+            kongctl-extension.yaml README.md bin/kongctl-ext-foo
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*.tar.gz
@@ -206,11 +214,11 @@ For a script extension, publish a single universal archive:
 
 ```sh
 mkdir -p dist/package/bin
-cp extension.yaml README.md dist/package/
+cp kongctl-extension.yaml README.md dist/package/
 cp kongctl-ext-foo dist/package/bin/
 chmod +x dist/package/bin/kongctl-ext-foo
 tar -C dist/package -czf dist/kongctl-ext-foo-universal.tar.gz \
-  extension.yaml README.md bin/kongctl-ext-foo
+  kongctl-extension.yaml README.md bin/kongctl-ext-foo
 ```
 
 The installer accepts `.tar.gz`, `.tgz`, and `.zip` assets. If a release has

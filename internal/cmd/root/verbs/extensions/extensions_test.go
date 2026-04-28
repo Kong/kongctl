@@ -3,6 +3,7 @@ package extensions
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -105,36 +106,133 @@ func TestConfirmRemoteUpgradeTrustShowsCurrentAndTarget(t *testing.T) {
 	require.Contains(t, out.String(), "Do you want to upgrade this extension?")
 }
 
+func TestWriteRemoteTrustPromptCompactsWideValues(t *testing.T) {
+	var out bytes.Buffer
+	fetched := testFetchedGitHubSource()
+	fetched.AssetURL = "https://github.com/kong/kongctl-ext-debug/releases/download/v0.1.0/" +
+		"kongctl-ext-debug-universal-with-a-very-long-name.tar.gz"
+	observation := testPackageObservation()
+	fullHash := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	observation.PackageHash = fullHash
+	observation.ManifestHash = fullHash
+	observation.RuntimeHash = fullHash
+
+	err := writeRemoteTrustPrompt(&out, "upgrade", &extensions.Extension{}, fetched, testRemoteCandidate(), observation)
+
+	require.NoError(t, err)
+	require.NotContains(t, out.String(), fullHash)
+	require.Contains(t, out.String(), abbreviateTrustHash(fullHash))
+	require.Contains(t, out.String(), "Asset URL")
+	require.Contains(t, out.String(), "\n    https://")
+	for _, line := range strings.Split(out.String(), "\n") {
+		if strings.HasPrefix(line, "    https://") || strings.HasPrefix(line, "    kongctl-ext-debug-universal") {
+			require.LessOrEqual(t, len(line), remoteTrustWrapWidth, line)
+		}
+	}
+}
+
+func TestExtensionDisplayVersionPrefersManifestVersion(t *testing.T) {
+	ext := testInstalledRemoteExtension()
+	ext.Manifest.Version = "0.1.0"
+	ext.Install.Source.ReleaseTag = "v0.2.0"
+
+	require.Equal(t, "0.1.0", extensionDisplayVersion(ext))
+}
+
+func TestExtensionDisplayVersionFallsBackToReleaseTag(t *testing.T) {
+	ext := testInstalledRemoteExtension()
+	ext.Manifest.Version = ""
+	ext.Install.Source.ReleaseTag = "v0.2.0"
+
+	require.Equal(t, "v0.2.0", extensionDisplayVersion(ext))
+}
+
+func TestExtensionDisplayVersionFallsBackToSourceRefOrCommit(t *testing.T) {
+	ext := testInstalledRemoteExtension()
+	ext.Manifest.Version = ""
+	ext.Install.Source = extensions.SourceState{
+		Type:           extensions.SourceTypeGitHubSource,
+		Repository:     "kong/kongctl-ext-debug",
+		Ref:            "main",
+		ResolvedCommit: "0123456789abcdef0123456789abcdef01234567",
+	}
+	require.Equal(t, "main", extensionDisplayVersion(ext))
+
+	ext.Install.Source.Ref = ""
+	require.Equal(t, "0123456789ab", extensionDisplayVersion(ext))
+}
+
+func TestWriteListSummaryUsesSourceVersionFallback(t *testing.T) {
+	var out bytes.Buffer
+	ext := testInstalledRemoteExtension()
+	ext.Manifest.Version = ""
+	ext.Install.Source.ReleaseTag = "v0.2.0"
+
+	err := writeListSummary(&out, []extensions.Extension{ext})
+
+	require.NoError(t, err)
+	require.Contains(t, out.String(), "v0.2.0")
+	require.NotContains(t, out.String(), "unversioned")
+}
+
 func TestParseUpgradeExtensionTarget(t *testing.T) {
 	tests := []struct {
-		name       string
-		value      string
-		wantID     string
-		wantTarget string
-		wantErr    string
+		name         string
+		value        string
+		wantSelector string
+		wantTarget   string
+		wantErr      string
 	}{
 		{
-			name:   "id only",
-			value:  "kong/debug",
-			wantID: "kong/debug",
+			name:         "id only",
+			value:        "kong/debug",
+			wantSelector: "kong/debug",
 		},
 		{
-			name:       "tag target",
-			value:      "kong/debug@v0.2.0",
-			wantID:     "kong/debug",
-			wantTarget: "v0.2.0",
+			name:         "tag target",
+			value:        "kong/debug@v0.2.0",
+			wantSelector: "kong/debug",
+			wantTarget:   "v0.2.0",
 		},
 		{
-			name:       "version target",
-			value:      "kong/debug@0.2.0",
-			wantID:     "kong/debug",
-			wantTarget: "0.2.0",
+			name:         "version target",
+			value:        "kong/debug@0.2.0",
+			wantSelector: "kong/debug",
+			wantTarget:   "0.2.0",
 		},
 		{
-			name:       "latest target",
-			value:      "kong/debug@latest",
-			wantID:     "kong/debug",
-			wantTarget: "latest",
+			name:         "latest target",
+			value:        "kong/debug@latest",
+			wantSelector: "kong/debug",
+			wantTarget:   "latest",
+		},
+		{
+			name:         "GitHub repository target",
+			value:        "kong/kongctl-ext-debug@v0.2.0",
+			wantSelector: "kong/kongctl-ext-debug",
+			wantTarget:   "v0.2.0",
+		},
+		{
+			name:         "GitHub URL",
+			value:        "https://github.com/kong/kongctl-ext-debug",
+			wantSelector: "https://github.com/kong/kongctl-ext-debug",
+		},
+		{
+			name:         "GitHub URL target",
+			value:        "https://github.com/kong/kongctl-ext-debug@v0.2.0",
+			wantSelector: "https://github.com/kong/kongctl-ext-debug",
+			wantTarget:   "v0.2.0",
+		},
+		{
+			name:         "SSH URL",
+			value:        "git@github.com:kong/kongctl-ext-debug.git",
+			wantSelector: "git@github.com:kong/kongctl-ext-debug.git",
+		},
+		{
+			name:         "SSH URL target",
+			value:        "git@github.com:kong/kongctl-ext-debug.git@v0.2.0",
+			wantSelector: "git@github.com:kong/kongctl-ext-debug.git",
+			wantTarget:   "v0.2.0",
 		},
 		{
 			name:    "missing target",
@@ -142,9 +240,9 @@ func TestParseUpgradeExtensionTarget(t *testing.T) {
 			wantErr: "target is required",
 		},
 		{
-			name:    "invalid id",
-			value:   "debug",
-			wantErr: "publisher/name",
+			name:    "missing selector",
+			value:   "",
+			wantErr: "required",
 		},
 		{
 			name:    "extra at",
@@ -155,16 +253,86 @@ func TestParseUpgradeExtensionTarget(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, target, err := parseUpgradeExtensionTarget(tt.value)
+			selector, target, err := parseUpgradeExtensionTarget(tt.value)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, tt.wantID, id)
+			require.Equal(t, tt.wantSelector, selector)
 			require.Equal(t, tt.wantTarget, target)
 		})
 	}
+}
+
+func TestMatchUpgradeExtensionByGitHubRepository(t *testing.T) {
+	matches := []extensions.Extension{
+		{
+			ID:          "kong/debug",
+			InstallType: extensions.InstallTypeInstalled,
+			Install: &extensions.InstallState{
+				Source: extensions.SourceState{
+					Type:       extensions.SourceTypeGitHubReleaseAsset,
+					Repository: "Kong/kongctl-ext-debug",
+				},
+			},
+		},
+		{
+			ID:          "kong/local",
+			InstallType: extensions.InstallTypeInstalled,
+			Install: &extensions.InstallState{
+				Source: extensions.SourceState{
+					Type: extensions.SourceTypeLocalPath,
+				},
+			},
+		},
+		{
+			ID:          "kong/linked-debug",
+			InstallType: extensions.InstallTypeLinked,
+			Install: &extensions.InstallState{
+				Source: extensions.SourceState{
+					Type:       extensions.SourceTypeGitHubReleaseAsset,
+					Repository: "kong/kongctl-ext-debug",
+				},
+			},
+		},
+	}
+
+	ext, found, err := matchUpgradeExtensionByGitHubRepository(matches, "kong/kongctl-ext-debug")
+
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, "kong/debug", ext.ID)
+}
+
+func TestMatchUpgradeExtensionByGitHubRepositoryRejectsAmbiguousMatches(t *testing.T) {
+	matches := []extensions.Extension{
+		{
+			ID:          "kong/one",
+			InstallType: extensions.InstallTypeInstalled,
+			Install: &extensions.InstallState{
+				Source: extensions.SourceState{
+					Type:       extensions.SourceTypeGitHubReleaseAsset,
+					Repository: "kong/repo",
+				},
+			},
+		},
+		{
+			ID:          "kong/two",
+			InstallType: extensions.InstallTypeInstalled,
+			Install: &extensions.InstallState{
+				Source: extensions.SourceState{
+					Type:       extensions.SourceTypeGitHubSource,
+					Repository: "kong/repo",
+				},
+			},
+		},
+	}
+
+	_, found, err := matchUpgradeExtensionByGitHubRepository(matches, "kong/repo")
+
+	require.ErrorContains(t, err, "multiple installed extensions")
+	require.False(t, found)
 }
 
 func newTrustPromptTestHelper(t *testing.T) (cmdpkg.Helper, *bytes.Buffer, *bytes.Buffer) {
