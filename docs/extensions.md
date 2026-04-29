@@ -53,6 +53,27 @@ Required fields:
 package version source. When the manifest omits `version`, `kongctl` displays
 the release tag, source ref, or short commit where available.
 
+## Compatibility
+
+Extensions can declare the range of `kongctl` versions they support:
+
+```yaml
+compatibility:
+  min_version: 0.20.0
+  max_version: 0.x
+```
+
+`kongctl` enforces this range when installing, linking, upgrading, and running
+extensions. If the current `kongctl` version is outside the declared range, the
+command fails before installing the package or starting the extension process.
+
+`min_version` is inclusive. `max_version` is inclusive for exact versions and
+can use a wildcard such as `0.x` to express a supported major-version lane.
+
+Development builds report their version as `dev`. Because that is not a
+released semantic version, compatibility is shown as unknown and execution is
+allowed. Release builds use their actual version for enforcement.
+
 ## Command Paths
 
 For v1, an extension can contribute command paths under:

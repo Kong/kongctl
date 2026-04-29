@@ -118,6 +118,10 @@ func (s Store) Dispatch(
 	remainingArgs []string,
 	profileOverride string,
 ) error {
+	if err := EnsureCompatible(ext.Manifest, runtimeCLIVersion(buildInfo)); err != nil {
+		return err
+	}
+
 	runtimePath, err := s.ResolveRuntime(ext)
 	if err != nil {
 		return err
@@ -222,10 +226,7 @@ func (s Store) buildRuntimeContext(
 	if profile == "" {
 		profile = cfg.GetProfile()
 	}
-	version := meta.DefaultCLIVersion
-	if buildInfo != nil && strings.TrimSpace(buildInfo.Version) != "" {
-		version = buildInfo.Version
-	}
+	version := runtimeCLIVersion(buildInfo)
 	kongctlPath, _ := os.Executable()
 	authMode, authSource := authMetadata(cfg)
 
@@ -341,4 +342,11 @@ func randomSessionID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(data[:]), nil
+}
+
+func runtimeCLIVersion(buildInfo *build.Info) string {
+	if buildInfo != nil && strings.TrimSpace(buildInfo.Version) != "" {
+		return buildInfo.Version
+	}
+	return meta.DefaultCLIVersion
 }

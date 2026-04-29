@@ -206,11 +206,52 @@ func TestWriteListSummaryUsesSourceVersionFallback(t *testing.T) {
 	ext.Manifest.Version = ""
 	ext.Install.Source.ReleaseTag = "v0.2.0"
 
-	err := writeListSummary(&out, []extensions.Extension{ext})
+	err := writeListSummary(&out, []extensions.Extension{ext}, "0.20.0")
 
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "v0.2.0")
 	require.NotContains(t, out.String(), "unversioned")
+}
+
+func TestWriteListSummaryMarksIncompatibleExtensions(t *testing.T) {
+	var out bytes.Buffer
+	ext := testInstalledRemoteExtension()
+	ext.Manifest.Compatibility.MinVersion = "9.0.0"
+
+	err := writeListSummary(&out, []extensions.Extension{ext}, "1.0.0")
+
+	require.NoError(t, err)
+	plain := stripANSIEscapeSequences(out.String())
+	require.Contains(t, plain, "!  kong/debug  installed  0.1.0  incompatible\n")
+}
+
+func TestWriteExtensionSummaryShowsCompatibility(t *testing.T) {
+	var out bytes.Buffer
+	ext := testInstalledRemoteExtension()
+	ext.Manifest.Compatibility.MinVersion = "0.20.0"
+	ext.Manifest.Compatibility.MaxVersion = "0.x"
+
+	err := writeExtensionSummary(&out, ext, "0.25.0")
+
+	require.NoError(t, err)
+	plain := stripANSIEscapeSequences(out.String())
+	require.Contains(t, plain, "  Compatibility: compatible\n")
+	require.Contains(t, plain, "  Requires: >= 0.20.0, 0.x\n")
+	require.Contains(t, plain, "  Current kongctl: 0.25.0\n")
+}
+
+func TestWriteExtensionSummaryShowsUnknownCompatibilityForDevelopmentVersion(t *testing.T) {
+	var out bytes.Buffer
+	ext := testInstalledRemoteExtension()
+	ext.Manifest.Compatibility.MinVersion = "0.20.0"
+
+	err := writeExtensionSummary(&out, ext, "dev")
+
+	require.NoError(t, err)
+	plain := stripANSIEscapeSequences(out.String())
+	require.Contains(t, plain, "  Compatibility: unknown\n")
+	require.Contains(t, plain, "  Requires: >= 0.20.0\n")
+	require.Contains(t, plain, "  Current kongctl: dev\n")
 }
 
 func TestUpgradeExtensionCommandSupportsUpgradeAll(t *testing.T) {

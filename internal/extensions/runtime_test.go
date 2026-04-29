@@ -1,11 +1,14 @@
 package extensions
 
 import (
+	"context"
 	"testing"
 
+	"github.com/kong/kongctl/internal/build"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,4 +82,38 @@ command_paths:
 	require.True(t, runtimeCtx.Output.JQ.RawOutput)
 	require.Equal(t, "never", runtimeCtx.Output.JQ.Color)
 	require.Equal(t, "github", runtimeCtx.Output.JQ.ColorTheme)
+}
+
+func TestDispatchRejectsIncompatibleExtensionBeforeRuntimeResolution(t *testing.T) {
+	streams := iostreams.NewTestIOStreamsOnly()
+	cfg := newTestHook()
+	ext := mustExtension(t, `
+schema_version: 1
+publisher: kong
+name: debug
+compatibility:
+  min_version: 9.0.0
+runtime:
+  command: missing-runtime
+command_paths:
+  - id: get_debug
+    path:
+      - name: get
+      - name: debug
+`)
+
+	err := NewStore(t.TempDir()).Dispatch(
+		context.Background(),
+		streams,
+		cfg,
+		&build.Info{Version: "1.0.0"},
+		ext,
+		ext.CommandPaths[0],
+		[]string{"get", "debug"},
+		nil,
+		"",
+	)
+
+	require.ErrorContains(t, err, "extension kong/debug is not compatible")
+	require.NotContains(t, err.Error(), "missing-runtime")
 }

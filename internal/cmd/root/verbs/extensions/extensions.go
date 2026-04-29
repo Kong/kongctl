@@ -242,6 +242,9 @@ func runInstallExtension(command *cobra.Command, args []string, opts installExte
 	if err != nil {
 		return err
 	}
+	if err := extensioncore.EnsureCompatible(candidate.Manifest, version); err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
 	result, err := store.InstallLocal(opts.source, version, time.Now())
 	if err != nil {
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to install extension", err)
@@ -278,15 +281,18 @@ func runInstallGitHubExtension(
 	if err := extensioncore.ValidateExtensionCommands(command.Root(), candidate); err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
+	version, err := cliVersion(helper)
+	if err != nil {
+		return err
+	}
+	if err := extensioncore.EnsureCompatible(candidate.Manifest, version); err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
 	observation, err := extensioncore.ObservePackage(fetched.Dir)
 	if err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
 	trustConfirmed, err := confirmRemoteInstallTrust(helper, fetched, candidate, observation, opts.yes)
-	if err != nil {
-		return err
-	}
-	version, err := cliVersion(helper)
 	if err != nil {
 		return err
 	}
@@ -316,6 +322,9 @@ func runLinkExtension(command *cobra.Command, args []string, opts linkExtensionO
 	if err != nil {
 		return err
 	}
+	if err := extensioncore.EnsureCompatible(candidate.Manifest, version); err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
 	ext, err := store.LinkLocal(opts.source, version, time.Now())
 	if err != nil {
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to link extension", err)
@@ -335,8 +344,12 @@ func runListExtensions(command *cobra.Command, args []string) error {
 	if err != nil {
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to list extensions", err)
 	}
+	version, err := cliVersion(helper)
+	if err != nil {
+		return err
+	}
 	return writeCommandResult(helper, extensions, func() error {
-		return writeListSummary(helper.GetStreams().Out, extensions)
+		return writeListSummary(helper.GetStreams().Out, extensions, version)
 	})
 }
 
@@ -350,8 +363,12 @@ func runGetExtension(command *cobra.Command, args []string, id string) error {
 	if err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
+	version, err := cliVersion(helper)
+	if err != nil {
+		return err
+	}
 	return writeCommandResult(helper, ext, func() error {
-		return writeExtensionSummary(helper.GetStreams().Out, ext)
+		return writeExtensionSummary(helper.GetStreams().Out, ext, version)
 	})
 }
 
@@ -494,6 +511,10 @@ func upgradeGitHubReleaseExtension(
 	opts upgradeExtensionOptions,
 ) (upgradeExtensionOutcome, error) {
 	helper := cmdpkg.BuildHelper(command, args)
+	version, err := cliVersion(helper)
+	if err != nil {
+		return upgradeExtensionOutcome{}, err
+	}
 	repository := strings.TrimSpace(current.Install.Source.Repository)
 	if repository == "" {
 		return upgradeExtensionOutcome{}, &cmdpkg.ConfigurationError{Err: fmt.Errorf(
@@ -521,7 +542,7 @@ func upgradeGitHubReleaseExtension(
 	}
 	defer fetched.Cleanup()
 
-	candidate, observation, err := validateRemoteUpgradeCandidate(command, current, fetched.Dir)
+	candidate, observation, err := validateRemoteUpgradeCandidate(command, current, fetched.Dir, version)
 	if err != nil {
 		return upgradeExtensionOutcome{}, err
 	}
@@ -534,10 +555,6 @@ func upgradeGitHubReleaseExtension(
 	}
 
 	trustConfirmed, err := confirmRemoteUpgradeTrust(helper, current, fetched, candidate, observation, opts.yes)
-	if err != nil {
-		return upgradeExtensionOutcome{}, err
-	}
-	version, err := cliVersion(helper)
 	if err != nil {
 		return upgradeExtensionOutcome{}, err
 	}
@@ -561,6 +578,10 @@ func upgradeGitHubSourceExtension(
 	opts upgradeExtensionOptions,
 ) (upgradeExtensionOutcome, error) {
 	helper := cmdpkg.BuildHelper(command, args)
+	version, err := cliVersion(helper)
+	if err != nil {
+		return upgradeExtensionOutcome{}, err
+	}
 	if normalizedUpgradeTarget(opts.target) == "" {
 		return upgradeExtensionOutcome{}, &cmdpkg.ConfigurationError{Err: fmt.Errorf(
 			"extension %s was installed from a GitHub source clone; upgrade it with %s upgrade extension %s@<tag|ref|commit>",
@@ -591,7 +612,7 @@ func upgradeGitHubSourceExtension(
 	}
 	defer fetched.Cleanup()
 
-	candidate, observation, err := validateRemoteUpgradeCandidate(command, current, fetched.Dir)
+	candidate, observation, err := validateRemoteUpgradeCandidate(command, current, fetched.Dir, version)
 	if err != nil {
 		return upgradeExtensionOutcome{}, err
 	}
@@ -604,10 +625,6 @@ func upgradeGitHubSourceExtension(
 	}
 
 	trustConfirmed, err := confirmRemoteUpgradeTrust(helper, current, fetched, candidate, observation, opts.yes)
-	if err != nil {
-		return upgradeExtensionOutcome{}, err
-	}
-	version, err := cliVersion(helper)
 	if err != nil {
 		return upgradeExtensionOutcome{}, err
 	}
@@ -627,6 +644,7 @@ func validateRemoteUpgradeCandidate(
 	command *cobra.Command,
 	current extensioncore.Extension,
 	sourceRoot string,
+	cliVersion string,
 ) (extensioncore.Extension, extensioncore.PackageObservation, error) {
 	candidate, err := extensioncore.LoadLocalExtension(sourceRoot, extensioncore.InstallTypeInstalled)
 	if err != nil {
@@ -638,6 +656,9 @@ func validateRemoteUpgradeCandidate(
 		)}
 	}
 	if err := extensioncore.ValidateExtensionCommands(command.Root(), candidate); err != nil {
+		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{Err: err}
+	}
+	if err := extensioncore.EnsureCompatible(candidate.Manifest, cliVersion); err != nil {
 		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{Err: err}
 	}
 	observation, err := extensioncore.ObservePackage(sourceRoot)
@@ -1077,7 +1098,7 @@ func writeLinkSummary(w io.Writer, ext extensioncore.Extension, source string) e
 	return nil
 }
 
-func writeListSummary(w io.Writer, extensions []extensioncore.Extension) error {
+func writeListSummary(w io.Writer, extensions []extensioncore.Extension, cliVersion string) error {
 	ui := extensionUI()
 	if len(extensions) == 0 {
 		_, err := fmt.Fprintf(w, "%s No extensions installed or linked.\n  %s\n",
@@ -1094,12 +1115,21 @@ func writeListSummary(w io.Writer, extensions []extensioncore.Extension) error {
 		if version == "" {
 			version = "unversioned"
 		}
-		if _, err := fmt.Fprintf(w, "%s %s  %s  %s\n",
-			ui.success.Render("✓"),
+		icon := ui.success.Render("✓")
+		compatibilityStatus := extensionListCompatibilityStatus(ext, cliVersion)
+		if compatibilityStatus != "" {
+			icon = ui.warning.Render("!")
+		}
+		fields := []string{
+			icon,
 			ui.strong.Render(ext.ID),
 			ui.muted.Render(string(ext.InstallType)),
 			ui.muted.Render(version),
-		); err != nil {
+		}
+		if compatibilityStatus != "" {
+			fields = append(fields, ui.warning.Render(compatibilityStatus))
+		}
+		if _, err := fmt.Fprintln(w, strings.Join(fields, "  ")); err != nil {
 			return err
 		}
 		writeCommands(w, ui, ext.CommandPaths)
@@ -1107,7 +1137,7 @@ func writeListSummary(w io.Writer, extensions []extensioncore.Extension) error {
 	return nil
 }
 
-func writeExtensionSummary(w io.Writer, ext extensioncore.Extension) error {
+func writeExtensionSummary(w io.Writer, ext extensioncore.Extension, cliVersion string) error {
 	ui := extensionUI()
 	if _, err := fmt.Fprintf(w, "%s %s\n", ui.heading.Render("Extension"), ui.strong.Render(ext.ID)); err != nil {
 		return err
@@ -1117,6 +1147,7 @@ func writeExtensionSummary(w io.Writer, ext extensioncore.Extension) error {
 	writeField(w, ui, "Type", string(ext.InstallType))
 	writeOptionalField(w, ui, "Version", extensionDisplayVersion(ext))
 	writeOptionalField(w, ui, "Summary", ext.Manifest.Summary)
+	writeCompatibilityFields(w, ui, ext, cliVersion)
 	switch ext.InstallType {
 	case extensioncore.InstallTypeInstalled:
 		writeOptionalField(w, ui, "Package", ext.PackageDir)
@@ -1267,6 +1298,41 @@ func writeOptionalField(w io.Writer, ui extensionUIStyles, label, value string) 
 		return
 	}
 	writeField(w, ui, label, value)
+}
+
+func writeCompatibilityFields(w io.Writer, ui extensionUIStyles, ext extensioncore.Extension, cliVersion string) {
+	if !extensionHasCompatibility(ext) {
+		return
+	}
+	result, err := extensioncore.CheckCompatibility(ext.Manifest, cliVersion)
+	status := "compatible"
+	switch {
+	case err != nil, result.Unknown:
+		status = "unknown"
+	case !result.Compatible:
+		status = "incompatible"
+	}
+	writeField(w, ui, "Compatibility", status)
+	if result.Constraint != "" {
+		writeField(w, ui, "Requires", result.Constraint)
+	}
+	writeField(w, ui, "Current kongctl", strings.TrimSpace(cliVersion))
+}
+
+func extensionListCompatibilityStatus(ext extensioncore.Extension, cliVersion string) string {
+	if !extensionHasCompatibility(ext) {
+		return ""
+	}
+	result, err := extensioncore.CheckCompatibility(ext.Manifest, cliVersion)
+	if err != nil || !result.Compatible {
+		return "incompatible"
+	}
+	return ""
+}
+
+func extensionHasCompatibility(ext extensioncore.Extension) bool {
+	return strings.TrimSpace(ext.Manifest.Compatibility.MinVersion) != "" ||
+		strings.TrimSpace(ext.Manifest.Compatibility.MaxVersion) != ""
 }
 
 func abbreviateTrustHash(value string) string {

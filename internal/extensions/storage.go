@@ -213,6 +213,9 @@ func (s Store) installDirectory(
 		return InstallResult{}, err
 	}
 	manifest := observation.Manifest
+	if err := EnsureCompatible(manifest, cliVersion); err != nil {
+		return InstallResult{}, err
+	}
 
 	id := ExtensionID(manifest.Publisher, manifest.Name)
 	if err := s.ensureNotLinked(id); err != nil {
@@ -326,6 +329,9 @@ func (s Store) LinkLocal(source, cliVersion string, now time.Time) (Extension, e
 	manifest := candidate.Manifest
 	if cliVersion == "" {
 		cliVersion = meta.DefaultCLIVersion
+	}
+	if err := EnsureCompatible(manifest, cliVersion); err != nil {
+		return Extension{}, err
 	}
 
 	id := ExtensionID(manifest.Publisher, manifest.Name)

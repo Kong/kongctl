@@ -32,6 +32,64 @@ command_paths:
 	require.Equal(t, "Run kong/foo extension command", manifest.CommandPaths[0].Summary)
 }
 
+func TestParseManifestNormalizesCompatibility(t *testing.T) {
+	manifest, err := ParseManifest([]byte(`
+schema_version: 1
+publisher: kong
+name: foo
+compatibility:
+  min_version: " 0.20.0 "
+  max_version: " 0.x "
+runtime:
+  command: bin/kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+`))
+
+	require.NoError(t, err)
+	require.Equal(t, "0.20.0", manifest.Compatibility.MinVersion)
+	require.Equal(t, "0.x", manifest.Compatibility.MaxVersion)
+}
+
+func TestParseManifestRejectsInvalidCompatibility(t *testing.T) {
+	_, err := ParseManifest([]byte(`
+schema_version: 1
+publisher: kong
+name: foo
+compatibility:
+  min_version: not-a-version
+runtime:
+  command: bin/kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+`))
+
+	require.ErrorContains(t, err, "compatibility.min_version")
+}
+
+func TestParseManifestRejectsImpossibleCompatibilityRange(t *testing.T) {
+	_, err := ParseManifest([]byte(`
+schema_version: 1
+publisher: kong
+name: foo
+compatibility:
+  min_version: 1.0.0
+  max_version: 0.x
+runtime:
+  command: bin/kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+`))
+
+	require.ErrorContains(t, err, "does not include min_version")
+}
+
 func TestParseManifestRejectsUnknownTopLevelKey(t *testing.T) {
 	_, err := ParseManifest([]byte(`
 schema_version: 1

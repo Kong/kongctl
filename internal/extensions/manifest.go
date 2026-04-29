@@ -217,6 +217,11 @@ func NormalizeAndValidateManifest(manifest *Manifest) error {
 	if len(manifest.Summary) > maxTextLen {
 		return fmt.Errorf("summary must be %d characters or fewer", maxTextLen)
 	}
+	manifest.Compatibility.MinVersion = strings.TrimSpace(manifest.Compatibility.MinVersion)
+	manifest.Compatibility.MaxVersion = strings.TrimSpace(manifest.Compatibility.MaxVersion)
+	if err := ValidateCompatibility(manifest.Compatibility); err != nil {
+		return err
+	}
 
 	manifest.Runtime.Command = filepath.ToSlash(strings.TrimSpace(manifest.Runtime.Command))
 	if err := ValidateRuntimeCommand(manifest.Runtime.Command); err != nil {
