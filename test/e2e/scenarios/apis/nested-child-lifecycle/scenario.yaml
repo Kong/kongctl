@@ -121,13 +121,37 @@ steps:
                 "labels.\"KONGCTL-namespace\"": "apis-nested"
       - name: 002-get-versions
         run: ["get", "api", "versions", "--api-name", "API Nested", "-o", "json"]
+        recordVar:
+          name: v1VersionID
+          responsePath: "[?version=='1.0.0'] | [0].id"
         assertions:
           - select: "[?version=='1.0.0'] | [0]"
             expect:
               fields:
                 version: "1.0.0"
                 "spec.type": "oas3"
-      - name: 003-get-documents
+      - name: 003-get-version-by-string
+        run: ["get", "api", "versions", "--api-name", "API Nested", "1.0.0", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                version: "1.0.0"
+                "spec.type": "oas3"
+      - name: 004-get-version-by-uuid
+        run: ["get", "api", "versions", "--api-name", "API Nested", "{{ .vars.v1VersionID }}", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                version: "1.0.0"
+                "spec.type": "oas3"
+      - name: 005-get-version-not-found
+        run: ["get", "api", "versions", "--api-name", "API Nested", "nonexistent-99.0.0", "-o", "json"]
+        expectFailure:
+          exitCode: 1
+          contains: "not found"
+      - name: 006-get-documents
         run: ["get", "api", "documents", "--api-name", "API Nested", "-o", "json"]
         assertions:
           - select: "[?title=='Child Document'] | [0]"
