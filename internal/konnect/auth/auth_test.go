@@ -157,26 +157,42 @@ func TestValidateKonnectURL(t *testing.T) {
 		{name: "trailing dot normalized", url: "https://us.api.konghq.com."},
 
 		// scheme errors
-		{name: "http not allowed", url: "http://us.api.konghq.com",
-			wantErr: "must use HTTPS"},
-		{name: "empty scheme", url: "//us.api.konghq.com",
-			wantErr: "must use HTTPS"},
+		{
+			name: "http not allowed", url: "http://us.api.konghq.com",
+			wantErr: "must use HTTPS",
+		},
+		{
+			name: "empty scheme", url: "//us.api.konghq.com",
+			wantErr: "must use HTTPS",
+		},
 
 		// untrusted hosts
-		{name: "arbitrary host", url: "https://evil.com",
-			wantErr: "not a trusted konghq.com domain"},
-		{name: "subdomain typosquat", url: "https://us.api.konghq.com.evil.com",
-			wantErr: "not a trusted konghq.com domain"},
-		{name: "konghq.com prefix only", url: "https://konghq.com.evil.com",
-			wantErr: "not a trusted konghq.com domain"},
-		{name: "localhost", url: "https://localhost",
-			wantErr: "not a trusted konghq.com domain"},
-		{name: "link-local", url: "https://169.254.169.254",
-			wantErr: "not a trusted konghq.com domain"},
+		{
+			name: "arbitrary host", url: "https://evil.com",
+			wantErr: "not a trusted konghq.com domain",
+		},
+		{
+			name: "subdomain typosquat", url: "https://us.api.konghq.com.evil.com",
+			wantErr: "not a trusted konghq.com domain",
+		},
+		{
+			name: "konghq.com prefix only", url: "https://konghq.com.evil.com",
+			wantErr: "not a trusted konghq.com domain",
+		},
+		{
+			name: "localhost", url: "https://localhost",
+			wantErr: "not a trusted konghq.com domain",
+		},
+		{
+			name: "link-local", url: "https://169.254.169.254",
+			wantErr: "not a trusted konghq.com domain",
+		},
 
 		// parse errors
-		{name: "invalid URL", url: "://bad-url",
-			wantErr: "invalid Konnect URL"},
+		{
+			name: "invalid URL", url: "://bad-url",
+			wantErr: "invalid Konnect URL",
+		},
 	}
 
 	for _, tt := range tests {
@@ -191,6 +207,7 @@ func TestValidateKonnectURL(t *testing.T) {
 		})
 	}
 }
+
 func TestRequestDeviceCode_NonOKStatus(t *testing.T) {
 	tests := []struct {
 		name       string

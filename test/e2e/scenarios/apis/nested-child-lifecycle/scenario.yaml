@@ -10,7 +10,6 @@ vars:
 defaults:
   mask:
     dropKeys:
-      - id
       - resource_id
       - change_id
       - created_at
@@ -153,12 +152,57 @@ steps:
           contains: "not found"
       - name: 006-get-documents
         run: ["get", "api", "documents", "--api-name", "API Nested", "-o", "json"]
+        recordVar:
+          name: rootDocID
+          responsePath: "[?title=='Root Document'] | [0].id"
         assertions:
+          - select: "[?title=='Root Document'] | [0]"
+            expect:
+              fields:
+                title: "Root Document"
+                slug: "root-document"
+                status: "published"
+                "length(id) > `0`": true
           - select: "[?title=='Child Document'] | [0]"
             expect:
               fields:
                 title: "Child Document"
                 status: "unpublished"
+      - name: 007-get-document-by-title
+        run: ["get", "api", "documents", "--api-name", "API Nested", "Root Document", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                id: "{{ .vars.rootDocID }}"
+                title: "Root Document"
+                slug: "root-document"
+                status: "published"
+      - name: 008-get-document-by-slug
+        run: ["get", "api", "documents", "--api-name", "API Nested", "root-document", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                id: "{{ .vars.rootDocID }}"
+                title: "Root Document"
+                slug: "root-document"
+                status: "published"
+      - name: 009-get-document-by-uuid
+        run: ["get", "api", "documents", "--api-name", "API Nested", "{{ .vars.rootDocID }}", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                id: "{{ .vars.rootDocID }}"
+                title: "Root Document"
+                slug: "root-document"
+                status: "published"
+      - name: 010-get-document-not-found
+        run: ["get", "api", "documents", "--api-name", "API Nested", "nonexistent-document", "-o", "json"]
+        expectFailure:
+          exitCode: 1
+          contains: "not found"
 
   - name: 003-apply-update
     inputOverlayDirs:
