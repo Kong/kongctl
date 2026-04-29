@@ -47,6 +47,26 @@ func TestStoreLinkLocalRefreshesManifestFromSource(t *testing.T) {
 	require.Equal(t, "list foo", CommandPathString(reloaded.CommandPaths[0]))
 }
 
+func TestStoreInstallLocalRejectsIncompatibleExtension(t *testing.T) {
+	source := writeTestExtension(t)
+	writeManifestWithCompatibility(t, source, "9.0.0", "")
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+
+	_, err := store.InstallLocal(source, "1.0.0", time.Unix(100, 0))
+
+	require.ErrorContains(t, err, "extension kong/foo is not compatible")
+}
+
+func TestStoreLinkLocalRejectsIncompatibleExtension(t *testing.T) {
+	source := writeTestExtension(t)
+	writeManifestWithCompatibility(t, source, "9.0.0", "")
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+
+	_, err := store.LinkLocal(source, "1.0.0", time.Unix(100, 0))
+
+	require.ErrorContains(t, err, "extension kong/foo is not compatible")
+}
+
 func TestStoreInstallGitHubSourceRecordsRemoteProvenance(t *testing.T) {
 	source := writeTestExtension(t)
 	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
@@ -147,6 +167,29 @@ command_paths:
   - path:
       - name: ` + verb + `
       - name: ` + resource + `
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(root, ManifestFileName), manifest, 0o600))
+}
+
+func writeManifestWithCompatibility(t *testing.T, root, minVersion, maxVersion string) {
+	t.Helper()
+	compatibility := "compatibility:\n"
+	if minVersion != "" {
+		compatibility += "  min_version: " + minVersion + "\n"
+	}
+	if maxVersion != "" {
+		compatibility += "  max_version: " + maxVersion + "\n"
+	}
+	manifest := []byte(`schema_version: 1
+publisher: kong
+name: foo
+version: 0.1.0
+` + compatibility + `runtime:
+  command: kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
 `)
 	require.NoError(t, os.WriteFile(filepath.Join(root, ManifestFileName), manifest, 0o600))
 }
