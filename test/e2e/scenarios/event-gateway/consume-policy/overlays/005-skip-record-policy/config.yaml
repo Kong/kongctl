@@ -39,7 +39,3 @@ event_gateway_virtual_cluster_consume_policies:
     virtual_cluster: default-virtual-cluster-for-consume-policy-test
     type: skip_record
     enabled: true
-    config:
-      topics:
-        - pattern: "dead-letter-*"
-          match_type: prefix

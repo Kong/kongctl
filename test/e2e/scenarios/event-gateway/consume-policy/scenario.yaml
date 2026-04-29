@@ -437,10 +437,6 @@ steps:
                 name: "{{ .vars.consumePolicyName }}"
                 type: skip_record
                 enabled: true
-                config:
-                  topics:
-                    - pattern: "dead-letter-*"
-                      match_type: prefix
 
   - name: 007-sync-delete-skip-record
     inputOverlayDirs:
