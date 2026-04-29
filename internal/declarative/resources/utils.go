@@ -10,11 +10,10 @@ func resolveStringField(v reflect.Value, fieldName string) string {
 	// Try direct field access first
 	field := v.FieldByName(fieldName)
 	if field.IsValid() {
-		//nolint: exhaustive
-		switch field.Kind() {
-		case reflect.String:
+		if field.Kind() == reflect.String {
 			return field.String()
-		case reflect.Pointer:
+		}
+		if field.Kind() == reflect.Pointer {
 			if !field.IsNil() && field.Elem().Kind() == reflect.String {
 				return field.Elem().String()
 			}
