@@ -31,6 +31,7 @@ type SDKAPI interface {
 	GetMeAPI() MeAPI
 	GetGatewayServiceAPI() GatewayServiceAPI
 	GetSystemAccountAPI() SystemAccountAPI
+	GetSystemAccountAccessTokenAPI() SystemAccountAccessTokenAPI
 	GetOrganizationTeamAPI() OrganizationTeamAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
@@ -342,6 +343,14 @@ func (k *KonnectSDK) GetSystemAccountAPI() SystemAccountAPI {
 	}
 
 	return &SystemAccountAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetSystemAccountAccessTokenAPI() SystemAccountAccessTokenAPI {
+	if k.SDK == nil || k.SDK.SystemAccountsAccessTokens == nil {
+		return nil
+	}
+
+	return &SystemAccountAccessTokenAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the EventGatewayBackendCluster interface
