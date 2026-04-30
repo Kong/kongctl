@@ -3,6 +3,7 @@ package controlplane
 import (
 	"fmt"
 
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/dataplanecertificate"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -27,6 +28,8 @@ var (
 	%[1]s get konnect gateway control-planes
 	# Get a specific Konnect control plane
 	%[1]s get konnect gateway control-plane <id|name>
+	# List data plane certificates for a specific control plane
+	%[1]s get konnect gateway control-plane data-plane-certificates --control-plane-name <name>
 	# Use declarative workflows to provision new resources
 	%[1]s apply -f <config-file>
 	`, meta.CLIName)))
@@ -46,7 +49,15 @@ func NewControlPlaneCmd(verb verbs.VerbValue,
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+		cmd := newGetControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command
+		dataPlaneCertificateCmd, err := dataplanecertificate.NewDataPlaneCertificateCmd(
+			verb, addParentFlags, parentPreRun,
+		)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(dataPlaneCertificateCmd)
+		return cmd, nil
 	}
 	if verb == verbs.Create {
 		return newCreateControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil

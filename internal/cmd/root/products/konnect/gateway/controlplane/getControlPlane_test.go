@@ -34,6 +34,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTextDisplayConversion(t *testing.T) {
@@ -124,6 +125,16 @@ func TestTextDisplayConversion(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewControlPlaneCmdIncludesDataPlaneCertificates(t *testing.T) {
+	command, err := NewControlPlaneCmd(verbs.Get, nil, nil)
+	require.NoError(t, err)
+
+	child, _, err := command.Find([]string{"data-plane-certs"})
+	require.NoError(t, err)
+	require.NotNil(t, child)
+	assert.Equal(t, "data-plane-certificates", child.Use)
 }
 
 func TestRunGet(t *testing.T) {

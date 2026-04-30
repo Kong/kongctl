@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -379,4 +380,58 @@ portals:
 	assert.Equal(t, "__ENV__:IDP_ISSUER_URL", envSources["/config/issuer_url"])
 	assert.Equal(t, "__ENV__:IDP_CLIENT_ID", envSources["/config/client_id"])
 	assert.Equal(t, "__ENV__:IDP_CLIENT_SECRET", envSources["/config/client_secret"])
+}
+
+func TestLoader_ControlPlaneDataPlaneCertificateTags(t *testing.T) {
+	t.Setenv("DP_CERT", "-----BEGIN CERTIFICATE-----\nENV\n-----END CERTIFICATE-----")
+
+	tmpDir := t.TempDir()
+	rootCertPath := filepath.Join(tmpDir, "root.pem")
+	require.NoError(t, os.WriteFile(
+		rootCertPath,
+		[]byte("-----BEGIN CERTIFICATE-----\nFILE\n-----END CERTIFICATE-----"),
+		0o600,
+	))
+
+	mainContent := `
+control_planes:
+  - ref: cp
+    name: cp
+    data_plane_certificates:
+      - ref: nested-dp-cert
+        cert: !env DP_CERT
+
+control_plane_data_plane_certificates:
+  - ref: root-dp-cert
+    control_plane: cp
+    cert: !file ./root.pem
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	rs, err := loader.LoadFile(mainFile)
+	require.NoError(t, err)
+	require.NotNil(t, rs)
+
+	require.Len(t, rs.ControlPlanes, 1)
+	assert.Empty(t, rs.ControlPlanes[0].DataPlaneCertificates)
+	require.Len(t, rs.ControlPlaneDataPlaneCertificates, 2)
+
+	certsByRef := make(map[string]resources.ControlPlaneDataPlaneCertificateResource)
+	for _, cert := range rs.ControlPlaneDataPlaneCertificates {
+		certsByRef[cert.Ref] = cert
+	}
+
+	nested := certsByRef["nested-dp-cert"]
+	assert.Equal(t, "nested-dp-cert", nested.Ref)
+	assert.Equal(t, "cp", nested.ControlPlane)
+	assert.Equal(t, "-----BEGIN CERTIFICATE-----\nENV\n-----END CERTIFICATE-----", nested.Cert)
+	assert.Equal(t, "__ENV__:DP_CERT", rs.GetEnvSources("nested-dp-cert")["/cert"])
+
+	root := certsByRef["root-dp-cert"]
+	assert.Equal(t, "root-dp-cert", root.Ref)
+	assert.Equal(t, "cp", root.ControlPlane)
+	assert.Equal(t, "-----BEGIN CERTIFICATE-----\nFILE\n-----END CERTIFICATE-----", root.Cert)
 }

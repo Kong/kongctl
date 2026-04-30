@@ -4,23 +4,24 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token                     string
-	T                         *testing.T
-	CPAPIFactory              func() ControlPlaneAPI
-	ControlPlaneGroupsFactory func() ControlPlaneGroupsAPI
-	PortalFactory             func() PortalAPI
-	APIFactory                func() APIFullAPI
-	CatalogServicesFactory    func() CatalogServicesAPI
-	APIDocumentFactory        func() APIDocumentAPI
-	APIVersionFactory         func() APIVersionAPI
-	APIPublicationFactory     func() APIPublicationAPI
-	APIImplementationFactory  func() APIImplementationAPI
-	AppAuthStrategiesFactory  func() AppAuthStrategiesAPI
-	DCRProvidersFactory       func() DCRProvidersAPI
-	MeFactory                 func() MeAPI
-	GatewayServiceFactory     func() GatewayServiceAPI
-	SystemAccountFactory      func() SystemAccountAPI
-	OrganizationTeamFactory   func() OrganizationTeamAPI
+	Token                       string
+	T                           *testing.T
+	CPAPIFactory                func() ControlPlaneAPI
+	ControlPlaneGroupsFactory   func() ControlPlaneGroupsAPI
+	PortalFactory               func() PortalAPI
+	APIFactory                  func() APIFullAPI
+	CatalogServicesFactory      func() CatalogServicesAPI
+	APIDocumentFactory          func() APIDocumentAPI
+	APIVersionFactory           func() APIVersionAPI
+	APIPublicationFactory       func() APIPublicationAPI
+	APIImplementationFactory    func() APIImplementationAPI
+	AppAuthStrategiesFactory    func() AppAuthStrategiesAPI
+	DCRProvidersFactory         func() DCRProvidersAPI
+	MeFactory                   func() MeAPI
+	GatewayServiceFactory       func() GatewayServiceAPI
+	DataPlaneCertificateFactory func() DataPlaneCertificateAPI
+	SystemAccountFactory        func() SystemAccountAPI
+	OrganizationTeamFactory     func() OrganizationTeamAPI
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
@@ -141,6 +142,13 @@ func (m *MockKonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
 func (m *MockKonnectSDK) GetGatewayServiceAPI() GatewayServiceAPI {
 	if m.GatewayServiceFactory != nil {
 		return m.GatewayServiceFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetDataPlaneCertificateAPI() DataPlaneCertificateAPI {
+	if m.DataPlaneCertificateFactory != nil {
+		return m.DataPlaneCertificateFactory()
 	}
 	return nil
 }

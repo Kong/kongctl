@@ -39,6 +39,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate control plane data plane certificates
+	if err := l.validateControlPlaneDataPlaneCertificates(rs.ControlPlaneDataPlaneCertificates, rs); err != nil {
+		return err
+	}
+
 	// Validate APIs and their children
 	if err := l.validateAPIs(rs.APIs, rs); err != nil {
 		return err
@@ -119,6 +124,61 @@ func (l *Loader) validateGatewayServices(
 					service.GetRef(), existing.GetType())
 			}
 		}
+	}
+
+	return nil
+}
+
+func (l *Loader) validateControlPlaneDataPlaneCertificates(
+	certs []resources.ControlPlaneDataPlaneCertificateResource,
+	rs *resources.ResourceSet,
+) error {
+	identitiesByControlPlane := make(map[string]map[string]string)
+
+	for i := range certs {
+		cert := &certs[i]
+
+		if err := cert.Validate(); err != nil {
+			return fmt.Errorf("invalid control_plane_data_plane_certificate %q: %w", cert.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(cert.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeControlPlaneDataPlaneCertificate {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					cert.GetRef(), existing.GetType())
+			}
+		}
+
+		if !rs.HasRef(cert.ControlPlane) {
+			return fmt.Errorf(
+				"control_plane_data_plane_certificate %q references unknown control_plane: %s",
+				cert.GetRef(),
+				cert.ControlPlane,
+			)
+		}
+
+		if actualType, _ := rs.GetResourceTypeByRef(cert.ControlPlane); actualType != resources.ResourceTypeControlPlane {
+			return fmt.Errorf(
+				"control_plane_data_plane_certificate %q references %s but expected control_plane: %s",
+				cert.GetRef(),
+				actualType,
+				cert.ControlPlane,
+			)
+		}
+
+		identity := resources.ControlPlaneDataPlaneCertificateIdentity(cert.Cert)
+		if identitiesByControlPlane[cert.ControlPlane] == nil {
+			identitiesByControlPlane[cert.ControlPlane] = make(map[string]string)
+		}
+		if existingRef, exists := identitiesByControlPlane[cert.ControlPlane][identity]; exists {
+			return fmt.Errorf(
+				"duplicate data plane certificate for control_plane %q (ref: %s conflicts with ref: %s)",
+				cert.ControlPlane,
+				cert.GetRef(),
+				existingRef,
+			)
+		}
+		identitiesByControlPlane[cert.ControlPlane][identity] = cert.GetRef()
 	}
 
 	return nil

@@ -39,10 +39,14 @@ type Executor struct {
 		kkComps.CreateAppAuthStrategyRequest,
 		kkComps.UpdateAppAuthStrategyRequest,
 	]
-	dcrProviderExecutor              *BaseExecutor[kkComps.CreateDcrProviderRequest, kkComps.UpdateDcrProviderRequest]
-	catalogServiceExecutor           *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
-	eventGatewayControlPlaneExecutor *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
-	organizationTeamExecutor         *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
+	dcrProviderExecutor *BaseExecutor[
+		kkComps.CreateDcrProviderRequest,
+		kkComps.UpdateDcrProviderRequest,
+	]
+	catalogServiceExecutor                   *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
+	eventGatewayControlPlaneExecutor         *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
+	organizationTeamExecutor                 *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
+	controlPlaneDataPlaneCertificateExecutor *BaseCreateDeleteExecutor[kkComps.DataPlaneClientCertificateRequest]
 
 	// Event Gateway child resource executors
 	eventGatewayBackendClusterExecutor *BaseExecutor[
@@ -172,6 +176,10 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.organizationTeamExecutor = NewBaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam](
 		NewOrganizationTeamAdapter(client),
 		client,
+		dryRun,
+	)
+	e.controlPlaneDataPlaneCertificateExecutor = NewBaseCreateDeleteExecutor[kkComps.DataPlaneClientCertificateRequest](
+		NewControlPlaneDataPlaneCertificateAdapter(client),
 		dryRun,
 	)
 
@@ -1629,6 +1637,16 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return id, nil
+	case planner.ResourceTypeControlPlaneDataPlaneCertificate:
+		if controlPlaneRef, ok := change.References[planner.FieldControlPlaneID]; ok && controlPlaneRef.ID == "" {
+			controlPlaneID, err := e.resolveControlPlaneRef(ctx, controlPlaneRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve control plane reference: %w", err)
+			}
+			controlPlaneRef.ID = controlPlaneID
+			change.References[planner.FieldControlPlaneID] = controlPlaneRef
+		}
+		return e.controlPlaneDataPlaneCertificateExecutor.Create(ctx, *change)
 	case planner.FieldAPI:
 		// No references to resolve for api
 		return e.apiExecutor.Create(ctx, *change)
@@ -2512,6 +2530,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		return e.portalExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeControlPlane:
 		return e.controlPlaneExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeControlPlaneDataPlaneCertificate:
+		return e.controlPlaneDataPlaneCertificateExecutor.Delete(ctx, *change)
 	case planner.FieldAPI:
 		// No references to resolve for api
 		return e.apiExecutor.Delete(ctx, *change)

@@ -18,6 +18,7 @@ const (
 	ResourceTypeAPIImplementation                ResourceType = "api_implementation"
 	ResourceTypeAPIDocument                      ResourceType = "api_document"
 	ResourceTypeGatewayService                   ResourceType = "gateway_service"
+	ResourceTypeControlPlaneDataPlaneCertificate ResourceType = "control_plane_data_plane_certificate"
 	ResourceTypePortalCustomization              ResourceType = "portal_customization"
 	ResourceTypePortalCustomDomain               ResourceType = "portal_custom_domain"
 	ResourceTypePortalAuthSettings               ResourceType = "portal_auth_settings"
@@ -65,10 +66,11 @@ type ResourceSet struct {
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"           json:"application_auth_strategies,omitempty"` //nolint:lll
 	DCRProviders              []DCRProviderResource             `yaml:"dcr_providers,omitempty"                        json:"dcr_providers,omitempty"`                //nolint:lll
 	// ControlPlanes contains control plane configurations
-	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty"                        json:"control_planes,omitempty"`   //nolint:lll
-	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty"                      json:"catalog_services,omitempty"` //nolint:lll
-	APIs            []APIResource            `yaml:"apis,omitempty"                                  json:"apis,omitempty"`
-	GatewayServices []GatewayServiceResource `yaml:"gateway_services,omitempty"                      json:"gateway_services,omitempty"` //nolint:lll
+	ControlPlanes                     []ControlPlaneResource                     `yaml:"control_planes,omitempty"                        json:"control_planes,omitempty"`                        //nolint:lll
+	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                      json:"catalog_services,omitempty"`                      //nolint:lll
+	APIs                              []APIResource                              `yaml:"apis,omitempty"                                  json:"apis,omitempty"`                                  //nolint:lll
+	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                      json:"gateway_services,omitempty"`                      //nolint:lll
+	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty" json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
 	// API child resources can be defined at root level (with parent reference) or nested under APIs
 	APIVersions        []APIVersionResource        `yaml:"api_versions,omitempty"                          json:"api_versions,omitempty"`        //nolint:lll
 	APIPublications    []APIPublicationResource    `yaml:"api_publications,omitempty"                      json:"api_publications,omitempty"`    //nolint:lll
@@ -807,6 +809,33 @@ func (rs *ResourceSet) GetDataPlaneCertificatesForGateway(
 	// Add root-level data plane certificates for this gateway
 	for _, cert := range rs.EventGatewayDataPlaneCertificates {
 		if cert.EventGateway == gatewayRef {
+			certs = append(certs, cert)
+		}
+	}
+
+	return certs
+}
+
+// GetDataPlaneCertificatesForControlPlane returns all data plane certificates
+// (nested + root-level) for a specific control plane.
+func (rs *ResourceSet) GetDataPlaneCertificatesForControlPlane(
+	controlPlaneRef string,
+) []ControlPlaneDataPlaneCertificateResource {
+	var certs []ControlPlaneDataPlaneCertificateResource
+
+	for _, controlPlane := range rs.ControlPlanes {
+		if controlPlane.Ref == controlPlaneRef {
+			for _, cert := range controlPlane.DataPlaneCertificates {
+				certCopy := cert
+				certCopy.ControlPlane = controlPlaneRef
+				certs = append(certs, certCopy)
+			}
+			break
+		}
+	}
+
+	for _, cert := range rs.ControlPlaneDataPlaneCertificates {
+		if cert.ControlPlane == controlPlaneRef {
 			certs = append(certs, cert)
 		}
 	}

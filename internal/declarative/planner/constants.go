@@ -140,6 +140,7 @@ const (
 	FieldAuthType                                   = "auth_type"
 	FieldBootstrapServers                           = "bootstrap_servers"
 	FieldCertificate                                = "certificate"
+	FieldCert                                       = "cert"
 	FieldCloudGateway                               = "cloud_gateway"
 	FieldClusterType                                = "cluster_type"
 	FieldDestination                                = "destination"
@@ -157,17 +158,18 @@ const (
 // Resource type constants are aliases for the canonical resource identifiers in
 // the resources package. Keep these only for planner/executor compatibility.
 const (
-	ResourceTypePortal                  = string(resources.ResourceTypePortal)
-	ResourceTypeApplicationAuthStrategy = string(resources.ResourceTypeApplicationAuthStrategy)
-	ResourceTypeDCRProvider             = string(resources.ResourceTypeDCRProvider)
-	ResourceTypeControlPlane            = string(resources.ResourceTypeControlPlane)
-	ResourceTypeAPI                     = string(resources.ResourceTypeAPI)
-	ResourceTypeAPIVersion              = string(resources.ResourceTypeAPIVersion)
-	ResourceTypeAPIPublication          = string(resources.ResourceTypeAPIPublication)
-	ResourceTypeAPIImplementation       = string(resources.ResourceTypeAPIImplementation)
-	ResourceTypeAPIDocument             = string(resources.ResourceTypeAPIDocument)
-	ResourceTypeGatewayService          = string(resources.ResourceTypeGatewayService)
-	ResourceTypeCatalogService          = string(resources.ResourceTypeCatalogService)
+	ResourceTypePortal                           = string(resources.ResourceTypePortal)
+	ResourceTypeApplicationAuthStrategy          = string(resources.ResourceTypeApplicationAuthStrategy)
+	ResourceTypeDCRProvider                      = string(resources.ResourceTypeDCRProvider)
+	ResourceTypeControlPlane                     = string(resources.ResourceTypeControlPlane)
+	ResourceTypeAPI                              = string(resources.ResourceTypeAPI)
+	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
+	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)
+	ResourceTypeAPIImplementation                = string(resources.ResourceTypeAPIImplementation)
+	ResourceTypeAPIDocument                      = string(resources.ResourceTypeAPIDocument)
+	ResourceTypeGatewayService                   = string(resources.ResourceTypeGatewayService)
+	ResourceTypeControlPlaneDataPlaneCertificate = string(resources.ResourceTypeControlPlaneDataPlaneCertificate)
+	ResourceTypeCatalogService                   = string(resources.ResourceTypeCatalogService)
 
 	ResourceTypePortalCustomization    = string(resources.ResourceTypePortalCustomization)
 	ResourceTypePortalCustomDomain     = string(resources.ResourceTypePortalCustomDomain)

@@ -768,6 +768,14 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		}
 
 		cp.GatewayServices = nil
+
+		for j := range cp.DataPlaneCertificates {
+			cert := cp.DataPlaneCertificates[j]
+			cert.ControlPlane = cp.Ref
+			rs.ControlPlaneDataPlaneCertificates = append(rs.ControlPlaneDataPlaneCertificates, cert)
+		}
+
+		cp.DataPlaneCertificates = nil
 	}
 
 	for i := range rs.APIs {

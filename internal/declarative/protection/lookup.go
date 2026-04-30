@@ -107,6 +107,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeAPIImplementation,
 		resources.ResourceTypeAPIDocument,
 		resources.ResourceTypeGatewayService,
+		resources.ResourceTypeControlPlaneDataPlaneCertificate,
 		resources.ResourceTypeControlPlaneGroup,
 		resources.ResourceTypePortalCustomization,
 		resources.ResourceTypePortalCustomDomain,

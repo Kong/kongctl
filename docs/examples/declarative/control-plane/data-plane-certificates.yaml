@@ -1,0 +1,24 @@
+_defaults:
+  kongctl:
+    namespace: platform-shared
+
+control_planes:
+  - ref: production-cp
+    name: production-control-plane
+    description: "Production Konnect runtime group"
+    cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+    auth_type: pinned_client_certs
+    data_plane_certificates:
+      - ref: production-data-plane-certificate
+        cert: !file ./certs/data-plane.pem
+
+  - ref: staging-cp
+    name: staging-control-plane
+    description: "Staging Konnect runtime group"
+    cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+    auth_type: pinned_client_certs
+
+control_plane_data_plane_certificates:
+  - ref: staging-data-plane-certificate
+    control_plane: staging-cp
+    cert: !file ./certs/data-plane.pem

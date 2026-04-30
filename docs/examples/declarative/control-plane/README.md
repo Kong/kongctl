@@ -6,12 +6,16 @@ metadata and configuration details.
 
 ## Files
 
-- `control-plane.yaml` – defines a production control plane and a staging control plane. The
-  example highlights:
+- `control-plane.yaml` – defines a production control plane and a staging
+  control plane. The example highlights:
   - `cluster_type` and `auth_type` fields for runtime configuration
   - optional `proxy_urls` entries that describe data plane endpoints
   - use of `kongctl` metadata for namespaces and protection settings
-- `control-plane-group.yaml` – defines a control plane group and links member runtimes using the `members` list.
+- `control-plane-group.yaml` – defines a control plane group and links member
+  runtimes using the `members` list.
+- `data-plane-certificates.yaml` – defines data plane certificates on control
+  planes using both nested `data_plane_certificates` and root-level
+  `control_plane_data_plane_certificates` declarations.
 
 ## Usage
 
@@ -37,4 +41,10 @@ Apply the control plane group example:
 
 ```bash
 kongctl apply -f control-plane-group.yaml
+```
+
+Apply the data plane certificate example:
+
+```bash
+kongctl apply -f data-plane-certificates.yaml
 ```

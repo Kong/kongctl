@@ -47,7 +47,41 @@ steps:
           exitCode: 1
           contains: "flags -o/--output are not supported for the scaffold command"
 
-  - name: 004-scaffold-rejects-output-parse-error
+  - name: 004-scaffold-control-plane-data-plane-certificate-root
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-control-plane-data-plane-certificate
+        run:
+          - scaffold
+          - control_plane_data_plane_certificate
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'control_plane_data_plane_certificates:')": true
+                "contains(stdout, '- ref: my-resource')": true
+                "contains(stdout, 'control_plane: value')": true
+                "contains(stdout, 'cert: !file ./certs/data-plane.pem')": true
+
+  - name: 005-scaffold-control-plane-data-plane-certificate-nested
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-control-plane-data-plane-certificate-nested
+        run:
+          - scaffold
+          - control_plane.data_plane_certificates
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'control_planes:')": true
+                "contains(stdout, 'data_plane_certificates:')": true
+                "contains(stdout, 'cert: !file ./certs/data-plane.pem')": true
+                "contains(stdout, 'control_plane: value')": false
+
+  - name: 006-scaffold-rejects-output-parse-error
     skipInputs: true
     commands:
       - name: 000-scaffold-api-output-path

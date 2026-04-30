@@ -25,14 +25,15 @@ import (
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
 	// Core APIs
-	PortalAPI             helpers.PortalAPI
-	APIAPI                helpers.APIAPI
-	AppAuthAPI            helpers.AppAuthStrategiesAPI
-	DCRProviderAPI        helpers.DCRProvidersAPI
-	ControlPlaneAPI       helpers.ControlPlaneAPI
-	GatewayServiceAPI     helpers.GatewayServiceAPI
-	ControlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
-	CatalogServiceAPI     helpers.CatalogServicesAPI
+	PortalAPI               helpers.PortalAPI
+	APIAPI                  helpers.APIAPI
+	AppAuthAPI              helpers.AppAuthStrategiesAPI
+	DCRProviderAPI          helpers.DCRProvidersAPI
+	ControlPlaneAPI         helpers.ControlPlaneAPI
+	GatewayServiceAPI       helpers.GatewayServiceAPI
+	DataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
+	ControlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
+	CatalogServiceAPI       helpers.CatalogServicesAPI
 
 	// Portal child resource APIs
 	PortalPageAPI             helpers.PortalPageAPI
@@ -73,14 +74,15 @@ type ClientConfig struct {
 // Client wraps Konnect SDK for state management
 type Client struct {
 	// Core APIs
-	portalAPI             helpers.PortalAPI
-	apiAPI                helpers.APIAPI
-	appAuthAPI            helpers.AppAuthStrategiesAPI
-	dcrProviderAPI        helpers.DCRProvidersAPI
-	controlPlaneAPI       helpers.ControlPlaneAPI
-	gatewayServiceAPI     helpers.GatewayServiceAPI
-	controlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
-	catalogServiceAPI     helpers.CatalogServicesAPI
+	portalAPI               helpers.PortalAPI
+	apiAPI                  helpers.APIAPI
+	appAuthAPI              helpers.AppAuthStrategiesAPI
+	dcrProviderAPI          helpers.DCRProvidersAPI
+	controlPlaneAPI         helpers.ControlPlaneAPI
+	gatewayServiceAPI       helpers.GatewayServiceAPI
+	dataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
+	controlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
+	catalogServiceAPI       helpers.CatalogServicesAPI
 
 	// Portal child resource APIs
 	portalPageAPI             helpers.PortalPageAPI
@@ -122,14 +124,15 @@ type Client struct {
 func NewClient(config ClientConfig) *Client {
 	return &Client{
 		// Core APIs
-		portalAPI:             config.PortalAPI,
-		apiAPI:                config.APIAPI,
-		appAuthAPI:            config.AppAuthAPI,
-		dcrProviderAPI:        config.DCRProviderAPI,
-		controlPlaneAPI:       config.ControlPlaneAPI,
-		gatewayServiceAPI:     config.GatewayServiceAPI,
-		controlPlaneGroupsAPI: config.ControlPlaneGroupsAPI,
-		catalogServiceAPI:     config.CatalogServiceAPI,
+		portalAPI:               config.PortalAPI,
+		apiAPI:                  config.APIAPI,
+		appAuthAPI:              config.AppAuthAPI,
+		dcrProviderAPI:          config.DCRProviderAPI,
+		controlPlaneAPI:         config.ControlPlaneAPI,
+		gatewayServiceAPI:       config.GatewayServiceAPI,
+		dataPlaneCertificateAPI: config.DataPlaneCertificateAPI,
+		controlPlaneGroupsAPI:   config.ControlPlaneGroupsAPI,
+		catalogServiceAPI:       config.CatalogServiceAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:             config.PortalPageAPI,
@@ -325,6 +328,11 @@ type EventGatewayListener struct {
 // EventGatewayDataPlaneCertificate represents a data plane certificate for internal use
 type EventGatewayDataPlaneCertificate struct {
 	kkComps.EventGatewayDataPlaneCertificate
+}
+
+// ControlPlaneDataPlaneCertificate represents a data plane certificate for internal use.
+type ControlPlaneDataPlaneCertificate struct {
+	kkComps.DataPlaneClientCertificate
 }
 
 // EventGatewaySchemaRegistry represents a schema registry for internal use
@@ -835,6 +843,110 @@ func (c *Client) ListGatewayServices(ctx context.Context, controlPlaneID string)
 	}
 
 	return services, nil
+}
+
+func (c *Client) ListControlPlaneDataPlaneCertificates(
+	ctx context.Context,
+	controlPlaneID string,
+) ([]ControlPlaneDataPlaneCertificate, error) {
+	if err := ValidateAPIClient(c.dataPlaneCertificateAPI, "Data Plane Certificate API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.dataPlaneCertificateAPI.ListDpClientCertificates(ctx, controlPlaneID)
+	if err != nil {
+		return nil, WrapAPIError(err, "list data plane certificates", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.ListDataPlaneCertificatesResponse == nil {
+		return nil, nil
+	}
+
+	items := resp.ListDataPlaneCertificatesResponse.GetItems()
+	certs := make([]ControlPlaneDataPlaneCertificate, 0, len(items))
+	for _, cert := range items {
+		certs = append(certs, ControlPlaneDataPlaneCertificate{
+			DataPlaneClientCertificate: cert,
+		})
+	}
+
+	return certs, nil
+}
+
+func (c *Client) CreateControlPlaneDataPlaneCertificate(
+	ctx context.Context,
+	controlPlaneID string,
+	req kkComps.DataPlaneClientCertificateRequest,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.dataPlaneCertificateAPI, "Data Plane Certificate API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.dataPlaneCertificateAPI.CreateDataplaneCertificate(ctx, controlPlaneID, &req)
+	if err != nil {
+		return "", WrapAPIError(err, "create data plane certificate", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
+			ResourceName: resources.ShortControlPlaneDataPlaneCertificateIdentity(req.Cert),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.DataPlaneClientCertificateResponse == nil ||
+		resp.DataPlaneClientCertificateResponse.Item == nil ||
+		resp.DataPlaneClientCertificateResponse.Item.ID == nil {
+		return "", fmt.Errorf("create data plane certificate response missing certificate ID")
+	}
+
+	return *resp.DataPlaneClientCertificateResponse.Item.ID, nil
+}
+
+func (c *Client) GetControlPlaneDataPlaneCertificate(
+	ctx context.Context,
+	controlPlaneID string,
+	certificateID string,
+) (*ControlPlaneDataPlaneCertificate, error) {
+	if err := ValidateAPIClient(c.dataPlaneCertificateAPI, "Data Plane Certificate API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.dataPlaneCertificateAPI.GetDataplaneCertificate(ctx, controlPlaneID, certificateID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get data plane certificate", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.DataPlaneClientCertificateResponse == nil ||
+		resp.DataPlaneClientCertificateResponse.Item == nil {
+		return nil, nil
+	}
+
+	return &ControlPlaneDataPlaneCertificate{
+		DataPlaneClientCertificate: *resp.DataPlaneClientCertificateResponse.Item,
+	}, nil
+}
+
+func (c *Client) DeleteControlPlaneDataPlaneCertificate(
+	ctx context.Context,
+	controlPlaneID string,
+	certificateID string,
+) error {
+	if err := ValidateAPIClient(c.dataPlaneCertificateAPI, "Data Plane Certificate API"); err != nil {
+		return err
+	}
+
+	_, err := c.dataPlaneCertificateAPI.DeleteDataplaneCertificate(ctx, controlPlaneID, certificateID)
+	if err != nil {
+		return WrapAPIError(err, "delete data plane certificate", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
+			UseEnhanced:  true,
+		})
+	}
+	return nil
 }
 
 // GetControlPlaneByName finds a managed control plane by name
