@@ -341,7 +341,48 @@ steps:
               fields:
                 "contains(cert, 'MIIB4TCCAYug')": true
 
-  - name: 005-plan-root-env-idempotent
+  - name: 005-dump-with-data-plane-certificate
+    skipInputs: true
+    commands:
+      - name: 000-dump-control-plane-with-data-plane-certificate
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+          - "--filter-name={{ .vars.cpName }}"
+          - --include-child-resources
+        assertions:
+          - name: data-plane-certificate-populated
+            select: >-
+              control_planes[?name=='{{ .vars.cpName }}'] | [0].data_plane_certificates
+            expect:
+              fields:
+                "length(@)": 1
+          - name: dumped-certificate-content
+            select: >-
+              control_planes[?name=='{{ .vars.cpName }}'] | [0].data_plane_certificates[0]
+            expect:
+              fields:
+                "contains(cert, 'MIIB4TCCAYug')": true
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - name: idempotent-zero-changes
+            select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-plan-root-env-idempotent
     inputOverlayDirs:
       - overlays/003-root-env-certificate
     commands:
@@ -363,7 +404,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 006-sync-delete-root-env
+  - name: 007-sync-delete-root-env
     inputOverlayDirs:
       - overlays/002-empty-certificates
     commands:
@@ -406,7 +447,7 @@ steps:
                 applied: 1
                 failed: 0
 
-  - name: 007-delete-cleanup
+  - name: 008-delete-cleanup
     inputOverlayDirs:
       - overlays/002-empty-certificates
     commands:
