@@ -161,6 +161,12 @@ func populateControlPlaneChildren(
 		} else if len(gatewayServices) > 0 {
 			cp.GatewayServices = gatewayServices
 		}
+
+		if dataPlaneCertificates, err := buildDataPlaneCertificates(ctx, client, controlPlaneID); err != nil {
+			logWarn(logger, "failed to load data plane certificates", controlPlaneID, cp.Name, err)
+		} else if len(dataPlaneCertificates) > 0 {
+			cp.DataPlaneCertificates = dataPlaneCertificates
+		}
 	}
 }
 
@@ -1215,6 +1221,43 @@ func buildGatewayServices(
 			},
 		}
 		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func buildDataPlaneCertificates(
+	ctx context.Context,
+	client *declstate.Client,
+	controlPlaneID string,
+) ([]declresources.ControlPlaneDataPlaneCertificateResource, error) {
+	certs, err := client.ListControlPlaneDataPlaneCertificates(ctx, controlPlaneID)
+	if err != nil {
+		return nil, err
+	}
+	if len(certs) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.ControlPlaneDataPlaneCertificateResource, 0, len(certs))
+	for _, cert := range certs {
+		certValue := ""
+		if cert.Cert != nil {
+			certValue = *cert.Cert
+		}
+		if certValue == "" {
+			continue
+		}
+
+		ref := strings.TrimSpace(declresources.ShortControlPlaneDataPlaneCertificateIdentity(certValue))
+		if cert.ID != nil && strings.TrimSpace(*cert.ID) != "" {
+			ref = strings.TrimSpace(*cert.ID)
+		}
+
+		results = append(results, declresources.ControlPlaneDataPlaneCertificateResource{
+			Ref:  ref,
+			Cert: certValue,
+		})
 	}
 
 	return results, nil

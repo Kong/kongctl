@@ -1,0 +1,429 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_CP_DP_CERT: |-
+    -----BEGIN CERTIFICATE-----
+    MIIB4TCCAYugAwIBAgIUAenxUyPjkSLCe2BQXoBMBacqgLowDQYJKoZIhvcNAQEL
+    BQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
+    GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yNDEwMjgyMDA3NDlaFw0zNDEw
+    MjYyMDA3NDlaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+    HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwXDANBgkqhkiG9w0BAQEF
+    AANLADBIAkEAyzipjrbAaLO/yPg7lL1dLWzhqNdc3S4YNR7f1RG9whWhbsPE2z42
+    e6WGFf9hggP6xjG4qbU8jFVczpd1UPwGbQIDAQABo1MwUTAdBgNVHQ4EFgQUkPPB
+    ghj+iHOHAKJlC1gLbKT/ZHQwHwYDVR0jBBgwFoAUkPPBghj+iHOHAKJlC1gLbKT/
+    ZHQwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAANBALfy49GvA2ld+u+G
+    Koxa8kCt7uywoqu0hfbBfUT4HqmXPvsuhz8RinE5ltxId108vtDNlD/+bKl+N5Ub
+    qKjBs0k=
+    -----END CERTIFICATE-----
+
+vars:
+  cpName: kongctl-e2e-cp-data-plane-cert
+  cpRef: e2e-cp-data-plane-cert
+  nestedCertRef: nested-data-plane-certificate
+  rootCertRef: root-data-plane-certificate
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create-nested-file
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='control_plane' && resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              changes[?resource_type=='control_plane_data_plane_certificate' &&
+                      resource_ref=='{{ .vars.nestedCertRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                references.control_plane_id.ref: "{{ .vars.cpRef }}"
+                "contains(fields.cert, 'MIIB4TCCAYug')": true
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-list-data-plane-certificates
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - data-plane-certificates
+          - --control-plane-name
+          - "{{ .vars.cpName }}"
+          - -o
+          - json
+        recordVar:
+          name: nestedCertID
+          responsePath: "[0].id"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                "contains(cert, 'MIIB4TCCAYug')": true
+      - name: 003-get-data-plane-certificate-by-id
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-planes
+          - data-plane-certs
+          - --control-plane-name
+          - "{{ .vars.cpName }}"
+          - "{{ .vars.nestedCertID }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "contains(cert, 'MIIB4TCCAYug')": true
+
+  - name: 002-sync-rotate-without-update
+    inputOverlayDirs:
+      - overlays/001-rotate-file-cert
+    commands:
+      - name: 000-plan-sync-rotate
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-rotate.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 1
+                by_action.DELETE: 1
+                "contains(keys(by_action), 'UPDATE')": false
+          - select: >-
+              changes[?resource_type=='control_plane_data_plane_certificate' &&
+                      resource_ref=='{{ .vars.nestedCertRef }}' &&
+                      action=='CREATE'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                "contains(fields.cert, 'MIIFkjCCA3oCCQDh23hmwAl7bTAN')": true
+          - select: >-
+              changes[?resource_type=='control_plane_data_plane_certificate' &&
+                      action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                "length(depends_on)": 1
+      - name: 001-sync-rotate
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-rotate.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-verify-rotated-certificate
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - data-plane-certificates
+          - --control-plane-name
+          - "{{ .vars.cpName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                "contains(cert, 'MIIFkjCCA3oCCQDh23hmwAl7bTAN')": true
+
+  - name: 003-sync-delete-nested
+    inputOverlayDirs:
+      - overlays/002-empty-certificates
+    commands:
+      - name: 000-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='control_plane_data_plane_certificate' &&
+                      action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: 001-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-verify-delete
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - data-plane-certificates
+          - --control-plane-name
+          - "{{ .vars.cpName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 004-plan-apply-root-env
+    inputOverlayDirs:
+      - overlays/003-root-env-certificate
+    commands:
+      - name: 000-plan-root-env-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-env-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: warnings[?contains(message, 'deferred !env values')]
+            expect:
+              fields:
+                "length(@)": 1
+          - select: >-
+              changes[?resource_type=='control_plane_data_plane_certificate' &&
+                      resource_ref=='{{ .vars.rootCertRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.cert: __ENV__:KONGCTL_E2E_CP_DP_CERT
+      - name: 001-diff-root-env-plan
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-root-env-create.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, '[redacted from !env]')": true
+                "contains(@, 'MIIB4TCCAYug')": false
+      - name: 002-apply-root-env-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-env-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-root-env-create
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - data-plane-certificates
+          - --control-plane-name
+          - "{{ .vars.cpName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                "contains(cert, 'MIIB4TCCAYug')": true
+
+  - name: 005-plan-root-env-idempotent
+    inputOverlayDirs:
+      - overlays/003-root-env-certificate
+    commands:
+      - name: 000-plan-root-env-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-sync-delete-root-env
+    inputOverlayDirs:
+      - overlays/002-empty-certificates
+    commands:
+      - name: 000-plan-sync-delete-root-env
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete-root-env.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='control_plane_data_plane_certificate' &&
+                      action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: 001-sync-delete-root-env
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete-root-env.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 007-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-empty-certificates
+    commands:
+      - name: 000-delete-control-plane
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

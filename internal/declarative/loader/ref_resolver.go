@@ -241,6 +241,24 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.ControlPlaneDataPlaneCertificates {
+		if err := resolveResourceFields(
+			ctx,
+			&rs.ControlPlaneDataPlaneCertificates[i],
+			rs,
+			resolver,
+			resolutionPath,
+			logger,
+		); err != nil {
+			return fmt.Errorf(
+				"resolving control plane data plane certificate %s: %w",
+				rs.ControlPlaneDataPlaneCertificates[i].GetRef(),
+				err,
+			)
+		}
+		processCount++
+	}
+
 	for i := range rs.APIDocuments {
 		if err := resolveResourceFields(ctx, &rs.APIDocuments[i], rs, resolver, resolutionPath, logger); err != nil {
 			return fmt.Errorf("resolving api document %s: %w", rs.APIDocuments[i].GetRef(), err)

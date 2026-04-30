@@ -2255,14 +2255,15 @@ func runSync(command *cobra.Command, args []string) error {
 func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 	return state.NewClient(state.ClientConfig{
 		// Core APIs
-		PortalAPI:             kkClient.GetPortalAPI(),
-		APIAPI:                kkClient.GetAPIAPI(),
-		AppAuthAPI:            kkClient.GetAppAuthStrategiesAPI(),
-		DCRProviderAPI:        kkClient.GetDCRProvidersAPI(),
-		ControlPlaneAPI:       kkClient.GetControlPlaneAPI(),
-		ControlPlaneGroupsAPI: kkClient.GetControlPlaneGroupsAPI(),
-		GatewayServiceAPI:     kkClient.GetGatewayServiceAPI(),
-		CatalogServiceAPI:     kkClient.GetCatalogServicesAPI(),
+		PortalAPI:               kkClient.GetPortalAPI(),
+		APIAPI:                  kkClient.GetAPIAPI(),
+		AppAuthAPI:              kkClient.GetAppAuthStrategiesAPI(),
+		DCRProviderAPI:          kkClient.GetDCRProvidersAPI(),
+		ControlPlaneAPI:         kkClient.GetControlPlaneAPI(),
+		ControlPlaneGroupsAPI:   kkClient.GetControlPlaneGroupsAPI(),
+		GatewayServiceAPI:       kkClient.GetGatewayServiceAPI(),
+		DataPlaneCertificateAPI: kkClient.GetDataPlaneCertificateAPI(),
+		CatalogServiceAPI:       kkClient.GetCatalogServicesAPI(),
 
 		// Portal child resource APIs
 		PortalPageAPI:             kkClient.GetPortalPageAPI(),

@@ -1,0 +1,12 @@
+_defaults:
+  kongctl:
+    namespace: control-plane-data-plane-certificate-e2e
+
+control_planes:
+  - ref: e2e-cp-data-plane-cert
+    name: kongctl-e2e-cp-data-plane-cert
+    description: "Control Plane for data plane certificate E2E testing"
+    cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+    auth_type: pinned_client_certs
+    data_plane_certificates: []
+control_plane_data_plane_certificates: []

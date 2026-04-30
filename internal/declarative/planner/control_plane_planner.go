@@ -94,39 +94,57 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 		}
 		current, exists := currentByName[desiredCP.Name]
 		desiredProtected := isProtected(desiredCP)
+		var controlPlaneChangeID string
 
 		if !exists {
-			p.planControlPlaneCreate(desiredCP, desiredProtected, plan)
-			continue
-		}
+			controlPlaneChangeID = p.planControlPlaneCreate(desiredCP, desiredProtected, plan)
+		} else {
+			currentProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			needsUpdate, updateFields, changedFields := p.shouldUpdateControlPlane(current, desiredCP)
 
-		currentProtected := labels.IsProtectedResource(current.NormalizedLabels)
-		needsUpdate, updateFields, changedFields := p.shouldUpdateControlPlane(current, desiredCP)
-
-		if currentProtected != desiredProtected {
-			protectionChange := &ProtectionChange{Old: currentProtected, New: desiredProtected}
-			err := p.ValidateProtectionWithChange(
-				ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionUpdate, protectionChange, needsUpdate,
-			)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planControlPlaneProtectionChangeWithFields(
-					current,
-					desiredCP,
-					protectionChange,
-					updateFields,
-					changedFields,
-					plan,
+			if currentProtected != desiredProtected {
+				protectionChange := &ProtectionChange{Old: currentProtected, New: desiredProtected}
+				err := p.ValidateProtectionWithChange(
+					ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionUpdate, protectionChange, needsUpdate,
 				)
+				protectionErrors.Add(err)
+				if err == nil {
+					p.planControlPlaneProtectionChangeWithFields(
+						current,
+						desiredCP,
+						protectionChange,
+						updateFields,
+						changedFields,
+						plan,
+					)
+				}
+			} else if needsUpdate {
+				err := p.ValidateProtection(ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionUpdate)
+				protectionErrors.Add(err)
+				if err == nil {
+					p.planControlPlaneUpdate(current, desiredCP, updateFields, changedFields, plan)
+				}
 			}
-			continue
 		}
 
-		if needsUpdate {
-			err := p.ValidateProtection(ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionUpdate)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planControlPlaneUpdate(current, desiredCP, updateFields, changedFields, plan)
+		dataPlaneCerts := p.planner.resources.GetDataPlaneCertificatesForControlPlane(desiredCP.Ref)
+		controlPlaneID := ""
+		if exists {
+			controlPlaneID = current.ID
+		}
+
+		if len(dataPlaneCerts) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if err := p.planner.planControlPlaneDataPlaneCertificateChanges(
+				ctx,
+				namespace,
+				desiredCP.Name,
+				controlPlaneID,
+				desiredCP.Ref,
+				controlPlaneChangeID,
+				dataPlaneCerts,
+				plan,
+			); err != nil {
+				return err
 			}
 		}
 	}
@@ -165,7 +183,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 	desired resources.ControlPlaneResource,
 	protected bool,
 	plan *Plan,
-) {
+) string {
 	fields := extractControlPlaneFields(desired)
 	memberIDs := normalizers.NormalizeMemberIDs(desired.MemberIDs())
 
@@ -191,7 +209,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 				change.References[FieldMembers] = p.buildMemberReferenceInfo(memberIDs)
 			}
 			plan.AddChange(change)
-			return
+			return change.ID
 		}
 
 		p.planner.logger.Error("Failed to plan control plane create", "error", err.Error())
@@ -215,6 +233,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 	}
 
 	plan.AddChange(change)
+	return changeID
 }
 
 func (p *controlPlanePlannerImpl) planControlPlaneUpdate(

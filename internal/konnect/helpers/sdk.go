@@ -30,6 +30,7 @@ type SDKAPI interface {
 	GetDCRProvidersAPI() DCRProvidersAPI
 	GetMeAPI() MeAPI
 	GetGatewayServiceAPI() GatewayServiceAPI
+	GetDataPlaneCertificateAPI() DataPlaneCertificateAPI
 	GetSystemAccountAPI() SystemAccountAPI
 	GetOrganizationTeamAPI() OrganizationTeamAPI
 	// Portal child resource APIs
@@ -185,6 +186,14 @@ func (k *KonnectSDK) GetGatewayServiceAPI() GatewayServiceAPI {
 	}
 
 	return k.SDK.Services
+}
+
+func (k *KonnectSDK) GetDataPlaneCertificateAPI() DataPlaneCertificateAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &DataPlaneCertificateAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the PortalPageAPI interface

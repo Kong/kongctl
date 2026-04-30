@@ -39,6 +39,8 @@ var (
 	%[1]s get konnect gateway control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac
 	# Get details for a control plane with a specific name
 	%[1]s get konnect gateway control-plane my-control-plane 
+	# List data plane certificates for a specific control plane
+	%[1]s get konnect gateway control-plane data-plane-certificates --control-plane-name my-control-plane
 	# Get all the control planes for the authorized user using command aliases
 	%[1]s get k gw cps
 	`, meta.CLIName)))

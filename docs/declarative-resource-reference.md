@@ -32,6 +32,8 @@ Use YAML tags in field values to load files or reference other resources.
 
 - `!file`: Load content from a file. Supports `path#extract.path` and
   `path`/`extract` map form.
+- `!env`: Load string content from an environment variable. Supports
+  `VAR#extract.path` and `var`/`extract` map form.
 - `!ref`: Reference another declarative resource by `ref`.
   `resource-ref#field` is supported; the default field is `id`.
 - `!ref` is intended for string fields.
@@ -205,6 +207,22 @@ control_planes:
          selector:
            matchFields:
              name: string
+   # API: create-dataplane-certificate
+   data_plane_certificates:
+     - ref: string
+       cert: string required # prefer: !file ./certs/data-plane.pem
+```
+
+Control plane data plane certificates can also be declared as root resources.
+The certificate contents identify a certificate within its control plane when
+a certificate ID is not available. The `cert` field supports `!file` and
+`!env`.
+
+```yaml
+control_plane_data_plane_certificates:
+ - ref: string
+   control_plane: string required # control plane ref
+   cert: string required # prefer: !file ./certs/data-plane.pem
 ```
 
 ## Event Gateways
