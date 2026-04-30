@@ -198,12 +198,12 @@ var (
 	getRouteExamples = normalizers.Examples(
 		i18n.T("root.products.konnect.gateway.route.getRouteExamples",
 			fmt.Sprintf(`
-	# List all the Kong Gateway Routes for the a given Control Plane (by ID)
-	%[1]s get konnect gateway routes --control-plane-id <id>
-	# List all the Kong Gateway Routes for the a given Control Plane (by name)
-	%[1]s get konnect gateway routes --control-plane-name <name>
-	# Get a specific Kong Gateway Routes located on the given Control Plane (by name)
-	%[1]s get konnect gateway route --control-plane-name <name> <route-name>
+	# List all Kong Gateway Routes for a given control plane (by ID)
+	%[1]s get konnect gateway control-plane routes --control-plane-id <id>
+	# List all Kong Gateway Routes for a given control plane (by name)
+	%[1]s get konnect gateway control-plane routes --control-plane-name <name>
+	# Get a specific Kong Gateway Route located on the given control plane (by name)
+	%[1]s get konnect gateway control-plane route --control-plane-name <name> <route-name>
 	`, meta.CLIName)))
 )
 
@@ -382,10 +382,10 @@ func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	// TODO!: Fix up the below casting to Konnect SDKs, as it will fail in testing once that is written.
 	//         A service API needs to be added to our internal SDK API interfaces
 
-	// 'get konnect gateway routes ' can be run like various ways:
-	//	> get konnect gateway routes <id>    # Get by UUID
-	//  > get konnect gateway routes <name>	# Get by name
-	//  > get konnect gateway routes # List all
+	// 'get konnect gateway control-plane routes' can be run in various ways:
+	//	> get konnect gateway control-plane routes <id>    # Get by UUID
+	//  > get konnect gateway control-plane routes <name>	# Get by name
+	//  > get konnect gateway control-plane routes # List all
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := helper.GetArgs()[0]
 

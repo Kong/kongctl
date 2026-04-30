@@ -19,10 +19,10 @@ var (
 		`The gateway service command allows you to work with Konnect Kong Gateway Service resources.`))
 	serviceExamples = normalizers.Examples(i18n.T("root.products.konnect.gateway.service.serviceExamples",
 		fmt.Sprintf(`
-	# List the Konnect Kong Gateway Services for the current organization
-	%[1]s get konnect gateway services 
-	# Get a specific Konnect Kong Gateway Service 
-	%[1]s get konnect gateway service <id|name>
+	# List the Konnect Kong Gateway Services for a control plane
+	%[1]s get konnect gateway control-plane services --control-plane-name <name>
+	# Get a specific Konnect Kong Gateway Service in a control plane
+	%[1]s get konnect gateway control-plane service <id|name> --control-plane-name <name>
 	`, meta.CLIName)))
 )
 

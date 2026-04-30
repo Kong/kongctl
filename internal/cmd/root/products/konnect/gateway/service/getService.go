@@ -168,10 +168,10 @@ var (
 	getServiceExamples = normalizers.Examples(
 		i18n.T("root.products.konnect.gateway.service.getServiceExamples",
 			fmt.Sprintf(`
-	# List all the Gateway Services for the a given control plane
-	%[1]s get konnect gateway service --control-plane-id <id>
-	# Get a specific Kong Gateway Services for the a given control plane
-	%[1]s get konnect gateway service --control-plane-id <id> <service-name>
+	# List all Gateway Services for a given control plane
+	%[1]s get konnect gateway control-plane services --control-plane-id <id>
+	# Get a specific Kong Gateway Service for a given control plane
+	%[1]s get konnect gateway control-plane service --control-plane-id <id> <service-name>
 	`, meta.CLIName)))
 )
 
@@ -358,10 +358,10 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	// TODO!: Fix up the below casting to Konnect SDKs, as it will fail in testing once that is written.
 	//         A service API needs to be added to our internal SDK API interfaces
 
-	// 'get konnect gateway services' can be run like various ways:
-	//	> get konnect gateway services <id>    # Get by UUID
-	//  > get konnect gateway services <name>	# Get by name
-	//  > get konnect gateway services # List all
+	// 'get konnect gateway control-plane services' can be run in various ways:
+	//	> get konnect gateway control-plane services <id>    # Get by UUID
+	//  > get konnect gateway control-plane services <name>	# Get by name
+	//  > get konnect gateway control-plane services # List all
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := helper.GetArgs()[0]
 

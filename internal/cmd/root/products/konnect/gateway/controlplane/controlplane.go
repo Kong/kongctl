@@ -3,6 +3,9 @@ package controlplane
 import (
 	"fmt"
 
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumer"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/route"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/service"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -46,7 +49,11 @@ func NewControlPlaneCmd(verb verbs.VerbValue,
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+		getCmd := newGetControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun)
+		if err := addControlPlaneChildCommands(getCmd.Command, verb, addParentFlags, parentPreRun); err != nil {
+			return nil, err
+		}
+		return getCmd.Command, nil
 	}
 	if verb == verbs.Create {
 		return newCreateControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
@@ -57,4 +64,31 @@ func NewControlPlaneCmd(verb verbs.VerbValue,
 
 	// Return base command for unsupported verbs
 	return &baseCmd, nil
+}
+
+func addControlPlaneChildCommands(
+	baseCmd *cobra.Command,
+	verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) error {
+	childCommandConstructors := []func(
+		verbs.VerbValue,
+		func(verbs.VerbValue, *cobra.Command),
+		func(*cobra.Command, []string) error,
+	) (*cobra.Command, error){
+		service.NewServiceCmd,
+		route.NewRouteCmd,
+		consumer.NewConsumerCmd,
+	}
+
+	for _, newChildCommand := range childCommandConstructors {
+		childCmd, err := newChildCommand(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return err
+		}
+		baseCmd.AddCommand(childCmd)
+	}
+
+	return nil
 }
