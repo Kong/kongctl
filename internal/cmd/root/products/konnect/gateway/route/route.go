@@ -20,9 +20,9 @@ var (
 	routeExamples = normalizers.Examples(i18n.T("root.products.konnect.gateway.route.routeExamples",
 		fmt.Sprintf(`
 	# List the Konnect routes 
-	%[1]s get konnect gateway routes --control-plane-id <id>
+	%[1]s get konnect gateway control-plane routes --control-plane-id <id>
 	# Get a specific Konnect route
-	%[1]s get konnect gateway route --control-plane-id <id> <id|name>
+	%[1]s get konnect gateway control-plane route --control-plane-id <id> <id|name>
 	`, meta.CLIName)))
 )
 

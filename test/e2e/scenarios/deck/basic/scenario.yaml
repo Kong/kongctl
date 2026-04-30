@@ -67,6 +67,7 @@ steps:
         run:
           - get
           - gw
+          - cp
           - services
           - --control-plane-name
           - "e2e-cp"
@@ -206,6 +207,7 @@ steps:
         run:
           - get
           - gw
+          - cp
           - services
           - --control-plane-name
           - "e2e-cp"
