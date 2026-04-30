@@ -159,7 +159,7 @@ steps:
             expect:
               fields:
                 action: CREATE
-                "contains(fields.cert, 'MIIFkjCCA3oCCQDh23hmwAl7bTAN')": true
+                "contains(fields.cert, 'MIID5zCCAs+gAwIBAgIUI6Xfj3')": true
           - select: >-
               changes[?resource_type=='control_plane_data_plane_certificate' &&
                       action=='DELETE'] | [0]
@@ -199,7 +199,7 @@ steps:
           - select: "[0]"
             expect:
               fields:
-                "contains(cert, 'MIIFkjCCA3oCCQDh23hmwAl7bTAN')": true
+                "contains(cert, 'MIID5zCCAs+gAwIBAgIUI6Xfj3')": true
 
   - name: 003-sync-delete-nested
     inputOverlayDirs:
