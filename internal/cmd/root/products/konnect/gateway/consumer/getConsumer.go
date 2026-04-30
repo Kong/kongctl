@@ -45,12 +45,12 @@ var (
 	getConsumerExamples = normalizers.Examples(
 		i18n.T("root.products.konnect.gateway.consumer.getConsumerExamples",
 			fmt.Sprintf(`
-	# List all the Kong Gateway Consumers for the a given Control Plane (by ID)
-	%[1]s get konnect gateway consumers --control-plane-id <id>
-	# List all the Kong Gateway Consumers for the a given Control Plane (by name)
-	%[1]s get konnect gateway consumers --control-plane-name <name>
-	# Get a specific Kong Gateway Consumers located on the given Control Plane (by name)
-	%[1]s get konnect gateway consumer --control-plane-name <name> <consumer-name>
+	# List all Kong Gateway Consumers for a given control plane (by ID)
+	%[1]s get konnect gateway control-plane consumers --control-plane-id <id>
+	# List all Kong Gateway Consumers for a given control plane (by name)
+	%[1]s get konnect gateway control-plane consumers --control-plane-name <name>
+	# Get a specific Kong Gateway Consumer located on the given control plane (by name)
+	%[1]s get konnect gateway control-plane consumer --control-plane-name <name> <consumer-name>
 	`, meta.CLIName)))
 )
 
@@ -114,10 +114,10 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	// TODO!: Fix up the below casting to Konnect SDKs, as it will fail in testing once that is written.
 	//         A service API needs to be added to our internal SDK API interfaces
 
-	// 'get konnect gateway consumers ' can be run like various ways:
-	//	> get konnect gateway consumers <id>				# Get by UUID
-	//  > get konnect gateway consumers <username>	# Get by uname
-	//  > get konnect gateway consumers							# List all
+	// 'get konnect gateway control-plane consumers' can be run in various ways:
+	//	> get konnect gateway control-plane consumers <id>				# Get by UUID
+	//  > get konnect gateway control-plane consumers <username>	# Get by username
+	//  > get konnect gateway control-plane consumers							# List all
 	internalSDK := kkClient.(*helpers.KonnectSDK).SDK
 
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
