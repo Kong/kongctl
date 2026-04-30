@@ -116,3 +116,64 @@ steps:
                 "contains(stdout, 'SUPPORTS ROOT: true')": true
                 "contains(stdout, 'SUPPORTS NESTED DECLARATION: true')": true
                 "contains(stdout, 'CHILD RESOURCES: children')": true
+
+  - name: 007-explain-control-plane-data-plane-certificate-json
+    skipInputs: true
+    commands:
+      - name: 000-explain-control-plane-data-plane-certificate-json
+        run:
+          - explain
+          - control_plane_data_plane_certificate
+        outputFormat: json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: control_plane_data_plane_certificate"
+                '"x-kongctl-resource"': control_plane_data_plane_certificate
+                '"x-kongctl-root-key"': control_plane_data_plane_certificates
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: properties.cert
+            expect:
+              fields:
+                type: string
+                '"x-kongctl-preferred-tag"': "!file"
+
+  - name: 008-explain-control-plane-data-plane-certificate-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-control-plane-data-plane-certificate-nested-yaml
+        run:
+          - explain
+          - control_plane.data_plane_certificates
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: control_plane.data_plane_certificates"
+                '"x-kongctl-resource"': control_plane_data_plane_certificate
+                '"x-kongctl-path"': control_plane.data_plane_certificates
+
+  - name: 009-explain-control-plane-data-plane-certificate-field-text
+    skipInputs: true
+    commands:
+      - name: 000-explain-control-plane-data-plane-certificate-cert-text
+        run:
+          - explain
+          - control_plane_data_plane_certificate.cert
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'FIELD')": true
+                "contains(stdout, 'PATH: control_plane_data_plane_certificate.cert')": true
+                "contains(stdout, 'PREFERRED TAG: !file')": true
+                "contains(stdout, 'ROOT YAML PATH: control_plane_data_plane_certificates[].cert')": true
+                "contains(stdout, 'NESTED YAML PATH: control_planes[].data_plane_certificates[].cert')": true
