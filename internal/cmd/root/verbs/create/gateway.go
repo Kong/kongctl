@@ -2,9 +2,7 @@ package create
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -16,25 +14,8 @@ import (
 
 // NewDirectGatewayCmd creates a gateway command that works at the root level (Konnect-first)
 func NewDirectGatewayCmd() (*cobra.Command, error) {
-	// Define the addFlags function to add Konnect-specific flags
-	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, "",
-			fmt.Sprintf(`Base URL for Konnect API requests.
-- Config path: [ %s ]
-- Default   : [ %s ]`,
-				common.BaseURLConfigPath, common.BaseURLDefault))
-
-		cmd.Flags().String(common.RegionFlagName, "",
-			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
-- Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath),
-		)
-
-		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
-Setting this value overrides tokens obtained from the login command.
-- Config path: [ %s ]`,
-				common.PATConfigPath))
+	addFlags := func(verb verbs.VerbValue, cmd *cobra.Command) {
+		gateway.AddGatewayFlags(verb, cmd)
 	}
 
 	// Define the preRunE function to set up Konnect context
@@ -47,8 +28,7 @@ Setting this value overrides tokens obtained from the login command.
 		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
 		c.SetContext(ctx)
 
-		// Bind flags
-		return bindGatewayFlags(c, args)
+		return gateway.BindGatewayFlags(c, args)
 	}
 
 	// Create the gateway command using the existing gateway package
@@ -62,39 +42,4 @@ Setting this value overrides tokens obtained from the login command.
   kongctl create gateway control-plane <name>`
 
 	return gatewayCmd, nil
-}
-
-// bindGatewayFlags binds Konnect-specific flags to configuration
-func bindGatewayFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	f := c.Flags().Lookup(common.BaseURLFlagName)
-	if f != nil {
-		err = cfg.BindFlag(common.BaseURLConfigPath, f)
-		if err != nil {
-			return err
-		}
-	}
-
-	f = c.Flags().Lookup(common.RegionFlagName)
-	if f != nil {
-		err = cfg.BindFlag(common.RegionConfigPath, f)
-		if err != nil {
-			return err
-		}
-	}
-
-	f = c.Flags().Lookup(common.PATFlagName)
-	if f != nil {
-		err = cfg.BindFlag(common.PATConfigPath, f)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
