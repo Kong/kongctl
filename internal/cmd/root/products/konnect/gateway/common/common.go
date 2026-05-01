@@ -36,11 +36,11 @@ func BindControlPlaneFlags(c *cobra.Command, args []string) error {
 func AddControlPlaneFlags(c *cobra.Command) {
 	// ---- CP Identifiers, mutually exclusive
 	c.Flags().String(ControlPlaneIDFlagName, "",
-		fmt.Sprintf(`The ID of the control plane to use for a gateway service command.
+		fmt.Sprintf(`The ID of the control plane to use for a gateway control-plane child command.
 - Config path: [ %s ]`, ControlPlaneIDConfigPath))
 
 	c.Flags().String(ControlPlaneNameFlagName, "",
-		fmt.Sprintf(`The name of the control plane to use for a gateway service command.
+		fmt.Sprintf(`The name of the control plane to use for a gateway control-plane child command.
 - Config path: [ %s ]`, ControlPlaneNameConfigPath))
 	c.MarkFlagsMutuallyExclusive(ControlPlaneIDFlagName, ControlPlaneNameFlagName)
 }

@@ -37,6 +37,7 @@ steps:
         run:
           - get
           - gw
+          - cp
           - services
           - --control-plane-name
           - "code-breakers"

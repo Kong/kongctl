@@ -72,9 +72,9 @@ Setting this value overrides tokens obtained from the login command.
   # Get a specific control plane
   kongctl get gateway control-plane <id|name>
   # List services in a control plane
-  kongctl get gateway services --control-plane <id|name>
+  kongctl get gateway control-plane services --control-plane-name <name>
   # Get a specific service
-  kongctl get gateway service <id|name> --control-plane <id|name>`
+  kongctl get gateway control-plane service <id|name> --control-plane-name <name>`
 
 	return gatewayCmd, nil
 }

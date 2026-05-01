@@ -1,12 +1,11 @@
 package gateway
 
 import (
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumer"
+	"fmt"
+
 	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumergroup" // register consumer-group child loaders
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/controlplane"
-	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin" // register plugin child loaders
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/route"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/service"
+	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin"   // register plugin child loaders
 	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/upstream" // register upstream child loaders
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -30,27 +29,18 @@ func NewGatewayCmd(verb verbs.VerbValue,
 		Short:   gatewayShort,
 		Long:    gatewayLong,
 		Aliases: []string{"gw", "GW"},
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
 	}
 
 	c, e := controlplane.NewControlPlaneCmd(verb, addParentFlags, parentPreRun)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
-
-	c, e = service.NewServiceCmd(verb, addParentFlags, parentPreRun)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
-
-	c, e = route.NewRouteCmd(verb, addParentFlags, parentPreRun)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
-
-	c, e = consumer.NewConsumerCmd(verb, addParentFlags, parentPreRun)
 	if e != nil {
 		return nil, e
 	}

@@ -59,13 +59,7 @@ Setting this value overrides tokens obtained from the login command.
 
 	// Override the example to show direct usage without "konnect"
 	gatewayCmd.Example = `  # Create a new control plane
-  kongctl create gateway control-plane <name>
-  # Create a new service in a control plane
-  kongctl create gateway service <name> --control-plane <id|name>
-  # Create a new route in a control plane
-  kongctl create gateway route <name> --control-plane <id|name>
-  # Create a new consumer in a control plane
-  kongctl create gateway consumer <name> --control-plane <id|name>`
+  kongctl create gateway control-plane <name>`
 
 	return gatewayCmd, nil
 }

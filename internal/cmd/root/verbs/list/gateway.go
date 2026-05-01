@@ -70,11 +70,11 @@ Setting this value overrides tokens obtained from the login command.
 	gatewayCmd.Example = `  # List all control planes
   kongctl list gateway control-planes
   # List services in a control plane
-  kongctl list gateway services --control-plane <id|name>
+  kongctl list gateway control-plane services --control-plane-name <name>
   # List routes in a control plane
-  kongctl list gateway routes --control-plane <id|name>
+  kongctl list gateway control-plane routes --control-plane-name <name>
   # List consumers in a control plane
-  kongctl list gateway consumers --control-plane <id|name>`
+  kongctl list gateway control-plane consumers --control-plane-name <name>`
 
 	return gatewayCmd, nil
 }
