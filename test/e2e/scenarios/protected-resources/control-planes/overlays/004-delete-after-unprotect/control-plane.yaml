@@ -1,0 +1,8 @@
+# Overlay: Empty config to delete all control planes
+# Now that the control plane is unprotected, this should succeed
+
+_defaults:
+  kongctl:
+    namespace: "cp-protection"
+
+control_planes: []
