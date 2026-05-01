@@ -141,12 +141,6 @@ func (p *Planner) planDataPlaneCertificateCreatesForNewGateway(
 	certificates []resources.EventGatewayDataPlaneCertificateResource,
 	plan *Plan,
 ) {
-	p.logger.Debug("Planning data plane certificate creates for new gateway",
-		"gateway_ref", gatewayRef,
-		"gateway_change_id", gatewayChangeID,
-		"cert_count", len(certificates),
-	)
-
 	// Build dependencies - certificates depend on gateway being created first
 	var dependsOn []string
 	if gatewayChangeID != "" {
@@ -295,29 +289,13 @@ func (p *Planner) shouldUpdateDataPlaneCertificate(
 		needsUpdate = true
 	}
 
-	// Compare name
-	currentName := ""
-	if current.Name != nil {
-		currentName = *current.Name
-	}
-	desiredName := ""
-	if desired.Name != nil {
-		desiredName = *desired.Name
-	}
-	if currentName != desiredName {
+	// Compare name (only when desired sets it, to stay convergent)
+	if desired.Name != nil && getString(current.Name) != *desired.Name {
 		needsUpdate = true
 	}
 
-	// Compare description
-	currentDesc := ""
-	if current.Description != nil {
-		currentDesc = *current.Description
-	}
-	desiredDesc := ""
-	if desired.Description != nil {
-		desiredDesc = *desired.Description
-	}
-	if currentDesc != desiredDesc {
+	// Compare description (only when desired sets it, to stay convergent)
+	if desired.Description != nil && getString(current.Description) != *desired.Description {
 		needsUpdate = true
 	}
 

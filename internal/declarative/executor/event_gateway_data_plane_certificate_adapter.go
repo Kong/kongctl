@@ -67,14 +67,8 @@ func (a *EventGatewayDataPlaneCertificateAdapter) MapUpdateFields(
 		update.Name = &name
 	}
 
-	if description, ok := fieldsToUpdate[planner.FieldDescription]; ok {
-		if desc, ok := description.(string); ok {
-			update.Description = &desc
-		} else if description == nil {
-			// Handle nil description (clear it)
-			emptyStr := ""
-			update.Description = &emptyStr
-		}
+	if desc, ok := fieldsToUpdate[planner.FieldDescription].(string); ok {
+		update.Description = &desc
 	}
 
 	return nil
@@ -87,7 +81,6 @@ func (a *EventGatewayDataPlaneCertificateAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	// Get event gateway ID from execution context
 	gatewayID, err := a.getEventGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
@@ -104,7 +97,6 @@ func (a *EventGatewayDataPlaneCertificateAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	// Get event gateway ID from execution context
 	gatewayID, err := a.getEventGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
@@ -119,7 +111,6 @@ func (a *EventGatewayDataPlaneCertificateAdapter) Delete(
 	id string,
 	execCtx *ExecutionContext,
 ) error {
-	// Get event gateway ID from execution context
 	gatewayID, err := a.getEventGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
@@ -134,7 +125,6 @@ func (a *EventGatewayDataPlaneCertificateAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	// Get event gateway ID from execution context
 	gatewayID, err := a.getEventGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return nil, err

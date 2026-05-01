@@ -60,8 +60,8 @@ func (p *Planner) planControlPlaneDataPlaneCertificateDiff(
 
 	currentByIdentity := make(map[string]state.ControlPlaneDataPlaneCertificate)
 	for _, cert := range currentCerts {
-		certValue := stringPointerValue(cert.Cert)
-		id := stringPointerValue(cert.ID)
+		certValue := getString(cert.Cert)
+		id := getString(cert.ID)
 		if certValue == "" || id == "" {
 			continue
 		}
@@ -112,11 +112,11 @@ func (p *Planner) planControlPlaneDataPlaneCertificateDiff(
 				continue
 			}
 
-			certValue := stringPointerValue(current.Cert)
+			certValue := getString(current.Cert)
 			p.planControlPlaneDataPlaneCertificateDelete(
 				controlPlaneRef,
 				controlPlaneID,
-				stringPointerValue(current.ID),
+				getString(current.ID),
 				resources.ShortControlPlaneDataPlaneCertificateIdentity(certValue),
 				createChangeIDs,
 				plan,
@@ -220,11 +220,4 @@ func (p *Planner) planControlPlaneDataPlaneCertificateDelete(
 		"control_plane_ref", controlPlaneRef,
 	)
 	plan.AddChange(change)
-}
-
-func stringPointerValue(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
 }
