@@ -289,13 +289,13 @@ func (p *Planner) shouldUpdateDataPlaneCertificate(
 		needsUpdate = true
 	}
 
-	// Compare name
-	if getString(current.Name) != getString(desired.Name) {
+	// Compare name (only when desired sets it, to stay convergent)
+	if desired.Name != nil && getString(current.Name) != *desired.Name {
 		needsUpdate = true
 	}
 
-	// Compare description
-	if getString(current.Description) != getString(desired.Description) {
+	// Compare description (only when desired sets it, to stay convergent)
+	if desired.Description != nil && getString(current.Description) != *desired.Description {
 		needsUpdate = true
 	}
 
