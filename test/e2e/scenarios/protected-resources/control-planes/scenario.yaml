@@ -151,6 +151,7 @@ steps:
             expect:
               fields:
                 labels."KONGCTL-namespace": "cp-protection"
+                labels."KONGCTL-protected": null
 
   # Step 4: Delete now-unprotected control plane (should succeed)
   - name: 004-delete-after-unprotect
