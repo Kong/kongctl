@@ -136,7 +136,7 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.listenerPolicyName }}"
-                type: tls_server
+                type: forward_to_virtual_cluster
                 enabled: true
           - name: cluster-policy-present
             select: >-
