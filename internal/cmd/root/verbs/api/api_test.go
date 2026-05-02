@@ -847,9 +847,96 @@ func TestRunRejectsJQRawOutputWithYAMLOutput(t *testing.T) {
 	require.Contains(t, err.Error(), "--output json")
 }
 
-func TestRunRejectsTextOutputFormat(t *testing.T) {
+func TestRunUsesJSONForImplicitTextOutputFormat(t *testing.T) {
 	original := requestFn
 	t.Cleanup(func() { requestFn = original })
+
+	requestFn = func(
+		_ context.Context,
+		_ apiutil.Doer,
+		_ string,
+		_ string,
+		_ string,
+		_ string,
+		_ map[string]string,
+		_ io.Reader,
+	) (*apiutil.Result, error) {
+		return &apiutil.Result{StatusCode: http.StatusOK, Body: []byte(`{"ok":true}`)}, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+
+	cfg := newMockAPIConfig()
+
+	args := []string{"/v1/resources"}
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock: func() context.Context { return context.Background() },
+	}
+
+	err := run(helper, http.MethodGet, false)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"ok":true}`, strings.TrimSpace(streams.Out.(*bytes.Buffer).String()))
+}
+
+func TestRunRendersYAMLOutput(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+
+	requestFn = func(
+		_ context.Context,
+		_ apiutil.Doer,
+		_ string,
+		_ string,
+		_ string,
+		_ string,
+		_ map[string]string,
+		_ io.Reader,
+	) (*apiutil.Result, error) {
+		return &apiutil.Result{StatusCode: http.StatusOK, Body: []byte(`{"ok":true}`)}, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+	cmdObj.Flags().StringP(
+		cmdcommon.OutputFlagName, cmdcommon.OutputFlagShort, cmdcommon.DefaultOutputFormat, "Output format",
+	)
+	require.NoError(t, cmdObj.Flags().Set(cmdcommon.OutputFlagName, cmdcommon.YAML.String()))
+
+	cfg := newMockAPIConfig()
+
+	args := []string{"/v1/resources"}
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.YAML, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock: func() context.Context { return context.Background() },
+	}
+
+	err := run(helper, http.MethodGet, false)
+	require.NoError(t, err)
+	require.Contains(t, streams.Out.(*bytes.Buffer).String(), "ok: true")
+}
+
+func TestRunRejectsExplicitTextOutputFormat(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+
 	requestFn = func(
 		context.Context,
 		apiutil.Doer,
@@ -867,6 +954,10 @@ func TestRunRejectsTextOutputFormat(t *testing.T) {
 	streams := iostreams.NewTestIOStreamsOnly()
 	cmdObj := &cobra.Command{Use: "test"}
 	addFlags(cmdObj)
+	cmdObj.Flags().StringP(
+		cmdcommon.OutputFlagName, cmdcommon.OutputFlagShort, cmdcommon.DefaultOutputFormat, "Output format",
+	)
+	require.NoError(t, cmdObj.Flags().Set(cmdcommon.OutputFlagName, cmdcommon.TEXT.String()))
 
 	cfg := newMockAPIConfig()
 
