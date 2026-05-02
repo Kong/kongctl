@@ -822,6 +822,33 @@ func (e *Executor) syncResolvedDCRProviderID(
 	return nil
 }
 
+func (e *Executor) syncResolvedPortalDefaultAuthStrategyID(
+	ctx context.Context,
+	change *planner.PlannedChange,
+) error {
+	if change == nil {
+		return nil
+	}
+
+	authStrategyRef, ok := change.References[planner.FieldDefaultApplicationStrategyID]
+	if !ok {
+		return nil
+	}
+
+	if unresolvedReferenceID(authStrategyRef.ID) {
+		authStrategyID, err := e.resolveAuthStrategyRef(ctx, authStrategyRef)
+		if err != nil {
+			return fmt.Errorf("failed to resolve auth strategy reference: %w", err)
+		}
+		authStrategyRef.ID = authStrategyID
+		change.References[planner.FieldDefaultApplicationStrategyID] = authStrategyRef
+	}
+
+	change.Fields[planner.FieldDefaultApplicationStrategyID] = authStrategyRef.ID
+
+	return nil
+}
+
 // resolvePortalRef resolves a portal reference to its ID
 func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
 	// First check if the reference already has an ID (resolved from dependency)
@@ -1613,19 +1640,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 
 	switch change.ResourceType {
 	case planner.ResourceTypePortal:
-		// Resolve auth strategy reference if present
-		if authStrategyRef, ok := change.References[planner.FieldDefaultApplicationStrategyID]; ok &&
-			authStrategyRef.ID == "" {
-			authStrategyID, err := e.resolveAuthStrategyRef(ctx, authStrategyRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve auth strategy reference: %w", err)
-			}
-			// Update the reference with the resolved ID
-			authStrategyRef.ID = authStrategyID
-			change.References[planner.FieldDefaultApplicationStrategyID] = authStrategyRef
-
-			// Also update the field value to use the resolved ID instead of the placeholder
-			change.Fields[planner.FieldDefaultApplicationStrategyID] = authStrategyID
+		if err := e.syncResolvedPortalDefaultAuthStrategyID(ctx, change); err != nil {
+			return "", err
 		}
 		return e.portalExecutor.Create(ctx, *change)
 	case planner.ResourceTypeControlPlane:
@@ -2132,6 +2148,9 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 
 	switch change.ResourceType {
 	case planner.ResourceTypePortal:
+		if err := e.syncResolvedPortalDefaultAuthStrategyID(ctx, change); err != nil {
+			return "", err
+		}
 		return e.portalExecutor.Update(ctx, *change)
 	case planner.ResourceTypeControlPlane:
 		id, err := e.controlPlaneExecutor.Update(ctx, *change)

@@ -43,7 +43,20 @@ steps:
                 skipped: 0
                 status: "success"
                 total_changes: 2
-      - name: 001-re-apply-no-op
+        recordVar:
+          name: authStrategyV1ID
+          responsePath: >-
+            execution.applied_changes[?resource_ref=='apikey-app-auth-strategy'] | [0].resource_id
+      - name: 001-get-portals-verify-v1
+        run:
+          - get
+          - portals
+        assertions:
+          - select: "[?name=='My Simple Portal'] | [0]"
+            expect:
+              fields:
+                default_application_auth_strategy_id: "{{ .vars.authStrategyV1ID }}"
+      - name: 002-re-apply-no-op
         run:
           - apply
           - -f
