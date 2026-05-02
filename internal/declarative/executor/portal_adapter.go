@@ -2,7 +2,7 @@ package executor
 
 import (
 	"context"
-	"strings"
+	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
@@ -52,12 +52,11 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	}
 
 	if defaultAppAuthStrategyID, ok := fields[planner.FieldDefaultApplicationStrategyID].(string); ok {
-		// Defensive: skip if this is a reference placeholder that wasn't resolved
-		// (should have been resolved by executor, but be defensive)
-		if !strings.HasPrefix(defaultAppAuthStrategyID, tags.RefPlaceholderPrefix) {
-			create.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
+		if tags.IsRefPlaceholder(defaultAppAuthStrategyID) {
+			return fmt.Errorf("unresolved auth strategy reference for %s: %s",
+				planner.FieldDefaultApplicationStrategyID, defaultAppAuthStrategyID)
 		}
-		// If it's still a placeholder, skip setting it to avoid sending invalid data to API
+		create.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
 	}
 
 	// Handle labels using centralized helper
@@ -112,11 +111,11 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 			}
 		case planner.FieldDefaultApplicationStrategyID:
 			if authID, ok := value.(string); ok {
-				// Defensive: skip if this is a reference placeholder that wasn't resolved
-				if !strings.HasPrefix(authID, tags.RefPlaceholderPrefix) {
-					update.DefaultApplicationAuthStrategyID = &authID
+				if tags.IsRefPlaceholder(authID) {
+					return fmt.Errorf("unresolved auth strategy reference for %s: %s",
+						planner.FieldDefaultApplicationStrategyID, authID)
 				}
-				// If it's still a placeholder, skip setting it to avoid sending invalid data to API
+				update.DefaultApplicationAuthStrategyID = &authID
 			}
 		case planner.FieldDefaultAPIVisibility:
 			if visibility, ok := value.(string); ok {

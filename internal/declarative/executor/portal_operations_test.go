@@ -237,6 +237,54 @@ func TestExecutor_createPortal(t *testing.T) {
 	}
 }
 
+func TestExecutor_createResourcePortalResolvesUnknownAuthStrategyReferenceBeforeCreate(t *testing.T) {
+	mockAPI := new(MockPortalAPI)
+	var gotPortal kkComps.CreatePortal
+
+	mockAPI.On("CreatePortal", mock.Anything, mock.MatchedBy(func(portal kkComps.CreatePortal) bool {
+		gotPortal = portal
+		return true
+	})).Return(&kkOps.CreatePortalResponse{
+		PortalResponse: &kkComps.PortalResponse{
+			ID: "portal-123",
+		},
+	}, nil).Once()
+
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
+	executor := New(client, nil, false)
+	executor.refToID[planner.ResourceTypeApplicationAuthStrategy] = map[string]string{
+		"portal-default-strategy": "11111111-1111-4111-8111-111111111111",
+	}
+
+	change := planner.PlannedChange{
+		ResourceType: planner.ResourceTypePortal,
+		ResourceRef:  "simple-portal",
+		Action:       planner.ActionCreate,
+		Namespace:    "default",
+		Fields: map[string]any{
+			planner.FieldName:                         "simple-portal",
+			planner.FieldDefaultApplicationStrategyID: "__REF__:portal-default-strategy#id",
+		},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldDefaultApplicationStrategyID: {
+				Ref: "__REF__:portal-default-strategy#id",
+				ID:  "[unknown]",
+			},
+		},
+	}
+
+	id, err := executor.createResource(testContextWithLogger(), &change)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "portal-123", id)
+	if assert.NotNil(t, gotPortal.DefaultApplicationAuthStrategyID) {
+		assert.Equal(t, "11111111-1111-4111-8111-111111111111", *gotPortal.DefaultApplicationAuthStrategyID)
+	}
+	mockAPI.AssertExpectations(t)
+}
+
 func TestExecutor_updatePortal(t *testing.T) {
 	tests := []struct {
 		name      string

@@ -1,0 +1,97 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-distractor-strategy
+    inputOverlayDirs:
+      - overlays/001-distractor
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                total_changes: 1
+          - select: >-
+              execution.applied_changes[?resource_type=='application_auth_strategy' &&
+                            resource_ref=='aaa-distractor-app-auth-strategy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+  - name: 002-create-target-and-portal
+    inputOverlayDirs:
+      - overlays/002-target-portal
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                total_changes: 3
+          - select: >-
+              execution.applied_changes[?resource_type=='application_auth_strategy' &&
+                            resource_ref=='mmm-target-app-auth-strategy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              execution.applied_changes[?resource_type=='application_auth_strategy' &&
+                            resource_ref=='zzz-distractor-app-auth-strategy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              execution.applied_changes[?resource_type=='portal' &&
+                            resource_ref=='ref-selection-portal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+        recordVar:
+          name: targetAuthStrategyID
+          responsePath: >-
+            execution.applied_changes[?resource_ref=='mmm-target-app-auth-strategy'] | [0].resource_id
+      - name: 001-get-portals-verify-target
+        run:
+          - get
+          - portals
+        assertions:
+          - select: "[?name=='Ref Selection Portal'] | [0]"
+            expect:
+              fields:
+                default_application_auth_strategy_id: "{{ .vars.targetAuthStrategyID }}"
+
+  - name: 003-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-target-portal
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
