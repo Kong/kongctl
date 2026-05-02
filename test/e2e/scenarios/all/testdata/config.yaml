@@ -206,10 +206,9 @@ portals:
             entity_region: us
     email_config:
       ref: all-portal-email-config
-      domain_name: all.mail.kongctl-e2e.io
       from_name: Kong Developer Portal
-      from_email: noreply@all.mail.kongctl-e2e.io
-      reply_to_email: support@all.mail.kongctl-e2e.io
+      from_email: noreply@example.com
+      reply_to_email: support@example.com
     email_templates:
       reset-password:
         ref: all-reset-password-template
