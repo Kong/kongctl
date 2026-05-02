@@ -269,10 +269,13 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		return err
 	}
 	if outType == cmdcommon.TEXT {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("%s command supports only json or yaml output formats (received %q)",
-				helper.GetCmd().CommandPath(), outType.String()),
+		if helper.GetCmd().Flags().Changed(cmdcommon.OutputFlagName) {
+			return &cmd.ConfigurationError{
+				Err: fmt.Errorf("%s command supports only json or yaml output formats (received %q)",
+					helper.GetCmd().CommandPath(), outType.String()),
+			}
 		}
+		outType = cmdcommon.JSON
 	}
 
 	jqSettings, err := jqoutput.ResolveSettings(helper.GetCmd(), cfg)
