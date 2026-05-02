@@ -9,3 +9,14 @@ services:
     url: "https://api.kong-air.com/"
     tags:
       - "kongctl-e2e-gw"
+    routes:
+      - name: "e2e-route"
+        paths:
+          - "/e2e"
+        tags:
+          - "kongctl-e2e-gw"
+
+consumers:
+  - username: "e2e-consumer"
+    tags:
+      - "kongctl-e2e-gw"
