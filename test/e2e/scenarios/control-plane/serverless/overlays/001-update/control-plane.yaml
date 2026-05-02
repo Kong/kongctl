@@ -1,0 +1,13 @@
+_defaults:
+  kongctl:
+    namespace: cp-serverless-v1
+
+control_planes:
+  - ref: cp-serverless-v1
+    name: kongctl-e2e-cp-serverless-v1
+    description: "Updated Serverless V1 control plane for E2E testing"
+    cluster_type: "CLUSTER_TYPE_SERVERLESS_V1"
+    labels:
+      env: e2e
+      owner: kongctl-test
+      stage: updated

@@ -1,0 +1,491 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  cpRef: cp-serverless-v1
+  cpName: kongctl-e2e-cp-serverless-v1
+  cpInitialDesc: "Serverless V1 control plane for E2E testing"
+  cpUpdatedDesc: "Updated Serverless V1 control plane for E2E testing"
+  cpClusterType: CLUSTER_TYPE_SERVERLESS_V1
+  namespace: cp-serverless-v1
+  adoptCpName: kongctl-e2e-cp-serverless-v1-adopt
+  adoptCpDesc: "Serverless V1 control plane for adopt E2E testing"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-diff-apply
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                        resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.cluster_type: "{{ .vars.cpClusterType }}"
+
+      - name: 001-diff-create
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                        resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.cluster_type: "{{ .vars.cpClusterType }}"
+
+      - name: 002-diff-create-from-file
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --mode
+          - apply
+          - -o
+          - json
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                        resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.cluster_type: "{{ .vars.cpClusterType }}"
+
+      - name: 003-apply-create-from-plan
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.cluster_type: "{{ .vars.cpClusterType }}"
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 004-get-by-name
+        run:
+          - get
+          - gateway
+          - control-plane
+          - "{{ .vars.cpName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.cpName }}"
+          - select: description
+            expect:
+              fields:
+                "@": "{{ .vars.cpInitialDesc }}"
+          - select: config.cluster_type
+            expect:
+              fields:
+                "@": "{{ .vars.cpClusterType }}"
+
+      - name: 005-get-list
+        run:
+          - get
+          - gateway
+          - control-planes
+          - -o
+          - json
+        recordVar:
+          name: cpID
+          responsePath: "[?name=='{{ .vars.cpName }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.cpName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.cpName }}"
+                description: "{{ .vars.cpInitialDesc }}"
+                config.cluster_type: "{{ .vars.cpClusterType }}"
+
+      - name: 006-get-by-id
+        run:
+          - get
+          - gateway
+          - control-plane
+          - "{{ .vars.cpID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.cpName }}"
+          - select: config.cluster_type
+            expect:
+              fields:
+                "@": "{{ .vars.cpClusterType }}"
+
+      - name: 007-list-control-planes
+        run:
+          - list
+          - gateway
+          - control-planes
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.cpName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.cpName }}"
+                config.cluster_type: "{{ .vars.cpClusterType }}"
+
+  - name: 002-noop-plan-diff-sync-dump
+    commands:
+      - name: 000-plan-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 001-diff-idempotent
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --mode
+          - apply
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: changes
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 002-sync-idempotent
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 003-dump-serverless-v1
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+          - "--filter-name={{ .vars.cpName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-serverless.yaml"
+        assertions:
+          - select: "control_planes[?name=='{{ .vars.cpName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.cpName }}"
+                description: "{{ .vars.cpInitialDesc }}"
+                cluster_type: "{{ .vars.cpClusterType }}"
+
+      - name: 004-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-serverless.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-update-apply-sync
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-diff-update
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --mode
+          - apply
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                        resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.cpUpdatedDesc }}"
+
+      - name: 001-apply-update
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 002-get-updated
+        run:
+          - get
+          - gateway
+          - control-plane
+          - "{{ .vars.cpName }}"
+          - -o
+          - json
+        assertions:
+          - select: description
+            expect:
+              fields:
+                "@": "{{ .vars.cpUpdatedDesc }}"
+          - select: config.cluster_type
+            expect:
+              fields:
+                "@": "{{ .vars.cpClusterType }}"
+          - select: labels.stage
+            expect:
+              fields:
+                "@": updated
+
+      - name: 003-sync-idempotent-after-update
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 004-delete-declarative-control-plane
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 005-adopt-dump-plan
+    skipInputs: true
+    commands:
+      - name: 000-create-adopt-target
+        create:
+          resource: control_plane
+          payload:
+            inline:
+              name: "{{ .vars.adoptCpName }}"
+              description: "{{ .vars.adoptCpDesc }}"
+              cluster_type: "{{ .vars.cpClusterType }}"
+          recordVar:
+            name: adoptCpID
+            responsePath: id
+
+      - name: 001-adopt-control-plane
+        run:
+          - adopt
+          - control-plane
+          - "{{ .vars.adoptCpID }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+                resource_type: control_plane
+
+      - name: 002-dump-adopted-control-plane
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+          - "--filter-name={{ .vars.adoptCpName }}"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-adopted.yaml"
+        assertions:
+          - select: "control_planes[?ref=='{{ .vars.adoptCpID }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.adoptCpName }}"
+                description: "{{ .vars.adoptCpDesc }}"
+                cluster_type: "{{ .vars.cpClusterType }}"
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 003-plan-from-adopted-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-adopted.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 004-delete-adopted-control-plane
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/dump-adopted.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
