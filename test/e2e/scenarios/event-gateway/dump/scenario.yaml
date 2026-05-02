@@ -21,6 +21,12 @@ vars:
   staticKeyName: default-static-key-name-for-dump-test
   trustBundleRef: default-tls-trust-bundle-ref-dump
   trustBundleName: default-tls-trust-bundle-name-dump
+  listenerRef: default-listener-for-dump-test-ref
+  listenerName: default-listener-for-dump-test-name
+  listenerPolicyRef: default-listener-policy-for-dump-test-ref
+  listenerPolicyName: default-listener-policy-for-dump-test-name
+  clusterPolicyRef: default-cluster-policy-for-dump-test-ref
+  clusterPolicyName: default-cluster-policy-for-dump-test-name
 
 defaults:
   mask:
@@ -48,7 +54,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 8
+                applied: 11
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.
@@ -118,6 +124,28 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.trustBundleName }}"
+          - name: listener-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].listeners[?name=='{{ .vars.listenerName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.listenerName }}"
+          - name: listener-policy-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].listeners[?name=='{{ .vars.listenerName }}'] | [0].policies[?name=='{{ .vars.listenerPolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyName }}"
+                type: tls_server
+                enabled: true
+          - name: cluster-policy-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0].cluster_policies[?name=='{{ .vars.clusterPolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.clusterPolicyName }}"
+                type: acls
+                enabled: true
           - name: namespace-label-preserved
             select: "_defaults.kongctl"
             expect:
