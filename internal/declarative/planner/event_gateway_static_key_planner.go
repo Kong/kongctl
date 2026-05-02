@@ -243,8 +243,8 @@ func (p *Planner) planStaticKeyDelete(
 }
 
 // doesStaticKeyNeedChange checks whether a static key needs to be replaced.
-// The API returns the stored value when it is a vault reference, but does not return plaintext. We compare
-// it directly against the desired value anyway.
+// The API returns the stored value when it is a vault reference, but omits plaintext values. Compare values only
+// when Konnect returned one; an omitted current value is treated as an unchanged write-only secret.
 //
 // Any change triggers a replace (static keys do not support update).
 func (p *Planner) doesStaticKeyNeedChange(
@@ -256,7 +256,7 @@ func (p *Planner) doesStaticKeyNeedChange(
 	if current.Value != nil {
 		currentVal = *current.Value
 	}
-	if currentVal != desired.Value {
+	if currentVal != "" && currentVal != desired.Value {
 		return true
 	}
 

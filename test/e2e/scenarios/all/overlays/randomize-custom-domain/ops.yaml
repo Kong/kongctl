@@ -1,0 +1,5 @@
+ops:
+  - file: config.yaml
+    match: "portals[?ref=='all-portal'].custom_domain | [0]"
+    set:
+      hostname: "{{ .vars.customDomainHostname }}"
