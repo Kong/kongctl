@@ -182,7 +182,12 @@ control_planes:
  - ref: string
    name: string required
    description: string
-   cluster_type: One of (CLUSTER_TYPE_CONTROL_PLANE | CLUSTER_TYPE_K8S_INGRESS_CONTROLLER | CLUSTER_TYPE_CONTROL_PLANE_GROUP | CLUSTER_TYPE_SERVERLESS)
+   cluster_type: >-
+     One of (CLUSTER_TYPE_CONTROL_PLANE |
+     CLUSTER_TYPE_K8S_INGRESS_CONTROLLER |
+     CLUSTER_TYPE_CONTROL_PLANE_GROUP |
+     CLUSTER_TYPE_SERVERLESS |
+     CLUSTER_TYPE_SERVERLESS_V1)
    auth_type: One of (pinned_client_certs | pki_client_certs)
    cloud_gateway: boolean
    proxy_urls: array[object]
