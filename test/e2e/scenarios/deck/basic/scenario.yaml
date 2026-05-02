@@ -104,7 +104,7 @@ steps:
           - -o
           - json
         assertions:
-          - select: "[?username=='e2e-consumer'] | [0]"
+          - select: "@"
             expect:
               fields:
                 username: "e2e-consumer"
