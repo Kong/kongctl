@@ -78,6 +78,36 @@ steps:
             expect:
               fields:
                 name: "e2e-gw-svc"
+      - name: 003-get-gateway-routes
+        run:
+          - get
+          - gw
+          - cp
+          - routes
+          - --control-plane-name
+          - "e2e-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-route'] | [0]"
+            expect:
+              fields:
+                name: "e2e-route"
+      - name: 004-get-gateway-consumers
+        run:
+          - get
+          - gw
+          - cp
+          - consumers
+          - --control-plane-name
+          - "e2e-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?username=='e2e-consumer'] | [0]"
+            expect:
+              fields:
+                username: "e2e-consumer"
 
   - name: 002-apply-repeat
     commands:
@@ -215,6 +245,36 @@ steps:
           - json
         assertions:
           - select: "[?name=='e2e-gw-svc']"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 003-get-gateway-routes
+        run:
+          - get
+          - gw
+          - cp
+          - routes
+          - --control-plane-name
+          - "e2e-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-route']"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 004-get-gateway-consumers
+        run:
+          - get
+          - gw
+          - cp
+          - consumers
+          - --control-plane-name
+          - "e2e-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?username=='e2e-consumer']"
             expect:
               fields:
                 "length(@)": 0
