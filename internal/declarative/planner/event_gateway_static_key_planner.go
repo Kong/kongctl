@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -243,8 +244,9 @@ func (p *Planner) planStaticKeyDelete(
 }
 
 // doesStaticKeyNeedChange checks whether a static key needs to be replaced.
-// The API returns the stored value when it is a vault reference, but omits plaintext values. Compare values only
-// when Konnect returned one; an omitted current value is treated as an unchanged write-only secret.
+// The API returns the stored value when it is a secret reference, but omits plaintext values. Compare values only
+// when Konnect returned one; an omitted current value is treated as unchanged plaintext unless the desired value
+// is a reference that Konnect would return after replacement.
 //
 // Any change triggers a replace (static keys do not support update).
 func (p *Planner) doesStaticKeyNeedChange(
@@ -252,11 +254,11 @@ func (p *Planner) doesStaticKeyNeedChange(
 	desired resources.EventGatewayStaticKeyResource,
 ) bool {
 	// Compare value
-	currentVal := ""
-	if current.Value != nil {
-		currentVal = *current.Value
-	}
-	if currentVal != "" && currentVal != desired.Value {
+	if current.Value == nil {
+		if isStaticKeySecretReference(desired.Value) {
+			return true
+		}
+	} else if *current.Value != desired.Value {
 		return true
 	}
 
@@ -279,4 +281,9 @@ func (p *Planner) doesStaticKeyNeedChange(
 	}
 
 	return false
+}
+
+func isStaticKeySecretReference(value string) bool {
+	value = strings.TrimSpace(value)
+	return (strings.HasPrefix(value, "${") || strings.HasPrefix(value, "{vault://")) && strings.HasSuffix(value, "}")
 }
