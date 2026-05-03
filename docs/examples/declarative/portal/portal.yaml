@@ -19,6 +19,18 @@ portals:
       logo: !file ./assets/logo.png
       favicon: !file ./assets/favicon.png
 
+    # Portal tracking and analytics integrations
+    integration:
+      ref: getting-started-integrations
+      google_tag_manager:
+        enabled: false
+        config_data:
+          id: "GTM-EXAMPLE"
+      google_analytics_4:
+        enabled: false
+        config_data:
+          id: "G-EXAMPLE"
+
     # Portal customization with theme and navigation
     customization:
       ref: getting-started-customization
