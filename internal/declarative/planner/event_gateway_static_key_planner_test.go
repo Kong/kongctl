@@ -125,6 +125,99 @@ func TestDoesStaticKeyNeedChange_ValueChanged(t *testing.T) {
 	assert.True(t, p.doesStaticKeyNeedChange(current, desired))
 }
 
+func TestDoesStaticKeyNeedChange_PlaintextValueOmittedByAPI(t *testing.T) {
+	t.Parallel()
+
+	p := newTestStaticKeyPlanner()
+
+	desc := "a description"
+	current := state.EventGatewayStaticKey{
+		EventGatewayStaticKey: kkComps.EventGatewayStaticKey{
+			ID:          "key-123",
+			Name:        "my-key",
+			Description: &desc,
+			Labels:      map[string]string{"env": "prod"},
+		},
+	}
+	desired := resources.EventGatewayStaticKeyResource{
+		EventGatewayStaticKeyCreate: kkComps.EventGatewayStaticKeyCreate{
+			Name:        "my-key",
+			Value:       "secret",
+			Description: &desc,
+			Labels:      map[string]string{"env": "prod"},
+		},
+		Ref: "my-key-ref",
+	}
+
+	assert.False(t, p.doesStaticKeyNeedChange(current, desired))
+}
+
+func TestDoesStaticKeyNeedChange_OmittedPlaintextToSecretReference(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		value string
+	}{
+		{
+			name:  "env reference",
+			value: `${env["NEW_KEY"]}`,
+		},
+		{
+			name:  "vault reference",
+			value: "{vault://env/new-key}",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			p := newTestStaticKeyPlanner()
+
+			current := state.EventGatewayStaticKey{
+				EventGatewayStaticKey: kkComps.EventGatewayStaticKey{
+					ID:   "key-123",
+					Name: "my-key",
+				},
+			}
+			desired := resources.EventGatewayStaticKeyResource{
+				EventGatewayStaticKeyCreate: kkComps.EventGatewayStaticKeyCreate{
+					Name:  "my-key",
+					Value: tc.value,
+				},
+				Ref: "my-key-ref",
+			}
+
+			assert.True(t, p.doesStaticKeyNeedChange(current, desired))
+		})
+	}
+}
+
+func TestDoesStaticKeyNeedChange_PresentEmptyValueChanged(t *testing.T) {
+	t.Parallel()
+
+	p := newTestStaticKeyPlanner()
+
+	currentVal := ""
+	current := state.EventGatewayStaticKey{
+		EventGatewayStaticKey: kkComps.EventGatewayStaticKey{
+			ID:    "key-123",
+			Name:  "my-key",
+			Value: &currentVal,
+		},
+	}
+	desired := resources.EventGatewayStaticKeyResource{
+		EventGatewayStaticKeyCreate: kkComps.EventGatewayStaticKeyCreate{
+			Name:  "my-key",
+			Value: "secret",
+		},
+		Ref: "my-key-ref",
+	}
+
+	assert.True(t, p.doesStaticKeyNeedChange(current, desired))
+}
+
 func TestDoesStaticKeyNeedChange_VaultRefChanged(t *testing.T) {
 	t.Parallel()
 
