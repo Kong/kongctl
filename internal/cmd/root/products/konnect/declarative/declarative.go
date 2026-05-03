@@ -92,6 +92,12 @@ Defaults to each -f source root (file: its parent dir, dir: the directory itself
 - Config path: [ %s ]`, baseDirConfigPath))
 }
 
+func addParallelismFlag(cmd *cobra.Command) {
+	cmd.Flags().Int("parallelism", executor.DefaultParallelism,
+		fmt.Sprintf(`Maximum number of concurrent API operations during execution (min %d, max %d).`,
+			executor.MinParallelism, executor.MaxParallelism))
+}
+
 func addRequireNamespaceFlags(cmd *cobra.Command) {
 	// Add require-any-namespace flag (bool)
 	cmd.Flags().Bool(requireAnyNamespaceFlagName, false,
@@ -1257,6 +1263,7 @@ achieve the desired state.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addParallelismFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -1756,6 +1763,7 @@ delete resources.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addParallelismFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -1788,6 +1796,7 @@ This is equivalent to running:
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addParallelismFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -2269,6 +2278,12 @@ func runSync(command *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// parallelismFromCmd reads the --parallelism flag; returns 0 (use executor default) if not set.
+func parallelismFromCmd(cmd *cobra.Command) int {
+	v, _ := cmd.Flags().GetInt("parallelism")
+	return v
 }
 
 // createStateClient creates a new state client with all necessary APIs
