@@ -29,15 +29,17 @@ type getDataPlaneCertificateCmd struct {
 type dataPlaneCertificateRecord struct {
 	ID          string `json:"id"          yaml:"id"`
 	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
-	CreatedAt   string `json:"created_at"   yaml:"created_at"`
-	UpdatedAt   string `json:"updated_at"   yaml:"updated_at"`
+	CreatedAt   string `json:"created_at"  yaml:"created_at"`
+	UpdatedAt   string `json:"updated_at"  yaml:"updated_at"`
 }
 
 var (
 	getDataPlaneCertificateShort = i18n.T("root.products.konnect.gateway.data-plane-certificate.get.short",
 		"List or get Konnect Kong Gateway data plane certificates")
-	getDataPlaneCertificateLong = i18n.T("root.products.konnect.gateway.data-plane-certificate.get.long",
-		`Use the get verb with the data-plane-certificates command to query Konnect Kong Gateway data plane certificates.`)
+	getDataPlaneCertificateLong = i18n.T(
+		"root.products.konnect.gateway.data-plane-certificate.get.long",
+		`Use the get verb with the data-plane-certificates command to query Konnect Kong Gateway data plane certificates.`,
+	)
 	getDataPlaneCertificateExamples = normalizers.Examples(i18n.T(
 		"root.products.konnect.gateway.data-plane-certificate.get.examples",
 		fmt.Sprintf(`
@@ -122,7 +124,11 @@ func resolveControlPlaneID(helper cmd.Helper, cfg config.Hook, kkClient helpers.
 		return "", &cmd.ConfigurationError{Err: fmt.Errorf("control plane ID or name is required")}
 	}
 
-	controlPlaneID, err := helpers.GetControlPlaneID(helper.GetContext(), kkClient.GetControlPlaneAPI(), controlPlaneName)
+	controlPlaneID, err := helpers.GetControlPlaneID(
+		helper.GetContext(),
+		kkClient.GetControlPlaneAPI(),
+		controlPlaneName,
+	)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
 		return "", cmd.PrepareExecutionError("Failed to get Control Plane ID", err, helper.GetCmd(), attrs...)

@@ -36,7 +36,11 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	common.MapOptionalBoolFieldToPtr(&portal.AuthenticationEnabled, change.Fields, planner.FieldAuthenticationEnabled)
 	common.MapOptionalBoolFieldToPtr(&portal.RbacEnabled, change.Fields, planner.FieldRBACEnabled)
 	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveDevelopers, change.Fields, planner.FieldAutoApproveDevelopers)
-	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveApplications, change.Fields, planner.FieldAutoApproveApplications)
+	common.MapOptionalBoolFieldToPtr(
+		&portal.AutoApproveApplications,
+		change.Fields,
+		planner.FieldAutoApproveApplications,
+	)
 
 	if defaultAPIVisibility, ok := change.Fields[planner.FieldDefaultAPIVisibility].(string); ok {
 		visibility := kkComps.DefaultAPIVisibility(defaultAPIVisibility)

@@ -133,8 +133,14 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 			}
 
 			// Validate protection change
-			err := t.ValidateProtectionWithChange(ResourceTypeOrganizationTeam, desiredTeam.Name, currentProtected, ActionUpdate,
-				protectionChange, needsUpdate)
+			err := t.ValidateProtectionWithChange(
+				ResourceTypeOrganizationTeam,
+				desiredTeam.Name,
+				currentProtected,
+				ActionUpdate,
+				protectionChange,
+				needsUpdate,
+			)
 			protectionErrors.Add(err)
 			if err == nil {
 				t.planOrganizationTeamProtectionChangeWithFields(
