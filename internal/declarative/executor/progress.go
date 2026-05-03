@@ -5,12 +5,14 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 )
 
 // ConsoleReporter provides console output for plan execution progress
 type ConsoleReporter struct {
+	mu             sync.Mutex
 	writer         io.Writer
 	dryRun         bool
 	totalChanges   int
@@ -76,6 +78,9 @@ func (r *ConsoleReporter) StartChange(change planner.PlannedChange) {
 		return
 	}
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	// Increment current index for this change
 	r.currentIndex++
 
@@ -107,6 +112,9 @@ func (r *ConsoleReporter) CompleteChange(change planner.PlannedChange, err error
 		return
 	}
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	// Update namespace stats
 	namespace := change.Namespace
 	if namespace == "" {
@@ -131,6 +139,9 @@ func (r *ConsoleReporter) SkipChange(change planner.PlannedChange, reason string
 	if r.writer == nil {
 		return
 	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	// Update namespace stats
 	namespace := change.Namespace
