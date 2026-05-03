@@ -142,6 +142,16 @@ portals:
       basic_auth_enabled: true
       konnect_mapping_enabled: true
       idp_mapping_enabled: false
+    integration:
+      ref: all-portal-integrations
+      google_tag_manager:
+        enabled: false
+        config_data:
+          id: GTM-ABC123
+      google_analytics_4:
+        enabled: false
+        config_data:
+          id: G-ABC123
     identity_providers:
       - ref: all-portal-oidc-idp
         type: oidc

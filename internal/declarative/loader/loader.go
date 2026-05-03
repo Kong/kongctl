@@ -841,6 +841,13 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalAuthSettings = append(rs.PortalAuthSettings, authSettings)
 		}
 
+		// Extract integration configuration (single resource)
+		if portal.Integration != nil {
+			integration := *portal.Integration
+			integration.Portal = portal.Ref
+			rs.PortalIntegrations = append(rs.PortalIntegrations, integration)
+		}
+
 		// Extract identity providers
 		for j := range portal.IdentityProviders {
 			provider := portal.IdentityProviders[j]
@@ -906,6 +913,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		// Clear nested resources from Portal
 		portal.Customization = nil
 		portal.AuthSettings = nil
+		portal.Integration = nil
 		portal.IdentityProviders = nil
 		portal.CustomDomain = nil
 		portal.Pages = nil

@@ -25,6 +25,7 @@ type PortalResource struct {
 	// Child resources that match API endpoints
 	Customization     *PortalCustomizationResource           `yaml:"customization,omitempty"      json:"customization,omitempty"`      //nolint:lll
 	AuthSettings      *PortalAuthSettingsResource            `yaml:"auth_settings,omitempty"      json:"auth_settings,omitempty"`      //nolint:lll
+	Integration       *PortalIntegrationResource             `yaml:"integration,omitempty"        json:"integration,omitempty"`        //nolint:lll
 	IdentityProviders []PortalIdentityProviderResource       `yaml:"identity_providers,omitempty" json:"identity_providers,omitempty"` //nolint:lll
 	CustomDomain      *PortalCustomDomainResource            `yaml:"custom_domain,omitempty"      json:"custom_domain,omitempty"`      //nolint:lll
 	Pages             []PortalPageResource                   `yaml:"pages,omitempty"              json:"pages,omitempty"`
@@ -118,6 +119,11 @@ func (p PortalResource) Validate() error {
 	if p.AuthSettings != nil {
 		if err := p.AuthSettings.Validate(); err != nil {
 			return fmt.Errorf("invalid portal auth settings: %w", err)
+		}
+	}
+	if p.Integration != nil {
+		if err := p.Integration.Validate(); err != nil {
+			return fmt.Errorf("invalid portal integration: %w", err)
 		}
 	}
 
@@ -219,6 +225,10 @@ func (p *PortalResource) SetDefaults() {
 		p.AuthSettings.SetDefaults()
 	}
 
+	if p.Integration != nil {
+		p.Integration.SetDefaults()
+	}
+
 	for i := range p.IdentityProviders {
 		p.IdentityProviders[i].SetDefaults()
 	}
@@ -304,6 +314,8 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"kongctl",
 		"customization",
 		"auth_settings",
+		"integration",
+		"integrations",
 		"identity_providers",
 		"custom_domain",
 		"pages",
@@ -352,6 +364,23 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		delete(raw, "auth_settings")
+	}
+
+	if v, ok := raw["integration"]; ok {
+		if err := json.Unmarshal(v, &p.Integration); err != nil {
+			return err
+		}
+		delete(raw, "integration")
+	}
+
+	if v, ok := raw["integrations"]; ok {
+		if p.Integration != nil {
+			return fmt.Errorf("json: fields %q and %q cannot both be set", "integration", "integrations")
+		}
+		if err := json.Unmarshal(v, &p.Integration); err != nil {
+			return err
+		}
+		delete(raw, "integrations")
 	}
 
 	if v, ok := raw["identity_providers"]; ok {
@@ -468,6 +497,7 @@ type portalAlias struct {
 	Kongctl           *KongctlMeta                           `json:"kongctl,omitempty"            yaml:"kongctl,omitempty"`
 	Customization     *PortalCustomizationResource           `json:"customization,omitempty"      yaml:"customization,omitempty"`      //nolint:lll
 	AuthSettings      *PortalAuthSettingsResource            `json:"auth_settings,omitempty"      yaml:"auth_settings,omitempty"`      //nolint:lll
+	Integration       *PortalIntegrationResource             `json:"integration,omitempty"        yaml:"integration,omitempty"`        //nolint:lll
 	IdentityProviders []PortalIdentityProviderResource       `json:"identity_providers,omitempty" yaml:"identity_providers,omitempty"` //nolint:lll
 	CustomDomain      *PortalCustomDomainResource            `json:"custom_domain,omitempty"      yaml:"custom_domain,omitempty"`      //nolint:lll
 	Pages             []PortalPageResource                   `json:"pages,omitempty"              yaml:"pages,omitempty"`
@@ -488,6 +518,7 @@ func (p PortalResource) portalAlias() portalAlias {
 		Kongctl:           p.Kongctl,
 		Customization:     p.Customization,
 		AuthSettings:      p.AuthSettings,
+		Integration:       p.Integration,
 		IdentityProviders: p.IdentityProviders,
 		CustomDomain:      p.CustomDomain,
 		Pages:             p.Pages,

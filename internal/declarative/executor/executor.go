@@ -76,6 +76,7 @@ type Executor struct {
 	// Portal child resource executors
 	portalCustomizationExecutor    *BaseSingletonExecutor[kkComps.PortalCustomization]
 	portalAuthSettingsExecutor     *BaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest]
+	portalIntegrationExecutor      *BaseSingletonExecutor[kkComps.PortalIntegrations]
 	portalIdentityProviderExecutor *BaseExecutor[kkComps.CreateIdentityProvider, kkComps.UpdateIdentityProvider]
 	portalAssetLogoExecutor        *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
 	portalAssetFaviconExecutor     *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
@@ -268,6 +269,10 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 	e.portalAuthSettingsExecutor = NewBaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest](
 		NewPortalAuthSettingsAdapter(client),
+		dryRun,
+	)
+	e.portalIntegrationExecutor = NewBaseSingletonExecutor[kkComps.PortalIntegrations](
+		NewPortalIntegrationAdapter(client),
 		dryRun,
 	)
 	e.portalIdentityProviderExecutor = NewBaseExecutor[kkComps.CreateIdentityProvider, kkComps.UpdateIdentityProvider](
@@ -635,6 +640,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 		if change.ResourceID == "" &&
 			change.ResourceType != planner.ResourceTypePortalCustomization &&
 			change.ResourceType != planner.ResourceTypePortalAuthSettings &&
+			change.ResourceType != planner.ResourceTypePortalIntegration &&
 			change.ResourceType != planner.ResourceTypePortalAssetLogo &&
 			change.ResourceType != planner.ResourceTypePortalAssetFavicon {
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
@@ -1803,6 +1809,12 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
+	case planner.ResourceTypePortalIntegration:
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
+		if err != nil {
+			return "", err
+		}
+		return e.portalIntegrationExecutor.Update(ctx, *change, portalID)
 	case planner.ResourceTypePortalIdentityProvider:
 		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
@@ -2264,6 +2276,12 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
+	case planner.ResourceTypePortalIntegration:
+		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
+		if err != nil {
+			return "", err
+		}
+		return e.portalIntegrationExecutor.Update(ctx, *change, portalID)
 	case planner.ResourceTypePortalIdentityProvider:
 		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)

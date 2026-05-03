@@ -244,6 +244,224 @@ func (p *Planner) buildAllPortalAuthSettingsFields(settings resources.PortalAuth
 	return fields
 }
 
+// Portal Integrations planning (singleton)
+
+func (p *Planner) planPortalIntegrationsChanges(
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	desired []resources.PortalIntegrationResource,
+	plan *Plan,
+) error {
+	var desiredIntegration *resources.PortalIntegrationResource
+	for i := range desired {
+		if plan.HasChange(ResourceTypePortalIntegration, desired[i].GetRef()) {
+			continue
+		}
+		desiredIntegration = &desired[i]
+		break
+	}
+
+	if desiredIntegration == nil {
+		return nil
+	}
+
+	portalName := p.findPortalName(portalRef)
+	if portalID == "" {
+		p.planPortalIntegrationUpdate(
+			parentNamespace,
+			*desiredIntegration,
+			portalID,
+			portalRef,
+			portalName,
+			p.buildPortalIntegrationFields(*desiredIntegration),
+			nil,
+			plan,
+		)
+		return nil
+	}
+
+	p.logger.Debug("Fetching portal integrations",
+		"portal_ref", portalRef,
+		"portal_id", portalID,
+		"integration_ref", desiredIntegration.Ref,
+	)
+	current, err := p.client.GetPortalIntegrations(ctx, portalID)
+	if err != nil {
+		identifier := portalRef
+		if identifier == "" {
+			identifier = portalID
+		}
+		return fmt.Errorf("failed to get portal integrations for portal %q: %w", identifier, err)
+	}
+
+	needsUpdate, updateFields, changedFields := p.shouldUpdatePortalIntegration(current, *desiredIntegration)
+	if needsUpdate {
+		p.planPortalIntegrationUpdate(
+			parentNamespace,
+			*desiredIntegration,
+			portalID,
+			portalRef,
+			portalName,
+			updateFields,
+			changedFields,
+			plan,
+		)
+	}
+
+	return nil
+}
+
+func (p *Planner) planPortalIntegrationUpdate(
+	parentNamespace string,
+	integration resources.PortalIntegrationResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	fields map[string]any,
+	changedFields map[string]FieldChange,
+	plan *Plan,
+) {
+	if len(fields) == 0 {
+		return
+	}
+
+	ref := integration.Portal
+	if ref == "" {
+		ref = portalRef
+	}
+
+	change := PlannedChange{
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypePortalIntegration, integration.Ref),
+		ResourceType:  ResourceTypePortalIntegration,
+		ResourceRef:   integration.Ref,
+		Action:        ActionUpdate,
+		Fields:        fields,
+		ChangedFields: changedFields,
+		DependsOn:     uniqueStrings(p.portalChildDependencies(plan, ref)),
+		Namespace:     parentNamespace,
+	}
+
+	if ref != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+		change.References = map[string]ReferenceInfo{
+			FieldPortalID: {
+				Ref: ref,
+				ID:  portalID,
+				LookupFields: map[string]string{
+					FieldName: portalName,
+				},
+			},
+		}
+	}
+
+	p.logger.Debug("Enqueuing portal integrations update",
+		"portal_ref", ref,
+		"portal_id", portalID,
+		"integration_ref", integration.Ref,
+		"fields", fields,
+	)
+	plan.AddChange(change)
+}
+
+func (p *Planner) shouldUpdatePortalIntegration(
+	current *kkComps.PortalIntegrations,
+	desired resources.PortalIntegrationResource,
+) (bool, map[string]any, map[string]FieldChange) {
+	currentFields := p.buildCurrentPortalIntegrationFields(current)
+	desiredFields := p.buildPortalIntegrationFields(desired)
+	changedFields := make(map[string]FieldChange)
+
+	for _, field := range []string{FieldGoogleTagManager, FieldGoogleAnalytics4} {
+		if !reflect.DeepEqual(currentFields[field], desiredFields[field]) {
+			changedFields[field] = FieldChange{
+				Old: currentFields[field],
+				New: desiredFields[field],
+			}
+		}
+	}
+
+	return len(changedFields) > 0, desiredFields, changedFields
+}
+
+func (p *Planner) buildCurrentPortalIntegrationFields(current *kkComps.PortalIntegrations) map[string]any {
+	if current == nil {
+		return map[string]any{
+			FieldGoogleTagManager: nil,
+			FieldGoogleAnalytics4: nil,
+		}
+	}
+
+	return map[string]any{
+		FieldGoogleTagManager: p.googleTagManagerIntegrationFields(current.GoogleTagManager),
+		FieldGoogleAnalytics4: p.googleAnalytics4IntegrationFields(current.GoogleAnalytics4),
+	}
+}
+
+func (p *Planner) buildPortalIntegrationFields(integration resources.PortalIntegrationResource) map[string]any {
+	return map[string]any{
+		FieldGoogleTagManager: p.googleTagManagerIntegrationFields(integration.GoogleTagManager),
+		FieldGoogleAnalytics4: p.googleAnalytics4IntegrationFields(integration.GoogleAnalytics4),
+	}
+}
+
+func (p *Planner) googleTagManagerIntegrationFields(gtm *kkComps.GoogleTagManagerIntegration) map[string]any {
+	if gtm == nil {
+		return nil
+	}
+
+	config := map[string]any{
+		FieldID: gtm.ConfigData.ID,
+	}
+	setOptionalStringField(config, FieldL, gtm.ConfigData.L)
+	setOptionalStringField(config, FieldPreview, gtm.ConfigData.Preview)
+	setOptionalBoolField(config, FieldCookiesWin, gtm.ConfigData.CookiesWin)
+	setOptionalBoolField(config, FieldDebug, gtm.ConfigData.Debug)
+	setOptionalBoolField(config, FieldNPA, gtm.ConfigData.Npa)
+	setOptionalStringField(config, FieldDataLayer, gtm.ConfigData.DataLayer)
+	setOptionalStringField(config, FieldEnvName, gtm.ConfigData.EnvName)
+	setOptionalStringField(config, FieldAuthReferrerPolicy, gtm.ConfigData.AuthReferrerPolicy)
+
+	return map[string]any{
+		FieldEnabled:    gtm.Enabled,
+		FieldType:       string(gtm.Type),
+		FieldConfigData: config,
+	}
+}
+
+func (p *Planner) googleAnalytics4IntegrationFields(ga4 *kkComps.GoogleAnalytics4Integration) map[string]any {
+	if ga4 == nil {
+		return nil
+	}
+
+	config := map[string]any{
+		FieldID: ga4.ConfigData.ID,
+	}
+	setOptionalStringField(config, FieldL, ga4.ConfigData.L)
+
+	return map[string]any{
+		FieldEnabled:    ga4.Enabled,
+		FieldType:       string(ga4.Type),
+		FieldConfigData: config,
+	}
+}
+
+func setOptionalStringField(fields map[string]any, field string, value *string) {
+	if value != nil {
+		fields[field] = *value
+	}
+}
+
+func setOptionalBoolField(fields map[string]any, field string, value *bool) {
+	if value != nil {
+		fields[field] = *value
+	}
+}
+
 // Portal Identity Providers planning (collection)
 
 func (p *Planner) planPortalIdentityProvidersChanges(

@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -49,10 +50,8 @@ func directSubcommand(parent *cobra.Command, name string) *cobra.Command {
 		if child.Name() == name {
 			return child
 		}
-		for _, alias := range child.Aliases {
-			if alias == name {
-				return child
-			}
+		if slices.Contains(child.Aliases, name) {
+			return child
 		}
 	}
 	return nil

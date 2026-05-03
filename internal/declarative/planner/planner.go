@@ -86,6 +86,7 @@ type Planner struct {
 	desiredPortalTeamRoles         []resources.PortalTeamRoleResource
 	desiredPortalCustomizations    []resources.PortalCustomizationResource
 	desiredPortalAuthSettings      []resources.PortalAuthSettingsResource
+	desiredPortalIntegrations      []resources.PortalIntegrationResource
 	desiredPortalIdentityProviders []resources.PortalIdentityProviderResource
 	desiredPortalCustomDomains     []resources.PortalCustomDomainResource
 	desiredPortalAssetLogos        []resources.PortalAssetLogoResource
@@ -228,6 +229,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalTeamRoles = rs.PortalTeamRoles
 		namespacePlanner.desiredPortalCustomizations = rs.PortalCustomizations
 		namespacePlanner.desiredPortalAuthSettings = rs.PortalAuthSettings
+		namespacePlanner.desiredPortalIntegrations = rs.PortalIntegrations
 		namespacePlanner.desiredPortalIdentityProviders = rs.PortalIdentityProviders
 		namespacePlanner.desiredPortalCustomDomains = rs.PortalCustomDomains
 		namespacePlanner.desiredPortalAssetLogos = rs.PortalAssetLogos

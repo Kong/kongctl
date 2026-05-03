@@ -185,6 +185,30 @@ portals:
 	assert.Equal(t, "portal-email-config", rs.PortalEmailConfigs[0].Ref)
 }
 
+func TestLoader_FlattensPortalIntegration(t *testing.T) {
+	content := `
+portals:
+  - ref: portal-integrations
+    name: portal-integrations
+    integration:
+      ref: portal-integrations-config
+      google_tag_manager:
+        enabled: true
+        config_data:
+          id: GTM-ABC123
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.Portals, 1)
+	require.Len(t, rs.PortalIntegrations, 1)
+	assert.Equal(t, "portal-integrations", rs.PortalIntegrations[0].Portal)
+	assert.Equal(t, "portal-integrations-config", rs.PortalIntegrations[0].Ref)
+	assert.Nil(t, rs.Portals[0].Integration)
+}
+
 func TestLoader_LoadFile_PortalEmailConfigFlattening(t *testing.T) {
 	loader := New()
 	rs, err := loader.LoadFile(filepath.Join(

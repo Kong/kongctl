@@ -826,6 +826,21 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"error", err.Error())
 	}
 
+	// Plan integrations
+	integrations := make([]resources.PortalIntegrationResource, 0)
+	for _, integration := range planner.desiredPortalIntegrations {
+		if integration.Portal == desired.Ref {
+			integrations = append(integrations, integration)
+		}
+	}
+	if err := planner.planPortalIntegrationsChanges(
+		ctx, parentNamespace, "", desired.Ref, integrations, plan,
+	); err != nil {
+		planner.logger.Debug("Failed to plan portal integrations for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
+
 	// Plan identity providers
 	identityProviders := make([]resources.PortalIdentityProviderResource, 0)
 	for _, provider := range planner.desiredPortalIdentityProviders {
@@ -1030,6 +1045,19 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	}
 	if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, authSettings, plan); err != nil {
 		return fmt.Errorf("failed to plan portal auth settings changes: %w", err)
+	}
+
+	// Plan integrations (singleton)
+	integrations := make([]resources.PortalIntegrationResource, 0)
+	for _, integration := range planner.desiredPortalIntegrations {
+		if integration.Portal == desired.Ref {
+			integrations = append(integrations, integration)
+		}
+	}
+	if err := planner.planPortalIntegrationsChanges(
+		ctx, parentNamespace, current.ID, desired.Ref, integrations, plan,
+	); err != nil {
+		return fmt.Errorf("failed to plan portal integration changes: %w", err)
 	}
 
 	// Plan identity providers
