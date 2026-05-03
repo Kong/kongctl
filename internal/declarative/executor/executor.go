@@ -795,58 +795,60 @@ func unresolvedReferenceID(id string) bool {
 	return id == "" || id == "[unknown]"
 }
 
-func (e *Executor) syncResolvedDCRProviderID(
+func (e *Executor) syncResolvedRef(
 	ctx context.Context,
 	change *planner.PlannedChange,
+	fieldName string,
+	resolver func(context.Context, planner.ReferenceInfo) (string, error),
+	errMsg string,
 ) error {
 	if change == nil {
 		return nil
 	}
 
-	dcrProviderRef, ok := change.References[planner.FieldDCRProviderID]
+	ref, ok := change.References[fieldName]
 	if !ok {
 		return nil
 	}
 
-	if unresolvedReferenceID(dcrProviderRef.ID) {
-		dcrProviderID, err := e.resolveDCRProviderRef(ctx, dcrProviderRef)
+	if unresolvedReferenceID(ref.ID) {
+		id, err := resolver(ctx, ref)
 		if err != nil {
-			return fmt.Errorf("failed to resolve DCR provider reference: %w", err)
+			return fmt.Errorf("%s: %w", errMsg, err)
 		}
-		dcrProviderRef.ID = dcrProviderID
-		change.References[planner.FieldDCRProviderID] = dcrProviderRef
+		ref.ID = id
+		change.References[fieldName] = ref
 	}
 
-	change.Fields[planner.FieldDCRProviderID] = dcrProviderRef.ID
+	change.Fields[fieldName] = ref.ID
 
 	return nil
+}
+
+func (e *Executor) syncResolvedDCRProviderID(
+	ctx context.Context,
+	change *planner.PlannedChange,
+) error {
+	return e.syncResolvedRef(
+		ctx,
+		change,
+		planner.FieldDCRProviderID,
+		e.resolveDCRProviderRef,
+		"failed to resolve DCR provider reference",
+	)
 }
 
 func (e *Executor) syncResolvedPortalDefaultAuthStrategyID(
 	ctx context.Context,
 	change *planner.PlannedChange,
 ) error {
-	if change == nil {
-		return nil
-	}
-
-	authStrategyRef, ok := change.References[planner.FieldDefaultApplicationStrategyID]
-	if !ok {
-		return nil
-	}
-
-	if unresolvedReferenceID(authStrategyRef.ID) {
-		authStrategyID, err := e.resolveAuthStrategyRef(ctx, authStrategyRef)
-		if err != nil {
-			return fmt.Errorf("failed to resolve auth strategy reference: %w", err)
-		}
-		authStrategyRef.ID = authStrategyID
-		change.References[planner.FieldDefaultApplicationStrategyID] = authStrategyRef
-	}
-
-	change.Fields[planner.FieldDefaultApplicationStrategyID] = authStrategyRef.ID
-
-	return nil
+	return e.syncResolvedRef(
+		ctx,
+		change,
+		planner.FieldDefaultApplicationStrategyID,
+		e.resolveAuthStrategyRef,
+		"failed to resolve auth strategy reference",
+	)
 }
 
 // resolvePortalRef resolves a portal reference to its ID
