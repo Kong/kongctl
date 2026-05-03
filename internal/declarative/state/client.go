@@ -38,6 +38,7 @@ type ClientConfig struct {
 	// Portal child resource APIs
 	PortalPageAPI             helpers.PortalPageAPI
 	PortalAuthSettingsAPI     helpers.PortalAuthSettingsAPI
+	PortalIntegrationsAPI     helpers.PortalIntegrationsAPI
 	PortalIdentityProviderAPI helpers.PortalIdentityProviderAPI
 	PortalCustomizationAPI    helpers.PortalCustomizationAPI
 	PortalCustomDomainAPI     helpers.PortalCustomDomainAPI
@@ -87,6 +88,7 @@ type Client struct {
 	// Portal child resource APIs
 	portalPageAPI             helpers.PortalPageAPI
 	portalAuthSettingsAPI     helpers.PortalAuthSettingsAPI
+	portalIntegrationsAPI     helpers.PortalIntegrationsAPI
 	portalIdentityProviderAPI helpers.PortalIdentityProviderAPI
 	portalCustomizationAPI    helpers.PortalCustomizationAPI
 	portalCustomDomainAPI     helpers.PortalCustomDomainAPI
@@ -137,6 +139,7 @@ func NewClient(config ClientConfig) *Client {
 		// Portal child resource APIs
 		portalPageAPI:             config.PortalPageAPI,
 		portalAuthSettingsAPI:     config.PortalAuthSettingsAPI,
+		portalIntegrationsAPI:     config.PortalIntegrationsAPI,
 		portalIdentityProviderAPI: config.PortalIdentityProviderAPI,
 		portalCustomizationAPI:    config.PortalCustomizationAPI,
 		portalCustomDomainAPI:     config.PortalCustomDomainAPI,
@@ -2688,6 +2691,60 @@ func (c *Client) UpdatePortalAuthSettings(
 	_, err := c.portalAuthSettingsAPI.UpdatePortalAuthenticationSettings(ctx, portalID, &settings)
 	if err != nil {
 		return WrapAPIError(err, "update portal auth settings", nil)
+	}
+	return nil
+}
+
+// GetPortalIntegrations fetches current integration configuration for a portal.
+func (c *Client) GetPortalIntegrations(ctx context.Context, portalID string) (*kkComps.PortalIntegrations, error) {
+	if err := ValidateAPIClient(c.portalIntegrationsAPI, "portal integrations API"); err != nil {
+		return nil, err
+	}
+
+	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
+		logger.Debug("fetching portal integrations", "portal_id", portalID)
+	}
+
+	resp, err := c.portalIntegrationsAPI.GetPortalIntegrations(ctx, portalID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get portal integrations", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIntegration),
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.PortalIntegrations == nil {
+		return nil, NewResponseValidationError("get portal integrations", "PortalIntegrations")
+	}
+
+	return resp.PortalIntegrations, nil
+}
+
+// UpsertPortalIntegrations replaces portal integration configuration.
+func (c *Client) UpsertPortalIntegrations(
+	ctx context.Context,
+	portalID string,
+	integrations kkComps.PortalIntegrations,
+) error {
+	if err := ValidateAPIClient(c.portalIntegrationsAPI, "portal integrations API"); err != nil {
+		return err
+	}
+
+	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
+		logger.Debug("upserting portal integrations",
+			"portal_id", portalID,
+			"has_google_tag_manager", integrations.GoogleTagManager != nil,
+			"has_google_analytics_4", integrations.GoogleAnalytics4 != nil,
+		)
+	}
+
+	if _, err := c.portalIntegrationsAPI.UpsertPortalIntegrations(ctx, portalID, &integrations); err != nil {
+		return WrapAPIError(err, "upsert portal integrations", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIntegration),
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
 	}
 	return nil
 }

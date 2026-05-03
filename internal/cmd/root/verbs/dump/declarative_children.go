@@ -64,6 +64,12 @@ func populatePortalChildren(
 			portal.AuthSettings = authSettings
 		}
 
+		if integration, err := buildPortalIntegration(ctx, client, portalID); err != nil {
+			logWarn(logger, "failed to load portal integrations", portalID, portal.Name, err)
+		} else if integration != nil {
+			portal.Integrations = integration
+		}
+
 		if customization, err := buildPortalCustomization(ctx, client, portalID); err != nil {
 			logWarn(logger, "failed to load portal customization", portalID, portal.Name, err)
 		} else if customization != nil {
@@ -690,6 +696,28 @@ func buildPortalAuthSettings(
 	}
 
 	return &resource, nil
+}
+
+func buildPortalIntegration(
+	ctx context.Context,
+	client *declstate.Client,
+	portalID string,
+) (*declresources.PortalIntegrationResource, error) {
+	integration, err := client.GetPortalIntegrations(ctx, portalID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if integration == nil || (integration.GoogleTagManager == nil && integration.GoogleAnalytics4 == nil) {
+		return nil, nil
+	}
+
+	return &declresources.PortalIntegrationResource{
+		Ref:                buildChildRef("portal-integration", portalID),
+		PortalIntegrations: *integration,
+	}, nil
 }
 
 func buildPortalIdentityProviders(

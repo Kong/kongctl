@@ -152,6 +152,10 @@ steps:
             expect:
               fields:
                 action: UPDATE
+          - select: "plan.changes[?resource_type=='portal_integration' && resource_ref=='all-portal-integrations'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
           - select: "plan.changes[?resource_type=='portal_identity_provider' && resource_ref=='all-portal-oidc-idp'] | [0]"
             expect:
               fields:

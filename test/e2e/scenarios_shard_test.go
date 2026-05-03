@@ -85,6 +85,20 @@ func TestSelectScenariosFilterBypassesSharding(t *testing.T) {
 	}
 }
 
+func TestSelectScenariosFilterIgnoresTrailingSlash(t *testing.T) {
+	scenarios := []string{
+		"test/e2e/scenarios/explain/command-coverage/scenario.yaml",
+		"test/e2e/scenarios/smoke/version/scenario.yaml",
+	}
+
+	selected := selectScenarios(scenarios, "explain/command-coverage/", scenarioShard{})
+
+	want := []string{"test/e2e/scenarios/explain/command-coverage/scenario.yaml"}
+	if !slices.Equal(selected, want) {
+		t.Fatalf("unexpected filtered scenarios: got %v want %v", selected, want)
+	}
+}
+
 func TestWriteScenarioShardManifest(t *testing.T) {
 	dir := t.TempDir()
 	selected := []string{

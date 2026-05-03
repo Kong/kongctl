@@ -209,6 +209,13 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.PortalIntegrations {
+		if err := resolveResourceFields(ctx, &rs.PortalIntegrations[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving portal integration %s: %w", rs.PortalIntegrations[i].GetRef(), err)
+		}
+		processCount++
+	}
+
 	for i := range rs.PortalIdentityProviders {
 		if err := resolveResourceFields(
 			ctx,

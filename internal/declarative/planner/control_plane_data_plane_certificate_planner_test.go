@@ -105,7 +105,7 @@ func TestControlPlaneDataPlaneCertificatePlanner_NoopsWhenCertificateExists(t *t
 	certValue := "-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----"
 	client := newControlPlaneDataPlaneCertificateStateClient(t, []kkComps.DataPlaneClientCertificate{
 		{
-			ID:   stringPtr("cert-id"),
+			ID:   new("cert-id"),
 			Cert: &certValue,
 		},
 	})
@@ -125,7 +125,7 @@ func TestControlPlaneDataPlaneCertificatePlanner_SyncCreatesBeforeDeletes(t *tes
 	newCert := "-----BEGIN CERTIFICATE-----\nNEW\n-----END CERTIFICATE-----"
 	client := newControlPlaneDataPlaneCertificateStateClient(t, []kkComps.DataPlaneClientCertificate{
 		{
-			ID:   stringPtr("old-cert-id"),
+			ID:   new("old-cert-id"),
 			Cert: &oldCert,
 		},
 	})
@@ -238,8 +238,4 @@ func dataPlaneCertificateListResponse(
 			Items: items,
 		},
 	}
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

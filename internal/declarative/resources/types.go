@@ -22,6 +22,7 @@ const (
 	ResourceTypePortalCustomization              ResourceType = "portal_customization"
 	ResourceTypePortalCustomDomain               ResourceType = "portal_custom_domain"
 	ResourceTypePortalAuthSettings               ResourceType = "portal_auth_settings"
+	ResourceTypePortalIntegration                ResourceType = "portal_integration"
 	ResourceTypePortalIdentityProvider           ResourceType = "portal_identity_provider"
 	ResourceTypePortalPage                       ResourceType = "portal_page"
 	ResourceTypePortalSnippet                    ResourceType = "portal_snippet"
@@ -79,6 +80,7 @@ type ResourceSet struct {
 	// Portal child resources can be defined at root level (with parent reference) or nested under Portals
 	PortalCustomizations        []PortalCustomizationResource        `yaml:"portal_customizations,omitempty"                 json:"portal_customizations,omitempty"`          //nolint:lll
 	PortalAuthSettings          []PortalAuthSettingsResource         `yaml:"portal_auth_settings,omitempty"                  json:"portal_auth_settings,omitempty"`           //nolint:lll
+	PortalIntegrations          []PortalIntegrationResource          `yaml:"portal_integrations,omitempty"                   json:"portal_integrations,omitempty"`            //nolint:lll
 	PortalIdentityProviders     []PortalIdentityProviderResource     `yaml:"portal_identity_providers,omitempty"             json:"portal_identity_providers,omitempty"`      //nolint:lll
 	PortalCustomDomains         []PortalCustomDomainResource         `yaml:"portal_custom_domains,omitempty"                 json:"portal_custom_domains,omitempty"`          //nolint:lll
 	PortalPages                 []PortalPageResource                 `yaml:"portal_pages,omitempty"                          json:"portal_pages,omitempty"`                   //nolint:lll
@@ -433,6 +435,25 @@ func (rs *ResourceSet) GetPortalAuthSettingsByNamespace(namespace string) []Port
 			}
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, settings)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalIntegrationsByNamespace returns all portal integration resources from the specified namespace
+func (rs *ResourceSet) GetPortalIntegrationsByNamespace(namespace string) []PortalIntegrationResource {
+	var filtered []PortalIntegrationResource
+	for _, integration := range rs.PortalIntegrations {
+		if portal := rs.GetPortalByRef(integration.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, integration)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, integration)
 			}
 		}
 	}

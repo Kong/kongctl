@@ -390,6 +390,27 @@ portals:
      basic_auth_enabled: boolean
      konnect_mapping_enabled: boolean
      idp_mapping_enabled: boolean
+   integrations: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/upsert-portal-integrations
+     ref: string
+     google_tag_manager:
+       enabled: boolean required
+       type: tracking
+       config_data:
+         id: string required (pattern: ^GTM-[A-Za-z0-9]+$)
+         l: string (nullable)
+         preview: string (nullable)
+         cookies_win: boolean (nullable)
+         debug: boolean (nullable)
+         npa: boolean (nullable)
+         data_layer: string (nullable)
+         env_name: string (nullable)
+         auth_referrer_policy: string (nullable)
+     google_analytics_4:
+       enabled: boolean required
+       type: analytics
+       config_data:
+         id: string required (pattern: ^G-[A-Za-z0-9-]+$)
+         l: string (nullable)
    identity_providers: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-identity-provider
      - ref: string
        # Use this child for portal OIDC and SAML provider configuration.
@@ -423,6 +444,28 @@ portal_identity_providers:
        groups: string
      idp_metadata_url: string # SAML
      idp_metadata_xml: string # SAML
+portal_integrations:
+ - ref: string
+   portal: string required # prefer: !ref <portal-ref>
+   google_tag_manager:
+     enabled: boolean required
+     type: tracking
+     config_data:
+       id: string required (pattern: ^GTM-[A-Za-z0-9]+$)
+       l: string (nullable)
+       preview: string (nullable)
+       cookies_win: boolean (nullable)
+       debug: boolean (nullable)
+       npa: boolean (nullable)
+       data_layer: string (nullable)
+       env_name: string (nullable)
+       auth_referrer_policy: string (nullable)
+   google_analytics_4:
+     enabled: boolean required
+     type: analytics
+     config_data:
+       id: string required (pattern: ^G-[A-Za-z0-9-]+$)
+       l: string (nullable)
    custom_domain: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-custom-domain
      ref: string
      hostname: string required

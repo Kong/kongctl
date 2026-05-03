@@ -596,6 +596,31 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		}
 	}
 
+	// Validate portal integrations (singleton per portal)
+	portalIntegrationRefs := make(map[string]bool)
+	portalToIntegrationRef := make(map[string]string)
+	for i := range rs.PortalIntegrations {
+		integration := &rs.PortalIntegrations[i]
+		if err := integration.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_integration %q: %w", integration.GetRef(), err)
+		}
+		if integration.Portal == "" {
+			return fmt.Errorf("portal_integration %q must specify portal", integration.GetRef())
+		}
+		if portalIntegrationRefs[integration.GetRef()] {
+			return fmt.Errorf("duplicate ref '%s' (already defined as portal_integration)", integration.GetRef())
+		}
+		portalIntegrationRefs[integration.GetRef()] = true
+
+		if existingRef, ok := portalToIntegrationRef[integration.Portal]; ok {
+			return fmt.Errorf(
+				"multiple portal_integration entries target portal %q (%s and %s)",
+				integration.Portal, existingRef, integration.GetRef(),
+			)
+		}
+		portalToIntegrationRef[integration.Portal] = integration.GetRef()
+	}
+
 	// Validate portal identity providers
 	portalProviderRefs := make(map[string]bool)
 	portalProviderTypes := make(map[string]map[kkComps.IdentityProviderType]string)

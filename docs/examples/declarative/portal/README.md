@@ -9,6 +9,7 @@ This example creates:
 - A developer portal with authentication disabled and public visibility
 - APIs published to the portal
 - Portal assets including logo and favicon
+- Portal integrations for Google Tag Manager and Google Analytics 4
 - Portal customization with theme colors and navigation menus
 - A hierarchy of pages including home, APIs, getting started, and guides
 - Reusable snippets for common UI components
@@ -65,6 +66,24 @@ The `!file` tag automatically:
 
 Supported formats: PNG, JPEG, SVG, ICO
 
+### Portal Integrations
+Portal integrations are configured as a singleton child of the portal. This
+example includes disabled Google Tag Manager and Google Analytics 4 integrations
+with placeholder IDs:
+
+```yaml
+integrations:
+  ref: getting-started-integrations
+  google_tag_manager:
+    enabled: false
+    config_data:
+      id: GTM-EXAMPLE
+  google_analytics_4:
+    enabled: false
+    config_data:
+      id: G-EXAMPLE
+```
+
 ### Theme Customization
 - **Primary color**: #8250FF
 - **Layout**: Top navigation (topnav)
@@ -101,4 +120,3 @@ Assuming you have the `jq` command-line tool installed, you can obtain the porta
 ```bash
 kongctl get portals "My First Portal" -o json | jq -r '"https://\(.default_domain)"'
 ```
-

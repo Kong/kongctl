@@ -347,6 +347,7 @@ func getParentResourceType(childType string) string {
 	case planner.ResourceTypePortalPage,
 		planner.ResourceTypePortalSnippet,
 		planner.ResourceTypePortalCustomization,
+		planner.ResourceTypePortalIntegration,
 		planner.ResourceTypePortalCustomDomain:
 		return planner.ResourceTypePortal
 	case planner.ResourceTypeControlPlaneDataPlaneCertificate:
