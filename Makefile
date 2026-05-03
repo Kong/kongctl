@@ -18,8 +18,9 @@ format:
 	golines -m 120 -w --base-formatter=gofumpt .
 fmt: format
 
-.PHONY: patch-gh-aw-maintenance
-patch-gh-aw-maintenance:
+.PHONY: patch-gh-aw-maintenance patch-gh-aw-workflows
+patch-gh-aw-maintenance: patch-gh-aw-workflows
+patch-gh-aw-workflows:
 	bash scripts/patch-gh-aw-maintenance.sh
 
 .PHONY: mod

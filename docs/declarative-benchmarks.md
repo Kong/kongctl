@@ -99,6 +99,7 @@ Every run writes:
 - `dashboard.md`: generated discussion dashboard body
 - `regressions.md`: generated regression issue body
 - `regressions.json`: machine-readable regression status
+- `analysis-context.json`: compact regression context for agent analysis
 - `history-report.json`: detailed current-vs-history report
 - per-command artifacts under `benchmarks/<case>/commands/`
 - generated fixture files under `benchmarks/<case>/inputs/`
@@ -200,3 +201,15 @@ The issue body is replaced with `regressions.md`, and repeated regressions add a
 comment that links to the latest workflow run. Passing runs do not automatically
 close the issue; that remains a human decision while the benchmark signal is
 being tuned.
+
+When regressions are reported, the workflow also calls the
+`Benchmark Regression Analysis` agentic workflow. The agent reads the generated
+`analysis-context.json`, `history-report.json`, and `results.json` files from
+the `benchmark-results` branch, then adds a single human-readable analysis
+comment to the rolling issue. Older analyzer comments are hidden so the latest
+interpretation stays prominent.
+
+The agent does not decide whether a regression exists. It explains the
+deterministic result in plain language and adds action items with links to the
+workflow run, persisted `benchmark-results` files, and raw timing artifact paths
+inside the uploaded benchmark artifact.

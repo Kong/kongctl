@@ -15,6 +15,7 @@ import (
 const (
 	historySampleLimit       = 20
 	minDurationRegressionMS  = 500
+	analysisContextSchema    = "kongctl.declarative-benchmark-analysis-context.v1"
 	historyReportSchema      = "kongctl.declarative-benchmark-history.v1"
 	regressionSignalError    = "error"
 	regressionSignalRequest  = "requests"
@@ -63,6 +64,70 @@ type historyRow struct {
 	RegressionSignals          []string `json:"regression_signals,omitempty"`
 }
 
+type analysisContext struct {
+	SchemaVersion      string               `json:"schema_version"`
+	GeneratedAt        time.Time            `json:"generated_at"`
+	RunID              string               `json:"run_id"`
+	RunURL             string               `json:"run_url,omitempty"`
+	GitCommit          string               `json:"git_commit,omitempty"`
+	HasRegressions     bool                 `json:"has_regressions"`
+	MinHistorySamples  int                  `json:"min_history_samples"`
+	HistorySampleLimit int                  `json:"history_sample_limit"`
+	RequestThreshold   float64              `json:"request_threshold"`
+	DurationThreshold  float64              `json:"duration_threshold"`
+	Regressions        []analysisRegression `json:"regressions"`
+}
+
+type analysisRegression struct {
+	CaseName             string                `json:"case_name"`
+	PhaseName            string                `json:"phase_name"`
+	Signals              []string              `json:"signals"`
+	CurrentSamples       int                   `json:"current_samples"`
+	HistoricalSamples    int                   `json:"historical_samples"`
+	Request              analysisRequestDelta  `json:"request"`
+	Duration             analysisDurationDelta `json:"duration"`
+	CurrentErrors        int                   `json:"current_errors"`
+	CurrentFailedPhases  int                   `json:"current_failed_phases"`
+	CurrentPhaseSamples  []analysisPhaseSample `json:"current_phase_samples"`
+	SuggestedArtifactUse string                `json:"suggested_artifact_use,omitempty"`
+}
+
+type analysisRequestDelta struct {
+	CurrentMedian    float64 `json:"current_median"`
+	HistoricalMedian float64 `json:"historical_median,omitempty"`
+	Delta            float64 `json:"delta"`
+	DeltaPercent     float64 `json:"delta_percent"`
+	ThresholdPercent float64 `json:"threshold_percent"`
+	Regression       bool    `json:"regression"`
+}
+
+type analysisDurationDelta struct {
+	CurrentMedianMS    float64 `json:"current_median_ms"`
+	HistoricalMedianMS float64 `json:"historical_median_ms,omitempty"`
+	DeltaMS            float64 `json:"delta_ms"`
+	DeltaPercent       float64 `json:"delta_percent"`
+	MADMS              float64 `json:"mad_ms,omitempty"`
+	ThresholdMS        float64 `json:"threshold_ms,omitempty"`
+	ThresholdPercent   float64 `json:"threshold_percent"`
+	Regression         bool    `json:"regression"`
+}
+
+type analysisPhaseSample struct {
+	Repetition                      int              `json:"repetition"`
+	DurationMS                      int64            `json:"duration_ms"`
+	Requests                        int              `json:"requests"`
+	Responses                       int              `json:"responses"`
+	Errors                          int              `json:"errors"`
+	Failed                          bool             `json:"failed"`
+	HTTPResponseTiming              durationStats    `json:"http_response_timing"`
+	HTTPErrorTiming                 durationStats    `json:"http_error_timing"`
+	HTTPCombinedTiming              durationStats    `json:"http_combined_timing"`
+	TopRequestRoutes                []methodRouteRow `json:"top_request_routes,omitempty"`
+	ResponseStatusCounts            []statusRow      `json:"response_status_counts,omitempty"`
+	CommandArtifactDir              string           `json:"command_artifact_dir,omitempty"`
+	HTTPMetricsArtifactRelativePath string           `json:"http_metrics_artifact_relative_path,omitempty"`
+}
+
 type phaseSample struct {
 	RunID      string
 	StartedAt  time.Time
@@ -92,7 +157,12 @@ func writeHistoryOutputs(runDir string, suite suiteResult, cfg config) error {
 	if err := writeJSON(filepath.Join(runDir, "regressions.json"), report); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(runDir, "dashboard.md"), []byte(renderDashboard(report, suite)), 0o644); err != nil {
+	analysisContext := buildAnalysisContext(runDir, report, suite)
+	if err := writeJSON(filepath.Join(runDir, "analysis-context.json"), analysisContext); err != nil {
+		return err
+	}
+	dashboard := []byte(renderDashboard(report, suite))
+	if err := os.WriteFile(filepath.Join(runDir, "dashboard.md"), dashboard, 0o644); err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(runDir, "regressions.md"), []byte(renderRegressions(report, suite)), 0o644)
@@ -211,7 +281,7 @@ func samplesFromSuite(suite suiteResult) []phaseSample {
 				Requests:   phase.HTTPMetrics.Requests,
 				Responses:  phase.HTTPMetrics.Responses,
 				Errors:     phase.HTTPMetrics.Errors,
-				Failed:     phase.ExitCode != 0 || phase.TimedOut || strings.TrimSpace(phase.Error) != "",
+				Failed:     phaseFailed(phase),
 			})
 		}
 	}
@@ -383,6 +453,115 @@ func sortHistoryRows(rows []historyRow) {
 
 func hasRegression(row historyRow) bool {
 	return row.ErrorRegression || row.RequestRegression || row.DurationRegression
+}
+
+func buildAnalysisContext(runDir string, report historyReport, suite suiteResult) analysisContext {
+	context := analysisContext{
+		SchemaVersion:      analysisContextSchema,
+		GeneratedAt:        report.GeneratedAt,
+		RunID:              report.RunID,
+		RunURL:             report.RunURL,
+		GitCommit:          report.GitCommit,
+		HasRegressions:     report.HasRegressions,
+		MinHistorySamples:  report.MinHistorySamples,
+		HistorySampleLimit: historySampleLimit,
+		RequestThreshold:   report.RequestThreshold,
+		DurationThreshold:  report.DurationThreshold,
+		Regressions:        []analysisRegression{},
+	}
+
+	currentSamples := analysisPhaseSamplesByKey(runDir, suite)
+	for _, row := range report.Rows {
+		if !hasRegression(row) {
+			continue
+		}
+		key := phaseKey{CaseName: row.CaseName, PhaseName: row.PhaseName}
+		context.Regressions = append(context.Regressions, analysisRegression{
+			CaseName:          row.CaseName,
+			PhaseName:         row.PhaseName,
+			Signals:           slices.Clone(row.RegressionSignals),
+			CurrentSamples:    row.CurrentSamples,
+			HistoricalSamples: row.HistoricalSamples,
+			Request: analysisRequestDelta{
+				CurrentMedian:    row.CurrentRequestsMedian,
+				HistoricalMedian: row.HistoricalRequestsMedian,
+				Delta:            row.RequestDelta,
+				DeltaPercent:     row.RequestDeltaPercent,
+				ThresholdPercent: report.RequestThreshold,
+				Regression:       row.RequestRegression,
+			},
+			Duration: analysisDurationDelta{
+				CurrentMedianMS:    row.CurrentDurationMedianMS,
+				HistoricalMedianMS: row.HistoricalDurationMedianMS,
+				DeltaMS:            row.DurationDeltaMS,
+				DeltaPercent:       row.DurationDeltaPercent,
+				MADMS:              row.DurationMADMS,
+				ThresholdMS:        row.DurationThresholdMS,
+				ThresholdPercent:   report.DurationThreshold,
+				Regression:         row.DurationRegression,
+			},
+			CurrentErrors:        row.CurrentErrors,
+			CurrentFailedPhases:  row.CurrentFailedPhases,
+			CurrentPhaseSamples:  currentSamples[key],
+			SuggestedArtifactUse: "Inspect http_metrics_artifact_relative_path for the per-command timing and route data.",
+		})
+	}
+
+	return context
+}
+
+func analysisPhaseSamplesByKey(runDir string, suite suiteResult) map[phaseKey][]analysisPhaseSample {
+	samples := map[phaseKey][]analysisPhaseSample{}
+	for _, benchmarkCase := range suite.Cases {
+		for _, phase := range benchmarkCase.Phases {
+			key := phaseKey{CaseName: benchmarkCase.Name, PhaseName: phase.Name}
+			samples[key] = append(samples[key], analysisPhaseSample{
+				Repetition:                      caseRepetition(benchmarkCase),
+				DurationMS:                      phase.DurationMS,
+				Requests:                        phase.HTTPMetrics.Requests,
+				Responses:                       phase.HTTPMetrics.Responses,
+				Errors:                          phase.HTTPMetrics.Errors,
+				Failed:                          phaseFailed(phase),
+				HTTPResponseTiming:              phase.HTTPMetrics.Timing.Responses,
+				HTTPErrorTiming:                 phase.HTTPMetrics.Timing.Errors,
+				HTTPCombinedTiming:              phase.HTTPMetrics.Timing.Combined,
+				TopRequestRoutes:                firstMethodRouteRows(phase.HTTPMetrics.RequestCountsByRoute, 10),
+				ResponseStatusCounts:            slices.Clone(phase.HTTPMetrics.ResponseStatusCounts),
+				CommandArtifactDir:              artifactRelativePath(runDir, phase.CommandDir),
+				HTTPMetricsArtifactRelativePath: httpMetricsArtifactRelativePath(runDir, phase.CommandDir),
+			})
+		}
+	}
+	return samples
+}
+
+func phaseFailed(phase phaseResult) bool {
+	return phase.ExitCode != 0 || phase.TimedOut || strings.TrimSpace(phase.Error) != ""
+}
+
+func firstMethodRouteRows(rows []methodRouteRow, limit int) []methodRouteRow {
+	if limit > 0 && len(rows) > limit {
+		rows = rows[:limit]
+	}
+	return slices.Clone(rows)
+}
+
+func artifactRelativePath(runDir, path string) string {
+	if strings.TrimSpace(path) == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(runDir, path)
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+		return filepath.ToSlash(path)
+	}
+	return filepath.ToSlash(rel)
+}
+
+func httpMetricsArtifactRelativePath(runDir, commandDir string) string {
+	if strings.TrimSpace(commandDir) == "" {
+		return ""
+	}
+	return artifactRelativePath(runDir, filepath.Join(commandDir, "http-metrics.json"))
 }
 
 func isDir(path string) bool {

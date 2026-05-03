@@ -151,6 +151,54 @@ func TestBuildHistoryReportDetectsRequestRegression(t *testing.T) {
 	}
 }
 
+func TestBuildAnalysisContextIncludesRegressionArtifacts(t *testing.T) {
+	t.Parallel()
+
+	historyDir := filepath.Join(t.TempDir(), "history")
+	previous := testSuiteResult("previous", 10, 1000, 0)
+	if err := writeJSON(filepath.Join(historyDir, "runs", "previous", "results.json"), previous); err != nil {
+		t.Fatal(err)
+	}
+
+	runDir := filepath.Join(t.TempDir(), "run")
+	current := testSuiteResult("current", 12, 1050, 0)
+	current.Cases[0].Phases[0].CommandDir = filepath.Join(runDir, "benchmarks", "small", "commands", "apply_create")
+	current.Cases[0].Phases[0].HTTPMetrics.RequestCountsByRoute = []methodRouteRow{
+		{Method: "GET", Route: "/v3/apis", Count: 12},
+	}
+	report, err := buildHistoryReport(config{
+		HistoryDir:            historyDir,
+		MinHistorySamples:     1,
+		RequestCountThreshold: 0.05,
+		DurationThreshold:     0.50,
+	}, current)
+	if err != nil {
+		t.Fatalf("buildHistoryReport() error = %v", err)
+	}
+
+	context := buildAnalysisContext(runDir, report, current)
+	if len(context.Regressions) != 1 {
+		t.Fatalf("len(Regressions) = %d, want 1", len(context.Regressions))
+	}
+	regression := context.Regressions[0]
+	if !regression.Request.Regression {
+		t.Fatalf("Request.Regression = false, want true")
+	}
+	if len(regression.CurrentPhaseSamples) != 1 {
+		t.Fatalf("len(CurrentPhaseSamples) = %d, want 1", len(regression.CurrentPhaseSamples))
+	}
+	sample := regression.CurrentPhaseSamples[0]
+	if sample.HTTPMetricsArtifactRelativePath != "benchmarks/small/commands/apply_create/http-metrics.json" {
+		t.Fatalf(
+			"HTTPMetricsArtifactRelativePath = %q, want benchmark command artifact path",
+			sample.HTTPMetricsArtifactRelativePath,
+		)
+	}
+	if len(sample.TopRequestRoutes) != 1 || sample.TopRequestRoutes[0].Route != "/v3/apis" {
+		t.Fatalf("TopRequestRoutes = %+v, want /v3/apis route", sample.TopRequestRoutes)
+	}
+}
+
 func TestBuildHistoryReportRequiresMinimumHistory(t *testing.T) {
 	t.Parallel()
 

@@ -40,6 +40,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     environment: benchmark
+    outputs:
+      has_regressions: ${{ steps.regression_issue.outputs.has_regressions }}
+      regression_issue_number: ${{ steps.regression_issue.outputs.issue_number }}
+      regression_issue_url: ${{ steps.regression_issue.outputs.issue_url }}
+      results_path: ${{ steps.publish_benchmark_summaries.outputs.results_path }}
+      history_report_path: ${{ steps.publish_benchmark_summaries.outputs.history_report_path }}
+      regressions_path: ${{ steps.publish_benchmark_summaries.outputs.regressions_path }}
+      analysis_context_path: ${{ steps.publish_benchmark_summaries.outputs.analysis_context_path }}
     env:
       KONGCTL_BENCHMARK_ARTIFACTS_DIR: ${{ github.workspace }}/.benchmark-artifacts/${{ github.run_id }}
       KONGCTL_BENCHMARK_CASE: >-
@@ -125,6 +133,7 @@ jobs:
         run: make benchmark-declarative BENCHMARK_FLAGS="${KONGCTL_BENCHMARK_FLAGS}"
 
       - name: Publish benchmark summaries
+        id: publish_benchmark_summaries
         if: always()
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -147,6 +156,7 @@ jobs:
 
           results_dir="${KONGCTL_BENCHMARK_HISTORY_DIR}"
           destination="${results_dir}/runs/$(date -u +%Y/%m/%d)/${GITHUB_RUN_ID}-${case_slug}"
+          relative_destination="${destination#${results_dir}/}"
           latest="${results_dir}/latest"
           mkdir -p "${destination}"
           rm -rf "${latest}"
@@ -159,6 +169,7 @@ jobs:
             dashboard.md \
             regressions.md \
             regressions.json \
+            analysis-context.json \
             history-report.json
           do
             if [ -f "${run_dir}/${file}" ]; then
@@ -183,6 +194,13 @@ jobs:
               created_at: $created_at
             }' > "${destination}/metadata.json"
           cp "${destination}/metadata.json" "${latest}/metadata.json"
+
+          {
+            echo "results_path=${relative_destination}/results.json"
+            echo "history_report_path=${relative_destination}/history-report.json"
+            echo "regressions_path=${relative_destination}/regressions.md"
+            echo "analysis_context_path=${relative_destination}/analysis-context.json"
+          } >> "${GITHUB_OUTPUT}"
 
           git -C "${results_dir}" config user.name "github-actions[bot]"
           git -C "${results_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -243,20 +261,24 @@ jobs:
             -F body="${body}"
 
       - name: Open or update regression issue
+        id: regression_issue
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
-          regressions_json="$(find "${KONGCTL_BENCHMARK_ARTIFACTS_DIR}" -name regressions.json -print | sort | tail -n 1)"
+          regressions_json="$(find "${KONGCTL_BENCHMARK_ARTIFACTS_DIR}" \
+            -name regressions.json -print | sort | tail -n 1)"
           regressions_md="$(find "${KONGCTL_BENCHMARK_ARTIFACTS_DIR}" -name regressions.md -print | sort | tail -n 1)"
           if [ -z "${regressions_json}" ] || [ ! -f "${regressions_json}" ]; then
             echo "No regression report found; skipping issue update."
+            echo "has_regressions=false" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
           if [ "$(jq -r '.has_regressions' "${regressions_json}")" != "true" ]; then
             echo "No benchmark regressions detected; leaving issues unchanged."
+            echo "has_regressions=false" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -275,12 +297,25 @@ jobs:
             gh issue edit "${issue_number}" --body-file "${regressions_md}"
             gh issue comment "${issue_number}" \
               --body "Benchmark regressions reproduced in run ${KONGCTL_BENCHMARK_RUN_URL}."
+            issue_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/issues/${issue_number}"
           else
-            gh issue create \
-              --title "${title}" \
-              --body-file "${regressions_md}" \
-              --label benchmark-regression
+            issue_payload="${RUNNER_TEMP}/benchmark-regression-issue.json"
+            jq -n \
+              --arg title "${title}" \
+              --rawfile body "${regressions_md}" \
+              '{title: $title, body: $body, labels: ["benchmark-regression"]}' > "${issue_payload}"
+            issue_json="$(gh api "repos/${GITHUB_REPOSITORY}/issues" \
+              --method POST \
+              --input "${issue_payload}")"
+            issue_number="$(jq -er '.number' <<< "${issue_json}")"
+            issue_url="$(jq -er '.html_url' <<< "${issue_json}")"
           fi
+
+          {
+            echo "has_regressions=true"
+            echo "issue_number=${issue_number}"
+            echo "issue_url=${issue_url}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Write workflow summary
         if: always()
@@ -299,3 +334,26 @@ jobs:
           name: declarative-benchmark-${{ github.run_id }}
           path: ${{ env.KONGCTL_BENCHMARK_ARTIFACTS_DIR }}
           if-no-files-found: warn
+
+  benchmark-regression-analysis:
+    name: Benchmark Regression Analysis
+    needs: declarative-benchmark
+    if: >-
+      always() &&
+      needs.declarative-benchmark.outputs.has_regressions == 'true' &&
+      needs.declarative-benchmark.outputs.regression_issue_number != '' &&
+      needs.declarative-benchmark.outputs.analysis_context_path != ''
+    uses: ./.github/workflows/benchmark-regression-analysis.lock.yml
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    with:
+      issue_number: ${{ needs.declarative-benchmark.outputs.regression_issue_number }}
+      run_id: ${{ github.run_id }}
+      run_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      artifact_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts
+      results_path: ${{ needs.declarative-benchmark.outputs.results_path }}
+      history_report_path: ${{ needs.declarative-benchmark.outputs.history_report_path }}
+      regressions_path: ${{ needs.declarative-benchmark.outputs.regressions_path }}
+      analysis_context_path: ${{ needs.declarative-benchmark.outputs.analysis_context_path }}
