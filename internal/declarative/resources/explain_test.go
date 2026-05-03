@@ -99,7 +99,7 @@ func TestRenderExplainText_ResourceSubject(t *testing.T) {
 	assert.Contains(
 		t,
 		text,
-		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, identity_providers, integration, pages, snippets, teams", //nolint:lll
+		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, identity_providers, integrations, pages, snippets, teams", //nolint:lll
 	)
 	assert.Contains(t, text, "\nFIELD DETAILS: use --extended")
 	assert.NotContains(t, text, "RESOURCE: portal")
@@ -135,7 +135,7 @@ func TestRenderExplainText_FieldSubject(t *testing.T) {
 	assert.Contains(
 		t,
 		text,
-		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, identity_providers, integration, pages, snippets, teams", //nolint:lll
+		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, identity_providers, integrations, pages, snippets, teams", //nolint:lll
 	)
 	assert.NotContains(t, text, "PLACEMENT")
 	assert.NotContains(t, text, "YAML PATH:")

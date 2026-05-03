@@ -72,7 +72,7 @@ example includes disabled Google Tag Manager and Google Analytics 4 integrations
 with placeholder IDs:
 
 ```yaml
-integration:
+integrations:
   ref: getting-started-integrations
   google_tag_manager:
     enabled: false

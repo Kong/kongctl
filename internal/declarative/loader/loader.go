@@ -841,9 +841,9 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalAuthSettings = append(rs.PortalAuthSettings, authSettings)
 		}
 
-		// Extract integration configuration (single resource)
-		if portal.Integration != nil {
-			integration := *portal.Integration
+		// Extract integrations configuration (single resource)
+		if portal.Integrations != nil {
+			integration := *portal.Integrations
 			integration.Portal = portal.Ref
 			rs.PortalIntegrations = append(rs.PortalIntegrations, integration)
 		}
@@ -913,7 +913,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		// Clear nested resources from Portal
 		portal.Customization = nil
 		portal.AuthSettings = nil
-		portal.Integration = nil
+		portal.Integrations = nil
 		portal.IdentityProviders = nil
 		portal.CustomDomain = nil
 		portal.Pages = nil
@@ -1011,6 +1011,7 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 		"is_public":     {"public", "ispublic", "is-public"},
 		"custom_domain": {"domain", "customdomain", "custom-domain"},
 		"customization": {"customize", "custom", "theme"},
+		"integrations":  {"integration"},
 		"pages":         {"page", "content"},
 		"snippets":      {"snippet", "code"},
 		"email_config":  {"email_configs", "email-config", "email"},

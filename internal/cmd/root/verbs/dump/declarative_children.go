@@ -67,7 +67,7 @@ func populatePortalChildren(
 		if integration, err := buildPortalIntegration(ctx, client, portalID); err != nil {
 			logWarn(logger, "failed to load portal integrations", portalID, portal.Name, err)
 		} else if integration != nil {
-			portal.Integration = integration
+			portal.Integrations = integration
 		}
 
 		if customization, err := buildPortalCustomization(ctx, client, portalID); err != nil {

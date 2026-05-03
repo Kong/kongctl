@@ -142,7 +142,7 @@ portals:
       basic_auth_enabled: true
       konnect_mapping_enabled: true
       idp_mapping_enabled: false
-    integration:
+    integrations:
       ref: all-portal-integrations
       google_tag_manager:
         enabled: false

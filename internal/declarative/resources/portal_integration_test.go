@@ -14,7 +14,7 @@ func TestPortalIntegrationUnmarshalNested(t *testing.T) {
 portals:
   - ref: portal-integrations
     name: Portal Integrations
-    integration:
+    integrations:
       ref: portal-integrations-config
       google_tag_manager:
         enabled: true
@@ -32,9 +32,9 @@ portals:
 
 	require.NoError(t, yaml.UnmarshalStrict([]byte(yamlConfig), &parsed))
 	require.Len(t, parsed.Portals, 1)
-	require.NotNil(t, parsed.Portals[0].Integration)
+	require.NotNil(t, parsed.Portals[0].Integrations)
 
-	integration := parsed.Portals[0].Integration
+	integration := parsed.Portals[0].Integrations
 	integration.SetDefaults()
 
 	assert.Equal(t, "portal-integrations-config", integration.Ref)

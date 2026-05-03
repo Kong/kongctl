@@ -20,7 +20,7 @@ portals:
       favicon: !file ./assets/favicon.png
 
     # Portal tracking and analytics integrations
-    integration:
+    integrations:
       ref: getting-started-integrations
       google_tag_manager:
         enabled: false

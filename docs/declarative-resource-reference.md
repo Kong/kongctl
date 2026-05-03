@@ -390,7 +390,7 @@ portals:
      basic_auth_enabled: boolean
      konnect_mapping_enabled: boolean
      idp_mapping_enabled: boolean
-   integration: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/upsert-portal-integrations
+   integrations: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/upsert-portal-integrations
      ref: string
      google_tag_manager:
        enabled: boolean required
