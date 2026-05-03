@@ -52,7 +52,7 @@ func normalizeScenarioPath(path string) string {
 	path = filepath.ToSlash(path)
 	path = strings.TrimPrefix(path, "scenarios/")
 	path = strings.TrimPrefix(path, "test/e2e/scenarios/")
-	return path
+	return strings.TrimSuffix(path, "/")
 }
 
 func writeScenarioShardManifest(artifactsDir string, shard scenarioShard, selected []string) error {
