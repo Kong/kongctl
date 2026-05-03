@@ -205,10 +205,7 @@ func (p *Planner) shouldUpdatePortalAuthSettings(
 
 	if desired.BasicAuthEnabled != nil && !p.compareBoolToPtr(current.BasicAuthEnabled, desired.BasicAuthEnabled) {
 		updates[FieldBasicAuthEnabled] = *desired.BasicAuthEnabled
-		changedFields[FieldBasicAuthEnabled] = FieldChange{
-			Old: current.BasicAuthEnabled,
-			New: *desired.BasicAuthEnabled,
-		}
+		changedFields[FieldBasicAuthEnabled] = FieldChange{Old: current.BasicAuthEnabled, New: *desired.BasicAuthEnabled}
 	}
 
 	if desired.KonnectMappingEnabled != nil &&

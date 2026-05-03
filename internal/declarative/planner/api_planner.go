@@ -1938,8 +1938,7 @@ func (p *Planner) planAPIDocumentCreate(
 
 		// Ensure the parent document change executes first if present in the plan
 		for _, depChange := range plan.Changes {
-			if depChange.ResourceType == ResourceTypeAPIDocument &&
-				depChange.ResourceRef == document.ParentDocumentRef {
+			if depChange.ResourceType == ResourceTypeAPIDocument && depChange.ResourceRef == document.ParentDocumentRef {
 				change.DependsOn = append(change.DependsOn, depChange.ID)
 				break
 			}
@@ -2049,8 +2048,7 @@ func (p *Planner) planAPIDocumentUpdate(
 
 		// If parent document change exists, ensure it runs before this update
 		for _, depChange := range plan.Changes {
-			if depChange.ResourceType == ResourceTypeAPIDocument &&
-				depChange.ResourceRef == document.ParentDocumentRef {
+			if depChange.ResourceType == ResourceTypeAPIDocument && depChange.ResourceRef == document.ParentDocumentRef {
 				change.DependsOn = append(change.DependsOn, depChange.ID)
 				break
 			}

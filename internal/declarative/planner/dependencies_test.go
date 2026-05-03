@@ -114,11 +114,7 @@ func TestResolveDependencies_ImplicitReferenceDependencies_WithPlaceholder(t *te
 	authIndex := indexOf(order, "1:u:application_auth_strategy:oidc")
 
 	if dcrIndex >= authIndex {
-		t.Errorf(
-			"DCR provider create (index %d) should come before auth strategy update (index %d)",
-			dcrIndex,
-			authIndex,
-		)
+		t.Errorf("DCR provider create (index %d) should come before auth strategy update (index %d)", dcrIndex, authIndex)
 	}
 }
 

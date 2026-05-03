@@ -24,7 +24,7 @@ type DCRProviderResource struct {
 	ProviderType string            `yaml:"provider_type,omitempty" json:"provider_type,omitempty"`
 	Issuer       string            `yaml:"issuer,omitempty"        json:"issuer,omitempty"`
 	DCRConfig    map[string]any    `yaml:"dcr_config,omitempty"    json:"dcr_config,omitempty"`
-	Labels       map[string]string `yaml:"labels,omitempty"        json:"labels,omitempty"`
+	Labels       map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
 }
 
 func NormalizeDCRProviderIssuer(issuer string) string {

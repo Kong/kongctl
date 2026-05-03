@@ -227,6 +227,39 @@ func TestExecutor_syncResolvedDCRProviderID_UpdatesFieldsFromResolvedReference(t
 	)
 }
 
+func TestExecutor_syncResolvedPortalDefaultAuthStrategyID_UpdatesFieldsFromResolvedReference(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.refToID[planner.ResourceTypeApplicationAuthStrategy] = map[string]string{
+		"portal-default-strategy": "11111111-1111-4111-8111-111111111111",
+	}
+
+	change := &planner.PlannedChange{
+		Fields: map[string]any{
+			planner.FieldDefaultApplicationStrategyID: "__REF__:portal-default-strategy#id",
+		},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldDefaultApplicationStrategyID: {
+				Ref: "__REF__:portal-default-strategy#id",
+				ID:  "[unknown]",
+			},
+		},
+	}
+
+	err := exec.syncResolvedPortalDefaultAuthStrategyID(context.Background(), change)
+	require.NoError(t, err)
+
+	assert.Equal(
+		t,
+		"11111111-1111-4111-8111-111111111111",
+		change.Fields[planner.FieldDefaultApplicationStrategyID],
+	)
+	assert.Equal(
+		t,
+		"11111111-1111-4111-8111-111111111111",
+		change.References[planner.FieldDefaultApplicationStrategyID].ID,
+	)
+}
+
 func TestExecutor_ValidateChangePreExecution_Basic(t *testing.T) {
 	tests := []struct {
 		name          string

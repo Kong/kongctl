@@ -17,6 +17,10 @@ type PortalAdapter struct {
 	client *state.Client
 }
 
+func errUnresolvedRef(fieldName, value string) error {
+	return fmt.Errorf("unresolved reference for %s: %s", fieldName, value)
+}
+
 // NewPortalAdapter creates a new portal adapter
 func NewPortalAdapter(client *state.Client) *PortalAdapter {
 	return &PortalAdapter{client: client}
@@ -53,8 +57,7 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 
 	if defaultAppAuthStrategyID, ok := fields[planner.FieldDefaultApplicationStrategyID].(string); ok {
 		if tags.IsRefPlaceholder(defaultAppAuthStrategyID) {
-			return fmt.Errorf("unresolved auth strategy reference for %s: %s",
-				planner.FieldDefaultApplicationStrategyID, defaultAppAuthStrategyID)
+			return errUnresolvedRef(planner.FieldDefaultApplicationStrategyID, defaultAppAuthStrategyID)
 		}
 		create.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
 	}
@@ -112,8 +115,7 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 		case planner.FieldDefaultApplicationStrategyID:
 			if authID, ok := value.(string); ok {
 				if tags.IsRefPlaceholder(authID) {
-					return fmt.Errorf("unresolved auth strategy reference for %s: %s",
-						planner.FieldDefaultApplicationStrategyID, authID)
+					return errUnresolvedRef(planner.FieldDefaultApplicationStrategyID, authID)
 				}
 				update.DefaultApplicationAuthStrategyID = &authID
 			}

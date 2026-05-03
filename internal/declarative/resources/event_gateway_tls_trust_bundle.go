@@ -22,7 +22,7 @@ func init() {
 // verification. They are referenced by TLS listener policies.
 // This resource supports update operations.
 type EventGatewayTLSTrustBundleResource struct {
-	kkComps.CreateTLSTrustBundleRequest `       yaml:",inline"                 json:",inline"`
+	kkComps.CreateTLSTrustBundleRequest `yaml:",inline" json:",inline"`
 	Ref                                 string `yaml:"ref"                     json:"ref"`
 	// Parent Event Gateway reference (for root-level definitions)
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`

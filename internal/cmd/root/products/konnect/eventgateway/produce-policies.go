@@ -46,17 +46,17 @@ type producePolicySummaryRecord struct {
 // producePolicyWithConfig is a wrapper that includes the full config from raw API response.
 // The SDK's EventGatewayPolicyConfig struct is empty, so we use map[string]any to capture actual config.
 type producePolicyWithConfig struct {
-	Type           string            `json:"type"                       yaml:"type"`
-	Name           *string           `json:"name,omitempty"             yaml:"name,omitempty"`
-	Description    *string           `json:"description,omitempty"      yaml:"description,omitempty"`
-	Enabled        *bool             `json:"enabled,omitempty"          yaml:"enabled,omitempty"`
-	Labels         map[string]string `json:"labels,omitempty"           yaml:"labels,omitempty"`
-	ID             string            `json:"id"                         yaml:"id"`
-	Config         map[string]any    `json:"config"                     yaml:"config"`
-	CreatedAt      time.Time         `json:"created_at"                 yaml:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"                 yaml:"updated_at"`
+	Type           string            `json:"type" yaml:"type"`
+	Name           *string           `json:"name,omitempty" yaml:"name,omitempty"`
+	Description    *string           `json:"description,omitempty" yaml:"description,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	ID             string            `json:"id" yaml:"id"`
+	Config         map[string]any    `json:"config" yaml:"config"`
+	CreatedAt      time.Time         `json:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at" yaml:"updated_at"`
 	ParentPolicyID *string           `json:"parent_policy_id,omitempty" yaml:"parent_policy_id,omitempty"`
-	Condition      *string           `json:"condition,omitempty"        yaml:"condition,omitempty"`
+	Condition      *string           `json:"condition,omitempty" yaml:"condition,omitempty"`
 }
 
 var (
@@ -64,13 +64,11 @@ var (
 
 	producePoliciesShort = i18n.T("root.products.konnect.eventgateway.producePoliciesShort",
 		"Manage produce policies for an Event Gateway Virtual Cluster")
-	producePoliciesLong = normalizers.LongDesc(i18n.T(
-		"root.products.konnect.eventgateway.producePoliciesLong",
+	producePoliciesLong = normalizers.LongDesc(i18n.T("root.products.konnect.eventgateway.producePoliciesLong",
 		`Use the produce-policies command to list or retrieve produce policies for a specific Event Gateway Virtual Cluster.
 
 Produce policies operate on Kafka messages before they are written to the Kafka cluster.
-Where possible, apply transformations to the data using produce policies rather than consume policies for maximum efficiency.`,
-	)) //nolint:lll
+Where possible, apply transformations to the data using produce policies rather than consume policies for maximum efficiency.`))  //nolint:lll
 	producePoliciesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.eventgateway.producePoliciesExamples",
 			fmt.Sprintf(`
