@@ -1891,6 +1891,322 @@ func (p *Planner) planPortalEmailConfigsChanges(
 	return nil
 }
 
+// Portal Audit Log Webhook planning
+
+func (p *Planner) planPortalAuditLogWebhooksChanges(
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	desired []resources.PortalAuditLogWebhookResource,
+	plan *Plan,
+) error {
+	var desiredWebhook *resources.PortalAuditLogWebhookResource
+	for i := range desired {
+		if plan.HasChange(ResourceTypePortalAuditLogWebhook, desired[i].GetRef()) {
+			continue
+		}
+		desiredWebhook = &desired[i]
+		break
+	}
+
+	portalName := p.findPortalName(portalRef)
+
+	if portalID == "" {
+		if desiredWebhook != nil {
+			p.planPortalAuditLogWebhookCreate(
+				parentNamespace,
+				*desiredWebhook,
+				portalID,
+				portalRef,
+				portalName,
+				plan,
+			)
+		}
+		return nil
+	}
+
+	currentWebhook, err := p.client.GetPortalAuditLogWebhook(ctx, portalID)
+	if err != nil {
+		var apiErr *state.APIClientError
+		if errors.As(err, &apiErr) && apiErr.ClientType == "portal audit logs API" {
+			if desiredWebhook != nil {
+				changeID := p.planPortalAuditLogWebhookCreate(
+					parentNamespace,
+					*desiredWebhook,
+					portalID,
+					portalRef,
+					portalName,
+					plan,
+				)
+				plan.AddWarning(
+					changeID,
+					"unable to inspect existing portal audit-log webhook - assuming create is required",
+				)
+			}
+			return nil
+		}
+
+		identifier := portalRef
+		if identifier == "" {
+			identifier = portalID
+		}
+
+		return fmt.Errorf("failed to get portal audit-log webhook for portal %q: %w", identifier, err)
+	}
+
+	if !portalAuditLogWebhookConfigured(currentWebhook) {
+		currentWebhook = nil
+	}
+
+	if desiredWebhook == nil {
+		if currentWebhook != nil && plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+			p.planPortalAuditLogWebhookDelete(parentNamespace, portalRef, portalID, portalName, plan)
+		}
+		return nil
+	}
+
+	if currentWebhook == nil {
+		p.planPortalAuditLogWebhookCreate(parentNamespace, *desiredWebhook, portalID, portalRef, portalName, plan)
+		return nil
+	}
+
+	needsUpdate, updateFields, changedFields := p.shouldUpdatePortalAuditLogWebhook(currentWebhook, *desiredWebhook)
+	if needsUpdate {
+		p.planPortalAuditLogWebhookUpdate(
+			parentNamespace,
+			*desiredWebhook,
+			portalID,
+			portalRef,
+			portalName,
+			updateFields,
+			changedFields,
+			plan,
+		)
+	}
+
+	return nil
+}
+
+func (p *Planner) planPortalAuditLogWebhookCreate(
+	parentNamespace string,
+	webhook resources.PortalAuditLogWebhookResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	plan *Plan,
+) string {
+	fields, destinationRef := p.buildPortalAuditLogWebhookFields(webhook)
+
+	deps := p.portalChildDependencies(plan, webhook.Portal)
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalAuditLogWebhook, webhook.Ref),
+		ResourceType: ResourceTypePortalAuditLogWebhook,
+		ResourceRef:  webhook.Ref,
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    uniqueStrings(deps),
+		Namespace:    parentNamespace,
+	}
+
+	p.setPortalAuditLogWebhookReferences(&change, webhook.Portal, portalID, portalRef, portalName, destinationRef)
+	plan.AddChange(change)
+	return change.ID
+}
+
+func (p *Planner) planPortalAuditLogWebhookUpdate(
+	parentNamespace string,
+	webhook resources.PortalAuditLogWebhookResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	fields map[string]any,
+	changedFields map[string]FieldChange,
+	plan *Plan,
+) {
+	_, destinationRef := p.buildPortalAuditLogWebhookFields(webhook)
+
+	change := PlannedChange{
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypePortalAuditLogWebhook, webhook.Ref),
+		ResourceType:  ResourceTypePortalAuditLogWebhook,
+		ResourceRef:   webhook.Ref,
+		ResourceID:    portalID,
+		Action:        ActionUpdate,
+		Fields:        fields,
+		ChangedFields: changedFields,
+		DependsOn:     p.portalChildDependencies(plan, webhook.Portal),
+		Namespace:     parentNamespace,
+	}
+
+	p.setPortalAuditLogWebhookReferences(&change, webhook.Portal, portalID, portalRef, portalName, destinationRef)
+	plan.AddChange(change)
+}
+
+func (p *Planner) planPortalAuditLogWebhookDelete(
+	parentNamespace string,
+	portalRef string,
+	portalID string,
+	portalName string,
+	plan *Plan,
+) {
+	ref := portalRef
+	if ref == "" {
+		ref = fmt.Sprintf("%s__audit_log_webhook", portalID)
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalAuditLogWebhook, ref),
+		ResourceType: ResourceTypePortalAuditLogWebhook,
+		ResourceRef:  ref,
+		ResourceID:   portalID,
+		Action:       ActionDelete,
+		DependsOn:    p.portalChildDependencies(plan, portalRef),
+		Namespace:    parentNamespace,
+	}
+
+	p.setPortalAuditLogWebhookReferences(&change, portalRef, portalID, portalRef, portalName, nil)
+	plan.AddChange(change)
+}
+
+func (p *Planner) shouldUpdatePortalAuditLogWebhook(
+	current *kkComps.PortalAuditLogWebhook,
+	desired resources.PortalAuditLogWebhookResource,
+) (bool, map[string]any, map[string]FieldChange) {
+	updateFields, _ := p.buildPortalAuditLogWebhookFields(desired)
+	changedFields := make(map[string]FieldChange)
+
+	if current == nil {
+		for field, newValue := range updateFields {
+			changedFields[field] = FieldChange{Old: nil, New: newValue}
+		}
+		return len(updateFields) > 0, updateFields, changedFields
+	}
+
+	if desired.Enabled != nil {
+		currentEnabled := boolValue(current.Enabled)
+		if currentEnabled != *desired.Enabled {
+			changedFields[FieldEnabled] = FieldChange{Old: currentEnabled, New: *desired.Enabled}
+		} else {
+			delete(updateFields, FieldEnabled)
+		}
+	}
+
+	if desired.AuditLogDestinationID != "" {
+		desiredDestinationID, _ := p.resolveAuditLogDestinationReference(desired.AuditLogDestinationID)
+		currentDestinationID := getString(current.AuditLogDestinationID)
+		if currentDestinationID != desiredDestinationID {
+			changedFields[FieldAuditLogDestinationID] = FieldChange{
+				Old: currentDestinationID,
+				New: desiredDestinationID,
+			}
+		} else {
+			delete(updateFields, FieldAuditLogDestinationID)
+		}
+	}
+
+	return len(updateFields) > 0, updateFields, changedFields
+}
+
+func (p *Planner) buildPortalAuditLogWebhookFields(
+	webhook resources.PortalAuditLogWebhookResource,
+) (map[string]any, *ReferenceInfo) {
+	fields := map[string]any{}
+
+	if webhook.Enabled != nil {
+		fields[FieldEnabled] = *webhook.Enabled
+	}
+
+	destinationID, destinationRef := p.resolveAuditLogDestinationReference(webhook.AuditLogDestinationID)
+	if destinationID != "" {
+		fields[FieldAuditLogDestinationID] = destinationID
+	}
+
+	return fields, destinationRef
+}
+
+func (p *Planner) resolveAuditLogDestinationReference(value string) (string, *ReferenceInfo) {
+	if value == "" {
+		return "", nil
+	}
+
+	ref := ""
+	if tags.IsRefPlaceholder(value) {
+		parsedRef, _, ok := tags.ParseRefPlaceholder(value)
+		if ok {
+			ref = parsedRef
+		}
+	} else if p.resources != nil {
+		if resource, ok := p.resources.GetResourceByRef(value); ok &&
+			resource.GetType() == resources.ResourceTypeAuditLogWebhookDestination {
+			ref = value
+		}
+	}
+
+	if ref == "" {
+		return value, nil
+	}
+
+	refInfo := &ReferenceInfo{Ref: ref}
+	if p.resources != nil {
+		if resource, ok := p.resources.GetResourceByRef(ref); ok {
+			refInfo.ID = resource.GetKonnectID()
+			refInfo.LookupFields = map[string]string{
+				FieldName: resource.GetMoniker(),
+			}
+		}
+	}
+	if refInfo.ID == "" {
+		refInfo.ID = resources.UnknownReferenceID
+	}
+	return refInfo.ID, refInfo
+}
+
+func (p *Planner) setPortalAuditLogWebhookReferences(
+	change *PlannedChange,
+	webhookPortalRef string,
+	portalID string,
+	portalRef string,
+	portalName string,
+	destinationRef *ReferenceInfo,
+) {
+	ref := webhookPortalRef
+	if ref == "" {
+		ref = portalRef
+	}
+	if ref != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+		change.References = map[string]ReferenceInfo{
+			FieldPortalID: {
+				Ref: ref,
+				ID:  portalID,
+				LookupFields: map[string]string{
+					FieldName: portalName,
+				},
+			},
+		}
+	}
+
+	if destinationRef != nil {
+		if change.References == nil {
+			change.References = make(map[string]ReferenceInfo)
+		}
+		change.References[FieldAuditLogDestinationID] = *destinationRef
+	}
+}
+
+func portalAuditLogWebhookConfigured(current *kkComps.PortalAuditLogWebhook) bool {
+	if current == nil {
+		return false
+	}
+	if current.Enabled != nil && *current.Enabled {
+		return true
+	}
+	return getString(current.AuditLogDestinationID) != ""
+}
+
 func (p *Planner) planPortalEmailConfigCreate(
 	parentNamespace string,
 	cfg resources.PortalEmailConfigResource,

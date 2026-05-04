@@ -32,6 +32,8 @@ const (
 	ResourceTypePortalAssetFavicon               ResourceType = "portal_asset_favicon"
 	ResourceTypePortalEmailConfig                ResourceType = "portal_email_config"
 	ResourceTypePortalEmailTemplate              ResourceType = "portal_email_template"
+	ResourceTypePortalAuditLogWebhook            ResourceType = "portal_audit_log_webhook"
+	ResourceTypeAuditLogWebhookDestination       ResourceType = "audit_log_webhook_destination"
 	ResourceTypeCatalogService                   ResourceType = "catalog_service"
 	ResourceTypeEventGatewayControlPlane         ResourceType = "event_gateway"
 	ResourceTypeEventGatewayBackendCluster       ResourceType = "event_gateway_backend_cluster"
@@ -63,6 +65,8 @@ type ResourceRef struct {
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
 	Portals []PortalResource `yaml:"portals,omitempty"                               json:"portals,omitempty"`
+	// AuditLogs contains organization-scoped audit-log resources.
+	AuditLogs AuditLogsResource `yaml:"audit-logs,omitempty" json:"audit-logs,omitempty"`
 	// ApplicationAuthStrategies contains auth strategy configurations
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"           json:"application_auth_strategies,omitempty"` //nolint:lll
 	DCRProviders              []DCRProviderResource             `yaml:"dcr_providers,omitempty"                        json:"dcr_providers,omitempty"`                //nolint:lll
@@ -91,6 +95,7 @@ type ResourceSet struct {
 	PortalAssetFavicons         []PortalAssetFaviconResource         `yaml:"portal_asset_favicons,omitempty"                 json:"portal_asset_favicons,omitempty"`          //nolint:lll
 	PortalEmailConfigs          []PortalEmailConfigResource          `yaml:"portal_email_configs,omitempty"                  json:"portal_email_configs,omitempty"`           //nolint:lll
 	PortalEmailTemplates        []PortalEmailTemplateResource        `yaml:"portal_email_templates,omitempty"                json:"portal_email_templates,omitempty"`         //nolint:lll
+	PortalAuditLogWebhooks      []PortalAuditLogWebhookResource      `yaml:"portal_audit_log_webhooks,omitempty"            json:"portal_audit_log_webhooks,omitempty"`       //nolint:lll
 	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty"                        json:"event_gateways,omitempty"`                 //nolint:lll
 	EventGatewayBackendClusters []EventGatewayBackendClusterResource `yaml:"event_gateway_backend_clusters,omitempty"        json:"event_gateway_backend_clusters,omitempty"` //nolint:lll
 	EventGatewayVirtualClusters []EventGatewayVirtualClusterResource `yaml:"event_gateway_virtual_clusters,omitempty"        json:"event_gateway_virtual_clusters,omitempty"` //nolint:lll
@@ -552,6 +557,25 @@ func (rs *ResourceSet) GetPortalEmailConfigsByNamespace(namespace string) []Port
 			}
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, cfg)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalAuditLogWebhooksByNamespace returns all portal audit-log webhook resources from the specified namespace
+func (rs *ResourceSet) GetPortalAuditLogWebhooksByNamespace(namespace string) []PortalAuditLogWebhookResource {
+	var filtered []PortalAuditLogWebhookResource
+	for _, webhook := range rs.PortalAuditLogWebhooks {
+		if portal := rs.GetPortalByRef(webhook.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, webhook)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, webhook)
 			}
 		}
 	}

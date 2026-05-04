@@ -39,6 +39,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate audit-log webhook destinations
+	if err := l.validateAuditLogWebhookDestinations(rs.AuditLogs.Destinations, rs); err != nil {
+		return err
+	}
+
 	// Validate control plane data plane certificates
 	if err := l.validateControlPlaneDataPlaneCertificates(rs.ControlPlaneDataPlaneCertificates, rs); err != nil {
 		return err
@@ -122,6 +127,38 @@ func (l *Loader) validateGatewayServices(
 			if existing.GetType() != resources.ResourceTypeGatewayService {
 				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 					service.GetRef(), existing.GetType())
+			}
+		}
+	}
+
+	return nil
+}
+
+func (l *Loader) validateAuditLogWebhookDestinations(
+	destinations []resources.AuditLogWebhookDestinationResource,
+	rs *resources.ResourceSet,
+) error {
+	refs := make(map[string]bool)
+
+	for i := range destinations {
+		destination := &destinations[i]
+
+		if err := destination.Validate(); err != nil {
+			return fmt.Errorf("invalid audit_log_webhook_destination %q: %w", destination.GetRef(), err)
+		}
+
+		if refs[destination.GetRef()] {
+			return fmt.Errorf(
+				"duplicate ref '%s' (already defined as audit_log_webhook_destination)",
+				destination.GetRef(),
+			)
+		}
+		refs[destination.GetRef()] = true
+
+		if existing, found := rs.GetResourceByRef(destination.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAuditLogWebhookDestination {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					destination.GetRef(), existing.GetType())
 			}
 		}
 	}
@@ -451,6 +488,12 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet) error {
 		}
 	}
 
+	for i := range rs.PortalAuditLogWebhooks {
+		if err := l.validateResourceReferences(&rs.PortalAuditLogWebhooks[i], rs); err != nil {
+			return err
+		}
+	}
+
 	// Note: API versions don't have outbound references, so no validation needed
 
 	return nil
@@ -695,6 +738,39 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 			)
 		}
 		portalToConfigRef[cfg.Portal] = cfg.GetRef()
+	}
+
+	// Validate portal audit-log webhooks (singleton per portal)
+	portalAuditLogWebhookRefs := make(map[string]bool)
+	portalToAuditLogWebhookRef := make(map[string]string)
+	for i := range rs.PortalAuditLogWebhooks {
+		webhook := &rs.PortalAuditLogWebhooks[i]
+		if err := webhook.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_audit_log_webhook %q: %w", webhook.GetRef(), err)
+		}
+		for j := i + 1; j < len(rs.PortalAuditLogWebhooks); j++ {
+			if rs.PortalAuditLogWebhooks[j].GetRef() == webhook.GetRef() {
+				return fmt.Errorf(
+					"duplicate ref '%s' (already defined as portal_audit_log_webhook)",
+					webhook.GetRef(),
+				)
+			}
+		}
+		if webhook.Portal == "" {
+			return fmt.Errorf("portal_audit_log_webhook %q must specify portal", webhook.GetRef())
+		}
+		if portalAuditLogWebhookRefs[webhook.GetRef()] {
+			return fmt.Errorf("duplicate ref '%s' (already defined as portal_audit_log_webhook)", webhook.GetRef())
+		}
+		portalAuditLogWebhookRefs[webhook.GetRef()] = true
+
+		if existingRef, ok := portalToAuditLogWebhookRef[webhook.Portal]; ok {
+			return fmt.Errorf(
+				"multiple portal_audit_log_webhook entries target portal %q (%s and %s)",
+				webhook.Portal, existingRef, webhook.GetRef(),
+			)
+		}
+		portalToAuditLogWebhookRef[webhook.Portal] = webhook.GetRef()
 	}
 
 	// Validate portal email templates (one per template name per portal)

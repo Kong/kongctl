@@ -106,9 +106,12 @@ func skipSystemTeams(resource map[string]any) bool {
 func deleteAll(
 	ctx context.Context,
 	baseURL string,
+	deleteBaseURL string,
 	token string,
 	apiVersion string,
 	endpoint string,
+	deleteAPIVersion string,
+	deleteEndpoint string,
 	filter filterFunc,
 	// preDeleteFn is called for each resource ID before deletion. It is used to clean up
 	// sub-resources. Any errors must be logged inside the function; the function must not
@@ -118,6 +121,21 @@ func deleteAll(
 	transportOptions HTTPTransportOptions,
 ) (int, int, error) {
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
+	if deleteBaseURL == "" {
+		deleteBaseURL = baseURL
+	}
+	if deleteAPIVersion == "" {
+		deleteAPIVersion = apiVersion
+	}
+	if deleteEndpoint == "" {
+		deleteEndpoint = endpoint
+	}
+	deleteURL := fmt.Sprintf(
+		"%s/%s/%s",
+		strings.TrimRight(deleteBaseURL, "/"),
+		deleteAPIVersion,
+		deleteEndpoint,
+	)
 	Infof("Fetching %s for deletion...", endpoint)
 	session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
 	defer session.Close()
@@ -184,15 +202,15 @@ func deleteAll(
 		conflicts := 0
 		for _, id := range idsToDelete {
 			if preDeleteFn != nil {
-				preDeleteFn(ctx, session, url, token, id)
+				preDeleteFn(ctx, session, deleteURL, token, id)
 			}
-			if err := retryDeleteOne(ctx, session, url, token, endpoint, id, policy); err != nil {
-				Warnf("delete %s %s failed: %v", endpoint, id, err)
+			if err := retryDeleteOne(ctx, session, deleteURL, token, deleteEndpoint, id, policy); err != nil {
+				Warnf("delete %s %s failed: %v", deleteEndpoint, id, err)
 				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 					conflicts++
 				}
 			} else {
-				Debugf("deleted %s %s", endpoint, id)
+				Debugf("deleted %s %s", deleteEndpoint, id)
 				deleted++
 			}
 		}
@@ -284,11 +302,15 @@ func (s *resetHTTPSession) Close() {
 	s.client = nil
 }
 
-var resetSequence = []struct {
+type resetResourceSpec struct {
 	Version  string
 	Endpoint string
 	// Use global.api.konghq.com instead of regional URL
 	UseGlobal bool
+	// Optional delete override for resources whose list and delete APIs differ.
+	DeleteVersion     string
+	DeleteEndpoint    string
+	DeleteUseRegional bool
 	// Optional filter to exclude resources from deletion
 	// if nothing is passed default filter that skips konnect-managed resources is used
 	Filter filterFunc
@@ -296,16 +318,26 @@ var resetSequence = []struct {
 	// up sub-resources that Konnect does not cascade-delete automatically. Errors are
 	// logged but do not stop the deletion.
 	PreDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string)
-}{
-	{"v3", "apis", false, nil, nil},
-	{"v3", "portals", false, nil, tryDeletePortalCustomDomain},
-	{"v3", "system-accounts", true, nil, nil},
-	{"v3", "teams", true, skipSystemTeams, nil},
-	{"v2", "application-auth-strategies", false, nil, nil},
-	{"v2", "dcr-providers", false, nil, nil},
-	{"v2", "control-planes", false, nil, nil},
-	{"v1", "catalog-services", false, nil, nil},
-	{"v1", "event-gateways", false, nil, nil},
+}
+
+var resetSequence = []resetResourceSpec{
+	{Version: "v3", Endpoint: "apis"},
+	{Version: "v3", Endpoint: "portals", PreDeleteFn: tryDeletePortalCustomDomain},
+	{
+		Version:           "v3",
+		Endpoint:          "audit-log-destinations",
+		UseGlobal:         true,
+		DeleteVersion:     "v2",
+		DeleteEndpoint:    "audit-log-destinations",
+		DeleteUseRegional: true,
+	},
+	{Version: "v3", Endpoint: "system-accounts", UseGlobal: true},
+	{Version: "v3", Endpoint: "teams", UseGlobal: true, Filter: skipSystemTeams},
+	{Version: "v2", Endpoint: "application-auth-strategies"},
+	{Version: "v2", Endpoint: "dcr-providers"},
+	{Version: "v2", Endpoint: "control-planes"},
+	{Version: "v1", Endpoint: "catalog-services"},
+	{Version: "v1", Endpoint: "event-gateways"},
 }
 
 // tryDeletePortalCustomDomain attempts to delete the custom domain for a portal before
@@ -368,12 +400,19 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 		if step.UseGlobal {
 			targetURL = "https://global.api.konghq.com"
 		}
+		deleteTargetURL := targetURL
+		if step.DeleteUseRegional {
+			deleteTargetURL = baseURL
+		}
 		tot, del, err := deleteAll(
 			ctx,
 			targetURL,
+			deleteTargetURL,
 			token,
 			step.Version,
 			step.Endpoint,
+			step.DeleteVersion,
+			step.DeleteEndpoint,
 			step.Filter,
 			step.PreDeleteFn,
 			policy,

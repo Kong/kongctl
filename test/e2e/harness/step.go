@@ -345,6 +345,21 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"event-gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
 	"event_gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
 	"eventgateway":       {Method: http.MethodPost, Path: "/v1/event-gateways"},
+	"audit-log-destination": {
+		Method:    http.MethodPost,
+		Path:      "/v3/audit-log-destinations",
+		UseGlobal: true,
+	},
+	"audit_log_destination": {
+		Method:    http.MethodPost,
+		Path:      "/v3/audit-log-destinations",
+		UseGlobal: true,
+	},
+	"auditlogdestination": {
+		Method:    http.MethodPost,
+		Path:      "/v3/audit-log-destinations",
+		UseGlobal: true,
+	},
 }
 
 var deleteResourceEndpoints = map[string]resourceEndpoint{
@@ -377,6 +392,21 @@ var deleteResourceEndpoints = map[string]resourceEndpoint{
 		Method:    http.MethodDelete,
 		Path:      "/v3/portals/{portalId}/applications/{applicationId}",
 		ParamKeys: []string{"portalId", "applicationId"},
+	},
+	"audit-log-destination": {
+		Method:    http.MethodDelete,
+		Path:      "/v2/audit-log-destinations/{destinationId}",
+		ParamKeys: []string{"destinationId"},
+	},
+	"audit_log_destination": {
+		Method:    http.MethodDelete,
+		Path:      "/v2/audit-log-destinations/{destinationId}",
+		ParamKeys: []string{"destinationId"},
+	},
+	"auditlogdestination": {
+		Method:    http.MethodDelete,
+		Path:      "/v2/audit-log-destinations/{destinationId}",
+		ParamKeys: []string{"destinationId"},
 	},
 }
 

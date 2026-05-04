@@ -82,11 +82,14 @@ type Executor struct {
 	portalAssetFaviconExecutor     *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
 	portalDomainExecutor           *BaseExecutor[kkComps.CreatePortalCustomDomainRequest,
 		kkComps.UpdatePortalCustomDomainRequest]
-	portalPageExecutor          *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
-	portalSnippetExecutor       *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
-	portalTeamExecutor          *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
-	portalTeamRoleExecutor      *BaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest]
-	portalEmailConfigExecutor   *BaseExecutor[kkComps.PostPortalEmailConfig, kkComps.PatchPortalEmailConfig]
+	portalPageExecutor            *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
+	portalSnippetExecutor         *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
+	portalTeamExecutor            *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
+	portalTeamRoleExecutor        *BaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest]
+	portalEmailConfigExecutor     *BaseExecutor[kkComps.PostPortalEmailConfig, kkComps.PatchPortalEmailConfig]
+	portalAuditLogWebhookExecutor *BaseExecutor[
+		kkComps.UpdatePortalAuditLogWebhook,
+		kkComps.UpdatePortalAuditLogWebhook]
 	portalEmailTemplateExecutor *BaseExecutor[kkOps.UpdatePortalCustomEmailTemplateRequest,
 		kkOps.UpdatePortalCustomEmailTemplateRequest]
 
@@ -316,6 +319,14 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 	e.portalEmailConfigExecutor = NewBaseExecutor[kkComps.PostPortalEmailConfig, kkComps.PatchPortalEmailConfig](
 		NewPortalEmailConfigAdapter(client),
+		client,
+		dryRun,
+	)
+	e.portalAuditLogWebhookExecutor = NewBaseExecutor[
+		kkComps.UpdatePortalAuditLogWebhook,
+		kkComps.UpdatePortalAuditLogWebhook,
+	](
+		NewPortalAuditLogWebhookAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1948,6 +1959,16 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailConfigExecutor.Create(ctx, *change)
+	case planner.ResourceTypePortalAuditLogWebhook:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References[planner.FieldPortalID] = portalRef
+		}
+		return e.portalAuditLogWebhookExecutor.Create(ctx, *change)
 	case planner.ResourceTypePortalEmailTemplate:
 		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
@@ -2304,6 +2325,16 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailConfigExecutor.Update(ctx, *change)
+	case planner.ResourceTypePortalAuditLogWebhook:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References[planner.FieldPortalID] = portalRef
+		}
+		return e.portalAuditLogWebhookExecutor.Update(ctx, *change)
 	case planner.ResourceTypePortalEmailTemplate:
 		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)
@@ -2685,6 +2716,16 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailConfigExecutor.Delete(ctx, *change)
+	case planner.ResourceTypePortalAuditLogWebhook:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References[planner.FieldPortalID] = portalRef
+		}
+		return e.portalAuditLogWebhookExecutor.Delete(ctx, *change)
 	case planner.ResourceTypePortalEmailTemplate:
 		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)

@@ -131,6 +131,7 @@ func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 	// Fields that contain references to other resources
 	referenceFields := []string{
 		"default_application_auth_strategy_id",
+		FieldAuditLogDestinationID,
 		FieldDCRProviderID,
 		"control_plane_id",
 		"portal_id",
@@ -155,6 +156,8 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 	switch fieldName {
 	case FieldDefaultApplicationStrategyID, FieldAuthStrategyIDs:
 		return ResourceTypeApplicationAuthStrategy
+	case FieldAuditLogDestinationID:
+		return ResourceTypeAuditLogWebhookDestination
 	case FieldDCRProviderID:
 		return ResourceTypeDCRProvider
 	case "control_plane_id", "gateway_service.control_plane_id", "service.control_plane_id":

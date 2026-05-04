@@ -49,6 +49,8 @@ type SDKAPI interface {
 	GetPortalTeamMembershipAPI() PortalTeamMembershipAPI
 	GetAssetsAPI() AssetsAPI
 	GetPortalEmailsAPI() PortalEmailsAPI
+	GetPortalAuditLogsAPI() PortalAuditLogsAPI
+	GetAuditLogDestinationsAPI() AuditLogDestinationsAPI
 	GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI
 	GetEventGatewayBackendClusterAPI() EventGatewayBackendClusterAPI
 	GetEventGatewayVirtualClusterAPI() EventGatewayVirtualClusterAPI
@@ -344,6 +346,23 @@ func (k *KonnectSDK) GetPortalEmailsAPI() PortalEmailsAPI {
 	}
 
 	return &PortalEmailsAPIImpl{SDK: k.SDK}
+}
+
+// GetPortalAuditLogsAPI returns the implementation of the PortalAuditLogsAPI interface.
+func (k *KonnectSDK) GetPortalAuditLogsAPI() PortalAuditLogsAPI {
+	if k.SDK == nil || k.SDK.PortalAuditLogs == nil {
+		return nil
+	}
+
+	return &PortalAuditLogsAPIImpl{SDK: k.SDK}
+}
+
+// GetAuditLogDestinationsAPI returns the implementation of the AuditLogDestinationsAPI interface.
+func (k *KonnectSDK) GetAuditLogDestinationsAPI() AuditLogDestinationsAPI {
+	return &AuditLogDestinationsAPIImpl{
+		Token:      k.Token,
+		HTTPClient: k.HTTPClient,
+	}
 }
 
 // Returns the implementation of the EGWControlPlaneAPI interface

@@ -61,6 +61,27 @@ apis:
         portal_id: !ref docs-portal
 ```
 
+## Audit Logs
+
+Audit-log webhook destinations are organization-scoped Konnect resources.
+Declarative config supports them as external references so managed portal
+audit-log webhooks can point at destinations created elsewhere.
+
+```yaml
+audit-logs:
+  destinations:
+    - ref: string
+      _external:
+        id: string # destination UUID, or use selector
+        selector:
+          matchFields:
+            name: string
+```
+
+Only `_external.id` and `_external.selector.matchFields.name` are supported.
+Audit-log webhook destinations cannot declare `kongctl` metadata and are not
+created, updated, or deleted by declarative apply.
+
 ## APIs
 
 [API Specification](https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api)
@@ -517,6 +538,10 @@ portal_integrations:
      from_name: string (nullable)
      from_email: string (email, nullable)
      reply_to_email: string (email, nullable)
+   audit_log_webhook: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/update-portal-audit-log-webhook
+     ref: string
+     enabled: boolean
+     audit_log_destination_id: string (uuid) # prefer: !ref
    email_templates: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/update-portal-custom-email-template
      <template_name>:
        ref: string
@@ -530,4 +555,36 @@ portal_integrations:
    assets:
      logo: string # data URL image (png/jpeg/gif/ico/svg)
      favicon: string # data URL image (png/jpeg/gif/ico/svg)
+```
+
+Portal audit-log webhooks can also be declared as root resources.
+
+```yaml
+portal_audit_log_webhooks:
+  - ref: string
+    portal: string required # prefer: !ref <portal-ref>
+    enabled: boolean
+    audit_log_destination_id: string (uuid) # prefer: !ref
+```
+
+In sync mode, omitting `audit_log_webhook` from a managed portal removes the
+portal webhook configuration. Omitted webhook config is not deleted for
+external portals.
+
+```yaml
+portals:
+  - ref: docs-portal
+    name: Docs Portal
+    audit_log_webhook:
+      ref: docs-portal-audit-log-webhook
+      enabled: true
+      audit_log_destination_id: !ref foo
+
+audit-logs:
+  destinations:
+    - ref: foo
+      _external:
+        selector:
+          matchFields:
+            name: foo
 ```

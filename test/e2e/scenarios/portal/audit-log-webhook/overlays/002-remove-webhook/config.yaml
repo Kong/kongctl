@@ -1,0 +1,15 @@
+portals:
+  - ref: e2e-portal-audit-log-webhook
+    name: e2e-portal-audit-log-webhook
+    display_name: "E2E Portal Audit Log Webhook"
+    description: "Portal used by the audit-log webhook e2e scenario"
+    authentication_enabled: false
+    rbac_enabled: false
+
+audit-logs:
+  destinations:
+    - ref: e2e-audit-log-destination
+      _external:
+        selector:
+          matchFields:
+            name: e2e-portal-audit-log-destination

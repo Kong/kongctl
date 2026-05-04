@@ -876,6 +876,21 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"error", err.Error())
 	}
 
+	// Plan audit-log webhook
+	auditLogWebhooks := make([]resources.PortalAuditLogWebhookResource, 0)
+	for _, webhook := range planner.desiredPortalAuditLogWebhooks {
+		if webhook.Portal == desired.Ref {
+			auditLogWebhooks = append(auditLogWebhooks, webhook)
+		}
+	}
+	if err := planner.planPortalAuditLogWebhooksChanges(
+		ctx, parentNamespace, "", desired.Ref, auditLogWebhooks, plan,
+	); err != nil {
+		planner.logger.Debug("Failed to plan portal audit-log webhook for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
+
 	// Plan email templates
 	templates := make([]resources.PortalEmailTemplateResource, 0)
 	for _, tpl := range planner.desiredPortalEmailTemplates {
@@ -1089,6 +1104,19 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 		ctx, parentNamespace, current.ID, desired.Ref, emailConfigs, plan,
 	); err != nil {
 		return fmt.Errorf("failed to plan portal email config changes: %w", err)
+	}
+
+	// Plan audit-log webhook (singleton resource)
+	auditLogWebhooks := make([]resources.PortalAuditLogWebhookResource, 0)
+	for _, webhook := range planner.desiredPortalAuditLogWebhooks {
+		if webhook.Portal == desired.Ref {
+			auditLogWebhooks = append(auditLogWebhooks, webhook)
+		}
+	}
+	if err := planner.planPortalAuditLogWebhooksChanges(
+		ctx, parentNamespace, current.ID, desired.Ref, auditLogWebhooks, plan,
+	); err != nil {
+		return fmt.Errorf("failed to plan portal audit-log webhook changes: %w", err)
 	}
 
 	// Plan email templates (set applies create/update only in apply mode)

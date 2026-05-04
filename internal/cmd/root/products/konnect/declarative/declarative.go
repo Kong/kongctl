@@ -2276,7 +2276,9 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		PortalTeamAPI:             kkClient.GetPortalTeamAPI(),
 		PortalTeamRolesAPI:        kkClient.GetPortalTeamRolesAPI(),
 		PortalEmailsAPI:           kkClient.GetPortalEmailsAPI(),
+		PortalAuditLogsAPI:        kkClient.GetPortalAuditLogsAPI(),
 		AssetsAPI:                 kkClient.GetAssetsAPI(),
+		AuditLogDestinationsAPI:   kkClient.GetAuditLogDestinationsAPI(),
 
 		// API child resource APIs
 		APIVersionAPI:        kkClient.GetAPIVersionAPI(),
