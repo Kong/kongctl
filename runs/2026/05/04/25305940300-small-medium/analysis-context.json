@@ -1,0 +1,13 @@
+{
+  "schema_version": "kongctl.declarative-benchmark-analysis-context.v1",
+  "generated_at": "2026-05-04T07:15:29.269804755Z",
+  "run_id": "25305940300",
+  "run_url": "https://github.com/Kong/kongctl/actions/runs/25305940300",
+  "git_commit": "09622c4",
+  "has_regressions": false,
+  "min_history_samples": 3,
+  "history_sample_limit": 20,
+  "request_threshold": 0.05,
+  "duration_threshold": 0.5,
+  "regressions": []
+}
