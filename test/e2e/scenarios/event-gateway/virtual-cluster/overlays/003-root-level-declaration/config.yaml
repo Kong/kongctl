@@ -27,7 +27,7 @@ event_gateway_virtual_clusters:
     event_gateway: egw-cp-for-bc-vc-test
     description: "Virtual Cluster for Test"
     destination:
-      name: default-backend-cluster
+      id: !ref default-backend-cluster#id
     authentication:
       - type: anonymous
     acl_mode: passthrough

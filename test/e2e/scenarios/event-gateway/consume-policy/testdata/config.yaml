@@ -26,7 +26,7 @@ event_gateways:
         name: default-virtual-cluster-name-for-consume-policy-test
         description: "Virtual Cluster for Consume Policy Test"
         destination:
-          name: default-backend-cluster
+          id: !ref default-backend-cluster#id
         authentication:
          - type: anonymous
         acl_mode: enforce_on_gateway

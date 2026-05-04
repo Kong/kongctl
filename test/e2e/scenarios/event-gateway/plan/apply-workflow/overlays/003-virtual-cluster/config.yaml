@@ -25,7 +25,7 @@ event_gateways:
         name: plan-apply-virtual-cluster
         description: "Virtual cluster for plan apply workflow"
         destination:
-          name: plan-apply-backend-cluster #id: !ref plan-apply-backend-cluster#id
+          id: !ref plan-apply-backend-cluster#id
         authentication:
         - type: sasl_scram
           algorithm: sha512

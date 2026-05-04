@@ -26,7 +26,7 @@ event_gateways:
         name: default-virtual-cluster
         description: "Virtual Cluster for Test Updated"
         destination:
-          name: default-backend-cluster
+          id: !ref default-backend-cluster#id
         authentication:
           - type: sasl_plain
             mediation: passthrough
