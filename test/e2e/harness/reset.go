@@ -204,13 +204,13 @@ func deleteAll(
 			if preDeleteFn != nil {
 				preDeleteFn(ctx, session, deleteURL, token, id)
 			}
-			if err := retryDeleteOne(ctx, session, deleteURL, token, endpoint, id, policy); err != nil {
-				Warnf("delete %s %s failed: %v", endpoint, id, err)
+			if err := retryDeleteOne(ctx, session, deleteURL, token, deleteEndpoint, id, policy); err != nil {
+				Warnf("delete %s %s failed: %v", deleteEndpoint, id, err)
 				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 					conflicts++
 				}
 			} else {
-				Debugf("deleted %s %s", endpoint, id)
+				Debugf("deleted %s %s", deleteEndpoint, id)
 				deleted++
 			}
 		}
