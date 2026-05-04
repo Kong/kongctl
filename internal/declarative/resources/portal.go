@@ -31,8 +31,9 @@ type PortalResource struct {
 	Pages             []PortalPageResource                   `yaml:"pages,omitempty"              json:"pages,omitempty"`
 	Snippets          []PortalSnippetResource                `yaml:"snippets,omitempty"           json:"snippets,omitempty"` //nolint:lll
 	Teams             []PortalTeamResource                   `yaml:"teams,omitempty"              json:"teams,omitempty"`
-	EmailConfig       *PortalEmailConfigResource             `yaml:"email_config,omitempty"       json:"email_config,omitempty"`    //nolint:lll
-	EmailTemplates    map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty"    json:"email_templates,omitempty"` //nolint:lll
+	EmailConfig       *PortalEmailConfigResource             `yaml:"email_config,omitempty"       json:"email_config,omitempty"`     //nolint:lll
+	EmailTemplates    map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty"    json:"email_templates,omitempty"`  //nolint:lll
+	AuditLogWebhook   *PortalAuditLogWebhookResource         `yaml:"audit_log_webhook,omitempty" json:"audit_log_webhook,omitempty"` //nolint:lll
 
 	// Assets object containing logo and favicon (data URLs from !file tag)
 	Assets *PortalAssetsResource `yaml:"assets,omitempty" json:"assets,omitempty"`
@@ -186,6 +187,12 @@ func (p PortalResource) Validate() error {
 		}
 	}
 
+	if p.AuditLogWebhook != nil {
+		if err := p.AuditLogWebhook.Validate(); err != nil {
+			return fmt.Errorf("invalid audit log webhook: %w", err)
+		}
+	}
+
 	for key, tpl := range p.EmailTemplates {
 		if tpl.Name == "" {
 			tpl.Name = kkComps.EmailTemplateName(key)
@@ -250,6 +257,10 @@ func (p *PortalResource) SetDefaults() {
 	// Apply defaults to email config
 	if p.EmailConfig != nil {
 		p.EmailConfig.SetDefaults()
+	}
+
+	if p.AuditLogWebhook != nil {
+		p.AuditLogWebhook.SetDefaults()
 	}
 
 	// Apply defaults to teams
@@ -322,6 +333,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"teams",
 		"email_config",
 		"email_templates",
+		"audit_log_webhook",
 		"assets",
 		"_external",
 	}
@@ -430,6 +442,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		delete(raw, "email_templates")
 	}
 
+	if v, ok := raw["audit_log_webhook"]; ok {
+		if err := json.Unmarshal(v, &p.AuditLogWebhook); err != nil {
+			return err
+		}
+		delete(raw, "audit_log_webhook")
+	}
+
 	if v, ok := raw["assets"]; ok {
 		if err := json.Unmarshal(v, &p.Assets); err != nil {
 			return err
@@ -492,8 +511,9 @@ type portalAlias struct {
 	Pages             []PortalPageResource                   `json:"pages,omitempty"              yaml:"pages,omitempty"`
 	Snippets          []PortalSnippetResource                `json:"snippets,omitempty"           yaml:"snippets,omitempty"` //nolint:lll
 	Teams             []PortalTeamResource                   `json:"teams,omitempty"              yaml:"teams,omitempty"`
-	EmailConfig       *PortalEmailConfigResource             `json:"email_config,omitempty"       yaml:"email_config,omitempty"`    //nolint:lll
-	EmailTemplates    map[string]PortalEmailTemplateResource `json:"email_templates,omitempty"    yaml:"email_templates,omitempty"` //nolint:lll
+	EmailConfig       *PortalEmailConfigResource             `json:"email_config,omitempty"       yaml:"email_config,omitempty"`      //nolint:lll
+	EmailTemplates    map[string]PortalEmailTemplateResource `json:"email_templates,omitempty"    yaml:"email_templates,omitempty"`   //nolint:lll
+	AuditLogWebhook   *PortalAuditLogWebhookResource         `json:"audit_log_webhook,omitempty"  yaml:"audit_log_webhook,omitempty"` //nolint:lll
 	Assets            *PortalAssetsResource                  `json:"assets,omitempty"             yaml:"assets,omitempty"`
 	External          *ExternalBlock                         `json:"_external,omitempty"          yaml:"_external,omitempty"` //nolint:lll
 }
@@ -515,6 +535,7 @@ func (p PortalResource) portalAlias() portalAlias {
 		Teams:             p.Teams,
 		EmailConfig:       p.EmailConfig,
 		EmailTemplates:    p.EmailTemplates,
+		AuditLogWebhook:   p.AuditLogWebhook,
 		Assets:            p.Assets,
 		External:          p.External,
 	}

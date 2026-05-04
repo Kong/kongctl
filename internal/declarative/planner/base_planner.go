@@ -135,6 +135,11 @@ func (b *BasePlanner) GetDesiredPortalEmailConfigs(namespace string) []resources
 	return b.planner.resources.GetPortalEmailConfigsByNamespace(namespace)
 }
 
+// GetDesiredPortalAuditLogWebhooks returns desired portal audit-log webhook resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalAuditLogWebhooks(namespace string) []resources.PortalAuditLogWebhookResource {
+	return b.planner.resources.GetPortalAuditLogWebhooksByNamespace(namespace)
+}
+
 // GetDesiredPortalPages returns desired portal page resources from the specified namespace
 func (b *BasePlanner) GetDesiredPortalPages(namespace string) []resources.PortalPageResource {
 	return b.planner.resources.GetPortalPagesByNamespace(namespace)

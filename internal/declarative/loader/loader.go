@@ -898,6 +898,13 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalEmailConfigs = append(rs.PortalEmailConfigs, cfg)
 		}
 
+		// Extract audit-log webhook (singleton)
+		if portal.AuditLogWebhook != nil {
+			webhook := *portal.AuditLogWebhook
+			webhook.Portal = portal.Ref
+			rs.PortalAuditLogWebhooks = append(rs.PortalAuditLogWebhooks, webhook)
+		}
+
 		// Extract email templates (map keyed by template name)
 		for key, tpl := range portal.EmailTemplates {
 			if tpl.Name == "" {
@@ -920,6 +927,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		portal.Snippets = nil
 		portal.Teams = nil
 		portal.EmailConfig = nil
+		portal.AuditLogWebhook = nil
 		portal.EmailTemplates = nil
 	}
 

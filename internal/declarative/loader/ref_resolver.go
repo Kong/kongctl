@@ -241,6 +241,24 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.PortalAuditLogWebhooks {
+		if err := resolveResourceFields(
+			ctx,
+			&rs.PortalAuditLogWebhooks[i],
+			rs,
+			resolver,
+			resolutionPath,
+			logger,
+		); err != nil {
+			return fmt.Errorf(
+				"resolving portal audit log webhook %s: %w",
+				rs.PortalAuditLogWebhooks[i].GetRef(),
+				err,
+			)
+		}
+		processCount++
+	}
+
 	for i := range rs.GatewayServices {
 		if err := resolveResourceFields(ctx, &rs.GatewayServices[i], rs, resolver, resolutionPath, logger); err != nil {
 			return fmt.Errorf("resolving gateway service %s: %w", rs.GatewayServices[i].GetRef(), err)

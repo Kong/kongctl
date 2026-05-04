@@ -46,7 +46,11 @@ type ClientConfig struct {
 	PortalTeamAPI             helpers.PortalTeamAPI
 	PortalTeamRolesAPI        helpers.PortalTeamRolesAPI
 	PortalEmailsAPI           helpers.PortalEmailsAPI
+	PortalAuditLogsAPI        helpers.PortalAuditLogsAPI
 	AssetsAPI                 helpers.AssetsAPI
+
+	// Organization-scoped support resources
+	AuditLogDestinationsAPI helpers.AuditLogDestinationsAPI
 
 	// API child resource APIs
 	APIVersionAPI        helpers.APIVersionAPI
@@ -96,7 +100,11 @@ type Client struct {
 	portalTeamAPI             helpers.PortalTeamAPI
 	portalTeamRolesAPI        helpers.PortalTeamRolesAPI
 	portalEmailsAPI           helpers.PortalEmailsAPI
+	portalAuditLogsAPI        helpers.PortalAuditLogsAPI
 	assetsAPI                 helpers.AssetsAPI
+
+	// Organization-scoped support resources
+	auditLogDestinationsAPI helpers.AuditLogDestinationsAPI
 
 	// API child resource APIs
 	apiVersionAPI        helpers.APIVersionAPI
@@ -147,7 +155,9 @@ func NewClient(config ClientConfig) *Client {
 		portalTeamAPI:             config.PortalTeamAPI,
 		portalTeamRolesAPI:        config.PortalTeamRolesAPI,
 		portalEmailsAPI:           config.PortalEmailsAPI,
+		portalAuditLogsAPI:        config.PortalAuditLogsAPI,
 		assetsAPI:                 config.AssetsAPI,
+		auditLogDestinationsAPI:   config.AuditLogDestinationsAPI,
 
 		// API child resource APIs
 		apiVersionAPI:        config.APIVersionAPI,
@@ -252,6 +262,17 @@ type PortalEmailTemplateContent struct {
 	Title       *string
 	Body        *string
 	ButtonLabel *string
+}
+
+// AuditLogWebhookDestination represents a Konnect audit-log webhook destination.
+type AuditLogWebhookDestination struct {
+	ID                  string
+	Name                string
+	Endpoint            string
+	LogFormat           string
+	SkipSSLVerification *bool
+	CreatedAt           string
+	UpdatedAt           string
 }
 
 // APIDocument represents an API document for internal use
@@ -2996,6 +3017,100 @@ func (c *Client) DeletePortalEmailConfig(ctx context.Context, portalID string) e
 	if _, err := c.portalEmailsAPI.DeletePortalEmailConfig(ctx, portalID); err != nil {
 		return WrapAPIError(err, "delete portal email config", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalEmailConfig),
+			ResourceName: portalID,
+		})
+	}
+	return nil
+}
+
+// ListAuditLogWebhookDestinations returns organization audit-log webhook destinations.
+func (c *Client) ListAuditLogWebhookDestinations(ctx context.Context) ([]AuditLogWebhookDestination, error) {
+	if err := ValidateAPIClient(c.auditLogDestinationsAPI, "audit log destinations API"); err != nil {
+		return nil, err
+	}
+
+	destinations, err := c.auditLogDestinationsAPI.ListAuditLogDestinations(ctx)
+	if err != nil {
+		return nil, WrapAPIError(err, "list audit-log webhook destinations", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAuditLogWebhookDestination),
+			UseEnhanced:  true,
+		})
+	}
+
+	result := make([]AuditLogWebhookDestination, len(destinations))
+	for i, destination := range destinations {
+		result[i] = AuditLogWebhookDestination{
+			ID:                  destination.ID,
+			Name:                destination.Name,
+			Endpoint:            destination.Endpoint,
+			LogFormat:           destination.LogFormat,
+			SkipSSLVerification: destination.SkipSSLVerification,
+			CreatedAt:           destination.CreatedAt,
+			UpdatedAt:           destination.UpdatedAt,
+		}
+	}
+	return result, nil
+}
+
+// GetPortalAuditLogWebhook fetches the current audit-log webhook configuration
+// for a portal.
+func (c *Client) GetPortalAuditLogWebhook(
+	ctx context.Context,
+	portalID string,
+) (*kkComps.PortalAuditLogWebhook, error) {
+	if err := ValidateAPIClient(c.portalAuditLogsAPI, "portal audit logs API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalAuditLogsAPI.GetPortalAuditLogWebhook(ctx, portalID)
+	if err != nil {
+		var notFound *kkErrors.NotFoundError
+		if errors.As(err, &notFound) {
+			return nil, nil
+		}
+		return nil, WrapAPIError(err, "get portal audit-log webhook", nil)
+	}
+
+	if resp == nil {
+		return nil, NewResponseValidationError("get portal audit-log webhook", "PortalAuditLogWebhook")
+	}
+
+	return resp.PortalAuditLogWebhook, nil
+}
+
+// UpdatePortalAuditLogWebhook updates the audit-log webhook configuration for a portal.
+func (c *Client) UpdatePortalAuditLogWebhook(
+	ctx context.Context,
+	portalID string,
+	body *kkComps.UpdatePortalAuditLogWebhook,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalAuditLogsAPI, "portal audit logs API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalAuditLogsAPI.UpdatePortalAuditLogWebhook(ctx, portalID, body)
+	if err != nil {
+		return "", WrapAPIError(err, "update portal audit-log webhook", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalAuditLogWebhook),
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.PortalAuditLogWebhook == nil {
+		return "", NewResponseValidationError("update portal audit-log webhook", "PortalAuditLogWebhook")
+	}
+	return portalID, nil
+}
+
+// DeletePortalAuditLogWebhook deletes the audit-log webhook configuration for a portal.
+func (c *Client) DeletePortalAuditLogWebhook(ctx context.Context, portalID string) error {
+	if err := ValidateAPIClient(c.portalAuditLogsAPI, "portal audit logs API"); err != nil {
+		return err
+	}
+
+	if _, err := c.portalAuditLogsAPI.DeletePortalAuditLogWebhook(ctx, portalID); err != nil {
+		return WrapAPIError(err, "delete portal audit-log webhook", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalAuditLogWebhook),
 			ResourceName: portalID,
 		})
 	}

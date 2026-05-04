@@ -93,6 +93,7 @@ type Planner struct {
 	desiredPortalAssetFavicons     []resources.PortalAssetFaviconResource
 	desiredPortalEmailConfigs      []resources.PortalEmailConfigResource
 	desiredPortalEmailTemplates    []resources.PortalEmailTemplateResource
+	desiredPortalAuditLogWebhooks  []resources.PortalAuditLogWebhookResource
 }
 
 // NewPlanner creates a new planner
@@ -236,6 +237,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalAssetFavicons = rs.PortalAssetFavicons
 		namespacePlanner.desiredPortalEmailConfigs = rs.PortalEmailConfigs
 		namespacePlanner.desiredPortalEmailTemplates = rs.PortalEmailTemplates
+		namespacePlanner.desiredPortalAuditLogWebhooks = rs.PortalAuditLogWebhooks
 
 		// Create a plan for this namespace
 		namespacePlan := NewPlan("1.0", generator, opts.Mode)
@@ -786,6 +788,10 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve gateway service identities: %w", err)
 	}
 
+	if err := p.resolveAuditLogWebhookDestinationIdentities(ctx, rs.AuditLogs.Destinations); err != nil {
+		return fmt.Errorf("failed to resolve audit log webhook destination identities: %w", err)
+	}
+
 	if err := p.resolveAPIImplementationServiceReferences(rs); err != nil {
 		return fmt.Errorf("failed to resolve API implementation services: %w", err)
 	}
@@ -1179,6 +1185,102 @@ func (p *Planner) resolveGatewayServiceIdentities(
 	}
 
 	return nil
+}
+
+func (p *Planner) resolveAuditLogWebhookDestinationIdentities(
+	ctx context.Context,
+	destinations []resources.AuditLogWebhookDestinationResource,
+) error {
+	if len(destinations) == 0 {
+		return nil
+	}
+
+	available, err := p.client.ListAuditLogWebhookDestinations(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list audit-log webhook destinations: %w", err)
+	}
+
+	for i := range destinations {
+		destination := &destinations[i]
+		if destination.GetKonnectID() != "" {
+			continue
+		}
+
+		match, err := matchAuditLogWebhookDestination(destination, available)
+		if err != nil {
+			return err
+		}
+
+		if !destination.TryMatchKonnectResource(match) {
+			return fmt.Errorf("audit_log_webhook_destination %s: failed to bind Konnect resource", destination.GetRef())
+		}
+
+		p.logger.Debug("Resolved external audit-log webhook destination",
+			slog.String("ref", destination.GetRef()),
+			slog.String("destination_id", destination.GetKonnectID()),
+			slog.String("name", match.Name),
+		)
+	}
+
+	return nil
+}
+
+func matchAuditLogWebhookDestination(
+	destination *resources.AuditLogWebhookDestinationResource,
+	available []state.AuditLogWebhookDestination,
+) (state.AuditLogWebhookDestination, error) {
+	if destination == nil || destination.External == nil {
+		return state.AuditLogWebhookDestination{}, fmt.Errorf("audit_log_webhook_destination requires _external")
+	}
+
+	if destination.External.ID != "" {
+		for _, candidate := range available {
+			if candidate.ID == destination.External.ID {
+				return candidate, nil
+			}
+		}
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"external audit_log_webhook_destination not found with ID: %s",
+			destination.External.ID,
+		)
+	}
+
+	if destination.External.Selector == nil {
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"external audit_log_webhook_destination %s requires selector or id",
+			destination.GetRef(),
+		)
+	}
+
+	name, ok := destination.External.Selector.MatchFields[FieldName]
+	if !ok {
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"external audit_log_webhook_destination %s: only 'name' field selector is currently supported",
+			destination.GetRef(),
+		)
+	}
+
+	matches := make([]state.AuditLogWebhookDestination, 0, 1)
+	for _, candidate := range available {
+		if candidate.Name == name {
+			matches = append(matches, candidate)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"external audit_log_webhook_destination not found with name: %s",
+			name,
+		)
+	case 1:
+		return matches[0], nil
+	default:
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"multiple audit_log_webhook_destination resources matched name %q; use _external.id",
+			name,
+		)
+	}
 }
 
 func (p *Planner) resolveGatewayServiceControlPlaneID(

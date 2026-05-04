@@ -1,0 +1,18 @@
+portals:
+  - ref: developer-portal
+    name: "Developer Portal"
+    display_name: "Developer Portal"
+    authentication_enabled: false
+    rbac_enabled: false
+    audit_log_webhook:
+      ref: developer-portal-audit-log-webhook
+      enabled: true
+      audit_log_destination_id: !ref audit-log-destination
+
+audit-logs:
+  destinations:
+    - ref: audit-log-destination
+      _external:
+        selector:
+          matchFields:
+            name: production-audit-log-webhook

@@ -493,6 +493,37 @@ Notes:
 - Plans represent deck resolution targets explicitly via `post_resolution_targets` on the `_deck` change entry,
   including control plane identifiers and the gateway service selector.
 
+#### Portal Audit Log Webhooks
+
+Portal audit-log webhooks can reference organization audit-log destinations
+that are managed outside kongctl. Declare those destinations under
+`audit-logs.destinations` with `_external`, then reference them from a portal
+webhook with `!ref`.
+
+```yaml
+portals:
+  - ref: docs-portal
+    name: Docs Portal
+    audit_log_webhook:
+      ref: docs-portal-audit-log-webhook
+      enabled: true
+      audit_log_destination_id: !ref foo
+
+audit-logs:
+  destinations:
+    - ref: foo
+      _external:
+        selector:
+          matchFields:
+            name: foo
+```
+
+`audit-logs.destinations` supports `_external.id` and
+`_external.selector.matchFields.name`. Destination resources cannot declare
+`kongctl` metadata and are not created, updated, or deleted by declarative
+apply. In sync mode, omitting `audit_log_webhook` from a managed portal removes
+the portal webhook configuration; external portals are not deleted this way.
+
 #### Namespace Enforcement Flags
 
 The `kongctl plan` command provides built-in namespace guardrails:

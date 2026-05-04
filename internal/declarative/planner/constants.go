@@ -80,6 +80,7 @@ const (
 	FieldAPIID                        = "api_id"
 	FieldAuthStrategyIDs              = "auth_strategy_ids"
 	FieldAuthStrategyType             = "strategy_type"
+	FieldAuditLogDestinationID        = "audit_log_destination_id"
 	FieldControlPlaneID               = "control_plane_id"
 	FieldControlPlaneName             = "control_plane_name"
 	FieldControlPlaneRef              = "control_plane_ref"
@@ -182,19 +183,21 @@ const (
 	ResourceTypeControlPlaneDataPlaneCertificate = string(resources.ResourceTypeControlPlaneDataPlaneCertificate)
 	ResourceTypeCatalogService                   = string(resources.ResourceTypeCatalogService)
 
-	ResourceTypePortalCustomization    = string(resources.ResourceTypePortalCustomization)
-	ResourceTypePortalCustomDomain     = string(resources.ResourceTypePortalCustomDomain)
-	ResourceTypePortalAuthSettings     = string(resources.ResourceTypePortalAuthSettings)
-	ResourceTypePortalIntegration      = string(resources.ResourceTypePortalIntegration)
-	ResourceTypePortalIdentityProvider = string(resources.ResourceTypePortalIdentityProvider)
-	ResourceTypePortalPage             = string(resources.ResourceTypePortalPage)
-	ResourceTypePortalSnippet          = string(resources.ResourceTypePortalSnippet)
-	ResourceTypePortalTeam             = string(resources.ResourceTypePortalTeam)
-	ResourceTypePortalTeamRole         = string(resources.ResourceTypePortalTeamRole)
-	ResourceTypePortalAssetLogo        = string(resources.ResourceTypePortalAssetLogo)
-	ResourceTypePortalAssetFavicon     = string(resources.ResourceTypePortalAssetFavicon)
-	ResourceTypePortalEmailConfig      = string(resources.ResourceTypePortalEmailConfig)
-	ResourceTypePortalEmailTemplate    = string(resources.ResourceTypePortalEmailTemplate)
+	ResourceTypePortalCustomization        = string(resources.ResourceTypePortalCustomization)
+	ResourceTypePortalCustomDomain         = string(resources.ResourceTypePortalCustomDomain)
+	ResourceTypePortalAuthSettings         = string(resources.ResourceTypePortalAuthSettings)
+	ResourceTypePortalIntegration          = string(resources.ResourceTypePortalIntegration)
+	ResourceTypePortalIdentityProvider     = string(resources.ResourceTypePortalIdentityProvider)
+	ResourceTypePortalPage                 = string(resources.ResourceTypePortalPage)
+	ResourceTypePortalSnippet              = string(resources.ResourceTypePortalSnippet)
+	ResourceTypePortalTeam                 = string(resources.ResourceTypePortalTeam)
+	ResourceTypePortalTeamRole             = string(resources.ResourceTypePortalTeamRole)
+	ResourceTypePortalAssetLogo            = string(resources.ResourceTypePortalAssetLogo)
+	ResourceTypePortalAssetFavicon         = string(resources.ResourceTypePortalAssetFavicon)
+	ResourceTypePortalEmailConfig          = string(resources.ResourceTypePortalEmailConfig)
+	ResourceTypePortalEmailTemplate        = string(resources.ResourceTypePortalEmailTemplate)
+	ResourceTypePortalAuditLogWebhook      = string(resources.ResourceTypePortalAuditLogWebhook)
+	ResourceTypeAuditLogWebhookDestination = string(resources.ResourceTypeAuditLogWebhookDestination)
 
 	ResourceTypeEventGatewayControlPlane         = string(resources.ResourceTypeEventGatewayControlPlane)
 	ResourceTypeEventGatewayBackendCluster       = string(resources.ResourceTypeEventGatewayBackendCluster)
