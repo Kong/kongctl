@@ -506,6 +506,54 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	return result
 }
 
+// effectiveDependsOn returns the full set of change IDs that change depends on.
+// It merges explicit DependsOn entries with implicit dependencies derived from
+// reference placeholders (__REF__:...) and unresolved parent references.
+func effectiveDependsOn(change *planner.PlannedChange, refToChangeID map[string]string) []string {
+	seen := make(map[string]bool, len(change.DependsOn))
+	deps := make([]string, 0, len(change.DependsOn))
+
+	add := func(id string) {
+		if id != "" && !seen[id] {
+			seen[id] = true
+			deps = append(deps, id)
+		}
+	}
+
+	for _, id := range change.DependsOn {
+		add(id)
+	}
+
+	// Implicit deps from reference placeholders in References map
+	for _, ref := range change.References {
+		if tags.IsRefPlaceholder(ref.Ref) {
+			if resourceRef, _, ok := tags.ParseRefPlaceholder(ref.Ref); ok {
+				if changeID, exists := refToChangeID[resourceRef]; exists {
+					add(changeID)
+				}
+			}
+		}
+		for _, r := range ref.Refs {
+			if tags.IsRefPlaceholder(r) {
+				if resourceRef, _, ok := tags.ParseRefPlaceholder(r); ok {
+					if changeID, exists := refToChangeID[resourceRef]; exists {
+						add(changeID)
+					}
+				}
+			}
+		}
+	}
+
+	// Implicit dep from an unresolved parent in the same plan
+	if change.Parent != nil && unresolvedReferenceID(change.Parent.ID) {
+		if changeID, exists := refToChangeID[change.Parent.Ref]; exists {
+			add(changeID)
+		}
+	}
+
+	return deps
+}
+
 // executeParallel runs plan changes concurrently, respecting DependsOn ordering,
 // with at most e.parallelism operations in flight simultaneously.
 func (e *Executor) executeParallel(ctx context.Context, plan *planner.Plan, result *ExecutionResult) {
@@ -513,6 +561,12 @@ func (e *Executor) executeParallel(ctx context.Context, plan *planner.Plan, resu
 	changeByID := make(map[string]*planner.PlannedChange, len(plan.Changes))
 	for i := range plan.Changes {
 		changeByID[plan.Changes[i].ID] = &plan.Changes[i]
+	}
+
+	// Build a map from resource_ref to change ID for implicit dependency resolution
+	refToChangeID := make(map[string]string, len(plan.Changes))
+	for i := range plan.Changes {
+		refToChangeID[plan.Changes[i].ResourceRef] = plan.Changes[i].ID
 	}
 
 	// Create done channels for each change to signal completion to dependents
@@ -543,11 +597,11 @@ func (e *Executor) executeParallel(ctx context.Context, plan *planner.Plan, resu
 		}
 
 		wg.Add(1)
-		go func(idx int, chID string, ch *planner.PlannedChange) {
+		go func(idx int, chID string, ch *planner.PlannedChange, deps []string) {
 			defer wg.Done()
 
 			// Wait for all dependencies to signal completion
-			for _, depID := range ch.DependsOn {
+			for _, depID := range deps {
 				if depDone, ok := done[depID]; ok {
 					<-depDone
 				}
@@ -556,7 +610,7 @@ func (e *Executor) executeParallel(ctx context.Context, plan *planner.Plan, resu
 			// If any dependency failed, skip this change
 			e.mu.Lock()
 			depsFailed := false
-			for _, depID := range ch.DependsOn {
+			for _, depID := range deps {
 				if !succeeded[depID] {
 					depsFailed = true
 					break
@@ -584,7 +638,7 @@ func (e *Executor) executeParallel(ctx context.Context, plan *planner.Plan, resu
 			e.mu.Unlock()
 
 			close(done[chID])
-		}(i, changeID, change)
+		}(i, changeID, change, effectiveDependsOn(change, refToChangeID))
 	}
 
 	wg.Wait()
