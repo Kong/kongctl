@@ -62,10 +62,8 @@ func (d AuditLogWebhookDestinationResource) Validate() error {
 	}
 
 	if d.External.Selector != nil {
-		if len(d.External.Selector.MatchFields) != 1 {
-			return fmt.Errorf("audit_log_webhook_destination %s: selector supports matchFields.name only", d.Ref)
-		}
-		if _, ok := d.External.Selector.MatchFields["name"]; !ok {
+		_, hasName := d.External.Selector.MatchFields["name"]
+		if len(d.External.Selector.MatchFields) != 1 || !hasName {
 			return fmt.Errorf("audit_log_webhook_destination %s: selector supports matchFields.name only", d.Ref)
 		}
 	}
