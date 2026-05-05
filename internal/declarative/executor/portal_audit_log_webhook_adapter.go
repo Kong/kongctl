@@ -86,7 +86,7 @@ func (a *PortalAuditLogWebhookAdapter) GetByID(
 ) (ResourceInfo, error) {
 	portalID, err := a.portalIDWithFallback(execCtx, id)
 	if err != nil {
-		return nil, fmt.Errorf("portal ID is required to fetch portal audit-log webhook")
+		return nil, fmt.Errorf("portal ID is required to fetch portal audit-log webhook: %w", err)
 	}
 
 	webhook, err := a.client.GetPortalAuditLogWebhook(ctx, portalID)
