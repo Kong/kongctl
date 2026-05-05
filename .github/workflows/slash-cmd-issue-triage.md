@@ -8,6 +8,7 @@ on:
     events: [issues]
     remove_label: false
   reaction: eyes
+  roles: [admin, maintainer, write]
 
 timeout-minutes: 10
 source: githubnext/agentics/workflows/issue-triage.md@69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb
@@ -35,9 +36,7 @@ tools:
   web-fetch:
   github:
     toolsets: [default]
-    min-integrity: approved
-    approval-labels:
-      - triage-approved
+    min-integrity: none
 ---
 
 # Requested Issue Triage
