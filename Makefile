@@ -23,6 +23,10 @@ patch-gh-aw-maintenance: patch-gh-aw-workflows
 patch-gh-aw-workflows:
 	bash scripts/patch-gh-aw-maintenance.sh
 
+.PHONY: milestone-pulse
+milestone-pulse:
+	bash scripts/milestone-pulse.sh
+
 .PHONY: mod
 mod:
 	go mod tidy
