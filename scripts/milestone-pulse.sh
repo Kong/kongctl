@@ -134,6 +134,8 @@ shipped_map_file="${work_dir}/shipped-map.json"
 snapshot_file="${data_dir}/${snapshot_date}.json"
 latest_file="${data_dir}/latest.json"
 history_file="${work_dir}/history.json"
+seed_history_file="${data_dir}/history.json"
+snapshot_index_file="${data_dir}/snapshots.json"
 mkdir -p "${issues_dir}" "${prs_dir}"
 
 echo "Fetching ${milestone_state} milestones for ${repo}..."
@@ -370,6 +372,7 @@ jq -n \
 
 cp "${snapshot_file}" "${latest_file}"
 
+dated_history_file="${work_dir}/dated-history.json"
 history_files="$(find "${data_dir}" -maxdepth 1 -type f -name '????-??-??.json' -print | sort)"
 if [ -n "${history_files}" ]; then
   # shellcheck disable=SC2086
@@ -394,10 +397,38 @@ if [ -n "${history_files}" ]; then
             }
         ]
       })
-  ' ${history_files} > "${history_file}"
+  ' ${history_files} > "${dated_history_file}"
 else
-  jq -n '[]' > "${history_file}"
+  jq -n '[]' > "${dated_history_file}"
 fi
+
+if [ -f "${seed_history_file}" ] && jq -e 'type == "array"' "${seed_history_file}" >/dev/null; then
+  jq -s '
+    add
+    | group_by(.snapshot_date)
+    | map(sort_by(.generated_at // "") | .[-1])
+    | sort_by(.snapshot_date)
+  ' "${seed_history_file}" "${dated_history_file}" > "${history_file}"
+else
+  if [ -f "${seed_history_file}" ]; then
+    echo "Ignoring invalid Pulse history file: ${seed_history_file}" >&2
+  fi
+  cp "${dated_history_file}" "${history_file}"
+fi
+
+seed_history_tmp="$(mktemp "${data_dir}/history.XXXXXX")"
+cp "${history_file}" "${seed_history_tmp}"
+mv "${seed_history_tmp}" "${seed_history_file}"
+
+snapshot_index_tmp="$(mktemp "${data_dir}/snapshots.XXXXXX")"
+find "${data_dir}" -maxdepth 1 -type f -name '????-??-??.json' -print \
+  | sort \
+  | while IFS= read -r snapshot_path; do
+      basename "${snapshot_path}"
+    done \
+  | jq -R '{snapshot_date: sub("\\.json$"; ""), path: .}' \
+  | jq -s '.' > "${snapshot_index_tmp}"
+mv "${snapshot_index_tmp}" "${snapshot_index_file}"
 
 write_html() {
   local target="$1"

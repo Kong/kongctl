@@ -6,10 +6,14 @@ GitHub milestones. It produces:
 - a portfolio page at `docs/reports/milestones/index.html`
 - one `<Milestone> Pulse` page per current milestone
 - a Markdown digest at `docs/reports/milestones/latest.md`
-- daily JSON snapshots in `docs/reports/milestones/data/`
+- JSON report data in `docs/reports/milestones/data/`, including the latest
+  full snapshot and compact chart history
 
-The scheduled `kongctl Pulse` GitHub Actions workflow refreshes these files
-daily. Run it locally with:
+The scheduled `kongctl Pulse` GitHub Actions workflow refreshes and publishes
+the report daily through GitHub Pages. It hydrates prior chart history from the
+previously published Pages data before generating the next report, so it does
+not need to push generated commits directly to protected branches. Run it
+locally with:
 
 ```sh
 scripts/milestone-pulse.sh --repo Kong/kongctl

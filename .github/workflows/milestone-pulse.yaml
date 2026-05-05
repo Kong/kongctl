@@ -15,7 +15,7 @@ on:
     - cron: "0 8 * * *"
 
 permissions:
-  contents: write
+  contents: read
   issues: read
   id-token: write
   pages: write
@@ -74,6 +74,47 @@ jobs:
         if: steps.schedule-gate.outputs.run == 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Hydrate Pulse history from Pages
+        if: steps.schedule-gate.outputs.run == 'true' && github.ref == 'refs/heads/main'
+        env:
+          MILESTONE_PULSE_HISTORY_URL: ${{ vars.MILESTONE_PULSE_HISTORY_URL }}
+        run: |
+          set -euo pipefail
+
+          data_dir="docs/reports/milestones/data"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          default_history_url="https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}/docs/reports/milestones/data"
+          history_url="${MILESTONE_PULSE_HISTORY_URL:-${default_history_url}}"
+          history_url="${history_url%/}"
+
+          mkdir -p "${data_dir}"
+
+          snapshot_index="$(mktemp)"
+          if curl -fsSL "${history_url}/snapshots.json" -o "${snapshot_index}"; then
+            if jq -e 'type == "array"' "${snapshot_index}" >/dev/null; then
+              jq -r '.[] | objects | .path // empty' "${snapshot_index}" \
+                | while IFS= read -r snapshot_path; do
+                    case "${snapshot_path}" in
+                      ????-??-??.json)
+                        curl -fsSL "${history_url}/${snapshot_path}" -o "${data_dir}/${snapshot_path}" || true
+                        ;;
+                    esac
+                  done
+            else
+              echo "Ignoring invalid Pulse snapshot index at ${history_url}/snapshots.json."
+            fi
+          else
+            echo "No published Pulse snapshot index found at ${history_url}/snapshots.json."
+          fi
+          rm -f "${snapshot_index}"
+
+          if curl -fsSL "${history_url}/history.json" -o "${data_dir}/history.json"; then
+            jq empty "${data_dir}/history.json"
+          else
+            rm -f "${data_dir}/history.json"
+            echo "No published Pulse history found at ${history_url}/history.json."
+          fi
+
       - name: Generate kongctl Pulse
         if: steps.schedule-gate.outputs.run == 'true'
         env:
@@ -83,23 +124,6 @@ jobs:
         run: |
           set -euo pipefail
           scripts/milestone-pulse.sh --repo "${GITHUB_REPOSITORY}" --state "${MILESTONE_PULSE_STATE}"
-
-      - name: Commit refreshed pulses
-        if: steps.schedule-gate.outputs.run == 'true' && github.ref == 'refs/heads/main'
-        run: |
-          set -euo pipefail
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/reports/milestones
-
-          if git diff --cached --quiet; then
-            echo "No kongctl Pulse changes to commit."
-            exit 0
-          fi
-
-          git commit -m "docs: refresh kongctl pulse"
-          git push
 
       - name: Write workflow summary
         if: always() && steps.schedule-gate.outputs.run == 'true'
