@@ -1,7 +1,7 @@
 {
   "repo": "Kong/kongctl",
   "milestone_state": "open",
-  "generated_at": "2026-05-05T20:55:34Z",
+  "generated_at": "2026-05-05T21:18:43Z",
   "snapshot_date": "2026-05-05",
   "milestones": [
     {
@@ -12,7 +12,7 @@
       "state": "open",
       "html_url": "https://github.com/Kong/kongctl/milestone/3",
       "created_at": "2026-04-01T18:17:52Z",
-      "updated_at": "2026-05-04T16:56:45Z",
+      "updated_at": "2026-05-05T20:59:44Z",
       "due_on": "2026-05-18T00:00:00Z",
       "closed_at": null,
       "days_remaining": 13,
@@ -59,30 +59,6 @@
             "konnect"
           ],
           "assignees": []
-        },
-        {
-          "number": 862,
-          "title": "Feat: Portal Audit Log Webhook resource support",
-          "state": "open",
-          "html_url": "https://github.com/Kong/kongctl/issues/862",
-          "created_at": "2026-04-22T14:05:15Z",
-          "updated_at": "2026-05-03T02:28:05Z",
-          "closed_at": null,
-          "kind": "issue",
-          "merged_at": null,
-          "base_ref": null,
-          "author": null,
-          "linked_issue_numbers": [],
-          "labels": [
-            "enhancement",
-            "triaged",
-            "medium-priority",
-            "declarative",
-            "konnect"
-          ],
-          "assignees": [
-            "rspurgeon"
-          ]
         },
         {
           "number": 462,
@@ -431,6 +407,30 @@
           "labels": [
             "bug",
             "triaged"
+          ],
+          "assignees": [
+            "rspurgeon"
+          ]
+        },
+        {
+          "number": 862,
+          "title": "Feat: Portal Audit Log Webhook resource support",
+          "state": "closed",
+          "html_url": "https://github.com/Kong/kongctl/issues/862",
+          "created_at": "2026-04-22T14:05:15Z",
+          "updated_at": "2026-05-05T20:59:44Z",
+          "closed_at": "2026-05-05T20:59:44Z",
+          "kind": "issue",
+          "merged_at": null,
+          "base_ref": null,
+          "author": null,
+          "linked_issue_numbers": [],
+          "labels": [
+            "enhancement",
+            "triaged",
+            "medium-priority",
+            "declarative",
+            "konnect"
           ],
           "assignees": [
             "rspurgeon"
@@ -1425,27 +1425,27 @@
         }
       ],
       "total_items": 49,
-      "open_items": 19,
-      "closed_items": 30,
+      "open_items": 18,
+      "closed_items": 31,
       "issue_items": 48,
       "pull_request_items": 1,
       "open_high_priority": 2,
-      "open_medium_priority": 12,
+      "open_medium_priority": 11,
       "open_bugs": 1,
       "open_unassigned": 2,
       "stale_open": 4,
-      "completion_percent": 61.22
+      "completion_percent": 63.27
     }
   ],
   "totals": {
     "milestones": 1,
     "total_items": 49,
-    "open_items": 19,
-    "closed_items": 30,
+    "open_items": 18,
+    "closed_items": 31,
     "open_high_priority": 2,
     "open_bugs": 1,
     "open_unassigned": 2,
     "stale_open": 4,
-    "completion_percent": 61.22
+    "completion_percent": 63.27
   }
 }
