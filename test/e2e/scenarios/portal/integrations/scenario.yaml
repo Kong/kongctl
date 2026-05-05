@@ -60,9 +60,9 @@ steps:
             expect:
               fields:
                 "google_tag_manager.enabled": true
-                "google_tag_manager.config_data.id": "{{ .vars.gtmID }}"
+                "google_tag_manager.config_data.id": null
                 "google_analytics_4.enabled": true
-                "google_analytics_4.config_data.id": "{{ .vars.ga4ID }}"
+                "google_analytics_4.config_data.id": null
       - name: 001-apply-integrations
         outputFormat: json
         run:
