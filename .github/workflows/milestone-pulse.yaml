@@ -85,7 +85,7 @@ jobs:
           scripts/milestone-pulse.sh --repo "${GITHUB_REPOSITORY}" --state "${MILESTONE_PULSE_STATE}"
 
       - name: Commit refreshed pulses
-        if: steps.schedule-gate.outputs.run == 'true'
+        if: steps.schedule-gate.outputs.run == 'true' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
 
@@ -119,7 +119,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Prepare GitHub Pages site
-        if: steps.schedule-gate.outputs.run == 'true'
+        if: steps.schedule-gate.outputs.run == 'true' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
 
@@ -145,18 +145,18 @@ jobs:
           HTML
 
       - name: Configure GitHub Pages
-        if: steps.schedule-gate.outputs.run == 'true'
+        if: steps.schedule-gate.outputs.run == 'true' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
       - name: Upload GitHub Pages artifact
-        if: steps.schedule-gate.outputs.run == 'true'
+        if: steps.schedule-gate.outputs.run == 'true' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: _site
 
   deploy-pages:
     name: Publish kongctl Pulse Pages
-    if: needs.milestone-pulse.outputs.should-run == 'true'
+    if: needs.milestone-pulse.outputs.should-run == 'true' && github.ref == 'refs/heads/main'
     needs: milestone-pulse
     runs-on: ubuntu-latest
     permissions:

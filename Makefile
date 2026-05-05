@@ -25,7 +25,7 @@ patch-gh-aw-workflows:
 
 .PHONY: milestone-pulse
 milestone-pulse:
-	scripts/milestone-pulse.sh
+	bash scripts/milestone-pulse.sh
 
 .PHONY: mod
 mod:

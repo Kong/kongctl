@@ -32,6 +32,23 @@ require_command() {
   fi
 }
 
+require_option_value() {
+  local option_name="$1"
+  local remaining_args="$2"
+
+  if [ "${remaining_args}" -lt 2 ]; then
+    echo "${option_name} requires a value" >&2
+    usage >&2
+    exit 1
+  fi
+}
+
+emit_script_json() {
+  local source_file="$1"
+
+  jq -c '.' "${source_file}" | sed 's#</#<\\/#g'
+}
+
 repo="${GITHUB_REPOSITORY:-}"
 milestone_state="${MILESTONE_PULSE_STATE:-open}"
 output_dir="${MILESTONE_PULSE_OUTPUT_DIR:-docs/reports/milestones}"
@@ -41,22 +58,27 @@ generated_at="${MILESTONE_PULSE_GENERATED_AT:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --repo)
+      require_option_value "$1" "$#"
       repo="${2:-}"
       shift 2
       ;;
     --state)
+      require_option_value "$1" "$#"
       milestone_state="${2:-}"
       shift 2
       ;;
     --output-dir)
+      require_option_value "$1" "$#"
       output_dir="${2:-}"
       shift 2
       ;;
     --snapshot-date)
+      require_option_value "$1" "$#"
       snapshot_date="${2:-}"
       shift 2
       ;;
     --generated-at)
+      require_option_value "$1" "$#"
       generated_at="${2:-}"
       shift 2
       ;;
@@ -92,6 +114,11 @@ case "${milestone_state}" in
     exit 1
     ;;
 esac
+
+if ! [[ "${snapshot_date}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+  echo "snapshot date must use YYYY-MM-DD format: ${snapshot_date}" >&2
+  exit 1
+fi
 
 data_dir="${output_dir}/data"
 tmp_root="${MILESTONE_PULSE_TMP_DIR:-.tmp/milestone-pulse}"
@@ -841,10 +868,10 @@ HTML_HEAD
   <script>
 HTML_BODY
     printf '    window.PULSE_DATA = '
-    jq -c '.' "${latest_file}"
+    emit_script_json "${latest_file}"
     printf ';\n'
     printf '    window.PULSE_HISTORY = '
-    jq -c '.' "${history_file}"
+    emit_script_json "${history_file}"
     printf ';\n'
     printf '    window.PULSE_VIEW = %s;\n' "$(jq -n --arg view "${view}" '$view')"
     printf '    window.PULSE_MILESTONE_NUMBER = %s;\n' "$(jq -n --arg number "${milestone_number}" '$number')"

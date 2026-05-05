@@ -1,6 +1,6 @@
 # kongctl GA Release: 1.0.0 Pulse
 
-Generated: 2026-05-05T20:19:19Z
+Generated: 2026-05-05T20:55:34Z
 GitHub milestone: https://github.com/Kong/kongctl/milestone/3
 
 ## Summary
