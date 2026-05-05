@@ -3,6 +3,10 @@ on:
   slash_command:
     name: triage
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
+  label_command:
+    name: triage-approved
+    events: [issues]
+    remove_label: false
   reaction: eyes
 
 timeout-minutes: 10
