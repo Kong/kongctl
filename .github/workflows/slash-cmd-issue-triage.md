@@ -30,10 +30,9 @@ tools:
   web-fetch:
   github:
     toolsets: [issues]
-    # If in a public repo, setting `lockdown: false` allows
-    # reading issues, pull requests and comments from 3rd-parties
-    # If in a private repo this has no particular effect.
-    lockdown: false
+    min-integrity: approved
+    approval-labels:
+      - triage-approved
 ---
 
 # Requested Issue Triage
