@@ -17,6 +17,8 @@ on:
 permissions:
   contents: write
   issues: read
+  id-token: write
+  pages: write
   pull-requests: read
 
 concurrency:
@@ -27,6 +29,8 @@ jobs:
   milestone-pulse:
     name: Refresh kongctl Pulse
     runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.schedule-gate.outputs.run }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
@@ -113,3 +117,55 @@ jobs:
           name: milestone-pulse-${{ github.run_id }}
           path: docs/reports/milestones
           if-no-files-found: warn
+
+      - name: Prepare GitHub Pages site
+        if: steps.schedule-gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+
+          rm -rf _site
+          mkdir -p _site/docs/reports _site/brand/logo
+
+          cp -R docs/reports/milestones _site/docs/reports/milestones
+          cp -R brand/logo/dark _site/brand/logo/dark
+          touch _site/.nojekyll
+
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=docs/reports/milestones/">
+            <title>kongctl Pulse</title>
+          </head>
+          <body>
+            <p><a href="docs/reports/milestones/">kongctl Pulse</a></p>
+          </body>
+          </html>
+          HTML
+
+      - name: Configure GitHub Pages
+        if: steps.schedule-gate.outputs.run == 'true'
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      - name: Upload GitHub Pages artifact
+        if: steps.schedule-gate.outputs.run == 'true'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy-pages:
+    name: Publish kongctl Pulse Pages
+    if: needs.milestone-pulse.outputs.should-run == 'true'
+    needs: milestone-pulse
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      pages: write
+    environment:
+      name: github-pages
+      url: ${{ steps.pages-deployment.outputs.page_url }}
+    steps:
+      - name: Deploy kongctl Pulse to GitHub Pages
+        id: pages-deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
