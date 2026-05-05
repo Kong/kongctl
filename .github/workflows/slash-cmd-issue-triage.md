@@ -22,6 +22,7 @@ description: |
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 
 network: defaults
 
@@ -33,7 +34,7 @@ safe-outputs:
 tools:
   web-fetch:
   github:
-    toolsets: [issues]
+    toolsets: [default]
     min-integrity: approved
     approval-labels:
       - triage-approved
