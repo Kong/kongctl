@@ -1,0 +1,21 @@
+_defaults:
+  kongctl:
+    namespace: portal-integrations
+
+portals:
+  - ref: e2e-portal-integrations
+    name: e2e-portal-integrations
+    display_name: E2E Portal Integrations
+    description: Portal with declarative integrations lifecycle coverage
+    authentication_enabled: false
+    rbac_enabled: false
+    integrations:
+      ref: e2e-portal-integrations-config
+      google_tag_manager:
+        enabled: false
+        config_data:
+          id: GTM-1A2B3C4
+      google_analytics_4:
+        enabled: false
+        config_data:
+          id: G-5E4D3C2B1A

@@ -1,0 +1,207 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalRef: e2e-portal-integrations
+  integrationsRef: e2e-portal-integrations-config
+  gtmID: GTM-1A2B3C4
+  ga4ID: G-1A2B3C4D5E
+  ga4UpdatedID: G-5E4D3C2B1A
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-integrations
+    commands:
+      - name: 000-plan-integrations
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-integrations.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='portal_integration' &&
+              resource_ref=='{{ .vars.integrationsRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              changes[?resource_type=='portal_integration' &&
+              resource_ref=='{{ .vars.integrationsRef }}'] | [0].fields
+            expect:
+              fields:
+                "google_tag_manager.enabled": true
+                "google_tag_manager.config_data.id": "{{ .vars.gtmID }}"
+                "google_analytics_4.enabled": true
+                "google_analytics_4.config_data.id": "{{ .vars.ga4ID }}"
+      - name: 001-apply-integrations
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-integrations.json"
+          - --auto-approve
+        assertions:
+          - select: >-
+              execution.applied_changes[?resource_type=='portal_integration' &&
+              resource_ref=='{{ .vars.integrationsRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+  - name: 002-verify-no-op
+    commands:
+      - name: 000-plan-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-update-integrations
+    inputOverlayDirs:
+      - overlays/003-update-integrations
+    commands:
+      - name: 000-plan-integrations-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-integrations-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_integration' &&
+              resource_ref=='{{ .vars.integrationsRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+          - select: >-
+              changes[?resource_type=='portal_integration' &&
+              resource_ref=='{{ .vars.integrationsRef }}'] | [0].fields
+            expect:
+              fields:
+                "google_tag_manager.enabled": false
+                "google_analytics_4.config_data.id": "{{ .vars.ga4UpdatedID }}"
+      - name: 001-apply-integrations-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-integrations-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 004-disable-all-integrations
+    inputOverlayDirs:
+      - overlays/004-disable-all-integrations
+    commands:
+      - name: 000-plan-disable-integrations
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-disable-integrations.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_integration' &&
+              resource_ref=='{{ .vars.integrationsRef }}'] | [0].fields
+            expect:
+              fields:
+                "google_tag_manager.enabled": false
+                "google_analytics_4.enabled": false
+      - name: 001-apply-disable-integrations
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-disable-integrations.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 005-delete-cleanup
+    inputOverlayDirs:
+      - overlays/004-disable-all-integrations
+    commands:
+      - name: 000-delete-portal
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
