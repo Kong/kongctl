@@ -402,7 +402,7 @@ else
   jq -n '[]' > "${dated_history_file}"
 fi
 
-if [ -f "${seed_history_file}" ]; then
+if [ -f "${seed_history_file}" ] && jq -e 'type == "array"' "${seed_history_file}" >/dev/null; then
   jq -s '
     add
     | group_by(.snapshot_date)
@@ -410,18 +410,25 @@ if [ -f "${seed_history_file}" ]; then
     | sort_by(.snapshot_date)
   ' "${seed_history_file}" "${dated_history_file}" > "${history_file}"
 else
+  if [ -f "${seed_history_file}" ]; then
+    echo "Ignoring invalid Pulse history file: ${seed_history_file}" >&2
+  fi
   cp "${dated_history_file}" "${history_file}"
 fi
 
-cp "${history_file}" "${seed_history_file}"
+seed_history_tmp="$(mktemp "${data_dir}/history.XXXXXX")"
+cp "${history_file}" "${seed_history_tmp}"
+mv "${seed_history_tmp}" "${seed_history_file}"
 
+snapshot_index_tmp="$(mktemp "${data_dir}/snapshots.XXXXXX")"
 find "${data_dir}" -maxdepth 1 -type f -name '????-??-??.json' -print \
   | sort \
   | while IFS= read -r snapshot_path; do
       basename "${snapshot_path}"
     done \
   | jq -R '{snapshot_date: sub("\\.json$"; ""), path: .}' \
-  | jq -s '.' > "${snapshot_index_file}"
+  | jq -s '.' > "${snapshot_index_tmp}"
+mv "${snapshot_index_tmp}" "${snapshot_index_file}"
 
 write_html() {
   local target="$1"

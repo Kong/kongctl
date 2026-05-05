@@ -91,14 +91,18 @@ jobs:
 
           snapshot_index="$(mktemp)"
           if curl -fsSL "${history_url}/snapshots.json" -o "${snapshot_index}"; then
-            jq -r '.[].path // empty' "${snapshot_index}" \
-              | while IFS= read -r snapshot_path; do
-                  case "${snapshot_path}" in
-                    ????-??-??.json)
-                      curl -fsSL "${history_url}/${snapshot_path}" -o "${data_dir}/${snapshot_path}" || true
-                      ;;
-                  esac
-                done
+            if jq -e 'type == "array"' "${snapshot_index}" >/dev/null; then
+              jq -r '.[] | objects | .path // empty' "${snapshot_index}" \
+                | while IFS= read -r snapshot_path; do
+                    case "${snapshot_path}" in
+                      ????-??-??.json)
+                        curl -fsSL "${history_url}/${snapshot_path}" -o "${data_dir}/${snapshot_path}" || true
+                        ;;
+                    esac
+                  done
+            else
+              echo "Ignoring invalid Pulse snapshot index at ${history_url}/snapshots.json."
+            fi
           else
             echo "No published Pulse snapshot index found at ${history_url}/snapshots.json."
           fi

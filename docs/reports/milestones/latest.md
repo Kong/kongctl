@@ -1,6 +1,6 @@
 # kongctl Pulse
 
-Generated: 2026-05-05T21:18:43Z
+Generated: 2026-05-05T21:27:36Z
 Repository: Kong/kongctl
 Report scope: open milestones
 
