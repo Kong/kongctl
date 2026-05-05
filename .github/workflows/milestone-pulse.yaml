@@ -1,0 +1,115 @@
+name: kongctl Pulse
+
+on:
+  workflow_dispatch:
+    inputs:
+      milestone_state:
+        description: "Milestone state to report: open, closed, or all"
+        required: false
+        default: "open"
+  schedule:
+    # GitHub schedules are UTC-only. These cover 2:00 AM US/Central in
+    # daylight and standard time; the schedule gate below runs only the
+    # matching trigger for the current Central offset.
+    - cron: "0 7 * * *"
+    - cron: "0 8 * * *"
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: milestone-pulse
+  cancel-in-progress: false
+
+jobs:
+  milestone-pulse:
+    name: Refresh kongctl Pulse
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Check schedule window
+        id: schedule-gate
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_EVENT_NAME}" != "schedule" ]; then
+            echo "run=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          central_offset="$(TZ=America/Chicago date +%z)"
+          case "${central_offset}" in
+            -0500)
+              expected_schedule="0 7 * * *"
+              ;;
+            -0600)
+              expected_schedule="0 8 * * *"
+              ;;
+            *)
+              echo "Unsupported America/Chicago offset: ${central_offset}" >&2
+              exit 1
+              ;;
+          esac
+
+          if [ "${EVENT_SCHEDULE}" = "${expected_schedule}" ]; then
+            echo "run=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "run=false" >> "${GITHUB_OUTPUT}"
+            echo "Skipping ${EVENT_SCHEDULE}; ${expected_schedule} is the 2:00 AM US/Central trigger today."
+          fi
+
+      - name: Checkout repository
+        if: steps.schedule-gate.outputs.run == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Generate kongctl Pulse
+        if: steps.schedule-gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MILESTONE_PULSE_STATE: >-
+            ${{ github.event_name == 'workflow_dispatch' && inputs.milestone_state || 'open' }}
+        run: |
+          set -euo pipefail
+          scripts/milestone-pulse.sh --repo "${GITHUB_REPOSITORY}" --state "${MILESTONE_PULSE_STATE}"
+
+      - name: Commit refreshed pulses
+        if: steps.schedule-gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/reports/milestones
+
+          if git diff --cached --quiet; then
+            echo "No kongctl Pulse changes to commit."
+            exit 0
+          fi
+
+          git commit -m "docs: refresh kongctl pulse"
+          git push
+
+      - name: Write workflow summary
+        if: always() && steps.schedule-gate.outputs.run == 'true'
+        run: |
+          if [ -f docs/reports/milestones/latest.md ]; then
+            cat docs/reports/milestones/latest.md >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "kongctl Pulse summary was not generated." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload kongctl Pulse artifact
+        if: always() && steps.schedule-gate.outputs.run == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: milestone-pulse-${{ github.run_id }}
+          path: docs/reports/milestones
+          if-no-files-found: warn
