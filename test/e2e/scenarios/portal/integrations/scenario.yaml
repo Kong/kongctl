@@ -46,13 +46,14 @@ steps:
             expect:
               fields:
                 total_changes: 2
-                by_action.CREATE: 2
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
           - select: >-
               changes[?resource_type=='portal_integration' &&
               resource_ref=='{{ .vars.integrationsRef }}'] | [0]
             expect:
               fields:
-                action: CREATE
+                action: UPDATE
           - select: >-
               changes[?resource_type=='portal_integration' &&
               resource_ref=='{{ .vars.integrationsRef }}'] | [0].fields
@@ -75,7 +76,7 @@ steps:
               resource_ref=='{{ .vars.integrationsRef }}'] | [0]
             expect:
               fields:
-                action: CREATE
+                action: UPDATE
           - select: summary
             expect:
               fields:
