@@ -84,16 +84,8 @@ func (a *PortalAuditLogWebhookAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	portalID := id
-	if execCtx != nil {
-		if ref, ok := execCtx.PlannedChange.References[planner.FieldPortalID]; ok && ref.ID != "" {
-			portalID = ref.ID
-		} else if execCtx.PlannedChange.Parent != nil && execCtx.PlannedChange.Parent.ID != "" {
-			portalID = execCtx.PlannedChange.Parent.ID
-		}
-	}
-
-	if portalID == "" {
+	portalID, err := a.portalIDWithFallback(execCtx, id)
+	if err != nil {
 		return nil, fmt.Errorf("portal ID is required to fetch portal audit-log webhook")
 	}
 
@@ -142,18 +134,31 @@ func (a *PortalAuditLogWebhookAdapter) portalID(execCtx *ExecutionContext) (stri
 		return "", fmt.Errorf("execution context is required for portal audit-log webhook operations")
 	}
 
-	change := *execCtx.PlannedChange
+	return a.portalIDWithFallback(execCtx, "")
+}
 
-	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
-		return portalRef.ID, nil
+func (a *PortalAuditLogWebhookAdapter) portalIDWithFallback(
+	execCtx *ExecutionContext,
+	fallback string,
+) (string, error) {
+	if execCtx != nil && execCtx.PlannedChange != nil {
+		change := *execCtx.PlannedChange
+
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
+			return portalRef.ID, nil
+		}
+
+		if change.Parent != nil && change.Parent.ID != "" {
+			return change.Parent.ID, nil
+		}
+
+		if change.ResourceID != "" {
+			return change.ResourceID, nil
+		}
 	}
 
-	if change.Parent != nil && change.Parent.ID != "" {
-		return change.Parent.ID, nil
-	}
-
-	if change.ResourceID != "" {
-		return change.ResourceID, nil
+	if fallback != "" {
+		return fallback, nil
 	}
 
 	return "", fmt.Errorf("portal ID is required for portal audit-log webhook operations")

@@ -172,10 +172,12 @@ func auditLogDestinationFromMap(value map[string]any) (AuditLogDestination, bool
 }
 
 func auditLogDestinationKey(record AuditLogDestination) string {
-	if strings.TrimSpace(record.ID) != "" {
-		return "id:" + strings.TrimSpace(record.ID)
+	// AuditLogDestination values are expected to come from auditLogDestinationFromMap/mapString,
+	// which already normalizes these fields with strings.TrimSpace.
+	if record.ID != "" {
+		return "id:" + record.ID
 	}
-	return "name:endpoint:" + strings.TrimSpace(record.Name) + "|" + strings.TrimSpace(record.Endpoint)
+	return "name:endpoint:" + record.Name + "|" + record.Endpoint
 }
 
 func mapString(value map[string]any, key string) string {
