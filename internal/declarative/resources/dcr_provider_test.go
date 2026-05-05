@@ -121,3 +121,49 @@ func TestDCRProviderResourceValidateRequiresCoreFields(t *testing.T) {
 		})
 	}
 }
+
+func TestDCRProviderResourceValidateRejectsStringBooleanConfigFields(t *testing.T) {
+	tests := []struct {
+		name         string
+		providerType string
+		field        string
+	}{
+		{
+			name:         "http disable_event_hooks",
+			providerType: "http",
+			field:        "disable_event_hooks",
+		},
+		{
+			name:         "http disable_refresh_secret",
+			providerType: "http",
+			field:        "disable_refresh_secret",
+		},
+		{
+			name:         "http allow_multiple_credentials",
+			providerType: "http",
+			field:        "allow_multiple_credentials",
+		},
+		{
+			name:         "auth0 use_developer_managed_scopes",
+			providerType: "auth0",
+			field:        "use_developer_managed_scopes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := DCRProviderResource{
+				BaseResource: BaseResource{Ref: "dcr"},
+				ProviderType: tt.providerType,
+				Issuer:       "https://issuer.example.com",
+				DCRConfig: map[string]any{
+					tt.field: "true",
+				},
+			}
+
+			err := provider.Validate()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "dcr_config."+tt.field+" must be a boolean")
+		})
+	}
+}

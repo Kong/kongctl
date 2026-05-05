@@ -69,7 +69,39 @@ func (d DCRProviderResource) Validate() error {
 	if d.DCRConfig == nil {
 		return fmt.Errorf("dcr_config is required")
 	}
+	if err := validateDCRProviderConfig(d.ProviderType, d.DCRConfig); err != nil {
+		return err
+	}
 	return nil
+}
+
+func validateDCRProviderConfig(providerType string, config map[string]any) error {
+	for _, field := range dcrProviderBoolConfigFields(providerType) {
+		value, ok := config[field]
+		if !ok || value == nil {
+			continue
+		}
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("dcr_config.%s must be a boolean", field)
+		}
+	}
+
+	return nil
+}
+
+func dcrProviderBoolConfigFields(providerType string) []string {
+	switch providerType {
+	case "auth0":
+		return []string{"use_developer_managed_scopes"}
+	case "http":
+		return []string{
+			"disable_event_hooks",
+			"disable_refresh_secret",
+			"allow_multiple_credentials",
+		}
+	default:
+		return nil
+	}
 }
 
 func (d *DCRProviderResource) SetDefaults() {

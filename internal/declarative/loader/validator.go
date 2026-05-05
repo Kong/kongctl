@@ -24,6 +24,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate DCR providers
+	if err := l.validateDCRProviders(rs.DCRProviders, rs); err != nil {
+		return err
+	}
+
 	// Validate control planes
 	if err := l.validateControlPlanes(rs.ControlPlanes, rs); err != nil {
 		return err
@@ -286,6 +291,42 @@ func (l *Loader) validateAuthStrategies(
 		}
 
 		names[stratName] = strategy.GetRef()
+	}
+
+	return nil
+}
+
+// validateDCRProviders validates DCR provider resources
+func (l *Loader) validateDCRProviders(
+	providers []resources.DCRProviderResource,
+	rs *resources.ResourceSet,
+) error {
+	names := make(map[string]string) // name -> ref mapping (names unique per type)
+
+	for i := range providers {
+		provider := &providers[i]
+
+		// Validate resource
+		if err := provider.Validate(); err != nil {
+			return fmt.Errorf("invalid dcr_provider %q: %w", provider.GetRef(), err)
+		}
+
+		// Check global ref uniqueness across different resource types
+		// Don't check within same type - that's handled by the loader during append
+		if existing, found := rs.GetResourceByRef(provider.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeDCRProvider {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					provider.GetRef(), existing.GetType())
+			}
+		}
+
+		providerName := provider.GetMoniker()
+		if existingRef, exists := names[providerName]; exists {
+			return fmt.Errorf("duplicate dcr_provider name '%s' (ref: %s conflicts with ref: %s)",
+				providerName, provider.GetRef(), existingRef)
+		}
+
+		names[providerName] = provider.GetRef()
 	}
 
 	return nil
