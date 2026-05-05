@@ -413,6 +413,7 @@ steps:
           - -f
           - "{{ .workdir }}/config.yaml"
           - --auto-approve
+          - --parallelism=1
         assertions:
           - select: plan.metadata
             expect:

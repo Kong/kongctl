@@ -101,7 +101,7 @@ steps:
                 name: "SMS API"
           # SMS API has 2 versions defined in testdata
           - name: api-has-first-version
-            select: "apis[0].versions[0]"
+            select: "apis[0].versions[?version=='1.0.11'] | [0]"
             expect:
               fields:
                 version: "1.0.11"

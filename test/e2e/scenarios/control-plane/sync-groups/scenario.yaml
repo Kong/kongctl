@@ -90,6 +90,7 @@ steps:
           - -f
           - "{{ .workdir }}/control-plane.yaml"
           - --auto-approve
+          - --parallelism=1
         assertions:
           - select: "plan.metadata"
             expect:
