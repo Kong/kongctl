@@ -26,6 +26,9 @@ func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) er
 	if targetType == nil {
 		return nil
 	}
+	if isEnvDynamicFieldType(targetType) {
+		return validateDynamicEnvNode(node, path)
+	}
 
 	switch node.Kind {
 	case yaml.DocumentNode:
@@ -48,7 +51,7 @@ func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) er
 
 				nextPath := append(path, keyNode.Value)
 				if valueNode.Tag == "!env" {
-					if !isEnvStringFieldType(fieldType) {
+					if !isEnvStringCompatibleType(fieldType) {
 						return fmt.Errorf(
 							"!env currently supports string-typed fields only (field: %s)",
 							strings.Join(nextPath, "."),
@@ -64,17 +67,19 @@ func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) er
 		case reflect.Map:
 			elemType := derefType(targetType.Elem())
 			for i := 0; i+1 < len(node.Content); i += 2 {
+				keyNode := node.Content[i]
 				valueNode := node.Content[i+1]
+				nextPath := append(path, keyNode.Value)
 				if valueNode.Tag == "!env" {
-					if !isEnvStringFieldType(elemType) {
+					if !isEnvStringCompatibleType(elemType) {
 						return fmt.Errorf(
 							"!env currently supports string-typed fields only (field: %s)",
-							strings.Join(path, "."),
+							strings.Join(nextPath, "."),
 						)
 					}
 					continue
 				}
-				if err := validateEnvNode(valueNode, elemType, path); err != nil {
+				if err := validateEnvNode(valueNode, elemType, nextPath); err != nil {
 					return err
 				}
 			}
@@ -89,7 +94,7 @@ func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) er
 		elemType := derefType(targetType.Elem())
 		for _, child := range node.Content {
 			if child.Tag == "!env" {
-				if !isEnvStringFieldType(elemType) {
+				if !isEnvStringCompatibleType(elemType) {
 					return fmt.Errorf(
 						"!env currently supports string-typed fields only (field: %s)",
 						strings.Join(path, "."),
@@ -98,6 +103,46 @@ func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) er
 				continue
 			}
 			if err := validateEnvNode(child, elemType, path); err != nil {
+				return err
+			}
+		}
+	case yaml.ScalarNode, yaml.AliasNode:
+		return nil
+	default:
+		return nil
+	}
+
+	return nil
+}
+
+func validateDynamicEnvNode(node *yaml.Node, path []string) error {
+	if node == nil {
+		return nil
+	}
+
+	switch node.Kind {
+	case yaml.DocumentNode:
+		if len(node.Content) == 0 {
+			return nil
+		}
+		return validateDynamicEnvNode(node.Content[0], path)
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			keyNode := node.Content[i]
+			valueNode := node.Content[i+1]
+			if valueNode.Tag == "!env" {
+				continue
+			}
+			if err := validateDynamicEnvNode(valueNode, append(path, keyNode.Value)); err != nil {
+				return err
+			}
+		}
+	case yaml.SequenceNode:
+		for _, child := range node.Content {
+			if child.Tag == "!env" {
+				continue
+			}
+			if err := validateDynamicEnvNode(child, path); err != nil {
 				return err
 			}
 		}
@@ -175,9 +220,18 @@ func structuredFieldInline(field reflect.StructField) bool {
 	return !jsonSkip && jsonInline
 }
 
-func isEnvStringFieldType(fieldType reflect.Type) bool {
+func isEnvStringCompatibleType(fieldType reflect.Type) bool {
 	fieldType = derefType(fieldType)
-	return fieldType != nil && fieldType.Kind() == reflect.String
+	if fieldType == nil {
+		return false
+	}
+
+	return fieldType.Kind() == reflect.String || isEnvDynamicFieldType(fieldType)
+}
+
+func isEnvDynamicFieldType(fieldType reflect.Type) bool {
+	fieldType = derefType(fieldType)
+	return fieldType != nil && fieldType.Kind() == reflect.Interface && fieldType.NumMethod() == 0
 }
 
 func derefType(t reflect.Type) reflect.Type {
