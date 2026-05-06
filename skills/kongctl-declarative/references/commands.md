@@ -75,7 +75,7 @@ Use these intent mappings:
 Konnect authentication and accepts resource, child-resource, and field paths.
 
 ```bash
-kongctl explain <resource-path> --extended
+kongctl explain <resource-path> --extended -o text
 kongctl explain <resource-path> -o json
 kongctl explain <resource-path> -o yaml
 ```
