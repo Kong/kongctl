@@ -34,9 +34,10 @@ OpenAPI can drive two related outputs:
 - Kong Gateway runtime config using decK (`services`, `routes`, `plugins`).
 
 When the user asks to "set up an API Gateway", "create routes/services", or
-"configure plugins" from OpenAPI, also load `deck-gateway.md`. Generate decK
-state with `deck file openapi2kong`, then wire the resulting service into
-kongctl with `control_planes[]._deck`, external `gateway_services`, and
+"configure plugins" from OpenAPI, also load
+`references/deck-gateway.md`. Generate decK state with
+`deck file openapi2kong`, then wire the resulting service into kongctl with
+`control_planes[]._deck`, external `gateway_services`, and
 `apis[].implementations`.
 
 ## Canonical Example
