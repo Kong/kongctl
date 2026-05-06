@@ -879,3 +879,33 @@ func TestLoader_validateResourceSet_AllowsMixedPortalIdentityProviderTypesPerPor
 	err := loader.validateResourceSet(rs)
 	assert.NoError(t, err)
 }
+
+func TestLoader_validateResourceSet_RejectsDuplicatePortalIPAllowListsPerPortal(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{{
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+			CreatePortal: kkComps.CreatePortal{Name: "portal-one"},
+		}},
+		PortalIPAllowLists: []resources.PortalIPAllowListResource{
+			{
+				Ref:        "portal-allow-list-a",
+				Portal:     "portal-1",
+				AllowedIPs: []string{"192.0.2.10"},
+			},
+			{
+				Ref:        "portal-allow-list-b",
+				Portal:     "portal-1",
+				AllowedIPs: []string{"198.51.100.0/24"},
+			},
+		},
+	}
+
+	err := loader.validateResourceSet(rs)
+	assert.Error(t, err)
+	assert.Contains(
+		t,
+		err.Error(),
+		"multiple portal_ip_allow_list entries target portal \"portal-1\"",
+	)
+}

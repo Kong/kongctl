@@ -82,6 +82,9 @@ type Executor struct {
 	portalAssetFaviconExecutor     *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
 	portalDomainExecutor           *BaseExecutor[kkComps.CreatePortalCustomDomainRequest,
 		kkComps.UpdatePortalCustomDomainRequest]
+	portalIPAllowListExecutor *BaseExecutor[
+		kkComps.CreatePortalSourceIPRestriction,
+		kkComps.UpdatePortalSourceIPRestriction]
 	portalPageExecutor            *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
 	portalSnippetExecutor         *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
 	portalTeamExecutor            *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
@@ -297,6 +300,14 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.portalDomainExecutor = NewBaseExecutor[kkComps.CreatePortalCustomDomainRequest,
 		kkComps.UpdatePortalCustomDomainRequest](
 		NewPortalDomainAdapter(client),
+		client,
+		dryRun,
+	)
+	e.portalIPAllowListExecutor = NewBaseExecutor[
+		kkComps.CreatePortalSourceIPRestriction,
+		kkComps.UpdatePortalSourceIPRestriction,
+	](
+		NewPortalIPAllowListAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1825,6 +1836,16 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
+	case planner.ResourceTypePortalIPAllowList:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References[planner.FieldPortalID] = portalRef
+		}
+		return e.portalIPAllowListExecutor.Create(ctx, *change)
 	case planner.ResourceTypePortalIntegration:
 		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
@@ -2302,6 +2323,16 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
+	case planner.ResourceTypePortalIPAllowList:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References[planner.FieldPortalID] = portalRef
+		}
+		return e.portalIPAllowListExecutor.Update(ctx, *change)
 	case planner.ResourceTypePortalIntegration:
 		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
@@ -2648,6 +2679,16 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case planner.ResourceTypePortalCustomDomain:
 		// No references to resolve for portal_custom_domain
 		return e.portalDomainExecutor.Delete(ctx, *change)
+	case planner.ResourceTypePortalIPAllowList:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References[planner.FieldPortalID] = portalRef
+		}
+		return e.portalIPAllowListExecutor.Delete(ctx, *change)
 	case planner.ResourceTypePortalIdentityProvider:
 		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
 			portalID, err := e.resolvePortalRef(ctx, portalRef)

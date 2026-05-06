@@ -177,6 +177,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
+			PortalIPAllowListAPI:                sdk.GetPortalIPAllowListAPI(),
 			PortalIntegrationsAPI:               sdk.GetPortalIntegrationsAPI(),
 			PortalIdentityProviderAPI:           sdk.GetPortalIdentityProviderAPI(),
 			PortalCustomizationAPI:              sdk.GetPortalCustomizationAPI(),

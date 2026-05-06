@@ -529,6 +529,12 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet) error {
 		}
 	}
 
+	for i := range rs.PortalIPAllowLists {
+		if err := l.validateResourceReferences(&rs.PortalIPAllowLists[i], rs); err != nil {
+			return err
+		}
+	}
+
 	for i := range rs.PortalAuditLogWebhooks {
 		if err := l.validateResourceReferences(&rs.PortalAuditLogWebhooks[i], rs); err != nil {
 			return err
@@ -678,6 +684,33 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 				)
 			}
 		}
+	}
+
+	// Validate portal IP allow lists (singleton per portal)
+	portalAllowListRefs := make(map[string]bool)
+	portalToAllowListRef := make(map[string]string)
+	for i := range rs.PortalIPAllowLists {
+		allowList := &rs.PortalIPAllowLists[i]
+		if err := allowList.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_ip_allow_list %q: %w", allowList.GetRef(), err)
+		}
+		if allowList.Portal == "" {
+			return fmt.Errorf("portal_ip_allow_list %q must specify portal", allowList.GetRef())
+		}
+		if portalAllowListRefs[allowList.GetRef()] {
+			return fmt.Errorf("duplicate ref '%s' (already defined as portal_ip_allow_list)", allowList.GetRef())
+		}
+		portalAllowListRefs[allowList.GetRef()] = true
+
+		if existingRef, ok := portalToAllowListRef[allowList.Portal]; ok {
+			return fmt.Errorf(
+				"multiple portal_ip_allow_list entries target portal %q (%s and %s)",
+				allowList.Portal,
+				existingRef,
+				allowList.GetRef(),
+			)
+		}
+		portalToAllowListRef[allowList.Portal] = allowList.GetRef()
 	}
 
 	// Validate portal integrations (singleton per portal)

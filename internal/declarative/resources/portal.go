@@ -25,6 +25,7 @@ type PortalResource struct {
 	// Child resources that match API endpoints
 	Customization     *PortalCustomizationResource           `yaml:"customization,omitempty"      json:"customization,omitempty"`      //nolint:lll
 	AuthSettings      *PortalAuthSettingsResource            `yaml:"auth_settings,omitempty"      json:"auth_settings,omitempty"`      //nolint:lll
+	IPAllowList       *PortalIPAllowListResource             `yaml:"ip_allow_list,omitempty"      json:"ip_allow_list,omitempty"`      //nolint:lll
 	Integrations      *PortalIntegrationResource             `yaml:"integrations,omitempty"       json:"integrations,omitempty"`       //nolint:lll
 	IdentityProviders []PortalIdentityProviderResource       `yaml:"identity_providers,omitempty" json:"identity_providers,omitempty"` //nolint:lll
 	CustomDomain      *PortalCustomDomainResource            `yaml:"custom_domain,omitempty"      json:"custom_domain,omitempty"`      //nolint:lll
@@ -120,6 +121,11 @@ func (p PortalResource) Validate() error {
 	if p.AuthSettings != nil {
 		if err := p.AuthSettings.Validate(); err != nil {
 			return fmt.Errorf("invalid portal auth settings: %w", err)
+		}
+	}
+	if p.IPAllowList != nil {
+		if err := p.IPAllowList.Validate(); err != nil {
+			return fmt.Errorf("invalid portal IP allow list: %w", err)
 		}
 	}
 	if p.Integrations != nil {
@@ -232,6 +238,10 @@ func (p *PortalResource) SetDefaults() {
 		p.AuthSettings.SetDefaults()
 	}
 
+	if p.IPAllowList != nil {
+		p.IPAllowList.SetDefaults()
+	}
+
 	if p.Integrations != nil {
 		p.Integrations.SetDefaults()
 	}
@@ -325,6 +335,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"kongctl",
 		"customization",
 		"auth_settings",
+		"ip_allow_list",
 		"integrations",
 		"identity_providers",
 		"custom_domain",
@@ -375,6 +386,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		delete(raw, "auth_settings")
+	}
+
+	if v, ok := raw["ip_allow_list"]; ok {
+		if err := json.Unmarshal(v, &p.IPAllowList); err != nil {
+			return err
+		}
+		delete(raw, "ip_allow_list")
 	}
 
 	if v, ok := raw["integrations"]; ok {
@@ -505,6 +523,7 @@ type portalAlias struct {
 	Kongctl           *KongctlMeta                           `json:"kongctl,omitempty"            yaml:"kongctl,omitempty"`
 	Customization     *PortalCustomizationResource           `json:"customization,omitempty"      yaml:"customization,omitempty"`      //nolint:lll
 	AuthSettings      *PortalAuthSettingsResource            `json:"auth_settings,omitempty"      yaml:"auth_settings,omitempty"`      //nolint:lll
+	IPAllowList       *PortalIPAllowListResource             `json:"ip_allow_list,omitempty"      yaml:"ip_allow_list,omitempty"`      //nolint:lll
 	Integrations      *PortalIntegrationResource             `json:"integrations,omitempty"       yaml:"integrations,omitempty"`       //nolint:lll
 	IdentityProviders []PortalIdentityProviderResource       `json:"identity_providers,omitempty" yaml:"identity_providers,omitempty"` //nolint:lll
 	CustomDomain      *PortalCustomDomainResource            `json:"custom_domain,omitempty"      yaml:"custom_domain,omitempty"`      //nolint:lll
@@ -527,6 +546,7 @@ func (p PortalResource) portalAlias() portalAlias {
 		Kongctl:           p.Kongctl,
 		Customization:     p.Customization,
 		AuthSettings:      p.AuthSettings,
+		IPAllowList:       p.IPAllowList,
 		Integrations:      p.Integrations,
 		IdentityProviders: p.IdentityProviders,
 		CustomDomain:      p.CustomDomain,

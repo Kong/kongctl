@@ -826,6 +826,19 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"error", err.Error())
 	}
 
+	// Plan IP allow list
+	allowLists := make([]resources.PortalIPAllowListResource, 0)
+	for _, allowList := range planner.desiredPortalIPAllowLists {
+		if allowList.Portal == desired.Ref {
+			allowLists = append(allowLists, allowList)
+		}
+	}
+	if err := planner.planPortalIPAllowListsChanges(ctx, parentNamespace, "", desired.Ref, allowLists, plan); err != nil {
+		planner.logger.Debug("Failed to plan portal IP allow list for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
+
 	// Plan integrations
 	integrations := make([]resources.PortalIntegrationResource, 0)
 	for _, integration := range planner.desiredPortalIntegrations {
@@ -1060,6 +1073,19 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	}
 	if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, authSettings, plan); err != nil {
 		return fmt.Errorf("failed to plan portal auth settings changes: %w", err)
+	}
+
+	// Plan IP allow list (singleton)
+	allowLists := make([]resources.PortalIPAllowListResource, 0)
+	for _, allowList := range planner.desiredPortalIPAllowLists {
+		if allowList.Portal == desired.Ref {
+			allowLists = append(allowLists, allowList)
+		}
+	}
+	if err := planner.planPortalIPAllowListsChanges(
+		ctx, parentNamespace, current.ID, desired.Ref, allowLists, plan,
+	); err != nil {
+		return fmt.Errorf("failed to plan portal IP allow list changes: %w", err)
 	}
 
 	// Plan integrations (singleton)

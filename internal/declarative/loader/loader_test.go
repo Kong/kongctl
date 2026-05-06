@@ -209,6 +209,29 @@ portals:
 	assert.Nil(t, rs.Portals[0].Integrations)
 }
 
+func TestLoader_FlattensPortalIPAllowList(t *testing.T) {
+	content := `
+portals:
+  - ref: portal-ip-allow-list
+    name: portal-ip-allow-list
+    ip_allow_list:
+      ref: portal-ip-allow-list-config
+      allowed_ips:
+        - 192.0.2.10
+        - 198.51.100.0/24
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.Portals, 1)
+	require.Len(t, rs.PortalIPAllowLists, 1)
+	assert.Equal(t, "portal-ip-allow-list", rs.PortalIPAllowLists[0].Portal)
+	assert.Equal(t, "portal-ip-allow-list-config", rs.PortalIPAllowLists[0].Ref)
+	assert.Nil(t, rs.Portals[0].IPAllowList)
+}
+
 func TestLoader_RejectsSingularPortalIntegrationKey(t *testing.T) {
 	content := `
 portals:

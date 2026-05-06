@@ -411,6 +411,9 @@ portals:
      basic_auth_enabled: boolean
      konnect_mapping_enabled: boolean
      idp_mapping_enabled: boolean
+   ip_allow_list: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-ip-allow-list
+     ref: string
+     allowed_ips: array[string] required # IP addresses or CIDR blocks
    integrations: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/upsert-portal-integrations
      ref: string
      google_tag_manager:
@@ -556,6 +559,19 @@ portal_integrations:
      logo: string # data URL image (png/jpeg/gif/ico/svg)
      favicon: string # data URL image (png/jpeg/gif/ico/svg)
 ```
+
+Portal IP allow lists can also be declared as root resources.
+
+```yaml
+portal_ip_allow_lists:
+  - ref: string
+    portal: string required # prefer: !ref <portal-ref>
+    allowed_ips: array[string] required # IP addresses or CIDR blocks
+```
+
+In sync mode, omitting `ip_allow_list` from a managed portal removes current
+portal IP allow-list entries. Omitted IP allow-list config is not deleted for
+external portals.
 
 Portal audit-log webhooks can also be declared as root resources.
 

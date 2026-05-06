@@ -115,6 +115,11 @@ func (b *BasePlanner) GetDesiredPortalAuthSettings(namespace string) []resources
 	return b.planner.resources.GetPortalAuthSettingsByNamespace(namespace)
 }
 
+// GetDesiredPortalIPAllowLists returns desired portal IP allow list resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalIPAllowLists(namespace string) []resources.PortalIPAllowListResource {
+	return b.planner.resources.GetPortalIPAllowListsByNamespace(namespace)
+}
+
 // GetDesiredPortalIntegrations returns desired portal integration resources from the specified namespace
 func (b *BasePlanner) GetDesiredPortalIntegrations(namespace string) []resources.PortalIntegrationResource {
 	return b.planner.resources.GetPortalIntegrationsByNamespace(namespace)

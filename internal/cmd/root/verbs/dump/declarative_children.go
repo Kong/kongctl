@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -62,6 +63,12 @@ func populatePortalChildren(
 			logWarn(logger, "failed to load portal auth settings", portalID, portal.Name, err)
 		} else if authSettings != nil {
 			portal.AuthSettings = authSettings
+		}
+
+		if allowList, err := buildPortalIPAllowList(ctx, client, portalID); err != nil {
+			logWarn(logger, "failed to load portal IP allow list", portalID, portal.Name, err)
+		} else if allowList != nil {
+			portal.IPAllowList = allowList
 		}
 
 		if integration, err := buildPortalIntegration(ctx, client, portalID); err != nil {
@@ -696,6 +703,48 @@ func buildPortalAuthSettings(
 	}
 
 	return &resource, nil
+}
+
+func buildPortalIPAllowList(
+	ctx context.Context,
+	client *declstate.Client,
+	portalID string,
+) (*declresources.PortalIPAllowListResource, error) {
+	entries, err := client.ListPortalIPAllowLists(ctx, portalID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return nil, nil
+	}
+
+	seen := make(map[string]struct{})
+	allowedIPs := make([]string, 0)
+	for _, entry := range entries {
+		for _, value := range entry.AllowedIPs {
+			trimmed := strings.TrimSpace(value)
+			if trimmed == "" {
+				continue
+			}
+			if _, exists := seen[trimmed]; exists {
+				continue
+			}
+			seen[trimmed] = struct{}{}
+			allowedIPs = append(allowedIPs, trimmed)
+		}
+	}
+	if len(allowedIPs) == 0 {
+		return nil, nil
+	}
+
+	slices.Sort(allowedIPs)
+	return &declresources.PortalIPAllowListResource{
+		Ref:        buildChildRef("portal-ip-allow-list", portalID, strings.Join(allowedIPs, ",")),
+		AllowedIPs: allowedIPs,
+	}, nil
 }
 
 func buildPortalIntegration(

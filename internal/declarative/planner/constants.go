@@ -107,6 +107,7 @@ const (
 // Common portal plan field identifiers.
 const (
 	FieldAuthenticationEnabled        = "authentication_enabled"
+	FieldAllowedIPs                   = "allowed_ips"
 	FieldAutoApproveApplications      = "auto_approve_applications"
 	FieldAutoApproveDevelopers        = "auto_approve_developers"
 	FieldAutoApproveRegistrations     = "auto_approve_registrations"
@@ -186,6 +187,7 @@ const (
 	ResourceTypePortalCustomization        = string(resources.ResourceTypePortalCustomization)
 	ResourceTypePortalCustomDomain         = string(resources.ResourceTypePortalCustomDomain)
 	ResourceTypePortalAuthSettings         = string(resources.ResourceTypePortalAuthSettings)
+	ResourceTypePortalIPAllowList          = string(resources.ResourceTypePortalIPAllowList)
 	ResourceTypePortalIntegration          = string(resources.ResourceTypePortalIntegration)
 	ResourceTypePortalIdentityProvider     = string(resources.ResourceTypePortalIdentityProvider)
 	ResourceTypePortalPage                 = string(resources.ResourceTypePortalPage)
