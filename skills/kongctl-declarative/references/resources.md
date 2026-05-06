@@ -131,7 +131,8 @@ control_planes:
 ```
 
 Use `_deck` for control-plane scoped decK Gateway state. Load
-`deck-gateway.md` when adding `_deck` or `gateway_services` selectors.
+`references/deck-gateway.md` when adding `_deck` or `gateway_services`
+selectors.
 
 ### `portals`
 
