@@ -136,8 +136,8 @@ func GetPagesForPortal(ctx context.Context, portalAPI PortalAPI, portalID string
 		return nil, fmt.Errorf("invalid portal API implementation")
 	}
 
-	if publicAPI.SDK.Pages == nil {
-		return nil, fmt.Errorf("SDK does not support Pages API")
+	if publicAPI.SDK.PortalPages == nil {
+		return nil, fmt.Errorf("SDK does not support PortalPages API")
 	}
 
 	var allPages []PageInfo
@@ -150,7 +150,7 @@ func GetPagesForPortal(ctx context.Context, portalAPI PortalAPI, portalID string
 	}
 
 	// Call the SDK's ListPortalPages method
-	res, err := publicAPI.SDK.Pages.ListPortalPages(ctx, req)
+	res, err := publicAPI.SDK.PortalPages.ListPortalPages(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list portal pages: %w", err)
 	}

@@ -854,7 +854,7 @@ func dumpAppAuthStrategies(
 		}
 
 		if filter.name != "" {
-			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{Name: buildStringFieldFilter(filter.name)}
+			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		res, err := kkClient.ListAppAuthStrategies(ctx, req)
