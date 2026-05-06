@@ -102,15 +102,6 @@ func TestDCRProviderResourceValidateRequiresCoreFields(t *testing.T) {
 			},
 			wantErr: "issuer is required",
 		},
-		{
-			name: "dcr_config",
-			provider: DCRProviderResource{
-				BaseResource: BaseResource{Ref: "dcr"},
-				ProviderType: "okta",
-				Issuer:       "https://issuer.example.com",
-			},
-			wantErr: "dcr_config is required",
-		},
 	}
 
 	for _, tt := range tests {
@@ -120,6 +111,16 @@ func TestDCRProviderResourceValidateRequiresCoreFields(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+func TestDCRProviderResourceValidateAllowsOmittedConfig(t *testing.T) {
+	provider := DCRProviderResource{
+		BaseResource: BaseResource{Ref: "dcr"},
+		ProviderType: "okta",
+		Issuer:       "https://issuer.example.com",
+	}
+
+	require.NoError(t, provider.Validate())
 }
 
 func TestDCRProviderResourceValidateRejectsStringBooleanConfigFields(t *testing.T) {
