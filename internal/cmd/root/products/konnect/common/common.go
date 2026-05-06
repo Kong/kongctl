@@ -230,17 +230,11 @@ func accessTokenUnavailableError(cfg config.Hook) error {
 func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
 	tokenSource, e := GetAccessTokenSource(cfg, logger)
 	if e != nil {
-		return nil, fmt.Errorf(
-			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,
-			meta.CLIName,
-		)
+		return nil, e
 	}
-	token, e := tokenSource.Token(context.Background())
+	token, e := ResolveAccessToken(context.Background(), cfg, tokenSource)
 	if e != nil {
-		return nil, fmt.Errorf(
-			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,
-			meta.CLIName,
-		)
+		return nil, e
 	}
 
 	baseURL, err := ResolveBaseURL(cfg)

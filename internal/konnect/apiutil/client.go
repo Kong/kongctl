@@ -122,15 +122,18 @@ func request(
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
+	if resp == nil {
+		return nil, fmt.Errorf("request returned nil response")
+	}
 
-	if resp != nil && resp.StatusCode == http.StatusUnauthorized && shouldRefreshAndRetry(tokenSource, req) {
+	if resp.StatusCode == http.StatusUnauthorized && shouldRefreshAndRetry(tokenSource, req) {
 		refreshedToken, refreshErr := tokenSource.Refresh(ctx, token)
 		if refreshErr != nil {
-			resp.Body.Close()
+			closeResponseBody(resp)
 			return nil, fmt.Errorf("refresh Konnect access token after HTTP 401: %w", refreshErr)
 		}
 
-		resp.Body.Close()
+		closeResponseBody(resp)
 
 		retryBody, err := retryBody(req)
 		if err != nil {
@@ -144,12 +147,18 @@ func request(
 		if err != nil {
 			return nil, fmt.Errorf("retry request after Konnect token refresh failed: %w", err)
 		}
+		if resp == nil {
+			return nil, fmt.Errorf("retry request after Konnect token refresh returned nil response")
+		}
 	}
-	defer resp.Body.Close()
+	defer closeResponseBody(resp)
 
-	bytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+	var bytes []byte
+	if resp.Body != nil {
+		bytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response: %w", err)
+		}
 	}
 
 	return &Result{
@@ -207,6 +216,12 @@ func retryBody(req *http.Request) (io.Reader, error) {
 		return nil, fmt.Errorf("request body cannot be replayed after Konnect token refresh")
 	}
 	return req.GetBody()
+}
+
+func closeResponseBody(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
 }
 
 func resolveEndpoint(baseURL, path string) (string, error) {

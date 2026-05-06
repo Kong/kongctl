@@ -90,6 +90,37 @@ func TestRequestError(t *testing.T) {
 	}
 }
 
+func TestRequestNilResponse(t *testing.T) {
+	client := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return nil, nil
+	})
+
+	_, err := Request(context.Background(), client, http.MethodGet, "https://example.com", "/foo", "tok", nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "request returned nil response") {
+		t.Fatalf("expected nil response error, got %v", err)
+	}
+}
+
+func TestRequestNilBody(t *testing.T) {
+	client := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusNoContent,
+			Header:     make(http.Header),
+		}, nil
+	})
+
+	result, err := Request(context.Background(), client, http.MethodDelete, "https://example.com", "/foo", "tok", nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.StatusCode != http.StatusNoContent {
+		t.Fatalf("StatusCode = %d, want %d", result.StatusCode, http.StatusNoContent)
+	}
+	if len(result.Body) != 0 {
+		t.Fatalf("Body = %q, want empty", string(result.Body))
+	}
+}
+
 func TestRequestSetsUserAgentHeader(t *testing.T) {
 	original := meta.CLIVersion()
 	t.Cleanup(func() {
@@ -180,6 +211,40 @@ func TestRequestWithTokenSourceRefreshesAndRetries401(t *testing.T) {
 	}
 	if source.refreshCalls != 1 {
 		t.Fatalf("refreshCalls = %d, want 1", source.refreshCalls)
+	}
+}
+
+func TestRequestWithTokenSourceNilRetryResponse(t *testing.T) {
+	source := &testTokenSource{
+		token:          "old-token",
+		refreshedToken: "new-token",
+	}
+
+	attempts := 0
+	client := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		attempts++
+		if attempts == 1 {
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"error":"expired"}`)),
+			}, nil
+		}
+		return nil, nil
+	})
+
+	_, err := RequestWithTokenSource(
+		context.Background(),
+		client,
+		http.MethodGet,
+		"https://example.com",
+		"/v1/test",
+		source,
+		nil,
+		nil,
+	)
+	if err == nil || !strings.Contains(err.Error(), "retry request after Konnect token refresh returned nil response") {
+		t.Fatalf("expected nil retry response error, got %v", err)
 	}
 }
 

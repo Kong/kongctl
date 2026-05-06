@@ -240,3 +240,16 @@ func TestResolveAccessTokenPreservesContextErrors(t *testing.T) {
 
 	require.ErrorIs(t, err, context.Canceled)
 }
+
+func TestKonnectSDKFactoryReturnsAuthConfigurationErrors(t *testing.T) {
+	cfg, _ := newTestConfig(map[string]string{
+		RegionConfigPath: "bad/region",
+	})
+
+	_, err := KonnectSDKFactory(cfg, nil)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid konnect region")
+	require.NotContains(t, err.Error(), "authentication token not available")
+	require.NotContains(t, err.Error(), "no access token available")
+}
