@@ -395,19 +395,29 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// Ensure team roles depend on referenced APIs created in the same plan
 	adjustTeamRoleDependencies(basePlan)
 
-	// Resolve dependencies and calculate execution order
-	// Inject additional dependency constraints that span resource planners
+	// Resolve dependencies and calculate execution order.
+	// Inject additional dependency constraints that span resource planners.
 	adjustAuthStrategyDeleteDependencies(basePlan.Changes)
 	adjustDCRProviderDeleteDependencies(basePlan.Changes)
 
-	executionOrder, err := p.depResolver.ResolveDependencies(basePlan.Changes)
+	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
 	}
-	basePlan.SetExecutionOrder(executionOrder)
+
+	// Persist all implicit edges back into DependsOn so the plan is the single
+	// source of truth for ordering, enabling safe concurrent execution.
+	for i := range basePlan.Changes {
+		if fullDeps, ok := depResult.FullDepsMap[basePlan.Changes[i].ID]; ok {
+			basePlan.Changes[i].DependsOn = fullDeps
+		}
+	}
+
+	basePlan.SetExecutionOrder(depResult.ExecutionOrder)
+	basePlan.SetExecutionGroups(depResult.ExecutionGroups)
 
 	// Reassign change IDs to match execution order
-	p.reassignChangeIDs(basePlan, executionOrder)
+	p.reassignChangeIDs(basePlan, depResult.ExecutionOrder)
 
 	p.addUnresolvedReferenceWarnings(basePlan, rs)
 	p.applyDeferredEnvPlaceholders(basePlan, rs)
@@ -678,6 +688,15 @@ func (p *Planner) reassignChangeIDs(plan *Plan, executionOrder []string) {
 	for i := range plan.Warnings {
 		if newID, ok := idMapping[plan.Warnings[i].ChangeID]; ok {
 			plan.Warnings[i].ChangeID = newID
+		}
+	}
+
+	// Update execution groups with new IDs
+	for i := range plan.ExecutionGroups {
+		for j := range plan.ExecutionGroups[i] {
+			if newID, ok := idMapping[plan.ExecutionGroups[i][j]]; ok {
+				plan.ExecutionGroups[i][j] = newID
+			}
 		}
 	}
 }

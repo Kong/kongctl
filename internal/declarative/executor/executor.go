@@ -19,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"golang.org/x/sync/errgroup"
 )
 
 // Executor handles the execution of declarative configuration plans
@@ -122,8 +123,11 @@ type Executor struct {
 	planBaseDir        string
 }
 
-// DefaultParallelism is the default number of concurrent executor operations.
-const DefaultParallelism = 10
+// DefaultMaxConcurrency is the default --max-concurrency value (sequential baseline).
+const DefaultMaxConcurrency = 1
+
+// DefaultParallelism is kept for backward compatibility; prefer DefaultMaxConcurrency.
+const DefaultParallelism = DefaultMaxConcurrency
 
 // MaxParallelism is the maximum allowed concurrent operations.
 // Assuming a 200ms response time and 6000 req/min rate limit, this runs out in 6s.
@@ -459,7 +463,10 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	ctx = withExecutorHTTPLogContext(ctx, e.executionMode)
 
 	result := &ExecutionResult{
-		DryRun: e.dryRun,
+		DryRun:         e.dryRun,
+		StartedAt:      time.Now(),
+		MaxConcurrency: e.parallelism,
+		GroupCount:     len(plan.ExecutionGroups),
 	}
 
 	// Notify reporter of execution start
@@ -467,8 +474,13 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		e.reporter.StartExecution(plan)
 	}
 
-	// Execute changes in order
-	if e.parallelism > 1 {
+	// Choose execution strategy.
+	// If the plan contains execution_groups (i.e. it was produced by a concurrency-aware
+	// planner), use group-based concurrent execution.
+	// Otherwise fall back to the flat ExecutionOrder path (legacy plans).
+	if len(plan.ExecutionGroups) > 0 {
+		e.executeGroupsConcurrent(ctx, plan, result)
+	} else if e.parallelism > 1 {
 		e.executeParallel(ctx, plan, result)
 	} else {
 		for i, changeID := range plan.ExecutionOrder {
@@ -503,6 +515,8 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		e.reporter.FinishExecution(result)
 	}
 
+	result.FinishedAt = time.Now()
+	result.Elapsed = result.FinishedAt.Sub(result.StartedAt).Round(time.Millisecond).String()
 	return result
 }
 
@@ -642,6 +656,132 @@ func (e *Executor) executeParallel(ctx context.Context, plan *planner.Plan, resu
 	}
 
 	wg.Wait()
+}
+
+// executeGroupsConcurrent executes plan.ExecutionGroups in strict order: all changes
+// in group N must complete before group N+1 starts. Within each group, changes run
+// concurrently up to e.parallelism. Changes whose direct dependencies failed or were
+// blocked are recorded as "blocked" and skipped rather than executed.
+func (e *Executor) executeGroupsConcurrent(
+	ctx context.Context,
+	plan *planner.Plan,
+	result *ExecutionResult,
+) {
+	changeByID := make(map[string]*planner.PlannedChange, len(plan.Changes))
+	idxByID := make(map[string]int, len(plan.Changes))
+	for i := range plan.Changes {
+		changeByID[plan.Changes[i].ID] = &plan.Changes[i]
+		idxByID[plan.Changes[i].ID] = i
+	}
+
+	// blockedOrFailed tracks IDs of changes that failed or were blocked so that
+	// downstream changes in later groups can be identified and skipped.
+	blockedOrFailed := make(map[string]bool)
+
+	for _, group := range plan.ExecutionGroups {
+		var runnableIDs []string
+
+		// Classify each change in this group: blocked (dependency failed) or runnable.
+		for _, changeID := range group {
+			change := changeByID[changeID]
+			if change == nil {
+				continue
+			}
+			blockers := findBlockers(change, blockedOrFailed)
+			if len(blockers) > 0 {
+				blockedOrFailed[changeID] = true
+				startedAt := time.Now()
+				e.mu.Lock()
+				result.SkippedCount++
+				result.ChangeExecutions = append(result.ChangeExecutions, ChangeExecution{
+					ChangeID:  changeID,
+					StartedAt: startedAt,
+					EndedAt:   startedAt,
+					Duration:  "0s",
+					Status:    "blocked",
+					BlockedBy: blockers,
+				})
+				e.mu.Unlock()
+				if e.reporter != nil {
+					e.reporter.SkipChange(*change,
+						fmt.Sprintf("blocked by failed dependencies: %v", blockers))
+				}
+			} else {
+				runnableIDs = append(runnableIDs, changeID)
+			}
+		}
+
+		if len(runnableIDs) == 0 {
+			continue
+		}
+
+		// Track which changes in THIS group fail so they can be added to blockedOrFailed
+		// after the group completes (preventing data races on the shared map).
+		var groupMu sync.Mutex
+		groupFailed := make(map[string]bool)
+
+		var g errgroup.Group
+		if e.parallelism > 1 {
+			g.SetLimit(e.parallelism)
+		}
+
+		for _, changeID := range runnableIDs {
+			ch := changeByID[changeID]
+			idx := idxByID[changeID]
+			startedAt := time.Now()
+
+			g.Go(func() error {
+				changeCtx := withExecutorChangeHTTPLogContext(ctx, ch)
+				err := e.executeChange(changeCtx, result, ch, plan, idx)
+
+				endedAt := time.Now()
+				status := "success"
+				if err != nil {
+					status = "failure"
+					groupMu.Lock()
+					groupFailed[ch.ID] = true
+					groupMu.Unlock()
+				}
+
+				e.mu.Lock()
+				result.ChangeExecutions = append(result.ChangeExecutions, ChangeExecution{
+					ChangeID:  ch.ID,
+					StartedAt: startedAt,
+					EndedAt:   endedAt,
+					Duration:  endedAt.Sub(startedAt).Round(time.Millisecond).String(),
+					Status:    status,
+				})
+				e.mu.Unlock()
+
+				// Never return an error to errgroup — errors are already stored in result.
+				return nil
+			})
+		}
+
+		_ = g.Wait()
+
+		// Promote this group's failures into the shared blockedOrFailed set.
+		groupMu.Lock()
+		for id := range groupFailed {
+			blockedOrFailed[id] = true
+		}
+		groupMu.Unlock()
+	}
+}
+
+// findBlockers returns the subset of change.DependsOn whose IDs are present in
+// blockedOrFailed. A non-empty return value means this change must be skipped.
+func findBlockers(change *planner.PlannedChange, blockedOrFailed map[string]bool) []string {
+	if change == nil || len(change.DependsOn) == 0 {
+		return nil
+	}
+	var blockers []string
+	for _, dep := range change.DependsOn {
+		if blockedOrFailed[dep] {
+			blockers = append(blockers, dep)
+		}
+	}
+	return blockers
 }
 
 func withExecutorHTTPLogContext(ctx context.Context, mode planner.PlanMode) context.Context {
@@ -2234,8 +2374,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.eventGatewayBackendClusterExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayVirtualCluster:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
+		// Resolve event gateway reference if needed.
+		// When the gateway was already created at plan time, its ID is in change.Parent.ID.
+		// When the gateway was being created in the same plan run, change.Parent is nil and
+		// the ID is stored in change.References["event_gateway_id"] after resolution below.
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && unresolvedReferenceID(gatewayRef.ID) {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
@@ -2245,10 +2388,21 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 
+		// Determine the effective gateway ID for backend cluster resolution.
+		// Prefer the resolved reference over change.Parent (which is nil when the gateway
+		// was not yet created at plan time).
+		effectiveGatewayID := ""
+		if change.Parent != nil {
+			effectiveGatewayID = change.Parent.ID
+		}
+		if ref, ok := change.References[planner.FieldEventGatewayID]; ok && ref.ID != "" {
+			effectiveGatewayID = ref.ID
+		}
+
 		// Resolve event gateway backend cluster reference if needed
 		if backendClusterRef, ok := change.References[planner.FieldEventGatewayBackendClusterID]; ok &&
-			backendClusterRef.ID == "" {
-			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, change.Parent.ID, backendClusterRef)
+			unresolvedReferenceID(backendClusterRef.ID) {
+			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, effectiveGatewayID, backendClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway backend cluster reference: %w", err)
 			}

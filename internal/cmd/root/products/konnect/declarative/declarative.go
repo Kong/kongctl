@@ -92,9 +92,11 @@ Defaults to each -f source root (file: its parent dir, dir: the directory itself
 - Config path: [ %s ]`, baseDirConfigPath))
 }
 
-func addParallelismFlag(cmd *cobra.Command) {
-	cmd.Flags().Int("parallelism", executor.DefaultParallelism,
-		fmt.Sprintf(`Maximum number of concurrent API operations during execution (min %d, max %d).`,
+func addMaxConcurrencyFlag(cmd *cobra.Command) {
+	cmd.Flags().Int("max-concurrency", executor.DefaultMaxConcurrency,
+		fmt.Sprintf(`Maximum number of concurrent API operations during execution (min %d, max %d).
+When the plan contains execution_groups, operations within each group run
+concurrently up to this limit. Use 1 for sequential execution.`,
 			executor.MinParallelism, executor.MaxParallelism))
 }
 
@@ -1263,7 +1265,7 @@ achieve the desired state.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
-	addParallelismFlag(cmd)
+	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -1533,11 +1535,11 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:       token,
-		KonnectTokenSource: tokenSource,
-		KonnectBaseURL:     baseURL,
-		Mode:               planner.PlanModeApply,
-		PlanBaseDir:        resolvePlanBaseDir(planFile),
+		KonnectToken:   token,
+		KonnectBaseURL: baseURL,
+		Mode:           planner.PlanModeApply,
+		PlanBaseDir:    resolvePlanBaseDir(planFile),
+		Parallelism:    maxConcurrencyFromCmd(command),
 	})
 
 	// Execute plan
@@ -1763,7 +1765,7 @@ delete resources.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
-	addParallelismFlag(cmd)
+	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -1796,7 +1798,7 @@ This is equivalent to running:
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
-	addParallelismFlag(cmd)
+	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -2007,11 +2009,11 @@ func runDelete(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:       token,
-		KonnectTokenSource: tokenSource,
-		KonnectBaseURL:     baseURL,
-		Mode:               planner.PlanModeDelete,
-		PlanBaseDir:        resolvePlanBaseDir(planFile),
+		KonnectToken:   token,
+		KonnectBaseURL: baseURL,
+		Mode:           planner.PlanModeDelete,
+		PlanBaseDir:    resolvePlanBaseDir(planFile),
+		Parallelism:    maxConcurrencyFromCmd(command),
 	})
 
 	// Execute plan
@@ -2258,11 +2260,11 @@ func runSync(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:       token,
-		KonnectTokenSource: tokenSource,
-		KonnectBaseURL:     baseURL,
-		Mode:               planner.PlanModeSync,
-		PlanBaseDir:        resolvePlanBaseDir(planFile),
+		KonnectToken:   token,
+		KonnectBaseURL: baseURL,
+		Mode:           planner.PlanModeSync,
+		PlanBaseDir:    resolvePlanBaseDir(planFile),
+		Parallelism:    maxConcurrencyFromCmd(command),
 	})
 
 	// Execute plan
@@ -2280,9 +2282,9 @@ func runSync(command *cobra.Command, args []string) error {
 	return nil
 }
 
-// parallelismFromCmd reads the --parallelism flag; returns 0 (use executor default) if not set.
-func parallelismFromCmd(cmd *cobra.Command) int {
-	v, _ := cmd.Flags().GetInt("parallelism")
+// maxConcurrencyFromCmd reads the --max-concurrency flag; returns 0 (use executor default) if not set.
+func maxConcurrencyFromCmd(cmd *cobra.Command) int {
+	v, _ := cmd.Flags().GetInt("max-concurrency")
 	return v
 }
 

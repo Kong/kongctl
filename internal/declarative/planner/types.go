@@ -12,8 +12,13 @@ type Plan struct {
 	Metadata       PlanMetadata    `json:"metadata"`
 	Changes        []PlannedChange `json:"changes"`
 	ExecutionOrder []string        `json:"execution_order"`
-	Summary        PlanSummary     `json:"summary"`
-	Warnings       []PlanWarning   `json:"warnings,omitempty"`
+	// ExecutionGroups is an ordered list of concurrency groups.
+	// Changes within a group are safe to execute concurrently; group N+1 must
+	// not start until group N is fully complete. Plans without this field
+	// (legacy plans or plans with no changes) execute sequentially via ExecutionOrder.
+	ExecutionGroups [][]string    `json:"execution_groups,omitempty"`
+	Summary         PlanSummary   `json:"summary"`
+	Warnings        []PlanWarning `json:"warnings,omitempty"`
 }
 
 // PlanMode represents the mode of plan generation
@@ -194,6 +199,13 @@ func (p *Plan) HasChange(resourceType, resourceRef string) bool {
 // SetExecutionOrder sets the calculated execution order
 func (p *Plan) SetExecutionOrder(order []string) {
 	p.ExecutionOrder = order
+}
+
+// SetExecutionGroups sets the concurrency groups computed during dependency
+// resolution. Each group holds change IDs that are safe to run concurrently;
+// groups must be executed one at a time in order.
+func (p *Plan) SetExecutionGroups(groups [][]string) {
+	p.ExecutionGroups = groups
 }
 
 // AddWarning adds a warning to the plan

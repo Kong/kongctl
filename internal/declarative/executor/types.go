@@ -1,6 +1,8 @@
 package executor
 
 import (
+	"time"
+
 	"github.com/kong/kongctl/internal/declarative/planner"
 )
 
@@ -22,6 +24,34 @@ type ExecutionResult struct {
 
 	// Validation results for dry-run mode
 	ValidationResults []ValidationResult `json:"validation_results,omitempty"`
+
+	// StartedAt is the wall-clock time when Execute was called.
+	StartedAt time.Time `json:"started_at,omitempty"`
+	// FinishedAt is the wall-clock time when Execute returned.
+	FinishedAt time.Time `json:"finished_at,omitempty"`
+	// Elapsed is a human-readable total execution duration (e.g. "1.23s").
+	Elapsed string `json:"elapsed,omitempty"`
+	// MaxConcurrency is the effective --max-concurrency value used during execution.
+	MaxConcurrency int `json:"max_concurrency,omitempty"`
+	// GroupCount is the number of execution_groups in the plan (0 for legacy plans).
+	GroupCount int `json:"group_count,omitempty"`
+	// ChangeExecutions provides per-change timing and outcome details.
+	ChangeExecutions []ChangeExecution `json:"change_executions,omitempty"`
+}
+
+// ChangeExecution captures timing and outcome for a single planned change.
+type ChangeExecution struct {
+	ChangeID string `json:"change_id"`
+	// StartedAt is when execution of this change began.
+	StartedAt time.Time `json:"started_at,omitempty"`
+	// EndedAt is when execution of this change completed.
+	EndedAt time.Time `json:"ended_at,omitempty"`
+	// Duration is a human-readable per-change elapsed time (e.g. "450ms").
+	Duration string `json:"duration,omitempty"`
+	// Status is one of: "success", "failure", "skipped", "blocked".
+	Status string `json:"status"`
+	// BlockedBy lists change IDs whose failure caused this change to be blocked.
+	BlockedBy []string `json:"blocked_by,omitempty"`
 }
 
 // ExecutionError represents an error that occurred during execution
