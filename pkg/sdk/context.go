@@ -184,7 +184,7 @@ func (r *RuntimeContext) RunKongctl(ctx context.Context, args ...string) error {
 
 // KonnectSDK returns an authenticated sdk-konnect-go client configured from
 // the parent kongctl invocation context.
-func (r *RuntimeContext) KonnectSDK(_ context.Context) (*konnectsdk.SDK, error) {
+func (r *RuntimeContext) KonnectSDK(ctx context.Context) (*konnectsdk.SDK, error) {
 	cfg, err := r.loadConfig()
 	if err != nil {
 		return nil, err
@@ -192,8 +192,14 @@ func (r *RuntimeContext) KonnectSDK(_ context.Context) (*konnectsdk.SDK, error) 
 
 	logger := r.newLogger()
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
+		return nil, err
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
 		return nil, err
 	}
 
@@ -212,7 +218,7 @@ func (r *RuntimeContext) KonnectSDK(_ context.Context) (*konnectsdk.SDK, error) 
 		return nil, err
 	}
 
-	sdk, _, err := auth.GetAuthenticatedClient(baseURL, token, timeout, transportOptions, logger)
+	sdk, _, err := auth.GetAuthenticatedClient(baseURL, tokenSource, timeout, transportOptions, logger)
 	if err != nil {
 		return nil, err
 	}
