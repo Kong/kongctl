@@ -83,7 +83,7 @@ local `docs/` directory exists.
 Before hand-writing unfamiliar resources or fields, discover structure with:
 
 ```bash
-kongctl explain <resource-path> --extended
+kongctl explain <resource-path> -o text --extended
 kongctl scaffold <resource-path>
 ```
 
