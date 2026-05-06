@@ -1,6 +1,8 @@
 package common
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -142,14 +144,41 @@ func ResolveHTTPTransportOptions(cfg config.Hook) (httpclient.TransportOptions, 
 }
 
 func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
+	source, err := GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return "", err
+	}
+
+	return ResolveAccessToken(context.Background(), cfg, source)
+}
+
+func ResolveAccessToken(ctx context.Context, cfg config.Hook, source *auth.TokenSource) (string, error) {
+	if source == nil {
+		return "", accessTokenUnavailableError(cfg)
+	}
+
+	token, err := source.Token(ctx)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return "", err
+		}
+		return "", accessTokenUnavailableError(cfg)
+	}
+	return token, nil
+}
+
+func GetAccessTokenSource(cfg config.Hook, logger *slog.Logger) (*auth.TokenSource, error) {
 	pat := cfg.GetString(PATConfigPath)
 	if pat != "" {
-		return pat, nil
+		return auth.NewTokenSource(cfg, auth.TokenSourceOptions{
+			PAT:    pat,
+			Logger: logger,
+		}), nil
 	}
 
 	baseURL, err := ResolveBaseURL(cfg)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	refreshPath := cfg.GetString(RefreshPathConfigPath)
@@ -160,47 +189,52 @@ func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 
 	timeout, err := ResolveHTTPTimeout(cfg)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	transportOptions, err := ResolveHTTPTransportOptions(cfg)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	tok, err := auth.LoadAccessToken(cfg, refreshURL, timeout, transportOptions, logger)
-	if err != nil {
-		// Provide helpful guidance on authentication options instead of exposing
-		// internal implementation details like file paths
-		profile := cfg.GetProfile()
-		envVar := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", strings.ToUpper(profile))
+	return auth.NewTokenSource(cfg, auth.TokenSourceOptions{
+		PAT:              pat,
+		RefreshURL:       refreshURL,
+		Timeout:          timeout,
+		TransportOptions: transportOptions,
+		Logger:           logger,
+	}), nil
+}
 
-		return "", fmt.Errorf(
-			"authentication token not available. Use one of the following to authorize %s:\n"+
-				"  - '%s login' to authenticate via the web\n"+
-				"  - provide a token via the --%s flag\n"+
-				"  - set the %s environment variable\n"+
-				"  - configure a token value in the '%s.%s' path of your configuration file",
-			meta.CLIName,
-			meta.CLIName,
-			PATFlagName,
-			envVar,
-			profile,
-			PATConfigPath,
-		)
-	}
-	return tok.Token.AuthToken, nil
+func accessTokenUnavailableError(cfg config.Hook) error {
+	profile := cfg.GetProfile()
+	envVar := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", strings.ToUpper(profile))
+
+	return fmt.Errorf(
+		"authentication token not available. Use one of the following to authorize %s:\n"+
+			"  - '%s login' to authenticate via the web\n"+
+			"  - provide a token via the --%s flag\n"+
+			"  - set the %s environment variable\n"+
+			"  - configure a token value in the '%s.%s' path of your configuration file",
+		meta.CLIName,
+		meta.CLIName,
+		PATFlagName,
+		envVar,
+		profile,
+		PATConfigPath,
+	)
 }
 
 // This is the real implementation of the SDKAPIFactory,
 // which creates a real Konnect SDK instance
 func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
-	token, e := GetAccessToken(cfg, logger)
+	tokenSource, e := GetAccessTokenSource(cfg, logger)
 	if e != nil {
-		return nil, fmt.Errorf(
-			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,
-			meta.CLIName,
-		)
+		return nil, e
+	}
+	token, e := ResolveAccessToken(context.Background(), cfg, tokenSource)
+	if e != nil {
+		return nil, e
 	}
 
 	baseURL, err := ResolveBaseURL(cfg)
@@ -218,16 +252,17 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		return nil, err
 	}
 
-	sdk, httpClient, err := auth.GetAuthenticatedClient(baseURL, token, timeout, transportOptions, logger)
+	sdk, httpClient, err := auth.GetAuthenticatedClient(baseURL, tokenSource, timeout, transportOptions, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	return &helpers.KonnectSDK{
-		SDK:        sdk,
-		BaseURL:    baseURL,
-		Token:      token,
-		HTTPClient: httpClient,
+		SDK:         sdk,
+		BaseURL:     baseURL,
+		Token:       token,
+		TokenSource: tokenSource,
+		HTTPClient:  httpClient,
 	}, nil
 }
 

@@ -32,10 +32,11 @@ type APIPublicationAPI interface {
 
 // APIPublicationAPIImpl provides an implementation of the APIPublicationAPI interface
 type APIPublicationAPIImpl struct {
-	SDK        *kkSDK.SDK
-	BaseURL    string
-	Token      string
-	HTTPClient kkSDK.HTTPClient
+	SDK         *kkSDK.SDK
+	BaseURL     string
+	Token       string
+	TokenSource apiutil.TokenSource
+	HTTPClient  kkSDK.HTTPClient
 }
 
 // PublishAPIToPortal implements the APIPublicationAPI interface
@@ -202,16 +203,11 @@ func (a *APIPublicationAPIImpl) publishAPIToPortalWithMergedPayload(
 	}
 
 	path := fmt.Sprintf("/v3/apis/%s/publications/%s", url.PathEscape(request.APIID), url.PathEscape(request.PortalID))
-	result, err := apiutil.Request(
+	result, err := a.request(
 		ctx,
-		a.HTTPClient,
 		http.MethodPut,
-		a.BaseURL,
 		path,
-		a.Token,
-		map[string]string{
-			"Content-Type": "application/json",
-		},
+		map[string]string{"Content-Type": "application/json"},
 		bytes.NewReader(payload),
 	)
 	if err != nil {
@@ -247,6 +243,19 @@ func (a *APIPublicationAPIImpl) publishAPIToPortalWithMergedPayload(
 	response.APIPublicationResponse = &publicationResponse
 
 	return response, nil
+}
+
+func (a *APIPublicationAPIImpl) request(
+	ctx context.Context,
+	method string,
+	path string,
+	headers map[string]string,
+	body io.Reader,
+) (*apiutil.Result, error) {
+	if a.TokenSource != nil {
+		return apiutil.RequestWithTokenSource(ctx, a.HTTPClient, method, a.BaseURL, path, a.TokenSource, headers, body)
+	}
+	return apiutil.Request(ctx, a.HTTPClient, method, a.BaseURL, path, a.Token, headers, body)
 }
 
 func (a *APIPublicationAPIImpl) fetchExistingPublication(

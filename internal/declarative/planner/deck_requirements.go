@@ -376,10 +376,20 @@ func (p *Planner) deckDiffHasChanges(
 	args = append(args, "--json-output", "--no-color")
 	args = append(args, files...)
 
+	token := opts.Deck.KonnectToken
+	if opts.Deck.KonnectTokenSource != nil {
+		var err error
+		token, err = opts.Deck.KonnectTokenSource.Token(ctx)
+		if err != nil {
+			return false, fmt.Errorf("control_plane %s: resolve Konnect token for deck diff: %w",
+				controlPlaneRef, err)
+		}
+	}
+
 	result, err := runner.Run(ctx, deck.RunOptions{
 		Args:                    args,
 		Mode:                    string(mode),
-		KonnectToken:            opts.Deck.KonnectToken,
+		KonnectToken:            token,
 		KonnectControlPlaneName: controlPlaneName,
 		KonnectAddress:          opts.Deck.KonnectAddress,
 		WorkDir:                 deckBaseDir,

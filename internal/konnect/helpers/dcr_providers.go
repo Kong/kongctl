@@ -96,10 +96,11 @@ func NormalizeDCRProviderPayload(data any) (*NormalizedDCRProviderPayload, error
 
 // DCRProvidersAPIImpl provides an implementation of the DCRProvidersAPI interface
 type DCRProvidersAPIImpl struct {
-	SDK        *kkSDK.SDK
-	BaseURL    string
-	Token      string
-	HTTPClient kkSDK.HTTPClient
+	SDK         *kkSDK.SDK
+	BaseURL     string
+	Token       string
+	TokenSource apiutil.TokenSource
+	HTTPClient  kkSDK.HTTPClient
 }
 
 func (a *DCRProvidersAPIImpl) ListDcrProviders(ctx context.Context,
@@ -143,7 +144,7 @@ func (a *DCRProvidersAPIImpl) ListDcrProviderPayloads(
 		path += "?" + encoded
 	}
 
-	result, err := apiutil.Request(ctx, a.HTTPClient, http.MethodGet, a.BaseURL, path, a.Token, nil, nil)
+	result, err := a.request(ctx, http.MethodGet, path, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -171,16 +172,8 @@ func (a *DCRProvidersAPIImpl) CreateDcrProvider(ctx context.Context,
 			return nil, fmt.Errorf("failed to marshal DCR provider create request: %w", err)
 		}
 
-		result, err := apiutil.Request(
-			ctx,
-			a.HTTPClient,
-			http.MethodPost,
-			a.BaseURL,
-			"/v2/dcr-providers",
-			a.Token,
-			map[string]string{"Content-Type": "application/json"},
-			bytes.NewReader(payload),
-		)
+		result, err := a.request(ctx, http.MethodPost, "/v2/dcr-providers",
+			map[string]string{"Content-Type": "application/json"}, bytes.NewReader(payload))
 		if err != nil {
 			return nil, err
 		}
@@ -209,16 +202,8 @@ func (a *DCRProvidersAPIImpl) UpdateDcrProvider(ctx context.Context, id string,
 		}
 
 		path := fmt.Sprintf("/v2/dcr-providers/%s", url.PathEscape(id))
-		result, err := apiutil.Request(
-			ctx,
-			a.HTTPClient,
-			http.MethodPatch,
-			a.BaseURL,
-			path,
-			a.Token,
-			map[string]string{"Content-Type": "application/json"},
-			bytes.NewReader(payload),
-		)
+		result, err := a.request(ctx, http.MethodPatch, path,
+			map[string]string{"Content-Type": "application/json"}, bytes.NewReader(payload))
 		if err != nil {
 			return nil, err
 		}
@@ -242,16 +227,7 @@ func (a *DCRProvidersAPIImpl) DeleteDcrProvider(ctx context.Context,
 ) (*kkOPS.DeleteDcrProviderResponse, error) {
 	if a.canUseRawRequest() {
 		path := fmt.Sprintf("/v2/dcr-providers/%s", url.PathEscape(id))
-		result, err := apiutil.Request(
-			ctx,
-			a.HTTPClient,
-			http.MethodDelete,
-			a.BaseURL,
-			path,
-			a.Token,
-			nil,
-			nil,
-		)
+		result, err := a.request(ctx, http.MethodDelete, path, nil, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -274,6 +250,19 @@ func (a *DCRProvidersAPIImpl) canUseRawRequest() bool {
 	return a != nil &&
 		a.HTTPClient != nil &&
 		strings.TrimSpace(a.BaseURL) != ""
+}
+
+func (a *DCRProvidersAPIImpl) request(
+	ctx context.Context,
+	method string,
+	path string,
+	headers map[string]string,
+	body io.Reader,
+) (*apiutil.Result, error) {
+	if a.TokenSource != nil {
+		return apiutil.RequestWithTokenSource(ctx, a.HTTPClient, method, a.BaseURL, path, a.TokenSource, headers, body)
+	}
+	return apiutil.Request(ctx, a.HTTPClient, method, a.BaseURL, path, a.Token, headers, body)
 }
 
 func newDCRProviderRawResponse(result *apiutil.Result) *http.Response {

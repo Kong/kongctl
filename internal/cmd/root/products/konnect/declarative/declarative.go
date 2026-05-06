@@ -616,7 +616,11 @@ func deckPlanOptions(
 		return planner.DeckOptions{}, nil
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return planner.DeckOptions{}, err
+	}
+	token, err := konnectcommon.ResolveAccessToken(context.Background(), cfg, tokenSource)
 	if err != nil {
 		return planner.DeckOptions{}, err
 	}
@@ -627,8 +631,9 @@ func deckPlanOptions(
 	}
 
 	return planner.DeckOptions{
-		KonnectToken:   token,
-		KonnectAddress: baseURL,
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectAddress:     baseURL,
 	}, nil
 }
 
@@ -1507,7 +1512,11 @@ func runApply(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return err
+	}
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return err
 	}
@@ -1517,10 +1526,11 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:   token,
-		KonnectBaseURL: baseURL,
-		Mode:           planner.PlanModeApply,
-		PlanBaseDir:    resolvePlanBaseDir(planFile),
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectBaseURL:     baseURL,
+		Mode:               planner.PlanModeApply,
+		PlanBaseDir:        resolvePlanBaseDir(planFile),
 	})
 
 	// Execute plan
@@ -1974,7 +1984,11 @@ func runDelete(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return err
+	}
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return err
 	}
@@ -1984,10 +1998,11 @@ func runDelete(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:   token,
-		KonnectBaseURL: baseURL,
-		Mode:           planner.PlanModeDelete,
-		PlanBaseDir:    resolvePlanBaseDir(planFile),
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectBaseURL:     baseURL,
+		Mode:               planner.PlanModeDelete,
+		PlanBaseDir:        resolvePlanBaseDir(planFile),
 	})
 
 	// Execute plan
@@ -2220,7 +2235,11 @@ func runSync(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return err
+	}
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return err
 	}
@@ -2230,10 +2249,11 @@ func runSync(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:   token,
-		KonnectBaseURL: baseURL,
-		Mode:           planner.PlanModeSync,
-		PlanBaseDir:    resolvePlanBaseDir(planFile),
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectBaseURL:     baseURL,
+		Mode:               planner.PlanModeSync,
+		PlanBaseDir:        resolvePlanBaseDir(planFile),
 	})
 
 	// Execute plan

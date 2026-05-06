@@ -82,10 +82,18 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 	args := append([]string{"gateway", mode}, flags...)
 	args = append(args, files...)
 
+	token := e.konnectToken
+	if e.konnectTokenSource != nil {
+		token, err = e.konnectTokenSource.Token(ctx)
+		if err != nil {
+			return fmt.Errorf("deck step %s: resolve Konnect token: %w", cpRef, err)
+		}
+	}
+
 	result, err := e.deckRunner.Run(ctx, deck.RunOptions{
 		Args:                    args,
 		Mode:                    mode,
-		KonnectToken:            e.konnectToken,
+		KonnectToken:            token,
 		KonnectControlPlaneName: cpName,
 		KonnectAddress:          e.konnectBaseURL,
 		WorkDir:                 workDir,

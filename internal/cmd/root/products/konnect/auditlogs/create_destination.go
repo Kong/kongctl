@@ -118,7 +118,7 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 		"configure_webhook", c.configureWebhook,
 	)
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return createDestinationOutput{}, cmd.PrepareExecutionError(
 			"failed to resolve Konnect access token",
@@ -130,6 +130,13 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 	ctx := helper.GetContext()
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return createDestinationOutput{}, cmd.PrepareExecutionError(
+			"failed to resolve Konnect access token",
+			err,
+			helper.GetCmd(),
+		)
 	}
 	client := httpclient.NewLoggingHTTPClient(logger)
 	regionalBaseURL := ""
@@ -146,7 +153,7 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 			"resolved regional Konnect base URL for webhook operations",
 			"base_url", regionalBaseURL,
 		)
-		if err := ensureNoActiveRegionalWebhook(ctx, client, regionalBaseURL, token, logger); err != nil {
+		if err := ensureNoActiveRegionalWebhook(ctx, client, regionalBaseURL, tokenSource, logger); err != nil {
 			return createDestinationOutput{}, cmd.PrepareExecutionError(
 				"active audit-log webhook already configured for this region",
 				err,
@@ -167,7 +174,7 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 		logger.Debug("generated default audit-log destination name", "name", requestBody.Name)
 	}
 
-	nameTaken, err := destinationNameExists(ctx, client, token, requestBody.Name, logger)
+	nameTaken, err := destinationNameExists(ctx, client, tokenSource, requestBody.Name, logger)
 	if err != nil {
 		return createDestinationOutput{}, cmd.PrepareExecutionError(
 			"failed to verify destination name uniqueness",
@@ -193,13 +200,13 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 		)
 	}
 
-	destinationResult, err := apiutil.Request(
+	destinationResult, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodPost,
 		konnectcommon.GlobalBaseURL,
 		createDestinationPath,
-		token,
+		tokenSource,
 		map[string]string{
 			"Content-Type": "application/json",
 		},
@@ -271,13 +278,13 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 			)
 		}
 
-		webhookResult, err := apiutil.Request(
+		webhookResult, err := apiutil.RequestWithTokenSource(
 			ctx,
 			client,
 			http.MethodPatch,
 			regionalBaseURL,
 			updateWebhookPath,
-			token,
+			tokenSource,
 			map[string]string{
 				"Content-Type": "application/json",
 			},
@@ -346,7 +353,7 @@ func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disable
 	if err != nil {
 		return err
 	}
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("resolve Konnect access token: %w", err)
 	}
@@ -356,6 +363,9 @@ func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disable
 	// so destination cleanup still runs on Ctrl+C.
 	ctx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
 	defer cancel()
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return fmt.Errorf("resolve Konnect access token: %w", err)
+	}
 
 	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
 	if err != nil {
@@ -364,7 +374,7 @@ func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disable
 	client := httpclient.NewLoggingHTTPClient(logger)
 
 	if disableWebhook {
-		if err := releaseRegionalWebhook(ctx, client, baseURL, token, logger); err != nil {
+		if err := releaseRegionalWebhook(ctx, client, baseURL, tokenSource, logger); err != nil {
 			logger.Debug(
 				"regional audit-log webhook release had non-fatal errors",
 				"error", err,
@@ -373,14 +383,14 @@ func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disable
 	}
 
 	path := fmt.Sprintf("%s/%s", deleteDestinationV2, url.PathEscape(destinationID))
-	return deleteDestinationWithRetry(ctx, client, baseURL, path, token, destinationID, logger)
+	return deleteDestinationWithRetry(ctx, client, baseURL, path, tokenSource, destinationID, logger)
 }
 
 func releaseRegionalWebhook(
 	ctx context.Context,
 	client apiutil.Doer,
-	baseURL,
-	token string,
+	baseURL string,
+	tokenSource apiutil.TokenSource,
 	logger *slog.Logger,
 ) error {
 	var webhookErr error
@@ -401,13 +411,13 @@ func releaseRegionalWebhook(
 		return fmt.Errorf("encode disable webhook request: %w", err)
 	}
 
-	disableResult, err := apiutil.Request(
+	disableResult, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodPatch,
 		baseURL,
 		webhookPathV2,
-		token,
+		tokenSource,
 		map[string]string{
 			"Content-Type": "application/json",
 		},
@@ -443,13 +453,13 @@ func releaseRegionalWebhook(
 			"base_url", baseURL,
 		)
 	}
-	deleteResult, err := apiutil.Request(
+	deleteResult, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodDelete,
 		baseURL,
 		deleteWebhookPathV3,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)
@@ -482,7 +492,7 @@ func releaseRegionalWebhook(
 func destinationNameExists(
 	ctx context.Context,
 	client apiutil.Doer,
-	token,
+	tokenSource apiutil.TokenSource,
 	name string,
 	logger *slog.Logger,
 ) (bool, error) {
@@ -493,13 +503,13 @@ func destinationNameExists(
 		logger.Debug("checking audit-log destination name uniqueness", "name", name)
 	}
 
-	result, err := apiutil.Request(
+	result, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodGet,
 		konnectcommon.GlobalBaseURL,
 		listDestinationPath,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)
@@ -528,17 +538,17 @@ func destinationNameExists(
 func ensureNoActiveRegionalWebhook(
 	ctx context.Context,
 	client apiutil.Doer,
-	baseURL,
-	token string,
+	baseURL string,
+	tokenSource apiutil.TokenSource,
 	logger *slog.Logger,
 ) error {
-	configResult, err := apiutil.Request(
+	configResult, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodGet,
 		baseURL,
 		webhookPathV2,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)
@@ -590,9 +600,9 @@ func isRegionalWebhookUnconfigured(enabled bool, endpoint string) bool {
 func deleteDestinationWithRetry(
 	ctx context.Context,
 	client apiutil.Doer,
-	baseURL,
-	path,
-	token,
+	baseURL string,
+	path string,
+	tokenSource apiutil.TokenSource,
 	destinationID string,
 	logger *slog.Logger,
 ) error {
@@ -603,13 +613,13 @@ func deleteDestinationWithRetry(
 
 	attempt := 1
 	for {
-		result, err := apiutil.Request(
+		result, err := apiutil.RequestWithTokenSource(
 			ctx,
 			client,
 			http.MethodDelete,
 			baseURL,
 			path,
-			token,
+			tokenSource,
 			nil,
 			nil,
 		)

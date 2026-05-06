@@ -12,7 +12,6 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/google/uuid"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkMetadata "github.com/Kong/sdk-konnect-go/pkg/metadata"
 
 	"github.com/kong/kongctl/internal/config"
@@ -102,7 +100,7 @@ type AccessToken struct {
 }
 
 func (t *AccessToken) IsExpired() bool {
-	return time.Now().After(t.ReceivedAt.Add(time.Duration(t.Token.ExpiresAfter) * time.Second))
+	return t.expiresWithin(0)
 }
 
 // trustedKonnectDomains is the allow list of Kong-owned domains accepted as
@@ -231,6 +229,7 @@ func RefreshAccessToken(
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to refresh token: %s", res.Status)
 	}
@@ -350,9 +349,8 @@ func LoadAccessToken(
 	transportOptions httpclient.TransportOptions,
 	logger *slog.Logger,
 ) (*AccessToken, error) {
-	profile := cfg.GetProfile()
-	cfgPath := filepath.Dir(cfg.GetPath())
-	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
+	logger = loggerOrDiscard(logger)
+	credsPath := credentialFilePath(cfg)
 
 	creds, err := loadAccessTokenFromDisk(credsPath)
 	if err != nil {
@@ -398,19 +396,11 @@ func loadAccessTokenFromDisk(path string) (*AccessToken, error) {
 }
 
 func SaveAccessToken(cfg config.Hook, token *AccessToken) error {
-	profile := cfg.GetProfile()
-	cfgPath := filepath.Dir(cfg.GetPath())
-	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
-
-	return saveAccessTokenToDisk(credsPath, token)
+	return saveAccessTokenToDisk(credentialFilePath(cfg), token)
 }
 
 func DeleteAccessToken(cfg config.Hook) (bool, error) {
-	profile := cfg.GetProfile()
-	cfgPath := filepath.Dir(cfg.GetPath())
-	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
-
-	err := os.Remove(credsPath)
+	err := os.Remove(credentialFilePath(cfg))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
@@ -437,7 +427,7 @@ func saveAccessTokenToDisk(path string, token *AccessToken) error {
 
 func GetAuthenticatedClient(
 	baseURL string,
-	token string,
+	tokenSource *TokenSource,
 	timeout time.Duration,
 	transportOptions httpclient.TransportOptions,
 	logger *slog.Logger,
@@ -449,9 +439,9 @@ func GetAuthenticatedClient(
 
 	opts := []kk.SDKOption{
 		kk.WithServerURL(baseURL),
-		kk.WithSecurity(kkComps.Security{
-			PersonalAccessToken: new(token),
-		}),
+	}
+	if tokenSource != nil {
+		opts = append(opts, kk.WithSecuritySource(tokenSource.Security))
 	}
 
 	loggingClient := httpclient.NewLoggingHTTPClientWithClient(
@@ -461,7 +451,8 @@ func GetAuthenticatedClient(
 		}),
 		logger,
 	)
-	opts = append(opts, kk.WithClient(loggingClient))
+	refreshingClient := NewRefreshingHTTPClient(loggingClient, tokenSource)
+	opts = append(opts, kk.WithClient(refreshingClient))
 
-	return kk.New(opts...), loggingClient, nil
+	return kk.New(opts...), refreshingClient, nil
 }

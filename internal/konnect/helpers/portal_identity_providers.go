@@ -13,6 +13,8 @@ import (
 	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+
+	"github.com/kong/kongctl/internal/konnect/apiutil"
 )
 
 // PortalIdentityProviderAPI defines the interface for portal identity provider operations.
@@ -49,10 +51,11 @@ type PortalIdentityProviderAPI interface {
 
 // PortalIdentityProviderAPIImpl provides an implementation backed by the SDK.
 type PortalIdentityProviderAPIImpl struct {
-	SDK        *kkSDK.SDK
-	BaseURL    string
-	Token      string
-	HTTPClient kkSDK.HTTPClient
+	SDK         *kkSDK.SDK
+	BaseURL     string
+	Token       string
+	TokenSource apiutil.TokenSource
+	HTTPClient  kkSDK.HTTPClient
 }
 
 // ListPortalIdentityProviders lists identity providers for a portal.
@@ -94,13 +97,25 @@ func (p *PortalIdentityProviderAPIImpl) CreatePortalIdentityProvider(
 		return p.SDK.PortalAuthSettings.CreatePortalIdentityProvider(ctx, portalID, request, opts...)
 	}
 
-	sdk := kkSDK.New(
+	sdkOpts := []kkSDK.SDKOption{
 		kkSDK.WithServerURL(p.BaseURL),
-		kkSDK.WithSecurity(kkComps.Security{
-			PersonalAccessToken: &p.Token,
-		}),
 		kkSDK.WithClient(&portalIdentityProviderCreateHTTPClient{base: p.HTTPClient}),
-	)
+	}
+	if p.TokenSource != nil {
+		sdkOpts = append(sdkOpts, kkSDK.WithSecuritySource(func(ctx context.Context) (kkComps.Security, error) {
+			token, err := p.TokenSource.Token(ctx)
+			if err != nil {
+				return kkComps.Security{}, err
+			}
+			return kkComps.Security{PersonalAccessToken: &token}, nil
+		}))
+	} else {
+		sdkOpts = append(sdkOpts, kkSDK.WithSecurity(kkComps.Security{
+			PersonalAccessToken: &p.Token,
+		}))
+	}
+
+	sdk := kkSDK.New(sdkOpts...)
 	if sdk == nil || sdk.PortalAuthSettings == nil {
 		return nil, fmt.Errorf("failed to initialize SDK for portal identity provider create")
 	}

@@ -42,9 +42,10 @@ var errGatewayServiceNotFound = errors.New("gateway service not found")
 
 // DeckOptions provides configuration for deck-based planning.
 type DeckOptions struct {
-	Runner         deck.Runner
-	KonnectToken   string
-	KonnectAddress string
+	Runner             deck.Runner
+	KonnectToken       string
+	KonnectTokenSource deck.KonnectTokenSource
+	KonnectAddress     string
 }
 
 // Planner generates execution plans
