@@ -34,8 +34,8 @@ Symptom: parser rejects a field name.
 
 Actions:
 
-- Run `kongctl explain <resource-path> --extended` to confirm accepted
-  fields and YAML placement.
+- Run `kongctl explain <resource-path> --extended -o text` to confirm
+  accepted fields and YAML placement.
 - Run `kongctl scaffold <resource-path>` when the whole resource shape is
   uncertain.
 - Check field patterns in `references/resources.md`.
