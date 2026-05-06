@@ -16,6 +16,7 @@ func TestEnvTagResolver_Tag(t *testing.T) {
 func TestEnvTagResolver_Resolve(t *testing.T) {
 	t.Setenv("TEST_ENV_SIMPLE", "secret-value")
 	t.Setenv("TEST_ENV_CONFIG", "credentials:\n  username: admin\n")
+	t.Setenv("TEST_ENV_BOOL_CONFIG", "settings:\n  enabled: true\n")
 
 	tests := []struct {
 		name     string
@@ -50,6 +51,15 @@ func TestEnvTagResolver_Resolve(t *testing.T) {
 				Value: " TEST_ENV_CONFIG # credentials.username ",
 			},
 			expected: "admin",
+		},
+		{
+			name: "reject extracted non-string value",
+			mode: EnvTagModeResolve,
+			node: &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: "TEST_ENV_BOOL_CONFIG#settings.enabled",
+			},
+			wantErr: "!env value must resolve to a string",
 		},
 		{
 			name: "preserve placeholder",

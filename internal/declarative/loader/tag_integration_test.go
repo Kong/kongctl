@@ -254,6 +254,88 @@ portals:
 	assert.Equal(t, "__ENV__:PORTAL_DESCRIPTION", rs.GetEnvSources("env-portal")["/description"])
 }
 
+func TestLoader_EnvTagIntegration_DCRProviderDynamicConfig(t *testing.T) {
+	t.Setenv("DCR_BASE_URL", "https://dcr.example.test/register")
+	t.Setenv("DCR_API_KEY", "api-key-from-env")
+
+	tmpDir := t.TempDir()
+	mainContent := `
+dcr_providers:
+  - ref: env-dcr
+    name: env-dcr
+    provider_type: http
+    issuer: https://issuer.example.test
+    dcr_config:
+      dcr_base_url: !env DCR_BASE_URL
+      api_key: !env DCR_API_KEY
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	rs, err := loader.LoadFile(mainFile)
+	require.NoError(t, err)
+	require.NotNil(t, rs)
+	require.Len(t, rs.DCRProviders, 1)
+
+	dcrConfig := rs.DCRProviders[0].DCRConfig
+	assert.Equal(t, "https://dcr.example.test/register", dcrConfig["dcr_base_url"])
+	assert.Equal(t, "api-key-from-env", dcrConfig["api_key"])
+
+	envSources := rs.GetEnvSources("env-dcr")
+	assert.Equal(t, "__ENV__:DCR_BASE_URL", envSources["/dcr_config/dcr_base_url"])
+	assert.Equal(t, "__ENV__:DCR_API_KEY", envSources["/dcr_config/api_key"])
+}
+
+func TestLoader_EnvTagIntegration_DCRProviderBoolConfigRejectsString(t *testing.T) {
+	t.Setenv("DCR_DISABLE_EVENT_HOOKS", "true")
+
+	tmpDir := t.TempDir()
+	mainContent := `
+dcr_providers:
+  - ref: env-dcr
+    name: env-dcr
+    provider_type: http
+    issuer: https://issuer.example.test
+    dcr_config:
+      dcr_base_url: https://dcr.example.test/register
+      disable_event_hooks: !env DCR_DISABLE_EVENT_HOOKS
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	_, err := loader.LoadFile(mainFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "dcr_config.disable_event_hooks must be a boolean")
+}
+
+func TestLoader_EnvTagIntegration_DCRProviderDynamicConfigRejectsNonStringEnvValue(t *testing.T) {
+	t.Setenv("DCR_SETTINGS", "api_key_enabled: true")
+
+	tmpDir := t.TempDir()
+	mainContent := `
+dcr_providers:
+  - ref: env-dcr
+    name: env-dcr
+    provider_type: http
+    issuer: https://issuer.example.test
+    dcr_config:
+      dcr_base_url: https://dcr.example.test/register
+      api_key: !env DCR_SETTINGS#api_key_enabled
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	_, err := loader.LoadFile(mainFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "!env value must resolve to a string")
+}
+
 func TestLoader_EnvTagStringOnlyFields(t *testing.T) {
 	t.Setenv("PORTAL_AUTH_ENABLED", "true")
 

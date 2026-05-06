@@ -2,6 +2,18 @@ _defaults:
   kongctl:
     namespace: yaml-env-tags
 
+dcr_providers:
+  - ref: env-dcr-http
+    name: env-dcr-http
+    provider_type: http
+    issuer: https://env-dcr-issuer.example.com
+    dcr_config:
+      dcr_base_url: !env KONGCTL_E2E_ENV_DCR_BASE_URL
+      api_key: !env KONGCTL_E2E_ENV_DCR_API_KEY
+    labels:
+      suite: yaml-env-tags
+      provider: http
+
 portals:
   - ref: env-portal
     name: env-portal
