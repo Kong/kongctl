@@ -3,8 +3,11 @@ name: kongctl-declarative
 description: Set up, initialize, and manage kongctl declarative configuration
   for Kong Konnect. Use when the user wants to configure a repository with
   Konnect declarative resources, create kongctl manifests (control planes,
-  portals, APIs), generate config from OpenAPI specs, run plan/diff/apply/sync
-  /delete/adopt workflows, or scaffold CI/CD pipelines for Konnect APIOps.
+  portals, APIs), use kongctl scaffold or kongctl explain to discover schemas
+  and bootstrap resource YAML, integrate decK gateway state through _deck,
+  generate Konnect API and Kong Gateway config from OpenAPI specs, run
+  plan/diff/apply/sync/delete/adopt workflows, or scaffold CI/CD pipelines
+  for Konnect APIOps.
 license: Apache-2.0
 metadata:
   product: kongctl
@@ -26,6 +29,10 @@ Choose the execution approach from user intent:
 ## Preconditions
 
 - Confirm CLI is installed and runnable: `kongctl version`
+- For Kong Gateway configuration, confirm decK is installed: `deck version`
+- Local schema helpers do not require Konnect authentication:
+  - `kongctl explain <resource-path>` inspects resource and field schemas.
+  - `kongctl scaffold <resource-path>` prints commented starter YAML.
 - Authenticate with one of:
   - `kongctl login` — preferred for interactive use (browser-based OAuth)
   - `export KONGCTL_DEFAULT_KONNECT_PAT=<token>` — for non-interactive or CI
@@ -36,6 +43,8 @@ Choose the execution approach from user intent:
   returns organization info, auth is confirmed. Do not guess or try other
   commands to check auth.
 - Verify command syntax when unsure:
+  - `kongctl explain --help`
+  - `kongctl scaffold --help`
   - `kongctl plan --help`
   - `kongctl dump declarative --help`
   - `kongctl adopt --help`
@@ -53,22 +62,33 @@ Choose the execution approach from user intent:
 Load only the reference file needed for the active task:
 
 - `references/commands.md`
-  - Use for command selection, plan based vs inline execution, and safety flags.
+  - Use for schema helpers, command selection, plan based vs inline execution,
+    and safety flags.
 - `references/resources.md`
-  - Use for resource skeletons, `_defaults`, `!file`, and `!ref` patterns.
+  - Use for schema-first authoring, resource skeletons, `_defaults`, `!file`,
+    and `!ref` patterns.
 - `references/troubleshooting.md`
   - Use for common failures and fast remediation steps.
 - `references/cicd-github-actions.md`
   - Use for GitHub Actions workflow patterns for declarative CI/CD.
 - `references/apiops-openapi.md`
   - Use for OpenAPI source-of-truth patterns for APIs and API versions.
+- `references/deck-gateway.md`
+  - Use when configuring Kong Gateway services, routes, plugins, consumers,
+    or OpenAPI-to-Gateway APIOps with decK and `_deck`.
 
 This skill is designed to be portable across repositories. Do not assume a
 local `docs/` directory exists.
 
-If field-level uncertainty remains after reading `references/`, discover
-structure from live data using:
-`kongctl dump declarative --resources=<resource-type>`.
+Before hand-writing unfamiliar resources or fields, discover structure with:
+
+```bash
+kongctl explain <resource-path> -o text --extended
+kongctl scaffold <resource-path>
+```
+
+Use `kongctl dump declarative --resources=<resource-type>` when live Konnect
+state is the best source of truth, such as when adopting existing resources.
 
 ## Operating Rules
 
@@ -89,6 +109,15 @@ structure from live data using:
 - Use `apply` for create/update workflows when the user asks to execute.
 - Use `-o text` for interactive mutating commands. `-o json` and `-o yaml`
   require `--auto-approve` or `--dry-run` on `apply`, `sync`, and `delete`.
+- Use `kongctl explain` before guessing at resource, child-resource, or field
+  structure. Use `--extended` for field summaries in text output, or
+  `-o json`/`-o yaml` for machine-readable schema.
+- Use `kongctl scaffold` to bootstrap YAML for new resource types and child
+  resources. It writes YAML to stdout and does not support `-o/--output`.
+- Use resource and field paths such as `api`, `api.versions`,
+  `api.publications.portal_id`, and `portal.pages` with `explain`.
+- Use resource and child-resource paths such as `api`, `api.versions`, and
+  `control_plane.data_plane_certificates` with `scaffold`.
 - Use `adopt` only to bring unmanaged resources into namespace management.
 - `adopt` only adds the `KONGCTL-namespace` label to the target resource.
 - Prefer `!ref` for cross-resource IDs and `!file` for large spec or
@@ -97,6 +126,15 @@ structure from live data using:
   derive fields from `!file` extraction and avoid stale duplicated literals.
 - Use existing OpenAPI file paths from the user repository. Do not require a
   `konnect/resources/specs` layout.
+- Use decK for Kong Gateway runtime entities such as services, routes,
+  plugins, consumers, consumer groups, upstreams, and targets.
+- Use kongctl resources for Konnect SaaS resources such as control planes,
+  portals, API catalog entries, publications, and API implementations.
+- When a user wants an API Gateway configured from OpenAPI, generate decK
+  state with `deck file openapi2kong`, then wire it to kongctl through
+  `control_planes[]._deck`.
+- Use `control_planes[].gateway_services` as external selectors for services
+  created by decK, then reference them from `apis[].implementations`.
 - Only place kongctl declarative resource files in the resources directory.
   Do not put OpenAPI specs, documentation, or other non-resource YAML there.
   `--recursive` loads all YAML files in the directory tree and will fail on
@@ -116,18 +154,20 @@ structure from live data using:
 ## Workflow
 
 1. Locate the Konnect declarative configuration directory and existing files.
-2. Generate or update YAML manifests and related files.
-3. Choose collaboration mode based on intent:
+2. For unfamiliar resource shapes, run `kongctl explain` or
+   `kongctl scaffold` before writing YAML.
+3. Generate or update YAML manifests and related files.
+4. Choose collaboration mode based on intent:
    - User-run mode (teach + provide commands)
    - Agent-run mode (execute commands directly)
-4. Load the relevant `references/*.md` file for the task.
-5. If execution is needed, pick execution style:
+5. Load the relevant `references/*.md` file for the task.
+6. If execution is needed, pick execution style:
    - Explicit plan artifact workflow (generate plan, then pass it to apply or
      sync)
    - Inline command workflow
-6. Validate and/or execute `diff`, `apply`, `sync`, `delete`, or `adopt` per
+7. Validate and/or execute `diff`, `apply`, `sync`, `delete`, or `adopt` per
    user ask.
-7. Report created files, commands run, and resulting plan or execution
+8. Report created files, commands run, and resulting plan or execution
    summary.
 
 ### Execution Style Selection
@@ -174,6 +214,7 @@ konnect/resources/
 ```
 
 For APIOps API modeling, load `references/apiops-openapi.md`.
+For Kong Gateway/deck integration, load `references/deck-gateway.md`.
 
 ## Pattern: Bootstrap control plane, portal, and APIs
 
@@ -191,6 +232,17 @@ Steps:
 6. In User-run mode, explain each command's purpose before listing it.
 
 Starter manifest pattern:
+
+When starting from scratch, prefer generating starter shapes first:
+
+```bash
+kongctl scaffold control_plane
+kongctl scaffold portal
+kongctl scaffold api
+```
+
+Then adapt the generated YAML to the repository layout and user intent. The
+static pattern below is a compact fallback and example of the expected result.
 
 ```yaml
 _defaults:
@@ -230,7 +282,8 @@ Relative `--base-dir` values resolve from the config file directory, not
 cwd, so always use an absolute path:
 
 ```bash
-kongctl diff -f konnect/resources --recursive --base-dir "$(pwd)" --mode apply -o text
+kongctl diff -f konnect/resources --recursive \
+  --base-dir "$(pwd)" --mode apply -o text
 ```
 
 Use `--recursive` when the `-f` target is a directory.
@@ -243,22 +296,30 @@ Use for prompts like:
 
 - Generate an API declarative config from `@path-to/openapi-spec.yaml` and
   write it to `@path-to-existing/konnect/resources`.
+- Generate gateway services, routes, and plugins from an OpenAPI spec and
+  connect them to a Konnect API implementation.
 
 Steps:
 
 1. Choose target files under the existing resources tree, such as:
    - `<resources>/apis/<api-name>.yaml`
-2. Reference existing OpenAPI spec paths in the repository. Do not require
+2. If no local API manifest convention exists, run `kongctl scaffold api`
+   and adapt the generated shape.
+3. If the user wants Gateway runtime config, load
+   `references/deck-gateway.md` and create or update a decK state file.
+4. Reference existing OpenAPI spec paths in the repository. Do not require
    copying specs under the declarative resources directory.
-3. Preserve existing repo conventions when a layout already exists.
-4. Reference spec fields with `!file` extraction.
-5. If spec files are outside the resources directory, add `--base-dir` to
+5. Preserve existing repo conventions when a layout already exists.
+6. Reference spec fields with `!file` extraction.
+7. If spec files are outside the resources directory, add `--base-dir` to
    all `plan`/`diff`/`apply`/`sync` commands so `!file` paths resolve.
-6. Validate and execute based on requested style.
-7. In User-run mode, include where files were written and why.
+8. Validate and execute based on requested style.
+9. In User-run mode, include where files were written and why.
 
 Load `references/apiops-openapi.md` for the canonical API YAML template and
 `references/commands.md` for validation and execution commands.
+Load `references/deck-gateway.md` when the OpenAPI spec should also produce
+Gateway services, routes, plugins, or an API implementation backed by decK.
 
 ## Pattern: Adopt existing resources into declarative management
 
