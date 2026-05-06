@@ -1506,6 +1506,20 @@ func convertListenerPolicyToResource(
 	policy kkComps.EventGatewayListenerPolicy,
 	rawConfig map[string]any,
 ) (declresources.EventGatewayListenerPolicyResource, error) {
+	// For tls_server policies, the API omits config.certificates[i].key (sensitive field).
+	// TLSCertificate.UnmarshalJSON requires the key field, so we default it to "" if absent.
+	if policy.Type == "tls_server" {
+		if certs, ok := rawConfig["certificates"].([]any); ok {
+			for _, c := range certs {
+				if certMap, ok := c.(map[string]any); ok {
+					if _, hasKey := certMap["key"]; !hasKey {
+						certMap["key"] = ""
+					}
+				}
+			}
+		}
+	}
+
 	// Build a map with policy fields plus the raw config
 	policyMap := map[string]any{
 		"type":       policy.Type,

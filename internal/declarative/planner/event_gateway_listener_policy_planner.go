@@ -525,7 +525,7 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 	desiredTLS := desired.EventGatewayTLSListenerPolicy
 
 	// Compare certificates
-	currentCerts := getNestedSlice(currentConfig, "config", "certificates")
+	currentCerts := getNestedSlice(currentConfig, "certificates")
 	if len(desiredTLS.Config.Certificates) != len(currentCerts) {
 		return true
 	}
@@ -548,7 +548,7 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 
 	// Compare versions if specified
 	if desiredTLS.Config.Versions != nil {
-		currentVersions := getNestedMap(currentConfig, "config", "versions")
+		currentVersions := getNestedMap(currentConfig, "versions")
 		if currentVersions == nil {
 			return true
 		}
@@ -566,7 +566,7 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 
 	// Compare allow_plaintext if specified
 	if desiredTLS.Config.AllowPlaintext != nil {
-		currentAllowPlaintext := getBoolFromNestedMap(currentConfig, "config", "allow_plaintext")
+		currentAllowPlaintext := getBoolFromNestedMap(currentConfig, "allow_plaintext")
 		if *desiredTLS.Config.AllowPlaintext != currentAllowPlaintext {
 			return true
 		}
