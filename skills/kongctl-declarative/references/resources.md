@@ -296,7 +296,7 @@ organization:
 When field-level uncertainty remains, inspect the local schema first:
 
 ```bash
-kongctl explain <resource-path> --extended
+kongctl explain <resource-path> -o text --extended
 kongctl scaffold <resource-path>
 ```
 
