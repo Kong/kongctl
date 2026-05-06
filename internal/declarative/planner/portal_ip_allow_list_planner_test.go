@@ -165,6 +165,39 @@ func TestPlanPortalIPAllowListsChangesSyncDeletesOmittedEntries(t *testing.T) {
 	require.Equal(t, []string{"192.0.2.10"}, change.Fields[FieldAllowedIPs])
 }
 
+func TestPlanPortalIPAllowListsChangesErrorsWhenClientMissingForDesiredResource(t *testing.T) {
+	client := state.NewClient(state.ClientConfig{})
+	planner := NewPlanner(client, slog.Default())
+	planner.desiredPortals = []resources.PortalResource{{
+		BaseResource: resources.BaseResource{Ref: "portal-ref"},
+		CreatePortal: kkComps.CreatePortal{
+			Name: "Portal",
+		},
+	}}
+	plan := NewPlan("1.0", "test", PlanModeApply)
+
+	err := planner.planPortalIPAllowListsChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-ref",
+		[]resources.PortalIPAllowListResource{{
+			Ref:        "portal-allow-list",
+			Portal:     "portal-ref",
+			AllowedIPs: []string{"192.0.2.10"},
+		}},
+		plan,
+	)
+
+	require.EqualError(
+		t,
+		err,
+		"cannot manage portal IP allow list \"portal-allow-list\" for portal \"portal-ref\": "+
+			"portal IP allow list API client not configured",
+	)
+	require.Empty(t, plan.Changes)
+}
+
 func newPortalIPAllowListPlanner(entries []kkComps.IPEntry) *Planner {
 	client := state.NewClient(state.ClientConfig{
 		PortalIPAllowListAPI: &stubPortalIPAllowListAPI{entries: entries},

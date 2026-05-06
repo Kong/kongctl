@@ -2719,9 +2719,17 @@ func (c *Client) UpdatePortalAuthSettings(
 	return nil
 }
 
+// ValidatePortalIPAllowListAPI returns an error if the portal IP allow list API is not configured.
+func (c *Client) ValidatePortalIPAllowListAPI() error {
+	if c == nil {
+		return NewAPIClientNotConfiguredError("portal IP allow list API")
+	}
+	return ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API")
+}
+
 // ListPortalIPAllowLists lists all IP allow list entries for a portal.
 func (c *Client) ListPortalIPAllowLists(ctx context.Context, portalID string) ([]PortalIPAllowList, error) {
-	if err := ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API"); err != nil {
+	if err := c.ValidatePortalIPAllowListAPI(); err != nil {
 		return nil, err
 	}
 

@@ -264,6 +264,18 @@ func (p *Planner) planPortalIPAllowListsChanges(
 	}
 
 	portalName := p.findPortalName(portalRef)
+	identifier := portalIPAllowListPortalIdentifier(portalRef, portalID)
+	if desiredAllowList != nil {
+		if err := p.client.ValidatePortalIPAllowListAPI(); err != nil {
+			return fmt.Errorf(
+				"cannot manage portal IP allow list %q for portal %q: %w",
+				desiredAllowList.GetRef(),
+				identifier,
+				err,
+			)
+		}
+	}
+
 	if portalID == "" {
 		if desiredAllowList != nil {
 			p.planPortalIPAllowListCreate(parentNamespace, *desiredAllowList, portalID, portalRef, portalName, plan)
@@ -275,27 +287,23 @@ func (p *Planner) planPortalIPAllowListsChanges(
 	if err != nil {
 		var apiErr *state.APIClientError
 		if errors.As(err, &apiErr) && apiErr.ClientType == "portal IP allow list API" {
-			if desiredAllowList != nil {
-				changeID := p.planPortalIPAllowListCreate(
-					parentNamespace,
-					*desiredAllowList,
-					portalID,
-					portalRef,
-					portalName,
-					plan,
-				)
+			if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 				plan.AddWarning(
-					changeID,
-					"unable to inspect existing portal IP allow list - assuming create is required",
+					"",
+					fmt.Sprintf(
+						"unable to inspect portal IP allow list for portal %q; skipping IP allow-list sync: %v",
+						identifier,
+						err,
+					),
 				)
+			}
+			if desiredAllowList != nil {
+				return fmt.Errorf("cannot manage portal IP allow list %q for portal %q: %w",
+					desiredAllowList.GetRef(), identifier, err)
 			}
 			return nil
 		}
 
-		identifier := portalRef
-		if identifier == "" {
-			identifier = portalID
-		}
 		return fmt.Errorf("failed to list portal IP allow lists for portal %q: %w", identifier, err)
 	}
 
@@ -361,7 +369,7 @@ func (p *Planner) planPortalIPAllowListCreate(
 	portalRef string,
 	portalName string,
 	plan *Plan,
-) string {
+) {
 	fields := portalIPAllowListFields(allowList)
 	deps := p.portalChildDependencies(plan, allowList.Portal)
 	change := PlannedChange{
@@ -385,7 +393,6 @@ func (p *Planner) planPortalIPAllowListCreate(
 		"fields", fields,
 	)
 	plan.AddChange(change)
-	return change.ID
 }
 
 func (p *Planner) planPortalIPAllowListUpdate(
@@ -533,6 +540,16 @@ func portalIPAllowListDeleteRef(portalRef string, portalID string, entryID strin
 		prefix = "portal"
 	}
 	return fmt.Sprintf("%s__ip_allow_list__%s", prefix, entryID)
+}
+
+func portalIPAllowListPortalIdentifier(portalRef string, portalID string) string {
+	if portalRef != "" {
+		return portalRef
+	}
+	if portalID != "" {
+		return portalID
+	}
+	return "unknown"
 }
 
 // Portal Integrations planning (singleton)
