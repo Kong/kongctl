@@ -34,6 +34,10 @@ Symptom: parser rejects a field name.
 
 Actions:
 
+- Run `kongctl explain <resource-path> --extended` to confirm accepted
+  fields and YAML placement.
+- Run `kongctl scaffold <resource-path>` when the whole resource shape is
+  uncertain.
 - Check field patterns in `references/resources.md`.
 - If uncertain, generate live examples with `dump declarative`.
 - Fix common typos like `lables` vs `labels`.
@@ -59,6 +63,34 @@ Actions:
 - Re-check with `diff --mode apply` to isolate create/update intent.
 - Restrict scope with `--require-namespace=<ns>`.
 - Use `--dry-run` before executing `sync` or `delete`.
+
+### Unexpected Deletes from decK Sync
+
+Symptom: a plan or sync involving `_deck` shows Gateway deletes outside the
+intended API or service.
+
+Actions:
+
+- Ensure the decK state file has `_info.select_tags`.
+- Ensure generated services, routes, plugins, consumers, and upstreams have
+  matching `tags`.
+- Prefer `deck gateway apply` behavior through `kongctl apply` when you only
+  want create/update behavior.
+- Load `references/deck-gateway.md` before changing `_deck` scope.
+
+### `_deck` Validation Errors
+
+Symptom: parser rejects `_deck` or gateway service selectors.
+
+Actions:
+
+- Put `_deck` only under `control_planes`.
+- Include at least one `_deck.files` entry.
+- Keep `_deck.files` as file paths, not flags.
+- Do not include Konnect auth or output flags in `_deck.flags`; kongctl
+  injects them.
+- Use `_external.selector.matchFields.name` as the only selector field for
+  decK-created `gateway_services`.
 
 ### Namespace Label and Adopt Conflicts
 
