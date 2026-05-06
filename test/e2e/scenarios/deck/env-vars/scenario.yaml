@@ -1,0 +1,51 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-control-plane
+    commands:
+      - name: 000-apply-control-plane
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='control_plane' && action=='CREATE'] | [0]
+            expect:
+              fields:
+                resource_ref: e2e-deck-env-cp
+
+  - name: 002-apply-deck-env-vars
+    env:
+      DECK_RATE_LIMIT_MINUTE: "11"
+    commands:
+      - name: 000-apply-deck-env-vars
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane-with-deck-env.yaml"
+          - --auto-approve
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='_deck']"
+            expect:
+              fields:
+                "length(@)": 1
+

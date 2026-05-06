@@ -1,0 +1,18 @@
+_format_version: "3.0"
+
+_info:
+  select_tags:
+    - "kongctl-e2e-deck-env"
+
+services:
+  - name: "e2e-deck-env-svc"
+    url: "https://api.kong-air.com/"
+    tags:
+      - "kongctl-e2e-deck-env"
+    plugins:
+      - name: "rate-limiting"
+        config:
+          minute: ${{ env "DECK_RATE_LIMIT_MINUTE" }}
+        tags:
+          - "kongctl-e2e-deck-env"
+
