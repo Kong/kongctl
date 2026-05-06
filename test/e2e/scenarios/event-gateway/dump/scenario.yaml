@@ -24,7 +24,9 @@ vars:
   listenerRef: default-listener-for-dump-test-ref
   listenerName: default-listener-for-dump-test-name
   listenerPolicyRef: default-listener-policy-for-dump-test-ref
+  listenerPolicyRefTlsServer: default-listener-policy-for-dump-test-ref-2
   listenerPolicyName: default-listener-policy-for-dump-test-name
+  listenerPolicyNameTlsServer: default-listener-policy-for-dump-test-name-2
   clusterPolicyRef: default-cluster-policy-for-dump-test-ref
   clusterPolicyName: default-cluster-policy-for-dump-test-name
 
@@ -54,7 +56,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 11
+                applied: 12
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.
@@ -137,6 +139,14 @@ steps:
               fields:
                 name: "{{ .vars.listenerPolicyName }}"
                 type: forward_to_virtual_cluster
+                enabled: true
+          - name: listener-policy-tls-server-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].listeners[?name=='{{ .vars.listenerName }}'] | [0].policies[?name=='{{ .vars.listenerPolicyNameTlsServer }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyNameTlsServer }}"
+                type: tls_server
                 enabled: true
           - name: cluster-policy-present
             select: >-
