@@ -9,7 +9,7 @@ This example creates:
 - A developer portal with authentication disabled and public visibility
 - APIs published to the portal
 - Portal assets including logo and favicon
-- A portal IP allow list for trusted network access
+- An optional commented portal IP allow list for trusted network access
 - Portal integrations for Google Tag Manager and Google Analytics 4
 - Portal customization with theme colors and navigation menus
 - A hierarchy of pages including home, APIs, getting started, and guides
@@ -68,8 +68,10 @@ The `!file` tag automatically:
 Supported formats: PNG, JPEG, SVG, ICO
 
 ### Portal IP Allow List
-Portal IP allow lists can be configured as a singleton child of a portal. Use
-`allowed_ips` for trusted individual IP addresses or CIDR blocks:
+Portal IP allow lists can be configured as a singleton child of a portal. The
+example in `portal.yaml` is commented out so the public getting started portal
+remains browsable after applying the example. Uncomment it and replace
+`allowed_ips` with trusted individual IP addresses or CIDR blocks:
 
 ```yaml
 ip_allow_list:
