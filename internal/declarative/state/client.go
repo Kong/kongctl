@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -38,6 +39,7 @@ type ClientConfig struct {
 	// Portal child resource APIs
 	PortalPageAPI             helpers.PortalPageAPI
 	PortalAuthSettingsAPI     helpers.PortalAuthSettingsAPI
+	PortalIPAllowListAPI      helpers.PortalIPAllowListAPI
 	PortalIntegrationsAPI     helpers.PortalIntegrationsAPI
 	PortalIdentityProviderAPI helpers.PortalIdentityProviderAPI
 	PortalCustomizationAPI    helpers.PortalCustomizationAPI
@@ -92,6 +94,7 @@ type Client struct {
 	// Portal child resource APIs
 	portalPageAPI             helpers.PortalPageAPI
 	portalAuthSettingsAPI     helpers.PortalAuthSettingsAPI
+	portalIPAllowListAPI      helpers.PortalIPAllowListAPI
 	portalIntegrationsAPI     helpers.PortalIntegrationsAPI
 	portalIdentityProviderAPI helpers.PortalIdentityProviderAPI
 	portalCustomizationAPI    helpers.PortalCustomizationAPI
@@ -147,6 +150,7 @@ func NewClient(config ClientConfig) *Client {
 		// Portal child resource APIs
 		portalPageAPI:             config.PortalPageAPI,
 		portalAuthSettingsAPI:     config.PortalAuthSettingsAPI,
+		portalIPAllowListAPI:      config.PortalIPAllowListAPI,
 		portalIntegrationsAPI:     config.PortalIntegrationsAPI,
 		portalIdentityProviderAPI: config.PortalIdentityProviderAPI,
 		portalCustomizationAPI:    config.PortalCustomizationAPI,
@@ -2714,6 +2718,197 @@ func (c *Client) UpdatePortalAuthSettings(
 		return WrapAPIError(err, "update portal auth settings", nil)
 	}
 	return nil
+}
+
+// ValidatePortalIPAllowListAPI returns an error if the portal IP allow list API is not configured.
+func (c *Client) ValidatePortalIPAllowListAPI() error {
+	if c == nil {
+		return NewAPIClientNotConfiguredError("portal IP allow list API")
+	}
+	return ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API")
+}
+
+// ListPortalIPAllowLists lists all IP allow list entries for a portal.
+func (c *Client) ListPortalIPAllowLists(ctx context.Context, portalID string) ([]PortalIPAllowList, error) {
+	if err := c.ValidatePortalIPAllowListAPI(); err != nil {
+		return nil, err
+	}
+
+	var entries []PortalIPAllowList
+	pageSize := int64(100)
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListPortalIPAllowListRequest{
+			PortalID: portalID,
+			PageSize: &pageSize,
+		}
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		resp, err := c.portalIPAllowListAPI.ListPortalIPAllowList(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list portal IP allow lists", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIPAllowList),
+				ResourceName: portalID,
+				UseEnhanced:  true,
+			})
+		}
+		if err := ValidateResponse(resp, "list portal IP allow lists"); err != nil {
+			return nil, err
+		}
+
+		page := resp.GetPortalSourceIPRestrictionPaginatedResponse()
+		if page == nil {
+			return nil, NewResponseValidationError(
+				"list portal IP allow lists",
+				"PortalSourceIPRestrictionPaginatedResponse",
+			)
+		}
+
+		for _, entry := range page.GetData() {
+			entries = append(entries, PortalIPAllowList{
+				ID:         entry.ID,
+				PortalID:   portalID,
+				AllowedIPs: slices.Clone(entry.AllowedIps),
+			})
+		}
+
+		nextCursor := pagination.ExtractPageAfterCursor(page.Meta.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	return entries, nil
+}
+
+// GetPortalIPAllowList fetches a portal IP allow list entry by ID.
+func (c *Client) GetPortalIPAllowList(ctx context.Context, portalID string, id string) (*PortalIPAllowList, error) {
+	entries, err := c.ListPortalIPAllowLists(ctx, portalID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range entries {
+		if entries[i].ID == id {
+			return &entries[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// CreatePortalIPAllowList creates a portal IP allow list entry.
+func (c *Client) CreatePortalIPAllowList(
+	ctx context.Context,
+	portalID string,
+	req kkComps.CreatePortalSourceIPRestriction,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalIPAllowListAPI.CreatePortalIPAllowList(ctx, portalID, &req)
+	if err != nil {
+		if entry, recovered := portalIPAllowListEntryFromStatusOKSDKError(err); recovered {
+			if entry.ID == "" {
+				return "", NewResponseValidationError("create portal IP allow list", "IPEntry")
+			}
+			return entry.ID, nil
+		}
+		return "", WrapAPIError(err, "create portal IP allow list", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIPAllowList),
+			ResourceName: portalID,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+	if err := ValidateResponse(resp, "create portal IP allow list"); err != nil {
+		return "", err
+	}
+	if resp.IPEntry == nil {
+		return "", NewResponseValidationError("create portal IP allow list", "IPEntry")
+	}
+
+	return resp.IPEntry.ID, nil
+}
+
+// UpdatePortalIPAllowList updates a portal IP allow list entry.
+func (c *Client) UpdatePortalIPAllowList(
+	ctx context.Context,
+	portalID string,
+	id string,
+	req kkComps.UpdatePortalSourceIPRestriction,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalIPAllowListAPI.UpdatePortalIPAllowList(ctx, kkOps.UpdatePortalIPAllowListRequest{
+		PortalID:                        portalID,
+		ID:                              id,
+		UpdatePortalSourceIPRestriction: &req,
+	})
+	if err != nil {
+		if entry, recovered := portalIPAllowListEntryFromStatusOKSDKError(err); recovered {
+			if entry.ID == "" {
+				return "", NewResponseValidationError("update portal IP allow list", "IPEntry")
+			}
+			return entry.ID, nil
+		}
+		return "", WrapAPIError(err, "update portal IP allow list", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIPAllowList),
+			ResourceName: id,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+	if err := ValidateResponse(resp, "update portal IP allow list"); err != nil {
+		return "", err
+	}
+	if resp.IPEntry == nil {
+		return "", NewResponseValidationError("update portal IP allow list", "IPEntry")
+	}
+
+	return resp.IPEntry.ID, nil
+}
+
+// DeletePortalIPAllowList deletes a portal IP allow list entry.
+func (c *Client) DeletePortalIPAllowList(ctx context.Context, portalID string, id string) error {
+	if err := ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API"); err != nil {
+		return err
+	}
+
+	_, err := c.portalIPAllowListAPI.DeletePortalIPAllowList(ctx, portalID, id)
+	if err != nil {
+		return WrapAPIError(err, "delete portal IP allow list", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIPAllowList),
+			ResourceName: id,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+func portalIPAllowListEntryFromStatusOKSDKError(err error) (*kkComps.IPEntry, bool) {
+	var sdkErr *kkErrors.SDKError
+	if !errors.As(err, &sdkErr) ||
+		sdkErr.StatusCode != http.StatusOK ||
+		sdkErr.Message != "unknown status code returned" ||
+		strings.TrimSpace(sdkErr.Body) == "" {
+		return nil, false
+	}
+
+	var entry kkComps.IPEntry
+	if err := json.Unmarshal([]byte(sdkErr.Body), &entry); err != nil {
+		return nil, false
+	}
+	return &entry, true
 }
 
 // GetPortalIntegrations fetches current integration configuration for a portal.

@@ -25,6 +25,7 @@ type MockKonnectSDK struct {
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
+	PortalIPAllowListFactory             func() PortalIPAllowListAPI
 	PortalIntegrationsFactory            func() PortalIntegrationsAPI
 	PortalIdentityProviderFactory        func() PortalIdentityProviderAPI
 	PortalCustomizationFactory           func() PortalCustomizationAPI
@@ -168,6 +169,14 @@ func (m *MockKonnectSDK) GetPortalPageAPI() PortalPageAPI {
 func (m *MockKonnectSDK) GetPortalAuthSettingsAPI() PortalAuthSettingsAPI {
 	if m.PortalAuthSettingsFactory != nil {
 		return m.PortalAuthSettingsFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalIPAllowListAPI
+func (m *MockKonnectSDK) GetPortalIPAllowListAPI() PortalIPAllowListAPI {
+	if m.PortalIPAllowListFactory != nil {
+		return m.PortalIPAllowListFactory()
 	}
 	return nil
 }

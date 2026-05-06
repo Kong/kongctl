@@ -159,6 +159,13 @@ type PortalCustomDomain struct {
 	UpdatedAt                time.Time
 }
 
+// PortalIPAllowList represents a portal IP allow list entry.
+type PortalIPAllowList struct {
+	ID         string
+	PortalID   string
+	AllowedIPs []string
+}
+
 // PortalSnippet represents portal snippet
 type PortalSnippet struct {
 	ID               string

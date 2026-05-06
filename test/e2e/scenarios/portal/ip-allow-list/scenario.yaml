@@ -1,0 +1,241 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: portal-ip-allow-list
+  nestedPortalRef: e2e-portal-ip-allow-list-nested
+  nestedAllowListRef: e2e-portal-ip-allow-list-nested-config
+  rootPortalRef: e2e-portal-ip-allow-list-root
+  rootAllowListRef: e2e-portal-ip-allow-list-root-config
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-allow-lists
+    commands:
+      - name: 000-plan-allow-lists
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-allow-lists.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: >-
+              changes[?resource_type=='portal_ip_allow_list' &&
+              resource_ref=='{{ .vars.nestedAllowListRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                parent.ref: "{{ .vars.nestedPortalRef }}"
+                references.portal_id.ref: "{{ .vars.nestedPortalRef }}"
+                "contains(fields.allowed_ips, '198.51.100.10')": true
+                "contains(fields.allowed_ips, '203.0.113.0/24')": true
+                "length(fields.allowed_ips)": 2
+                "length(depends_on)": 1
+          - select: >-
+              changes[?resource_type=='portal_ip_allow_list' &&
+              resource_ref=='{{ .vars.rootAllowListRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                parent.ref: "{{ .vars.rootPortalRef }}"
+                references.portal_id.ref: "{{ .vars.rootPortalRef }}"
+                "contains(fields.allowed_ips, '192.0.2.25')": true
+                "contains(fields.allowed_ips, '198.51.100.0/24')": true
+                "length(fields.allowed_ips)": 2
+                "length(depends_on)": 1
+      - name: 001-apply-allow-lists
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-allow-lists.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+
+  - name: 002-dump-and-plan-round-trip
+    commands:
+      - name: 000-dump-portals-with-allow-lists
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              portals[?name=='{{ .vars.nestedPortalRef }}'] | [0].ip_allow_list.allowed_ips
+            expect:
+              fields:
+                "contains(@, '198.51.100.10')": true
+                "contains(@, '203.0.113.0/24')": true
+                "length(@)": 2
+          - select: >-
+              portals[?name=='{{ .vars.rootPortalRef }}'] | [0].ip_allow_list.allowed_ips
+            expect:
+              fields:
+                "contains(@, '192.0.2.25')": true
+                "contains(@, '198.51.100.0/24')": true
+                "length(@)": 2
+      - name: 001-plan-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-update-allow-lists
+    inputOverlayDirs:
+      - overlays/003-update-allow-lists
+    commands:
+      - name: 000-plan-allow-list-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-allow-list-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: >-
+              changes[?resource_type=='portal_ip_allow_list' &&
+              resource_ref=='{{ .vars.nestedAllowListRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                parent.ref: "{{ .vars.nestedPortalRef }}"
+                references.portal_id.ref: "{{ .vars.nestedPortalRef }}"
+                "contains(fields.allowed_ips, '198.51.100.20')": true
+                "contains(fields.allowed_ips, '203.0.113.128/25')": true
+                "length(fields.allowed_ips)": 2
+          - select: >-
+              changes[?resource_type=='portal_ip_allow_list' &&
+              resource_ref=='{{ .vars.rootAllowListRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                parent.ref: "{{ .vars.rootPortalRef }}"
+                references.portal_id.ref: "{{ .vars.rootPortalRef }}"
+                "contains(fields.allowed_ips, '192.0.2.50')": true
+                "contains(fields.allowed_ips, '198.51.100.128/25')": true
+                "length(fields.allowed_ips)": 2
+      - name: 001-apply-allow-list-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-allow-list-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-plan-update-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 003-dump-updated-allow-lists
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: >-
+              portals[?name=='{{ .vars.nestedPortalRef }}'] | [0].ip_allow_list.allowed_ips
+            expect:
+              fields:
+                "contains(@, '198.51.100.20')": true
+                "contains(@, '203.0.113.128/25')": true
+                "length(@)": 2
+          - select: >-
+              portals[?name=='{{ .vars.rootPortalRef }}'] | [0].ip_allow_list.allowed_ips
+            expect:
+              fields:
+                "contains(@, '192.0.2.50')": true
+                "contains(@, '198.51.100.128/25')": true
+                "length(@)": 2
+
+  - name: 004-delete-cleanup
+    inputOverlayDirs:
+      - overlays/003-update-allow-lists
+    commands:
+      - name: 000-delete-portals
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

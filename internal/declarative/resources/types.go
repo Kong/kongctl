@@ -22,6 +22,7 @@ const (
 	ResourceTypePortalCustomization              ResourceType = "portal_customization"
 	ResourceTypePortalCustomDomain               ResourceType = "portal_custom_domain"
 	ResourceTypePortalAuthSettings               ResourceType = "portal_auth_settings"
+	ResourceTypePortalIPAllowList                ResourceType = "portal_ip_allow_list"
 	ResourceTypePortalIntegration                ResourceType = "portal_integration"
 	ResourceTypePortalIdentityProvider           ResourceType = "portal_identity_provider"
 	ResourceTypePortalPage                       ResourceType = "portal_page"
@@ -84,6 +85,7 @@ type ResourceSet struct {
 	// Portal child resources can be defined at root level (with parent reference) or nested under Portals
 	PortalCustomizations        []PortalCustomizationResource        `yaml:"portal_customizations,omitempty"                 json:"portal_customizations,omitempty"`          //nolint:lll
 	PortalAuthSettings          []PortalAuthSettingsResource         `yaml:"portal_auth_settings,omitempty"                  json:"portal_auth_settings,omitempty"`           //nolint:lll
+	PortalIPAllowLists          []PortalIPAllowListResource          `yaml:"portal_ip_allow_lists,omitempty"                 json:"portal_ip_allow_lists,omitempty"`          //nolint:lll
 	PortalIntegrations          []PortalIntegrationResource          `yaml:"portal_integrations,omitempty"                   json:"portal_integrations,omitempty"`            //nolint:lll
 	PortalIdentityProviders     []PortalIdentityProviderResource     `yaml:"portal_identity_providers,omitempty"             json:"portal_identity_providers,omitempty"`      //nolint:lll
 	PortalCustomDomains         []PortalCustomDomainResource         `yaml:"portal_custom_domains,omitempty"                 json:"portal_custom_domains,omitempty"`          //nolint:lll
@@ -440,6 +442,25 @@ func (rs *ResourceSet) GetPortalAuthSettingsByNamespace(namespace string) []Port
 			}
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, settings)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalIPAllowListsByNamespace returns all portal IP allow-list resources from the specified namespace.
+func (rs *ResourceSet) GetPortalIPAllowListsByNamespace(namespace string) []PortalIPAllowListResource {
+	var filtered []PortalIPAllowListResource
+	for _, allowList := range rs.PortalIPAllowLists {
+		if portal := rs.GetPortalByRef(allowList.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, allowList)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, allowList)
 			}
 		}
 	}

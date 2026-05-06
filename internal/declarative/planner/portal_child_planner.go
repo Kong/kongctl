@@ -244,6 +244,314 @@ func (p *Planner) buildAllPortalAuthSettingsFields(settings resources.PortalAuth
 	return fields
 }
 
+// Portal IP allow list planning (singleton per portal)
+
+func (p *Planner) planPortalIPAllowListsChanges(
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	desired []resources.PortalIPAllowListResource,
+	plan *Plan,
+) error {
+	var desiredAllowList *resources.PortalIPAllowListResource
+	for i := range desired {
+		if plan.HasChange(ResourceTypePortalIPAllowList, desired[i].GetRef()) {
+			continue
+		}
+		desiredAllowList = &desired[i]
+		break
+	}
+
+	portalName := p.findPortalName(portalRef)
+	identifier := portalIPAllowListPortalIdentifier(portalRef, portalID)
+	if desiredAllowList != nil {
+		if err := p.client.ValidatePortalIPAllowListAPI(); err != nil {
+			return fmt.Errorf(
+				"cannot manage portal IP allow list %q for portal %q: %w",
+				desiredAllowList.GetRef(),
+				identifier,
+				err,
+			)
+		}
+	}
+
+	if portalID == "" {
+		if desiredAllowList != nil {
+			p.planPortalIPAllowListCreate(parentNamespace, *desiredAllowList, portalID, portalRef, portalName, plan)
+		}
+		return nil
+	}
+
+	currentEntries, err := p.client.ListPortalIPAllowLists(ctx, portalID)
+	if err != nil {
+		var apiErr *state.APIClientError
+		if errors.As(err, &apiErr) && apiErr.ClientType == "portal IP allow list API" {
+			if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+				plan.AddWarning(
+					"",
+					fmt.Sprintf(
+						"unable to inspect portal IP allow list for portal %q; skipping IP allow-list sync: %v",
+						identifier,
+						err,
+					),
+				)
+			}
+			if desiredAllowList != nil {
+				return fmt.Errorf("cannot manage portal IP allow list %q for portal %q: %w",
+					desiredAllowList.GetRef(), identifier, err)
+			}
+			return nil
+		}
+
+		return fmt.Errorf("failed to list portal IP allow lists for portal %q: %w", identifier, err)
+	}
+
+	if desiredAllowList == nil {
+		if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+			for i := range currentEntries {
+				p.planPortalIPAllowListDelete(
+					parentNamespace,
+					portalRef,
+					portalID,
+					portalName,
+					&currentEntries[i],
+					"",
+					plan,
+				)
+			}
+		}
+		return nil
+	}
+
+	if len(currentEntries) == 0 {
+		p.planPortalIPAllowListCreate(parentNamespace, *desiredAllowList, portalID, portalRef, portalName, plan)
+		return nil
+	}
+
+	selectedIndex := 0
+	for i := range currentEntries {
+		if portalIPAllowListEntriesEqual(currentEntries[i].AllowedIPs, desiredAllowList.AllowedIPs) {
+			selectedIndex = i
+			break
+		}
+	}
+
+	selected := currentEntries[selectedIndex]
+	if !portalIPAllowListEntriesEqual(selected.AllowedIPs, desiredAllowList.AllowedIPs) {
+		p.planPortalIPAllowListUpdate(parentNamespace, &selected, *desiredAllowList, portalID, portalRef, portalName, plan)
+	}
+
+	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+		for i := range currentEntries {
+			if i == selectedIndex {
+				continue
+			}
+			p.planPortalIPAllowListDelete(
+				parentNamespace,
+				portalRef,
+				portalID,
+				portalName,
+				&currentEntries[i],
+				"",
+				plan,
+			)
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) planPortalIPAllowListCreate(
+	parentNamespace string,
+	allowList resources.PortalIPAllowListResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	plan *Plan,
+) {
+	fields := portalIPAllowListFields(allowList)
+	deps := p.portalChildDependencies(plan, allowList.Portal)
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalIPAllowList, allowList.Ref),
+		ResourceType: ResourceTypePortalIPAllowList,
+		ResourceRef:  allowList.Ref,
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    uniqueStrings(deps),
+		Namespace:    parentNamespace,
+		ResourceMonikers: map[string]string{
+			FieldAllowedIPs: strings.Join(fields[FieldAllowedIPs].([]string), ","),
+		},
+	}
+
+	p.setPortalIPAllowListReferences(&change, allowList.Portal, portalID, portalRef, portalName)
+
+	p.logger.Debug("Enqueuing portal IP allow list create",
+		"portal_ref", allowList.Portal,
+		"allow_list_ref", allowList.Ref,
+		"fields", fields,
+	)
+	plan.AddChange(change)
+}
+
+func (p *Planner) planPortalIPAllowListUpdate(
+	parentNamespace string,
+	current *state.PortalIPAllowList,
+	allowList resources.PortalIPAllowListResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	plan *Plan,
+) string {
+	fields := portalIPAllowListFields(allowList)
+	changedFields := map[string]FieldChange{
+		FieldAllowedIPs: {
+			Old: normalizedPortalIPAllowListValues(current.AllowedIPs),
+			New: fields[FieldAllowedIPs],
+		},
+	}
+
+	change := PlannedChange{
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypePortalIPAllowList, allowList.Ref),
+		ResourceType:  ResourceTypePortalIPAllowList,
+		ResourceRef:   allowList.Ref,
+		ResourceID:    current.ID,
+		Action:        ActionUpdate,
+		Fields:        fields,
+		ChangedFields: changedFields,
+		DependsOn:     uniqueStrings(p.portalChildDependencies(plan, allowList.Portal)),
+		Namespace:     parentNamespace,
+		ResourceMonikers: map[string]string{
+			FieldAllowedIPs: strings.Join(fields[FieldAllowedIPs].([]string), ","),
+		},
+	}
+
+	p.setPortalIPAllowListReferences(&change, allowList.Portal, portalID, portalRef, portalName)
+
+	p.logger.Debug("Enqueuing portal IP allow list update",
+		"portal_ref", allowList.Portal,
+		"allow_list_ref", allowList.Ref,
+		"allow_list_id", current.ID,
+		"fields", fields,
+	)
+	plan.AddChange(change)
+	return change.ID
+}
+
+func (p *Planner) planPortalIPAllowListDelete(
+	parentNamespace string,
+	portalRef string,
+	portalID string,
+	portalName string,
+	current *state.PortalIPAllowList,
+	allowListRef string,
+	plan *Plan,
+) {
+	ref := allowListRef
+	if ref == "" {
+		ref = portalIPAllowListDeleteRef(portalRef, portalID, current.ID)
+	}
+
+	fields := map[string]any{
+		FieldAllowedIPs: normalizedPortalIPAllowListValues(current.AllowedIPs),
+	}
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalIPAllowList, ref),
+		ResourceType: ResourceTypePortalIPAllowList,
+		ResourceRef:  ref,
+		ResourceID:   current.ID,
+		Action:       ActionDelete,
+		Fields:       fields,
+		DependsOn:    uniqueStrings(p.portalChildDependencies(plan, portalRef)),
+		Namespace:    parentNamespace,
+		ResourceMonikers: map[string]string{
+			FieldAllowedIPs: strings.Join(fields[FieldAllowedIPs].([]string), ","),
+		},
+	}
+
+	p.setPortalIPAllowListReferences(&change, portalRef, portalID, portalRef, portalName)
+
+	p.logger.Debug("Enqueuing portal IP allow list delete",
+		"portal_ref", portalRef,
+		"allow_list_ref", ref,
+		"allow_list_id", current.ID,
+	)
+	plan.AddChange(change)
+}
+
+func (p *Planner) setPortalIPAllowListReferences(
+	change *PlannedChange,
+	allowListPortalRef string,
+	portalID string,
+	portalRef string,
+	portalName string,
+) {
+	ref := allowListPortalRef
+	if ref == "" {
+		ref = portalRef
+	}
+	if ref == "" && portalID == "" {
+		return
+	}
+
+	change.Parent = &ParentInfo{Ref: ref, ID: portalID}
+
+	refInfo := ReferenceInfo{
+		Ref: ref,
+		ID:  portalID,
+	}
+	if portalName != "" {
+		refInfo.LookupFields = map[string]string{FieldName: portalName}
+	}
+	change.References = map[string]ReferenceInfo{
+		FieldPortalID: refInfo,
+	}
+}
+
+func portalIPAllowListFields(allowList resources.PortalIPAllowListResource) map[string]any {
+	return map[string]any{
+		FieldAllowedIPs: normalizedPortalIPAllowListValues(allowList.AllowedIPs),
+	}
+}
+
+func portalIPAllowListEntriesEqual(current []string, desired []string) bool {
+	return slices.Equal(normalizedPortalIPAllowListValues(current), normalizedPortalIPAllowListValues(desired))
+}
+
+func normalizedPortalIPAllowListValues(values []string) []string {
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			normalized = append(normalized, trimmed)
+		}
+	}
+	slices.Sort(normalized)
+	return normalized
+}
+
+func portalIPAllowListDeleteRef(portalRef string, portalID string, entryID string) string {
+	prefix := portalRef
+	if prefix == "" {
+		prefix = portalID
+	}
+	if prefix == "" {
+		prefix = "portal"
+	}
+	return fmt.Sprintf("%s__ip_allow_list__%s", prefix, entryID)
+}
+
+func portalIPAllowListPortalIdentifier(portalRef string, portalID string) string {
+	if portalRef != "" {
+		return portalRef
+	}
+	if portalID != "" {
+		return portalID
+	}
+	return "unknown"
+}
+
 // Portal Integrations planning (singleton)
 
 func (p *Planner) planPortalIntegrationsChanges(
