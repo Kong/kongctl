@@ -620,7 +620,7 @@ func deckPlanOptions(
 	if err != nil {
 		return planner.DeckOptions{}, err
 	}
-	token, err := tokenSource.Token(context.Background())
+	token, err := konnectcommon.ResolveAccessToken(context.Background(), cfg, tokenSource)
 	if err != nil {
 		return planner.DeckOptions{}, err
 	}
@@ -1516,7 +1516,7 @@ func runApply(command *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	token, err := tokenSource.Token(ctx)
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return err
 	}
@@ -1988,7 +1988,7 @@ func runDelete(command *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	token, err := tokenSource.Token(ctx)
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return err
 	}
@@ -2239,7 +2239,7 @@ func runSync(command *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	token, err := tokenSource.Token(ctx)
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return err
 	}

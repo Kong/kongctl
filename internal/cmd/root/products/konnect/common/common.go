@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -148,8 +149,19 @@ func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 		return "", err
 	}
 
-	token, err := source.Token(context.Background())
+	return ResolveAccessToken(context.Background(), cfg, source)
+}
+
+func ResolveAccessToken(ctx context.Context, cfg config.Hook, source *auth.TokenSource) (string, error) {
+	if source == nil {
+		return "", accessTokenUnavailableError(cfg)
+	}
+
+	token, err := source.Token(ctx)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return "", err
+		}
 		return "", accessTokenUnavailableError(cfg)
 	}
 	return token, nil

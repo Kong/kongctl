@@ -241,6 +241,9 @@ func fetchAuditLogDestinations(helper cmd.Helper) ([]auditLogDestinationRecord, 
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return nil, fmt.Errorf("resolve Konnect access token: %w", err)
+	}
 
 	client := httpclient.NewLoggingHTTPClient(logger)
 	result, err := apiutil.RequestWithTokenSource(
@@ -294,6 +297,9 @@ func fetchRegionalWebhookConfig(helper cmd.Helper) (auditLogWebhookConfig, error
 	ctx := helper.GetContext()
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return auditLogWebhookConfig{}, fmt.Errorf("resolve Konnect access token: %w", err)
 	}
 
 	client := httpclient.NewLoggingHTTPClient(logger)

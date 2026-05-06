@@ -1,13 +1,16 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	configtest "github.com/kong/kongctl/test/config"
 	"github.com/spf13/pflag"
@@ -206,4 +209,34 @@ func TestResolveHTTPTransportOptions(t *testing.T) {
 		_, err := ResolveHTTPTransportOptions(cfg)
 		require.Error(t, err)
 	})
+}
+
+func TestResolveAccessTokenMapsMissingCredentialsToGuidance(t *testing.T) {
+	dir := t.TempDir()
+	cfg, _ := newTestConfig(map[string]string{})
+	cfg.GetPathMock = func() string { return filepath.Join(dir, "config.yaml") }
+	source := auth.NewTokenSource(cfg, auth.TokenSourceOptions{
+		RefreshURL: BaseURLDefault + RefreshPathDefault,
+	})
+
+	_, err := ResolveAccessToken(t.Context(), cfg, source)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "authentication token not available")
+	require.Contains(t, err.Error(), "kongctl login")
+	require.NotContains(t, err.Error(), dir)
+	require.NotContains(t, err.Error(), "stat ")
+}
+
+func TestResolveAccessTokenPreservesContextErrors(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	cfg, _ := newTestConfig(map[string]string{})
+	source := auth.NewTokenSource(cfg, auth.TokenSourceOptions{
+		RefreshURL: BaseURLDefault + RefreshPathDefault,
+	})
+
+	_, err := ResolveAccessToken(ctx, cfg, source)
+
+	require.ErrorIs(t, err, context.Canceled)
 }

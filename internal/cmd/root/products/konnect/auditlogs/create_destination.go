@@ -131,6 +131,13 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return createDestinationOutput{}, cmd.PrepareExecutionError(
+			"failed to resolve Konnect access token",
+			err,
+			helper.GetCmd(),
+		)
+	}
 	client := httpclient.NewLoggingHTTPClient(logger)
 	regionalBaseURL := ""
 	if c.configureWebhook {
@@ -356,6 +363,9 @@ func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disable
 	// so destination cleanup still runs on Ctrl+C.
 	ctx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
 	defer cancel()
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return fmt.Errorf("resolve Konnect access token: %w", err)
+	}
 
 	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
 	if err != nil {

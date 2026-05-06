@@ -339,7 +339,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	}
 
 	client := httpclient.NewLoggingHTTPClient(logger)
-	token, err := tokenSource.Token(ctx)
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to resolve Konnect access token", err, helper.GetCmd())
 	}
