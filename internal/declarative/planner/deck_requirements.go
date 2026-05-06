@@ -396,8 +396,15 @@ func (p *Planner) deckDiffHasChanges(
 		return false, fmt.Errorf("control_plane %s: deck diff returned no output", controlPlaneRef)
 	}
 
+	stdout, normalized := deck.NormalizeMaskedJSONOutput(result.Stdout)
+	if normalized {
+		p.logger.Debug("Normalized deck masked JSON output",
+			slog.String("control_plane_ref", controlPlaneRef),
+		)
+	}
+
 	var output deckDiffOutput
-	if err := json.Unmarshal([]byte(result.Stdout), &output); err != nil {
+	if err := json.Unmarshal([]byte(stdout), &output); err != nil {
 		return false, fmt.Errorf("control_plane %s: decode deck diff output: %w", controlPlaneRef, err)
 	}
 

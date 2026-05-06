@@ -225,3 +225,20 @@ func TestExecuteDeckStepSkipsResolutionWithoutDependencies(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, runner.calls, 1)
 }
+
+func TestDeckSummaryFromJSONNormalizesBareMaskedDeckEnvValues(t *testing.T) {
+	stdout := `{
+		"summary":{"created":1,"updated":0,"deleted":0},
+		"changes":[{"kind":"plugin","config":{"minute":[masked]}}],
+		"warnings":[],
+		"errors":[]
+	}`
+
+	summary, ok := deckSummaryFromJSON(stdout)
+	require.True(t, ok)
+	require.Equal(t, "apply", summary.Kind)
+	require.Equal(t, 1, summary.Created)
+	require.Equal(t, 0, summary.Updated)
+	require.Equal(t, 0, summary.Deleted)
+	require.True(t, summary.HasSummary)
+}
