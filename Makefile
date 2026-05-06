@@ -27,6 +27,16 @@ patch-gh-aw-workflows:
 milestone-pulse:
 	bash scripts/milestone-pulse.sh
 
+.PHONY: release-preview
+release-preview:
+	@args=""; \
+	if [ "$(EXTENDED)" = "1" ] || [ "$(EXTENDED)" = "true" ]; then args="--extended"; fi; \
+	RELEASE_TYPE="$(RELEASE_TYPE)" \
+		REPO="$(REPO)" \
+		HEAD_REF="$(HEAD_REF)" \
+		BASE_TAG="$(BASE_TAG)" \
+		bash scripts/release-preview.sh $$args
+
 .PHONY: mod
 mod:
 	go mod tidy

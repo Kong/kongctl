@@ -1,0 +1,702 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/release-preview.sh [options]
+
+Preview the release that would be produced from the checked-out repository
+state. This command is read-only: it does not create tags, releases, build
+artifacts, Docker images, or Homebrew changes.
+
+Options:
+  --release-type TYPE     Version bump to preview: patch, minor, or major.
+                          Defaults to $RELEASE_TYPE or "patch".
+  --repo OWNER/REPO       GitHub repository. Defaults to $REPO,
+                          $GITHUB_REPOSITORY, gh repo context, or origin.
+  --head REF              Commit/ref to preview. Defaults to $HEAD_REF or HEAD.
+  --base-tag TAG          Previous release/tag override. Defaults to
+                          $BASE_TAG, latest non-draft GitHub release tag,
+                          then latest local stable semver tag.
+  --extended              Include commit-by-commit details and changed paths.
+  -h, --help              Show this help.
+
+Environment:
+  RELEASE_TYPE            Default value for --release-type.
+  REPO                    Default value for --repo.
+  HEAD_REF                Default value for --head.
+  BASE_TAG                Default value for --base-tag.
+  EXTENDED                Set to 1 or true to include --extended output.
+EOF
+}
+
+die() {
+  echo "release-preview: $*" >&2
+  exit 1
+}
+
+require_option_value() {
+  local option_name="$1"
+  local remaining_args="$2"
+
+  if [ "${remaining_args}" -lt 2 ]; then
+    echo "${option_name} requires a value" >&2
+    usage >&2
+    exit 1
+  fi
+}
+
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+is_truthy() {
+  case "${1:-}" in
+    1 | true | TRUE | yes | YES)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+normalize_repo_path() {
+  local value="$1"
+
+  value="${value#https://github.com/}"
+  value="${value#http://github.com/}"
+  value="${value#git@github.com:}"
+  value="${value%.git}"
+
+  if [[ "${value}" == */*/* ]]; then
+    value="${value#*/}"
+  fi
+
+  printf "%s\n" "${value}"
+}
+
+repo_from_origin() {
+  local remote_url
+
+  remote_url="$(git remote get-url origin 2>/dev/null || true)"
+  if [ -z "${remote_url}" ]; then
+    return 0
+  fi
+
+  normalize_repo_path "${remote_url}"
+}
+
+latest_stable_tag_from_file() {
+  local source_file="$1"
+
+  if [ ! -s "${source_file}" ]; then
+    return 0
+  fi
+
+  awk '
+    /^v[0-9]+\.[0-9]+\.[0-9]+$/ {
+      version = $0
+      sub(/^v/, "", version)
+      split(version, parts, ".")
+      printf "%d\t%d\t%d\t%s\n", parts[1], parts[2], parts[3], $0
+    }
+  ' "${source_file}" \
+    | sort -t '	' -k1,1nr -k2,2nr -k3,3nr \
+    | awk -F '	' '!seen[$4]++ { print $4; exit }'
+}
+
+version_parts_from_tag() {
+  local tag="$1"
+  local version
+
+  if [ -z "${tag}" ]; then
+    printf "0 0 0\n"
+    return 0
+  fi
+
+  version="${tag#v}"
+  printf "%s\n" "${version}" | awk -F '.' '{ printf "%d %d %d\n", $1, $2, $3 }'
+}
+
+bump_version() {
+  local release_type="$1"
+  local major="$2"
+  local minor="$3"
+  local patch="$4"
+
+  case "${release_type}" in
+    major)
+      major=$((major + 1))
+      minor=0
+      patch=0
+      ;;
+    minor)
+      minor=$((minor + 1))
+      patch=0
+      ;;
+    patch)
+      patch=$((patch + 1))
+      ;;
+    *)
+      die "unsupported release type: ${release_type}"
+      ;;
+  esac
+
+  printf "%d.%d.%d\n" "${major}" "${minor}" "${patch}"
+}
+
+short_sha() {
+  git rev-parse --short "$1" 2>/dev/null || printf "%s\n" "$1"
+}
+
+commit_category() {
+  local subject="$1"
+  local lower
+
+  lower="$(printf "%s\n" "${subject}" | awk '{ print tolower($0) }')"
+
+  if [[ "${lower}" =~ ^(fix|chore)\(deps\)(!)?: ]]; then
+    printf "maintenance\n"
+  elif [[ "${lower}" =~ ^(feat|feature)(\(.+\))?(!)?: ]] \
+    || [[ "${lower}" =~ ^(add|introduce)[[:space:]] ]]; then
+    printf "feature\n"
+  elif [[ "${lower}" =~ ^(fix|bugfix|hotfix)(\(.+\))?(!)?: ]] \
+    || [[ "${lower}" =~ (^|[[:space:]])fix(e[sd])?($|[[:space:][:punct:]]) ]]; then
+    printf "fix\n"
+  elif [[ "${lower}" =~ ^(doc|docs|test|tests|e2e)(\(.+\))?(!)?: ]] \
+    || [[ "${lower}" =~ ^(add|update|improve)[[:space:]]+(doc|docs|test|tests) ]]; then
+    printf "docs-tests\n"
+  else
+    printf "maintenance\n"
+  fi
+}
+
+extract_pr_numbers() {
+  local subject="$1"
+  local remaining="${subject}"
+
+  while [[ "${remaining}" =~ \(#([0-9]+)\) ]]; do
+    printf "%s\n" "${BASH_REMATCH[1]}"
+    remaining="${remaining#*"${BASH_REMATCH[0]}"}"
+  done
+}
+
+path_area() {
+  local path="$1"
+
+  case "${path}" in
+    .github/*)
+      printf ".github\n"
+      ;;
+    docs/*)
+      printf "docs\n"
+      ;;
+    internal/*)
+      printf "internal\n"
+      ;;
+    test/*)
+      printf "test\n"
+      ;;
+    scripts/*)
+      printf "scripts\n"
+      ;;
+    *)
+      if [[ "${path}" == */* ]]; then
+        printf "other\n"
+      else
+        printf "root\n"
+      fi
+      ;;
+  esac
+}
+
+print_commit_section() {
+  local title="$1"
+  local category="$2"
+  local commits_file="$3"
+  local repo_path="$4"
+  local found="false"
+  local sha subject current_category sha_short commit_url
+
+  printf "### %s\n" "${title}"
+
+  while IFS=$'\t' read -r sha subject; do
+    if [ -z "${sha}" ]; then
+      continue
+    fi
+
+    current_category="$(commit_category "${subject}")"
+    if [ "${current_category}" != "${category}" ]; then
+      continue
+    fi
+
+    found="true"
+    sha_short="${sha:0:7}"
+    if [ -n "${repo_path}" ]; then
+      commit_url="https://github.com/${repo_path}/commit/${sha}"
+      printf -- "- [\`%s\`](%s) %s\n" "${sha_short}" "${commit_url}" "${subject}"
+    else
+      printf -- "- \`%s\` %s\n" "${sha_short}" "${subject}"
+    fi
+  done < "${commits_file}"
+
+  if [ "${found}" = "false" ]; then
+    printf -- "- None\n"
+  fi
+
+  printf "\n"
+}
+
+print_changed_paths_area() {
+  local area="$1"
+  local area_paths_file="$2"
+  local count
+
+  count="$(awk -F '\t' -v area="${area}" '$1 == area { count++ } END { print count + 0 }' "${area_paths_file}")"
+  if [ "${count}" -eq 0 ]; then
+    return 0
+  fi
+
+  printf "### %s (%s)\n" "${area}" "${count}"
+  awk -F '\t' -v area="${area}" '$1 == area { print $2 }' "${area_paths_file}" \
+    | sort -u \
+    | sed 's/^/- `/; s/$/`/'
+  printf "\n\n"
+}
+
+count_pr_category() {
+  local category="$1"
+  local prs_file="$2"
+  local count=0
+  local number title url author merged_at labels current_category
+
+  while IFS=$'\t' read -r number title url author merged_at labels; do
+    if [ -z "${number}" ]; then
+      continue
+    fi
+
+    current_category="$(commit_category "${title}")"
+    if [ "${current_category}" = "${category}" ]; then
+      count=$((count + 1))
+    fi
+  done < "${prs_file}"
+
+  printf "%s\n" "${count}"
+}
+
+print_pr_section() {
+  local title="$1"
+  local category="$2"
+  local prs_file="$3"
+  local repo_path="$4"
+  local number pr_title url author merged_at labels current_category
+
+  printf "### %s\n" "${title}"
+
+  while IFS=$'\t' read -r number pr_title url author merged_at labels; do
+    if [ -z "${number}" ]; then
+      continue
+    fi
+
+    current_category="$(commit_category "${pr_title}")"
+    if [ "${current_category}" != "${category}" ]; then
+      continue
+    fi
+
+    if [ -z "${url}" ] && [ -n "${repo_path}" ]; then
+      url="https://github.com/${repo_path}/pull/${number}"
+    fi
+
+    if [ -n "${url}" ]; then
+      printf -- "- [#%s](%s) %s\n" "${number}" "${url}" "${pr_title}"
+    else
+      printf -- "- #%s %s\n" "${number}" "${pr_title}"
+    fi
+  done < "${prs_file}"
+
+  printf "\n"
+}
+
+release_type="${RELEASE_TYPE:-patch}"
+repo="${REPO:-${GITHUB_REPOSITORY:-}}"
+head_ref="${HEAD_REF:-HEAD}"
+base_tag_override="${BASE_TAG:-}"
+extended="false"
+if is_truthy "${EXTENDED:-}"; then
+  extended="true"
+fi
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --release-type)
+      require_option_value "$1" "$#"
+      release_type="${2:-}"
+      shift 2
+      ;;
+    --repo)
+      require_option_value "$1" "$#"
+      repo="${2:-}"
+      shift 2
+      ;;
+    --head)
+      require_option_value "$1" "$#"
+      head_ref="${2:-}"
+      shift 2
+      ;;
+    --base-tag)
+      require_option_value "$1" "$#"
+      base_tag_override="${2:-}"
+      shift 2
+      ;;
+    --extended)
+      extended="true"
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+case "${release_type}" in
+  patch | minor | major)
+    ;;
+  *)
+    die "release type must be one of: patch, minor, major"
+    ;;
+esac
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repository"
+cd "${repo_root}"
+
+tmp_root=".tmp/release-preview"
+mkdir -p "${tmp_root}"
+work_dir="$(mktemp -d "${tmp_root}/run.XXXXXX")"
+trap 'rm -rf "${work_dir}"' EXIT
+
+declare -a warnings=()
+
+local_tags_file="${work_dir}/local-tags.txt"
+gh_releases_file="${work_dir}/gh-releases.json"
+gh_release_tags_file="${work_dir}/gh-release-tags.txt"
+gh_tags_file="${work_dir}/gh-tags.txt"
+version_candidates_file="${work_dir}/version-candidates.txt"
+commits_file="${work_dir}/commits.tsv"
+name_status_file="${work_dir}/name-status.tsv"
+area_paths_file="${work_dir}/area-paths.tsv"
+pr_numbers_file="${work_dir}/pr-numbers.txt"
+pr_refs_unsorted_file="${work_dir}/pr-refs.unsorted.tsv"
+pr_refs_file="${work_dir}/pr-refs.tsv"
+pr_meta_file="${work_dir}/pr-meta.tsv"
+pr_display_file="${work_dir}/pr-display.tsv"
+
+: > "${gh_release_tags_file}"
+: > "${gh_tags_file}"
+: > "${pr_meta_file}"
+: > "${area_paths_file}"
+: > "${pr_refs_unsorted_file}"
+: > "${pr_refs_file}"
+: > "${pr_display_file}"
+
+git tag --list > "${local_tags_file}"
+
+if [ -z "${repo}" ] && command_exists gh; then
+  repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || true)"
+fi
+
+if [ -z "${repo}" ]; then
+  repo="$(repo_from_origin)"
+fi
+
+repo_path=""
+if [ -n "${repo}" ]; then
+  repo_path="$(normalize_repo_path "${repo}")"
+fi
+
+github_release_data_available="false"
+github_tag_data_available="false"
+
+if command_exists gh && command_exists jq && [ -n "${repo}" ]; then
+  if gh release list \
+    --repo "${repo}" \
+    --exclude-drafts \
+    --limit 100 \
+    --json tagName,publishedAt,isDraft \
+    > "${gh_releases_file}" 2>"${work_dir}/gh-releases.err"; then
+    github_release_data_available="true"
+    jq -r '.[].tagName // empty' "${gh_releases_file}" > "${gh_release_tags_file}"
+  else
+    warnings+=("GitHub release data was unavailable; using local git data where needed.")
+  fi
+
+  if [ -n "${repo_path}" ] \
+    && gh api --paginate --slurp "repos/${repo_path}/tags?per_page=100" \
+      > "${work_dir}/gh-tags.json" 2>"${work_dir}/gh-tags.err"; then
+    github_tag_data_available="true"
+    jq -r 'add // [] | .[].name // empty' "${work_dir}/gh-tags.json" > "${gh_tags_file}"
+  else
+    warnings+=("GitHub tag data was unavailable; using local git tags for version candidates.")
+  fi
+else
+  warnings+=("GitHub data enrichment requires both gh and jq plus a repository context; using local git fallback.")
+fi
+
+: > "${version_candidates_file}"
+if [ "${github_release_data_available}" = "true" ] || [ "${github_tag_data_available}" = "true" ]; then
+  cat "${gh_release_tags_file}" > "${version_candidates_file}"
+  if [ "${github_tag_data_available}" = "true" ]; then
+    cat "${gh_tags_file}" >> "${version_candidates_file}"
+  else
+    cat "${local_tags_file}" >> "${version_candidates_file}"
+  fi
+else
+  cat "${local_tags_file}" > "${version_candidates_file}"
+fi
+
+latest_version_tag="$(latest_stable_tag_from_file "${version_candidates_file}")"
+read -r major minor patch <<< "$(version_parts_from_tag "${latest_version_tag}")"
+next_version="$(bump_version "${release_type}" "${major}" "${minor}" "${patch}")"
+next_tag="v${next_version}"
+
+local_latest_stable_tag="$(latest_stable_tag_from_file "${local_tags_file}")"
+head_sha="$(git rev-parse --verify "${head_ref}^{commit}" 2>/dev/null)" \
+  || die "head ref does not resolve to a commit: ${head_ref}"
+head_short="$(short_sha "${head_sha}")"
+
+base_tag=""
+base_sha=""
+
+if [ -n "${base_tag_override}" ]; then
+  base_tag="${base_tag_override}"
+  base_sha="$(git rev-parse --verify "${base_tag}^{commit}" 2>/dev/null)" \
+    || die "base tag does not resolve to a local commit: ${base_tag}"
+elif [ "${github_release_data_available}" = "true" ]; then
+  github_latest_release_tag="$(jq -r '.[].tagName // empty' "${gh_releases_file}" | awk 'NF { print; exit }')"
+  if [ -n "${github_latest_release_tag}" ]; then
+    if base_sha="$(git rev-parse --verify "${github_latest_release_tag}^{commit}" 2>/dev/null)"; then
+      base_tag="${github_latest_release_tag}"
+    else
+      warnings+=("Latest non-draft GitHub release tag ${github_latest_release_tag} is not available locally.")
+    fi
+  fi
+fi
+
+if [ -z "${base_tag}" ] && [ -n "${local_latest_stable_tag}" ]; then
+  if base_sha="$(git rev-parse --verify "${local_latest_stable_tag}^{commit}" 2>/dev/null)"; then
+    base_tag="${local_latest_stable_tag}"
+  fi
+fi
+
+if [ -n "${base_sha}" ] && ! git merge-base --is-ancestor "${base_sha}" "${head_sha}" >/dev/null 2>&1; then
+  warnings+=("Selected base ${base_tag} is not an ancestor of ${head_ref}; diff output uses a direct comparison.")
+fi
+
+if git rev-parse --verify "refs/tags/${next_tag}" >/dev/null 2>&1; then
+  warnings+=("Computed next tag ${next_tag} already exists locally; the real release workflow would fail.")
+elif grep -Fxq "${next_tag}" "${version_candidates_file}"; then
+  warnings+=(
+    "Computed next tag ${next_tag} already exists in GitHub release/tag data; the real release workflow would fail."
+  )
+fi
+
+current_head_sha="$(git rev-parse --verify HEAD)"
+current_branch="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+origin_main_sha="$(git rev-parse --verify "origin/main^{commit}" 2>/dev/null || true)"
+
+if [ "${current_branch}" != "main" ] \
+  && { [ -z "${origin_main_sha}" ] || [ "${current_head_sha}" != "${origin_main_sha}" ]; }; then
+  if [ -n "${current_branch}" ]; then
+    warnings+=(
+      "HEAD is on ${current_branch}, not main/origin/main. The release workflow releases the checked-out workflow ref."
+    )
+  else
+    warnings+=("HEAD is detached and not at origin/main. The release workflow releases the checked-out workflow ref.")
+  fi
+fi
+
+if [ -n "$(git status --porcelain)" ]; then
+  warnings+=(
+    "Uncommitted working tree changes are not included; this preview uses committed git history at ${head_ref}."
+  )
+fi
+
+warnings+=(
+  "Workflow build_mode=smoke is not a dry run: it still pushes a tag and creates or uploads a GitHub release asset."
+)
+
+empty_tree="$(git hash-object -t tree /dev/null)"
+if [ -n "${base_sha}" ]; then
+  log_range="${base_sha}..${head_sha}"
+  diff_base="${base_sha}"
+else
+  log_range="${head_sha}"
+  diff_base="${empty_tree}"
+fi
+
+git log --format='%H%x09%s' --reverse "${log_range}" > "${commits_file}"
+commit_count="$(git rev-list --count "${log_range}")"
+diff_shortstat="$(git diff --shortstat "${diff_base}" "${head_sha}" || true)"
+if [ -z "${diff_shortstat}" ]; then
+  diff_shortstat="No file changes"
+fi
+
+git diff --name-status "${diff_base}" "${head_sha}" > "${name_status_file}"
+changed_file_count="$(awk 'NF { count++ } END { print count + 0 }' "${name_status_file}")"
+
+while IFS=$'\t' read -r status path_one path_two extra; do
+  if [ -z "${status}" ]; then
+    continue
+  fi
+
+  path="${path_two:-${path_one}}"
+  if [ -z "${path}" ]; then
+    continue
+  fi
+
+  printf "%s\t%s\n" "$(path_area "${path}")" "${path}" >> "${area_paths_file}"
+done < "${name_status_file}"
+
+while IFS=$'\t' read -r sha subject; do
+  if [ -z "${sha}" ]; then
+    continue
+  fi
+
+  pr_title="$(printf "%s\n" "${subject}" | sed -E 's/[[:space:]]*\(#[0-9]+\)[[:space:]]*$//')"
+  if [ -z "${pr_title}" ]; then
+    pr_title="${subject}"
+  fi
+
+  while IFS= read -r pr_number; do
+    if [ -n "${pr_number}" ]; then
+      printf "%s\t%s\n" "${pr_number}" "${pr_title}" >> "${pr_refs_unsorted_file}"
+    fi
+  done < <(extract_pr_numbers "${subject}")
+done < "${commits_file}"
+
+sort -t $'\t' -k1,1n -u "${pr_refs_unsorted_file}" > "${pr_refs_file}"
+awk -F '\t' '{ print $1 }' "${pr_refs_file}" > "${pr_numbers_file}"
+
+pr_metadata_available="false"
+if command_exists gh \
+  && [ -n "${repo}" ] \
+  && [ -s "${pr_numbers_file}" ]; then
+  while IFS= read -r pr_number; do
+    if [ -z "${pr_number}" ]; then
+      continue
+    fi
+
+    if gh pr view "${pr_number}" \
+      --repo "${repo}" \
+      --json number,title,url,author,labels,mergedAt \
+      --jq '[.number, .title, .url, (.author.login // ""), (.mergedAt // ""), ([.labels[].name] | join(", "))] | @tsv' \
+      >> "${pr_meta_file}" 2>/dev/null; then
+      pr_metadata_available="true"
+    fi
+  done < "${pr_numbers_file}"
+fi
+
+while IFS=$'\t' read -r pr_number fallback_title; do
+  if [ -z "${pr_number}" ]; then
+    continue
+  fi
+
+  meta_line=""
+  if [ "${pr_metadata_available}" = "true" ]; then
+    meta_line="$(awk -F '\t' -v number="${pr_number}" '$1 == number { print; exit }' "${pr_meta_file}")"
+  fi
+
+  if [ -n "${meta_line}" ]; then
+    printf "%s\n" "${meta_line}" >> "${pr_display_file}"
+    continue
+  fi
+
+  fallback_url=""
+  if [ -n "${repo_path}" ]; then
+    fallback_url="https://github.com/${repo_path}/pull/${pr_number}"
+  fi
+
+  printf "%s\t%s\t%s\t\t\t\n" "${pr_number}" "${fallback_title}" "${fallback_url}" >> "${pr_display_file}"
+done < "${pr_refs_file}"
+
+pr_count="$(awk 'NF { count++ } END { print count + 0 }' "${pr_display_file}")"
+feature_pr_count="$(count_pr_category "feature" "${pr_display_file}")"
+fix_pr_count="$(count_pr_category "fix" "${pr_display_file}")"
+docs_tests_pr_count="$(count_pr_category "docs-tests" "${pr_display_file}")"
+maintenance_pr_count="$(count_pr_category "maintenance" "${pr_display_file}")"
+other_pr_count=$((docs_tests_pr_count + maintenance_pr_count))
+
+printf "# Release Preview\n\n"
+printf "Read-only advisory report for the checked-out repository state. "
+printf "No tags, releases, artifacts, Docker images, or Homebrew changes were created.\n\n"
+
+printf "## Change Summary\n\n"
+printf -- "- Merged PRs since last release: %s\n" "${pr_count}"
+printf -- "- Feature PRs: %s\n" "${feature_pr_count}"
+printf -- "- Fix PRs: %s\n" "${fix_pr_count}"
+printf -- "- Other PRs: %s\n" "${other_pr_count}"
+printf -- "- Commits since last release: %s\n" "${commit_count}"
+if [ -n "${base_tag}" ] && [ -n "${repo_path}" ]; then
+  printf -- "- Compare: https://github.com/%s/compare/%s...%s\n" "${repo_path}" "${base_tag}" "${head_sha}"
+fi
+printf "\n"
+
+printf "## Merged PRs Since Last Release\n\n"
+if [ ! -s "${pr_display_file}" ]; then
+  if [ "${commit_count}" -eq 0 ]; then
+    printf "No commits found since the selected base.\n\n"
+  else
+    printf "No PR references were found in commits since the selected base.\n\n"
+  fi
+else
+  if [ "${feature_pr_count}" -gt 0 ]; then
+    print_pr_section "Features" "feature" "${pr_display_file}" "${repo_path}"
+  fi
+  if [ "${fix_pr_count}" -gt 0 ]; then
+    print_pr_section "Fixes" "fix" "${pr_display_file}" "${repo_path}"
+  fi
+  if [ "${docs_tests_pr_count}" -gt 0 ]; then
+    print_pr_section "Docs and Tests" "docs-tests" "${pr_display_file}" "${repo_path}"
+  fi
+  if [ "${maintenance_pr_count}" -gt 0 ]; then
+    print_pr_section "Maintenance and Other" "maintenance" "${pr_display_file}" "${repo_path}"
+  fi
+fi
+
+if [ "${#warnings[@]}" -gt 0 ]; then
+  printf "## Warnings\n\n"
+  for warning in "${warnings[@]}"; do
+    printf -- "- %s\n" "${warning}"
+  done
+  printf "\n"
+fi
+
+if [ "${extended}" != "true" ]; then
+  printf "Run with \`--extended\` to include commit-by-commit details and changed paths.\n"
+else
+  printf "## Extended Change Details\n\n"
+  printf -- "- Files changed: %s\n" "${changed_file_count}"
+  printf -- "- Diff stat: %s\n\n" "${diff_shortstat}"
+
+  printf "## Categorized Commits\n\n"
+  print_commit_section "Features" "feature" "${commits_file}" "${repo_path}"
+  print_commit_section "Fixes" "fix" "${commits_file}" "${repo_path}"
+  print_commit_section "Docs and Tests" "docs-tests" "${commits_file}" "${repo_path}"
+  print_commit_section "Maintenance and Other" "maintenance" "${commits_file}" "${repo_path}"
+
+  printf "## Changed Paths\n\n"
+  if [ ! -s "${area_paths_file}" ]; then
+    printf "No changed paths.\n\n"
+  else
+    for area in .github docs internal test scripts root other; do
+      print_changed_paths_area "${area}" "${area_paths_file}"
+    done
+  fi
+fi
