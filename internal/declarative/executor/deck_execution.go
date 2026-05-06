@@ -663,6 +663,8 @@ type deckSummary struct {
 }
 
 func deckSummaryFromJSON(stdout string) (deckSummary, bool) {
+	stdout, _ = deck.NormalizeMaskedJSONOutput(stdout)
+
 	var payload struct {
 		Summary  map[string]any `json:"summary"`
 		Warnings []any          `json:"warnings"`
