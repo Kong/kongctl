@@ -66,11 +66,10 @@ func (d DCRProviderResource) Validate() error {
 	if NormalizeDCRProviderIssuer(d.Issuer) == "" {
 		return fmt.Errorf("issuer is required")
 	}
-	if d.DCRConfig == nil {
-		return fmt.Errorf("dcr_config is required")
-	}
-	if err := validateDCRProviderConfig(d.ProviderType, d.DCRConfig); err != nil {
-		return err
+	if d.DCRConfig != nil {
+		if err := validateDCRProviderConfig(d.ProviderType, d.DCRConfig); err != nil {
+			return err
+		}
 	}
 	return nil
 }
