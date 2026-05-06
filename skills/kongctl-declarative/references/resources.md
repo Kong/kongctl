@@ -36,7 +36,7 @@ shape. These commands are local schema helpers and do not require Konnect
 authentication.
 
 ```bash
-kongctl explain api --extended
+kongctl explain api --extended -o text
 kongctl explain api.publications.portal_id
 kongctl scaffold api
 kongctl scaffold api.versions

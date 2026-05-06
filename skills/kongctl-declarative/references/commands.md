@@ -29,7 +29,7 @@ Use command help for ground-truth syntax in environments without local docs.
 Use these intent mappings:
 
 1. Discover fields, required values, nesting, or YAML placement
-   `kongctl explain <resource-path> --extended`
+   `kongctl explain <resource-path> --extended -o text`
    `kongctl explain <resource-path> -o json`
 2. Generate starter YAML for a resource or child resource
    `kongctl scaffold <resource-path>`
