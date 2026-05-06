@@ -20,7 +20,7 @@ var (
 	diffUse = Verb.String()
 
 	diffShort = i18n.T("root.verbs.diff.diffShort",
-		"Show configuration differences")
+		"Show declarative configuration differences")
 
 	diffLong = normalizers.LongDesc(i18n.T("root.verbs.diff.diffLong",
 		`Display differences between current and desired state.`))

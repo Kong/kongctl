@@ -51,7 +51,8 @@ func TestInstallBundledSkillsWritesVersionedSkillsAndManifest(t *testing.T) {
 
 	assert.Equal(t, canonicalDir, result.CanonicalDir)
 	assert.Equal(t, "v9.9.9", result.CLIVersion)
-	assert.ElementsMatch(t, []string{"kongctl-declarative", "kongctl-query"}, result.SkillNames)
+	expectedSkills := []string{"kongctl-declarative", "kongctl-extension-builder", "kongctl-query"}
+	assert.ElementsMatch(t, expectedSkills, result.SkillNames)
 
 	for _, skillName := range result.SkillNames {
 		skillPath := filepath.Join(canonicalDir, skillName, "SKILL.md")
@@ -71,7 +72,7 @@ func TestInstallBundledSkillsWritesVersionedSkillsAndManifest(t *testing.T) {
 	require.NoError(t, json.Unmarshal(manifestData, &manifest))
 	assert.Equal(t, "v9.9.9", manifest.CLIVersion)
 	assert.Equal(t, now.Format(time.RFC3339), manifest.InstalledAt)
-	assert.ElementsMatch(t, []string{"kongctl-declarative", "kongctl-query"}, manifest.Skills)
+	assert.ElementsMatch(t, expectedSkills, manifest.Skills)
 }
 
 func TestInstallBundledSkillsDryRunDoesNotWriteFiles(t *testing.T) {

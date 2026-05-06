@@ -22,7 +22,7 @@ const (
 var (
 	versionUse   = "version"
 	versionShort = i18n.T("root.version.versionShort",
-		fmt.Sprintf("Print the %s version", meta.CLIName))
+		fmt.Sprintf("Output the %s version", meta.CLIName))
 	versionLong = normalizers.LongDesc(i18n.T("root.version.versionLong",
 		`The version command prints the version and other optional information`))
 	versionExample = normalizers.Examples(i18n.T("root.version.versionExamples",

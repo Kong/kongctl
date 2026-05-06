@@ -20,7 +20,7 @@ const (
 var (
 	adoptUse = Verb.String()
 
-	adoptShort = i18n.T("root.verbs.adopt.adoptShort", "Adopt existing Konnect resources into namespace management")
+	adoptShort = i18n.T("root.verbs.adopt.adoptShort", "Adopt existing resources into declarative management")
 
 	adoptLong = normalizers.LongDesc(i18n.T("root.verbs.adopt.adoptLong",
 		`Apply the KONGCTL-namespace label to existing Konnect resources so they become managed by kongctl.`))

@@ -22,7 +22,7 @@ const (
 var (
 	applyUse = Verb.String()
 
-	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply configuration changes (create/update only)")
+	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply declarative configuration changes (create/update only)")
 
 	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
 		`Apply configuration changes to Kong Konnect. Creates new resources and updates existing ones.`))
