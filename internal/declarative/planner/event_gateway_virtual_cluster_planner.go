@@ -389,6 +389,33 @@ func (p *Planner) planVirtualClusterUpdate(
 		},
 	}
 
+	// Set backend cluster reference if destination uses a ref placeholder
+	if cluster.Destination.BackendClusterReferenceByID != nil &&
+		tags.IsRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID) {
+		var backendClusterName string
+		backendCluster := p.resources.GetBackendClusterByRef(cluster.Destination.BackendClusterReferenceByID.ID)
+		if backendCluster != nil {
+			backendClusterName = backendCluster.Name
+		}
+		backendClusterRef, _, ok := tags.ParseRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID)
+		if ok {
+			backendCluster := p.resources.GetBackendClusterByRef(backendClusterRef)
+			if backendCluster != nil {
+				backendClusterName = backendCluster.Name
+			}
+		}
+
+		if change.References == nil {
+			change.References = make(map[string]ReferenceInfo)
+		}
+		change.References[FieldEventGatewayBackendClusterID] = ReferenceInfo{
+			Ref: cluster.Destination.BackendClusterReferenceByID.ID,
+			LookupFields: map[string]string{
+				FieldName: backendClusterName,
+			},
+		}
+	}
+
 	p.logger.Debug("Enqueuing virtual cluster UPDATE",
 		"cluster_ref", cluster.Ref,
 		"cluster_name", cluster.Name,
