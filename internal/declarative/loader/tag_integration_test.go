@@ -312,6 +312,30 @@ dcr_providers:
 	assert.Contains(t, err.Error(), "dcr_config.disable_event_hooks must be a boolean")
 }
 
+func TestLoader_EnvTagIntegration_DCRProviderDynamicConfigRejectsNonStringEnvValue(t *testing.T) {
+	t.Setenv("DCR_SETTINGS", "api_key_enabled: true")
+
+	tmpDir := t.TempDir()
+	mainContent := `
+dcr_providers:
+  - ref: env-dcr
+    name: env-dcr
+    provider_type: http
+    issuer: https://issuer.example.test
+    dcr_config:
+      dcr_base_url: https://dcr.example.test/register
+      api_key: !env DCR_SETTINGS#api_key_enabled
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	_, err := loader.LoadFile(mainFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "!env value must resolve to a string")
+}
+
 func TestLoader_EnvTagStringOnlyFields(t *testing.T) {
 	t.Setenv("PORTAL_AUTH_ENABLED", "true")
 

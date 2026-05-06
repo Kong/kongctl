@@ -48,7 +48,7 @@ func (r *EnvTagResolver) Resolve(node *yaml.Node) (any, error) {
 		return BuildEnvPlaceholder(varRef, extractPath), nil
 	}
 
-	return resolveEnvValue(varRef, extractPath)
+	return resolveEnvStringValue(varRef, extractPath)
 }
 
 func parseEnvNode(node *yaml.Node) (string, string, error) {
@@ -103,6 +103,20 @@ func resolveEnvValue(varRef, extractPath string) (any, error) {
 	return result, nil
 }
 
+func resolveEnvStringValue(varRef, extractPath string) (string, error) {
+	value, err := resolveEnvValue(varRef, extractPath)
+	if err != nil {
+		return "", err
+	}
+
+	strValue, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("!env value must resolve to a string")
+	}
+
+	return strValue, nil
+}
+
 // BuildEnvPlaceholder serializes an env reference into a deferred placeholder string.
 func BuildEnvPlaceholder(varRef, extractPath string) string {
 	if extractPath == "" {
@@ -139,15 +153,5 @@ func ResolveEnvPlaceholder(placeholder string) (string, error) {
 		return "", fmt.Errorf("invalid env placeholder: %s", placeholder)
 	}
 
-	value, err := resolveEnvValue(varRef, extractPath)
-	if err != nil {
-		return "", err
-	}
-
-	strValue, ok := value.(string)
-	if !ok {
-		return "", fmt.Errorf("!env value must resolve to a string for deferred execution")
-	}
-
-	return strValue, nil
+	return resolveEnvStringValue(varRef, extractPath)
 }
