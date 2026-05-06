@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 )
@@ -140,6 +141,160 @@ func TestJWTExpiresIn_APIResponseMismatch(t *testing.T) {
 	require.InDelta(t, int(jwtLifetime.Seconds()), secs, 5)
 }
 
+func TestTokenSourcePATIsStatic(t *testing.T) {
+	source := NewTokenSource(nil, TokenSourceOptions{
+		PAT: "pat-token",
+	})
+
+	token, err := source.Token(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, "pat-token", token)
+	require.False(t, source.Refreshable())
+
+	_, err = source.Refresh(t.Context(), "pat-token")
+	require.ErrorIs(t, err, ErrTokenRefreshUnsupported)
+}
+
+func TestTokenSourceRefreshesNearExpiryAndSaves(t *testing.T) {
+	dir := t.TempDir()
+	cfg := stubConfig{
+		profile: "default",
+		path:    filepath.Join(dir, "config.yaml"),
+	}
+	oldToken := &AccessToken{
+		Token: &AccessTokenResponse{
+			AuthToken:    "old-token",
+			RefreshToken: "old-refresh",
+			ExpiresAfter: 30,
+		},
+		ReceivedAt: time.Now(),
+	}
+	require.NoError(t, saveAccessTokenToDisk(credentialFilePath(cfg), oldToken))
+
+	var gotRefreshURL, gotRefreshToken string
+	source := NewTokenSource(cfg, TokenSourceOptions{
+		RefreshURL: "https://us.api.konghq.com/kauth/api/v1/refresh",
+		ExpirySkew: time.Minute,
+		Refresh: func(refreshURL string, refreshToken string, _ time.Duration,
+			_ httpclient.TransportOptions, _ *slog.Logger,
+		) (*AccessToken, error) {
+			gotRefreshURL = refreshURL
+			gotRefreshToken = refreshToken
+			return &AccessToken{
+				Token: &AccessTokenResponse{
+					AuthToken:    "new-token",
+					RefreshToken: "new-refresh",
+					ExpiresAfter: 900,
+				},
+				ReceivedAt: time.Now(),
+			}, nil
+		},
+	})
+
+	token, err := source.Token(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, "new-token", token)
+	require.Equal(t, "https://us.api.konghq.com/kauth/api/v1/refresh", gotRefreshURL)
+	require.Equal(t, "old-refresh", gotRefreshToken)
+
+	saved, err := loadAccessTokenFromDisk(credentialFilePath(cfg))
+	require.NoError(t, err)
+	require.Equal(t, "new-token", saved.Token.AuthToken)
+	require.Equal(t, "new-refresh", saved.Token.RefreshToken)
+}
+
+func TestTokenSourceForcedRefreshUsesAlreadyUpdatedToken(t *testing.T) {
+	dir := t.TempDir()
+	cfg := stubConfig{
+		profile: "default",
+		path:    filepath.Join(dir, "config.yaml"),
+	}
+	currentToken := &AccessToken{
+		Token: &AccessTokenResponse{
+			AuthToken:    "current-token",
+			RefreshToken: "current-refresh",
+			ExpiresAfter: 900,
+		},
+		ReceivedAt: time.Now(),
+	}
+	require.NoError(t, saveAccessTokenToDisk(credentialFilePath(cfg), currentToken))
+
+	source := NewTokenSource(cfg, TokenSourceOptions{
+		RefreshURL: "https://us.api.konghq.com/kauth/api/v1/refresh",
+		Refresh: func(string, string, time.Duration, httpclient.TransportOptions, *slog.Logger) (*AccessToken, error) {
+			t.Fatal("refresh should not be called when another worker already updated the token")
+			return nil, nil
+		},
+	})
+
+	token, err := source.Refresh(t.Context(), "stale-token")
+	require.NoError(t, err)
+	require.Equal(t, "current-token", token)
+}
+
+func TestRefreshingHTTPClientRetries401WithRefreshedToken(t *testing.T) {
+	dir := t.TempDir()
+	cfg := stubConfig{
+		profile: "default",
+		path:    filepath.Join(dir, "config.yaml"),
+	}
+	require.NoError(t, saveAccessTokenToDisk(credentialFilePath(cfg), &AccessToken{
+		Token: &AccessTokenResponse{
+			AuthToken:    "old-token",
+			RefreshToken: "old-refresh",
+			ExpiresAfter: 900,
+		},
+		ReceivedAt: time.Now(),
+	}))
+
+	source := NewTokenSource(cfg, TokenSourceOptions{
+		RefreshURL: "https://us.api.konghq.com/kauth/api/v1/refresh",
+		Refresh: func(string, string, time.Duration, httpclient.TransportOptions, *slog.Logger) (*AccessToken, error) {
+			return &AccessToken{
+				Token: &AccessTokenResponse{
+					AuthToken:    "new-token",
+					RefreshToken: "new-refresh",
+					ExpiresAfter: 900,
+				},
+				ReceivedAt: time.Now(),
+			}, nil
+		},
+	})
+
+	var attempts int
+	client := NewRefreshingHTTPClient(roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		attempts++
+		switch attempts {
+		case 1:
+			require.Equal(t, "Bearer old-token", req.Header.Get("Authorization"))
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
+				Body:       io.NopCloser(strings.NewReader(`{"error":"expired"}`)),
+				Header:     make(http.Header),
+			}, nil
+		case 2:
+			require.Equal(t, "Bearer new-token", req.Header.Get("Authorization"))
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"ok":true}`)),
+				Header:     make(http.Header),
+			}, nil
+		default:
+			t.Fatalf("unexpected attempt %d", attempts)
+			return nil, nil
+		}
+	}), source)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer old-token")
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, 2, attempts)
+}
+
 func TestValidateKonnectURL(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -262,3 +417,4 @@ func TestRequestDeviceCode_NonOKStatus(t *testing.T) {
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func (f roundTripFunc) Do(r *http.Request) (*http.Response, error)        { return f(r) }

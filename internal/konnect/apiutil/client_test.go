@@ -1,6 +1,7 @@
 package apiutil
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -114,4 +115,88 @@ func TestRequestSetsUserAgentHeader(t *testing.T) {
 	if gotUserAgent != "kongctl/v0.5.0" {
 		t.Fatalf("User-Agent = %q, want %q", gotUserAgent, "kongctl/v0.5.0")
 	}
+}
+
+func TestRequestWithTokenSourceRefreshesAndRetries401(t *testing.T) {
+	source := &testTokenSource{
+		token:          "old-token",
+		refreshedToken: "new-token",
+	}
+
+	var attempts int
+	client := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		attempts++
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		if string(body) != `{"ok":true}` {
+			t.Fatalf("unexpected body: %q", string(body))
+		}
+
+		switch attempts {
+		case 1:
+			if req.Header.Get("Authorization") != "Bearer old-token" {
+				t.Fatalf("first authorization = %q", req.Header.Get("Authorization"))
+			}
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"error":"expired"}`)),
+			}, nil
+		case 2:
+			if req.Header.Get("Authorization") != "Bearer new-token" {
+				t.Fatalf("retry authorization = %q", req.Header.Get("Authorization"))
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"done":true}`)),
+			}, nil
+		default:
+			t.Fatalf("unexpected attempt %d", attempts)
+			return nil, nil
+		}
+	})
+
+	result, err := RequestWithTokenSource(
+		context.Background(),
+		client,
+		http.MethodPost,
+		"https://example.com",
+		"/v1/test",
+		source,
+		map[string]string{"Content-Type": "application/json"},
+		bytes.NewReader([]byte(`{"ok":true}`)),
+	)
+	if err != nil {
+		t.Fatalf("RequestWithTokenSource() error = %v", err)
+	}
+	if result.StatusCode != http.StatusOK {
+		t.Fatalf("StatusCode = %d, want %d", result.StatusCode, http.StatusOK)
+	}
+	if string(result.Body) != `{"done":true}` {
+		t.Fatalf("Body = %q", string(result.Body))
+	}
+	if source.refreshCalls != 1 {
+		t.Fatalf("refreshCalls = %d, want 1", source.refreshCalls)
+	}
+}
+
+type testTokenSource struct {
+	token          string
+	refreshedToken string
+	refreshCalls   int
+}
+
+func (s *testTokenSource) Token(context.Context) (string, error) {
+	return s.token, nil
+}
+
+func (s *testTokenSource) Refresh(_ context.Context, previousToken string) (string, error) {
+	if previousToken != s.token {
+		return "", errors.New("unexpected previous token")
+	}
+	s.refreshCalls++
+	return s.refreshedToken, nil
 }

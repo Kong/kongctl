@@ -6,6 +6,7 @@ import (
 	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/konnect/apiutil"
 )
 
 const (
@@ -66,11 +67,12 @@ type SDKAPI interface {
 // This is the real implementation of the SDKAPI
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
-	SDK        *kkSDK.SDK
-	BaseURL    string
-	Token      string
-	HTTPClient kkSDK.HTTPClient
-	portalImpl *PortalAPIImpl
+	SDK         *kkSDK.SDK
+	BaseURL     string
+	Token       string
+	TokenSource apiutil.TokenSource
+	HTTPClient  kkSDK.HTTPClient
+	portalImpl  *PortalAPIImpl
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
@@ -141,10 +143,11 @@ func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
 	}
 
 	return &APIPublicationAPIImpl{
-		SDK:        k.SDK,
-		BaseURL:    k.BaseURL,
-		Token:      k.Token,
-		HTTPClient: k.HTTPClient,
+		SDK:         k.SDK,
+		BaseURL:     k.BaseURL,
+		Token:       k.Token,
+		TokenSource: k.TokenSource,
+		HTTPClient:  k.HTTPClient,
 	}
 }
 
@@ -173,10 +176,11 @@ func (k *KonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
 	}
 
 	return &DCRProvidersAPIImpl{
-		SDK:        k.SDK,
-		BaseURL:    k.BaseURL,
-		Token:      k.Token,
-		HTTPClient: k.HTTPClient,
+		SDK:         k.SDK,
+		BaseURL:     k.BaseURL,
+		Token:       k.Token,
+		TokenSource: k.TokenSource,
+		HTTPClient:  k.HTTPClient,
 	}
 }
 
@@ -231,10 +235,11 @@ func (k *KonnectSDK) GetPortalIdentityProviderAPI() PortalIdentityProviderAPI {
 	}
 
 	return &PortalIdentityProviderAPIImpl{
-		SDK:        k.SDK,
-		BaseURL:    k.BaseURL,
-		Token:      k.Token,
-		HTTPClient: k.HTTPClient,
+		SDK:         k.SDK,
+		BaseURL:     k.BaseURL,
+		Token:       k.Token,
+		TokenSource: k.TokenSource,
+		HTTPClient:  k.HTTPClient,
 	}
 }
 

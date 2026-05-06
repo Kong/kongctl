@@ -252,7 +252,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		return cmd.PrepareExecutionError("failed to resolve Konnect base URL", err, helper.GetCmd())
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to resolve Konnect access token", err, helper.GetCmd())
 	}
@@ -339,6 +339,10 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	}
 
 	client := httpclient.NewLoggingHTTPClient(logger)
+	token, err := tokenSource.Token(ctx)
+	if err != nil {
+		return cmd.PrepareExecutionError("failed to resolve Konnect access token", err, helper.GetCmd())
+	}
 	result, err := requestFn(ctx, client, method, baseURL, endpoint, token, headers, bodyReader)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to call Konnect API", err, helper.GetCmd())

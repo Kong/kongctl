@@ -97,20 +97,22 @@ type Executor struct {
 	// API implementation is not yet supported by SDK but we include adapter for completeness
 	apiImplementationExecutor *BaseCreateDeleteExecutor[kkComps.APIImplementation]
 
-	deckRunner     deck.Runner
-	konnectToken   string
-	konnectBaseURL string
-	executionMode  planner.PlanMode
-	planBaseDir    string
+	deckRunner         deck.Runner
+	konnectToken       string
+	konnectTokenSource deck.KonnectTokenSource
+	konnectBaseURL     string
+	executionMode      planner.PlanMode
+	planBaseDir        string
 }
 
 // Options configures executor behavior.
 type Options struct {
-	DeckRunner     deck.Runner
-	KonnectToken   string
-	KonnectBaseURL string
-	Mode           planner.PlanMode
-	PlanBaseDir    string
+	DeckRunner         deck.Runner
+	KonnectToken       string
+	KonnectTokenSource deck.KonnectTokenSource
+	KonnectBaseURL     string
+	Mode               planner.PlanMode
+	PlanBaseDir        string
 }
 
 // New creates a new Executor instance with default options.
@@ -125,17 +127,18 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		deckRunner = deck.NewRunner()
 	}
 	e := &Executor{
-		client:           client,
-		reporter:         reporter,
-		dryRun:           dryRun,
-		createdResources: make(map[string]string),
-		refToID:          make(map[string]map[string]string),
-		stateCache:       state.NewCache(),
-		deckRunner:       deckRunner,
-		konnectToken:     opts.KonnectToken,
-		konnectBaseURL:   opts.KonnectBaseURL,
-		executionMode:    opts.Mode,
-		planBaseDir:      strings.TrimSpace(opts.PlanBaseDir),
+		client:             client,
+		reporter:           reporter,
+		dryRun:             dryRun,
+		createdResources:   make(map[string]string),
+		refToID:            make(map[string]map[string]string),
+		stateCache:         state.NewCache(),
+		deckRunner:         deckRunner,
+		konnectToken:       opts.KonnectToken,
+		konnectTokenSource: opts.KonnectTokenSource,
+		konnectBaseURL:     opts.KonnectBaseURL,
+		executionMode:      opts.Mode,
+		planBaseDir:        strings.TrimSpace(opts.PlanBaseDir),
 	}
 
 	// Initialize resource executors
