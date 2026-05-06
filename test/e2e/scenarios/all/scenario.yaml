@@ -152,6 +152,7 @@ steps:
             expect:
               fields:
                 action: UPDATE
+          # Full lifecycle coverage lives in test/e2e/scenarios/portal/integrations.
           - select: "plan.changes[?resource_type=='portal_integration' && resource_ref=='all-portal-integrations'] | [0]"
             expect:
               fields:
