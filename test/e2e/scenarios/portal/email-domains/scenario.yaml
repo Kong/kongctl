@@ -1,0 +1,35 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-list-email-domains-empty
+    skipInputs: true
+    commands:
+      - name: 000-list-email-domains-json
+        run:
+          - get
+          - portal
+          - email-domains
+          - -o
+          - json
+        assertions:
+          - select: "length(@) >= `0`"
+            expect:
+              fields:
+                "@": true
+
+  - name: 002-list-email-domains-text-format
+    skipInputs: true
+    commands:
+      - name: 000-list-email-domains-text
+        run:
+          - get
+          - portal
+          - email-domains
