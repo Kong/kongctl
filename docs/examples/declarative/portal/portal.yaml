@@ -14,6 +14,13 @@ portals:
     default_api_visibility: "public"
     default_page_visibility: "public"
 
+    # Portal IP allow list for trusted network access
+    ip_allow_list:
+      ref: getting-started-ip-allow-list
+      allowed_ips:
+        - "198.51.100.10"
+        - "203.0.113.0/24"
+
     # Portal assets (logo and favicon)
     assets:
       logo: !file ./assets/logo.png

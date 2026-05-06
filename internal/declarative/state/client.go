@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -2813,6 +2814,12 @@ func (c *Client) CreatePortalIPAllowList(
 
 	resp, err := c.portalIPAllowListAPI.CreatePortalIPAllowList(ctx, portalID, &req)
 	if err != nil {
+		if entry, recovered := portalIPAllowListEntryFromStatusOKSDKError(err); recovered {
+			if entry.ID == "" {
+				return "", NewResponseValidationError("create portal IP allow list", "IPEntry")
+			}
+			return entry.ID, nil
+		}
 		return "", WrapAPIError(err, "create portal IP allow list", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalIPAllowList),
 			ResourceName: portalID,
@@ -2848,6 +2855,12 @@ func (c *Client) UpdatePortalIPAllowList(
 		UpdatePortalSourceIPRestriction: &req,
 	})
 	if err != nil {
+		if entry, recovered := portalIPAllowListEntryFromStatusOKSDKError(err); recovered {
+			if entry.ID == "" {
+				return "", NewResponseValidationError("update portal IP allow list", "IPEntry")
+			}
+			return entry.ID, nil
+		}
 		return "", WrapAPIError(err, "update portal IP allow list", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalIPAllowList),
 			ResourceName: id,
@@ -2880,6 +2893,22 @@ func (c *Client) DeletePortalIPAllowList(ctx context.Context, portalID string, i
 		})
 	}
 	return nil
+}
+
+func portalIPAllowListEntryFromStatusOKSDKError(err error) (*kkComps.IPEntry, bool) {
+	var sdkErr *kkErrors.SDKError
+	if !errors.As(err, &sdkErr) ||
+		sdkErr.StatusCode != http.StatusOK ||
+		sdkErr.Message != "unknown status code returned" ||
+		strings.TrimSpace(sdkErr.Body) == "" {
+		return nil, false
+	}
+
+	var entry kkComps.IPEntry
+	if err := json.Unmarshal([]byte(sdkErr.Body), &entry); err != nil {
+		return nil, false
+	}
+	return &entry, true
 }
 
 // GetPortalIntegrations fetches current integration configuration for a portal.
