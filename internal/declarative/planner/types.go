@@ -9,9 +9,10 @@ import (
 
 // Plan represents a declarative configuration plan
 type Plan struct {
-	Metadata       PlanMetadata    `json:"metadata"`
-	Changes        []PlannedChange `json:"changes"`
-	ExecutionOrder []string        `json:"execution_order"`
+	Metadata PlanMetadata    `json:"metadata"`
+	Changes  []PlannedChange `json:"changes"`
+	// Legacy execution order for sequential plans; ignored if ExecutionGroups is set
+	ExecutionOrder []string `json:"execution_order"`
 	// ExecutionGroups is an ordered list of concurrency groups.
 	// Changes within a group are safe to execute concurrently; group N+1 must
 	// not start until group N is fully complete. Plans without this field

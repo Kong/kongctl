@@ -35,7 +35,7 @@ type Executor struct {
 	stateCache *state.Cache
 
 	mu          sync.Mutex
-	parallelism int
+	concurrency int
 
 	// Resource executors
 	portalExecutor       *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
@@ -124,17 +124,14 @@ type Executor struct {
 }
 
 // DefaultMaxConcurrency is the default --max-concurrency value (sequential baseline).
-const DefaultMaxConcurrency = 1
+const DefaultMaxConcurrency = 10
 
-// DefaultParallelism is kept for backward compatibility; prefer DefaultMaxConcurrency.
-const DefaultParallelism = DefaultMaxConcurrency
-
-// MaxParallelism is the maximum allowed concurrent operations.
+// MaxConcurrency is the maximum allowed concurrent operations.
 // Assuming a 200ms response time and 6000 req/min rate limit, this runs out in 6s.
-const MaxParallelism = 200
+const MaxConcurrency = 200
 
-// MinParallelism is the minimum allowed concurrent operations.
-const MinParallelism = 1
+// MinConcurrency is the minimum allowed concurrent operations.
+const MinConcurrency = 1
 
 // Options configures executor behavior.
 type Options struct {
@@ -174,9 +171,9 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		planBaseDir:        strings.TrimSpace(opts.PlanBaseDir),
 	}
 
-	e.parallelism = 1
+	e.concurrency = 1
 	if opts.MaxConcurrency > 0 {
-		e.parallelism = max(MinParallelism, min(MaxParallelism, opts.MaxConcurrency))
+		e.concurrency = max(MinConcurrency, min(MaxConcurrency, opts.MaxConcurrency))
 	}
 
 	// Initialize resource executors
@@ -467,7 +464,7 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	result := &ExecutionResult{
 		DryRun:         e.dryRun,
 		StartedAt:      time.Now(),
-		MaxConcurrency: e.parallelism,
+		MaxConcurrency: e.concurrency,
 		GroupCount:     len(plan.ExecutionGroups),
 	}
 
@@ -482,8 +479,8 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	// Otherwise fall back to the flat ExecutionOrder path (legacy plans).
 	if len(plan.ExecutionGroups) > 0 {
 		e.executeGroupsConcurrent(ctx, plan, result)
-	} else if e.parallelism > 1 {
-		e.executeParallel(ctx, plan, result)
+	} else if e.concurrency > 1 {
+		e.executeConcurrent(ctx, plan, result)
 	} else {
 		for i, changeID := range plan.ExecutionOrder {
 			// Find the change by ID
@@ -570,9 +567,9 @@ func effectiveDependsOn(change *planner.PlannedChange, refToChangeID map[string]
 	return deps
 }
 
-// executeParallel runs plan changes concurrently, respecting DependsOn ordering,
-// with at most e.parallelism operations in flight simultaneously.
-func (e *Executor) executeParallel(ctx context.Context, plan *planner.Plan, result *ExecutionResult) {
+// executeConcurrent runs plan changes concurrently, respecting DependsOn ordering,
+// with at most e.concurrency operations in flight simultaneously.
+func (e *Executor) executeConcurrent(ctx context.Context, plan *planner.Plan, result *ExecutionResult) {
 	// Build a lookup map for changes by ID
 	changeByID := make(map[string]*planner.PlannedChange, len(plan.Changes))
 	for i := range plan.Changes {
@@ -595,7 +592,7 @@ func (e *Executor) executeParallel(ctx context.Context, plan *planner.Plan, resu
 	succeeded := make(map[string]bool, len(plan.ExecutionOrder))
 
 	// Semaphore to limit the number of concurrent operations
-	sem := make(chan struct{}, e.parallelism)
+	sem := make(chan struct{}, e.concurrency)
 
 	var wg sync.WaitGroup
 	for i, changeID := range plan.ExecutionOrder {
@@ -662,7 +659,7 @@ func (e *Executor) executeParallel(ctx context.Context, plan *planner.Plan, resu
 
 // executeGroupsConcurrent executes plan.ExecutionGroups in strict order: all changes
 // in group N must complete before group N+1 starts. Within each group, changes run
-// concurrently up to e.parallelism. Changes whose direct dependencies failed or were
+// concurrently up to e.concurrency. Changes whose direct dependencies failed or were
 // blocked are recorded as "blocked" and skipped rather than executed.
 func (e *Executor) executeGroupsConcurrent(
 	ctx context.Context,
@@ -723,7 +720,7 @@ func (e *Executor) executeGroupsConcurrent(
 		groupFailed := make(map[string]bool)
 
 		var g errgroup.Group
-		g.SetLimit(e.parallelism)
+		g.SetLimit(e.concurrency)
 
 		for _, changeID := range runnableIDs {
 			ch := changeByID[changeID]

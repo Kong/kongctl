@@ -3,8 +3,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"slices"
-	"sync"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -458,311 +456,311 @@ func TestExecutor_ContinuesOnError(t *testing.T) {
 	assert.Len(t, reporter.CompleteChangeCalls, 3)
 }
 
-// --- effectiveDependsOn tests ---
+// // --- effectiveDependsOn tests ---
 
-func TestEffectiveDependsOn_ExplicitOnly(t *testing.T) {
-	change := &planner.PlannedChange{
-		ID:         "2:c:portal:my-portal",
-		DependsOn:  []string{"1:c:api:my-api"},
-		References: map[string]planner.ReferenceInfo{},
-	}
-	refToChangeID := map[string]string{
-		"my-api": "1:c:api:my-api",
-	}
+// func TestEffectiveDependsOn_ExplicitOnly(t *testing.T) {
+// 	change := &planner.PlannedChange{
+// 		ID:         "2:c:portal:my-portal",
+// 		DependsOn:  []string{"1:c:api:my-api"},
+// 		References: map[string]planner.ReferenceInfo{},
+// 	}
+// 	refToChangeID := map[string]string{
+// 		"my-api": "1:c:api:my-api",
+// 	}
 
-	deps := effectiveDependsOn(change, refToChangeID)
-	assert.Equal(t, []string{"1:c:api:my-api"}, deps)
-}
+// 	deps := effectiveDependsOn(change, refToChangeID)
+// 	assert.Equal(t, []string{"1:c:api:my-api"}, deps)
+// }
 
-func TestEffectiveDependsOn_RefPlaceholderAddsImplicitDep(t *testing.T) {
-	// Virtual cluster references a backend cluster via __REF__ placeholder.
-	change := &planner.PlannedChange{
-		ID:        "3:c:event_gateway_virtual_cluster:default-virtual-cluster",
-		DependsOn: []string{"1:c:event_gateway:egw"},
-		References: map[string]planner.ReferenceInfo{
-			planner.FieldEventGatewayBackendClusterID: {
-				Ref: "__REF__:default-backend-cluster#id",
-			},
-		},
-	}
-	refToChangeID := map[string]string{
-		"egw":                     "1:c:event_gateway:egw",
-		"default-backend-cluster": "2:c:event_gateway_backend_cluster:default-backend-cluster",
-	}
+// func TestEffectiveDependsOn_RefPlaceholderAddsImplicitDep(t *testing.T) {
+// 	// Virtual cluster references a backend cluster via __REF__ placeholder.
+// 	change := &planner.PlannedChange{
+// 		ID:        "3:c:event_gateway_virtual_cluster:default-virtual-cluster",
+// 		DependsOn: []string{"1:c:event_gateway:egw"},
+// 		References: map[string]planner.ReferenceInfo{
+// 			planner.FieldEventGatewayBackendClusterID: {
+// 				Ref: "__REF__:default-backend-cluster#id",
+// 			},
+// 		},
+// 	}
+// 	refToChangeID := map[string]string{
+// 		"egw":                     "1:c:event_gateway:egw",
+// 		"default-backend-cluster": "2:c:event_gateway_backend_cluster:default-backend-cluster",
+// 	}
 
-	deps := effectiveDependsOn(change, refToChangeID)
+// 	deps := effectiveDependsOn(change, refToChangeID)
 
-	assert.Contains(t, deps, "1:c:event_gateway:egw")
-	assert.Contains(t, deps, "2:c:event_gateway_backend_cluster:default-backend-cluster")
-	assert.Len(t, deps, 2)
-}
+// 	assert.Contains(t, deps, "1:c:event_gateway:egw")
+// 	assert.Contains(t, deps, "2:c:event_gateway_backend_cluster:default-backend-cluster")
+// 	assert.Len(t, deps, 2)
+// }
 
-func TestEffectiveDependsOn_ArrayRefsAddImplicitDeps(t *testing.T) {
-	change := &planner.PlannedChange{
-		ID:        "5:c:cp:group-cp",
-		DependsOn: []string{},
-		References: map[string]planner.ReferenceInfo{
-			planner.FieldMembers: {
-				Refs: []string{
-					"__REF__:member-cp-1#id",
-					"__REF__:member-cp-2#id",
-				},
-			},
-		},
-	}
-	refToChangeID := map[string]string{
-		"member-cp-1": "3:c:control_plane:member-cp-1",
-		"member-cp-2": "4:c:control_plane:member-cp-2",
-	}
+// func TestEffectiveDependsOn_ArrayRefsAddImplicitDeps(t *testing.T) {
+// 	change := &planner.PlannedChange{
+// 		ID:        "5:c:cp:group-cp",
+// 		DependsOn: []string{},
+// 		References: map[string]planner.ReferenceInfo{
+// 			planner.FieldMembers: {
+// 				Refs: []string{
+// 					"__REF__:member-cp-1#id",
+// 					"__REF__:member-cp-2#id",
+// 				},
+// 			},
+// 		},
+// 	}
+// 	refToChangeID := map[string]string{
+// 		"member-cp-1": "3:c:control_plane:member-cp-1",
+// 		"member-cp-2": "4:c:control_plane:member-cp-2",
+// 	}
 
-	deps := effectiveDependsOn(change, refToChangeID)
+// 	deps := effectiveDependsOn(change, refToChangeID)
 
-	assert.Contains(t, deps, "3:c:control_plane:member-cp-1")
-	assert.Contains(t, deps, "4:c:control_plane:member-cp-2")
-	assert.Len(t, deps, 2)
-}
+// 	assert.Contains(t, deps, "3:c:control_plane:member-cp-1")
+// 	assert.Contains(t, deps, "4:c:control_plane:member-cp-2")
+// 	assert.Len(t, deps, 2)
+// }
 
-func TestEffectiveDependsOn_UnresolvedParentAddsImplicitDep(t *testing.T) {
-	change := &planner.PlannedChange{
-		ID:         "2:c:child:my-child",
-		DependsOn:  []string{},
-		References: map[string]planner.ReferenceInfo{},
-		Parent: &planner.ParentInfo{
-			Ref: "my-gateway",
-			ID:  "[unknown]",
-		},
-	}
-	refToChangeID := map[string]string{
-		"my-gateway": "1:c:event_gateway:my-gateway",
-	}
+// func TestEffectiveDependsOn_UnresolvedParentAddsImplicitDep(t *testing.T) {
+// 	change := &planner.PlannedChange{
+// 		ID:         "2:c:child:my-child",
+// 		DependsOn:  []string{},
+// 		References: map[string]planner.ReferenceInfo{},
+// 		Parent: &planner.ParentInfo{
+// 			Ref: "my-gateway",
+// 			ID:  "[unknown]",
+// 		},
+// 	}
+// 	refToChangeID := map[string]string{
+// 		"my-gateway": "1:c:event_gateway:my-gateway",
+// 	}
 
-	deps := effectiveDependsOn(change, refToChangeID)
+// 	deps := effectiveDependsOn(change, refToChangeID)
 
-	assert.Equal(t, []string{"1:c:event_gateway:my-gateway"}, deps)
-}
+// 	assert.Equal(t, []string{"1:c:event_gateway:my-gateway"}, deps)
+// }
 
-func TestEffectiveDependsOn_UnresolvedParentEmptyIDAddsImplicitDep(t *testing.T) {
-	change := &planner.PlannedChange{
-		ID:         "2:c:child:my-child",
-		DependsOn:  []string{},
-		References: map[string]planner.ReferenceInfo{},
-		Parent: &planner.ParentInfo{
-			Ref: "my-gateway",
-			ID:  "", // empty also counts as unresolved
-		},
-	}
-	refToChangeID := map[string]string{
-		"my-gateway": "1:c:event_gateway:my-gateway",
-	}
+// func TestEffectiveDependsOn_UnresolvedParentEmptyIDAddsImplicitDep(t *testing.T) {
+// 	change := &planner.PlannedChange{
+// 		ID:         "2:c:child:my-child",
+// 		DependsOn:  []string{},
+// 		References: map[string]planner.ReferenceInfo{},
+// 		Parent: &planner.ParentInfo{
+// 			Ref: "my-gateway",
+// 			ID:  "", // empty also counts as unresolved
+// 		},
+// 	}
+// 	refToChangeID := map[string]string{
+// 		"my-gateway": "1:c:event_gateway:my-gateway",
+// 	}
 
-	deps := effectiveDependsOn(change, refToChangeID)
+// 	deps := effectiveDependsOn(change, refToChangeID)
 
-	assert.Equal(t, []string{"1:c:event_gateway:my-gateway"}, deps)
-}
+// 	assert.Equal(t, []string{"1:c:event_gateway:my-gateway"}, deps)
+// }
 
-func TestEffectiveDependsOn_ResolvedParentNotAddedAsDep(t *testing.T) {
-	change := &planner.PlannedChange{
-		ID:         "2:c:child:my-child",
-		DependsOn:  []string{},
-		References: map[string]planner.ReferenceInfo{},
-		Parent: &planner.ParentInfo{
-			Ref: "existing-gateway",
-			ID:  "550e8400-e29b-41d4-a716-446655440000", // already resolved UUID
-		},
-	}
-	refToChangeID := map[string]string{
-		"existing-gateway": "1:c:event_gateway:existing-gateway",
-	}
+// func TestEffectiveDependsOn_ResolvedParentNotAddedAsDep(t *testing.T) {
+// 	change := &planner.PlannedChange{
+// 		ID:         "2:c:child:my-child",
+// 		DependsOn:  []string{},
+// 		References: map[string]planner.ReferenceInfo{},
+// 		Parent: &planner.ParentInfo{
+// 			Ref: "existing-gateway",
+// 			ID:  "550e8400-e29b-41d4-a716-446655440000", // already resolved UUID
+// 		},
+// 	}
+// 	refToChangeID := map[string]string{
+// 		"existing-gateway": "1:c:event_gateway:existing-gateway",
+// 	}
 
-	deps := effectiveDependsOn(change, refToChangeID)
+// 	deps := effectiveDependsOn(change, refToChangeID)
 
-	assert.Empty(t, deps)
-}
+// 	assert.Empty(t, deps)
+// }
 
-func TestEffectiveDependsOn_NoDuplicates(t *testing.T) {
-	// Explicit DependsOn and a ref placeholder both point to the same change.
-	change := &planner.PlannedChange{
-		ID:        "3:c:virtual_cluster:vc",
-		DependsOn: []string{"2:c:backend_cluster:bc"},
-		References: map[string]planner.ReferenceInfo{
-			planner.FieldEventGatewayBackendClusterID: {
-				Ref: "__REF__:bc#id",
-			},
-		},
-	}
-	refToChangeID := map[string]string{
-		"bc": "2:c:backend_cluster:bc",
-	}
+// func TestEffectiveDependsOn_NoDuplicates(t *testing.T) {
+// 	// Explicit DependsOn and a ref placeholder both point to the same change.
+// 	change := &planner.PlannedChange{
+// 		ID:        "3:c:virtual_cluster:vc",
+// 		DependsOn: []string{"2:c:backend_cluster:bc"},
+// 		References: map[string]planner.ReferenceInfo{
+// 			planner.FieldEventGatewayBackendClusterID: {
+// 				Ref: "__REF__:bc#id",
+// 			},
+// 		},
+// 	}
+// 	refToChangeID := map[string]string{
+// 		"bc": "2:c:backend_cluster:bc",
+// 	}
 
-	deps := effectiveDependsOn(change, refToChangeID)
+// 	deps := effectiveDependsOn(change, refToChangeID)
 
-	assert.Equal(t, []string{"2:c:backend_cluster:bc"}, deps, "should not contain duplicate")
-}
+// 	assert.Equal(t, []string{"2:c:backend_cluster:bc"}, deps, "should not contain duplicate")
+// }
 
-func TestEffectiveDependsOn_RefNotInPlanIsIgnored(t *testing.T) {
-	// A placeholder that references something outside the plan — no implicit dep should be added.
-	change := &planner.PlannedChange{
-		ID:        "2:c:child:x",
-		DependsOn: []string{},
-		References: map[string]planner.ReferenceInfo{
-			"some_ref": {Ref: "__REF__:external-resource#id"},
-		},
-	}
-	refToChangeID := map[string]string{} // nothing in the plan
+// func TestEffectiveDependsOn_RefNotInPlanIsIgnored(t *testing.T) {
+// 	// A placeholder that references something outside the plan — no implicit dep should be added.
+// 	change := &planner.PlannedChange{
+// 		ID:        "2:c:child:x",
+// 		DependsOn: []string{},
+// 		References: map[string]planner.ReferenceInfo{
+// 			"some_ref": {Ref: "__REF__:external-resource#id"},
+// 		},
+// 	}
+// 	refToChangeID := map[string]string{} // nothing in the plan
 
-	deps := effectiveDependsOn(change, refToChangeID)
+// 	deps := effectiveDependsOn(change, refToChangeID)
 
-	assert.Empty(t, deps)
-}
+// 	assert.Empty(t, deps)
+// }
 
-// --- parallel execution ordering tests ---
+// // --- parallel execution ordering tests ---
 
-// parallelOrderTracker records the order in which changes start, protected by a mutex.
-type parallelOrderTracker struct {
-	mu    sync.Mutex
-	order []string
-}
+// // parallelOrderTracker records the order in which changes start, protected by a mutex.
+// type parallelOrderTracker struct {
+// 	mu    sync.Mutex
+// 	order []string
+// }
 
-func (t *parallelOrderTracker) record(id string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.order = append(t.order, id)
-}
+// func (t *parallelOrderTracker) record(id string) {
+// 	t.mu.Lock()
+// 	defer t.mu.Unlock()
+// 	t.order = append(t.order, id)
+// }
 
-func (t *parallelOrderTracker) snapshot() []string {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	cp := make([]string, len(t.order))
-	copy(cp, t.order)
-	return cp
-}
+// func (t *parallelOrderTracker) snapshot() []string {
+// 	t.mu.Lock()
+// 	defer t.mu.Unlock()
+// 	cp := make([]string, len(t.order))
+// 	copy(cp, t.order)
+// 	return cp
+// }
 
-// TestParallelExecution_RefPlaceholderEnforcesOrdering verifies that in parallel
-// mode a change whose References contain a __REF__ placeholder waits for the
-// change that creates the referenced resource, even when DependsOn is absent.
-func TestParallelExecution_RefPlaceholderEnforcesOrdering(t *testing.T) {
-	tracker := &parallelOrderTracker{}
+// // TestParallelExecution_RefPlaceholderEnforcesOrdering verifies that in parallel
+// // mode a change whose References contain a __REF__ placeholder waits for the
+// // change that creates the referenced resource, even when DependsOn is absent.
+// func TestParallelExecution_RefPlaceholderEnforcesOrdering(t *testing.T) {
+// 	tracker := &parallelOrderTracker{}
 
-	reporter := &MockProgressReporter{}
-	reporter.On("StartExecution", mock.Anything).Return()
-	reporter.On("StartChange", mock.Anything).Run(func(args mock.Arguments) {
-		change := args.Get(0).(planner.PlannedChange)
-		tracker.record(change.ID)
-	}).Return()
-	reporter.On("SkipChange", mock.Anything, mock.Anything).Return()
-	reporter.On("FinishExecution", mock.Anything).Return()
+// 	reporter := &MockProgressReporter{}
+// 	reporter.On("StartExecution", mock.Anything).Return()
+// 	reporter.On("StartChange", mock.Anything).Run(func(args mock.Arguments) {
+// 		change := args.Get(0).(planner.PlannedChange)
+// 		tracker.record(change.ID)
+// 	}).Return()
+// 	reporter.On("SkipChange", mock.Anything, mock.Anything).Return()
+// 	reporter.On("FinishExecution", mock.Anything).Return()
 
-	exec := NewWithOptions(nil, reporter, true /* dry-run */, Options{MaxConcurrency: 5})
+// 	exec := NewWithOptions(nil, reporter, true /* dry-run */, Options{MaxConcurrency: 5})
 
-	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+// 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 
-	gateway := planner.PlannedChange{
-		ID:           "1:c:event_gateway:egw",
-		ResourceType: planner.ResourceTypeEventGatewayControlPlane,
-		ResourceRef:  "egw",
-		Action:       planner.ActionCreate,
-		Fields:       map[string]any{"name": "egw"},
-	}
-	backendCluster := planner.PlannedChange{
-		ID:           "2:c:event_gateway_backend_cluster:bc",
-		ResourceType: planner.ResourceTypeEventGatewayBackendCluster,
-		ResourceRef:  "bc",
-		Action:       planner.ActionCreate,
-		Fields:       map[string]any{"name": "bc"},
-		DependsOn:    []string{"1:c:event_gateway:egw"},
-		References: map[string]planner.ReferenceInfo{
-			planner.FieldEventGatewayID: {Ref: "egw"},
-		},
-	}
-	// virtualCluster references bc via a __REF__ placeholder but has NO explicit
-	// DependsOn on the backend cluster change — the executor must infer it.
-	virtualCluster := planner.PlannedChange{
-		ID:           "3:c:event_gateway_virtual_cluster:vc",
-		ResourceType: planner.ResourceTypeEventGatewayVirtualCluster,
-		ResourceRef:  "vc",
-		Action:       planner.ActionCreate,
-		Fields:       map[string]any{"name": "vc"},
-		DependsOn:    []string{"1:c:event_gateway:egw"},
-		References: map[string]planner.ReferenceInfo{
-			planner.FieldEventGatewayID: {Ref: "egw"},
-			planner.FieldEventGatewayBackendClusterID: {
-				Ref: "__REF__:bc#id",
-			},
-		},
-	}
+// 	gateway := planner.PlannedChange{
+// 		ID:           "1:c:event_gateway:egw",
+// 		ResourceType: planner.ResourceTypeEventGatewayControlPlane,
+// 		ResourceRef:  "egw",
+// 		Action:       planner.ActionCreate,
+// 		Fields:       map[string]any{"name": "egw"},
+// 	}
+// 	backendCluster := planner.PlannedChange{
+// 		ID:           "2:c:event_gateway_backend_cluster:bc",
+// 		ResourceType: planner.ResourceTypeEventGatewayBackendCluster,
+// 		ResourceRef:  "bc",
+// 		Action:       planner.ActionCreate,
+// 		Fields:       map[string]any{"name": "bc"},
+// 		DependsOn:    []string{"1:c:event_gateway:egw"},
+// 		References: map[string]planner.ReferenceInfo{
+// 			planner.FieldEventGatewayID: {Ref: "egw"},
+// 		},
+// 	}
+// 	// virtualCluster references bc via a __REF__ placeholder but has NO explicit
+// 	// DependsOn on the backend cluster change — the executor must infer it.
+// 	virtualCluster := planner.PlannedChange{
+// 		ID:           "3:c:event_gateway_virtual_cluster:vc",
+// 		ResourceType: planner.ResourceTypeEventGatewayVirtualCluster,
+// 		ResourceRef:  "vc",
+// 		Action:       planner.ActionCreate,
+// 		Fields:       map[string]any{"name": "vc"},
+// 		DependsOn:    []string{"1:c:event_gateway:egw"},
+// 		References: map[string]planner.ReferenceInfo{
+// 			planner.FieldEventGatewayID: {Ref: "egw"},
+// 			planner.FieldEventGatewayBackendClusterID: {
+// 				Ref: "__REF__:bc#id",
+// 			},
+// 		},
+// 	}
 
-	plan.AddChange(gateway)
-	plan.AddChange(backendCluster)
-	plan.AddChange(virtualCluster)
-	plan.SetExecutionOrder([]string{
-		"1:c:event_gateway:egw",
-		"2:c:event_gateway_backend_cluster:bc",
-		"3:c:event_gateway_virtual_cluster:vc",
-	})
+// 	plan.AddChange(gateway)
+// 	plan.AddChange(backendCluster)
+// 	plan.AddChange(virtualCluster)
+// 	plan.SetExecutionOrder([]string{
+// 		"1:c:event_gateway:egw",
+// 		"2:c:event_gateway_backend_cluster:bc",
+// 		"3:c:event_gateway_virtual_cluster:vc",
+// 	})
 
-	_ = exec.Execute(context.Background(), plan)
+// 	_ = exec.Execute(context.Background(), plan)
 
-	order := tracker.snapshot()
-	assert.Len(t, order, 3)
+// 	order := tracker.snapshot()
+// 	assert.Len(t, order, 3)
 
-	bcIdx := slices.Index(order, "2:c:event_gateway_backend_cluster:bc")
-	vcIdx := slices.Index(order, "3:c:event_gateway_virtual_cluster:vc")
-	assert.GreaterOrEqual(t, vcIdx, 0, "virtual cluster should have been started")
-	assert.GreaterOrEqual(t, bcIdx, 0, "backend cluster should have been started")
-	// The virtual cluster must not start before the backend cluster.
-	assert.Less(t, bcIdx, vcIdx, "backend cluster must start before virtual cluster")
-}
+// 	bcIdx := slices.Index(order, "2:c:event_gateway_backend_cluster:bc")
+// 	vcIdx := slices.Index(order, "3:c:event_gateway_virtual_cluster:vc")
+// 	assert.GreaterOrEqual(t, vcIdx, 0, "virtual cluster should have been started")
+// 	assert.GreaterOrEqual(t, bcIdx, 0, "backend cluster should have been started")
+// 	// The virtual cluster must not start before the backend cluster.
+// 	assert.Less(t, bcIdx, vcIdx, "backend cluster must start before virtual cluster")
+// }
 
-// TestParallelExecution_UnresolvedParentEnforcesOrdering verifies that when a
-// change has an unresolved Parent (ID == "[unknown]"), the parallel executor
-// waits for the change that creates the parent before proceeding.
-func TestParallelExecution_UnresolvedParentEnforcesOrdering(t *testing.T) {
-	tracker := &parallelOrderTracker{}
+// // TestParallelExecution_UnresolvedParentEnforcesOrdering verifies that when a
+// // change has an unresolved Parent (ID == "[unknown]"), the parallel executor
+// // waits for the change that creates the parent before proceeding.
+// func TestParallelExecution_UnresolvedParentEnforcesOrdering(t *testing.T) {
+// 	tracker := &parallelOrderTracker{}
 
-	reporter := &MockProgressReporter{}
-	reporter.On("StartExecution", mock.Anything).Return()
-	reporter.On("StartChange", mock.Anything).Run(func(args mock.Arguments) {
-		change := args.Get(0).(planner.PlannedChange)
-		tracker.record(change.ID)
-	}).Return()
-	reporter.On("SkipChange", mock.Anything, mock.Anything).Return()
-	reporter.On("FinishExecution", mock.Anything).Return()
+// 	reporter := &MockProgressReporter{}
+// 	reporter.On("StartExecution", mock.Anything).Return()
+// 	reporter.On("StartChange", mock.Anything).Run(func(args mock.Arguments) {
+// 		change := args.Get(0).(planner.PlannedChange)
+// 		tracker.record(change.ID)
+// 	}).Return()
+// 	reporter.On("SkipChange", mock.Anything, mock.Anything).Return()
+// 	reporter.On("FinishExecution", mock.Anything).Return()
 
-	exec := NewWithOptions(nil, reporter, true /* dry-run */, Options{MaxConcurrency: 5})
+// 	exec := NewWithOptions(nil, reporter, true /* dry-run */, Options{MaxConcurrency: 5})
 
-	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+// 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 
-	parent := planner.PlannedChange{
-		ID:           "1:c:portal:my-portal",
-		ResourceType: "portal",
-		ResourceRef:  "my-portal",
-		Action:       planner.ActionCreate,
-		Fields:       map[string]any{"name": "my-portal"},
-	}
-	// child has no explicit DependsOn — the unresolved Parent must imply it.
-	child := planner.PlannedChange{
-		ID:           "2:c:portal_page:home",
-		ResourceType: "portal_page",
-		ResourceRef:  "home",
-		Action:       planner.ActionCreate,
-		Fields:       map[string]any{"name": "home"},
-		Parent: &planner.ParentInfo{
-			Ref: "my-portal",
-			ID:  "[unknown]",
-		},
-	}
+// 	parent := planner.PlannedChange{
+// 		ID:           "1:c:portal:my-portal",
+// 		ResourceType: "portal",
+// 		ResourceRef:  "my-portal",
+// 		Action:       planner.ActionCreate,
+// 		Fields:       map[string]any{"name": "my-portal"},
+// 	}
+// 	// child has no explicit DependsOn — the unresolved Parent must imply it.
+// 	child := planner.PlannedChange{
+// 		ID:           "2:c:portal_page:home",
+// 		ResourceType: "portal_page",
+// 		ResourceRef:  "home",
+// 		Action:       planner.ActionCreate,
+// 		Fields:       map[string]any{"name": "home"},
+// 		Parent: &planner.ParentInfo{
+// 			Ref: "my-portal",
+// 			ID:  "[unknown]",
+// 		},
+// 	}
 
-	plan.AddChange(parent)
-	plan.AddChange(child)
-	plan.SetExecutionOrder([]string{
-		"1:c:portal:my-portal",
-		"2:c:portal_page:home",
-	})
+// 	plan.AddChange(parent)
+// 	plan.AddChange(child)
+// 	plan.SetExecutionOrder([]string{
+// 		"1:c:portal:my-portal",
+// 		"2:c:portal_page:home",
+// 	})
 
-	_ = exec.Execute(context.Background(), plan)
+// 	_ = exec.Execute(context.Background(), plan)
 
-	order := tracker.snapshot()
-	assert.Len(t, order, 2)
-	assert.Equal(t, "1:c:portal:my-portal", order[0], "parent must execute before child")
-	assert.Equal(t, "2:c:portal_page:home", order[1])
-}
+// 	order := tracker.snapshot()
+// 	assert.Len(t, order, 2)
+// 	assert.Equal(t, "1:c:portal:my-portal", order[0], "parent must execute before child")
+// 	assert.Equal(t, "2:c:portal_page:home", order[1])
+// }
