@@ -52,6 +52,62 @@ apis:
 		assert.False(t, *rs.APIs[0].Kongctl.Protected)
 	})
 
+	t.Run("organization teams inherit namespace defaults when nested", func(t *testing.T) {
+		yaml := `
+_defaults:
+  kongctl:
+    namespace: organization-team-roles
+
+apis:
+  - ref: products-api
+    name: products-api
+
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+      roles:
+        - ref: platform-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+    - ref: api-admins
+      name: API Administrators
+
+organization_team_roles:
+  - ref: api-admins-products-admin
+    team: api-admins
+    role_name: Admin
+    entity_id: !ref products-api#id
+    entity_type_name: APIs
+    entity_region: us
+`
+		dir := t.TempDir()
+		file := filepath.Join(dir, "test.yaml")
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
+
+		l := New()
+		rs, err := l.LoadFile(file)
+		require.NoError(t, err)
+
+		require.Len(t, rs.OrganizationTeams, 2)
+		for _, team := range rs.OrganizationTeams {
+			require.NotNil(t, team.Kongctl)
+			require.NotNil(t, team.Kongctl.Namespace)
+			assert.Equal(t, "organization-team-roles", *team.Kongctl.Namespace)
+			assert.Equal(t, resources.NamespaceOriginFileDefault, team.Kongctl.NamespaceOrigin)
+		}
+
+		roles := rs.GetOrganizationTeamRolesByNamespace("organization-team-roles")
+		require.Len(t, roles, 2)
+		assert.ElementsMatch(t, []string{"platform-products-viewer", "api-admins-products-admin"}, []string{
+			roles[0].Ref,
+			roles[1].Ref,
+		})
+		assert.Empty(t, rs.GetOrganizationTeamRolesByNamespace("default"))
+	})
+
 	t.Run("protected defaults from _defaults section", func(t *testing.T) {
 		yaml := `
 _defaults:

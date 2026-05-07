@@ -69,6 +69,10 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	if err := l.validateOrganizationTeamRoles(rs.OrganizationTeamRoles, rs); err != nil {
+		return err
+	}
+
 	// Validate cross-resource references
 	if err := l.validateCrossReferences(rs); err != nil {
 		return err
@@ -77,6 +81,33 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	// Validate namespaces
 	if err := l.validateNamespaces(rs); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (l *Loader) validateOrganizationTeamRoles(roles []resources.OrganizationTeamRoleResource,
+	rs *resources.ResourceSet,
+) error {
+	roleRefs := make(map[string]bool)
+
+	for i := range roles {
+		role := &roles[i]
+		if err := role.Validate(); err != nil {
+			return fmt.Errorf("invalid organization_team_role %q: %w", role.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(role.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeOrganizationTeamRole {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					role.GetRef(), existing.GetType())
+			}
+		}
+
+		if roleRefs[role.GetRef()] {
+			return fmt.Errorf("duplicate organization_team_role ref: %s", role.GetRef())
+		}
+		roleRefs[role.GetRef()] = true
 	}
 
 	return nil

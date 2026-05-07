@@ -167,6 +167,11 @@ func (b *BasePlanner) GetDesiredOrganizationTeams(namespace string) []resources.
 	return b.planner.resources.GetOrganizationTeamsByNamespace(namespace)
 }
 
+// GetDesiredOrganizationTeamRoles returns desired organization_team_role resources from the specified namespace.
+func (b *BasePlanner) GetDesiredOrganizationTeamRoles(namespace string) []resources.OrganizationTeamRoleResource {
+	return b.planner.resources.GetOrganizationTeamRolesByNamespace(namespace)
+}
+
 // GetGenericPlanner returns the generic planner instance
 func (b *BasePlanner) GetGenericPlanner() *GenericPlanner {
 	if b == nil || b.planner == nil {

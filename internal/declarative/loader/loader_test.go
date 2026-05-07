@@ -232,6 +232,44 @@ portals:
 	assert.Nil(t, rs.Portals[0].IPAllowList)
 }
 
+func TestLoader_FlattensOrganizationTeamRoles(t *testing.T) {
+	content := `
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+      roles:
+        - ref: platform-admin
+          role_name: Admin
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: us
+organization_team_roles:
+  - ref: platform-viewer
+    team: platform-team
+    role_name: Viewer
+    entity_id: "*"
+    entity_type_name: APIs
+    entity_region: us
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.OrganizationTeams, 1)
+	require.Len(t, rs.OrganizationTeamRoles, 2)
+	assert.Empty(t, rs.OrganizationTeams[0].Roles)
+	rolesByRef := map[string]string{}
+	for _, role := range rs.OrganizationTeamRoles {
+		rolesByRef[role.Ref] = role.Team
+	}
+	assert.Equal(t, map[string]string{
+		"platform-admin":  "platform-team",
+		"platform-viewer": "platform-team",
+	}, rolesByRef)
+}
+
 func TestLoader_RejectsSingularPortalIntegrationKey(t *testing.T) {
 	content := `
 portals:

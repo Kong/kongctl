@@ -361,7 +361,26 @@ organization:
      description: string (max 250 chars)
      labels: object [string]string
        key: value
+     roles:
+       - ref: string
+         role_name: string
+         entity_id: string (uuid) # prefer: !ref <api-ref> when entity_type_name=APIs
+         entity_type_name: string
+         entity_region: One of (us | eu | au | me | in | sg | *)
 ```
+
+Organization team roles can also be declared as root resources.
+
+```yaml
+organization_team_roles:
+  - ref: string
+    team: string required # declarative organization team ref, not team name or UUID
+    role_name: string
+    entity_id: string (uuid) # prefer: !ref <api-ref> when entity_type_name=APIs
+    entity_type_name: string
+    entity_region: One of (us | eu | au | me | in | sg | *)
+```
+
 ## Portals
 
 [API Specification](https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal)

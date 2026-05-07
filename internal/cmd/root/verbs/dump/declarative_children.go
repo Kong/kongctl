@@ -679,6 +679,34 @@ func buildPortalTeams(
 	return results, nil
 }
 
+func populateOrganizationTeamChildren(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	teams []declresources.OrganizationTeamResource,
+) {
+	for i := range teams {
+		roles, err := client.ListOrganizationTeamRoles(ctx, teams[i].Ref)
+		if err != nil {
+			logWarn(logger, "failed to load organization team roles", teams[i].Ref, teams[i].Name, err)
+			continue
+		}
+		if len(roles) == 0 {
+			continue
+		}
+		teams[i].Roles = make([]declresources.OrganizationTeamRoleResource, 0, len(roles))
+		for _, role := range roles {
+			teams[i].Roles = append(teams[i].Roles, declresources.OrganizationTeamRoleResource{
+				Ref:            role.ID,
+				RoleName:       role.RoleName,
+				EntityID:       role.EntityID,
+				EntityTypeName: role.EntityTypeName,
+				EntityRegion:   role.EntityRegion,
+			})
+		}
+	}
+}
+
 func buildPortalAuthSettings(
 	ctx context.Context,
 	client *declstate.Client,

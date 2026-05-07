@@ -214,6 +214,7 @@ const (
 	ResourceTypeEventGatewayStaticKey            = string(resources.ResourceTypeEventGatewayStaticKey)
 	ResourceTypeEventGatewayTLSTrustBundle       = string(resources.ResourceTypeEventGatewayTLSTrustBundle)
 	ResourceTypeOrganizationTeam                 = string(resources.ResourceTypeOrganizationTeam)
+	ResourceTypeOrganizationTeamRole             = string(resources.ResourceTypeOrganizationTeamRole)
 
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"

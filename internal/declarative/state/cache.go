@@ -205,3 +205,13 @@ type PortalTeamRole struct {
 	TeamID         string
 	PortalID       string
 }
+
+// OrganizationTeamRole represents an assigned role for an organization team.
+type OrganizationTeamRole struct {
+	ID             string
+	RoleName       string
+	EntityID       string
+	EntityTypeName string
+	EntityRegion   string
+	TeamID         string
+}

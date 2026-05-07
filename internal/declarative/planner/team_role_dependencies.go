@@ -5,9 +5,9 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
-// adjustPortalTeamRoleDependencies wires portal_team_role changes to depend on API creations
-// when the entity_id is a reference placeholder pointing to an API being created in the same plan.
-func adjustPortalTeamRoleDependencies(plan *Plan) {
+// adjustTeamRoleDependencies wires team role changes to depend on API creations when
+// entity_id is a reference placeholder pointing to an API being created in the same plan.
+func adjustTeamRoleDependencies(plan *Plan) {
 	if plan == nil {
 		return
 	}
@@ -20,7 +20,7 @@ func adjustPortalTeamRoleDependencies(plan *Plan) {
 
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
-		if change.ResourceType != ResourceTypePortalTeamRole {
+		if change.ResourceType != ResourceTypePortalTeamRole && change.ResourceType != ResourceTypeOrganizationTeamRole {
 			continue
 		}
 

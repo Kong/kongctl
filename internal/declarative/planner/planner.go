@@ -85,6 +85,7 @@ type Planner struct {
 	desiredPortalSnippets          []resources.PortalSnippetResource
 	desiredPortalTeams             []resources.PortalTeamResource
 	desiredPortalTeamRoles         []resources.PortalTeamRoleResource
+	desiredOrganizationTeamRoles   []resources.OrganizationTeamRoleResource
 	desiredPortalCustomizations    []resources.PortalCustomizationResource
 	desiredPortalAuthSettings      []resources.PortalAuthSettingsResource
 	desiredPortalIPAllowLists      []resources.PortalIPAllowListResource
@@ -230,6 +231,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalSnippets = rs.PortalSnippets
 		namespacePlanner.desiredPortalTeams = rs.PortalTeams
 		namespacePlanner.desiredPortalTeamRoles = rs.PortalTeamRoles
+		namespacePlanner.desiredOrganizationTeamRoles = rs.OrganizationTeamRoles
 		namespacePlanner.desiredPortalCustomizations = rs.PortalCustomizations
 		namespacePlanner.desiredPortalAuthSettings = rs.PortalAuthSettings
 		namespacePlanner.desiredPortalIPAllowLists = rs.PortalIPAllowLists
@@ -390,8 +392,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		}
 	}
 
-	// Ensure portal team roles depend on referenced APIs created in the same plan
-	adjustPortalTeamRoleDependencies(basePlan)
+	// Ensure team roles depend on referenced APIs created in the same plan
+	adjustTeamRoleDependencies(basePlan)
 
 	// Resolve dependencies and calculate execution order
 	// Inject additional dependency constraints that span resource planners

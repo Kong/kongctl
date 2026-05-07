@@ -1,0 +1,38 @@
+_defaults:
+  kongctl:
+    namespace: organization-team-roles
+
+apis:
+  - ref: products-api
+    name: products-api
+    description: Product catalog API managed by the platform team.
+
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+      description: Engineers who operate shared API platform services.
+      labels:
+        department: engineering
+        focus: platform
+      roles:
+        - ref: platform-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+
+    - ref: api-admins
+      name: API Administrators
+      description: Administrators who manage API lifecycle settings.
+      labels:
+        department: engineering
+        focus: api-governance
+
+organization_team_roles:
+  - ref: api-admins-products-admin
+    team: api-admins
+    role_name: Admin
+    entity_id: !ref products-api#id
+    entity_type_name: APIs
+    entity_region: us

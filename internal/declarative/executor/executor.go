@@ -46,6 +46,7 @@ type Executor struct {
 	catalogServiceExecutor                   *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
 	eventGatewayControlPlaneExecutor         *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 	organizationTeamExecutor                 *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
+	organizationTeamRoleExecutor             *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
 	controlPlaneDataPlaneCertificateExecutor *BaseCreateDeleteExecutor[kkComps.DataPlaneClientCertificateRequest]
 
 	// Event Gateway child resource executors
@@ -185,6 +186,11 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 	e.organizationTeamExecutor = NewBaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam](
 		NewOrganizationTeamAdapter(client),
+		client,
+		dryRun,
+	)
+	e.organizationTeamRoleExecutor = NewBaseExecutor[kkComps.AssignRole, kkComps.AssignRole](
+		NewOrganizationTeamRoleAdapter(client),
 		client,
 		dryRun,
 	)
@@ -950,6 +956,39 @@ func (e *Executor) resolvePortalTeamRef(
 	}
 
 	return "", fmt.Errorf("portal team not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
+}
+
+func (e *Executor) resolveOrganizationTeamRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	if refInfo.ID != "" {
+		return refInfo.ID, nil
+	}
+
+	if teams, ok := e.refToID[planner.ResourceTypeOrganizationTeam]; ok {
+		if id, found := teams[refInfo.Ref]; found && id != "" {
+			return id, nil
+		}
+	}
+
+	lookupValue := refInfo.Ref
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+
+	team, err := e.client.GetOrganizationTeamByName(ctx, lookupValue)
+	if err != nil {
+		return "", fmt.Errorf("failed to get organization team by name: %w", err)
+	}
+	if team == nil {
+		return "", fmt.Errorf("organization team not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
+	}
+
+	if team.ID == nil {
+		return "", fmt.Errorf("organization team %s has no ID", lookupValue)
+	}
+
+	return *team.ID, nil
 }
 
 func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
@@ -2043,6 +2082,25 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		return e.eventGatewayVirtualClusterExecutor.Create(ctx, *change)
 	case planner.ResourceTypeOrganizationTeam:
 		return e.organizationTeamExecutor.Create(ctx, *change)
+	case planner.ResourceTypeOrganizationTeamRole:
+		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
+			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve organization team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References[planner.FieldTeamID] = teamRef
+		}
+		if entityRef, ok := change.References[planner.FieldEntityID]; ok &&
+			(entityRef.ID == "" || entityRef.ID == "[unknown]") {
+			apiID, err := e.resolveAPIRef(ctx, entityRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
+			}
+			entityRef.ID = apiID
+			change.References[planner.FieldEntityID] = entityRef
+		}
+		return e.organizationTeamRoleExecutor.Create(ctx, *change)
 
 	case planner.ResourceTypeEventGatewayListener:
 		// Resolve event gateway reference if needed
@@ -2828,6 +2886,16 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		return e.eventGatewayConsumePolicyExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeOrganizationTeam:
 		return e.organizationTeamExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeOrganizationTeamRole:
+		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
+			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve organization team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References[planner.FieldTeamID] = teamRef
+		}
+		return e.organizationTeamRoleExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}

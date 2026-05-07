@@ -4,24 +4,25 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token                       string
-	T                           *testing.T
-	CPAPIFactory                func() ControlPlaneAPI
-	ControlPlaneGroupsFactory   func() ControlPlaneGroupsAPI
-	PortalFactory               func() PortalAPI
-	APIFactory                  func() APIFullAPI
-	CatalogServicesFactory      func() CatalogServicesAPI
-	APIDocumentFactory          func() APIDocumentAPI
-	APIVersionFactory           func() APIVersionAPI
-	APIPublicationFactory       func() APIPublicationAPI
-	APIImplementationFactory    func() APIImplementationAPI
-	AppAuthStrategiesFactory    func() AppAuthStrategiesAPI
-	DCRProvidersFactory         func() DCRProvidersAPI
-	MeFactory                   func() MeAPI
-	GatewayServiceFactory       func() GatewayServiceAPI
-	DataPlaneCertificateFactory func() DataPlaneCertificateAPI
-	SystemAccountFactory        func() SystemAccountAPI
-	OrganizationTeamFactory     func() OrganizationTeamAPI
+	Token                        string
+	T                            *testing.T
+	CPAPIFactory                 func() ControlPlaneAPI
+	ControlPlaneGroupsFactory    func() ControlPlaneGroupsAPI
+	PortalFactory                func() PortalAPI
+	APIFactory                   func() APIFullAPI
+	CatalogServicesFactory       func() CatalogServicesAPI
+	APIDocumentFactory           func() APIDocumentAPI
+	APIVersionFactory            func() APIVersionAPI
+	APIPublicationFactory        func() APIPublicationAPI
+	APIImplementationFactory     func() APIImplementationAPI
+	AppAuthStrategiesFactory     func() AppAuthStrategiesAPI
+	DCRProvidersFactory          func() DCRProvidersAPI
+	MeFactory                    func() MeAPI
+	GatewayServiceFactory        func() GatewayServiceAPI
+	DataPlaneCertificateFactory  func() DataPlaneCertificateAPI
+	SystemAccountFactory         func() SystemAccountAPI
+	OrganizationTeamFactory      func() OrganizationTeamAPI
+	OrganizationTeamRolesFactory func() OrganizationTeamRolesAPI
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
@@ -337,6 +338,14 @@ func (m *MockKonnectSDK) GetEventGatewayBackendClusterAPI() EventGatewayBackendC
 func (m *MockKonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {
 	if m.OrganizationTeamFactory != nil {
 		return m.OrganizationTeamFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the OrganizationTeamRolesAPI.
+func (m *MockKonnectSDK) GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI {
+	if m.OrganizationTeamRolesFactory != nil {
+		return m.OrganizationTeamRolesFactory()
 	}
 	return nil
 }
