@@ -50,55 +50,40 @@
       "version": "v7.0.1",
       "sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
     },
-    "docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9": {
-      "repo": "docker/login-action",
-      "version": "c94ce9fb468520275223c153574b00df6fe4bcc9",
-      "sha": "c94ce9fb468520275223c153574b00df6fe4bcc9"
-    },
     "docker/login-action@v4.1.0": {
       "repo": "docker/login-action",
       "version": "v4.1.0",
       "sha": "4907a6ddec9925e35a0a9e82d7399ccc52663121"
-    },
-    "docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f": {
-      "repo": "docker/setup-buildx-action",
-      "version": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f",
-      "sha": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
     },
     "docker/setup-buildx-action@v4.0.0": {
       "repo": "docker/setup-buildx-action",
       "version": "v4.0.0",
       "sha": "4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd"
     },
-    "docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130": {
-      "repo": "docker/setup-qemu-action",
-      "version": "c7c53464625b32c7a7e944ae62b3e17d2b600130",
-      "sha": "c7c53464625b32c7a7e944ae62b3e17d2b600130"
-    },
     "docker/setup-qemu-action@v4.0.0": {
       "repo": "docker/setup-qemu-action",
       "version": "v4.0.0",
       "sha": "ce360397dd3f832beb865e1373c09c0e9f86d70a"
     },
-    "github/gh-aw/actions/setup@v0.71.1": {
-      "repo": "github/gh-aw/actions/setup",
-      "version": "v0.71.1",
-      "sha": "f01a9d118afa6e306f3645ca31e43f4ea8fb4d22"
+    "github/gh-aw-actions/setup@v0.71.5": {
+      "repo": "github/gh-aw-actions/setup",
+      "version": "v0.71.5",
+      "sha": "b8068426813005612b960b5ab0b8bd2c27142323"
     },
-    "goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a": {
-      "repo": "goreleaser/goreleaser-action",
-      "version": "e435ccd777264be153ace6237001ef4d979d3a7a",
-      "sha": "e435ccd777264be153ace6237001ef4d979d3a7a"
+    "github/gh-aw/actions/setup@v0.71.5": {
+      "repo": "github/gh-aw/actions/setup",
+      "version": "v0.71.5",
+      "sha": "19ac811a4a85389c33b15128e1d7b7d4507f814a"
     },
     "goreleaser/goreleaser-action@v7.2.1": {
       "repo": "goreleaser/goreleaser-action",
       "version": "v7.2.1",
       "sha": "1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8"
     },
-    "step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df": {
+    "step-security/harden-runner@v2.19.1": {
       "repo": "step-security/harden-runner",
-      "version": "6c3c2f2c1c457b00c10c4848d6f5491db3b629df",
-      "sha": "6c3c2f2c1c457b00c10c4848d6f5491db3b629df"
+      "version": "v2.19.1",
+      "sha": "a5ad31d6a139d249332a2605b85202e8c0b78450"
     }
   },
   "containers": {
