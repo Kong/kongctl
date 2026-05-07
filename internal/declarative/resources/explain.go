@@ -281,6 +281,10 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	}
 
 	segments := strings.Split(path, ".")
+	if strings.TrimSpace(segments[0]) == "organization" {
+		return resolveOrganizationExplainSubject(path, segments)
+	}
+
 	doc, ok := explainDocByAlias(strings.TrimSpace(segments[0]))
 	if !ok {
 		return nil, fmt.Errorf("unsupported resource path %q", path)
@@ -302,6 +306,11 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	}
 
 	if len(segments) == 1 {
+		if doc.ResourceType == ResourceTypeOrganizationTeam {
+			if err := applyOrganizationTeamScaffold(subject); err != nil {
+				return nil, err
+			}
+		}
 		if !doc.SupportsRoot && len(doc.ParentRelations) > 0 {
 			relation := doc.ParentRelations[0]
 			subject.ScaffoldSteps = append(subject.ScaffoldSteps,
@@ -387,6 +396,130 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	subject.ScaffoldOmit = scaffoldOmitFields(ancestors)
 
 	return subject, nil
+}
+
+func resolveOrganizationExplainSubject(path string, segments []string) (*ExplainSubject, error) {
+	if len(segments) < 2 || strings.TrimSpace(segments[1]) != "teams" {
+		return nil, fmt.Errorf("unsupported resource path %q", path)
+	}
+
+	teamDoc, ok := explainDocByType(ResourceTypeOrganizationTeam)
+	if !ok {
+		return nil, fmt.Errorf("resource type %q does not have explain registration", ResourceTypeOrganizationTeam)
+	}
+
+	organizationNode, err := organizationExplainNode()
+	if err != nil {
+		return nil, err
+	}
+
+	subject := &ExplainSubject{
+		Doc:            teamDoc,
+		Node:           teamDoc.Schema.clone(),
+		DisplayPath:    path,
+		ResourceTarget: true,
+		FieldPath:      []string{"teams"},
+		ScaffoldSteps: []ExplainScaffoldStep{
+			{Name: "organization"},
+			{Name: "teams", Array: true},
+		},
+		ScaffoldTrail: []ExplainScaffoldNode{
+			{
+				Step: ExplainScaffoldStep{Name: "organization"},
+				Node: organizationNode,
+			},
+			{
+				Step: ExplainScaffoldStep{Name: "teams", Array: true},
+				Node: teamDoc.Schema.clone(),
+			},
+		},
+	}
+
+	if len(segments) == 2 {
+		subject.ScaffoldOmit = scaffoldOmitFields(nil)
+		return subject, nil
+	}
+
+	currentDoc := teamDoc
+	currentNode := subject.Node
+	var ancestors []ResourceType
+	var relativePath []string
+	for _, rawSegment := range segments[2:] {
+		segment := strings.TrimSpace(rawSegment)
+		field, ok := currentNode.property(segment)
+		if !ok {
+			return nil, fmt.Errorf("field %q not found in %q", segment, path)
+		}
+
+		nextNode := field.Node
+		resourceTarget := false
+		if nextNode.Kind == "array" && nextNode.Items != nil && nextNode.Items.Kind == explainKindObject {
+			nextNode = nextNode.Items.clone()
+			resourceTarget = true
+		} else {
+			nextNode = nextNode.clone()
+		}
+
+		subject.FieldPath = append(subject.FieldPath, segment)
+		relativePath = append(relativePath, segment)
+		subject.FieldRelativePath = append([]string(nil), relativePath...)
+		subject.FieldRequired = field.Required
+		subject.FieldRecommended = field.Recommended
+		currentNode = nextNode
+
+		if childType, ok := currentDoc.nestedFields[segment]; ok {
+			if childDoc, ok := explainDocByType(childType); ok {
+				subject.ScaffoldSteps = append(subject.ScaffoldSteps, ExplainScaffoldStep{Name: segment, Array: true})
+				ancestors = append(ancestors, currentDoc.ResourceType)
+				subject.ScaffoldTrail = append(subject.ScaffoldTrail, ExplainScaffoldNode{
+					Step: ExplainScaffoldStep{Name: segment, Array: true},
+					Node: childDoc.Schema.clone(),
+					Omit: scaffoldOmitFields(ancestors),
+				})
+				currentDoc = childDoc
+				currentNode = childDoc.Schema.clone()
+				resourceTarget = true
+				relativePath = nil
+				subject.FieldRelativePath = nil
+			}
+		}
+
+		subject.Node = currentNode
+		subject.ResourceTarget = resourceTarget
+	}
+
+	subject.Doc = currentDoc
+	subject.AncestorTypes = ancestors
+	subject.ScaffoldOmit = scaffoldOmitFields(ancestors)
+
+	return subject, nil
+}
+
+func applyOrganizationTeamScaffold(subject *ExplainSubject) error {
+	organizationNode, err := organizationExplainNode()
+	if err != nil {
+		return err
+	}
+
+	subject.ScaffoldSteps = []ExplainScaffoldStep{
+		{Name: "organization"},
+		{Name: "teams", Array: true},
+	}
+	subject.ScaffoldTrail = []ExplainScaffoldNode{
+		{
+			Step: ExplainScaffoldStep{Name: "organization"},
+			Node: organizationNode,
+		},
+		{
+			Step: ExplainScaffoldStep{Name: "teams", Array: true},
+			Node: subject.Doc.Schema.clone(),
+		},
+	}
+	return nil
+}
+
+func organizationExplainNode() (*ExplainNode, error) {
+	return autoExplainNode(reflect.TypeFor[OrganizationResource](), nil, defaultExplainHints(""), nil)
 }
 
 func explainDocByAlias(alias string) (*ExplainDoc, bool) {
@@ -1139,7 +1272,11 @@ func renderScaffoldTrail(write scaffoldWriter, trail []ExplainScaffoldNode, dept
 		renderScaffoldObject(write, current.Node, depth+1, omit, false)
 	}
 	if len(trail) > 1 {
-		renderNestedTrail(write, trail[1:], depth+2)
+		nextDepth := depth + 2
+		if !current.Step.Array {
+			nextDepth = depth + 1
+		}
+		renderNestedTrail(write, trail[1:], nextDepth)
 	}
 }
 

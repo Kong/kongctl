@@ -12,7 +12,9 @@ func init() {
 	registerResourceType(
 		ResourceTypeOrganizationTeamRole,
 		func(rs *ResourceSet) *[]OrganizationTeamRoleResource { return &rs.OrganizationTeamRoles },
-		AutoExplain[OrganizationTeamRoleResource](),
+		AutoExplain[OrganizationTeamRoleResource](
+			WithExplainRecommendedFields("team"),
+		),
 	)
 }
 

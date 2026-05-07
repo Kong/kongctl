@@ -203,3 +203,54 @@ func TestExplainCmd_TextOutputIgnoresConfiguredDefaultJQExpression(t *testing.T)
 	require.NoError(t, err)
 	assert.Contains(t, outBuf.String(), "FIELD\nPATH: portal.description")
 }
+
+func TestExplainCmd_OrganizationTeamResources(t *testing.T) {
+	tests := []struct {
+		name         string
+		path         string
+		wantResource string
+	}{
+		{
+			name:         "organization team root alias",
+			path:         "organization_team",
+			wantResource: "organization_team",
+		},
+		{
+			name:         "organization team grouped path",
+			path:         "organization.teams",
+			wantResource: "organization_team",
+		},
+		{
+			name:         "organization team role root alias",
+			path:         "organization_team_role",
+			wantResource: "organization_team_role",
+		},
+		{
+			name:         "organization team role nested path",
+			path:         "organization.teams.roles",
+			wantResource: "organization_team_role",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := newTestRootWithExplain(t, nil)
+
+			var outBuf, errBuf bytes.Buffer
+			streams := &iostreams.IOStreams{Out: &outBuf, ErrOut: &errBuf}
+			root.SetContext(context.WithValue(context.Background(), iostreams.StreamsKey, streams))
+			root.SetOut(&outBuf)
+			root.SetErr(&errBuf)
+			root.SetArgs([]string{
+				"explain", tt.path,
+				"--output", "json",
+				"--jq", `.["x-kongctl-resource"]`,
+				"--jq-raw-output",
+			})
+
+			err := root.Execute()
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantResource+"\n", outBuf.String())
+		})
+	}
+}

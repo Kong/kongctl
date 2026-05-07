@@ -91,3 +91,70 @@ func TestScaffoldCmd_IgnoresConfiguredOutputDefault(t *testing.T) {
 	assert.Contains(t, output.String(), "apis:")
 	assert.Contains(t, output.String(), "ref:")
 }
+
+func TestScaffoldCmd_OrganizationTeamResources(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		contains []string
+	}{
+		{
+			name: "organization team root alias",
+			path: "organization_team",
+			contains: []string{
+				"organization:",
+				"  teams:",
+				"    - ref: my-resource",
+				"      name: my-resource",
+			},
+		},
+		{
+			name: "organization team grouped path",
+			path: "organization.teams",
+			contains: []string{
+				"organization:",
+				"  teams:",
+				"    - ref: my-resource",
+				"      name: my-resource",
+			},
+		},
+		{
+			name: "organization team role root alias",
+			path: "organization_team_role",
+			contains: []string{
+				"organization_team_roles:",
+				"  - ref: my-resource",
+				"    team: value",
+				"    role_name: viewer",
+			},
+		},
+		{
+			name: "organization team role nested path",
+			path: "organization.teams.roles",
+			contains: []string{
+				"organization:",
+				"  teams:",
+				"      roles:",
+				"        - ref: my-resource",
+				"          role_name: viewer",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := newTestRootWithScaffold(t, common.TEXT.String())
+
+			var output bytes.Buffer
+			root.SetOut(&output)
+			root.SetErr(&output)
+			root.SetArgs([]string{"scaffold", tt.path})
+
+			err := root.Execute()
+			require.NoError(t, err)
+			for _, want := range tt.contains {
+				assert.Contains(t, output.String(), want)
+			}
+		})
+	}
+}
