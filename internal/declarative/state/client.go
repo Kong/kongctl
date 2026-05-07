@@ -4691,6 +4691,62 @@ func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []
 	return PaginateAll(ctx, lister)
 }
 
+// GetOrganizationTeamByNameUnfiltered finds an organization team by name without requiring kongctl-managed labels.
+func (c *Client) GetOrganizationTeamByNameUnfiltered(ctx context.Context, name string) (*OrganizationTeam, error) {
+	if err := ValidateAPIClient(c.organizationTeamAPI, "organization team API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]OrganizationTeam, *PageMeta, error) {
+		req := kkOps.ListTeamsRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.organizationTeamAPI.ListOrganizationTeams(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list teams", nil)
+		}
+
+		if resp.TeamCollection == nil {
+			return []OrganizationTeam{}, &PageMeta{Total: 0}, nil
+		}
+
+		teams := make([]OrganizationTeam, 0, len(resp.TeamCollection.Data))
+		for _, t := range resp.TeamCollection.Data {
+			normalized := t.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			teams = append(teams, OrganizationTeam{
+				Team:             t,
+				NormalizedLabels: normalized,
+			})
+		}
+
+		total := 0.0
+		if resp.TeamCollection.Meta != nil {
+			total = resp.TeamCollection.Meta.Page.Total
+		}
+
+		return teams, &PageMeta{Total: total}, nil
+	}
+
+	teams, err := PaginateAll(ctx, lister)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, t := range teams {
+		if t.Name != nil && *t.Name == name {
+			return &t, nil
+		}
+	}
+
+	return nil, nil
+}
+
 // GetOrganizationTeamByName finds a managed organization team by name
 func (c *Client) GetOrganizationTeamByName(ctx context.Context, name string) (*OrganizationTeam, error) {
 	// Search across all namespaces for backward compatibility

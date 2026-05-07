@@ -6,7 +6,9 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoader_validateResourceSet_EmptyResourceSet(t *testing.T) {
@@ -590,6 +592,92 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestLoader_validateOrganizationTeamRoles_ValidatesReferences(t *testing.T) {
+	loader := New()
+
+	tests := []struct {
+		name        string
+		rs          *resources.ResourceSet
+		expectError string
+	}{
+		{
+			name: "valid team and api refs",
+			rs: &resources.ResourceSet{
+				OrganizationTeams: []resources.OrganizationTeamResource{
+					{
+						BaseResource: resources.BaseResource{Ref: "platform-team"},
+						CreateTeam:   kkComps.CreateTeam{Name: "Platform"},
+					},
+				},
+				APIs: []resources.APIResource{
+					{BaseResource: resources.BaseResource{Ref: "products-api"}},
+				},
+				OrganizationTeamRoles: []resources.OrganizationTeamRoleResource{
+					{
+						Ref:            "platform-admin",
+						Team:           "platform-team",
+						RoleName:       "Admin",
+						EntityID:       tags.RefPlaceholderPrefix + "products-api#id",
+						EntityTypeName: "APIs",
+						EntityRegion:   "us",
+					},
+				},
+			},
+		},
+		{
+			name: "unknown team ref",
+			rs: &resources.ResourceSet{
+				OrganizationTeamRoles: []resources.OrganizationTeamRoleResource{
+					{
+						Ref:            "platform-admin",
+						Team:           "missing-team",
+						RoleName:       "Admin",
+						EntityID:       "*",
+						EntityTypeName: "APIs",
+						EntityRegion:   "us",
+					},
+				},
+			},
+			expectError: `organization_team_role "platform-admin" references unknown organization_team: missing-team`,
+		},
+		{
+			name: "unknown entity api ref",
+			rs: &resources.ResourceSet{
+				OrganizationTeams: []resources.OrganizationTeamResource{
+					{
+						BaseResource: resources.BaseResource{Ref: "platform-team"},
+						CreateTeam:   kkComps.CreateTeam{Name: "Platform"},
+					},
+				},
+				OrganizationTeamRoles: []resources.OrganizationTeamRoleResource{
+					{
+						Ref:            "platform-admin",
+						Team:           "platform-team",
+						RoleName:       "Admin",
+						EntityID:       tags.RefPlaceholderPrefix + "missing-api#id",
+						EntityTypeName: "APIs",
+						EntityRegion:   "us",
+					},
+				},
+			},
+			expectError: `organization_team_role "platform-admin" references unknown api: missing-api (field: entity_id)`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := loader.validateOrganizationTeamRoles(tt.rs.OrganizationTeamRoles, tt.rs)
+			if tt.expectError == "" {
+				assert.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectError)
 		})
 	}
 }

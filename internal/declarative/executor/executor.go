@@ -976,7 +976,7 @@ func (e *Executor) resolveOrganizationTeamRef(ctx context.Context, refInfo plann
 		}
 	}
 
-	team, err := e.client.GetOrganizationTeamByName(ctx, lookupValue)
+	team, err := e.client.GetOrganizationTeamByNameUnfiltered(ctx, lookupValue)
 	if err != nil {
 		return "", fmt.Errorf("failed to get organization team by name: %w", err)
 	}

@@ -295,9 +295,18 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 		}
 
 		teamName := team.Name
+		if team.IsExternal() && team.External.Selector != nil {
+			if selectorName := team.External.Selector.MatchFields[FieldName]; selectorName != "" {
+				teamName = selectorName
+			}
+		}
+
 		teamID := ""
 		if current, exists := currentByName[teamName]; exists {
 			teamID = util.GetString(current.ID)
+		}
+		if teamID == "" && team.IsExternal() && team.External.ID != "" {
+			teamID = team.External.ID
 		}
 
 		existingRoles := make(map[string]state.OrganizationTeamRole)

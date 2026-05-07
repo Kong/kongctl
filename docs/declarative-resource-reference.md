@@ -364,7 +364,8 @@ organization:
      roles:
        - ref: string
          role_name: string
-         entity_id: string (uuid) # prefer: !ref <api-ref> when entity_type_name=APIs
+         # Prefer: !ref <api-ref> when entity_type_name=APIs.
+         entity_id: string (uuid)
          entity_type_name: string
          entity_region: One of (us | eu | au | me | in | sg | *)
 ```
@@ -374,9 +375,11 @@ Organization team roles can also be declared as root resources.
 ```yaml
 organization_team_roles:
   - ref: string
-    team: string required # declarative organization team ref, not team name or UUID
+    # Declarative organization team ref, not team name or UUID.
+    team: string required
     role_name: string
-    entity_id: string (uuid) # prefer: !ref <api-ref> when entity_type_name=APIs
+    # Prefer: !ref <api-ref> when entity_type_name=APIs.
+    entity_id: string (uuid)
     entity_type_name: string
     entity_region: One of (us | eu | au | me | in | sg | *)
 ```

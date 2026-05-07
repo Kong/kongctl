@@ -1881,6 +1881,7 @@ func (p *Planner) resolveAuthStrategyIdentities(
 func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	namespaceSet := make(map[string]bool)
 	hasExternalPortals := false
+	hasExternalOrganizationTeams := false
 
 	// Extract namespaces from parent resources
 	for _, portal := range rs.Portals {
@@ -1924,6 +1925,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, team := range rs.OrganizationTeams {
 		if team.IsExternal() {
+			hasExternalOrganizationTeams = true
 			continue
 		}
 		ns := resources.GetNamespace(team.Kongctl)
@@ -1939,7 +1941,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	// Sort for consistent processing order
 	sort.Strings(namespaces)
 
-	if hasExternalPortals {
+	if hasExternalPortals || hasExternalOrganizationTeams {
 		namespaces = append(namespaces, resources.NamespaceExternal)
 	}
 

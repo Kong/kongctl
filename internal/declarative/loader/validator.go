@@ -108,6 +108,43 @@ func (l *Loader) validateOrganizationTeamRoles(roles []resources.OrganizationTea
 			return fmt.Errorf("duplicate organization_team_role ref: %s", role.GetRef())
 		}
 		roleRefs[role.GetRef()] = true
+
+		if err := l.validateOrganizationTeamRoleReferences(role, rs); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (l *Loader) validateOrganizationTeamRoleReferences(
+	role *resources.OrganizationTeamRoleResource,
+	rs *resources.ResourceSet,
+) error {
+	if resource, found := rs.GetResourceByRef(role.Team); !found {
+		return fmt.Errorf("organization_team_role %q references unknown organization_team: %s",
+			role.GetRef(), role.Team)
+	} else if resource.GetType() != resources.ResourceTypeOrganizationTeam {
+		return fmt.Errorf("organization_team_role %q references %s but expected organization_team: %s",
+			role.GetRef(), resource.GetType(), role.Team)
+	}
+
+	if !tags.IsRefPlaceholder(role.EntityID) {
+		return nil
+	}
+
+	apiRef, _, ok := tags.ParseRefPlaceholder(role.EntityID)
+	if !ok || apiRef == "" {
+		return fmt.Errorf("organization_team_role %q has invalid entity_id reference: %s",
+			role.GetRef(), role.EntityID)
+	}
+
+	if resource, found := rs.GetResourceByRef(apiRef); !found {
+		return fmt.Errorf("organization_team_role %q references unknown api: %s (field: entity_id)",
+			role.GetRef(), apiRef)
+	} else if resource.GetType() != resources.ResourceTypeAPI {
+		return fmt.Errorf("organization_team_role %q references %s but expected api: %s (field: entity_id)",
+			role.GetRef(), resource.GetType(), apiRef)
 	}
 
 	return nil
