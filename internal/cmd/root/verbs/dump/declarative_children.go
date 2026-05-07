@@ -1583,6 +1583,24 @@ func convertListenerPolicyToResource(
 	policy kkComps.EventGatewayListenerPolicy,
 	rawConfig map[string]any,
 ) (declresources.EventGatewayListenerPolicyResource, error) {
+	if rawConfig == nil {
+		return declresources.EventGatewayListenerPolicyResource{},
+			fmt.Errorf("listener policy %q has no parsed config", policy.ID)
+	}
+	// For tls_server policies, the API omits config.certificates[i].key (sensitive field).
+	// TLSCertificate.UnmarshalJSON requires the key field, so we default it to "" if absent.
+	if policy.Type == "tls_server" {
+		if certs, ok := rawConfig["certificates"].([]any); ok {
+			for _, c := range certs {
+				if certMap, ok := c.(map[string]any); ok {
+					if _, hasKey := certMap["key"]; !hasKey {
+						certMap["key"] = ""
+					}
+				}
+			}
+		}
+	}
+
 	// Build a map with policy fields plus the raw config
 	policyMap := map[string]any{
 		"type":       policy.Type,
@@ -1633,6 +1651,10 @@ func convertClusterPolicyToResource(
 	policy kkComps.EventGatewayPolicy,
 	rawConfig map[string]any,
 ) (declresources.EventGatewayClusterPolicyResource, error) {
+	if rawConfig == nil {
+		return declresources.EventGatewayClusterPolicyResource{},
+			fmt.Errorf("cluster policy %q has no parsed config", policy.ID)
+	}
 	// Build a map with policy fields plus the raw config
 	policyMap := map[string]any{
 		"type":   policy.Type,
@@ -1679,6 +1701,10 @@ func convertProducePolicyToResource(
 	policy kkComps.EventGatewayPolicy,
 	rawConfig map[string]any,
 ) (declresources.EventGatewayProducePolicyResource, error) {
+	if rawConfig == nil {
+		return declresources.EventGatewayProducePolicyResource{},
+			fmt.Errorf("produce policy %q has no parsed config", policy.ID)
+	}
 	policyMap := map[string]any{
 		"type":   policy.Type,
 		"config": rawConfig,
@@ -1754,6 +1780,10 @@ func convertConsumePolicyToResource(
 	policy kkComps.EventGatewayPolicy,
 	rawConfig map[string]any,
 ) (declresources.EventGatewayConsumePolicyResource, error) {
+	if rawConfig == nil {
+		return declresources.EventGatewayConsumePolicyResource{},
+			fmt.Errorf("consume policy %q has no parsed config", policy.ID)
+	}
 	policyMap := map[string]any{
 		"type":   policy.Type,
 		"config": rawConfig,
