@@ -53,7 +53,7 @@ func (d *DependencyResolver) ResolveDependencies(changes []PlannedChange) ([]str
 		}
 
 		// Parent dependencies
-		if change.Parent != nil && change.Parent.ID == "[unknown]" {
+		if change.Parent != nil && !change.Parent.IsResolved() {
 			parentDep := d.findParentChange(change.Parent.Ref, change.ResourceType, changes)
 			if parentDep != "" && !contains(change.DependsOn, parentDep) {
 				graph[parentDep] = append(graph[parentDep], changeID)
@@ -124,7 +124,7 @@ func (d *DependencyResolver) findImplicitDependencies(change PlannedChange, allC
 			}
 			continue
 		}
-		if refInfo.ID == "[unknown]" {
+		if refInfo.NeedsResolution() {
 			ref := refInfo.Ref
 			if tags.IsRefPlaceholder(ref) {
 				parsedRef, _, ok := tags.ParseRefPlaceholder(ref)

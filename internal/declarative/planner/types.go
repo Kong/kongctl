@@ -63,11 +63,22 @@ type PostResolutionTarget struct {
 	Selector         *ExternalToolSelector `json:"selector,omitempty"`
 }
 
+// RefIDPendingCreation is set by the ReferenceResolver when a reference points
+// to a resource that will be created within the same plan. The executor
+// propagates the real Konnect UUID after the CREATE change executes.
+// Callers must not set this value directly; use NewPendingCreationRef instead.
+const RefIDPendingCreation = "[unknown]"
+
+// RefIDPendingLookup is the zero value for ReferenceInfo.ID. It indicates
+// that the ID must be resolved by API name lookup at execution time.
+// Callers express this intent by omitting the ID field (NewPendingLookupRef).
+const RefIDPendingLookup = ""
+
 // ReferenceInfo tracks reference resolution
 type ReferenceInfo struct {
 	// Existing fields for single references
 	Ref          string            `json:"ref,omitempty"`
-	ID           string            `json:"id,omitempty"`            // May be "[unknown]" for resources in same plan
+	ID           string            `json:"id,omitempty"`            // RefIDPendingCreation, RefIDPendingLookup, or a UUID
 	LookupFields map[string]string `json:"lookup_fields,omitempty"` // Resource-specific identifying fields
 
 	// New fields for array references
@@ -77,10 +88,49 @@ type ReferenceInfo struct {
 	IsArray      bool                `json:"is_array,omitempty"`      // Flag to indicate array reference
 }
 
+// IsResolved returns true when the reference holds a concrete Konnect UUID that
+// is ready to use. Use this instead of comparing ID to sentinel strings directly.
+func (r ReferenceInfo) IsResolved() bool {
+	return r.ID != RefIDPendingLookup && r.ID != RefIDPendingCreation
+}
+
+// NeedsResolution is the inverse of IsResolved. The executor uses this to
+// decide whether runtime lookup or in-plan propagation is still required.
+func (r ReferenceInfo) NeedsResolution() bool { return !r.IsResolved() }
+
+// NewPendingLookupRef creates a ReferenceInfo for a resource that exists in
+// Konnect but whose ID must be resolved by API name lookup at execution time.
+func NewPendingLookupRef(ref string, lookupFields map[string]string) ReferenceInfo {
+	return ReferenceInfo{Ref: ref, LookupFields: lookupFields}
+}
+
+// NewPendingCreationRef creates a ReferenceInfo for a resource that will be
+// created in the same plan. Only the ReferenceResolver should call this; it
+// sets ID to RefIDPendingCreation so the executor can propagate the real UUID
+// after the CREATE change completes.
+func NewPendingCreationRef(ref string, lookupFields map[string]string) ReferenceInfo {
+	return ReferenceInfo{Ref: ref, ID: RefIDPendingCreation, LookupFields: lookupFields}
+}
+
+// NewResolvedRef creates a ReferenceInfo with a known Konnect UUID.
+func NewResolvedRef(ref, id string) ReferenceInfo {
+	return ReferenceInfo{Ref: ref, ID: id}
+}
+
+// NewArrayRef creates a ReferenceInfo for array-valued reference fields.
+func NewArrayRef(refs []string, lookupArrays map[string][]string) ReferenceInfo {
+	return ReferenceInfo{Refs: refs, IsArray: true, LookupArrays: lookupArrays}
+}
+
 // ParentInfo tracks parent relationships
 type ParentInfo struct {
 	Ref string `json:"ref"`
-	ID  string `json:"id"` // May be "[unknown]" for parents in same plan
+	ID  string `json:"id"` // RefIDPendingCreation, RefIDPendingLookup, or a UUID
+}
+
+// IsResolved returns true when the parent has a concrete Konnect UUID.
+func (p ParentInfo) IsResolved() bool {
+	return p.ID != RefIDPendingLookup && p.ID != RefIDPendingCreation
 }
 
 // ProtectingParentInfo identifies the top-level managed resource whose protection applies to a child change.

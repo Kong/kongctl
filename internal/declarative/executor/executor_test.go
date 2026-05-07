@@ -207,7 +207,7 @@ func TestExecutor_syncResolvedDCRProviderID_UpdatesFieldsFromResolvedReference(t
 		References: map[string]planner.ReferenceInfo{
 			planner.FieldDCRProviderID: {
 				Ref: "__REF__:okta-dcr#id",
-				ID:  "[unknown]",
+				ID:  planner.RefIDPendingCreation,
 			},
 		},
 	}
@@ -240,7 +240,7 @@ func TestExecutor_syncResolvedPortalDefaultAuthStrategyID_UpdatesFieldsFromResol
 		References: map[string]planner.ReferenceInfo{
 			planner.FieldDefaultApplicationStrategyID: {
 				Ref: "__REF__:portal-default-strategy#id",
-				ID:  "[unknown]",
+				ID:  planner.RefIDPendingCreation,
 			},
 		},
 	}

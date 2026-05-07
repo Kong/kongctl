@@ -410,13 +410,12 @@ func (p *portalPlannerImpl) addAuthStrategyReference(change *PlannedChange, port
 		}
 
 		// Add the reference with lookup fields for resolution
-		change.References[FieldDefaultApplicationStrategyID] = ReferenceInfo{
-			Ref: authStrategyValue, // Keep full placeholder for later parsing
-			ID:  "",                // Will be resolved during execution
-			LookupFields: map[string]string{
+		change.References[FieldDefaultApplicationStrategyID] = NewPendingLookupRef(
+			authStrategyValue, // Keep full placeholder for later parsing
+			map[string]string{
 				FieldName: parsedRef, // Use ref as name for lookup
 			},
-		}
+		)
 
 		p.planner.logger.Debug("Added auth strategy reference to portal",
 			"portal_ref", portal.GetRef(),

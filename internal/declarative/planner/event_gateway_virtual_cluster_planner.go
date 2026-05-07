@@ -317,13 +317,9 @@ func (p *Planner) planVirtualClusterCreate(
 	} else {
 		// Gateway doesn't exist yet, add reference for runtime resolution
 		change.References = map[string]ReferenceInfo{
-			FieldEventGatewayID: {
-				Ref: gatewayRef,
-				ID:  "", // to be resolved at runtime
-				LookupFields: map[string]string{
-					FieldName: gatewayName,
-				},
-			},
+			FieldEventGatewayID: NewPendingLookupRef(gatewayRef, map[string]string{
+				FieldName: gatewayName,
+			}),
 		}
 	}
 

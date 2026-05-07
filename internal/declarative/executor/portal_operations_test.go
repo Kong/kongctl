@@ -270,7 +270,7 @@ func TestExecutor_createResourcePortalResolvesUnknownAuthStrategyReferenceBefore
 		References: map[string]planner.ReferenceInfo{
 			planner.FieldDefaultApplicationStrategyID: {
 				Ref: "__REF__:portal-default-strategy#id",
-				ID:  "[unknown]",
+				ID:  planner.RefIDPendingCreation,
 			},
 		},
 	}

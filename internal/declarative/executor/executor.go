@@ -822,8 +822,12 @@ func (e *Executor) resolveDCRProviderRef(ctx context.Context, refInfo planner.Re
 	return provider.ID, nil
 }
 
+// unresolvedReferenceID reports whether an ID string does not yet hold a
+// concrete Konnect UUID. Prefer calling ReferenceInfo.NeedsResolution() on
+// a full ReferenceInfo value; this helper exists for the narrow cases where
+// only a bare string is available (e.g. refToID cache lookups).
 func unresolvedReferenceID(id string) bool {
-	return id == "" || id == "[unknown]"
+	return id == planner.RefIDPendingLookup || id == planner.RefIDPendingCreation
 }
 
 func (e *Executor) syncResolvedRef(
@@ -842,7 +846,7 @@ func (e *Executor) syncResolvedRef(
 		return nil
 	}
 
-	if unresolvedReferenceID(ref.ID) {
+	if ref.NeedsResolution() {
 		id, err := resolver(ctx, ref)
 		if err != nil {
 			return fmt.Errorf("%s: %w", errMsg, err)
@@ -884,8 +888,8 @@ func (e *Executor) syncResolvedPortalDefaultAuthStrategyID(
 
 // resolvePortalRef resolves a portal reference to its ID
 func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
-	// First check if the reference already has an ID (resolved from dependency)
-	if refInfo.ID != "" {
+	// First check if the reference already has a concrete ID (resolved from dependency).
+	if refInfo.IsResolved() {
 		return refInfo.ID, nil
 	}
 
@@ -961,7 +965,7 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 	}
 
 	if controlPlanes, ok := e.refToID[planner.ResourceTypeControlPlane]; ok {
-		if id, found := controlPlanes[lookupRef]; found && id != "" && id != "[unknown]" {
+		if id, found := controlPlanes[lookupRef]; found && !unresolvedReferenceID(id) {
 			return id, nil
 		}
 	}
@@ -1577,7 +1581,7 @@ func (e *Executor) resolvePortalPageRef(
 func (e *Executor) resolveAPIDocumentRef(
 	ctx context.Context, apiID string, refInfo planner.ReferenceInfo,
 ) (string, error) {
-	if refInfo.ID != "" && refInfo.ID != "[unknown]" {
+	if refInfo.IsResolved() {
 		return refInfo.ID, nil
 	}
 
@@ -1963,7 +1967,7 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 
 		if entityRef, ok := change.References[planner.FieldEntityID]; ok &&
-			(entityRef.ID == "" || entityRef.ID == "[unknown]") {
+			entityRef.NeedsResolution() {
 			apiID, err := e.resolveAPIRef(ctx, entityRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve entity reference: %w", err)

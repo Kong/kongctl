@@ -380,10 +380,15 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 					basePlan.Changes[i].References = make(map[string]ReferenceInfo)
 				}
 				for field, ref := range refs {
-					basePlan.Changes[i].References[field] = ReferenceInfo{
-						Ref: ref.Ref,
-						ID:  ref.ID,
+					existing := basePlan.Changes[i].References[field]
+					var merged ReferenceInfo
+					if ref.ID == RefIDPendingCreation {
+						merged = NewPendingCreationRef(ref.Ref, existing.LookupFields)
+					} else {
+						merged = NewResolvedRef(ref.Ref, ref.ID)
+						merged.LookupFields = existing.LookupFields
 					}
+					basePlan.Changes[i].References[field] = merged
 				}
 				break
 			}

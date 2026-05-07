@@ -55,7 +55,7 @@ func TestResolveDependencies_ImplicitReferenceDependencies(t *testing.T) {
 			References: map[string]ReferenceInfo{
 				"default_application_auth_strategy_id": {
 					Ref: "basic-auth",
-					ID:  "[unknown]",
+					ID:  RefIDPendingCreation,
 				},
 			},
 		},
@@ -93,7 +93,7 @@ func TestResolveDependencies_ImplicitReferenceDependencies_WithPlaceholder(t *te
 			References: map[string]ReferenceInfo{
 				FieldDCRProviderID: {
 					Ref: "__REF__:http-dcr#id",
-					ID:  "[unknown]",
+					ID:  RefIDPendingCreation,
 				},
 			},
 		},
@@ -129,7 +129,7 @@ func TestResolveDependencies_ParentChildRelationship(t *testing.T) {
 			Action:       ActionCreate,
 			Parent: &ParentInfo{
 				Ref: "my-api",
-				ID:  "[unknown]",
+				ID:  RefIDPendingCreation,
 			},
 		},
 		{
@@ -172,7 +172,7 @@ func TestResolveDependencies_ComplexDependencies(t *testing.T) {
 			References: map[string]ReferenceInfo{
 				"default_application_auth_strategy_id": {
 					Ref: "basic-auth",
-					ID:  "[unknown]",
+					ID:  RefIDPendingCreation,
 				},
 			},
 		},
@@ -190,7 +190,7 @@ func TestResolveDependencies_ComplexDependencies(t *testing.T) {
 			Action:       ActionCreate,
 			Parent: &ParentInfo{
 				Ref: "my-api",
-				ID:  "[unknown]",
+				ID:  RefIDPendingCreation,
 			},
 		},
 		{
@@ -201,7 +201,7 @@ func TestResolveDependencies_ComplexDependencies(t *testing.T) {
 			References: map[string]ReferenceInfo{
 				"default_application_auth_strategy_id": {
 					Ref: "basic-auth",
-					ID:  "[unknown]",
+					ID:  RefIDPendingCreation,
 				},
 			},
 		},
@@ -337,7 +337,7 @@ func TestResolveDependencies_DuplicateDependencies(t *testing.T) {
 			References: map[string]ReferenceInfo{
 				"default_application_auth_strategy_id": {
 					Ref: "basic-auth",
-					ID:  "[unknown]", // Implicit dependency (same as explicit)
+					ID:  RefIDPendingCreation, // Implicit dependency (same as explicit)
 				},
 			},
 		},

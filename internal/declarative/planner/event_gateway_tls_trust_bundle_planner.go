@@ -178,13 +178,9 @@ func (p *Planner) planTrustBundleCreate(
 		}
 	} else {
 		change.References = map[string]ReferenceInfo{
-			FieldEventGatewayID: {
-				Ref: gatewayRef,
-				ID:  "", // to be resolved at runtime
-				LookupFields: map[string]string{
-					FieldName: gatewayName,
-				},
-			},
+			FieldEventGatewayID: NewPendingLookupRef(gatewayRef, map[string]string{
+				FieldName: gatewayName,
+			}),
 		}
 	}
 
