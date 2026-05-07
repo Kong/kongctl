@@ -961,48 +961,12 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		if change.Action == planner.ActionCreate && resourceID != "" {
 			e.createdResources[change.ID] = resourceID
 
-			// Also track by resource type and ref for reference resolution
+			// Track by resource type and ref so resolve*Ref helpers can find IDs
+			// created during this execution without making additional API calls.
 			if e.refToID[change.ResourceType] == nil {
 				e.refToID[change.ResourceType] = make(map[string]string)
 			}
 			e.refToID[change.ResourceType][change.ResourceRef] = resourceID
-
-			// Propagate the created resource ID to any pending changes that reference it
-			if changeIndex+1 < len(plan.ExecutionOrder) {
-				// Update remaining changes directly in plan.Changes
-				for i := changeIndex + 1; i < len(plan.ExecutionOrder); i++ {
-					changeID := plan.ExecutionOrder[i]
-					for j := range plan.Changes {
-						if plan.Changes[j].ID == changeID {
-							// Check all references in this change
-							for refKey, refInfo := range plan.Changes[j].References {
-								// Match based on resource type from the reference key
-								refResourceType := strings.TrimSuffix(refKey, "_id")
-
-								// Extract the actual ref from __REF__ format if present
-								actualRef, refErr := actualRefForExecution(refInfo.Ref)
-								if refErr != nil {
-									continue
-								}
-
-								if refResourceType == change.ResourceType && actualRef == change.ResourceRef {
-									// Update the reference with the created resource ID
-									refInfo.ID = resourceID
-									plan.Changes[j].References[refKey] = refInfo
-									slog.Debug("Propagated created resource ID to dependent change",
-										"change_id", plan.Changes[j].ID,
-										"ref_key", refKey,
-										"resource_type", change.ResourceType,
-										"resource_ref", change.ResourceRef,
-										"resource_id", resourceID,
-									)
-								}
-							}
-							break
-						}
-					}
-				}
-			}
 		}
 	}
 	e.mu.Unlock()
@@ -1234,18 +1198,25 @@ func (e *Executor) syncResolvedPortalDefaultAuthStrategyID(
 
 // resolvePortalRef resolves a portal reference to its ID
 func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
-	// First check if the reference already has an ID (resolved from dependency)
-	if refInfo.ID != "" {
+	// First check if the reference already has a resolved ID
+	if !unresolvedReferenceID(refInfo.ID) {
 		return refInfo.ID, nil
 	}
 
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
 	// Check if it was created in this execution
-	if id, ok := e.getRef(planner.ResourceTypePortal, refInfo.Ref); ok {
+	if id, ok := e.getRef(planner.ResourceTypePortal, lookupRef); ok {
 		return id, nil
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
-	lookupValue := refInfo.Ref
+	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
 		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
@@ -1261,6 +1232,9 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 		return "", fmt.Errorf("portal not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
 	}
 
+	// Cache the resolved ID
+	e.setRef(planner.ResourceTypePortal, lookupRef, portal.ID)
+
 	return portal.ID, nil
 }
 
@@ -1273,11 +1247,18 @@ func (e *Executor) resolvePortalTeamRef(
 		return "", fmt.Errorf("portal ID is required to resolve portal team")
 	}
 
-	if id, ok := e.getRef(planner.ResourceTypePortalTeam, refInfo.Ref); ok && id != "" {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
+	if id, ok := e.getRef(planner.ResourceTypePortalTeam, lookupRef); ok && id != "" {
 		return id, nil
 	}
 
-	lookupValue := refInfo.Ref
+	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
 		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
@@ -2483,7 +2464,7 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
 		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
+			unresolvedReferenceID(virtualClusterRef.ID) {
 			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
@@ -2927,7 +2908,7 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		}
 		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
 		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
+			unresolvedReferenceID(virtualClusterRef.ID) {
 			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
