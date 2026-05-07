@@ -55,7 +55,7 @@ func (p *PortalIPAllowListAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	portalID, err := p.portalIDFromExecutionContext(execCtx)
+	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -69,7 +69,7 @@ func (p *PortalIPAllowListAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	portalID, err := p.portalIDFromExecutionContext(execCtx)
+	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -77,7 +77,7 @@ func (p *PortalIPAllowListAdapter) Update(
 }
 
 func (p *PortalIPAllowListAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	portalID, err := p.portalIDFromExecutionContext(execCtx)
+	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (p *PortalIPAllowListAdapter) GetByID(
 		return nil, nil
 	}
 
-	portalID, err := p.portalIDFromExecutionContext(execCtx)
+	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -124,15 +124,19 @@ func (p *PortalIPAllowListAdapter) SupportsUpdate() bool {
 	return true
 }
 
-func (p *PortalIPAllowListAdapter) portalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+func (p *PortalIPAllowListAdapter) getPortalID(execCtx *ExecutionContext) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for portal IP allow list operations")
 	}
 
 	change := *execCtx.PlannedChange
+
+	// Priority 1: Check References (for Create operations)
 	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
+
+	// Priority 2: Check Parent field (for Delete operations)
 	if change.Parent != nil && change.Parent.ID != "" {
 		return change.Parent.ID, nil
 	}
