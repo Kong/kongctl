@@ -1539,7 +1539,7 @@ func runApply(command *cobra.Command, args []string) error {
 		KonnectBaseURL: baseURL,
 		Mode:           planner.PlanModeApply,
 		PlanBaseDir:    resolvePlanBaseDir(planFile),
-		Parallelism:    maxConcurrencyFromCmd(command),
+		MaxConcurrency: maxConcurrencyFromCmd(command),
 	})
 
 	// Execute plan
@@ -2013,7 +2013,7 @@ func runDelete(command *cobra.Command, args []string) error {
 		KonnectBaseURL: baseURL,
 		Mode:           planner.PlanModeDelete,
 		PlanBaseDir:    resolvePlanBaseDir(planFile),
-		Parallelism:    maxConcurrencyFromCmd(command),
+		MaxConcurrency: maxConcurrencyFromCmd(command),
 	})
 
 	// Execute plan
@@ -2264,7 +2264,7 @@ func runSync(command *cobra.Command, args []string) error {
 		KonnectBaseURL: baseURL,
 		Mode:           planner.PlanModeSync,
 		PlanBaseDir:    resolvePlanBaseDir(planFile),
-		Parallelism:    maxConcurrencyFromCmd(command),
+		MaxConcurrency: maxConcurrencyFromCmd(command),
 	})
 
 	// Execute plan

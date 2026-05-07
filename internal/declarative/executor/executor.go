@@ -144,6 +144,8 @@ type Options struct {
 	KonnectBaseURL     string
 	Mode               planner.PlanMode
 	PlanBaseDir        string
+	// MaxConcurrency sets the maximum number of concurrent operations. Defaults to DefaultMaxConcurrency.
+	MaxConcurrency int
 }
 
 // New creates a new Executor instance with default options.
@@ -173,8 +175,8 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	}
 
 	e.parallelism = 1
-	if opts.Parallelism > 0 {
-		e.parallelism = max(MinParallelism, min(MaxParallelism, opts.Parallelism))
+	if opts.MaxConcurrency > 0 {
+		e.parallelism = max(MinParallelism, min(MaxParallelism, opts.MaxConcurrency))
 	}
 
 	// Initialize resource executors

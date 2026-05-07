@@ -652,7 +652,7 @@ func TestParallelExecution_RefPlaceholderEnforcesOrdering(t *testing.T) {
 	reporter.On("SkipChange", mock.Anything, mock.Anything).Return()
 	reporter.On("FinishExecution", mock.Anything).Return()
 
-	exec := NewWithOptions(nil, reporter, true /* dry-run */, Options{Parallelism: 5})
+	exec := NewWithOptions(nil, reporter, true /* dry-run */, Options{MaxConcurrency: 5})
 
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 
@@ -728,7 +728,7 @@ func TestParallelExecution_UnresolvedParentEnforcesOrdering(t *testing.T) {
 	reporter.On("SkipChange", mock.Anything, mock.Anything).Return()
 	reporter.On("FinishExecution", mock.Anything).Return()
 
-	exec := NewWithOptions(nil, reporter, true /* dry-run */, Options{Parallelism: 5})
+	exec := NewWithOptions(nil, reporter, true /* dry-run */, Options{MaxConcurrency: 5})
 
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 
