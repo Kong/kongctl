@@ -206,6 +206,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			EventGatewayStaticKeyAPI:            sdk.GetEventGatewayStaticKeyAPI(),
 			EventGatewayTLSTrustBundleAPI:       sdk.GetEventGatewayTLSTrustBundleAPI(),
 			OrganizationTeamAPI:                 sdk.GetOrganizationTeamAPI(),
+			OrganizationTeamRolesAPI:            sdk.GetOrganizationTeamRolesAPI(),
 		})
 	}
 
@@ -300,6 +301,9 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			)
 			if err != nil {
 				return err
+			}
+			if opts.includeChildResources {
+				populateOrganizationTeamChildren(ctx, logger, stateClient, teams)
 			}
 			// Wrap teams in organization grouping for the new format
 			if resourceSet.Organization == nil {

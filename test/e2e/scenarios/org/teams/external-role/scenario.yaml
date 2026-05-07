@@ -1,0 +1,166 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  teamName: e2e-external-role-team
+  teamRef: external-role-team
+  roleRef: external-team-api-admin
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-external-team
+    skipInputs: true
+    commands:
+      - name: 000-create-external-team
+        create:
+          resource: organization_team
+          payload:
+            inline:
+              name: "{{ .vars.teamName }}"
+              description: Team created outside declarative management
+          recordVar:
+            name: team_id
+            responsePath: id
+
+  - name: 002-plan-external-team-role
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='organization_team' &&
+                      resource_ref=='{{ .vars.teamRef }}']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                      resource_ref=='{{ .vars.roleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.role_name: Admin
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+
+      - name: 001-diff-from-plan
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan.json"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+
+  - name: 003-apply-external-team-role
+    commands:
+      - name: 000-apply-from-config
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 001-get-team-roles
+        run:
+          - get
+          - org
+          - team
+          - roles
+          - --team-name
+          - "{{ .vars.teamName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?role_name=='Admin' && entity_id=='*' && entity_type_name=='APIs'] | [0]"
+            expect:
+              fields:
+                role_name: Admin
+                entity_id: "*"
+                entity_type_name: APIs
+                entity_region: us
+
+  - name: 004-idempotency
+    commands:
+      - name: 000-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 001-plan-sync-noop
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-reset-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true

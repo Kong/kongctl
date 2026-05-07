@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -18,7 +19,38 @@ func init() {
 type OrganizationTeamResource struct {
 	BaseResource
 	kkComps.CreateTeam `               yaml:",inline"             json:",inline"`
-	External           *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
+	External           *ExternalBlock                 `yaml:"_external,omitempty" json:"_external,omitempty"`
+	Roles              []OrganizationTeamRoleResource `yaml:"roles,omitempty"     json:"roles,omitempty"`
+}
+
+func (t OrganizationTeamResource) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.organizationTeamAlias())
+}
+
+func (t OrganizationTeamResource) MarshalYAML() (any, error) {
+	return t.organizationTeamAlias(), nil
+}
+
+type organizationTeamAlias struct {
+	Ref         string                         `json:"ref"                 yaml:"ref"`
+	Kongctl     *KongctlMeta                   `json:"kongctl,omitempty"   yaml:"kongctl,omitempty"`
+	External    *ExternalBlock                 `json:"_external,omitempty" yaml:"_external,omitempty"`
+	Name        string                         `json:"name"                yaml:"name"`
+	Description *string                        `json:"description,omitempty" yaml:"description,omitempty"`
+	Labels      map[string]string              `json:"labels,omitempty"    yaml:"labels,omitempty"`
+	Roles       []OrganizationTeamRoleResource `json:"roles,omitempty"     yaml:"roles,omitempty"`
+}
+
+func (t OrganizationTeamResource) organizationTeamAlias() organizationTeamAlias {
+	return organizationTeamAlias{
+		Ref:         t.Ref,
+		Kongctl:     t.Kongctl,
+		External:    t.External,
+		Name:        t.Name,
+		Description: t.Description,
+		Labels:      t.Labels,
+		Roles:       t.Roles,
+	}
 }
 
 // GetReferenceFieldMappings returns the field mappings for reference validation
@@ -41,6 +73,17 @@ func (t OrganizationTeamResource) Validate() error {
 			return fmt.Errorf("invalid _external block: %w", err)
 		}
 	}
+
+	roleRefs := make(map[string]bool)
+	for i, role := range t.Roles {
+		if err := role.Validate(); err != nil {
+			return fmt.Errorf("invalid team role %d: %w", i, err)
+		}
+		if roleRefs[role.GetRef()] {
+			return fmt.Errorf("duplicate team role ref: %s", role.GetRef())
+		}
+		roleRefs[role.GetRef()] = true
+	}
 	return nil
 }
 
@@ -49,6 +92,9 @@ func (t *OrganizationTeamResource) SetDefaults() {
 	// If Name is not set, use ref as default
 	if t.Name == "" {
 		t.Name = t.Ref
+	}
+	for i := range t.Roles {
+		t.Roles[i].SetDefaults()
 	}
 }
 

@@ -125,6 +125,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypePortalEmailTemplate,
 		resources.ResourceTypePortalAuditLogWebhook,
 		resources.ResourceTypeAuditLogWebhookDestination,
+		resources.ResourceTypeOrganizationTeamRole,
 		resources.ResourceTypeTeam,
 		resources.ResourceTypeEventGatewayBackendCluster,
 		resources.ResourceTypeEventGatewayVirtualCluster,

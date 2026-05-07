@@ -675,28 +675,42 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
-	// Apply namespace defaults to teams
-	for i := range rs.OrganizationTeams {
-		if rs.OrganizationTeams[i].IsExternal() {
-			if rs.OrganizationTeams[i].Kongctl != nil {
+	assignOrganizationTeamDefaults := func(team *resources.OrganizationTeamResource) error {
+		if team.IsExternal() {
+			if team.Kongctl != nil {
 				return fmt.Errorf(
 					"team '%s' is marked as external and cannot use kongctl metadata",
-					rs.OrganizationTeams[i].Ref,
+					team.Ref,
 				)
 			}
-			continue
+			return nil
 		}
-		if err := assignNamespace(&rs.OrganizationTeams[i].Kongctl, "team", rs.OrganizationTeams[i].Ref); err != nil {
+		if err := assignNamespace(&team.Kongctl, "team", team.Ref); err != nil {
 			return err
 		}
 		// Apply protected default if not set
-		if rs.OrganizationTeams[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.OrganizationTeams[i].Kongctl.Protected = protectedDefault
+		if team.Kongctl.Protected == nil && protectedDefault != nil {
+			team.Kongctl.Protected = protectedDefault
 		}
 		// Ensure protected has a value (false if still nil)
-		if rs.OrganizationTeams[i].Kongctl.Protected == nil {
+		if team.Kongctl.Protected == nil {
 			falseVal := false
-			rs.OrganizationTeams[i].Kongctl.Protected = &falseVal
+			team.Kongctl.Protected = &falseVal
+		}
+		return nil
+	}
+
+	// Apply namespace defaults to teams
+	for i := range rs.OrganizationTeams {
+		if err := assignOrganizationTeamDefaults(&rs.OrganizationTeams[i]); err != nil {
+			return err
+		}
+	}
+	if rs.Organization != nil {
+		for i := range rs.Organization.Teams {
+			if err := assignOrganizationTeamDefaults(&rs.Organization.Teams[i]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -753,7 +767,16 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	if rs.Organization != nil {
 		org := rs.Organization
 		// Extract organization teams from organization
-		rs.OrganizationTeams = append(rs.OrganizationTeams, org.Teams...)
+		for i := range org.Teams {
+			team := org.Teams[i]
+			for j := range team.Roles {
+				role := team.Roles[j]
+				role.Team = team.Ref
+				rs.OrganizationTeamRoles = append(rs.OrganizationTeamRoles, role)
+			}
+			team.Roles = nil
+			rs.OrganizationTeams = append(rs.OrganizationTeams, team)
+		}
 
 		org.Teams = nil
 	}

@@ -34,6 +34,7 @@ type SDKAPI interface {
 	GetDataPlaneCertificateAPI() DataPlaneCertificateAPI
 	GetSystemAccountAPI() SystemAccountAPI
 	GetOrganizationTeamAPI() OrganizationTeamAPI
+	GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
 	GetPortalAuthSettingsAPI() PortalAuthSettingsAPI
@@ -325,6 +326,15 @@ func (k *KonnectSDK) GetPortalTeamRolesAPI() PortalTeamRolesAPI {
 	}
 
 	return &PortalTeamRolesAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the OrganizationTeamRolesAPI interface.
+func (k *KonnectSDK) GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &OrganizationTeamRolesAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the PortalTeamMembershipAPI interface

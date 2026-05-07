@@ -1,9 +1,12 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 func TestValidateAPIClient_Success(t *testing.T) {
@@ -39,6 +42,25 @@ func TestValidateAPIClient_NilPointer(t *testing.T) {
 
 	if !IsAPIClientError(err) {
 		t.Errorf("Expected APIClientError, got: %T", err)
+	}
+}
+
+func TestOrganizationTeamRoleMethodsReturnAPIClientErrorWhenUnconfigured(t *testing.T) {
+	client := NewClient(ClientConfig{})
+
+	_, err := client.ListOrganizationTeamRoles(context.Background(), "team-id")
+	if !IsAPIClientError(err) {
+		t.Fatalf("Expected APIClientError from list, got %T: %v", err, err)
+	}
+
+	_, err = client.AssignOrganizationTeamRole(context.Background(), "team-id", kkComps.AssignRole{}, "default")
+	if !IsAPIClientError(err) {
+		t.Fatalf("Expected APIClientError from assign, got %T: %v", err, err)
+	}
+
+	err = client.RemoveOrganizationTeamRole(context.Background(), "team-id", "role-id")
+	if !IsAPIClientError(err) {
+		t.Fatalf("Expected APIClientError from remove, got %T: %v", err, err)
 	}
 }
 

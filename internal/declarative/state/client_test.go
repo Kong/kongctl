@@ -86,6 +86,62 @@ func (m *mockPortalAPI) DeletePortal(
 	return nil, fmt.Errorf("DeletePortal not implemented")
 }
 
+type mockOrganizationTeamAPI struct {
+	listOrganizationTeamsFunc  func(context.Context, kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error)
+	getOrganizationTeamFunc    func(context.Context, string) (*kkOps.GetTeamResponse, error)
+	createOrganizationTeamFunc func(context.Context, *kkComps.CreateTeam) (*kkOps.CreateTeamResponse, error)
+	updateOrganizationTeamFunc func(context.Context, string, *kkComps.UpdateTeam) (*kkOps.UpdateTeamResponse, error)
+	deleteOrganizationTeamFunc func(context.Context, string) (*kkOps.DeleteTeamResponse, error)
+}
+
+func (m *mockOrganizationTeamAPI) ListOrganizationTeams(
+	ctx context.Context,
+	request kkOps.ListTeamsRequest,
+) (*kkOps.ListTeamsResponse, error) {
+	if m.listOrganizationTeamsFunc != nil {
+		return m.listOrganizationTeamsFunc(ctx, request)
+	}
+	return nil, fmt.Errorf("ListOrganizationTeams not implemented")
+}
+
+func (m *mockOrganizationTeamAPI) GetOrganizationTeam(ctx context.Context, id string) (*kkOps.GetTeamResponse, error) {
+	if m.getOrganizationTeamFunc != nil {
+		return m.getOrganizationTeamFunc(ctx, id)
+	}
+	return nil, fmt.Errorf("GetOrganizationTeam not implemented")
+}
+
+func (m *mockOrganizationTeamAPI) CreateOrganizationTeam(
+	ctx context.Context,
+	team *kkComps.CreateTeam,
+) (*kkOps.CreateTeamResponse, error) {
+	if m.createOrganizationTeamFunc != nil {
+		return m.createOrganizationTeamFunc(ctx, team)
+	}
+	return nil, fmt.Errorf("CreateOrganizationTeam not implemented")
+}
+
+func (m *mockOrganizationTeamAPI) UpdateOrganizationTeam(
+	ctx context.Context,
+	id string,
+	team *kkComps.UpdateTeam,
+) (*kkOps.UpdateTeamResponse, error) {
+	if m.updateOrganizationTeamFunc != nil {
+		return m.updateOrganizationTeamFunc(ctx, id, team)
+	}
+	return nil, fmt.Errorf("UpdateOrganizationTeam not implemented")
+}
+
+func (m *mockOrganizationTeamAPI) DeleteOrganizationTeam(
+	ctx context.Context,
+	id string,
+) (*kkOps.DeleteTeamResponse, error) {
+	if m.deleteOrganizationTeamFunc != nil {
+		return m.deleteOrganizationTeamFunc(ctx, id)
+	}
+	return nil, fmt.Errorf("DeleteOrganizationTeam not implemented")
+}
+
 func TestListManagedPortals(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -569,6 +625,50 @@ func TestUpdatePortal(t *testing.T) {
 				tt.checkFunc(t, resp)
 			}
 		})
+	}
+}
+
+func TestGetOrganizationTeamByNameUnfilteredFindsUnmanagedTeam(t *testing.T) {
+	teamID := "team-123"
+	teamName := "External Team"
+	client := NewClient(ClientConfig{
+		OrganizationTeamAPI: &mockOrganizationTeamAPI{
+			listOrganizationTeamsFunc: func(_ context.Context,
+				req kkOps.ListTeamsRequest,
+			) (*kkOps.ListTeamsResponse, error) {
+				if req.PageNumber == nil || *req.PageNumber != 1 {
+					return &kkOps.ListTeamsResponse{
+						TeamCollection: &kkComps.TeamCollection{
+							Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+						},
+					}, nil
+				}
+
+				return &kkOps.ListTeamsResponse{
+					TeamCollection: &kkComps.TeamCollection{
+						Data: []kkComps.Team{
+							{
+								ID:     &teamID,
+								Name:   &teamName,
+								Labels: map[string]string{"owner": "external"},
+							},
+						},
+						Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+					},
+				}, nil
+			},
+		},
+	})
+
+	team, err := client.GetOrganizationTeamByNameUnfiltered(testContextWithLogger(), teamName)
+	if err != nil {
+		t.Fatalf("GetOrganizationTeamByNameUnfiltered() error = %v", err)
+	}
+	if team == nil {
+		t.Fatal("GetOrganizationTeamByNameUnfiltered() returned nil team")
+	}
+	if team.ID == nil || *team.ID != teamID {
+		t.Fatalf("GetOrganizationTeamByNameUnfiltered() ID = %v, want %s", team.ID, teamID)
 	}
 }
 

@@ -85,6 +85,7 @@ type Planner struct {
 	desiredPortalSnippets          []resources.PortalSnippetResource
 	desiredPortalTeams             []resources.PortalTeamResource
 	desiredPortalTeamRoles         []resources.PortalTeamRoleResource
+	desiredOrganizationTeamRoles   []resources.OrganizationTeamRoleResource
 	desiredPortalCustomizations    []resources.PortalCustomizationResource
 	desiredPortalAuthSettings      []resources.PortalAuthSettingsResource
 	desiredPortalIPAllowLists      []resources.PortalIPAllowListResource
@@ -230,6 +231,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalSnippets = rs.PortalSnippets
 		namespacePlanner.desiredPortalTeams = rs.PortalTeams
 		namespacePlanner.desiredPortalTeamRoles = rs.PortalTeamRoles
+		namespacePlanner.desiredOrganizationTeamRoles = rs.OrganizationTeamRoles
 		namespacePlanner.desiredPortalCustomizations = rs.PortalCustomizations
 		namespacePlanner.desiredPortalAuthSettings = rs.PortalAuthSettings
 		namespacePlanner.desiredPortalIPAllowLists = rs.PortalIPAllowLists
@@ -390,8 +392,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		}
 	}
 
-	// Ensure portal team roles depend on referenced APIs created in the same plan
-	adjustPortalTeamRoleDependencies(basePlan)
+	// Ensure team roles depend on referenced APIs created in the same plan
+	adjustTeamRoleDependencies(basePlan)
 
 	// Resolve dependencies and calculate execution order
 	// Inject additional dependency constraints that span resource planners
@@ -811,6 +813,10 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 	// Resolve Portal identities
 	if err := p.resolvePortalIdentities(ctx, rs.Portals); err != nil {
 		return fmt.Errorf("failed to resolve portal identities: %w", err)
+	}
+
+	if err := p.resolveOrganizationTeamIdentities(ctx, rs.OrganizationTeams); err != nil {
+		return fmt.Errorf("failed to resolve organization team identities: %w", err)
 	}
 
 	// Resolve Auth Strategy identities
@@ -1799,6 +1805,57 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 	return nil
 }
 
+func (p *Planner) resolveOrganizationTeamIdentities(
+	ctx context.Context,
+	teams []resources.OrganizationTeamResource,
+) error {
+	for i := range teams {
+		team := &teams[i]
+		if !team.IsExternal() || team.GetKonnectID() != "" {
+			continue
+		}
+
+		if team.External.ID != "" {
+			konnectTeam, err := p.client.GetOrganizationTeamByID(ctx, team.External.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get external organization team %s by ID: %w", team.GetRef(), err)
+			}
+			if konnectTeam == nil {
+				return fmt.Errorf("external organization team not found with ID: %s", team.External.ID)
+			}
+
+			team.SetKonnectID(team.External.ID)
+			if konnectTeam.Name != nil && *konnectTeam.Name != "" {
+				team.Name = *konnectTeam.Name
+			}
+			continue
+		}
+
+		if team.External.Selector == nil {
+			continue
+		}
+
+		name, ok := team.External.Selector.MatchFields[FieldName]
+		if !ok || name == "" {
+			return fmt.Errorf("external organization team %s: only 'name' field selector is currently supported",
+				team.GetRef())
+		}
+
+		konnectTeam, err := p.client.GetOrganizationTeamByNameUnfiltered(ctx, name)
+		if err != nil {
+			return fmt.Errorf("failed to get external organization team %s by name: %w", team.GetRef(), err)
+		}
+		if konnectTeam == nil || konnectTeam.ID == nil || *konnectTeam.ID == "" {
+			return fmt.Errorf("external organization team not found with name: %s", name)
+		}
+
+		team.SetKonnectID(*konnectTeam.ID)
+		team.Name = name
+	}
+
+	return nil
+}
+
 // resolveAuthStrategyIdentities resolves Konnect IDs for Auth Strategy resources
 func (p *Planner) resolveAuthStrategyIdentities(
 	ctx context.Context, strategies []resources.ApplicationAuthStrategyResource,
@@ -1879,6 +1936,7 @@ func (p *Planner) resolveAuthStrategyIdentities(
 func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	namespaceSet := make(map[string]bool)
 	hasExternalPortals := false
+	hasExternalOrganizationTeams := false
 
 	// Extract namespaces from parent resources
 	for _, portal := range rs.Portals {
@@ -1922,6 +1980,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, team := range rs.OrganizationTeams {
 		if team.IsExternal() {
+			hasExternalOrganizationTeams = true
 			continue
 		}
 		ns := resources.GetNamespace(team.Kongctl)
@@ -1937,7 +1996,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	// Sort for consistent processing order
 	sort.Strings(namespaces)
 
-	if hasExternalPortals {
+	if hasExternalPortals || hasExternalOrganizationTeams {
 		namespaces = append(namespaces, resources.NamespaceExternal)
 	}
 

@@ -75,7 +75,8 @@ type ClientConfig struct {
 	EventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Identity resources
-	OrganizationTeamAPI helpers.OrganizationTeamAPI
+	OrganizationTeamAPI      helpers.OrganizationTeamAPI
+	OrganizationTeamRolesAPI helpers.OrganizationTeamRolesAPI
 }
 
 // Client wraps Konnect SDK for state management
@@ -130,7 +131,8 @@ type Client struct {
 	eventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Organization resource APIs
-	organizationTeamAPI helpers.OrganizationTeamAPI
+	organizationTeamAPI      helpers.OrganizationTeamAPI
+	organizationTeamRolesAPI helpers.OrganizationTeamRolesAPI
 }
 
 // NewClient creates a new state client with the provided configuration
@@ -184,7 +186,8 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayTLSTrustBundleAPI:       config.EventGatewayTLSTrustBundleAPI,
 
 		// Identity resource APIs
-		organizationTeamAPI: config.OrganizationTeamAPI,
+		organizationTeamAPI:      config.OrganizationTeamAPI,
+		organizationTeamRolesAPI: config.OrganizationTeamRolesAPI,
 	}
 }
 
@@ -4242,6 +4245,87 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 	return nil
 }
 
+// ListOrganizationTeamRoles returns all assigned roles for an organization team.
+func (c *Client) ListOrganizationTeamRoles(ctx context.Context, teamID string) ([]OrganizationTeamRole, error) {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.organizationTeamRolesAPI.ListTeamRoles(ctx, teamID, nil)
+	if err != nil {
+		return nil, WrapAPIError(err, "list organization team roles", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AssignedRoleCollection == nil {
+		return []OrganizationTeamRole{}, nil
+	}
+
+	roles := make([]OrganizationTeamRole, 0, len(resp.AssignedRoleCollection.Data))
+	for _, r := range resp.AssignedRoleCollection.Data {
+		role := OrganizationTeamRole{
+			ID:             getString(r.ID),
+			RoleName:       getString(r.RoleName),
+			EntityID:       getString(r.EntityID),
+			EntityTypeName: getString(r.EntityTypeName),
+			TeamID:         teamID,
+		}
+		if r.EntityRegion != nil {
+			role.EntityRegion = string(*r.EntityRegion)
+		}
+		roles = append(roles, role)
+	}
+
+	return roles, nil
+}
+
+// AssignOrganizationTeamRole assigns a role to an organization team.
+func (c *Client) AssignOrganizationTeamRole(
+	ctx context.Context,
+	teamID string,
+	req kkComps.AssignRole,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.organizationTeamRolesAPI.TeamsAssignRole(ctx, teamID, &req)
+	if err != nil {
+		return "", WrapAPIError(err, "assign organization team role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
+			ResourceName: getRoleName(req.RoleName),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AssignedRole == nil || resp.AssignedRole.ID == nil {
+		return "", fmt.Errorf("no response data from assign organization team role")
+	}
+
+	return *resp.AssignedRole.ID, nil
+}
+
+// RemoveOrganizationTeamRole removes an assigned role from an organization team.
+func (c *Client) RemoveOrganizationTeamRole(ctx context.Context, teamID string, roleID string) error {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return err
+	}
+
+	_, err := c.organizationTeamRolesAPI.TeamsRemoveRole(ctx, teamID, roleID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization team role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
 func (c *Client) ListManagedEventGatewayControlPlanes(
 	ctx context.Context,
 	namespaces []string,
@@ -4607,6 +4691,62 @@ func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []
 	return PaginateAll(ctx, lister)
 }
 
+// GetOrganizationTeamByNameUnfiltered finds an organization team by name without requiring kongctl-managed labels.
+func (c *Client) GetOrganizationTeamByNameUnfiltered(ctx context.Context, name string) (*OrganizationTeam, error) {
+	if err := ValidateAPIClient(c.organizationTeamAPI, "organization team API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]OrganizationTeam, *PageMeta, error) {
+		req := kkOps.ListTeamsRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.organizationTeamAPI.ListOrganizationTeams(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list teams", nil)
+		}
+
+		if resp.TeamCollection == nil {
+			return []OrganizationTeam{}, &PageMeta{Total: 0}, nil
+		}
+
+		teams := make([]OrganizationTeam, 0, len(resp.TeamCollection.Data))
+		for _, t := range resp.TeamCollection.Data {
+			normalized := t.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			teams = append(teams, OrganizationTeam{
+				Team:             t,
+				NormalizedLabels: normalized,
+			})
+		}
+
+		total := 0.0
+		if resp.TeamCollection.Meta != nil {
+			total = resp.TeamCollection.Meta.Page.Total
+		}
+
+		return teams, &PageMeta{Total: total}, nil
+	}
+
+	teams, err := PaginateAll(ctx, lister)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, t := range teams {
+		if t.Name != nil && *t.Name == name {
+			return &t, nil
+		}
+	}
+
+	return nil, nil
+}
+
 // GetOrganizationTeamByName finds a managed organization team by name
 func (c *Client) GetOrganizationTeamByName(ctx context.Context, name string) (*OrganizationTeam, error) {
 	// Search across all namespaces for backward compatibility
@@ -4717,6 +4857,13 @@ func getString(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func getRoleName(value *kkComps.RoleName) string {
+	if value == nil {
+		return ""
+	}
+	return string(*value)
 }
 
 // shouldIncludeNamespace checks if a resource's namespace should be included based on filter

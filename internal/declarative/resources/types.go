@@ -40,6 +40,7 @@ const (
 	ResourceTypeEventGatewayBackendCluster       ResourceType = "event_gateway_backend_cluster"
 	ResourceTypeEventGatewayVirtualCluster       ResourceType = "event_gateway_virtual_cluster"
 	ResourceTypeOrganizationTeam                 ResourceType = "organization_team"
+	ResourceTypeOrganizationTeamRole             ResourceType = "organization_team_role"
 	ResourceTypeTeam                             ResourceType = "team"
 	ResourceTypeEventGatewayListener             ResourceType = "event_gateway_listener"
 	ResourceTypeEventGatewayListenerPolicy       ResourceType = "event_gateway_listener_policy"
@@ -106,6 +107,7 @@ type ResourceSet struct {
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
 	OrganizationTeams                 []OrganizationTeamResource                 `yaml:"-" json:"-"`
+	OrganizationTeamRoles             []OrganizationTeamRoleResource             `yaml:"organization_team_roles,omitempty" json:"organization_team_roles,omitempty"`                                               //nolint:lll
 	EventGatewayListeners             []EventGatewayListenerResource             `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                                               //nolint:lll
 	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`                               //nolint:lll
 	EventGatewayClusterPolicies       []EventGatewayClusterPolicyResource        `yaml:"event_gateway_virtual_cluster_cluster_policies,omitempty" json:"event_gateway_virtual_cluster_cluster_policies,omitempty"` //nolint:lll
@@ -704,6 +706,30 @@ func (rs *ResourceSet) GetOrganizationTeamsByNamespace(namespace string) []Organ
 		}
 		if GetNamespace(team.Kongctl) == namespace {
 			filtered = append(filtered, team)
+		}
+	}
+	return filtered
+}
+
+// GetOrganizationTeamRolesByNamespace returns all organization_team_role resources from the specified namespace.
+func (rs *ResourceSet) GetOrganizationTeamRolesByNamespace(namespace string) []OrganizationTeamRoleResource {
+	teamByRef := make(map[string]OrganizationTeamResource)
+	for _, team := range rs.OrganizationTeams {
+		teamByRef[team.Ref] = team
+	}
+
+	var filtered []OrganizationTeamRoleResource
+	for _, role := range rs.OrganizationTeamRoles {
+		if team, ok := teamByRef[role.Team]; ok {
+			if team.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, role)
+				}
+				continue
+			}
+			if GetNamespace(team.Kongctl) == namespace {
+				filtered = append(filtered, role)
+			}
 		}
 	}
 	return filtered

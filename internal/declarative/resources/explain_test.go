@@ -34,6 +34,36 @@ func TestResolveExplainSubject_NestedChildResource(t *testing.T) {
 	assert.Equal(t, []ResourceType{ResourceTypeAPI}, subject.AncestorTypes)
 }
 
+func TestResolveExplainSubject_OrganizationTeamsGroupedResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("organization.teams")
+	require.NoError(t, err)
+
+	assert.Equal(t, "organization.teams", subject.DisplayPath)
+	assert.Equal(t, ResourceTypeOrganizationTeam, subject.Doc.ResourceType)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []string{"teams"}, subject.FieldPath)
+	assert.Equal(t, []ExplainScaffoldStep{
+		{Name: "organization"},
+		{Name: "teams", Array: true},
+	}, subject.ScaffoldSteps)
+}
+
+func TestResolveExplainSubject_OrganizationTeamRolesNestedResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("organization.teams.roles")
+	require.NoError(t, err)
+
+	assert.Equal(t, "organization.teams.roles", subject.DisplayPath)
+	assert.Equal(t, ResourceTypeOrganizationTeamRole, subject.Doc.ResourceType)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []string{"teams", "roles"}, subject.FieldPath)
+	assert.Equal(t, []ResourceType{ResourceTypeOrganizationTeam}, subject.AncestorTypes)
+	assert.Equal(t, []ExplainScaffoldStep{
+		{Name: "organization"},
+		{Name: "teams", Array: true},
+		{Name: "roles", Array: true},
+	}, subject.ScaffoldSteps)
+}
+
 func TestResolveExplainSubject_FieldPath(t *testing.T) {
 	subject, err := ResolveExplainSubject("api.publications.portal_id")
 	require.NoError(t, err)
@@ -237,4 +267,33 @@ func TestRenderScaffoldYAML_NestedChildResource(t *testing.T) {
 	assert.Contains(t, scaffold, "- ref: my-resource")
 	assert.NotContains(t, scaffold, "api: value")
 	assert.NotContains(t, scaffold, "kongctl:")
+}
+
+func TestRenderScaffoldYAML_OrganizationTeamResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("organization_team")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "organization:")
+	assert.Contains(t, scaffold, "  teams:")
+	assert.Contains(t, scaffold, "    - ref: my-resource")
+	assert.Contains(t, scaffold, "      name: my-resource")
+}
+
+func TestRenderScaffoldYAML_OrganizationTeamRoleNestedResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("organization.teams.roles")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "organization:")
+	assert.Contains(t, scaffold, "  teams:")
+	assert.Contains(t, scaffold, "    - ref: my-resource")
+	assert.Contains(t, scaffold, "      roles:")
+	assert.Contains(t, scaffold, "        - ref: my-resource")
+	assert.Contains(t, scaffold, "          role_name: viewer")
+	assert.NotContains(t, scaffold, "team: value")
 }

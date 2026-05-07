@@ -45,7 +45,11 @@ func NewTeamCmd(
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetTeamCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+		cmd := newGetTeamCmd(verb, &baseCmd, addParentFlags, parentPreRun)
+		if rolesCmd := newGetOrganizationTeamRolesCmd(verb, addParentFlags, parentPreRun); rolesCmd != nil {
+			cmd.AddCommand(rolesCmd)
+		}
+		return cmd.Command, nil
 	}
 
 	// Return base command for unsupported verbs
