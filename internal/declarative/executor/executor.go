@@ -723,9 +723,7 @@ func (e *Executor) executeGroupsConcurrent(
 		groupFailed := make(map[string]bool)
 
 		var g errgroup.Group
-		if e.parallelism > 1 {
-			g.SetLimit(e.parallelism)
-		}
+		g.SetLimit(e.parallelism)
 
 		for _, changeID := range runnableIDs {
 			ch := changeByID[changeID]
