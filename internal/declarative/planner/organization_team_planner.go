@@ -224,7 +224,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleDeletesForDesired(
 
 	currentRoles, err := t.planner.client.ListOrganizationTeamRoles(ctx, teamID)
 	if err != nil {
-		if strings.Contains(err.Error(), "organization team roles API not configured") {
+		if state.IsAPIClientError(err) {
 			return nil
 		}
 		return fmt.Errorf("failed to list organization team roles for team %s: %w", teamID, err)
@@ -316,7 +316,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 		if teamID != "" {
 			currentRoles, err := t.planner.client.ListOrganizationTeamRoles(ctx, teamID)
 			if err != nil {
-				if strings.Contains(err.Error(), "organization team roles API not configured") {
+				if state.IsAPIClientError(err) {
 					return nil
 				}
 				return fmt.Errorf("failed to list organization team roles for team %s: %w", teamID, err)
@@ -426,10 +426,11 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleDelete(
 	role state.OrganizationTeamRole,
 	plan *Plan,
 ) {
+	roleRef := buildOrganizationTeamRoleDeleteRef(teamRef, role)
 	change := PlannedChange{
-		ID:           t.planner.nextChangeID(ActionDelete, ResourceTypeOrganizationTeamRole, role.RoleName),
+		ID:           t.planner.nextChangeID(ActionDelete, ResourceTypeOrganizationTeamRole, roleRef),
 		ResourceType: ResourceTypeOrganizationTeamRole,
-		ResourceRef:  role.RoleName,
+		ResourceRef:  roleRef,
 		ResourceID:   role.ID,
 		Action:       ActionDelete,
 		Fields: map[string]any{
@@ -475,6 +476,14 @@ func (t *OrganizationTeamPlannerImpl) resolveOrganizationTeamRoleEntityID(entity
 
 func buildOrganizationTeamRoleKey(roleName, entityID, entityTypeName, entityRegion string) string {
 	return fmt.Sprintf("%s|%s|%s|%s", roleName, entityID, entityTypeName, strings.ToLower(entityRegion))
+}
+
+func buildOrganizationTeamRoleDeleteRef(teamRef string, role state.OrganizationTeamRole) string {
+	roleKey := buildOrganizationTeamRoleKey(role.RoleName, role.EntityID, role.EntityTypeName, role.EntityRegion)
+	if teamRef == "" {
+		return roleKey
+	}
+	return fmt.Sprintf("%s|%s", teamRef, roleKey)
 }
 
 // extractTeamFields extracts fields from a organization_team resource for planner operations

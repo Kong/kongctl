@@ -4247,8 +4247,8 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 
 // ListOrganizationTeamRoles returns all assigned roles for an organization team.
 func (c *Client) ListOrganizationTeamRoles(ctx context.Context, teamID string) ([]OrganizationTeamRole, error) {
-	if c.organizationTeamRolesAPI == nil {
-		return nil, fmt.Errorf("organization team roles API not configured")
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return nil, err
 	}
 
 	resp, err := c.organizationTeamRolesAPI.ListTeamRoles(ctx, teamID, nil)
@@ -4288,8 +4288,8 @@ func (c *Client) AssignOrganizationTeamRole(
 	req kkComps.AssignRole,
 	namespace string,
 ) (string, error) {
-	if c.organizationTeamRolesAPI == nil {
-		return "", fmt.Errorf("organization team roles API not configured")
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return "", err
 	}
 
 	resp, err := c.organizationTeamRolesAPI.TeamsAssignRole(ctx, teamID, &req)
@@ -4311,8 +4311,8 @@ func (c *Client) AssignOrganizationTeamRole(
 
 // RemoveOrganizationTeamRole removes an assigned role from an organization team.
 func (c *Client) RemoveOrganizationTeamRole(ctx context.Context, teamID string, roleID string) error {
-	if c.organizationTeamRolesAPI == nil {
-		return fmt.Errorf("organization team roles API not configured")
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return err
 	}
 
 	_, err := c.organizationTeamRolesAPI.TeamsRemoveRole(ctx, teamID, roleID)
