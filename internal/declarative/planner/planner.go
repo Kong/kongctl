@@ -815,6 +815,10 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve portal identities: %w", err)
 	}
 
+	if err := p.resolveOrganizationTeamIdentities(ctx, rs.OrganizationTeams); err != nil {
+		return fmt.Errorf("failed to resolve organization team identities: %w", err)
+	}
+
 	// Resolve Auth Strategy identities
 	if err := p.resolveAuthStrategyIdentities(ctx, rs.ApplicationAuthStrategies); err != nil {
 		return fmt.Errorf("failed to resolve auth strategy identities: %w", err)
@@ -1796,6 +1800,57 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 			// Match found, update the resource
 			portal.TryMatchKonnectResource(konnectPortal)
 		}
+	}
+
+	return nil
+}
+
+func (p *Planner) resolveOrganizationTeamIdentities(
+	ctx context.Context,
+	teams []resources.OrganizationTeamResource,
+) error {
+	for i := range teams {
+		team := &teams[i]
+		if !team.IsExternal() || team.GetKonnectID() != "" {
+			continue
+		}
+
+		if team.External.ID != "" {
+			konnectTeam, err := p.client.GetOrganizationTeamByID(ctx, team.External.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get external organization team %s by ID: %w", team.GetRef(), err)
+			}
+			if konnectTeam == nil {
+				return fmt.Errorf("external organization team not found with ID: %s", team.External.ID)
+			}
+
+			team.SetKonnectID(team.External.ID)
+			if konnectTeam.Name != nil && *konnectTeam.Name != "" {
+				team.Name = *konnectTeam.Name
+			}
+			continue
+		}
+
+		if team.External.Selector == nil {
+			continue
+		}
+
+		name, ok := team.External.Selector.MatchFields[FieldName]
+		if !ok || name == "" {
+			return fmt.Errorf("external organization team %s: only 'name' field selector is currently supported",
+				team.GetRef())
+		}
+
+		konnectTeam, err := p.client.GetOrganizationTeamByNameUnfiltered(ctx, name)
+		if err != nil {
+			return fmt.Errorf("failed to get external organization team %s by name: %w", team.GetRef(), err)
+		}
+		if konnectTeam == nil || konnectTeam.ID == nil || *konnectTeam.ID == "" {
+			return fmt.Errorf("external organization team not found with name: %s", name)
+		}
+
+		team.SetKonnectID(*konnectTeam.ID)
+		team.Name = name
 	}
 
 	return nil

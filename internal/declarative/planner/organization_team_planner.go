@@ -305,6 +305,9 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 		if current, exists := currentByName[teamName]; exists {
 			teamID = util.GetString(current.ID)
 		}
+		if teamID == "" && team.GetKonnectID() != "" {
+			teamID = team.GetKonnectID()
+		}
 		if teamID == "" && team.IsExternal() && team.External.ID != "" {
 			teamID = team.External.ID
 		}
