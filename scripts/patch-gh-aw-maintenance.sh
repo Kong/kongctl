@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Temporary post-compile patches for gh-aw v0.71.1 generated workflows.
+# Temporary post-compile patches for gh-aw generated workflows.
 # Remove these once upstream gh-aw stops writing workflow inputs directly into
 # shell commands and emits least-privilege safe-output job permissions.
 if [ "$#" -gt 0 ]; then
@@ -69,12 +69,22 @@ def patch_maintenance(text):
 
 
 def patch_benchmark_safe_outputs_config(text):
-    start_marker = "      - name: Write Safe Outputs Config\n"
-    end_marker = "      - name: Write Safe Outputs Tools\n"
-    start = text.find(start_marker)
-    if start == -1:
+    end_markers = (
+        "      - name: Write Safe Outputs Tools\n",
+        "      - name: Generate Safe Outputs Tools\n",
+    )
+    start_markers = (
+        "      - name: Write Safe Outputs Config\n",
+        "      - name: Generate Safe Outputs Config\n",
+    )
+    start_marker = next((marker for marker in start_markers if marker in text), None)
+    if start_marker is None:
         raise SystemExit("expected generated block not found for benchmark safe-output config")
-    end = text.find(end_marker, start)
+    start = text.find(start_marker)
+    end = min(
+        (idx for marker in end_markers if (idx := text.find(marker, start)) != -1),
+        default=-1,
+    )
     if end == -1:
         raise SystemExit("expected generated block end not found for benchmark safe-output config")
 
