@@ -33,8 +33,7 @@ func (p *PortalTeamRoleAdapter) MapCreateFields(
 
 	entityID := ""
 	if execCtx != nil && execCtx.PlannedChange != nil {
-		if refInfo, ok := execCtx.PlannedChange.References[planner.FieldEntityID]; ok && refInfo.ID != "" &&
-			refInfo.ID != "[unknown]" {
+		if refInfo, ok := execCtx.PlannedChange.References[planner.FieldEntityID]; ok && refInfo.HasResolvedID() {
 			entityID = refInfo.ID
 		}
 	}

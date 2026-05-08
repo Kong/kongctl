@@ -30,7 +30,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 
 	// First check if we have a resolved reference
 	if change.References != nil {
-		if ref, exists := change.References[planner.FieldPortalID]; exists && ref.ID != "" && ref.ID != "[unknown]" {
+		if ref, exists := change.References[planner.FieldPortalID]; exists && ref.HasResolvedID() {
 			portalID = ref.ID
 		}
 	}

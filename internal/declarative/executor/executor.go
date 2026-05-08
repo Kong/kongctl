@@ -1885,7 +1885,7 @@ func (e *Executor) resolvePortalPageRef(
 func (e *Executor) resolveAPIDocumentRef(
 	ctx context.Context, apiID string, refInfo planner.ReferenceInfo,
 ) (string, error) {
-	if refInfo.ID != "" && refInfo.ID != "[unknown]" {
+	if refInfo.HasResolvedID() {
 		return refInfo.ID, nil
 	}
 

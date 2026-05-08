@@ -83,6 +83,21 @@ type ReferenceInfo struct {
 	IsArray      bool                `json:"is_array,omitempty"`      // Flag to indicate array reference
 }
 
+// HasID reports whether the reference carries any ID value.
+func (r ReferenceInfo) HasID() bool {
+	return strings.TrimSpace(r.ID) != ""
+}
+
+// IsUnknownID reports whether the reference ID is the unresolved placeholder.
+func (r ReferenceInfo) IsUnknownID() bool {
+	return strings.TrimSpace(r.ID) == "[unknown]"
+}
+
+// HasResolvedID reports whether the reference has a concrete, non-placeholder ID.
+func (r ReferenceInfo) HasResolvedID() bool {
+	return r.HasID() && !r.IsUnknownID()
+}
+
 // ParentInfo tracks parent relationships
 type ParentInfo struct {
 	Ref string `json:"ref"`

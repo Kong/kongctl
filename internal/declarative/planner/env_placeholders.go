@@ -29,7 +29,7 @@ func (p *Planner) addUnresolvedReferenceWarnings(plan *Plan, rs *resources.Resou
 		}
 
 		for field, ref := range change.References {
-			if ref.ID != "[unknown]" {
+			if !ref.IsUnknownID() {
 				continue
 			}
 			if referenceFieldUsesDeferredEnv(envSources, field) {
