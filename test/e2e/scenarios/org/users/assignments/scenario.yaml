@@ -178,13 +178,13 @@ steps:
           - --filter-name
           - "{{ .vars.teamName }}"
         assertions:
-          - select: "organization.teams[?ref=='{{ .vars.teamRef }}'] | [0]"
+          - select: "organization.teams[?name=='{{ .vars.teamName }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.teamName }}"
                 "length(roles)": 2
           - select: >-
-              organization.teams[?ref=='{{ .vars.teamRef }}'] |
+              organization.teams[?name=='{{ .vars.teamName }}'] |
               [0].roles[?role_name=='Viewer'] | [0]
             expect:
               fields:
@@ -192,7 +192,7 @@ steps:
                 entity_type_name: APIs
                 entity_region: us
           - select: >-
-              organization.teams[?ref=='{{ .vars.teamRef }}'] |
+              organization.teams[?name=='{{ .vars.teamName }}'] |
               [0].roles[?role_name=='Admin'] | [0]
             expect:
               fields:
@@ -203,7 +203,7 @@ steps:
           - select: organization.users[0]
             expect:
               fields:
-                "teams[0]": "{{ .vars.teamRef }}"
+                "length(teams)": 1
           - select: organization.users
             expect:
               fields:

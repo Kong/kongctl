@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/log"
@@ -845,7 +846,7 @@ func (e *Executor) resolveDCRProviderRef(ctx context.Context, refInfo planner.Re
 }
 
 func unresolvedReferenceID(id string) bool {
-	return id == "" || id == "[unknown]"
+	return id == "" || id == resources.UnknownReferenceID
 }
 
 func (e *Executor) syncResolvedRef(
@@ -2128,8 +2129,7 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.organizationUserTeamMembershipExecutor.Create(ctx, *change)
 	case planner.ResourceTypeOrganizationUserRole:
-		if entityRef, ok := change.References[planner.FieldEntityID]; ok &&
-			(entityRef.ID == "" || entityRef.ID == "[unknown]") {
+		if entityRef, ok := change.References[planner.FieldEntityID]; ok && unresolvedReferenceID(entityRef.ID) {
 			apiID, err := e.resolveAPIRef(ctx, entityRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
