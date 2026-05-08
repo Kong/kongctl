@@ -1332,6 +1332,10 @@ func runApply(command *cobra.Command, args []string) error {
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
 	filenames, _ := command.Flags().GetStringSlice("filename")
+	maxConcurrency, err := maxConcurrencyFromCmd(command)
+	if err != nil {
+		return err
+	}
 
 	// Early check for non-text output without auto-approve
 	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
@@ -1539,7 +1543,7 @@ func runApply(command *cobra.Command, args []string) error {
 		KonnectBaseURL: baseURL,
 		Mode:           planner.PlanModeApply,
 		PlanBaseDir:    resolvePlanBaseDir(planFile),
-		MaxConcurrency: maxConcurrencyFromCmd(command),
+		MaxConcurrency: maxConcurrency,
 	})
 
 	// Execute plan
@@ -1814,6 +1818,10 @@ func runDelete(command *cobra.Command, args []string) error {
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
 	filenames, _ := command.Flags().GetStringSlice("filename")
+	maxConcurrency, err := maxConcurrencyFromCmd(command)
+	if err != nil {
+		return err
+	}
 
 	// Early check for non-text output without auto-approve
 	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
@@ -2013,7 +2021,7 @@ func runDelete(command *cobra.Command, args []string) error {
 		KonnectBaseURL: baseURL,
 		Mode:           planner.PlanModeDelete,
 		PlanBaseDir:    resolvePlanBaseDir(planFile),
-		MaxConcurrency: maxConcurrencyFromCmd(command),
+		MaxConcurrency: maxConcurrency,
 	})
 
 	// Execute plan
@@ -2044,6 +2052,10 @@ func runSync(command *cobra.Command, args []string) error {
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
 	filenames, _ := command.Flags().GetStringSlice("filename")
+	maxConcurrency, err := maxConcurrencyFromCmd(command)
+	if err != nil {
+		return err
+	}
 
 	// Early check for non-text output without auto-approve
 	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
@@ -2264,7 +2276,7 @@ func runSync(command *cobra.Command, args []string) error {
 		KonnectBaseURL: baseURL,
 		Mode:           planner.PlanModeSync,
 		PlanBaseDir:    resolvePlanBaseDir(planFile),
-		MaxConcurrency: maxConcurrencyFromCmd(command),
+		MaxConcurrency: maxConcurrency,
 	})
 
 	// Execute plan
@@ -2282,10 +2294,21 @@ func runSync(command *cobra.Command, args []string) error {
 	return nil
 }
 
-// maxConcurrencyFromCmd reads the --max-concurrency flag; returns 0 (use executor default) if not set.
-func maxConcurrencyFromCmd(cmd *cobra.Command) int {
-	v, _ := cmd.Flags().GetInt("max-concurrency")
-	return v
+// maxConcurrencyFromCmd reads and validates --max-concurrency.
+func maxConcurrencyFromCmd(cmd *cobra.Command) (int, error) {
+	v, err := cmd.Flags().GetInt("max-concurrency")
+	if err != nil {
+		return 0, err
+	}
+	if v < executor.MinConcurrency || v > executor.MaxConcurrency {
+		return 0, fmt.Errorf(
+			"--max-concurrency must be between %d and %d (got %d)",
+			executor.MinConcurrency,
+			executor.MaxConcurrency,
+			v,
+		)
+	}
+	return v, nil
 }
 
 // createStateClient creates a new state client with all necessary APIs

@@ -123,8 +123,10 @@ type Executor struct {
 	planBaseDir        string
 }
 
-// DefaultMaxConcurrency is the default --max-concurrency value (sequential baseline).
-const DefaultMaxConcurrency = 10
+// DefaultMaxConcurrency is the default --max-concurrency value.
+// At ~200ms/request, 5 concurrent workers sustain ~1500 req/min, staying under
+// a 2000 req/min budget with comfortable headroom.
+const DefaultMaxConcurrency = 5
 
 // MaxConcurrency is the maximum allowed concurrent operations.
 // Assuming a 200ms response time and 6000 req/min rate limit, this runs out in 6s.

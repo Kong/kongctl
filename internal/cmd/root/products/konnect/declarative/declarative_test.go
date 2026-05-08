@@ -4,12 +4,54 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMaxConcurrencyFromCmd(t *testing.T) {
+	t.Run("uses default value when flag is not set", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+
+		got, err := maxConcurrencyFromCmd(cmd)
+		require.NoError(t, err)
+		assert.Equal(t, executor.DefaultMaxConcurrency, got)
+	})
+
+	t.Run("accepts value within range", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+		require.NoError(t, cmd.Flags().Set("max-concurrency", "42"))
+
+		got, err := maxConcurrencyFromCmd(cmd)
+		require.NoError(t, err)
+		assert.Equal(t, 42, got)
+	})
+
+	t.Run("rejects value below minimum", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+		require.NoError(t, cmd.Flags().Set("max-concurrency", "0"))
+
+		_, err := maxConcurrencyFromCmd(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--max-concurrency must be between")
+	})
+
+	t.Run("rejects value above maximum", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+		require.NoError(t, cmd.Flags().Set("max-concurrency", "1000"))
+
+		_, err := maxConcurrencyFromCmd(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--max-concurrency must be between")
+	})
+}
 
 func Test_validateDeletePlan(t *testing.T) {
 	tests := []struct {
