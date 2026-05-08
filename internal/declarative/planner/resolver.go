@@ -198,7 +198,7 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 				konnectID := resource.GetKonnectID()
 				if konnectID == "" {
 					// Resource exists but no Konnect ID (will be created)
-						return RefIDPendingCreation, nil // Trigger forward reference
+					return RefIDPendingCreation, nil // Trigger forward reference
 				}
 				return konnectID, nil
 			}

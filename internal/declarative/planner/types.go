@@ -98,8 +98,10 @@ func (r ReferenceInfo) IsResolved() bool {
 // decide whether runtime lookup or in-plan propagation is still required.
 func (r ReferenceInfo) NeedsResolution() bool { return !r.IsResolved() }
 
-// NewPendingLookupRef creates a ReferenceInfo for a resource that exists in
-// Konnect but whose ID must be resolved by API name lookup at execution time.
+// NewPendingLookupRef creates a ReferenceInfo for a resource whose concrete
+// Konnect ID is not yet available during planning. The executor may resolve it
+// either by API lookup at execution time or via in-plan ref-to-ID propagation
+// when the referenced resource is created earlier in the same plan.
 func NewPendingLookupRef(ref string, lookupFields map[string]string) ReferenceInfo {
 	return ReferenceInfo{Ref: ref, LookupFields: lookupFields}
 }
