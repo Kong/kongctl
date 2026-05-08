@@ -4,6 +4,7 @@ env:
   KONGCTL_LOG_LEVEL: info
 
 test:
+  assignedEnvironment: kongctl-acceptance
   requiredEnvVars:
     - KONGCTL_E2E_ORG_USER_EMAIL_1
     - KONGCTL_E2E_ORG_USER_EMAIL_2
