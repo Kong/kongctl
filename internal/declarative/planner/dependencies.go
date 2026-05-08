@@ -53,7 +53,7 @@ func (d *DependencyResolver) ResolveDependencies(changes []PlannedChange) ([]str
 		}
 
 		// Parent dependencies
-		if change.Parent != nil && change.Parent.ID == "[unknown]" {
+		if change.Parent != nil && unresolvedReferenceID(change.Parent.ID) {
 			parentDep := d.findParentChange(change.Parent.Ref, change.ResourceType, changes)
 			if parentDep != "" && !contains(change.DependsOn, parentDep) {
 				graph[parentDep] = append(graph[parentDep], changeID)
@@ -157,7 +157,7 @@ func (d *DependencyResolver) ResolveDependenciesWithGroups(
 		for _, dep := range d.findImplicitDependencies(change, changes) {
 			addEdge(dep)
 		}
-		if change.Parent != nil && change.Parent.ID == "[unknown]" {
+		if change.Parent != nil && unresolvedReferenceID(change.Parent.ID) {
 			if parentDep := d.findParentChange(change.Parent.Ref, change.ResourceType, changes); parentDep != "" {
 				addEdge(parentDep)
 			}
@@ -247,26 +247,35 @@ func (d *DependencyResolver) findImplicitDependencies(change PlannedChange, allC
 			}
 			continue
 		}
-		if refInfo.ID == "[unknown]" {
-			ref := refInfo.Ref
-			if tags.IsRefPlaceholder(ref) {
-				parsedRef, _, ok := tags.ParseRefPlaceholder(ref)
-				if !ok {
-					continue
-				}
-				ref = parsedRef
+		ref := refInfo.Ref
+		isPlaceholder := tags.IsRefPlaceholder(ref)
+		if isPlaceholder {
+			parsedRef, _, ok := tags.ParseRefPlaceholder(ref)
+			if !ok {
+				continue
 			}
-			// Find the change that creates this resource
-			for _, other := range allChanges {
-				if other.ResourceRef == ref && other.Action == ActionCreate {
-					dependencies = append(dependencies, other.ID)
-					break
-				}
+			ref = parsedRef
+		}
+
+		if !isPlaceholder && !unresolvedReferenceID(refInfo.ID) {
+			continue
+		}
+
+		// Find the change that creates this resource
+		for _, other := range allChanges {
+			if other.ResourceRef == ref && other.Action == ActionCreate {
+				dependencies = append(dependencies, other.ID)
+				break
 			}
 		}
 	}
 
 	return dependencies
+}
+
+func unresolvedReferenceID(id string) bool {
+	trimmed := strings.TrimSpace(id)
+	return trimmed == "" || trimmed == "[unknown]"
 }
 
 // findParentChange finds the change that creates the parent resource

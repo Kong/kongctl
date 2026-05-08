@@ -29,6 +29,7 @@ type Executor struct {
 	dryRun   bool
 	// Track created resources during execution
 	createdResources map[string]string // changeID -> resourceID
+	cacheMu          sync.RWMutex
 	// Track resource refs to IDs for reference resolution
 	refToID map[string]map[string]string // resourceType -> ref -> resourceID
 	// Unified state cache
@@ -480,7 +481,7 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	if len(plan.ExecutionGroups) > 0 {
 		e.executeGroupsConcurrent(ctx, plan, result)
 	} else {
-		for i, changeID := range plan.ExecutionOrder {
+		for _, changeID := range plan.ExecutionOrder {
 			// Find the change by ID
 			var change *planner.PlannedChange
 			for j := range plan.Changes {
@@ -503,7 +504,7 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 
 			// Execute the change, the error will be captured in result
 			changeCtx := withExecutorChangeHTTPLogContext(ctx, change)
-			_ = e.executeChange(changeCtx, result, change, plan, i)
+			_ = e.executeChange(changeCtx, result, change, plan)
 		}
 	}
 
@@ -525,10 +526,8 @@ func (e *Executor) executeGroupsConcurrent(
 	result *ExecutionResult,
 ) {
 	changeByID := make(map[string]*planner.PlannedChange, len(plan.Changes))
-	idxByID := make(map[string]int, len(plan.Changes))
 	for i := range plan.Changes {
 		changeByID[plan.Changes[i].ID] = &plan.Changes[i]
-		idxByID[plan.Changes[i].ID] = i
 	}
 
 	// blockedOrFailed tracks IDs of changes that failed or were blocked so that
@@ -581,11 +580,10 @@ func (e *Executor) executeGroupsConcurrent(
 
 		for _, changeID := range runnableIDs {
 			ch := changeByID[changeID]
-			idx := idxByID[changeID]
 
 			g.Go(func() error {
 				changeCtx := withExecutorChangeHTTPLogContext(ctx, ch)
-				err := e.executeChange(changeCtx, result, ch, plan, idx)
+				err := e.executeChange(changeCtx, result, ch, plan)
 
 				if err != nil {
 					groupMu.Lock()
@@ -654,17 +652,12 @@ func withExecutorChangeHTTPLogContext(ctx context.Context, change *planner.Plann
 
 // executeChange executes a single change from the plan
 func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change *planner.PlannedChange,
-	plan *planner.Plan, changeIndex int,
+	plan *planner.Plan,
 ) error {
 	// Notify reporter of change start
 	if e.reporter != nil {
 		e.reporter.StartChange(*change)
 	}
-
-	// Hydrate unresolved refs/parent IDs from already-completed dependency creates.
-	// This restores deterministic downstream ID propagation without mutating
-	// future groups concurrently.
-	e.hydrateKnownReferenceIDs(change, plan)
 
 	resourceName := change.ResourceRef
 	if resolvedName := getResourceName(change.Fields); resolvedName != "" && !tags.IsEnvPlaceholder(resolvedName) {
@@ -695,6 +688,11 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 	if resolvedName := getResourceName(change.Fields); resolvedName != "" {
 		resourceName = resolvedName
 	}
+
+	// Hydrate unresolved refs/parent IDs from already-completed dependency creates.
+	// This restores deterministic downstream ID propagation without mutating
+	// future groups concurrently.
+	e.hydrateKnownReferenceIDs(change, plan)
 
 	// Pre-execution validation (always performed, even in dry-run)
 	if err := e.validateChangePreExecution(ctx, *change); err != nil {
@@ -1705,13 +1703,13 @@ func (e *Executor) resolveEventGatewayListenerRef(
 
 // populatePortalPages fetches and caches all pages for a portal
 func (e *Executor) populatePortalPages(ctx context.Context, portalID string) error {
-	portal, exists := e.stateCache.Portals[portalID]
-	if !exists {
-		portal = &state.CachedPortal{
+	e.cacheMu.Lock()
+	if _, exists := e.stateCache.Portals[portalID]; !exists {
+		e.stateCache.Portals[portalID] = &state.CachedPortal{
 			Pages: make(map[string]*state.CachedPortalPage),
 		}
-		e.stateCache.Portals[portalID] = portal
 	}
+	e.cacheMu.Unlock()
 
 	// Fetch all pages
 	pages, err := e.client.ListManagedPortalPages(ctx, portalID)
@@ -1730,17 +1728,24 @@ func (e *Executor) populatePortalPages(ctx context.Context, portalID string) err
 	}
 
 	// Second pass: establish parent-child relationships
+	rootPages := make(map[string]*state.CachedPortalPage)
 	for _, page := range pages {
 		cachedPage := pageMap[page.ID]
 
 		if page.ParentPageID == "" {
 			// Root page
-			portal.Pages[page.ID] = cachedPage
+			rootPages[page.ID] = cachedPage
 		} else if parent, ok := pageMap[page.ParentPageID]; ok {
 			// Child page
 			parent.Children[page.ID] = cachedPage
 		}
 	}
+
+	e.cacheMu.Lock()
+	if portal, exists := e.stateCache.Portals[portalID]; exists {
+		portal.Pages = rootPages
+	}
+	e.cacheMu.Unlock()
 
 	return nil
 }
@@ -1751,6 +1756,7 @@ func (e *Executor) populateAPIDocuments(ctx context.Context, apiID string) error
 		return fmt.Errorf("API ID is required to populate documents")
 	}
 
+	e.cacheMu.Lock()
 	cachedAPI, exists := e.stateCache.APIs[apiID]
 	if !exists {
 		cachedAPI = &state.CachedAPI{
@@ -1767,8 +1773,10 @@ func (e *Executor) populateAPIDocuments(ctx context.Context, apiID string) error
 	}
 
 	if len(cachedAPI.Documents) > 0 {
+		e.cacheMu.Unlock()
 		return nil
 	}
+	e.cacheMu.Unlock()
 
 	documents, err := e.client.ListAPIDocuments(ctx, apiID)
 	if err != nil {
@@ -1784,15 +1792,16 @@ func (e *Executor) populateAPIDocuments(ctx context.Context, apiID string) error
 		docMap[doc.ID] = cachedDoc
 	}
 
+	rootDocs := make(map[string]*state.CachedAPIDocument)
 	for _, cachedDoc := range docMap {
 		if cachedDoc.ParentDocumentID == "" {
-			cachedAPI.Documents[cachedDoc.ID] = cachedDoc
+			rootDocs[cachedDoc.ID] = cachedDoc
 			continue
 		}
 
 		parent, ok := docMap[cachedDoc.ParentDocumentID]
 		if !ok {
-			cachedAPI.Documents[cachedDoc.ID] = cachedDoc
+			rootDocs[cachedDoc.ID] = cachedDoc
 			continue
 		}
 
@@ -1801,6 +1810,12 @@ func (e *Executor) populateAPIDocuments(ctx context.Context, apiID string) error
 		}
 		parent.Children[cachedDoc.ID] = cachedDoc
 	}
+
+	e.cacheMu.Lock()
+	if cachedAPI, exists := e.stateCache.APIs[apiID]; exists {
+		cachedAPI.Documents = rootDocs
+	}
+	e.cacheMu.Unlock()
 
 	return nil
 }
@@ -1815,14 +1830,24 @@ func (e *Executor) resolvePortalPageRef(
 	}
 
 	// Ensure portal pages are cached
-	if _, exists := e.stateCache.Portals[portalID]; !exists ||
-		e.stateCache.Portals[portalID].Pages == nil {
+	e.cacheMu.RLock()
+	portal, exists := e.stateCache.Portals[portalID]
+	needsPopulate := !exists || portal.Pages == nil
+	e.cacheMu.RUnlock()
+
+	if needsPopulate {
 		if err := e.populatePortalPages(ctx, portalID); err != nil {
 			return "", err
 		}
 	}
 
-	portal := e.stateCache.Portals[portalID]
+	e.cacheMu.RLock()
+	portal = e.stateCache.Portals[portalID]
+	if portal == nil {
+		e.cacheMu.RUnlock()
+		return "", fmt.Errorf("portal %s not found in cache", portalID)
+	}
+	defer e.cacheMu.RUnlock()
 
 	// If we have a parent path, use it for more accurate matching
 	if lookupFields != nil && lookupFields[planner.FieldParentPath] != "" {
@@ -1883,10 +1908,13 @@ func (e *Executor) resolveAPIDocumentRef(
 		return "", err
 	}
 
+	e.cacheMu.RLock()
 	cachedAPI, ok := e.stateCache.APIs[apiID]
 	if !ok {
+		e.cacheMu.RUnlock()
 		return "", fmt.Errorf("API %s not found in cache", apiID)
 	}
+	defer e.cacheMu.RUnlock()
 
 	if refInfo.LookupFields != nil {
 		if path, ok := refInfo.LookupFields[planner.FieldSlugPath]; ok && path != "" {

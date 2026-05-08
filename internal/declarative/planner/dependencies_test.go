@@ -450,6 +450,33 @@ func TestFindImplicitDependencies_UnknownID_PlainRef(t *testing.T) {
 	}
 }
 
+func TestFindImplicitDependencies_EmptyID_PlainRef(t *testing.T) {
+	// Empty ID is also unresolved and should generate an implicit dependency.
+	d := NewDependencyResolver()
+	authCreate := PlannedChange{
+		ID:           "1-c-auth",
+		ResourceType: ResourceTypeApplicationAuthStrategy,
+		ResourceRef:  "basic-auth",
+		Action:       ActionCreate,
+	}
+	portal := PlannedChange{
+		ID:           "2-c-portal",
+		ResourceType: ResourceTypePortal,
+		ResourceRef:  "my-portal",
+		Action:       ActionCreate,
+		References: map[string]ReferenceInfo{
+			FieldDefaultApplicationStrategyID: {
+				Ref: "basic-auth",
+				ID:  "",
+			},
+		},
+	}
+	deps := d.findImplicitDependencies(portal, []PlannedChange{authCreate, portal})
+	if len(deps) != 1 || deps[0] != "1-c-auth" {
+		t.Errorf("expected [1-c-auth], got %v", deps)
+	}
+}
+
 func TestFindImplicitDependencies_UnknownID_RefPlaceholder(t *testing.T) {
 	// __REF__:some-resource#id placeholders must be stripped before matching.
 	d := NewDependencyResolver()
@@ -468,6 +495,33 @@ func TestFindImplicitDependencies_UnknownID_RefPlaceholder(t *testing.T) {
 			FieldDCRProviderID: {
 				Ref: "__REF__:http-dcr#id",
 				ID:  "[unknown]",
+			},
+		},
+	}
+	deps := d.findImplicitDependencies(authUpdate, []PlannedChange{dcrCreate, authUpdate})
+	if len(deps) != 1 || deps[0] != "1-c-dcr" {
+		t.Errorf("expected [1-c-dcr], got %v", deps)
+	}
+}
+
+func TestFindImplicitDependencies_RefPlaceholder_ResolvedIDStillDepends(t *testing.T) {
+	// Placeholders should still infer dependency edges even if ID is populated.
+	d := NewDependencyResolver()
+	dcrCreate := PlannedChange{
+		ID:           "1-c-dcr",
+		ResourceType: ResourceTypeDCRProvider,
+		ResourceRef:  "http-dcr",
+		Action:       ActionCreate,
+	}
+	authUpdate := PlannedChange{
+		ID:           "2-u-auth",
+		ResourceType: ResourceTypeApplicationAuthStrategy,
+		ResourceRef:  "oidc",
+		Action:       ActionUpdate,
+		References: map[string]ReferenceInfo{
+			FieldDCRProviderID: {
+				Ref: "__REF__:http-dcr#id",
+				ID:  "already-resolved-id",
 			},
 		},
 	}
@@ -701,6 +755,41 @@ func TestResolveDependenciesWithGroups_LinearChain_ThreeGroups(t *testing.T) {
 	}
 }
 
+func TestResolveDependencies_ParentChildRelationship_EmptyParentID(t *testing.T) {
+	resolver := NewDependencyResolver()
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-api-version",
+			ResourceType: "api_version",
+			ResourceRef:  "my-api-v1",
+			Action:       ActionCreate,
+			Parent: &ParentInfo{
+				Ref: "my-api",
+				ID:  "",
+			},
+		},
+		{
+			ID:           "2-c-api",
+			ResourceType: "api",
+			ResourceRef:  "my-api",
+			Action:       ActionCreate,
+		},
+	}
+
+	order, err := resolver.ResolveDependencies(changes)
+	if err != nil {
+		t.Fatalf("ResolveDependencies failed: %v", err)
+	}
+
+	apiIndex := indexOf(order, "2-c-api")
+	versionIndex := indexOf(order, "1-c-api-version")
+
+	if apiIndex >= versionIndex {
+		t.Errorf("API (index %d) should come before API version (index %d)", apiIndex, versionIndex)
+	}
+}
+
 func TestResolveDependenciesWithGroups_Diamond(t *testing.T) {
 	// A→B, A→C, B→D, C→D  =>  groups: [A], [B,C], [D]
 	d := NewDependencyResolver()
@@ -729,7 +818,9 @@ func TestResolveDependenciesWithGroups_Diamond(t *testing.T) {
 	if res.ExecutionGroups[0][0] != "A" {
 		t.Errorf("group 0 should be [A], got %v", res.ExecutionGroups[0])
 	}
-	if len(res.ExecutionGroups[1]) != 2 || !contains(res.ExecutionGroups[1], "B") || !contains(res.ExecutionGroups[1], "C") {
+	if len(res.ExecutionGroups[1]) != 2 ||
+		!contains(res.ExecutionGroups[1], "B") ||
+		!contains(res.ExecutionGroups[1], "C") {
 		t.Errorf("group 1 should be [B,C], got %v", res.ExecutionGroups[1])
 	}
 	if res.ExecutionGroups[2][0] != "D" {
