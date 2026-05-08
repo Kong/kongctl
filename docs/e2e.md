@@ -126,6 +126,9 @@ Scenario selection and sharding:
 - `KONGCTL_E2E_SHARD_INDEX`: Zero-based shard index for this test process.
 - `KONGCTL_E2E_SHARD_TOTAL`: Total number of shards in the run.
 - `KONGCTL_E2E_MATRIX_ORG`: Optional diagnostic label for the current CI job.
+- `KONGCTL_E2E_ORGS_JSON`: JSON array of matrix org entries. Used in CI to
+  validate scenario environment assignments. Each entry must include
+  `org_name`.
 
 Authentication and opt-in scenarios:
 
@@ -179,6 +182,31 @@ Example with 10 scenarios and 4 shards:
 
 If `KONGCTL_E2E_SCENARIO` is set, sharding is bypassed so local single-scenario
 iteration stays predictable.
+
+A scenario can be pinned to a specific GitHub Actions environment by setting
+`test.assignedEnvironment` to the matrix `org_name`:
+
+```yaml
+test:
+  assignedEnvironment: kongctl-e2e-users
+```
+
+Pinned scenarios run only in the matrix job whose `KONGCTL_E2E_MATRIX_ORG`
+matches that value. They are excluded from normal modulo sharding so they do
+not run in any other org. Unpinned scenarios continue to be sharded by sorted
+position. In CI, the harness validates pinned environments against
+`KONGCTL_E2E_ORGS_JSON` and fails if a scenario names an environment that is
+not present in the org pool.
+
+For local full-suite runs without sharding, assignments are not enforced by
+default because the run targets a single developer-selected org. To emulate a
+CI environment locally, set `KONGCTL_E2E_MATRIX_ORG`:
+
+```bash
+KONGCTL_E2E_MATRIX_ORG=kongctl-e2e-users \
+KONGCTL_E2E_SCENARIO=org/teams/roles \
+make test-e2e-scenarios
+```
 
 ### Skipping Steps
 
@@ -284,6 +312,8 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 
 - `KONGCTL_E2E_SHARD_INDEX=${{ strategy.job-index }}`
 - `KONGCTL_E2E_SHARD_TOTAL=${{ strategy.job-total }}`
+- `KONGCTL_E2E_MATRIX_ORG=${{ matrix.org_name }}`
+- `KONGCTL_E2E_ORGS_JSON=${{ vars.KONGCTL_E2E_ORGS_JSON }}`
 
 The workflow also exposes the HTTP timeout and retry knobs above as repository
 or organization variables of the same names, so CI can tune reset and HTTP
