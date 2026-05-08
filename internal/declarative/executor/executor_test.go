@@ -260,6 +260,83 @@ func TestExecutor_syncResolvedPortalDefaultAuthStrategyID_UpdatesFieldsFromResol
 	)
 }
 
+func TestExecutor_hydrateKnownReferenceIDs_PopulatesScalarRefAndParent(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1:c:api:my-api"] = "api-id-123"
+
+	plan := &planner.Plan{
+		Changes: []planner.PlannedChange{
+			{
+				ID:          "1:c:api:my-api",
+				Action:      planner.ActionCreate,
+				ResourceRef: "my-api",
+			},
+			{
+				ID:          "2:c:api_version:v1",
+				Action:      planner.ActionCreate,
+				ResourceRef: "my-api-v1",
+				DependsOn:   []string{"1:c:api:my-api"},
+				Fields: map[string]any{
+					planner.FieldAPIID: "__REF__:my-api#id",
+				},
+				References: map[string]planner.ReferenceInfo{
+					planner.FieldAPIID: {
+						Ref: "__REF__:my-api#id",
+						ID:  "[unknown]",
+					},
+				},
+				Parent: &planner.ParentInfo{
+					Ref: "my-api",
+					ID:  "[unknown]",
+				},
+			},
+		},
+	}
+
+	change := &plan.Changes[1]
+	exec.hydrateKnownReferenceIDs(change, plan)
+
+	assert.Equal(t, "api-id-123", change.References[planner.FieldAPIID].ID)
+	assert.Equal(t, "api-id-123", change.Fields[planner.FieldAPIID])
+	require.NotNil(t, change.Parent)
+	assert.Equal(t, "api-id-123", change.Parent.ID)
+}
+
+func TestExecutor_hydrateKnownReferenceIDs_PopulatesArrayResolvedIDs(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1:c:cp:member-a"] = "cp-id-a"
+
+	plan := &planner.Plan{
+		Changes: []planner.PlannedChange{
+			{
+				ID:          "1:c:cp:member-a",
+				Action:      planner.ActionCreate,
+				ResourceRef: "member-a",
+			},
+			{
+				ID:          "2:u:cp_group:group-1",
+				Action:      planner.ActionUpdate,
+				ResourceRef: "group-1",
+				DependsOn:   []string{"1:c:cp:member-a"},
+				References: map[string]planner.ReferenceInfo{
+					planner.FieldMembers: {
+						IsArray: true,
+						Refs:    []string{"__REF__:member-a#id", "literal-id"},
+					},
+				},
+			},
+		},
+	}
+
+	change := &plan.Changes[1]
+	exec.hydrateKnownReferenceIDs(change, plan)
+
+	refInfo := change.References[planner.FieldMembers]
+	require.Len(t, refInfo.ResolvedIDs, 2)
+	assert.Equal(t, "cp-id-a", refInfo.ResolvedIDs[0])
+	assert.Equal(t, "", refInfo.ResolvedIDs[1])
+}
+
 func TestExecutor_ValidateChangePreExecution_Basic(t *testing.T) {
 	tests := []struct {
 		name          string

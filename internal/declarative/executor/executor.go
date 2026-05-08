@@ -688,6 +688,11 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		e.reporter.StartChange(*change)
 	}
 
+	// Hydrate unresolved refs/parent IDs from already-completed dependency creates.
+	// This restores deterministic downstream ID propagation without mutating
+	// future groups concurrently.
+	e.hydrateKnownReferenceIDs(change, plan)
+
 	resourceName := change.ResourceRef
 	if resolvedName := getResourceName(change.Fields); resolvedName != "" && !tags.IsEnvPlaceholder(resolvedName) {
 		resourceName = resolvedName
@@ -847,6 +852,105 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 	}
 
 	return err
+}
+
+// hydrateKnownReferenceIDs fills unresolved parent/reference IDs in-place using
+// IDs from already executed dependency CREATE changes.
+func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan *planner.Plan) {
+	if change == nil || plan == nil || len(change.DependsOn) == 0 {
+		return
+	}
+
+	depRefToID := make(map[string]string, len(change.DependsOn))
+	for _, depID := range change.DependsOn {
+		createdID, ok := e.getCreatedResourceID(depID)
+		if !ok || createdID == "" {
+			continue
+		}
+
+		depChange := findPlannedChangeByID(plan, depID)
+		if depChange == nil || depChange.ResourceRef == "" {
+			continue
+		}
+
+		depRefToID[depChange.ResourceRef] = createdID
+	}
+
+	if len(depRefToID) == 0 {
+		return
+	}
+
+	if change.Parent != nil && unresolvedReferenceID(change.Parent.ID) {
+		if id, ok := depRefToID[normalizedRefValue(change.Parent.Ref)]; ok {
+			change.Parent.ID = id
+		}
+	}
+
+	for field, refInfo := range change.References {
+		updated := false
+
+		if unresolvedReferenceID(refInfo.ID) {
+			if id, ok := depRefToID[normalizedRefValue(refInfo.Ref)]; ok {
+				refInfo.ID = id
+				updated = true
+				if change.Fields != nil {
+					if _, exists := change.Fields[field]; exists {
+						change.Fields[field] = id
+					}
+				}
+			}
+		}
+
+		if refInfo.IsArray && len(refInfo.Refs) > 0 {
+			if len(refInfo.ResolvedIDs) < len(refInfo.Refs) {
+				resized := make([]string, len(refInfo.Refs))
+				copy(resized, refInfo.ResolvedIDs)
+				refInfo.ResolvedIDs = resized
+			}
+
+			for i, ref := range refInfo.Refs {
+				if refInfo.ResolvedIDs[i] != "" {
+					continue
+				}
+				if id, ok := depRefToID[normalizedRefValue(ref)]; ok {
+					refInfo.ResolvedIDs[i] = id
+					updated = true
+				}
+			}
+		}
+
+		if updated {
+			change.References[field] = refInfo
+		}
+	}
+}
+
+func (e *Executor) getCreatedResourceID(changeID string) (string, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	id, ok := e.createdResources[changeID]
+	return id, ok
+}
+
+func findPlannedChangeByID(plan *planner.Plan, changeID string) *planner.PlannedChange {
+	if plan == nil {
+		return nil
+	}
+	for i := range plan.Changes {
+		if plan.Changes[i].ID == changeID {
+			return &plan.Changes[i]
+		}
+	}
+	return nil
+}
+
+func normalizedRefValue(ref string) string {
+	if tags.IsRefPlaceholder(ref) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(ref); ok && parsedRef != "" {
+			return parsedRef
+		}
+	}
+	return ref
 }
 
 // validateChangePreExecution performs validation before executing a change
