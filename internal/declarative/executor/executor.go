@@ -465,7 +465,6 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		DryRun:         e.dryRun,
 		StartedAt:      time.Now(),
 		MaxConcurrency: e.concurrency,
-		GroupCount:     len(plan.ExecutionGroups),
 	}
 
 	// Notify reporter of execution start
@@ -474,13 +473,12 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	}
 
 	// Choose execution strategy.
-	// If the plan contains execution_groups (i.e. it was produced by a concurrency-aware
-	// planner), use group-based concurrent execution.
-	// Otherwise fall back to the flat ExecutionOrder path (legacy plans).
+	// Planner is the source of truth for dependency ordering and concurrency groups.
+	// If groups are present, execute by groups; otherwise execute sequentially in
+	// the provided ExecutionOrder (legacy plans).
 	if len(plan.ExecutionGroups) > 0 {
+		result.GroupCount = len(plan.ExecutionGroups)
 		e.executeGroupsConcurrent(ctx, plan, result)
-	} else if e.concurrency > 1 {
-		e.executeConcurrent(ctx, plan, result)
 	} else {
 		for i, changeID := range plan.ExecutionOrder {
 			// Find the change by ID
@@ -519,144 +517,6 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	return result
 }
 
-// effectiveDependsOn returns the full set of change IDs that change depends on.
-// It merges explicit DependsOn entries with implicit dependencies derived from
-// reference placeholders (__REF__:...) and unresolved parent references.
-func effectiveDependsOn(change *planner.PlannedChange, refToChangeID map[string]string) []string {
-	seen := make(map[string]bool, len(change.DependsOn))
-	deps := make([]string, 0, len(change.DependsOn))
-
-	add := func(id string) {
-		if id != "" && !seen[id] {
-			seen[id] = true
-			deps = append(deps, id)
-		}
-	}
-
-	for _, id := range change.DependsOn {
-		add(id)
-	}
-
-	// Implicit deps from reference placeholders in References map
-	for _, ref := range change.References {
-		if tags.IsRefPlaceholder(ref.Ref) {
-			if resourceRef, _, ok := tags.ParseRefPlaceholder(ref.Ref); ok {
-				if changeID, exists := refToChangeID[resourceRef]; exists {
-					add(changeID)
-				}
-			}
-		}
-		for _, r := range ref.Refs {
-			if tags.IsRefPlaceholder(r) {
-				if resourceRef, _, ok := tags.ParseRefPlaceholder(r); ok {
-					if changeID, exists := refToChangeID[resourceRef]; exists {
-						add(changeID)
-					}
-				}
-			}
-		}
-	}
-
-	// Implicit dep from an unresolved parent in the same plan
-	if change.Parent != nil && unresolvedReferenceID(change.Parent.ID) {
-		if changeID, exists := refToChangeID[change.Parent.Ref]; exists {
-			add(changeID)
-		}
-	}
-
-	return deps
-}
-
-// executeConcurrent runs plan changes concurrently, respecting DependsOn ordering,
-// with at most e.concurrency operations in flight simultaneously.
-func (e *Executor) executeConcurrent(ctx context.Context, plan *planner.Plan, result *ExecutionResult) {
-	// Build a lookup map for changes by ID
-	changeByID := make(map[string]*planner.PlannedChange, len(plan.Changes))
-	for i := range plan.Changes {
-		changeByID[plan.Changes[i].ID] = &plan.Changes[i]
-	}
-
-	// Build a map from resource_ref to change ID for implicit dependency resolution
-	refToChangeID := make(map[string]string, len(plan.Changes))
-	for i := range plan.Changes {
-		refToChangeID[plan.Changes[i].ResourceRef] = plan.Changes[i].ID
-	}
-
-	// Create done channels for each change to signal completion to dependents
-	done := make(map[string]chan struct{}, len(plan.ExecutionOrder))
-	for _, id := range plan.ExecutionOrder {
-		done[id] = make(chan struct{})
-	}
-
-	// Track which changes succeeded (to skip dependents of failed changes)
-	succeeded := make(map[string]bool, len(plan.ExecutionOrder))
-
-	// Semaphore to limit the number of concurrent operations
-	sem := make(chan struct{}, e.concurrency)
-
-	var wg sync.WaitGroup
-	for i, changeID := range plan.ExecutionOrder {
-		change := changeByID[changeID]
-		if change == nil {
-			e.mu.Lock()
-			result.Errors = append(result.Errors, ExecutionError{
-				ChangeID: changeID,
-				Error:    fmt.Sprintf("change with ID %s not found in plan", changeID),
-			})
-			result.FailureCount++
-			e.mu.Unlock()
-			close(done[changeID])
-			continue
-		}
-
-		wg.Add(1)
-		go func(idx int, chID string, ch *planner.PlannedChange, deps []string) {
-			defer wg.Done()
-
-			// Wait for all dependencies to signal completion
-			for _, depID := range deps {
-				if depDone, ok := done[depID]; ok {
-					<-depDone
-				}
-			}
-
-			// If any dependency failed, skip this change
-			e.mu.Lock()
-			depsFailed := false
-			for _, depID := range deps {
-				if !succeeded[depID] {
-					depsFailed = true
-					break
-				}
-			}
-			e.mu.Unlock()
-
-			if depsFailed {
-				close(done[chID])
-				return
-			}
-
-			// Acquire a semaphore slot to limit concurrency
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			changeCtx := withExecutorChangeHTTPLogContext(ctx, ch)
-			err := e.executeChange(changeCtx, result, ch, plan, idx)
-
-			// Record success before closing done so dependents see the correct state
-			e.mu.Lock()
-			if err == nil {
-				succeeded[chID] = true
-			}
-			e.mu.Unlock()
-
-			close(done[chID])
-		}(i, changeID, change, effectiveDependsOn(change, refToChangeID))
-	}
-
-	wg.Wait()
-}
-
 // executeGroupsConcurrent executes plan.ExecutionGroups in strict order: all changes
 // in group N must complete before group N+1 starts. Within each group, changes run
 // concurrently up to e.concurrency. Changes whose direct dependencies failed or were
@@ -684,6 +544,14 @@ func (e *Executor) executeGroupsConcurrent(
 		for _, changeID := range group {
 			change := changeByID[changeID]
 			if change == nil {
+				e.mu.Lock()
+				result.Errors = append(result.Errors, ExecutionError{
+					ChangeID: changeID,
+					Error:    fmt.Sprintf("change with ID %s not found in plan", changeID),
+				})
+				result.FailureCount++
+				e.mu.Unlock()
+				blockedOrFailed[changeID] = true
 				continue
 			}
 			blockers := findBlockers(change, blockedOrFailed)
