@@ -464,9 +464,7 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	ctx = withExecutorHTTPLogContext(ctx, e.executionMode)
 
 	result := &ExecutionResult{
-		DryRun:         e.dryRun,
-		StartedAt:      time.Now(),
-		MaxConcurrency: e.concurrency,
+		DryRun: e.dryRun,
 	}
 
 	// Notify reporter of execution start
@@ -478,8 +476,8 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	// Planner is the source of truth for dependency ordering and concurrency groups.
 	// If groups are present, execute by groups; otherwise execute sequentially in
 	// the provided ExecutionOrder (legacy plans).
+	// Sequential execution is retained for backwards compatibility for existing plans.
 	if len(plan.ExecutionGroups) > 0 {
-		result.GroupCount = len(plan.ExecutionGroups)
 		e.executeGroupsConcurrent(ctx, plan, result)
 	} else {
 		for i, changeID := range plan.ExecutionOrder {
@@ -514,8 +512,6 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		e.reporter.FinishExecution(result)
 	}
 
-	result.FinishedAt = time.Now()
-	result.Elapsed = result.FinishedAt.Sub(result.StartedAt).Round(time.Millisecond).String()
 	return result
 }
 
@@ -559,17 +555,8 @@ func (e *Executor) executeGroupsConcurrent(
 			blockers := findBlockers(change, blockedOrFailed)
 			if len(blockers) > 0 {
 				blockedOrFailed[changeID] = true
-				startedAt := time.Now()
 				e.mu.Lock()
 				result.SkippedCount++
-				result.ChangeExecutions = append(result.ChangeExecutions, ChangeExecution{
-					ChangeID:  changeID,
-					StartedAt: startedAt,
-					EndedAt:   startedAt,
-					Duration:  "0s",
-					Status:    "blocked",
-					BlockedBy: blockers,
-				})
 				e.mu.Unlock()
 				if e.reporter != nil {
 					e.reporter.SkipChange(*change,
@@ -595,30 +582,16 @@ func (e *Executor) executeGroupsConcurrent(
 		for _, changeID := range runnableIDs {
 			ch := changeByID[changeID]
 			idx := idxByID[changeID]
-			startedAt := time.Now()
 
 			g.Go(func() error {
 				changeCtx := withExecutorChangeHTTPLogContext(ctx, ch)
 				err := e.executeChange(changeCtx, result, ch, plan, idx)
 
-				endedAt := time.Now()
-				status := "success"
 				if err != nil {
-					status = "failure"
 					groupMu.Lock()
 					groupFailed[ch.ID] = true
 					groupMu.Unlock()
 				}
-
-				e.mu.Lock()
-				result.ChangeExecutions = append(result.ChangeExecutions, ChangeExecution{
-					ChangeID:  ch.ID,
-					StartedAt: startedAt,
-					EndedAt:   endedAt,
-					Duration:  endedAt.Sub(startedAt).Round(time.Millisecond).String(),
-					Status:    status,
-				})
-				e.mu.Unlock()
 
 				// Never return an error to errgroup — errors are already stored in result.
 				return nil
