@@ -771,7 +771,7 @@ func snapshotEnv(environ []string) map[string]string {
 			v := kv[i+1:]
 			ku := strings.ToUpper(k)
 			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
-				strings.Contains(ku, "SECRET") {
+				strings.Contains(ku, "SECRET") || strings.Contains(ku, "EMAIL") {
 				if v != "" {
 					v = "***"
 				}

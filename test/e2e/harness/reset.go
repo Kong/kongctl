@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -401,6 +402,18 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 	var result resetResult
 	var firstErr error
 
+	tot, del, err := resetConfiguredE2EUserAssignments(ctx, token, policy, transportOptions)
+	if err != nil && firstErr == nil {
+		firstErr = err
+	}
+	result.Details = append(result.Details, resetEndpoint{
+		APIVersion: "v3",
+		Endpoint:   "e2e-user-assignments",
+		Total:      tot,
+		Deleted:    del,
+		Error:      errorString(err),
+	})
+
 	for _, step := range resetSequence {
 		if err := ctx.Err(); err != nil {
 			if firstErr == nil {
@@ -449,6 +462,186 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 	}
 
 	return result, firstErr
+}
+
+type resetUser struct {
+	ID string
+}
+
+func resetConfiguredE2EUserAssignments(
+	ctx context.Context,
+	token string,
+	policy HTTPRetryPolicy,
+	transportOptions HTTPTransportOptions,
+) (int, int, error) {
+	emails := configuredE2EUserEmails()
+	if len(emails) == 0 {
+		Debugf("No KONGCTL_E2E_ORG_USER_EMAIL_* values configured; skipping user assignment reset")
+		return 0, 0, nil
+	}
+
+	session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
+	defer session.Close()
+
+	usersByEmail, err := listUsersByEmail(ctx, session, token, policy)
+	if err != nil {
+		return len(emails), 0, err
+	}
+
+	total := 0
+	deleted := 0
+	for _, email := range emails {
+		user, ok := usersByEmail[email]
+		if !ok {
+			Warnf("reset: configured E2E user was not found; skipping assignment reset")
+			continue
+		}
+		userTotal, userDeleted, err := resetUserAssignments(ctx, session, token, policy, user)
+		total += userTotal
+		deleted += userDeleted
+		if err != nil {
+			return total, deleted, err
+		}
+	}
+	return total, deleted, nil
+}
+
+func configuredE2EUserEmails() []string {
+	seen := map[string]struct{}{}
+	for _, kv := range os.Environ() {
+		key, value, ok := strings.Cut(kv, "=")
+		if !ok || !strings.HasPrefix(key, "KONGCTL_E2E_ORG_USER_EMAIL_") {
+			continue
+		}
+		email := strings.TrimSpace(value)
+		if email == "" {
+			continue
+		}
+		seen[email] = struct{}{}
+	}
+	emails := make([]string, 0, len(seen))
+	for email := range seen {
+		emails = append(emails, email)
+	}
+	slices.Sort(emails)
+	return emails
+}
+
+func listUsersByEmail(
+	ctx context.Context,
+	session *resetHTTPSession,
+	token string,
+	policy HTTPRetryPolicy,
+) (map[string]resetUser, error) {
+	const pageSize = 100
+	usersByEmail := map[string]resetUser{}
+	for pageNumber := 1; pageNumber <= 10000; pageNumber++ {
+		items, err := retryListItems(
+			ctx,
+			session,
+			pagedURL("https://global.api.konghq.com/v3/users", pageSize, pageNumber),
+			token,
+			"users",
+			policy,
+		)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			id, _ := item["id"].(string)
+			email, _ := item["email"].(string)
+			if id == "" || email == "" {
+				continue
+			}
+			usersByEmail[email] = resetUser{ID: id}
+		}
+		if len(items) < pageSize {
+			return usersByEmail, nil
+		}
+	}
+	return nil, fmt.Errorf("organization users pagination exceeded safety limit")
+}
+
+func resetUserAssignments(
+	ctx context.Context,
+	session *resetHTTPSession,
+	token string,
+	policy HTTPRetryPolicy,
+	user resetUser,
+) (int, int, error) {
+	total := 0
+	deleted := 0
+
+	teamItems, err := retryListItems(
+		ctx,
+		session,
+		pagedURL(fmt.Sprintf("https://global.api.konghq.com/v3/users/%s/teams", url.PathEscape(user.ID)), 100, 1),
+		token,
+		"user teams",
+		policy,
+	)
+	if err != nil {
+		return total, deleted, err
+	}
+	total += len(teamItems)
+	for _, team := range teamItems {
+		teamID, _ := team["id"].(string)
+		if teamID == "" {
+			continue
+		}
+		deleteURL := fmt.Sprintf("https://global.api.konghq.com/v3/teams/%s/users", url.PathEscape(teamID))
+		if err := retryDeleteOne(ctx, session, deleteURL, token, "user team assignment", user.ID, policy); err != nil {
+			if he, ok := err.(*httpError); ok && he.status == http.StatusNotFound {
+				continue
+			}
+			return total, deleted, err
+		}
+		deleted++
+	}
+
+	roleItems, err := retryListItems(
+		ctx,
+		session,
+		fmt.Sprintf("https://global.api.konghq.com/v3/users/%s/assigned-roles", url.PathEscape(user.ID)),
+		token,
+		"user roles",
+		policy,
+	)
+	if err != nil {
+		return total, deleted, err
+	}
+	total += len(roleItems)
+	for _, role := range roleItems {
+		roleID, _ := role["id"].(string)
+		if roleID == "" {
+			continue
+		}
+		deleteURL := fmt.Sprintf("https://global.api.konghq.com/v3/users/%s/assigned-roles", url.PathEscape(user.ID))
+		if err := retryDeleteOne(ctx, session, deleteURL, token, "user role assignment", roleID, policy); err != nil {
+			if he, ok := err.(*httpError); ok && he.status == http.StatusNotFound {
+				continue
+			}
+			return total, deleted, err
+		}
+		deleted++
+	}
+
+	if deleted > 0 {
+		Infof("Reset %d assignments for configured E2E user", deleted)
+	}
+	return total, deleted, nil
+}
+
+func pagedURL(rawURL string, pageSize, pageNumber int) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	q := u.Query()
+	q.Set("page[size]", fmt.Sprintf("%d", pageSize))
+	q.Set("page[number]", fmt.Sprintf("%d", pageNumber))
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func errorString(err error) string {
@@ -509,7 +702,7 @@ func captureResetEvent(
 			v := kv[i+1:]
 			ku := strings.ToUpper(k)
 			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
-				strings.Contains(ku, "SECRET") {
+				strings.Contains(ku, "SECRET") || strings.Contains(ku, "EMAIL") {
 				if v != "" {
 					v = "***"
 				}

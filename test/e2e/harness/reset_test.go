@@ -2,7 +2,10 @@
 
 package harness
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestOnlyE2EEmailDomains(t *testing.T) {
 	tests := []struct {
@@ -33,5 +36,19 @@ func TestOnlyE2EEmailDomains(t *testing.T) {
 				t.Fatalf("onlyE2EEmailDomains() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestConfiguredE2EUserEmails(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_ORG_USER_EMAIL_2", "user-2@example.com")
+	t.Setenv("KONGCTL_E2E_ORG_USER_EMAIL_1", "user-1@example.com")
+	t.Setenv("KONGCTL_E2E_ORG_USER_EMAIL_3", "user-2@example.com")
+	t.Setenv("KONGCTL_E2E_ORG_USER_EMAIL_EMPTY", " ")
+	t.Setenv("KONGCTL_E2E_OTHER_EMAIL", "ignored@example.com")
+
+	got := configuredE2EUserEmails()
+	want := []string{"user-1@example.com", "user-2@example.com"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("configuredE2EUserEmails() = %#v, want %#v", got, want)
 	}
 }
