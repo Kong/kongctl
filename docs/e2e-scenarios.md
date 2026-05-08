@@ -41,6 +41,8 @@ Schema (YAML)
 - vars: free-form variables usable in templates (e.g., for selectors or overlay files)
 - test:
   - enabledByEnvVar: optional opt-in env gate for the scenario
+  - assignedEnvironment: optional GitHub Actions environment / matrix org
+    name. When set, CI runs the scenario only in the matching matrix job.
   - requiresPAT: optional boolean, defaults to true
 - defaults:
   - retry:

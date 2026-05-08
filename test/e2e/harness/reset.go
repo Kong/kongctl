@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -112,6 +113,7 @@ func deleteAll(
 	endpoint string,
 	deleteAPIVersion string,
 	deleteEndpoint string,
+	idField string,
 	filter filterFunc,
 	// preDeleteFn is called for each resource ID before deletion. It is used to clean up
 	// sub-resources. Any errors must be logged inside the function; the function must not
@@ -143,6 +145,10 @@ func deleteAll(
 	if filter == nil {
 		filter = shouldDeleteResource
 	}
+	idField = strings.TrimSpace(idField)
+	if idField == "" {
+		idField = "id"
+	}
 
 	const maxAttempts = 5
 	const retryDelay = 2 * time.Second
@@ -172,7 +178,7 @@ func deleteAll(
 		var idsToDelete []string
 		var skipped int
 		for _, item := range items {
-			id, ok := item["id"].(string)
+			id, ok := item[idField].(string)
 			if !ok || id == "" {
 				continue
 			}
@@ -314,6 +320,8 @@ type resetResourceSpec struct {
 	// Optional filter to exclude resources from deletion
 	// if nothing is passed default filter that skips konnect-managed resources is used
 	Filter filterFunc
+	// Optional resource identifier field. Defaults to "id".
+	IDField string
 	// PreDeleteFn is called for each resource ID before deletion. It is used to clean
 	// up sub-resources that Konnect does not cascade-delete automatically. Errors are
 	// logged but do not stop the deletion.
@@ -323,6 +331,7 @@ type resetResourceSpec struct {
 var resetSequence = []resetResourceSpec{
 	{Version: "v3", Endpoint: "apis"},
 	{Version: "v3", Endpoint: "portals", PreDeleteFn: tryDeletePortalCustomDomain},
+	{Version: "v3", Endpoint: "portals/email-domains", Filter: onlyE2EEmailDomains, IDField: "domain"},
 	{
 		Version:           "v3",
 		Endpoint:          "audit-log-destinations",
@@ -338,6 +347,14 @@ var resetSequence = []resetResourceSpec{
 	{Version: "v2", Endpoint: "control-planes"},
 	{Version: "v1", Endpoint: "catalog-services"},
 	{Version: "v1", Endpoint: "event-gateways"},
+}
+
+func onlyE2EEmailDomains(resource map[string]any) bool {
+	domain, ok := resource["domain"].(string)
+	if !ok {
+		return false
+	}
+	return strings.HasSuffix(domain, ".mail.kongctl-e2e.io")
 }
 
 // tryDeletePortalCustomDomain attempts to delete the custom domain for a portal before
@@ -413,6 +430,7 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 			step.Endpoint,
 			step.DeleteVersion,
 			step.DeleteEndpoint,
+			step.IDField,
 			step.Filter,
 			step.PreDeleteFn,
 			policy,
@@ -552,7 +570,7 @@ func deleteOne(client *http.Client, baseURL, token, id string) error {
 }
 
 func deleteOneWithContext(ctx context.Context, client *http.Client, baseURL, token, id string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, baseURL+"/"+id, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, baseURL+"/"+url.PathEscape(id), nil)
 	if err != nil {
 		return err
 	}

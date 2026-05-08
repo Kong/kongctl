@@ -208,6 +208,7 @@ jobs:
       KONGCTL_E2E_ARTIFACTS_DIR: ${{ github.workspace }}/.e2e-artifacts/${{ github.run_id }}-${{ matrix.org_name }}
       KONGCTL_E2E_SHARD_INDEX: ${{ strategy.job-index }}
       KONGCTL_E2E_SHARD_TOTAL: ${{ strategy.job-total }}
+      KONGCTL_E2E_ORGS_JSON: ${{ vars.KONGCTL_E2E_ORGS_JSON || '[{"org_name":"default"}]' }}
       KONGCTL_E2E_RUN_PORTAL_APPLICATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_portal_applications && '1' || '' }}
       KONGCTL_E2E_RUN_PORTAL_IDENTITY_PROVIDERS: ${{ vars.KONGCTL_E2E_RUN_PORTAL_IDENTITY_PROVIDERS || '' }}
       KONGCTL_E2E_CAPTURE_TCPDUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.capture_tcpdump && '1' || vars.KONGCTL_E2E_CAPTURE_TCPDUMP || '' }}

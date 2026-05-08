@@ -19,11 +19,12 @@ type Defaults struct {
 }
 
 type ScenarioTest struct {
-	Enabled         *bool    `yaml:"enabled"`
-	EnabledByEnvVar string   `yaml:"enabledByEnvVar"`
-	RequiredEnvVars []string `yaml:"requiredEnvVars"`
-	RequiresPAT     *bool    `yaml:"requiresPAT"`
-	Info            string   `yaml:"info"`
+	Enabled             *bool    `yaml:"enabled"`
+	EnabledByEnvVar     string   `yaml:"enabledByEnvVar"`
+	RequiredEnvVars     []string `yaml:"requiredEnvVars"`
+	RequiresPAT         *bool    `yaml:"requiresPAT"`
+	AssignedEnvironment string   `yaml:"assignedEnvironment"`
+	Info                string   `yaml:"info"`
 }
 
 type Retry struct {
