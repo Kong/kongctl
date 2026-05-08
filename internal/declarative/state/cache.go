@@ -215,3 +215,27 @@ type OrganizationTeamRole struct {
 	EntityRegion   string
 	TeamID         string
 }
+
+// OrganizationUser represents a Konnect organization user.
+type OrganizationUser struct {
+	ID    string
+	Email string
+}
+
+// OrganizationUserTeamMembership represents a user membership in an organization team.
+type OrganizationUserTeamMembership struct {
+	UserID    string
+	UserEmail string
+	TeamID    string
+	TeamName  string
+}
+
+// OrganizationUserRole represents an assigned role for an organization user.
+type OrganizationUserRole struct {
+	ID             string
+	RoleName       string
+	EntityID       string
+	EntityTypeName string
+	EntityRegion   string
+	UserID         string
+}

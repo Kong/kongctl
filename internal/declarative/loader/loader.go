@@ -474,6 +474,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 
 	// Append all resources from source to accumulated using the registry
 	accumulated.AppendAll(source)
+	appendOrganizationUsers(accumulated, source)
 
 	// Update the running index with newly added refs
 	maps.Copy(refIndex, seenRefs)
@@ -487,6 +488,9 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			len(source.ControlPlanes) +
 			len(source.APIs) +
 			len(source.OrganizationTeams)
+		if source.Organization != nil {
+			parentCount += len(source.Organization.Users)
+		}
 
 		if parentCount == 0 {
 			accumulated.AddDefaultNamespace(source.DefaultNamespace)
@@ -496,6 +500,16 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	accumulated.MergeEnvSources(source)
 
 	return nil
+}
+
+func appendOrganizationUsers(accumulated, source *resources.ResourceSet) {
+	if source == nil || source.Organization == nil || len(source.Organization.Users) == 0 {
+		return
+	}
+	if accumulated.Organization == nil {
+		accumulated.Organization = &resources.OrganizationResource{}
+	}
+	accumulated.Organization.Users = append(accumulated.Organization.Users, source.Organization.Users...)
 }
 
 // applyNamespaceDefaults applies file-level namespace and protected defaults to parent resources
@@ -712,6 +726,15 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 				return err
 			}
 		}
+		for i := range rs.Organization.Users {
+			if err := assignNamespace(
+				&rs.Organization.Users[i].Kongctl,
+				"organization user",
+				rs.Organization.Users[i].Ref(),
+			); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Note: Child resources (API versions, publications, etc.) do not get kongctl metadata
@@ -779,6 +802,28 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		}
 
 		org.Teams = nil
+
+		for i := range org.Users {
+			user := &org.Users[i]
+			userRef := user.Ref()
+			for _, teamRef := range user.Teams {
+				rs.OrganizationUserTeamMemberships = append(
+					rs.OrganizationUserTeamMemberships,
+					resources.OrganizationUserTeamMembershipResource{
+						Ref:  fmt.Sprintf("%s:%s", userRef, teamRef),
+						User: userRef,
+						Team: teamRef,
+					},
+				)
+			}
+			for j := range user.Roles {
+				role := user.Roles[j]
+				role.User = userRef
+				rs.OrganizationUserRoles = append(rs.OrganizationUserRoles, role)
+			}
+			user.Teams = nil
+			user.Roles = nil
+		}
 	}
 
 	for i := range rs.ControlPlanes {

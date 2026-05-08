@@ -819,6 +819,12 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve organization team identities: %w", err)
 	}
 
+	if rs.Organization != nil {
+		if err := p.resolveOrganizationUserIdentities(ctx, rs.Organization.Users); err != nil {
+			return fmt.Errorf("failed to resolve organization user identities: %w", err)
+		}
+	}
+
 	// Resolve Auth Strategy identities
 	if err := p.resolveAuthStrategyIdentities(ctx, rs.ApplicationAuthStrategies); err != nil {
 		return fmt.Errorf("failed to resolve auth strategy identities: %w", err)
@@ -1856,6 +1862,62 @@ func (p *Planner) resolveOrganizationTeamIdentities(
 	return nil
 }
 
+func (p *Planner) resolveOrganizationUserIdentities(
+	ctx context.Context,
+	users []resources.OrganizationUserResource,
+) error {
+	if len(users) == 0 {
+		return nil
+	}
+
+	emailIndex := map[string]state.OrganizationUser{}
+	needsEmailIndex := false
+	for _, user := range users {
+		if user.Email != "" {
+			needsEmailIndex = true
+			break
+		}
+	}
+	if needsEmailIndex {
+		allUsers, err := p.client.ListOrganizationUsers(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list organization users: %w", err)
+		}
+		for _, user := range allUsers {
+			if user.Email != "" {
+				emailIndex[strings.ToLower(user.Email)] = user
+			}
+		}
+	}
+
+	for i := range users {
+		user := &users[i]
+		if user.GetKonnectID() != "" {
+			continue
+		}
+
+		if user.ID != "" {
+			konnectUser, err := p.client.GetOrganizationUser(ctx, user.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get organization user %s by ID: %w", user.Ref(), err)
+			}
+			if konnectUser == nil || konnectUser.ID == "" {
+				return fmt.Errorf("organization user not found with ID: %s", user.ID)
+			}
+			user.SetKonnectID(konnectUser.ID)
+			continue
+		}
+
+		konnectUser, ok := emailIndex[strings.ToLower(user.Email)]
+		if !ok || konnectUser.ID == "" {
+			return fmt.Errorf("organization user not found with email: %s", user.Email)
+		}
+		user.SetKonnectID(konnectUser.ID)
+	}
+
+	return nil
+}
+
 // resolveAuthStrategyIdentities resolves Konnect IDs for Auth Strategy resources
 func (p *Planner) resolveAuthStrategyIdentities(
 	ctx context.Context, strategies []resources.ApplicationAuthStrategyResource,
@@ -1985,6 +2047,12 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		}
 		ns := resources.GetNamespace(team.Kongctl)
 		namespaceSet[ns] = true
+	}
+	if rs.Organization != nil {
+		for _, user := range rs.Organization.Users {
+			ns := resources.GetNamespace(user.Kongctl)
+			namespaceSet[ns] = true
+		}
 	}
 
 	// Convert set to sorted slice for consistent ordering

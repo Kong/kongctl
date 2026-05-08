@@ -1,0 +1,36 @@
+_defaults:
+  kongctl:
+    namespace: organization-user-assignments
+
+apis:
+  - ref: products-api
+    name: products-api
+    description: Product catalog API managed by the platform team.
+
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+      description: Engineers who operate shared API platform services.
+      labels:
+        department: engineering
+        focus: platform
+
+  users:
+    - email: alice@example.com
+      teams:
+        - platform-team
+      roles:
+        - ref: alice-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+
+    - id: 00000000-0000-0000-0000-000000000000
+      roles:
+        - ref: user-global-api-viewer
+          role_name: Viewer
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: "*"

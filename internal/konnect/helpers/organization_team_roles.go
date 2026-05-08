@@ -16,6 +16,12 @@ type OrganizationTeamRolesAPI interface {
 		filter *kkOps.ListTeamRolesQueryParamFilter,
 		opts ...kkOps.Option,
 	) (*kkOps.ListTeamRolesResponse, error)
+	ListUserRoles(
+		ctx context.Context,
+		userID string,
+		filter *kkOps.ListUserRolesQueryParamFilter,
+		opts ...kkOps.Option,
+	) (*kkOps.ListUserRolesResponse, error)
 	TeamsAssignRole(
 		ctx context.Context,
 		teamID string,
@@ -28,6 +34,18 @@ type OrganizationTeamRolesAPI interface {
 		roleID string,
 		opts ...kkOps.Option,
 	) (*kkOps.TeamsRemoveRoleResponse, error)
+	UsersAssignRole(
+		ctx context.Context,
+		userID string,
+		assignRole *kkComps.AssignRole,
+		opts ...kkOps.Option,
+	) (*kkOps.UsersAssignRoleResponse, error)
+	UsersRemoveRole(
+		ctx context.Context,
+		userID string,
+		roleID string,
+		opts ...kkOps.Option,
+	) (*kkOps.UsersRemoveRoleResponse, error)
 }
 
 // OrganizationTeamRolesAPIImpl provides an SDK-backed implementation of OrganizationTeamRolesAPI.
@@ -53,6 +71,15 @@ func (o *OrganizationTeamRolesAPIImpl) TeamsAssignRole(
 	return o.SDK.Roles.TeamsAssignRole(ctx, teamID, assignRole, opts...)
 }
 
+func (o *OrganizationTeamRolesAPIImpl) ListUserRoles(
+	ctx context.Context,
+	userID string,
+	filter *kkOps.ListUserRolesQueryParamFilter,
+	opts ...kkOps.Option,
+) (*kkOps.ListUserRolesResponse, error) {
+	return o.SDK.Roles.ListUserRoles(ctx, userID, filter, opts...)
+}
+
 func (o *OrganizationTeamRolesAPIImpl) TeamsRemoveRole(
 	ctx context.Context,
 	teamID string,
@@ -60,6 +87,24 @@ func (o *OrganizationTeamRolesAPIImpl) TeamsRemoveRole(
 	opts ...kkOps.Option,
 ) (*kkOps.TeamsRemoveRoleResponse, error) {
 	return o.SDK.Roles.TeamsRemoveRole(ctx, teamID, roleID, opts...)
+}
+
+func (o *OrganizationTeamRolesAPIImpl) UsersAssignRole(
+	ctx context.Context,
+	userID string,
+	assignRole *kkComps.AssignRole,
+	opts ...kkOps.Option,
+) (*kkOps.UsersAssignRoleResponse, error) {
+	return o.SDK.Roles.UsersAssignRole(ctx, userID, assignRole, opts...)
+}
+
+func (o *OrganizationTeamRolesAPIImpl) UsersRemoveRole(
+	ctx context.Context,
+	userID string,
+	roleID string,
+	opts ...kkOps.Option,
+) (*kkOps.UsersRemoveRoleResponse, error) {
+	return o.SDK.Roles.UsersRemoveRole(ctx, userID, roleID, opts...)
 }
 
 var _ OrganizationTeamRolesAPI = (*OrganizationTeamRolesAPIImpl)(nil)

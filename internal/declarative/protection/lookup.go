@@ -126,6 +126,8 @@ func IsManagedResourceProtected(
 		resources.ResourceTypePortalAuditLogWebhook,
 		resources.ResourceTypeAuditLogWebhookDestination,
 		resources.ResourceTypeOrganizationTeamRole,
+		resources.ResourceTypeOrganizationUserTeamMembership,
+		resources.ResourceTypeOrganizationUserRole,
 		resources.ResourceTypeTeam,
 		resources.ResourceTypeEventGatewayBackendCluster,
 		resources.ResourceTypeEventGatewayVirtualCluster,

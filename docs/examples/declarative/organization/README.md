@@ -9,6 +9,9 @@ These examples demonstrate how to manage Konnect organization resources with
 - `team-roles.yaml` - defines organization teams and assigns roles to an API.
   The example shows both nested `organization.teams[].roles` declarations and
   root-level `organization_team_roles` declarations.
+- `user-assignments.yaml` - assigns existing organization users to teams and
+  direct roles. Users are selected by exactly one of `email` or `id`; kongctl
+  does not create or delete users.
 
 ## Usage
 
@@ -22,6 +25,12 @@ Apply the team role configuration:
 
 ```bash
 kongctl apply -f team-roles.yaml
+```
+
+Apply user team memberships and direct user roles:
+
+```bash
+kongctl apply -f user-assignments.yaml
 ```
 
 Run in sync mode to remove omitted managed role assignments in the namespace:

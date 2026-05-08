@@ -5,4 +5,6 @@ package resources
 type OrganizationResource struct {
 	// Teams nested under this organization
 	Teams []OrganizationTeamResource `yaml:"teams,omitempty" json:"teams,omitempty"`
+	// Users contains user-bound team memberships and role assignments.
+	Users []OrganizationUserResource `yaml:"users,omitempty" json:"users,omitempty"`
 }

@@ -707,6 +707,76 @@ func populateOrganizationTeamChildren(
 	}
 }
 
+func collectOrganizationUsersFromTeamMemberships(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	teams []declresources.OrganizationTeamResource,
+) []declresources.OrganizationUserResource {
+	usersByRef := make(map[string]*declresources.OrganizationUserResource)
+
+	for _, team := range teams {
+		memberships, err := client.ListOrganizationTeamUsers(ctx, team.Ref)
+		if err != nil {
+			logWarn(logger, "failed to load organization team users", team.Ref, team.Name, err)
+			continue
+		}
+
+		for _, membership := range memberships {
+			userRef := membership.UserEmail
+			if userRef == "" {
+				userRef = membership.UserID
+			}
+			if userRef == "" {
+				continue
+			}
+
+			user := usersByRef[userRef]
+			if user == nil {
+				user = &declresources.OrganizationUserResource{}
+				if membership.UserEmail != "" {
+					user.Email = membership.UserEmail
+				} else {
+					user.ID = membership.UserID
+				}
+				user.SetKonnectID(membership.UserID)
+				usersByRef[userRef] = user
+			}
+			user.Teams = append(user.Teams, team.Ref)
+		}
+	}
+
+	users := make([]declresources.OrganizationUserResource, 0, len(usersByRef))
+	for _, user := range usersByRef {
+		slices.Sort(user.Teams)
+		userID := user.GetKonnectID()
+		if userID != "" {
+			roles, err := client.ListOrganizationUserRoles(ctx, userID)
+			if err != nil {
+				logWarn(logger, "failed to load organization user roles", user.Ref(), userID, err)
+			}
+			for _, role := range roles {
+				user.Roles = append(user.Roles, declresources.OrganizationUserRoleResource{
+					Ref:            role.ID,
+					RoleName:       role.RoleName,
+					EntityID:       role.EntityID,
+					EntityTypeName: role.EntityTypeName,
+					EntityRegion:   role.EntityRegion,
+				})
+			}
+			slices.SortFunc(user.Roles, func(a, b declresources.OrganizationUserRoleResource) int {
+				return strings.Compare(a.Ref, b.Ref)
+			})
+		}
+		users = append(users, *user)
+	}
+	slices.SortFunc(users, func(a, b declresources.OrganizationUserResource) int {
+		return strings.Compare(a.Ref(), b.Ref())
+	})
+
+	return users
+}
+
 func buildPortalAuthSettings(
 	ctx context.Context,
 	client *declstate.Client,
