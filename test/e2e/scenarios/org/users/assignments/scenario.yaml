@@ -174,12 +174,12 @@ steps:
           - -c
           - >-
             {{ .bin }} get org users -o json
-            --jq '.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'")'
+            --jq '{"matches": ([.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'")] | length)}'
         assertions:
           - select: "@"
             expect:
               fields:
-                email: '{{ env "KONGCTL_E2E_ORG_USER_EMAIL_1" }}'
+                matches: 1
 
       - name: 004-get-user-roles-by-email
         exec:
