@@ -24,6 +24,7 @@ const (
 	ViewParentListener                      = "listener"
 	ViewParentListenerPolicy                = "listener-policy"
 	ViewParentOrganization                  = "organization"
+	ViewParentOrganizationUser              = "organization-user"
 	ViewParentPortal                        = "portal"
 	ViewParentPortalApplication             = "portal-application"
 	ViewParentPortalApplicationRegistration = "portal-application-registration"
@@ -79,6 +80,8 @@ const (
 	ViewFieldTeams                 = "teams"
 	ViewFieldTLSTrustBundles       = "tls-trust-bundles"
 	ViewFieldUpstreams             = "upstreams"
+	ViewFieldUserRoles             = "roles"
+	ViewFieldUsers                 = "users"
 	ViewFieldVersions              = "versions"
 	ViewFieldVirtualClusters       = "virtual-clusters"
 )

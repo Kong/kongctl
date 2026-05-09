@@ -168,7 +168,53 @@ steps:
                 entity_type_name: APIs
                 entity_region: "*"
 
-      - name: 003-dump-team-with-users
+      - name: 003-get-users-with-jq
+        exec:
+          - sh
+          - -c
+          - >-
+            {{ .bin }} get org users -o json
+            --jq '.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'")'
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                email: '{{ env "KONGCTL_E2E_ORG_USER_EMAIL_1" }}'
+
+      - name: 004-get-user-roles-by-email
+        exec:
+          - sh
+          - -c
+          - >-
+            {{ .bin }} get org user roles
+            --user-email "$KONGCTL_E2E_ORG_USER_EMAIL_1"
+            -o json
+        assertions:
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+
+      - name: 005-get-user-roles-by-id
+        exec:
+          - sh
+          - -c
+          - >-
+            uid=$({{ .bin }} get org users -o json
+            --jq '.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'") | .id'
+            -r);
+            {{ .bin }} get org user roles --user-id "$uid" -o json
+        assertions:
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+
+      - name: 006-dump-team-with-users
         parseAs: yaml
         run:
           - dump
