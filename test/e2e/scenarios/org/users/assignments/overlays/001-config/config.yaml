@@ -26,24 +26,30 @@ organization:
           entity_type_name: APIs
           entity_region: "*"
   users:
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+    - ref: e2e-user-1
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
       teams:
-        - org-user-assignments-team
+        - ref: e2e-user-1-org-user-assignments-team
+          team: org-user-assignments-team
       roles:
         - ref: org-user-assignments-api-viewer
           role_name: Viewer
           entity_id: !ref org-user-assignments-api#id
           entity_type_name: APIs
           entity_region: us
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
+    - ref: e2e-user-2
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
       teams:
-        - org-user-assignments-team
+        - ref: e2e-user-2-org-user-assignments-team
+          team: org-user-assignments-team
       roles:
         - ref: org-user-assignments-global-viewer
           role_name: Viewer
           entity_id: "*"
           entity_type_name: APIs
           entity_region: "*"
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_3
+    - ref: e2e-user-3
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_3
       teams:
-        - org-user-assignments-team
+        - ref: e2e-user-3-org-user-assignments-team
+          team: org-user-assignments-team

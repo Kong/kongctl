@@ -103,6 +103,7 @@ const (
 	FieldSlugPath                     = "slug_path"
 	FieldTeamID                       = "team_id"
 	FieldUserID                       = "user_id"
+	FieldSystemAccountID              = "system_account_id"
 )
 
 // Common portal plan field identifiers.
@@ -202,22 +203,25 @@ const (
 	ResourceTypePortalAuditLogWebhook      = string(resources.ResourceTypePortalAuditLogWebhook)
 	ResourceTypeAuditLogWebhookDestination = string(resources.ResourceTypeAuditLogWebhookDestination)
 
-	ResourceTypeEventGatewayControlPlane         = string(resources.ResourceTypeEventGatewayControlPlane)
-	ResourceTypeEventGatewayBackendCluster       = string(resources.ResourceTypeEventGatewayBackendCluster)
-	ResourceTypeEventGatewayVirtualCluster       = string(resources.ResourceTypeEventGatewayVirtualCluster)
-	ResourceTypeEventGatewayListener             = string(resources.ResourceTypeEventGatewayListener)
-	ResourceTypeEventGatewayListenerPolicy       = string(resources.ResourceTypeEventGatewayListenerPolicy)
-	ResourceTypeEventGatewayDataPlaneCertificate = string(resources.ResourceTypeEventGatewayDataPlaneCertificate)
-	ResourceTypeEventGatewayClusterPolicy        = string(resources.ResourceTypeEventGatewayClusterPolicy)
-	ResourceTypeEventGatewayProducePolicy        = string(resources.ResourceTypeEventGatewayProducePolicy)
-	ResourceTypeEventGatewayConsumePolicy        = string(resources.ResourceTypeEventGatewayConsumePolicy)
-	ResourceTypeEventGatewaySchemaRegistry       = string(resources.ResourceTypeEventGatewaySchemaRegistry)
-	ResourceTypeEventGatewayStaticKey            = string(resources.ResourceTypeEventGatewayStaticKey)
-	ResourceTypeEventGatewayTLSTrustBundle       = string(resources.ResourceTypeEventGatewayTLSTrustBundle)
-	ResourceTypeOrganizationTeam                 = string(resources.ResourceTypeOrganizationTeam)
-	ResourceTypeOrganizationTeamRole             = string(resources.ResourceTypeOrganizationTeamRole)
-	ResourceTypeOrganizationUserTeamMembership   = string(resources.ResourceTypeOrganizationUserTeamMembership)
-	ResourceTypeOrganizationUserRole             = string(resources.ResourceTypeOrganizationUserRole)
+	ResourceTypeEventGatewayControlPlane                = string(resources.ResourceTypeEventGatewayControlPlane)
+	ResourceTypeEventGatewayBackendCluster              = string(resources.ResourceTypeEventGatewayBackendCluster)
+	ResourceTypeEventGatewayVirtualCluster              = string(resources.ResourceTypeEventGatewayVirtualCluster)
+	ResourceTypeEventGatewayListener                    = string(resources.ResourceTypeEventGatewayListener)
+	ResourceTypeEventGatewayListenerPolicy              = string(resources.ResourceTypeEventGatewayListenerPolicy)
+	ResourceTypeEventGatewayDataPlaneCertificate        = string(resources.ResourceTypeEventGatewayDataPlaneCertificate)
+	ResourceTypeEventGatewayClusterPolicy               = string(resources.ResourceTypeEventGatewayClusterPolicy)
+	ResourceTypeEventGatewayProducePolicy               = string(resources.ResourceTypeEventGatewayProducePolicy)
+	ResourceTypeEventGatewayConsumePolicy               = string(resources.ResourceTypeEventGatewayConsumePolicy)
+	ResourceTypeEventGatewaySchemaRegistry              = string(resources.ResourceTypeEventGatewaySchemaRegistry)
+	ResourceTypeEventGatewayStaticKey                   = string(resources.ResourceTypeEventGatewayStaticKey)
+	ResourceTypeEventGatewayTLSTrustBundle              = string(resources.ResourceTypeEventGatewayTLSTrustBundle)
+	ResourceTypeOrganizationTeam                        = string(resources.ResourceTypeOrganizationTeam)
+	ResourceTypeOrganizationTeamRole                    = string(resources.ResourceTypeOrganizationTeamRole)
+	ResourceTypeOrganizationUserTeamMembership          = string(resources.ResourceTypeOrganizationUserTeamMembership)
+	ResourceTypeOrganizationUserRole                    = string(resources.ResourceTypeOrganizationUserRole)
+	ResourceTypeOrganizationSystemAccountTeamMembership = string(
+		resources.ResourceTypeOrganizationSystemAccountTeamMembership)
+	ResourceTypeOrganizationSystemAccountRole = string(resources.ResourceTypeOrganizationSystemAccountRole)
 
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"

@@ -239,3 +239,27 @@ type OrganizationUserRole struct {
 	EntityRegion   string
 	UserID         string
 }
+
+// OrganizationSystemAccount represents a Konnect system account selector target.
+type OrganizationSystemAccount struct {
+	ID   string
+	Name string
+}
+
+// OrganizationSystemAccountTeamMembership represents a system account membership in an organization team.
+type OrganizationSystemAccountTeamMembership struct {
+	SystemAccountID   string
+	SystemAccountName string
+	TeamID            string
+	TeamName          string
+}
+
+// OrganizationSystemAccountRole represents an assigned role for an organization system account.
+type OrganizationSystemAccountRole struct {
+	ID              string
+	RoleName        string
+	EntityID        string
+	EntityTypeName  string
+	EntityRegion    string
+	SystemAccountID string
+}

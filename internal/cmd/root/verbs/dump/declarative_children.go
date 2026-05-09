@@ -1,6 +1,7 @@
 package dump
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -733,7 +734,7 @@ func collectOrganizationUsersFromTeamMemberships(
 
 			user := usersByRef[userRef]
 			if user == nil {
-				user = &declresources.OrganizationUserResource{}
+				user = &declresources.OrganizationUserResource{Ref: buildChildRef("user", userRef)}
 				if membership.UserEmail != "" {
 					user.Email = membership.UserEmail
 				} else {
@@ -742,18 +743,23 @@ func collectOrganizationUsersFromTeamMemberships(
 				user.SetKonnectID(membership.UserID)
 				usersByRef[userRef] = user
 			}
-			user.Teams = append(user.Teams, team.Ref)
+			user.Teams = append(user.Teams, declresources.OrganizationUserTeamMembershipResource{
+				Ref:  buildChildRef("user-team", user.Ref, team.Ref),
+				Team: team.Ref,
+			})
 		}
 	}
 
 	users := make([]declresources.OrganizationUserResource, 0, len(usersByRef))
 	for _, user := range usersByRef {
-		slices.Sort(user.Teams)
+		slices.SortFunc(user.Teams, func(a, b declresources.OrganizationUserTeamMembershipResource) int {
+			return cmp.Compare(a.Ref, b.Ref)
+		})
 		userID := user.GetKonnectID()
 		if userID != "" {
 			roles, err := client.ListOrganizationUserRoles(ctx, userID)
 			if err != nil {
-				logWarn(logger, "failed to load organization user roles", user.Ref(), userID, err)
+				logWarn(logger, "failed to load organization user roles", user.Ref, userID, err)
 			}
 			for _, role := range roles {
 				user.Roles = append(user.Roles, declresources.OrganizationUserRoleResource{
@@ -771,7 +777,7 @@ func collectOrganizationUsersFromTeamMemberships(
 		users = append(users, *user)
 	}
 	slices.SortFunc(users, func(a, b declresources.OrganizationUserResource) int {
-		return strings.Compare(a.Ref(), b.Ref())
+		return strings.Compare(a.Ref, b.Ref)
 	})
 
 	return users

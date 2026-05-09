@@ -823,6 +823,9 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		if err := p.resolveOrganizationUserIdentities(ctx, rs.Organization.Users); err != nil {
 			return fmt.Errorf("failed to resolve organization user identities: %w", err)
 		}
+		if err := p.resolveOrganizationSystemAccountIdentities(ctx, rs.Organization.SystemAccounts); err != nil {
+			return fmt.Errorf("failed to resolve organization system account identities: %w", err)
+		}
 	}
 
 	// Resolve Auth Strategy identities
@@ -1899,7 +1902,7 @@ func (p *Planner) resolveOrganizationUserIdentities(
 		if user.ID != "" {
 			konnectUser, err := p.client.GetOrganizationUser(ctx, user.ID)
 			if err != nil {
-				return fmt.Errorf("failed to get organization user %s by ID: %w", user.Ref(), err)
+				return fmt.Errorf("failed to get organization user %s by ID: %w", user.Ref, err)
 			}
 			if konnectUser == nil || konnectUser.ID == "" {
 				return fmt.Errorf("organization user not found with ID: %s", user.ID)
@@ -1913,6 +1916,68 @@ func (p *Planner) resolveOrganizationUserIdentities(
 			return fmt.Errorf("organization user not found with email: %s", user.Email)
 		}
 		user.SetKonnectID(konnectUser.ID)
+	}
+
+	return nil
+}
+
+func (p *Planner) resolveOrganizationSystemAccountIdentities(
+	ctx context.Context,
+	systemAccounts []resources.OrganizationSystemAccountResource,
+) error {
+	if len(systemAccounts) == 0 {
+		return nil
+	}
+
+	nameIndex := map[string][]state.OrganizationSystemAccount{}
+	needsNameIndex := false
+	for _, systemAccount := range systemAccounts {
+		if systemAccount.Name != "" {
+			needsNameIndex = true
+			break
+		}
+	}
+	if needsNameIndex {
+		allSystemAccounts, err := p.client.ListOrganizationSystemAccounts(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list organization system accounts: %w", err)
+		}
+		for _, systemAccount := range allSystemAccounts {
+			if systemAccount.Name != "" {
+				nameIndex[systemAccount.Name] = append(nameIndex[systemAccount.Name], systemAccount)
+			}
+		}
+	}
+
+	for i := range systemAccounts {
+		systemAccount := &systemAccounts[i]
+		if systemAccount.GetKonnectID() != "" {
+			continue
+		}
+
+		if systemAccount.ID != "" {
+			konnectSystemAccount, err := p.client.GetOrganizationSystemAccount(ctx, systemAccount.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get organization system account %s by ID: %w", systemAccount.Ref, err)
+			}
+			if konnectSystemAccount == nil || konnectSystemAccount.ID == "" {
+				return fmt.Errorf("organization system account not found with ID: %s", systemAccount.ID)
+			}
+			systemAccount.SetKonnectID(konnectSystemAccount.ID)
+			continue
+		}
+
+		matches := nameIndex[systemAccount.Name]
+		if len(matches) == 0 {
+			return fmt.Errorf("organization system account not found with name: %s", systemAccount.Name)
+		}
+		if len(matches) > 1 {
+			return fmt.Errorf("organization system account name %q matched multiple system accounts", systemAccount.Name)
+		}
+		if matches[0].ID == "" {
+			return fmt.Errorf("organization system account %q has no ID", systemAccount.Name)
+		}
+		systemAccount.SetKonnectID(matches[0].ID)
 	}
 
 	return nil
@@ -2051,6 +2116,10 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	if rs.Organization != nil {
 		for _, user := range rs.Organization.Users {
 			ns := resources.GetNamespace(user.Kongctl)
+			namespaceSet[ns] = true
+		}
+		for _, systemAccount := range rs.Organization.SystemAccounts {
+			ns := resources.GetNamespace(systemAccount.Kongctl)
 			namespaceSet[ns] = true
 		}
 	}

@@ -42,8 +42,8 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, user := range t.organizationUsersByNamespace(namespace) {
-			if _, ok := membershipsByUser[user.Ref()]; !ok {
-				membershipsByUser[user.Ref()] = []resources.OrganizationUserTeamMembershipResource{}
+			if _, ok := membershipsByUser[user.Ref]; !ok {
+				membershipsByUser[user.Ref] = []resources.OrganizationUserTeamMembershipResource{}
 			}
 		}
 	}
@@ -100,6 +100,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 				namespace,
 				userRef,
 				user.GetKonnectID(),
+				membership.Ref,
 				membership.Team,
 				teamID,
 				teamName,
@@ -135,8 +136,8 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserRoleChanges(
 	}
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, user := range t.organizationUsersByNamespace(namespace) {
-			if _, ok := rolesByUser[user.Ref()]; !ok {
-				rolesByUser[user.Ref()] = []resources.OrganizationUserRoleResource{}
+			if _, ok := rolesByUser[user.Ref]; !ok {
+				rolesByUser[user.Ref] = []resources.OrganizationUserRoleResource{}
 			}
 		}
 	}
@@ -199,6 +200,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipCreate(
 	namespace string,
 	userRef string,
 	userID string,
+	membershipRef string,
 	teamRef string,
 	teamID string,
 	teamName string,
@@ -210,9 +212,9 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipCreate(
 	}
 
 	change := PlannedChange{
-		ID:           t.planner.nextChangeID(ActionCreate, ResourceTypeOrganizationUserTeamMembership, userRef+"|"+teamRef),
+		ID:           t.planner.nextChangeID(ActionCreate, ResourceTypeOrganizationUserTeamMembership, membershipRef),
 		ResourceType: ResourceTypeOrganizationUserTeamMembership,
-		ResourceRef:  userRef + "|" + teamRef,
+		ResourceRef:  membershipRef,
 		Action:       ActionCreate,
 		Fields: map[string]any{
 			FieldUserID: userID,
@@ -356,7 +358,7 @@ func (t *OrganizationTeamPlannerImpl) organizationUserByRef(userRef string) *res
 		return nil
 	}
 	for i := range t.planner.resources.Organization.Users {
-		if t.planner.resources.Organization.Users[i].Ref() == userRef {
+		if t.planner.resources.Organization.Users[i].Ref == userRef {
 			return &t.planner.resources.Organization.Users[i]
 		}
 	}

@@ -52,7 +52,12 @@ type Executor struct {
 		state.OrganizationUserTeamMembership,
 		state.OrganizationUserTeamMembership,
 	]
-	organizationUserRoleExecutor             *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
+	organizationUserRoleExecutor                    *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
+	organizationSystemAccountTeamMembershipExecutor *BaseExecutor[
+		state.OrganizationSystemAccountTeamMembership,
+		state.OrganizationSystemAccountTeamMembership,
+	]
+	organizationSystemAccountRoleExecutor    *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
 	controlPlaneDataPlaneCertificateExecutor *BaseCreateDeleteExecutor[kkComps.DataPlaneClientCertificateRequest]
 
 	// Event Gateway child resource executors
@@ -208,6 +213,17 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 	e.organizationUserRoleExecutor = NewBaseExecutor[kkComps.AssignRole, kkComps.AssignRole](
 		NewOrganizationUserRoleAdapter(client),
+		client,
+		dryRun,
+	)
+	e.organizationSystemAccountTeamMembershipExecutor = NewBaseExecutor[
+		state.OrganizationSystemAccountTeamMembership, state.OrganizationSystemAccountTeamMembership](
+		NewOrganizationSystemAccountTeamMembershipAdapter(client),
+		client,
+		dryRun,
+	)
+	e.organizationSystemAccountRoleExecutor = NewBaseExecutor[kkComps.AssignRole, kkComps.AssignRole](
+		NewOrganizationSystemAccountRoleAdapter(client),
 		client,
 		dryRun,
 	)
@@ -2138,6 +2154,26 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldEntityID] = entityRef
 		}
 		return e.organizationUserRoleExecutor.Create(ctx, *change)
+	case planner.ResourceTypeOrganizationSystemAccountTeamMembership:
+		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
+			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve organization team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References[planner.FieldTeamID] = teamRef
+		}
+		return e.organizationSystemAccountTeamMembershipExecutor.Create(ctx, *change)
+	case planner.ResourceTypeOrganizationSystemAccountRole:
+		if entityRef, ok := change.References[planner.FieldEntityID]; ok && unresolvedReferenceID(entityRef.ID) {
+			apiID, err := e.resolveAPIRef(ctx, entityRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
+			}
+			entityRef.ID = apiID
+			change.References[planner.FieldEntityID] = entityRef
+		}
+		return e.organizationSystemAccountRoleExecutor.Create(ctx, *change)
 
 	case planner.ResourceTypeEventGatewayListener:
 		// Resolve event gateway reference if needed
@@ -2937,6 +2973,10 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		return e.organizationUserTeamMembershipExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeOrganizationUserRole:
 		return e.organizationUserRoleExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeOrganizationSystemAccountTeamMembership:
+		return e.organizationSystemAccountTeamMembershipExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeOrganizationSystemAccountRole:
+		return e.organizationSystemAccountRoleExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}

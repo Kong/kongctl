@@ -75,10 +75,13 @@ type ClientConfig struct {
 	EventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Identity resources
-	OrganizationTeamAPI       helpers.OrganizationTeamAPI
-	OrganizationTeamRolesAPI  helpers.OrganizationTeamRolesAPI
-	OrganizationUsersAPI      helpers.OrganizationUsersAPI
-	OrganizationMembershipAPI helpers.OrganizationTeamMembershipAPI
+	OrganizationTeamAPI        helpers.OrganizationTeamAPI
+	OrganizationTeamRolesAPI   helpers.OrganizationTeamRolesAPI
+	OrganizationUsersAPI       helpers.OrganizationUsersAPI
+	OrganizationMembershipAPI  helpers.OrganizationTeamMembershipAPI
+	SystemAccountAPI           helpers.SystemAccountAPI
+	SystemAccountRolesAPI      helpers.SystemAccountRolesAPI
+	SystemAccountMembershipAPI helpers.SystemAccountTeamMembershipAPI
 }
 
 // Client wraps Konnect SDK for state management
@@ -133,10 +136,13 @@ type Client struct {
 	eventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Organization resource APIs
-	organizationTeamAPI       helpers.OrganizationTeamAPI
-	organizationTeamRolesAPI  helpers.OrganizationTeamRolesAPI
-	organizationUsersAPI      helpers.OrganizationUsersAPI
-	organizationMembershipAPI helpers.OrganizationTeamMembershipAPI
+	organizationTeamAPI        helpers.OrganizationTeamAPI
+	organizationTeamRolesAPI   helpers.OrganizationTeamRolesAPI
+	organizationUsersAPI       helpers.OrganizationUsersAPI
+	organizationMembershipAPI  helpers.OrganizationTeamMembershipAPI
+	systemAccountAPI           helpers.SystemAccountAPI
+	systemAccountRolesAPI      helpers.SystemAccountRolesAPI
+	systemAccountMembershipAPI helpers.SystemAccountTeamMembershipAPI
 }
 
 // NewClient creates a new state client with the provided configuration
@@ -190,10 +196,13 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayTLSTrustBundleAPI:       config.EventGatewayTLSTrustBundleAPI,
 
 		// Identity resource APIs
-		organizationTeamAPI:       config.OrganizationTeamAPI,
-		organizationTeamRolesAPI:  config.OrganizationTeamRolesAPI,
-		organizationUsersAPI:      config.OrganizationUsersAPI,
-		organizationMembershipAPI: config.OrganizationMembershipAPI,
+		organizationTeamAPI:        config.OrganizationTeamAPI,
+		organizationTeamRolesAPI:   config.OrganizationTeamRolesAPI,
+		organizationUsersAPI:       config.OrganizationUsersAPI,
+		organizationMembershipAPI:  config.OrganizationMembershipAPI,
+		systemAccountAPI:           config.SystemAccountAPI,
+		systemAccountRolesAPI:      config.SystemAccountRolesAPI,
+		systemAccountMembershipAPI: config.SystemAccountMembershipAPI,
 	}
 }
 
@@ -4579,6 +4588,230 @@ func (c *Client) RemoveOrganizationUserRole(ctx context.Context, userID string, 
 	if err != nil {
 		return WrapAPIError(err, "remove organization user role", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeOrganizationUserRole),
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// GetOrganizationSystemAccount returns a system account by ID.
+func (c *Client) GetOrganizationSystemAccount(
+	ctx context.Context,
+	accountID string,
+) (*OrganizationSystemAccount, error) {
+	if err := ValidateAPIClient(c.systemAccountAPI, "system account API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.systemAccountAPI.GetSystemAccount(ctx, accountID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get organization system account", &ErrorWrapperOptions{
+			ResourceType: "organization_system_account",
+			ResourceName: accountID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.SystemAccount == nil || resp.SystemAccount.ID == nil {
+		return nil, nil
+	}
+	return &OrganizationSystemAccount{
+		ID:   getString(resp.SystemAccount.ID),
+		Name: getString(resp.SystemAccount.Name),
+	}, nil
+}
+
+// ListOrganizationSystemAccounts returns all organization system accounts.
+func (c *Client) ListOrganizationSystemAccounts(ctx context.Context) ([]OrganizationSystemAccount, error) {
+	if err := ValidateAPIClient(c.systemAccountAPI, "system account API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var accounts []OrganizationSystemAccount
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.systemAccountAPI.ListSystemAccounts(ctx, kkOps.GetSystemAccountsRequest{
+			PageSize:   ptrInt64(pageSize),
+			PageNumber: ptrInt64(pageNumber),
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization system accounts", &ErrorWrapperOptions{
+				ResourceType: "organization_system_account",
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.SystemAccountCollection == nil {
+			return accounts, nil
+		}
+		for _, account := range resp.SystemAccountCollection.Data {
+			accounts = append(accounts, OrganizationSystemAccount{
+				ID:   getString(account.ID),
+				Name: getString(account.Name),
+			})
+		}
+		total := resp.SystemAccountCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return accounts, nil
+		}
+	}
+	return nil, fmt.Errorf("organization system accounts pagination exceeded safety limit")
+}
+
+// ListOrganizationSystemAccountTeams returns all teams for a system account.
+func (c *Client) ListOrganizationSystemAccountTeams(
+	ctx context.Context,
+	accountID string,
+) ([]OrganizationSystemAccountTeamMembership, error) {
+	if err := ValidateAPIClient(c.systemAccountMembershipAPI, "system account team membership API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var memberships []OrganizationSystemAccountTeamMembership
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.systemAccountMembershipAPI.ListSystemAccountTeams(
+			ctx,
+			kkOps.GetSystemAccountsAccountIDTeamsRequest{
+				AccountID:  accountID,
+				PageSize:   ptrInt64(pageSize),
+				PageNumber: ptrInt64(pageNumber),
+			},
+		)
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization system account teams", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypeOrganizationSystemAccountTeamMembership),
+				ResourceName: accountID,
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.TeamCollection == nil {
+			return memberships, nil
+		}
+		for _, team := range resp.TeamCollection.Data {
+			memberships = append(memberships, OrganizationSystemAccountTeamMembership{
+				SystemAccountID: accountID,
+				TeamID:          getString(team.ID),
+				TeamName:        getString(team.Name),
+			})
+		}
+		total := resp.TeamCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return memberships, nil
+		}
+	}
+	return nil, fmt.Errorf("organization system account teams pagination exceeded safety limit")
+}
+
+// AddOrganizationSystemAccountToTeam adds a system account to an organization team.
+func (c *Client) AddOrganizationSystemAccountToTeam(ctx context.Context, accountID string, teamID string) error {
+	if err := ValidateAPIClient(c.systemAccountMembershipAPI, "system account team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.systemAccountMembershipAPI.AddSystemAccountToTeam(
+		ctx,
+		teamID,
+		&kkComps.AddSystemAccountToTeam{AccountID: &accountID},
+	)
+	if err != nil {
+		return WrapAPIError(err, "add organization system account to team", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountTeamMembership),
+			ResourceName: accountID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// RemoveOrganizationSystemAccountFromTeam removes a system account from an organization team.
+func (c *Client) RemoveOrganizationSystemAccountFromTeam(ctx context.Context, accountID string, teamID string) error {
+	if err := ValidateAPIClient(c.systemAccountMembershipAPI, "system account team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.systemAccountMembershipAPI.RemoveSystemAccountFromTeam(ctx, teamID, accountID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization system account from team", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountTeamMembership),
+			ResourceName: accountID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// ListOrganizationSystemAccountRoles returns all assigned roles for an organization system account.
+func (c *Client) ListOrganizationSystemAccountRoles(
+	ctx context.Context,
+	accountID string,
+) ([]OrganizationSystemAccountRole, error) {
+	if err := ValidateAPIClient(c.systemAccountRolesAPI, "system account roles API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.systemAccountRolesAPI.ListSystemAccountRoles(ctx, accountID, nil)
+	if err != nil {
+		return nil, WrapAPIError(err, "list organization system account roles", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountRole),
+			ResourceName: accountID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.AssignedRoleCollection == nil {
+		return []OrganizationSystemAccountRole{}, nil
+	}
+	roles := make([]OrganizationSystemAccountRole, 0, len(resp.AssignedRoleCollection.Data))
+	for _, r := range resp.AssignedRoleCollection.Data {
+		role := OrganizationSystemAccountRole{
+			ID:              getString(r.ID),
+			RoleName:        getString(r.RoleName),
+			EntityID:        getString(r.EntityID),
+			EntityTypeName:  getString(r.EntityTypeName),
+			SystemAccountID: accountID,
+		}
+		if r.EntityRegion != nil {
+			role.EntityRegion = string(*r.EntityRegion)
+		}
+		roles = append(roles, role)
+	}
+	return roles, nil
+}
+
+// AssignOrganizationSystemAccountRole assigns a role to an organization system account.
+func (c *Client) AssignOrganizationSystemAccountRole(
+	ctx context.Context,
+	accountID string,
+	req kkComps.AssignRole,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.systemAccountRolesAPI, "system account roles API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.systemAccountRolesAPI.AssignSystemAccountRole(ctx, accountID, &req)
+	if err != nil {
+		return "", WrapAPIError(err, "assign organization system account role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountRole),
+			ResourceName: getRoleName(req.RoleName),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.AssignedRole == nil || resp.AssignedRole.ID == nil {
+		return "", fmt.Errorf("no response data from assign organization system account role")
+	}
+	return *resp.AssignedRole.ID, nil
+}
+
+// RemoveOrganizationSystemAccountRole removes an assigned role from an organization system account.
+func (c *Client) RemoveOrganizationSystemAccountRole(ctx context.Context, accountID string, roleID string) error {
+	if err := ValidateAPIClient(c.systemAccountRolesAPI, "system account roles API"); err != nil {
+		return err
+	}
+
+	_, err := c.systemAccountRolesAPI.RemoveSystemAccountRole(ctx, accountID, roleID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization system account role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountRole),
 			UseEnhanced:  true,
 		})
 	}

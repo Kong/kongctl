@@ -172,6 +172,9 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 	if err := t.planOrganizationUserAssignmentChanges(ctx, namespace, desired, currentByName, plan); err != nil {
 		return err
 	}
+	if err := t.planOrganizationSystemAccountAssignmentChanges(ctx, namespace, desired, currentByName, plan); err != nil {
+		return err
+	}
 
 	// Check for managed resources to delete (sync mode only)
 	if plan.Metadata.Mode == PlanModeSync {

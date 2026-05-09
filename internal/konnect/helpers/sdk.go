@@ -33,6 +33,8 @@ type SDKAPI interface {
 	GetGatewayServiceAPI() GatewayServiceAPI
 	GetDataPlaneCertificateAPI() DataPlaneCertificateAPI
 	GetSystemAccountAPI() SystemAccountAPI
+	GetSystemAccountRolesAPI() SystemAccountRolesAPI
+	GetSystemAccountTeamMembershipAPI() SystemAccountTeamMembershipAPI
 	GetOrganizationTeamAPI() OrganizationTeamAPI
 	GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI
 	GetOrganizationUsersAPI() OrganizationUsersAPI
@@ -425,6 +427,22 @@ func (k *KonnectSDK) GetSystemAccountAPI() SystemAccountAPI {
 	}
 
 	return &SystemAccountAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetSystemAccountRolesAPI() SystemAccountRolesAPI {
+	if k.SDK == nil || k.SDK.SystemAccountsRoles == nil {
+		return nil
+	}
+
+	return &SystemAccountRolesAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetSystemAccountTeamMembershipAPI() SystemAccountTeamMembershipAPI {
+	if k.SDK == nil || k.SDK.SystemAccountsTeamMembership == nil {
+		return nil
+	}
+
+	return &SystemAccountTeamMembershipAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the EventGatewayBackendCluster interface

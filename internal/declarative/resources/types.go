@@ -7,52 +7,56 @@ type ResourceType string
 
 // Resource type constants
 const (
-	ResourceTypePortal                           ResourceType = "portal"
-	ResourceTypeApplicationAuthStrategy          ResourceType = "application_auth_strategy"
-	ResourceTypeDCRProvider                      ResourceType = "dcr_provider"
-	ResourceTypeControlPlane                     ResourceType = "control_plane"
-	ResourceTypeControlPlaneGroup                ResourceType = "control_plane_group"
-	ResourceTypeAPI                              ResourceType = "api"
-	ResourceTypeAPIVersion                       ResourceType = "api_version"
-	ResourceTypeAPIPublication                   ResourceType = "api_publication"
-	ResourceTypeAPIImplementation                ResourceType = "api_implementation"
-	ResourceTypeAPIDocument                      ResourceType = "api_document"
-	ResourceTypeGatewayService                   ResourceType = "gateway_service"
-	ResourceTypeControlPlaneDataPlaneCertificate ResourceType = "control_plane_data_plane_certificate"
-	ResourceTypePortalCustomization              ResourceType = "portal_customization"
-	ResourceTypePortalCustomDomain               ResourceType = "portal_custom_domain"
-	ResourceTypePortalAuthSettings               ResourceType = "portal_auth_settings"
-	ResourceTypePortalIPAllowList                ResourceType = "portal_ip_allow_list"
-	ResourceTypePortalIntegration                ResourceType = "portal_integration"
-	ResourceTypePortalIdentityProvider           ResourceType = "portal_identity_provider"
-	ResourceTypePortalPage                       ResourceType = "portal_page"
-	ResourceTypePortalSnippet                    ResourceType = "portal_snippet"
-	ResourceTypePortalTeam                       ResourceType = "portal_team"
-	ResourceTypePortalTeamRole                   ResourceType = "portal_team_role"
-	ResourceTypePortalAssetLogo                  ResourceType = "portal_asset_logo"
-	ResourceTypePortalAssetFavicon               ResourceType = "portal_asset_favicon"
-	ResourceTypePortalEmailConfig                ResourceType = "portal_email_config"
-	ResourceTypePortalEmailTemplate              ResourceType = "portal_email_template"
-	ResourceTypePortalAuditLogWebhook            ResourceType = "portal_audit_log_webhook"
-	ResourceTypeAuditLogWebhookDestination       ResourceType = "audit_log_webhook_destination"
-	ResourceTypeCatalogService                   ResourceType = "catalog_service"
-	ResourceTypeEventGatewayControlPlane         ResourceType = "event_gateway"
-	ResourceTypeEventGatewayBackendCluster       ResourceType = "event_gateway_backend_cluster"
-	ResourceTypeEventGatewayVirtualCluster       ResourceType = "event_gateway_virtual_cluster"
-	ResourceTypeOrganizationTeam                 ResourceType = "organization_team"
-	ResourceTypeOrganizationTeamRole             ResourceType = "organization_team_role"
-	ResourceTypeOrganizationUserTeamMembership   ResourceType = "organization_user_team_membership"
-	ResourceTypeOrganizationUserRole             ResourceType = "organization_user_role"
-	ResourceTypeTeam                             ResourceType = "team"
-	ResourceTypeEventGatewayListener             ResourceType = "event_gateway_listener"
-	ResourceTypeEventGatewayListenerPolicy       ResourceType = "event_gateway_listener_policy"
-	ResourceTypeEventGatewayDataPlaneCertificate ResourceType = "event_gateway_data_plane_certificate"
-	ResourceTypeEventGatewayClusterPolicy        ResourceType = "event_gateway_virtual_cluster_cluster_policy"
-	ResourceTypeEventGatewayProducePolicy        ResourceType = "event_gateway_virtual_cluster_produce_policy"
-	ResourceTypeEventGatewayConsumePolicy        ResourceType = "event_gateway_virtual_cluster_consume_policy"
-	ResourceTypeEventGatewaySchemaRegistry       ResourceType = "event_gateway_schema_registry"
-	ResourceTypeEventGatewayStaticKey            ResourceType = "event_gateway_static_key"
-	ResourceTypeEventGatewayTLSTrustBundle       ResourceType = "event_gateway_tls_trust_bundle"
+	ResourceTypePortal                                  ResourceType = "portal"
+	ResourceTypeApplicationAuthStrategy                 ResourceType = "application_auth_strategy"
+	ResourceTypeDCRProvider                             ResourceType = "dcr_provider"
+	ResourceTypeControlPlane                            ResourceType = "control_plane"
+	ResourceTypeControlPlaneGroup                       ResourceType = "control_plane_group"
+	ResourceTypeAPI                                     ResourceType = "api"
+	ResourceTypeAPIVersion                              ResourceType = "api_version"
+	ResourceTypeAPIPublication                          ResourceType = "api_publication"
+	ResourceTypeAPIImplementation                       ResourceType = "api_implementation"
+	ResourceTypeAPIDocument                             ResourceType = "api_document"
+	ResourceTypeGatewayService                          ResourceType = "gateway_service"
+	ResourceTypeControlPlaneDataPlaneCertificate        ResourceType = "control_plane_data_plane_certificate"
+	ResourceTypePortalCustomization                     ResourceType = "portal_customization"
+	ResourceTypePortalCustomDomain                      ResourceType = "portal_custom_domain"
+	ResourceTypePortalAuthSettings                      ResourceType = "portal_auth_settings"
+	ResourceTypePortalIPAllowList                       ResourceType = "portal_ip_allow_list"
+	ResourceTypePortalIntegration                       ResourceType = "portal_integration"
+	ResourceTypePortalIdentityProvider                  ResourceType = "portal_identity_provider"
+	ResourceTypePortalPage                              ResourceType = "portal_page"
+	ResourceTypePortalSnippet                           ResourceType = "portal_snippet"
+	ResourceTypePortalTeam                              ResourceType = "portal_team"
+	ResourceTypePortalTeamRole                          ResourceType = "portal_team_role"
+	ResourceTypePortalAssetLogo                         ResourceType = "portal_asset_logo"
+	ResourceTypePortalAssetFavicon                      ResourceType = "portal_asset_favicon"
+	ResourceTypePortalEmailConfig                       ResourceType = "portal_email_config"
+	ResourceTypePortalEmailTemplate                     ResourceType = "portal_email_template"
+	ResourceTypePortalAuditLogWebhook                   ResourceType = "portal_audit_log_webhook"
+	ResourceTypeAuditLogWebhookDestination              ResourceType = "audit_log_webhook_destination"
+	ResourceTypeCatalogService                          ResourceType = "catalog_service"
+	ResourceTypeEventGatewayControlPlane                ResourceType = "event_gateway"
+	ResourceTypeEventGatewayBackendCluster              ResourceType = "event_gateway_backend_cluster"
+	ResourceTypeEventGatewayVirtualCluster              ResourceType = "event_gateway_virtual_cluster"
+	ResourceTypeOrganizationTeam                        ResourceType = "organization_team"
+	ResourceTypeOrganizationTeamRole                    ResourceType = "organization_team_role"
+	ResourceTypeOrganizationUser                        ResourceType = "organization_user"
+	ResourceTypeOrganizationUserTeamMembership          ResourceType = "organization_user_team_membership"
+	ResourceTypeOrganizationUserRole                    ResourceType = "organization_user_role"
+	ResourceTypeOrganizationSystemAccount               ResourceType = "organization_system_account"
+	ResourceTypeOrganizationSystemAccountTeamMembership ResourceType = "organization_system_account_team_membership"
+	ResourceTypeOrganizationSystemAccountRole           ResourceType = "organization_system_account_role"
+	ResourceTypeTeam                                    ResourceType = "team"
+	ResourceTypeEventGatewayListener                    ResourceType = "event_gateway_listener"
+	ResourceTypeEventGatewayListenerPolicy              ResourceType = "event_gateway_listener_policy"
+	ResourceTypeEventGatewayDataPlaneCertificate        ResourceType = "event_gateway_data_plane_certificate"
+	ResourceTypeEventGatewayClusterPolicy               ResourceType = "event_gateway_virtual_cluster_cluster_policy"
+	ResourceTypeEventGatewayProducePolicy               ResourceType = "event_gateway_virtual_cluster_produce_policy"
+	ResourceTypeEventGatewayConsumePolicy               ResourceType = "event_gateway_virtual_cluster_consume_policy"
+	ResourceTypeEventGatewaySchemaRegistry              ResourceType = "event_gateway_schema_registry"
+	ResourceTypeEventGatewayStaticKey                   ResourceType = "event_gateway_static_key"
+	ResourceTypeEventGatewayTLSTrustBundle              ResourceType = "event_gateway_tls_trust_bundle"
 )
 
 const (
@@ -108,19 +112,21 @@ type ResourceSet struct {
 	Organization *OrganizationResource `yaml:"organization,omitempty" json:"organization,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
-	OrganizationTeams                 []OrganizationTeamResource                 `yaml:"-" json:"-"`
-	OrganizationTeamRoles             []OrganizationTeamRoleResource             `yaml:"organization_team_roles,omitempty" json:"organization_team_roles,omitempty"` //nolint:lll
-	OrganizationUserTeamMemberships   []OrganizationUserTeamMembershipResource   `yaml:"-" json:"-"`
-	OrganizationUserRoles             []OrganizationUserRoleResource             `yaml:"-" json:"-"`
-	EventGatewayListeners             []EventGatewayListenerResource             `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                                               //nolint:lll
-	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`                               //nolint:lll
-	EventGatewayClusterPolicies       []EventGatewayClusterPolicyResource        `yaml:"event_gateway_virtual_cluster_cluster_policies,omitempty" json:"event_gateway_virtual_cluster_cluster_policies,omitempty"` //nolint:lll
-	EventGatewayProducePolicies       []EventGatewayProducePolicyResource        `yaml:"event_gateway_virtual_cluster_produce_policies,omitempty" json:"event_gateway_virtual_cluster_produce_policies,omitempty"` //nolint:lll
-	EventGatewayConsumePolicies       []EventGatewayConsumePolicyResource        `yaml:"event_gateway_virtual_cluster_consume_policies,omitempty" json:"event_gateway_virtual_cluster_consume_policies,omitempty"` //nolint:lll
-	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"`                   //nolint:lll
-	EventGatewaySchemaRegistries      []EventGatewaySchemaRegistryResource       `yaml:"event_gateway_schema_registries,omitempty"       json:"event_gateway_schema_registries,omitempty"`                         //nolint:lll
-	EventGatewayStaticKeys            []EventGatewayStaticKeyResource            `yaml:"event_gateway_static_keys,omitempty"              json:"event_gateway_static_keys,omitempty"`                              //nolint:lll
-	EventGatewayTLSTrustBundles       []EventGatewayTLSTrustBundleResource       `yaml:"event_gateway_tls_trust_bundles,omitempty"        json:"event_gateway_tls_trust_bundles,omitempty"`                        //nolint:lll
+	OrganizationTeams                        []OrganizationTeamResource                        `yaml:"-" json:"-"`
+	OrganizationTeamRoles                    []OrganizationTeamRoleResource                    `yaml:"organization_team_roles,omitempty" json:"organization_team_roles,omitempty"` //nolint:lll
+	OrganizationUserTeamMemberships          []OrganizationUserTeamMembershipResource          `yaml:"-" json:"-"`
+	OrganizationUserRoles                    []OrganizationUserRoleResource                    `yaml:"-" json:"-"`
+	OrganizationSystemAccountTeamMemberships []OrganizationSystemAccountTeamMembershipResource `yaml:"-" json:"-"`
+	OrganizationSystemAccountRoles           []OrganizationSystemAccountRoleResource           `yaml:"-" json:"-"`
+	EventGatewayListeners                    []EventGatewayListenerResource                    `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                                               //nolint:lll
+	EventGatewayListenerPolicies             []EventGatewayListenerPolicyResource              `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`                               //nolint:lll
+	EventGatewayClusterPolicies              []EventGatewayClusterPolicyResource               `yaml:"event_gateway_virtual_cluster_cluster_policies,omitempty" json:"event_gateway_virtual_cluster_cluster_policies,omitempty"` //nolint:lll
+	EventGatewayProducePolicies              []EventGatewayProducePolicyResource               `yaml:"event_gateway_virtual_cluster_produce_policies,omitempty" json:"event_gateway_virtual_cluster_produce_policies,omitempty"` //nolint:lll
+	EventGatewayConsumePolicies              []EventGatewayConsumePolicyResource               `yaml:"event_gateway_virtual_cluster_consume_policies,omitempty" json:"event_gateway_virtual_cluster_consume_policies,omitempty"` //nolint:lll
+	EventGatewayDataPlaneCertificates        []EventGatewayDataPlaneCertificateResource        `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"`                   //nolint:lll
+	EventGatewaySchemaRegistries             []EventGatewaySchemaRegistryResource              `yaml:"event_gateway_schema_registries,omitempty"       json:"event_gateway_schema_registries,omitempty"`                         //nolint:lll
+	EventGatewayStaticKeys                   []EventGatewayStaticKeyResource                   `yaml:"event_gateway_static_keys,omitempty"              json:"event_gateway_static_keys,omitempty"`                              //nolint:lll
+	EventGatewayTLSTrustBundles              []EventGatewayTLSTrustBundleResource              `yaml:"event_gateway_tls_trust_bundles,omitempty"        json:"event_gateway_tls_trust_bundles,omitempty"`                        //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                               json:"-"`
@@ -745,7 +751,7 @@ func (rs *ResourceSet) GetOrganizationUserTeamMembershipsByNamespace(
 ) []OrganizationUserTeamMembershipResource {
 	userByRef := make(map[string]OrganizationUserResource)
 	for _, user := range rs.organizationUsers() {
-		userByRef[user.Ref()] = user
+		userByRef[user.Ref] = user
 	}
 
 	var filtered []OrganizationUserTeamMembershipResource
@@ -761,7 +767,7 @@ func (rs *ResourceSet) GetOrganizationUserTeamMembershipsByNamespace(
 func (rs *ResourceSet) GetOrganizationUserRolesByNamespace(namespace string) []OrganizationUserRoleResource {
 	userByRef := make(map[string]OrganizationUserResource)
 	for _, user := range rs.organizationUsers() {
-		userByRef[user.Ref()] = user
+		userByRef[user.Ref] = user
 	}
 
 	var filtered []OrganizationUserRoleResource
@@ -773,11 +779,56 @@ func (rs *ResourceSet) GetOrganizationUserRolesByNamespace(namespace string) []O
 	return filtered
 }
 
+// GetOrganizationSystemAccountTeamMembershipsByNamespace returns all system account team memberships in a namespace.
+func (rs *ResourceSet) GetOrganizationSystemAccountTeamMembershipsByNamespace(
+	namespace string,
+) []OrganizationSystemAccountTeamMembershipResource {
+	systemAccountByRef := make(map[string]OrganizationSystemAccountResource)
+	for _, systemAccount := range rs.organizationSystemAccounts() {
+		systemAccountByRef[systemAccount.Ref] = systemAccount
+	}
+
+	var filtered []OrganizationSystemAccountTeamMembershipResource
+	for _, membership := range rs.OrganizationSystemAccountTeamMemberships {
+		if systemAccount, ok := systemAccountByRef[membership.SystemAccount]; ok &&
+			GetNamespace(systemAccount.Kongctl) == namespace {
+			filtered = append(filtered, membership)
+		}
+	}
+	return filtered
+}
+
+// GetOrganizationSystemAccountRolesByNamespace returns all system account role resources in a namespace.
+func (rs *ResourceSet) GetOrganizationSystemAccountRolesByNamespace(
+	namespace string,
+) []OrganizationSystemAccountRoleResource {
+	systemAccountByRef := make(map[string]OrganizationSystemAccountResource)
+	for _, systemAccount := range rs.organizationSystemAccounts() {
+		systemAccountByRef[systemAccount.Ref] = systemAccount
+	}
+
+	var filtered []OrganizationSystemAccountRoleResource
+	for _, role := range rs.OrganizationSystemAccountRoles {
+		if systemAccount, ok := systemAccountByRef[role.SystemAccount]; ok &&
+			GetNamespace(systemAccount.Kongctl) == namespace {
+			filtered = append(filtered, role)
+		}
+	}
+	return filtered
+}
+
 func (rs *ResourceSet) organizationUsers() []OrganizationUserResource {
 	if rs == nil || rs.Organization == nil {
 		return nil
 	}
 	return rs.Organization.Users
+}
+
+func (rs *ResourceSet) organizationSystemAccounts() []OrganizationSystemAccountResource {
+	if rs == nil || rs.Organization == nil {
+		return nil
+	}
+	return rs.Organization.SystemAccounts
 }
 
 // GetNamespace safely extracts namespace from kongctl metadata
