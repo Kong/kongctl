@@ -21,7 +21,7 @@ organization:
       teams:
         - platform-team
       roles:
-        - ref: alice-products-viewer
+        - ref: user1-products-viewer
           role_name: Viewer
           entity_id: !ref products-api#id
           entity_type_name: APIs
