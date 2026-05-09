@@ -75,8 +75,10 @@ type ClientConfig struct {
 	EventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Identity resources
-	OrganizationTeamAPI      helpers.OrganizationTeamAPI
-	OrganizationTeamRolesAPI helpers.OrganizationTeamRolesAPI
+	OrganizationTeamAPI       helpers.OrganizationTeamAPI
+	OrganizationTeamRolesAPI  helpers.OrganizationTeamRolesAPI
+	OrganizationUsersAPI      helpers.OrganizationUsersAPI
+	OrganizationMembershipAPI helpers.OrganizationTeamMembershipAPI
 }
 
 // Client wraps Konnect SDK for state management
@@ -131,8 +133,10 @@ type Client struct {
 	eventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Organization resource APIs
-	organizationTeamAPI      helpers.OrganizationTeamAPI
-	organizationTeamRolesAPI helpers.OrganizationTeamRolesAPI
+	organizationTeamAPI       helpers.OrganizationTeamAPI
+	organizationTeamRolesAPI  helpers.OrganizationTeamRolesAPI
+	organizationUsersAPI      helpers.OrganizationUsersAPI
+	organizationMembershipAPI helpers.OrganizationTeamMembershipAPI
 }
 
 // NewClient creates a new state client with the provided configuration
@@ -186,8 +190,10 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayTLSTrustBundleAPI:       config.EventGatewayTLSTrustBundleAPI,
 
 		// Identity resource APIs
-		organizationTeamAPI:      config.OrganizationTeamAPI,
-		organizationTeamRolesAPI: config.OrganizationTeamRolesAPI,
+		organizationTeamAPI:       config.OrganizationTeamAPI,
+		organizationTeamRolesAPI:  config.OrganizationTeamRolesAPI,
+		organizationUsersAPI:      config.OrganizationUsersAPI,
+		organizationMembershipAPI: config.OrganizationMembershipAPI,
 	}
 }
 
@@ -4326,6 +4332,259 @@ func (c *Client) RemoveOrganizationTeamRole(ctx context.Context, teamID string, 
 	return nil
 }
 
+// GetOrganizationUser returns a user by ID.
+func (c *Client) GetOrganizationUser(ctx context.Context, userID string) (*OrganizationUser, error) {
+	if err := ValidateAPIClient(c.organizationUsersAPI, "organization users API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.organizationUsersAPI.GetUser(ctx, userID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get organization user", &ErrorWrapperOptions{
+			ResourceType: "organization_user",
+			ResourceName: userID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.User == nil || resp.User.ID == nil {
+		return nil, nil
+	}
+	return &OrganizationUser{
+		ID:    getString(resp.User.ID),
+		Email: getString(resp.User.Email),
+	}, nil
+}
+
+// ListOrganizationUsers returns all organization users.
+func (c *Client) ListOrganizationUsers(ctx context.Context) ([]OrganizationUser, error) {
+	if err := ValidateAPIClient(c.organizationUsersAPI, "organization users API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var users []OrganizationUser
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.organizationUsersAPI.ListUsers(ctx, kkOps.ListUsersRequest{
+			PageSize:   ptrInt64(pageSize),
+			PageNumber: ptrInt64(pageNumber),
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization users", &ErrorWrapperOptions{
+				ResourceType: "organization_user",
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.UserCollection == nil {
+			return users, nil
+		}
+		for _, user := range resp.UserCollection.Data {
+			users = append(users, OrganizationUser{
+				ID:    getString(user.ID),
+				Email: getString(user.Email),
+			})
+		}
+		total := resp.UserCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return users, nil
+		}
+	}
+	return nil, fmt.Errorf("organization users pagination exceeded safety limit")
+}
+
+// ListOrganizationUserTeams returns all teams for a user.
+func (c *Client) ListOrganizationUserTeams(
+	ctx context.Context,
+	userID string,
+) ([]OrganizationUserTeamMembership, error) {
+	if err := ValidateAPIClient(c.organizationMembershipAPI, "organization team membership API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var memberships []OrganizationUserTeamMembership
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.organizationMembershipAPI.ListUserTeams(ctx, kkOps.ListUserTeamsRequest{
+			UserID:     userID,
+			PageSize:   ptrInt64(pageSize),
+			PageNumber: ptrInt64(pageNumber),
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization user teams", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypeOrganizationUserTeamMembership),
+				ResourceName: userID,
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.TeamCollection == nil {
+			return memberships, nil
+		}
+		for _, team := range resp.TeamCollection.Data {
+			memberships = append(memberships, OrganizationUserTeamMembership{
+				UserID:   userID,
+				TeamID:   getString(team.ID),
+				TeamName: getString(team.Name),
+			})
+		}
+		total := resp.TeamCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return memberships, nil
+		}
+	}
+	return nil, fmt.Errorf("organization user teams pagination exceeded safety limit")
+}
+
+// ListOrganizationTeamUsers returns all users for a team.
+func (c *Client) ListOrganizationTeamUsers(
+	ctx context.Context,
+	teamID string,
+) ([]OrganizationUserTeamMembership, error) {
+	if err := ValidateAPIClient(c.organizationMembershipAPI, "organization team membership API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var memberships []OrganizationUserTeamMembership
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.organizationMembershipAPI.ListTeamUsers(ctx, kkOps.ListTeamUsersRequest{
+			TeamID:     teamID,
+			PageSize:   ptrInt64(pageSize),
+			PageNumber: ptrInt64(pageNumber),
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization team users", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypeOrganizationUserTeamMembership),
+				ResourceName: teamID,
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.UserCollection == nil {
+			return memberships, nil
+		}
+		for _, user := range resp.UserCollection.Data {
+			memberships = append(memberships, OrganizationUserTeamMembership{
+				UserID:    getString(user.ID),
+				UserEmail: getString(user.Email),
+				TeamID:    teamID,
+			})
+		}
+		total := resp.UserCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return memberships, nil
+		}
+	}
+	return nil, fmt.Errorf("organization team users pagination exceeded safety limit")
+}
+
+// AddOrganizationUserToTeam adds a user to an organization team.
+func (c *Client) AddOrganizationUserToTeam(ctx context.Context, userID string, teamID string) error {
+	if err := ValidateAPIClient(c.organizationMembershipAPI, "organization team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.organizationMembershipAPI.AddUserToTeam(ctx, teamID, &kkComps.AddUserToTeam{UserID: userID})
+	if err != nil {
+		return WrapAPIError(err, "add organization user to team", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserTeamMembership),
+			ResourceName: userID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// RemoveOrganizationUserFromTeam removes a user from an organization team.
+func (c *Client) RemoveOrganizationUserFromTeam(ctx context.Context, userID string, teamID string) error {
+	if err := ValidateAPIClient(c.organizationMembershipAPI, "organization team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.organizationMembershipAPI.RemoveUserFromTeam(ctx, userID, teamID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization user from team", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserTeamMembership),
+			ResourceName: userID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// ListOrganizationUserRoles returns all assigned roles for an organization user.
+func (c *Client) ListOrganizationUserRoles(ctx context.Context, userID string) ([]OrganizationUserRole, error) {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.organizationTeamRolesAPI.ListUserRoles(ctx, userID, nil)
+	if err != nil {
+		return nil, WrapAPIError(err, "list organization user roles", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserRole),
+			ResourceName: userID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.AssignedRoleCollection == nil {
+		return []OrganizationUserRole{}, nil
+	}
+	roles := make([]OrganizationUserRole, 0, len(resp.AssignedRoleCollection.Data))
+	for _, r := range resp.AssignedRoleCollection.Data {
+		role := OrganizationUserRole{
+			ID:             getString(r.ID),
+			RoleName:       getString(r.RoleName),
+			EntityID:       getString(r.EntityID),
+			EntityTypeName: getString(r.EntityTypeName),
+			UserID:         userID,
+		}
+		if r.EntityRegion != nil {
+			role.EntityRegion = string(*r.EntityRegion)
+		}
+		roles = append(roles, role)
+	}
+	return roles, nil
+}
+
+// AssignOrganizationUserRole assigns a role to an organization user.
+func (c *Client) AssignOrganizationUserRole(
+	ctx context.Context,
+	userID string,
+	req kkComps.AssignRole,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.organizationTeamRolesAPI.UsersAssignRole(ctx, userID, &req)
+	if err != nil {
+		return "", WrapAPIError(err, "assign organization user role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserRole),
+			ResourceName: getRoleName(req.RoleName),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.AssignedRole == nil || resp.AssignedRole.ID == nil {
+		return "", fmt.Errorf("no response data from assign organization user role")
+	}
+	return *resp.AssignedRole.ID, nil
+}
+
+// RemoveOrganizationUserRole removes an assigned role from an organization user.
+func (c *Client) RemoveOrganizationUserRole(ctx context.Context, userID string, roleID string) error {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return err
+	}
+
+	_, err := c.organizationTeamRolesAPI.UsersRemoveRole(ctx, userID, roleID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization user role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserRole),
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
 func (c *Client) ListManagedEventGatewayControlPlanes(
 	ctx context.Context,
 	namespaces []string,
@@ -4864,6 +5123,10 @@ func getRoleName(value *kkComps.RoleName) string {
 		return ""
 	}
 	return string(*value)
+}
+
+func ptrInt64(value int64) *int64 {
+	return &value
 }
 
 // shouldIncludeNamespace checks if a resource's namespace should be included based on filter

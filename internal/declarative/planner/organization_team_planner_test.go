@@ -75,3 +75,41 @@ func TestOrganizationTeamRoleDeleteUsesUniqueCompositeRef(t *testing.T) {
 	require.Equal(t, "api-admins|Admin|api-1|APIs|us", plan.Changes[0].ResourceRef)
 	require.Equal(t, "api-admins|Admin|api-2|APIs|us", plan.Changes[1].ResourceRef)
 }
+
+func TestOrganizationUserAssignmentPlansCreateChanges(t *testing.T) {
+	planner := NewPlanner(nil, nil)
+	teamPlanner := NewOrganizationTeamPlanner(NewBasePlanner(planner)).(*OrganizationTeamPlannerImpl)
+	plan := NewPlan("1.0", "test", PlanModeApply)
+
+	teamPlanner.planOrganizationUserTeamMembershipCreate(
+		"default",
+		"alice@example.com",
+		"user-123",
+		"platform-team",
+		"team-123",
+		"Platform Engineering",
+		plan,
+	)
+	teamPlanner.planOrganizationUserRoleCreate(
+		"default",
+		"alice@example.com",
+		"user-123",
+		resources.OrganizationUserRoleResource{
+			Ref:            "alice-products-viewer",
+			User:           "alice@example.com",
+			RoleName:       "Viewer",
+			EntityID:       "__REF__:products-api#id",
+			EntityTypeName: "APIs",
+			EntityRegion:   "us",
+		},
+		plan,
+	)
+
+	require.Len(t, plan.Changes, 2)
+	require.Equal(t, ResourceTypeOrganizationUserTeamMembership, plan.Changes[0].ResourceType)
+	require.Equal(t, "user-123", plan.Changes[0].References[FieldUserID].ID)
+	require.Equal(t, "team-123", plan.Changes[0].References[FieldTeamID].ID)
+	require.Equal(t, ResourceTypeOrganizationUserRole, plan.Changes[1].ResourceType)
+	require.Equal(t, "alice-products-viewer", plan.Changes[1].ResourceRef)
+	require.Equal(t, "__REF__:products-api#id", plan.Changes[1].References[FieldEntityID].Ref)
+}

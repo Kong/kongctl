@@ -83,7 +83,7 @@ func redactEnv(kv string) string {
 	val := kv[i+1:]
 	upper := strings.ToUpper(key)
 	if strings.Contains(upper, "TOKEN") || strings.Contains(upper, "PAT") || strings.Contains(upper, "PASSWORD") ||
-		strings.Contains(upper, "SECRET") {
+		strings.Contains(upper, "SECRET") || strings.Contains(upper, "EMAIL") {
 		if len(val) > 0 {
 			return key + "=***"
 		}

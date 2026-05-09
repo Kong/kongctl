@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/log"
@@ -43,10 +44,15 @@ type Executor struct {
 		kkComps.CreateDcrProviderRequest,
 		kkComps.UpdateDcrProviderRequest,
 	]
-	catalogServiceExecutor                   *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
-	eventGatewayControlPlaneExecutor         *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
-	organizationTeamExecutor                 *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
-	organizationTeamRoleExecutor             *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
+	catalogServiceExecutor                 *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
+	eventGatewayControlPlaneExecutor       *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
+	organizationTeamExecutor               *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
+	organizationTeamRoleExecutor           *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
+	organizationUserTeamMembershipExecutor *BaseExecutor[
+		state.OrganizationUserTeamMembership,
+		state.OrganizationUserTeamMembership,
+	]
+	organizationUserRoleExecutor             *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
 	controlPlaneDataPlaneCertificateExecutor *BaseCreateDeleteExecutor[kkComps.DataPlaneClientCertificateRequest]
 
 	// Event Gateway child resource executors
@@ -191,6 +197,17 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 	e.organizationTeamRoleExecutor = NewBaseExecutor[kkComps.AssignRole, kkComps.AssignRole](
 		NewOrganizationTeamRoleAdapter(client),
+		client,
+		dryRun,
+	)
+	e.organizationUserTeamMembershipExecutor = NewBaseExecutor[
+		state.OrganizationUserTeamMembership, state.OrganizationUserTeamMembership](
+		NewOrganizationUserTeamMembershipAdapter(client),
+		client,
+		dryRun,
+	)
+	e.organizationUserRoleExecutor = NewBaseExecutor[kkComps.AssignRole, kkComps.AssignRole](
+		NewOrganizationUserRoleAdapter(client),
 		client,
 		dryRun,
 	)
@@ -829,7 +846,7 @@ func (e *Executor) resolveDCRProviderRef(ctx context.Context, refInfo planner.Re
 }
 
 func unresolvedReferenceID(id string) bool {
-	return id == "" || id == "[unknown]"
+	return id == "" || id == resources.UnknownReferenceID
 }
 
 func (e *Executor) syncResolvedRef(
@@ -2101,6 +2118,26 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldEntityID] = entityRef
 		}
 		return e.organizationTeamRoleExecutor.Create(ctx, *change)
+	case planner.ResourceTypeOrganizationUserTeamMembership:
+		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
+			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve organization team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References[planner.FieldTeamID] = teamRef
+		}
+		return e.organizationUserTeamMembershipExecutor.Create(ctx, *change)
+	case planner.ResourceTypeOrganizationUserRole:
+		if entityRef, ok := change.References[planner.FieldEntityID]; ok && unresolvedReferenceID(entityRef.ID) {
+			apiID, err := e.resolveAPIRef(ctx, entityRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
+			}
+			entityRef.ID = apiID
+			change.References[planner.FieldEntityID] = entityRef
+		}
+		return e.organizationUserRoleExecutor.Create(ctx, *change)
 
 	case planner.ResourceTypeEventGatewayListener:
 		// Resolve event gateway reference if needed
@@ -2896,6 +2933,10 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldTeamID] = teamRef
 		}
 		return e.organizationTeamRoleExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeOrganizationUserTeamMembership:
+		return e.organizationUserTeamMembershipExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeOrganizationUserRole:
+		return e.organizationUserRoleExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}

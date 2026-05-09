@@ -553,7 +553,7 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 			v := kv[i+1:]
 			ku := strings.ToUpper(k)
 			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
-				strings.Contains(ku, "SECRET") {
+				strings.Contains(ku, "SECRET") || strings.Contains(ku, "EMAIL") {
 				if v != "" {
 					v = "***"
 				}

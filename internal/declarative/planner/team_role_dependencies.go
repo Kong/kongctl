@@ -27,7 +27,9 @@ func adjustTeamRoleCreateDependencies(plan *Plan) {
 
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
-		if change.ResourceType != ResourceTypePortalTeamRole && change.ResourceType != ResourceTypeOrganizationTeamRole {
+		if change.ResourceType != ResourceTypePortalTeamRole &&
+			change.ResourceType != ResourceTypeOrganizationTeamRole &&
+			change.ResourceType != ResourceTypeOrganizationUserRole {
 			continue
 		}
 
@@ -64,7 +66,10 @@ func adjustTeamRoleDeleteDependencies(plan *Plan) {
 		if change.Action != ActionDelete {
 			continue
 		}
-		if change.ResourceType != ResourceTypeOrganizationTeamRole && change.ResourceType != ResourceTypePortalTeamRole {
+		if change.ResourceType != ResourceTypeOrganizationTeamRole &&
+			change.ResourceType != ResourceTypePortalTeamRole &&
+			change.ResourceType != ResourceTypeOrganizationUserRole &&
+			change.ResourceType != ResourceTypeOrganizationUserTeamMembership {
 			continue
 		}
 		roleDeletes = append(roleDeletes, change)
@@ -83,7 +88,8 @@ func adjustTeamRoleDeleteDependencies(plan *Plan) {
 		switch change.ResourceType {
 		case ResourceTypeOrganizationTeam, ResourceTypePortalTeam:
 			for _, roleDelete := range roleDeletes {
-				if teamRoleBelongsToTeam(roleDelete, change.ResourceID) {
+				if teamRoleBelongsToTeam(roleDelete, change.ResourceID) ||
+					userTeamMembershipBelongsToTeam(roleDelete, change.ResourceID) {
 					change.DependsOn = appendDependsOn(change.DependsOn, roleDelete.ID)
 				}
 			}
@@ -95,6 +101,14 @@ func adjustTeamRoleDeleteDependencies(plan *Plan) {
 			}
 		}
 	}
+}
+
+func userTeamMembershipBelongsToTeam(change *PlannedChange, teamID string) bool {
+	if change == nil || change.ResourceType != ResourceTypeOrganizationUserTeamMembership || teamID == "" {
+		return false
+	}
+	refInfo, ok := change.References[FieldTeamID]
+	return ok && refInfo.ID == teamID
 }
 
 func teamRoleBelongsToTeam(roleDelete *PlannedChange, teamID string) bool {

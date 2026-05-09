@@ -2321,7 +2321,9 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		EventGatewayStaticKeyAPI:            kkClient.GetEventGatewayStaticKeyAPI(),
 		EventGatewayTLSTrustBundleAPI:       kkClient.GetEventGatewayTLSTrustBundleAPI(),
 		// Organization APIs
-		OrganizationTeamAPI:      kkClient.GetOrganizationTeamAPI(),
-		OrganizationTeamRolesAPI: kkClient.GetOrganizationTeamRolesAPI(),
+		OrganizationTeamAPI:       kkClient.GetOrganizationTeamAPI(),
+		OrganizationTeamRolesAPI:  kkClient.GetOrganizationTeamRolesAPI(),
+		OrganizationUsersAPI:      kkClient.GetOrganizationUsersAPI(),
+		OrganizationMembershipAPI: kkClient.GetOrganizationTeamMembershipAPI(),
 	})
 }

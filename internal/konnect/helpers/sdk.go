@@ -35,6 +35,8 @@ type SDKAPI interface {
 	GetSystemAccountAPI() SystemAccountAPI
 	GetOrganizationTeamAPI() OrganizationTeamAPI
 	GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI
+	GetOrganizationUsersAPI() OrganizationUsersAPI
+	GetOrganizationTeamMembershipAPI() OrganizationTeamMembershipAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
 	GetPortalAuthSettingsAPI() PortalAuthSettingsAPI
@@ -335,6 +337,24 @@ func (k *KonnectSDK) GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI {
 	}
 
 	return &OrganizationTeamRolesAPIImpl{SDK: k.SDK}
+}
+
+// GetOrganizationUsersAPI returns the implementation of the OrganizationUsersAPI interface.
+func (k *KonnectSDK) GetOrganizationUsersAPI() OrganizationUsersAPI {
+	if k.SDK == nil || k.SDK.Users == nil {
+		return nil
+	}
+
+	return &OrganizationUsersAPIImpl{SDK: k.SDK}
+}
+
+// GetOrganizationTeamMembershipAPI returns the implementation of the OrganizationTeamMembershipAPI interface.
+func (k *KonnectSDK) GetOrganizationTeamMembershipAPI() OrganizationTeamMembershipAPI {
+	if k.SDK == nil || k.SDK.TeamMembership == nil {
+		return nil
+	}
+
+	return &OrganizationTeamMembershipAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the PortalTeamMembershipAPI interface

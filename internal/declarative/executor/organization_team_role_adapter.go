@@ -7,6 +7,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/log"
 )
@@ -23,6 +24,10 @@ func NewOrganizationTeamRoleAdapter(client *state.Client) *OrganizationTeamRoleA
 func (o *OrganizationTeamRoleAdapter) MapCreateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any, create *kkComps.AssignRole,
 ) error {
+	return mapAssignRoleFields(execCtx, fields, create)
+}
+
+func mapAssignRoleFields(execCtx *ExecutionContext, fields map[string]any, create *kkComps.AssignRole) error {
 	roleName, ok := fields[planner.FieldRoleName].(string)
 	if !ok || roleName == "" {
 		return fmt.Errorf("role_name is required")
@@ -33,7 +38,7 @@ func (o *OrganizationTeamRoleAdapter) MapCreateFields(
 	entityID := ""
 	if execCtx != nil && execCtx.PlannedChange != nil {
 		if refInfo, ok := execCtx.PlannedChange.References[planner.FieldEntityID]; ok && refInfo.ID != "" &&
-			refInfo.ID != "[unknown]" {
+			refInfo.ID != resources.UnknownReferenceID {
 			entityID = refInfo.ID
 		}
 	}

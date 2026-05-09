@@ -41,6 +41,8 @@ const (
 	ResourceTypeEventGatewayVirtualCluster       ResourceType = "event_gateway_virtual_cluster"
 	ResourceTypeOrganizationTeam                 ResourceType = "organization_team"
 	ResourceTypeOrganizationTeamRole             ResourceType = "organization_team_role"
+	ResourceTypeOrganizationUserTeamMembership   ResourceType = "organization_user_team_membership"
+	ResourceTypeOrganizationUserRole             ResourceType = "organization_user_role"
 	ResourceTypeTeam                             ResourceType = "team"
 	ResourceTypeEventGatewayListener             ResourceType = "event_gateway_listener"
 	ResourceTypeEventGatewayListenerPolicy       ResourceType = "event_gateway_listener_policy"
@@ -107,7 +109,9 @@ type ResourceSet struct {
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
 	OrganizationTeams                 []OrganizationTeamResource                 `yaml:"-" json:"-"`
-	OrganizationTeamRoles             []OrganizationTeamRoleResource             `yaml:"organization_team_roles,omitempty" json:"organization_team_roles,omitempty"`                                               //nolint:lll
+	OrganizationTeamRoles             []OrganizationTeamRoleResource             `yaml:"organization_team_roles,omitempty" json:"organization_team_roles,omitempty"` //nolint:lll
+	OrganizationUserTeamMemberships   []OrganizationUserTeamMembershipResource   `yaml:"-" json:"-"`
+	OrganizationUserRoles             []OrganizationUserRoleResource             `yaml:"-" json:"-"`
 	EventGatewayListeners             []EventGatewayListenerResource             `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                                               //nolint:lll
 	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`                               //nolint:lll
 	EventGatewayClusterPolicies       []EventGatewayClusterPolicyResource        `yaml:"event_gateway_virtual_cluster_cluster_policies,omitempty" json:"event_gateway_virtual_cluster_cluster_policies,omitempty"` //nolint:lll
@@ -733,6 +737,47 @@ func (rs *ResourceSet) GetOrganizationTeamRolesByNamespace(namespace string) []O
 		}
 	}
 	return filtered
+}
+
+// GetOrganizationUserTeamMembershipsByNamespace returns all user team membership resources in a namespace.
+func (rs *ResourceSet) GetOrganizationUserTeamMembershipsByNamespace(
+	namespace string,
+) []OrganizationUserTeamMembershipResource {
+	userByRef := make(map[string]OrganizationUserResource)
+	for _, user := range rs.organizationUsers() {
+		userByRef[user.Ref()] = user
+	}
+
+	var filtered []OrganizationUserTeamMembershipResource
+	for _, membership := range rs.OrganizationUserTeamMemberships {
+		if user, ok := userByRef[membership.User]; ok && GetNamespace(user.Kongctl) == namespace {
+			filtered = append(filtered, membership)
+		}
+	}
+	return filtered
+}
+
+// GetOrganizationUserRolesByNamespace returns all user role resources in a namespace.
+func (rs *ResourceSet) GetOrganizationUserRolesByNamespace(namespace string) []OrganizationUserRoleResource {
+	userByRef := make(map[string]OrganizationUserResource)
+	for _, user := range rs.organizationUsers() {
+		userByRef[user.Ref()] = user
+	}
+
+	var filtered []OrganizationUserRoleResource
+	for _, role := range rs.OrganizationUserRoles {
+		if user, ok := userByRef[role.User]; ok && GetNamespace(user.Kongctl) == namespace {
+			filtered = append(filtered, role)
+		}
+	}
+	return filtered
+}
+
+func (rs *ResourceSet) organizationUsers() []OrganizationUserResource {
+	if rs == nil || rs.Organization == nil {
+		return nil
+	}
+	return rs.Organization.Users
 }
 
 // GetNamespace safely extracts namespace from kongctl metadata

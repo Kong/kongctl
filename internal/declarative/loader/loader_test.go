@@ -270,6 +270,85 @@ organization_team_roles:
 	}, rolesByRef)
 }
 
+func TestLoader_FlattensOrganizationUserAssignments(t *testing.T) {
+	content := `
+apis:
+  - ref: products-api
+    name: Products API
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+  users:
+    - email: alice@example.com
+      teams:
+        - platform-team
+      roles:
+        - ref: alice-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.OrganizationTeams, 1)
+	require.Len(t, rs.OrganizationUserTeamMemberships, 1)
+	require.Len(t, rs.OrganizationUserRoles, 1)
+	assert.Equal(t, "alice@example.com", rs.OrganizationUserTeamMemberships[0].User)
+	assert.Equal(t, "platform-team", rs.OrganizationUserTeamMemberships[0].Team)
+	assert.Equal(t, "alice@example.com", rs.OrganizationUserRoles[0].User)
+	assert.Equal(t, "__REF__:products-api#id", rs.OrganizationUserRoles[0].EntityID)
+	require.NotNil(t, rs.Organization)
+	require.Len(t, rs.Organization.Users, 1)
+	assert.Empty(t, rs.Organization.Users[0].Teams)
+	assert.Empty(t, rs.Organization.Users[0].Roles)
+}
+
+func TestLoader_LoadFilePreservesOrganizationUsers(t *testing.T) {
+	content := `
+_defaults:
+  kongctl:
+    namespace: org-users-test
+apis:
+  - ref: products-api
+    name: Products API
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+  users:
+    - email: alice@example.com
+      teams:
+        - platform-team
+      roles:
+        - ref: alice-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+`
+
+	dir := t.TempDir()
+	file := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+	loader := New()
+	rs, err := loader.LoadFile(file)
+	require.NoError(t, err)
+
+	require.NotNil(t, rs.Organization)
+	require.Len(t, rs.Organization.Users, 1)
+	require.NotNil(t, rs.Organization.Users[0].Kongctl)
+	require.NotNil(t, rs.Organization.Users[0].Kongctl.Namespace)
+	assert.Equal(t, "org-users-test", *rs.Organization.Users[0].Kongctl.Namespace)
+	require.Len(t, rs.GetOrganizationUserTeamMembershipsByNamespace("org-users-test"), 1)
+	require.Len(t, rs.GetOrganizationUserRolesByNamespace("org-users-test"), 1)
+}
+
 func TestLoader_RejectsSingularPortalIntegrationKey(t *testing.T) {
 	content := `
 portals:

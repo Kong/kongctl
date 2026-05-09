@@ -102,6 +102,7 @@ const (
 	FieldService                      = "service"
 	FieldSlugPath                     = "slug_path"
 	FieldTeamID                       = "team_id"
+	FieldUserID                       = "user_id"
 )
 
 // Common portal plan field identifiers.
@@ -215,6 +216,8 @@ const (
 	ResourceTypeEventGatewayTLSTrustBundle       = string(resources.ResourceTypeEventGatewayTLSTrustBundle)
 	ResourceTypeOrganizationTeam                 = string(resources.ResourceTypeOrganizationTeam)
 	ResourceTypeOrganizationTeamRole             = string(resources.ResourceTypeOrganizationTeamRole)
+	ResourceTypeOrganizationUserTeamMembership   = string(resources.ResourceTypeOrganizationUserTeamMembership)
+	ResourceTypeOrganizationUserRole             = string(resources.ResourceTypeOrganizationUserRole)
 
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"
