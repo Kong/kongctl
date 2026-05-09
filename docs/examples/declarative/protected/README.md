@@ -53,8 +53,9 @@ And run the sync command again:
 kongctl sync -f protected.yaml
 ```
 
-Typically the `sync` command will look for resources that exist (in the current namespace) and plan to delete them. 
-With protection on, you should receive an error indicating that the resource is protected and cannot be deleted:
+When an API collection is in sync scope, removing an API from that collection
+plans a delete for the managed API. With protection on, you should receive an
+error indicating that the resource is protected and cannot be deleted:
 
 ```text
 Error: failed to generate plan: failed to plan API changes for namespace default: Cannot generate plan due to protected resources:

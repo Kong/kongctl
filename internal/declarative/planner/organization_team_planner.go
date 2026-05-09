@@ -138,8 +138,14 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 			}
 
 			// Validate protection change
-			err := t.ValidateProtectionWithChange(ResourceTypeOrganizationTeam, desiredTeam.Name, currentProtected, ActionUpdate,
-				protectionChange, needsUpdate)
+			err := t.ValidateProtectionWithChange(
+				ResourceTypeOrganizationTeam,
+				desiredTeam.Name,
+				currentProtected,
+				ActionUpdate,
+				protectionChange,
+				needsUpdate,
+			)
 			protectionErrors.Add(err)
 			if err == nil {
 				t.planOrganizationTeamProtectionChangeWithFields(
@@ -169,15 +175,18 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 	if err := t.planOrganizationTeamRoleChanges(ctx, namespace, desired, currentByName, plan); err != nil {
 		return err
 	}
-	if err := t.planOrganizationUserAssignmentChanges(ctx, namespace, desired, currentByName, plan); err != nil {
-		return err
+	if t.planner.shouldPlanOrganizationUsers(plan) {
+		if err := t.planOrganizationUserAssignmentChanges(ctx, namespace, desired, currentByName, plan); err != nil {
+			return err
+		}
 	}
 	if err := t.planOrganizationSystemAccountAssignmentChanges(ctx, namespace, desired, currentByName, plan); err != nil {
 		return err
 	}
 
 	// Check for managed resources to delete (sync mode only)
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync &&
+		t.planner.shouldPlanRoot(PlanModeSync, resources.ResourceTypeOrganizationTeam) {
 		// Build set of desired team names
 		desiredNames := make(map[string]bool)
 		for _, team := range desired {
@@ -276,7 +285,14 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 	teamByRef := make(map[string]resources.OrganizationTeamResource)
 	for _, team := range desiredTeams {
 		teamByRef[team.Ref] = team
-		if plan.Metadata.Mode == PlanModeSync && !team.IsExternal() {
+		if plan.Metadata.Mode == PlanModeSync &&
+			!team.IsExternal() &&
+			t.planner.shouldPlanChild(
+				plan,
+				resources.ResourceTypeOrganizationTeam,
+				team.Ref,
+				resources.ResourceTypeOrganizationTeamRole,
+			) {
 			if _, ok := rolesByTeam[team.Ref]; !ok {
 				rolesByTeam[team.Ref] = []resources.OrganizationTeamRoleResource{}
 			}
@@ -292,6 +308,14 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 
 	for teamRef, roles := range rolesByTeam {
 		if teamsDeleted[teamRef] {
+			continue
+		}
+		if !t.planner.shouldPlanChild(
+			plan,
+			resources.ResourceTypeOrganizationTeam,
+			teamRef,
+			resources.ResourceTypeOrganizationTeamRole,
+		) {
 			continue
 		}
 
@@ -328,7 +352,12 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 				return fmt.Errorf("failed to list organization team roles for team %s: %w", teamID, err)
 			}
 			for _, role := range currentRoles {
-				key := buildOrganizationTeamRoleKey(role.RoleName, role.EntityID, role.EntityTypeName, role.EntityRegion)
+				key := buildOrganizationTeamRoleKey(
+					role.RoleName,
+					role.EntityID,
+					role.EntityTypeName,
+					role.EntityRegion,
+				)
 				existingRoles[key] = role
 			}
 		}

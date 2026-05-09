@@ -125,6 +125,80 @@ resource, plan, or view contracts.
   declarative engine supports both, for example `api_version` and
   `api.versions`.
 
+### SYNC SCOPE (REQUIRED)
+
+`sync` uses explicit manifest scope. Do not treat omitted configuration as a
+delete signal.
+
+- Omitted root collections are ignored by sync.
+- Explicit empty root collections mean desired count zero. For example,
+  `foos: []` deletes managed foos in the selected namespace.
+- Child collections are scoped independently under each parent. A parent block
+  without a child key leaves that child collection alone.
+- Empty child collections must be nested under the parent. Root-level empty
+  child lists such as `foo_children: []` are rejected because they do not
+  identify which parent owns the desired zero count.
+- Singleton child sections cannot use `null` to mean reset/delete. Omit the key
+  to ignore the singleton, or provide an object to manage it. Add loader
+  validation to reject `<singleton>: null`.
+
+When adding a resource, update the sync-scope plumbing:
+
+- Add the root collection key to `rootCollectionScopes` in
+  `internal/declarative/loader/sync_scope.go`.
+- For root-level child declarations, add the canonical root key and parent ref
+  key to `rootChildCollectionScopes`.
+- For nested child declarations, add the nested child key to the relevant
+  nested scope list, such as `apiChildCollectionScopes`,
+  `portalChildCollectionScopes`, or the new parent-specific equivalent.
+- For nested singleton children, add null-key rejection in the loader before
+  planning. Null is not a supported reset/delete semantic.
+- If the resource has a new planner entry point, gate it in sync mode with
+  `shouldPlanRoot(...)`.
+- If a parent planner prunes child resources, gate each child planner with
+  `shouldPlanChild(...)`.
+- Update `docs/declarative.md`, `docs/declarative-resource-reference.md`, help
+  templates, examples, and e2e scenario fixtures so users can see the new
+  explicit empty-list behavior.
+
+Root planner gating pattern:
+
+```go
+if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeFoo) {
+    if err := namespacePlanner.fooPlanner.PlanChanges(
+        withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.fooPlanner), ""),
+        plannerCtx,
+        namespacePlan,
+    ); err != nil {
+        return nil, fmt.Errorf("failed to plan foo changes for namespace %s: %w", namespace, err)
+    }
+}
+```
+
+Child planner gating pattern:
+
+```go
+children := p.resources.GetFooChildrenForFoo(desiredFoo.Ref)
+if p.shouldPlanChild(
+    plan,
+    resources.ResourceTypeFoo,
+    desiredFoo.Ref,
+    resources.ResourceTypeFooChild,
+) && (len(children) > 0 || plan.Metadata.Mode == PlanModeSync) {
+    if err := p.planFooChildChanges(
+        ctx, plannerCtx, namespace, fooID, desiredFoo.Ref, children, plan,
+    ); err != nil {
+        return err
+    }
+}
+```
+
+Programmatic tests that construct `ResourceSet` directly cannot express
+"explicit empty list" through a nil/empty slice alone. Set `ResourceSet.SyncScope`
+in those tests when asserting sync-delete behavior for an empty collection.
+Loader tests should cover YAML key presence, omitted collections, nested empty
+child lists, root-level empty child rejection, and singleton `null` rejection.
+
 ### PARENT RESOURCE
 
 #### 1. RESOURCE DEFINITION
@@ -514,7 +588,9 @@ func (p *Planner) planFooChanges(
         }
     }
 
-    // 4. SYNC MODE: Delete unmanaged
+    // 4. SYNC MODE: Delete unmanaged.
+    // This block is safe only because GeneratePlan calls this planner when
+    // ResourceTypeFoo is in sync scope via shouldPlanRoot(...).
     if plan.Metadata.Mode == PlanModeSync {
         for name, current := range currentByName {
             if !desiredNames[name] {
@@ -674,9 +750,11 @@ func NewPlanner(client *state.Client, resourceSet *resources.ResourceSet) *Plann
 }
 
 func (p *Planner) GeneratePlan(...) {
-    // In namespace loop, add:
-    if err := p.fooPlannerImpl.PlanChanges(ctx, plannerCtx, plan); err != nil {
-        return nil, err
+    // In namespace loop, add root planning behind sync scope gating:
+    if p.shouldPlanRoot(opts.Mode, resources.ResourceTypeFoo) {
+        if err := p.fooPlannerImpl.PlanChanges(ctx, plannerCtx, plan); err != nil {
+            return nil, err
+        }
     }
 }
 ```
@@ -1107,8 +1185,11 @@ func (f *fooPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, pl
         return err
     }
 
-    // Plan root-level child resources
-    if err := f.planner.planFooChildrenChanges(ctx, plannerCtx, namespace, f.GetDesiredFooChildren(namespace), plan); err != nil {
+    // Plan root-level child resources. The child planner must check
+    // shouldPlanChild(...) before listing or pruning existing children in sync.
+    if err := f.planner.planFooChildrenChanges(
+        ctx, plannerCtx, namespace, f.GetDesiredFooChildren(namespace), plan,
+    ); err != nil {
         return err
     }
 
@@ -1184,7 +1265,9 @@ func (p *Planner) planFooChildChangesForExistingFoo(
         }
     }
 
-    // 4. SYNC MODE: Delete unmanaged
+    // 4. SYNC MODE: Delete unmanaged.
+    // The caller must reach this path only when shouldPlanChild(...) returned true
+    // for this parent ref and child resource type.
     if plan.Metadata.Mode == PlanModeSync {
         for slug, current := range currentBySlug {
             if !desiredSlugs[slug] {
@@ -1672,6 +1755,8 @@ application_auth_strategies:
 11. **Forgetting explain/scaffold hints for declarative-only fields or unions**
 12. **Skipping E2E coverage for new explain/scaffold-facing behavior**
 13. **Assuming imperative `get` commands are required for declarative support changes**
+14. **Forgetting sync-scope wiring, which can make omitted config destructive**
+15. **Allowing singleton child `null` values to imply unsupported reset/delete behavior**
 
 ---
 
@@ -1692,7 +1777,10 @@ After implementing new resource:
 - [ ] State client has CRUD methods
 - [ ] State client has ListManaged method with namespace filtering
 - [ ] Planner implementation with CREATE/UPDATE/DELETE logic
-- [ ] Planner added to GeneratePlan loop
+- [ ] Planner added to GeneratePlan loop and sync-gated with `shouldPlanRoot`
+- [ ] Sync scope loader tables updated for root, child, and nested child keys
+- [ ] Child pruning paths sync-gated with `shouldPlanChild`
+- [ ] Singleton child `null` values rejected when the key would otherwise look like managed scope
 - [ ] Executor adapter with MapCreateFields/MapUpdateFields
 - [ ] Executor adapter handles parent ID resolution (if child)
 - [ ] Executor change handler added to executeChange switch
@@ -1700,6 +1788,8 @@ After implementing new resource:
 - [ ] Literal audit completed for resource types, plan fields, references, and
       view identifiers
 - [ ] `docs/declarative-resource-reference.md` updated for new parent/child resources
+- [ ] `docs/declarative.md`, help templates, examples, and e2e fixtures updated
+      for sync omission, explicit empty-list, and nested child behavior
 
 ### Imperative Get Command
 - [ ] Add only if imperative support is in scope for the change

@@ -6,5 +6,4 @@ event_gateways:
   - ref: egw-cp-for-static-key-test-ref
     name: egw-cp-for-static-key-test-name
     description: "EGW CP for Static Key Test"
-
-event_gateway_static_keys: []
+    static_keys: []

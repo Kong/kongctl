@@ -2,7 +2,9 @@
 
 ## Overview
 
-The `kongctl sync` command performs full state synchronization between your declarative configuration and Kong Konnect. Unlike `apply`, sync will CREATE, UPDATE, and DELETE resources to ensure the target state exactly matches your configuration.
+The `kongctl sync` command reconciles explicitly scoped declarative resource
+collections with Kong Konnect. Unlike `apply`, sync can CREATE, UPDATE, and
+DELETE managed resources, but omitted collections are ignored.
 
 ⚠️ **WARNING**: Sync can delete resources. Always review changes before executing.
 
@@ -35,13 +37,31 @@ kongctl sync [flags]
 
 ## How Sync Works
 
-1. **Identifies managed resources** using `KONGCTL-managed` labels
-2. **Compares** desired state (your config) with current state
-3. **Plans operations**:
+1. **Identifies scope** from resource keys present in your YAML
+2. **Identifies managed resources** using `KONGCTL-managed` labels
+3. **Compares** desired state (your config) with current state
+4. **Plans operations**:
    - CREATE for new resources
    - UPDATE for changed resources
-   - DELETE for resources not in config
-4. **Executes** all operations in dependency order
+   - DELETE for managed resources missing from scoped collections
+5. **Executes** all operations in dependency order
+
+## Sync Scope
+
+Sync distinguishes between omitted collections and explicit empty collections:
+
+- Omitted collections are ignored. If a file contains only `portals`, sync does
+  not list or delete APIs, auth strategies, or DCR providers.
+- Explicit empty root lists mean desired count zero. `apis: []` deletes managed
+  APIs in the selected namespace.
+- Child collections are scoped under each parent. A portal without `pages` leaves
+  pages alone; `pages: []` under that portal deletes managed pages for that
+  portal.
+- Singleton child sections such as `customization` are ignored when omitted and
+  managed when an object is provided. `customization: null` is rejected because
+  reset/delete semantics are not inferred from null.
+- Empty child lists must be nested under a parent resource. Root-level
+  `api_documents: []` is rejected because it does not identify the API.
 
 ## Managed Resources
 
@@ -85,7 +105,7 @@ kongctl sync -f team-configs/
 ### Empty Configuration Sync
 
 ```bash
-# Delete all managed resources in namespace
+# Delete all managed APIs in namespace
 echo 'apis: []' | kongctl sync -f -
 
 # Safer: dry run first

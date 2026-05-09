@@ -31,6 +31,4 @@ event_gateways:
          - type: anonymous
         acl_mode: enforce_on_gateway
         dns_label: vc-default
-
-# event_gateway_virtual_cluster_produce_policies removed for sync delete test
-event_gateway_virtual_cluster_produce_policies: []
+        produce_policies: []

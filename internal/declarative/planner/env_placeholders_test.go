@@ -42,7 +42,7 @@ func TestGeneratePlan_PreservesDeferredEnvPlaceholders(t *testing.T) {
 					Page: kkComps.PageMeta{Total: 0},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 
 	description := "resolved secret"

@@ -6,3 +6,4 @@ event_gateways:
   - ref: egw-cp-for-bc-test
     name: egw-cp-for-bc-test
     description: "EGW CP for Backend Cluster Test"
+    backend_clusters: []

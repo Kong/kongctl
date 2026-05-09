@@ -1,0 +1,331 @@
+package planner
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/kong/kongctl/internal/declarative/resources"
+)
+
+func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
+	if scope == nil || !scope.HasAny() {
+		return nil
+	}
+
+	metadata := &PlanSyncScope{
+		RootResourceTypes:      make([]string, 0, len(scope.RootTypes())),
+		ChildResourceTypes:     make([]PlanSyncChildScope, 0, len(scope.ChildScopes())),
+		RootChildResourceTypes: make([]string, 0, len(scope.RootChildCollectionTypes())),
+		OrganizationUsers:      scope.OrganizationUsersScoped,
+	}
+	for _, rt := range scope.RootTypes() {
+		metadata.RootResourceTypes = append(metadata.RootResourceTypes, string(rt))
+	}
+	for _, child := range scope.ChildScopes() {
+		metadata.ChildResourceTypes = append(metadata.ChildResourceTypes, PlanSyncChildScope{
+			ParentType:   string(child.ParentType),
+			ParentRef:    child.ParentRef,
+			ResourceType: string(child.ResourceType),
+		})
+	}
+	for _, rt := range scope.RootChildCollectionTypes() {
+		metadata.RootChildResourceTypes = append(metadata.RootChildResourceTypes, string(rt))
+	}
+
+	return metadata
+}
+
+func ensurePlanningSyncScope(rs *resources.ResourceSet) {
+	if rs == nil || rs.SyncScope != nil || rs.IsEmpty() {
+		return
+	}
+
+	scope := rs.EnsureSyncScope()
+	addRootIfPresent(scope, resources.ResourceTypePortal, len(rs.Portals))
+	addRootIfPresent(scope, resources.ResourceTypeApplicationAuthStrategy, len(rs.ApplicationAuthStrategies))
+	addRootIfPresent(scope, resources.ResourceTypeDCRProvider, len(rs.DCRProviders))
+	addRootIfPresent(scope, resources.ResourceTypeControlPlane, len(rs.ControlPlanes))
+	addRootIfPresent(scope, resources.ResourceTypeCatalogService, len(rs.CatalogServices))
+	addRootIfPresent(scope, resources.ResourceTypeAPI, len(rs.APIs))
+	addRootIfPresent(scope, resources.ResourceTypeEventGatewayControlPlane, len(rs.EventGatewayControlPlanes))
+	addRootIfPresent(scope, resources.ResourceTypeOrganizationTeam, len(rs.OrganizationTeams))
+
+	for _, cert := range rs.ControlPlaneDataPlaneCertificates {
+		scope.AddChild(
+			resources.ResourceTypeControlPlane,
+			cert.ControlPlane,
+			resources.ResourceTypeControlPlaneDataPlaneCertificate,
+		)
+	}
+	for _, version := range rs.APIVersions {
+		scope.AddChild(resources.ResourceTypeAPI, version.API, resources.ResourceTypeAPIVersion)
+	}
+	for _, publication := range rs.APIPublications {
+		scope.AddChild(resources.ResourceTypeAPI, publication.API, resources.ResourceTypeAPIPublication)
+	}
+	for _, implementation := range rs.APIImplementations {
+		scope.AddChild(resources.ResourceTypeAPI, implementation.API, resources.ResourceTypeAPIImplementation)
+	}
+	for _, document := range rs.APIDocuments {
+		scope.AddChild(resources.ResourceTypeAPI, document.API, resources.ResourceTypeAPIDocument)
+	}
+
+	addPortalChildScopes(scope, rs)
+	addEventGatewayChildScopes(scope, rs)
+	addOrganizationChildScopes(scope, rs)
+}
+
+func addRootIfPresent(scope *resources.SyncScope, rt resources.ResourceType, count int) {
+	if count > 0 {
+		scope.AddRoot(rt)
+	}
+}
+
+func addPortalChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
+	for _, child := range rs.PortalCustomizations {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalCustomization)
+	}
+	for _, child := range rs.PortalAuthSettings {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAuthSettings)
+	}
+	for _, child := range rs.PortalIPAllowLists {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalIPAllowList)
+	}
+	for _, child := range rs.PortalIntegrations {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalIntegration)
+	}
+	for _, child := range rs.PortalIdentityProviders {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalIdentityProvider)
+	}
+	for _, child := range rs.PortalCustomDomains {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalCustomDomain)
+	}
+	for _, child := range rs.PortalPages {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalPage)
+	}
+	for _, child := range rs.PortalSnippets {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalSnippet)
+	}
+	for _, child := range rs.PortalTeams {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeam)
+	}
+	for _, child := range rs.PortalTeamRoles {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeamRole)
+	}
+	for _, child := range rs.PortalAssetLogos {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAssetLogo)
+	}
+	for _, child := range rs.PortalAssetFavicons {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAssetFavicon)
+	}
+	for _, child := range rs.PortalEmailConfigs {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalEmailConfig)
+	}
+	for _, child := range rs.PortalEmailTemplates {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalEmailTemplate)
+	}
+	for _, child := range rs.PortalAuditLogWebhooks {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAuditLogWebhook)
+	}
+}
+
+func addEventGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
+	for _, child := range rs.EventGatewayBackendClusters {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayControlPlane,
+			child.EventGateway,
+			resources.ResourceTypeEventGatewayBackendCluster,
+		)
+	}
+	for _, child := range rs.EventGatewayVirtualClusters {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayControlPlane,
+			child.EventGateway,
+			resources.ResourceTypeEventGatewayVirtualCluster,
+		)
+	}
+	for _, child := range rs.EventGatewayListeners {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayControlPlane,
+			child.EventGateway,
+			resources.ResourceTypeEventGatewayListener,
+		)
+	}
+	for _, child := range rs.EventGatewayDataPlaneCertificates {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayControlPlane,
+			child.EventGateway,
+			resources.ResourceTypeEventGatewayDataPlaneCertificate,
+		)
+	}
+	for _, child := range rs.EventGatewaySchemaRegistries {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayControlPlane,
+			child.EventGateway,
+			resources.ResourceTypeEventGatewaySchemaRegistry,
+		)
+	}
+	for _, child := range rs.EventGatewayStaticKeys {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayControlPlane,
+			child.EventGateway,
+			resources.ResourceTypeEventGatewayStaticKey,
+		)
+	}
+	for _, child := range rs.EventGatewayTLSTrustBundles {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayControlPlane,
+			child.EventGateway,
+			resources.ResourceTypeEventGatewayTLSTrustBundle,
+		)
+	}
+	for _, child := range rs.EventGatewayListenerPolicies {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayListener,
+			child.EventGatewayListener,
+			resources.ResourceTypeEventGatewayListenerPolicy,
+		)
+	}
+	for _, child := range rs.EventGatewayClusterPolicies {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayVirtualCluster,
+			child.VirtualCluster,
+			resources.ResourceTypeEventGatewayClusterPolicy,
+		)
+	}
+	for _, child := range rs.EventGatewayProducePolicies {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayVirtualCluster,
+			child.VirtualCluster,
+			resources.ResourceTypeEventGatewayProducePolicy,
+		)
+	}
+	for _, child := range rs.EventGatewayConsumePolicies {
+		scope.AddChild(
+			resources.ResourceTypeEventGatewayVirtualCluster,
+			child.VirtualCluster,
+			resources.ResourceTypeEventGatewayConsumePolicy,
+		)
+	}
+}
+
+func addOrganizationChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
+	for _, role := range rs.OrganizationTeamRoles {
+		scope.AddChild(resources.ResourceTypeOrganizationTeam, role.Team, resources.ResourceTypeOrganizationTeamRole)
+	}
+	if len(rs.OrganizationUserTeamMemberships) > 0 || len(rs.OrganizationUserRoles) > 0 {
+		scope.MarkOrganizationUsersScoped()
+	}
+}
+
+func validateSyncScope(scope *resources.SyncScope) error {
+	rootChildTypes := scope.RootChildCollectionTypes()
+	if len(rootChildTypes) == 0 {
+		return validateParentScopes(scope)
+	}
+
+	names := make([]string, 0, len(rootChildTypes))
+	for _, rt := range rootChildTypes {
+		names = append(names, string(rt))
+	}
+
+	return fmt.Errorf(
+		"sync requires empty child collections to be scoped under a parent resource; "+
+			"%s cannot be used at the root with an empty list. "+
+			"Move the empty collection under the parent resource, for example apis: [{ref: my-api, documents: []}]",
+		strings.Join(names, ", "),
+	)
+}
+
+func validateParentScopes(scope *resources.SyncScope) error {
+	if scope == nil {
+		return nil
+	}
+	for _, child := range scope.ChildScopes() {
+		if !syncRootParentType(child.ParentType) || scope.RootInScope(child.ParentType) {
+			continue
+		}
+		return fmt.Errorf(
+			"sync child collection %s for %s %q requires the parent collection to be present; "+
+				"add the parent resource collection or move the child collection under that parent",
+			child.ResourceType,
+			child.ParentType,
+			child.ParentRef,
+		)
+	}
+	return nil
+}
+
+func syncRootParentType(rt resources.ResourceType) bool {
+	// This switch intentionally handles only resource types that can own nested sync scope.
+	//nolint:exhaustive
+	switch rt {
+	case resources.ResourceTypeAPI,
+		resources.ResourceTypePortal,
+		resources.ResourceTypeControlPlane,
+		resources.ResourceTypeEventGatewayControlPlane,
+		resources.ResourceTypeOrganizationTeam:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *Planner) shouldPlanRoot(mode PlanMode, rt resources.ResourceType) bool {
+	if mode != PlanModeSync {
+		return true
+	}
+	if p == nil || p.resources == nil {
+		return false
+	}
+	ensurePlanningSyncScope(p.resources)
+	if p.resources.SyncScope == nil {
+		return false
+	}
+	return p.resources.SyncScope.RootInScope(rt)
+}
+
+func (p *Planner) shouldPlanChild(
+	plan *Plan,
+	parentType resources.ResourceType,
+	parentRef string,
+	rt resources.ResourceType,
+) bool {
+	if plan == nil || plan.Metadata.Mode != PlanModeSync {
+		return true
+	}
+	if p == nil || p.resources == nil {
+		return false
+	}
+	ensurePlanningSyncScope(p.resources)
+	if p.resources.SyncScope == nil {
+		return false
+	}
+	return p.resources.SyncScope.ChildInScope(parentType, parentRef, rt)
+}
+
+func (p *Planner) shouldPlanOrganization(plan *Plan) bool {
+	if plan == nil || plan.Metadata.Mode != PlanModeSync {
+		return true
+	}
+	if p == nil || p.resources == nil {
+		return false
+	}
+	ensurePlanningSyncScope(p.resources)
+	if p.resources.SyncScope == nil {
+		return false
+	}
+	scope := p.resources.SyncScope
+	return scope.RootInScope(resources.ResourceTypeOrganizationTeam) || scope.OrganizationUsersScoped
+}
+
+func (p *Planner) shouldPlanOrganizationUsers(plan *Plan) bool {
+	if plan == nil || plan.Metadata.Mode != PlanModeSync {
+		return true
+	}
+	if p == nil || p.resources == nil {
+		return false
+	}
+	ensurePlanningSyncScope(p.resources)
+	return p.resources.SyncScope != nil && p.resources.SyncScope.OrganizationUsersScoped
+}

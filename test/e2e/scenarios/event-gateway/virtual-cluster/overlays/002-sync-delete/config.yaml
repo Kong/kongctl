@@ -21,3 +21,4 @@ event_gateways:
           tls_versions:
             - tls12
             - tls13
+    virtual_clusters: []

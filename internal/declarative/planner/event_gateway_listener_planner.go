@@ -93,7 +93,12 @@ func (p *Planner) planListenerChangesForExistingGateway(
 
 			// Plan listener policies for this new listener (depends on listener creation)
 			listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
-			if len(listenerPolicies) > 0 {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayListener,
+				desiredListener.Ref,
+				resources.ResourceTypeEventGatewayListenerPolicy,
+			) && len(listenerPolicies) > 0 {
 				if err := p.planEventGatewayListenerPolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredListener.Name, "", desiredListener.Ref,
@@ -130,7 +135,12 @@ func (p *Planner) planListenerChangesForExistingGateway(
 
 			// Plan listener policies for this existing listener
 			listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
-			if len(listenerPolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayListener,
+				desiredListener.Ref,
+				resources.ResourceTypeEventGatewayListenerPolicy,
+			) && (len(listenerPolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
 				if err := p.planEventGatewayListenerPolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredListener.Name, current.ID, desiredListener.Ref,
@@ -186,7 +196,12 @@ func (p *Planner) planListenerCreatesForNewGateway(
 
 		// Plan listener policies for this new listener (depends on listener creation)
 		listenerPolicies := p.resources.GetPoliciesForListener(listener.Ref)
-		if len(listenerPolicies) > 0 {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayListener,
+			listener.Ref,
+			resources.ResourceTypeEventGatewayListenerPolicy,
+		) && len(listenerPolicies) > 0 {
 			p.planListenerPolicyCreatesForNewListener(
 				namespace, gatewayRef, listener.Ref, listener.Name,
 				listenerChangeID, listenerPolicies, plan,

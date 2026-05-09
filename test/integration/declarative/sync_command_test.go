@@ -20,12 +20,12 @@ import (
 )
 
 func TestSyncCommand_WithDeletes(t *testing.T) {
-	// Create a test configuration file that will cause deletions
+	// Create a test configuration file that will cause portal deletions
 	syncDir := t.TempDir()
 	syncConfigFile := filepath.Join(syncDir, "sync-config.yaml")
 
-	// Empty config will delete all managed resources
-	syncConfigContent := `# Empty configuration - will delete all managed resources
+	// Explicit empty root collections declare desired count zero for that resource type.
+	syncConfigContent := `portals: []
 `
 
 	err := os.WriteFile(syncConfigFile, []byte(syncConfigContent), 0o600)

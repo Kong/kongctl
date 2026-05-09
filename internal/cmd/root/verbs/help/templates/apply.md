@@ -293,7 +293,7 @@ Common validation issues:
 ## Related Commands
 
 - `kongctl plan` - Preview changes before applying
-- `kongctl sync` - Full state synchronization
+- `kongctl sync` - Scoped synchronization that can delete managed resources
 - `kongctl diff` - Show detailed differences
 
 ## See Also

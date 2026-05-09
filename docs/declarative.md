@@ -521,8 +521,8 @@ audit-logs:
 `audit-logs.destinations` supports `_external.id` and
 `_external.selector.matchFields.name`. Destination resources cannot declare
 `kongctl` metadata and are not created, updated, or deleted by declarative
-apply. In sync mode, omitting `audit_log_webhook` from a managed portal removes
-the portal webhook configuration; external portals are not deleted this way.
+apply. In sync mode, omitted portal webhook configuration is ignored unless an
+`audit_log_webhook` block is explicitly present for that portal.
 
 #### Namespace Enforcement Flags
 
@@ -752,8 +752,10 @@ command usage, flags and options.
 ### plan
 
 Create a plan - a JSON file containing the set of planned changes to a set of resources.
-Plans are generated with either `--mode apply` or `--mode sync` which determines
-whether resources missing from the input configuration are planned for deletion or not.
+Plans are generated with either `--mode apply` or `--mode sync`. Apply mode
+creates and updates configured resources only. Sync mode also deletes managed
+resources, but only for resource collections that are explicitly present in the
+input configuration.
 
 Generate an apply plan and output to STDOUT:
 
@@ -772,8 +774,7 @@ kongctl plan -f config.yaml --mode sync
 Applying a configuration will create or update resources to match the desired state
 and will **not delete** resources. Because `apply` does not delete resources, it can
 be used for incremental application of resource configurations. For example, you could
-apply a `portal` in one command and then later apply `apis` in a separate command. With
-the `sync` command, this process is not possible as missing resources will be deleted.
+apply a `portal` in one command and then later apply `apis` in a separate command.
 
 Apply directly from config:
 
@@ -795,8 +796,37 @@ kongctl apply -f config.yaml --dry-run
 
 ### sync
 
-`sync` applies a set of configurations including deleting resources
-missing from the input configuration data.
+`sync` applies a set of configurations including deleting managed resources that
+are missing from explicitly scoped collections.
+
+Sync scope is based on YAML key presence:
+
+- Omitted resource collections are ignored.
+- Explicit empty root lists mean the desired count is zero. For example,
+  `apis: []` deletes managed APIs in the selected namespace.
+- Parent and child collections are scoped separately. A portal block without
+  `pages` does not delete portal pages. Use `pages: []` under that portal to
+  declare that the portal should have no pages.
+- Singleton child sections such as `customization` use the same key-presence
+  rule. Omit the key to ignore the section, or provide an object to manage it.
+  `customization: null` is rejected because sync does not infer reset or delete
+  semantics from null.
+- Empty child collections must be nested under a parent resource. Root-level
+  `api_documents: []` is rejected because it does not identify which API owns
+  the desired zero count.
+
+For federated ownership, include the parent resource entry in the team
+configuration and scope only the child collection that team owns. If a resource
+type supports `_external` parents, the parent can be declared as external;
+otherwise use a namespace or ownership boundary where listing that parent
+collection is safe.
+
+```yaml
+apis:
+  - ref: orders-api
+    name: Orders API
+    documents: []
+```
 
 Preview sync changes:
 

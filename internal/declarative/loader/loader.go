@@ -275,6 +275,9 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	// Extract the clean ResourceSet
 	rs := temp.ResourceSet
 	placeholderRS := placeholderTemp.ResourceSet
+	if err := captureSyncScope(content, &rs); err != nil {
+		return nil, fmt.Errorf("failed to inspect sync scope in %s: %w", sourcePath, err)
+	}
 
 	// Apply file-level namespace and protected defaults
 	if err := l.applyNamespaceDefaults(&rs, temp.Defaults); err != nil {
@@ -476,6 +479,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	accumulated.AppendAll(source)
 	appendOrganizationUsers(accumulated, source)
 	appendOrganizationSystemAccounts(accumulated, source)
+	accumulated.MergeSyncScope(source)
 
 	// Update the running index with newly added refs
 	maps.Copy(refIndex, seenRefs)

@@ -9,4 +9,3 @@ control_planes:
     cluster_type: CLUSTER_TYPE_CONTROL_PLANE
     auth_type: pinned_client_certs
     data_plane_certificates: []
-control_plane_data_plane_certificates: []

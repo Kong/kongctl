@@ -142,6 +142,15 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	// Create base plan
 	basePlan := NewPlan("1.0", generator, opts.Mode)
+	p.resources = rs
+
+	if opts.Mode == PlanModeSync {
+		ensurePlanningSyncScope(rs)
+		basePlan.Metadata.SyncScope = syncScopeMetadata(rs.SyncScope)
+		if err := validateSyncScope(rs.SyncScope); err != nil {
+			return nil, err
+		}
+	}
 
 	// Pre-resolution phase: Resolve resource identities before planning
 	if err := p.resolveResourceIdentities(
@@ -258,78 +267,94 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// Create planner context with namespace
 		plannerCtx := NewConfig(actualNamespace)
 
-		if err := namespacePlanner.dcrProviderPlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dcrProviderPlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan DCR provider changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeDCRProvider) {
+			if err := namespacePlanner.dcrProviderPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dcrProviderPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan DCR provider changes for namespace %s: %w", namespace, err)
+			}
 		}
 
-		if err := namespacePlanner.authStrategyPlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.authStrategyPlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeApplicationAuthStrategy) {
+			if err := namespacePlanner.authStrategyPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.authStrategyPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
+			}
 		}
 
-		if err := namespacePlanner.controlPlanePlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.controlPlanePlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan control plane changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeControlPlane) {
+			if err := namespacePlanner.controlPlanePlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.controlPlanePlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan control plane changes for namespace %s: %w", namespace, err)
+			}
 		}
 
-		if err := namespacePlanner.portalPlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.portalPlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan portal changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypePortal) {
+			if err := namespacePlanner.portalPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.portalPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan portal changes for namespace %s: %w", namespace, err)
+			}
 		}
 
-		if err := namespacePlanner.catalogServicePlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.catalogServicePlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeCatalogService) {
+			if err := namespacePlanner.catalogServicePlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.catalogServicePlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
+			}
 		}
 
 		// Plan API changes (includes child resources)
-		if err := namespacePlanner.apiPlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.apiPlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeAPI) {
+			if err := namespacePlanner.apiPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.apiPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
+			}
 		}
 
-		if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(
-			withPlannerHTTPLogContext(
-				namespaceCtx,
-				opts,
-				plannerComponent(namespacePlanner.eventGatewayControlPlanePlanner),
-				"",
-			),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf(
-				"failed to plan Event Gateway Control Plane changes for namespace %s: %w",
-				namespace,
-				err,
-			)
+		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeEventGatewayControlPlane) {
+			if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(
+				withPlannerHTTPLogContext(
+					namespaceCtx,
+					opts,
+					plannerComponent(namespacePlanner.eventGatewayControlPlanePlanner),
+					"",
+				),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf(
+					"failed to plan Event Gateway Control Plane changes for namespace %s: %w",
+					namespace,
+					err,
+				)
+			}
 		}
 
-		if err := namespacePlanner.organizationTeamPlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.organizationTeamPlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan Team changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanOrganization(namespacePlan) {
+			if err := namespacePlanner.organizationTeamPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.organizationTeamPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan Team changes for namespace %s: %w", namespace, err)
+			}
 		}
 
 		if err := namespacePlanner.applyInheritedProtection(namespaceCtx, namespacePlan); err != nil {
