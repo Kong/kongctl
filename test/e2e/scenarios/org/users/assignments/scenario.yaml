@@ -173,7 +173,7 @@ steps:
           - sh
           - -c
           - >-
-            {{ .bin }} get org users -o json
+            {{ .bin }} get org users --profile e2e -o json
             --jq '{"matches": ([.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'")] | length)}'
         assertions:
           - select: "@"
@@ -186,7 +186,7 @@ steps:
           - sh
           - -c
           - >-
-            {{ .bin }} get org user roles
+            {{ .bin }} get org user roles --profile e2e
             --user-email "$KONGCTL_E2E_ORG_USER_EMAIL_1"
             -o json
         assertions:
@@ -202,10 +202,10 @@ steps:
           - sh
           - -c
           - >-
-            uid=$({{ .bin }} get org users -o json
+            uid=$({{ .bin }} get org users --profile e2e -o json
             --jq '.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'") | .id'
             -r);
-            {{ .bin }} get org user roles --user-id "$uid" -o json
+            {{ .bin }} get org user roles --profile e2e --user-id "$uid" -o json
         assertions:
           - select: "[?role_name=='Viewer'] | [0]"
             expect:
