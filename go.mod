@@ -120,12 +120,7 @@ require (
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/mod v0.34.0 // indirect
-<<<<<<< HEAD
 	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-=======
-	golang.org/x/net v0.52.0 // indirect
->>>>>>> 1b8230c7 (feat: implement the plan for parallel execution details from planner)
 	golang.org/x/tools v0.43.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
