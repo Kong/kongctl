@@ -293,6 +293,7 @@ var portalSingletonChildKeys = map[string]struct{}{
 	"integrations":      {},
 	"custom_domain":     {},
 	"email_config":      {},
+	"email_templates":   {},
 	"audit_log_webhook": {},
 }
 

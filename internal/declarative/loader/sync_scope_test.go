@@ -109,6 +109,11 @@ func TestCaptureSyncScopeRejectsNullPortalSingletonChildren(t *testing.T) {
 			want:      `child singleton "email_config" cannot be null`,
 		},
 		{
+			name:      "email templates",
+			childYAML: "    email_templates: null\n",
+			want:      `child singleton "email_templates" cannot be null`,
+		},
+		{
 			name:      "audit log webhook",
 			childYAML: "    audit_log_webhook: null\n",
 			want:      `child singleton "audit_log_webhook" cannot be null`,

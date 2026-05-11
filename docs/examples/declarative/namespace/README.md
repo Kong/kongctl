@@ -30,7 +30,7 @@ kongctl get apis -o json
 Because we are using `sync`, resources can be deleted. To remove all managed
 APIs in a namespace, pass an explicit empty API list with the namespace default:
 
-⚠️ Warning: This removes all resources in the namespace, so use with caution! ⚠️
+⚠️ Warning: This removes all managed APIs in the namespace. Use caution! ⚠️
 
 ```bash
 printf '_defaults: {kongctl: {namespace: team-beta}}\napis: []\n' | kongctl sync -f -

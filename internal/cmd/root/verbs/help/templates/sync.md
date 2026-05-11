@@ -57,9 +57,9 @@ Sync distinguishes between omitted collections and explicit empty collections:
 - Child collections are scoped under each parent. A portal without `pages` leaves
   pages alone; `pages: []` under that portal deletes managed pages for that
   portal.
-- Singleton child sections such as `customization` are ignored when omitted and
-  managed when an object is provided. `customization: null` is rejected because
-  reset/delete semantics are not inferred from null.
+- Singleton child sections such as `customization` are ignored when omitted
+  and managed when an object is provided. `customization: null` is rejected
+  because reset/delete semantics are not inferred from null.
 - Empty child lists must be nested under a parent resource. Root-level
   `api_documents: []` is rejected because it does not identify the API.
 
