@@ -1,0 +1,34 @@
+organization:
+  teams:
+    - ref: org-users-sync-team
+      name: Organization Users Sync Team
+      description: Team used by the organization users sync E2E scenario
+      labels:
+        scenario: org-users-sync
+      roles:
+        - ref: org-users-sync-team-api-viewer
+          role_name: Viewer
+          entity_id: !ref org-users-sync-api#id
+          entity_type_name: APIs
+          entity_region: us
+        - ref: org-users-sync-team-wildcard-admin
+          role_name: Admin
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: "*"
+  users:
+    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+      teams:
+        - org-users-sync-team
+      roles:
+        - ref: org-users-sync-user1-api-viewer
+          role_name: Viewer
+          entity_id: !ref org-users-sync-api#id
+          entity_type_name: APIs
+          entity_region: us
+        - ref: org-users-sync-user1-wildcard-admin
+          role_name: Admin
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: "*"
+    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
