@@ -1,0 +1,24 @@
+_defaults:
+  kongctl:
+    namespace: user-plan-sync
+
+apis:
+  - ref: user-plan-sync-api
+    name: user-plan-sync-api
+    description: API used by the user plan sync workflow E2E scenario
+
+organization:
+  teams:
+    - ref: user-plan-sync-team
+      name: User Plan Sync Team
+      description: Team used by the user plan sync workflow E2E scenario
+      labels:
+        scenario: user-plan-sync
+      kongctl:
+        namespace: user-plan-sync
+        protected: false
+  users:
+    - ref: user-plan-sync-user-1
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+    - ref: user-plan-sync-user-2
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
