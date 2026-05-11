@@ -1,4 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: org-users-sync-e2e
+
+apis:
+  - ref: org-users-sync-api
+    name: org-users-sync-api
+    description: API used by the organization users sync E2E scenario
+
 organization:
   users:
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
+    - ref: e2e-user-1
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+    - ref: e2e-user-2
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
