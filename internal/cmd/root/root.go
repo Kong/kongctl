@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/kong/kongctl/internal/build"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -44,6 +45,7 @@ import (
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/profile"
+	"github.com/kong/kongctl/internal/telemetry"
 	"github.com/kong/kongctl/internal/theme"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -95,6 +97,8 @@ var (
 	logger      *slog.Logger
 	logFilePath string
 	logFile     *os.File
+
+	telemetryRecorder *telemetry.Recorder
 )
 
 const mergedFlagsUsageTemplate = `Usage:{{if .Runnable}}
@@ -195,6 +199,18 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, build.InfoKey, buildInfo)
 			ctx = context.WithValue(ctx, log.LoggerKey, logger)
 			ctx = theme.ContextWithPalette(ctx, theme.Current())
+
+			if telemetryRecorder == nil {
+				telemetryRecorder = telemetry.NewRecorder(ctx, currConfig, buildInfo, streams, logger)
+				telemetryRecorder.Begin(time.Now())
+			}
+			telemetryRecorder.SetCommand(telemetry.CommandInfo{
+				Path:     cmd.CommandPath(),
+				Area:     telemetry.AreaFor(cmd.CommandPath()),
+				FlagsSet: telemetry.VisitedFlagNames(cmd),
+			})
+			ctx = telemetry.ContextWithRecorder(ctx, telemetryRecorder)
+
 			cmd.SetContext(ctx)
 			return nil
 		},
@@ -651,6 +667,10 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	}
 	if err == nil {
 		executedCmd, err = rootCmd.ExecuteContextC(ctx)
+	}
+	if telemetryRecorder != nil {
+		telemetryRecorder.Finalize(err, time.Now())
+		_ = telemetryRecorder.Close(ctx)
 	}
 	if err != nil {
 		// If there was an execution error, use the logger to write it out and exit
