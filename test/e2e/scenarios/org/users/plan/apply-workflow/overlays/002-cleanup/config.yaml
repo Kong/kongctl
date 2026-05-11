@@ -18,5 +18,7 @@ organization:
         namespace: user-plan-apply
         protected: false
   users:
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
+    - ref: user-plan-apply-user-1
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+    - ref: user-plan-apply-user-2
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
