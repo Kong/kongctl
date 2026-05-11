@@ -154,14 +154,12 @@ func (o *OrganizationTeamRoleAdapter) getTeamID(execCtx *ExecutionContext) (stri
 		return "", fmt.Errorf("execution context is required for organization team role operations")
 	}
 
-	change := *execCtx.PlannedChange
-	if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID != "" {
+	if teamRef, ok := execCtx.PlannedChange.References[planner.FieldTeamID]; ok && teamRef.ID != "" {
 		return teamRef.ID, nil
 	}
-	if change.Parent != nil && change.Parent.ID != "" {
-		return change.Parent.ID, nil
+	if execCtx.PlannedChange.Parent != nil && execCtx.PlannedChange.Parent.ID != "" {
+		return execCtx.PlannedChange.Parent.ID, nil
 	}
-
 	return "", fmt.Errorf("team ID is required for organization team role operations")
 }
 

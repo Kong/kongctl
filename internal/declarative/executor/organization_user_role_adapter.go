@@ -131,9 +131,9 @@ func (o *OrganizationUserRoleResourceInfo) GetName() string {
 }
 
 func (o *OrganizationUserRoleResourceInfo) GetLabels() map[string]string {
-	return map[string]string{}
+	return make(map[string]string)
 }
 
 func (o *OrganizationUserRoleResourceInfo) GetNormalizedLabels() map[string]string {
-	return map[string]string{}
+	return make(map[string]string)
 }
