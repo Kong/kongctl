@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -18,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"golang.org/x/sync/errgroup"
 )
 
 // Executor handles the execution of declarative configuration plans
@@ -27,10 +29,14 @@ type Executor struct {
 	dryRun   bool
 	// Track created resources during execution
 	createdResources map[string]string // changeID -> resourceID
+	cacheMu          sync.RWMutex
 	// Track resource refs to IDs for reference resolution
 	refToID map[string]map[string]string // resourceType -> ref -> resourceID
 	// Unified state cache
 	stateCache *state.Cache
+
+	mu          sync.Mutex
+	concurrency int
 
 	// Resource executors
 	portalExecutor       *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
@@ -118,6 +124,18 @@ type Executor struct {
 	planBaseDir        string
 }
 
+// DefaultMaxConcurrency is the default --max-concurrency value.
+// At ~200ms/request, 5 concurrent workers sustain ~1500 req/min, staying under
+// a 2000 req/min budget with comfortable headroom.
+const DefaultMaxConcurrency = 5
+
+// MaxConcurrency is the maximum allowed concurrent operations.
+// Assuming a 200ms response time and 6000 req/min rate limit, this runs out in 6s.
+const MaxConcurrency = 200
+
+// MinConcurrency is the minimum allowed concurrent operations.
+const MinConcurrency = 1
+
 // Options configures executor behavior.
 type Options struct {
 	DeckRunner         deck.Runner
@@ -126,6 +144,8 @@ type Options struct {
 	KonnectBaseURL     string
 	Mode               planner.PlanMode
 	PlanBaseDir        string
+	// MaxConcurrency sets the maximum number of concurrent operations. Defaults to DefaultMaxConcurrency.
+	MaxConcurrency int
 }
 
 // New creates a new Executor instance with default options.
@@ -152,6 +172,18 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		konnectBaseURL:     opts.KonnectBaseURL,
 		executionMode:      opts.Mode,
 		planBaseDir:        strings.TrimSpace(opts.PlanBaseDir),
+	}
+
+	e.concurrency = DefaultMaxConcurrency
+	// If user has overridden MaxConcurrency, use it. Ensure it's within allowed bounds.
+	if opts.MaxConcurrency > 0 {
+		if opts.MaxConcurrency > MaxConcurrency {
+			e.concurrency = MaxConcurrency
+		} else if opts.MaxConcurrency < MinConcurrency {
+			e.concurrency = MinConcurrency
+		} else {
+			e.concurrency = opts.MaxConcurrency
+		}
 	}
 
 	// Initialize resource executors
@@ -398,6 +430,43 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	return e
 }
 
+// getRef retrieves a resource ID from the refToID cache (thread-safe).
+func (e *Executor) getRef(resourceType, ref string) (string, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if m, ok := e.refToID[resourceType]; ok {
+		id, found := m[ref]
+		return id, found
+	}
+	return "", false
+}
+
+// getRefAny retrieves a resource ID from refToID, trying each ref in order (thread-safe).
+func (e *Executor) getRefAny(resourceType string, refs ...string) (string, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	m, ok := e.refToID[resourceType]
+	if !ok {
+		return "", false
+	}
+	for _, ref := range refs {
+		if id, found := m[ref]; found {
+			return id, true
+		}
+	}
+	return "", false
+}
+
+// setRef stores a resource ID in the refToID cache (thread-safe).
+func (e *Executor) setRef(resourceType, ref, id string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.refToID[resourceType] == nil {
+		e.refToID[resourceType] = make(map[string]string)
+	}
+	e.refToID[resourceType][ref] = id
+}
+
 // Execute runs the plan and returns the execution result
 func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionResult {
 	ctx = withExecutorHTTPLogContext(ctx, e.executionMode)
@@ -411,31 +480,39 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		e.reporter.StartExecution(plan)
 	}
 
-	// Execute changes in order
-	for i, changeID := range plan.ExecutionOrder {
-		// Find the change by ID
-		var change *planner.PlannedChange
-		for j := range plan.Changes {
-			if plan.Changes[j].ID == changeID {
-				change = &plan.Changes[j]
-				break
+	// Choose execution strategy.
+	// Planner is the source of truth for dependency ordering and concurrency groups.
+	// If groups are present, execute by groups; otherwise execute sequentially in
+	// the provided ExecutionOrder (legacy plans).
+	// Sequential execution is retained for backwards compatibility for existing plans.
+	if len(plan.ExecutionGroups) > 0 {
+		e.executeGroupsConcurrent(ctx, plan, result)
+	} else {
+		for _, changeID := range plan.ExecutionOrder {
+			// Find the change by ID
+			var change *planner.PlannedChange
+			for j := range plan.Changes {
+				if plan.Changes[j].ID == changeID {
+					change = &plan.Changes[j]
+					break
+				}
 			}
-		}
 
-		if change == nil {
-			// This shouldn't happen, but handle gracefully
-			err := fmt.Errorf("change with ID %s not found in plan", changeID)
-			result.Errors = append(result.Errors, ExecutionError{
-				ChangeID: changeID,
-				Error:    err.Error(),
-			})
-			result.FailureCount++
-			continue
-		}
+			if change == nil {
+				// This shouldn't happen, but handle gracefully
+				err := fmt.Errorf("change with ID %s not found in plan", changeID)
+				result.Errors = append(result.Errors, ExecutionError{
+					ChangeID: changeID,
+					Error:    err.Error(),
+				})
+				result.FailureCount++
+				continue
+			}
 
-		// Execute the change, the error will be captured in result
-		changeCtx := withExecutorChangeHTTPLogContext(ctx, change)
-		_ = e.executeChange(changeCtx, result, change, plan, i)
+			// Execute the change, the error will be captured in result
+			changeCtx := withExecutorChangeHTTPLogContext(ctx, change)
+			_ = e.executeChange(changeCtx, result, change, plan)
+		}
 	}
 
 	// Notify reporter of execution completion
@@ -444,6 +521,112 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	}
 
 	return result
+}
+
+// executeGroupsConcurrent executes plan.ExecutionGroups in strict order: all changes
+// in group N must complete before group N+1 starts. Within each group, changes run
+// concurrently up to e.concurrency. Changes whose direct dependencies failed or were
+// blocked are recorded as "blocked" and skipped rather than executed.
+func (e *Executor) executeGroupsConcurrent(
+	ctx context.Context,
+	plan *planner.Plan,
+	result *ExecutionResult,
+) {
+	changeByID := make(map[string]*planner.PlannedChange, len(plan.Changes))
+	for i := range plan.Changes {
+		changeByID[plan.Changes[i].ID] = &plan.Changes[i]
+	}
+
+	// blockedOrFailed tracks IDs of changes that failed or were blocked so that
+	// downstream changes in later groups can be identified and skipped.
+	blockedOrFailed := make(map[string]bool)
+
+	for _, group := range plan.ExecutionGroups {
+		var runnableIDs []string
+
+		// Classify each change in this group: blocked (dependency failed) or runnable.
+		for _, changeID := range group {
+			change := changeByID[changeID]
+			if change == nil {
+				e.mu.Lock()
+				result.Errors = append(result.Errors, ExecutionError{
+					ChangeID: changeID,
+					Error:    fmt.Sprintf("change with ID %s not found in plan", changeID),
+				})
+				result.FailureCount++
+				e.mu.Unlock()
+				blockedOrFailed[changeID] = true
+				continue
+			}
+			blockers := findBlockers(change, blockedOrFailed)
+			if len(blockers) > 0 {
+				blockedOrFailed[changeID] = true
+				e.mu.Lock()
+				result.SkippedCount++
+				e.mu.Unlock()
+				if e.reporter != nil {
+					e.reporter.SkipChange(*change,
+						fmt.Sprintf("blocked by failed dependencies: %v", blockers))
+				}
+			} else {
+				runnableIDs = append(runnableIDs, changeID)
+			}
+		}
+
+		if len(runnableIDs) == 0 {
+			continue
+		}
+
+		// Track which changes in THIS group fail so they can be added to blockedOrFailed
+		// after the group completes (preventing data races on the shared map).
+		var groupMu sync.Mutex
+		groupFailed := make(map[string]bool)
+
+		var g errgroup.Group
+		g.SetLimit(e.concurrency)
+
+		for _, changeID := range runnableIDs {
+			ch := changeByID[changeID]
+
+			g.Go(func() error {
+				changeCtx := withExecutorChangeHTTPLogContext(ctx, ch)
+				err := e.executeChange(changeCtx, result, ch, plan)
+
+				if err != nil {
+					groupMu.Lock()
+					groupFailed[ch.ID] = true
+					groupMu.Unlock()
+				}
+
+				// Never return an error to errgroup — errors are already stored in result.
+				return nil
+			})
+		}
+
+		_ = g.Wait()
+
+		// Promote this group's failures into the shared blockedOrFailed set.
+		groupMu.Lock()
+		for id := range groupFailed {
+			blockedOrFailed[id] = true
+		}
+		groupMu.Unlock()
+	}
+}
+
+// findBlockers returns the subset of change.DependsOn whose IDs are present in
+// blockedOrFailed. A non-empty return value means this change must be skipped.
+func findBlockers(change *planner.PlannedChange, blockedOrFailed map[string]bool) []string {
+	if change == nil || len(change.DependsOn) == 0 {
+		return nil
+	}
+	var blockers []string
+	for _, dep := range change.DependsOn {
+		if blockedOrFailed[dep] {
+			blockers = append(blockers, dep)
+		}
+	}
+	return blockers
 }
 
 func withExecutorHTTPLogContext(ctx context.Context, mode planner.PlanMode) context.Context {
@@ -476,7 +659,7 @@ func withExecutorChangeHTTPLogContext(ctx context.Context, change *planner.Plann
 
 // executeChange executes a single change from the plan
 func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change *planner.PlannedChange,
-	plan *planner.Plan, changeIndex int,
+	plan *planner.Plan,
 ) error {
 	// Notify reporter of change start
 	if e.reporter != nil {
@@ -497,8 +680,10 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 			Action:       string(change.Action),
 			Error:        err.Error(),
 		}
+		e.mu.Lock()
 		result.Errors = append(result.Errors, execError)
 		result.FailureCount++
+		e.mu.Unlock()
 
 		if e.reporter != nil {
 			e.reporter.CompleteChange(*change, err)
@@ -511,6 +696,11 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		resourceName = resolvedName
 	}
 
+	// Hydrate unresolved refs/parent IDs from already-completed dependency creates.
+	// This restores deterministic downstream ID propagation without mutating
+	// future groups concurrently.
+	e.hydrateKnownReferenceIDs(change, plan)
+
 	// Pre-execution validation (always performed, even in dry-run)
 	if err := e.validateChangePreExecution(ctx, *change); err != nil {
 		// Record error
@@ -522,9 +712,9 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 			Action:       string(change.Action),
 			Error:        err.Error(),
 		}
+		e.mu.Lock()
 		result.Errors = append(result.Errors, execError)
 		result.FailureCount++
-
 		// In dry-run, also record validation result
 		if e.dryRun {
 			result.ValidationResults = append(result.ValidationResults, ValidationResult{
@@ -538,6 +728,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 				Message:      err.Error(),
 			})
 		}
+		e.mu.Unlock()
 
 		// Notify reporter
 		if e.reporter != nil {
@@ -549,6 +740,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 	// If dry-run, skip actual execution
 	if e.dryRun {
+		e.mu.Lock()
 		result.SkippedCount++
 		result.ValidationResults = append(result.ValidationResults, ValidationResult{
 			ChangeID:     change.ID,
@@ -559,6 +751,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 			Status:       "would_succeed",
 			Validation:   "passed",
 		})
+		e.mu.Unlock()
 
 		if e.reporter != nil {
 			e.reporter.SkipChange(*change, "dry-run mode")
@@ -594,6 +787,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 	}
 
 	// Record result
+	e.mu.Lock()
 	if err != nil {
 		execError := ExecutionError{
 			ChangeID:     change.ID,
@@ -620,50 +814,15 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		if change.Action == planner.ActionCreate && resourceID != "" {
 			e.createdResources[change.ID] = resourceID
 
-			// Also track by resource type and ref for reference resolution
+			// Track by resource type and ref so resolve*Ref helpers can find IDs
+			// created during this execution without making additional API calls.
 			if e.refToID[change.ResourceType] == nil {
 				e.refToID[change.ResourceType] = make(map[string]string)
 			}
 			e.refToID[change.ResourceType][change.ResourceRef] = resourceID
-
-			// Propagate the created resource ID to any pending changes that reference it
-			if changeIndex+1 < len(plan.ExecutionOrder) {
-				// Update remaining changes directly in plan.Changes
-				for i := changeIndex + 1; i < len(plan.ExecutionOrder); i++ {
-					changeID := plan.ExecutionOrder[i]
-					for j := range plan.Changes {
-						if plan.Changes[j].ID == changeID {
-							// Check all references in this change
-							for refKey, refInfo := range plan.Changes[j].References {
-								// Match based on resource type from the reference key
-								refResourceType := strings.TrimSuffix(refKey, "_id")
-
-								// Extract the actual ref from __REF__ format if present
-								actualRef, refErr := actualRefForExecution(refInfo.Ref)
-								if refErr != nil {
-									continue
-								}
-
-								if refResourceType == change.ResourceType && actualRef == change.ResourceRef {
-									// Update the reference with the created resource ID
-									refInfo.ID = resourceID
-									plan.Changes[j].References[refKey] = refInfo
-									slog.Debug("Propagated created resource ID to dependent change",
-										"change_id", plan.Changes[j].ID,
-										"ref_key", refKey,
-										"resource_type", change.ResourceType,
-										"resource_ref", change.ResourceRef,
-										"resource_id", resourceID,
-									)
-								}
-							}
-							break
-						}
-					}
-				}
-			}
 		}
 	}
+	e.mu.Unlock()
 
 	// Notify reporter
 	if e.reporter != nil {
@@ -671,6 +830,105 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 	}
 
 	return err
+}
+
+// hydrateKnownReferenceIDs fills unresolved parent/reference IDs in-place using
+// IDs from already executed dependency CREATE changes.
+func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan *planner.Plan) {
+	if change == nil || plan == nil || len(change.DependsOn) == 0 {
+		return
+	}
+
+	depRefToID := make(map[string]string, len(change.DependsOn))
+	for _, depID := range change.DependsOn {
+		createdID, ok := e.getCreatedResourceID(depID)
+		if !ok || createdID == "" {
+			continue
+		}
+
+		depChange := findPlannedChangeByID(plan, depID)
+		if depChange == nil || depChange.ResourceRef == "" {
+			continue
+		}
+
+		depRefToID[depChange.ResourceRef] = createdID
+	}
+
+	if len(depRefToID) == 0 {
+		return
+	}
+
+	if change.Parent != nil && unresolvedReferenceID(change.Parent.ID) {
+		if id, ok := depRefToID[normalizedRefValue(change.Parent.Ref)]; ok {
+			change.Parent.ID = id
+		}
+	}
+
+	for field, refInfo := range change.References {
+		updated := false
+
+		if unresolvedReferenceID(refInfo.ID) {
+			if id, ok := depRefToID[normalizedRefValue(refInfo.Ref)]; ok {
+				refInfo.ID = id
+				updated = true
+				if change.Fields != nil {
+					if _, exists := change.Fields[field]; exists {
+						change.Fields[field] = id
+					}
+				}
+			}
+		}
+
+		if refInfo.IsArray && len(refInfo.Refs) > 0 {
+			if len(refInfo.ResolvedIDs) < len(refInfo.Refs) {
+				resized := make([]string, len(refInfo.Refs))
+				copy(resized, refInfo.ResolvedIDs)
+				refInfo.ResolvedIDs = resized
+			}
+
+			for i, ref := range refInfo.Refs {
+				if refInfo.ResolvedIDs[i] != "" {
+					continue
+				}
+				if id, ok := depRefToID[normalizedRefValue(ref)]; ok {
+					refInfo.ResolvedIDs[i] = id
+					updated = true
+				}
+			}
+		}
+
+		if updated {
+			change.References[field] = refInfo
+		}
+	}
+}
+
+func (e *Executor) getCreatedResourceID(changeID string) (string, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	id, ok := e.createdResources[changeID]
+	return id, ok
+}
+
+func findPlannedChangeByID(plan *planner.Plan, changeID string) *planner.PlannedChange {
+	if plan == nil {
+		return nil
+	}
+	for i := range plan.Changes {
+		if plan.Changes[i].ID == changeID {
+			return &plan.Changes[i]
+		}
+	}
+	return nil
+}
+
+func normalizedRefValue(ref string) string {
+	if tags.IsRefPlaceholder(ref) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(ref); ok && parsedRef != "" {
+			return parsedRef
+		}
+	}
+	return ref
 }
 
 // validateChangePreExecution performs validation before executing a change
@@ -783,16 +1041,8 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 	}
 
 	// First check if it was created in this execution
-	if authStrategies, ok := e.refToID[planner.ResourceTypeApplicationAuthStrategy]; ok {
-		if id, found := authStrategies[lookupRef]; found {
-			return id, nil
-		}
-		// Fallback to original ref in case older executions stored placeholders
-		if lookupRef != refInfo.Ref {
-			if id, found := authStrategies[refInfo.Ref]; found {
-				return id, nil
-			}
-		}
+	if id, ok := e.getRefAny(planner.ResourceTypeApplicationAuthStrategy, lookupRef, refInfo.Ref); ok {
+		return id, nil
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
@@ -823,15 +1073,8 @@ func (e *Executor) resolveDCRProviderRef(ctx context.Context, refInfo planner.Re
 		}
 	}
 
-	if providers, ok := e.refToID[planner.ResourceTypeDCRProvider]; ok {
-		if id, found := providers[lookupRef]; found {
-			return id, nil
-		}
-		if lookupRef != refInfo.Ref {
-			if id, found := providers[refInfo.Ref]; found {
-				return id, nil
-			}
-		}
+	if id, ok := e.getRefAny(planner.ResourceTypeDCRProvider, lookupRef, refInfo.Ref); ok {
+		return id, nil
 	}
 
 	provider, err := e.client.GetDCRProviderByName(ctx, lookupRef)
@@ -907,20 +1150,25 @@ func (e *Executor) syncResolvedPortalDefaultAuthStrategyID(
 
 // resolvePortalRef resolves a portal reference to its ID
 func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
-	// First check if the reference already has an ID (resolved from dependency)
-	if refInfo.ID != "" {
+	// First check if the reference already has a resolved ID
+	if !unresolvedReferenceID(refInfo.ID) {
 		return refInfo.ID, nil
 	}
 
-	// Check if it was created in this execution
-	if portals, ok := e.refToID[planner.ResourceTypePortal]; ok {
-		if id, found := portals[refInfo.Ref]; found {
-			return id, nil
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
 		}
 	}
 
+	// Check if it was created in this execution
+	if id, ok := e.getRef(planner.ResourceTypePortal, lookupRef); ok {
+		return id, nil
+	}
+
 	// Determine the lookup value - use name from lookup fields if available
-	lookupValue := refInfo.Ref
+	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
 		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
@@ -936,6 +1184,9 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 		return "", fmt.Errorf("portal not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
 	}
 
+	// Cache the resolved ID
+	e.setRef(planner.ResourceTypePortal, lookupRef, portal.ID)
+
 	return portal.ID, nil
 }
 
@@ -948,13 +1199,18 @@ func (e *Executor) resolvePortalTeamRef(
 		return "", fmt.Errorf("portal ID is required to resolve portal team")
 	}
 
-	if teams, ok := e.refToID[planner.ResourceTypePortalTeam]; ok {
-		if id, found := teams[refInfo.Ref]; found && id != "" {
-			return id, nil
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
 		}
 	}
 
-	lookupValue := refInfo.Ref
+	if id, ok := e.getRef(planner.ResourceTypePortalTeam, lookupRef); ok && id != "" {
+		return id, nil
+	}
+
+	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
 		if name, hasName := refInfo.LookupFields[planner.FieldName]; hasName && name != "" {
 			lookupValue = name
@@ -1016,10 +1272,8 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 		}
 	}
 
-	if controlPlanes, ok := e.refToID[planner.ResourceTypeControlPlane]; ok {
-		if id, found := controlPlanes[lookupRef]; found && id != "" && id != "[unknown]" {
-			return id, nil
-		}
+	if id, ok := e.getRef(planner.ResourceTypeControlPlane, lookupRef); ok && id != "" && id != "[unknown]" {
+		return id, nil
 	}
 
 	lookupValue := lookupRef
@@ -1191,14 +1445,12 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 	}
 
 	// First check if it was created in this execution
-	if apis, ok := e.refToID[planner.FieldAPI]; ok {
-		if id, found := apis[lookupRef]; found {
-			slog.Debug("Resolved API reference from created resources",
-				"api_ref", lookupRef,
-				"api_id", id,
-			)
-			return id, nil
-		}
+	if id, ok := e.getRef(planner.FieldAPI, lookupRef); ok {
+		slog.Debug("Resolved API reference from created resources",
+			"api_ref", lookupRef,
+			"api_id", id,
+		)
+		return id, nil
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
@@ -1227,9 +1479,7 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 			)
 
 			// Cache this resolution
-			if apis, ok := e.refToID[planner.FieldAPI]; ok {
-				apis[refInfo.Ref] = apiID
-			}
+			e.setRef(planner.FieldAPI, refInfo.Ref, apiID)
 			return apiID, nil
 		}
 		lastErr = err
@@ -1249,14 +1499,12 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 	}
 
 	// First check if it was created in this execution
-	if gateways, ok := e.refToID[planner.ResourceTypeEventGatewayControlPlane]; ok {
-		if id, found := gateways[lookupRef]; found {
-			slog.Debug("Resolved event gateway reference from created resources",
-				"gateway_ref", lookupRef,
-				"gateway_id", id,
-			)
-			return id, nil
-		}
+	if id, ok := e.getRef(planner.ResourceTypeEventGatewayControlPlane, lookupRef); ok {
+		slog.Debug("Resolved event gateway reference from created resources",
+			"gateway_ref", lookupRef,
+			"gateway_id", id,
+		)
+		return id, nil
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
@@ -1284,9 +1532,7 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 	)
 
 	// Cache this resolution
-	if gateways, ok := e.refToID[planner.ResourceTypeEventGatewayControlPlane]; ok {
-		gateways[refInfo.Ref] = gatewayID
-	}
+	e.setRef(planner.ResourceTypeEventGatewayControlPlane, refInfo.Ref, gatewayID)
 
 	return gatewayID, nil
 }
@@ -1303,14 +1549,12 @@ func (e *Executor) resolveEventGatewayBackendClusterRef(
 	}
 
 	// First check if it was created in this execution
-	if backendCluster, ok := e.refToID[planner.ResourceTypeEventGatewayBackendCluster]; ok {
-		if id, found := backendCluster[lookupRef]; found {
-			slog.Debug("Resolved event gateway backend cluster reference from created resources",
-				"backend_cluster_ref", lookupRef,
-				"backend_cluster_id", id,
-			)
-			return id, nil
-		}
+	if id, ok := e.getRef(planner.ResourceTypeEventGatewayBackendCluster, lookupRef); ok {
+		slog.Debug("Resolved event gateway backend cluster reference from created resources",
+			"backend_cluster_ref", lookupRef,
+			"backend_cluster_id", id,
+		)
+		return id, nil
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
@@ -1339,9 +1583,7 @@ func (e *Executor) resolveEventGatewayBackendClusterRef(
 	)
 
 	// Cache this resolution
-	if backendClusters, ok := e.refToID[planner.ResourceTypeEventGatewayBackendCluster]; ok {
-		backendClusters[refInfo.Ref] = backendClusterID
-	}
+	e.setRef(planner.ResourceTypeEventGatewayBackendCluster, refInfo.Ref, backendClusterID)
 
 	return backendClusterID, nil
 }
@@ -1359,14 +1601,12 @@ func (e *Executor) resolveEventGatewayVirtualClusterRef(
 	}
 
 	// First check if it was created in this execution
-	if virtualClusters, ok := e.refToID[planner.ResourceTypeEventGatewayVirtualCluster]; ok {
-		if id, found := virtualClusters[lookupRef]; found {
-			slog.Debug("Resolved event gateway virtual cluster reference from created resources",
-				"virtual_cluster_ref", lookupRef,
-				"virtual_cluster_id", id,
-			)
-			return id, nil
-		}
+	if id, ok := e.getRef(planner.ResourceTypeEventGatewayVirtualCluster, lookupRef); ok {
+		slog.Debug("Resolved event gateway virtual cluster reference from created resources",
+			"virtual_cluster_ref", lookupRef,
+			"virtual_cluster_id", id,
+		)
+		return id, nil
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
@@ -1395,9 +1635,7 @@ func (e *Executor) resolveEventGatewayVirtualClusterRef(
 	)
 
 	// Cache this resolution
-	if virtualClusters, ok := e.refToID[planner.ResourceTypeEventGatewayVirtualCluster]; ok {
-		virtualClusters[refInfo.Ref] = virtualClusterID
-	}
+	e.setRef(planner.ResourceTypeEventGatewayVirtualCluster, refInfo.Ref, virtualClusterID)
 
 	return virtualClusterID, nil
 }
@@ -1415,14 +1653,12 @@ func (e *Executor) resolveEventGatewayListenerRef(
 	}
 
 	// First check if it was created in this execution
-	if listeners, ok := e.refToID[planner.ResourceTypeEventGatewayListener]; ok {
-		if id, found := listeners[lookupRef]; found {
-			slog.Debug("Resolved event gateway listener reference from created resources",
-				"listener_ref", lookupRef,
-				"listener_id", id,
-			)
-			return id, nil
-		}
+	if id, ok := e.getRef(planner.ResourceTypeEventGatewayListener, lookupRef); ok {
+		slog.Debug("Resolved event gateway listener reference from created resources",
+			"listener_ref", lookupRef,
+			"listener_id", id,
+		)
+		return id, nil
 	}
 
 	// Need the gateway ID to look up listeners
@@ -1460,9 +1696,7 @@ func (e *Executor) resolveEventGatewayListenerRef(
 			)
 
 			// Cache this resolution
-			if listenerMap, ok := e.refToID[planner.ResourceTypeEventGatewayListener]; ok {
-				listenerMap[refInfo.Ref] = listener.ID
-			}
+			e.setRef(planner.ResourceTypeEventGatewayListener, refInfo.Ref, listener.ID)
 
 			return listener.ID, nil
 		}
@@ -1476,13 +1710,13 @@ func (e *Executor) resolveEventGatewayListenerRef(
 
 // populatePortalPages fetches and caches all pages for a portal
 func (e *Executor) populatePortalPages(ctx context.Context, portalID string) error {
-	portal, exists := e.stateCache.Portals[portalID]
-	if !exists {
-		portal = &state.CachedPortal{
+	e.cacheMu.Lock()
+	if _, exists := e.stateCache.Portals[portalID]; !exists {
+		e.stateCache.Portals[portalID] = &state.CachedPortal{
 			Pages: make(map[string]*state.CachedPortalPage),
 		}
-		e.stateCache.Portals[portalID] = portal
 	}
+	e.cacheMu.Unlock()
 
 	// Fetch all pages
 	pages, err := e.client.ListManagedPortalPages(ctx, portalID)
@@ -1501,17 +1735,24 @@ func (e *Executor) populatePortalPages(ctx context.Context, portalID string) err
 	}
 
 	// Second pass: establish parent-child relationships
+	rootPages := make(map[string]*state.CachedPortalPage)
 	for _, page := range pages {
 		cachedPage := pageMap[page.ID]
 
 		if page.ParentPageID == "" {
 			// Root page
-			portal.Pages[page.ID] = cachedPage
+			rootPages[page.ID] = cachedPage
 		} else if parent, ok := pageMap[page.ParentPageID]; ok {
 			// Child page
 			parent.Children[page.ID] = cachedPage
 		}
 	}
+
+	e.cacheMu.Lock()
+	if portal, exists := e.stateCache.Portals[portalID]; exists {
+		portal.Pages = rootPages
+	}
+	e.cacheMu.Unlock()
 
 	return nil
 }
@@ -1522,6 +1763,7 @@ func (e *Executor) populateAPIDocuments(ctx context.Context, apiID string) error
 		return fmt.Errorf("API ID is required to populate documents")
 	}
 
+	e.cacheMu.Lock()
 	cachedAPI, exists := e.stateCache.APIs[apiID]
 	if !exists {
 		cachedAPI = &state.CachedAPI{
@@ -1538,8 +1780,10 @@ func (e *Executor) populateAPIDocuments(ctx context.Context, apiID string) error
 	}
 
 	if len(cachedAPI.Documents) > 0 {
+		e.cacheMu.Unlock()
 		return nil
 	}
+	e.cacheMu.Unlock()
 
 	documents, err := e.client.ListAPIDocuments(ctx, apiID)
 	if err != nil {
@@ -1555,15 +1799,16 @@ func (e *Executor) populateAPIDocuments(ctx context.Context, apiID string) error
 		docMap[doc.ID] = cachedDoc
 	}
 
+	rootDocs := make(map[string]*state.CachedAPIDocument)
 	for _, cachedDoc := range docMap {
 		if cachedDoc.ParentDocumentID == "" {
-			cachedAPI.Documents[cachedDoc.ID] = cachedDoc
+			rootDocs[cachedDoc.ID] = cachedDoc
 			continue
 		}
 
 		parent, ok := docMap[cachedDoc.ParentDocumentID]
 		if !ok {
-			cachedAPI.Documents[cachedDoc.ID] = cachedDoc
+			rootDocs[cachedDoc.ID] = cachedDoc
 			continue
 		}
 
@@ -1573,6 +1818,12 @@ func (e *Executor) populateAPIDocuments(ctx context.Context, apiID string) error
 		parent.Children[cachedDoc.ID] = cachedDoc
 	}
 
+	e.cacheMu.Lock()
+	if cachedAPI, exists := e.stateCache.APIs[apiID]; exists {
+		cachedAPI.Documents = rootDocs
+	}
+	e.cacheMu.Unlock()
+
 	return nil
 }
 
@@ -1581,21 +1832,29 @@ func (e *Executor) resolvePortalPageRef(
 	ctx context.Context, portalID string, pageRef string, lookupFields map[string]string,
 ) (string, error) {
 	// First check if it was created in this execution
-	if pages, ok := e.refToID[planner.ResourceTypePortalPage]; ok {
-		if id, found := pages[pageRef]; found {
-			return id, nil
-		}
+	if id, ok := e.getRef(planner.ResourceTypePortalPage, pageRef); ok {
+		return id, nil
 	}
 
 	// Ensure portal pages are cached
-	if _, exists := e.stateCache.Portals[portalID]; !exists ||
-		e.stateCache.Portals[portalID].Pages == nil {
+	e.cacheMu.RLock()
+	portal, exists := e.stateCache.Portals[portalID]
+	needsPopulate := !exists || portal.Pages == nil
+	e.cacheMu.RUnlock()
+
+	if needsPopulate {
 		if err := e.populatePortalPages(ctx, portalID); err != nil {
 			return "", err
 		}
 	}
 
-	portal := e.stateCache.Portals[portalID]
+	e.cacheMu.RLock()
+	portal = e.stateCache.Portals[portalID]
+	if portal == nil {
+		e.cacheMu.RUnlock()
+		return "", fmt.Errorf("portal %s not found in cache", portalID)
+	}
+	defer e.cacheMu.RUnlock()
 
 	// If we have a parent path, use it for more accurate matching
 	if lookupFields != nil && lookupFields[planner.FieldParentPath] != "" {
@@ -1633,7 +1892,7 @@ func (e *Executor) resolvePortalPageRef(
 func (e *Executor) resolveAPIDocumentRef(
 	ctx context.Context, apiID string, refInfo planner.ReferenceInfo,
 ) (string, error) {
-	if refInfo.ID != "" && refInfo.ID != "[unknown]" {
+	if refInfo.HasResolvedID() {
 		return refInfo.ID, nil
 	}
 
@@ -1644,10 +1903,8 @@ func (e *Executor) resolveAPIDocumentRef(
 		}
 	}
 
-	if docs, ok := e.refToID[planner.ResourceTypeAPIDocument]; ok {
-		if id, found := docs[actualRef]; found {
-			return id, nil
-		}
+	if id, ok := e.getRef(planner.ResourceTypeAPIDocument, actualRef); ok {
+		return id, nil
 	}
 
 	if apiID == "" {
@@ -1658,10 +1915,13 @@ func (e *Executor) resolveAPIDocumentRef(
 		return "", err
 	}
 
+	e.cacheMu.RLock()
 	cachedAPI, ok := e.stateCache.APIs[apiID]
 	if !ok {
+		e.cacheMu.RUnlock()
 		return "", fmt.Errorf("API %s not found in cache", apiID)
 	}
+	defer e.cacheMu.RUnlock()
 
 	if refInfo.LookupFields != nil {
 		if path, ok := refInfo.LookupFields[planner.FieldSlugPath]; ok && path != "" {
@@ -2074,8 +2334,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.eventGatewayBackendClusterExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayVirtualCluster:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
+		// Resolve event gateway reference if needed.
+		// When the gateway was already created at plan time, its ID is in change.Parent.ID.
+		// When the gateway was being created in the same plan run, change.Parent is nil and
+		// the ID is stored in change.References["event_gateway_id"] after resolution below.
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && unresolvedReferenceID(gatewayRef.ID) {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
@@ -2085,10 +2348,21 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldEventGatewayID] = gatewayRef
 		}
 
+		// Determine the effective gateway ID for backend cluster resolution.
+		// Prefer the resolved reference over change.Parent (which is nil when the gateway
+		// was not yet created at plan time).
+		effectiveGatewayID := ""
+		if change.Parent != nil {
+			effectiveGatewayID = change.Parent.ID
+		}
+		if ref, ok := change.References[planner.FieldEventGatewayID]; ok && ref.ID != "" {
+			effectiveGatewayID = ref.ID
+		}
+
 		// Resolve event gateway backend cluster reference if needed
 		if backendClusterRef, ok := change.References[planner.FieldEventGatewayBackendClusterID]; ok &&
-			backendClusterRef.ID == "" {
-			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, change.Parent.ID, backendClusterRef)
+			unresolvedReferenceID(backendClusterRef.ID) {
+			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, effectiveGatewayID, backendClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway backend cluster reference: %w", err)
 			}
@@ -2172,7 +2446,7 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
 		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
+			unresolvedReferenceID(virtualClusterRef.ID) {
 			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
@@ -2616,7 +2890,7 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		}
 		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
 		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
+			unresolvedReferenceID(virtualClusterRef.ID) {
 			gatewayID := change.References[planner.FieldEventGatewayID].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
@@ -3000,14 +3274,20 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 
 	// Check if parent was created in this execution
 	logger.Debug("Checking dependencies", slog.Int("dep_count", len(change.DependsOn)))
+	e.mu.Lock()
+	var parentFromCreated string
 	for _, dep := range change.DependsOn {
 		if resourceID, ok := e.createdResources[dep]; ok {
-			logger.Debug("Found parent in created resources",
-				slog.String("dependency", dep),
-				slog.String("resource_id", resourceID),
-			)
-			return resourceID, nil
+			parentFromCreated = resourceID
+			break
 		}
+	}
+	e.mu.Unlock()
+	if parentFromCreated != "" {
+		logger.Debug("Found parent in created resources",
+			slog.String("resource_id", parentFromCreated),
+		)
+		return parentFromCreated, nil
 	}
 
 	// Otherwise look up by name

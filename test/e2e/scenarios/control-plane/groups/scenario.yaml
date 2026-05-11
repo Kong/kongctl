@@ -50,6 +50,7 @@ steps:
           - -f
           - "{{ .workdir }}/control-plane.yaml"
           - --auto-approve
+          - --max-concurrency=1
         assertions:
           - select: "plan.metadata"
             expect:

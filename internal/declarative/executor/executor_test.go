@@ -63,6 +63,42 @@ func TestExecutor_New(t *testing.T) {
 	assert.True(t, execDryRun.dryRun)
 }
 
+func TestExecutor_NewWithOptions_ConcurrencyBounds(t *testing.T) {
+	tests := []struct {
+		name     string
+		max      int
+		expected int
+	}{
+		{
+			name:     "uses default when unset",
+			max:      0,
+			expected: DefaultMaxConcurrency,
+		},
+		{
+			name:     "uses default when non-positive",
+			max:      -1,
+			expected: DefaultMaxConcurrency,
+		},
+		{
+			name:     "keeps value within range",
+			max:      7,
+			expected: 7,
+		},
+		{
+			name:     "clamps above maximum",
+			max:      MaxConcurrency + 1,
+			expected: MaxConcurrency,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exec := NewWithOptions(nil, nil, false, Options{MaxConcurrency: tt.max})
+			assert.Equal(t, tt.expected, exec.concurrency)
+		})
+	}
+}
+
 func TestExecutor_Execute_EmptyPlan(t *testing.T) {
 	reporter := &MockProgressReporter{}
 
@@ -260,6 +296,83 @@ func TestExecutor_syncResolvedPortalDefaultAuthStrategyID_UpdatesFieldsFromResol
 	)
 }
 
+func TestExecutor_hydrateKnownReferenceIDs_PopulatesScalarRefAndParent(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1:c:api:my-api"] = "api-id-123"
+
+	plan := &planner.Plan{
+		Changes: []planner.PlannedChange{
+			{
+				ID:          "1:c:api:my-api",
+				Action:      planner.ActionCreate,
+				ResourceRef: "my-api",
+			},
+			{
+				ID:          "2:c:api_version:v1",
+				Action:      planner.ActionCreate,
+				ResourceRef: "my-api-v1",
+				DependsOn:   []string{"1:c:api:my-api"},
+				Fields: map[string]any{
+					planner.FieldAPIID: "__REF__:my-api#id",
+				},
+				References: map[string]planner.ReferenceInfo{
+					planner.FieldAPIID: {
+						Ref: "__REF__:my-api#id",
+						ID:  "[unknown]",
+					},
+				},
+				Parent: &planner.ParentInfo{
+					Ref: "my-api",
+					ID:  "[unknown]",
+				},
+			},
+		},
+	}
+
+	change := &plan.Changes[1]
+	exec.hydrateKnownReferenceIDs(change, plan)
+
+	assert.Equal(t, "api-id-123", change.References[planner.FieldAPIID].ID)
+	assert.Equal(t, "api-id-123", change.Fields[planner.FieldAPIID])
+	require.NotNil(t, change.Parent)
+	assert.Equal(t, "api-id-123", change.Parent.ID)
+}
+
+func TestExecutor_hydrateKnownReferenceIDs_PopulatesArrayResolvedIDs(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1:c:cp:member-a"] = "cp-id-a"
+
+	plan := &planner.Plan{
+		Changes: []planner.PlannedChange{
+			{
+				ID:          "1:c:cp:member-a",
+				Action:      planner.ActionCreate,
+				ResourceRef: "member-a",
+			},
+			{
+				ID:          "2:u:cp_group:group-1",
+				Action:      planner.ActionUpdate,
+				ResourceRef: "group-1",
+				DependsOn:   []string{"1:c:cp:member-a"},
+				References: map[string]planner.ReferenceInfo{
+					planner.FieldMembers: {
+						IsArray: true,
+						Refs:    []string{"__REF__:member-a#id", "literal-id"},
+					},
+				},
+			},
+		},
+	}
+
+	change := &plan.Changes[1]
+	exec.hydrateKnownReferenceIDs(change, plan)
+
+	refInfo := change.References[planner.FieldMembers]
+	require.Len(t, refInfo.ResolvedIDs, 2)
+	assert.Equal(t, "cp-id-a", refInfo.ResolvedIDs[0])
+	assert.Equal(t, "", refInfo.ResolvedIDs[1])
+}
+
 func TestExecutor_ValidateChangePreExecution_Basic(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -454,4 +567,114 @@ func TestExecutor_ContinuesOnError(t *testing.T) {
 
 	// Verify all changes were attempted
 	assert.Len(t, reporter.CompleteChangeCalls, 3)
+}
+
+func TestExecutor_ExecuteGroupsConcurrent_DryRun_IsConcurrencySafe(t *testing.T) {
+	exec := NewWithOptions(nil, nil, true, Options{
+		MaxConcurrency: 32,
+	})
+
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+
+	const n = 200
+	group := make([]string, 0, n)
+	for i := 1; i <= n; i++ {
+		id := fmt.Sprintf("%d-c-portal", i)
+		group = append(group, id)
+
+		plan.AddChange(planner.PlannedChange{
+			ID:           id,
+			ResourceType: "portal",
+			ResourceRef:  fmt.Sprintf("portal-%d", i),
+			Action:       planner.ActionCreate,
+			Fields: map[string]any{
+				"name": fmt.Sprintf("Portal %d", i),
+			},
+		})
+	}
+
+	plan.SetExecutionGroups([][]string{group})
+
+	result := exec.Execute(context.Background(), plan)
+
+	require.NotNil(t, result)
+	assert.Equal(t, 0, result.FailureCount)
+	assert.Equal(t, 0, result.SuccessCount)
+	assert.Equal(t, n, result.SkippedCount)
+	assert.Len(t, result.ValidationResults, n)
+	assert.Empty(t, result.Errors)
+}
+
+func TestExecutor_ExecuteGroupsConcurrent_BlocksDependentsInNextGroups(t *testing.T) {
+	reporter := &MockProgressReporter{}
+	reporter.On("StartExecution", mock.Anything).Return()
+	reporter.On("StartChange", mock.Anything).Return()
+	reporter.On("SkipChange", mock.Anything, mock.Anything).Return()
+	reporter.On("FinishExecution", mock.Anything).Return()
+
+	exec := NewWithOptions(nil, reporter, true, Options{
+		MaxConcurrency: 5,
+	})
+
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeSync)
+
+	missingChangeID := "1-c-missing"
+	dependentID := "2-c-portal-dependent"
+	independentID := "3-c-portal-independent"
+
+	plan.AddChange(planner.PlannedChange{
+		ID:           dependentID,
+		ResourceType: "portal",
+		ResourceRef:  "portal-dependent",
+		Action:       planner.ActionCreate,
+		DependsOn:    []string{missingChangeID},
+		Fields: map[string]any{
+			"name": "Portal Dependent",
+		},
+	})
+
+	plan.AddChange(planner.PlannedChange{
+		ID:           independentID,
+		ResourceType: "portal",
+		ResourceRef:  "portal-independent",
+		Action:       planner.ActionCreate,
+		Fields: map[string]any{
+			"name": "Portal Independent",
+		},
+	})
+
+	plan.SetExecutionGroups([][]string{
+		{missingChangeID},
+		{dependentID, independentID},
+	})
+
+	result := exec.Execute(context.Background(), plan)
+
+	require.NotNil(t, result)
+	assert.Equal(t, 1, result.FailureCount)
+	assert.Equal(t, 2, result.SkippedCount)
+	assert.Equal(t, 0, result.SuccessCount)
+
+	require.Len(t, result.Errors, 1)
+	assert.Equal(t, missingChangeID, result.Errors[0].ChangeID)
+
+	// Proves dependent was blocked/skipped, while non-dependent in same group executed.
+	assert.Len(t, reporter.StartChangeCalls, 1)
+	started := map[string]bool{}
+	for _, change := range reporter.StartChangeCalls {
+		started[change.ID] = true
+	}
+	assert.True(t, started[independentID])
+	assert.False(t, started[dependentID])
+
+	assert.Len(t, reporter.SkipChangeCalls, 2)
+
+	skipReasonByID := map[string]string{}
+	for i, change := range reporter.SkipChangeCalls {
+		skipReasonByID[change.ID] = reporter.SkipReasons[i]
+	}
+
+	assert.Contains(t, skipReasonByID[dependentID], "blocked by failed dependencies")
+	assert.Contains(t, skipReasonByID[dependentID], missingChangeID)
+	assert.Equal(t, "dry-run mode", skipReasonByID[independentID])
 }

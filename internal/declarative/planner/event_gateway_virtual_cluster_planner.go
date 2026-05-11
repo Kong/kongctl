@@ -319,7 +319,7 @@ func (p *Planner) planVirtualClusterCreate(
 		change.References = map[string]ReferenceInfo{
 			FieldEventGatewayID: {
 				Ref: gatewayRef,
-				ID:  "", // to be resolved at runtime
+				ID:  resources.UnknownReferenceID,
 				LookupFields: map[string]string{
 					FieldName: gatewayName,
 				},
@@ -342,6 +342,7 @@ func (p *Planner) planVirtualClusterCreate(
 
 		change.References[FieldEventGatewayBackendClusterID] = ReferenceInfo{
 			Ref: cluster.Destination.BackendClusterReferenceByID.ID,
+			ID:  resources.UnknownReferenceID,
 			LookupFields: map[string]string{
 				FieldName: backendClusterName,
 			},

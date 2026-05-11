@@ -3,6 +3,7 @@ package executor
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -103,7 +104,7 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				ResourceRef:  "developer-portal",
 				Namespace:    "default",
 			},
-			expectedOut: "• [namespace: default] Creating portal: developer-portal... ",
+			expectedOut: "",
 		},
 		{
 			name: "update with resource ref",
@@ -113,7 +114,7 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				ResourceRef:  "staging-portal",
 				Namespace:    "default",
 			},
-			expectedOut: "• [namespace: default] Updating portal: staging-portal... ",
+			expectedOut: "",
 		},
 		{
 			name: "delete without resource ref",
@@ -123,7 +124,7 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				ResourceType: "portal_page",
 				Namespace:    "default",
 			},
-			expectedOut: "• [namespace: default] Deleting portal_page: portal_page/change-123... ",
+			expectedOut: "",
 		},
 	}
 
@@ -148,12 +149,12 @@ func TestConsoleReporter_CompleteChange(t *testing.T) {
 		{
 			name:        "success",
 			err:         nil,
-			expectedOut: "✓\n",
+			expectedOut: "• [namespace: default] Creating portal: test-portal... ✓\n",
 		},
 		{
 			name:        "failure",
 			err:         errors.New("resource not found"),
-			expectedOut: "✗ Error: resource not found\n",
+			expectedOut: "• [namespace: default] Creating portal: test-portal... ✗ Error: resource not found\n",
 		},
 	}
 
@@ -187,7 +188,7 @@ func TestConsoleReporter_SkipChange(t *testing.T) {
 
 	reporter.SkipChange(change, "dry-run mode")
 
-	assert.Equal(t, "⚠ Skipped: dry-run mode\n", buf.String())
+	assert.Equal(t, "• [namespace: default] Creating portal: test-portal... ⚠ Skipped: dry-run mode\n", buf.String())
 }
 
 func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
@@ -544,12 +545,14 @@ func TestConsoleReporter_WithResourceMonikers(t *testing.T) {
 	output := buf.String()
 	t.Log("Progress output for change 1:", output)
 
-	// Should show meaningful name from monikers
-	assert.Contains(t, output, "Deleting portal_page: page 'getting-started' in portal:simple")
-	assert.NotContains(t, output, "[unknown]")
+	// StartChange only tracks state; output arrives on completion.
+	assert.Equal(t, "Executing changes:\n", output)
 
 	// Complete the change
 	reporter.CompleteChange(change1, nil)
+	output = buf.String()
+	assert.Contains(t, output, "Deleting portal_page: page 'getting-started' in portal:simple... ✓")
+	assert.NotContains(t, output, "[unknown]")
 
 	// Test another resource type
 	buf.Reset()
@@ -571,9 +574,46 @@ func TestConsoleReporter_WithResourceMonikers(t *testing.T) {
 	reporter.StartChange(change2)
 	output = buf.String()
 	t.Log("Progress output for change 2:", output)
+	assert.Empty(t, output)
+
+	reporter.CompleteChange(change2, nil)
+	output = buf.String()
 
 	assert.Contains(t, output, "Deleting api_document: document 'api-guide' in api:my-api")
 	assert.NotContains(t, output, "[unknown]")
+}
+
+func TestConsoleReporter_ConcurrentAtomicLines(t *testing.T) {
+	var buf bytes.Buffer
+	reporter := NewConsoleReporter(&buf)
+
+	plan := &planner.Plan{Summary: planner.PlanSummary{TotalChanges: 20}}
+	reporter.StartExecution(plan)
+
+	done := make(chan struct{}, 20)
+	for i := range 20 {
+		change := planner.PlannedChange{
+			ID:           fmt.Sprintf("change-%d", i),
+			Action:       planner.ActionCreate,
+			ResourceType: "portal",
+			ResourceRef:  fmt.Sprintf("portal-%d", i),
+			Namespace:    "default",
+		}
+
+		go func(ch planner.PlannedChange) {
+			reporter.StartChange(ch)
+			reporter.CompleteChange(ch, nil)
+			done <- struct{}{}
+		}(change)
+	}
+
+	for range 20 {
+		<-done
+	}
+
+	output := buf.String()
+	assert.NotContains(t, output, "\n✓\n")
+	assert.Equal(t, 20, strings.Count(output, "... ✓\n"))
 }
 
 func TestFormatResourceNameForProgress_AllTypes(t *testing.T) {

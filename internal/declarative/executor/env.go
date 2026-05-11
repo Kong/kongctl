@@ -223,20 +223,3 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 	}
 }
 
-func actualRefForExecution(ref string) (string, error) {
-	actualRef := ref
-	if tags.IsEnvPlaceholder(actualRef) {
-		resolved, err := tags.ResolveEnvPlaceholder(actualRef)
-		if err != nil {
-			return "", err
-		}
-		actualRef = resolved
-	}
-	if tags.IsRefPlaceholder(actualRef) {
-		parsedRef, _, ok := tags.ParseRefPlaceholder(actualRef)
-		if ok && parsedRef != "" {
-			actualRef = parsedRef
-		}
-	}
-	return actualRef, nil
-}

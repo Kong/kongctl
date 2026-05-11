@@ -9,11 +9,17 @@ import (
 
 // Plan represents a declarative configuration plan
 type Plan struct {
-	Metadata       PlanMetadata    `json:"metadata"`
-	Changes        []PlannedChange `json:"changes"`
-	ExecutionOrder []string        `json:"execution_order"`
-	Summary        PlanSummary     `json:"summary"`
-	Warnings       []PlanWarning   `json:"warnings,omitempty"`
+	Metadata PlanMetadata    `json:"metadata"`
+	Changes  []PlannedChange `json:"changes"`
+	// Legacy execution order for sequential plans; ignored if ExecutionGroups is set
+	ExecutionOrder []string `json:"execution_order"`
+	// ExecutionGroups is an ordered list of concurrency groups.
+	// Changes within a group are safe to execute concurrently; group N+1 must
+	// not start until group N is fully complete. Plans without this field
+	// (legacy plans or plans with no changes) execute sequentially via ExecutionOrder.
+	ExecutionGroups [][]string    `json:"execution_groups,omitempty"`
+	Summary         PlanSummary   `json:"summary"`
+	Warnings        []PlanWarning `json:"warnings,omitempty"`
 }
 
 // PlanMode represents the mode of plan generation
@@ -75,6 +81,21 @@ type ReferenceInfo struct {
 	ResolvedIDs  []string            `json:"resolved_ids,omitempty"`  // Array of resolved UUIDs
 	LookupArrays map[string][]string `json:"lookup_arrays,omitempty"` // Array lookup fields
 	IsArray      bool                `json:"is_array,omitempty"`      // Flag to indicate array reference
+}
+
+// HasID reports whether the reference carries any ID value.
+func (r ReferenceInfo) HasID() bool {
+	return strings.TrimSpace(r.ID) != ""
+}
+
+// IsUnknownID reports whether the reference ID is the unresolved placeholder.
+func (r ReferenceInfo) IsUnknownID() bool {
+	return strings.TrimSpace(r.ID) == "[unknown]"
+}
+
+// HasResolvedID reports whether the reference has a concrete, non-placeholder ID.
+func (r ReferenceInfo) HasResolvedID() bool {
+	return r.HasID() && !r.IsUnknownID()
 }
 
 // ParentInfo tracks parent relationships
@@ -194,6 +215,13 @@ func (p *Plan) HasChange(resourceType, resourceRef string) bool {
 // SetExecutionOrder sets the calculated execution order
 func (p *Plan) SetExecutionOrder(order []string) {
 	p.ExecutionOrder = order
+}
+
+// SetExecutionGroups sets the concurrency groups computed during dependency
+// resolution. Each group holds change IDs that are safe to run concurrently;
+// groups must be executed one at a time in order.
+func (p *Plan) SetExecutionGroups(groups [][]string) {
+	p.ExecutionGroups = groups
 }
 
 // AddWarning adds a warning to the plan
