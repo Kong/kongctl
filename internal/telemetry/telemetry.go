@@ -66,9 +66,8 @@ func FromContext(ctx context.Context) *Recorder {
 // CommandInfo is the data SetCommand expects from the root PersistentPreRun
 // hook.
 type CommandInfo struct {
-	Path     string
-	FlagsSet []string
-	Area     string
+	Path string
+	Area string
 }
 
 // Recorder buffers a single event for the duration of one command execution
@@ -201,7 +200,6 @@ func (r *Recorder) Finalize(_ error, end time.Time) {
 	ev := r.staticEvent
 	ev.Timestamp = end
 	ev.CommandPath = info.Path
-	ev.FlagsSet = info.FlagsSet
 	ev.ExecArea = info.Area
 
 	// TODO: Uncomment when we start reporting outcomes.

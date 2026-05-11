@@ -14,9 +14,8 @@ type Event struct {
 	OS      string `json:"os"`
 	Arch    string `json:"arch"`
 
-	CommandPath string   `json:"command_path"`
-	FlagsSet    []string `json:"flags_set,omitempty"`
-	ExecArea    string   `json:"exec_area"`
+	CommandPath string `json:"command_path"`
+	ExecArea    string `json:"exec_area"`
 
 	Outcome    string `json:"outcome,omitempty"`
 	DurationMs int64  `json:"duration_ms,omitempty"`

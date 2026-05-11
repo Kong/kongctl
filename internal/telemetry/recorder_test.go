@@ -19,17 +19,17 @@ type fakeCfg struct {
 	path  string
 }
 
-func (f *fakeCfg) GetString(string) string             { return "" }
-func (f *fakeCfg) GetBool(k string) bool               { return f.bools[k] }
-func (f *fakeCfg) GetInt(string) int                   { return 0 }
-func (f *fakeCfg) GetIntOrElse(_ string, or int) int   { return or }
-func (f *fakeCfg) GetStringSlice(string) []string      { return nil }
-func (f *fakeCfg) SetString(string, string)            {}
-func (f *fakeCfg) Set(string, any)                     {}
-func (f *fakeCfg) Get(string) any                      { return nil }
-func (f *fakeCfg) BindFlag(string, *pflag.Flag) error  { return nil }
-func (f *fakeCfg) GetProfile() string                  { return "default" }
-func (f *fakeCfg) GetPath() string                     { return f.path }
+func (f *fakeCfg) GetString(string) string            { return "" }
+func (f *fakeCfg) GetBool(k string) bool              { return f.bools[k] }
+func (f *fakeCfg) GetInt(string) int                  { return 0 }
+func (f *fakeCfg) GetIntOrElse(_ string, or int) int  { return or }
+func (f *fakeCfg) GetStringSlice(string) []string     { return nil }
+func (f *fakeCfg) SetString(string, string)           {}
+func (f *fakeCfg) Set(string, any)                    {}
+func (f *fakeCfg) Get(string) any                     { return nil }
+func (f *fakeCfg) BindFlag(string, *pflag.Flag) error { return nil }
+func (f *fakeCfg) GetProfile() string                 { return "default" }
+func (f *fakeCfg) GetPath() string                    { return f.path }
 
 // capturingSink records every event seen for inspection. Safe for concurrent
 // use because the dispatcher and the test goroutine both touch it.
@@ -209,9 +209,8 @@ func TestRecorder_FinalizeEmitsEvent(t *testing.T) {
 
 	end := time.Now()
 	rec.SetCommand(CommandInfo{
-		Path:     "kongctl plan",
-		Area:     AreaDeclarative,
-		FlagsSet: []string{"plan"},
+		Path: "kongctl plan",
+		Area: AreaDeclarative,
 	})
 	rec.Finalize(nil, end)
 	if err := rec.Close(t.Context()); err != nil {
@@ -228,9 +227,6 @@ func TestRecorder_FinalizeEmitsEvent(t *testing.T) {
 	}
 	if got.ExecArea != AreaDeclarative {
 		t.Errorf("ExecArea = %q, want %q", got.ExecArea, AreaDeclarative)
-	}
-	if len(got.FlagsSet) != 1 || got.FlagsSet[0] != "plan" {
-		t.Errorf("FlagsSet = %v, want [plan]", got.FlagsSet)
 	}
 	if !got.Timestamp.Equal(end) {
 		t.Errorf("Timestamp = %v, want %v", got.Timestamp, end)
