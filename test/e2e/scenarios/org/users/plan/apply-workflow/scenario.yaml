@@ -100,9 +100,9 @@ steps:
             expect:
               fields:
                 "contains(@, 'Plan: 6 to add')": true
-                "contains(@, 'team \"user-plan-apply-team\" will be created')": true
-                "contains(@, 'organization_user_team_membership')": true
-                "contains(@, 'user-plan-apply-team\" will be created')": true
+                "contains(@, 'organization_team \"user-plan-apply-team\" will be created')": true
+                "contains(@, 'organization_user_team_membership \"')": true
+                "contains(@, '|user-plan-apply-team\" will be created')": true
                 "contains(@, 'organization_user_role \"user-plan-apply-user-role-1\" will be created')": true
 
       - name: 002-apply-plan

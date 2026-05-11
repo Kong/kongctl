@@ -134,8 +134,8 @@ steps:
             expect:
               fields:
                 "contains(@, 'Plan: 1 to add, 0 to change, 1 to destroy')": true
-                "contains(@, 'organization_user_team_membership')": true
-                "contains(@, 'user-plan-sync-team\" will be created')": true
+                "contains(@, 'organization_user_team_membership \"')": true
+                "contains(@, '|user-plan-sync-team\" will be created')": true
                 "contains(@, 'organization_user_role \"user-plan-sync-user-role-1\" will be deleted')": true
 
       - name: 002-sync-plan
