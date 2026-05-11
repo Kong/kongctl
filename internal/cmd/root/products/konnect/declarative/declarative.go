@@ -1539,11 +1539,12 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:   token,
-		KonnectBaseURL: baseURL,
-		Mode:           planner.PlanModeApply,
-		PlanBaseDir:    resolvePlanBaseDir(planFile),
-		MaxConcurrency: maxConcurrency,
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectBaseURL:     baseURL,
+		Mode:               planner.PlanModeApply,
+		PlanBaseDir:        resolvePlanBaseDir(planFile),
+		MaxConcurrency:     maxConcurrency,
 	})
 
 	// Execute plan
@@ -2017,11 +2018,12 @@ func runDelete(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:   token,
-		KonnectBaseURL: baseURL,
-		Mode:           planner.PlanModeDelete,
-		PlanBaseDir:    resolvePlanBaseDir(planFile),
-		MaxConcurrency: maxConcurrency,
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectBaseURL:     baseURL,
+		Mode:               planner.PlanModeDelete,
+		PlanBaseDir:        resolvePlanBaseDir(planFile),
+		MaxConcurrency:     maxConcurrency,
 	})
 
 	// Execute plan
@@ -2272,11 +2274,12 @@ func runSync(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:   token,
-		KonnectBaseURL: baseURL,
-		Mode:           planner.PlanModeSync,
-		PlanBaseDir:    resolvePlanBaseDir(planFile),
-		MaxConcurrency: maxConcurrency,
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectBaseURL:     baseURL,
+		Mode:               planner.PlanModeSync,
+		PlanBaseDir:        resolvePlanBaseDir(planFile),
+		MaxConcurrency:     maxConcurrency,
 	})
 
 	// Execute plan
