@@ -196,6 +196,10 @@ func getDefaultConfig(profileName, configFilePath string) map[string]any {
 			"log-file":                  defaultLogPath,
 			"konnect":                   map[string]any{},
 			common.ColorThemeConfigPath: common.DefaultColorTheme,
+			"telemetry": map[string]any{
+				"enabled": false,
+				"debug":   false,
+			},
 		},
 	}
 	return defaultConfig
