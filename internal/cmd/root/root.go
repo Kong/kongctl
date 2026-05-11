@@ -157,9 +157,8 @@ func newRootCmd() *cobra.Command {
 				telemetryRecorder.Begin(time.Now())
 			}
 			telemetryRecorder.SetCommand(telemetry.CommandInfo{
-				Path:     cmd.CommandPath(),
-				Area:     telemetry.AreaFor(cmd.CommandPath()),
-				FlagsSet: telemetry.VisitedFlagNames(cmd),
+				Path: cmd.CommandPath(),
+				Area: telemetry.AreaFor(cmd.CommandPath()),
 			})
 			ctx = telemetry.ContextWithRecorder(ctx, telemetryRecorder)
 
