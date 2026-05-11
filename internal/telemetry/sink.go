@@ -44,9 +44,13 @@ func (s *fileSink) Emit(_ context.Context, e Event) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	return writeJSONLine(f, e)
+	writeErr := writeJSONLine(f, e)
+	closeErr := f.Close()
+	if writeErr != nil {
+		return writeErr
+	}
+	return closeErr
 }
 
 func (s *fileSink) Close(_ context.Context) error { return nil }
