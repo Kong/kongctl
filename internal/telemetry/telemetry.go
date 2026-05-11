@@ -94,9 +94,7 @@ type Recorder struct {
 }
 
 // NewRecorder builds a Recorder. It reads telemetry.enabled from cfg; if
-// false, it returns a Recorder whose dispatch path is a no-op. Errors during
-// install-ID load are logged at debug level and treated as "telemetry off"
-// for this run — telemetry must never fail a command.
+// false, it returns a Recorder whose dispatch path is a no-op.
 func NewRecorder(
 	_ context.Context,
 	cfg config.Hook,
@@ -179,7 +177,7 @@ func (r *Recorder) SetCommand(info CommandInfo) {
 	r.mu.Unlock()
 }
 
-// Finalize categorizes err, builds the final Event, and enqueues it for
+// Finalize builds the final Event, and enqueues it for
 // dispatch. Non-blocking: if the channel is full, the event is dropped
 // rather than risk blocking command shutdown.
 func (r *Recorder) Finalize(_ error, end time.Time) {
