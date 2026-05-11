@@ -164,3 +164,40 @@ func TestEnsurePlanningSyncScopeInfersPortalTeamRolesWithTeams(t *testing.T) {
 		resources.ResourceTypePortalTeamRole,
 	))
 }
+
+func TestEnsurePlanningSyncScopeInfersOrganizationAssignmentScope(t *testing.T) {
+	rs := &resources.ResourceSet{
+		Organization: &resources.OrganizationResource{
+			Users: []resources.OrganizationUserResource{
+				{
+					Ref: "alice",
+					ID:  "user-123",
+				},
+			},
+			SystemAccounts: []resources.OrganizationSystemAccountResource{
+				{
+					Ref: "ci-bot",
+					ID:  "system-account-123",
+				},
+			},
+		},
+	}
+
+	ensurePlanningSyncScope(rs)
+	require.NotNil(t, rs.SyncScope)
+	assert.True(t, rs.SyncScope.OrganizationUsersInScope())
+	assert.True(t, rs.SyncScope.OrganizationSystemAccountsInScope())
+}
+
+func TestShouldPlanOrganizationSystemAccountsRequiresScope(t *testing.T) {
+	plan := NewPlan("1.0", "test", PlanModeSync)
+	scope := resources.NewSyncScope()
+	planner := &Planner{
+		resources: &resources.ResourceSet{SyncScope: scope},
+	}
+
+	assert.False(t, planner.shouldPlanOrganizationSystemAccounts(plan))
+
+	scope.MarkOrganizationSystemAccountsScoped()
+	assert.True(t, planner.shouldPlanOrganizationSystemAccounts(plan))
+}

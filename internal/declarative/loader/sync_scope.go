@@ -591,6 +591,9 @@ func captureOrganizationScope(scope *resources.SyncScope, raw map[string]any) {
 	if _, ok := org["users"]; ok {
 		scope.MarkOrganizationUsersScoped()
 	}
+	if _, ok := org["system-accounts"]; ok {
+		scope.MarkOrganizationSystemAccountsScoped()
+	}
 }
 
 func captureOrganizationTeamRoleScopes(scope *resources.SyncScope, value any) {

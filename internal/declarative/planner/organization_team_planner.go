@@ -180,8 +180,10 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 			return err
 		}
 	}
-	if err := t.planOrganizationSystemAccountAssignmentChanges(ctx, namespace, desired, currentByName, plan); err != nil {
-		return err
+	if t.planner.shouldPlanOrganizationSystemAccounts(plan) {
+		if err := t.planOrganizationSystemAccountAssignmentChanges(ctx, namespace, desired, currentByName, plan); err != nil {
+			return err
+		}
 	}
 
 	// Check for managed resources to delete (sync mode only)

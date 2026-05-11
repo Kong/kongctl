@@ -16,10 +16,11 @@ func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
 	childScopes := scope.ChildScopes()
 	rootChildTypes := scope.RootChildCollectionTypes()
 	metadata := &PlanSyncScope{
-		RootResourceTypes:      make([]string, 0, len(rootTypes)),
-		ChildResourceTypes:     make([]PlanSyncChildScope, 0, len(childScopes)),
-		RootChildResourceTypes: make([]string, 0, len(rootChildTypes)),
-		OrganizationUsers:      scope.OrganizationUsersScoped,
+		RootResourceTypes:          make([]string, 0, len(rootTypes)),
+		ChildResourceTypes:         make([]PlanSyncChildScope, 0, len(childScopes)),
+		RootChildResourceTypes:     make([]string, 0, len(rootChildTypes)),
+		OrganizationUsers:          scope.OrganizationUsersScoped,
+		OrganizationSystemAccounts: scope.OrganizationSystemAccountsScoped,
 	}
 	for _, rt := range rootTypes {
 		metadata.RootResourceTypes = append(metadata.RootResourceTypes, string(rt))
@@ -39,7 +40,10 @@ func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
 }
 
 func ensurePlanningSyncScope(rs *resources.ResourceSet) {
-	if rs == nil || rs.SyncScope != nil || rs.IsEmpty() {
+	if rs == nil || rs.SyncScope != nil {
+		return
+	}
+	if rs.IsEmpty() && !hasOrganizationAssignmentSelectors(rs) {
 		return
 	}
 
@@ -76,6 +80,11 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	addPortalChildScopes(scope, rs)
 	addEventGatewayChildScopes(scope, rs)
 	addOrganizationChildScopes(scope, rs)
+}
+
+func hasOrganizationAssignmentSelectors(rs *resources.ResourceSet) bool {
+	return rs != nil && rs.Organization != nil &&
+		(len(rs.Organization.Users) > 0 || len(rs.Organization.SystemAccounts) > 0)
 }
 
 func addRootIfPresent(scope *resources.SyncScope, rt resources.ResourceType, count int) {
@@ -217,8 +226,15 @@ func addOrganizationChildScopes(scope *resources.SyncScope, rs *resources.Resour
 	for _, role := range rs.OrganizationTeamRoles {
 		scope.AddChild(resources.ResourceTypeOrganizationTeam, role.Team, resources.ResourceTypeOrganizationTeamRole)
 	}
-	if len(rs.OrganizationUserTeamMemberships) > 0 || len(rs.OrganizationUserRoles) > 0 {
+	if (rs.Organization != nil && len(rs.Organization.Users) > 0) ||
+		len(rs.OrganizationUserTeamMemberships) > 0 ||
+		len(rs.OrganizationUserRoles) > 0 {
 		scope.MarkOrganizationUsersScoped()
+	}
+	if (rs.Organization != nil && len(rs.Organization.SystemAccounts) > 0) ||
+		len(rs.OrganizationSystemAccountTeamMemberships) > 0 ||
+		len(rs.OrganizationSystemAccountRoles) > 0 {
+		scope.MarkOrganizationSystemAccountsScoped()
 	}
 }
 
@@ -328,7 +344,9 @@ func (p *Planner) shouldPlanOrganization(plan *Plan) bool {
 	}
 	ensurePlanningSyncScope(p.resources)
 	scope := p.resources.SyncScope
-	return scope.RootInScope(resources.ResourceTypeOrganizationTeam) || scope.OrganizationUsersInScope()
+	return scope.RootInScope(resources.ResourceTypeOrganizationTeam) ||
+		scope.OrganizationUsersInScope() ||
+		scope.OrganizationSystemAccountsInScope()
 }
 
 func (p *Planner) shouldPlanOrganizationUsers(plan *Plan) bool {
@@ -340,4 +358,15 @@ func (p *Planner) shouldPlanOrganizationUsers(plan *Plan) bool {
 	}
 	ensurePlanningSyncScope(p.resources)
 	return p.resources.SyncScope.OrganizationUsersInScope()
+}
+
+func (p *Planner) shouldPlanOrganizationSystemAccounts(plan *Plan) bool {
+	if plan == nil || plan.Metadata.Mode != PlanModeSync {
+		return true
+	}
+	if p == nil || p.resources == nil {
+		return false
+	}
+	ensurePlanningSyncScope(p.resources)
+	return p.resources.SyncScope.OrganizationSystemAccountsInScope()
 }

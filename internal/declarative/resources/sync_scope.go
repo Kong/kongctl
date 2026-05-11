@@ -9,10 +9,11 @@ import (
 // declarative input. Sync planning uses this to distinguish omitted collections
 // from collections intentionally set to zero desired resources.
 type SyncScope struct {
-	RootResourceTypes       map[ResourceType]struct{}
-	ChildResourceTypes      map[ResourceType]map[string]map[ResourceType]struct{}
-	RootChildResourceTypes  map[ResourceType]struct{}
-	OrganizationUsersScoped bool
+	RootResourceTypes                map[ResourceType]struct{}
+	ChildResourceTypes               map[ResourceType]map[string]map[ResourceType]struct{}
+	RootChildResourceTypes           map[ResourceType]struct{}
+	OrganizationUsersScoped          bool
+	OrganizationSystemAccountsScoped bool
 }
 
 // ChildSyncScope identifies a child collection scoped under a specific parent.
@@ -133,9 +134,21 @@ func (s *SyncScope) MarkOrganizationUsersScoped() {
 	}
 }
 
+// MarkOrganizationSystemAccountsScoped records that organization.system-accounts was present.
+func (s *SyncScope) MarkOrganizationSystemAccountsScoped() {
+	if s != nil {
+		s.OrganizationSystemAccountsScoped = true
+	}
+}
+
 // OrganizationUsersInScope reports whether organization.users was present.
 func (s *SyncScope) OrganizationUsersInScope() bool {
 	return s != nil && s.OrganizationUsersScoped
+}
+
+// OrganizationSystemAccountsInScope reports whether organization.system-accounts was present.
+func (s *SyncScope) OrganizationSystemAccountsInScope() bool {
+	return s != nil && s.OrganizationSystemAccountsScoped
 }
 
 // HasAny reports whether any scope was recorded.
@@ -146,7 +159,8 @@ func (s *SyncScope) HasAny() bool {
 	return len(s.RootResourceTypes) > 0 ||
 		len(s.ChildResourceTypes) > 0 ||
 		len(s.RootChildResourceTypes) > 0 ||
-		s.OrganizationUsersScoped
+		s.OrganizationUsersScoped ||
+		s.OrganizationSystemAccountsScoped
 }
 
 // RootTypes returns sorted root resource types.
@@ -207,5 +221,8 @@ func (s *SyncScope) Merge(other *SyncScope) {
 	}
 	if other.OrganizationUsersScoped {
 		s.MarkOrganizationUsersScoped()
+	}
+	if other.OrganizationSystemAccountsScoped {
+		s.MarkOrganizationSystemAccountsScoped()
 	}
 }

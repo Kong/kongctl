@@ -42,10 +42,11 @@ type PlanMetadata struct {
 
 // PlanSyncScope records the explicit resource collections used for sync planning.
 type PlanSyncScope struct {
-	RootResourceTypes      []string             `json:"root_resource_types,omitempty"`
-	ChildResourceTypes     []PlanSyncChildScope `json:"child_resource_types,omitempty"`
-	RootChildResourceTypes []string             `json:"root_child_resource_types,omitempty"`
-	OrganizationUsers      bool                 `json:"organization_users,omitempty"`
+	RootResourceTypes          []string             `json:"root_resource_types,omitempty"`
+	ChildResourceTypes         []PlanSyncChildScope `json:"child_resource_types,omitempty"`
+	RootChildResourceTypes     []string             `json:"root_child_resource_types,omitempty"`
+	OrganizationUsers          bool                 `json:"organization_users,omitempty"`
+	OrganizationSystemAccounts bool                 `json:"organization_system_accounts,omitempty"`
 }
 
 // PlanSyncChildScope identifies a child collection scoped under one parent.

@@ -53,6 +53,25 @@ func TestCaptureSyncScopeTracksRootLevelEmptyChildCollections(t *testing.T) {
 	)
 }
 
+func TestCaptureSyncScopeTracksOrganizationAssignments(t *testing.T) {
+	input := strings.NewReader(`
+organization:
+  users:
+    - ref: alice
+      id: user-123
+  system-accounts:
+    - ref: ci-bot
+      id: system-account-123
+`)
+
+	rs, err := New().parseYAML(input, "test.yaml", ".")
+	require.NoError(t, err)
+	require.NotNil(t, rs.SyncScope)
+
+	assert.True(t, rs.SyncScope.OrganizationUsersInScope())
+	assert.True(t, rs.SyncScope.OrganizationSystemAccountsInScope())
+}
+
 func TestCaptureSyncScopeRejectsNullPortalSingletonChildren(t *testing.T) {
 	tests := []struct {
 		name      string
