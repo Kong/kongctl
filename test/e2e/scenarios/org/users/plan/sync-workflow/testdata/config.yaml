@@ -1,0 +1,35 @@
+_defaults:
+  kongctl:
+    namespace: user-plan-sync
+
+apis:
+  - ref: user-plan-sync-api
+    name: user-plan-sync-api
+    description: API used by the user plan sync workflow E2E scenario
+
+organization:
+  teams:
+    - ref: user-plan-sync-team
+      name: User Plan Sync Team
+      description: Team used by the user plan sync workflow E2E scenario
+      labels:
+        scenario: user-plan-sync
+      roles:
+        - ref: user-plan-sync-team-role
+          role_name: Viewer
+          entity_id: !ref user-plan-sync-api#id
+          entity_type_name: APIs
+          entity_region: us
+      kongctl:
+        namespace: user-plan-sync
+        protected: false
+  users:
+    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+      teams:
+        - user-plan-sync-team
+      roles:
+        - ref: user-plan-sync-user-role-1
+          role_name: Viewer
+          entity_id: !ref user-plan-sync-api#id
+          entity_type_name: APIs
+          entity_region: us

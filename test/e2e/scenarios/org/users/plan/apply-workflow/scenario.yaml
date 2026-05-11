@@ -1,0 +1,169 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  assignedEnvironment: kongctl-acceptance
+  requiredEnvVars:
+    - KONGCTL_E2E_ORG_USER_EMAIL_1
+    - KONGCTL_E2E_ORG_USER_EMAIL_2
+  info: >-
+    Organization user plan apply-workflow E2E requires two existing Konnect
+    users via KONGCTL_E2E_ORG_USER_EMAIL_1 and KONGCTL_E2E_ORG_USER_EMAIL_2;
+    users are lookup selectors, not managed resources.
+
+vars:
+  namespace: user-plan-apply
+  apiRef: user-plan-apply-api
+  teamRef: user-plan-apply-team
+  teamName: User Plan Apply Team
+  teamRoleRef: user-plan-apply-team-role
+  userRoleRef: user-plan-apply-user-role-1
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+      - email
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 6
+                by_action.CREATE: 6
+          - select: changes[?resource_type=='organization_user_team_membership']
+            expect:
+              fields:
+                "length(@)": 2
+          - select: changes[?resource_type=='organization_user_role']
+            expect:
+              fields:
+                "length(@)": 1
+          - select: >-
+              changes[?resource_type=='organization_user_role' &&
+                      resource_ref=='{{ .vars.userRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                      resource_ref=='{{ .vars.teamRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 6 to add')": true
+                "contains(@, 'team \"user-plan-apply-team\" will be created')": true
+                "contains(@, 'organization_user_team_membership')": true
+                "contains(@, 'user-plan-apply-team\" will be created')": true
+                "contains(@, 'organization_user_role \"user-plan-apply-user-role-1\" will be created')": true
+
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                applied: 6
+                failed: 0
+
+      - name: 003-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 002-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-cleanup
+    commands:
+      - name: 000-sync-remove-assignments
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 001-delete-managed-resources
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

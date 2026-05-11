@@ -1,0 +1,38 @@
+_defaults:
+  kongctl:
+    namespace: user-plan-apply
+
+apis:
+  - ref: user-plan-apply-api
+    name: user-plan-apply-api
+    description: API used by the user plan apply workflow E2E scenario
+
+organization:
+  teams:
+    - ref: user-plan-apply-team
+      name: User Plan Apply Team
+      description: Team used by the user plan apply workflow E2E scenario
+      labels:
+        scenario: user-plan-apply
+      roles:
+        - ref: user-plan-apply-team-role
+          role_name: Viewer
+          entity_id: !ref user-plan-apply-api#id
+          entity_type_name: APIs
+          entity_region: us
+      kongctl:
+        namespace: user-plan-apply
+        protected: false
+  users:
+    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+      teams:
+        - user-plan-apply-team
+      roles:
+        - ref: user-plan-apply-user-role-1
+          role_name: Viewer
+          entity_id: !ref user-plan-apply-api#id
+          entity_type_name: APIs
+          entity_region: us
+    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
+      teams:
+        - user-plan-apply-team
