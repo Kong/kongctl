@@ -63,6 +63,42 @@ func TestExecutor_New(t *testing.T) {
 	assert.True(t, execDryRun.dryRun)
 }
 
+func TestExecutor_NewWithOptions_ConcurrencyBounds(t *testing.T) {
+	tests := []struct {
+		name     string
+		max      int
+		expected int
+	}{
+		{
+			name:     "uses default when unset",
+			max:      0,
+			expected: DefaultMaxConcurrency,
+		},
+		{
+			name:     "uses default when non-positive",
+			max:      -1,
+			expected: DefaultMaxConcurrency,
+		},
+		{
+			name:     "keeps value within range",
+			max:      7,
+			expected: 7,
+		},
+		{
+			name:     "clamps above maximum",
+			max:      MaxConcurrency + 1,
+			expected: MaxConcurrency,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exec := NewWithOptions(nil, nil, false, Options{MaxConcurrency: tt.max})
+			assert.Equal(t, tt.expected, exec.concurrency)
+		})
+	}
+}
+
 func TestExecutor_Execute_EmptyPlan(t *testing.T) {
 	reporter := &MockProgressReporter{}
 

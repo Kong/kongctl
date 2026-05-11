@@ -174,9 +174,16 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		planBaseDir:        strings.TrimSpace(opts.PlanBaseDir),
 	}
 
-	e.concurrency = 1
+	e.concurrency = DefaultMaxConcurrency
+	// If user has overridden MaxConcurrency, use it. Ensure it's within allowed bounds.
 	if opts.MaxConcurrency > 0 {
-		e.concurrency = max(MinConcurrency, min(MaxConcurrency, opts.MaxConcurrency))
+		if opts.MaxConcurrency > MaxConcurrency {
+			e.concurrency = MaxConcurrency
+		} else if opts.MaxConcurrency < MinConcurrency {
+			e.concurrency = MinConcurrency
+		} else {
+			e.concurrency = opts.MaxConcurrency
+		}
 	}
 
 	// Initialize resource executors

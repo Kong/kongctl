@@ -798,7 +798,7 @@ func (p *Planner) addVirtualClusterReference(change *PlannedChange, fields map[s
 
 	change.References[FieldEventGatewayVirtualClusterID] = ReferenceInfo{
 		Ref: idStr,
-		ID:  "[unknown]",
+		ID:  resources.UnknownReferenceID,
 		LookupFields: map[string]string{
 			FieldName: virtualClusterName,
 		},
