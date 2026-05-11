@@ -2,7 +2,6 @@ package resources
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
@@ -24,29 +23,30 @@ func init() {
 
 // OrganizationUserResource selects an existing Konnect user and declares user-bound assignments.
 type OrganizationUserResource struct {
-	Email   string                         `yaml:"email,omitempty" json:"email,omitempty"`
-	ID      string                         `yaml:"id,omitempty"    json:"id,omitempty"`
-	Kongctl *KongctlMeta                   `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
-	Teams   []string                       `yaml:"teams,omitempty" json:"teams,omitempty"`
-	Roles   []OrganizationUserRoleResource `yaml:"roles,omitempty" json:"roles,omitempty"`
+	Ref     string                                   `yaml:"ref" json:"ref"`
+	Email   string                                   `yaml:"email,omitempty" json:"email,omitempty"`
+	ID      string                                   `yaml:"id,omitempty"    json:"id,omitempty"`
+	Kongctl *KongctlMeta                             `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	Teams   []OrganizationUserTeamMembershipResource `yaml:"teams,omitempty" json:"teams,omitempty"`
+	Roles   []OrganizationUserRoleResource           `yaml:"roles,omitempty" json:"roles,omitempty"`
 
 	konnectID string `yaml:"-" json:"-"`
 }
 
-func (u OrganizationUserResource) Ref() string {
-	if u.Email != "" {
-		return strings.ToLower(u.Email)
-	}
-	return u.ID
+func (u OrganizationUserResource) GetRef() string {
+	return u.Ref
 }
 
 func (u OrganizationUserResource) Validate() error {
+	if err := ValidateRef(u.Ref); err != nil {
+		return fmt.Errorf("invalid organization user ref: %w", err)
+	}
 	if (u.Email == "") == (u.ID == "") {
 		return fmt.Errorf("exactly one of email or id is required")
 	}
-	for _, team := range u.Teams {
-		if team == "" {
-			return fmt.Errorf("team ref cannot be empty")
+	for i, team := range u.Teams {
+		if err := team.ValidateNested(); err != nil {
+			return fmt.Errorf("invalid user team membership %d: %w", i, err)
 		}
 	}
 	for i, role := range u.Roles {
@@ -67,9 +67,9 @@ func (u *OrganizationUserResource) SetKonnectID(id string) {
 
 // OrganizationUserTeamMembershipResource is an internal relation resource.
 type OrganizationUserTeamMembershipResource struct {
-	Ref  string `yaml:"-" json:"-"`
+	Ref  string `yaml:"ref" json:"ref"`
 	User string `yaml:"-" json:"-"`
-	Team string `yaml:"-" json:"-"`
+	Team string `yaml:"team" json:"team"`
 }
 
 func (r OrganizationUserTeamMembershipResource) GetType() ResourceType {
@@ -91,8 +91,18 @@ func (r OrganizationUserTeamMembershipResource) GetDependencies() []ResourceRef 
 }
 
 func (r OrganizationUserTeamMembershipResource) Validate() error {
+	if err := r.ValidateNested(); err != nil {
+		return err
+	}
 	if r.User == "" {
 		return fmt.Errorf("user is required")
+	}
+	return nil
+}
+
+func (r OrganizationUserTeamMembershipResource) ValidateNested() error {
+	if err := ValidateRef(r.Ref); err != nil {
+		return fmt.Errorf("invalid organization user team membership ref: %w", err)
 	}
 	if r.Team == "" {
 		return fmt.Errorf("team is required")

@@ -47,7 +47,10 @@ func NewSystemAccountCmd(
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+		cmd := newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun)
+		cmd.AddCommand(newGetSystemAccountRolesCmd(verb, addParentFlags, parentPreRun))
+		cmd.AddCommand(newGetSystemAccountTeamsCmd(verb, addParentFlags, parentPreRun))
+		return cmd.Command, nil
 	}
 
 	// Return base command for unsupported verbs

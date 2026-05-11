@@ -4,27 +4,29 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token                         string
-	T                             *testing.T
-	CPAPIFactory                  func() ControlPlaneAPI
-	ControlPlaneGroupsFactory     func() ControlPlaneGroupsAPI
-	PortalFactory                 func() PortalAPI
-	APIFactory                    func() APIFullAPI
-	CatalogServicesFactory        func() CatalogServicesAPI
-	APIDocumentFactory            func() APIDocumentAPI
-	APIVersionFactory             func() APIVersionAPI
-	APIPublicationFactory         func() APIPublicationAPI
-	APIImplementationFactory      func() APIImplementationAPI
-	AppAuthStrategiesFactory      func() AppAuthStrategiesAPI
-	DCRProvidersFactory           func() DCRProvidersAPI
-	MeFactory                     func() MeAPI
-	GatewayServiceFactory         func() GatewayServiceAPI
-	DataPlaneCertificateFactory   func() DataPlaneCertificateAPI
-	SystemAccountFactory          func() SystemAccountAPI
-	OrganizationTeamFactory       func() OrganizationTeamAPI
-	OrganizationTeamRolesFactory  func() OrganizationTeamRolesAPI
-	OrganizationUsersFactory      func() OrganizationUsersAPI
-	OrganizationMembershipFactory func() OrganizationTeamMembershipAPI
+	Token                              string
+	T                                  *testing.T
+	CPAPIFactory                       func() ControlPlaneAPI
+	ControlPlaneGroupsFactory          func() ControlPlaneGroupsAPI
+	PortalFactory                      func() PortalAPI
+	APIFactory                         func() APIFullAPI
+	CatalogServicesFactory             func() CatalogServicesAPI
+	APIDocumentFactory                 func() APIDocumentAPI
+	APIVersionFactory                  func() APIVersionAPI
+	APIPublicationFactory              func() APIPublicationAPI
+	APIImplementationFactory           func() APIImplementationAPI
+	AppAuthStrategiesFactory           func() AppAuthStrategiesAPI
+	DCRProvidersFactory                func() DCRProvidersAPI
+	MeFactory                          func() MeAPI
+	GatewayServiceFactory              func() GatewayServiceAPI
+	DataPlaneCertificateFactory        func() DataPlaneCertificateAPI
+	SystemAccountFactory               func() SystemAccountAPI
+	SystemAccountRolesFactory          func() SystemAccountRolesAPI
+	SystemAccountTeamMembershipFactory func() SystemAccountTeamMembershipAPI
+	OrganizationTeamFactory            func() OrganizationTeamAPI
+	OrganizationTeamRolesFactory       func() OrganizationTeamRolesAPI
+	OrganizationUsersFactory           func() OrganizationUsersAPI
+	OrganizationMembershipFactory      func() OrganizationTeamMembershipAPI
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
@@ -324,6 +326,20 @@ func (m *MockKonnectSDK) GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI {
 func (m *MockKonnectSDK) GetSystemAccountAPI() SystemAccountAPI {
 	if m.SystemAccountFactory != nil {
 		return m.SystemAccountFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetSystemAccountRolesAPI() SystemAccountRolesAPI {
+	if m.SystemAccountRolesFactory != nil {
+		return m.SystemAccountRolesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetSystemAccountTeamMembershipAPI() SystemAccountTeamMembershipAPI {
+	if m.SystemAccountTeamMembershipFactory != nil {
+		return m.SystemAccountTeamMembershipFactory()
 	}
 	return nil
 }

@@ -475,6 +475,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	// Append all resources from source to accumulated using the registry
 	accumulated.AppendAll(source)
 	appendOrganizationUsers(accumulated, source)
+	appendOrganizationSystemAccounts(accumulated, source)
 
 	// Update the running index with newly added refs
 	maps.Copy(refIndex, seenRefs)
@@ -490,6 +491,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			len(source.OrganizationTeams)
 		if source.Organization != nil {
 			parentCount += len(source.Organization.Users)
+			parentCount += len(source.Organization.SystemAccounts)
 		}
 
 		if parentCount == 0 {
@@ -510,6 +512,19 @@ func appendOrganizationUsers(accumulated, source *resources.ResourceSet) {
 		accumulated.Organization = &resources.OrganizationResource{}
 	}
 	accumulated.Organization.Users = append(accumulated.Organization.Users, source.Organization.Users...)
+}
+
+func appendOrganizationSystemAccounts(accumulated, source *resources.ResourceSet) {
+	if source == nil || source.Organization == nil || len(source.Organization.SystemAccounts) == 0 {
+		return
+	}
+	if accumulated.Organization == nil {
+		accumulated.Organization = &resources.OrganizationResource{}
+	}
+	accumulated.Organization.SystemAccounts = append(
+		accumulated.Organization.SystemAccounts,
+		source.Organization.SystemAccounts...,
+	)
 }
 
 // applyNamespaceDefaults applies file-level namespace and protected defaults to parent resources
@@ -730,7 +745,16 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 			if err := assignNamespace(
 				&rs.Organization.Users[i].Kongctl,
 				"organization user",
-				rs.Organization.Users[i].Ref(),
+				rs.Organization.Users[i].Ref,
+			); err != nil {
+				return err
+			}
+		}
+		for i := range rs.Organization.SystemAccounts {
+			if err := assignNamespace(
+				&rs.Organization.SystemAccounts[i].Kongctl,
+				"organization system account",
+				rs.Organization.SystemAccounts[i].Ref,
 			); err != nil {
 				return err
 			}
@@ -805,15 +829,12 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 
 		for i := range org.Users {
 			user := &org.Users[i]
-			userRef := user.Ref()
-			for _, teamRef := range user.Teams {
+			userRef := user.Ref
+			for _, teamMembership := range user.Teams {
+				teamMembership.User = userRef
 				rs.OrganizationUserTeamMemberships = append(
 					rs.OrganizationUserTeamMemberships,
-					resources.OrganizationUserTeamMembershipResource{
-						Ref:  fmt.Sprintf("%s:%s", userRef, teamRef),
-						User: userRef,
-						Team: teamRef,
-					},
+					teamMembership,
 				)
 			}
 			for j := range user.Roles {
@@ -823,6 +844,24 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			}
 			user.Teams = nil
 			user.Roles = nil
+		}
+		for i := range org.SystemAccounts {
+			systemAccount := &org.SystemAccounts[i]
+			systemAccountRef := systemAccount.Ref
+			for _, teamMembership := range systemAccount.Teams {
+				teamMembership.SystemAccount = systemAccountRef
+				rs.OrganizationSystemAccountTeamMemberships = append(
+					rs.OrganizationSystemAccountTeamMemberships,
+					teamMembership,
+				)
+			}
+			for j := range systemAccount.Roles {
+				role := systemAccount.Roles[j]
+				role.SystemAccount = systemAccountRef
+				rs.OrganizationSystemAccountRoles = append(rs.OrganizationSystemAccountRoles, role)
+			}
+			systemAccount.Teams = nil
+			systemAccount.Roles = nil
 		}
 	}
 

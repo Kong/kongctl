@@ -77,6 +77,10 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	if err := l.validateOrganizationSystemAccounts(rs); err != nil {
+		return err
+	}
+
 	// Validate cross-resource references
 	if err := l.validateCrossReferences(rs); err != nil {
 		return err
@@ -101,12 +105,15 @@ func (l *Loader) validateOrganizationUsers(rs *resources.ResourceSet) error {
 	for i := range users {
 		user := &users[i]
 		if err := user.Validate(); err != nil {
-			return fmt.Errorf("invalid organization user %q: %w", user.Ref(), err)
+			return fmt.Errorf("invalid organization user %q: %w", user.Ref, err)
 		}
-		if userRefs[user.Ref()] {
-			return fmt.Errorf("duplicate organization user selector: %s", user.Ref())
+		if existing, found := rs.GetResourceByRef(user.Ref); found {
+			return fmt.Errorf("duplicate ref '%s' (already defined as %s)", user.Ref, existing.GetType())
 		}
-		userRefs[user.Ref()] = true
+		if userRefs[user.Ref] {
+			return fmt.Errorf("duplicate organization user ref: %s", user.Ref)
+		}
+		userRefs[user.Ref] = true
 	}
 
 	for i := range rs.OrganizationUserTeamMemberships {
@@ -164,6 +171,105 @@ func (l *Loader) validateUserRoleEntityReference(
 			role.GetRef(), apiRef)
 	} else if resource.GetType() != resources.ResourceTypeAPI {
 		return fmt.Errorf("organization_user_role %q references %s but expected api: %s (field: entity_id)",
+			role.GetRef(), resource.GetType(), apiRef)
+	}
+
+	return nil
+}
+
+func (l *Loader) validateOrganizationSystemAccounts(rs *resources.ResourceSet) error {
+	if rs.Organization == nil {
+		return nil
+	}
+
+	systemAccounts := rs.Organization.SystemAccounts
+	userRefs := make(map[string]bool, len(rs.Organization.Users))
+	for _, user := range rs.Organization.Users {
+		userRefs[user.Ref] = true
+	}
+
+	systemAccountRefs := make(map[string]bool)
+	assignmentRefs := make(map[string]bool)
+	for i := range systemAccounts {
+		systemAccount := &systemAccounts[i]
+		if err := systemAccount.Validate(); err != nil {
+			return fmt.Errorf("invalid organization system account %q: %w", systemAccount.Ref, err)
+		}
+		if existing, found := rs.GetResourceByRef(systemAccount.Ref); found {
+			return fmt.Errorf("duplicate ref '%s' (already defined as %s)", systemAccount.Ref, existing.GetType())
+		}
+		if userRefs[systemAccount.Ref] {
+			return fmt.Errorf(
+				"duplicate ref '%s' (already defined as %s)",
+				systemAccount.Ref,
+				resources.ResourceTypeOrganizationUser,
+			)
+		}
+		if systemAccountRefs[systemAccount.Ref] {
+			return fmt.Errorf("duplicate organization system account ref: %s", systemAccount.Ref)
+		}
+		systemAccountRefs[systemAccount.Ref] = true
+	}
+
+	for i := range rs.OrganizationSystemAccountTeamMemberships {
+		membership := &rs.OrganizationSystemAccountTeamMemberships[i]
+		if err := membership.Validate(); err != nil {
+			return fmt.Errorf("invalid organization_system_account_team_membership %q: %w", membership.GetRef(), err)
+		}
+		if assignmentRefs[membership.GetRef()] {
+			return fmt.Errorf("duplicate organization system account team membership: %s", membership.GetRef())
+		}
+		assignmentRefs[membership.GetRef()] = true
+		if resource, found := rs.GetResourceByRef(membership.Team); !found {
+			return fmt.Errorf("organization_system_account_team_membership %q references unknown organization_team: %s",
+				membership.GetRef(), membership.Team)
+		} else if resource.GetType() != resources.ResourceTypeOrganizationTeam {
+			return fmt.Errorf(
+				"organization_system_account_team_membership %q references %s but expected organization_team: %s",
+				membership.GetRef(),
+				resource.GetType(),
+				membership.Team,
+			)
+		}
+	}
+
+	roleRefs := make(map[string]bool)
+	for i := range rs.OrganizationSystemAccountRoles {
+		role := &rs.OrganizationSystemAccountRoles[i]
+		if err := role.Validate(); err != nil {
+			return fmt.Errorf("invalid organization_system_account_role %q: %w", role.GetRef(), err)
+		}
+		if roleRefs[role.GetRef()] {
+			return fmt.Errorf("duplicate organization_system_account_role ref: %s", role.GetRef())
+		}
+		roleRefs[role.GetRef()] = true
+		if err := l.validateSystemAccountRoleEntityReference(role, rs); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (l *Loader) validateSystemAccountRoleEntityReference(
+	role *resources.OrganizationSystemAccountRoleResource,
+	rs *resources.ResourceSet,
+) error {
+	if !tags.IsRefPlaceholder(role.EntityID) {
+		return nil
+	}
+
+	apiRef, _, ok := tags.ParseRefPlaceholder(role.EntityID)
+	if !ok || apiRef == "" {
+		return fmt.Errorf("organization_system_account_role %q has invalid entity_id reference: %s",
+			role.GetRef(), role.EntityID)
+	}
+
+	if resource, found := rs.GetResourceByRef(apiRef); !found {
+		return fmt.Errorf("organization_system_account_role %q references unknown api: %s (field: entity_id)",
+			role.GetRef(), apiRef)
+	} else if resource.GetType() != resources.ResourceTypeAPI {
+		return fmt.Errorf("organization_system_account_role %q references %s but expected api: %s (field: entity_id)",
 			role.GetRef(), resource.GetType(), apiRef)
 	}
 

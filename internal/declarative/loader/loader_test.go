@@ -280,9 +280,11 @@ organization:
     - ref: platform-team
       name: Platform Engineering
   users:
-    - email: alice@example.com
+    - ref: alice
+      email: alice@example.com
       teams:
-        - platform-team
+        - ref: alice-platform-team
+          team: platform-team
       roles:
         - ref: alice-products-viewer
           role_name: Viewer
@@ -298,14 +300,205 @@ organization:
 	require.Len(t, rs.OrganizationTeams, 1)
 	require.Len(t, rs.OrganizationUserTeamMemberships, 1)
 	require.Len(t, rs.OrganizationUserRoles, 1)
-	assert.Equal(t, "alice@example.com", rs.OrganizationUserTeamMemberships[0].User)
+	assert.Equal(t, "alice-platform-team", rs.OrganizationUserTeamMemberships[0].Ref)
+	assert.Equal(t, "alice", rs.OrganizationUserTeamMemberships[0].User)
 	assert.Equal(t, "platform-team", rs.OrganizationUserTeamMemberships[0].Team)
-	assert.Equal(t, "alice@example.com", rs.OrganizationUserRoles[0].User)
+	assert.Equal(t, "alice", rs.OrganizationUserRoles[0].User)
 	assert.Equal(t, "__REF__:products-api#id", rs.OrganizationUserRoles[0].EntityID)
 	require.NotNil(t, rs.Organization)
 	require.Len(t, rs.Organization.Users, 1)
 	assert.Empty(t, rs.Organization.Users[0].Teams)
 	assert.Empty(t, rs.Organization.Users[0].Roles)
+}
+
+func TestLoader_FlattensOrganizationSystemAccountAssignments(t *testing.T) {
+	content := `
+apis:
+  - ref: products-api
+    name: Products API
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+  system-accounts:
+    - ref: ci-bot
+      name: ci-bot
+      teams:
+        - ref: ci-bot-platform-team
+          team: platform-team
+      roles:
+        - ref: ci-bot-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.OrganizationTeams, 1)
+	require.Len(t, rs.OrganizationSystemAccountTeamMemberships, 1)
+	require.Len(t, rs.OrganizationSystemAccountRoles, 1)
+	assert.Equal(t, "ci-bot-platform-team", rs.OrganizationSystemAccountTeamMemberships[0].Ref)
+	assert.Equal(t, "ci-bot", rs.OrganizationSystemAccountTeamMemberships[0].SystemAccount)
+	assert.Equal(t, "platform-team", rs.OrganizationSystemAccountTeamMemberships[0].Team)
+	assert.Equal(t, "ci-bot", rs.OrganizationSystemAccountRoles[0].SystemAccount)
+	assert.Equal(t, "__REF__:products-api#id", rs.OrganizationSystemAccountRoles[0].EntityID)
+	require.NotNil(t, rs.Organization)
+	require.Len(t, rs.Organization.SystemAccounts, 1)
+	assert.Empty(t, rs.Organization.SystemAccounts[0].Teams)
+	assert.Empty(t, rs.Organization.SystemAccounts[0].Roles)
+}
+
+func TestLoader_ValidatesOrganizationUserRefsAndSelectors(t *testing.T) {
+	tests := []struct {
+		name    string
+		user    string
+		wantErr string
+	}{
+		{
+			name: "missing ref",
+			user: `
+    - email: alice@example.com
+`,
+			wantErr: "ref cannot be empty",
+		},
+		{
+			name: "missing selector",
+			user: `
+    - ref: alice
+`,
+			wantErr: "exactly one of email or id is required",
+		},
+		{
+			name: "multiple selectors",
+			user: `
+    - ref: alice
+      email: alice@example.com
+      id: 00000000-0000-0000-0000-000000000000
+`,
+			wantErr: "exactly one of email or id is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := `
+organization:
+  users:
+` + tt.user
+
+			dir := t.TempDir()
+			file := filepath.Join(dir, "config.yaml")
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+			loader := New()
+			_, err := loader.LoadFile(file)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestLoader_ValidatesOrganizationSystemAccountSelectors(t *testing.T) {
+	tests := []struct {
+		name    string
+		account string
+		wantErr string
+	}{
+		{
+			name: "missing selector",
+			account: `
+    - ref: ci-bot
+      teams:
+        - ref: ci-bot-platform-team
+          team: platform-team
+`,
+			wantErr: "exactly one of name or id is required",
+		},
+		{
+			name: "multiple selectors",
+			account: `
+    - ref: ci-bot
+      id: 00000000-0000-0000-0000-000000000000
+      name: ci-bot
+`,
+			wantErr: "exactly one of name or id is required",
+		},
+		{
+			name: "missing ref",
+			account: `
+    - name: ci-bot
+`,
+			wantErr: "ref cannot be empty",
+		},
+		{
+			name: "empty team ref",
+			account: `
+    - ref: ci-bot
+      name: ci-bot
+      teams:
+        - ref: ci-bot-platform-team
+          team: ""
+`,
+			wantErr: "team is required",
+		},
+		{
+			name: "missing team membership ref",
+			account: `
+    - ref: ci-bot
+      name: ci-bot
+      teams:
+        - team: platform-team
+`,
+			wantErr: "ref cannot be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := `
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+  system-accounts:
+` + tt.account
+
+			dir := t.TempDir()
+			file := filepath.Join(dir, "config.yaml")
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+			loader := New()
+			_, err := loader.LoadFile(file)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestLoader_RejectsDuplicateOrganizationUserAndSystemAccountRef(t *testing.T) {
+	content := `
+organization:
+  users:
+    - ref: automation-principal
+      email: alice@example.com
+  system-accounts:
+    - ref: automation-principal
+      name: ci-bot
+`
+
+	dir := t.TempDir()
+	file := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+	loader := New()
+	_, err := loader.LoadFile(file)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate ref 'automation-principal'")
+	assert.Contains(t, err.Error(), string(resources.ResourceTypeOrganizationUser))
 }
 
 func TestLoader_LoadFilePreservesOrganizationUsers(t *testing.T) {
@@ -321,9 +514,11 @@ organization:
     - ref: platform-team
       name: Platform Engineering
   users:
-    - email: alice@example.com
+    - ref: alice
+      email: alice@example.com
       teams:
-        - platform-team
+        - ref: alice-platform-team
+          team: platform-team
       roles:
         - ref: alice-products-viewer
           role_name: Viewer

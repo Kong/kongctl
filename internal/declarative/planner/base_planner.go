@@ -184,6 +184,20 @@ func (b *BasePlanner) GetDesiredOrganizationUserRoles(namespace string) []resour
 	return b.planner.resources.GetOrganizationUserRolesByNamespace(namespace)
 }
 
+// GetDesiredOrganizationSystemAccountTeamMemberships returns desired system account team memberships.
+func (b *BasePlanner) GetDesiredOrganizationSystemAccountTeamMemberships(
+	namespace string,
+) []resources.OrganizationSystemAccountTeamMembershipResource {
+	return b.planner.resources.GetOrganizationSystemAccountTeamMembershipsByNamespace(namespace)
+}
+
+// GetDesiredOrganizationSystemAccountRoles returns desired organization system account roles.
+func (b *BasePlanner) GetDesiredOrganizationSystemAccountRoles(
+	namespace string,
+) []resources.OrganizationSystemAccountRoleResource {
+	return b.planner.resources.GetOrganizationSystemAccountRolesByNamespace(namespace)
+}
+
 // GetGenericPlanner returns the generic planner instance
 func (b *BasePlanner) GetGenericPlanner() *GenericPlanner {
 	if b == nil || b.planner == nil {

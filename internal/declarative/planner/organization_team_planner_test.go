@@ -83,8 +83,9 @@ func TestOrganizationUserAssignmentPlansCreateChanges(t *testing.T) {
 
 	teamPlanner.planOrganizationUserTeamMembershipCreate(
 		"default",
-		"alice@example.com",
+		"alice",
 		"user-123",
+		"alice-platform-team",
 		"platform-team",
 		"team-123",
 		"Platform Engineering",
@@ -92,11 +93,11 @@ func TestOrganizationUserAssignmentPlansCreateChanges(t *testing.T) {
 	)
 	teamPlanner.planOrganizationUserRoleCreate(
 		"default",
-		"alice@example.com",
+		"alice",
 		"user-123",
 		resources.OrganizationUserRoleResource{
 			Ref:            "alice-products-viewer",
-			User:           "alice@example.com",
+			User:           "alice",
 			RoleName:       "Viewer",
 			EntityID:       "__REF__:products-api#id",
 			EntityTypeName: "APIs",

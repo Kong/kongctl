@@ -9,6 +9,9 @@ apis:
 
 organization:
   users:
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
-    - email: !env KONGCTL_E2E_ORG_USER_EMAIL_3
+    - ref: e2e-user-1
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+    - ref: e2e-user-2
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
+    - ref: e2e-user-3
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_3

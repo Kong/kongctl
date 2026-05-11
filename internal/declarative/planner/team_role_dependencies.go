@@ -29,7 +29,8 @@ func adjustTeamRoleCreateDependencies(plan *Plan) {
 		change := &plan.Changes[i]
 		if change.ResourceType != ResourceTypePortalTeamRole &&
 			change.ResourceType != ResourceTypeOrganizationTeamRole &&
-			change.ResourceType != ResourceTypeOrganizationUserRole {
+			change.ResourceType != ResourceTypeOrganizationUserRole &&
+			change.ResourceType != ResourceTypeOrganizationSystemAccountRole {
 			continue
 		}
 
@@ -69,7 +70,9 @@ func adjustTeamRoleDeleteDependencies(plan *Plan) {
 		if change.ResourceType != ResourceTypeOrganizationTeamRole &&
 			change.ResourceType != ResourceTypePortalTeamRole &&
 			change.ResourceType != ResourceTypeOrganizationUserRole &&
-			change.ResourceType != ResourceTypeOrganizationUserTeamMembership {
+			change.ResourceType != ResourceTypeOrganizationUserTeamMembership &&
+			change.ResourceType != ResourceTypeOrganizationSystemAccountRole &&
+			change.ResourceType != ResourceTypeOrganizationSystemAccountTeamMembership {
 			continue
 		}
 		roleDeletes = append(roleDeletes, change)
@@ -89,7 +92,7 @@ func adjustTeamRoleDeleteDependencies(plan *Plan) {
 		case ResourceTypeOrganizationTeam, ResourceTypePortalTeam:
 			for _, roleDelete := range roleDeletes {
 				if teamRoleBelongsToTeam(roleDelete, change.ResourceID) ||
-					userTeamMembershipBelongsToTeam(roleDelete, change.ResourceID) {
+					teamMembershipBelongsToTeam(roleDelete, change.ResourceID) {
 					change.DependsOn = appendDependsOn(change.DependsOn, roleDelete.ID)
 				}
 			}
@@ -103,8 +106,12 @@ func adjustTeamRoleDeleteDependencies(plan *Plan) {
 	}
 }
 
-func userTeamMembershipBelongsToTeam(change *PlannedChange, teamID string) bool {
-	if change == nil || change.ResourceType != ResourceTypeOrganizationUserTeamMembership || teamID == "" {
+func teamMembershipBelongsToTeam(change *PlannedChange, teamID string) bool {
+	if change == nil || teamID == "" {
+		return false
+	}
+	if change.ResourceType != ResourceTypeOrganizationUserTeamMembership &&
+		change.ResourceType != ResourceTypeOrganizationSystemAccountTeamMembership {
 		return false
 	}
 	refInfo, ok := change.References[FieldTeamID]

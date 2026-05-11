@@ -1,6 +1,6 @@
 _defaults:
   kongctl:
-    namespace: organization-user-assignments
+    namespace: organization-system-account-assignments
 
 apis:
   - ref: products-api
@@ -16,25 +16,25 @@ organization:
         department: engineering
         focus: platform
 
-  users:
-    - ref: user1
-      email: !env KONGCTL_ORG_USER_EMAIL_1
+  system-accounts:
+    - ref: ci-bot
+      name: ci-bot
       teams:
-        - ref: user1-platform-team
+        - ref: ci-bot-platform-team
           team: platform-team
       roles:
-        - ref: user1-products-viewer
+        - ref: ci-bot-products-viewer
           role_name: Viewer
           entity_id: !ref products-api#id
           entity_type_name: APIs
           entity_region: us
 
-    # Users can also be selected by Konnect user ID. This is useful for
-    # automation, but email selectors are easier for manual testing.
-    # - ref: automation-user
+    # System accounts can also be selected by Konnect system account ID. This
+    # is useful for automation, but name selectors are easier for examples.
+    # - ref: ci-bot-by-id
     #   id: 00000000-0000-0000-0000-000000000000
     #   roles:
-    #     - ref: user-global-api-viewer
+    #     - ref: ci-bot-global-api-viewer
     #       role_name: Viewer
     #       entity_id: "*"
     #       entity_type_name: APIs

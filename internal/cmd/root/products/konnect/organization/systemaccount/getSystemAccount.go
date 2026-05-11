@@ -254,8 +254,27 @@ func runList(kkClient helpers.SystemAccountAPI, helper cmd.Helper, cfg config.Ho
 func runListByName(name string, kkClient helpers.SystemAccountAPI, helper cmd.Helper,
 	cfg config.Hook,
 ) (*kkComps.SystemAccount, error) {
+	allData, err := listSystemAccountsByName(name, kkClient, helper, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if len(allData) > 0 {
+		return &allData[0], nil
+	}
+	return nil, fmt.Errorf("system account with name %q not found; check --name", name)
+}
+
+func listSystemAccountsByName(
+	name string,
+	kkClient helpers.SystemAccountAPI,
+	helper cmd.Helper,
+	cfg config.Hook,
+) ([]kkComps.SystemAccount, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
+	if requestPageSize < 1 {
+		requestPageSize = int64(common.DefaultRequestPageSize)
+	}
 
 	var allData []kkComps.SystemAccount
 	for {
@@ -285,10 +304,7 @@ func runListByName(name string, kkClient helpers.SystemAccountAPI, helper cmd.He
 		pageNumber++
 	}
 
-	if len(allData) > 0 {
-		return &allData[0], nil
-	}
-	return nil, fmt.Errorf("system account with name %s not found", name)
+	return allData, nil
 }
 
 func buildSystemAccountChildView(accounts []kkComps.SystemAccount) tableview.ChildView {
