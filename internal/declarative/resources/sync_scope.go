@@ -1,6 +1,9 @@
 package resources
 
-import "slices"
+import (
+	"cmp"
+	"slices"
+)
 
 // SyncScope records the resource collections that were explicitly present in
 // declarative input. Sync planning uses this to distinguish omitted collections
@@ -46,7 +49,7 @@ func (rs *ResourceSet) MergeSyncScope(other *ResourceSet) {
 
 // AddRoot marks a top-level resource collection as in scope.
 func (s *SyncScope) AddRoot(rt ResourceType) {
-	if s == nil {
+	if s == nil || rt == "" {
 		return
 	}
 	if s.RootResourceTypes == nil {
@@ -101,7 +104,7 @@ func (s *SyncScope) ChildInScope(parentType ResourceType, parentRef string, rt R
 // AddRootChildCollection records an explicit root-level empty child collection.
 // This cannot express a parent and is rejected by sync planning with guidance.
 func (s *SyncScope) AddRootChildCollection(rt ResourceType) {
-	if s == nil {
+	if s == nil || rt == "" {
 		return
 	}
 	if s.RootChildResourceTypes == nil {
@@ -128,6 +131,11 @@ func (s *SyncScope) MarkOrganizationUsersScoped() {
 	if s != nil {
 		s.OrganizationUsersScoped = true
 	}
+}
+
+// OrganizationUsersInScope reports whether organization.users was present.
+func (s *SyncScope) OrganizationUsersInScope() bool {
+	return s != nil && s.OrganizationUsersScoped
 }
 
 // HasAny reports whether any scope was recorded.
@@ -172,13 +180,13 @@ func (s *SyncScope) ChildScopes() []ChildSyncScope {
 		}
 	}
 	slices.SortFunc(scopes, func(a, b ChildSyncScope) int {
-		if a.ParentType != b.ParentType {
-			return cmpString(string(a.ParentType), string(b.ParentType))
+		if c := cmp.Compare(a.ParentType, b.ParentType); c != 0 {
+			return c
 		}
-		if a.ParentRef != b.ParentRef {
-			return cmpString(a.ParentRef, b.ParentRef)
+		if c := cmp.Compare(a.ParentRef, b.ParentRef); c != 0 {
+			return c
 		}
-		return cmpString(string(a.ResourceType), string(b.ResourceType))
+		return cmp.Compare(a.ResourceType, b.ResourceType)
 	})
 	return scopes
 }
@@ -199,16 +207,5 @@ func (s *SyncScope) Merge(other *SyncScope) {
 	}
 	if other.OrganizationUsersScoped {
 		s.MarkOrganizationUsersScoped()
-	}
-}
-
-func cmpString(a, b string) int {
-	switch {
-	case a < b:
-		return -1
-	case a > b:
-		return 1
-	default:
-		return 0
 	}
 }

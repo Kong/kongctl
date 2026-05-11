@@ -12,23 +12,26 @@ func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
 		return nil
 	}
 
+	rootTypes := scope.RootTypes()
+	childScopes := scope.ChildScopes()
+	rootChildTypes := scope.RootChildCollectionTypes()
 	metadata := &PlanSyncScope{
-		RootResourceTypes:      make([]string, 0, len(scope.RootTypes())),
-		ChildResourceTypes:     make([]PlanSyncChildScope, 0, len(scope.ChildScopes())),
-		RootChildResourceTypes: make([]string, 0, len(scope.RootChildCollectionTypes())),
+		RootResourceTypes:      make([]string, 0, len(rootTypes)),
+		ChildResourceTypes:     make([]PlanSyncChildScope, 0, len(childScopes)),
+		RootChildResourceTypes: make([]string, 0, len(rootChildTypes)),
 		OrganizationUsers:      scope.OrganizationUsersScoped,
 	}
-	for _, rt := range scope.RootTypes() {
+	for _, rt := range rootTypes {
 		metadata.RootResourceTypes = append(metadata.RootResourceTypes, string(rt))
 	}
-	for _, child := range scope.ChildScopes() {
+	for _, child := range childScopes {
 		metadata.ChildResourceTypes = append(metadata.ChildResourceTypes, PlanSyncChildScope{
 			ParentType:   string(child.ParentType),
 			ParentRef:    child.ParentRef,
 			ResourceType: string(child.ResourceType),
 		})
 	}
-	for _, rt := range scope.RootChildCollectionTypes() {
+	for _, rt := range rootChildTypes {
 		metadata.RootChildResourceTypes = append(metadata.RootChildResourceTypes, string(rt))
 	}
 
@@ -108,6 +111,7 @@ func addPortalChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet)
 	}
 	for _, child := range rs.PortalTeams {
 		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeam)
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeamRole)
 	}
 	for _, child := range rs.PortalTeamRoles {
 		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeamRole)
@@ -245,12 +249,17 @@ func validateParentScopes(scope *resources.SyncScope) error {
 		if !syncRootParentType(child.ParentType) || scope.RootInScope(child.ParentType) {
 			continue
 		}
+		guidance := "add the parent resource collection or move the child collection under that parent"
+		if syncParentTypeSupportsExternal(child.ParentType) {
+			guidance += "; if the parent is managed elsewhere, declare it with _external in the parent " +
+				"collection and nest the child collection there"
+		}
 		return fmt.Errorf(
-			"sync child collection %s for %s %q requires the parent collection to be present; "+
-				"add the parent resource collection or move the child collection under that parent",
+			"sync child collection %s for %s %q requires the parent collection to be present; %s",
 			child.ResourceType,
 			child.ParentType,
 			child.ParentRef,
+			guidance,
 		)
 	}
 	return nil
@@ -271,6 +280,18 @@ func syncRootParentType(rt resources.ResourceType) bool {
 	}
 }
 
+func syncParentTypeSupportsExternal(rt resources.ResourceType) bool {
+	//nolint:exhaustive
+	switch rt {
+	case resources.ResourceTypePortal,
+		resources.ResourceTypeControlPlane,
+		resources.ResourceTypeOrganizationTeam:
+		return true
+	default:
+		return false
+	}
+}
+
 func (p *Planner) shouldPlanRoot(mode PlanMode, rt resources.ResourceType) bool {
 	if mode != PlanModeSync {
 		return true
@@ -279,9 +300,6 @@ func (p *Planner) shouldPlanRoot(mode PlanMode, rt resources.ResourceType) bool 
 		return false
 	}
 	ensurePlanningSyncScope(p.resources)
-	if p.resources.SyncScope == nil {
-		return false
-	}
 	return p.resources.SyncScope.RootInScope(rt)
 }
 
@@ -298,9 +316,6 @@ func (p *Planner) shouldPlanChild(
 		return false
 	}
 	ensurePlanningSyncScope(p.resources)
-	if p.resources.SyncScope == nil {
-		return false
-	}
 	return p.resources.SyncScope.ChildInScope(parentType, parentRef, rt)
 }
 
@@ -312,11 +327,8 @@ func (p *Planner) shouldPlanOrganization(plan *Plan) bool {
 		return false
 	}
 	ensurePlanningSyncScope(p.resources)
-	if p.resources.SyncScope == nil {
-		return false
-	}
 	scope := p.resources.SyncScope
-	return scope.RootInScope(resources.ResourceTypeOrganizationTeam) || scope.OrganizationUsersScoped
+	return scope.RootInScope(resources.ResourceTypeOrganizationTeam) || scope.OrganizationUsersInScope()
 }
 
 func (p *Planner) shouldPlanOrganizationUsers(plan *Plan) bool {
@@ -327,5 +339,5 @@ func (p *Planner) shouldPlanOrganizationUsers(plan *Plan) bool {
 		return false
 	}
 	ensurePlanningSyncScope(p.resources)
-	return p.resources.SyncScope != nil && p.resources.SyncScope.OrganizationUsersScoped
+	return p.resources.SyncScope.OrganizationUsersInScope()
 }

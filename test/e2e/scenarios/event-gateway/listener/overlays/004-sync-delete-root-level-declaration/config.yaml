@@ -1,6 +1,7 @@
 _defaults:
   kongctl:
     namespace: event-gateways-listener-comprehensive-test
+# Legacy directory name; sync delete intent is now a nested empty child list.
 event_gateways:
   - ref: egw-cp-for-listener-test-ref
     name: egw-cp-for-listener-test-name

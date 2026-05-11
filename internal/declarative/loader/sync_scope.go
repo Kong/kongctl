@@ -336,6 +336,8 @@ var eventGatewayChildCollectionScopes = []childCollectionScope{
 
 func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	var raw map[string]any
+	// Called after strict parsing succeeds; use a relaxed pass only to inspect
+	// YAML key presence before nested resources are extracted.
 	if err := yaml.Unmarshal(content, &raw); err != nil {
 		return fmt.Errorf("failed to inspect sync scope: %w", err)
 	}
@@ -460,6 +462,8 @@ func captureNestedPortalScopes(scope *resources.SyncScope, raw map[string]any) e
 			if _, ok := portal[child.key]; ok {
 				scope.AddChild(resources.ResourceTypePortal, portalRef, child.resourceType)
 				if child.resourceType == resources.ResourceTypePortalTeam {
+					// Team role declarations are nested under teams, so a teams
+					// key scopes both the teams and their role assignments.
 					scope.AddChild(resources.ResourceTypePortal, portalRef, resources.ResourceTypePortalTeamRole)
 				}
 			}

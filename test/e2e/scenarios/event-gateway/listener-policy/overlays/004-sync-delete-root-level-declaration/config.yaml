@@ -2,6 +2,7 @@ _defaults:
   kongctl:
     namespace: egw-listener-policy-comprehensive-test
 
+# Legacy directory name; sync delete intent is now a nested empty child list.
 event_gateways:
   - ref: egw-cp-for-listener-policy-test-ref
     name: egw-cp-for-listener-policy-test-name

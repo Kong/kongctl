@@ -79,33 +79,6 @@ func TestSyncCommand_WithDeletes(t *testing.T) {
 			StatusCode: 204,
 		}, nil).Once()
 
-	// Mock empty APIs list
-	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
-		Return(&kkOps.ListApisResponse{
-			StatusCode: 200,
-			ListAPIResponse: &kkComps.ListAPIResponse{
-				Data: []kkComps.APIResponseSchema{},
-				Meta: kkComps.PaginatedMeta{
-					Page: kkComps.PageMeta{
-						Total: 0,
-					},
-				},
-			},
-		}, nil)
-
-	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
-		Return(&kkOps.ListAppAuthStrategiesResponse{
-			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-				Data: []kkComps.AppAuthStrategy{},
-				Meta: kkComps.PaginatedMeta{
-					Page: kkComps.PageMeta{
-						Total: 0,
-					},
-				},
-			},
-		}, nil)
-
 	// Create sync command using declarative command
 	cmd, err := declarative.NewDeclarativeCmd("sync")
 	require.NoError(t, err)
@@ -140,4 +113,6 @@ func TestSyncCommand_WithDeletes(t *testing.T) {
 	// Verify execution completed
 	assert.Contains(t, outputStr, "Complete.")
 	assert.Contains(t, outputStr, "Executed 1 changes.")
+	mockAPIAPI.AssertNotCalled(t, "ListApis", mock.Anything, mock.Anything)
+	mockAppAuthAPI.AssertNotCalled(t, "ListAppAuthStrategies", mock.Anything, mock.Anything)
 }

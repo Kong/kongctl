@@ -2,6 +2,7 @@ _defaults:
   kongctl:
     namespace: event-gateways-vc-consume-policy-comprehensive-test
 
+# Legacy directory name; sync delete intent is now a nested empty child list.
 event_gateways:
   - ref: egw-cp-for-vc-consume-policy-test
     name: egw-cp-for-vc-consume-policy-test

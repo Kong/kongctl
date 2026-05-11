@@ -816,10 +816,11 @@ Sync scope is based on YAML key presence:
   the desired zero count.
 
 For federated ownership, include the parent resource entry in the team
-configuration and scope only the child collection that team owns. If a resource
-type supports `_external` parents, the parent can be declared as external;
-otherwise use a namespace or ownership boundary where listing that parent
-collection is safe.
+configuration and scope only the child collection that team owns. When the
+parent is managed elsewhere and the resource type supports `_external`, declare
+the parent as external and nest the child collection under that parent. This
+allows `sync` to plan the child collection without treating the managed parent
+collection in the team's namespace as desired state.
 
 ```yaml
 apis:
@@ -827,6 +828,20 @@ apis:
     name: Orders API
     documents: []
 ```
+
+```yaml
+portals:
+  - ref: shared-docs-portal
+    _external:
+      selector:
+        matchFields:
+          name: "Shared Docs Portal"
+    pages: []
+```
+
+The external-parent pattern should not be combined with a namespace default
+unless the team also intends to scope managed parent resources in that
+namespace.
 
 Preview sync changes:
 

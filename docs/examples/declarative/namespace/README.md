@@ -33,7 +33,7 @@ APIs in a namespace, pass an explicit empty API list with the namespace default:
 ⚠️ Warning: This removes all resources in the namespace, so use with caution! ⚠️
 
 ```bash
-echo "_defaults: {kongctl: {namespace: team-beta}}\napis: []" | kongctl sync -f -
+printf '_defaults: {kongctl: {namespace: team-beta}}\napis: []\n' | kongctl sync -f -
 ```
 
 Notice that only APIs in the `team-beta` namespace will be removed. Check the

@@ -80,6 +80,37 @@ func TestGeneratePlan_SyncPortalScopeDoesNotListUnscopedRoots(t *testing.T) {
 	mockAppAuthAPI.AssertNotCalled(t, "ListAppAuthStrategies", mock.Anything, mock.Anything)
 }
 
+func TestGeneratePlan_SyncAuthStrategyScopeListsAuthStrategies(t *testing.T) {
+	ctx := context.Background()
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClient(state.ClientConfig{
+		AppAuthAPI: mockAppAuthAPI,
+	})
+
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{Total: 0},
+				},
+			},
+		}, nil).Once()
+
+	scope := resources.NewSyncScope()
+	scope.AddRoot(resources.ResourceTypeApplicationAuthStrategy)
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(
+		ctx,
+		&resources.ResourceSet{SyncScope: scope},
+		Options{Mode: PlanModeSync},
+	)
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+
+	mockAppAuthAPI.AssertExpectations(t)
+}
+
 func TestGeneratePlan_SyncRejectsRootLevelEmptyChildCollections(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRootChildCollection(resources.ResourceTypeAPIDocument)
@@ -93,4 +124,43 @@ func TestGeneratePlan_SyncRejectsRootLevelEmptyChildCollections(t *testing.T) {
 	require.Nil(t, plan)
 	assert.Contains(t, err.Error(), "empty child collections")
 	assert.Contains(t, err.Error(), "api_document")
+}
+
+func TestGeneratePlan_SyncChildScopeWithoutParentSuggestsExternalWhenSupported(t *testing.T) {
+	scope := resources.NewSyncScope()
+	scope.AddChild(resources.ResourceTypePortal, "docs-portal", resources.ResourceTypePortalPage)
+
+	plan, err := NewPlanner(state.NewClient(state.ClientConfig{}), slog.Default()).GeneratePlan(
+		context.Background(),
+		&resources.ResourceSet{SyncScope: scope},
+		Options{Mode: PlanModeSync},
+	)
+	require.Error(t, err)
+	require.Nil(t, plan)
+	assert.Contains(t, err.Error(), "requires the parent collection")
+	assert.Contains(t, err.Error(), "_external")
+}
+
+func TestEnsurePlanningSyncScopeInfersPortalTeamRolesWithTeams(t *testing.T) {
+	rs := &resources.ResourceSet{
+		PortalTeams: []resources.PortalTeamResource{
+			{
+				Ref:    "team-a",
+				Portal: "docs-portal",
+			},
+		},
+	}
+
+	ensurePlanningSyncScope(rs)
+	require.NotNil(t, rs.SyncScope)
+	assert.True(t, rs.SyncScope.ChildInScope(
+		resources.ResourceTypePortal,
+		"docs-portal",
+		resources.ResourceTypePortalTeam,
+	))
+	assert.True(t, rs.SyncScope.ChildInScope(
+		resources.ResourceTypePortal,
+		"docs-portal",
+		resources.ResourceTypePortalTeamRole,
+	))
 }
