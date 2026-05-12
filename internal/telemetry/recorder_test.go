@@ -146,16 +146,16 @@ func TestContextWithRecorder_RoundTrip(t *testing.T) {
 	}
 }
 
-func TestNewRecorder_NilCfg_Disabled(t *testing.T) {
+func TestNewRecorder_NilCfg_Enabled(t *testing.T) {
 	rec := NewRecorder(t.Context(), nil, nil, nil, nil, false)
 	if rec == nil {
 		t.Fatal("NewRecorder returned nil")
 	}
-	if rec.enabled {
-		t.Errorf("enabled = true, want false when cfg is nil")
+	if !rec.enabled {
+		t.Errorf("enabled = false, want true when cfg is nil and no kill switch is set")
 	}
-	if _, ok := rec.sink.(NoopSink); !ok {
-		t.Errorf("sink = %T, want NoopSink", rec.sink)
+	if err := rec.Close(t.Context()); err != nil {
+		t.Errorf("Close: %v", err)
 	}
 }
 
@@ -225,53 +225,19 @@ func TestNewRecorder_DoNotTrack_NonSpecValuesIgnored(t *testing.T) {
 	}
 }
 
-func TestNewRecorder_EnvForcesOn_NilCfg_NoPanic(t *testing.T) {
-	// KONGCTL_TELEMETRY_ENABLED=true with cfg==nil must not panic on the
-	// debug-check path; debug needs cfg to anchor the log file, so the
-	// sink falls back to UDP.
-	t.Setenv(EnvTelemetryEnabled, "true")
-	rec := NewRecorder(t.Context(), nil, nil, nil, nil, false)
-	if !rec.enabled {
-		t.Fatalf("enabled = false, want true when %s=true even with nil cfg", EnvTelemetryEnabled)
-	}
-	// Cleanly tear down — Close must also be safe with nil cfg.
-	if err := rec.Close(t.Context()); err != nil {
-		t.Errorf("Close: %v", err)
-	}
-}
-
-func TestNewRecorder_EnvTelemetryEnabled_ForcesOn(t *testing.T) {
-	// Config says off; env override forces on.
+func TestNewRecorder_EnvNoTelemetry_TrueDisables(t *testing.T) {
+	// Config says on; KONGCTL_NO_TELEMETRY=true is the one-way kill switch.
 	cases := []string{"true", "TRUE", "True"}
 	for _, value := range cases {
-		t.Run("KONGCTL_TELEMETRY_ENABLED="+value, func(t *testing.T) {
-			t.Setenv(EnvTelemetryEnabled, value)
-			cfg := &fakeCfg{
-				bools: map[string]bool{ConfigKeyEnabled: false},
-				path:  t.TempDir() + "/config.yaml",
-			}
-			rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
-			if !rec.enabled {
-				t.Errorf("enabled = false, want true when %s=%s", EnvTelemetryEnabled, value)
-			}
-			_ = rec.Close(t.Context())
-		})
-	}
-}
-
-func TestNewRecorder_EnvTelemetryEnabled_ForcesOff(t *testing.T) {
-	// Config says on; env override forces off.
-	cases := []string{"false", "FALSE", "False"}
-	for _, value := range cases {
-		t.Run("KONGCTL_TELEMETRY_ENABLED="+value, func(t *testing.T) {
-			t.Setenv(EnvTelemetryEnabled, value)
+		t.Run("KONGCTL_NO_TELEMETRY="+value, func(t *testing.T) {
+			t.Setenv(EnvNoTelemetry, value)
 			cfg := &fakeCfg{
 				bools: map[string]bool{ConfigKeyEnabled: true},
 				path:  t.TempDir() + "/config.yaml",
 			}
 			rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 			if rec.enabled {
-				t.Errorf("enabled = true, want false when %s=%s", EnvTelemetryEnabled, value)
+				t.Errorf("enabled = true, want false when %s=%s", EnvNoTelemetry, value)
 			}
 			if _, ok := rec.sink.(NoopSink); !ok {
 				t.Errorf("sink = %T, want NoopSink", rec.sink)
@@ -280,14 +246,14 @@ func TestNewRecorder_EnvTelemetryEnabled_ForcesOff(t *testing.T) {
 	}
 }
 
-func TestNewRecorder_EnvTelemetryEnabled_NonBoolValuesFallThrough(t *testing.T) {
-	// Only "true"/"false" are honored. "1"/"0"/garbage must fall through to
-	// the per-profile config rather than be quietly interpreted as on/off.
-	cases := []string{"1", "0", "yes", "no", "on", "off", "garbage"}
+func TestNewRecorder_EnvNoTelemetry_NonDisablingValuesFallThrough(t *testing.T) {
+	// One-way kill switch: only "true" disables. "false", garbage, and
+	// non-bool values must all fall through to config. With config opt-out
+	// set here, telemetry stays off — proving env did not flip it back on.
+	cases := []string{"false", "FALSE", "False", "1", "0", "yes", "no", "on", "off", "garbage"}
 	for _, value := range cases {
-		t.Run("KONGCTL_TELEMETRY_ENABLED="+value, func(t *testing.T) {
-			t.Setenv(EnvTelemetryEnabled, value)
-			// Config opt-out — if env fell through correctly, telemetry stays off.
+		t.Run("KONGCTL_NO_TELEMETRY="+value, func(t *testing.T) {
+			t.Setenv(EnvNoTelemetry, value)
 			cfg := &fakeCfg{
 				bools: map[string]bool{ConfigKeyEnabled: false},
 				path:  t.TempDir() + "/config.yaml",
@@ -295,16 +261,15 @@ func TestNewRecorder_EnvTelemetryEnabled_NonBoolValuesFallThrough(t *testing.T) 
 			rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 			if rec.enabled {
 				t.Errorf("enabled = true, want false: %s=%q must fall through to config",
-					EnvTelemetryEnabled, value)
+					EnvNoTelemetry, value)
 			}
 		})
 	}
 }
 
-func TestNewRecorder_ForceDisabled_BeatsEverything(t *testing.T) {
-	// --no-telemetry must win over config opt-in AND env-var force-on. It is
-	// a per-invocation kill switch; nothing else should be able to override it.
-	t.Setenv(EnvTelemetryEnabled, "true")
+func TestNewRecorder_ForceDisabled_BeatsConfigOptIn(t *testing.T) {
+	// --no-telemetry is the per-invocation kill switch. It must win over the
+	// (default) config opt-in.
 	cfg := &fakeCfg{
 		bools: map[string]bool{ConfigKeyEnabled: true},
 		path:  t.TempDir() + "/config.yaml",
@@ -315,20 +280,6 @@ func TestNewRecorder_ForceDisabled_BeatsEverything(t *testing.T) {
 	}
 	if _, ok := rec.sink.(NoopSink); !ok {
 		t.Errorf("sink = %T, want NoopSink", rec.sink)
-	}
-}
-
-func TestNewRecorder_DoNotTrackOverridesEnvEnable(t *testing.T) {
-	// DO_NOT_TRACK is the hard kill switch; it must beat KONGCTL_TELEMETRY_ENABLED=true.
-	t.Setenv(EnvDoNotTrack, "1")
-	t.Setenv(EnvTelemetryEnabled, "true")
-	cfg := &fakeCfg{
-		bools: map[string]bool{ConfigKeyEnabled: true},
-		path:  t.TempDir() + "/config.yaml",
-	}
-	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
-	if rec.enabled {
-		t.Errorf("enabled = true, want false: DO_NOT_TRACK must beat KONGCTL_TELEMETRY_ENABLED")
 	}
 }
 
