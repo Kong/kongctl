@@ -83,7 +83,7 @@ func (s *udpSink) ensureConnLocked(ctx context.Context) error {
 }
 
 // formatEventForSplunk renders Event as a syslog-framed key=value line compatible
-// with the Splunk UDP input .
+// with the Splunk UDP input.
 func formatEventForSplunk(e Event) string {
 	var b strings.Builder
 	writeKV(&b, "signal", signalName)
@@ -159,10 +159,10 @@ func writeKV(b *strings.Builder, k, v string) {
 }
 
 func needsQuoting(v string) bool {
-	// quoteTriggers is the set of characters that force the value into
-	// `"..."` form. Space and ; would break key=value tokenization at the
-	// receiver; `"` and \n would break the quoted form itself.
-	const quoteTriggers = " ;\"\n"
+	// `"`, \n and \r would break line-based parsing of the
+	// payload — the escaper turns them into literal `\"`, `\n`, `\r` once
+	// we're inside the quoted form.
+	const quoteTriggers = " ;\"\n\r"
 
 	// Empty values are quoted so the receiver sees `key=""` instead of a
 	// bare `key=`, which key=value parsers can read ambiguously (either as

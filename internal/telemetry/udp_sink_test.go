@@ -77,6 +77,24 @@ func TestFormatEvent_NewlinesEscaped(t *testing.T) {
 	}
 }
 
+func TestFormatEvent_LoneCarriageReturnQuoted(t *testing.T) {
+	// A value whose only trigger character is \r must still be quoted and
+	// escaped — otherwise a raw CR would survive into the payload and break
+	// line-based parsing at the receiver.
+	got := formatEventForSplunk(Event{
+		SchemaVersion: 1,
+		Timestamp:     time.Unix(0, 0).UTC(),
+		CommandPath:   "a\rb",
+	})
+
+	if strings.ContainsRune(got, '\r') {
+		t.Errorf("raw CR survived into payload: %q", got)
+	}
+	if !strings.Contains(got, `command_path="a\rb"`) {
+		t.Errorf("CR not escaped inside quoted value: %q", got)
+	}
+}
+
 func TestUDPSink_BadAddrSurfacesError(t *testing.T) {
 	// Invalid port forces the dial to fail on first Emit.
 	sink := NewUDPSink("127.0.0.1:not-a-port")
