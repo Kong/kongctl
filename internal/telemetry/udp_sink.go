@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	signalName  = "kongctl"
-	reportsAddr = "kong-hf.konghq.com:61829"
+	signalName   = "kongctl"
+	reportsAddr  = "kong-hf.konghq.com:61829"
+	syslogPrefix = "<14>"
 )
 
 // udpSink fires one datagram per Emit at a UDP receiver. Best-effort by
@@ -47,7 +48,7 @@ func (s *udpSink) Emit(ctx context.Context, e Event) error {
 		_ = s.conn.SetWriteDeadline(deadline)
 	}
 
-	_, err := s.conn.Write([]byte(formatEvent(e)))
+	_, err := s.conn.Write([]byte(formatEventForSplunk(e)))
 	return err
 }
 
@@ -78,16 +79,9 @@ func (s *udpSink) ensureConnLocked() error {
 	return nil
 }
 
-// formatEvent renders Event as a Splunk-style key=value line. The Event
-// struct's json tags are the single source of truth: marshal the value,
-// flatten the resulting object into key=value pairs sorted by key. Adding
-// a tagged field to Event shows up here automatically, and `omitempty`
-// fields drop out naturally.
-//
-// Values containing whitespace, commas, or quotes are double-quoted with
-// `"` escaping so the receiver's extractions stay deterministic. Trailing
-// newline keeps line-oriented inputs tidy.
-func formatEvent(e Event) string {
+// formatEventForSplunk renders Event as a syslog-framed key=value line compatible
+// with the Splunk UDP input .
+func formatEventForSplunk(e Event) string {
 	var b strings.Builder
 	writeKV(&b, "signal", signalName)
 
@@ -97,24 +91,18 @@ func formatEvent(e Event) string {
 	e.Timestamp = e.Timestamp.UTC()
 
 	data, err := json.Marshal(e)
-	if err != nil {
-		b.WriteByte('\n')
-		return b.String()
+	if err == nil {
+		dec := json.NewDecoder(bytes.NewReader(data))
+		dec.UseNumber() // keep schema_version etc. as integers, not float64
+		var m map[string]any
+		if err = dec.Decode(&m); err == nil {
+			for _, k := range slices.Sorted(maps.Keys(m)) {
+				writeKV(&b, k, jsonValueToString(m[k]))
+			}
+		}
 	}
 
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber() // keep schema_version etc. as integers, not float64
-	var m map[string]any
-	if err := dec.Decode(&m); err != nil {
-		b.WriteByte('\n')
-		return b.String()
-	}
-
-	for _, k := range slices.Sorted(maps.Keys(m)) {
-		writeKV(&b, k, jsonValueToString(m[k]))
-	}
-	b.WriteByte('\n')
-	return b.String()
+	return syslogPrefix + b.String() + "\n"
 }
 
 func jsonValueToString(v any) string {
@@ -128,37 +116,49 @@ func jsonValueToString(v any) string {
 	case json.Number:
 		return string(x)
 	case []any:
+		const arraySep = "|"
 		parts := make([]string, len(x))
 		for i, item := range x {
 			parts[i] = jsonValueToString(item)
 		}
-		return strings.Join(parts, "|")
+		return strings.Join(parts, arraySep)
 	default:
 		return fmt.Sprint(x)
 	}
 }
 
 func writeKV(b *strings.Builder, k, v string) {
+	const (
+		pairSep  = ';'  // separates one key=value from the next
+		kvSep    = '='  // separates a key from its value
+		quote    = '"'  // wraps values that need quoting
+		escQuote = `\"` // escape sequence for an embedded quote
+	)
 	if b.Len() > 0 {
-		b.WriteByte(',')
+		b.WriteByte(pairSep)
 	}
 	b.WriteString(k)
-	b.WriteByte('=')
+	b.WriteByte(kvSep)
 	if needsQuoting(v) {
-		b.WriteByte('"')
-		b.WriteString(strings.ReplaceAll(v, `"`, `\"`))
-		b.WriteByte('"')
+		b.WriteByte(quote)
+		b.WriteString(strings.ReplaceAll(v, `"`, escQuote))
+		b.WriteByte(quote)
 	} else {
 		b.WriteString(v)
 	}
 }
 
 func needsQuoting(v string) bool {
+	// quoteTriggers is the set of characters that force the value into
+	// `"..."` form. Space and ; would break key=value tokenization at the
+	// receiver; `"` and \n would break the quoted form itself.
+	const quoteTriggers = " ;\"\n"
+
 	// Empty values are quoted so the receiver sees `key=""` instead of a
 	// bare `key=`, which key=value parsers can read ambiguously (either as
 	// an empty value or as a value that runs into the next pair).
 	if v == "" {
 		return true
 	}
-	return strings.ContainsAny(v, " ,\"\n")
+	return strings.ContainsAny(v, quoteTriggers)
 }
