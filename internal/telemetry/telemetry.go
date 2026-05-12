@@ -2,8 +2,11 @@
 // execution. The package is backend-agnostic: it owns a stable internal
 // schema (Event), centralizes error categorization (Categorize), and routes
 // events through a replaceable Sink.
-// At the moment, the default Sink is NoopSink; opting in
-// is a single config flag (telemetry.enabled).
+//
+// Telemetry is opt-out: enabled by default. Users opt out per-invocation
+// with --no-telemetry, per-process with KONGCTL_NO_TELEMETRY=true or
+// DO_NOT_TRACK=1, or persistently by setting telemetry.enabled=false in
+// their profile config.
 package telemetry
 
 import (
@@ -38,10 +41,11 @@ const (
 // Checked at the top of NewRecorder so users can toggle without needing to
 // know which profile is active.
 const (
-	// EnvTelemetryEnabled is the profile-agnostic kongctl override. Accepts
-	// only "true" or "false" (case-insensitive) to keep the toggle
-	// unambiguous
-	EnvTelemetryEnabled = "KONGCTL_TELEMETRY_ENABLED"
+	// EnvNoTelemetry is the profile-agnostic kongctl kill switch, named to
+	// mirror the --no-telemetry CLI flag. It is one-way: only "true"
+	// (case-insensitive) disables telemetry. Any other value — including
+	// "false", unset, or garbage — falls through to config.
+	EnvNoTelemetry = "KONGCTL_NO_TELEMETRY"
 	// EnvDoNotTrack is the cross-vendor hard kill switch. Highest priority.
 	// Only the spec value "1" disables telemetry
 	EnvDoNotTrack = "DO_NOT_TRACK"
@@ -53,8 +57,14 @@ const (
 //     so a user can opt out of a single command without touching env vars or
 //     config.
 //  2. DO_NOT_TRACK=1 — cross-vendor hard kill switch.
-//  3. KONGCTL_TELEMETRY_ENABLED — profile-agnostic env override.
+//  3. KONGCTL_NO_TELEMETRY=true — profile-agnostic kill switch. Only "true"
+//     is honored; any other value falls through to config.
 //  4. config — itself honors KONGCTL_<PROFILE>_TELEMETRY_ENABLED via viper.
+//     Default is true (opt-out).
+//
+// Opt-out is the project stance: the only way to land here with telemetry off
+// is an explicit opt-out signal. Absence of config (cfg==nil) or absence of a
+// telemetry key in config is treated as "no opt-out", i.e. enabled.
 func resolveEnabled(cfg config.Hook, forceDisabled bool) bool {
 	if forceDisabled {
 		return false
@@ -62,11 +72,11 @@ func resolveEnabled(cfg config.Hook, forceDisabled bool) bool {
 	if os.Getenv(EnvDoNotTrack) == "1" {
 		return false
 	}
-	if v, ok := envBool(EnvTelemetryEnabled); ok {
-		return v
+	if disabled, ok := envBool(EnvNoTelemetry); ok && disabled {
+		return false
 	}
 	if cfg == nil {
-		return false
+		return true
 	}
 	return cfg.GetBool(ConfigKeyEnabled)
 }

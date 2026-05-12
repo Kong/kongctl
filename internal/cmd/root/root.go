@@ -107,8 +107,7 @@ var (
 )
 
 // NoTelemetryFlagName is the persistent root flag that disables telemetry
-// for a single command invocation. Higher precedence than DO_NOT_TRACK and
-// the KONGCTL_TELEMETRY_ENABLED env var.
+// for a single command invocation.
 const NoTelemetryFlagName = "no-telemetry"
 
 const mergedFlagsUsageTemplate = `Usage:{{if .Runnable}}
@@ -268,7 +267,7 @@ func newRootCmd() *cobra.Command {
 - Config path: [ %s ]
 - Env var    : [ %s ]
 - Default    : [ false ]`,
-			telemetry.ConfigKeyEnabled, telemetry.EnvTelemetryEnabled))
+			telemetry.ConfigKeyEnabled, telemetry.EnvNoTelemetry))
 
 	themeFlag := theme.NewFlag(common.DefaultColorTheme)
 	rootCmd.PersistentFlags().Var(themeFlag, common.ColorThemeFlagName,

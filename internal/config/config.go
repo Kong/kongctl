@@ -176,8 +176,11 @@ func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledC
 		viper.ConfigureEnvVars(subv, envPrefix)
 	}
 
-	// TODO: Set telemetry.enabled as "true" once we move to default opt-out model.
-	subv.SetDefault("telemetry.enabled", false)
+	// Telemetry is opt-out: enabled by default. Users disable per-invocation
+	// with --no-telemetry, per-process with KONGCTL_NO_TELEMETRY=true or
+	// DO_NOT_TRACK=1, or persistently by setting telemetry.enabled=false in
+	// the profile config.
+	subv.SetDefault("telemetry.enabled", true)
 	// Set this to true only for debugging purposes locally.
 	subv.SetDefault("telemetry.debug", false)
 
