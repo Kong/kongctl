@@ -112,6 +112,23 @@ func newTestRecorder(sink Sink) *Recorder {
 	return rec
 }
 
+func TestTrimBinaryPrefix(t *testing.T) {
+	cases := map[string]string{
+		"kongctl get apis":         "get apis",
+		"kongctl plan":             "plan",
+		"kongctl":                  "",
+		"  kongctl get apis  ":     "get apis",
+		"get apis":                 "get apis", // already trimmed; left alone
+		"":                         "",
+		"kongctl-extension thing":  "kongctl-extension thing", // not a true prefix
+	}
+	for in, want := range cases {
+		if got := trimBinaryPrefix(in); got != want {
+			t.Errorf("trimBinaryPrefix(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestFromContext_NilAndMissing(t *testing.T) {
 	if got := FromContext(nil); got != nil { //nolint:staticcheck // intentional nil ctx
 		t.Errorf("FromContext(nil) = %v, want nil", got)
@@ -303,6 +320,21 @@ func TestRecorder_Disabled_FinalizeNoop(t *testing.T) {
 	}
 }
 
+func TestRecorder_BareKongctl_SkipsEvent(t *testing.T) {
+	// Bare `kongctl` (no subcommand) prints help/usage and carries no
+	// operational signal — we must not emit a telemetry event for it.
+	sink := &capturingSink{}
+	rec := newTestRecorder(sink)
+	rec.SetCommand(CommandInfo{Path: "kongctl"})
+	rec.Finalize(nil, time.Now())
+	if err := rec.Close(t.Context()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if got := sink.Events(); len(got) != 0 {
+		t.Errorf("bare kongctl emitted %d events, want 0", len(got))
+	}
+}
+
 func TestRecorder_FinalizeWithoutSetCommand_Skips(t *testing.T) {
 	sink := &capturingSink{}
 	rec := newTestRecorder(sink)
@@ -334,8 +366,8 @@ func TestRecorder_FinalizeEmitsEvent(t *testing.T) {
 		t.Fatalf("got %d events, want 1", len(events))
 	}
 	got := events[0]
-	if got.CommandPath != "kongctl plan" {
-		t.Errorf("CommandPath = %q, want %q", got.CommandPath, "kongctl plan")
+	if got.CommandPath != "plan" {
+		t.Errorf("CommandPath = %q, want %q", got.CommandPath, "plan")
 	}
 	if got.ExecArea != AreaDeclarative {
 		t.Errorf("ExecArea = %q, want %q", got.ExecArea, AreaDeclarative)
