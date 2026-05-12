@@ -339,6 +339,54 @@ func TestControlPlanePlanner_PlanDeleteSync(t *testing.T) {
 	assert.Equal(t, "cp-delete", plan.Changes[0].ResourceRef)
 }
 
+func TestControlPlanePlanner_PlanDeleteGroupDependsOnMemberDeletes(t *testing.T) {
+	planner := &Planner{
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	planner.genericPlanner = NewGenericPlanner(planner)
+
+	cpPlanner := &controlPlanePlannerImpl{BasePlanner: NewBasePlanner(planner)}
+	plan := NewPlan("1.0", "test", PlanModeDelete)
+
+	cpPlanner.planControlPlaneDelete(state.ControlPlane{
+		ControlPlane: kkComps.ControlPlane{
+			ID:   "member-a-id",
+			Name: "member-a",
+		},
+		NormalizedLabels: map[string]string{labels.NamespaceKey: "default"},
+	}, plan)
+	cpPlanner.planControlPlaneDelete(state.ControlPlane{
+		ControlPlane: kkComps.ControlPlane{
+			ID:   "member-b-id",
+			Name: "member-b",
+		},
+		NormalizedLabels: map[string]string{labels.NamespaceKey: "default"},
+	}, plan)
+	cpPlanner.planControlPlaneDelete(state.ControlPlane{
+		ControlPlane: kkComps.ControlPlane{
+			ID:   "group-id",
+			Name: "group-cp",
+			Config: kkComps.ControlPlaneConfig{
+				ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup,
+			},
+		},
+		NormalizedLabels: map[string]string{labels.NamespaceKey: "default"},
+		GroupMembers:     []string{"member-a-id", "member-b-id"},
+	}, plan)
+
+	adjustControlPlaneGroupDeleteDependencies(plan.Changes)
+
+	require.Len(t, plan.Changes, 3)
+	groupChange := plan.Changes[2]
+	assert.Equal(t, "group-cp", groupChange.ResourceRef)
+	assert.ElementsMatch(t, []string{
+		"temp-1:d:control_plane:member-a",
+		"temp-2:d:control_plane:member-b",
+	}, groupChange.DependsOn)
+	require.NotNil(t, groupChange.References)
+	assert.Equal(t, []string{"member-a-id", "member-b-id"}, groupChange.References[FieldMembers].Refs)
+}
+
 func TestControlPlanePlanner_ProtectionChange(t *testing.T) {
 	mockAPI := helpers.NewMockControlPlaneAPI(t)
 	current := kkComps.ControlPlane{

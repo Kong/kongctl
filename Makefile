@@ -6,6 +6,7 @@ GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(GIT_COMMIT) -X main.date=$(BUILD_DATE)
 LATEST_E2E_LINK ?= .latest-e2e
+KONGCTL_E2E_TEST_TIMEOUT ?= 55m
 LATEST_BENCHMARK_LINK ?= .latest-benchmark
 
 .PHONY: lint
@@ -91,7 +92,7 @@ test-e2e:
 	fi; \
 	mkdir -p "$$ART_DIR"; \
 	ART_DIR=$$(cd "$$ART_DIR" && pwd); \
-	( KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" go test -v -count=1 -tags=e2e $${GOTESTFLAGS} ./test/e2e/... ; echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
+	( KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" go test -v -count=1 -tags=e2e -timeout "$(KONGCTL_E2E_TEST_TIMEOUT)" $${GOTESTFLAGS} ./test/e2e/... ; echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
 	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
 	echo "E2E artifacts: $$ART_DIR"; \
 	ln -sfn "$$ART_DIR" "$(LATEST_E2E_LINK)" || true; \
@@ -112,7 +113,7 @@ test-e2e-scenarios:
 	( KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" \
 	  KONGCTL_E2E_SCENARIO="${SCENARIO}" \
 	  KONGCTL_E2E_STOP_AFTER="${STOP_AFTER}" \
-	  go test -v -count=1 -tags=e2e -run '^Test_Scenarios$$' $${GOTESTFLAGS} ./test/e2e ; \
+	  go test -v -count=1 -tags=e2e -timeout "$(KONGCTL_E2E_TEST_TIMEOUT)" -run '^Test_Scenarios$$' $${GOTESTFLAGS} ./test/e2e ; \
 	  echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
 	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
 	echo "E2E artifacts: $$ART_DIR"; \

@@ -64,6 +64,20 @@ Core harness settings:
   logs in artifacts. Default: same as harness log level.
 - `KONGCTL_E2E_OUTPUT`: Default CLI output (`json|yaml|text`). Default:
   `json`.
+- `KONGCTL_E2E_TEST_TIMEOUT`: Go test timeout for local Make targets and the
+  CI scenario test binary. Default: `55m`.
+- `KONGCTL_E2E_KONNECT_DECLARATIVE_MAX_CONCURRENCY`: Standard `e2e`
+  profile env var for declarative execution concurrency. It maps to
+  `konnect.declarative.max-concurrency` and applies to all declarative
+  commands unless a command passes `--max-concurrency` or a scenario override
+  is set. Valid range: `1..200`.
+- `KONGCTL_E2E_MAX_CONCURRENCY_VALUES`: Optional suite-wide concurrency sweep.
+  When set, the harness hashes each scenario path and picks one value from the
+  comma-separated list, such as `1,2,5,10`, then injects that value as the
+  scenario's declarative concurrency default. Use this to run the same suite
+  with mixed concurrency settings without editing each scenario. Explicit
+  scenario YAML overrides and `KONGCTL_E2E_KONNECT_DECLARATIVE_MAX_CONCURRENCY`
+  take precedence.
 - `KONGCTL_E2E_CAPTURE`: Per-command artifact capture. `0` disables it.
 - `KONGCTL_E2E_JSON_STRICT`: When `1`, JSON parsing fails on unknown fields.
   Default: lenient.
@@ -292,11 +306,33 @@ The harness keeps artifacts by default for local debugging and CI upload.
 - Log level: the harness injects `--log-level` unless the command already sets
   one.
 - Profile config: the harness writes `config.yaml` for the `e2e` profile.
+- Declarative concurrency: scenarios can set `maxConcurrency` at the default,
+  step, or command level. Command wins over step, step wins over defaults, and
+  explicit `--max-concurrency` in `run` still has normal CLI precedence.
 - Sanitization: token-like env vars are redacted in `env.json` and logs.
 - HTTP dumps: when Konnect SDK dump env vars are enabled, the harness stores
   each exchange under the command’s `http-dumps/` directory.
 - Observations: `observation.json` is attached to captured commands for apply
   summaries and read observations.
+
+Example scenario concurrency overrides:
+
+```yaml
+defaults:
+  maxConcurrency: 5
+
+steps:
+  - name: cleanup
+    maxConcurrency: 1
+    commands:
+      - name: delete
+        maxConcurrency: 1
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+```
 
 ### CI Notes
 
@@ -315,9 +351,9 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 - `KONGCTL_E2E_MATRIX_ORG=${{ matrix.org_name }}`
 - `KONGCTL_E2E_ORGS_JSON=${{ vars.KONGCTL_E2E_ORGS_JSON }}`
 
-The workflow also exposes the HTTP timeout and retry knobs above as repository
-or organization variables of the same names, so CI can tune reset and HTTP
-behavior without changing Go code.
+The workflow also exposes the test timeout, HTTP timeout, and retry
+knobs above as repository or organization variables of the same names,
+so CI can tune runtime behavior without changing Go code.
 
 For transport debugging, the workflow currently defaults to:
 

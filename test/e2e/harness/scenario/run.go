@@ -6,17 +6,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	jmespath "github.com/jmespath/go-jmespath"
+	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/test/e2e/harness"
 	"sigs.k8s.io/yaml"
+)
+
+const (
+	maxConcurrencyEnvName       = "KONGCTL_E2E_KONNECT_DECLARATIVE_MAX_CONCURRENCY"
+	maxConcurrencyValuesEnvName = "KONGCTL_E2E_MAX_CONCURRENCY_VALUES"
 )
 
 // checkAndStopAfter checks if execution should stop after the current command.
@@ -60,6 +68,18 @@ func Run(t *testing.T, scenarioPath string) error {
 	}
 	if s.Vars == nil {
 		s.Vars = map[string]any{}
+	}
+	suiteMaxConcurrency, err := suiteMaxConcurrencyForScenario(scenarioPath)
+	if err != nil {
+		return err
+	}
+	if suiteMaxConcurrency != nil {
+		harness.Infof(
+			"Scenario maxConcurrency: %s=%d selected from %s",
+			maxConcurrencyEnvName,
+			*suiteMaxConcurrency,
+			maxConcurrencyValuesEnvName,
+		)
 	}
 
 	// Execute steps
@@ -489,6 +509,14 @@ func Run(t *testing.T, scenarioPath string) error {
 			for _, a := range cmd.Run {
 				ra := renderString(a, tmplCtx)
 				args = append(args, ra)
+			}
+			if maxConcurrency, ok, err := commandMaxConcurrency(cli, s, st, cmd, envOverrides, suiteMaxConcurrency); err != nil {
+				return fmt.Errorf("command %s maxConcurrency invalid: %w", cmdName, err)
+			} else if ok && !hasMaxConcurrencyArg(args) {
+				envOverrides = mergeEnvScopes(envOverrides, map[string]string{
+					maxConcurrencyEnvName: strconv.Itoa(maxConcurrency),
+				})
+				harness.Debugf("command %s using %s=%d", cmdName, maxConcurrencyEnvName, maxConcurrency)
 			}
 			var (
 				res harness.Result
@@ -1045,6 +1073,141 @@ func renderString(s string, data any) string {
 		}
 	}
 	return s
+}
+
+func suiteMaxConcurrencyForScenario(scenarioPath string) (*int, error) {
+	values, err := parseMaxConcurrencyValues(os.Getenv(maxConcurrencyValuesEnvName))
+	if err != nil {
+		return nil, err
+	}
+	if len(values) == 0 {
+		return nil, nil
+	}
+	key := stableScenarioKey(scenarioPath)
+	idx := stableIndex(key, len(values))
+	value := values[idx]
+	return &value, nil
+}
+
+func parseMaxConcurrencyValues(raw string) ([]int, error) {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return nil, nil
+	}
+	parts := strings.Split(clean, ",")
+	values := make([]int, 0, len(parts))
+	for _, part := range parts {
+		token := strings.TrimSpace(part)
+		if token == "" {
+			return nil, fmt.Errorf("%s contains an empty value", maxConcurrencyValuesEnvName)
+		}
+		value, err := strconv.Atoi(token)
+		if err != nil {
+			return nil, fmt.Errorf("%s value %q is not an integer", maxConcurrencyValuesEnvName, token)
+		}
+		if err := validateMaxConcurrency(value); err != nil {
+			return nil, fmt.Errorf("%s value %q invalid: %w", maxConcurrencyValuesEnvName, token, err)
+		}
+		values = append(values, value)
+	}
+	return values, nil
+}
+
+func commandMaxConcurrency(
+	cli *harness.CLI,
+	sc Scenario,
+	st Step,
+	cmd Command,
+	env map[string]string,
+	suite *int,
+) (int, bool, error) {
+	value, ok, err := yamlMaxConcurrency(sc.Defaults.MaxConcurrency, st.MaxConcurrency, cmd.MaxConcurrency)
+	if err != nil {
+		return 0, false, err
+	}
+	if ok {
+		return value, true, nil
+	}
+	if suite == nil || maxConcurrencyEnvConfigured(cli, env) {
+		return 0, false, nil
+	}
+	return *suite, true, nil
+}
+
+func yamlMaxConcurrency(values ...*int) (int, bool, error) {
+	var (
+		selected int
+		ok       bool
+	)
+	for _, value := range values {
+		if value == nil {
+			continue
+		}
+		if err := validateMaxConcurrency(*value); err != nil {
+			return 0, false, err
+		}
+		selected = *value
+		ok = true
+	}
+	return selected, ok, nil
+}
+
+func validateMaxConcurrency(value int) error {
+	if value < executor.MinConcurrency || value > executor.MaxConcurrency {
+		return fmt.Errorf(
+			"must be between %d and %d (got %d)",
+			executor.MinConcurrency,
+			executor.MaxConcurrency,
+			value,
+		)
+	}
+	return nil
+}
+
+func maxConcurrencyEnvConfigured(cli *harness.CLI, env map[string]string) bool {
+	if strings.TrimSpace(env[maxConcurrencyEnvName]) != "" {
+		return true
+	}
+	if cli == nil {
+		return false
+	}
+	for _, kv := range cli.Env {
+		key, value, ok := strings.Cut(kv, "=")
+		if ok && key == maxConcurrencyEnvName && strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasMaxConcurrencyArg(args []string) bool {
+	for _, arg := range args {
+		if arg == "--max-concurrency" || strings.HasPrefix(arg, "--max-concurrency=") {
+			return true
+		}
+	}
+	return false
+}
+
+func stableScenarioKey(scenarioPath string) string {
+	root := repoRootFromScenario(scenarioPath)
+	abs, err := filepath.Abs(scenarioPath)
+	if err != nil {
+		abs = scenarioPath
+	}
+	if rel, err := filepath.Rel(root, abs); err == nil {
+		return filepath.ToSlash(rel)
+	}
+	return filepath.ToSlash(abs)
+}
+
+func stableIndex(key string, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(key))
+	return int(h.Sum32() % uint32(n))
 }
 
 func effectiveRetry(d, s, c, a Retry) Retry {

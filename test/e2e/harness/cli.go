@@ -177,8 +177,8 @@ func (c *CLI) WithEnv(kv map[string]string) *CLI {
 	if len(kv) == 0 {
 		return c
 	}
+	c.Env = mergeEnvSlices(c.Env, kv)
 	for k, v := range kv {
-		c.Env = append(c.Env, fmt.Sprintf("%s=%s", k, v))
 		Debugf("WithEnv: set %s", redactEnv(fmt.Sprintf("%s=%s", k, v)))
 	}
 	return c

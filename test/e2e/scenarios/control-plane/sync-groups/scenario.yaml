@@ -85,12 +85,12 @@ steps:
       - overlays/002-update-members
     commands:
       - name: 000-delete
+        maxConcurrency: 1
         run:
           - delete
           - -f
           - "{{ .workdir }}/control-plane.yaml"
           - --auto-approve
-          - --max-concurrency=1
         assertions:
           - select: "plan.metadata"
             expect:

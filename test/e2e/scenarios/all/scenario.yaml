@@ -413,7 +413,6 @@ steps:
           - -f
           - "{{ .workdir }}/config.yaml"
           - --auto-approve
-          - --max-concurrency=1
         assertions:
           - select: plan.metadata
             expect:

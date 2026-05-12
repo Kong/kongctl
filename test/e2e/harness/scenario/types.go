@@ -14,8 +14,9 @@ type Scenario struct {
 }
 
 type Defaults struct {
-	Retry Retry `yaml:"retry"`
-	Mask  Mask  `yaml:"mask"`
+	Retry          Retry `yaml:"retry"`
+	Mask           Mask  `yaml:"mask"`
+	MaxConcurrency *int  `yaml:"maxConcurrency"`
 }
 
 type ScenarioTest struct {
@@ -50,6 +51,7 @@ type Step struct {
 	Env                  map[string]string `yaml:"env"`
 	Mask                 Mask              `yaml:"mask"`
 	Retry                Retry             `yaml:"retry"`
+	MaxConcurrency       *int              `yaml:"maxConcurrency"`
 	Commands             []Command         `yaml:"commands"`
 }
 
@@ -61,25 +63,26 @@ type InlineOp struct {
 }
 
 type Command struct {
-	Name         string            `yaml:"name"`
-	Run          []string          `yaml:"run"`
-	Exec         []string          `yaml:"exec"`
-	Stdin        string            `yaml:"stdin"`
-	StdinFile    string            `yaml:"stdinFile"`
-	Env          map[string]string `yaml:"env"`
-	ResetOrg     bool              `yaml:"resetOrg"`
-	ResetRegions []string          `yaml:"resetOrgRegions"`
-	Workdir      string            `yaml:"workdir"`
-	Mask         Mask              `yaml:"mask"`
-	Retry        Retry             `yaml:"retry"`
-	Assertions   []Assertion       `yaml:"assertions"`
-	ExpectFail   *ExpectedFailure  `yaml:"expectFailure"`
-	Create       *CreateSpec       `yaml:"create"`
-	Delete       *DeleteSpec       `yaml:"delete"`
-	OutputFormat string            `yaml:"outputFormat"`
-	ParseAs      string            `yaml:"parseAs"`
-	StdoutFile   string            `yaml:"stdoutFile"`
-	RecordVar    *RecordVar        `yaml:"recordVar"`
+	Name           string            `yaml:"name"`
+	Run            []string          `yaml:"run"`
+	Exec           []string          `yaml:"exec"`
+	Stdin          string            `yaml:"stdin"`
+	StdinFile      string            `yaml:"stdinFile"`
+	Env            map[string]string `yaml:"env"`
+	ResetOrg       bool              `yaml:"resetOrg"`
+	ResetRegions   []string          `yaml:"resetOrgRegions"`
+	Workdir        string            `yaml:"workdir"`
+	Mask           Mask              `yaml:"mask"`
+	Retry          Retry             `yaml:"retry"`
+	Assertions     []Assertion       `yaml:"assertions"`
+	ExpectFail     *ExpectedFailure  `yaml:"expectFailure"`
+	Create         *CreateSpec       `yaml:"create"`
+	Delete         *DeleteSpec       `yaml:"delete"`
+	OutputFormat   string            `yaml:"outputFormat"`
+	MaxConcurrency *int              `yaml:"maxConcurrency"`
+	ParseAs        string            `yaml:"parseAs"`
+	StdoutFile     string            `yaml:"stdoutFile"`
+	RecordVar      *RecordVar        `yaml:"recordVar"`
 }
 
 type CreateSpec struct {

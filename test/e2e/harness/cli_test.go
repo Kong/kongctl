@@ -62,3 +62,27 @@ func TestWriteProfileConfigOmitsDisabledHTTPTimeouts(t *testing.T) {
 		t.Fatalf("config unexpectedly contains http-tcp-user-timeout: %s", content)
 	}
 }
+
+func TestWithEnvReplacesExistingKeys(t *testing.T) {
+	cli := &CLI{
+		Env: []string{
+			"EXISTING=old",
+			"OTHER=value",
+		},
+	}
+
+	cli.WithEnv(map[string]string{"EXISTING": "new"})
+
+	var existing []string
+	for _, kv := range cli.Env {
+		if strings.HasPrefix(kv, "EXISTING=") {
+			existing = append(existing, kv)
+		}
+	}
+	if len(existing) != 1 {
+		t.Fatalf("EXISTING entries = %v, want one", existing)
+	}
+	if existing[0] != "EXISTING=new" {
+		t.Fatalf("EXISTING entry = %q, want EXISTING=new", existing[0])
+	}
+}
