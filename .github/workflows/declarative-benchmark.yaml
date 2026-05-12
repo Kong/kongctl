@@ -34,6 +34,9 @@ concurrency:
   group: konnect-declarative-benchmark
   cancel-in-progress: false
 
+env:
+  DO_NOT_TRACK: "1"
+
 jobs:
   declarative-benchmark:
     name: Declarative Benchmark

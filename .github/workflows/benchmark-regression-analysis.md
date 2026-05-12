@@ -68,6 +68,8 @@ permissions:
   actions: read
   contents: read
   issues: read
+env:
+  DO_NOT_TRACK: "1"
 checkout:
   fetch-depth: 0
 engine: copilot
