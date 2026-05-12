@@ -179,6 +179,7 @@ jobs:
       KONGCTL_E2E_MATRIX_ORG: ${{ matrix.org_name }}
       KONGCTL_E2E_BIN: ${{ github.workspace }}/kongctl
       KONGCTL_E2E_TEST_BIN: ${{ github.workspace }}/e2e.test
+      KONGCTL_E2E_TEST_TIMEOUT: ${{ vars.KONGCTL_E2E_TEST_TIMEOUT || '55m' }}
       KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
       KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || 'https://us.api.konghq.com' }}
       # Reset is enabled by default in the harness; set explicitly for clarity
@@ -327,7 +328,7 @@ jobs:
 
           run_started_at="$(date +%s)"
           set +e
-          "${KONGCTL_E2E_TEST_BIN}" -test.v -test.count=1 -test.run '^Test_Scenarios$' ${GOTESTFLAGS:-} \
+          "${KONGCTL_E2E_TEST_BIN}" -test.v -test.count=1 -test.timeout "${KONGCTL_E2E_TEST_TIMEOUT}" -test.run '^Test_Scenarios$' ${GOTESTFLAGS:-} \
             2>&1 | tee "${ART_DIR}/run.log"
           code=${PIPESTATUS[0]}
           set -e
