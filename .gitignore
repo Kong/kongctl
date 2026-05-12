@@ -45,6 +45,7 @@ CLAUDE.local.md
 .e2e-artifacts/
 .benchmark-artifacts/
 .e2e_artifacts/
+.e2e-debug/
 .benchmark_artifacts/
 .cache/
 
