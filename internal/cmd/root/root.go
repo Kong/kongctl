@@ -97,7 +97,17 @@ var (
 	logFile     *os.File
 
 	telemetryRecorder *telemetry.Recorder
+
+	// noTelemetry is set by the persistent --no-telemetry flag. It is the
+	// highest-priority disable signal in telemetry.resolveEnabled; see the
+	// precedence note there.
+	noTelemetry bool
 )
+
+// NoTelemetryFlagName is the persistent root flag that disables telemetry
+// for a single command invocation. Higher precedence than DO_NOT_TRACK and
+// the KONGCTL_TELEMETRY_ENABLED env var.
+const NoTelemetryFlagName = "no-telemetry"
 
 const mergedFlagsUsageTemplate = `Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
@@ -153,7 +163,9 @@ func newRootCmd() *cobra.Command {
 			ctx = theme.ContextWithPalette(ctx, theme.Current())
 
 			if telemetryRecorder == nil {
-				telemetryRecorder = telemetry.NewRecorder(ctx, currConfig, buildInfo, streams, logger)
+				telemetryRecorder = telemetry.NewRecorder(
+					ctx, currConfig, buildInfo, streams, logger, noTelemetry,
+				)
 				telemetryRecorder.Begin(time.Now())
 			}
 			telemetryRecorder.SetCommand(telemetry.CommandInfo{
@@ -204,6 +216,13 @@ func newRootCmd() *cobra.Command {
 		fmt.Sprintf(`Write execution logs to the specified file instead of STDERR.
 - Config path: [ %s ]`,
 			common.LogFileConfigPath))
+
+	rootCmd.PersistentFlags().BoolVar(&noTelemetry, NoTelemetryFlagName, false,
+		fmt.Sprintf(`Disable telemetry for this command invocation. Overrides config and env.
+- Config path: [ %s ]
+- Env var    : [ %s ]
+- Default    : [ false ]`,
+			telemetry.ConfigKeyEnabled, telemetry.EnvTelemetryEnabled))
 
 	themeFlag := theme.NewFlag(common.DefaultColorTheme)
 	rootCmd.PersistentFlags().Var(themeFlag, common.ColorThemeFlagName,

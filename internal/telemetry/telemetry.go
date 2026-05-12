@@ -48,9 +48,17 @@ const (
 )
 
 // resolveEnabled returns whether telemetry should be active for this run.
-// Precedence: DO_NOT_TRACK=1 → KONGCTL_TELEMETRY_ENABLED → config (which
-// itself honors KONGCTL_<PROFILE>_TELEMETRY_ENABLED via viper).
-func resolveEnabled(cfg config.Hook) bool {
+// Precedence (highest to lowest):
+//  1. forceDisabled — the --no-telemetry CLI flag. Per-invocation kill switch
+//     so a user can opt out of a single command without touching env vars or
+//     config.
+//  2. DO_NOT_TRACK=1 — cross-vendor hard kill switch.
+//  3. KONGCTL_TELEMETRY_ENABLED — profile-agnostic env override.
+//  4. config — itself honors KONGCTL_<PROFILE>_TELEMETRY_ENABLED via viper.
+func resolveEnabled(cfg config.Hook, forceDisabled bool) bool {
+	if forceDisabled {
+		return false
+	}
 	if os.Getenv(EnvDoNotTrack) == "1" {
 		return false
 	}
@@ -134,17 +142,20 @@ type Recorder struct {
 }
 
 // NewRecorder builds a Recorder. It reads telemetry.enabled from cfg; if
-// false, it returns a Recorder whose dispatch path is a no-op.
+// false (or forceDisabled is true), it returns a Recorder whose dispatch
+// path is a no-op. forceDisabled is the per-invocation kill switch carried
+// by the --no-telemetry CLI flag.
 func NewRecorder(
 	_ context.Context,
 	cfg config.Hook,
 	bi *build.Info,
 	_ *iostreams.IOStreams,
 	logger *slog.Logger,
+	forceDisabled bool,
 ) *Recorder {
 	logger = loggerOrDiscard(logger)
 
-	if !resolveEnabled(cfg) {
+	if !resolveEnabled(cfg, forceDisabled) {
 		return &Recorder{
 			enabled: false,
 			logger:  logger,

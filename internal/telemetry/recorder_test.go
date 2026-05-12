@@ -147,7 +147,7 @@ func TestContextWithRecorder_RoundTrip(t *testing.T) {
 }
 
 func TestNewRecorder_NilCfg_Disabled(t *testing.T) {
-	rec := NewRecorder(t.Context(), nil, nil, nil, nil)
+	rec := NewRecorder(t.Context(), nil, nil, nil, nil, false)
 	if rec == nil {
 		t.Fatal("NewRecorder returned nil")
 	}
@@ -161,7 +161,7 @@ func TestNewRecorder_NilCfg_Disabled(t *testing.T) {
 
 func TestNewRecorder_FlagOff_Disabled(t *testing.T) {
 	cfg := &fakeCfg{bools: map[string]bool{ConfigKeyEnabled: false}}
-	rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 	if rec.enabled {
 		t.Errorf("enabled = true, want false when telemetry.enabled=false")
 	}
@@ -176,7 +176,7 @@ func TestNewRecorder_FlagOn_Enabled(t *testing.T) {
 		path:  t.TempDir() + "/config.yaml",
 	}
 	bi := &build.Info{Version: "1.2.3"}
-	rec := NewRecorder(t.Context(), cfg, bi, nil, nil)
+	rec := NewRecorder(t.Context(), cfg, bi, nil, nil, false)
 	if !rec.enabled {
 		t.Fatalf("enabled = false, want true when telemetry.enabled=true")
 	}
@@ -195,7 +195,7 @@ func TestNewRecorder_DoNotTrack_Disables(t *testing.T) {
 		bools: map[string]bool{ConfigKeyEnabled: true},
 		path:  t.TempDir() + "/config.yaml",
 	}
-	rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 	if rec.enabled {
 		t.Errorf("enabled = true, want false when DO_NOT_TRACK=1")
 	}
@@ -216,7 +216,7 @@ func TestNewRecorder_DoNotTrack_NonSpecValuesIgnored(t *testing.T) {
 				bools: map[string]bool{ConfigKeyEnabled: true},
 				path:  t.TempDir() + "/config.yaml",
 			}
-			rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+			rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 			if !rec.enabled {
 				t.Errorf("enabled = false, want true with DO_NOT_TRACK=%q and config opt-in", value)
 			}
@@ -230,7 +230,7 @@ func TestNewRecorder_EnvForcesOn_NilCfg_NoPanic(t *testing.T) {
 	// debug-check path; debug needs cfg to anchor the log file, so the
 	// sink falls back to UDP.
 	t.Setenv(EnvTelemetryEnabled, "true")
-	rec := NewRecorder(t.Context(), nil, nil, nil, nil)
+	rec := NewRecorder(t.Context(), nil, nil, nil, nil, false)
 	if !rec.enabled {
 		t.Fatalf("enabled = false, want true when %s=true even with nil cfg", EnvTelemetryEnabled)
 	}
@@ -250,7 +250,7 @@ func TestNewRecorder_EnvTelemetryEnabled_ForcesOn(t *testing.T) {
 				bools: map[string]bool{ConfigKeyEnabled: false},
 				path:  t.TempDir() + "/config.yaml",
 			}
-			rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+			rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 			if !rec.enabled {
 				t.Errorf("enabled = false, want true when %s=%s", EnvTelemetryEnabled, value)
 			}
@@ -269,7 +269,7 @@ func TestNewRecorder_EnvTelemetryEnabled_ForcesOff(t *testing.T) {
 				bools: map[string]bool{ConfigKeyEnabled: true},
 				path:  t.TempDir() + "/config.yaml",
 			}
-			rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+			rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 			if rec.enabled {
 				t.Errorf("enabled = true, want false when %s=%s", EnvTelemetryEnabled, value)
 			}
@@ -292,12 +292,29 @@ func TestNewRecorder_EnvTelemetryEnabled_NonBoolValuesFallThrough(t *testing.T) 
 				bools: map[string]bool{ConfigKeyEnabled: false},
 				path:  t.TempDir() + "/config.yaml",
 			}
-			rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+			rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 			if rec.enabled {
 				t.Errorf("enabled = true, want false: %s=%q must fall through to config",
 					EnvTelemetryEnabled, value)
 			}
 		})
+	}
+}
+
+func TestNewRecorder_ForceDisabled_BeatsEverything(t *testing.T) {
+	// --no-telemetry must win over config opt-in AND env-var force-on. It is
+	// a per-invocation kill switch; nothing else should be able to override it.
+	t.Setenv(EnvTelemetryEnabled, "true")
+	cfg := &fakeCfg{
+		bools: map[string]bool{ConfigKeyEnabled: true},
+		path:  t.TempDir() + "/config.yaml",
+	}
+	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, true)
+	if rec.enabled {
+		t.Errorf("enabled = true, want false when forceDisabled=true")
+	}
+	if _, ok := rec.sink.(NoopSink); !ok {
+		t.Errorf("sink = %T, want NoopSink", rec.sink)
 	}
 }
 
@@ -309,7 +326,7 @@ func TestNewRecorder_DoNotTrackOverridesEnvEnable(t *testing.T) {
 		bools: map[string]bool{ConfigKeyEnabled: true},
 		path:  t.TempDir() + "/config.yaml",
 	}
-	rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 	if rec.enabled {
 		t.Errorf("enabled = true, want false: DO_NOT_TRACK must beat KONGCTL_TELEMETRY_ENABLED")
 	}
