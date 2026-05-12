@@ -7,6 +7,7 @@ const (
 	AreaKonnectImperative = "konnect-imperative"
 	AreaAuth              = "auth"
 	AreaConfig            = "config"
+	AreaAuditLog          = "audit-log"
 	AreaOther             = "other"
 )
 
@@ -18,7 +19,7 @@ func AreaFor(commandPath string) string {
 		return AreaOther
 	}
 	switch fields[1] {
-	case "apply", "sync", "diff", "plan", "adopt", "export", "dump", "patch":
+	case "api", "apply", "sync", "diff", "plan", "adopt", "export", "dump", "patch":
 		return AreaDeclarative
 	case "get", "list", "create", "update", "delete", "view", "ps":
 		return AreaKonnectImperative
@@ -26,6 +27,8 @@ func AreaFor(commandPath string) string {
 		return AreaAuth
 	case "config":
 		return AreaConfig
+	case "listen", "tail":
+		return AreaAuditLog
 	default:
 		return AreaOther
 	}
