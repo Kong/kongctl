@@ -21,19 +21,16 @@ func TestFileSink_AppendsJSONL(t *testing.T) {
 		{
 			SchemaVersion: 1,
 			CommandPath:   "kongctl version",
-			Outcome:       "success",
 			Timestamp:     time.Unix(1, 0),
 		},
 		{
 			SchemaVersion: 1,
 			CommandPath:   "kongctl get apis",
-			Outcome:       "user_error",
 			Timestamp:     time.Unix(2, 0),
 		},
 		{
 			SchemaVersion: 1,
 			CommandPath:   "kongctl apply",
-			Outcome:       "interrupted",
 			Timestamp:     time.Unix(3, 0),
 		},
 	}
@@ -68,7 +65,7 @@ func TestFileSink_AppendsJSONL(t *testing.T) {
 		t.Fatalf("got %d events, want %d", len(got), len(events))
 	}
 	for i := range events {
-		if got[i].CommandPath != events[i].CommandPath || got[i].Outcome != events[i].Outcome {
+		if got[i].CommandPath != events[i].CommandPath {
 			t.Errorf("event %d: got %+v want %+v", i, got[i], events[i])
 		}
 	}

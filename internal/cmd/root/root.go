@@ -670,6 +670,7 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	if telemetryRecorder != nil {
 		telemetryRecorder.Finalize(err, time.Now())
 		_ = telemetryRecorder.Close(ctx)
+		telemetryRecorder = nil
 	}
 	if err != nil {
 		// If there was an execution error, use the logger to write it out and exit

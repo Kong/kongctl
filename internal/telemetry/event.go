@@ -17,7 +17,8 @@ type Event struct {
 	CommandPath string `json:"command_path"`
 	ExecArea    string `json:"exec_area"`
 
-	Outcome    string `json:"outcome,omitempty"`
-	DurationMs int64  `json:"duration_ms,omitempty"`
-	Cancelled  bool   `json:"cancelled,omitempty"`
+	// TODO: Uncomment when we start reporting outcomes.
+	// Outcome    string `json:"outcome,omitempty"`
+	// DurationMs int64  `json:"duration_ms,omitempty"`
+	// Cancelled  bool   `json:"cancelled,omitempty"`
 }

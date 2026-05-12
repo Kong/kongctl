@@ -11,6 +11,12 @@ import (
 // Sink is the replaceable transport for telemetry events. Implementations
 // must be safe to call from a single dispatcher goroutine; concurrent Emit
 // calls are not required.
+//
+// Implementations MUST honor ctx cancellation and deadlines. The dispatcher
+// passes a bounded context (see flushTimeout) into every Emit and Close call
+// so that a network-backed sink cannot wedge the dispatcher goroutine past
+// process exit. Long-running I/O (HTTP POSTs, file syncs) must abort when ctx
+// is done.
 type Sink interface {
 	Emit(ctx context.Context, e Event) error
 	Close(ctx context.Context) error
