@@ -64,7 +64,14 @@ func (c *loginKonnectCmd) validate(helper cmd.Helper) error {
 }
 
 func displayUserInstructions(resp auth.DeviceCodeResponse) {
-	userResp := fmt.Sprintf("Logging your CLI into Kong Konnect with the browser...\n\n"+
+	userResp := fmt.Sprintf("Hello from kongctl!\n\n"+
+		"Note: The kongctl CLI now collects telemetry regarding usage of the CLI.\n"+
+		"This information is used to prioritize future improvements. \n"+
+		"We do not collect any personal information or sensitive data.\n"+
+		"If you wish to opt out of telemetry, you can do so by setting the environment variable\n"+
+		"KONGCTL_NO_TELEMETRY=true or by using the --no-telemetry flag with your command.\n\n"+
+		"-------------------------------------------------------------------------------------\n\n"+
+		" Logging your CLI into Kong Konnect with the browser...\n\n"+
 		" To login, go to the following URL in your browser:\n\n"+
 		"   %s\n\n"+
 		" Or copy this one-time code: %s\n\n"+
