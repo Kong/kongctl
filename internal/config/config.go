@@ -176,6 +176,11 @@ func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledC
 		viper.ConfigureEnvVars(subv, envPrefix)
 	}
 
+	// TODO: Set telemetry.enabled as "true" once we move to default opt-out model.
+	subv.SetDefault("telemetry.enabled", false)
+	// Set this to true only for debugging purposes locally.
+	subv.SetDefault("telemetry.debug", false)
+
 	rv := &ProfiledConfig{
 		Viper:       mainv,
 		ProfileName: profile,
@@ -196,10 +201,6 @@ func getDefaultConfig(profileName, configFilePath string) map[string]any {
 			"log-file":                  defaultLogPath,
 			"konnect":                   map[string]any{},
 			common.ColorThemeConfigPath: common.DefaultColorTheme,
-			"telemetry": map[string]any{
-				"enabled": false,
-				"debug":   false,
-			},
 		},
 	}
 	return defaultConfig

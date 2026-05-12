@@ -171,6 +171,118 @@ func TestNewRecorder_FlagOn_Enabled(t *testing.T) {
 	}
 }
 
+func TestNewRecorder_DoNotTrack_Disables(t *testing.T) {
+	// Per https://consoledonottrack.com/ the canonical opt-out value is "1".
+	t.Setenv(EnvDoNotTrack, "1")
+	cfg := &fakeCfg{
+		bools: map[string]bool{ConfigKeyEnabled: true},
+		path:  t.TempDir() + "/config.yaml",
+	}
+	rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+	if rec.enabled {
+		t.Errorf("enabled = true, want false when DO_NOT_TRACK=1")
+	}
+	if _, ok := rec.sink.(NoopSink); !ok {
+		t.Errorf("sink = %T, want NoopSink", rec.sink)
+	}
+}
+
+func TestNewRecorder_DoNotTrack_NonSpecValuesIgnored(t *testing.T) {
+	// Only "1" is the spec opt-out value. Other values — including "true",
+	// "0" (the spec's "consents to tracking" value), and unset — must fall
+	// through to the config so users with config opt-in aren't surprised.
+	cases := []string{"0", "true", "false", ""}
+	for _, value := range cases {
+		t.Run("DO_NOT_TRACK="+value, func(t *testing.T) {
+			t.Setenv(EnvDoNotTrack, value)
+			cfg := &fakeCfg{
+				bools: map[string]bool{ConfigKeyEnabled: true},
+				path:  t.TempDir() + "/config.yaml",
+			}
+			rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+			if !rec.enabled {
+				t.Errorf("enabled = false, want true with DO_NOT_TRACK=%q and config opt-in", value)
+			}
+			_ = rec.Close(t.Context())
+		})
+	}
+}
+
+func TestNewRecorder_EnvTelemetryEnabled_ForcesOn(t *testing.T) {
+	// Config says off; env override forces on.
+	cases := []string{"true", "TRUE", "True"}
+	for _, value := range cases {
+		t.Run("KONGCTL_TELEMETRY_ENABLED="+value, func(t *testing.T) {
+			t.Setenv(EnvTelemetryEnabled, value)
+			cfg := &fakeCfg{
+				bools: map[string]bool{ConfigKeyEnabled: false},
+				path:  t.TempDir() + "/config.yaml",
+			}
+			rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+			if !rec.enabled {
+				t.Errorf("enabled = false, want true when %s=%s", EnvTelemetryEnabled, value)
+			}
+			_ = rec.Close(t.Context())
+		})
+	}
+}
+
+func TestNewRecorder_EnvTelemetryEnabled_ForcesOff(t *testing.T) {
+	// Config says on; env override forces off.
+	cases := []string{"false", "FALSE", "False"}
+	for _, value := range cases {
+		t.Run("KONGCTL_TELEMETRY_ENABLED="+value, func(t *testing.T) {
+			t.Setenv(EnvTelemetryEnabled, value)
+			cfg := &fakeCfg{
+				bools: map[string]bool{ConfigKeyEnabled: true},
+				path:  t.TempDir() + "/config.yaml",
+			}
+			rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+			if rec.enabled {
+				t.Errorf("enabled = true, want false when %s=%s", EnvTelemetryEnabled, value)
+			}
+			if _, ok := rec.sink.(NoopSink); !ok {
+				t.Errorf("sink = %T, want NoopSink", rec.sink)
+			}
+		})
+	}
+}
+
+func TestNewRecorder_EnvTelemetryEnabled_NonBoolValuesFallThrough(t *testing.T) {
+	// Only "true"/"false" are honored. "1"/"0"/garbage must fall through to
+	// the per-profile config rather than be quietly interpreted as on/off.
+	cases := []string{"1", "0", "yes", "no", "on", "off", "garbage"}
+	for _, value := range cases {
+		t.Run("KONGCTL_TELEMETRY_ENABLED="+value, func(t *testing.T) {
+			t.Setenv(EnvTelemetryEnabled, value)
+			// Config opt-out — if env fell through correctly, telemetry stays off.
+			cfg := &fakeCfg{
+				bools: map[string]bool{ConfigKeyEnabled: false},
+				path:  t.TempDir() + "/config.yaml",
+			}
+			rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+			if rec.enabled {
+				t.Errorf("enabled = true, want false: %s=%q must fall through to config",
+					EnvTelemetryEnabled, value)
+			}
+		})
+	}
+}
+
+func TestNewRecorder_DoNotTrackOverridesEnvEnable(t *testing.T) {
+	// DO_NOT_TRACK is the hard kill switch; it must beat KONGCTL_TELEMETRY_ENABLED=true.
+	t.Setenv(EnvDoNotTrack, "1")
+	t.Setenv(EnvTelemetryEnabled, "true")
+	cfg := &fakeCfg{
+		bools: map[string]bool{ConfigKeyEnabled: true},
+		path:  t.TempDir() + "/config.yaml",
+	}
+	rec := NewRecorder(t.Context(), cfg, nil, nil, nil)
+	if rec.enabled {
+		t.Errorf("enabled = true, want false: DO_NOT_TRACK must beat KONGCTL_TELEMETRY_ENABLED")
+	}
+}
+
 func TestRecorder_NilReceiver_Safe(t *testing.T) {
 	var rec *Recorder
 	rec.Begin(time.Now())
