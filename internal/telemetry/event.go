@@ -15,7 +15,6 @@ type Event struct {
 	Arch    string `json:"arch"`
 
 	CommandPath string `json:"command_path"`
-	ExecArea    string `json:"exec_area"`
 
 	// TODO: Uncomment when we start reporting outcomes.
 	// Outcome    string `json:"outcome,omitempty"`
