@@ -86,6 +86,30 @@ func TestMaxConcurrencyFromCmd(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "--max-concurrency must be between")
 	})
+
+	t.Run("rejects out-of-range value from config (below minimum)", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+		cfg.Set(maxConcurrencyConfigPath, 0)
+
+		_, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--max-concurrency must be between")
+	})
+
+	t.Run("rejects out-of-range value from config (above maximum)", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+		cfg.Set(maxConcurrencyConfigPath, 1000)
+
+		_, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--max-concurrency must be between")
+	})
 }
 
 func Test_validateDeletePlan(t *testing.T) {

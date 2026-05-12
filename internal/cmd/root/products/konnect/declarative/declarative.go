@@ -97,7 +97,7 @@ Defaults to each -f source root (file: its parent dir, dir: the directory itself
 }
 
 func addMaxConcurrencyFlag(cmd *cobra.Command) {
-	cmd.Flags().Int("max-concurrency", executor.DefaultMaxConcurrency,
+	cmd.Flags().Int(maxConcurrencyFlagName, executor.DefaultMaxConcurrency,
 		fmt.Sprintf(`Maximum number of concurrent API operations during execution (min %d, max %d).
 When the plan contains execution_groups, operations within each group run
 concurrently up to this limit. Use 1 for sequential execution.
