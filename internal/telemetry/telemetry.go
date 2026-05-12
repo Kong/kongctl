@@ -136,17 +136,14 @@ func NewRecorder(
 }
 
 func buildDefaultSink(cfg config.Hook) Sink {
-	sinks := []Sink{NewUDPSink(reportsAddr)}
-
-	// telemetry.debug enables a local JSONL mirror for developers verifying
-	// emitted events. It is intentionally not on by default so end users
-	// (enabled=true, debug=false) get nothing on disk.
+	// telemetry.debug routes events to a local JSONL file only, skipping the
+	// UDP sink so developer runs don't pollute the Splunk dataset.
 	if cfg.GetBool(ConfigKeyDebug) {
 		path := filepath.Join(filepath.Dir(cfg.GetPath()), telemetryLogFileName)
-		sinks = append(sinks, NewFileSink(path))
+		return NewFileSink(path)
 	}
 
-	return NewMultiSink(sinks...)
+	return NewUDPSink(reportsAddr)
 }
 
 // Begin records the command start time. Safe to call when disabled.
