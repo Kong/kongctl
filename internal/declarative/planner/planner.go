@@ -422,6 +422,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	// Resolve dependencies and calculate execution order.
 	// Inject additional dependency constraints that span resource planners.
+	adjustControlPlaneGroupDeleteDependencies(basePlan.Changes)
 	adjustAuthStrategyDeleteDependencies(basePlan.Changes)
 	adjustDCRProviderDeleteDependencies(basePlan.Changes)
 
@@ -530,6 +531,41 @@ func toSnakeCase(value string) string {
 	}
 
 	return strings.Trim(string(out), "_")
+}
+
+// adjustControlPlaneGroupDeleteDependencies ensures control plane group DELETE
+// changes execute only after DELETE changes for their member control planes in
+// the same plan. Konnect rejects deleting a group while it still has members.
+func adjustControlPlaneGroupDeleteDependencies(changes []PlannedChange) {
+	controlPlaneDeletesByID := make(map[string]string)
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete || change.ResourceType != ResourceTypeControlPlane {
+			continue
+		}
+		if change.ResourceID != "" {
+			controlPlaneDeletesByID[change.ResourceID] = change.ID
+		}
+	}
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete || change.ResourceType != ResourceTypeControlPlane {
+			continue
+		}
+
+		refInfo, ok := change.References[FieldMembers]
+		if !ok || len(refInfo.Refs) == 0 {
+			continue
+		}
+
+		for _, memberID := range refInfo.Refs {
+			depID, ok := controlPlaneDeletesByID[memberID]
+			if ok && depID != change.ID {
+				change.DependsOn = appendDependsOn(change.DependsOn, depID)
+			}
+		}
+	}
 }
 
 // adjustAuthStrategyDeleteDependencies ensures auth strategy DELETE changes execute only

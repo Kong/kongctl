@@ -408,7 +408,6 @@ steps:
     commands:
       - name: 000-delete-all
         outputFormat: json
-        maxConcurrency: 1
         run:
           - delete
           - -f

@@ -395,6 +395,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneDelete(current state.ControlPl
 	}
 
 	generic := p.GetGenericPlanner()
+	var change PlannedChange
 	if generic != nil {
 		config := DeleteConfig{
 			ResourceType: ResourceTypeControlPlane,
@@ -403,22 +404,28 @@ func (p *controlPlanePlannerImpl) planControlPlaneDelete(current state.ControlPl
 			ResourceID:   current.ID,
 			Namespace:    namespace,
 		}
-		change := generic.PlanDelete(context.Background(), config)
-		change.Fields = map[string]any{FieldName: current.Name}
-		plan.AddChange(change)
-		return
+		change = generic.PlanDelete(context.Background(), config)
+	} else {
+		changeID := p.NextChangeID(ActionDelete, ResourceTypeControlPlane, current.Name)
+		change = PlannedChange{
+			ID:           changeID,
+			ResourceType: ResourceTypeControlPlane,
+			ResourceRef:  current.Name,
+			ResourceID:   current.ID,
+			Action:       ActionDelete,
+			Namespace:    namespace,
+		}
 	}
 
-	changeID := p.NextChangeID(ActionDelete, ResourceTypeControlPlane, current.Name)
-	plan.AddChange(PlannedChange{
-		ID:           changeID,
-		ResourceType: ResourceTypeControlPlane,
-		ResourceRef:  current.Name,
-		ResourceID:   current.ID,
-		Action:       ActionDelete,
-		Fields:       map[string]any{FieldName: current.Name},
-		Namespace:    namespace,
-	})
+	change.Fields = map[string]any{FieldName: current.Name}
+	memberIDs := normalizers.NormalizeMemberIDs(current.GroupMembers)
+	if len(memberIDs) > 0 {
+		change.Fields[FieldMembers] = formatMemberField(memberIDs)
+		change.References = map[string]ReferenceInfo{
+			FieldMembers: p.buildMemberReferenceInfo(memberIDs),
+		}
+	}
+	plan.AddChange(change)
 }
 
 func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
