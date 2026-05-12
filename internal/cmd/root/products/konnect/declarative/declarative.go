@@ -100,8 +100,8 @@ func addMaxConcurrencyFlag(cmd *cobra.Command) {
 	cmd.Flags().Int("max-concurrency", executor.DefaultMaxConcurrency,
 		fmt.Sprintf(`Maximum number of concurrent API operations during execution (min %d, max %d).
 When the plan contains execution_groups, operations within each group run
-concurrently up to this limit. Use 1 for sequential execution. (default %d).
-- Config path: [ %s ]`, executor.MinConcurrency, executor.MaxConcurrency, executor.DefaultMaxConcurrency, maxConcurrencyConfigPath))
+concurrently up to this limit. Use 1 for sequential execution.
+- Config path: [ %s ]`, executor.MinConcurrency, executor.MaxConcurrency, maxConcurrencyConfigPath))
 }
 
 func addRequireNamespaceFlags(cmd *cobra.Command) {
