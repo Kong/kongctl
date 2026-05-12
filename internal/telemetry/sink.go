@@ -44,7 +44,15 @@ func NewFileSink(path string) Sink {
 	return &fileSink{path: path}
 }
 
-func (s *fileSink) Emit(_ context.Context, e Event) error {
+func (s *fileSink) Emit(ctx context.Context, e Event) error {
+	// Honor the Sink contract: bail out early if the dispatcher has already
+	// cancelled or timed out. os.File has no portable SetWriteDeadline, so
+	// once the write starts we can't abort it mid-flight; the pre-flight
+	// check is what keeps a stale ctx from kicking off filesystem I/O.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

@@ -25,7 +25,7 @@ const (
 type udpSink struct {
 	mu   sync.Mutex
 	addr string
-	conn *net.UDPConn
+	conn net.Conn
 }
 
 // NewUDPSink returns a Sink that serializes events as Splunk key=value
@@ -40,7 +40,7 @@ func (s *udpSink) Emit(ctx context.Context, e Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.ensureConnLocked(); err != nil {
+	if err := s.ensureConnLocked(ctx); err != nil {
 		return err
 	}
 
@@ -63,15 +63,16 @@ func (s *udpSink) Close(_ context.Context) error {
 	return err
 }
 
-func (s *udpSink) ensureConnLocked() error {
+// ensureConnLocked dials the UDP socket through net.Dialer.DialContext so
+// DNS resolution and the dial itself observe the caller's context. Without
+// the ctx-aware dialer a stalled host lookup would block the dispatcher
+// past flushTimeout and defeat the Recorder's bounded-shutdown guarantee.
+func (s *udpSink) ensureConnLocked(ctx context.Context) error {
 	if s.conn != nil {
 		return nil
 	}
-	udpAddr, err := net.ResolveUDPAddr("udp", s.addr)
-	if err != nil {
-		return fmt.Errorf("resolve udp addr %q: %w", s.addr, err)
-	}
-	conn, err := net.DialUDP("udp", nil, udpAddr)
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "udp", s.addr)
 	if err != nil {
 		return fmt.Errorf("dial udp %q: %w", s.addr, err)
 	}
@@ -129,10 +130,17 @@ func jsonValueToString(v any) string {
 
 func writeKV(b *strings.Builder, k, v string) {
 	const (
-		pairSep  = ';'  // separates one key=value from the next
-		kvSep    = '='  // separates a key from its value
-		quote    = '"'  // wraps values that need quoting
-		escQuote = `\"` // escape sequence for an embedded quote
+		pairSep = ';' // separates one key=value from the next
+		kvSep   = '=' // separates a key from its value
+		quote   = '"' // wraps values that need quoting
+	)
+
+	// this escapes characters that would otherwise break the
+	// quoted key="value" form on the wire.
+	quotedValueEscaper := strings.NewReplacer(
+		`"`, `\"`,
+		"\n", `\n`,
+		"\r", `\r`,
 	)
 	if b.Len() > 0 {
 		b.WriteByte(pairSep)
@@ -141,7 +149,7 @@ func writeKV(b *strings.Builder, k, v string) {
 	b.WriteByte(kvSep)
 	if needsQuoting(v) {
 		b.WriteByte(quote)
-		b.WriteString(strings.ReplaceAll(v, `"`, escQuote))
+		b.WriteString(quotedValueEscaper.Replace(v))
 		b.WriteByte(quote)
 	} else {
 		b.WriteString(v)

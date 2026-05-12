@@ -79,6 +79,25 @@ func TestFileSink_AppendsJSONL(t *testing.T) {
 	}
 }
 
+func TestFileSink_CancelledContextSkipsIO(t *testing.T) {
+	// Sink contract requires Emit to honor ctx cancellation. A cancelled ctx
+	// must short-circuit before any filesystem work — no file should appear.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "telemetry.log")
+	sink := NewFileSink(path)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	err := sink.Emit(ctx, Event{SchemaVersion: 1, CommandPath: "kongctl x"})
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Emit error = %v, want errors.Is(_, context.Canceled)", err)
+	}
+	if _, statErr := os.Stat(path); !errors.Is(statErr, fs.ErrNotExist) {
+		t.Errorf("file was created despite cancelled ctx: stat err = %v", statErr)
+	}
+}
+
 type errSink struct {
 	emitErr   error
 	emitCalls int

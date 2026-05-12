@@ -51,8 +51,34 @@ func TestFormatEvent_QuotingAndEmpty(t *testing.T) {
 	}
 }
 
+func TestFormatEvent_NewlinesEscaped(t *testing.T) {
+	// A value containing \n or \r must not split the syslog payload across
+	// lines — downstream key=value parsing reads one event per line.
+	got := formatEventForSplunk(Event{
+		SchemaVersion: 1,
+		Timestamp:     time.Unix(0, 0).UTC(),
+		CommandPath:   "line1\nline2\rline3",
+	})
+
+	// Exactly one trailing newline (the syslog frame terminator) — no raw
+	// newlines or CRs survived from the value.
+	if strings.Count(got, "\n") != 1 {
+		t.Errorf("expected exactly one trailing newline, got %d: %q", strings.Count(got, "\n"), got)
+	}
+	if strings.ContainsRune(strings.TrimSuffix(got, "\n"), '\n') {
+		t.Errorf("raw newline survived into payload: %q", got)
+	}
+	if strings.ContainsRune(got, '\r') {
+		t.Errorf("raw CR survived into payload: %q", got)
+	}
+	// Literal `\n` / `\r` escape sequences should be visible in the quoted value.
+	if !strings.Contains(got, `command_path="line1\nline2\rline3"`) {
+		t.Errorf("escaped newline/CR not present: %q", got)
+	}
+}
+
 func TestUDPSink_BadAddrSurfacesError(t *testing.T) {
-	// Invalid port forces ResolveUDPAddr to fail on first Emit.
+	// Invalid port forces the dial to fail on first Emit.
 	sink := NewUDPSink("127.0.0.1:not-a-port")
 	defer func() { _ = sink.Close(t.Context()) }()
 
