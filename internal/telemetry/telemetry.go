@@ -109,7 +109,6 @@ func FromContext(ctx context.Context) *Recorder {
 // hook.
 type CommandInfo struct {
 	Path string
-	Area string
 }
 
 // Recorder buffers a single event for the duration of one command execution
@@ -257,7 +256,6 @@ func (r *Recorder) Finalize(_ error, end time.Time) {
 	ev := r.staticEvent
 	ev.Timestamp = end
 	ev.CommandPath = info.Path
-	ev.ExecArea = info.Area
 
 	// TODO: Uncomment when we start reporting outcomes.
 	// ev.Outcome = string(Categorize(err))

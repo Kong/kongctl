@@ -15,11 +15,10 @@ func TestFormatEvent_Shape(t *testing.T) {
 		OS:            "darwin",
 		Arch:          "arm64",
 		CommandPath:   "kongctl plan",
-		ExecArea:      "declarative",
 	})
 
 	want := syslogPrefix + `signal=kongctl;arch=arm64;command_path="kongctl plan";` +
-		`exec_area=declarative;os=darwin;schema_version=1;` +
+		`os=darwin;schema_version=1;` +
 		`timestamp=2026-05-12T14:30:45Z;version=0.4.0` + "\n"
 	if got != want {
 		t.Errorf("formatEvent mismatch\n got: %q\nwant: %q", got, want)
@@ -31,7 +30,7 @@ func TestFormatEvent_QuotingAndEmpty(t *testing.T) {
 		SchemaVersion: 1,
 		Timestamp:     time.Unix(0, 0).UTC(),
 		CommandPath:   `weird "value", with spaces`,
-		// Version / OS / Arch / ExecArea intentionally empty.
+		// Version / OS / Arch intentionally empty.
 	})
 
 	// Empty values must be quoted so the receiver sees `key=""` and not a

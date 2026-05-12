@@ -114,13 +114,13 @@ func newTestRecorder(sink Sink) *Recorder {
 
 func TestTrimBinaryPrefix(t *testing.T) {
 	cases := map[string]string{
-		"kongctl get apis":         "get apis",
-		"kongctl plan":             "plan",
-		"kongctl":                  "",
-		"  kongctl get apis  ":     "get apis",
-		"get apis":                 "get apis", // already trimmed; left alone
-		"":                         "",
-		"kongctl-extension thing":  "kongctl-extension thing", // not a true prefix
+		"kongctl get apis":        "get apis",
+		"kongctl plan":            "plan",
+		"kongctl":                 "",
+		"  kongctl get apis  ":    "get apis",
+		"get apis":                "get apis", // already trimmed; left alone
+		"":                        "",
+		"kongctl-extension thing": "kongctl-extension thing", // not a true prefix
 	}
 	for in, want := range cases {
 		if got := trimBinaryPrefix(in); got != want {
@@ -369,7 +369,6 @@ func TestRecorder_FinalizeEmitsEvent(t *testing.T) {
 	end := time.Now()
 	rec.SetCommand(CommandInfo{
 		Path: "kongctl plan",
-		Area: AreaDeclarative,
 	})
 	rec.Finalize(nil, end)
 	if err := rec.Close(t.Context()); err != nil {
@@ -383,9 +382,6 @@ func TestRecorder_FinalizeEmitsEvent(t *testing.T) {
 	got := events[0]
 	if got.CommandPath != "plan" {
 		t.Errorf("CommandPath = %q, want %q", got.CommandPath, "plan")
-	}
-	if got.ExecArea != AreaDeclarative {
-		t.Errorf("ExecArea = %q, want %q", got.ExecArea, AreaDeclarative)
 	}
 	if !got.Timestamp.Equal(end) {
 		t.Errorf("Timestamp = %v, want %v", got.Timestamp, end)
