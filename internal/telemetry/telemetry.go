@@ -19,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/kong/kongctl/internal/meta"
 )
 
 // Config keys read by NewRecorder. Defaults registered in
@@ -200,15 +201,36 @@ func (r *Recorder) Begin(t time.Time) {
 }
 
 // SetCommand attaches the active leaf command's metadata. Called from the
-// root PersistentPreRun once Cobra has resolved the leaf.
+// root PersistentPreRun once Cobra has resolved the leaf. The binary name
+// is stripped from info.Path so emitted events carry e.g. "get apis"
+// rather than "kongctl get apis" — every event is a kongctl invocation by
+// definition, so the prefix is redundant on the wire.
+//
+// A bare "kongctl" invocation (no subcommand) trims to "" and is treated
+// as no-command: cmdSet stays false and Finalize will skip the event.
 func (r *Recorder) SetCommand(info CommandInfo) {
 	if r == nil {
+		return
+	}
+	info.Path = trimBinaryPrefix(info.Path)
+	if info.Path == "" {
 		return
 	}
 	r.mu.Lock()
 	r.cmdInfo = info
 	r.cmdSet = true
 	r.mu.Unlock()
+}
+
+// trimBinaryPrefix strips the leading "kongctl" / "kongctl " from a cobra
+// CommandPath() so the wire format stays binary-name-free. A bare
+// "kongctl" (no subcommand) collapses to the empty string.
+func trimBinaryPrefix(path string) string {
+	path = strings.TrimSpace(path)
+	if path == meta.CLIName {
+		return ""
+	}
+	return strings.TrimPrefix(path, meta.CLIName+" ")
 }
 
 // Finalize builds the final Event, and enqueues it for

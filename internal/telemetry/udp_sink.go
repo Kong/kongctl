@@ -11,10 +11,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/kong/kongctl/internal/meta"
 )
 
 const (
-	signalName   = "kongctl"
+	signalName   = meta.CLIName
 	reportsAddr  = "kong-hf.konghq.com:61829"
 	syslogPrefix = "<14>"
 )
