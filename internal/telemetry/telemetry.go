@@ -136,20 +136,17 @@ func NewRecorder(
 }
 
 func buildDefaultSink(cfg config.Hook) Sink {
-	// telemetry.debug enables the local JSONL file sink. It is developer-only:
-	// end users (telemetry.enabled=true, telemetry.debug=false) must never get
-	// a telemetry.log written to their machine.
+	sinks := []Sink{NewUDPSink(reportsAddr)}
+
+	// telemetry.debug enables a local JSONL mirror for developers verifying
+	// emitted events. It is intentionally not on by default so end users
+	// (enabled=true, debug=false) get nothing on disk.
 	if cfg.GetBool(ConfigKeyDebug) {
 		path := filepath.Join(filepath.Dir(cfg.GetPath()), telemetryLogFileName)
-		return NewFileSink(path)
+		sinks = append(sinks, NewFileSink(path))
 	}
 
-	// TODO(telemetry): replace with NewSink(...) once a backend is wired.
-	// Until then, "telemetry.enabled=true, telemetry.debug=false" has nowhere
-	// to send events, so the recorder still runs but discards them.
-	// When the new sink lands, both sinks should be composed via NewMultiSink so
-	// debug developers see local and remote events together.
-	return NoopSink{}
+	return NewMultiSink(sinks...)
 }
 
 // Begin records the command start time. Safe to call when disabled.
