@@ -133,7 +133,12 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			controlPlaneID = current.ID
 		}
 
-		if len(dataPlaneCerts) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.planner.shouldPlanChild(
+			plan,
+			resources.ResourceTypeControlPlane,
+			desiredCP.Ref,
+			resources.ResourceTypeControlPlaneDataPlaneCertificate,
+		) && (len(dataPlaneCerts) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planner.planControlPlaneDataPlaneCertificateChanges(
 				ctx,
 				namespace,

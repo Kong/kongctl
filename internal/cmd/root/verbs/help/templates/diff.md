@@ -370,7 +370,7 @@ kongctl diff -f large-config/
 
 - `kongctl plan` - Generate execution plan
 - `kongctl apply` - Apply changes (no deletions)
-- `kongctl sync` - Full synchronization
+- `kongctl sync` - Scoped synchronization
 
 ## See Also
 

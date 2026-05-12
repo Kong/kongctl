@@ -185,6 +185,62 @@ portals:
 	assert.Equal(t, "portal-email-config", rs.PortalEmailConfigs[0].Ref)
 }
 
+func TestLoader_EmptyPortalSingletonChildrenAreScopeOnly(t *testing.T) {
+	tests := []struct {
+		name         string
+		childYAML    string
+		resourceType resources.ResourceType
+		assertEmpty  func(*testing.T, *resources.ResourceSet)
+	}{
+		{
+			name:         "custom domain",
+			childYAML:    "    custom_domain: {}\n",
+			resourceType: resources.ResourceTypePortalCustomDomain,
+			assertEmpty: func(t *testing.T, rs *resources.ResourceSet) {
+				t.Helper()
+				assert.Empty(t, rs.PortalCustomDomains)
+			},
+		},
+		{
+			name:         "email config",
+			childYAML:    "    email_config: {}\n",
+			resourceType: resources.ResourceTypePortalEmailConfig,
+			assertEmpty: func(t *testing.T, rs *resources.ResourceSet) {
+				t.Helper()
+				assert.Empty(t, rs.PortalEmailConfigs)
+			},
+		},
+		{
+			name:         "audit log webhook",
+			childYAML:    "    audit_log_webhook: {}\n",
+			resourceType: resources.ResourceTypePortalAuditLogWebhook,
+			assertEmpty: func(t *testing.T, rs *resources.ResourceSet) {
+				t.Helper()
+				assert.Empty(t, rs.PortalAuditLogWebhooks)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := `
+portals:
+  - ref: portal-email
+    name: portal-email
+` + tt.childYAML
+
+			loader := New()
+			rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+			require.NoError(t, err)
+			require.NoError(t, loader.validateResourceSet(rs))
+
+			require.NotNil(t, rs.SyncScope)
+			assert.True(t, rs.SyncScope.ChildInScope(resources.ResourceTypePortal, "portal-email", tt.resourceType))
+			tt.assertEmpty(t, rs)
+		})
+	}
+}
+
 func TestLoader_FlattensPortalIntegration(t *testing.T) {
 	content := `
 portals:

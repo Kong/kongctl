@@ -729,31 +729,35 @@ func (p *Planner) planAPIChildResourceChanges(
 		parentNamespace = *desired.Kongctl.Namespace
 	}
 
-	// Plan version changes
-	if err := p.planAPIVersionChanges(
-		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan API version changes: %w", err)
+	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIVersion) {
+		if err := p.planAPIVersionChanges(
+			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan API version changes: %w", err)
+		}
 	}
 
-	// Plan publication changes
-	if err := p.planAPIPublicationChanges(
-		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan API publication changes: %w", err)
+	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIPublication) {
+		if err := p.planAPIPublicationChanges(
+			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan API publication changes: %w", err)
+		}
 	}
 
-	// Plan implementation changes
-	if err := p.planAPIImplementationChanges(
-		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
-		return fmt.Errorf("failed to plan API implementation changes: %w", err)
+	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIImplementation) {
+		if err := p.planAPIImplementationChanges(
+			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
+			return fmt.Errorf("failed to plan API implementation changes: %w", err)
+		}
 	}
 
-	// Plan document changes
-	if err := p.planAPIDocumentChanges(
-		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan API document changes: %w", err)
+	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIDocument) {
+		if err := p.planAPIDocumentChanges(
+			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan API document changes: %w", err)
+		}
 	}
 
 	return nil
@@ -1938,7 +1942,8 @@ func (p *Planner) planAPIDocumentCreate(
 
 		// Ensure the parent document change executes first if present in the plan
 		for _, depChange := range plan.Changes {
-			if depChange.ResourceType == ResourceTypeAPIDocument && depChange.ResourceRef == document.ParentDocumentRef {
+			if depChange.ResourceType == ResourceTypeAPIDocument &&
+				depChange.ResourceRef == document.ParentDocumentRef {
 				change.DependsOn = append(change.DependsOn, depChange.ID)
 				break
 			}
@@ -2048,7 +2053,8 @@ func (p *Planner) planAPIDocumentUpdate(
 
 		// If parent document change exists, ensure it runs before this update
 		for _, depChange := range plan.Changes {
-			if depChange.ResourceType == ResourceTypeAPIDocument && depChange.ResourceRef == document.ParentDocumentRef {
+			if depChange.ResourceType == ResourceTypeAPIDocument &&
+				depChange.ResourceRef == document.ParentDocumentRef {
 				change.DependsOn = append(change.DependsOn, depChange.ID)
 				break
 			}

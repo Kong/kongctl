@@ -410,10 +410,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 	}
 
 	if v, ok := raw["custom_domain"]; ok {
-		if err := json.Unmarshal(v, &p.CustomDomain); err != nil {
+		if isEmptyJSONObject(v) {
+			delete(raw, "custom_domain")
+		} else if err := json.Unmarshal(v, &p.CustomDomain); err != nil {
 			return err
+		} else {
+			delete(raw, "custom_domain")
 		}
-		delete(raw, "custom_domain")
 	}
 
 	if v, ok := raw["pages"]; ok {
@@ -438,10 +441,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 	}
 
 	if v, ok := raw["email_config"]; ok {
-		if err := json.Unmarshal(v, &p.EmailConfig); err != nil {
+		if isEmptyJSONObject(v) {
+			delete(raw, "email_config")
+		} else if err := json.Unmarshal(v, &p.EmailConfig); err != nil {
 			return err
+		} else {
+			delete(raw, "email_config")
 		}
-		delete(raw, "email_config")
 	}
 
 	if v, ok := raw["email_templates"]; ok {
@@ -461,10 +467,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 	}
 
 	if v, ok := raw["audit_log_webhook"]; ok {
-		if err := json.Unmarshal(v, &p.AuditLogWebhook); err != nil {
+		if isEmptyJSONObject(v) {
+			delete(raw, "audit_log_webhook")
+		} else if err := json.Unmarshal(v, &p.AuditLogWebhook); err != nil {
 			return err
+		} else {
+			delete(raw, "audit_log_webhook")
 		}
-		delete(raw, "audit_log_webhook")
 	}
 
 	if v, ok := raw["assets"]; ok {
@@ -504,6 +513,14 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func isEmptyJSONObject(raw json.RawMessage) bool {
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return false
+	}
+	return len(obj) == 0
 }
 
 // MarshalJSON ensures the embedded SDK model and Kongctl fields are preserved when serializing.

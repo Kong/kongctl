@@ -2,6 +2,7 @@ _defaults:
   kongctl:
     namespace: event-gateways-vc-produce-policy-comprehensive-test
 
+# Legacy directory name; sync delete intent is now a nested empty child list.
 event_gateways:
   - ref: egw-cp-for-vc-produce-policy-test
     name: egw-cp-for-vc-produce-policy-test
@@ -31,6 +32,4 @@ event_gateways:
          - type: anonymous
         acl_mode: enforce_on_gateway
         dns_label: vc-default
-
-# event_gateway_virtual_cluster_produce_policies removed for sync delete test
-event_gateway_virtual_cluster_produce_policies: []
+        produce_policies: []

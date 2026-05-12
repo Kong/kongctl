@@ -31,7 +31,7 @@ Apply the configuration:
 kongctl apply -f control-plane.yaml
 ```
 
-Run in sync mode to delete unmanaged control planes in the namespace (use with caution):
+Run in sync mode to reconcile managed control planes in the namespace (use with caution):
 
 ```bash
 kongctl sync -f control-plane.yaml

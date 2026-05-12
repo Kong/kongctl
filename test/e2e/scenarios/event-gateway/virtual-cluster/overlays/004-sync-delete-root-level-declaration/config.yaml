@@ -2,6 +2,7 @@ _defaults:
   kongctl:
     namespace: event-gateways-vc-comprehensive-test
 
+# Legacy directory name; sync delete intent is now a nested empty child list.
 event_gateways:
   - ref: egw-cp-for-bc-vc-test
     name: egw-cp-for-bc-vc-test
@@ -21,3 +22,4 @@ event_gateways:
           tls_versions:
             - tls12
             - tls13
+    virtual_clusters: []

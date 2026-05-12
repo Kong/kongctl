@@ -1,5 +1,5 @@
 # Overlay: Delete api_version child after parent API is unprotected
-# Sync mode with no versions listed causes DELETE plan for the child
+# Sync mode with an explicit empty versions list causes a DELETE plan for the child
 # This should succeed now that the parent is no longer protected
 
 _defaults:
@@ -14,6 +14,7 @@ apis:
     kongctl:
       protected: false
       namespace: default
+    versions: []
 
   - ref: test-api
     name: "Test API"

@@ -5,6 +5,7 @@ portals:
     description: "Portal used by the audit-log webhook e2e scenario"
     authentication_enabled: false
     rbac_enabled: false
+    audit_log_webhook: {}
 
 audit-logs:
   destinations:

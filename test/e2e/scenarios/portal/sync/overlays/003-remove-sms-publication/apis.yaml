@@ -1,7 +1,7 @@
 # API Resources — SMS API publication removed
-# The SMS API is kept intact (versions, documents) but its publications
-# block is intentionally omitted so that sync mode will plan a
-# DELETE for the api_publication resource.
+# The SMS API is kept intact (versions, documents), and the publications
+# block is explicitly empty so that sync mode will plan a DELETE for the
+# api_publication resource.
 
 apis:
   - ref: sms
@@ -45,7 +45,7 @@ apis:
         status: published
         content: !file apis/sms/docs/webhooks.md
 
-    # publications: intentionally absent to trigger sync-delete
+    publications: []
 
   - ref: voice
     name: !file apis/voice/openapi.yaml#info.title

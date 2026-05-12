@@ -207,7 +207,7 @@ This shows:
 
 - `kongctl diff` - Show detailed differences
 - `kongctl apply` - Apply changes (create/update only)
-- `kongctl sync` - Full synchronization (includes deletes)
+- `kongctl sync` - Scoped synchronization (can include deletes)
 
 ## See Also
 

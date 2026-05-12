@@ -2,8 +2,9 @@ _defaults:
   kongctl:
     namespace: event-gateways-dataplane-cert-comprehensive-test
 
+# Legacy directory name; sync delete intent is now a nested empty child list.
 event_gateways:
   - ref: egw-cp-for-dataplane-cert-test-ref
     name: egw-cp-for-dataplane-cert-test-name
     description: "EGW CP for Dataplane Cert Test"
-event_gateway_data_plane_certificates: []
+    data_plane_certificates: []

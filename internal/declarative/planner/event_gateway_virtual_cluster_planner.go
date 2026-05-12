@@ -94,7 +94,12 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 
 			// Plan cluster policies for this new virtual cluster (depends on virtual cluster creation)
 			clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(desiredCluster.Ref)
-			if len(clusterPolicies) > 0 {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayClusterPolicy,
+			) && len(clusterPolicies) > 0 {
 				if err := p.planEventGatewayClusterPolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, "", desiredCluster.Ref,
@@ -106,7 +111,12 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 
 			// Plan produce policies for this new virtual cluster (depends on virtual cluster creation)
 			producePolicies := p.resources.GetProducePoliciesForVirtualCluster(desiredCluster.Ref)
-			if len(producePolicies) > 0 {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayProducePolicy,
+			) && len(producePolicies) > 0 {
 				if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, "", desiredCluster.Ref,
@@ -117,7 +127,12 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 			}
 			// Plan consume policies for this new virtual cluster (depends on virtual cluster creation)
 			consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(desiredCluster.Ref)
-			if len(consumePolicies) > 0 {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayConsumePolicy,
+			) && len(consumePolicies) > 0 {
 				if err := p.planEventGatewayConsumePolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, "", desiredCluster.Ref,
@@ -154,7 +169,12 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 
 			// Plan cluster policies for this existing virtual cluster
 			clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(desiredCluster.Ref)
-			if len(clusterPolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayClusterPolicy,
+			) && (len(clusterPolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
 				if err := p.planEventGatewayClusterPolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, current.ID, desiredCluster.Ref,
@@ -166,7 +186,12 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 
 			// Plan produce policies for this existing virtual cluster
 			producePolicies := p.resources.GetProducePoliciesForVirtualCluster(desiredCluster.Ref)
-			if len(producePolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayProducePolicy,
+			) && (len(producePolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
 				if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, current.ID, desiredCluster.Ref,
@@ -177,7 +202,12 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 			}
 			// Plan consume policies for this existing virtual cluster
 			consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(desiredCluster.Ref)
-			if len(consumePolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayConsumePolicy,
+			) && (len(consumePolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
 				if err := p.planEventGatewayConsumePolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, current.ID, desiredCluster.Ref,
@@ -234,7 +264,12 @@ func (p *Planner) planVirtualClusterCreatesForNewGateway(
 
 		// Plan cluster policies for this new virtual cluster (depends on virtual cluster creation)
 		clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(cluster.Ref)
-		if len(clusterPolicies) > 0 {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayVirtualCluster,
+			cluster.Ref,
+			resources.ResourceTypeEventGatewayClusterPolicy,
+		) && len(clusterPolicies) > 0 {
 			if err := p.planEventGatewayClusterPolicyChanges(
 				ctx, nil, namespace, "", gatewayRef,
 				cluster.Name, "", cluster.Ref,
@@ -246,7 +281,12 @@ func (p *Planner) planVirtualClusterCreatesForNewGateway(
 
 		// Plan produce policies for this new virtual cluster (depends on virtual cluster creation)
 		producePolicies := p.resources.GetProducePoliciesForVirtualCluster(cluster.Ref)
-		if len(producePolicies) > 0 {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayVirtualCluster,
+			cluster.Ref,
+			resources.ResourceTypeEventGatewayProducePolicy,
+		) && len(producePolicies) > 0 {
 			if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
 				ctx, nil, namespace, "", gatewayRef,
 				cluster.Name, "", cluster.Ref,
@@ -257,7 +297,12 @@ func (p *Planner) planVirtualClusterCreatesForNewGateway(
 		}
 		// Plan consume policies for this new virtual cluster (depends on virtual cluster creation)
 		consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(cluster.Ref)
-		if len(consumePolicies) > 0 {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayVirtualCluster,
+			cluster.Ref,
+			resources.ResourceTypeEventGatewayConsumePolicy,
+		) && len(consumePolicies) > 0 {
 			if err := p.planEventGatewayConsumePolicyChanges(
 				ctx, nil, namespace, "", gatewayRef,
 				cluster.Name, "", cluster.Ref,

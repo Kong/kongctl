@@ -9,3 +9,4 @@ portals:
     description: "Portal using HTTP verification for its custom domain"
     kongctl:
       namespace: portal-custom-domain
+    custom_domain: {}

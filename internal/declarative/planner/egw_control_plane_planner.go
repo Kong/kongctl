@@ -189,7 +189,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 			gatewayID = current.ID
 		}
 
-		if len(backendClusters) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayBackendCluster,
+		) && (len(backendClusters) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayBackendClusterChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, backendClusters, plan,
@@ -201,7 +206,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Plan virtual clusters for this gateway (whether it exists or is being created)
 		virtualClusters := p.resources.GetVirtualClustersForGateway(desiredEGWCP.Ref)
 
-		if len(virtualClusters) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayVirtualCluster,
+		) && (len(virtualClusters) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayVirtualClusterChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, virtualClusters, plan,
@@ -213,7 +223,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Plan listeners for this gateway (whether it exists or is being created)
 		listeners := p.resources.GetListenersForEventGateway(desiredEGWCP.Ref)
 
-		if len(listeners) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayListener,
+		) && (len(listeners) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayListenerChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, listeners, plan,
@@ -225,7 +240,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Plan data plane certificates for this gateway (whether it exists or is being created)
 		dataPlaneCerts := p.resources.GetDataPlaneCertificatesForGateway(desiredEGWCP.Ref)
 
-		if len(dataPlaneCerts) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayDataPlaneCertificate,
+		) && (len(dataPlaneCerts) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayDataPlaneCertificateChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, dataPlaneCerts, plan,
@@ -237,7 +257,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Plan schema registries for this gateway (whether it exists or is being created)
 		schemaRegistries := p.resources.GetSchemaRegistriesForGateway(desiredEGWCP.Ref)
 
-		if len(schemaRegistries) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewaySchemaRegistry,
+		) && (len(schemaRegistries) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewaySchemaRegistryChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, schemaRegistries, plan,
@@ -249,7 +274,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Plan static keys for this gateway (whether it exists or is being created)
 		staticKeys := p.resources.GetStaticKeysForGateway(desiredEGWCP.Ref)
 
-		if len(staticKeys) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayStaticKey,
+		) && (len(staticKeys) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayStaticKeyChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, staticKeys, plan,
@@ -261,7 +291,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Plan TLS trust bundles for this gateway (whether it exists or is being created)
 		trustBundles := p.resources.GetTrustBundlesForGateway(desiredEGWCP.Ref)
 
-		if len(trustBundles) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayTLSTrustBundle,
+		) && (len(trustBundles) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayTLSTrustBundleChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, trustBundles, plan,

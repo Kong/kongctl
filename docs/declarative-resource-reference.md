@@ -591,9 +591,8 @@ portal_ip_allow_lists:
     allowed_ips: array[string] required # IP addresses or CIDR blocks
 ```
 
-In sync mode, omitting `ip_allow_list` from a managed portal removes current
-portal IP allow-list entries. Omitted IP allow-list config is not deleted for
-external portals.
+In sync mode, omitted `ip_allow_list` configuration is ignored. Include the
+`ip_allow_list` block when the portal IP allow list is owned by the config.
 
 Portal audit-log webhooks can also be declared as root resources.
 
@@ -605,9 +604,8 @@ portal_audit_log_webhooks:
     audit_log_destination_id: string (uuid) # prefer: !ref
 ```
 
-In sync mode, omitting `audit_log_webhook` from a managed portal removes the
-portal webhook configuration. Omitted webhook config is not deleted for
-external portals.
+In sync mode, omitted `audit_log_webhook` configuration is ignored. Include the
+`audit_log_webhook` block when the portal webhook is owned by the config.
 
 ```yaml
 portals:
