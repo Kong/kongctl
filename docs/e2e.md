@@ -351,9 +351,9 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 - `KONGCTL_E2E_MATRIX_ORG=${{ matrix.org_name }}`
 - `KONGCTL_E2E_ORGS_JSON=${{ vars.KONGCTL_E2E_ORGS_JSON }}`
 
-The workflow also exposes the test timeout, HTTP timeout, and retry knobs above
-as repository or organization variables of the same names, so CI can tune
-runtime behavior without changing Go code.
+The workflow also exposes the test timeout, HTTP timeout, and retry
+knobs above as repository or organization variables of the same names,
+so CI can tune runtime behavior without changing Go code.
 
 For transport debugging, the workflow currently defaults to:
 
