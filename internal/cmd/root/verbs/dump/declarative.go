@@ -1091,9 +1091,11 @@ func mapControlPlaneToDeclarativeResource(
 	mapped := declresources.ControlPlaneResource{
 		BaseResource: declresources.BaseResource{Ref: cp.ID},
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
-			Name:        cp.Name,
-			Description: cp.Description,
+			Name: cp.Name,
 		},
+	}
+	if strings.TrimSpace(cp.Description) != "" {
+		mapped.Description = &cp.Description
 	}
 
 	config := cp.Config
@@ -1158,8 +1160,8 @@ func fetchControlPlaneGroupMembers(
 
 	for {
 		req := kkOps.GetControlPlanesIDGroupMembershipsRequest{
-			ID:       controlPlaneID,
-			PageSize: &pageSize,
+			ControlPlaneID: controlPlaneID,
+			PageSize:       &pageSize,
 		}
 
 		if pageAfter != nil {

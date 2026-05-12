@@ -80,8 +80,8 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 	}
 
 	description := missing
-	if c.Description != nil {
-		description = *c.Description
+	if strings.TrimSpace(c.Description) != "" {
+		description = c.Description
 	}
 
 	labels := missing
@@ -141,8 +141,8 @@ func controlPlaneDetailView(cp *kkComps.ControlPlane) string {
 	}
 
 	description := missing
-	if cp.Description != nil && strings.TrimSpace(*cp.Description) != "" {
-		description = strings.TrimSpace(*cp.Description)
+	if strings.TrimSpace(cp.Description) != "" {
+		description = strings.TrimSpace(cp.Description)
 	}
 
 	labelsValue := missing

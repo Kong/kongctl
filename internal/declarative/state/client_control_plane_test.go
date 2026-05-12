@@ -212,7 +212,7 @@ func TestListControlPlaneGroupMemberships(t *testing.T) {
 		"GetControlPlanesIDGroupMemberships",
 		mock.Anything,
 		mock.MatchedBy(func(req kkOps.GetControlPlanesIDGroupMembershipsRequest) bool {
-			if req.ID != groupID {
+			if req.ControlPlaneID != groupID {
 				return false
 			}
 			return req.PageAfter == nil || (req.PageAfter != nil && *req.PageAfter == "")
@@ -223,7 +223,7 @@ func TestListControlPlaneGroupMemberships(t *testing.T) {
 		"GetControlPlanesIDGroupMemberships",
 		mock.Anything,
 		mock.MatchedBy(func(req kkOps.GetControlPlanesIDGroupMembershipsRequest) bool {
-			if req.ID != groupID {
+			if req.ControlPlaneID != groupID {
 				return false
 			}
 			return req.PageAfter != nil && *req.PageAfter == "cursor-1"
