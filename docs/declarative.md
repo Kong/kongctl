@@ -522,7 +522,10 @@ audit-logs:
 `_external.selector.matchFields.name`. Destination resources cannot declare
 `kongctl` metadata and are not created, updated, or deleted by declarative
 apply. In sync mode, omitted portal webhook configuration is ignored unless an
-`audit_log_webhook` block is explicitly present for that portal.
+`audit_log_webhook` block is explicitly present for that portal. To remove an
+existing webhook while retaining the portal, declare `audit_log_webhook: {}`.
+`audit_log_webhook: null` is rejected because null is not a reset or delete
+signal.
 
 #### Namespace Enforcement Flags
 
@@ -807,10 +810,18 @@ Sync scope is based on YAML key presence:
 - Parent and child collections are scoped separately. A portal block without
   `pages` does not delete portal pages. Use `pages: []` under that portal to
   declare that the portal should have no pages.
-- Singleton child sections such as `customization` use the same key-presence
-  rule. Omit the key to ignore the section, or provide an object to manage it.
-  `customization: null` is rejected because sync does not infer reset or delete
-  semantics from null.
+- Map-shaped child collections use an empty object as the empty collection. For
+  example, `email_templates: {}` means the portal should have no customized
+  email templates.
+- Singleton child sections use the same key-presence rule, but `{}` and `null`
+  are intentionally different. Omit a singleton key to ignore that child.
+  Provide an object with fields to manage or update it. For optional,
+  delete-capable portal singletons such as `custom_domain`, `email_config`, and
+  `audit_log_webhook`, an empty object scopes the child with desired count zero:
+  `custom_domain: {}` deletes any existing managed custom domain for that
+  portal during sync. `null` is rejected because sync does not infer reset or
+  delete semantics from null. Update-only singleton sections, such as
+  `customization`, cannot be deleted by declaring `{}`.
 - Empty child collections must be nested under a parent resource. Root-level
   `api_documents: []` is rejected because it does not identify which API owns
   the desired zero count.

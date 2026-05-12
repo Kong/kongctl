@@ -138,9 +138,17 @@ delete signal.
 - Empty child collections must be nested under the parent. Root-level empty
   child lists such as `foo_children: []` are rejected because they do not
   identify which parent owns the desired zero count.
-- Singleton child sections cannot use `null` to mean reset/delete. Omit the key
-  to ignore the singleton, or provide an object to manage it. Add loader
-  validation to reject `<singleton>: null`.
+- Map-shaped child collections follow the same rule with an empty object. For
+  example, `foo_templates: {}` means the parent should have no templates.
+- Singleton-shaped child sections are also scoped by key presence. Omit the key
+  to ignore the child. Provide a non-empty object or map to manage it. Reject
+  `null`; it is not a reset or delete signal.
+- For optional, delete-capable singleton children, support an explicit empty
+  object as desired count zero. For example, `custom_domain: {}` should scope
+  that child for the parent but produce no desired child resource, allowing
+  sync to delete an existing managed child. For update-only or always-present
+  singletons, do not document or implement `{}` as delete/reset unless the API
+  has explicit support for that behavior.
 
 When adding a resource, update the sync-scope plumbing:
 
@@ -153,6 +161,11 @@ When adding a resource, update the sync-scope plumbing:
   `portalChildCollectionScopes`, or the new parent-specific equivalent.
 - For nested singleton children, add null-key rejection in the loader before
   planning. Null is not a supported reset/delete semantic.
+- For optional, delete-capable nested singleton children, make empty-object
+  handling preserve sync scope while leaving the desired child absent. Scope is
+  captured before nested resource extraction; custom unmarshaling may need to
+  drop the empty raw key after scope capture instead of populating a zero-value
+  desired child.
 - If the resource has a new planner entry point, gate it in sync mode with
   `shouldPlanRoot(...)`.
 - If a parent planner prunes child resources, gate each child planner with
@@ -194,10 +207,11 @@ if p.shouldPlanChild(
 ```
 
 Programmatic tests that construct `ResourceSet` directly cannot express
-"explicit empty list" through a nil/empty slice alone. Set `ResourceSet.SyncScope`
-in those tests when asserting sync-delete behavior for an empty collection.
-Loader tests should cover YAML key presence, omitted collections, nested empty
-child lists, root-level empty child rejection, and singleton `null` rejection.
+"explicit empty list" through a nil/empty slice alone. Set
+`ResourceSet.SyncScope` in those tests when asserting sync-delete behavior for
+an empty collection. Loader tests should cover YAML key presence, omitted
+collections, nested empty child lists, root-level empty child rejection,
+singleton `null` rejection, and delete-capable singleton empty-object behavior.
 
 ### PARENT RESOURCE
 
@@ -1568,12 +1582,18 @@ func (e *Executor) executeFooChildChange(ctx context.Context, change planner.Pla
 
 ### SINGLETON CHILD RESOURCE
 
-**Pattern**: Same as child resource, but:
-1. **NO CREATE/DELETE**: Only UPDATE operations
-2. **Always exists**: For every parent instance
-3. **Planner always generates UPDATE**: Never checks if exists
+**Pattern**: A singleton child has at most one logical child per parent, but
+there are two important API shapes:
 
-**Example**: PortalCustomization
+1. **Update-only/always-present**: The child always exists for every parent.
+   There are no create or delete operations, and the planner only emits
+   updates. Example: `PortalCustomization`.
+2. **Optional/delete-capable**: The child may be absent and the API supports
+   delete. The planner may create, update, or delete the child. In sync mode,
+   omitted config means ignored; an empty object such as `custom_domain: {}`
+   means the child is in scope with desired count zero.
+
+The example below is the update-only/always-present pattern.
 
 **Key Differences**:
 
@@ -1617,6 +1637,13 @@ func (a *FooCustomizationAdapter) Create(...) { panic("not supported") }
 func (a *FooCustomizationAdapter) Delete(...) { panic("not supported") }
 func (a *FooCustomizationAdapter) SupportsUpdate() bool { return true }
 ```
+
+For optional/delete-capable singleton children, follow the normal child
+resource planner shape with one desired resource per parent. The planner must
+be gated with `shouldPlanChild(...)`; when the singleton key is in sync scope
+and the desired resource is absent because the user wrote `{}`, list/fetch the
+existing child and plan a DELETE if one exists. Do not infer delete/reset from
+`null`.
 
 ---
 
