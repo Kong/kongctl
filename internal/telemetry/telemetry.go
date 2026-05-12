@@ -35,9 +35,7 @@ const (
 // default fileSink appends JSONL events to.
 const telemetryLogFileName = "telemetry.log"
 
-// flushTimeout caps how long Close blocks the shutdown path. Picked to be
-// below human-noticeable hang threshold while leaving headroom for one
-// HTTPS POST when an HTTP sink lands.
+// flushTimeout caps how long Close blocks the shutdown path.
 const flushTimeout = 500 * time.Millisecond
 
 // channelBuffer is the in-flight event buffer size. kongctl emits one event
@@ -237,14 +235,23 @@ func (r *Recorder) dispatch() {
 	defer close(r.done)
 	// The dispatcher outlives any request-scoped context: it must be able to
 	// drain in-flight events even when the original command context has been
-	// cancelled. Using a fresh background context here is intentional.
-	ctx := context.Background()
+	// cancelled. Using a fresh background context as the parent is intentional.
+	//
+	// Each sink call gets its own bounded child context so a slow or stuck
+	// transport (e.g. a future network sink against an unreachable host) cannot
+	// keep this goroutine alive past process exit after Close gives up at
+	// flushTimeout. Sink implementations are required to honor ctx; see the
+	// Sink contract in sink.go.
 	for ev := range r.events {
-		if err := r.sink.Emit(ctx, ev); err != nil {
+		emitCtx, cancel := context.WithTimeout(context.Background(), flushTimeout)
+		if err := r.sink.Emit(emitCtx, ev); err != nil {
 			r.logger.Debug("telemetry: sink emit failed", "error", err)
 		}
+		cancel()
 	}
-	if err := r.sink.Close(ctx); err != nil {
+	closeCtx, cancel := context.WithTimeout(context.Background(), flushTimeout)
+	defer cancel()
+	if err := r.sink.Close(closeCtx); err != nil {
 		r.logger.Debug("telemetry: sink close failed", "error", err)
 	}
 }
