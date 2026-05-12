@@ -429,10 +429,7 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 	changedFields := make(map[string]FieldChange)
 
 	if desired.Description != nil {
-		currentDesc := ""
-		if current.Description != nil {
-			currentDesc = *current.Description
-		}
+		currentDesc := current.Description
 		if currentDesc != *desired.Description {
 			updates[FieldDescription] = *desired.Description
 			changedFields[FieldDescription] = FieldChange{

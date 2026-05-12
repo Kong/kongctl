@@ -137,7 +137,7 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 	current := kkComps.ControlPlane{
 		ID:          "cp-1",
 		Name:        "cp-update",
-		Description: new("old"),
+		Description: "old",
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
@@ -232,7 +232,7 @@ func TestControlPlanePlanner_PlanUpdateGroupMembers(t *testing.T) {
 		"GetControlPlanesIDGroupMemberships",
 		mock.Anything,
 		mock.MatchedBy(func(req kkOps.GetControlPlanesIDGroupMembershipsRequest) bool {
-			return req.ID == "group-id"
+			return req.ControlPlaneID == "group-id"
 		}),
 	).Return(&kkOps.GetControlPlanesIDGroupMembershipsResponse{
 		ListGroupMemberships: &kkComps.ListGroupMemberships{

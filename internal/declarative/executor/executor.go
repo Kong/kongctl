@@ -115,7 +115,7 @@ type Executor struct {
 		kkOps.UpdatePortalCustomEmailTemplateRequest]
 
 	// API child resource executors
-	apiVersionExecutor     *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
+	apiVersionExecutor     *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersionRequest]
 	apiPublicationExecutor *BaseCreateDeleteExecutor[kkComps.APIPublication]
 	apiDocumentExecutor    *BaseExecutor[kkComps.CreateAPIDocumentRequest, kkComps.APIDocument]
 	// API implementation is not yet supported by SDK but we include adapter for completeness
@@ -423,7 +423,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 
 	// Initialize API child resource executors
-	e.apiVersionExecutor = NewBaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion](
+	e.apiVersionExecutor = NewBaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersionRequest](
 		NewAPIVersionAdapter(client),
 		client,
 		dryRun,
@@ -607,7 +607,6 @@ func (e *Executor) executeGroupsConcurrent(
 			g.Go(func() error {
 				changeCtx := withExecutorChangeHTTPLogContext(ctx, ch)
 				err := e.executeChange(changeCtx, result, ch, plan)
-
 				if err != nil {
 					groupMu.Lock()
 					groupFailed[ch.ID] = true

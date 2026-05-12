@@ -760,8 +760,8 @@ func (c *Client) ListControlPlaneGroupMemberships(ctx context.Context, groupID s
 
 	for {
 		req := kkOps.GetControlPlanesIDGroupMembershipsRequest{
-			ID:       groupID,
-			PageSize: &pageSize,
+			ControlPlaneID: groupID,
+			PageSize:       &pageSize,
 		}
 
 		if pageAfter != nil {
@@ -1738,7 +1738,7 @@ func (c *Client) CreateAPIVersion(
 
 // UpdateAPIVersion updates an existing API version
 func (c *Client) UpdateAPIVersion(
-	ctx context.Context, apiID, versionID string, version kkComps.APIVersion,
+	ctx context.Context, apiID, versionID string, version kkComps.APIVersionRequest,
 ) (*kkComps.APIVersionResponse, error) {
 	if c.apiVersionAPI == nil {
 		return nil, fmt.Errorf("API version client not configured")
@@ -1746,9 +1746,9 @@ func (c *Client) UpdateAPIVersion(
 
 	// Create the request object as expected by the SDK
 	req := kkOps.UpdateAPIVersionRequest{
-		APIID:      apiID,
-		VersionID:  versionID,
-		APIVersion: version,
+		APIID:             apiID,
+		VersionID:         versionID,
+		APIVersionRequest: version,
 	}
 
 	resp, err := c.apiVersionAPI.UpdateAPIVersion(ctx, req)
