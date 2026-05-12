@@ -25,6 +25,7 @@ const (
 	ResourceTypePortalIPAllowList                       ResourceType = "portal_ip_allow_list"
 	ResourceTypePortalIntegration                       ResourceType = "portal_integration"
 	ResourceTypePortalIdentityProvider                  ResourceType = "portal_identity_provider"
+	ResourceTypePortalTeamGroupMapping                  ResourceType = "portal_team_group_mapping"
 	ResourceTypePortalPage                              ResourceType = "portal_page"
 	ResourceTypePortalSnippet                           ResourceType = "portal_snippet"
 	ResourceTypePortalTeam                              ResourceType = "portal_team"
@@ -95,6 +96,7 @@ type ResourceSet struct {
 	PortalIPAllowLists          []PortalIPAllowListResource          `yaml:"portal_ip_allow_lists,omitempty"                          json:"portal_ip_allow_lists,omitempty"`          //nolint:lll
 	PortalIntegrations          []PortalIntegrationResource          `yaml:"portal_integrations,omitempty"                            json:"portal_integrations,omitempty"`            //nolint:lll
 	PortalIdentityProviders     []PortalIdentityProviderResource     `yaml:"portal_identity_providers,omitempty"                      json:"portal_identity_providers,omitempty"`      //nolint:lll
+	PortalTeamGroupMappings     []PortalTeamGroupMappingResource     `yaml:"portal_team_group_mappings,omitempty"                    json:"portal_team_group_mappings,omitempty"`      //nolint:lll
 	PortalCustomDomains         []PortalCustomDomainResource         `yaml:"portal_custom_domains,omitempty"                          json:"portal_custom_domains,omitempty"`          //nolint:lll
 	PortalPages                 []PortalPageResource                 `yaml:"portal_pages,omitempty"                                   json:"portal_pages,omitempty"`                   //nolint:lll
 	PortalSnippets              []PortalSnippetResource              `yaml:"portal_snippets,omitempty"                                json:"portal_snippets,omitempty"`                //nolint:lll
@@ -513,6 +515,25 @@ func (rs *ResourceSet) GetPortalIdentityProvidersByNamespace(namespace string) [
 			}
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, provider)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalTeamGroupMappingsByNamespace returns portal team group mappings from the specified namespace.
+func (rs *ResourceSet) GetPortalTeamGroupMappingsByNamespace(namespace string) []PortalTeamGroupMappingResource {
+	var filtered []PortalTeamGroupMappingResource
+	for _, mapping := range rs.PortalTeamGroupMappings {
+		if portal := rs.GetPortalByRef(mapping.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, mapping)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, mapping)
 			}
 		}
 	}

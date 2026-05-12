@@ -22,6 +22,17 @@ type PortalAuthSettingsAPI interface {
 		portalID string,
 		opts ...kkOps.Option,
 	) (*kkOps.GetPortalAuthenticationSettingsResponse, error)
+	ListPortalTeamGroupMappings(
+		ctx context.Context,
+		request kkOps.ListPortalTeamGroupMappingsRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.ListPortalTeamGroupMappingsResponse, error)
+	UpdatePortalTeamGroupMappings(
+		ctx context.Context,
+		portalID string,
+		request *kkComponents.PortalTeamGroupMappingsUpdateRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.UpdatePortalTeamGroupMappingsResponse, error)
 }
 
 // PortalAuthSettingsAPIImpl provides an implementation using the Konnect SDK.
@@ -52,4 +63,29 @@ func (p *PortalAuthSettingsAPIImpl) GetPortalAuthenticationSettings(
 		return nil, fmt.Errorf("SDK is nil")
 	}
 	return p.SDK.PortalAuthSettings.GetPortalAuthenticationSettings(ctx, portalID, opts...)
+}
+
+// ListPortalTeamGroupMappings lists portal team IdP group mappings.
+func (p *PortalAuthSettingsAPIImpl) ListPortalTeamGroupMappings(
+	ctx context.Context,
+	request kkOps.ListPortalTeamGroupMappingsRequest,
+	opts ...kkOps.Option,
+) (*kkOps.ListPortalTeamGroupMappingsResponse, error) {
+	if p.SDK == nil {
+		return nil, fmt.Errorf("SDK is nil")
+	}
+	return p.SDK.PortalAuthSettings.ListPortalTeamGroupMappings(ctx, request, opts...)
+}
+
+// UpdatePortalTeamGroupMappings partially updates portal team IdP group mappings.
+func (p *PortalAuthSettingsAPIImpl) UpdatePortalTeamGroupMappings(
+	ctx context.Context,
+	portalID string,
+	request *kkComponents.PortalTeamGroupMappingsUpdateRequest,
+	opts ...kkOps.Option,
+) (*kkOps.UpdatePortalTeamGroupMappingsResponse, error) {
+	if p.SDK == nil {
+		return nil, fmt.Errorf("SDK is nil")
+	}
+	return p.SDK.PortalAuthSettings.UpdatePortalTeamGroupMappings(ctx, portalID, request, opts...)
 }

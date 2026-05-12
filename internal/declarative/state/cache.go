@@ -195,6 +195,12 @@ type PortalTeam struct {
 	CanOwnApplications *bool
 }
 
+// PortalTeamGroupMapping represents portal team IdP group mappings.
+type PortalTeamGroupMapping struct {
+	TeamID string
+	Groups []string
+}
+
 // PortalTeamRole represents an assigned role for a portal team
 type PortalTeamRole struct {
 	ID             string

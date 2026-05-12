@@ -156,6 +156,134 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 	assert.Contains(t, customDomainChange.DependsOn, "1:c:portal:dev-portal")
 }
 
+func TestFindPortalTeamGroupMappingDependenciesIncludesAuthSettings(t *testing.T) {
+	plan := &Plan{Changes: []PlannedChange{
+		{ID: "portal", ResourceType: ResourceTypePortal, ResourceRef: "portal-1"},
+		{ID: "team", ResourceType: ResourceTypePortalTeam, ResourceRef: "team-1"},
+		{
+			ID:           "provider",
+			ResourceType: ResourceTypePortalIdentityProvider,
+			ResourceRef:  "oidc",
+			Fields: map[string]any{
+				FieldEnabled: true,
+				FieldType:    string(kkComps.IdentityProviderTypeOidc),
+			},
+			References: map[string]ReferenceInfo{
+				FieldPortalID: {Ref: "portal-1"},
+			},
+		},
+		{
+			ID:           "auth-settings",
+			ResourceType: ResourceTypePortalAuthSettings,
+			ResourceRef:  "auth",
+			References: map[string]ReferenceInfo{
+				FieldPortalID: {Ref: "portal-1"},
+			},
+		},
+	}}
+
+	dependencies := findPortalTeamGroupMappingDependencies(plan, "portal-1", "team-1")
+
+	assert.ElementsMatch(t, []string{"portal", "team", "provider", "auth-settings"}, dependencies)
+}
+
+func TestFindEnabledPortalIdentityProviderDependencies(t *testing.T) {
+	plan := &Plan{Changes: []PlannedChange{
+		{
+			ID:           "enabled-oidc",
+			ResourceType: ResourceTypePortalIdentityProvider,
+			Fields: map[string]any{
+				FieldEnabled: true,
+				FieldType:    string(kkComps.IdentityProviderTypeOidc),
+			},
+			References: map[string]ReferenceInfo{
+				FieldPortalID: {Ref: "portal-1"},
+			},
+		},
+		{
+			ID:           "disabled-saml",
+			ResourceType: ResourceTypePortalIdentityProvider,
+			Fields: map[string]any{
+				FieldEnabled: false,
+				FieldType:    string(kkComps.IdentityProviderTypeSaml),
+			},
+			References: map[string]ReferenceInfo{
+				FieldPortalID: {Ref: "portal-1"},
+			},
+		},
+		{
+			ID:           "enabled-other-portal",
+			ResourceType: ResourceTypePortalIdentityProvider,
+			Fields: map[string]any{
+				FieldEnabled: true,
+				FieldType:    string(kkComps.IdentityProviderTypeOidc),
+			},
+			References: map[string]ReferenceInfo{
+				FieldPortalID: {Ref: "portal-2"},
+			},
+		},
+	}}
+
+	dependencies := findEnabledPortalIdentityProviderDependencies(plan, "portal-1")
+
+	assert.Equal(t, []string{"enabled-oidc"}, dependencies)
+}
+
+func TestPlanPortalTeamGroupMappingUpdatePreservesEmptyGroups(t *testing.T) {
+	planner := NewPlanner(nil, slog.Default())
+	plan := &Plan{}
+	mapping := resources.PortalTeamGroupMappingResource{
+		Ref:    "developers-groups",
+		Portal: "portal-1",
+		Team:   "developers",
+		Groups: []string{},
+	}
+
+	planner.planPortalTeamGroupMappingUpdate(
+		context.Background(),
+		"default",
+		"",
+		"portal-1",
+		"team-id",
+		"Developers",
+		mapping,
+		map[string]FieldChange{FieldGroups: {Old: []string{"old"}, New: []string{}}},
+		plan,
+	)
+
+	require.Len(t, plan.Changes, 1)
+	require.IsType(t, []string{}, plan.Changes[0].Fields[FieldGroups])
+	assert.Empty(t, plan.Changes[0].Fields[FieldGroups])
+	assert.NotNil(t, plan.Changes[0].Fields[FieldGroups])
+	assert.Equal(t, []string{}, plan.Changes[0].ChangedFields[FieldGroups].New)
+}
+
+func TestPlanPortalTeamGroupMappingsSkipsUnconfiguredPortalAuthSettingsAPI(t *testing.T) {
+	client := state.NewClient(state.ClientConfig{})
+	planner := NewPlanner(client, slog.Default())
+	planner.resourceCache.portalTeamsByPortalID["portal-id"] = []state.PortalTeam{
+		{ID: "team-id", Name: "Developers"},
+	}
+	plan := &Plan{}
+
+	err := planner.planPortalTeamGroupMappingsChanges(
+		context.Background(),
+		"default",
+		"portal-id",
+		"portal-1",
+		[]resources.PortalTeamGroupMappingResource{{
+			Ref:    "developers-groups",
+			Portal: "portal-1",
+			Team:   "Developers",
+			Groups: []string{"Developers"},
+		}},
+		plan,
+	)
+
+	require.NoError(t, err)
+	assert.Empty(t, plan.Changes)
+}
+
 func buildPortalCustomDomain(
 	host string,
 	enabled bool,

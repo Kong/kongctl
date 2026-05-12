@@ -1,7 +1,7 @@
 # Portal Identity Provider Example
 
 This example shows how to configure a Developer Portal OIDC identity provider
-in declarative mode.
+and IdP group-to-team mapping in declarative mode.
 
 The OIDC issuer URL, client ID, and client secret are loaded from environment
 variables with `!env` so they do not need to be stored in plaintext in the
@@ -29,13 +29,21 @@ Move provider-specific values such as `oidc_issuer`, `oidc_client_id`,
 `oidc_client_secret`, `oidc_scopes`, `oidc_claim_mappings`, and the SAML
 equivalents to `identity_providers` or `portal_identity_providers`.
 
+Team group mappings belong to the portal, but the preferred nested shape
+keeps them next to the team they target. Use
+`portals[].teams[].group_mappings` when declaring them with a portal, or
+`portal_team_group_mappings` at the root of a config. `kongctl` warns instead
+of failing when it cannot verify that an OIDC or SAML identity provider is
+enabled, so externally managed IdP state remains supported.
+
 If you apply an old configuration, `kongctl` now fails validation and tells
 you to move that configuration to `identity_providers`.
 
 ## Files
 
-- `portal-idp.yaml` - creates a portal and configures a nested OIDC identity
-  provider. The `config.issuer_url`, `config.client_id`, and
+- `portal-idp.yaml` - creates a portal, enables IdP team mapping, configures a
+  nested OIDC identity provider, creates a portal team, and maps an IdP group
+  to that team. The `config.issuer_url`, `config.client_id`, and
   `config.client_secret` fields use `!env`.
 
 ## Usage
