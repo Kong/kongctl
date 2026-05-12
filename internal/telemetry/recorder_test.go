@@ -225,6 +225,21 @@ func TestNewRecorder_DoNotTrack_NonSpecValuesIgnored(t *testing.T) {
 	}
 }
 
+func TestNewRecorder_EnvForcesOn_NilCfg_NoPanic(t *testing.T) {
+	// KONGCTL_TELEMETRY_ENABLED=true with cfg==nil must not panic on the
+	// debug-check path; debug needs cfg to anchor the log file, so the
+	// sink falls back to UDP.
+	t.Setenv(EnvTelemetryEnabled, "true")
+	rec := NewRecorder(t.Context(), nil, nil, nil, nil)
+	if !rec.enabled {
+		t.Fatalf("enabled = false, want true when %s=true even with nil cfg", EnvTelemetryEnabled)
+	}
+	// Cleanly tear down — Close must also be safe with nil cfg.
+	if err := rec.Close(t.Context()); err != nil {
+		t.Errorf("Close: %v", err)
+	}
+}
+
 func TestNewRecorder_EnvTelemetryEnabled_ForcesOn(t *testing.T) {
 	// Config says off; env override forces on.
 	cases := []string{"true", "TRUE", "True"}

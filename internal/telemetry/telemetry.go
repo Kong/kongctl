@@ -180,9 +180,9 @@ func NewRecorder(
 }
 
 func buildDefaultSink(cfg config.Hook) Sink {
-	// telemetry.debug routes events to a local JSONL file only, skipping the
-	// UDP sink so developer runs don't pollute the Splunk dataset.
-	if cfg.GetBool(ConfigKeyDebug) {
+	if cfg != nil && cfg.GetBool(ConfigKeyDebug) {
+		// telemetry.debug routes events to a local JSONL file only, skipping
+		// the UDP sink so developer runs don't pollute the Splunk dataset.
 		path := filepath.Join(filepath.Dir(cfg.GetPath()), telemetryLogFileName)
 		return NewFileSink(path)
 	}
