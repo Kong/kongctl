@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kong/kongctl/internal/build"
 	"github.com/spf13/pflag"
 )
 
@@ -146,8 +145,9 @@ func TestContextWithRecorder_RoundTrip(t *testing.T) {
 	}
 }
 
-// We can't use this tests in CI as we use DO_NOT_TRACK=1 to disable telemetry in CI,
+// We can't use these tests in CI as we use DO_NOT_TRACK=1 to disable telemetry in CI,
 // but leaving it here for manual testing and documentation of expected behavior.
+
 // func TestNewRecorder_NilCfg_Enabled(t *testing.T) {
 // 	rec := NewRecorder(t.Context(), nil, nil, nil, nil, false)
 // 	if rec == nil {
@@ -171,24 +171,23 @@ func TestContextWithRecorder_RoundTrip(t *testing.T) {
 // 		t.Errorf("sink = %T, want NoopSink", rec.sink)
 // 	}
 // }
-
-func TestNewRecorder_FlagOn_Enabled(t *testing.T) {
-	cfg := &fakeCfg{
-		bools: map[string]bool{ConfigKeyEnabled: true, ConfigKeyDebug: false},
-		path:  t.TempDir() + "/config.yaml",
-	}
-	bi := &build.Info{Version: "1.2.3"}
-	rec := NewRecorder(t.Context(), cfg, bi, nil, nil, false)
-	if !rec.enabled {
-		t.Fatalf("enabled = false, want true when telemetry.enabled=true")
-	}
-	if rec.staticEvent.Version != "1.2.3" {
-		t.Errorf("staticEvent.Version = %q, want %q", rec.staticEvent.Version, "1.2.3")
-	}
-	if err := rec.Close(t.Context()); err != nil {
-		t.Errorf("Close: %v", err)
-	}
-}
+// func TestNewRecorder_FlagOn_Enabled(t *testing.T) {
+// 	cfg := &fakeCfg{
+// 		bools: map[string]bool{ConfigKeyEnabled: true, ConfigKeyDebug: false},
+// 		path:  t.TempDir() + "/config.yaml",
+// 	}
+// 	bi := &build.Info{Version: "1.2.3"}
+// 	rec := NewRecorder(t.Context(), cfg, bi, nil, nil, false)
+// 	if !rec.enabled {
+// 		t.Fatalf("enabled = false, want true when telemetry.enabled=true")
+// 	}
+// 	if rec.staticEvent.Version != "1.2.3" {
+// 		t.Errorf("staticEvent.Version = %q, want %q", rec.staticEvent.Version, "1.2.3")
+// 	}
+// 	if err := rec.Close(t.Context()); err != nil {
+// 		t.Errorf("Close: %v", err)
+// 	}
+// }
 
 func TestNewRecorder_DoNotTrack_Disables(t *testing.T) {
 	// Per https://consoledonottrack.com/ the canonical opt-out value is "1".
