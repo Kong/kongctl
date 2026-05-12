@@ -36,8 +36,10 @@ type fileSink struct {
 	path string
 }
 
-// NewFileSink returns a sink that appends JSONL events to path.
-// The file is opened lazily on first Emit so a disabled sink imposes no IO.
+// NewFileSink returns a sink that appends JSONL events to path. Each Emit
+// opens, writes, and closes the file. kongctl emits one event per process,
+// so caching the FD would add lifecycle complexity for no measurable win;
+// revisit if event volume grows.
 func NewFileSink(path string) Sink {
 	return &fileSink{path: path}
 }

@@ -9,8 +9,10 @@ package telemetry
 import (
 	"context"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,6 +32,47 @@ const (
 	// machine.
 	ConfigKeyDebug = "telemetry.debug"
 )
+
+// Environment variables that override profile config for telemetry.
+// Checked at the top of NewRecorder so users can toggle without needing to
+// know which profile is active.
+const (
+	// EnvTelemetryEnabled is the profile-agnostic kongctl override. Accepts
+	// only "true" or "false" (case-insensitive) to keep the toggle
+	// unambiguous
+	EnvTelemetryEnabled = "KONGCTL_TELEMETRY_ENABLED"
+	// EnvDoNotTrack is the cross-vendor hard kill switch. Highest priority.
+	// Only the spec value "1" disables telemetry
+	EnvDoNotTrack = "DO_NOT_TRACK"
+)
+
+// resolveEnabled returns whether telemetry should be active for this run.
+// Precedence: DO_NOT_TRACK=1 → KONGCTL_TELEMETRY_ENABLED → config (which
+// itself honors KONGCTL_<PROFILE>_TELEMETRY_ENABLED via viper).
+func resolveEnabled(cfg config.Hook) bool {
+	if os.Getenv(EnvDoNotTrack) == "1" {
+		return false
+	}
+	if v, ok := envBool(EnvTelemetryEnabled); ok {
+		return v
+	}
+	if cfg == nil {
+		return false
+	}
+	return cfg.GetBool(ConfigKeyEnabled)
+}
+
+// envBool reads name and reports whether it was set to a recognized boolean.
+// Only "true" and "false" (case-insensitive) are recognized.
+func envBool(name string) (val, ok bool) {
+	switch strings.ToLower(os.Getenv(name)) {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	}
+	return false, false
+}
 
 // telemetryLogFileName is the file in the kongctl config directory that the
 // default fileSink appends JSONL events to.
@@ -101,7 +144,7 @@ func NewRecorder(
 ) *Recorder {
 	logger = loggerOrDiscard(logger)
 
-	if cfg == nil || !cfg.GetBool(ConfigKeyEnabled) {
+	if !resolveEnabled(cfg) {
 		return &Recorder{
 			enabled: false,
 			logger:  logger,
