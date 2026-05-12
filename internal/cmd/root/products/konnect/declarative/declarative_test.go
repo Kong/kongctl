@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	utilviper "github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,9 +19,23 @@ func TestMaxConcurrencyFromCmd(t *testing.T) {
 		cmd := &cobra.Command{}
 		addMaxConcurrencyFlag(cmd)
 
-		got, err := maxConcurrencyFromCmd(cmd)
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+
+		got, err := maxConcurrencyFromCmd(cmd, cfg)
 		require.NoError(t, err)
 		assert.Equal(t, executor.DefaultMaxConcurrency, got)
+	})
+
+	t.Run("uses config value when flag is not set", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+		cfg.Set(maxConcurrencyConfigPath, 17)
+
+		got, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.NoError(t, err)
+		assert.Equal(t, 17, got)
 	})
 
 	t.Run("accepts value within range", func(t *testing.T) {
@@ -27,7 +43,22 @@ func TestMaxConcurrencyFromCmd(t *testing.T) {
 		addMaxConcurrencyFlag(cmd)
 		require.NoError(t, cmd.Flags().Set("max-concurrency", "42"))
 
-		got, err := maxConcurrencyFromCmd(cmd)
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+
+		got, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.NoError(t, err)
+		assert.Equal(t, 42, got)
+	})
+
+	t.Run("prefers flag value over config value", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+		require.NoError(t, cmd.Flags().Set("max-concurrency", "42"))
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+		cfg.Set(maxConcurrencyConfigPath, 17)
+
+		got, err := maxConcurrencyFromCmd(cmd, cfg)
 		require.NoError(t, err)
 		assert.Equal(t, 42, got)
 	})
@@ -37,7 +68,9 @@ func TestMaxConcurrencyFromCmd(t *testing.T) {
 		addMaxConcurrencyFlag(cmd)
 		require.NoError(t, cmd.Flags().Set("max-concurrency", "0"))
 
-		_, err := maxConcurrencyFromCmd(cmd)
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+
+		_, err := maxConcurrencyFromCmd(cmd, cfg)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "--max-concurrency must be between")
 	})
@@ -47,7 +80,9 @@ func TestMaxConcurrencyFromCmd(t *testing.T) {
 		addMaxConcurrencyFlag(cmd)
 		require.NoError(t, cmd.Flags().Set("max-concurrency", "1000"))
 
-		_, err := maxConcurrencyFromCmd(cmd)
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+
+		_, err := maxConcurrencyFromCmd(cmd, cfg)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "--max-concurrency must be between")
 	})

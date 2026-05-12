@@ -55,6 +55,10 @@ const (
 	requireAnyNamespaceFlagName = "require-any-namespace"
 	// requireAnyNamespaceConfigPath is the config path backing the any namespace flag
 	requireAnyNamespaceConfigPath = "konnect.declarative." + requireAnyNamespaceFlagName
+	// maxConcurrencyFlagName is the CLI flag for maximum concurrency during execution
+	maxConcurrencyFlagName = "max-concurrency"
+	// maxConcurrencyConfigPath is the config path backing the max concurrency flag
+	maxConcurrencyConfigPath = "konnect.declarative." + maxConcurrencyFlagName
 )
 
 const diffFieldRedactedValue = "[REDACTED]"
@@ -96,8 +100,8 @@ func addMaxConcurrencyFlag(cmd *cobra.Command) {
 	cmd.Flags().Int("max-concurrency", executor.DefaultMaxConcurrency,
 		fmt.Sprintf(`Maximum number of concurrent API operations during execution (min %d, max %d).
 When the plan contains execution_groups, operations within each group run
-concurrently up to this limit. Use 1 for sequential execution.`,
-			executor.MinConcurrency, executor.MaxConcurrency))
+concurrently up to this limit. Use 1 for sequential execution. (default %d).
+- Config path: [ %s ]`, executor.MinConcurrency, executor.MaxConcurrency, executor.DefaultMaxConcurrency, maxConcurrencyConfigPath))
 }
 
 func addRequireNamespaceFlags(cmd *cobra.Command) {
@@ -1332,10 +1336,6 @@ func runApply(command *cobra.Command, args []string) error {
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
 	filenames, _ := command.Flags().GetStringSlice("filename")
-	maxConcurrency, err := maxConcurrencyFromCmd(command)
-	if err != nil {
-		return err
-	}
 
 	// Early check for non-text output without auto-approve
 	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
@@ -1357,6 +1357,10 @@ func runApply(command *cobra.Command, args []string) error {
 
 	// Get configuration
 	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	maxConcurrency, err := maxConcurrencyFromCmd(command, cfg)
 	if err != nil {
 		return err
 	}
@@ -1819,10 +1823,6 @@ func runDelete(command *cobra.Command, args []string) error {
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
 	filenames, _ := command.Flags().GetStringSlice("filename")
-	maxConcurrency, err := maxConcurrencyFromCmd(command)
-	if err != nil {
-		return err
-	}
 
 	// Early check for non-text output without auto-approve
 	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
@@ -1844,6 +1844,10 @@ func runDelete(command *cobra.Command, args []string) error {
 
 	// Get configuration
 	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	maxConcurrency, err := maxConcurrencyFromCmd(command, cfg)
 	if err != nil {
 		return err
 	}
@@ -2054,10 +2058,6 @@ func runSync(command *cobra.Command, args []string) error {
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
 	filenames, _ := command.Flags().GetStringSlice("filename")
-	maxConcurrency, err := maxConcurrencyFromCmd(command)
-	if err != nil {
-		return err
-	}
 
 	// Early check for non-text output without auto-approve
 	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
@@ -2079,6 +2079,10 @@ func runSync(command *cobra.Command, args []string) error {
 
 	// Get configuration
 	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	maxConcurrency, err := maxConcurrencyFromCmd(command, cfg)
 	if err != nil {
 		return err
 	}
@@ -2297,11 +2301,17 @@ func runSync(command *cobra.Command, args []string) error {
 	return nil
 }
 
-// maxConcurrencyFromCmd reads and validates --max-concurrency.
-func maxConcurrencyFromCmd(cmd *cobra.Command) (int, error) {
-	v, err := cmd.Flags().GetInt("max-concurrency")
-	if err != nil {
-		return 0, err
+// maxConcurrencyFromCmd reads and validates --max-concurrency, falling back to config.
+func maxConcurrencyFromCmd(cmd *cobra.Command, cfg config.Hook) (int, error) {
+	v := executor.DefaultMaxConcurrency
+	if cmd.Flags().Changed(maxConcurrencyFlagName) {
+		flagValue, err := cmd.Flags().GetInt(maxConcurrencyFlagName)
+		if err != nil {
+			return 0, err
+		}
+		v = flagValue
+	} else if cfg != nil {
+		v = cfg.GetIntOrElse(maxConcurrencyConfigPath, executor.DefaultMaxConcurrency)
 	}
 	if v < executor.MinConcurrency || v > executor.MaxConcurrency {
 		return 0, fmt.Errorf(
