@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -140,6 +141,65 @@ func ResolveHTTPTransportOptions(cfg config.Hook) (httpclient.TransportOptions, 
 		TCPUserTimeout:            tcpUserTimeout,
 		DisableKeepAlives:         disableKeepAlives,
 		RecycleConnectionsOnError: recycleOnError,
+	}, nil
+}
+
+// ResolveRetryConfig builds an httpclient.RetryConfig from configuration,
+// applying defaults when values are unset.
+func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
+	maxAttempts, err := resolveOptionalInt(cfg, cmdcommon.HTTPRetryMaxAttemptsConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if maxAttempts < 0 {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %d: must be >= 0",
+			cmdcommon.HTTPRetryMaxAttemptsConfigPath, maxAttempts)
+	}
+	if maxAttempts == 0 {
+		maxAttempts = httpclient.DefaultRetryMaxAttempts
+	}
+
+	strategy := httpclient.RetryStrategyBackoff
+	if maxAttempts == 1 {
+		strategy = httpclient.RetryStrategyNone
+	}
+
+	initialInterval, set, err := resolveOptionalDuration(cfg, cmdcommon.HTTPRetryInitialIntervalConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if !set {
+		initialInterval = httpclient.DefaultRetryInitialInterval
+	}
+
+	maxInterval, set, err := resolveOptionalDuration(cfg, cmdcommon.HTTPRetryMaxIntervalConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if !set {
+		maxInterval = httpclient.DefaultRetryMaxInterval
+	}
+
+	factor, err := resolveOptionalFloat64(cfg, cmdcommon.HTTPRetryBackoffFactorConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if factor <= 0 {
+		factor = httpclient.DefaultRetryBackoffFactor
+	}
+
+	retryConnErrors, err := resolveOptionalBool(cfg, cmdcommon.HTTPRetryOnConnectionErrorsConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+
+	return httpclient.RetryConfig{
+		Strategy:              strategy,
+		MaxAttempts:           maxAttempts,
+		InitialInterval:       initialInterval,
+		MaxInterval:           maxInterval,
+		BackoffFactor:         factor,
+		RetryConnectionErrors: retryConnErrors,
 	}, nil
 }
 
@@ -314,4 +374,28 @@ func resolveOptionalBool(cfg config.Hook, configPath string) (bool, error) {
 	default:
 		return false, fmt.Errorf("invalid %s value %q", configPath, raw)
 	}
+}
+
+func resolveOptionalInt(cfg config.Hook, configPath string) (int, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return 0, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s value %q: must be an integer", configPath, raw)
+	}
+	return v, nil
+}
+
+func resolveOptionalFloat64(cfg config.Hook, configPath string) (float64, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return 0, nil
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s value %q: must be a number", configPath, raw)
+	}
+	return v, nil
 }
