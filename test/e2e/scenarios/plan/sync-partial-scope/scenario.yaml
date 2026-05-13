@@ -1,0 +1,182 @@
+baseInputsPath: testdata
+
+# sync-partial-scope: validates the "omitted key = no deletion" guarantee.
+#
+# When a sync config omits a resource collection key entirely (e.g. no `apis:`
+# key at all), sync must leave existing resources of that type untouched.
+# This scenario exercises two directions:
+#   - portals-only sync must not delete any APIs
+#   - apis-only sync must not delete any portals
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: sync-partial-scope
+  portalRef: sync-partial-portal
+  portalName: "Sync Partial Portal"
+  portalUpdatedName: "Sync Partial Portal (Updated)"
+  apiRef: sync-partial-api
+  apiDesc: "API for sync partial scope test"
+  apiUpdatedDesc: "API for sync partial scope test (updated)"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  # Bootstrap: create both a portal and an API so we have state to protect.
+  - name: 001-bootstrap
+    commands:
+      - name: 000-sync-full
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/full.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 001-verify-portal
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalName }}"
+      - name: 002-verify-api
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiRef }}'] | [0]"
+            expect:
+              fields:
+                description: "{{ .vars.apiDesc }}"
+
+  # Portals-only sync: config has only the `portals:` key, no `apis:` key.
+  # The existing API must survive untouched.
+  - name: 002-portals-only-sync
+    commands:
+      - name: 000-sync-portals-only
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portals-only.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.UPDATE: 1
+          - expect:
+              fields:
+                "length(plan.changes[?action=='DELETE'])": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 001-verify-portal-updated
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalUpdatedName }}"
+      - name: 002-verify-api-survives
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiRef }}'] | [0]"
+            expect:
+              fields:
+                description: "{{ .vars.apiDesc }}"
+
+  # APIs-only sync: config has only the `apis:` key, no `portals:` key.
+  # The existing portal must survive untouched.
+  - name: 003-apis-only-sync
+    commands:
+      - name: 000-sync-apis-only
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis-only.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.UPDATE: 1
+          - expect:
+              fields:
+                "length(plan.changes[?action=='DELETE'])": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 001-verify-api-updated
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiRef }}'] | [0]"
+            expect:
+              fields:
+                description: "{{ .vars.apiUpdatedDesc }}"
+      - name: 002-verify-portal-survives
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalUpdatedName }}"
+
+  # Cleanup: remove both resources using the original full config.
+  # The `name` field (unique identifier) is unchanged so delete works correctly
+  # even though display_name and description were updated during the scenario.
+  - name: 004-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/full.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
