@@ -2212,6 +2212,7 @@ func RenderForFormat(
 		return Render(streams, display, opts...)
 	}
 
+	//exhaustive:ignore // HELM is intentionally not supported here; handled at the call site.
 	switch outType {
 	case cmdCommon.TEXT:
 		if printer != nil {

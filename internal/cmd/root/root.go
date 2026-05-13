@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/build"
@@ -72,7 +73,7 @@ var (
 	streams    *iostreams.IOStreams
 	pMgr       profile.Manager
 
-	outputFormat = cmd.NewEnum([]string{
+	outputFormat = cmd.NewDeferredEnum([]string{
 		common.JSON.String(),
 		common.YAML.String(),
 		common.TEXT.String(),
@@ -129,10 +130,51 @@ const logFilePIDToken = "%PID%"
 func mergedFlagUsages(cmd *cobra.Command) string {
 	flags := pflag.NewFlagSet(cmd.DisplayName(), pflag.ContinueOnError)
 	flags.SortFlags = true
-	flags.AddFlagSet(cmd.LocalFlags())
-	flags.AddFlagSet(cmd.InheritedFlags())
+	addFlagSetCopies(flags, cmd.LocalFlags())
+	addFlagSetCopies(flags, cmd.InheritedFlags())
+
+	if f := flags.Lookup(common.OutputFlagName); f != nil {
+		f.Usage = outputFlagUsage(common.AllowedOutputFormats(cmd))
+	}
 
 	return strings.TrimRight(flags.FlagUsages(), "\n")
+}
+
+func addFlagSetCopies(dst, src *pflag.FlagSet) {
+	if dst == nil || src == nil {
+		return
+	}
+	src.VisitAll(func(flag *pflag.Flag) {
+		flagCopy := *flag
+		if flag.Annotations != nil {
+			flagCopy.Annotations = make(map[string][]string, len(flag.Annotations))
+			for k, v := range flag.Annotations {
+				flagCopy.Annotations[k] = slices.Clone(v)
+			}
+		}
+		dst.AddFlag(&flagCopy)
+	})
+}
+
+func outputFlagUsage(allowed []string) string {
+	return fmt.Sprintf(`Configures the format of data written to STDOUT.
+- Config path: [ %s ]
+- Allowed    : [ %s ]`,
+		common.OutputConfigPath, strings.Join(allowed, "|"))
+}
+
+func validateOutputFormat(cmd *cobra.Command) error {
+	value := strings.TrimSpace(outputFormat.Value)
+	if currConfig != nil {
+		configured := strings.TrimSpace(currConfig.GetString(common.OutputConfigPath))
+		if configured != "" {
+			value = configured
+		}
+	}
+	if value == "" {
+		value = common.DefaultOutputFormat
+	}
+	return common.ValidateOutputFormat(cmd, value)
 }
 
 func newRootCmd() *cobra.Command {
@@ -140,7 +182,10 @@ func newRootCmd() *cobra.Command {
 		Use:   meta.CLIName,
 		Short: rootShort,
 		Long:  rootLong,
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			if err := validateOutputFormat(cmd); err != nil {
+				return err
+			}
 			ctx := context.WithValue(cmd.Context(), config.ConfigKey, currConfig)
 			ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
@@ -148,6 +193,7 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, log.LoggerKey, logger)
 			ctx = theme.ContextWithPalette(ctx, theme.Current())
 			cmd.SetContext(ctx)
+			return nil
 		},
 	}
 
@@ -175,10 +221,7 @@ func newRootCmd() *cobra.Command {
 	// from a valid set of values. There may be a way to do this more elegantly
 	// in the pFlag library
 	rootCmd.PersistentFlags().VarP(outputFormat, common.OutputFlagName, common.OutputFlagShort,
-		fmt.Sprintf(`Configures the format of data written to STDOUT.
-- Config path: [ %s ]
-- Allowed    : [ %s ]`,
-			common.OutputConfigPath, strings.Join(outputFormat.Allowed, "|")))
+		outputFlagUsage(outputFormat.Allowed))
 
 	rootCmd.PersistentFlags().Var(logLevel, common.LogLevelFlagName,
 		fmt.Sprintf(`Configures the logging level. Execution logs are written to STDERR.
