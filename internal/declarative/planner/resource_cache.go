@@ -37,6 +37,10 @@ type planningResourceCache struct {
 	managedCatalogServicesAll    []state.CatalogService
 	managedCatalogServicesLoaded bool
 
+	managedDashboardsByKey  map[string][]state.Dashboard
+	managedDashboardsAll    []state.Dashboard
+	managedDashboardsLoaded bool
+
 	managedOrganizationTeamsByKey  map[string][]state.OrganizationTeam
 	managedOrganizationTeamsAll    []state.OrganizationTeam
 	managedOrganizationTeamsLoaded bool
@@ -55,6 +59,7 @@ func newPlanningResourceCache() *planningResourceCache {
 		managedDCRProvidersByKey:              make(map[string][]state.DCRProvider),
 		managedAPIsByKey:                      make(map[string][]state.API),
 		managedCatalogServicesByKey:           make(map[string][]state.CatalogService),
+		managedDashboardsByKey:                make(map[string][]state.Dashboard),
 		managedOrganizationTeamsByKey:         make(map[string][]state.OrganizationTeam),
 		portalTeamsByPortalID:                 make(map[string][]state.PortalTeam),
 		portalIdentityProvidersByPortalID:     make(map[string][]state.PortalIdentityProvider),
@@ -369,6 +374,59 @@ func (p *Planner) listManagedCatalogServices(
 	}
 
 	return services, nil
+}
+
+func (p *Planner) listManagedDashboards(
+	ctx context.Context,
+	namespaces []string,
+) ([]state.Dashboard, error) {
+	normalizedNamespaces := normalizeNamespaces(namespaces)
+	if len(normalizedNamespaces) == 0 {
+		return []state.Dashboard{}, nil
+	}
+
+	cache := p.resourceCache
+	cacheKey := namespaceCacheKey(normalizedNamespaces)
+	if cache != nil {
+		if cached, ok := cache.managedDashboardsByKey[cacheKey]; ok {
+			return cached, nil
+		}
+
+		if cacheKey != "*" && cache.managedDashboardsLoaded {
+			filtered := filterDashboardsByNamespaces(cache.managedDashboardsAll, normalizedNamespaces)
+			cache.managedDashboardsByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+	}
+
+	requestNamespaces := normalizedNamespaces
+	useAllNamespaces := p.namespaceFanout && cacheKey != "*"
+	if useAllNamespaces {
+		requestNamespaces = []string{"*"}
+	}
+
+	dashboards, err := p.client.ListManagedDashboards(ctx, requestNamespaces)
+	if err != nil {
+		return nil, err
+	}
+
+	if cache != nil {
+		if useAllNamespaces {
+			cache.managedDashboardsAll = dashboards
+			cache.managedDashboardsLoaded = true
+			filtered := filterDashboardsByNamespaces(dashboards, normalizedNamespaces)
+			cache.managedDashboardsByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+
+		cache.managedDashboardsByKey[cacheKey] = dashboards
+		if cacheKey == "*" {
+			cache.managedDashboardsAll = dashboards
+			cache.managedDashboardsLoaded = true
+		}
+	}
+
+	return dashboards, nil
 }
 
 func (p *Planner) listManagedEventGatewayControlPlanes(
@@ -733,6 +791,30 @@ func filterCatalogServicesByNamespaces(services []state.CatalogService, namespac
 		namespace := service.NormalizedLabels[labels.NamespaceKey]
 		if _, ok := allowed[namespace]; ok {
 			filtered = append(filtered, service)
+		}
+	}
+
+	return filtered
+}
+
+func filterDashboardsByNamespaces(dashboards []state.Dashboard, namespaces []string) []state.Dashboard {
+	if len(namespaces) == 0 {
+		return []state.Dashboard{}
+	}
+	if len(namespaces) == 1 && namespaces[0] == "*" {
+		return dashboards
+	}
+
+	allowed := make(map[string]struct{}, len(namespaces))
+	for _, ns := range namespaces {
+		allowed[ns] = struct{}{}
+	}
+
+	filtered := make([]state.Dashboard, 0, len(dashboards))
+	for _, dashboard := range dashboards {
+		namespace := dashboard.NormalizedLabels[labels.NamespaceKey]
+		if _, ok := allowed[namespace]; ok {
+			filtered = append(filtered, dashboard)
 		}
 	}
 

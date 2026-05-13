@@ -633,6 +633,20 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
+	// Apply defaults to Dashboards (parent resources)
+	for i := range rs.Dashboards {
+		if err := assignNamespace(&rs.Dashboards[i].Kongctl, "dashboard", rs.Dashboards[i].Ref); err != nil {
+			return err
+		}
+		if rs.Dashboards[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.Dashboards[i].Kongctl.Protected = protectedDefault
+		}
+		if rs.Dashboards[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.Dashboards[i].Kongctl.Protected = &falseVal
+		}
+	}
+
 	// Apply defaults to ApplicationAuthStrategies (parent resources)
 	for i := range rs.ApplicationAuthStrategies {
 		if err := assignNamespace(&rs.ApplicationAuthStrategies[i].Kongctl,

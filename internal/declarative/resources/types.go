@@ -13,6 +13,7 @@ const (
 	ResourceTypeControlPlane                            ResourceType = "control_plane"
 	ResourceTypeControlPlaneGroup                       ResourceType = "control_plane_group"
 	ResourceTypeAPI                                     ResourceType = "api"
+	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
 	ResourceTypeAPIImplementation                       ResourceType = "api_implementation"
@@ -83,6 +84,7 @@ type ResourceSet struct {
 	ControlPlanes                     []ControlPlaneResource                     `yaml:"control_planes,omitempty"                                 json:"control_planes,omitempty"`                        //nolint:lll
 	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
+	Dashboards                        []DashboardResource                        `yaml:"dashboards,omitempty"                                    json:"dashboards,omitempty"`                             //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
 	// API child resources can be defined at root level (with parent reference) or nested under APIs
@@ -263,6 +265,16 @@ func (rs *ResourceSet) GetAPIByRef(ref string) *APIResource {
 	return nil
 }
 
+// GetDashboardByRef returns a dashboard resource by its ref from any namespace.
+func (rs *ResourceSet) GetDashboardByRef(ref string) *DashboardResource {
+	for i := range rs.Dashboards {
+		if rs.Dashboards[i].GetRef() == ref {
+			return &rs.Dashboards[i]
+		}
+	}
+	return nil
+}
+
 // GetControlPlaneByRef returns a control plane resource by its ref from any namespace
 func (rs *ResourceSet) GetControlPlaneByRef(ref string) *ControlPlaneResource {
 	for i := range rs.ControlPlanes {
@@ -350,6 +362,17 @@ func (rs *ResourceSet) GetAPIsByNamespace(namespace string) []APIResource {
 	for _, api := range rs.APIs {
 		if GetNamespace(api.Kongctl) == namespace {
 			filtered = append(filtered, api)
+		}
+	}
+	return filtered
+}
+
+// GetDashboardsByNamespace returns all dashboard resources from the specified namespace.
+func (rs *ResourceSet) GetDashboardsByNamespace(namespace string) []DashboardResource {
+	var filtered []DashboardResource
+	for _, dashboard := range rs.Dashboards {
+		if GetNamespace(dashboard.Kongctl) == namespace {
+			filtered = append(filtered, dashboard)
 		}
 	}
 	return filtered

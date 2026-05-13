@@ -38,6 +38,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"application_auth_strategies": {},
 	"dcr_providers":               {},
 	"control_planes":              {},
+	"dashboards":                  {},
 	"event_gateways":              {},
 	"organization.teams":          {},
 }
@@ -71,7 +72,7 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
-			"event_gateways, organization.teams).")
+			"dashboards, event_gateways, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -175,6 +176,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			DataPlaneCertificateAPI:             sdk.GetDataPlaneCertificateAPI(),
 			ControlPlaneGroupsAPI:               sdk.GetControlPlaneGroupsAPI(),
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
+			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
 			PortalIPAllowListAPI:                sdk.GetPortalIPAllowListAPI(),
@@ -280,6 +282,12 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				populateControlPlaneChildren(ctx, logger, stateClient, controlPlanes)
 			}
 			resourceSet.ControlPlanes = append(resourceSet.ControlPlanes, controlPlanes...)
+		case "dashboards":
+			dashboards, err := collectDeclarativeDashboards(ctx, sdk.GetDashboardsAPI(), requestPageSize, opts.filter)
+			if err != nil {
+				return err
+			}
+			resourceSet.Dashboards = append(resourceSet.Dashboards, dashboards...)
 		case "event_gateways":
 			eventGateways, err := collectDeclarativeEventGateways(
 				ctx,
@@ -406,6 +414,9 @@ func collectDeclarativePortals(
 	}
 
 	sort.Slice(results, func(i, j int) bool {
+		if results[i].Name == results[j].Name {
+			return results[i].Ref < results[j].Ref
+		}
 		return results[i].Name < results[j].Name
 	})
 
@@ -461,6 +472,71 @@ func collectDeclarativeAPIs(
 	}
 
 	sort.Slice(results, func(i, j int) bool {
+		if results[i].Name == results[j].Name {
+			return results[i].Ref < results[j].Ref
+		}
+		return results[i].Name < results[j].Name
+	})
+
+	return results, nil
+}
+
+func collectDeclarativeDashboards(
+	ctx context.Context,
+	api helpers.DashboardsAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.DashboardResource, error) {
+	if api == nil {
+		return nil, fmt.Errorf("dashboards API client is not configured")
+	}
+
+	var results []declresources.DashboardResource
+
+	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
+		req := kkOps.DashboardsListRequest{
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
+		}
+
+		if filter.name != "" {
+			req.Filter = &kkComps.DashboardFilterParameters{Name: buildStringFieldFilter(filter.name)}
+		} else if filter.id != "" {
+			req.Filter = &kkComps.DashboardFilterParameters{ID: &kkComps.UUIDFieldFilter{Eq: &filter.id}}
+		}
+
+		resp, err := api.DashboardsList(ctx, req)
+		if err != nil {
+			return false, fmt.Errorf("failed to list dashboards: %w", err)
+		}
+
+		if resp == nil || resp.Object == nil || len(resp.Object.Data) == 0 {
+			return false, nil
+		}
+
+		for _, dashboard := range resp.Object.Data {
+			results = append(results, mapDashboardToDeclarativeResource(dashboard))
+		}
+
+		var total float64
+		if resp.Object.Meta != nil {
+			total = resp.Object.Meta.Page.Total
+		}
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: total,
+		}
+		return params.hasMorePages(), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Name == results[j].Name {
+			return results[i].Ref < results[j].Ref
+		}
 		return results[i].Name < results[j].Name
 	})
 
@@ -672,6 +748,24 @@ func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.AP
 	}
 
 	normalizeAPIResource(&result)
+
+	return result
+}
+
+func mapDashboardToDeclarativeResource(dashboard kkComps.DashboardResponse) declresources.DashboardResource {
+	result := declresources.DashboardResource{
+		BaseResource: declresources.BaseResource{Ref: getString(dashboard.ID)},
+		Name:         dashboard.Name,
+		Definition:   dashboard.Definition,
+	}
+
+	if result.Ref == "" {
+		result.Ref = dashboard.Name
+	}
+
+	if labels := decllabels.GetUserLabels(dashboard.Labels); len(labels) > 0 {
+		result.Labels = labels
+	}
 
 	return result
 }

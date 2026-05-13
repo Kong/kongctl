@@ -106,6 +106,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeAPIPublication,
 		resources.ResourceTypeAPIImplementation,
 		resources.ResourceTypeAPIDocument,
+		resources.ResourceTypeDashboard,
 		resources.ResourceTypeGatewayService,
 		resources.ResourceTypeControlPlaneDataPlaneCertificate,
 		resources.ResourceTypeControlPlaneGroup,

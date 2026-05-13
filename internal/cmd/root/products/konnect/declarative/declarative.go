@@ -2425,6 +2425,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		GatewayServiceAPI:       kkClient.GetGatewayServiceAPI(),
 		DataPlaneCertificateAPI: kkClient.GetDataPlaneCertificateAPI(),
 		CatalogServiceAPI:       kkClient.GetCatalogServicesAPI(),
+		DashboardsAPI:           kkClient.GetDashboardsAPI(),
 
 		// Portal child resource APIs
 		PortalPageAPI:             kkClient.GetPortalPageAPI(),

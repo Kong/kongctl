@@ -1,0 +1,13 @@
+_defaults:
+  kongctl:
+    namespace: dashboard-test
+
+dashboards:
+  - ref: api-summary-dashboard
+    name: API Summary Dashboard
+    definition: !file ./definitions/api-summary-updated.json
+    labels:
+      team: platform
+      purpose: e2e-updated
+    kongctl:
+      protected: false

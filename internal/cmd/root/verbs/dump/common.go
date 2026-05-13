@@ -115,6 +115,8 @@ func mapResourceName(name string) string {
 		return "dcr_providers"
 	case "control-plane", "controlplane", "controlplanes", "control_planes":
 		return "control_planes"
+	case "dashboard", "dashboards":
+		return "dashboards"
 	case "org.team", "org.teams", "organization.team", "organization.teams":
 		return "organization.teams"
 	default:

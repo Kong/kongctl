@@ -70,6 +70,11 @@ func (b *BasePlanner) GetDesiredCatalogServices(namespace string) []resources.Ca
 	return b.planner.resources.GetCatalogServicesByNamespace(namespace)
 }
 
+// GetDesiredDashboards returns desired dashboard resources from the specified namespace.
+func (b *BasePlanner) GetDesiredDashboards(namespace string) []resources.DashboardResource {
+	return b.planner.resources.GetDashboardsByNamespace(namespace)
+}
+
 // GetDesiredAuthStrategies returns desired auth strategy resources from the specified namespace
 func (b *BasePlanner) GetDesiredAuthStrategies(namespace string) []resources.ApplicationAuthStrategyResource {
 	return b.planner.resources.GetAuthStrategiesByNamespace(namespace)

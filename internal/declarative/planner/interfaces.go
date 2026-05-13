@@ -52,6 +52,11 @@ type CatalogServicePlanner interface {
 	ResourcePlanner
 }
 
+// DashboardPlanner handles planning for dashboard resources.
+type DashboardPlanner interface {
+	ResourcePlanner
+}
+
 // EGWControlPlanePlanner handles planning for Event Gateway Control Plane resources
 type EGWControlPlanePlanner interface {
 	ResourcePlanner

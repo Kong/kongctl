@@ -1,0 +1,12 @@
+{
+  "tiles": [],
+  "preset_filters": [
+    {
+      "field": "ai_request_model",
+      "operator": "in",
+      "value": [
+        "gpt-4"
+      ]
+    }
+  ]
+}

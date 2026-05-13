@@ -313,6 +313,20 @@ catalog_services:
         name: "#all-resources"
         link: https://slack.example.com/archives/all-resources
 
+dashboards:
+  - ref: all-dashboard
+    name: All Resources Dashboard
+    definition:
+      tiles: []
+      preset_filters:
+        - field: control_plane
+          operator: in
+          value:
+            - !ref all-cp-runtime#id
+    labels:
+      suite: all
+      resource: dashboard
+
 organization:
   teams:
     - ref: all-org-team

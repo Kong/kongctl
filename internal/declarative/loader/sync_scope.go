@@ -25,6 +25,7 @@ var rootCollectionScopes = []rootCollectionScope{
 	{key: "dcr_providers", resourceType: resources.ResourceTypeDCRProvider},
 	{key: "control_planes", resourceType: resources.ResourceTypeControlPlane},
 	{key: "catalog_services", resourceType: resources.ResourceTypeCatalogService},
+	{key: "dashboards", resourceType: resources.ResourceTypeDashboard},
 	{key: "apis", resourceType: resources.ResourceTypeAPI},
 	{key: "event_gateways", resourceType: resources.ResourceTypeEventGatewayControlPlane},
 }

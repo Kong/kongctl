@@ -1,0 +1,256 @@
+baseInputsPath: testdata
+
+log-level: debug
+
+vars:
+  namespace: dashboard-test
+  dashboardRef: api-summary-dashboard
+  dashboardName: API Summary Dashboard
+  uiDashboardName: UI GitOps Dashboard
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-dashboard
+    commands:
+      - name: 000-plan-initial-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-initial.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='dashboard' && resource_ref=='{{ .vars.dashboardRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.dashboardName }}"
+                fields.definition.tiles: []
+                fields.labels.team: platform
+
+      - name: 001-apply-initial-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-initial.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-plan-noop
+        outputFormat: json
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 002-protected-update-fails
+    inputOverlayDirs:
+      - overlays/002-protected-update-fail
+    commands:
+      - name: 000-sync-protected-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+  - name: 003-unprotect-dashboard
+    inputOverlayDirs:
+      - overlays/003-unprotect-only
+    commands:
+      - name: 000-sync-unprotect
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 004-update-dashboard
+    inputOverlayDirs:
+      - overlays/004-update-dashboard
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: >-
+              changes[?resource_type=='dashboard' && resource_ref=='{{ .vars.dashboardRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.name: "{{ .vars.dashboardName }}"
+                fields.definition.preset_filters[0].field: ai_request_model
+
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 005-sync-delete
+    inputOverlayDirs:
+      - overlays/005-sync-delete
+    commands:
+      - name: 000-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='dashboard' && resource_ref=='{{ .vars.dashboardName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+  - name: 006-adopt-dump-plan-ui-dashboard
+    skipInputs: true
+    commands:
+      - name: 000-create-unmanaged-dashboard
+        create:
+          resource: dashboard
+          payload:
+            inline:
+              name: "{{ .vars.uiDashboardName }}"
+              definition:
+                tiles: []
+              labels:
+                team: platform
+          recordVar:
+            name: uiDashboardID
+            responsePath: id
+
+      - name: 001-adopt-dashboard
+        run:
+          - adopt
+          - dashboard
+          - "{{ .vars.uiDashboardID }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                resource_type: dashboard
+                id: "{{ .vars.uiDashboardID }}"
+                name: "{{ .vars.uiDashboardName }}"
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 002-dump-dashboard
+        run:
+          - dump
+          - declarative
+          - "--resources=dashboard"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-dashboard.yaml"
+        assertions:
+          - select: "dashboards[?ref=='{{ .vars.uiDashboardID }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.uiDashboardName }}"
+                definition.tiles: []
+                labels.team: platform
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 003-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-dashboard.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 007-cleanup-adopted-dashboard
+    inputOverlayDirs:
+      - overlays/005-sync-delete
+    commands:
+      - name: 000-sync-delete-adopted-dashboard
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

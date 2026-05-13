@@ -140,6 +140,40 @@ func TestMapAPIToDeclarativeResource(t *testing.T) {
 	}
 }
 
+func TestMapDashboardToDeclarativeResource(t *testing.T) {
+	id := "dashboard-id"
+	dashboard := kkComps.DashboardResponse{
+		ID:   &id,
+		Name: "API Summary",
+		Definition: kkComps.Dashboard{
+			Tiles: []kkComps.Tile{},
+		},
+		Labels: map[string]string{
+			decllabels.NamespaceKey: "team-alpha",
+			decllabels.ProtectedKey: decllabels.TrueValue,
+			"team":                  "platform",
+		},
+	}
+
+	resource := mapDashboardToDeclarativeResource(dashboard)
+
+	if resource.Ref != id {
+		t.Fatalf("expected ref %q, got %q", id, resource.Ref)
+	}
+
+	if resource.Name != dashboard.Name {
+		t.Fatalf("expected name %q, got %q", dashboard.Name, resource.Name)
+	}
+
+	if resource.Definition.Tiles == nil || len(resource.Definition.Tiles) != 0 {
+		t.Fatalf("expected definition tiles to be preserved, got %v", resource.Definition.Tiles)
+	}
+
+	if len(resource.Labels) != 1 || resource.Labels["team"] != "platform" {
+		t.Fatalf("expected only user labels to remain, got %v", resource.Labels)
+	}
+}
+
 func TestBuildDeclarativeDefaults(t *testing.T) {
 	if buildDeclarativeDefaults("") != nil {
 		t.Fatalf("expected nil defaults when namespace is empty")

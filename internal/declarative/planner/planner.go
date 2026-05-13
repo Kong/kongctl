@@ -73,6 +73,7 @@ type Planner struct {
 	dcrProviderPlanner              DCRProviderPlanner
 	apiPlanner                      APIPlanner
 	catalogServicePlanner           CatalogServicePlanner
+	dashboardPlanner                DashboardPlanner
 	eventGatewayControlPlanePlanner EGWControlPlanePlanner
 	organizationTeamPlanner         OrganizationTeamPlanner
 
@@ -122,6 +123,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
 	p.dcrProviderPlanner = NewDCRProviderPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
+	p.dashboardPlanner = NewDashboardPlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
 	p.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
 
@@ -228,6 +230,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.dcrProviderPlanner = NewDCRProviderPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
+		namespacePlanner.dashboardPlanner = NewDashboardPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
 		namespacePlanner.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
@@ -316,6 +319,16 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 				namespacePlan,
 			); err != nil {
 				return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
+			}
+		}
+
+		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeDashboard) {
+			if err := namespacePlanner.dashboardPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dashboardPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan dashboard changes for namespace %s: %w", namespace, err)
 			}
 		}
 
@@ -2164,6 +2177,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, svc := range rs.CatalogServices {
 		ns := resources.GetNamespace(svc.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, dashboard := range rs.Dashboards {
+		ns := resources.GetNamespace(dashboard.Kongctl)
 		namespaceSet[ns] = true
 	}
 
