@@ -211,6 +211,88 @@ func TestResolveHTTPTransportOptions(t *testing.T) {
 	})
 }
 
+func TestResolveRetryConfig(t *testing.T) {
+	t.Run("defaults when unset", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{})
+
+		rc, err := ResolveRetryConfig(cfg)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.RetryStrategyDefault, rc.Strategy)
+		require.Equal(t, httpclient.DefaultRetryMaxAttempts, rc.MaxAttempts)
+		require.Equal(t, httpclient.DefaultRetryInitialInterval, rc.InitialInterval)
+		require.Equal(t, httpclient.DefaultRetryMaxInterval, rc.MaxInterval)
+		require.Equal(t, httpclient.DefaultRetryBackoffFactor, rc.BackoffFactor)
+		require.False(t, rc.RetryConnectionErrors)
+	})
+
+	t.Run("explicit values", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPRetryMaxAttemptsConfigPath:        "3",
+			cmdcommon.HTTPRetryInitialIntervalConfigPath:    "200ms",
+			cmdcommon.HTTPRetryMaxIntervalConfigPath:        "5s",
+			cmdcommon.HTTPRetryBackoffFactorConfigPath:      "1.5",
+			cmdcommon.HTTPRetryOnConnectionErrorsConfigPath: "true",
+		})
+
+		rc, err := ResolveRetryConfig(cfg)
+		require.NoError(t, err)
+		require.Equal(t, 3, rc.MaxAttempts)
+		require.Equal(t, httpclient.RetryStrategyDefault, rc.Strategy)
+		require.Equal(t, 200*time.Millisecond, rc.InitialInterval)
+		require.Equal(t, 5*time.Second, rc.MaxInterval)
+		require.Equal(t, 1.5, rc.BackoffFactor)
+		require.True(t, rc.RetryConnectionErrors)
+	})
+
+	t.Run("Max attempts = 1 disables retries", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPRetryMaxAttemptsConfigPath: "1",
+		})
+
+		rc, err := ResolveRetryConfig(cfg)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.RetryStrategyNone, rc.Strategy)
+		require.Equal(t, 1, rc.MaxAttempts)
+	})
+
+	t.Run("invalid max attempts returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPRetryMaxAttemptsConfigPath: "banana",
+		})
+
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("negative max attempts returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPRetryMaxAttemptsConfigPath: "-1",
+		})
+
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("invalid initial interval returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPRetryInitialIntervalConfigPath: "banana",
+		})
+
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("invalid backoff factor returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPRetryBackoffFactorConfigPath: "not-a-number",
+		})
+
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+}
+
 func TestResolveAccessTokenMapsMissingCredentialsToGuidance(t *testing.T) {
 	dir := t.TempDir()
 	cfg, _ := newTestConfig(map[string]string{})

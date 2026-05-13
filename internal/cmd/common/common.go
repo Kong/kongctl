@@ -83,6 +83,18 @@ const (
 	HTTPDisableKeepAlivesConfigPath         = HTTPDisableKeepAlivesName
 	HTTPRecycleConnectionsOnErrorName       = "http-recycle-connections-on-error"
 	HTTPRecycleConnectionsOnErrorConfigPath = HTTPRecycleConnectionsOnErrorName
+
+	// related to retry/backoff for HTTP requests
+	HTTPRetryMaxAttemptsFlagName          = "http-retry-max-attempts"
+	HTTPRetryMaxAttemptsConfigPath        = HTTPRetryMaxAttemptsFlagName
+	HTTPRetryInitialIntervalFlagName      = "http-retry-initial-interval"
+	HTTPRetryInitialIntervalConfigPath    = HTTPRetryInitialIntervalFlagName
+	HTTPRetryMaxIntervalFlagName          = "http-retry-max-interval"
+	HTTPRetryMaxIntervalConfigPath        = HTTPRetryMaxIntervalFlagName
+	HTTPRetryBackoffFactorFlagName        = "http-retry-backoff-factor"
+	HTTPRetryBackoffFactorConfigPath      = HTTPRetryBackoffFactorFlagName
+	HTTPRetryOnConnectionErrorsFlagName   = "http-retry-on-connection-errors"
+	HTTPRetryOnConnectionErrorsConfigPath = HTTPRetryOnConnectionErrorsFlagName
 )
 
 func (of OutputFormat) String() string {
