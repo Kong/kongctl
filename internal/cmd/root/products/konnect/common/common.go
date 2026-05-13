@@ -164,20 +164,20 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 		strategy = httpclient.RetryStrategyNone
 	}
 
-	initialInterval, set, err := resolveOptionalDuration(cfg, cmdcommon.HTTPRetryInitialIntervalConfigPath)
+	initialIntervalMS, err := resolveOptionalInt(cfg, cmdcommon.HTTPRetryInitialIntervalConfigPath)
 	if err != nil {
 		return httpclient.RetryConfig{}, err
 	}
-	if !set {
-		initialInterval = httpclient.DefaultRetryInitialInterval
+	if initialIntervalMS == 0 {
+		initialIntervalMS = httpclient.DefaultRetryInitialIntervalMS
 	}
 
-	maxInterval, set, err := resolveOptionalDuration(cfg, cmdcommon.HTTPRetryMaxIntervalConfigPath)
+	maxIntervalMS, err := resolveOptionalInt(cfg, cmdcommon.HTTPRetryMaxIntervalConfigPath)
 	if err != nil {
 		return httpclient.RetryConfig{}, err
 	}
-	if !set {
-		maxInterval = httpclient.DefaultRetryMaxInterval
+	if maxIntervalMS == 0 {
+		maxIntervalMS = httpclient.DefaultRetryMaxIntervalMS
 	}
 
 	factor, err := resolveOptionalFloat64(cfg, cmdcommon.HTTPRetryBackoffFactorConfigPath)
@@ -196,8 +196,8 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	return httpclient.RetryConfig{
 		Strategy:              strategy,
 		MaxAttempts:           maxAttempts,
-		InitialInterval:       initialInterval,
-		MaxInterval:           maxInterval,
+		InitialIntervalMS:     initialIntervalMS,
+		MaxIntervalMS:         maxIntervalMS,
 		BackoffFactor:         factor,
 		RetryConnectionErrors: retryConnErrors,
 	}, nil

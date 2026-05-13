@@ -26,6 +26,7 @@ type teamAPIStub struct {
 func (c *teamAPIStub) ListOrganizationTeams(
 	context.Context,
 	kkOps.ListTeamsRequest,
+	...kkOps.Option,
 ) (*kkOps.ListTeamsResponse, error) {
 	c.t.Fatalf("unexpected ListOrganizationTeams call")
 	return nil, nil
@@ -34,6 +35,7 @@ func (c *teamAPIStub) ListOrganizationTeams(
 func (c *teamAPIStub) GetOrganizationTeam(
 	_ context.Context,
 	id string,
+	_ ...kkOps.Option,
 ) (*kkOps.GetTeamResponse, error) {
 	if id != *c.team.ID {
 		c.t.Fatalf("unexpected team id: %s", id)
@@ -44,6 +46,7 @@ func (c *teamAPIStub) GetOrganizationTeam(
 func (c *teamAPIStub) CreateOrganizationTeam(
 	context.Context,
 	*kkComps.CreateTeam,
+	...kkOps.Option,
 ) (*kkOps.CreateTeamResponse, error) {
 	c.t.Fatalf("unexpected CreateOrganizationTeam call")
 	return nil, nil
@@ -53,6 +56,7 @@ func (c *teamAPIStub) UpdateOrganizationTeam(
 	_ context.Context,
 	id string,
 	team *kkComps.UpdateTeam,
+	_ ...kkOps.Option,
 ) (*kkOps.UpdateTeamResponse, error) {
 	if id != *c.team.ID {
 		c.t.Fatalf("unexpected team id: %s", id)
@@ -73,6 +77,7 @@ func (c *teamAPIStub) UpdateOrganizationTeam(
 func (c *teamAPIStub) DeleteOrganizationTeam(
 	context.Context,
 	string,
+	...kkOps.Option,
 ) (*kkOps.DeleteTeamResponse, error) {
 	c.t.Fatalf("unexpected DeleteOrganizationTeam call")
 	return nil, nil

@@ -10,9 +10,9 @@ import (
 type SystemAccountAPI interface {
 	// SystemAccount operations
 	ListSystemAccounts(ctx context.Context,
-		request kkOps.GetSystemAccountsRequest) (*kkOps.GetSystemAccountsResponse, error)
+		request kkOps.GetSystemAccountsRequest, opts ...kkOps.Option) (*kkOps.GetSystemAccountsResponse, error)
 	GetSystemAccount(ctx context.Context,
-		id string) (*kkOps.GetSystemAccountsIDResponse, error)
+		id string, opts ...kkOps.Option) (*kkOps.GetSystemAccountsIDResponse, error)
 }
 
 // SystemAccountAPIImpl provides a concrete implementation backed by the SDK.
@@ -22,14 +22,14 @@ type SystemAccountAPIImpl struct {
 
 // ListSystemAccounts implements the SystemAccountAPI interface
 func (p *SystemAccountAPIImpl) ListSystemAccounts(ctx context.Context,
-	request kkOps.GetSystemAccountsRequest,
+	request kkOps.GetSystemAccountsRequest, opts ...kkOps.Option,
 ) (*kkOps.GetSystemAccountsResponse, error) {
-	return p.SDK.SystemAccounts.GetSystemAccounts(ctx, request)
+	return p.SDK.SystemAccounts.GetSystemAccounts(ctx, request, opts...)
 }
 
 // GetSystemAccount implements the SystemAccountAPI interface
 func (p *SystemAccountAPIImpl) GetSystemAccount(ctx context.Context,
-	id string,
+	id string, opts ...kkOps.Option,
 ) (*kkOps.GetSystemAccountsIDResponse, error) {
-	return p.SDK.SystemAccounts.GetSystemAccountsID(ctx, id)
+	return p.SDK.SystemAccounts.GetSystemAccountsID(ctx, id, opts...)
 }

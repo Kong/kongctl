@@ -20,12 +20,14 @@ import (
 type DCRProvidersAPI interface {
 	ListDcrProviders(ctx context.Context, request kkOPS.ListDcrProvidersRequest,
 		opts ...kkOPS.Option) (*kkOPS.ListDcrProvidersResponse, error)
-	ListDcrProviderPayloads(ctx context.Context, request kkOPS.ListDcrProvidersRequest) (*DCRProviderListPayload, error)
+	ListDcrProviderPayloads(ctx context.Context, request kkOPS.ListDcrProvidersRequest,
+		opts ...kkOPS.Option) (*DCRProviderListPayload, error)
 	CreateDcrProvider(ctx context.Context,
-		provider kkComps.CreateDcrProviderRequest) (*kkOPS.CreateDcrProviderResponse, error)
+		provider kkComps.CreateDcrProviderRequest, opts ...kkOPS.Option) (*kkOPS.CreateDcrProviderResponse, error)
 	UpdateDcrProvider(ctx context.Context, id string,
-		provider kkComps.UpdateDcrProviderRequest) (*kkOPS.UpdateDcrProviderResponse, error)
-	DeleteDcrProvider(ctx context.Context, id string) (*kkOPS.DeleteDcrProviderResponse, error)
+		provider kkComps.UpdateDcrProviderRequest, opts ...kkOPS.Option) (*kkOPS.UpdateDcrProviderResponse, error)
+	DeleteDcrProvider(ctx context.Context, id string,
+		opts ...kkOPS.Option) (*kkOPS.DeleteDcrProviderResponse, error)
 }
 
 // DCRProviderListPayload contains raw DCR provider response payloads.
@@ -113,9 +115,10 @@ func (a *DCRProvidersAPIImpl) ListDcrProviders(ctx context.Context,
 func (a *DCRProvidersAPIImpl) ListDcrProviderPayloads(
 	ctx context.Context,
 	request kkOPS.ListDcrProvidersRequest,
+	opts ...kkOPS.Option,
 ) (*DCRProviderListPayload, error) {
 	if !a.canUseRawRequest() {
-		res, err := a.ListDcrProviders(ctx, request)
+		res, err := a.ListDcrProviders(ctx, request, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +167,7 @@ func (a *DCRProvidersAPIImpl) ListDcrProviderPayloads(
 }
 
 func (a *DCRProvidersAPIImpl) CreateDcrProvider(ctx context.Context,
-	provider kkComps.CreateDcrProviderRequest,
+	provider kkComps.CreateDcrProviderRequest, opts ...kkOPS.Option,
 ) (*kkOPS.CreateDcrProviderResponse, error) {
 	if a.canUseRawRequest() {
 		payload, err := json.Marshal(provider)
@@ -189,11 +192,11 @@ func (a *DCRProvidersAPIImpl) CreateDcrProvider(ctx context.Context,
 		return response, nil
 	}
 
-	return a.SDK.DCRProviders.CreateDcrProvider(ctx, provider)
+	return a.SDK.DCRProviders.CreateDcrProvider(ctx, provider, opts...)
 }
 
 func (a *DCRProvidersAPIImpl) UpdateDcrProvider(ctx context.Context, id string,
-	provider kkComps.UpdateDcrProviderRequest,
+	provider kkComps.UpdateDcrProviderRequest, opts ...kkOPS.Option,
 ) (*kkOPS.UpdateDcrProviderResponse, error) {
 	if a.canUseRawRequest() {
 		payload, err := json.Marshal(provider)
@@ -219,11 +222,11 @@ func (a *DCRProvidersAPIImpl) UpdateDcrProvider(ctx context.Context, id string,
 		return response, nil
 	}
 
-	return a.SDK.DCRProviders.UpdateDcrProvider(ctx, id, provider)
+	return a.SDK.DCRProviders.UpdateDcrProvider(ctx, id, provider, opts...)
 }
 
 func (a *DCRProvidersAPIImpl) DeleteDcrProvider(ctx context.Context,
-	id string,
+	id string, opts ...kkOPS.Option,
 ) (*kkOPS.DeleteDcrProviderResponse, error) {
 	if a.canUseRawRequest() {
 		path := fmt.Sprintf("/v2/dcr-providers/%s", url.PathEscape(id))
@@ -243,7 +246,7 @@ func (a *DCRProvidersAPIImpl) DeleteDcrProvider(ctx context.Context,
 		return response, nil
 	}
 
-	return a.SDK.DCRProviders.DeleteDcrProvider(ctx, id)
+	return a.SDK.DCRProviders.DeleteDcrProvider(ctx, id, opts...)
 }
 
 func (a *DCRProvidersAPIImpl) canUseRawRequest() bool {

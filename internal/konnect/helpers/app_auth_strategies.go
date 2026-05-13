@@ -11,12 +11,14 @@ import (
 type AppAuthStrategiesAPI interface {
 	ListAppAuthStrategies(ctx context.Context, request kkOPS.ListAppAuthStrategiesRequest,
 		opts ...kkOPS.Option) (*kkOPS.ListAppAuthStrategiesResponse, error)
-	GetAppAuthStrategy(ctx context.Context, id string) (*kkOPS.GetAppAuthStrategyResponse, error)
+	GetAppAuthStrategy(ctx context.Context, id string,
+		opts ...kkOPS.Option) (*kkOPS.GetAppAuthStrategyResponse, error)
 	CreateAppAuthStrategy(ctx context.Context,
-		strategy kkComps.CreateAppAuthStrategyRequest) (*kkOPS.CreateAppAuthStrategyResponse, error)
+		strategy kkComps.CreateAppAuthStrategyRequest, opts ...kkOPS.Option) (*kkOPS.CreateAppAuthStrategyResponse, error)
 	UpdateAppAuthStrategy(ctx context.Context, id string,
-		strategy kkComps.UpdateAppAuthStrategyRequest) (*kkOPS.UpdateAppAuthStrategyResponse, error)
-	DeleteAppAuthStrategy(ctx context.Context, id string) (*kkOPS.DeleteAppAuthStrategyResponse, error)
+		strategy kkComps.UpdateAppAuthStrategyRequest, opts ...kkOPS.Option) (*kkOPS.UpdateAppAuthStrategyResponse, error)
+	DeleteAppAuthStrategy(ctx context.Context, id string,
+		opts ...kkOPS.Option) (*kkOPS.DeleteAppAuthStrategyResponse, error)
 }
 
 // AppAuthStrategiesAPIImpl provides an implementation of the AppAuthStrategiesAPI interface
@@ -34,30 +36,30 @@ func (a *AppAuthStrategiesAPIImpl) ListAppAuthStrategies(ctx context.Context,
 
 // GetAppAuthStrategy implements the AppAuthStrategiesAPI interface
 func (a *AppAuthStrategiesAPIImpl) GetAppAuthStrategy(ctx context.Context,
-	id string,
+	id string, opts ...kkOPS.Option,
 ) (*kkOPS.GetAppAuthStrategyResponse, error) {
-	return a.SDK.AppAuthStrategies.GetAppAuthStrategy(ctx, id)
+	return a.SDK.AppAuthStrategies.GetAppAuthStrategy(ctx, id, opts...)
 }
 
 // CreateAppAuthStrategy implements the AppAuthStrategiesAPI interface
 func (a *AppAuthStrategiesAPIImpl) CreateAppAuthStrategy(ctx context.Context,
-	strategy kkComps.CreateAppAuthStrategyRequest,
+	strategy kkComps.CreateAppAuthStrategyRequest, opts ...kkOPS.Option,
 ) (*kkOPS.CreateAppAuthStrategyResponse, error) {
-	return a.SDK.AppAuthStrategies.CreateAppAuthStrategy(ctx, strategy)
+	return a.SDK.AppAuthStrategies.CreateAppAuthStrategy(ctx, strategy, opts...)
 }
 
 // UpdateAppAuthStrategy implements the AppAuthStrategiesAPI interface
 func (a *AppAuthStrategiesAPIImpl) UpdateAppAuthStrategy(ctx context.Context, id string,
-	strategy kkComps.UpdateAppAuthStrategyRequest,
+	strategy kkComps.UpdateAppAuthStrategyRequest, opts ...kkOPS.Option,
 ) (*kkOPS.UpdateAppAuthStrategyResponse, error) {
-	return a.SDK.AppAuthStrategies.UpdateAppAuthStrategy(ctx, id, strategy)
+	return a.SDK.AppAuthStrategies.UpdateAppAuthStrategy(ctx, id, strategy, opts...)
 }
 
 // DeleteAppAuthStrategy implements the AppAuthStrategiesAPI interface
 func (a *AppAuthStrategiesAPIImpl) DeleteAppAuthStrategy(ctx context.Context,
-	id string,
+	id string, opts ...kkOPS.Option,
 ) (*kkOPS.DeleteAppAuthStrategyResponse, error) {
-	return a.SDK.AppAuthStrategies.DeleteAppAuthStrategy(ctx, id)
+	return a.SDK.AppAuthStrategies.DeleteAppAuthStrategy(ctx, id, opts...)
 }
 
 // GetAllAppAuthStrategies fetches all app auth strategies with pagination

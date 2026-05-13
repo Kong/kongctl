@@ -37,6 +37,7 @@ type mockPortalAPI struct {
 func (m *mockPortalAPI) ListPortals(
 	ctx context.Context,
 	request kkOps.ListPortalsRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.ListPortalsResponse, error) {
 	if m.listPortalsFunc != nil {
 		return m.listPortalsFunc(ctx, request)
@@ -47,6 +48,7 @@ func (m *mockPortalAPI) ListPortals(
 func (m *mockPortalAPI) CreatePortal(
 	ctx context.Context,
 	portal kkComps.CreatePortal,
+	_ ...kkOps.Option,
 ) (*kkOps.CreatePortalResponse, error) {
 	if m.createPortalFunc != nil {
 		return m.createPortalFunc(ctx, portal)
@@ -58,6 +60,7 @@ func (m *mockPortalAPI) UpdatePortal(
 	ctx context.Context,
 	id string,
 	portal kkComps.UpdatePortal,
+	_ ...kkOps.Option,
 ) (*kkOps.UpdatePortalResponse, error) {
 	if m.updatePortalFunc != nil {
 		return m.updatePortalFunc(ctx, id, portal)
@@ -68,6 +71,7 @@ func (m *mockPortalAPI) UpdatePortal(
 func (m *mockPortalAPI) GetPortal(
 	ctx context.Context,
 	id string,
+	_ ...kkOps.Option,
 ) (*kkOps.GetPortalResponse, error) {
 	if m.getPortalFunc != nil {
 		return m.getPortalFunc(ctx, id)
@@ -79,6 +83,7 @@ func (m *mockPortalAPI) DeletePortal(
 	ctx context.Context,
 	id string,
 	force bool,
+	_ ...kkOps.Option,
 ) (*kkOps.DeletePortalResponse, error) {
 	if m.deletePortalFunc != nil {
 		return m.deletePortalFunc(ctx, id, force)
@@ -97,6 +102,7 @@ type mockOrganizationTeamAPI struct {
 func (m *mockOrganizationTeamAPI) ListOrganizationTeams(
 	ctx context.Context,
 	request kkOps.ListTeamsRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.ListTeamsResponse, error) {
 	if m.listOrganizationTeamsFunc != nil {
 		return m.listOrganizationTeamsFunc(ctx, request)
@@ -104,7 +110,7 @@ func (m *mockOrganizationTeamAPI) ListOrganizationTeams(
 	return nil, fmt.Errorf("ListOrganizationTeams not implemented")
 }
 
-func (m *mockOrganizationTeamAPI) GetOrganizationTeam(ctx context.Context, id string) (*kkOps.GetTeamResponse, error) {
+func (m *mockOrganizationTeamAPI) GetOrganizationTeam(ctx context.Context, id string, _ ...kkOps.Option) (*kkOps.GetTeamResponse, error) {
 	if m.getOrganizationTeamFunc != nil {
 		return m.getOrganizationTeamFunc(ctx, id)
 	}
@@ -114,6 +120,7 @@ func (m *mockOrganizationTeamAPI) GetOrganizationTeam(ctx context.Context, id st
 func (m *mockOrganizationTeamAPI) CreateOrganizationTeam(
 	ctx context.Context,
 	team *kkComps.CreateTeam,
+	_ ...kkOps.Option,
 ) (*kkOps.CreateTeamResponse, error) {
 	if m.createOrganizationTeamFunc != nil {
 		return m.createOrganizationTeamFunc(ctx, team)
@@ -125,6 +132,7 @@ func (m *mockOrganizationTeamAPI) UpdateOrganizationTeam(
 	ctx context.Context,
 	id string,
 	team *kkComps.UpdateTeam,
+	_ ...kkOps.Option,
 ) (*kkOps.UpdateTeamResponse, error) {
 	if m.updateOrganizationTeamFunc != nil {
 		return m.updateOrganizationTeamFunc(ctx, id, team)
@@ -135,6 +143,7 @@ func (m *mockOrganizationTeamAPI) UpdateOrganizationTeam(
 func (m *mockOrganizationTeamAPI) DeleteOrganizationTeam(
 	ctx context.Context,
 	id string,
+	_ ...kkOps.Option,
 ) (*kkOps.DeleteTeamResponse, error) {
 	if m.deleteOrganizationTeamFunc != nil {
 		return m.deleteOrganizationTeamFunc(ctx, id)
