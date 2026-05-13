@@ -33,5 +33,4 @@ portals:
         description: Developers mapped from IdP groups
         group_mappings:
           - ref: portal-developers-idp-groups
-            groups:
-              - Portal Developers
+            groups: []

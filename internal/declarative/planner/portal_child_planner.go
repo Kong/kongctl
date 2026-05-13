@@ -162,6 +162,10 @@ func (p *Planner) planPortalAuthSettingsUpdateWithFields(
 			}
 		}
 	}
+	if value, ok := fields[FieldIDPMappingEnabled].(bool); ok && value {
+		dependencies = append(dependencies, findEnabledPortalIdentityProviderDependencies(plan, settings.Portal)...)
+	}
+	dependencies = compactStrings(dependencies)
 
 	change := PlannedChange{
 		ID:            p.nextChangeID(ActionUpdate, ResourceTypePortalAuthSettings, settings.Ref),
@@ -4225,6 +4229,296 @@ func (p *Planner) planPortalTeamCreate(
 			slog.String("team_ref", team.GetRef()),
 			slog.String("portal_ref", team.Portal))
 	}
+}
+
+// Portal Team Group Mapping planning
+
+func (p *Planner) planPortalTeamGroupMappingsChanges(
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	desired []resources.PortalTeamGroupMappingResource,
+	plan *Plan,
+) error {
+	if len(desired) == 0 {
+		return nil
+	}
+
+	existingTeamsByName := make(map[string]state.PortalTeam)
+	if portalID != "" {
+		teams, err := p.listPortalTeams(ctx, portalID)
+		if err != nil {
+			return fmt.Errorf("failed to list existing portal teams for portal %s: %w", portalID, err)
+		}
+		for _, team := range teams {
+			existingTeamsByName[team.Name] = team
+		}
+	}
+
+	existingMappings := make(map[string]state.PortalTeamGroupMapping)
+	if portalID != "" {
+		mappings, err := p.listPortalTeamGroupMappings(ctx, portalID)
+		if err != nil {
+			if state.IsAPIClientError(err) {
+				return nil
+			}
+			p.logger.Debug("Unable to verify portal team group mappings; planning updates",
+				slog.String("portal_ref", portalRef),
+				slog.Any("error", err))
+		}
+		for _, mapping := range mappings {
+			existingMappings[mapping.TeamID] = mapping
+		}
+	}
+
+	for _, mapping := range desired {
+		if plan.HasChange(ResourceTypePortalTeamGroupMapping, mapping.GetRef()) {
+			continue
+		}
+
+		teamID, teamName := p.resolvePortalTeamForMapping(mapping, portalRef, existingTeamsByName)
+		current, hasCurrent := existingMappings[teamID]
+		if teamID == "" {
+			hasCurrent = false
+		}
+
+		if hasCurrent && sameStringSet(current.Groups, mapping.Groups) {
+			continue
+		}
+
+		changedFields := map[string]FieldChange{
+			FieldGroups: {
+				Old: nil,
+				New: cloneStringSlicePreserveEmpty(mapping.Groups),
+			},
+		}
+		if hasCurrent {
+			changedFields[FieldGroups] = FieldChange{
+				Old: cloneStringSlicePreserveEmpty(current.Groups),
+				New: cloneStringSlicePreserveEmpty(mapping.Groups),
+			}
+		}
+
+		p.planPortalTeamGroupMappingUpdate(
+			ctx,
+			parentNamespace,
+			portalID,
+			portalRef,
+			teamID,
+			teamName,
+			mapping,
+			changedFields,
+			plan,
+		)
+	}
+
+	return nil
+}
+
+func (p *Planner) resolvePortalTeamForMapping(
+	mapping resources.PortalTeamGroupMappingResource,
+	portalRef string,
+	existingTeamsByName map[string]state.PortalTeam,
+) (string, string) {
+	for _, team := range p.desiredPortalTeams {
+		if team.Portal == portalRef && team.Ref == mapping.Team {
+			if existing, ok := existingTeamsByName[team.Name]; ok {
+				return existing.ID, team.Name
+			}
+			return "", team.Name
+		}
+	}
+	if existing, ok := existingTeamsByName[mapping.Team]; ok {
+		return existing.ID, existing.Name
+	}
+	return "", mapping.Team
+}
+
+func (p *Planner) planPortalTeamGroupMappingUpdate(
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	teamID string,
+	teamName string,
+	mapping resources.PortalTeamGroupMappingResource,
+	changedFields map[string]FieldChange,
+	plan *Plan,
+) {
+	fields := map[string]any{
+		FieldGroups: cloneStringSlicePreserveEmpty(mapping.Groups),
+	}
+	if teamID != "" {
+		fields[FieldTeamID] = teamID
+	}
+
+	dependencies := findPortalTeamGroupMappingDependencies(plan, portalRef, mapping.Team)
+	references := make(map[string]ReferenceInfo)
+	if portalRef != "" {
+		references[FieldPortalID] = ReferenceInfo{
+			Ref:          portalRef,
+			ID:           portalID,
+			LookupFields: map[string]string{FieldName: p.portalLookupName(portalRef)},
+		}
+	}
+	references[FieldTeamID] = ReferenceInfo{
+		Ref:          mapping.Team,
+		ID:           teamID,
+		LookupFields: map[string]string{FieldName: teamName},
+	}
+
+	change := PlannedChange{
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypePortalTeamGroupMapping, mapping.GetRef()),
+		ResourceType:  ResourceTypePortalTeamGroupMapping,
+		ResourceRef:   mapping.GetRef(),
+		ResourceID:    teamID,
+		Action:        ActionUpdate,
+		Fields:        fields,
+		ChangedFields: changedFields,
+		References:    references,
+		DependsOn:     dependencies,
+		Namespace:     parentNamespace,
+	}
+	if portalRef != "" {
+		change.Parent = &ParentInfo{Ref: portalRef, ID: portalID}
+	}
+
+	plan.AddChange(change)
+	p.addPortalTeamGroupMappingIDPWarning(ctx, portalID, portalRef, change.ID, plan)
+}
+
+func findPortalTeamGroupMappingDependencies(plan *Plan, portalRef string, teamRef string) []string {
+	var dependencies []string
+	if portalRef != "" {
+		dependencies = append(dependencies, findChangeID(plan, ResourceTypePortal, portalRef))
+	}
+	dependencies = append(dependencies, findChangeID(plan, ResourceTypePortalTeam, teamRef))
+	for _, change := range plan.Changes {
+		switch change.ResourceType {
+		case ResourceTypePortalIdentityProvider:
+		case ResourceTypePortalAuthSettings:
+		default:
+			continue
+		}
+		if change.Parent != nil && change.Parent.Ref == portalRef {
+			dependencies = append(dependencies, change.ID)
+			continue
+		}
+		if ref, ok := change.References[FieldPortalID]; ok && ref.Ref == portalRef {
+			dependencies = append(dependencies, change.ID)
+		}
+	}
+	return compactStrings(dependencies)
+}
+
+func findEnabledPortalIdentityProviderDependencies(plan *Plan, portalRef string) []string {
+	var dependencies []string
+	for _, change := range plan.Changes {
+		if change.ResourceType != ResourceTypePortalIdentityProvider {
+			continue
+		}
+		enabled, ok := change.Fields[FieldEnabled].(bool)
+		if !ok || !enabled {
+			continue
+		}
+		if providerType, ok := change.Fields[FieldType].(string); ok &&
+			providerType != string(kkComps.IdentityProviderTypeOidc) &&
+			providerType != string(kkComps.IdentityProviderTypeSaml) {
+			continue
+		}
+		if change.Parent != nil && change.Parent.Ref == portalRef {
+			dependencies = append(dependencies, change.ID)
+			continue
+		}
+		if ref, ok := change.References[FieldPortalID]; ok && ref.Ref == portalRef {
+			dependencies = append(dependencies, change.ID)
+		}
+	}
+	return compactStrings(dependencies)
+}
+
+func (p *Planner) addPortalTeamGroupMappingIDPWarning(
+	ctx context.Context,
+	portalID string,
+	portalRef string,
+	changeID string,
+	plan *Plan,
+) {
+	for _, provider := range p.desiredPortalIdentityProviders {
+		if provider.Portal != portalRef || provider.Enabled == nil || !*provider.Enabled || provider.Type == nil {
+			continue
+		}
+		if *provider.Type == kkComps.IdentityProviderTypeOidc || *provider.Type == kkComps.IdentityProviderTypeSaml {
+			return
+		}
+	}
+
+	if portalID != "" {
+		providers, err := p.listPortalIdentityProviders(ctx, portalID)
+		if err == nil {
+			for _, provider := range providers {
+				if provider.Enabled == nil || !*provider.Enabled {
+					continue
+				}
+				if provider.Type == kkComps.IdentityProviderTypeOidc || provider.Type == kkComps.IdentityProviderTypeSaml {
+					return
+				}
+			}
+		}
+	}
+
+	plan.AddWarning(
+		changeID,
+		fmt.Sprintf(
+			"portal_team_group_mapping for portal %q may be rejected by Konnect unless an OIDC or SAML "+
+				"identity provider is configured and enabled",
+			portalRef,
+		),
+	)
+}
+
+func (p *Planner) portalLookupName(portalRef string) string {
+	for _, portal := range p.desiredPortals {
+		if portal.Ref == portalRef {
+			return portal.Name
+		}
+	}
+	return portalRef
+}
+
+func sameStringSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	left := append([]string(nil), a...)
+	right := append([]string(nil), b...)
+	slices.Sort(left)
+	slices.Sort(right)
+	return slices.Equal(left, right)
+}
+
+func cloneStringSlicePreserveEmpty(values []string) []string {
+	if values == nil {
+		return nil
+	}
+	return append([]string{}, values...)
+}
+
+func compactStrings(values []string) []string {
+	compacted := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		compacted = append(compacted, value)
+	}
+	return compacted
 }
 
 func (p *Planner) shouldUpdatePortalTeam(

@@ -2738,6 +2738,82 @@ func (c *Client) UpdatePortalAuthSettings(
 	return nil
 }
 
+// ListPortalTeamGroupMappings returns all team group mappings for a portal.
+func (c *Client) ListPortalTeamGroupMappings(ctx context.Context, portalID string) ([]PortalTeamGroupMapping, error) {
+	if err := ValidateAPIClient(c.portalAuthSettingsAPI, "portal auth settings API"); err != nil {
+		return nil, err
+	}
+
+	var allMappings []PortalTeamGroupMapping
+	var pageNumber int64 = 1
+	pageSize := int64(100)
+
+	for {
+		resp, err := c.portalAuthSettingsAPI.ListPortalTeamGroupMappings(ctx, kkOps.ListPortalTeamGroupMappingsRequest{
+			PortalID:   portalID,
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list portal team group mappings", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalTeamGroupMapping),
+				ResourceName: portalID,
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.PortalTeamGroupMappingResponse == nil {
+			return allMappings, nil
+		}
+
+		for _, item := range resp.PortalTeamGroupMappingResponse.Data {
+			teamID := ""
+			if item.TeamID != nil {
+				teamID = *item.TeamID
+			}
+			allMappings = append(allMappings, PortalTeamGroupMapping{
+				TeamID: teamID,
+				Groups: append([]string(nil), item.Groups...),
+			})
+		}
+
+		meta := resp.PortalTeamGroupMappingResponse.Meta
+		if meta == nil || meta.Page.Total <= float64(pageSize*pageNumber) {
+			break
+		}
+		pageNumber++
+	}
+
+	return allMappings, nil
+}
+
+// UpdatePortalTeamGroupMapping replaces one team's IdP group list.
+func (c *Client) UpdatePortalTeamGroupMapping(
+	ctx context.Context,
+	portalID string,
+	teamID string,
+	groups []string,
+) error {
+	if err := ValidateAPIClient(c.portalAuthSettingsAPI, "portal auth settings API"); err != nil {
+		return err
+	}
+
+	req := kkComps.PortalTeamGroupMappingsUpdateRequest{
+		Data: []kkComps.PortalTeamGroupMappingsUpdateRequestData{{
+			TeamID: &teamID,
+			Groups: groups,
+		}},
+	}
+
+	if _, err := c.portalAuthSettingsAPI.UpdatePortalTeamGroupMappings(ctx, portalID, &req); err != nil {
+		return WrapAPIError(err, "update portal team group mappings", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalTeamGroupMapping),
+			ResourceName: teamID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
 // ValidatePortalIPAllowListAPI returns an error if the portal IP allow list API is not configured.
 func (c *Client) ValidatePortalIPAllowListAPI() error {
 	if c == nil {

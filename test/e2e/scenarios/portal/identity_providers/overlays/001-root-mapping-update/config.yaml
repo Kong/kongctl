@@ -31,7 +31,11 @@ portals:
       - ref: portal-developers
         name: Portal Developers
         description: Developers mapped from IdP groups
-        group_mappings:
-          - ref: portal-developers-idp-groups
-            groups:
-              - Portal Developers
+
+portal_team_group_mappings:
+  - ref: portal-developers-idp-groups
+    portal: portal-idp
+    team: portal-developers
+    groups:
+      - Portal Developers
+      - Platform Developers

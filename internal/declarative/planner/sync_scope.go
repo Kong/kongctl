@@ -109,6 +109,9 @@ func addPortalChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet)
 	for _, child := range rs.PortalIdentityProviders {
 		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalIdentityProvider)
 	}
+	for _, child := range rs.PortalTeamGroupMappings {
+		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeamGroupMapping)
+	}
 	for _, child := range rs.PortalCustomDomains {
 		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalCustomDomain)
 	}

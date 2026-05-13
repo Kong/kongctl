@@ -7,6 +7,9 @@ portals:
     name: portal-idp-example
     display_name: Portal Identity Provider Example
     description: Portal OIDC identity provider values loaded from !env
+    auth_settings:
+      ref: portal-idp-auth-settings
+      idp_mapping_enabled: true
     identity_providers:
       - ref: portal-oidc
         type: oidc
@@ -22,3 +25,10 @@ portals:
             name: name
             email: email
             groups: groups
+    teams:
+      - ref: service-developers
+        name: Service Developers
+        group_mappings:
+          - ref: service-developers-idp-groups
+            groups:
+              - Service Developer

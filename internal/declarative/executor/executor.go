@@ -103,12 +103,13 @@ type Executor struct {
 	portalIPAllowListExecutor *BaseExecutor[
 		kkComps.CreatePortalSourceIPRestriction,
 		kkComps.UpdatePortalSourceIPRestriction]
-	portalPageExecutor            *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
-	portalSnippetExecutor         *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
-	portalTeamExecutor            *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
-	portalTeamRoleExecutor        *BaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest]
-	portalEmailConfigExecutor     *BaseExecutor[kkComps.PostPortalEmailConfig, kkComps.PatchPortalEmailConfig]
-	portalAuditLogWebhookExecutor *BaseExecutor[
+	portalPageExecutor             *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
+	portalSnippetExecutor          *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
+	portalTeamExecutor             *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
+	portalTeamGroupMappingExecutor *PortalTeamGroupMappingExecutor
+	portalTeamRoleExecutor         *BaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest]
+	portalEmailConfigExecutor      *BaseExecutor[kkComps.PostPortalEmailConfig, kkComps.PatchPortalEmailConfig]
+	portalAuditLogWebhookExecutor  *BaseExecutor[
 		kkComps.UpdatePortalAuditLogWebhook,
 		kkComps.UpdatePortalAuditLogWebhook]
 	portalEmailTemplateExecutor *BaseExecutor[kkOps.UpdatePortalCustomEmailTemplateRequest,
@@ -397,6 +398,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		client,
 		dryRun,
 	)
+	e.portalTeamGroupMappingExecutor = NewPortalTeamGroupMappingExecutor(client, dryRun)
 	e.portalTeamRoleExecutor = NewBaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest](
 		NewPortalTeamRoleAdapter(client),
 		client,
@@ -963,7 +965,8 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			change.ResourceType != planner.ResourceTypePortalAuthSettings &&
 			change.ResourceType != planner.ResourceTypePortalIntegration &&
 			change.ResourceType != planner.ResourceTypePortalAssetLogo &&
-			change.ResourceType != planner.ResourceTypePortalAssetFavicon {
+			change.ResourceType != planner.ResourceTypePortalAssetFavicon &&
+			change.ResourceType != planner.ResourceTypePortalTeamGroupMapping {
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
 
@@ -2844,6 +2847,33 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalTeamExecutor.Update(ctx, *change)
+	case planner.ResourceTypePortalTeamGroupMapping:
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References[planner.FieldPortalID] = portalRef
+		}
+		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
+			portalID := ""
+			if portalInfo, exists := change.References[planner.FieldPortalID]; exists {
+				portalID = portalInfo.ID
+			}
+			if portalID == "" && change.Parent != nil {
+				portalID = change.Parent.ID
+			}
+			teamID, err := e.resolvePortalTeamRef(ctx, portalID, teamRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References[planner.FieldTeamID] = teamRef
+			change.Fields[planner.FieldTeamID] = teamID
+			change.ResourceID = teamID
+		}
+		return e.portalTeamGroupMappingExecutor.Update(ctx, *change)
 	case planner.ResourceTypeAPIVersion:
 		// First resolve API reference if needed
 		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {

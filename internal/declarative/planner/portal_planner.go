@@ -820,21 +820,6 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 		}
 	}
 
-	// Plan auth settings
-	settings := make([]resources.PortalAuthSettingsResource, 0)
-	for _, auth := range planner.desiredPortalAuthSettings {
-		if auth.Portal == desired.Ref {
-			settings = append(settings, auth)
-		}
-	}
-	if childInScope(resources.ResourceTypePortalAuthSettings) {
-		if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, settings, plan); err != nil {
-			planner.logger.Debug("Failed to plan portal auth settings for new portal",
-				"portal", desired.Ref,
-				"error", err.Error())
-		}
-	}
-
 	// Plan IP allow list
 	allowLists := make([]resources.PortalIPAllowListResource, 0)
 	for _, allowList := range planner.desiredPortalIPAllowLists {
@@ -884,6 +869,21 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			plan,
 		); err != nil {
 			planner.logger.Debug("Failed to plan portal identity providers for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
+	}
+
+	// Plan auth settings after identity providers so idp_mapping_enabled can depend on provider enablement.
+	settings := make([]resources.PortalAuthSettingsResource, 0)
+	for _, auth := range planner.desiredPortalAuthSettings {
+		if auth.Portal == desired.Ref {
+			settings = append(settings, auth)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalAuthSettings) {
+		if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, settings, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal auth settings for new portal",
 				"portal", desired.Ref,
 				"error", err.Error())
 		}
@@ -967,6 +967,22 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 	if childInScope(resources.ResourceTypePortalTeam) {
 		if err := planner.planPortalTeamsChanges(ctx, parentNamespace, "", desired.Ref, teams, plan); err != nil {
 			planner.logger.Debug("Failed to plan portal teams for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
+	}
+
+	mappings := make([]resources.PortalTeamGroupMappingResource, 0)
+	for _, mapping := range planner.desiredPortalTeamGroupMappings {
+		if mapping.Portal == desired.Ref {
+			mappings = append(mappings, mapping)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalTeamGroupMapping) {
+		if err := planner.planPortalTeamGroupMappingsChanges(
+			ctx, parentNamespace, "", desired.Ref, mappings, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal team group mappings for new portal",
 				"portal", desired.Ref,
 				"error", err.Error())
 		}
@@ -1108,19 +1124,6 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 		}
 	}
 
-	// Plan auth settings (singleton)
-	authSettings := make([]resources.PortalAuthSettingsResource, 0)
-	for _, auth := range planner.desiredPortalAuthSettings {
-		if auth.Portal == desired.Ref {
-			authSettings = append(authSettings, auth)
-		}
-	}
-	if childInScope(resources.ResourceTypePortalAuthSettings) {
-		if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, authSettings, plan); err != nil {
-			return fmt.Errorf("failed to plan portal auth settings changes: %w", err)
-		}
-	}
-
 	// Plan IP allow list (singleton)
 	allowLists := make([]resources.PortalIPAllowListResource, 0)
 	for _, allowList := range planner.desiredPortalIPAllowLists {
@@ -1168,6 +1171,19 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			plan,
 		); err != nil {
 			return fmt.Errorf("failed to plan portal identity provider changes: %w", err)
+		}
+	}
+
+	// Plan auth settings after identity providers so idp_mapping_enabled can depend on provider enablement.
+	authSettings := make([]resources.PortalAuthSettingsResource, 0)
+	for _, auth := range planner.desiredPortalAuthSettings {
+		if auth.Portal == desired.Ref {
+			authSettings = append(authSettings, auth)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalAuthSettings) {
+		if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, authSettings, plan); err != nil {
+			return fmt.Errorf("failed to plan portal auth settings changes: %w", err)
 		}
 	}
 
@@ -1243,6 +1259,20 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, teams, plan,
 		); err != nil {
 			return fmt.Errorf("failed to plan portal team changes: %w", err)
+		}
+	}
+
+	mappings := make([]resources.PortalTeamGroupMappingResource, 0)
+	for _, mapping := range planner.desiredPortalTeamGroupMappings {
+		if mapping.Portal == desired.Ref {
+			mappings = append(mappings, mapping)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalTeamGroupMapping) {
+		if err := planner.planPortalTeamGroupMappingsChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, mappings, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal team group mapping changes: %w", err)
 		}
 	}
 
