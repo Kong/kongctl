@@ -322,7 +322,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			}
 		}
 
-		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeDashboard) {
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeDashboard) {
 			if err := namespacePlanner.dashboardPlanner.PlanChanges(
 				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dashboardPlanner), ""),
 				plannerCtx,
