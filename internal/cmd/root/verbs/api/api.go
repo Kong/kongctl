@@ -397,6 +397,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		bodyToRender = filtered
 	}
 
+	//exhaustive:ignore // HELM is not supported by this command; falls through to error.
 	switch outType {
 	case cmdcommon.TEXT:
 		return &cmd.ConfigurationError{

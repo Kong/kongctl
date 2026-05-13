@@ -223,6 +223,7 @@ func fetchCatalogService(
 }
 
 func renderCatalogServices(format cmdCommon.OutputFormat, services []kkComps.CatalogService, out io.Writer) error {
+	//exhaustive:ignore // HELM is not supported by this command; default branch handles it.
 	switch format {
 	case cmdCommon.JSON:
 		enc := json.NewEncoder(out)
@@ -253,6 +254,7 @@ func renderCatalogServices(format cmdCommon.OutputFormat, services []kkComps.Cat
 }
 
 func renderCatalogService(format cmdCommon.OutputFormat, svc kkComps.CatalogService, out io.Writer) error {
+	//exhaustive:ignore // HELM is not supported by this command; default branch handles it.
 	switch format {
 	case cmdCommon.JSON:
 		enc := json.NewEncoder(out)

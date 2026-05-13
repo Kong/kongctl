@@ -77,6 +77,7 @@ func (o Output) Render(display any, raw ...any) error {
 	}
 	defer printer.Flush()
 
+	//exhaustive:ignore // HELM is not supported by the generic SDK output; default branch handles it.
 	switch outType {
 	case cmdcommon.TEXT:
 		printer.Print(display)

@@ -1032,6 +1032,7 @@ func writeCommandResult(helper cmdpkg.Helper, value any, writeText func() error)
 			return err
 		}
 	}
+	//exhaustive:ignore // HELM is not supported by this command; default branch handles it.
 	switch format {
 	case cmdcommon.JSON:
 		encoder := json.NewEncoder(helper.GetStreams().Out)
