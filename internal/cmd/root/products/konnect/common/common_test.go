@@ -227,11 +227,11 @@ func TestResolveRetryConfig(t *testing.T) {
 
 	t.Run("explicit values", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
-			cmdcommon.HTTPRetryMaxAttemptsConfigPath:        "3",
-			cmdcommon.HTTPRetryInitialIntervalConfigPath:    "200",
-			cmdcommon.HTTPRetryMaxIntervalConfigPath:        "5000",
-			cmdcommon.HTTPRetryBackoffFactorConfigPath:      "1.5",
-			cmdcommon.HTTPRetryOnConnectionErrorsConfigPath: "true",
+			HTTPRetryMaxAttemptsConfigPath:        "3",
+			HTTPRetryInitialIntervalConfigPath:    "200",
+			HTTPRetryMaxIntervalConfigPath:        "5000",
+			HTTPRetryBackoffFactorConfigPath:      "1.5",
+			HTTPRetryOnConnectionErrorsConfigPath: "true",
 		})
 
 		rc, err := ResolveRetryConfig(cfg)
@@ -246,7 +246,7 @@ func TestResolveRetryConfig(t *testing.T) {
 
 	t.Run("Max attempts = 1 disables retries", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
-			cmdcommon.HTTPRetryMaxAttemptsConfigPath: "1",
+			HTTPRetryMaxAttemptsConfigPath: "1",
 		})
 
 		rc, err := ResolveRetryConfig(cfg)
@@ -257,7 +257,7 @@ func TestResolveRetryConfig(t *testing.T) {
 
 	t.Run("invalid max attempts returns error", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
-			cmdcommon.HTTPRetryMaxAttemptsConfigPath: "banana",
+			HTTPRetryMaxAttemptsConfigPath: "banana",
 		})
 
 		_, err := ResolveRetryConfig(cfg)
@@ -266,7 +266,7 @@ func TestResolveRetryConfig(t *testing.T) {
 
 	t.Run("negative max attempts returns error", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
-			cmdcommon.HTTPRetryMaxAttemptsConfigPath: "-1",
+			HTTPRetryMaxAttemptsConfigPath: "-1",
 		})
 
 		_, err := ResolveRetryConfig(cfg)
@@ -275,7 +275,7 @@ func TestResolveRetryConfig(t *testing.T) {
 
 	t.Run("invalid initial interval returns error", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
-			cmdcommon.HTTPRetryInitialIntervalConfigPath: "banana",
+			HTTPRetryInitialIntervalConfigPath: "banana",
 		})
 
 		_, err := ResolveRetryConfig(cfg)
@@ -284,11 +284,21 @@ func TestResolveRetryConfig(t *testing.T) {
 
 	t.Run("invalid backoff factor returns error", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
-			cmdcommon.HTTPRetryBackoffFactorConfigPath: "not-a-number",
+			HTTPRetryBackoffFactorConfigPath: "not-a-number",
 		})
 
 		_, err := ResolveRetryConfig(cfg)
 		require.Error(t, err)
+	})
+
+	t.Run("legacy top-level values are ignored", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPRetryMaxAttemptsConfigPath: "3",
+		})
+
+		rc, err := ResolveRetryConfig(cfg)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.DefaultRetryMaxAttempts, rc.MaxAttempts)
 	})
 }
 

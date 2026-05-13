@@ -53,7 +53,12 @@ func (p *portalPaginationStub) UpdatePortal(
 	return nil, nil
 }
 
-func (p *portalPaginationStub) DeletePortal(context.Context, string, bool, ...kkOps.Option) (*kkOps.DeletePortalResponse, error) {
+func (p *portalPaginationStub) DeletePortal(
+	context.Context,
+	string,
+	bool,
+	...kkOps.Option,
+) (*kkOps.DeletePortalResponse, error) {
 	p.t.Fatalf("unexpected DeletePortal call")
 	return nil, nil
 }

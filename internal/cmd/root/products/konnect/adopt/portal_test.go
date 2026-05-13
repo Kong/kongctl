@@ -19,7 +19,11 @@ type portalAPIStub struct {
 	updateCalls   int
 }
 
-func (p *portalAPIStub) ListPortals(context.Context, kkOps.ListPortalsRequest, ...kkOps.Option) (*kkOps.ListPortalsResponse, error) {
+func (p *portalAPIStub) ListPortals(
+	context.Context,
+	kkOps.ListPortalsRequest,
+	...kkOps.Option,
+) (*kkOps.ListPortalsResponse, error) {
 	return nil, nil
 }
 
@@ -33,7 +37,11 @@ func (p *portalAPIStub) GetPortal(_ context.Context, id string, _ ...kkOps.Optio
 	return resp, nil
 }
 
-func (p *portalAPIStub) CreatePortal(context.Context, kkComps.CreatePortal, ...kkOps.Option) (*kkOps.CreatePortalResponse, error) {
+func (p *portalAPIStub) CreatePortal(
+	context.Context,
+	kkComps.CreatePortal,
+	...kkOps.Option,
+) (*kkOps.CreatePortalResponse, error) {
 	p.t.Fatalf("unexpected CreatePortal call")
 	return nil, nil
 }
@@ -69,7 +77,12 @@ func (p *portalAPIStub) UpdatePortal(
 	return resp, nil
 }
 
-func (p *portalAPIStub) DeletePortal(context.Context, string, bool, ...kkOps.Option) (*kkOps.DeletePortalResponse, error) {
+func (p *portalAPIStub) DeletePortal(
+	context.Context,
+	string,
+	bool,
+	...kkOps.Option,
+) (*kkOps.DeletePortalResponse, error) {
 	p.t.Fatalf("unexpected DeletePortal call")
 	return nil, nil
 }

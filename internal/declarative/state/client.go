@@ -832,7 +832,12 @@ func (c *Client) UpsertControlPlaneGroupMemberships(ctx context.Context, groupID
 		Members: members,
 	}
 
-	if _, err := c.controlPlaneGroupsAPI.PutControlPlanesIDGroupMemberships(ctx, groupID, &req, c.retryOpts...); err != nil {
+	if _, err := c.controlPlaneGroupsAPI.PutControlPlanesIDGroupMemberships(
+		ctx,
+		groupID,
+		&req,
+		c.retryOpts...,
+	); err != nil {
 		return WrapAPIError(err, "upsert control plane group memberships", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeControlPlaneGroup),
 			ResourceName: groupID,
@@ -3208,7 +3213,12 @@ func (c *Client) UpsertPortalIntegrations(
 		)
 	}
 
-	if _, err := c.portalIntegrationsAPI.UpsertPortalIntegrations(ctx, portalID, &integrations, c.retryOpts...); err != nil {
+	if _, err := c.portalIntegrationsAPI.UpsertPortalIntegrations(
+		ctx,
+		portalID,
+		&integrations,
+		c.retryOpts...,
+	); err != nil {
 		return WrapAPIError(err, "upsert portal integrations", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalIntegration),
 			ResourceName: portalID,
