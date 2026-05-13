@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd/common"
@@ -114,7 +115,13 @@ func (r *CommandHelper) GetOutputFormat() (common.OutputFormat, error) {
 	if e != nil {
 		return common.TEXT, e
 	}
-	s := c.GetString(common.OutputConfigPath)
+	s := strings.TrimSpace(c.GetString(common.OutputConfigPath))
+	if s == "" {
+		s = common.DefaultOutputFormat
+	}
+	if err := common.ValidateOutputFormat(r.Cmd, s); err != nil {
+		return common.TEXT, err
+	}
 	rv, e := common.OutputFormatStringToIota(s)
 	if e != nil {
 		return common.TEXT, e
