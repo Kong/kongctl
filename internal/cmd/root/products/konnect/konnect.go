@@ -37,8 +37,8 @@ var (
 	konnectLong  = normalizers.LongDesc(i18n.T("root.products.konnect.konnectLong",
 		`The konnect command allows you to manage Kong Konnect resources.`))
 	konnectExamples = normalizers.Examples(i18n.T("root.products.konnect.konnectExamples",
-		fmt.Sprintf(`# Retrieve the Konnect Kong Gateway control planes from the current organization
-		 %[1]s get konnect gateway control-planes`, meta.CLIName)))
+		fmt.Sprintf(`# Apply configuration from a file
+		 %[1]s apply -f config.yaml`, meta.CLIName)))
 )
 
 func addFlags(verb verbs.VerbValue, cmd *cobra.Command) {
