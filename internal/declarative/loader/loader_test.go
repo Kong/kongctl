@@ -16,6 +16,65 @@ func TestNew(t *testing.T) {
 	assert.NotNil(t, loader)
 }
 
+func TestLoaderPortalTeamGroupMappingsNestedAndRoot(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+portals:
+  - ref: portal-1
+    name: Portal 1
+    teams:
+      - ref: developers
+        name: Developers
+        group_mappings:
+          - ref: developers-idp-groups
+            groups:
+              - Service Developer
+portal_team_group_mappings:
+  - ref: admins-idp-groups
+    portal: portal-1
+    team: admins
+    groups: []
+`), 0o600)
+	require.NoError(t, err)
+
+	rs, err := New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, rs.PortalTeamGroupMappings, 2)
+
+	byRef := map[string]resources.PortalTeamGroupMappingResource{}
+	for _, mapping := range rs.PortalTeamGroupMappings {
+		byRef[mapping.Ref] = mapping
+	}
+
+	assert.Equal(t, "portal-1", byRef["developers-idp-groups"].Portal)
+	assert.Equal(t, "developers", byRef["developers-idp-groups"].Team)
+	assert.Equal(t, []string{"Service Developer"}, byRef["developers-idp-groups"].Groups)
+	assert.Equal(t, "portal-1", byRef["admins-idp-groups"].Portal)
+	assert.Equal(t, "admins", byRef["admins-idp-groups"].Team)
+	assert.Empty(t, byRef["admins-idp-groups"].Groups)
+}
+
+func TestLoaderPortalTeamGroupMappingsPortalLevelNestedRejected(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+portals:
+  - ref: portal-1
+    name: Portal 1
+    team_group_mappings:
+      - ref: developers-idp-groups
+        team: developers
+        groups:
+          - Service Developer
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field 'team_group_mappings'")
+}
+
 func TestLoader_LoadFile_ValidConfigs(t *testing.T) {
 	tests := []struct {
 		name                  string

@@ -91,6 +91,12 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
+		key:          "portal_team_group_mappings",
+		resourceType: resources.ResourceTypePortalTeamGroupMapping,
+		parentKey:    "portal",
+		parentType:   resources.ResourceTypePortal,
+	},
+	{
 		key:          "portal_custom_domains",
 		resourceType: resources.ResourceTypePortalCustomDomain,
 		parentKey:    "portal",
@@ -466,6 +472,13 @@ func captureNestedPortalScopes(scope *resources.SyncScope, raw map[string]any) e
 					// Team role declarations are nested under teams, so a teams
 					// key scopes both the teams and their role assignments.
 					scope.AddChild(resources.ResourceTypePortal, portalRef, resources.ResourceTypePortalTeamRole)
+					if portalTeamsIncludeGroupMappings(portal[child.key]) {
+						scope.AddChild(
+							resources.ResourceTypePortal,
+							portalRef,
+							resources.ResourceTypePortalTeamGroupMapping,
+						)
+					}
 				}
 			}
 		}
@@ -501,6 +514,23 @@ func captureNestedPortalScopes(scope *resources.SyncScope, raw map[string]any) e
 		}
 	}
 	return nil
+}
+
+func portalTeamsIncludeGroupMappings(value any) bool {
+	teams, ok := asSlice(value)
+	if !ok {
+		return false
+	}
+	for _, item := range teams {
+		team, ok := asMap(item)
+		if !ok {
+			continue
+		}
+		if _, ok := team["group_mappings"]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func captureNestedEventGatewayScopes(scope *resources.SyncScope, raw map[string]any) {

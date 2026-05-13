@@ -136,6 +136,7 @@ const (
 	FieldLayout                       = "layout"
 	FieldLoginPath                    = "login_path"
 	FieldMenu                         = "menu"
+	FieldGroups                       = "groups"
 	FieldNPA                          = "npa"
 	FieldPreview                      = "preview"
 	FieldReplyToEmail                 = "reply_to_email"
@@ -192,6 +193,7 @@ const (
 	ResourceTypePortalIPAllowList          = string(resources.ResourceTypePortalIPAllowList)
 	ResourceTypePortalIntegration          = string(resources.ResourceTypePortalIntegration)
 	ResourceTypePortalIdentityProvider     = string(resources.ResourceTypePortalIdentityProvider)
+	ResourceTypePortalTeamGroupMapping     = string(resources.ResourceTypePortalTeamGroupMapping)
 	ResourceTypePortalPage                 = string(resources.ResourceTypePortalPage)
 	ResourceTypePortalSnippet              = string(resources.ResourceTypePortalSnippet)
 	ResourceTypePortalTeam                 = string(resources.ResourceTypePortalTeam)

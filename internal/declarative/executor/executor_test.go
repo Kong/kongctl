@@ -99,6 +99,19 @@ func TestExecutor_NewWithOptions_ConcurrencyBounds(t *testing.T) {
 	}
 }
 
+func TestValidateChangePreExecutionAllowsPortalTeamGroupMappingWithoutResourceID(t *testing.T) {
+	exec := New(nil, nil, false)
+	change := planner.PlannedChange{
+		ResourceType: planner.ResourceTypePortalTeamGroupMapping,
+		ResourceRef:  "team-groups",
+		Action:       planner.ActionUpdate,
+	}
+
+	err := exec.validateChangePreExecution(context.Background(), change)
+
+	require.NoError(t, err)
+}
+
 func TestExecutor_Execute_EmptyPlan(t *testing.T) {
 	reporter := &MockProgressReporter{}
 

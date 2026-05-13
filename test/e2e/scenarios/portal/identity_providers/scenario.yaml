@@ -20,6 +20,8 @@ vars:
   namespace: portal-identity-providers
   portalRef: portal-idp
   providerRef: portal-oidc
+  teamRef: portal-developers
+  mappingRef: portal-developers-idp-groups
 
 defaults:
   mask:
@@ -74,8 +76,9 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 2
-                by_action.CREATE: 2
+                total_changes: 5
+                by_action.CREATE: 3
+                by_action.UPDATE: 2
           - select: >-
               changes[?resource_type=='portal_identity_provider' && resource_ref=='{{ .vars.providerRef }}'] | [0].fields
             expect:
@@ -84,6 +87,18 @@ steps:
                 enabled: true
                 config.client_id: __ENV__:KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
                 config.issuer_url: __ENV__:KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+          - select: >-
+              changes[?resource_type=='portal_team' && resource_ref=='{{ .vars.teamRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: Portal Developers
+          - select: >-
+              changes[?resource_type=='portal_team_group_mapping' && resource_ref=='{{ .vars.mappingRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.groups[0]: Portal Developers
       - name: 001-apply-identity-providers
         outputFormat: json
         run:
@@ -95,7 +110,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 5
                 failed: 0
       - name: 002-get-identity-providers
         run:
@@ -114,6 +129,111 @@ steps:
                 enabled: true
                 config.client_id: "{{ .vars.createClientID }}"
                 config.claim_mappings.email: email
+      - name: 003-plan-identity-providers-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 001b-plan-apply-root-level-team-group-mapping
+    inputOverlayDirs:
+      - overlays/001-root-mapping-update
+    commands:
+      - name: 000-plan-root-level-team-group-mapping
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level-team-group-mapping.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_team_group_mapping' && resource_ref=='{{ .vars.mappingRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.groups[0]: Portal Developers
+                fields.groups[1]: Platform Developers
+      - name: 001-apply-root-level-team-group-mapping
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-level-team-group-mapping.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-plan-root-level-team-group-mapping-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 001c-plan-apply-clear-team-group-mapping
+    inputOverlayDirs:
+      - overlays/001-clear-mapping
+    commands:
+      - name: 000-plan-clear-team-group-mapping
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-clear-team-group-mapping.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_team_group_mapping' && resource_ref=='{{ .vars.mappingRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.groups: []
+      - name: 001-apply-clear-team-group-mapping
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-clear-team-group-mapping.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
 
   - name: 002-plan-apply-root-level-update
     inputOverlayDirs:

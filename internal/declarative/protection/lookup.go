@@ -115,6 +115,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypePortalIPAllowList,
 		resources.ResourceTypePortalIntegration,
 		resources.ResourceTypePortalIdentityProvider,
+		resources.ResourceTypePortalTeamGroupMapping,
 		resources.ResourceTypePortalPage,
 		resources.ResourceTypePortalSnippet,
 		resources.ResourceTypePortalTeam,

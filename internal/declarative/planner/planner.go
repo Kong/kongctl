@@ -91,6 +91,7 @@ type Planner struct {
 	desiredPortalIPAllowLists      []resources.PortalIPAllowListResource
 	desiredPortalIntegrations      []resources.PortalIntegrationResource
 	desiredPortalIdentityProviders []resources.PortalIdentityProviderResource
+	desiredPortalTeamGroupMappings []resources.PortalTeamGroupMappingResource
 	desiredPortalCustomDomains     []resources.PortalCustomDomainResource
 	desiredPortalAssetLogos        []resources.PortalAssetLogoResource
 	desiredPortalAssetFavicons     []resources.PortalAssetFaviconResource
@@ -246,6 +247,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalIPAllowLists = rs.PortalIPAllowLists
 		namespacePlanner.desiredPortalIntegrations = rs.PortalIntegrations
 		namespacePlanner.desiredPortalIdentityProviders = rs.PortalIdentityProviders
+		namespacePlanner.desiredPortalTeamGroupMappings = rs.PortalTeamGroupMappings
 		namespacePlanner.desiredPortalCustomDomains = rs.PortalCustomDomains
 		namespacePlanner.desiredPortalAssetLogos = rs.PortalAssetLogos
 		namespacePlanner.desiredPortalAssetFavicons = rs.PortalAssetFavicons

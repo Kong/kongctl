@@ -145,6 +145,23 @@ func (s *stubDumpPortalAuthSettingsAPI) GetPortalAuthenticationSettings(
 	}, nil
 }
 
+func (s *stubDumpPortalAuthSettingsAPI) ListPortalTeamGroupMappings(
+	context.Context,
+	kkOps.ListPortalTeamGroupMappingsRequest,
+	...kkOps.Option,
+) (*kkOps.ListPortalTeamGroupMappingsResponse, error) {
+	return &kkOps.ListPortalTeamGroupMappingsResponse{}, nil
+}
+
+func (s *stubDumpPortalAuthSettingsAPI) UpdatePortalTeamGroupMappings(
+	context.Context,
+	string,
+	*kkComps.PortalTeamGroupMappingsUpdateRequest,
+	...kkOps.Option,
+) (*kkOps.UpdatePortalTeamGroupMappingsResponse, error) {
+	return &kkOps.UpdatePortalTeamGroupMappingsResponse{}, nil
+}
+
 type stubDumpPortalIdentityProviderAPI struct {
 	listResponse *kkOps.GetPortalIdentityProvidersResponse
 	listErr      error

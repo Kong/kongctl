@@ -1005,7 +1005,14 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 				role.Team = team.Ref
 				rs.PortalTeamRoles = append(rs.PortalTeamRoles, role)
 			}
+			for k := range team.GroupMappings {
+				mapping := team.GroupMappings[k]
+				mapping.Portal = portal.Ref
+				mapping.Team = team.Ref
+				rs.PortalTeamGroupMappings = append(rs.PortalTeamGroupMappings, mapping)
+			}
 			team.Roles = nil
+			team.GroupMappings = nil
 			rs.PortalTeams = append(rs.PortalTeams, team)
 		}
 
