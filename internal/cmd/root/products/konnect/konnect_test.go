@@ -103,6 +103,32 @@ func TestNewKonnectCmdAdoptExposesAnalytics(t *testing.T) {
 	require.False(t, hasSubcommandNamed(cmd, "dashboard"))
 }
 
+func TestNewKonnectCmdDeclarativeVerbsExposeRetryFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Plan)
+	require.NoError(t, err)
+
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-max-attempts"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-initial-interval"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-max-interval"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-backoff-factor"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-on-connection-errors"))
+}
+
+func TestNewKonnectCmdNonDeclarativeVerbsHideRetryFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Get)
+	require.NoError(t, err)
+
+	require.Nil(t, cmd.Flags().Lookup("http-retry-max-attempts"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-initial-interval"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-max-interval"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-backoff-factor"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-on-connection-errors"))
+}
+
 func hasSubcommandNamed(cmd *cobra.Command, name string) bool {
 	if cmd == nil {
 		return false

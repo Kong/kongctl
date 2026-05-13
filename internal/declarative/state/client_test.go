@@ -110,7 +110,11 @@ func (m *mockOrganizationTeamAPI) ListOrganizationTeams(
 	return nil, fmt.Errorf("ListOrganizationTeams not implemented")
 }
 
-func (m *mockOrganizationTeamAPI) GetOrganizationTeam(ctx context.Context, id string, _ ...kkOps.Option) (*kkOps.GetTeamResponse, error) {
+func (m *mockOrganizationTeamAPI) GetOrganizationTeam(
+	ctx context.Context,
+	id string,
+	_ ...kkOps.Option,
+) (*kkOps.GetTeamResponse, error) {
 	if m.getOrganizationTeamFunc != nil {
 		return m.getOrganizationTeamFunc(ctx, id)
 	}

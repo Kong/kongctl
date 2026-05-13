@@ -257,26 +257,6 @@ func newRootCmd() *cobra.Command {
 - Reference  : [ https://github.com/lrstanley/bubbletint/blob/master/DEFAULT_TINTS.md ]`,
 			common.ColorThemeConfigPath, strings.Join(sampleThemeNames(), ", ")))
 
-	rootCmd.PersistentFlags().Int(common.HTTPRetryMaxAttemptsFlagName, 0,
-		fmt.Sprintf(`Maximum total attempts for retryable HTTP requests (0 = use default, 1 disables retries).
-- Config path: [ %s ]`, common.HTTPRetryMaxAttemptsConfigPath))
-
-	rootCmd.PersistentFlags().Int(common.HTTPRetryInitialIntervalFlagName, 0,
-		fmt.Sprintf(`Initial retry backoff interval in milliseconds (0 = use default).
-- Config path: [ %s ]`, common.HTTPRetryInitialIntervalConfigPath))
-
-	rootCmd.PersistentFlags().Int(common.HTTPRetryMaxIntervalFlagName, 0,
-		fmt.Sprintf(`Maximum retry backoff interval in milliseconds (0 = use default).
-- Config path: [ %s ]`, common.HTTPRetryMaxIntervalConfigPath))
-
-	rootCmd.PersistentFlags().Float64(common.HTTPRetryBackoffFactorFlagName, 0,
-		fmt.Sprintf(`Exponential backoff growth factor for retries (for example: 2.0).
-- Config path: [ %s ]`, common.HTTPRetryBackoffFactorConfigPath))
-
-	rootCmd.PersistentFlags().Bool(common.HTTPRetryOnConnectionErrorsFlagName, false,
-		fmt.Sprintf(`Retry selected retryable connection-level errors.
-- Config path: [ %s ]`, common.HTTPRetryOnConnectionErrorsConfigPath))
-
 	// -------------------------------------------------------------------------
 
 	return rootCmd
@@ -569,21 +549,6 @@ func bindFlags(config config.Hook) {
 
 	f = rootCmd.Flags().Lookup(common.ColorThemeFlagName)
 	util.CheckError(config.BindFlag(common.ColorThemeConfigPath, f))
-
-	f = rootCmd.Flags().Lookup(common.HTTPRetryMaxAttemptsFlagName)
-	util.CheckError(config.BindFlag(common.HTTPRetryMaxAttemptsConfigPath, f))
-
-	f = rootCmd.Flags().Lookup(common.HTTPRetryInitialIntervalFlagName)
-	util.CheckError(config.BindFlag(common.HTTPRetryInitialIntervalConfigPath, f))
-
-	f = rootCmd.Flags().Lookup(common.HTTPRetryMaxIntervalFlagName)
-	util.CheckError(config.BindFlag(common.HTTPRetryMaxIntervalConfigPath, f))
-
-	f = rootCmd.Flags().Lookup(common.HTTPRetryBackoffFactorFlagName)
-	util.CheckError(config.BindFlag(common.HTTPRetryBackoffFactorConfigPath, f))
-
-	f = rootCmd.Flags().Lookup(common.HTTPRetryOnConnectionErrorsFlagName)
-	util.CheckError(config.BindFlag(common.HTTPRetryOnConnectionErrorsConfigPath, f))
 }
 
 func applyExtensionRuntimeDefaultsBeforeConfig(runtimeCtx *extensioncore.RuntimeContext) {
