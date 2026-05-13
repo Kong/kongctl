@@ -72,7 +72,7 @@ var (
 	streams    *iostreams.IOStreams
 	pMgr       profile.Manager
 
-	outputFormat = cmd.NewEnum([]string{
+	outputFormat = cmd.NewDeferredEnum([]string{
 		common.JSON.String(),
 		common.YAML.String(),
 		common.TEXT.String(),
@@ -140,7 +140,10 @@ func newRootCmd() *cobra.Command {
 		Use:   meta.CLIName,
 		Short: rootShort,
 		Long:  rootLong,
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			if err := common.ValidateOutputFormat(cmd, outputFormat.Value); err != nil {
+				return err
+			}
 			ctx := context.WithValue(cmd.Context(), config.ConfigKey, currConfig)
 			ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
@@ -148,6 +151,7 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, log.LoggerKey, logger)
 			ctx = theme.ContextWithPalette(ctx, theme.Current())
 			cmd.SetContext(ctx)
+			return nil
 		},
 	}
 

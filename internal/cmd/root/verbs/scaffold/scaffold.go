@@ -65,6 +65,11 @@ func NewScaffoldCmd() (*cobra.Command, error) {
 		return err
 	})
 
+	// scaffold rejects --output itself in RunE; opt out of root validation so
+	// the actionable "not supported" message can surface instead of the
+	// generic "invalid value" from the root validator.
+	cmdcommon.SkipOutputFormatValidation(cmd)
+
 	return cmd, nil
 }
 

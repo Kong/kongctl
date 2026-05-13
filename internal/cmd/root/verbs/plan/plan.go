@@ -78,6 +78,11 @@ func NewPlanCmd() (*cobra.Command, error) {
 		return err
 	})
 
+	// plan rejects --output itself (in runPlan) with an actionable message;
+	// opt out of root validation so that message can surface instead of the
+	// generic "invalid value" from the root validator.
+	cmdcommon.SkipOutputFormatValidation(cmd)
+
 	// Also add konnect as a subcommand for explicit usage
 	cmd.AddCommand(konnectCmd)
 

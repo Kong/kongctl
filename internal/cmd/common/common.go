@@ -13,7 +13,19 @@ const (
 	JSON OutputFormat = iota
 	YAML
 	TEXT
+	HELM
 )
+
+// ExtraOutputFormatsAnnotation is the cobra command-annotation key listing
+// extra --output values (comma-separated) that a command opts into beyond
+// the base set (json/yaml/text).
+const ExtraOutputFormatsAnnotation = "kongctl.io/extra-output-formats"
+
+// SkipOutputFormatValidationAnnotation marks a command (or its subtree) as
+// performing its own --output handling. When set, the root-level output-format
+// validator skips the command so the command's own (often more actionable)
+// error message can surface instead.
+const SkipOutputFormatValidationAnnotation = "kongctl.io/skip-output-format-validation"
 
 const (
 	TRACE LogLevel = iota
@@ -74,7 +86,7 @@ const (
 )
 
 func (of OutputFormat) String() string {
-	return [...]string{"json", "yaml", "text"}[of]
+	return [...]string{"json", "yaml", "text", "helm"}[of]
 }
 
 func OutputFormatStringToIota(format string) (OutputFormat, error) {
@@ -85,6 +97,8 @@ func OutputFormatStringToIota(format string) (OutputFormat, error) {
 		return YAML, nil
 	case "text":
 		return TEXT, nil
+	case "helm":
+		return HELM, nil
 	default:
 		allowed := []string{"json", "yaml", "text"}
 		return TEXT, fmt.Errorf("invalid output format %q, must be one of %v", format, allowed)

@@ -304,11 +304,14 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
-	if err != nil {
-		return err
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.HELM {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
-	defer printer.Flush()
 
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -341,6 +344,14 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		if err != nil {
 			return err
 		}
+		if outType == cmdCommon.HELM {
+			rendered, err := renderHelmValues(cp)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprint(helper.GetStreams().Out, rendered)
+			return err
+		}
 		return tableview.RenderForFormat(helper,
 			false,
 			outType,
@@ -355,6 +366,12 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 			}),
 			tableview.WithDetailHelper(helper),
 		)
+	}
+
+	if outType == cmdCommon.HELM {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("--output helm requires a control plane name or id"),
+		}
 	}
 
 	// list all control planes
@@ -452,6 +469,8 @@ func newGetControlPlaneCmd(verb verbs.VerbValue,
 	if addParentFlags != nil {
 		addParentFlags(verb, rv.Command)
 	}
+
+	cmdCommon.AllowExtraOutputFormats(rv.Command, "helm")
 
 	return &rv
 }
