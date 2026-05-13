@@ -100,7 +100,7 @@ func OutputFormatStringToIota(format string) (OutputFormat, error) {
 	case "helm":
 		return HELM, nil
 	default:
-		allowed := []string{"json", "yaml", "text"}
+		allowed := []string{"json", "yaml", "text", "helm"}
 		return TEXT, fmt.Errorf("invalid output format %q, must be one of %v", format, allowed)
 	}
 }

@@ -163,13 +163,27 @@ func outputFlagUsage(allowed []string) string {
 		common.OutputConfigPath, strings.Join(allowed, "|"))
 }
 
+func validateOutputFormat(cmd *cobra.Command) error {
+	value := strings.TrimSpace(outputFormat.Value)
+	if currConfig != nil {
+		configured := strings.TrimSpace(currConfig.GetString(common.OutputConfigPath))
+		if configured != "" {
+			value = configured
+		}
+	}
+	if value == "" {
+		value = common.DefaultOutputFormat
+	}
+	return common.ValidateOutputFormat(cmd, value)
+}
+
 func newRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   meta.CLIName,
 		Short: rootShort,
 		Long:  rootLong,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			if err := common.ValidateOutputFormat(cmd, outputFormat.Value); err != nil {
+			if err := validateOutputFormat(cmd); err != nil {
 				return err
 			}
 			ctx := context.WithValue(cmd.Context(), config.ConfigKey, currConfig)

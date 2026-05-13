@@ -6,7 +6,9 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+	configpkg "github.com/kong/kongctl/internal/config"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func TestMergedFlagUsagesUsesCommandSpecificOutputFormats(t *testing.T) {
@@ -43,5 +45,32 @@ func TestMergedFlagUsagesUsesCommandSpecificOutputFormats(t *testing.T) {
 	}
 	if strings.Contains(outputFlag.Usage, "helm") {
 		t.Fatalf("expected merged usage rendering not to mutate root output flag usage, got:\n%s", outputFlag.Usage)
+	}
+}
+
+func TestValidateOutputFormatUsesResolvedConfigValue(t *testing.T) {
+	oldConfig := currConfig
+	oldOutputFormat := outputFormat
+	t.Cleanup(func() {
+		currConfig = oldConfig
+		outputFormat = oldOutputFormat
+	})
+
+	outputFormat = cmdpkg.NewDeferredEnum([]string{
+		common.JSON.String(),
+		common.YAML.String(),
+		common.TEXT.String(),
+	}, common.TEXT.String())
+	currConfig = configpkg.BuildProfiledConfig("default", "", viper.New())
+	currConfig.SetString(common.OutputConfigPath, common.HELM.String())
+
+	cmd := &cobra.Command{Use: "leaf"}
+	if err := validateOutputFormat(cmd); err == nil {
+		t.Fatal("expected helm from config to be rejected without command opt-in")
+	}
+
+	common.AllowExtraOutputFormats(cmd, common.HELM.String())
+	if err := validateOutputFormat(cmd); err != nil {
+		t.Fatalf("expected helm from config to be allowed with command opt-in: %v", err)
 	}
 }

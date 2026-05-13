@@ -106,7 +106,7 @@ func runExplain(command *cobra.Command, args []string) error {
 		return err
 	}
 
-	//exhaustive:ignore // HELM is not supported by this command; default branch handles it.
+	//exhaustive:ignore // HELM is unsupported here and falls through to the default error.
 	switch outType {
 	case cmdcommon.TEXT:
 		_, err = fmt.Fprintln(command.OutOrStdout(), resources.RenderExplainText(subject, extended))
