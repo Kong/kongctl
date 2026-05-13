@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/build"
@@ -129,10 +130,37 @@ const logFilePIDToken = "%PID%"
 func mergedFlagUsages(cmd *cobra.Command) string {
 	flags := pflag.NewFlagSet(cmd.DisplayName(), pflag.ContinueOnError)
 	flags.SortFlags = true
-	flags.AddFlagSet(cmd.LocalFlags())
-	flags.AddFlagSet(cmd.InheritedFlags())
+	addFlagSetCopies(flags, cmd.LocalFlags())
+	addFlagSetCopies(flags, cmd.InheritedFlags())
+
+	if f := flags.Lookup(common.OutputFlagName); f != nil {
+		f.Usage = outputFlagUsage(common.AllowedOutputFormats(cmd))
+	}
 
 	return strings.TrimRight(flags.FlagUsages(), "\n")
+}
+
+func addFlagSetCopies(dst, src *pflag.FlagSet) {
+	if dst == nil || src == nil {
+		return
+	}
+	src.VisitAll(func(flag *pflag.Flag) {
+		flagCopy := *flag
+		if flag.Annotations != nil {
+			flagCopy.Annotations = make(map[string][]string, len(flag.Annotations))
+			for k, v := range flag.Annotations {
+				flagCopy.Annotations[k] = slices.Clone(v)
+			}
+		}
+		dst.AddFlag(&flagCopy)
+	})
+}
+
+func outputFlagUsage(allowed []string) string {
+	return fmt.Sprintf(`Configures the format of data written to STDOUT.
+- Config path: [ %s ]
+- Allowed    : [ %s ]`,
+		common.OutputConfigPath, strings.Join(allowed, "|"))
 }
 
 func newRootCmd() *cobra.Command {
@@ -179,10 +207,7 @@ func newRootCmd() *cobra.Command {
 	// from a valid set of values. There may be a way to do this more elegantly
 	// in the pFlag library
 	rootCmd.PersistentFlags().VarP(outputFormat, common.OutputFlagName, common.OutputFlagShort,
-		fmt.Sprintf(`Configures the format of data written to STDOUT.
-- Config path: [ %s ]
-- Allowed    : [ %s ]`,
-			common.OutputConfigPath, strings.Join(outputFormat.Allowed, "|")))
+		outputFlagUsage(outputFormat.Allowed))
 
 	rootCmd.PersistentFlags().Var(logLevel, common.LogLevelFlagName,
 		fmt.Sprintf(`Configures the logging level. Execution logs are written to STDERR.

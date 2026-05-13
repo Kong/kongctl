@@ -19,13 +19,13 @@ const (
 // ExtraOutputFormatsAnnotation is the cobra command-annotation key listing
 // extra --output values (comma-separated) that a command opts into beyond
 // the base set (json/yaml/text).
-const ExtraOutputFormatsAnnotation = "kongctl.io/extra-output-formats"
+const ExtraOutputFormatsAnnotation = "kongctl.output.extra-formats"
 
 // SkipOutputFormatValidationAnnotation marks a command (or its subtree) as
 // performing its own --output handling. When set, the root-level output-format
 // validator skips the command so the command's own (often more actionable)
 // error message can surface instead.
-const SkipOutputFormatValidationAnnotation = "kongctl.io/skip-output-format-validation"
+const SkipOutputFormatValidationAnnotation = "kongctl.output.skip-validation"
 
 const (
 	TRACE LogLevel = iota
