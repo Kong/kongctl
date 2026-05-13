@@ -23,3 +23,15 @@ organization:
       kongctl:
         namespace: sa-plan-sync
         protected: false
+  system-accounts:
+    - ref: e2e-system-account
+      id: "{{ .vars.system_account_id }}"
+      teams:
+        - ref: sa-plan-sync-sa-team
+          team: sa-plan-sync-team
+      roles:
+        - ref: sa-plan-sync-sa-role
+          role_name: Viewer
+          entity_id: !ref sa-plan-sync-api#id
+          entity_type_name: APIs
+          entity_region: us

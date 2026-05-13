@@ -20,3 +20,15 @@ organization:
           entity_id: !ref org-sa-sync-api#id
           entity_type_name: APIs
           entity_region: us
+  system-accounts:
+    - ref: e2e-system-account
+      id: "{{ .vars.system_account_id }}"
+      teams:
+        - ref: e2e-sa-org-sa-sync-team
+          team: org-sa-sync-team
+      roles:
+        - ref: org-sa-sync-sa-api-viewer
+          role_name: Viewer
+          entity_id: !ref org-sa-sync-api#id
+          entity_type_name: APIs
+          entity_region: us

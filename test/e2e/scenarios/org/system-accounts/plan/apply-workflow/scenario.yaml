@@ -53,6 +53,8 @@ steps:
             responsePath: id
 
   - name: 002-plan-apply-create
+    inputOverlayDirs:
+      - overlays/001-config
     commands:
       - name: 000-plan-create
         outputFormat: disable

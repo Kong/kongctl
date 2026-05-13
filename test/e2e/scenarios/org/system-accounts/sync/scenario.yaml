@@ -53,6 +53,8 @@ steps:
             responsePath: id
 
   - name: 002-apply-initial
+    inputOverlayDirs:
+      - overlays/001-config
     commands:
       - name: 000-apply
         outputFormat: json
