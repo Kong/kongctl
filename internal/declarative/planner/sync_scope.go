@@ -311,15 +311,27 @@ func syncParentTypeSupportsExternal(rt resources.ResourceType) bool {
 	}
 }
 
-func (p *Planner) shouldPlanRoot(mode PlanMode, rt resources.ResourceType) bool {
-	if mode != PlanModeSync {
-		return true
+// prepareScope ensures the planning sync scope is initialized and returns it.
+// Returns (nil, true) when the caller should unconditionally plan (not sync mode).
+// Returns (nil, false) when the caller should skip planning (sync, no resources).
+// Returns (scope, false) when the caller should check the scope.
+func (p *Planner) prepareScope(isSync bool) (*resources.SyncScope, bool) {
+	if !isSync {
+		return nil, true
 	}
 	if p == nil || p.resources == nil {
-		return false
+		return nil, false
 	}
 	ensurePlanningSyncScope(p.resources)
-	return p.resources.SyncScope.RootInScope(rt)
+	return p.resources.SyncScope, false
+}
+
+func (p *Planner) shouldPlanRoot(plan *Plan, rt resources.ResourceType) bool {
+	scope, planAll := p.prepareScope(plan != nil && plan.Metadata.Mode == PlanModeSync)
+	if planAll {
+		return true
+	}
+	return scope.RootInScope(rt)
 }
 
 func (p *Planner) shouldPlanChild(
@@ -328,48 +340,35 @@ func (p *Planner) shouldPlanChild(
 	parentRef string,
 	rt resources.ResourceType,
 ) bool {
-	if plan == nil || plan.Metadata.Mode != PlanModeSync {
+	scope, planAll := p.prepareScope(plan != nil && plan.Metadata.Mode == PlanModeSync)
+	if planAll {
 		return true
 	}
-	if p == nil || p.resources == nil {
-		return false
-	}
-	ensurePlanningSyncScope(p.resources)
-	return p.resources.SyncScope.ChildInScope(parentType, parentRef, rt)
+	return scope.ChildInScope(parentType, parentRef, rt)
 }
 
 func (p *Planner) shouldPlanOrganization(plan *Plan) bool {
-	if plan == nil || plan.Metadata.Mode != PlanModeSync {
+	scope, planAll := p.prepareScope(plan != nil && plan.Metadata.Mode == PlanModeSync)
+	if planAll {
 		return true
 	}
-	if p == nil || p.resources == nil {
-		return false
-	}
-	ensurePlanningSyncScope(p.resources)
-	scope := p.resources.SyncScope
 	return scope.RootInScope(resources.ResourceTypeOrganizationTeam) ||
 		scope.OrganizationUsersInScope() ||
 		scope.OrganizationSystemAccountsInScope()
 }
 
 func (p *Planner) shouldPlanOrganizationUsers(plan *Plan) bool {
-	if plan == nil || plan.Metadata.Mode != PlanModeSync {
+	scope, planAll := p.prepareScope(plan != nil && plan.Metadata.Mode == PlanModeSync)
+	if planAll {
 		return true
 	}
-	if p == nil || p.resources == nil {
-		return false
-	}
-	ensurePlanningSyncScope(p.resources)
-	return p.resources.SyncScope.OrganizationUsersInScope()
+	return scope.OrganizationUsersInScope()
 }
 
 func (p *Planner) shouldPlanOrganizationSystemAccounts(plan *Plan) bool {
-	if plan == nil || plan.Metadata.Mode != PlanModeSync {
+	scope, planAll := p.prepareScope(plan != nil && plan.Metadata.Mode == PlanModeSync)
+	if planAll {
 		return true
 	}
-	if p == nil || p.resources == nil {
-		return false
-	}
-	ensurePlanningSyncScope(p.resources)
-	return p.resources.SyncScope.OrganizationSystemAccountsInScope()
+	return scope.OrganizationSystemAccountsInScope()
 }

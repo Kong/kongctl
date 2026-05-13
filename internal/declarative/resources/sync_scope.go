@@ -181,7 +181,13 @@ func (s *SyncScope) ChildScopes() []ChildSyncScope {
 	if s == nil {
 		return nil
 	}
-	scopes := make([]ChildSyncScope, 0)
+	total := 0
+	for _, byRef := range s.ChildResourceTypes {
+		for _, byType := range byRef {
+			total += len(byType)
+		}
+	}
+	scopes := make([]ChildSyncScope, 0, total)
 	for parentType, byParentRef := range s.ChildResourceTypes {
 		for parentRef, byChildType := range byParentRef {
 			for rt := range byChildType {

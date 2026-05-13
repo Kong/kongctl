@@ -491,28 +491,40 @@ func captureNestedPortalScopes(scope *resources.SyncScope, raw map[string]any) e
 			)
 		}
 		if assets, ok := asMap(assetsValue); ok {
-			if value, ok := assets["logo"]; ok {
-				if value == nil {
-					return fmt.Errorf(
-						"portal %q child singleton %q cannot be null; omit the key to ignore it or provide a value",
-						portalRef,
-						"assets.logo",
-					)
-				}
-				scope.AddChild(resources.ResourceTypePortal, portalRef, resources.ResourceTypePortalAssetLogo)
+			if err := capturePortalAssetScope(
+				scope, assets, "logo", "assets.logo", portalRef, resources.ResourceTypePortalAssetLogo,
+			); err != nil {
+				return err
 			}
-			if value, ok := assets["favicon"]; ok {
-				if value == nil {
-					return fmt.Errorf(
-						"portal %q child singleton %q cannot be null; omit the key to ignore it or provide a value",
-						portalRef,
-						"assets.favicon",
-					)
-				}
-				scope.AddChild(resources.ResourceTypePortal, portalRef, resources.ResourceTypePortalAssetFavicon)
+			if err := capturePortalAssetScope(
+				scope, assets, "favicon", "assets.favicon", portalRef, resources.ResourceTypePortalAssetFavicon,
+			); err != nil {
+				return err
 			}
 		}
 	}
+	return nil
+}
+
+func capturePortalAssetScope(
+	scope *resources.SyncScope,
+	assets map[string]any,
+	assetKey, qualifiedKey string,
+	portalRef string,
+	resourceType resources.ResourceType,
+) error {
+	value, ok := assets[assetKey]
+	if !ok {
+		return nil
+	}
+	if value == nil {
+		return fmt.Errorf(
+			"portal %q child singleton %q cannot be null; omit the key to ignore it or provide a value",
+			portalRef,
+			qualifiedKey,
+		)
+	}
+	scope.AddChild(resources.ResourceTypePortal, portalRef, resourceType)
 	return nil
 }
 

@@ -269,7 +269,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// Create planner context with namespace
 		plannerCtx := NewConfig(actualNamespace)
 
-		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeDCRProvider) {
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeDCRProvider) {
 			if err := namespacePlanner.dcrProviderPlanner.PlanChanges(
 				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dcrProviderPlanner), ""),
 				plannerCtx,
@@ -279,7 +279,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			}
 		}
 
-		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeApplicationAuthStrategy) {
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeApplicationAuthStrategy) {
 			if err := namespacePlanner.authStrategyPlanner.PlanChanges(
 				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.authStrategyPlanner), ""),
 				plannerCtx,
@@ -289,7 +289,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			}
 		}
 
-		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeControlPlane) {
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeControlPlane) {
 			if err := namespacePlanner.controlPlanePlanner.PlanChanges(
 				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.controlPlanePlanner), ""),
 				plannerCtx,
@@ -299,7 +299,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			}
 		}
 
-		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypePortal) {
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypePortal) {
 			if err := namespacePlanner.portalPlanner.PlanChanges(
 				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.portalPlanner), ""),
 				plannerCtx,
@@ -309,7 +309,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			}
 		}
 
-		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeCatalogService) {
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeCatalogService) {
 			if err := namespacePlanner.catalogServicePlanner.PlanChanges(
 				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.catalogServicePlanner), ""),
 				plannerCtx,
@@ -320,7 +320,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		}
 
 		// Plan API changes (includes child resources)
-		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeAPI) {
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeAPI) {
 			if err := namespacePlanner.apiPlanner.PlanChanges(
 				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.apiPlanner), ""),
 				plannerCtx,
@@ -330,7 +330,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			}
 		}
 
-		if namespacePlanner.shouldPlanRoot(opts.Mode, resources.ResourceTypeEventGatewayControlPlane) {
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeEventGatewayControlPlane) {
 			if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(
 				withPlannerHTTPLogContext(
 					namespaceCtx,

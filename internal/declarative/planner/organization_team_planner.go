@@ -188,7 +188,7 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 
 	// Check for managed resources to delete (sync mode only)
 	if plan.Metadata.Mode == PlanModeSync &&
-		t.planner.shouldPlanRoot(PlanModeSync, resources.ResourceTypeOrganizationTeam) {
+		t.planner.shouldPlanRoot(plan, resources.ResourceTypeOrganizationTeam) {
 		// Build set of desired team names
 		desiredNames := make(map[string]bool)
 		for _, team := range desired {
