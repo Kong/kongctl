@@ -183,13 +183,7 @@ func (k *KonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
 		return nil
 	}
 
-	return &DCRProvidersAPIImpl{
-		SDK:         k.SDK,
-		BaseURL:     k.BaseURL,
-		Token:       k.Token,
-		TokenSource: k.TokenSource,
-		HTTPClient:  k.HTTPClient,
-	}
+	return &DCRProvidersAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the GatewayServiceAPI interface
