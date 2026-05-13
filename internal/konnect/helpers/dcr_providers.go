@@ -3,11 +3,17 @@ package helpers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOPS "github.com/Kong/sdk-konnect-go/models/operations"
+)
+
+var (
+	errDCRProvidersSDKRequired       = errors.New("dcr providers helper requires SDK")
+	errDCRProvidersSDKClientRequired = errors.New("dcr providers helper requires SDK.DCRProviders")
 )
 
 type DCRProvidersAPI interface {
@@ -144,10 +150,10 @@ func (a *DCRProvidersAPIImpl) DeleteDcrProvider(ctx context.Context,
 
 func (a *DCRProvidersAPIImpl) validateSDK() error {
 	if a == nil || a.SDK == nil {
-		return fmt.Errorf("SDK is nil")
+		return errDCRProvidersSDKRequired
 	}
 	if a.SDK.DCRProviders == nil {
-		return fmt.Errorf("SDK.DCRProviders is nil")
+		return errDCRProvidersSDKClientRequired
 	}
 	return nil
 }

@@ -25,8 +25,12 @@ func (c *dcrProviderHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if req.Body != nil {
 		var err error
 		body, err = io.ReadAll(req.Body)
+		closeErr := req.Body.Close()
 		if err != nil {
 			return nil, err
+		}
+		if closeErr != nil {
+			return nil, closeErr
 		}
 	}
 	c.requests = append(c.requests, req.Clone(req.Context()))
@@ -137,7 +141,7 @@ func TestDCRProvidersAPIImplCRUDDelegatesToSDK(t *testing.T) {
 	createReq := kkComps.CreateCreateDcrProviderRequestHTTP(kkComps.CreateDcrProviderRequestHTTP{
 		DcrConfig: kkComps.CreateDcrConfigHTTPInRequest{
 			DcrBaseURL: "https://dcr.example.test",
-			APIKey:     "secret",
+			APIKey:     "test-api-key",
 		},
 		Name:   "provider-one",
 		Issuer: "https://issuer.example.test",

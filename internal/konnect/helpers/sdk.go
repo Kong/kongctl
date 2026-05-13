@@ -179,7 +179,7 @@ func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 
 // Returns the implementation of the DCRProvidersAPI interface
 func (k *KonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
-	if k.SDK == nil {
+	if k.SDK == nil || k.SDK.DCRProviders == nil {
 		return nil
 	}
 
