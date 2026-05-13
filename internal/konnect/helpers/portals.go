@@ -12,12 +12,15 @@ import (
 // PortalAPI defines the interface for operations on Developer Portals
 type PortalAPI interface {
 	// Portal operations
-	ListPortals(ctx context.Context, request kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error)
-	GetPortal(ctx context.Context, id string) (*kkOps.GetPortalResponse, error)
-	CreatePortal(ctx context.Context, portal kkComps.CreatePortal) (*kkOps.CreatePortalResponse, error)
+	ListPortals(ctx context.Context, request kkOps.ListPortalsRequest,
+		opts ...kkOps.Option) (*kkOps.ListPortalsResponse, error)
+	GetPortal(ctx context.Context, id string, opts ...kkOps.Option) (*kkOps.GetPortalResponse, error)
+	CreatePortal(ctx context.Context, portal kkComps.CreatePortal,
+		opts ...kkOps.Option) (*kkOps.CreatePortalResponse, error)
 	UpdatePortal(ctx context.Context, id string,
-		portal kkComps.UpdatePortal) (*kkOps.UpdatePortalResponse, error)
-	DeletePortal(ctx context.Context, id string, force bool) (*kkOps.DeletePortalResponse, error)
+		portal kkComps.UpdatePortal, opts ...kkOps.Option) (*kkOps.UpdatePortalResponse, error)
+	DeletePortal(ctx context.Context, id string, force bool,
+		opts ...kkOps.Option) (*kkOps.DeletePortalResponse, error)
 }
 
 // PortalAPIImpl provides an implementation of the PortalAPI interface
@@ -29,21 +32,27 @@ type PortalAPIImpl struct {
 func (p *PortalAPIImpl) ListPortals(
 	ctx context.Context,
 	request kkOps.ListPortalsRequest,
+	opts ...kkOps.Option,
 ) (*kkOps.ListPortalsResponse, error) {
-	return p.SDK.Portals.ListPortals(ctx, request)
+	return p.SDK.Portals.ListPortals(ctx, request, opts...)
 }
 
 // GetPortal implements the PortalAPI interface
-func (p *PortalAPIImpl) GetPortal(ctx context.Context, id string) (*kkOps.GetPortalResponse, error) {
-	return p.SDK.Portals.GetPortal(ctx, id)
+func (p *PortalAPIImpl) GetPortal(
+	ctx context.Context,
+	id string,
+	opts ...kkOps.Option,
+) (*kkOps.GetPortalResponse, error) {
+	return p.SDK.Portals.GetPortal(ctx, id, opts...)
 }
 
 // CreatePortal implements the PortalAPI interface
 func (p *PortalAPIImpl) CreatePortal(
 	ctx context.Context,
 	portal kkComps.CreatePortal,
+	opts ...kkOps.Option,
 ) (*kkOps.CreatePortalResponse, error) {
-	return p.SDK.Portals.CreatePortal(ctx, portal)
+	return p.SDK.Portals.CreatePortal(ctx, portal, opts...)
 }
 
 // UpdatePortal implements the PortalAPI interface
@@ -51,8 +60,9 @@ func (p *PortalAPIImpl) UpdatePortal(
 	ctx context.Context,
 	id string,
 	portal kkComps.UpdatePortal,
+	opts ...kkOps.Option,
 ) (*kkOps.UpdatePortalResponse, error) {
-	return p.SDK.Portals.UpdatePortal(ctx, id, portal)
+	return p.SDK.Portals.UpdatePortal(ctx, id, portal, opts...)
 }
 
 // DeletePortal implements the PortalAPI interface
@@ -60,13 +70,14 @@ func (p *PortalAPIImpl) DeletePortal(
 	ctx context.Context,
 	id string,
 	force bool,
+	opts ...kkOps.Option,
 ) (*kkOps.DeletePortalResponse, error) {
 	var forceParam *kkOps.DeletePortalQueryParamForce
 	if force {
 		forceTrue := kkOps.DeletePortalQueryParamForceTrue
 		forceParam = &forceTrue
 	}
-	return p.SDK.Portals.DeletePortal(ctx, id, forceParam)
+	return p.SDK.Portals.DeletePortal(ctx, id, forceParam, opts...)
 }
 
 // GetAllPortals fetches all portals with pagination

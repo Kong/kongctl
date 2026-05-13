@@ -39,6 +39,7 @@ func (a *authStrategyAPIStub) ListAppAuthStrategies(
 func (a *authStrategyAPIStub) GetAppAuthStrategy(
 	_ context.Context,
 	id string,
+	_ ...kkOps.Option,
 ) (*kkOps.GetAppAuthStrategyResponse, error) {
 	if id != a.fetchResponse.AppAuthStrategyKeyAuthResponse.ID {
 		a.t.Fatalf("unexpected auth strategy id: %s", id)
@@ -49,6 +50,7 @@ func (a *authStrategyAPIStub) GetAppAuthStrategy(
 func (a *authStrategyAPIStub) CreateAppAuthStrategy(
 	context.Context,
 	kkComps.CreateAppAuthStrategyRequest,
+	...kkOps.Option,
 ) (*kkOps.CreateAppAuthStrategyResponse, error) {
 	a.t.Fatalf("unexpected CreateAppAuthStrategy call")
 	return nil, nil
@@ -58,6 +60,7 @@ func (a *authStrategyAPIStub) UpdateAppAuthStrategy(
 	_ context.Context,
 	id string,
 	req kkComps.UpdateAppAuthStrategyRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.UpdateAppAuthStrategyResponse, error) {
 	if id != a.fetchResponse.AppAuthStrategyKeyAuthResponse.ID {
 		a.t.Fatalf("unexpected auth strategy id on update: %s", id)
@@ -70,6 +73,7 @@ func (a *authStrategyAPIStub) UpdateAppAuthStrategy(
 func (a *authStrategyAPIStub) DeleteAppAuthStrategy(
 	context.Context,
 	string,
+	...kkOps.Option,
 ) (*kkOps.DeleteAppAuthStrategyResponse, error) {
 	a.t.Fatalf("unexpected DeleteAppAuthStrategy call")
 	return nil, nil

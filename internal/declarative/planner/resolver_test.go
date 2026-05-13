@@ -25,6 +25,7 @@ type MockPortalAPI struct {
 func (m *MockPortalAPI) ListPortals(
 	ctx context.Context,
 	req kkOps.ListPortalsRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.ListPortalsResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
@@ -36,6 +37,7 @@ func (m *MockPortalAPI) ListPortals(
 func (m *MockPortalAPI) CreatePortal(
 	ctx context.Context,
 	portal kkComps.CreatePortal,
+	_ ...kkOps.Option,
 ) (*kkOps.CreatePortalResponse, error) {
 	args := m.Called(ctx, portal)
 	if args.Get(0) == nil {
@@ -48,6 +50,7 @@ func (m *MockPortalAPI) UpdatePortal(
 	ctx context.Context,
 	id string,
 	portal kkComps.UpdatePortal,
+	_ ...kkOps.Option,
 ) (*kkOps.UpdatePortalResponse, error) {
 	args := m.Called(ctx, id, portal)
 	if args.Get(0) == nil {
@@ -56,7 +59,7 @@ func (m *MockPortalAPI) UpdatePortal(
 	return args.Get(0).(*kkOps.UpdatePortalResponse), args.Error(1)
 }
 
-func (m *MockPortalAPI) GetPortal(ctx context.Context, id string) (*kkOps.GetPortalResponse, error) {
+func (m *MockPortalAPI) GetPortal(ctx context.Context, id string, _ ...kkOps.Option) (*kkOps.GetPortalResponse, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -68,6 +71,7 @@ func (m *MockPortalAPI) DeletePortal(
 	ctx context.Context,
 	id string,
 	force bool,
+	_ ...kkOps.Option,
 ) (*kkOps.DeletePortalResponse, error) {
 	args := m.Called(ctx, id, force)
 	if args.Get(0) == nil {
@@ -325,6 +329,7 @@ func (m *MockAppAuthStrategiesAPI) ListAppAuthStrategies(
 func (m *MockAppAuthStrategiesAPI) GetAppAuthStrategy(
 	ctx context.Context,
 	id string,
+	_ ...kkOps.Option,
 ) (*kkOps.GetAppAuthStrategyResponse, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
@@ -336,6 +341,7 @@ func (m *MockAppAuthStrategiesAPI) GetAppAuthStrategy(
 func (m *MockAppAuthStrategiesAPI) CreateAppAuthStrategy(
 	ctx context.Context,
 	strategy kkComps.CreateAppAuthStrategyRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.CreateAppAuthStrategyResponse, error) {
 	args := m.Called(ctx, strategy)
 	if args.Get(0) == nil {
@@ -348,6 +354,7 @@ func (m *MockAppAuthStrategiesAPI) UpdateAppAuthStrategy(
 	ctx context.Context,
 	id string,
 	strategy kkComps.UpdateAppAuthStrategyRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.UpdateAppAuthStrategyResponse, error) {
 	args := m.Called(ctx, id, strategy)
 	if args.Get(0) == nil {
@@ -359,6 +366,7 @@ func (m *MockAppAuthStrategiesAPI) UpdateAppAuthStrategy(
 func (m *MockAppAuthStrategiesAPI) DeleteAppAuthStrategy(
 	ctx context.Context,
 	id string,
+	_ ...kkOps.Option,
 ) (*kkOps.DeleteAppAuthStrategyResponse, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {

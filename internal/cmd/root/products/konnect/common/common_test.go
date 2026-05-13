@@ -219,8 +219,8 @@ func TestResolveRetryConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, httpclient.RetryStrategyDefault, rc.Strategy)
 		require.Equal(t, httpclient.DefaultRetryMaxAttempts, rc.MaxAttempts)
-		require.Equal(t, httpclient.DefaultRetryInitialInterval, rc.InitialInterval)
-		require.Equal(t, httpclient.DefaultRetryMaxInterval, rc.MaxInterval)
+		require.Equal(t, httpclient.DefaultRetryInitialIntervalMS, rc.InitialIntervalMS)
+		require.Equal(t, httpclient.DefaultRetryMaxIntervalMS, rc.MaxIntervalMS)
 		require.Equal(t, httpclient.DefaultRetryBackoffFactor, rc.BackoffFactor)
 		require.False(t, rc.RetryConnectionErrors)
 	})
@@ -228,8 +228,8 @@ func TestResolveRetryConfig(t *testing.T) {
 	t.Run("explicit values", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
 			cmdcommon.HTTPRetryMaxAttemptsConfigPath:        "3",
-			cmdcommon.HTTPRetryInitialIntervalConfigPath:    "200ms",
-			cmdcommon.HTTPRetryMaxIntervalConfigPath:        "5s",
+			cmdcommon.HTTPRetryInitialIntervalConfigPath:    "200",
+			cmdcommon.HTTPRetryMaxIntervalConfigPath:        "5000",
 			cmdcommon.HTTPRetryBackoffFactorConfigPath:      "1.5",
 			cmdcommon.HTTPRetryOnConnectionErrorsConfigPath: "true",
 		})
@@ -238,8 +238,8 @@ func TestResolveRetryConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 3, rc.MaxAttempts)
 		require.Equal(t, httpclient.RetryStrategyDefault, rc.Strategy)
-		require.Equal(t, 200*time.Millisecond, rc.InitialInterval)
-		require.Equal(t, 5*time.Second, rc.MaxInterval)
+		require.Equal(t, 200, rc.InitialIntervalMS)
+		require.Equal(t, 5000, rc.MaxIntervalMS)
 		require.Equal(t, 1.5, rc.BackoffFactor)
 		require.True(t, rc.RetryConnectionErrors)
 	})
@@ -290,7 +290,6 @@ func TestResolveRetryConfig(t *testing.T) {
 		_, err := ResolveRetryConfig(cfg)
 		require.Error(t, err)
 	})
-
 }
 
 func TestResolveAccessTokenMapsMissingCredentialsToGuidance(t *testing.T) {

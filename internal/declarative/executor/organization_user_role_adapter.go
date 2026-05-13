@@ -98,7 +98,12 @@ func (o *OrganizationUserRoleAdapter) ResourceType() string {
 }
 
 func (o *OrganizationUserRoleAdapter) RequiredFields() []string {
-	return []string{planner.FieldRoleName, planner.FieldEntityID, planner.FieldEntityTypeName, planner.FieldEntityRegion}
+	return []string{
+		planner.FieldRoleName,
+		planner.FieldEntityID,
+		planner.FieldEntityTypeName,
+		planner.FieldEntityRegion,
+	}
 }
 
 func (o *OrganizationUserRoleAdapter) SupportsUpdate() bool {

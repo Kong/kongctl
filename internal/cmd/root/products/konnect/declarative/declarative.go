@@ -14,6 +14,7 @@ import (
 	"strings"
 	"unicode"
 
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -552,7 +553,11 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	// Create planner
-	stateClient := createStateClient(kkClient)
+	retryConfig, err := konnectcommon.ResolveRetryConfig(cfg)
+	if err != nil {
+		return err
+	}
+	stateClient := createStateClient(kkClient, []kkOps.Option{retryConfig.ToSDKOption()})
 	p := planner.NewPlanner(stateClient, logger)
 
 	// Show namespace processing info if outputting to file
@@ -857,7 +862,11 @@ func runDiff(command *cobra.Command, args []string) error {
 			return fmt.Errorf("no resources found in configuration files")
 		}
 
-		stateClient := createStateClient(kkClient)
+		retryConfig, err := konnectcommon.ResolveRetryConfig(cfg)
+		if err != nil {
+			return err
+		}
+		stateClient := createStateClient(kkClient, []kkOps.Option{retryConfig.ToSDKOption()})
 		p := planner.NewPlanner(stateClient, logger)
 		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
 		if err != nil {
@@ -1528,7 +1537,11 @@ func runApply(command *cobra.Command, args []string) error {
 		}
 
 		// Create planner
-		stateClient := createStateClient(kkClient)
+		retryConfig, err := konnectcommon.ResolveRetryConfig(cfg)
+		if err != nil {
+			return err
+		}
+		stateClient := createStateClient(kkClient, []kkOps.Option{retryConfig.ToSDKOption()})
 		p := planner.NewPlanner(stateClient, logger)
 		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
 		if err != nil {
@@ -1605,7 +1618,11 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 
 	// Create executor
-	stateClient := createStateClient(kkClient)
+	retryConfig, err := konnectcommon.ResolveRetryConfig(cfg)
+	if err != nil {
+		return err
+	}
+	stateClient := createStateClient(kkClient, []kkOps.Option{retryConfig.ToSDKOption()})
 
 	var reporter executor.ProgressReporter
 	if outputFormat == textOutputFormat {
@@ -2017,7 +2034,11 @@ func runDelete(command *cobra.Command, args []string) error {
 		}
 
 		// Create planner
-		stateClient := createStateClient(kkClient)
+		retryConfig, err := konnectcommon.ResolveRetryConfig(cfg)
+		if err != nil {
+			return err
+		}
+		stateClient := createStateClient(kkClient, []kkOps.Option{retryConfig.ToSDKOption()})
 		p := planner.NewPlanner(stateClient, logger)
 		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
 		if err != nil {
@@ -2089,7 +2110,11 @@ func runDelete(command *cobra.Command, args []string) error {
 	}
 
 	// Create executor
-	stateClient := createStateClient(kkClient)
+	retryConfig, err := konnectcommon.ResolveRetryConfig(cfg)
+	if err != nil {
+		return err
+	}
+	stateClient := createStateClient(kkClient, []kkOps.Option{retryConfig.ToSDKOption()})
 
 	var reporter executor.ProgressReporter
 	if outputFormat == textOutputFormat {
@@ -2273,7 +2298,11 @@ func runSync(command *cobra.Command, args []string) error {
 		}
 
 		// Create planner
-		stateClient := createStateClient(kkClient)
+		retryConfig, err := konnectcommon.ResolveRetryConfig(cfg)
+		if err != nil {
+			return err
+		}
+		stateClient := createStateClient(kkClient, []kkOps.Option{retryConfig.ToSDKOption()})
 		p := planner.NewPlanner(stateClient, logger)
 		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
 		if err != nil {
@@ -2345,7 +2374,11 @@ func runSync(command *cobra.Command, args []string) error {
 	}
 
 	// Create executor
-	stateClient := createStateClient(kkClient)
+	retryConfig, err := konnectcommon.ResolveRetryConfig(cfg)
+	if err != nil {
+		return err
+	}
+	stateClient := createStateClient(kkClient, []kkOps.Option{retryConfig.ToSDKOption()})
 
 	var reporter executor.ProgressReporter
 	if outputFormat == textOutputFormat {
@@ -2413,8 +2446,10 @@ func maxConcurrencyFromCmd(cmd *cobra.Command, cfg config.Hook) (int, error) {
 }
 
 // createStateClient creates a new state client with all necessary APIs
-func createStateClient(kkClient helpers.SDKAPI) *state.Client {
+func createStateClient(kkClient helpers.SDKAPI, retryOpts []kkOps.Option) *state.Client {
 	return state.NewClient(state.ClientConfig{
+		RetryOpts: retryOpts,
+
 		// Core APIs
 		PortalAPI:               kkClient.GetPortalAPI(),
 		APIAPI:                  kkClient.GetAPIAPI(),

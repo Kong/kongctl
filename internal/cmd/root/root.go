@@ -246,12 +246,12 @@ func newRootCmd() *cobra.Command {
 		fmt.Sprintf(`Maximum total attempts for retryable HTTP requests (0 = use default, 1 disables retries).
 - Config path: [ %s ]`, common.HTTPRetryMaxAttemptsConfigPath))
 
-	rootCmd.PersistentFlags().String(common.HTTPRetryInitialIntervalFlagName, "",
-		fmt.Sprintf(`Initial retry backoff interval duration (for example: 500ms, 2s).
+	rootCmd.PersistentFlags().Int(common.HTTPRetryInitialIntervalFlagName, 0,
+		fmt.Sprintf(`Initial retry backoff interval in milliseconds (0 = use default).
 - Config path: [ %s ]`, common.HTTPRetryInitialIntervalConfigPath))
 
-	rootCmd.PersistentFlags().String(common.HTTPRetryMaxIntervalFlagName, "",
-		fmt.Sprintf(`Maximum retry backoff interval duration (for example: 10s, 1m).
+	rootCmd.PersistentFlags().Int(common.HTTPRetryMaxIntervalFlagName, 0,
+		fmt.Sprintf(`Maximum retry backoff interval in milliseconds (0 = use default).
 - Config path: [ %s ]`, common.HTTPRetryMaxIntervalConfigPath))
 
 	rootCmd.PersistentFlags().Float64(common.HTTPRetryBackoffFactorFlagName, 0,
