@@ -766,7 +766,7 @@ func NewPlanner(client *state.Client, resourceSet *resources.ResourceSet) *Plann
 func (p *Planner) GeneratePlan(...) {
     // In namespace loop, add root planning behind sync scope gating:
     if p.shouldPlanRoot(namespacePlan, resources.ResourceTypeFoo) {
-        if err := p.fooPlannerImpl.PlanChanges(ctx, plannerCtx, plan); err != nil {
+        if err := p.fooPlannerImpl.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
             return nil, err
         }
     }
