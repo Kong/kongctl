@@ -74,7 +74,8 @@ Setting this value overrides tokens obtained from the login command.
 				common.RequestPageSizeConfigPath))
 	}
 
-	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff || verb == verbs.Export || verb == verbs.Apply {
+	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff || verb == verbs.Export || verb == verbs.Apply ||
+		verb == verbs.Delete {
 		cmd.Flags().Int(commoncmd.HTTPRetryMaxAttemptsFlagName, 0,
 			fmt.Sprintf(`Maximum total attempts for retryable HTTP requests (0 = use default, 1 disables retries).
 - Config path: [ %s ]`, common.HTTPRetryMaxAttemptsConfigPath))

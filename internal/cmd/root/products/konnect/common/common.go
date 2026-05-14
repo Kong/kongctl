@@ -161,6 +161,11 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %d: must be >= 0",
 			HTTPRetryMaxAttemptsConfigPath, maxAttempts)
 	}
+	if maxAttempts > httpclient.MaxRetryMaxAttempts {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be <= %d",
+			HTTPRetryMaxAttemptsConfigPath, maxAttempts, httpclient.MaxRetryMaxAttempts)
+	}
 	if maxAttempts == 0 {
 		maxAttempts = httpclient.DefaultRetryMaxAttempts
 	}
@@ -174,6 +179,10 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	if err != nil {
 		return httpclient.RetryConfig{}, err
 	}
+	if initialIntervalMS < 0 {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %d: must be >= 0",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS)
+	}
 	if initialIntervalMS == 0 {
 		initialIntervalMS = httpclient.DefaultRetryInitialIntervalMS
 	}
@@ -181,6 +190,10 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	maxIntervalMS, err := resolveOptionalInt(cfg, HTTPRetryMaxIntervalConfigPath)
 	if err != nil {
 		return httpclient.RetryConfig{}, err
+	}
+	if maxIntervalMS < 0 {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %d: must be >= 0",
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS)
 	}
 	if maxIntervalMS == 0 {
 		maxIntervalMS = httpclient.DefaultRetryMaxIntervalMS
@@ -191,7 +204,8 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 		return httpclient.RetryConfig{}, err
 	}
 	if factor <= 0 {
-		factor = httpclient.DefaultRetryBackoffFactor
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %f: must be >= 1",
+			HTTPRetryBackoffFactorConfigPath, factor)
 	}
 
 	retryConnErrors, err := resolveOptionalBool(cfg, HTTPRetryOnConnectionErrorsConfigPath)

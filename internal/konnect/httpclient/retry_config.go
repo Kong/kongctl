@@ -17,7 +17,11 @@ const (
 	// DefaultRetryMaxIntervalMS is the default maximum backoff interval in milliseconds.
 	DefaultRetryMaxIntervalMS = 10_000
 	// DefaultRetryBackoffFactor is the default exponential backoff multiplier.
-	DefaultRetryBackoffFactor = 2.0
+	DefaultRetryBackoffFactor    = 2.0
+	DefaultRetryConnectionErrors = false
+
+	// MaxRetryMaxAttempts is the maximum configurable number of total attempts.
+	MaxRetryMaxAttempts = 25
 )
 
 // RetryConfig holds retry/backoff parameters resolved from flags/config.
