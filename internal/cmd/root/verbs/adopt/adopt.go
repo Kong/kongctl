@@ -31,7 +31,7 @@ var (
   # Adopt a control plane by ID
   %[1]s adopt control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace platform
   # Adopt a dashboard by ID
-  %[1]s adopt dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace analytics
+  %[1]s adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace analytics
   # Adopt a DCR provider by name
   %[1]s adopt dcr-provider my-dcr-provider --namespace team-alpha
   # Adopt an API explicitly via the konnect product
@@ -106,11 +106,11 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(dcrProviderCmd)
 
-	dashboardCmd, err := NewDirectDashboardCmd()
+	analyticsCmd, err := NewDirectAnalyticsCmd()
 	if err != nil {
 		return nil, err
 	}
-	cmd.AddCommand(dashboardCmd)
+	cmd.AddCommand(analyticsCmd)
 
 	eventGatewayCmd, err := NewDirectEventGatewayCmd()
 	if err != nil {

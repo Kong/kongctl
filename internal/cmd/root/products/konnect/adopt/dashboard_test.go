@@ -7,12 +7,24 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	helpers "github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewAnalyticsCmdAddsDashboardChild(t *testing.T) {
+	cmd, err := NewAnalyticsCmd(verbs.Adopt, nil, nil, nil)
+	require.NoError(t, err)
+	assert.Contains(t, cmd.Aliases, "analytic")
+
+	dashboardCmd, _, err := cmd.Find([]string{"dashboard"})
+	require.NoError(t, err)
+	require.NotNil(t, dashboardCmd)
+	assert.Equal(t, "dashboard <dashboard-id|dashboard-name>", dashboardCmd.Use)
+}
 
 type adoptDashboardAPIStub struct {
 	t          *testing.T

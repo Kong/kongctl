@@ -46,7 +46,7 @@ var (
         %[1]s dump declarative --resources=portal,api --default-namespace=team-alpha
 
         # Export adopted dashboards as declarative configuration
-        %[1]s dump declarative --resources=dashboard --default-namespace=analytics
+        %[1]s dump declarative --resources=analytics.dashboards --default-namespace=analytics
 
         # Export all organization teams
         %[1]s dump declarative --resources=organization.teams

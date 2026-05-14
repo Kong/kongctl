@@ -15,8 +15,8 @@ To bring a dashboard created in the Konnect UI into GitOps, adopt it first and
 then dump the declarative definition:
 
 ```sh
-kongctl adopt dashboard <dashboard-id> --namespace analytics
-kongctl dump declarative --resources=dashboard \
+kongctl adopt analytics dashboard <dashboard-id> --namespace analytics
+kongctl dump declarative --resources=analytics.dashboards \
   --default-namespace=analytics > dashboards.yaml
 kongctl plan -f dashboards.yaml --mode apply
 ```

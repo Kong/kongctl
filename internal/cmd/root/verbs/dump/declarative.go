@@ -38,7 +38,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"application_auth_strategies": {},
 	"dcr_providers":               {},
 	"control_planes":              {},
-	"dashboards":                  {},
+	"analytics.dashboards":        {},
 	"event_gateways":              {},
 	"organization.teams":          {},
 }
@@ -72,7 +72,7 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
-			"dashboards, event_gateways, organization.teams).")
+			"analytics.dashboards, event_gateways, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -282,7 +282,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				populateControlPlaneChildren(ctx, logger, stateClient, controlPlanes)
 			}
 			resourceSet.ControlPlanes = append(resourceSet.ControlPlanes, controlPlanes...)
-		case "dashboards":
+		case "analytics.dashboards":
 			dashboards, err := collectDeclarativeDashboards(ctx, sdk.GetDashboardsAPI(), requestPageSize, opts.filter)
 			if err != nil {
 				return err

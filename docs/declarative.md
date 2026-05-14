@@ -942,7 +942,7 @@ kongctl adopt control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
 Adopt a custom dashboard by ID:
 
 ```shell
-kongctl adopt dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
+kongctl adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
   --namespace analytics
 ```
 
@@ -972,9 +972,9 @@ For custom dashboards created in the Konnect UI, adopt the dashboard first,
 then dump it with the same namespace:
 
 ```shell
-kongctl adopt dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
+kongctl adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
   --namespace analytics
-kongctl dump declarative --resources=dashboard \
+kongctl dump declarative --resources=analytics.dashboards \
   --default-namespace=analytics > dashboards.yaml
 kongctl plan -f dashboards.yaml --mode apply
 ```

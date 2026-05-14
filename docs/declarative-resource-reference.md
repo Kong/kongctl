@@ -206,11 +206,12 @@ duplicate dashboard names within a kongctl namespace.
 
 Dashboard resources are declared under the `analytics` grouping key.
 
-For dashboards created in the Konnect UI, first run `kongctl adopt dashboard`
-with the dashboard ID to apply the namespace label, then run
-`kongctl dump declarative --resources=dashboard --default-namespace <name>` to
-generate declarative configuration. Name-based adoption fails if the name
-matches multiple dashboards.
+For dashboards created in the Konnect UI, first run
+`kongctl adopt analytics dashboard` with the dashboard ID to apply the
+namespace label, then run `kongctl dump declarative` with
+`--resources=analytics.dashboards` and `--default-namespace <name>` to generate
+declarative configuration. Name-based adoption fails if the name matches
+multiple dashboards.
 
 Use the dashboard definition JSON exported from Konnect as the `definition`
 value. The field accepts that API-shaped object either inline or loaded from a

@@ -218,11 +218,11 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 		cmd.AddCommand(dcrProviderCmd)
 
-		dashboardCmd, err := adopt.NewDashboardCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		analyticsCmd, err := adopt.NewAnalyticsCmd(verb, &cobra.Command{}, addFlags, preRunE)
 		if err != nil {
 			return nil, err
 		}
-		cmd.AddCommand(dashboardCmd)
+		cmd.AddCommand(analyticsCmd)
 
 		eventGatewayCmd, err := adopt.NewEventGatewayControlPlaneCmd(verb, &cobra.Command{}, addFlags, preRunE)
 		if err != nil {

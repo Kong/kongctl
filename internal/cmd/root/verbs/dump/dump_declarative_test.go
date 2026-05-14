@@ -379,6 +379,31 @@ func TestFilterOptionsHasFilter(t *testing.T) {
 	}
 }
 
+func TestNormalizeResourceListMapsDashboardAliasesToAnalyticsDashboards(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{input: "dashboard", want: []string{"analytics.dashboards"}},
+		{input: "dashboards", want: []string{"analytics.dashboards"}},
+		{input: "analytics.dashboard", want: []string{"analytics.dashboards"}},
+		{input: "analytics.dashboards", want: []string{"analytics.dashboards"}},
+		{input: "organization.teams,dashboards", want: []string{"organization.teams", "analytics.dashboards"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := normalizeResourceList(tt.input, declarativeAllowedResources)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
+				t.Fatalf("expected %v, got %v", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestFilterByNameOrID(t *testing.T) {
 	portals := []declresources.PortalResource{
 		{BaseResource: declresources.BaseResource{Ref: "id-1"}, CreatePortal: kkComps.CreatePortal{Name: "alpha"}},

@@ -189,6 +189,7 @@ steps:
       - name: 001-adopt-dashboard
         run:
           - adopt
+          - analytics
           - dashboard
           - "{{ .vars.uiDashboardID }}"
           - --namespace
@@ -205,7 +206,7 @@ steps:
         run:
           - dump
           - declarative
-          - "--resources=dashboard"
+          - "--resources=analytics.dashboards"
           - --default-namespace
           - "{{ .vars.namespace }}"
         outputFormat: none

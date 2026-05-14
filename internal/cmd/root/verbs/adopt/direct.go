@@ -310,7 +310,7 @@ Setting this value overrides tokens obtained from the login command.
 	return cmd, nil
 }
 
-func NewDirectDashboardCmd() (*cobra.Command, error) {
+func NewDirectAnalyticsCmd() (*cobra.Command, error) {
 	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
 		cmd.Flags().String(common.BaseURLFlagName, "",
 			fmt.Sprintf(`Base URL for Konnect API requests.
@@ -342,13 +342,13 @@ Setting this value overrides tokens obtained from the login command.
 		return bindKonnectFlags(c, args)
 	}
 
-	cmd, err := konnectadopt.NewDashboardCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	cmd, err := konnectadopt.NewAnalyticsCmd(Verb, &cobra.Command{}, addFlags, preRunE)
 	if err != nil {
 		return nil, err
 	}
 
 	cmd.Example = `  # Adopt a dashboard by ID
-  kongctl adopt dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace team-alpha`
+  kongctl adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace team-alpha`
 
 	return cmd, nil
 }
