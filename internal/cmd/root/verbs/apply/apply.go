@@ -28,11 +28,14 @@ var (
 		`Apply configuration changes to Kong Konnect. Creates new resources and updates existing ones.`))
 
 	applyExamples = normalizers.Examples(i18n.T("root.verbs.apply.applyExamples",
-		fmt.Sprintf(`  %[1]s apply -f api.yaml
-  %[1]s apply -f ./configs/ --recursive
-  %[1]s apply --plan plan.json
+		fmt.Sprintf(`  # Apply Konnect configuration changes (Konnect is the default target)
+  %[1]s apply -f api.yaml
 
-Use "%[1]s help apply" for detailed documentation`, meta.CLIName)))
+  # Apply using the explicit Konnect target form
+  %[1]s apply konnect -f api.yaml
+
+  # Apply from a pre-generated plan
+  %[1]s apply --plan plan.json`, meta.CLIName)))
 )
 
 func NewApplyCmd() (*cobra.Command, error) {

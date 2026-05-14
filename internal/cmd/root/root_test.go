@@ -1,6 +1,7 @@
 package root
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -45,6 +46,44 @@ func TestMergedFlagUsagesUsesCommandSpecificOutputFormats(t *testing.T) {
 	}
 	if strings.Contains(outputFlag.Usage, "helm") {
 		t.Fatalf("expected merged usage rendering not to mutate root output flag usage, got:\n%s", outputFlag.Usage)
+	}
+}
+
+func TestRootApplyHelpShowsExamples(t *testing.T) {
+	oldRootCmd := rootCmd
+	t.Cleanup(func() {
+		rootCmd = oldRootCmd
+	})
+
+	rootCmd = newRootCmd()
+	requireNoError(t, addCommands())
+
+	var output bytes.Buffer
+	rootCmd.SetOut(&output)
+	rootCmd.SetErr(&output)
+	rootCmd.SetArgs([]string{"apply", "--help"})
+
+	requireNoError(t, rootCmd.Execute())
+	help := output.String()
+
+	if !strings.Contains(help, "Examples:") {
+		t.Fatalf("expected apply help to show examples, got:\n%s", help)
+	}
+	if !strings.Contains(help, "kongctl apply -f api.yaml") {
+		t.Fatalf("expected apply help to show shorthand example, got:\n%s", help)
+	}
+	if !strings.Contains(help, "kongctl apply konnect -f api.yaml") {
+		t.Fatalf("expected apply help to show explicit Konnect example, got:\n%s", help)
+	}
+	if strings.Contains(help, "kongctl get konnect gateway control-planes") {
+		t.Fatalf("expected apply help not to show get control-planes example, got:\n%s", help)
+	}
+}
+
+func requireNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
