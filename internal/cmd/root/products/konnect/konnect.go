@@ -177,6 +177,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		cmd.Use = c.Use
 		cmd.Short = c.Short
 		cmd.Long = c.Long
+		cmd.Example = c.Example
 		cmd.RunE = c.RunE
 		// Copy flags from declarative command
 		cmd.Flags().AddFlagSet(c.Flags())

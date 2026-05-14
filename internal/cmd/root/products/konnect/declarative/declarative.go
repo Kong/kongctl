@@ -29,6 +29,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	applog "github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )
@@ -330,14 +331,84 @@ func NewDeclarativeCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	return nil, fmt.Errorf("verb %s does not support declarative configuration", verb)
 }
 
+func declarativePlanExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Generate a Konnect execution plan (Konnect is the default target)
+  %[1]s plan -f api.yaml
+
+  # Generate a plan using the explicit Konnect target form
+  %[1]s plan konnect -f api.yaml
+
+  # Save a plan artifact for review or later execution
+  %[1]s plan -f config.yaml --output-file plan.json`, meta.CLIName))
+}
+
+func declarativeSyncExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Synchronize Konnect resources from declarative configuration
+  %[1]s sync -f api.yaml
+
+  # Synchronize using the explicit Konnect target form
+  %[1]s sync konnect -f api.yaml
+
+  # Execute a reviewed plan without prompting
+  %[1]s sync --plan plan.json --auto-approve`, meta.CLIName))
+}
+
+func declarativeDiffExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Preview changes from declarative configuration
+  %[1]s diff -f api.yaml
+
+  # Preview changes using the explicit Konnect target form
+  %[1]s diff konnect -f api.yaml
+
+  # Display differences from an existing plan artifact
+  %[1]s diff --plan plan.json`, meta.CLIName))
+}
+
+func declarativeExportExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Export Konnect resources to declarative configuration files
+  %[1]s export -o ./exported-config
+
+  # Export using the explicit Konnect target form
+  %[1]s export konnect -o ./exported-config
+
+  # Export specific resource types
+  %[1]s export -o ./exported-config --resources portals,apis`, meta.CLIName))
+}
+
+func declarativeApplyExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Apply Konnect configuration changes (Konnect is the default target)
+  %[1]s apply -f api.yaml
+
+  # Apply using the explicit Konnect target form
+  %[1]s apply konnect -f api.yaml
+
+  # Apply from a pre-generated plan
+  %[1]s apply --plan plan.json`, meta.CLIName))
+}
+
+func declarativeDeleteExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Delete Konnect resources defined in declarative configuration
+  %[1]s delete -f config.yaml
+
+  # Preview deletions before executing them
+  %[1]s delete -f config.yaml --dry-run
+
+  # Execute a reviewed delete plan without prompting
+  %[1]s delete --plan delete-plan.json --auto-approve`, meta.CLIName))
+}
+
 func newDeclarativePlanCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Generate a plan artifact for Konnect resources",
+		Use:     "konnect",
+		Short:   "Generate a plan artifact for Konnect resources",
+		Example: declarativePlanExamples(),
 		Long: `Generate a plan artifact from declarative configuration files for Konnect.
 
 The plan artifact represents the desired state of Konnect resources and can be used
-for review, approval workflows, or as input to sync operations.`,
+for review, approval workflows, or as input to sync operations.
+
+Konnect is the default target for this command, so "kongctl plan" and
+"kongctl plan konnect" are equivalent.`,
 		RunE: runPlan,
 	}
 
@@ -1248,13 +1319,17 @@ func displayField(out io.Writer, field string, value any, indent string, fullCon
 
 func newDeclarativeSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Synchronize declarative configuration to Konnect",
+		Use:     "konnect",
+		Short:   "Synchronize declarative configuration to Konnect",
+		Example: declarativeSyncExamples(),
 		Long: `Synchronize declarative configuration files to Konnect.
 
 Sync analyzes the current state of Konnect resources, compares it with the desired
 state defined in the configuration files, and applies the necessary changes to
-achieve the desired state.`,
+achieve the desired state.
+
+Konnect is the default target for this command, so "kongctl sync" and
+"kongctl sync konnect" are equivalent.`,
 		RunE: runSync,
 	}
 
@@ -1277,13 +1352,17 @@ achieve the desired state.`,
 
 func newDeclarativeDiffCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Display differences between current and desired Konnect state",
+		Use:     "konnect",
+		Short:   "Display differences between current and desired Konnect state",
+		Example: declarativeDiffExamples(),
 		Long: `Compare the current state of Konnect resources with the desired state
 defined in declarative configuration files and display the differences.
 
 The diff output shows what changes would be made without actually applying them,
-useful for reviewing changes before synchronization.`,
+useful for reviewing changes before synchronization.
+
+Konnect is the default target for this command, so "kongctl diff" and
+"kongctl diff konnect" are equivalent.`,
 		RunE: runDiff,
 	}
 
@@ -1304,13 +1383,17 @@ useful for reviewing changes before synchronization.`,
 
 func newDeclarativeExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Export current Konnect state as declarative configuration",
+		Use:     "konnect",
+		Short:   "Export current Konnect state as declarative configuration",
+		Example: declarativeExportExamples(),
 		Long: `Export the current state of Konnect resources as declarative configuration files.
 
 This command retrieves the current configuration from Konnect and generates
 declarative configuration files that can be version controlled, modified,
-and applied to other environments.`,
+and applied to other environments.
+
+Konnect is the default target for this command, so "kongctl export" and
+"kongctl export konnect" are equivalent.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return fmt.Errorf("export command not yet implemented")
 		},
@@ -1753,13 +1836,17 @@ func outputExecutionResult(command *cobra.Command,
 
 func newDeclarativeApplyCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Apply configuration changes (create/update only)",
+		Use:     "konnect",
+		Short:   "Apply configuration changes (create/update only)",
+		Example: declarativeApplyExamples(),
 		Long: `Execute a plan to create new resources and update existing ones. Never deletes resources.
 
 The apply command provides a safe way to apply configuration changes by only
 performing CREATE and UPDATE operations. Use the sync command if you need to
-delete resources.`,
+delete resources.
+
+Konnect is the default target for this command, so "kongctl apply" and
+"kongctl apply konnect" are equivalent.`,
 		RunE: runApply,
 	}
 
@@ -1782,8 +1869,9 @@ delete resources.`,
 
 func newDeclarativeDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Delete resources defined in declarative configuration",
+		Use:     "konnect",
+		Short:   "Delete resources defined in declarative configuration",
+		Example: declarativeDeleteExamples(),
 		Long: `Delete Konnect resources defined in declarative configuration files.
 
 The delete command generates a delete plan from the configuration files and

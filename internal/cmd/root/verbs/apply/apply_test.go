@@ -52,7 +52,25 @@ func TestApplyCmdHelpText(t *testing.T) {
 	assert.Contains(t, cmd.Short, "Apply declarative configuration", "Short should mention applying configuration")
 	assert.Contains(t, cmd.Long, "configuration changes", "Long should mention configuration changes")
 	assert.Contains(t, cmd.Example, "--plan", "Examples should show --plan flag usage")
-	assert.Contains(t, cmd.Example, "help apply", "Examples should mention extended help")
+	assert.Contains(t, cmd.Example, "apply -f api.yaml", "Examples should show Konnect-first usage")
+	assert.Contains(t, cmd.Example, "apply konnect -f api.yaml", "Examples should show explicit Konnect usage")
+}
+
+func TestApplyCmdRenderedHelpShowsExamples(t *testing.T) {
+	cmd, err := NewApplyCmd()
+	require.NoError(t, err)
+
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetErr(&output)
+
+	require.NoError(t, cmd.Help())
+	help := output.String()
+
+	require.Contains(t, help, "Examples:")
+	require.Contains(t, help, "kongctl apply -f api.yaml")
+	require.Contains(t, help, "kongctl apply konnect -f api.yaml")
+	require.NotContains(t, help, "kongctl get konnect gateway control-planes")
 }
 
 func TestApplyCmd_ValidatePlanFile(t *testing.T) {
