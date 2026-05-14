@@ -224,8 +224,8 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	if factor == 0 {
 		factor = httpclient.DefaultRetryBackoffFactor
 	}
-	if factor <= 0 {
-		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %f: must be >= 1",
+	if factor < 1 {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be >= 1",
 			HTTPRetryBackoffFactorConfigPath, factor)
 	}
 

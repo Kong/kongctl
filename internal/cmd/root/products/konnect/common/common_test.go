@@ -347,6 +347,16 @@ func TestResolveRetryConfig(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("backoff factor below 1 returns error", func(t *testing.T) {
+		for _, v := range []string{"0.5", "0.001", "0.999"} {
+			cfg, _ := newTestConfig(map[string]string{
+				HTTPRetryBackoffFactorConfigPath: v,
+			})
+			_, err := ResolveRetryConfig(cfg)
+			require.Error(t, err, "factor %s should be rejected", v)
+		}
+	})
+
 	t.Run("legacy top-level values are ignored", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
 			cmdcommon.HTTPRetryMaxAttemptsConfigPath: "3",
