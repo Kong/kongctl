@@ -109,13 +109,11 @@ func NewLinkCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   "link",
 		Short: i18n.T("root.verbs.link.short", "Link locally developed features"),
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
 		PersistentPreRun: func(c *cobra.Command, _ []string) {
 			c.SetContext(context.WithValue(c.Context(), verbs.Verb, verbs.Link))
 		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 	cmd.AddCommand(newLinkExtensionCmd())
 	return cmd, nil
 }
@@ -124,13 +122,11 @@ func NewUninstallCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: i18n.T("root.verbs.uninstall.short", "Uninstall features"),
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
 		PersistentPreRun: func(c *cobra.Command, _ []string) {
 			c.SetContext(context.WithValue(c.Context(), verbs.Verb, verbs.Uninstall))
 		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 	cmd.AddCommand(newUninstallExtensionCmd())
 	return cmd, nil
 }
@@ -139,13 +135,11 @@ func NewUpgradeCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   "upgrade",
 		Short: i18n.T("root.verbs.upgrade.short", "Upgrade kongctl features"),
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
 		PersistentPreRun: func(c *cobra.Command, _ []string) {
 			c.SetContext(context.WithValue(c.Context(), verbs.Verb, verbs.Upgrade))
 		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 	cmd.AddCommand(newUpgradeExtensionCmd())
 	return cmd, nil
 }

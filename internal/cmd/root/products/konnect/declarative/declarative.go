@@ -444,10 +444,10 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	// Reject --output/-o flag: plan always outputs JSON; use --output-file to save to a file
 	if outputFlag := command.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Changed {
-		return fmt.Errorf(
+		return &cmd.UsageError{Err: fmt.Errorf(
 			"flags -o/--%s are not supported for the plan command; use --output-file to save the plan to a file",
 			cmdcommon.OutputFlagName,
-		)
+		)}
 	}
 
 	ctx := command.Context()

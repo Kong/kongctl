@@ -80,8 +80,9 @@ regional webhook configuration.`
 		if _, err := helper.GetOutputFormat(); err != nil {
 			return err
 		}
-		return cmdObj.Help()
+		return cmd.RequireSubcommand(cmdObj, args)
 	}
+	cmd.MarkRequiresSubcommand(baseCmd)
 
 	baseCmd.AddCommand(newGetAuditLogsDestinationsCmd(verb, addParentFlags, parentPreRun))
 	baseCmd.AddCommand(newGetAuditLogDestinationCmd(verb, addParentFlags, parentPreRun))

@@ -61,6 +61,7 @@ func NewListCmd() (*cobra.Command, error) {
 			return bindKonnectFlags(c, args)
 		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 
 	// Add Konnect-specific flags as persistent flags so they appear in help
 	cmd.PersistentFlags().String(common.BaseURLFlagName, "",

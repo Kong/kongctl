@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -60,7 +61,7 @@ func NewScaffoldCmd() (*cobra.Command, error) {
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		if strings.Contains(err.Error(), "--"+cmdcommon.OutputFlagName) ||
 			strings.Contains(err.Error(), "-"+cmdcommon.OutputFlagShort) {
-			return errors.New(outputFlagUnsupportedMsg)
+			return &cmdpkg.UsageError{Err: errors.New(outputFlagUnsupportedMsg)}
 		}
 		return err
 	})
@@ -77,7 +78,7 @@ func runScaffold(command *cobra.Command, args []string) error {
 	command.SilenceUsage = true
 
 	if outputFlag := command.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Changed {
-		return errors.New(outputFlagUnsupportedMsg)
+		return &cmdpkg.UsageError{Err: errors.New(outputFlagUnsupportedMsg)}
 	}
 
 	subject, err := resources.ResolveExplainSubject(args[0])

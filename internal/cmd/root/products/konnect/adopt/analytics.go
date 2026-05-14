@@ -3,6 +3,7 @@ package adopt
 import (
 	"fmt"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -45,9 +46,7 @@ func NewAnalyticsCmd(
 	cmd.Long = adoptAnalyticsLong
 	cmd.Example = adoptAnalyticsExample
 	cmd.Aliases = []string{"analytic"}
-	cmd.RunE = func(c *cobra.Command, _ []string) error {
-		return c.Help()
-	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 
 	dashboardCmd, err := NewDashboardCmd(verb, &cobra.Command{}, addParentFlags, parentPreRun)
 	if err != nil {

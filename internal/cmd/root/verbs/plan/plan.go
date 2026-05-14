@@ -2,9 +2,11 @@ package plan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -73,7 +75,7 @@ func NewPlanCmd() (*cobra.Command, error) {
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		if strings.Contains(err.Error(), fmt.Sprintf("--%s", cmdcommon.OutputFlagName)) ||
 			strings.Contains(err.Error(), fmt.Sprintf("-%s", cmdcommon.OutputFlagShort)) {
-			return fmt.Errorf("%s", outputFlagMsg)
+			return &cmdpkg.UsageError{Err: errors.New(outputFlagMsg)}
 		}
 		return err
 	})

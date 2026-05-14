@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/meta"
@@ -44,13 +45,11 @@ func NewInstallCmd() (*cobra.Command, error) {
 		Short:   installShort,
 		Long:    installLong,
 		Example: installExamples,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
 		PersistentPreRun: func(c *cobra.Command, _ []string) {
 			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
 		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 
 	cmd.AddCommand(extensioncmd.NewInstallExtensionCmd())
 	cmd.AddCommand(newInstallSkillsCmd())

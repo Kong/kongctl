@@ -100,8 +100,9 @@ Setting this value overrides tokens obtained from the login command.
 		if _, err := helper.GetOutputFormat(); err != nil {
 			return err
 		}
-		return c.Help()
+		return cmdpkg.RequireSubcommand(c, args)
 	}
+	cmdpkg.MarkRequiresSubcommand(cmd)
 
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
