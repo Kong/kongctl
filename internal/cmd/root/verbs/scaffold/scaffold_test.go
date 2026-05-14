@@ -158,3 +158,32 @@ func TestScaffoldCmd_OrganizationTeamResources(t *testing.T) {
 		})
 	}
 }
+
+func TestScaffoldCmd_AnalyticsDashboardResources(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "dashboard root alias", path: "dashboard"},
+		{name: "dashboards root alias", path: "dashboards"},
+		{name: "analytics dashboard grouped path", path: "analytics.dashboards"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := newTestRootWithScaffold(t, common.TEXT.String())
+
+			var output bytes.Buffer
+			root.SetOut(&output)
+			root.SetErr(&output)
+			root.SetArgs([]string{"scaffold", tt.path})
+
+			err := root.Execute()
+			require.NoError(t, err)
+			assert.Contains(t, output.String(), "analytics:")
+			assert.Contains(t, output.String(), "  dashboards:")
+			assert.Contains(t, output.String(), "    - ref: my-resource")
+			assert.Contains(t, output.String(), "      name: my-resource")
+		})
+	}
+}

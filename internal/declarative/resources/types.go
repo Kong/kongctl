@@ -84,7 +84,6 @@ type ResourceSet struct {
 	ControlPlanes                     []ControlPlaneResource                     `yaml:"control_planes,omitempty"                                 json:"control_planes,omitempty"`                        //nolint:lll
 	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
-	Dashboards                        []DashboardResource                        `yaml:"dashboards,omitempty"                                    json:"dashboards,omitempty"`                             //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
 	// API child resources can be defined at root level (with parent reference) or nested under APIs
@@ -114,6 +113,8 @@ type ResourceSet struct {
 	EventGatewayVirtualClusters []EventGatewayVirtualClusterResource `yaml:"event_gateway_virtual_clusters,omitempty"                 json:"event_gateway_virtual_clusters,omitempty"` //nolint:lll
 	// Organization grouping - contains nested resources like teams
 	Organization *OrganizationResource `yaml:"organization,omitempty"                                   json:"organization,omitempty"` //nolint:lll
+	// Analytics grouping - contains nested resources like dashboards
+	Analytics *AnalyticsResource `yaml:"analytics,omitempty" json:"analytics,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
 	OrganizationTeams                        []OrganizationTeamResource                        `yaml:"-" json:"-"`
@@ -131,6 +132,9 @@ type ResourceSet struct {
 	EventGatewaySchemaRegistries             []EventGatewaySchemaRegistryResource              `yaml:"event_gateway_schema_registries,omitempty"       json:"event_gateway_schema_registries,omitempty"`                         //nolint:lll
 	EventGatewayStaticKeys                   []EventGatewayStaticKeyResource                   `yaml:"event_gateway_static_keys,omitempty"              json:"event_gateway_static_keys,omitempty"`                              //nolint:lll
 	EventGatewayTLSTrustBundles              []EventGatewayTLSTrustBundleResource              `yaml:"event_gateway_tls_trust_bundles,omitempty"        json:"event_gateway_tls_trust_bundles,omitempty"`                        //nolint:lll
+	// Dashboards is populated internally from Analytics.Dashboards during loading.
+	// It is not exposed in YAML/JSON to enforce the analytics grouping format.
+	Dashboards []DashboardResource `yaml:"-" json:"-"`
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                                        json:"-"`

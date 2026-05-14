@@ -199,10 +199,12 @@ catalog_services:
 [Example](examples/declarative/dashboard/dashboard.yaml)
 
 Dashboard names do not need to be unique in Konnect, but `kongctl` follows the
-same top-level resource matching pattern used elsewhere in declarative
-configuration. When planning against live state, it considers dashboards with
-the matching `KONGCTL-namespace` label and matches the desired dashboard by
-name. Avoid duplicate dashboard names within a kongctl namespace.
+same resource matching pattern used elsewhere in declarative configuration.
+When planning against live state, it considers dashboards with the matching
+`KONGCTL-namespace` label and matches the desired dashboard by name. Avoid
+duplicate dashboard names within a kongctl namespace.
+
+Dashboard resources are declared under the `analytics` grouping key.
 
 For dashboards created in the Konnect UI, first run `kongctl adopt dashboard`
 with the dashboard ID to apply the namespace label, then run
@@ -217,24 +219,26 @@ definition without translating it to another schema. `!file` is preferred for
 larger dashboard definitions.
 
 ```yaml
-dashboards:
- - ref: string
-   name: string required
-   definition: object required # prefer: !file ./definitions/dashboard.json
-     tiles: array[object] required
-     preset_filters: array[object]
-   labels: object [string]string
-     key: value
+analytics:
+  dashboards:
+    - ref: string
+      name: string required
+      definition: object required # prefer: !file ./definitions/dashboard.json
+        tiles: array[object] required
+        preset_filters: array[object]
+      labels: object [string]string
+        key: value
 ```
 
 When the exported JSON includes the full API response, use `#definition` to
 extract the payload expected by the dashboard API:
 
 ```yaml
-dashboards:
- - ref: traffic-summary
-   name: Traffic Summary
-   definition: !file ./exports/traffic-summary.json#definition
+analytics:
+  dashboards:
+    - ref: traffic-summary
+      name: Traffic Summary
+      definition: !file ./exports/traffic-summary.json#definition
 ```
 
 ## Control Planes

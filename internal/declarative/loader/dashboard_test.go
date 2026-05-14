@@ -31,12 +31,13 @@ func TestLoaderLoadsDashboardDefinitionFromFile(t *testing.T) {
 
 	configPath := filepath.Join(dir, "config.yaml")
 	require.NoError(t, os.WriteFile(configPath, []byte(`
-dashboards:
-  - ref: traffic-summary
-    name: Traffic Summary
-    definition: !file ./dashboard.json#definition
-    labels:
-      team: platform
+analytics:
+  dashboards:
+    - ref: traffic-summary
+      name: Traffic Summary
+      definition: !file ./dashboard.json#definition
+      labels:
+        team: platform
 `), 0o600))
 
 	rs, err := New().LoadFile(configPath)

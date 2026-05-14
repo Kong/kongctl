@@ -287,7 +287,10 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			if err != nil {
 				return err
 			}
-			resourceSet.Dashboards = append(resourceSet.Dashboards, dashboards...)
+			if resourceSet.Analytics == nil {
+				resourceSet.Analytics = &declresources.AnalyticsResource{}
+			}
+			resourceSet.Analytics.Dashboards = append(resourceSet.Analytics.Dashboards, dashboards...)
 		case "event_gateways":
 			eventGateways, err := collectDeclarativeEventGateways(
 				ctx,

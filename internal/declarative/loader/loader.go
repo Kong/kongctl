@@ -492,6 +492,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			len(source.DCRProviders) +
 			len(source.ControlPlanes) +
 			len(source.APIs) +
+			len(source.Dashboards) +
 			len(source.OrganizationTeams)
 		if source.Organization != nil {
 			parentCount += len(source.Organization.Users)
@@ -633,17 +634,31 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
-	// Apply defaults to Dashboards (parent resources)
-	for i := range rs.Dashboards {
-		if err := assignNamespace(&rs.Dashboards[i].Kongctl, "dashboard", rs.Dashboards[i].Ref); err != nil {
+	assignDashboardDefaults := func(dashboard *resources.DashboardResource) error {
+		if err := assignNamespace(&dashboard.Kongctl, "dashboard", dashboard.Ref); err != nil {
 			return err
 		}
-		if rs.Dashboards[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.Dashboards[i].Kongctl.Protected = protectedDefault
+		if dashboard.Kongctl.Protected == nil && protectedDefault != nil {
+			dashboard.Kongctl.Protected = protectedDefault
 		}
-		if rs.Dashboards[i].Kongctl.Protected == nil {
+		if dashboard.Kongctl.Protected == nil {
 			falseVal := false
-			rs.Dashboards[i].Kongctl.Protected = &falseVal
+			dashboard.Kongctl.Protected = &falseVal
+		}
+		return nil
+	}
+
+	// Apply defaults to Dashboards (parent resources)
+	for i := range rs.Dashboards {
+		if err := assignDashboardDefaults(&rs.Dashboards[i]); err != nil {
+			return err
+		}
+	}
+	if rs.Analytics != nil {
+		for i := range rs.Analytics.Dashboards {
+			if err := assignDashboardDefaults(&rs.Analytics.Dashboards[i]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -828,6 +843,12 @@ func (l *Loader) extractPortalPages(
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	// Extract analytics nested resources.
+	if rs.Analytics != nil {
+		rs.Dashboards = append(rs.Dashboards, rs.Analytics.Dashboards...)
+		rs.Analytics.Dashboards = nil
+	}
+
 	// Extract organization nested resources
 	if rs.Organization != nil {
 		org := rs.Organization

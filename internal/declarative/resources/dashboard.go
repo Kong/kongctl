@@ -13,6 +13,7 @@ func init() {
 		ResourceTypeDashboard,
 		func(rs *ResourceSet) *[]DashboardResource { return &rs.Dashboards },
 		AutoExplain[DashboardResource](
+			WithExplainAliases("dashboards"),
 			WithExplainRecommendedFields("ref", "name", "definition"),
 		),
 	)

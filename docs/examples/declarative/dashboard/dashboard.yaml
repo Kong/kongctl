@@ -2,10 +2,11 @@ _defaults:
   kongctl:
     namespace: analytics
 
-dashboards:
-  - ref: api-summary
-    name: API Summary
-    definition: !file ./definitions/api-summary.json
-    labels:
-      team: platform
-      purpose: observability
+analytics:
+  dashboards:
+    - ref: api-summary
+      name: API Summary
+      definition: !file ./definitions/api-summary.json
+      labels:
+        team: platform
+        purpose: observability
