@@ -1,7 +1,8 @@
-# Declarative Custom Dashboard
+# Declarative Analytics Dashboard
 
 This example manages a Konnect Analytics custom dashboard from an exported JSON
-dashboard definition.
+dashboard definition. The sample dashboard is based on a Quick summary dashboard
+created in the Konnect UI.
 
 ```sh
 kongctl plan -f dashboard.yaml
@@ -9,7 +10,9 @@ kongctl apply -f dashboard.yaml --auto-approve
 ```
 
 The `definition` field can be written inline as YAML or loaded from a JSON or
-YAML file with `!file`.
+YAML file with `!file`. When using an exported API response, keep the dashboard
+`definition` object and omit API-managed fields such as `id`, `created_at`,
+`created_by`, and `updated_at`.
 
 To bring a dashboard created in the Konnect UI into GitOps, adopt it first and
 then dump the declarative definition:

@@ -4,9 +4,9 @@ _defaults:
 
 analytics:
   dashboards:
-    - ref: api-summary
-      name: API Summary
-      definition: !file ./definitions/api-summary.json
+    - ref: quick-summary-dashboard
+      name: Quick Summary Dashboard
+      definition: !file ./definitions/quick-summary.json
       labels:
         team: platform
         purpose: observability

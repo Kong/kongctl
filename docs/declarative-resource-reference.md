@@ -196,7 +196,7 @@ catalog_services:
 ## Dashboards
 
 [Custom Dashboards](https://developer.konghq.com/custom-dashboards/)
-[Example](examples/declarative/dashboard/dashboard.yaml)
+[Example](examples/declarative/analytics/dashboards/dashboard.yaml)
 
 Dashboard names do not need to be unique in Konnect, but `kongctl` follows the
 same resource matching pattern used elsewhere in declarative configuration.
