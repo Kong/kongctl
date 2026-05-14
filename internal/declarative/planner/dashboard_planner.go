@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/util"
 )
 
 type dashboardPlannerImpl struct {
@@ -56,15 +57,15 @@ func (p *Planner) planDashboardChanges(
 		return fmt.Errorf("failed to list dashboards: %w", err)
 	}
 
-	currentByName := make(map[string]state.Dashboard)
-	for _, current := range currentDashboards {
-		currentByName[current.Name] = current
-	}
+	currentByID, currentByName := indexDashboards(currentDashboards)
 
 	if plan.Metadata.Mode == PlanModeDelete {
 		var protectionErrors []error
 		for _, desiredDashboard := range desired {
-			current, exists := currentByName[desiredDashboard.Name]
+			current, exists, err := matchCurrentDashboard(desiredDashboard, currentByID, currentByName)
+			if err != nil {
+				return err
+			}
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
 					"dashboard %q not found in Konnect, skipping delete", desiredDashboard.Name))
@@ -88,16 +89,18 @@ func (p *Planner) planDashboardChanges(
 	}
 
 	var protectionErrors []error
-	desiredNames := make(map[string]bool)
+	matchedCurrent := make(map[string]bool)
 
 	for _, desiredDashboard := range desired {
-		desiredNames[desiredDashboard.Name] = true
-
-		current, exists := currentByName[desiredDashboard.Name]
+		current, exists, err := matchCurrentDashboard(desiredDashboard, currentByID, currentByName)
+		if err != nil {
+			return err
+		}
 		if !exists {
 			p.planDashboardCreate(desiredDashboard, plan)
 			continue
 		}
+		matchedCurrent[dashboardIdentity(current)] = true
 
 		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
 		shouldProtect := desiredDashboard.Kongctl != nil &&
@@ -127,13 +130,13 @@ func (p *Planner) planDashboardChanges(
 	}
 
 	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if desiredNames[name] {
+		for _, current := range currentDashboards {
+			if matchedCurrent[dashboardIdentity(current)] {
 				continue
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeDashboard, name, isProtected, ActionDelete); err != nil {
+			if err := p.validateProtection(ResourceTypeDashboard, current.Name, isProtected, ActionDelete); err != nil {
 				protectionErrors = append(protectionErrors, err)
 			} else {
 				p.planDashboardDelete(current, plan)
@@ -155,6 +158,11 @@ func (p *Planner) shouldUpdateDashboard(
 	updates := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
+	if current.Name != desired.Name {
+		updates[FieldName] = desired.Name
+		changedFields[FieldName] = FieldChange{Old: current.Name, New: desired.Name}
+	}
+
 	if !reflect.DeepEqual(current.Definition, desired.Definition) {
 		updates[FieldDefinition] = desired.Definition
 		changedFields[FieldDefinition] = FieldChange{Old: current.Definition, New: desired.Definition}
@@ -169,6 +177,59 @@ func (p *Planner) shouldUpdateDashboard(
 	}
 
 	return len(updates) > 0, updates, changedFields
+}
+
+func indexDashboards(dashboards []state.Dashboard) (map[string]state.Dashboard, map[string][]state.Dashboard) {
+	byID := make(map[string]state.Dashboard)
+	byName := make(map[string][]state.Dashboard)
+	for _, dashboard := range dashboards {
+		if id := getString(dashboard.ID); id != "" {
+			byID[id] = dashboard
+		}
+		byName[dashboard.Name] = append(byName[dashboard.Name], dashboard)
+	}
+	return byID, byName
+}
+
+func matchCurrentDashboard(
+	desired resources.DashboardResource,
+	currentByID map[string]state.Dashboard,
+	currentByName map[string][]state.Dashboard,
+) (state.Dashboard, bool, error) {
+	if id := dashboardDesiredID(desired); id != "" {
+		current, exists := currentByID[id]
+		return current, exists, nil
+	}
+
+	matches := currentByName[desired.Name]
+	switch len(matches) {
+	case 0:
+		return state.Dashboard{}, false, nil
+	case 1:
+		return matches[0], true, nil
+	default:
+		return state.Dashboard{}, false, fmt.Errorf(
+			"multiple managed dashboards named %q found in namespace; use a UUID ref or remove duplicates",
+			desired.Name,
+		)
+	}
+}
+
+func dashboardDesiredID(desired resources.DashboardResource) string {
+	if id := desired.GetKonnectID(); id != "" {
+		return id
+	}
+	if util.IsValidUUID(desired.Ref) {
+		return desired.Ref
+	}
+	return ""
+}
+
+func dashboardIdentity(dashboard state.Dashboard) string {
+	if id := getString(dashboard.ID); id != "" {
+		return "id:" + id
+	}
+	return "name:" + dashboard.Name
 }
 
 func (p *Planner) planDashboardCreate(resource resources.DashboardResource, plan *Plan) {

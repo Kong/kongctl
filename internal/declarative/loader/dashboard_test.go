@@ -53,3 +53,44 @@ analytics:
 	assert.Equal(t, kkComps.AllFilterItemsOperatorIn, dashboard.Definition.PresetFilters[0].Operator)
 	assert.Equal(t, map[string]string{"team": "platform"}, dashboard.Labels)
 }
+
+func TestLoaderDashboardDefinitionPresenceFromYAML(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte(`
+analytics:
+  dashboards:
+    - ref: traffic-summary
+      name: Traffic Summary
+      definition:
+        preset_filters:
+          - field: control_plane
+            operator: in
+            value: ["cp-id"]
+`), 0o600))
+
+	_, err := New().LoadFile(configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "definition.tiles is required for dashboard traffic-summary")
+}
+
+func TestLoaderRejectsDuplicateDashboardNamesInNamespace(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte(`
+analytics:
+  dashboards:
+    - ref: traffic-summary
+      name: Traffic Summary
+      definition:
+        tiles: []
+    - ref: traffic-summary-copy
+      name: Traffic Summary
+      definition:
+        tiles: []
+`), 0o600))
+
+	_, err := New().LoadFile(configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate dashboard name 'Traffic Summary' in namespace 'default'")
+}

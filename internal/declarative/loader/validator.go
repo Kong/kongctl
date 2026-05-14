@@ -669,6 +669,7 @@ func (l *Loader) validateDashboards(
 	rs *resources.ResourceSet,
 ) error {
 	refs := make(map[string]struct{})
+	namesByNamespace := make(map[string]string)
 
 	for i := range dashboards {
 		dashboard := &dashboards[i]
@@ -688,6 +689,19 @@ func (l *Loader) validateDashboards(
 			return fmt.Errorf("duplicate dashboard ref '%s'", dashboard.GetRef())
 		}
 		refs[dashboard.GetRef()] = struct{}{}
+
+		namespace := resources.GetNamespace(dashboard.Kongctl)
+		nameKey := namespace + "\x00" + dashboard.Name
+		if existingRef, exists := namesByNamespace[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate dashboard name '%s' in namespace '%s' (ref: %s conflicts with ref: %s)",
+				dashboard.Name,
+				namespace,
+				dashboard.GetRef(),
+				existingRef,
+			)
+		}
+		namesByNamespace[nameKey] = dashboard.GetRef()
 	}
 
 	return nil

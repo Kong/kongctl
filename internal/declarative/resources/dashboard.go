@@ -122,3 +122,28 @@ func (d *DashboardResource) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+func (d *DashboardResource) UnmarshalYAML(unmarshal func(any) error) error {
+	var temp struct {
+		Ref        string             `yaml:"ref"`
+		Kongctl    *KongctlMeta       `yaml:"kongctl,omitempty"`
+		Name       string             `yaml:"name"`
+		Definition *kkComps.Dashboard `yaml:"definition"`
+		Labels     map[string]string  `yaml:"labels,omitempty"`
+	}
+
+	if err := unmarshal(&temp); err != nil {
+		return err
+	}
+
+	d.Ref = temp.Ref
+	d.Kongctl = temp.Kongctl
+	d.Name = temp.Name
+	d.Labels = temp.Labels
+	if temp.Definition != nil {
+		d.Definition = *temp.Definition
+		d.definitionSet = true
+	}
+
+	return nil
+}

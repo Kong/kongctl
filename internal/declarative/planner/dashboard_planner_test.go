@@ -70,7 +70,7 @@ func (s *dashboardAPITestStub) DashboardsDelete(
 func TestDashboardPlannerPlansCreate(t *testing.T) {
 	planner := newDashboardTestPlanner(nil)
 	desired := []resources.DashboardResource{
-		newDashboardResource("traffic-summary", "Traffic Summary", "analytics"),
+		newDashboardResource("traffic-summary", "Traffic Summary"),
 	}
 
 	plan := NewPlan("1.0", "test", PlanModeApply)
@@ -102,7 +102,7 @@ func TestDashboardPlannerPlansUpdateByName(t *testing.T) {
 	}
 	planner := newDashboardTestPlanner([]kkComps.DashboardResponse{current})
 	desired := []resources.DashboardResource{
-		newDashboardResource("traffic-summary", "Traffic Summary", "analytics"),
+		newDashboardResource("traffic-summary", "Traffic Summary"),
 	}
 
 	plan := NewPlan("1.0", "test", PlanModeApply)
@@ -116,6 +116,85 @@ func TestDashboardPlannerPlansUpdateByName(t *testing.T) {
 	assert.Equal(t, "traffic-summary", change.ResourceRef)
 	assert.Equal(t, "Traffic Summary", change.Fields[FieldName])
 	assert.Contains(t, change.ChangedFields, FieldDefinition)
+}
+
+func TestDashboardPlannerRejectsAmbiguousDashboardName(t *testing.T) {
+	firstID := "11111111-1111-1111-1111-111111111111"
+	secondID := "22222222-2222-2222-2222-222222222222"
+	current := []kkComps.DashboardResponse{
+		{
+			ID:   &firstID,
+			Name: "Traffic Summary",
+			Definition: kkComps.Dashboard{
+				Tiles: []kkComps.Tile{},
+			},
+			Labels: map[string]string{
+				labels.NamespaceKey: "analytics",
+			},
+		},
+		{
+			ID:   &secondID,
+			Name: "Traffic Summary",
+			Definition: kkComps.Dashboard{
+				Tiles: []kkComps.Tile{},
+			},
+			Labels: map[string]string{
+				labels.NamespaceKey: "analytics",
+			},
+		},
+	}
+	planner := newDashboardTestPlanner(current)
+	desired := []resources.DashboardResource{
+		newDashboardResource("traffic-summary", "Traffic Summary"),
+	}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := planner.planDashboardChanges(t.Context(), NewConfig("analytics"), desired, plan)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `multiple managed dashboards named "Traffic Summary"`)
+}
+
+func TestDashboardPlannerMatchesDashboardByUUIDRef(t *testing.T) {
+	firstID := "11111111-1111-1111-1111-111111111111"
+	secondID := "22222222-2222-2222-2222-222222222222"
+	current := []kkComps.DashboardResponse{
+		{
+			ID:   &firstID,
+			Name: "Traffic Summary",
+			Definition: kkComps.Dashboard{
+				Tiles: []kkComps.Tile{},
+			},
+			Labels: map[string]string{
+				labels.NamespaceKey: "analytics",
+			},
+		},
+		{
+			ID:   &secondID,
+			Name: "Traffic Summary",
+			Definition: kkComps.Dashboard{
+				Tiles: []kkComps.Tile{},
+			},
+			Labels: map[string]string{
+				labels.NamespaceKey: "analytics",
+			},
+		},
+	}
+	planner := newDashboardTestPlanner(current)
+	desired := []resources.DashboardResource{
+		newDashboardResource(secondID, "Renamed Traffic Summary"),
+	}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := planner.planDashboardChanges(t.Context(), NewConfig("analytics"), desired, plan)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+
+	change := plan.Changes[0]
+	assert.Equal(t, ActionUpdate, change.Action)
+	assert.Equal(t, secondID, change.ResourceID)
+	assert.Equal(t, secondID, change.ResourceRef)
+	assert.Equal(t, "Renamed Traffic Summary", change.Fields[FieldName])
+	assert.Contains(t, change.ChangedFields, FieldName)
 }
 
 func TestDashboardPlannerSyncDeletesOmittedManagedDashboard(t *testing.T) {
@@ -153,7 +232,8 @@ func newDashboardTestPlanner(current []kkComps.DashboardResponse) *Planner {
 	}
 }
 
-func newDashboardResource(ref, name, namespace string) resources.DashboardResource {
+func newDashboardResource(ref, name string) resources.DashboardResource {
+	namespace := "analytics"
 	return resources.DashboardResource{
 		BaseResource: resources.BaseResource{
 			Ref: ref,
