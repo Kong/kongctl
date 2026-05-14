@@ -26,6 +26,7 @@ vars:
   oidcAuthStrategyName: all-oidc-auth
   dcrProviderName: all-dcr-http
   catalogServiceName: all-catalog-service
+  dashboardName: all-dashboard
   eventGatewayName: all-event-gateway
 
 defaults:
@@ -205,6 +206,11 @@ steps:
             expect:
               fields:
                 action: CREATE
+          - select: "plan.changes[?resource_type=='dashboard' && resource_ref=='all-dashboard'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: All Resources Dashboard
           - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='all-org-team'] | [0]"
             expect:
               fields:

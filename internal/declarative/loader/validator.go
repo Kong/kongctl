@@ -39,6 +39,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate dashboards
+	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
+		return err
+	}
+
 	// Validate gateway services
 	if err := l.validateGatewayServices(rs.GatewayServices, rs); err != nil {
 		return err
@@ -653,6 +658,50 @@ func (l *Loader) validateCatalogServices(
 		}
 
 		names[service.GetMoniker()] = service.GetRef()
+	}
+
+	return nil
+}
+
+// validateDashboards validates dashboard resources.
+func (l *Loader) validateDashboards(
+	dashboards []resources.DashboardResource,
+	rs *resources.ResourceSet,
+) error {
+	refs := make(map[string]struct{})
+	namesByNamespace := make(map[string]string)
+
+	for i := range dashboards {
+		dashboard := &dashboards[i]
+
+		if err := dashboard.Validate(); err != nil {
+			return fmt.Errorf("invalid dashboard %q: %w", dashboard.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(dashboard.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeDashboard {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					dashboard.GetRef(), existing.GetType())
+			}
+		}
+
+		if _, exists := refs[dashboard.GetRef()]; exists {
+			return fmt.Errorf("duplicate dashboard ref '%s'", dashboard.GetRef())
+		}
+		refs[dashboard.GetRef()] = struct{}{}
+
+		namespace := resources.GetNamespace(dashboard.Kongctl)
+		nameKey := namespace + "\x00" + dashboard.Name
+		if existingRef, exists := namesByNamespace[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate dashboard name '%s' in namespace '%s' (ref: %s conflicts with ref: %s)",
+				dashboard.Name,
+				namespace,
+				dashboard.GetRef(),
+				existingRef,
+			)
+		}
+		namesByNamespace[nameKey] = dashboard.GetRef()
 	}
 
 	return nil

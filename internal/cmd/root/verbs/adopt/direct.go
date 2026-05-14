@@ -30,7 +30,7 @@ func NewDirectPortalCmd() (*cobra.Command, error) {
 		)
 
 		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 				common.PATConfigPath))
@@ -73,7 +73,7 @@ func NewDirectControlPlaneCmd() (*cobra.Command, error) {
 		)
 
 		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 				common.PATConfigPath))
@@ -116,7 +116,7 @@ func NewDirectAPICmd() (*cobra.Command, error) {
 		)
 
 		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 				common.PATConfigPath))
@@ -159,7 +159,7 @@ func NewDirectEventGatewayCmd() (*cobra.Command, error) {
 		)
 
 		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 				common.PATConfigPath))
@@ -196,7 +196,7 @@ func NewDirectOrganizationCmd() (*cobra.Command, error) {
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
 		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 				common.PATConfigPath))
@@ -239,7 +239,7 @@ func NewDirectAuthStrategyCmd() (*cobra.Command, error) {
 		)
 
 		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 				common.PATConfigPath))
@@ -282,7 +282,7 @@ func NewDirectDCRProviderCmd() (*cobra.Command, error) {
 		)
 
 		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 				common.PATConfigPath))
@@ -306,6 +306,49 @@ Setting this value overrides tokens obtained from the login command.
 
 	cmd.Example = `  # Adopt a DCR provider by name
   kongctl adopt dcr-provider my-dcr-provider --namespace team-alpha`
+
+	return cmd, nil
+}
+
+func NewDirectAnalyticsCmd() (*cobra.Command, error) {
+	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
+		cmd.Flags().String(common.BaseURLFlagName, "",
+			fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+				common.BaseURLConfigPath, common.BaseURLDefault))
+
+		cmd.Flags().String(common.RegionFlagName, "",
+			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
+- Config path: [ %s ]`,
+				common.BaseURLFlagName, common.RegionConfigPath),
+		)
+
+		cmd.Flags().String(common.PATFlagName, "",
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
+Setting this value overrides tokens obtained from the login command.
+- Config path: [ %s ]`,
+				common.PATConfigPath))
+	}
+
+	preRunE := func(c *cobra.Command, args []string) error {
+		ctx := c.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		ctx = context.WithValue(ctx, products.Product, konnect.Product)
+		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+		c.SetContext(ctx)
+		return bindKonnectFlags(c, args)
+	}
+
+	cmd, err := konnectadopt.NewAnalyticsCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd.Example = `  # Adopt a dashboard by ID
+  kongctl adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace team-alpha`
 
 	return cmd, nil
 }

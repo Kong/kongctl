@@ -23,6 +23,7 @@ type SDKAPI interface {
 	GetPortalAPI() PortalAPI
 	GetAPIAPI() APIFullAPI // TODO: Change to APIAPI once refactoring is complete
 	GetCatalogServicesAPI() CatalogServicesAPI
+	GetDashboardsAPI() DashboardsAPI
 	GetAPIDocumentAPI() APIDocumentAPI
 	GetAPIVersionAPI() APIVersionAPI
 	GetAPIPublicationAPI() APIPublicationAPI
@@ -124,6 +125,15 @@ func (k *KonnectSDK) GetCatalogServicesAPI() CatalogServicesAPI {
 	}
 
 	return &CatalogServicesAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the DashboardsAPI interface.
+func (k *KonnectSDK) GetDashboardsAPI() DashboardsAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &DashboardsAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the APIDocumentAPI interface

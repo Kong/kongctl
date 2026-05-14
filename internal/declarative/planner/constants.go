@@ -72,6 +72,7 @@ const (
 	FieldDeckBaseDir = "deck_base_dir"
 	FieldFlags       = "flags"
 	FieldFiles       = "files"
+	FieldDefinition  = "definition"
 )
 
 // Common relationship and reference field identifiers.
@@ -179,6 +180,7 @@ const (
 	ResourceTypeDCRProvider                      = string(resources.ResourceTypeDCRProvider)
 	ResourceTypeControlPlane                     = string(resources.ResourceTypeControlPlane)
 	ResourceTypeAPI                              = string(resources.ResourceTypeAPI)
+	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)
 	ResourceTypeAPIImplementation                = string(resources.ResourceTypeAPIImplementation)

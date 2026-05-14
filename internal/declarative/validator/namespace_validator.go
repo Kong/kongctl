@@ -305,6 +305,9 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 	for i := range rs.APIs {
 		check(string(resources.ResourceTypeAPI), rs.APIs[i].Ref, rs.APIs[i].Kongctl)
 	}
+	for i := range rs.Dashboards {
+		check(string(resources.ResourceTypeDashboard), rs.Dashboards[i].Ref, rs.Dashboards[i].Kongctl)
+	}
 	for i := range rs.ApplicationAuthStrategies {
 		check(string(resources.ResourceTypeApplicationAuthStrategy),
 			rs.ApplicationAuthStrategies[i].Ref,

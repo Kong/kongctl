@@ -72,6 +72,19 @@ organization:
 	assert.True(t, rs.SyncScope.OrganizationSystemAccountsInScope())
 }
 
+func TestCaptureSyncScopeTracksAnalyticsDashboards(t *testing.T) {
+	input := strings.NewReader(`
+analytics:
+  dashboards: []
+`)
+
+	rs, err := New().parseYAML(input, "test.yaml", ".")
+	require.NoError(t, err)
+	require.NotNil(t, rs.SyncScope)
+
+	assert.True(t, rs.SyncScope.RootInScope(resources.ResourceTypeDashboard))
+}
+
 func TestCaptureSyncScopeRejectsNullPortalSingletonChildren(t *testing.T) {
 	tests := []struct {
 		name      string

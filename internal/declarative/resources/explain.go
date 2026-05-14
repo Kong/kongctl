@@ -284,6 +284,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	if strings.TrimSpace(segments[0]) == "organization" {
 		return resolveOrganizationExplainSubject(path, segments)
 	}
+	if strings.TrimSpace(segments[0]) == "analytics" {
+		return resolveAnalyticsExplainSubject(path, segments)
+	}
 
 	doc, ok := explainDocByAlias(strings.TrimSpace(segments[0]))
 	if !ok {
@@ -295,6 +298,12 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		Node:           doc.Schema.clone(),
 		DisplayPath:    path,
 		ResourceTarget: true,
+	}
+
+	if doc.ResourceType == ResourceTypeDashboard {
+		if err := applyAnalyticsDashboardScaffold(subject); err != nil {
+			return nil, err
+		}
 	}
 
 	if doc.SupportsRoot {
@@ -353,7 +362,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 
 		nextNode := field.Node
 		resourceTarget := false
-		if nextNode.Kind == "array" && nextNode.Items != nil && nextNode.Items.Kind == explainKindObject {
+		if nextNode.Kind == explainKindArray && nextNode.Items != nil && nextNode.Items.Kind == explainKindObject {
 			nextNode = nextNode.Items.clone()
 			resourceTarget = true
 		} else {
@@ -453,7 +462,7 @@ func resolveOrganizationExplainSubject(path string, segments []string) (*Explain
 
 		nextNode := field.Node
 		resourceTarget := false
-		if nextNode.Kind == "array" && nextNode.Items != nil && nextNode.Items.Kind == explainKindObject {
+		if nextNode.Kind == explainKindArray && nextNode.Items != nil && nextNode.Items.Kind == explainKindObject {
 			nextNode = nextNode.Items.clone()
 			resourceTarget = true
 		} else {
@@ -495,6 +504,81 @@ func resolveOrganizationExplainSubject(path string, segments []string) (*Explain
 	return subject, nil
 }
 
+func resolveAnalyticsExplainSubject(path string, segments []string) (*ExplainSubject, error) {
+	if len(segments) < 2 || strings.TrimSpace(segments[1]) != "dashboards" {
+		return nil, fmt.Errorf("unsupported resource path %q", path)
+	}
+
+	dashboardDoc, ok := explainDocByType(ResourceTypeDashboard)
+	if !ok {
+		return nil, fmt.Errorf("resource type %q does not have explain registration", ResourceTypeDashboard)
+	}
+
+	analyticsNode, err := analyticsExplainNode()
+	if err != nil {
+		return nil, err
+	}
+
+	subject := &ExplainSubject{
+		Doc:            dashboardDoc,
+		Node:           dashboardDoc.Schema.clone(),
+		DisplayPath:    path,
+		ResourceTarget: true,
+		FieldPath:      []string{"dashboards"},
+		ScaffoldSteps: []ExplainScaffoldStep{
+			{Name: "analytics"},
+			{Name: "dashboards", Array: true},
+		},
+		ScaffoldTrail: []ExplainScaffoldNode{
+			{
+				Step: ExplainScaffoldStep{Name: "analytics"},
+				Node: analyticsNode,
+			},
+			{
+				Step: ExplainScaffoldStep{Name: "dashboards", Array: true},
+				Node: dashboardDoc.Schema.clone(),
+			},
+		},
+	}
+
+	if len(segments) == 2 {
+		subject.ScaffoldOmit = scaffoldOmitFields(nil)
+		return subject, nil
+	}
+
+	currentNode := subject.Node
+	var relativePath []string
+	for _, rawSegment := range segments[2:] {
+		segment := strings.TrimSpace(rawSegment)
+		field, ok := currentNode.property(segment)
+		if !ok {
+			return nil, fmt.Errorf("field %q not found in %q", segment, path)
+		}
+
+		nextNode := field.Node
+		resourceTarget := false
+		if nextNode.Kind == explainKindArray && nextNode.Items != nil && nextNode.Items.Kind == explainKindObject {
+			nextNode = nextNode.Items.clone()
+			resourceTarget = true
+		} else {
+			nextNode = nextNode.clone()
+		}
+
+		subject.FieldPath = append(subject.FieldPath, segment)
+		relativePath = append(relativePath, segment)
+		subject.FieldRelativePath = append([]string(nil), relativePath...)
+		subject.FieldRequired = field.Required
+		subject.FieldRecommended = field.Recommended
+		currentNode = nextNode
+		subject.Node = currentNode
+		subject.ResourceTarget = resourceTarget
+	}
+
+	subject.ScaffoldOmit = scaffoldOmitFields(nil)
+
+	return subject, nil
+}
+
 func applyOrganizationTeamScaffold(subject *ExplainSubject) error {
 	organizationNode, err := organizationExplainNode()
 	if err != nil {
@@ -518,8 +602,35 @@ func applyOrganizationTeamScaffold(subject *ExplainSubject) error {
 	return nil
 }
 
+func applyAnalyticsDashboardScaffold(subject *ExplainSubject) error {
+	analyticsNode, err := analyticsExplainNode()
+	if err != nil {
+		return err
+	}
+
+	subject.ScaffoldSteps = []ExplainScaffoldStep{
+		{Name: "analytics"},
+		{Name: "dashboards", Array: true},
+	}
+	subject.ScaffoldTrail = []ExplainScaffoldNode{
+		{
+			Step: ExplainScaffoldStep{Name: "analytics"},
+			Node: analyticsNode,
+		},
+		{
+			Step: ExplainScaffoldStep{Name: "dashboards", Array: true},
+			Node: subject.Doc.Schema.clone(),
+		},
+	}
+	return nil
+}
+
 func organizationExplainNode() (*ExplainNode, error) {
 	return autoExplainNode(reflect.TypeFor[OrganizationResource](), nil, defaultExplainHints(""), nil)
+}
+
+func analyticsExplainNode() (*ExplainNode, error) {
+	return autoExplainNode(reflect.TypeFor[AnalyticsResource](), nil, defaultExplainHints(""), nil)
 }
 
 func explainDocByAlias(alias string) (*ExplainDoc, bool) {
@@ -1368,7 +1479,7 @@ func renderScaffoldField(write scaffoldWriter, depth int, field *ExplainField, o
 		return
 	}
 
-	if field.Node.Kind == "array" {
+	if field.Node.Kind == explainKindArray {
 		write(indent + commentPrefix + field.Name + ":")
 		itemLine := scaffoldLiteral(field.Node.Items)
 		if field.Node.Items != nil && field.Node.Items.Kind == explainKindObject {
@@ -1452,7 +1563,7 @@ func (n *ExplainNode) lookup(path []string) (*ExplainNode, bool) {
 			return nil, false
 		}
 		current = field.Node
-		if current.Kind == "array" && current.Items != nil {
+		if current.Kind == explainKindArray && current.Items != nil {
 			current = current.Items
 		}
 	}

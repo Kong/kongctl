@@ -254,3 +254,36 @@ func TestExplainCmd_OrganizationTeamResources(t *testing.T) {
 		})
 	}
 }
+
+func TestExplainCmd_AnalyticsDashboardResources(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "dashboard root alias", path: "dashboard"},
+		{name: "dashboards root alias", path: "dashboards"},
+		{name: "analytics dashboard grouped path", path: "analytics.dashboards"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := newTestRootWithExplain(t, nil)
+
+			var outBuf, errBuf bytes.Buffer
+			streams := &iostreams.IOStreams{Out: &outBuf, ErrOut: &errBuf}
+			root.SetContext(context.WithValue(context.Background(), iostreams.StreamsKey, streams))
+			root.SetOut(&outBuf)
+			root.SetErr(&errBuf)
+			root.SetArgs([]string{
+				"explain", tt.path,
+				"--output", "json",
+				"--jq", `.["x-kongctl-resource"]`,
+				"--jq-raw-output",
+			})
+
+			err := root.Execute()
+			require.NoError(t, err)
+			assert.Equal(t, "dashboard\n", outBuf.String())
+		})
+	}
+}

@@ -389,6 +389,7 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 		return err
 	}
 	captureOrganizationScope(scope, raw)
+	captureAnalyticsScope(scope, raw)
 
 	return nil
 }
@@ -656,6 +657,16 @@ func captureOrganizationTeamRoleScopes(scope *resources.SyncScope, value any) {
 		if _, ok := team["roles"]; ok {
 			scope.AddChild(resources.ResourceTypeOrganizationTeam, ref, resources.ResourceTypeOrganizationTeamRole)
 		}
+	}
+}
+
+func captureAnalyticsScope(scope *resources.SyncScope, raw map[string]any) {
+	analytics, ok := asMap(raw["analytics"])
+	if !ok {
+		return
+	}
+	if _, ok := analytics["dashboards"]; ok {
+		scope.AddRoot(resources.ResourceTypeDashboard)
 	}
 }
 

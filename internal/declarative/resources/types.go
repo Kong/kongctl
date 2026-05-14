@@ -13,6 +13,7 @@ const (
 	ResourceTypeControlPlane                            ResourceType = "control_plane"
 	ResourceTypeControlPlaneGroup                       ResourceType = "control_plane_group"
 	ResourceTypeAPI                                     ResourceType = "api"
+	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
 	ResourceTypeAPIImplementation                       ResourceType = "api_implementation"
@@ -112,6 +113,8 @@ type ResourceSet struct {
 	EventGatewayVirtualClusters []EventGatewayVirtualClusterResource `yaml:"event_gateway_virtual_clusters,omitempty"                 json:"event_gateway_virtual_clusters,omitempty"` //nolint:lll
 	// Organization grouping - contains nested resources like teams
 	Organization *OrganizationResource `yaml:"organization,omitempty"                                   json:"organization,omitempty"` //nolint:lll
+	// Analytics grouping - contains nested resources like dashboards
+	Analytics *AnalyticsResource `yaml:"analytics,omitempty" json:"analytics,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
 	OrganizationTeams                        []OrganizationTeamResource                        `yaml:"-" json:"-"`
@@ -129,6 +132,9 @@ type ResourceSet struct {
 	EventGatewaySchemaRegistries             []EventGatewaySchemaRegistryResource              `yaml:"event_gateway_schema_registries,omitempty"       json:"event_gateway_schema_registries,omitempty"`                         //nolint:lll
 	EventGatewayStaticKeys                   []EventGatewayStaticKeyResource                   `yaml:"event_gateway_static_keys,omitempty"              json:"event_gateway_static_keys,omitempty"`                              //nolint:lll
 	EventGatewayTLSTrustBundles              []EventGatewayTLSTrustBundleResource              `yaml:"event_gateway_tls_trust_bundles,omitempty"        json:"event_gateway_tls_trust_bundles,omitempty"`                        //nolint:lll
+	// Dashboards is populated internally from Analytics.Dashboards during loading.
+	// It is not exposed in YAML/JSON to enforce the analytics grouping format.
+	Dashboards []DashboardResource `yaml:"-" json:"-"`
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                                        json:"-"`
@@ -263,6 +269,16 @@ func (rs *ResourceSet) GetAPIByRef(ref string) *APIResource {
 	return nil
 }
 
+// GetDashboardByRef returns a dashboard resource by its ref from any namespace.
+func (rs *ResourceSet) GetDashboardByRef(ref string) *DashboardResource {
+	for i := range rs.Dashboards {
+		if rs.Dashboards[i].GetRef() == ref {
+			return &rs.Dashboards[i]
+		}
+	}
+	return nil
+}
+
 // GetControlPlaneByRef returns a control plane resource by its ref from any namespace
 func (rs *ResourceSet) GetControlPlaneByRef(ref string) *ControlPlaneResource {
 	for i := range rs.ControlPlanes {
@@ -350,6 +366,17 @@ func (rs *ResourceSet) GetAPIsByNamespace(namespace string) []APIResource {
 	for _, api := range rs.APIs {
 		if GetNamespace(api.Kongctl) == namespace {
 			filtered = append(filtered, api)
+		}
+	}
+	return filtered
+}
+
+// GetDashboardsByNamespace returns all dashboard resources from the specified namespace.
+func (rs *ResourceSet) GetDashboardsByNamespace(namespace string) []DashboardResource {
+	var filtered []DashboardResource
+	for _, dashboard := range rs.Dashboards {
+		if GetNamespace(dashboard.Kongctl) == namespace {
+			filtered = append(filtered, dashboard)
 		}
 	}
 	return filtered

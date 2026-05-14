@@ -35,6 +35,7 @@ type ClientConfig struct {
 	DataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
 	ControlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
 	CatalogServiceAPI       helpers.CatalogServicesAPI
+	DashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
 	PortalPageAPI             helpers.PortalPageAPI
@@ -96,6 +97,7 @@ type Client struct {
 	dataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
 	controlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
 	catalogServiceAPI       helpers.CatalogServicesAPI
+	dashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
 	portalPageAPI             helpers.PortalPageAPI
@@ -158,6 +160,7 @@ func NewClient(config ClientConfig) *Client {
 		dataPlaneCertificateAPI: config.DataPlaneCertificateAPI,
 		controlPlaneGroupsAPI:   config.ControlPlaneGroupsAPI,
 		catalogServiceAPI:       config.CatalogServiceAPI,
+		dashboardsAPI:           config.DashboardsAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:             config.PortalPageAPI,
@@ -236,6 +239,12 @@ type GatewayService struct {
 // CatalogService represents a catalog service for internal use.
 type CatalogService struct {
 	kkComps.CatalogService
+	NormalizedLabels map[string]string
+}
+
+// Dashboard represents a Konnect Analytics custom dashboard for internal use.
+type Dashboard struct {
+	kkComps.DashboardResponse
 	NormalizedLabels map[string]string
 }
 
@@ -1566,6 +1575,149 @@ func (c *Client) DeleteCatalogService(ctx context.Context, id string) error {
 	_, err := c.catalogServiceAPI.DeleteCatalogService(ctx, id)
 	if err != nil {
 		return WrapAPIError(err, "delete catalog service", nil)
+	}
+
+	return nil
+}
+
+// ListManagedDashboards returns all KONGCTL-managed dashboards in the specified namespaces.
+// If namespaces is empty, no resources are returned. To get all managed resources, pass []string{"*"}.
+func (c *Client) ListManagedDashboards(ctx context.Context, namespaces []string) ([]Dashboard, error) {
+	if err := ValidateAPIClient(c.dashboardsAPI, "Dashboards API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]Dashboard, *PageMeta, error) {
+		req := kkOps.DashboardsListRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.dashboardsAPI.DashboardsList(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list dashboards", nil)
+		}
+
+		if resp.Object == nil {
+			return []Dashboard{}, &PageMeta{Total: 0}, nil
+		}
+
+		var filtered []Dashboard
+		for _, dashboard := range resp.Object.Data {
+			normalized := dashboard.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			if labels.IsManagedResource(normalized) && shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+				filtered = append(filtered, Dashboard{
+					DashboardResponse: dashboard,
+					NormalizedLabels:  normalized,
+				})
+			}
+		}
+
+		var total float64
+		if resp.Object.Meta != nil {
+			total = resp.Object.Meta.Page.Total
+		}
+		meta := &PageMeta{Total: total}
+		return filtered, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+// GetDashboardByID fetches a dashboard by ID.
+func (c *Client) GetDashboardByID(ctx context.Context, id string) (*Dashboard, error) {
+	if c.dashboardsAPI == nil {
+		return nil, fmt.Errorf("dashboards API not configured")
+	}
+
+	resp, err := c.dashboardsAPI.DashboardsGet(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "fetch dashboard", nil)
+	}
+
+	if resp.DashboardResponse == nil {
+		return nil, nil
+	}
+
+	normalized := resp.DashboardResponse.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &Dashboard{
+		DashboardResponse: *resp.DashboardResponse,
+		NormalizedLabels:  normalized,
+	}, nil
+}
+
+// CreateDashboard creates a dashboard.
+func (c *Client) CreateDashboard(
+	ctx context.Context,
+	req kkComps.DashboardUpdateRequest,
+	namespace string,
+) (*kkComps.DashboardResponse, error) {
+	if c.dashboardsAPI == nil {
+		return nil, fmt.Errorf("dashboards API not configured")
+	}
+
+	resp, err := c.dashboardsAPI.DashboardsCreate(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "create dashboard", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeDashboard),
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.DashboardResponse == nil {
+		return nil, fmt.Errorf("create dashboard response missing data")
+	}
+
+	return resp.DashboardResponse, nil
+}
+
+// UpdateDashboard updates a dashboard.
+func (c *Client) UpdateDashboard(
+	ctx context.Context,
+	id string,
+	req kkComps.DashboardUpdateRequest,
+	namespace string,
+) (*kkComps.DashboardResponse, error) {
+	if c.dashboardsAPI == nil {
+		return nil, fmt.Errorf("dashboards API not configured")
+	}
+
+	resp, err := c.dashboardsAPI.DashboardsUpdate(ctx, id, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "update dashboard", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeDashboard),
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.DashboardResponse == nil {
+		return nil, fmt.Errorf("update dashboard response missing data")
+	}
+
+	return resp.DashboardResponse, nil
+}
+
+// DeleteDashboard deletes a dashboard by ID.
+func (c *Client) DeleteDashboard(ctx context.Context, id string) error {
+	if c.dashboardsAPI == nil {
+		return fmt.Errorf("dashboards API not configured")
+	}
+
+	_, err := c.dashboardsAPI.DashboardsDelete(ctx, id)
+	if err != nil {
+		return WrapAPIError(err, "delete dashboard", nil)
 	}
 
 	return nil

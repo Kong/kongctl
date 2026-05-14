@@ -11,6 +11,7 @@ type MockKonnectSDK struct {
 	PortalFactory                      func() PortalAPI
 	APIFactory                         func() APIFullAPI
 	CatalogServicesFactory             func() CatalogServicesAPI
+	DashboardsFactory                  func() DashboardsAPI
 	APIDocumentFactory                 func() APIDocumentAPI
 	APIVersionFactory                  func() APIVersionAPI
 	APIPublicationFactory              func() APIPublicationAPI
@@ -95,6 +96,14 @@ func (m *MockKonnectSDK) GetAPIAPI() APIFullAPI {
 func (m *MockKonnectSDK) GetCatalogServicesAPI() CatalogServicesAPI {
 	if m.CatalogServicesFactory != nil {
 		return m.CatalogServicesFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the DashboardsAPI.
+func (m *MockKonnectSDK) GetDashboardsAPI() DashboardsAPI {
+	if m.DashboardsFactory != nil {
+		return m.DashboardsFactory()
 	}
 	return nil
 }

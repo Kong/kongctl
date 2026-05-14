@@ -346,6 +346,7 @@ var resetSequence = []resetResourceSpec{
 	{Version: "v2", Endpoint: "application-auth-strategies"},
 	{Version: "v2", Endpoint: "dcr-providers"},
 	{Version: "v2", Endpoint: "control-planes"},
+	{Version: "v2", Endpoint: "dashboards"},
 	{Version: "v1", Endpoint: "catalog-services"},
 	{Version: "v1", Endpoint: "event-gateways"},
 }

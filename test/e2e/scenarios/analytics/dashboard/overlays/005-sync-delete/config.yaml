@@ -1,0 +1,6 @@
+_defaults:
+  kongctl:
+    namespace: dashboard-test
+
+analytics:
+  dashboards: []

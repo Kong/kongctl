@@ -303,6 +303,8 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"dcr-provider":  {Method: http.MethodPost, Path: "/v2/dcr-providers"},
 	"dcr_provider":  {Method: http.MethodPost, Path: "/v2/dcr-providers"},
 	"dcrprovider":   {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"dashboard":     {Method: http.MethodPost, Path: "/v2/dashboards"},
+	"dashboards":    {Method: http.MethodPost, Path: "/v2/dashboards"},
 	"control-plane": {Method: http.MethodPost, Path: "/v2/control-planes"},
 	"control_plane": {Method: http.MethodPost, Path: "/v2/control-planes"},
 	"controlplane":  {Method: http.MethodPost, Path: "/v2/control-planes"},

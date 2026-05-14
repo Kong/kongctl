@@ -185,6 +185,7 @@ lists the currently supported resources and their relationships.
 - Portals
 - Application Auth Strategies
 - Control Planes (including Control Plane Groups)
+- Dashboards
 - Event Gateways
 
 **Child Resources** (do NOT support kongctl metadata):
@@ -938,6 +939,16 @@ kongctl adopt control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
   --namespace platform
 ```
 
+Adopt a custom dashboard by ID:
+
+```shell
+kongctl adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
+  --namespace analytics
+```
+
+Dashboard names do not need to be unique in Konnect. If more than one
+dashboard has the same name, adopt the dashboard by ID.
+
 If the resource already has a `KONGCTL-namespace` label, the command fails
 without making changes.
 
@@ -955,6 +966,17 @@ kongctl dump tf-import --resources=api --include-child-resources
 # Export all portal and api resources to 
 # kongctl declarative configuration with format and the team-alpha namespace
 kongctl dump declarative --resources=portal,api --default-namespace=team-alpha
+```
+
+For custom dashboards created in the Konnect UI, adopt the dashboard first,
+then dump it with the same namespace:
+
+```shell
+kongctl adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
+  --namespace analytics
+kongctl dump declarative --resources=analytics.dashboards \
+  --default-namespace=analytics > dashboards.yaml
+kongctl plan -f dashboards.yaml --mode apply
 ```
 
 ## CI/CD Integration
