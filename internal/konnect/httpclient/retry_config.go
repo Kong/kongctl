@@ -49,6 +49,28 @@ type RetryConfig struct {
 	RetryConnectionErrors bool
 }
 
+// computeMaxElapsedTimeMS sums the actual per-retry wait times using exponential
+// backoff, capping each term at MaxIntervalMS. MaxAttempts includes the first
+// request, so there are MaxAttempts-1 retry gaps.
+//
+// Overflow safety: worst case is (MaxRetryMaxAttempts-1) × MaxRetryMaxIntervalMS
+// = 9 × 120_000 = 1_080_000, well within int range.
+func (rc RetryConfig) computeMaxElapsedTimeMS() int {
+	if rc.MaxAttempts <= 1 {
+		return 0
+	}
+	total := 0
+	interval := float64(rc.InitialIntervalMS)
+	for range rc.MaxAttempts - 1 {
+		if interval > float64(rc.MaxIntervalMS) {
+			interval = float64(rc.MaxIntervalMS)
+		}
+		total += int(interval)
+		interval *= rc.BackoffFactor
+	}
+	return total
+}
+
 // ToSDKRetryConfig converts a RetryConfig into the sdk-konnect-go retry.Config
 // that can be passed to SDK operations via WithRetries.
 func (rc RetryConfig) ToSDKRetryConfig() sdkretry.Config {
@@ -61,7 +83,7 @@ func (rc RetryConfig) ToSDKRetryConfig() sdkretry.Config {
 			InitialInterval: rc.InitialIntervalMS,
 			MaxInterval:     rc.MaxIntervalMS,
 			Exponent:        rc.BackoffFactor,
-			MaxElapsedTime:  rc.MaxIntervalMS * rc.MaxAttempts,
+			MaxElapsedTime:  rc.computeMaxElapsedTimeMS(),
 		}
 	}
 	return cfg
