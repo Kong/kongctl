@@ -233,7 +233,8 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	// Handle declarative configuration verbs
-	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff || verb == verbs.Export || verb == verbs.Apply {
+	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff ||
+		verb == verbs.Export || verb == verbs.Apply || verb == verbs.Delete {
 		c, e := declarative.NewDeclarativeCmd(verb)
 		if e != nil {
 			return nil, e
