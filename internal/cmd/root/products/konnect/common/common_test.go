@@ -280,6 +280,21 @@ func TestResolveRetryConfig(t *testing.T) {
 
 		_, err := ResolveRetryConfig(cfg)
 		require.Error(t, err)
+
+		cfg, _ = newTestConfig(map[string]string{
+			HTTPRetryInitialIntervalConfigPath: "-1",
+		})
+
+		_, err = ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("max attempts above cap returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath: "11",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
 	})
 
 	t.Run("invalid backoff factor returns error", func(t *testing.T) {
