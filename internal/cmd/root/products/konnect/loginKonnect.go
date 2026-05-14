@@ -1,21 +1,29 @@
 package konnect
 
 import (
+	"bufio"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/telemetry"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )
 
@@ -30,6 +38,8 @@ var (
 %[1]s login konnect`, meta.CLIName)))
 
 	httpClient *http.Client
+
+	loginInputIsTerminal = isTerminalReader
 )
 
 type loginKonnectCmd struct {
@@ -63,7 +73,7 @@ func (c *loginKonnectCmd) validate(helper cmd.Helper) error {
 	return nil
 }
 
-func displayUserInstructions(resp auth.DeviceCodeResponse) {
+func displayUserInstructions(w io.Writer, resp auth.DeviceCodeResponse) {
 	userResp := fmt.Sprintf("Logging your CLI into Kong Konnect with the browser...\n\n"+
 		" To login, go to the following URL in your browser:\n\n"+
 		"   %s\n\n"+
@@ -73,7 +83,85 @@ func displayUserInstructions(resp auth.DeviceCodeResponse) {
 		" Waiting for user to Login...",
 		resp.VerificationURIComplete, resp.UserCode, resp.VerificationURI, resp.ExpiresIn)
 
-	fmt.Println(userResp)
+	fmt.Fprintln(w, userResp)
+}
+
+func handleTelemetryPreference(streams *iostreams.IOStreams, cfg config.Hook, rec *telemetry.Recorder) {
+	if streams == nil || cfg == nil || rec == nil || !rec.Enabled() || telemetry.PreferenceFileExists(cfg) {
+		return
+	}
+
+	if !loginInputIsTerminal(streams.In) {
+		writeTelemetryDisclosure(streams.Out, false)
+		return
+	}
+
+	writeTelemetryDisclosure(streams.Out, true)
+	enabled, ok := readTelemetryPreferenceAnswer(streams.In, streams.Out)
+	if !ok {
+		return
+	}
+	if !enabled {
+		_ = rec.Disable(context.Background())
+	}
+	if err := telemetry.WritePreference(cfg, enabled); err != nil {
+		fmt.Fprintf(streams.ErrOut, "warning: failed to save telemetry preference: %v\n", err)
+	}
+}
+
+func writeTelemetryDisclosure(w io.Writer, prompt bool) {
+	fmt.Fprint(w, `kongctl collects limited usage data to help Kong understand CLI usage.
+
+Collected:
+  - kongctl version
+  - operating system and architecture
+  - command path, such as "login" or "get apis"
+
+Not collected:
+  - command arguments or flag values
+  - resource names or IDs
+  - auth tokens, request bodies, or response bodies
+  - config file contents, file paths, hostnames, usernames, or email addresses
+
+Telemetry can be disabled at any time with:
+  kongctl --no-telemetry <command>
+  KONGCTL_NO_TELEMETRY=true kongctl <command>
+  DO_NOT_TRACK=1 kongctl <command>
+
+`)
+	if prompt {
+		fmt.Fprint(w, "Allow kongctl to collect usage data on this device? [Y/n]: ")
+	}
+}
+
+func readTelemetryPreferenceAnswer(in io.Reader, out io.Writer) (bool, bool) {
+	reader := bufio.NewReader(in)
+	for attempt := range 2 {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return false, false
+		}
+		switch strings.ToLower(strings.TrimSpace(line)) {
+		case "", "y", "yes":
+			return true, true
+		case "n", "no":
+			return false, true
+		default:
+			if attempt == 0 {
+				fmt.Fprint(out, "Please answer y or n: ")
+			}
+		}
+	}
+	return false, false
+}
+
+func isTerminalReader(in io.Reader) bool {
+	file, ok := in.(*os.File)
+	if !ok {
+		return false
+	}
+	fd := file.Fd()
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 func (c *loginKonnectCmd) run(helper cmd.Helper) error {
@@ -88,6 +176,8 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 	if err != nil {
 		return err
 	}
+
+	handleTelemetryPreference(helper.GetStreams(), cfg, telemetry.FromContext(helper.GetContext()))
 
 	// Device authorization endpoints default to the global Konnect API host but can be overridden.
 	authURL, pollURL := resolveAuthURLs(cfg)
@@ -105,7 +195,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 			fmt.Sprintf("invalid device code request response from Konnect: %v", resp))
 	}
 
-	displayUserInstructions(resp)
+	displayUserInstructions(helper.GetStreams().Out, resp)
 
 	expiresAt := time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second)
 	// poll for token while the user completes authorizing the request
@@ -134,7 +224,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		}
 
 		if pollResp != nil && pollResp.Token.AuthToken != "" {
-			fmt.Println("\nUser successfully authorized")
+			fmt.Fprintln(helper.GetStreams().Out, "\nUser successfully authorized")
 			if err := auth.SaveAccessToken(cfg, pollResp); err != nil {
 				return cmd.PrepareExecutionErrorWithHelper(helper, "failed to save tokens", err)
 			}

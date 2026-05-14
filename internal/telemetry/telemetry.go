@@ -5,16 +5,18 @@
 //
 // Telemetry is opt-out: enabled by default. Users opt out per-invocation
 // with --no-telemetry, per-process with KONGCTL_NO_TELEMETRY=true or
-// DO_NOT_TRACK=1, or persistently by setting telemetry.enabled=false in
-// their profile config.
+// DO_NOT_TRACK=1, or persistently through the local telemetry preference file
+// or telemetry.enabled=false in their profile config.
 package telemetry
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -51,6 +53,10 @@ const (
 	EnvDoNotTrack = "DO_NOT_TRACK"
 )
 
+// PreferenceFileName is the profile-agnostic, per-device telemetry opt-in/out
+// file stored beside kongctl's config.yaml.
+const PreferenceFileName = ".telemetry-enabled"
+
 // resolveEnabled returns whether telemetry should be active for this run.
 // Precedence (highest to lowest):
 //  1. forceDisabled — the --no-telemetry CLI flag. Per-invocation kill switch
@@ -59,13 +65,15 @@ const (
 //  2. DO_NOT_TRACK=1 — cross-vendor hard kill switch.
 //  3. KONGCTL_NO_TELEMETRY=true — profile-agnostic kill switch. Only "true"
 //     is honored; any other value falls through to config.
-//  4. config — itself honors KONGCTL_<PROFILE>_TELEMETRY_ENABLED via viper.
+//  4. local preference file — profile-agnostic per-device preference written
+//     from the interactive login disclosure.
+//  5. config — itself honors KONGCTL_<PROFILE>_TELEMETRY_ENABLED via viper.
 //     Default is true (opt-out).
 //
 // Opt-out is the project stance: the only way to land here with telemetry off
 // is an explicit opt-out signal. Absence of config (cfg==nil) or absence of a
 // telemetry key in config is treated as "no opt-out", i.e. enabled.
-func resolveEnabled(cfg config.Hook, forceDisabled bool) bool {
+func resolveEnabled(cfg config.Hook, forceDisabled bool, logger *slog.Logger) bool {
 	if forceDisabled {
 		return false
 	}
@@ -77,6 +85,10 @@ func resolveEnabled(cfg config.Hook, forceDisabled bool) bool {
 	}
 	if cfg == nil {
 		return true
+	}
+	if preference, ok := ReadPreference(cfg, logger); ok {
+		logPreferenceConfigConflict(cfg, preference, logger)
+		return preference
 	}
 	return cfg.GetBool(ConfigKeyEnabled)
 }
@@ -91,6 +103,74 @@ func envBool(name string) (val, ok bool) {
 		return false, true
 	}
 	return false, false
+}
+
+func PreferenceFilePath(cfg config.Hook) (string, error) {
+	if cfg == nil {
+		return "", fmt.Errorf("telemetry preference path requires config")
+	}
+	configPath := strings.TrimSpace(cfg.GetPath())
+	if configPath == "" {
+		return "", fmt.Errorf("telemetry preference path requires config path")
+	}
+	return filepath.Join(filepath.Dir(configPath), PreferenceFileName), nil
+}
+
+func PreferenceFileExists(cfg config.Hook) bool {
+	path, err := PreferenceFilePath(cfg)
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(path)
+	return err == nil
+}
+
+func ReadPreference(cfg config.Hook, logger *slog.Logger) (bool, bool) {
+	path, err := PreferenceFilePath(cfg)
+	if err != nil {
+		return false, false
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			loggerOrDiscard(logger).Warn("telemetry: failed to read preference file", "path", path, "error", err)
+		}
+		return false, false
+	}
+	value := strings.TrimSpace(string(data))
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		loggerOrDiscard(logger).Warn("telemetry: ignoring invalid preference file", "path", path, "value", value)
+		return false, true
+	}
+	return parsed, true
+}
+
+func WritePreference(cfg config.Hook, enabled bool) error {
+	path, err := PreferenceFilePath(cfg)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(strconv.FormatBool(enabled)+"\n"), 0o600)
+}
+
+type isSetConfig interface {
+	IsSet(string) bool
+}
+
+func logPreferenceConfigConflict(cfg config.Hook, preference bool, logger *slog.Logger) {
+	isSetter, ok := cfg.(isSetConfig)
+	if !ok || !isSetter.IsSet(ConfigKeyEnabled) || cfg.GetBool(ConfigKeyEnabled) == preference {
+		return
+	}
+	loggerOrDiscard(logger).Warn(
+		"telemetry: local preference file overrides telemetry.enabled config",
+		"preference", preference,
+		"config", cfg.GetBool(ConfigKeyEnabled),
+	)
 }
 
 // telemetryLogFileName is the file in the kongctl config logs directory that
@@ -146,9 +226,10 @@ type Recorder struct {
 	cmdInfo   CommandInfo
 	cmdSet    bool
 
-	sink   Sink
-	events chan Event
-	done   chan struct{}
+	sink    Sink
+	events  chan Event
+	done    chan struct{}
+	stopped bool
 }
 
 // NewRecorder builds a Recorder. It reads telemetry.enabled from cfg; if
@@ -165,7 +246,7 @@ func NewRecorder(
 ) *Recorder {
 	logger = loggerOrDiscard(logger)
 
-	if !resolveEnabled(cfg, forceDisabled) {
+	if !resolveEnabled(cfg, forceDisabled, logger) {
 		return &Recorder{
 			enabled: false,
 			logger:  logger,
@@ -208,6 +289,27 @@ func buildDefaultSink(cfg config.Hook) Sink {
 	}
 
 	return NewUDPSink(reportsAddr)
+}
+
+func (r *Recorder) Enabled() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.enabled
+}
+
+func (r *Recorder) Disable(ctx context.Context) error {
+	if r == nil {
+		return nil
+	}
+	events, done := r.stop()
+	if events == nil {
+		return nil
+	}
+	close(events)
+	return r.waitDone(ctx, done)
 }
 
 // Begin records the command start time. Safe to call when disabled.
@@ -257,15 +359,18 @@ func trimBinaryPrefix(path string) string {
 // dispatch. Non-blocking: if the channel is full, the event is dropped
 // rather than risk blocking command shutdown.
 func (r *Recorder) Finalize(_ error, end time.Time) {
-	if r == nil || !r.enabled {
+	if r == nil {
 		return
 	}
 
 	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.enabled || r.stopped {
+		return
+	}
 
 	info := r.cmdInfo
 	cmdSet := r.cmdSet
-	r.mu.Unlock()
 
 	if !cmdSet {
 		// PersistentPreRun never fired — usually means flag parsing failed
@@ -297,14 +402,43 @@ func (r *Recorder) Finalize(_ error, end time.Time) {
 // never wedge command shutdown. Always returns nil — telemetry is
 // best-effort.
 func (r *Recorder) Close(_ context.Context) error {
-	if r == nil || !r.enabled {
+	if r == nil {
 		return nil
 	}
-	close(r.events)
+	events, done := r.stop()
+	if events == nil {
+		return nil
+	}
+	close(events)
+	return r.waitDone(context.Background(), done)
+}
+
+func (r *Recorder) stop() (chan Event, chan struct{}) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.enabled || r.stopped {
+		r.enabled = false
+		return nil, nil
+	}
+	r.enabled = false
+	r.stopped = true
+	events := r.events
+	done := r.done
+	return events, done
+}
+
+func (r *Recorder) waitDone(ctx context.Context, done chan struct{}) error {
+	if done == nil {
+		return nil
+	}
+	timer := time.NewTimer(flushTimeout)
+	defer timer.Stop()
 	select {
-	case <-r.done:
-	case <-time.After(flushTimeout):
+	case <-done:
+	case <-timer.C:
 		r.logger.Debug("telemetry: flush deadline exceeded; abandoning")
+	case <-ctx.Done():
+		r.logger.Debug("telemetry: flush cancelled", "error", ctx.Err())
 	}
 	return nil
 }

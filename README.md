@@ -211,6 +211,14 @@ KONGCTL_NO_TELEMETRY=true kongctl <command>
 DO_NOT_TRACK=1 kongctl <command>
 ```
 
+The first interactive `kongctl login` also asks whether kongctl may collect
+usage data on this device. The answer is saved to
+`$XDG_CONFIG_HOME/kongctl/.telemetry-enabled` (or
+`$HOME/.config/kongctl/.telemetry-enabled`) and applies to all local profiles.
+This local preference file overrides profile config. `DO_NOT_TRACK=1`,
+`KONGCTL_NO_TELEMETRY=true`, and `--no-telemetry` still disable telemetry even
+when the local preference file says telemetry is enabled.
+
 Disable telemetry persistently for a profile:
 
 ```yaml

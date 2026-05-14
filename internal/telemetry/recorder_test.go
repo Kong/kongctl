@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +19,7 @@ import (
 // matter for the recorder; the rest satisfy the interface.
 type fakeCfg struct {
 	bools map[string]bool
+	isSet map[string]bool
 	path  string
 }
 
@@ -31,6 +34,7 @@ func (f *fakeCfg) Get(string) any                     { return nil }
 func (f *fakeCfg) BindFlag(string, *pflag.Flag) error { return nil }
 func (f *fakeCfg) GetProfile() string                 { return "default" }
 func (f *fakeCfg) GetPath() string                    { return f.path }
+func (f *fakeCfg) IsSet(k string) bool                { return f.isSet[k] }
 
 // capturingSink records every event seen for inspection. Safe for concurrent
 // use because the dispatcher and the test goroutine both touch it.
@@ -202,6 +206,72 @@ func TestNewRecorder_ConfigOff_Disabled(t *testing.T) {
 	}
 	if _, ok := rec.sink.(NoopSink); !ok {
 		t.Errorf("sink = %T, want NoopSink", rec.sink)
+	}
+}
+
+func TestNewRecorder_PreferenceFileOverridesConfig(t *testing.T) {
+	cases := []struct {
+		name       string
+		config     bool
+		preference bool
+		want       bool
+	}{
+		{
+			name:       "preference false disables config true",
+			config:     true,
+			preference: false,
+			want:       false,
+		},
+		{
+			name:       "preference true enables config false",
+			config:     false,
+			preference: true,
+			want:       true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			cfg := &fakeCfg{
+				bools: map[string]bool{ConfigKeyEnabled: tc.config},
+				isSet: map[string]bool{ConfigKeyEnabled: true},
+				path:  filepath.Join(dir, "config.yaml"),
+			}
+			if err := WritePreference(cfg, tc.preference); err != nil {
+				t.Fatalf("WritePreference: %v", err)
+			}
+
+			rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
+			if got := rec.Enabled(); got != tc.want {
+				t.Fatalf("Enabled = %v, want %v", got, tc.want)
+			}
+			if err := rec.Close(t.Context()); err != nil {
+				t.Fatalf("Close: %v", err)
+			}
+		})
+	}
+}
+
+func TestNewRecorder_InvalidPreferenceFileDisables(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &fakeCfg{
+		bools: map[string]bool{ConfigKeyEnabled: true},
+		path:  filepath.Join(dir, "config.yaml"),
+	}
+	path, err := PreferenceFilePath(cfg)
+	if err != nil {
+		t.Fatalf("PreferenceFilePath: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir preference dir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("maybe\n"), 0o600); err != nil {
+		t.Fatalf("write preference: %v", err)
+	}
+
+	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
+	if rec.Enabled() {
+		t.Fatal("Enabled = true, want false for invalid preference file")
 	}
 }
 

@@ -163,6 +163,10 @@ func (p *ProfiledConfig) GetPath() string {
 	return p.Path
 }
 
+func (p *ProfiledConfig) IsSet(key string) bool {
+	return p.subViper.InConfig(key)
+}
+
 func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledConfig {
 	subv := mainv.Sub(profile)
 	if subv == nil {
