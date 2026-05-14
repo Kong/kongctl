@@ -2364,8 +2364,7 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		// When the gateway was already created at plan time, its ID is in change.Parent.ID.
 		// When the gateway was being created in the same plan run, change.Parent is nil and
 		// the ID is stored in change.References["event_gateway_id"] after resolution below.
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok &&
-			unresolvedReferenceID(gatewayRef.ID) {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && unresolvedReferenceID(gatewayRef.ID) {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)

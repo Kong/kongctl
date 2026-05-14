@@ -181,12 +181,7 @@ func (p *PortalTeamRoleAdapter) ResourceType() string {
 
 // RequiredFields returns the required fields for creation
 func (p *PortalTeamRoleAdapter) RequiredFields() []string {
-	return []string{
-		planner.FieldRoleName,
-		planner.FieldEntityID,
-		planner.FieldEntityTypeName,
-		planner.FieldEntityRegion,
-	}
+	return []string{planner.FieldRoleName, planner.FieldEntityID, planner.FieldEntityTypeName, planner.FieldEntityRegion}
 }
 
 // SupportsUpdate indicates update is not supported
