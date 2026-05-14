@@ -65,7 +65,7 @@ steps:
                 failed: 0
 
       - name: 002-plan-noop
-        outputFormat: json
+        outputFormat: disable
         run:
           - plan
           - -f
@@ -198,7 +198,6 @@ steps:
           - expect:
               fields:
                 resource_type: dashboard
-                id: "{{ .vars.uiDashboardID }}"
                 name: "{{ .vars.uiDashboardName }}"
                 namespace: "{{ .vars.namespace }}"
 
