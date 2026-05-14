@@ -125,6 +125,9 @@ func newTelemetryPreferencePromptTest(
 	input string,
 ) (*telemetry.Recorder, *iostreams.IOStreams, telemetryPromptConfig, *bytes.Buffer) {
 	t.Helper()
+	t.Setenv(telemetry.EnvDoNotTrack, "0")
+	t.Setenv(telemetry.EnvNoTelemetry, "false")
+
 	originalIsTerminal := loginInputIsTerminal
 	t.Cleanup(func() {
 		loginInputIsTerminal = originalIsTerminal

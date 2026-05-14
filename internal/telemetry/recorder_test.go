@@ -210,6 +210,9 @@ func TestNewRecorder_ConfigOff_Disabled(t *testing.T) {
 }
 
 func TestNewRecorder_PreferenceFileOverridesConfig(t *testing.T) {
+	t.Setenv(EnvDoNotTrack, "0")
+	t.Setenv(EnvNoTelemetry, "false")
+
 	cases := []struct {
 		name       string
 		config     bool
@@ -253,6 +256,9 @@ func TestNewRecorder_PreferenceFileOverridesConfig(t *testing.T) {
 }
 
 func TestNewRecorder_InvalidPreferenceFileDisables(t *testing.T) {
+	t.Setenv(EnvDoNotTrack, "0")
+	t.Setenv(EnvNoTelemetry, "false")
+
 	dir := t.TempDir()
 	cfg := &fakeCfg{
 		bools: map[string]bool{ConfigKeyEnabled: true},
