@@ -71,6 +71,12 @@ func TestNewKonnectCmdDeclarativeVerbsUseVerbSpecificExamples(t *testing.T) {
 			wantShorthand:    "kongctl apply -f api.yaml",
 			wantExplicitForm: "kongctl apply konnect -f api.yaml",
 		},
+		{
+			name:             "delete",
+			verb:             verbs.Delete,
+			wantShorthand:    "kongctl delete -f config.yaml",
+			wantExplicitForm: "kongctl delete --plan delete-plan.json",
+		},
 	}
 
 	for _, tt := range testCases {

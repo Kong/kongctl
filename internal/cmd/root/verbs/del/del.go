@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -112,6 +113,23 @@ Setting this value overrides tokens obtained from the login command.
 	// Add declarative flags from the declarative delete command
 	cmd.Flags().AddFlagSet(declDeleteCmd.Flags())
 
+	// Add retry flags
+	cmd.Flags().Int(cmdcommon.HTTPRetryMaxAttemptsFlagName, 0,
+		fmt.Sprintf(`Maximum total attempts for retryable HTTP requests (0 = use default, 1 disables retries).
+- Config path: [ %s ]`, common.HTTPRetryMaxAttemptsConfigPath))
+	cmd.Flags().Int(cmdcommon.HTTPRetryInitialIntervalFlagName, 0,
+		fmt.Sprintf(`Initial retry backoff interval in milliseconds (0 = use default).
+- Config path: [ %s ]`, common.HTTPRetryInitialIntervalConfigPath))
+	cmd.Flags().Int(cmdcommon.HTTPRetryMaxIntervalFlagName, 0,
+		fmt.Sprintf(`Maximum retry backoff interval in milliseconds (0 = use default).
+- Config path: [ %s ]`, common.HTTPRetryMaxIntervalConfigPath))
+	cmd.Flags().Float64(cmdcommon.HTTPRetryBackoffFactorFlagName, 0,
+		fmt.Sprintf(`Exponential backoff growth factor for retries (for example: 2.0).
+- Config path: [ %s ]`, common.HTTPRetryBackoffFactorConfigPath))
+	cmd.Flags().Bool(cmdcommon.HTTPRetryOnConnectionErrorsFlagName, false,
+		fmt.Sprintf(`Retry selected retryable connection-level errors.
+- Config path: [ %s ]`, common.HTTPRetryOnConnectionErrorsConfigPath))
+
 	return cmd, nil
 }
 
@@ -138,6 +156,21 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 	if f := c.Flags().Lookup(common.PATFlagName); f != nil {
 		if err := cfg.BindFlag(common.PATConfigPath, f); err != nil {
 			return err
+		}
+	}
+
+	retryBindings := []struct{ flag, config string }{
+		{cmdcommon.HTTPRetryMaxAttemptsFlagName, common.HTTPRetryMaxAttemptsConfigPath},
+		{cmdcommon.HTTPRetryInitialIntervalFlagName, common.HTTPRetryInitialIntervalConfigPath},
+		{cmdcommon.HTTPRetryMaxIntervalFlagName, common.HTTPRetryMaxIntervalConfigPath},
+		{cmdcommon.HTTPRetryBackoffFactorFlagName, common.HTTPRetryBackoffFactorConfigPath},
+		{cmdcommon.HTTPRetryOnConnectionErrorsFlagName, common.HTTPRetryOnConnectionErrorsConfigPath},
+	}
+	for _, b := range retryBindings {
+		if f := c.Flags().Lookup(b.flag); f != nil {
+			if err := cfg.BindFlag(b.config, f); err != nil {
+				return err
+			}
 		}
 	}
 
