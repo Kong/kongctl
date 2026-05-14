@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -86,20 +87,28 @@ func displayUserInstructions(w io.Writer, resp auth.DeviceCodeResponse) {
 	fmt.Fprintln(w, userResp)
 }
 
-func handleTelemetryPreference(streams *iostreams.IOStreams, cfg config.Hook, rec *telemetry.Recorder) {
+func handleTelemetryPreference(
+	ctx context.Context,
+	streams *iostreams.IOStreams,
+	cfg config.Hook,
+	rec *telemetry.Recorder,
+) error {
 	if streams == nil || cfg == nil || rec == nil || !rec.Enabled() || telemetry.PreferenceFileExists(cfg) {
-		return
+		return nil
 	}
 
 	if !loginInputIsTerminal(streams.In) {
 		writeTelemetryDisclosure(streams.Out, false)
-		return
+		return nil
 	}
 
 	writeTelemetryDisclosure(streams.Out, true)
-	enabled, ok := readTelemetryPreferenceAnswer(streams.In, streams.Out)
+	enabled, ok, err := promptTelemetryPreference(ctx, streams.In, streams.Out)
+	if err != nil {
+		return err
+	}
 	if !ok {
-		return
+		return nil
 	}
 	if !enabled {
 		_ = rec.Disable(context.Background())
@@ -107,6 +116,7 @@ func handleTelemetryPreference(streams *iostreams.IOStreams, cfg config.Hook, re
 	if err := telemetry.WritePreference(cfg, enabled); err != nil {
 		fmt.Fprintf(streams.ErrOut, "warning: failed to save telemetry preference: %v\n", err)
 	}
+	return nil
 }
 
 func writeTelemetryDisclosure(w io.Writer, prompt bool) {
@@ -134,25 +144,61 @@ Telemetry can be disabled at any time with:
 	}
 }
 
-func readTelemetryPreferenceAnswer(in io.Reader, out io.Writer) (bool, bool) {
+func promptTelemetryPreference(ctx context.Context, in io.Reader, out io.Writer) (bool, bool, error) {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	defer signal.Stop(sigCh)
+
+	return readTelemetryPreferenceAnswer(ctx, in, out, sigCh)
+}
+
+func readTelemetryPreferenceAnswer(
+	ctx context.Context,
+	in io.Reader,
+	out io.Writer,
+	interrupt <-chan os.Signal,
+) (bool, bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	reader := bufio.NewReader(in)
 	for attempt := range 2 {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			return false, false
+		lineCh := make(chan string, 1)
+		errCh := make(chan error, 1)
+		go func() {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				errCh <- err
+				return
+			}
+			lineCh <- line
+		}()
+
+		var line string
+		select {
+		case <-ctx.Done():
+			return false, false, ctx.Err()
+		case <-interrupt:
+			fmt.Fprintln(out)
+			return false, false, context.Canceled
+		case err := <-errCh:
+			_ = err
+			return false, false, nil
+		case line = <-lineCh:
 		}
+
 		switch strings.ToLower(strings.TrimSpace(line)) {
 		case "", "y", "yes":
-			return true, true
+			return true, true, nil
 		case "n", "no":
-			return false, true
+			return false, true, nil
 		default:
 			if attempt == 0 {
 				fmt.Fprint(out, "Please answer y or n: ")
 			}
 		}
 	}
-	return false, false
+	return false, false, nil
 }
 
 func isTerminalReader(in io.Reader) bool {
@@ -177,7 +223,16 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		return err
 	}
 
-	handleTelemetryPreference(helper.GetStreams(), cfg, telemetry.FromContext(helper.GetContext()))
+	if err := handleTelemetryPreference(
+		helper.GetContext(),
+		helper.GetStreams(),
+		cfg,
+		telemetry.FromContext(helper.GetContext()),
+	); err != nil {
+		c.SilenceUsage = true
+		c.SilenceErrors = true
+		return err
+	}
 
 	// Device authorization endpoints default to the global Konnect API host but can be overridden.
 	authURL, pollURL := resolveAuthURLs(cfg)

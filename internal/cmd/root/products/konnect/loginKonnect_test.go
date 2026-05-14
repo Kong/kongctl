@@ -3,6 +3,7 @@ package konnect
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -35,7 +36,9 @@ func (c telemetryPromptConfig) GetPath() string                       { return c
 func TestHandleTelemetryPreference_OptOutWritesFileAndDisablesRecorder(t *testing.T) {
 	rec, streams, cfg, out := newTelemetryPreferencePromptTest(t, "n\n")
 
-	handleTelemetryPreference(streams, cfg, rec)
+	if err := handleTelemetryPreference(t.Context(), streams, cfg, rec); err != nil {
+		t.Fatalf("handleTelemetryPreference: %v", err)
+	}
 
 	data, err := os.ReadFile(filepath.Join(filepath.Dir(cfg.GetPath()), telemetry.PreferenceFileName))
 	if err != nil {
@@ -58,7 +61,9 @@ func TestHandleTelemetryPreference_EnterWritesEnabled(t *testing.T) {
 		_ = rec.Close(t.Context())
 	})
 
-	handleTelemetryPreference(streams, cfg, rec)
+	if err := handleTelemetryPreference(t.Context(), streams, cfg, rec); err != nil {
+		t.Fatalf("handleTelemetryPreference: %v", err)
+	}
 
 	data, err := os.ReadFile(filepath.Join(filepath.Dir(cfg.GetPath()), telemetry.PreferenceFileName))
 	if err != nil {
@@ -81,7 +86,9 @@ func TestHandleTelemetryPreference_PreferenceFileSkipsPrompt(t *testing.T) {
 		t.Fatalf("WritePreference: %v", err)
 	}
 
-	handleTelemetryPreference(streams, cfg, rec)
+	if err := handleTelemetryPreference(t.Context(), streams, cfg, rec); err != nil {
+		t.Fatalf("handleTelemetryPreference: %v", err)
+	}
 
 	if out.Len() != 0 {
 		t.Fatalf("output = %q, want no prompt", out.String())
@@ -95,7 +102,9 @@ func TestHandleTelemetryPreference_NonInteractiveWritesDisclosureOnly(t *testing
 	})
 	loginInputIsTerminal = func(io.Reader) bool { return false }
 
-	handleTelemetryPreference(streams, cfg, rec)
+	if err := handleTelemetryPreference(t.Context(), streams, cfg, rec); err != nil {
+		t.Fatalf("handleTelemetryPreference: %v", err)
+	}
 
 	if telemetry.PreferenceFileExists(cfg) {
 		t.Fatal("preference file written for non-interactive input")
@@ -111,12 +120,34 @@ func TestHandleTelemetryPreference_NonInteractiveWritesDisclosureOnly(t *testing
 
 func TestReadTelemetryPreferenceAnswerInvalidTwiceSkipsWrite(t *testing.T) {
 	var out bytes.Buffer
-	_, ok := readTelemetryPreferenceAnswer(strings.NewReader("maybe\nstill maybe\n"), &out)
+	_, ok, err := readTelemetryPreferenceAnswer(t.Context(), strings.NewReader("maybe\nstill maybe\n"), &out, nil)
+	if err != nil {
+		t.Fatalf("readTelemetryPreferenceAnswer: %v", err)
+	}
 	if ok {
 		t.Fatal("ok = true, want false after invalid answers")
 	}
 	if !strings.Contains(out.String(), "Please answer y or n:") {
 		t.Fatalf("retry prompt missing from output: %q", out.String())
+	}
+}
+
+func TestReadTelemetryPreferenceAnswerInterruptCancels(t *testing.T) {
+	reader, writer := io.Pipe()
+	t.Cleanup(func() {
+		_ = reader.Close()
+		_ = writer.Close()
+	})
+	interrupt := make(chan os.Signal, 1)
+	interrupt <- os.Interrupt
+
+	var out bytes.Buffer
+	_, ok, err := readTelemetryPreferenceAnswer(t.Context(), reader, &out, interrupt)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if ok {
+		t.Fatal("ok = true, want false after interrupt")
 	}
 }
 
