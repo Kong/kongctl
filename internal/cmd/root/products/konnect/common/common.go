@@ -179,24 +179,42 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	if err != nil {
 		return httpclient.RetryConfig{}, err
 	}
-	if initialIntervalMS < 0 {
-		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %d: must be >= 0",
-			HTTPRetryInitialIntervalConfigPath, initialIntervalMS)
-	}
 	if initialIntervalMS == 0 {
 		initialIntervalMS = httpclient.DefaultRetryInitialIntervalMS
+	}
+	if initialIntervalMS < httpclient.MinRetryInitialIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be >= %d ms",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MinRetryInitialIntervalMS)
+	}
+	if initialIntervalMS > httpclient.MaxRetryInitialIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be <= %d ms",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MaxRetryInitialIntervalMS)
 	}
 
 	maxIntervalMS, err := resolveOptionalInt(cfg, HTTPRetryMaxIntervalConfigPath)
 	if err != nil {
 		return httpclient.RetryConfig{}, err
 	}
-	if maxIntervalMS < 0 {
-		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %d: must be >= 0",
-			HTTPRetryMaxIntervalConfigPath, maxIntervalMS)
-	}
 	if maxIntervalMS == 0 {
 		maxIntervalMS = httpclient.DefaultRetryMaxIntervalMS
+	}
+	if maxIntervalMS < httpclient.MinRetryMaxIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be >= %d ms",
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MinRetryMaxIntervalMS)
+	}
+	if maxIntervalMS > httpclient.MaxRetryMaxIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be <= %d ms",
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MaxRetryMaxIntervalMS)
+	}
+	if initialIntervalMS > maxIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid configuration: %s (%d ms) must be <= %s (%d ms)",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS,
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS)
 	}
 
 	factor, err := resolveOptionalFloat64(cfg, HTTPRetryBackoffFactorConfigPath)

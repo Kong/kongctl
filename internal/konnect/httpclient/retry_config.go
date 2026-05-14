@@ -11,8 +11,7 @@ const (
 	RetryStrategyDefault = RetryStrategyBackoff
 
 	// DefaultRetryMaxAttempts is the default number of total attempts including the first.
-	// 8 attempts yields retries at 1s, 2s, 4s, 8s, 16s, 32s, 60s — enough to outlast
-	// both short eventual-consistency windows (~1-2s) and rate-limit windows (~60s).
+	// 3 attempts yields retries at 1s, 2s, 4s
 	DefaultRetryMaxAttempts = 3
 	// DefaultRetryInitialIntervalMS is the default initial backoff interval in milliseconds.
 	DefaultRetryInitialIntervalMS = 1_000
@@ -24,6 +23,18 @@ const (
 
 	// MaxRetryMaxAttempts is the maximum configurable number of total attempts.
 	MaxRetryMaxAttempts = 10
+
+	// MinRetryInitialIntervalMS is the minimum configurable initial backoff interval.
+	// Values below this floor would hammer the server too aggressively.
+	MinRetryInitialIntervalMS = 200
+	// MaxRetryInitialIntervalMS is the maximum configurable initial backoff interval.
+	MaxRetryInitialIntervalMS = 30_000
+
+	// MinRetryMaxIntervalMS is the minimum configurable backoff ceiling.
+	MinRetryMaxIntervalMS = 1_000
+	// MaxRetryMaxIntervalMS is the maximum configurable backoff ceiling.
+	// 2 minutes covers any realistic API rate-limit reset window.
+	MaxRetryMaxIntervalMS = 120_000
 )
 
 // RetryConfig holds retry/backoff parameters resolved from flags/config.

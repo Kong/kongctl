@@ -289,6 +289,47 @@ func TestResolveRetryConfig(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("initial interval below min returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryInitialIntervalConfigPath: "50",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("initial interval above max returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryInitialIntervalConfigPath: "31000",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("max interval below min returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxIntervalConfigPath: "500",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("max interval above max returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxIntervalConfigPath: "301000",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("initial interval greater than max interval returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryInitialIntervalConfigPath: "5000",
+			HTTPRetryMaxIntervalConfigPath:     "2000",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
 	t.Run("max attempts above cap returns error", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
 			HTTPRetryMaxAttemptsConfigPath: "11",
