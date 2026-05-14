@@ -10,8 +10,6 @@ on:
 permissions:
   contents: read
   issues: read
-env:
-  DO_NOT_TRACK: "1"
 checkout:
   fetch-depth: 0
 timeout-minutes: 30
