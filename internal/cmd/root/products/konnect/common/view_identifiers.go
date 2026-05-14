@@ -4,6 +4,7 @@ package common
 // child views, and child loader registration.
 const (
 	ViewParentAPI                           = "api"
+	ViewParentAnalyticsDashboard            = "analytics-dashboard"
 	ViewParentAPIDocument                   = "api-document"
 	ViewParentAPIImplementation             = "api-implementation"
 	ViewParentAPIPublication                = "api-publication"

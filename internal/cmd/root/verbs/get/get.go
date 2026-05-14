@@ -39,6 +39,8 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		%[1]s get portals
 		# Retrieve Konnect APIs
 		%[1]s get apis
+		# Retrieve Konnect Analytics dashboards
+		%[1]s get analytics dashboards
 		# Retrieve Konnect auth strategies
 		%[1]s get auth-strategies
 		# Retrieve Konnect DCR providers
@@ -123,6 +125,12 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(apiCmd)
+
+	analyticsCmd, err := NewDirectAnalyticsCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(analyticsCmd)
 
 	// Add auth strategy command directly for Konnect-first pattern
 	authStrategyCmd, err := NewDirectAuthStrategyCmd()

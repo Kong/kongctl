@@ -7,6 +7,7 @@ import (
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/analytics"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/auditlogs"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/authstrategy"
@@ -260,6 +261,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(ac)
+
+	// Add analytics command
+	analyticsCmd, e := analytics.NewAnalyticsCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(analyticsCmd)
 
 	// Add auth strategy command
 	asc, e := authstrategy.NewAuthStrategyCmd(verb, addFlags, preRunE)

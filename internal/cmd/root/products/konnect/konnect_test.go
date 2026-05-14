@@ -86,6 +86,14 @@ func TestNewKonnectCmdDeclarativeVerbsUseVerbSpecificExamples(t *testing.T) {
 	}
 }
 
+func TestNewKonnectCmdGetExposesAnalytics(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Get)
+	require.NoError(t, err)
+	require.True(t, hasSubcommandNamed(cmd, "analytics"))
+}
+
 func hasSubcommandNamed(cmd *cobra.Command, name string) bool {
 	if cmd == nil {
 		return false
