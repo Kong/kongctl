@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -69,10 +70,8 @@ func NewDumpCmd() (*cobra.Command, error) {
 		Long:    dumpLong,
 		Example: dumpExamples,
 		Aliases: []string{"d", "D"},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(dumpCommand)
 
 	dumpCommand.PersistentPreRun = func(cmd *cobra.Command, _ []string) {
 		cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))

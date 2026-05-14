@@ -1,8 +1,7 @@
 package gateway
 
 import (
-	"fmt"
-
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumergroup" // register consumer-group child loaders
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/controlplane"
 	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin"   // register plugin child loaders
@@ -29,16 +28,8 @@ func NewGatewayCmd(verb verbs.VerbValue,
 		Short:   gatewayShort,
 		Long:    gatewayLong,
 		Aliases: []string{"gw", "GW"},
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
-			}
-			return nil
-		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 
 	c, e := controlplane.NewControlPlaneCmd(verb, addParentFlags, parentPreRun)
 	if e != nil {

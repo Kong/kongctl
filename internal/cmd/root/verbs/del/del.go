@@ -64,7 +64,9 @@ func NewDeleteCmd() (*cobra.Command, error) {
 			if len(filenames) > 0 || planFile != "" {
 				return declDeleteCmd.RunE(c, args)
 			}
-			return c.Help()
+			return &cmdpkg.UsageError{
+				Err: fmt.Errorf("command %q requires -f/--filename or --plan", c.CommandPath()),
+			}
 		},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()

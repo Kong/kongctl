@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -11,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/build"
-	"github.com/kong/kongctl/internal/cmd"
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/adopt"
@@ -73,14 +74,14 @@ var (
 	streams    *iostreams.IOStreams
 	pMgr       profile.Manager
 
-	outputFormat = cmd.NewDeferredEnum([]string{
+	outputFormat = cmdpkg.NewDeferredEnum([]string{
 		common.JSON.String(),
 		common.YAML.String(),
 		common.TEXT.String(),
 	},
 		common.TEXT.String())
 
-	logLevel = cmd.NewEnum([]string{
+	logLevel = cmdpkg.NewEnum([]string{
 		common.TRACE.String(),
 		common.DEBUG.String(),
 		common.INFO.String(),
@@ -179,12 +180,14 @@ func validateOutputFormat(cmd *cobra.Command) error {
 
 func newRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   meta.CLIName,
-		Short: rootShort,
-		Long:  rootLong,
+		Use:           meta.CLIName,
+		Short:         rootShort,
+		Long:          rootLong,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validateOutputFormat(cmd); err != nil {
-				return err
+				return &cmdpkg.ConfigurationError{Err: err}
 			}
 			ctx := context.WithValue(cmd.Context(), config.ConfigKey, currConfig)
 			ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
@@ -403,8 +406,21 @@ func addCommands() error {
 
 	// Add help command
 	rootCmd.AddCommand(help.NewHelpCmd())
+	installUsageErrorFallbacks(rootCmd)
 
 	return nil
+}
+
+func installUsageErrorFallbacks(command *cobra.Command) {
+	if command == nil {
+		return
+	}
+	if !command.Hidden && command.HasAvailableSubCommands() && !command.Runnable() {
+		cmdpkg.ConfigureRequiresSubcommand(command)
+	}
+	for _, child := range command.Commands() {
+		installUsageErrorFallbacks(child)
+	}
 }
 
 func sampleThemeNames() []string {
@@ -612,6 +628,7 @@ func initConfig() {
 
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	var err error
+	executedCmd := rootCmd
 	buildInfo = bi
 	version := meta.DefaultCLIVersion
 	if bi != nil {
@@ -633,13 +650,11 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		err = registerExtensions()
 	}
 	if err == nil {
-		err = rootCmd.ExecuteContext(ctx)
+		executedCmd, err = rootCmd.ExecuteContextC(ctx)
 	}
 	if err != nil {
 		// If there was an execution error, use the logger to write it out and exit
-		// If it was a configuration error, we want the cobra framework to also
-		// show the usage information, so we don't also print the error here
-		var executionError *cmd.ExecutionError
+		var executionError *cmdpkg.ExecutionError
 		if errors.Is(err, context.Canceled) {
 			logger.Info("Operation canceled")
 		} else if errors.As(err, &executionError) {
@@ -648,6 +663,8 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 			} else {
 				logger.Error(executionError.Err.Error(), executionError.Attrs...)
 			}
+		} else {
+			renderCommandError(streams.ErrOut, executedCmd, err)
 		}
 		closeLogFile()
 		os.Exit(1)
@@ -668,4 +685,70 @@ func closeLogFile() {
 		_ = logFile.Close()
 		logFile = nil
 	}
+}
+
+func renderCommandError(w io.Writer, command *cobra.Command, err error) {
+	if cmdpkg.IsUsageError(err) {
+		renderCommandUsageError(w, command, err)
+		return
+	}
+	renderPlainCommandError(w, err)
+}
+
+func renderPlainCommandError(w io.Writer, err error) {
+	if w == nil || err == nil {
+		return
+	}
+	errorText := strings.TrimSpace(err.Error())
+	if errorText == "" {
+		errorText = "an unknown error occurred"
+	}
+	fmt.Fprintf(w, "Error: %s\n", errorText)
+}
+
+func renderCommandUsageError(w io.Writer, command *cobra.Command, err error) {
+	if w == nil || err == nil {
+		return
+	}
+
+	errorText := strings.TrimSpace(stripCobraSuggestion(err.Error()))
+	if errorText == "" {
+		errorText = "invalid command usage"
+	}
+
+	fmt.Fprintf(w, "Error: %s\n", errorText)
+	fmt.Fprintf(w, "Run '%s --help' for usage.\n", commandPath(command))
+
+	suggestion := cmdpkg.SuggestionForError(command, err)
+	if len(suggestion.Values) == 0 {
+		return
+	}
+
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, suggestionHeader(suggestion.Kind, len(suggestion.Values)))
+	for _, value := range suggestion.Values {
+		fmt.Fprintf(w, "  %s\n", value)
+	}
+}
+
+func stripCobraSuggestion(message string) string {
+	message, _, _ = strings.Cut(message, "\n\nDid you mean")
+	return message
+}
+
+func commandPath(command *cobra.Command) string {
+	if command == nil {
+		return meta.CLIName
+	}
+	return command.CommandPath()
+}
+
+func suggestionHeader(kind string, count int) string {
+	if kind == "" {
+		kind = "suggestion"
+	}
+	if count == 1 {
+		return fmt.Sprintf("Did you mean this %s?", kind)
+	}
+	return fmt.Sprintf("Did you mean one of these %ss?", kind)
 }
