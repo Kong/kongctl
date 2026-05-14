@@ -4,10 +4,12 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -189,6 +191,20 @@ func TestContextWithRecorder_RoundTrip(t *testing.T) {
 // 	}
 // }
 
+func TestNewRecorder_ConfigOff_Disabled(t *testing.T) {
+	cfg := &fakeCfg{
+		bools: map[string]bool{ConfigKeyEnabled: false},
+		path:  t.TempDir() + "/config.yaml",
+	}
+	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
+	if rec.enabled {
+		t.Errorf("enabled = true, want false when telemetry.enabled=false")
+	}
+	if _, ok := rec.sink.(NoopSink); !ok {
+		t.Errorf("sink = %T, want NoopSink", rec.sink)
+	}
+}
+
 func TestNewRecorder_DoNotTrack_Disables(t *testing.T) {
 	// Per https://consoledonottrack.com/ the canonical opt-out value is "1".
 	t.Setenv(EnvDoNotTrack, "1")
@@ -363,6 +379,43 @@ func TestRecorder_FinalizeEmitsEvent(t *testing.T) {
 	}
 	if !sink.closed {
 		t.Errorf("sink.Close not called during recorder Close")
+	}
+}
+
+func TestRecorder_CommandPathExcludesArgs(t *testing.T) {
+	sink := &capturingSink{}
+	rec := newTestRecorder(sink)
+
+	root := &cobra.Command{Use: "kongctl"}
+	get := &cobra.Command{Use: "get"}
+	api := &cobra.Command{
+		Use:  "api [name]",
+		Args: cobra.ArbitraryArgs,
+		Run: func(cmd *cobra.Command, _ []string) {
+			rec.SetCommand(CommandInfo{Path: cmd.CommandPath()})
+		},
+	}
+	root.AddCommand(get)
+	get.AddCommand(api)
+	root.SetArgs([]string{"get", "api", "private-api-name"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	rec.Finalize(nil, time.Now())
+	if err := rec.Close(t.Context()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	events := sink.Events()
+	if len(events) != 1 {
+		t.Fatalf("got %d events, want 1", len(events))
+	}
+	if got, want := events[0].CommandPath, "get api"; got != want {
+		t.Errorf("CommandPath = %q, want %q", got, want)
+	}
+	if strings.Contains(events[0].CommandPath, "private-api-name") {
+		t.Errorf("CommandPath contains command argument: %q", events[0].CommandPath)
 	}
 }
 

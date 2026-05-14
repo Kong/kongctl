@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -55,6 +56,12 @@ func (s *fileSink) Emit(ctx context.Context, e Event) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if dir := filepath.Dir(s.path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
 
 	f, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {

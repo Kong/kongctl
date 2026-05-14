@@ -14,7 +14,7 @@ import (
 
 func TestFileSink_AppendsJSONL(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "telemetry.log")
+	path := filepath.Join(dir, "logs", "telemetry.log")
 	sink := NewFileSink(path)
 
 	events := []Event{
@@ -77,6 +77,14 @@ func TestFileSink_AppendsJSONL(t *testing.T) {
 	if mode := info.Mode().Perm(); mode != fs.FileMode(0o600) {
 		t.Errorf("file mode = %o, want 0o600", mode)
 	}
+
+	logDirInfo, err := os.Stat(filepath.Dir(path))
+	if err != nil {
+		t.Fatalf("stat log dir: %v", err)
+	}
+	if !logDirInfo.IsDir() {
+		t.Fatalf("log path parent is not a directory")
+	}
 }
 
 func TestFileSink_CancelledContextSkipsIO(t *testing.T) {
@@ -95,6 +103,24 @@ func TestFileSink_CancelledContextSkipsIO(t *testing.T) {
 	}
 	if _, statErr := os.Stat(path); !errors.Is(statErr, fs.ErrNotExist) {
 		t.Errorf("file was created despite cancelled ctx: stat err = %v", statErr)
+	}
+}
+
+func TestBuildDefaultSink_DebugUsesConfigLogsDir(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &fakeCfg{
+		bools: map[string]bool{ConfigKeyDebug: true},
+		path:  filepath.Join(dir, "config.yaml"),
+	}
+
+	sink := buildDefaultSink(cfg)
+	file, ok := sink.(*fileSink)
+	if !ok {
+		t.Fatalf("sink = %T, want *fileSink", sink)
+	}
+	want := filepath.Join(dir, "logs", "telemetry.log")
+	if file.path != want {
+		t.Fatalf("file sink path = %q, want %q", file.path, want)
 	}
 }
 

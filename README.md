@@ -30,8 +30,9 @@ By using this software, you acknowledge that:
   - [5. Next Steps](#5-next-steps)
 - [Documentation Listing](#documentation-listing)
 - [Configuration and Profiles](#configuration-and-profiles)
-  - [Color Themes](#color-themes)
+  - [Telemetry](#telemetry)
   - [Authentication Options](#authentication-options)
+  - [Color Themes](#color-themes)
 - [Command Structure](#command-structure)
 - [Support](#support)
 
@@ -178,6 +179,60 @@ KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis
 
 To clear saved Konnect credentials for a profile, run `kongctl logout [--profile <name>]`. This removes the local device
 flow token file so that subsequent commands prompt you to authenticate again with `kongctl login`.
+
+### Telemetry
+
+`kongctl` sends a single best-effort telemetry event for each command
+invocation. Telemetry is enabled by default. Events help Kong understand which
+command areas, versions, and platforms are used.
+
+The current event contains only:
+
+- Schema version
+- Event timestamp
+- `kongctl` version
+- Operating system and architecture
+- Command path, such as `get apis` or `apply`
+
+Telemetry does not include command arguments, flag values, auth tokens, request
+or response bodies, resource names, resource IDs, configuration file contents,
+file paths, usernames, email addresses, hostnames, or IP addresses.
+
+Disable telemetry for one command with:
+
+```shell
+kongctl --no-telemetry <command>
+```
+
+Disable telemetry for the current process with either:
+
+```shell
+KONGCTL_NO_TELEMETRY=true kongctl <command>
+DO_NOT_TRACK=1 kongctl <command>
+```
+
+Disable telemetry persistently for a profile:
+
+```yaml
+default:
+  telemetry:
+    enabled: false
+```
+
+Developers can inspect the local payload without sending it by enabling debug
+mode:
+
+```yaml
+default:
+  telemetry:
+    enabled: true
+    debug: true
+```
+
+When debug mode is enabled, events are written to
+`$XDG_CONFIG_HOME/kongctl/logs/telemetry.log` (or
+`$HOME/.config/kongctl/logs/telemetry.log`) and are not sent to the telemetry
+backend.
 
 ### Authentication Options
 

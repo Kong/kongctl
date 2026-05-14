@@ -93,8 +93,8 @@ func envBool(name string) (val, ok bool) {
 	return false, false
 }
 
-// telemetryLogFileName is the file in the kongctl config directory that the
-// default fileSink appends JSONL events to.
+// telemetryLogFileName is the file in the kongctl config logs directory that
+// the default fileSink appends JSONL events to.
 const telemetryLogFileName = "telemetry.log"
 
 // flushTimeout caps how long Close blocks the shutdown path.
@@ -203,7 +203,7 @@ func buildDefaultSink(cfg config.Hook) Sink {
 	if cfg != nil && cfg.GetBool(ConfigKeyDebug) {
 		// telemetry.debug routes events to a local JSONL file only, skipping
 		// the UDP sink so developer runs don't pollute the Splunk dataset.
-		path := filepath.Join(filepath.Dir(cfg.GetPath()), telemetryLogFileName)
+		path := filepath.Join(filepath.Dir(cfg.GetPath()), "logs", telemetryLogFileName)
 		return NewFileSink(path)
 	}
 
