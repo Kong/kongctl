@@ -2,7 +2,8 @@ package controlplane
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -80,20 +81,13 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 	}
 
 	description := missing
-	if strings.TrimSpace(c.Description) != "" {
-		description = c.Description
+	if d := strings.TrimSpace(c.Description); d != "" {
+		description = d
 	}
 
 	labels := missing
 	if len(c.Labels) > 0 {
-		// 1) pull out the keys…
-		keys := make([]string, 0, len(c.Labels))
-		for k := range c.Labels {
-			keys = append(keys, k)
-		}
-		// 2) sort them lexicographically
-		sort.Strings(keys)
-		// 3) build your pairs in that order
+		keys := slices.Sorted(maps.Keys(c.Labels))
 		labelPairs := make([]string, 0, len(c.Labels))
 		for _, k := range keys {
 			labelPairs = append(labelPairs, fmt.Sprintf("%s: %s", k, c.Labels[k]))
@@ -141,8 +135,8 @@ func controlPlaneDetailView(cp *kkComps.ControlPlane) string {
 	}
 
 	description := missing
-	if strings.TrimSpace(cp.Description) != "" {
-		description = strings.TrimSpace(cp.Description)
+	if d := strings.TrimSpace(cp.Description); d != "" {
+		description = d
 	}
 
 	labelsValue := missing
@@ -151,13 +145,13 @@ func controlPlaneDetailView(cp *kkComps.ControlPlane) string {
 		for k, v := range cp.Labels {
 			pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
 		}
-		sort.Strings(pairs)
+		slices.Sort(pairs)
 		labelsValue = strings.Join(pairs, ", ")
 	}
 
 	endpoint := missing
-	if strings.TrimSpace(cp.Config.ControlPlaneEndpoint) != "" {
-		endpoint = strings.TrimSpace(cp.Config.ControlPlaneEndpoint)
+	if v := strings.TrimSpace(cp.Config.ControlPlaneEndpoint); v != "" {
+		endpoint = v
 	}
 
 	created := cp.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
