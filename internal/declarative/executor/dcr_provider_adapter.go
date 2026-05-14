@@ -152,11 +152,7 @@ func (a *DCRProviderAdapter) ResourceType() string {
 }
 
 func (a *DCRProviderAdapter) RequiredFields() []string {
-	return []string{
-		planner.FieldDCRProviderProviderType,
-		planner.FieldDCRProviderIssuer,
-		planner.FieldDCRProviderConfig,
-	}
+	return []string{planner.FieldDCRProviderProviderType, planner.FieldDCRProviderIssuer, planner.FieldDCRProviderConfig}
 }
 
 func (a *DCRProviderAdapter) SupportsUpdate() bool {

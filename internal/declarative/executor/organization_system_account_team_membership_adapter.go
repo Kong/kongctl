@@ -131,9 +131,7 @@ func (o *OrganizationSystemAccountTeamMembershipAdapter) getAccountAndTeamIDs(
 		}
 	}
 	if accountID == "" {
-		return "", "", fmt.Errorf(
-			"system account ID is required for organization system account team membership operations",
-		)
+		return "", "", fmt.Errorf("system account ID is required for organization system account team membership operations")
 	}
 	if teamID == "" {
 		return "", "", fmt.Errorf("team ID is required for organization system account team membership operations")

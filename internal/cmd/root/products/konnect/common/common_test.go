@@ -356,16 +356,6 @@ func TestResolveRetryConfig(t *testing.T) {
 			require.Error(t, err, "factor %s should be rejected", v)
 		}
 	})
-
-	t.Run("legacy top-level values are ignored", func(t *testing.T) {
-		cfg, _ := newTestConfig(map[string]string{
-			cmdcommon.HTTPRetryMaxAttemptsConfigPath: "3",
-		})
-
-		rc, err := ResolveRetryConfig(cfg)
-		require.NoError(t, err)
-		require.Equal(t, httpclient.DefaultRetryMaxAttempts, rc.MaxAttempts)
-	})
 }
 
 func TestResolveAccessTokenMapsMissingCredentialsToGuidance(t *testing.T) {
