@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -224,6 +226,10 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	if factor == 0 {
 		factor = httpclient.DefaultRetryBackoffFactor
 	}
+	if math.IsNaN(factor) || math.IsInf(factor, 0) {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be a finite number",
+			HTTPRetryBackoffFactorConfigPath, factor)
+	}
 	if factor < 1 {
 		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be >= 1",
 			HTTPRetryBackoffFactorConfigPath, factor)
@@ -326,9 +332,35 @@ func accessTokenUnavailableError(cfg config.Hook) error {
 	)
 }
 
-// This is the real implementation of the SDKAPIFactory,
-// which creates a real Konnect SDK instance
-func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+func isDeclarativeRetryVerb(verb verbs.VerbValue) bool {
+	return verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff ||
+		verb == verbs.Export || verb == verbs.Apply || verb == verbs.Delete
+}
+
+func noRetryConfig() httpclient.RetryConfig {
+	return httpclient.RetryConfig{
+		Strategy:              httpclient.RetryStrategyNone,
+		MaxAttempts:           1,
+		InitialIntervalMS:     httpclient.DefaultRetryInitialIntervalMS,
+		MaxIntervalMS:         httpclient.DefaultRetryMaxIntervalMS,
+		BackoffFactor:         httpclient.DefaultRetryBackoffFactor,
+		RetryConnectionErrors: false,
+	}
+}
+
+func resolveRetryConfigForVerb(cfg config.Hook, verb verbs.VerbValue) (httpclient.RetryConfig, error) {
+	if !isDeclarativeRetryVerb(verb) {
+		return noRetryConfig(), nil
+	}
+
+	return ResolveRetryConfig(cfg)
+}
+
+func konnectSDKFactory(
+	cfg config.Hook,
+	logger *slog.Logger,
+	retryConfig httpclient.RetryConfig,
+) (helpers.SDKAPI, error) {
 	tokenSource, e := GetAccessTokenSource(cfg, logger)
 	if e != nil {
 		return nil, e
@@ -353,11 +385,6 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		return nil, err
 	}
 
-	retryConfig, err := ResolveRetryConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	sdk, httpClient, err := auth.GetAuthenticatedClient(
 		baseURL, tokenSource, timeout, transportOptions, &retryConfig, logger,
 	)
@@ -372,6 +399,36 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		TokenSource: tokenSource,
 		HTTPClient:  httpClient,
 	}, nil
+}
+
+// This is the real implementation of the SDKAPIFactory,
+// which creates a real Konnect SDK instance
+func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	retryConfig, err := ResolveRetryConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return konnectSDKFactory(cfg, logger, retryConfig)
+}
+
+func KonnectSDKFactoryForVerb(verb verbs.VerbValue, cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	retryConfig, err := resolveRetryConfigForVerb(cfg, verb)
+	if err != nil {
+		return nil, err
+	}
+
+	return konnectSDKFactory(cfg, logger, retryConfig)
+}
+
+func GetSDKFactoryForVerb(verb verbs.VerbValue) helpers.SDKAPIFactory {
+	if helpers.DefaultSDKFactory != nil {
+		return helpers.DefaultSDKFactory
+	}
+
+	return func(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+		return KonnectSDKFactoryForVerb(verb, cfg, logger)
+	}
 }
 
 // GetSDKFactory returns the SDK factory to use, checking for test overrides

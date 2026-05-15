@@ -6,7 +6,7 @@ const (
 	RetryStrategyDefault = RetryStrategyBackoff
 
 	// DefaultRetryMaxAttempts is the default number of total attempts including the first.
-	// 3 attempts yields retries at 1s, 2s, 4s
+	// With factor=2 and 3 total attempts there are 2 retry waits: 1s then 2s.
 	DefaultRetryMaxAttempts = 3
 	// DefaultRetryInitialIntervalMS is the default initial backoff interval in milliseconds.
 	DefaultRetryInitialIntervalMS = 1_000
@@ -42,26 +42,4 @@ type RetryConfig struct {
 	MaxIntervalMS         int
 	BackoffFactor         float64
 	RetryConnectionErrors bool
-}
-
-// computeMaxElapsedTimeMS sums the actual per-retry wait times using exponential
-// backoff, capping each term at MaxIntervalMS. MaxAttempts includes the first
-// request, so there are MaxAttempts-1 retry gaps.
-//
-// Overflow safety: worst case is (MaxRetryMaxAttempts-1) × MaxRetryMaxIntervalMS
-// = 9 × 120_000 = 1_080_000, well within int range.
-func (rc RetryConfig) computeMaxElapsedTimeMS() int {
-	if rc.MaxAttempts <= 1 {
-		return 0
-	}
-	total := 0
-	interval := float64(rc.InitialIntervalMS)
-	for range rc.MaxAttempts - 1 {
-		if interval > float64(rc.MaxIntervalMS) {
-			interval = float64(rc.MaxIntervalMS)
-		}
-		total += int(interval)
-		interval *= rc.BackoffFactor
-	}
-	return total
 }

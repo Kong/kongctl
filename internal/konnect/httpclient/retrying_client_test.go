@@ -441,9 +441,16 @@ func TestNextInterval(t *testing.T) {
 	}
 	c := &RetryingHTTPClient{cfg: cfg}
 
-	for attempt := range 5 {
+	// Verify exponential doubling: each attempt's midpoint should double.
+	// With factor=2 and initial=1s: attempt 0 → ~1s, attempt 1 → ~2s, attempt 2 → ~4s.
+	// We check within ±25% jitter tolerance.
+	expected := []float64{1_000, 2_000, 4_000, 8_000, 16_000}
+	for attempt, wantMS := range expected {
 		d := c.nextInterval(attempt)
-		assert.Greater(t, d, time.Duration(0), "attempt %d", attempt)
+		low := time.Duration(wantMS*0.75) * time.Millisecond
+		high := time.Duration(wantMS*1.25) * time.Millisecond
+		assert.GreaterOrEqual(t, d, low, "attempt %d interval too low", attempt)
+		assert.LessOrEqual(t, d, high, "attempt %d interval too high", attempt)
 	}
 
 	// Verify cap: at a high attempt number the interval must not exceed max*1.25.

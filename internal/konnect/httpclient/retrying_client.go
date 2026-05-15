@@ -136,6 +136,10 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 			if isLast || !c.shouldRetryError(req, err) {
 				return nil, err
 			}
+			// If the body cannot be replayed we cannot safely retry the error.
+			if !bodyReplayable {
+				return nil, err
+			}
 			next := c.nextInterval(attempt)
 			c.logRetry(req, requestID, 0, attempt+1, next, err.Error())
 			if waitErr := c.wait(req.Context(), next); waitErr != nil {
@@ -236,16 +240,18 @@ func (c *RetryingHTTPClient) methodAllowed(method string) bool {
 }
 
 // nextInterval computes the backoff wait duration for the given attempt index
-// (0-based). The formula mirrors the SDK's nextInterval implementation:
+// (0-based). Uses standard exponential backoff:
 //
-//	interval = initialInterval × (attempt+1)^exponent  (capped at maxInterval)
+//	interval = initialInterval × factor^attempt  (capped at maxInterval)
 //	+ jitter of ±25%
+//
+// With factor=2 and initial=1s: attempt 0 → 1s, attempt 1 → 2s, attempt 2 → 4s.
 func (c *RetryingHTTPClient) nextInterval(attempt int) time.Duration {
 	initial := float64(c.cfg.InitialIntervalMS) * float64(time.Millisecond)
 	maximum := float64(c.cfg.MaxIntervalMS) * float64(time.Millisecond)
-	exponent := c.cfg.BackoffFactor
+	factor := c.cfg.BackoffFactor
 
-	interval := initial * math.Pow(float64(attempt+1), exponent)
+	interval := initial * math.Pow(factor, float64(attempt))
 	interval = min(interval, maximum)
 
 	jitter := rand.Float64() * 0.25 * interval //nolint:gosec // jitter does not need crypto-quality randomness

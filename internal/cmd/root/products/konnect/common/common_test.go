@@ -10,6 +10,7 @@ import (
 	"time"
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	configtest "github.com/kong/kongctl/test/config"
@@ -355,6 +356,56 @@ func TestResolveRetryConfig(t *testing.T) {
 			_, err := ResolveRetryConfig(cfg)
 			require.Error(t, err, "factor %s should be rejected", v)
 		}
+	})
+
+	t.Run("non-finite backoff factor is rejected", func(t *testing.T) {
+		for _, v := range []string{"NaN", "+Inf", "-Inf", "Inf"} {
+			cfg, _ := newTestConfig(map[string]string{
+				HTTPRetryBackoffFactorConfigPath: v,
+			})
+			_, err := ResolveRetryConfig(cfg)
+			require.Error(t, err, "factor %s should be rejected", v)
+		}
+	})
+}
+
+func TestResolveRetryConfigForVerb(t *testing.T) {
+	t.Run("imperative verbs force no retry", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath:        "5",
+			HTTPRetryInitialIntervalConfigPath:    "250",
+			HTTPRetryMaxIntervalConfigPath:        "5000",
+			HTTPRetryBackoffFactorConfigPath:      "3",
+			HTTPRetryOnConnectionErrorsConfigPath: "true",
+		})
+
+		rc, err := resolveRetryConfigForVerb(cfg, verbs.Get)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.RetryStrategyNone, rc.Strategy)
+		require.Equal(t, 1, rc.MaxAttempts)
+		require.Equal(t, httpclient.DefaultRetryInitialIntervalMS, rc.InitialIntervalMS)
+		require.Equal(t, httpclient.DefaultRetryMaxIntervalMS, rc.MaxIntervalMS)
+		require.Equal(t, httpclient.DefaultRetryBackoffFactor, rc.BackoffFactor)
+		require.False(t, rc.RetryConnectionErrors)
+	})
+
+	t.Run("declarative verbs use resolved retry config", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath:        "5",
+			HTTPRetryInitialIntervalConfigPath:    "250",
+			HTTPRetryMaxIntervalConfigPath:        "5000",
+			HTTPRetryBackoffFactorConfigPath:      "3",
+			HTTPRetryOnConnectionErrorsConfigPath: "true",
+		})
+
+		rc, err := resolveRetryConfigForVerb(cfg, verbs.Plan)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.RetryStrategyBackoff, rc.Strategy)
+		require.Equal(t, 5, rc.MaxAttempts)
+		require.Equal(t, 250, rc.InitialIntervalMS)
+		require.Equal(t, 5000, rc.MaxIntervalMS)
+		require.Equal(t, 3.0, rc.BackoffFactor)
+		require.True(t, rc.RetryConnectionErrors)
 	})
 }
 

@@ -204,7 +204,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 				ctx = context.Background()
 			}
 			ctx = context.WithValue(ctx, products.Product, Product)
-			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(verb))
 			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},
