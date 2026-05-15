@@ -11,8 +11,10 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const RequiresSubcommandAnnotation = "kongctl/requires-subcommand"
-const formatFlagName = "format"
+const (
+	RequiresSubcommandAnnotation = "kongctl/requires-subcommand"
+	formatFlagName               = "format"
+)
 
 type Suggestion struct {
 	Kind   string
@@ -73,6 +75,10 @@ func RequireSubcommand(command *cobra.Command, args []string) error {
 func MissingSubcommandError(command *cobra.Command) error {
 	return &UsageError{
 		Err: fmt.Errorf("command %q requires a subcommand", commandPath(command)),
+		Suggestion: Suggestion{
+			Kind:   "subcommand",
+			Values: AvailableSubcommands(command),
+		},
 	}
 }
 
@@ -190,6 +196,21 @@ func SuggestSimilarCommands(command *cobra.Command, typed string) []string {
 	}
 	slices.Sort(suggestions)
 	return suggestions
+}
+
+func AvailableSubcommands(command *cobra.Command) []string {
+	if command == nil {
+		return nil
+	}
+
+	subcommands := make([]string, 0)
+	for _, child := range command.Commands() {
+		if child.IsAvailableCommand() {
+			subcommands = append(subcommands, child.Name())
+		}
+	}
+	slices.Sort(subcommands)
+	return subcommands
 }
 
 func SuggestSimilarFlags(command *cobra.Command, err error) Suggestion {

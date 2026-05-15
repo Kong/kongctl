@@ -305,7 +305,10 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"get"},
 			wantErr: []string{
 				`Error: command "kongctl get" requires a subcommand`,
-				`Run 'kongctl get --help' for usage.`,
+				"Available subcommands:",
+				"  api",
+				"  konnect",
+				`Run 'kongctl get --help' for usage`,
 			},
 			wantExit:     1,
 			forbidErr:    []string{"Usage:"},
@@ -316,9 +319,9 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"aply"},
 			wantErr: []string{
 				`Error: unknown command "aply" for "kongctl"`,
-				`Run 'kongctl --help' for usage.`,
 				"Did you mean this command?",
 				"  apply",
+				`Run 'kongctl --help' for usage`,
 			},
 			wantExit:     1,
 			forbidErr:    []string{"Usage:"},
@@ -329,9 +332,9 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"synch", "-f", "config.yaml"},
 			wantErr: []string{
 				`Error: unknown command "synch" for "kongctl"`,
-				`Run 'kongctl --help' for usage.`,
 				"Did you mean this command?",
 				"  sync",
+				`Run 'kongctl --help' for usage`,
 			},
 			wantExit: 1,
 			forbidErr: []string{
@@ -346,9 +349,9 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"syk", "-f", "config.yaml"},
 			wantErr: []string{
 				`Error: unknown command "syk" for "kongctl"`,
-				`Run 'kongctl --help' for usage.`,
 				"Did you mean this command?",
 				"  sync",
+				`Run 'kongctl --help' for usage`,
 			},
 			wantExit: 1,
 			forbidErr: []string{
@@ -363,7 +366,7 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"--definitely-not-a-real-kongctl-flag", "version"},
 			wantErr: []string{
 				`Error: unknown flag: --definitely-not-a-real-kongctl-flag`,
-				`Run 'kongctl --help' for usage.`,
+				`Run 'kongctl --help' for usage`,
 			},
 			wantExit: 1,
 			forbidErr: []string{
@@ -377,9 +380,9 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"get", "gatewy"},
 			wantErr: []string{
 				`Error: unknown command "gatewy" for "kongctl get"`,
-				`Run 'kongctl get --help' for usage.`,
 				"Did you mean this command?",
 				"  gateway",
+				`Run 'kongctl get --help' for usage`,
 			},
 			wantExit:     1,
 			forbidErr:    []string{"Usage:"},
@@ -390,9 +393,9 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"version", "--log-leve", "error"},
 			wantErr: []string{
 				`Error: unknown flag: --log-leve`,
-				`Run 'kongctl version --help' for usage.`,
 				"Did you mean this flag?",
 				"  --log-level",
+				`Run 'kongctl version --help' for usage`,
 			},
 			wantExit:     1,
 			forbidErr:    []string{"Usage:"},
@@ -403,10 +406,10 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"version", "--format", "yaml"},
 			wantErr: []string{
 				`Error: unknown flag: --format`,
-				`Run 'kongctl version --help' for usage.`,
 				"Did you mean this flag?",
 				"--output, -o",
 				"Configures the format of data written to STDOUT.",
+				`Run 'kongctl version --help' for usage`,
 			},
 			wantExit:     1,
 			forbidErr:    []string{"Usage:"},
@@ -417,7 +420,7 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"scaffold", "--format", "yaml", "api"},
 			wantErr: []string{
 				`Error: unknown flag: --format`,
-				`Run 'kongctl scaffold --help' for usage.`,
+				`Run 'kongctl scaffold --help' for usage`,
 			},
 			wantExit: 1,
 			forbidErr: []string{
@@ -432,12 +435,12 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"diff", "-g", "config.yaml"},
 			wantErr: []string{
 				`Error: unknown shorthand flag: 'g' in -g`,
-				`Run 'kongctl diff --help' for usage.`,
 				"Did you mean one of these flags?",
 				"-f, --filename",
 				"Filename or directory to files to use to create the resource",
 				"-R, --recursive",
 				"Process the directory used in -f, --filename recursively",
+				`Run 'kongctl diff --help' for usage`,
 			},
 			wantExit:     1,
 			forbidErr:    []string{"Usage:"},
@@ -448,7 +451,7 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"scaffold"},
 			wantErr: []string{
 				`Error: accepts 1 arg(s), received 0`,
-				`Run 'kongctl scaffold --help' for usage.`,
+				`Run 'kongctl scaffold --help' for usage`,
 			},
 			wantExit:     1,
 			forbidErr:    []string{"Usage:"},
@@ -459,7 +462,7 @@ func TestRootErrorUX(t *testing.T) {
 			args: []string{"plan", "-o", "plan.json"},
 			wantErr: []string{
 				`Error: flags -o/--output are not supported for the plan command; use --output-file to save the plan to a file`,
-				`Run 'kongctl plan --help' for usage.`,
+				`Run 'kongctl plan --help' for usage`,
 			},
 			wantExit:     1,
 			forbidErr:    []string{"Usage:"},
@@ -567,18 +570,19 @@ func TestUnknownFlagErrorUXCoversCommandTree(t *testing.T) {
 }
 
 func TestRequiresSubcommandErrorUXCoversCommandGroups(t *testing.T) {
-	paths := collectRequiresSubcommandPathsForTest(t)
-	for _, path := range paths {
-		t.Run(commandPathForTest(path), func(t *testing.T) {
-			result := executeRootForTest(t, path...)
+	commands := collectRequiresSubcommandCommandsForTest(t)
+	for _, item := range commands {
+		t.Run(commandPathForTest(item.path), func(t *testing.T) {
+			result := executeRootForTest(t, item.path...)
 			if result.exitCode != 1 {
 				t.Fatalf("expected exit code 1, got %d\nstdout:\n%s\nstderr:\n%s",
 					result.exitCode, result.stdout, result.stderr)
 			}
-			assertConciseErrorUX(t, result.stderr, commandPathForTest(path))
+			assertConciseErrorUX(t, result.stderr, commandPathForTest(item.path))
 			if !strings.Contains(result.stderr, "requires a subcommand") {
 				t.Fatalf("expected missing subcommand error\nstderr:\n%s", result.stderr)
 			}
+			assertAvailableSubcommands(t, result.stderr, item.command)
 		})
 	}
 }
@@ -714,16 +718,6 @@ func collectCommandPathsForTest(t *testing.T) [][]string {
 	return paths
 }
 
-func collectRequiresSubcommandPathsForTest(t *testing.T) [][]string {
-	t.Helper()
-	items := collectRequiresSubcommandCommandsForTest(t)
-	paths := make([][]string, 0, len(items))
-	for _, item := range items {
-		paths = append(paths, item.path)
-	}
-	return paths
-}
-
 type commandPathItem struct {
 	command *cobra.Command
 	path    []string
@@ -775,9 +769,12 @@ func assertConciseErrorUX(t *testing.T, stderr, commandPath string) {
 	if strings.Contains(stderr, "Usage:") {
 		t.Fatalf("expected no full usage text\nstderr:\n%s", stderr)
 	}
-	help := fmt.Sprintf("Run '%s --help' for usage.", commandPath)
+	help := fmt.Sprintf("Run '%s --help' for usage", commandPath)
 	if !strings.Contains(stderr, help) {
 		t.Fatalf("expected help hint %q\nstderr:\n%s", help, stderr)
+	}
+	if strings.Contains(stderr, help+".") {
+		t.Fatalf("expected help hint without trailing period\nstderr:\n%s", stderr)
 	}
 }
 
@@ -788,6 +785,30 @@ func commandPathForTest(path []string) string {
 	return "kongctl " + strings.Join(path, " ")
 }
 
+func assertAvailableSubcommands(t *testing.T, stderr string, command *cobra.Command) {
+	t.Helper()
+
+	subcommands := cmdpkg.AvailableSubcommands(command)
+	if len(subcommands) == 0 {
+		t.Fatalf("expected available subcommands for %s", command.CommandPath())
+	}
+	if !strings.Contains(stderr, "Available subcommands:") {
+		t.Fatalf("expected available subcommands header\nstderr:\n%s", stderr)
+	}
+	for _, subcommand := range subcommands {
+		line := fmt.Sprintf("  %s\n", subcommand)
+		if !strings.Contains(stderr, line) {
+			t.Fatalf("expected subcommand %q in stderr\nstderr:\n%s", subcommand, stderr)
+		}
+	}
+
+	help := fmt.Sprintf("Run '%s --help' for usage", command.CommandPath())
+	lastSubcommandLine := fmt.Sprintf("  %s\n", subcommands[len(subcommands)-1])
+	if strings.LastIndex(stderr, help) < strings.LastIndex(stderr, lastSubcommandLine) {
+		t.Fatalf("expected help hint after subcommand list\nstderr:\n%s", stderr)
+	}
+}
+
 func helpSectionForTest(t *testing.T, help, header string) string {
 	t.Helper()
 	start := strings.Index(help, header)
@@ -795,14 +816,14 @@ func helpSectionForTest(t *testing.T, help, header string) string {
 		t.Fatalf("expected help to contain %q\nhelp:\n%s", header, help)
 	}
 	section := help[start:]
-	if end := strings.Index(section, "\n\nAvailable Commands:"); end >= 0 {
-		return strings.TrimSpace(section[:end])
+	if before, _, ok := strings.Cut(section, "\n\nAvailable Commands:"); ok {
+		return strings.TrimSpace(before)
 	}
-	if end := strings.Index(section, "\n\nFlags:"); end >= 0 {
-		return strings.TrimSpace(section[:end])
+	if before, _, ok := strings.Cut(section, "\n\nFlags:"); ok {
+		return strings.TrimSpace(before)
 	}
-	if end := strings.Index(section, "\n\nUse \""); end >= 0 {
-		return strings.TrimSpace(section[:end])
+	if before, _, ok := strings.Cut(section, "\n\nUse \""); ok {
+		return strings.TrimSpace(before)
 	}
 	return strings.TrimSpace(section)
 }
