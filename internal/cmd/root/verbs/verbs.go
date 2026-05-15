@@ -1,6 +1,7 @@
 package verbs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -57,4 +58,16 @@ func NoPositionalArgs(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("unexpected argument %q: use -f/--filename to specify input files", args[0])
 	}
 	return nil
+}
+
+// KonnectFirstPreRunE returns a PersistentPreRunE that stamps the verb onto
+// the context and delegates to the konnect command's own PersistentPreRunE.
+func KonnectFirstPreRunE(verb VerbValue, konnectCmd *cobra.Command) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		cmd.SetContext(context.WithValue(cmd.Context(), Verb, verb))
+		if konnectCmd.PersistentPreRunE != nil {
+			return konnectCmd.PersistentPreRunE(cmd, args)
+		}
+		return nil
+	}
 }

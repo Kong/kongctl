@@ -1,8 +1,6 @@
 package sync
 
 import (
-	"context"
-
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -38,15 +36,8 @@ func NewSyncCmd() (*cobra.Command, error) {
 		Example: konnectCmd.Example,
 		Args:    verbs.NoPositionalArgs,
 		// Use the konnect command's RunE directly for Konnect-first pattern
-		RunE: konnectCmd.RunE,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
-			// Also run the konnect command's PersistentPreRunE to set up SDKAPIFactory
-			if konnectCmd.PersistentPreRunE != nil {
-				return konnectCmd.PersistentPreRunE(cmd, args)
-			}
-			return nil
-		},
+		RunE:              konnectCmd.RunE,
+		PersistentPreRunE: verbs.KonnectFirstPreRunE(Verb, konnectCmd),
 	}
 
 	// Copy flags from konnect command to parent
