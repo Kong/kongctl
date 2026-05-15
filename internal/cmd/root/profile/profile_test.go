@@ -44,6 +44,7 @@ func (m profileTestManager) DeleteProfile(_ string) error {
 type profileTestHelper struct {
 	cmd     *cobra.Command
 	args    []string
+	verb    verbs.VerbValue
 	streams *iostreams.IOStreams
 	cfg     config.Hook
 }
@@ -57,7 +58,7 @@ func (h profileTestHelper) GetArgs() []string {
 }
 
 func (h profileTestHelper) GetVerb() (verbs.VerbValue, error) {
-	return verbs.Get, nil
+	return h.verb, nil
 }
 
 func (h profileTestHelper) GetProduct() (products.ProductValue, error) {
@@ -100,7 +101,7 @@ func TestNewProfileCmdDescribesKongctlProfiles(t *testing.T) {
 }
 
 func TestRunGetListsProfiles(t *testing.T) {
-	output := runGetForTest(t, nil, profileTestManager{
+	output := runGetForTest(t, nil, verbs.Get, profileTestManager{
 		profiles: []string{"team-b", "default", "team-a"},
 	})
 
@@ -110,7 +111,7 @@ func TestRunGetListsProfiles(t *testing.T) {
 }
 
 func TestRunGetShowsNamedProfileConfiguration(t *testing.T) {
-	output := runGetForTest(t, []string{"team-a"}, profileTestManager{
+	output := runGetForTest(t, []string{"team-a"}, verbs.Get, profileTestManager{
 		profiles: []string{"default", "team-a"},
 		data: map[string]map[string]any{
 			"team-a": {
@@ -128,9 +129,19 @@ func TestRunGetShowsNamedProfileConfiguration(t *testing.T) {
 	require.Equal(t, "https://us.api.konghq.com", got["konnect"].(map[string]any)["base_url"])
 }
 
+func TestRunListProfilesMatchesGetProfiles(t *testing.T) {
+	output := runForTest(t, nil, verbs.List, profileTestManager{
+		profiles: []string{"team-b", "default", "team-a"},
+	})
+
+	var got []string
+	require.NoError(t, json.Unmarshal([]byte(output), &got))
+	require.Equal(t, []string{"default", "team-a", "team-b"}, got)
+}
+
 func TestRunGetReturnsErrorForUnknownProfile(t *testing.T) {
 	var out bytes.Buffer
-	helper := newProfileTestHelper([]string{"missing"}, &out)
+	helper := newProfileTestHelper([]string{"missing"}, verbs.Get, &out)
 	oldProfileManager := profileManager
 	profileManager = profileTestManager{profiles: []string{"default"}}
 	t.Cleanup(func() {
@@ -142,11 +153,11 @@ func TestRunGetReturnsErrorForUnknownProfile(t *testing.T) {
 	require.ErrorContains(t, err, `profile "missing" not found`)
 }
 
-func runGetForTest(t *testing.T, args []string, manager profilepkg.Manager) string {
+func runGetForTest(t *testing.T, args []string, verb verbs.VerbValue, manager profilepkg.Manager) string {
 	t.Helper()
 
 	var out bytes.Buffer
-	helper := newProfileTestHelper(args, &out)
+	helper := newProfileTestHelper(args, verb, &out)
 	oldProfileManager := profileManager
 	profileManager = manager
 	t.Cleanup(func() {
@@ -157,10 +168,26 @@ func runGetForTest(t *testing.T, args []string, manager profilepkg.Manager) stri
 	return out.String()
 }
 
-func newProfileTestHelper(args []string, out *bytes.Buffer) profileTestHelper {
+func runForTest(t *testing.T, args []string, verb verbs.VerbValue, manager profilepkg.Manager) string {
+	t.Helper()
+
+	var out bytes.Buffer
+	helper := newProfileTestHelper(args, verb, &out)
+	oldProfileManager := profileManager
+	profileManager = manager
+	t.Cleanup(func() {
+		profileManager = oldProfileManager
+	})
+
+	require.NoError(t, run(helper))
+	return out.String()
+}
+
+func newProfileTestHelper(args []string, verb verbs.VerbValue, out *bytes.Buffer) profileTestHelper {
 	return profileTestHelper{
 		cmd:  &cobra.Command{Use: "profile"},
 		args: args,
+		verb: verb,
 		streams: &iostreams.IOStreams{
 			In:     &bytes.Buffer{},
 			Out:    out,

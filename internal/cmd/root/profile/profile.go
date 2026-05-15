@@ -60,7 +60,7 @@ func run(helper cmd.Helper) error {
 		return err
 	}
 
-	if v == verbs.Get {
+	if v == verbs.Get || v == verbs.List {
 		return runGet(helper)
 	}
 
