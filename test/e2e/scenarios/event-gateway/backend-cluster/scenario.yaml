@@ -77,6 +77,9 @@ steps:
           - "{{ .vars.egwName }}"
           - -o
           - json
+        recordVar:
+          name: bcID
+          responsePath: "[?name=='{{ .vars.bcRef }}'] | [0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -116,6 +119,44 @@ steps:
               fields:
                 name: "{{ .vars.bcRef }}"
                 description: "First Backend Cluster for Test"
+      - name: 006-get-bc-by-name
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.bcRef }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.bcRef }}"
+          - select: bootstrap_servers
+            expect:
+              fields:
+                "length(@)": 2
+      - name: 007-get-bc-by-id
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.bcID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.bcRef }}"
+          - select: bootstrap_servers
+            expect:
+              fields:
+                "length(@)": 2
   - name: 002-plan-update
     inputOverlayDirs:
       - overlays/001-update-fields
