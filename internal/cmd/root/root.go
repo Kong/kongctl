@@ -787,18 +787,18 @@ func renderCommandUsageError(w io.Writer, command *cobra.Command, err error) {
 	}
 
 	fmt.Fprintf(w, "Error: %s\n", errorText)
-	fmt.Fprintf(w, "Run '%s --help' for usage.\n", commandPath(command))
 
 	suggestion := cmdpkg.SuggestionForError(command, err)
-	if len(suggestion.Values) == 0 {
-		return
+	if len(suggestion.Values) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, suggestionHeader(suggestion.Kind, len(suggestion.Values)))
+		for _, value := range suggestion.Values {
+			fmt.Fprintf(w, "  %s\n", value)
+		}
+		fmt.Fprintln(w)
 	}
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, suggestionHeader(suggestion.Kind, len(suggestion.Values)))
-	for _, value := range suggestion.Values {
-		fmt.Fprintf(w, "  %s\n", value)
-	}
+	fmt.Fprintf(w, "Run '%s --help' for usage\n", commandPath(command))
 }
 
 func stripCobraSuggestion(message string) string {
@@ -816,6 +816,9 @@ func commandPath(command *cobra.Command) string {
 func suggestionHeader(kind string, count int) string {
 	if kind == "" {
 		kind = "suggestion"
+	}
+	if kind == "subcommand" {
+		return "Available subcommands:"
 	}
 	if count == 1 {
 		return fmt.Sprintf("Did you mean this %s?", kind)
