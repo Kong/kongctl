@@ -206,6 +206,20 @@ func TestRootErrorUX(t *testing.T) {
 			expectStderr: true,
 		},
 		{
+			name: "unknown root flag before known command stays flag error",
+			args: []string{"--definitely-not-a-real-kongctl-flag", "version"},
+			wantErr: []string{
+				`Error: unknown flag: --definitely-not-a-real-kongctl-flag`,
+				`Run 'kongctl --help' for usage.`,
+			},
+			wantExit: 1,
+			forbidErr: []string{
+				"Usage:",
+				`unknown command "version"`,
+			},
+			expectStderr: true,
+		},
+		{
 			name: "unknown nested command suggests close match",
 			args: []string{"get", "gatewy"},
 			wantErr: []string{

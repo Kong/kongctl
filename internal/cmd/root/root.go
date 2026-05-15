@@ -455,15 +455,38 @@ func renderRootOverview(w io.Writer, command *cobra.Command) {
 }
 
 func rootFlagError(command *cobra.Command, err error) error {
-	if command != nil && command.Root() == command {
-		for _, arg := range command.Flags().Args() {
-			if strings.TrimSpace(arg) == "" {
-				continue
-			}
-			return cmdpkg.UnknownSubcommandError(command, arg)
+	if command == nil || command.Root() != command {
+		return err
+	}
+
+	var flagErr *pflag.NotExistError
+	if !errors.As(err, &flagErr) {
+		return err
+	}
+
+	for _, arg := range command.Flags().Args() {
+		arg = strings.TrimSpace(arg)
+		if arg == "" || strings.HasPrefix(arg, "-") {
+			continue
 		}
+		if rootCommandHasSubcommand(command, arg) {
+			return err
+		}
+		return cmdpkg.UnknownSubcommandError(command, arg)
 	}
 	return err
+}
+
+func rootCommandHasSubcommand(command *cobra.Command, name string) bool {
+	if command == nil || name == "" {
+		return false
+	}
+	for _, child := range command.Commands() {
+		if child.IsAvailableCommand() && (child.Name() == name || child.HasAlias(name)) {
+			return true
+		}
+	}
+	return false
 }
 
 func sampleThemeNames() []string {
