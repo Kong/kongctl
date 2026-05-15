@@ -338,6 +338,8 @@ func trimBinaryPrefix(path string) string {
 	if path == meta.CLIName {
 		return ""
 	}
+	// Require the trailing space so extension binary names such as
+	// "kongctl-extension" are left untouched.
 	return strings.TrimPrefix(path, meta.CLIName+" ")
 }
 
