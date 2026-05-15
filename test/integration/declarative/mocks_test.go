@@ -27,7 +27,6 @@ func NewMockPortalAPI(t *testing.T) *MockPortalAPI {
 func (m *MockPortalAPI) ListPortals(
 	ctx context.Context,
 	request kkOps.ListPortalsRequest,
-	_ ...kkOps.Option,
 ) (*kkOps.ListPortalsResponse, error) {
 	args := m.Called(ctx, request)
 	if args.Get(0) == nil {
@@ -36,7 +35,7 @@ func (m *MockPortalAPI) ListPortals(
 	return args.Get(0).(*kkOps.ListPortalsResponse), args.Error(1)
 }
 
-func (m *MockPortalAPI) GetPortal(ctx context.Context, id string, _ ...kkOps.Option) (*kkOps.GetPortalResponse, error) {
+func (m *MockPortalAPI) GetPortal(ctx context.Context, id string) (*kkOps.GetPortalResponse, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -47,7 +46,6 @@ func (m *MockPortalAPI) GetPortal(ctx context.Context, id string, _ ...kkOps.Opt
 func (m *MockPortalAPI) CreatePortal(
 	ctx context.Context,
 	portal kkComps.CreatePortal,
-	_ ...kkOps.Option,
 ) (*kkOps.CreatePortalResponse, error) {
 	args := m.Called(ctx, portal)
 	if args.Get(0) == nil {
@@ -60,7 +58,6 @@ func (m *MockPortalAPI) UpdatePortal(
 	ctx context.Context,
 	id string,
 	portal kkComps.UpdatePortal,
-	_ ...kkOps.Option,
 ) (*kkOps.UpdatePortalResponse, error) {
 	req := kkOps.UpdatePortalRequest{
 		PortalID:     id,
@@ -77,7 +74,6 @@ func (m *MockPortalAPI) DeletePortal(
 	ctx context.Context,
 	id string,
 	force bool,
-	_ ...kkOps.Option,
 ) (*kkOps.DeletePortalResponse, error) {
 	args := m.Called(ctx, id, force)
 	if args.Get(0) == nil {
@@ -371,7 +367,6 @@ func (m *MockAppAuthStrategiesAPI) ListAppAuthStrategies(
 func (m *MockAppAuthStrategiesAPI) GetAppAuthStrategy(
 	ctx context.Context,
 	id string,
-	_ ...kkOps.Option,
 ) (*kkOps.GetAppAuthStrategyResponse, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
@@ -383,7 +378,6 @@ func (m *MockAppAuthStrategiesAPI) GetAppAuthStrategy(
 func (m *MockAppAuthStrategiesAPI) CreateAppAuthStrategy(
 	_ context.Context,
 	_ kkComps.CreateAppAuthStrategyRequest,
-	_ ...kkOps.Option,
 ) (*kkOps.CreateAppAuthStrategyResponse, error) {
 	// Return nil to simulate not implemented
 	return nil, fmt.Errorf("CreateAppAuthStrategy not implemented in mock")
@@ -393,7 +387,6 @@ func (m *MockAppAuthStrategiesAPI) UpdateAppAuthStrategy(
 	_ context.Context,
 	_ string,
 	_ kkComps.UpdateAppAuthStrategyRequest,
-	_ ...kkOps.Option,
 ) (*kkOps.UpdateAppAuthStrategyResponse, error) {
 	// Return nil to simulate not implemented
 	return nil, fmt.Errorf("UpdateAppAuthStrategy not implemented in mock")
@@ -402,7 +395,6 @@ func (m *MockAppAuthStrategiesAPI) UpdateAppAuthStrategy(
 func (m *MockAppAuthStrategiesAPI) DeleteAppAuthStrategy(
 	ctx context.Context,
 	id string,
-	_ ...kkOps.Option,
 ) (*kkOps.DeleteAppAuthStrategyResponse, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
