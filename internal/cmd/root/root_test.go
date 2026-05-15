@@ -57,6 +57,68 @@ func TestMergedFlagUsagesUsesCommandSpecificOutputFormats(t *testing.T) {
 	}
 }
 
+func TestOutputFlagHelpVisibility(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantOut   []string
+		forbidOut []string
+	}{
+		{
+			name: "plan hides unsupported inherited output flag",
+			args: []string{"plan", "--help"},
+			forbidOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+		{
+			name: "plan konnect hides unsupported inherited output flag",
+			args: []string{"plan", "konnect", "--help"},
+			forbidOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+		{
+			name: "scaffold hides unsupported inherited output flag",
+			args: []string{"scaffold", "--help"},
+			forbidOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+		{
+			name: "explain keeps supported output flag",
+			args: []string{"explain", "--help"},
+			wantOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executeRootForTest(t, tt.args...)
+			if result.exitCode != 0 {
+				t.Fatalf("expected exit code 0, got %d\nstdout:\n%s\nstderr:\n%s",
+					result.exitCode, result.stdout, result.stderr)
+			}
+			for _, want := range tt.wantOut {
+				if !strings.Contains(result.stdout, want) {
+					t.Fatalf("expected stdout to contain %q\nstdout:\n%s", want, result.stdout)
+				}
+			}
+			for _, forbidden := range tt.forbidOut {
+				if strings.Contains(result.stdout, forbidden) {
+					t.Fatalf("expected stdout not to contain %q\nstdout:\n%s", forbidden, result.stdout)
+				}
+			}
+		})
+	}
+}
+
 func TestRootApplyHelpShowsExamples(t *testing.T) {
 	oldRootCmd := rootCmd
 	t.Cleanup(func() {

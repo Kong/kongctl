@@ -131,8 +131,9 @@ const logFilePIDToken = "%PID%"
 func mergedFlagUsages(cmd *cobra.Command) string {
 	flags := pflag.NewFlagSet(cmd.DisplayName(), pflag.ContinueOnError)
 	flags.SortFlags = true
-	addFlagSetCopies(flags, cmd.LocalFlags())
-	addFlagSetCopies(flags, cmd.InheritedFlags())
+	hideOutput := common.IsOutputFormatValidationSkipped(cmd)
+	addFlagSetCopies(flags, cmd.LocalFlags(), hideOutput)
+	addFlagSetCopies(flags, cmd.InheritedFlags(), hideOutput)
 
 	if f := flags.Lookup(common.OutputFlagName); f != nil {
 		f.Usage = outputFlagUsage(common.AllowedOutputFormats(cmd))
@@ -141,11 +142,14 @@ func mergedFlagUsages(cmd *cobra.Command) string {
 	return strings.TrimRight(flags.FlagUsages(), "\n")
 }
 
-func addFlagSetCopies(dst, src *pflag.FlagSet) {
+func addFlagSetCopies(dst, src *pflag.FlagSet, hideOutput bool) {
 	if dst == nil || src == nil {
 		return
 	}
 	src.VisitAll(func(flag *pflag.Flag) {
+		if hideOutput && flag.Name == common.OutputFlagName {
+			return
+		}
 		flagCopy := *flag
 		if flag.Annotations != nil {
 			flagCopy.Annotations = make(map[string][]string, len(flag.Annotations))
