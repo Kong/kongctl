@@ -200,3 +200,7 @@ func (m *mockConfig) GetProfile() string {
 func (m *mockConfig) GetPath() string {
 	return ""
 }
+
+func (m *mockConfig) InConfig(string) bool {
+	return false
+}

@@ -15,9 +15,4 @@ type Event struct {
 	Arch    string `json:"arch"`
 
 	CommandPath string `json:"command_path"`
-
-	// TODO: Uncomment when we start reporting outcomes.
-	// Outcome    string `json:"outcome,omitempty"`
-	// DurationMs int64  `json:"duration_ms,omitempty"`
-	// Cancelled  bool   `json:"cancelled,omitempty"`
 }

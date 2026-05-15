@@ -61,6 +61,10 @@ func (m *MockConfigHook) Get(k string) any {
 	return m.GetMock(k)
 }
 
+func (m *MockConfigHook) InConfig(string) bool {
+	return false
+}
+
 func (m *MockConfigHook) GetPath() string {
 	return m.GetPathMock()
 }

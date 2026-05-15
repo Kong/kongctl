@@ -12,6 +12,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -134,6 +135,7 @@ func ReadPreference(cfg config.Hook, logger *slog.Logger) (bool, bool) {
 	if err != nil {
 		if !os.IsNotExist(err) {
 			loggerOrDiscard(logger).Warn("telemetry: failed to read preference file", "path", path, "error", err)
+			return false, true
 		}
 		return false, false
 	}
@@ -157,13 +159,8 @@ func WritePreference(cfg config.Hook, enabled bool) error {
 	return os.WriteFile(path, []byte(strconv.FormatBool(enabled)+"\n"), 0o600)
 }
 
-type isSetConfig interface {
-	IsSet(string) bool
-}
-
 func logPreferenceConfigConflict(cfg config.Hook, preference bool, logger *slog.Logger) {
-	isSetter, ok := cfg.(isSetConfig)
-	if !ok || !isSetter.IsSet(ConfigKeyEnabled) || cfg.GetBool(ConfigKeyEnabled) == preference {
+	if !cfg.InConfig(ConfigKeyEnabled) || cfg.GetBool(ConfigKeyEnabled) == preference {
 		return
 	}
 	loggerOrDiscard(logger).Warn(
@@ -221,10 +218,9 @@ type Recorder struct {
 
 	staticEvent Event // pre-populated Version/OS/Arch
 
-	mu        sync.Mutex
-	startedAt time.Time
-	cmdInfo   CommandInfo
-	cmdSet    bool
+	mu      sync.Mutex
+	cmdInfo CommandInfo
+	cmdSet  bool
 
 	sink    Sink
 	events  chan Event
@@ -312,16 +308,6 @@ func (r *Recorder) Disable(ctx context.Context) error {
 	return r.waitDone(ctx, done)
 }
 
-// Begin records the command start time. Safe to call when disabled.
-func (r *Recorder) Begin(t time.Time) {
-	if r == nil {
-		return
-	}
-	r.mu.Lock()
-	r.startedAt = t
-	r.mu.Unlock()
-}
-
 // SetCommand attaches the active leaf command's metadata. Called from the
 // root PersistentPreRun once Cobra has resolved the leaf. The binary name
 // is stripped from info.Path so emitted events carry e.g. "get apis"
@@ -355,10 +341,10 @@ func trimBinaryPrefix(path string) string {
 	return strings.TrimPrefix(path, meta.CLIName+" ")
 }
 
-// Finalize builds the final Event, and enqueues it for
-// dispatch. Non-blocking: if the channel is full, the event is dropped
-// rather than risk blocking command shutdown.
-func (r *Recorder) Finalize(_ error, end time.Time) {
+// Finalize builds the final Event and enqueues it for dispatch.
+// Non-blocking: if the channel is full, the event is dropped rather than
+// risk blocking command shutdown.
+func (r *Recorder) Finalize(end time.Time) {
 	if r == nil {
 		return
 	}
@@ -382,14 +368,6 @@ func (r *Recorder) Finalize(_ error, end time.Time) {
 	ev := r.staticEvent
 	ev.Timestamp = end
 	ev.CommandPath = info.Path
-
-	// TODO: Uncomment when we start reporting outcomes.
-	// ev.Outcome = string(Categorize(err))
-	// ev.Cancelled = err != nil && isCanceled(err)
-	// start := r.startedAt
-	// if !start.IsZero() {
-	// 	ev.DurationMs = end.Sub(start).Milliseconds()
-	// }
 
 	select {
 	case r.events <- ev:
@@ -468,18 +446,9 @@ func (r *Recorder) dispatch() {
 	}
 }
 
-// TODO: Uncomment when we start reporting outcomes.
-// func isCanceled(err error) bool {
-// 	return Categorize(err) == OutcomeInterrupted
-// }
-
 func loggerOrDiscard(l *slog.Logger) *slog.Logger {
 	if l != nil {
 		return l
 	}
-	return slog.New(slog.NewTextHandler(discardWriter{}, nil))
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
-
-type discardWriter struct{}
-
-func (discardWriter) Write(p []byte) (int, error) { return len(p), nil }

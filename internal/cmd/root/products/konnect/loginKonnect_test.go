@@ -32,6 +32,7 @@ func (c telemetryPromptConfig) Get(string) any                        { return n
 func (c telemetryPromptConfig) BindFlag(string, *pflag.Flag) error    { return nil }
 func (c telemetryPromptConfig) GetProfile() string                    { return "default" }
 func (c telemetryPromptConfig) GetPath() string                       { return c.path }
+func (c telemetryPromptConfig) InConfig(string) bool                  { return false }
 
 func TestHandleTelemetryPreference_OptOutWritesFileAndDisablesRecorder(t *testing.T) {
 	rec, streams, cfg, out := newTelemetryPreferencePromptTest(t, "n\n")
@@ -97,6 +98,7 @@ func TestHandleTelemetryPreference_PreferenceFileSkipsPrompt(t *testing.T) {
 
 func TestHandleTelemetryPreference_NonInteractiveWritesDisclosureOnly(t *testing.T) {
 	rec, streams, cfg, out := newTelemetryPreferencePromptTest(t, "")
+	errOut := streams.ErrOut.(*bytes.Buffer)
 	t.Cleanup(func() {
 		_ = rec.Close(t.Context())
 	})
@@ -109,7 +111,10 @@ func TestHandleTelemetryPreference_NonInteractiveWritesDisclosureOnly(t *testing
 	if telemetry.PreferenceFileExists(cfg) {
 		t.Fatal("preference file written for non-interactive input")
 	}
-	output := out.String()
+	if out.Len() != 0 {
+		t.Fatalf("stdout = %q, want disclosure on stderr", out.String())
+	}
+	output := errOut.String()
 	if !strings.Contains(output, "kongctl collects limited usage data") {
 		t.Fatalf("disclosure missing from output:\n%s", output)
 	}

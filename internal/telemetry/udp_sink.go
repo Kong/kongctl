@@ -16,7 +16,9 @@ import (
 )
 
 const (
-	signalName   = meta.CLIName
+	signalName = meta.CLIName
+	// TODO: Add a config/env override when we need to send production builds
+	// to a non-production telemetry receiver.
 	reportsAddr  = "kong-hf.konghq.com:61829"
 	syslogPrefix = "<14>"
 )

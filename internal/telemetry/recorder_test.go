@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kong/kongctl/internal/build"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -34,7 +35,7 @@ func (f *fakeCfg) Get(string) any                     { return nil }
 func (f *fakeCfg) BindFlag(string, *pflag.Flag) error { return nil }
 func (f *fakeCfg) GetProfile() string                 { return "default" }
 func (f *fakeCfg) GetPath() string                    { return f.path }
-func (f *fakeCfg) IsSet(k string) bool                { return f.isSet[k] }
+func (f *fakeCfg) InConfig(k string) bool             { return f.isSet[k] }
 
 // capturingSink records every event seen for inspection. Safe for concurrent
 // use because the dispatcher and the test goroutine both touch it.
@@ -151,49 +152,21 @@ func TestContextWithRecorder_RoundTrip(t *testing.T) {
 	}
 }
 
-// We can't use these tests in CI as we use DO_NOT_TRACK=1 to disable telemetry in CI,
-// but leaving it here for manual testing and documentation of expected behavior.
+func TestNewRecorder_NilCfg_Enabled(t *testing.T) {
+	t.Setenv(EnvDoNotTrack, "0")
+	t.Setenv(EnvNoTelemetry, "false")
 
-// func TestNewRecorder_NilCfg_Enabled(t *testing.T) {
-// 	rec := NewRecorder(t.Context(), nil, nil, nil, nil, false)
-// 	if rec == nil {
-// 		t.Fatal("NewRecorder returned nil")
-// 	}
-// 	if !rec.enabled {
-// 		t.Errorf("enabled = false, want true when cfg is nil and no kill switch is set")
-// 	}
-// 	if err := rec.Close(t.Context()); err != nil {
-// 		t.Errorf("Close: %v", err)
-// 	}
-// }
-
-// func TestNewRecorder_FlagOff_Disabled(t *testing.T) {
-// 	cfg := &fakeCfg{bools: map[string]bool{ConfigKeyEnabled: false}}
-// 	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
-// 	if rec.enabled {
-// 		t.Errorf("enabled = true, want false when telemetry.enabled=false")
-// 	}
-// 	if _, ok := rec.sink.(NoopSink); !ok {
-// 		t.Errorf("sink = %T, want NoopSink", rec.sink)
-// 	}
-// }
-// func TestNewRecorder_FlagOn_Enabled(t *testing.T) {
-// 	cfg := &fakeCfg{
-// 		bools: map[string]bool{ConfigKeyEnabled: true, ConfigKeyDebug: false},
-// 		path:  t.TempDir() + "/config.yaml",
-// 	}
-// 	bi := &build.Info{Version: "1.2.3"}
-// 	rec := NewRecorder(t.Context(), cfg, bi, nil, nil, false)
-// 	if !rec.enabled {
-// 		t.Fatalf("enabled = false, want true when telemetry.enabled=true")
-// 	}
-// 	if rec.staticEvent.Version != "1.2.3" {
-// 		t.Errorf("staticEvent.Version = %q, want %q", rec.staticEvent.Version, "1.2.3")
-// 	}
-// 	if err := rec.Close(t.Context()); err != nil {
-// 		t.Errorf("Close: %v", err)
-// 	}
-// }
+	rec := NewRecorder(t.Context(), nil, nil, nil, nil, false)
+	if rec == nil {
+		t.Fatal("NewRecorder returned nil")
+	}
+	if !rec.enabled {
+		t.Errorf("enabled = false, want true when cfg is nil and no kill switch is set")
+	}
+	if err := rec.Close(t.Context()); err != nil {
+		t.Errorf("Close: %v", err)
+	}
+}
 
 func TestNewRecorder_ConfigOff_Disabled(t *testing.T) {
 	cfg := &fakeCfg{
@@ -206,6 +179,27 @@ func TestNewRecorder_ConfigOff_Disabled(t *testing.T) {
 	}
 	if _, ok := rec.sink.(NoopSink); !ok {
 		t.Errorf("sink = %T, want NoopSink", rec.sink)
+	}
+}
+
+func TestNewRecorder_ConfigOn_Enabled(t *testing.T) {
+	t.Setenv(EnvDoNotTrack, "0")
+	t.Setenv(EnvNoTelemetry, "false")
+
+	cfg := &fakeCfg{
+		bools: map[string]bool{ConfigKeyEnabled: true, ConfigKeyDebug: false},
+		path:  t.TempDir() + "/config.yaml",
+	}
+	bi := &build.Info{Version: "1.2.3"}
+	rec := NewRecorder(t.Context(), cfg, bi, nil, nil, false)
+	if !rec.enabled {
+		t.Fatalf("enabled = false, want true when telemetry.enabled=true")
+	}
+	if rec.staticEvent.Version != "1.2.3" {
+		t.Errorf("staticEvent.Version = %q, want %q", rec.staticEvent.Version, "1.2.3")
+	}
+	if err := rec.Close(t.Context()); err != nil {
+		t.Errorf("Close: %v", err)
 	}
 }
 
@@ -278,6 +272,29 @@ func TestNewRecorder_InvalidPreferenceFileDisables(t *testing.T) {
 	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
 	if rec.Enabled() {
 		t.Fatal("Enabled = true, want false for invalid preference file")
+	}
+}
+
+func TestNewRecorder_UnreadablePreferenceFileDisables(t *testing.T) {
+	t.Setenv(EnvDoNotTrack, "0")
+	t.Setenv(EnvNoTelemetry, "false")
+
+	dir := t.TempDir()
+	cfg := &fakeCfg{
+		bools: map[string]bool{ConfigKeyEnabled: true},
+		path:  filepath.Join(dir, "config.yaml"),
+	}
+	path, err := PreferenceFilePath(cfg)
+	if err != nil {
+		t.Fatalf("PreferenceFilePath: %v", err)
+	}
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatalf("mkdir preference path: %v", err)
+	}
+
+	rec := NewRecorder(t.Context(), cfg, nil, nil, nil, false)
+	if rec.Enabled() {
+		t.Fatal("Enabled = true, want false when preference file cannot be read")
 	}
 }
 
@@ -378,9 +395,8 @@ func TestNewRecorder_ForceDisabled_BeatsConfigOptIn(t *testing.T) {
 
 func TestRecorder_NilReceiver_Safe(t *testing.T) {
 	var rec *Recorder
-	rec.Begin(time.Now())
 	rec.SetCommand(CommandInfo{Path: "x"})
-	rec.Finalize(nil, time.Now())
+	rec.Finalize(time.Now())
 	if err := rec.Close(t.Context()); err != nil {
 		t.Errorf("Close on nil: %v", err)
 	}
@@ -390,7 +406,7 @@ func TestRecorder_Disabled_FinalizeNoop(t *testing.T) {
 	sink := &capturingSink{}
 	rec := &Recorder{enabled: false, sink: sink}
 	rec.SetCommand(CommandInfo{Path: "kongctl plan"})
-	rec.Finalize(nil, time.Now())
+	rec.Finalize(time.Now())
 	if got := sink.Events(); len(got) != 0 {
 		t.Errorf("disabled recorder emitted %d events, want 0", len(got))
 	}
@@ -402,7 +418,7 @@ func TestRecorder_BareKongctl_SkipsEvent(t *testing.T) {
 	sink := &capturingSink{}
 	rec := newTestRecorder(sink)
 	rec.SetCommand(CommandInfo{Path: "kongctl"})
-	rec.Finalize(nil, time.Now())
+	rec.Finalize(time.Now())
 	if err := rec.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
@@ -414,7 +430,7 @@ func TestRecorder_BareKongctl_SkipsEvent(t *testing.T) {
 func TestRecorder_FinalizeWithoutSetCommand_Skips(t *testing.T) {
 	sink := &capturingSink{}
 	rec := newTestRecorder(sink)
-	rec.Finalize(nil, time.Now())
+	rec.Finalize(time.Now())
 	if err := rec.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
@@ -431,7 +447,7 @@ func TestRecorder_FinalizeEmitsEvent(t *testing.T) {
 	rec.SetCommand(CommandInfo{
 		Path: "kongctl plan",
 	})
-	rec.Finalize(nil, end)
+	rec.Finalize(end)
 	if err := rec.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
@@ -478,7 +494,7 @@ func TestRecorder_CommandPathExcludesArgs(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	rec.Finalize(nil, time.Now())
+	rec.Finalize(time.Now())
 	if err := rec.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
@@ -504,7 +520,7 @@ func TestRecorder_FinalizeDropsWhenChannelFull(t *testing.T) {
 	rec.SetCommand(CommandInfo{Path: "kongctl x"})
 
 	// First Finalize: dispatcher picks it up and blocks inside Emit.
-	rec.Finalize(nil, time.Now())
+	rec.Finalize(time.Now())
 	select {
 	case <-sink.started:
 	case <-time.After(time.Second):
@@ -513,10 +529,10 @@ func TestRecorder_FinalizeDropsWhenChannelFull(t *testing.T) {
 
 	// Fill the buffered channel.
 	for range channelBuffer {
-		rec.Finalize(nil, time.Now())
+		rec.Finalize(time.Now())
 	}
 	// One extra send must be dropped (channel full + dispatcher blocked).
-	rec.Finalize(nil, time.Now())
+	rec.Finalize(time.Now())
 
 	close(sink.release)
 	if err := rec.Close(t.Context()); err != nil {
@@ -535,7 +551,7 @@ func TestRecorder_Close_RespectsDeadline(t *testing.T) {
 	}
 	rec := newTestRecorder(sink)
 	rec.SetCommand(CommandInfo{Path: "kongctl x"})
-	rec.Finalize(nil, time.Now())
+	rec.Finalize(time.Now())
 	<-sink.started
 
 	start := time.Now()

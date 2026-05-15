@@ -213,7 +213,6 @@ func newRootCmd() *cobra.Command {
 				telemetryRecorder = telemetry.NewRecorder(
 					ctx, currConfig, buildInfo, streams, logger, noTelemetry,
 				)
-				telemetryRecorder.Begin(time.Now())
 			}
 			telemetryRecorder.SetCommand(telemetry.CommandInfo{
 				Path: cmd.CommandPath(),
@@ -661,6 +660,13 @@ func initConfig() {
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	var err error
 	executedCmd := rootCmd
+	defer func() {
+		if panicValue := recover(); panicValue != nil {
+			cleanupTelemetryRecorder(ctx)
+			closeLogFile()
+			panic(panicValue)
+		}
+	}()
 	buildInfo = bi
 	version := meta.DefaultCLIVersion
 	if bi != nil {
@@ -684,11 +690,7 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	if err == nil {
 		executedCmd, err = rootCmd.ExecuteContextC(ctx)
 	}
-	if telemetryRecorder != nil {
-		telemetryRecorder.Finalize(err, time.Now())
-		_ = telemetryRecorder.Close(ctx)
-		telemetryRecorder = nil
-	}
+	cleanupTelemetryRecorder(ctx)
 	if err != nil {
 		// If there was an execution error, use the logger to write it out and exit
 		var executionError *cmdpkg.ExecutionError
@@ -707,6 +709,15 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		os.Exit(1)
 	}
 	closeLogFile()
+}
+
+func cleanupTelemetryRecorder(ctx context.Context) {
+	if telemetryRecorder == nil {
+		return
+	}
+	telemetryRecorder.Finalize(time.Now())
+	_ = telemetryRecorder.Close(ctx)
+	telemetryRecorder = nil
 }
 
 func registerExtensions() error {

@@ -99,6 +99,10 @@ type Hook interface {
 	Set(k string, v any)
 	// Get returns a value from the configuration
 	Get(key string) any
+	// InConfig reports whether key was explicitly present in the config file
+	// for this profile. It intentionally ignores flags, environment variables,
+	// overrides, and defaults.
+	InConfig(key string) bool
 	// BindFlag takes a specific configuration path and
 	// binds it to a specific flag
 	BindFlag(configPath string, f *pflag.Flag) error
@@ -163,7 +167,7 @@ func (p *ProfiledConfig) GetPath() string {
 	return p.Path
 }
 
-func (p *ProfiledConfig) IsSet(key string) bool {
+func (p *ProfiledConfig) InConfig(key string) bool {
 	return p.subViper.InConfig(key)
 }
 

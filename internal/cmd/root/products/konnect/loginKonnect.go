@@ -98,7 +98,7 @@ func handleTelemetryPreference(
 	}
 
 	if !loginInputIsTerminal(streams.In) {
-		writeTelemetryDisclosure(streams.Out, false)
+		writeTelemetryDisclosure(streams.ErrOut, false)
 		return nil
 	}
 
@@ -165,6 +165,9 @@ func readTelemetryPreferenceAnswer(
 	for attempt := range 2 {
 		lineCh := make(chan string, 1)
 		errCh := make(chan error, 1)
+		// A terminal line read cannot be cancelled directly. In the login
+		// prompt we accept this fire-and-forget goroutine so Ctrl-C can abort
+		// immediately; the process exits shortly after this path returns.
 		go func() {
 			line, err := reader.ReadString('\n')
 			if err != nil {
@@ -181,8 +184,7 @@ func readTelemetryPreferenceAnswer(
 		case <-interrupt:
 			fmt.Fprintln(out)
 			return false, false, context.Canceled
-		case err := <-errCh:
-			_ = err
+		case <-errCh:
 			return false, false, nil
 		case line = <-lineCh:
 		}
