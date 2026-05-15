@@ -87,7 +87,6 @@ type ClientConfig struct {
 
 // Client wraps Konnect SDK for state management
 type Client struct {
-
 	// Core APIs
 	portalAPI               helpers.PortalAPI
 	apiAPI                  helpers.APIAPI
@@ -151,7 +150,6 @@ type Client struct {
 // NewClient creates a new state client with the provided configuration
 func NewClient(config ClientConfig) *Client {
 	return &Client{
-
 		// Core APIs
 		portalAPI:               config.PortalAPI,
 		apiAPI:                  config.APIAPI,
@@ -827,11 +825,7 @@ func (c *Client) UpsertControlPlaneGroupMemberships(ctx context.Context, groupID
 		Members: members,
 	}
 
-	if _, err := c.controlPlaneGroupsAPI.PutControlPlanesIDGroupMemberships(
-		ctx,
-		groupID,
-		&req,
-	); err != nil {
+	if _, err := c.controlPlaneGroupsAPI.PutControlPlanesIDGroupMemberships(ctx, groupID, &req); err != nil {
 		return WrapAPIError(err, "upsert control plane group memberships", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeControlPlaneGroup),
 			ResourceName: groupID,
@@ -3207,11 +3201,7 @@ func (c *Client) UpsertPortalIntegrations(
 		)
 	}
 
-	if _, err := c.portalIntegrationsAPI.UpsertPortalIntegrations(
-		ctx,
-		portalID,
-		&integrations,
-	); err != nil {
+	if _, err := c.portalIntegrationsAPI.UpsertPortalIntegrations(ctx, portalID, &integrations); err != nil {
 		return WrapAPIError(err, "upsert portal integrations", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalIntegration),
 			ResourceName: portalID,
@@ -5295,10 +5285,7 @@ func (c *Client) GetEventGatewayBackendCluster(
 	gatewayID string,
 	clusterID string,
 ) (*EventGatewayBackendCluster, error) {
-	resp, err := c.eventGatewayBackendClusterAPI.FetchEventGatewayBackendCluster(
-		ctx,
-		gatewayID,
-		clusterID)
+	resp, err := c.eventGatewayBackendClusterAPI.FetchEventGatewayBackendCluster(ctx, gatewayID, clusterID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway backend cluster by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
@@ -5353,11 +5340,7 @@ func (c *Client) UpdateEventGatewayBackendCluster(
 	req kkComps.UpdateBackendClusterRequest,
 	namespace string,
 ) (string, error) {
-	resp, err := c.eventGatewayBackendClusterAPI.UpdateEventGatewayBackendCluster(
-		ctx,
-		gatewayID,
-		clusterID,
-		req)
+	resp, err := c.eventGatewayBackendClusterAPI.UpdateEventGatewayBackendCluster(ctx, gatewayID, clusterID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway backend cluster", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
@@ -5375,10 +5358,7 @@ func (c *Client) DeleteEventGatewayBackendCluster(
 	gatewayID string,
 	clusterID string,
 ) error {
-	_, err := c.eventGatewayBackendClusterAPI.DeleteEventGatewayBackendCluster(
-		ctx,
-		gatewayID,
-		clusterID)
+	_, err := c.eventGatewayBackendClusterAPI.DeleteEventGatewayBackendCluster(ctx, gatewayID, clusterID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway backend cluster", nil)
 	}
@@ -5713,10 +5693,7 @@ func (c *Client) GetEventGatewayVirtualCluster(
 	gatewayID string,
 	clusterID string,
 ) (*EventGatewayVirtualCluster, error) {
-	resp, err := c.eventGatewayVirtualClusterAPI.FetchEventGatewayVirtualCluster(
-		ctx,
-		gatewayID,
-		clusterID)
+	resp, err := c.eventGatewayVirtualClusterAPI.FetchEventGatewayVirtualCluster(ctx, gatewayID, clusterID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway virtual cluster by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
@@ -5769,11 +5746,7 @@ func (c *Client) UpdateEventGatewayVirtualCluster(
 	req kkComps.UpdateVirtualClusterRequest,
 	namespace string,
 ) (string, error) {
-	resp, err := c.eventGatewayVirtualClusterAPI.UpdateEventGatewayVirtualCluster(
-		ctx,
-		gatewayID,
-		clusterID,
-		req)
+	resp, err := c.eventGatewayVirtualClusterAPI.UpdateEventGatewayVirtualCluster(ctx, gatewayID, clusterID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway virtual cluster", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
@@ -5791,10 +5764,7 @@ func (c *Client) DeleteEventGatewayVirtualCluster(
 	gatewayID string,
 	clusterID string,
 ) error {
-	_, err := c.eventGatewayVirtualClusterAPI.DeleteEventGatewayVirtualCluster(
-		ctx,
-		gatewayID,
-		clusterID)
+	_, err := c.eventGatewayVirtualClusterAPI.DeleteEventGatewayVirtualCluster(ctx, gatewayID, clusterID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway virtual cluster", nil)
 	}
@@ -6170,9 +6140,7 @@ func (c *Client) ListEventGatewayClusterPolicies(
 		VirtualClusterID: virtualClusterID,
 	}
 
-	res, err := c.eventGatewayClusterPolicyAPI.ListEventGatewayVirtualClusterClusterLevelPolicies(
-		ctx,
-		req)
+	res, err := c.eventGatewayClusterPolicyAPI.ListEventGatewayVirtualClusterClusterLevelPolicies(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateway cluster policies", nil)
 	}
@@ -6226,9 +6194,7 @@ func (c *Client) CreateEventGatewayClusterPolicy(
 		EventGatewayClusterPolicyModify: &req,
 	}
 
-	resp, err := c.eventGatewayClusterPolicyAPI.CreateEventGatewayVirtualClusterClusterLevelPolicy(
-		ctx,
-		createReq)
+	resp, err := c.eventGatewayClusterPolicyAPI.CreateEventGatewayVirtualClusterClusterLevelPolicy(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway cluster policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayClusterPolicy),
@@ -6259,9 +6225,7 @@ func (c *Client) UpdateEventGatewayClusterPolicy(
 		EventGatewayClusterPolicyModify: &req,
 	}
 
-	resp, err := c.eventGatewayClusterPolicyAPI.UpdateEventGatewayVirtualClusterClusterLevelPolicy(
-		ctx,
-		updateReq)
+	resp, err := c.eventGatewayClusterPolicyAPI.UpdateEventGatewayVirtualClusterClusterLevelPolicy(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway cluster policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayClusterPolicy),
@@ -6285,9 +6249,7 @@ func (c *Client) DeleteEventGatewayClusterPolicy(
 		PolicyID:         policyID,
 	}
 
-	_, err := c.eventGatewayClusterPolicyAPI.DeleteEventGatewayVirtualClusterClusterLevelPolicy(
-		ctx,
-		deleteReq)
+	_, err := c.eventGatewayClusterPolicyAPI.DeleteEventGatewayVirtualClusterClusterLevelPolicy(ctx, deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway cluster policy", nil)
 	}
@@ -6306,9 +6268,7 @@ func (c *Client) GetEventGatewayClusterPolicy(
 		PolicyID:         policyID,
 	}
 
-	resp, err := c.eventGatewayClusterPolicyAPI.GetEventGatewayVirtualClusterClusterLevelPolicy(
-		ctx,
-		req)
+	resp, err := c.eventGatewayClusterPolicyAPI.GetEventGatewayVirtualClusterClusterLevelPolicy(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway cluster policy", nil)
 	}
@@ -6407,9 +6367,7 @@ func (c *Client) CreateEventGatewayVirtualClusterProducePolicy(
 		EventGatewayProducePolicyCreate: &req,
 	}
 
-	resp, err := c.eventGatewayProducePolicyAPI.CreateEventGatewayVirtualClusterProducePolicy(
-		ctx,
-		createReq)
+	resp, err := c.eventGatewayProducePolicyAPI.CreateEventGatewayVirtualClusterProducePolicy(ctx, createReq)
 	if err != nil {
 		name := extractProducePolicyCreateName(req)
 		return "", WrapAPIError(err, "create event gateway virtual cluster produce policy", &ErrorWrapperOptions{
@@ -6444,9 +6402,7 @@ func (c *Client) UpdateEventGatewayVirtualClusterProducePolicy(
 		EventGatewayProducePolicyUpdate: &req,
 	}
 
-	resp, err := c.eventGatewayProducePolicyAPI.UpdateEventGatewayVirtualClusterProducePolicy(
-		ctx,
-		updateReq)
+	resp, err := c.eventGatewayProducePolicyAPI.UpdateEventGatewayVirtualClusterProducePolicy(ctx, updateReq)
 	if err != nil {
 		name := extractProducePolicyUpdateName(req)
 		return "", WrapAPIError(err, "update event gateway virtual cluster produce policy", &ErrorWrapperOptions{
@@ -6472,9 +6428,7 @@ func (c *Client) DeleteEventGatewayVirtualClusterProducePolicy(
 		PolicyID:         policyID,
 	}
 
-	_, err := c.eventGatewayProducePolicyAPI.DeleteEventGatewayVirtualClusterProducePolicy(
-		ctx,
-		deleteReq)
+	_, err := c.eventGatewayProducePolicyAPI.DeleteEventGatewayVirtualClusterProducePolicy(ctx, deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway virtual cluster produce policy", nil)
 	}
@@ -6632,9 +6586,7 @@ func (c *Client) CreateEventGatewayConsumePolicy(
 		EventGatewayConsumePolicyCreate: &req,
 	}
 
-	resp, err := c.eventGatewayConsumePolicyAPI.CreateEventGatewayVirtualClusterConsumePolicy(
-		ctx,
-		createReq)
+	resp, err := c.eventGatewayConsumePolicyAPI.CreateEventGatewayVirtualClusterConsumePolicy(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway consume policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
@@ -6665,9 +6617,7 @@ func (c *Client) UpdateEventGatewayConsumePolicy(
 		EventGatewayConsumePolicyUpdate: &req,
 	}
 
-	resp, err := c.eventGatewayConsumePolicyAPI.UpdateEventGatewayVirtualClusterConsumePolicy(
-		ctx,
-		updateReq)
+	resp, err := c.eventGatewayConsumePolicyAPI.UpdateEventGatewayVirtualClusterConsumePolicy(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway consume policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
@@ -6691,9 +6641,7 @@ func (c *Client) DeleteEventGatewayConsumePolicy(
 		PolicyID:         policyID,
 	}
 
-	_, err := c.eventGatewayConsumePolicyAPI.DeleteEventGatewayVirtualClusterConsumePolicy(
-		ctx,
-		deleteReq)
+	_, err := c.eventGatewayConsumePolicyAPI.DeleteEventGatewayVirtualClusterConsumePolicy(ctx, deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway consume policy", nil)
 	}
@@ -6756,9 +6704,7 @@ func (c *Client) ListEventGatewayDataPlaneCertificates(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := c.eventGatewayDataPlaneCertificateAPI.ListEventGatewayDataPlaneCertificates(
-			ctx,
-			req)
+		res, err := c.eventGatewayDataPlaneCertificateAPI.ListEventGatewayDataPlaneCertificates(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway data plane certificates", nil)
 		}
@@ -6800,10 +6746,7 @@ func (c *Client) CreateEventGatewayDataPlaneCertificate(
 	req kkComps.CreateEventGatewayDataPlaneCertificateRequest,
 	namespace string,
 ) (string, error) {
-	resp, err := c.eventGatewayDataPlaneCertificateAPI.CreateEventGatewayDataPlaneCertificate(
-		ctx,
-		gatewayID,
-		req)
+	resp, err := c.eventGatewayDataPlaneCertificateAPI.CreateEventGatewayDataPlaneCertificate(ctx, gatewayID, req)
 	if err != nil {
 		name := ""
 		if req.Name != nil {
@@ -6981,10 +6924,7 @@ func (c *Client) GetEventGatewaySchemaRegistryByID(
 		return nil, err
 	}
 
-	resp, err := c.eventGatewaySchemaRegistryAPI.GetEventGatewaySchemaRegistry(
-		ctx,
-		gatewayID,
-		schemaRegistryID)
+	resp, err := c.eventGatewaySchemaRegistryAPI.GetEventGatewaySchemaRegistry(ctx, gatewayID, schemaRegistryID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway schema registry", nil)
 	}
@@ -7070,10 +7010,7 @@ func (c *Client) DeleteEventGatewaySchemaRegistry(
 	gatewayID string,
 	schemaRegistryID string,
 ) error {
-	_, err := c.eventGatewaySchemaRegistryAPI.DeleteEventGatewaySchemaRegistry(
-		ctx,
-		gatewayID,
-		schemaRegistryID)
+	_, err := c.eventGatewaySchemaRegistryAPI.DeleteEventGatewaySchemaRegistry(ctx, gatewayID, schemaRegistryID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway schema registry", nil)
 	}

@@ -10,16 +10,12 @@ import (
 
 // OrganizationTeamAPI defines the interface for operations on Teams
 type OrganizationTeamAPI interface {
-	ListOrganizationTeams(ctx context.Context, request kkOps.ListTeamsRequest,
-		opts ...kkOps.Option) (*kkOps.ListTeamsResponse, error)
-	GetOrganizationTeam(ctx context.Context, id string,
-		opts ...kkOps.Option) (*kkOps.GetTeamResponse, error)
-	CreateOrganizationTeam(ctx context.Context, team *kkComps.CreateTeam,
-		opts ...kkOps.Option) (*kkOps.CreateTeamResponse, error)
+	ListOrganizationTeams(ctx context.Context, request kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error)
+	GetOrganizationTeam(ctx context.Context, id string) (*kkOps.GetTeamResponse, error)
+	CreateOrganizationTeam(ctx context.Context, team *kkComps.CreateTeam) (*kkOps.CreateTeamResponse, error)
 	UpdateOrganizationTeam(ctx context.Context, id string,
-		team *kkComps.UpdateTeam, opts ...kkOps.Option) (*kkOps.UpdateTeamResponse, error)
-	DeleteOrganizationTeam(ctx context.Context, id string,
-		opts ...kkOps.Option) (*kkOps.DeleteTeamResponse, error)
+		team *kkComps.UpdateTeam) (*kkOps.UpdateTeamResponse, error)
+	DeleteOrganizationTeam(ctx context.Context, id string) (*kkOps.DeleteTeamResponse, error)
 }
 
 // OrganizationTeamAPIImpl provides an implementation of the OrganizationTeamAPI interface
@@ -28,35 +24,33 @@ type OrganizationTeamAPIImpl struct {
 }
 
 func (t *OrganizationTeamAPIImpl) ListOrganizationTeams(
-	ctx context.Context, request kkOps.ListTeamsRequest, opts ...kkOps.Option,
+	ctx context.Context, request kkOps.ListTeamsRequest,
 ) (*kkOps.ListTeamsResponse, error) {
-	return t.SDK.Teams.ListTeams(ctx, request, opts...)
+	return t.SDK.Teams.ListTeams(ctx, request)
 }
 
-func (t *OrganizationTeamAPIImpl) GetOrganizationTeam(ctx context.Context, id string,
-	opts ...kkOps.Option,
-) (*kkOps.GetTeamResponse, error) {
-	return t.SDK.Teams.GetTeam(ctx, id, opts...)
+func (t *OrganizationTeamAPIImpl) GetOrganizationTeam(ctx context.Context, id string) (*kkOps.GetTeamResponse, error) {
+	return t.SDK.Teams.GetTeam(ctx, id)
 }
 
 func (t *OrganizationTeamAPIImpl) CreateOrganizationTeam(
 	ctx context.Context,
-	team *kkComps.CreateTeam, opts ...kkOps.Option,
+	team *kkComps.CreateTeam,
 ) (*kkOps.CreateTeamResponse, error) {
-	return t.SDK.Teams.CreateTeam(ctx, team, opts...)
+	return t.SDK.Teams.CreateTeam(ctx, team)
 }
 
 func (t *OrganizationTeamAPIImpl) UpdateOrganizationTeam(
 	ctx context.Context,
 	id string,
-	team *kkComps.UpdateTeam, opts ...kkOps.Option,
+	team *kkComps.UpdateTeam,
 ) (*kkOps.UpdateTeamResponse, error) {
-	return t.SDK.Teams.UpdateTeam(ctx, id, team, opts...)
+	return t.SDK.Teams.UpdateTeam(ctx, id, team)
 }
 
 func (t *OrganizationTeamAPIImpl) DeleteOrganizationTeam(
 	ctx context.Context,
-	id string, opts ...kkOps.Option,
+	id string,
 ) (*kkOps.DeleteTeamResponse, error) {
-	return t.SDK.Teams.DeleteTeam(ctx, id, opts...)
+	return t.SDK.Teams.DeleteTeam(ctx, id)
 }

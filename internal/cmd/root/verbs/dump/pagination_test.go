@@ -14,13 +14,12 @@ import (
 
 type portalPaginationStub struct {
 	t               *testing.T
-	listPortalsFunc func(context.Context, kkOps.ListPortalsRequest, ...kkOps.Option) (*kkOps.ListPortalsResponse, error)
+	listPortalsFunc func(context.Context, kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error)
 }
 
 func (p *portalPaginationStub) ListPortals(
 	ctx context.Context,
 	req kkOps.ListPortalsRequest,
-	_ ...kkOps.Option,
 ) (*kkOps.ListPortalsResponse, error) {
 	if p.listPortalsFunc != nil {
 		return p.listPortalsFunc(ctx, req)
@@ -29,7 +28,7 @@ func (p *portalPaginationStub) ListPortals(
 	return nil, nil
 }
 
-func (p *portalPaginationStub) GetPortal(context.Context, string, ...kkOps.Option) (*kkOps.GetPortalResponse, error) {
+func (p *portalPaginationStub) GetPortal(context.Context, string) (*kkOps.GetPortalResponse, error) {
 	p.t.Fatalf("unexpected GetPortal call")
 	return nil, nil
 }
@@ -37,7 +36,6 @@ func (p *portalPaginationStub) GetPortal(context.Context, string, ...kkOps.Optio
 func (p *portalPaginationStub) CreatePortal(
 	context.Context,
 	kkComps.CreatePortal,
-	...kkOps.Option,
 ) (*kkOps.CreatePortalResponse, error) {
 	p.t.Fatalf("unexpected CreatePortal call")
 	return nil, nil
@@ -47,18 +45,12 @@ func (p *portalPaginationStub) UpdatePortal(
 	context.Context,
 	string,
 	kkComps.UpdatePortal,
-	...kkOps.Option,
 ) (*kkOps.UpdatePortalResponse, error) {
 	p.t.Fatalf("unexpected UpdatePortal call")
 	return nil, nil
 }
 
-func (p *portalPaginationStub) DeletePortal(
-	context.Context,
-	string,
-	bool,
-	...kkOps.Option,
-) (*kkOps.DeletePortalResponse, error) {
+func (p *portalPaginationStub) DeletePortal(context.Context, string, bool) (*kkOps.DeletePortalResponse, error) {
 	p.t.Fatalf("unexpected DeletePortal call")
 	return nil, nil
 }
@@ -71,7 +63,6 @@ func TestDumpPortals_ExactPageBoundaryDoesNotRequestExtraPage(t *testing.T) {
 		listPortalsFunc: func(
 			_ context.Context,
 			req kkOps.ListPortalsRequest,
-			_ ...kkOps.Option,
 		) (*kkOps.ListPortalsResponse, error) {
 			pageNumber := int64(1)
 			if req.PageNumber != nil {

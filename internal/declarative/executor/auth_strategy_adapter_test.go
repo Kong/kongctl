@@ -41,7 +41,6 @@ func (s *stubAppAuthStrategiesAPI) ListAppAuthStrategies(
 func (s *stubAppAuthStrategiesAPI) GetAppAuthStrategy(
 	_ context.Context,
 	id string,
-	_ ...kkOps.Option,
 ) (*kkOps.GetAppAuthStrategyResponse, error) {
 	s.getIDs = append(s.getIDs, id)
 
@@ -53,7 +52,6 @@ func (s *stubAppAuthStrategiesAPI) GetAppAuthStrategy(
 func (s *stubAppAuthStrategiesAPI) CreateAppAuthStrategy(
 	context.Context,
 	kkComps.CreateAppAuthStrategyRequest,
-	...kkOps.Option,
 ) (*kkOps.CreateAppAuthStrategyResponse, error) {
 	s.t.Fatalf("unexpected CreateAppAuthStrategy call")
 	return nil, nil
@@ -63,7 +61,6 @@ func (s *stubAppAuthStrategiesAPI) UpdateAppAuthStrategy(
 	_ context.Context,
 	id string,
 	req kkComps.UpdateAppAuthStrategyRequest,
-	_ ...kkOps.Option,
 ) (*kkOps.UpdateAppAuthStrategyResponse, error) {
 	s.updateIDs = append(s.updateIDs, id)
 	s.lastUpdate = req
@@ -74,7 +71,6 @@ func (s *stubAppAuthStrategiesAPI) UpdateAppAuthStrategy(
 func (s *stubAppAuthStrategiesAPI) DeleteAppAuthStrategy(
 	context.Context,
 	string,
-	...kkOps.Option,
 ) (*kkOps.DeleteAppAuthStrategyResponse, error) {
 	s.t.Fatalf("unexpected DeleteAppAuthStrategy call")
 	return nil, nil
