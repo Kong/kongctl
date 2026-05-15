@@ -6,11 +6,13 @@ import (
 	"slices"
 	"strings"
 
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
 const RequiresSubcommandAnnotation = "kongctl/requires-subcommand"
+const formatFlagName = "format"
 
 type Suggestion struct {
 	Kind   string
@@ -213,31 +215,93 @@ func SuggestSimilarFlags(command *cobra.Command, err error) Suggestion {
 }
 
 func suggestSimilarLongFlags(command *cobra.Command, typed string) Suggestion {
-	candidates := make([]string, 0)
+	candidates := make([]flagSuggestion, 0)
+	if strings.EqualFold(typed, formatFlagName) {
+		if output := suggestedOutputFlag(command); output != nil {
+			candidates = append(candidates, newFlagSuggestion(outputFlagSuggestionLabel(output), output))
+		}
+	}
 	command.Flags().VisitAll(func(flag *pflag.Flag) {
 		if flag.Hidden {
 			return
 		}
 		if similar(typed, flag.Name) {
-			candidates = append(candidates, "--"+flag.Name)
+			candidates = append(candidates, newFlagSuggestion("--"+flag.Name, flag))
 		}
 	})
-	slices.Sort(candidates)
-	return Suggestion{Kind: "flag", Values: candidates}
+	return Suggestion{Kind: "flag", Values: formatFlagSuggestions(candidates)}
 }
 
 func suggestSimilarShorthandFlags(command *cobra.Command, typed string) Suggestion {
-	candidates := make([]string, 0)
+	candidates := make([]flagSuggestion, 0)
 	command.Flags().VisitAll(func(flag *pflag.Flag) {
 		if flag.Hidden || flag.Shorthand == "" {
 			return
 		}
 		if similar(typed, flag.Shorthand) {
-			candidates = append(candidates, "-"+flag.Shorthand)
+			candidates = append(candidates, newFlagSuggestion(fmt.Sprintf("-%s, --%s", flag.Shorthand, flag.Name), flag))
 		}
 	})
-	slices.Sort(candidates)
-	return Suggestion{Kind: "flag", Values: candidates}
+	return Suggestion{Kind: "flag", Values: formatFlagSuggestions(candidates)}
+}
+
+func suggestedOutputFlag(command *cobra.Command) *pflag.Flag {
+	if command == nil || cmdcommon.IsOutputFormatValidationSkipped(command) {
+		return nil
+	}
+	flag := command.Flags().Lookup(cmdcommon.OutputFlagName)
+	if flag == nil || flag.Hidden {
+		return nil
+	}
+	return flag
+}
+
+func outputFlagSuggestionLabel(flag *pflag.Flag) string {
+	if flag == nil || strings.TrimSpace(flag.Shorthand) == "" {
+		return "--" + cmdcommon.OutputFlagName
+	}
+	return fmt.Sprintf("--%s, -%s", cmdcommon.OutputFlagName, flag.Shorthand)
+}
+
+type flagSuggestion struct {
+	label       string
+	description string
+}
+
+func newFlagSuggestion(label string, flag *pflag.Flag) flagSuggestion {
+	return flagSuggestion{
+		label:       label,
+		description: flagDescription(flag),
+	}
+}
+
+func formatFlagSuggestions(candidates []flagSuggestion) []string {
+	slices.SortFunc(candidates, func(a, b flagSuggestion) int {
+		return strings.Compare(a.label, b.label)
+	})
+
+	width := 0
+	for _, candidate := range candidates {
+		width = max(width, len(candidate.label))
+	}
+
+	suggestions := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.description == "" {
+			suggestions = append(suggestions, candidate.label)
+			continue
+		}
+		suggestions = append(suggestions, fmt.Sprintf("%-*s  %s", width, candidate.label, candidate.description))
+	}
+	return suggestions
+}
+
+func flagDescription(flag *pflag.Flag) string {
+	if flag == nil {
+		return ""
+	}
+	description, _, _ := strings.Cut(strings.TrimSpace(flag.Usage), "\n")
+	return strings.TrimSpace(description)
 }
 
 func similar(a, b string) bool {

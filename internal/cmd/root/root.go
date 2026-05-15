@@ -54,9 +54,9 @@ import (
 
 var (
 	rootLong = normalizers.LongDesc(i18n.T("root.rootLong", `
-  Kong CLI is the official command line tool for Kong projects and products.
+  kongctl is the official command line tool for the Kong Konnect API platform.
 
-  Find more information at:
+Find more information at:
    https://developer.konghq.com/kongctl/`))
 
 	rootShort = i18n.T("root/rootShort", fmt.Sprintf("%s controls Kong", meta.CLIName))
@@ -131,8 +131,9 @@ const logFilePIDToken = "%PID%"
 func mergedFlagUsages(cmd *cobra.Command) string {
 	flags := pflag.NewFlagSet(cmd.DisplayName(), pflag.ContinueOnError)
 	flags.SortFlags = true
-	addFlagSetCopies(flags, cmd.LocalFlags())
-	addFlagSetCopies(flags, cmd.InheritedFlags())
+	hideOutput := common.IsOutputFormatValidationSkipped(cmd)
+	addFlagSetCopies(flags, cmd.LocalFlags(), hideOutput)
+	addFlagSetCopies(flags, cmd.InheritedFlags(), hideOutput)
 
 	if f := flags.Lookup(common.OutputFlagName); f != nil {
 		f.Usage = outputFlagUsage(common.AllowedOutputFormats(cmd))
@@ -141,11 +142,14 @@ func mergedFlagUsages(cmd *cobra.Command) string {
 	return strings.TrimRight(flags.FlagUsages(), "\n")
 }
 
-func addFlagSetCopies(dst, src *pflag.FlagSet) {
+func addFlagSetCopies(dst, src *pflag.FlagSet, hideOutput bool) {
 	if dst == nil || src == nil {
 		return
 	}
 	src.VisitAll(func(flag *pflag.Flag) {
+		if hideOutput && flag.Name == common.OutputFlagName {
+			return
+		}
 		flagCopy := *flag
 		if flag.Annotations != nil {
 			flagCopy.Annotations = make(map[string][]string, len(flag.Annotations))
@@ -185,6 +189,13 @@ func newRootCmd() *cobra.Command {
 		Long:          rootLong,
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return cmdpkg.UnknownSubcommandError(cmd, args[0])
+			}
+			renderRootOverview(cmd.OutOrStdout(), cmd)
+			return nil
+		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validateOutputFormat(cmd); err != nil {
 				return &cmdpkg.ConfigurationError{Err: err}
@@ -207,6 +218,7 @@ func newRootCmd() *cobra.Command {
 	})
 	cobra.AddTemplateFunc("mergedFlagUsages", mergedFlagUsages)
 	rootCmd.SetUsageTemplate(mergedFlagsUsageTemplate)
+	rootCmd.SetFlagErrorFunc(rootFlagError)
 
 	// parses all flags not just the target command
 	rootCmd.TraverseChildren = true
@@ -421,6 +433,64 @@ func installUsageErrorFallbacks(command *cobra.Command) {
 	for _, child := range command.Commands() {
 		installUsageErrorFallbacks(child)
 	}
+}
+
+func renderRootOverview(w io.Writer, command *cobra.Command) {
+	if w == nil || command == nil {
+		return
+	}
+
+	if long := strings.TrimSpace(command.Long); long != "" {
+		fmt.Fprintln(w, long)
+		fmt.Fprintln(w)
+	}
+
+	if command.HasAvailableSubCommands() {
+		fmt.Fprintln(w, "Available Commands:")
+		for _, child := range command.Commands() {
+			if child.IsAvailableCommand() || child.Name() == "help" {
+				fmt.Fprintf(w, "  %-*s %s\n", child.NamePadding(), child.Name(), child.Short)
+			}
+		}
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, `Use "%s [command] --help" for more information about a command.`, command.CommandPath())
+		fmt.Fprintln(w)
+	}
+}
+
+func rootFlagError(command *cobra.Command, err error) error {
+	if command == nil || command.Root() != command {
+		return err
+	}
+
+	var flagErr *pflag.NotExistError
+	if !errors.As(err, &flagErr) {
+		return err
+	}
+
+	for _, arg := range command.Flags().Args() {
+		arg = strings.TrimSpace(arg)
+		if arg == "" || strings.HasPrefix(arg, "-") {
+			continue
+		}
+		if rootCommandHasSubcommand(command, arg) {
+			return err
+		}
+		return cmdpkg.UnknownSubcommandError(command, arg)
+	}
+	return err
+}
+
+func rootCommandHasSubcommand(command *cobra.Command, name string) bool {
+	if command == nil || name == "" {
+		return false
+	}
+	for _, child := range command.Commands() {
+		if child.IsAvailableCommand() && (child.Name() == name || child.HasAlias(name)) {
+			return true
+		}
+	}
+	return false
 }
 
 func sampleThemeNames() []string {

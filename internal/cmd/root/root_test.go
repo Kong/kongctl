@@ -57,6 +57,140 @@ func TestMergedFlagUsagesUsesCommandSpecificOutputFormats(t *testing.T) {
 	}
 }
 
+func TestOutputFlagHelpVisibility(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantOut   []string
+		forbidOut []string
+	}{
+		{
+			name: "plan hides unsupported inherited output flag",
+			args: []string{"plan", "--help"},
+			forbidOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+		{
+			name: "plan konnect hides unsupported inherited output flag",
+			args: []string{"plan", "konnect", "--help"},
+			forbidOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+		{
+			name: "scaffold hides unsupported inherited output flag",
+			args: []string{"scaffold", "--help"},
+			forbidOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+		{
+			name: "explain keeps supported output flag",
+			args: []string{"explain", "--help"},
+			wantOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executeRootForTest(t, tt.args...)
+			if result.exitCode != 0 {
+				t.Fatalf("expected exit code 0, got %d\nstdout:\n%s\nstderr:\n%s",
+					result.exitCode, result.stdout, result.stderr)
+			}
+			for _, want := range tt.wantOut {
+				if !strings.Contains(result.stdout, want) {
+					t.Fatalf("expected stdout to contain %q\nstdout:\n%s", want, result.stdout)
+				}
+			}
+			for _, forbidden := range tt.forbidOut {
+				if strings.Contains(result.stdout, forbidden) {
+					t.Fatalf("expected stdout not to contain %q\nstdout:\n%s", forbidden, result.stdout)
+				}
+			}
+		})
+	}
+}
+
+func TestKonnectFirstHelpExamplesMatchExplicitTarget(t *testing.T) {
+	tests := []struct {
+		name         string
+		shorthand    []string
+		explicitForm []string
+	}{
+		{
+			name:         "apply",
+			shorthand:    []string{"apply", "--help"},
+			explicitForm: []string{"apply", "konnect", "--help"},
+		},
+		{
+			name:         "diff",
+			shorthand:    []string{"diff", "--help"},
+			explicitForm: []string{"diff", "konnect", "--help"},
+		},
+		{
+			name:         "plan",
+			shorthand:    []string{"plan", "--help"},
+			explicitForm: []string{"plan", "konnect", "--help"},
+		},
+		{
+			name:         "sync",
+			shorthand:    []string{"sync", "--help"},
+			explicitForm: []string{"sync", "konnect", "--help"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			shorthand := executeRootForTest(t, tt.shorthand...)
+			explicitForm := executeRootForTest(t, tt.explicitForm...)
+			if shorthand.exitCode != 0 || explicitForm.exitCode != 0 {
+				t.Fatalf("expected help commands to succeed\nshorthand:\n%s\n%s\nexplicit:\n%s\n%s",
+					shorthand.stdout, shorthand.stderr, explicitForm.stdout, explicitForm.stderr)
+			}
+
+			shorthandExamples := helpSectionForTest(t, shorthand.stdout, "Examples:")
+			explicitExamples := helpSectionForTest(t, explicitForm.stdout, "Examples:")
+			if shorthandExamples != explicitExamples {
+				t.Fatalf("expected shorthand and explicit examples to match\nshorthand:\n%s\nexplicit:\n%s",
+					shorthandExamples, explicitExamples)
+			}
+		})
+	}
+}
+
+func TestDeleteHelpUsesDeclarativeExamples(t *testing.T) {
+	result := executeRootForTest(t, "delete", "--help")
+	if result.exitCode != 0 {
+		t.Fatalf("expected delete help to succeed, got %d\nstdout:\n%s\nstderr:\n%s",
+			result.exitCode, result.stdout, result.stderr)
+	}
+
+	examples := helpSectionForTest(t, result.stdout, "Examples:")
+	for _, want := range []string{
+		"# Delete Konnect resources defined in declarative configuration",
+		"kongctl delete -f config.yaml",
+		"# Preview deletions before executing them",
+		"kongctl delete -f config.yaml --dry-run",
+		"# Execute a reviewed delete plan without prompting",
+		"kongctl delete --plan delete-plan.json --auto-approve",
+	} {
+		if !strings.Contains(examples, want) {
+			t.Fatalf("expected delete examples to contain %q\nexamples:\n%s", want, examples)
+		}
+	}
+	if strings.Contains(examples, "kongctl delete -f ./configs/ --recursive") {
+		t.Fatalf("expected delete examples not to contain stale recursive example\nexamples:\n%s", examples)
+	}
+}
+
 func TestRootApplyHelpShowsExamples(t *testing.T) {
 	oldRootCmd := rootCmd
 	t.Cleanup(func() {
@@ -135,15 +269,17 @@ func TestRootErrorUX(t *testing.T) {
 		expectStdout bool
 	}{
 		{
-			name: "bare root requires command",
+			name: "bare root shows help",
 			args: []string{},
-			wantErr: []string{
-				`Error: command "kongctl" requires a subcommand`,
-				`Run 'kongctl --help' for usage.`,
+			wantOut: []string{
+				`kongctl is the official command line tool for the Kong Konnect API platform.`,
+				"Find more information at:",
+				"Available Commands:",
 			},
-			wantExit:     1,
-			forbidErr:    []string{"Usage:"},
-			expectStderr: true,
+			wantExit:     0,
+			forbidErr:    []string{"Error:"},
+			forbidOut:    []string{"Flags:", "Usage:"},
+			expectStdout: true,
 		},
 		{
 			name: "bare command group requires subcommand",
@@ -170,6 +306,54 @@ func TestRootErrorUX(t *testing.T) {
 			expectStderr: true,
 		},
 		{
+			name: "unknown top level command before unsupported shorthand suggests command",
+			args: []string{"synch", "-f", "config.yaml"},
+			wantErr: []string{
+				`Error: unknown command "synch" for "kongctl"`,
+				`Run 'kongctl --help' for usage.`,
+				"Did you mean this command?",
+				"  sync",
+			},
+			wantExit: 1,
+			forbidErr: []string{
+				"Usage:",
+				"unknown shorthand flag",
+				"Did you mean one of these flags?",
+			},
+			expectStderr: true,
+		},
+		{
+			name: "unknown top level command typo before unsupported shorthand suggests command",
+			args: []string{"syk", "-f", "config.yaml"},
+			wantErr: []string{
+				`Error: unknown command "syk" for "kongctl"`,
+				`Run 'kongctl --help' for usage.`,
+				"Did you mean this command?",
+				"  sync",
+			},
+			wantExit: 1,
+			forbidErr: []string{
+				"Usage:",
+				"unknown shorthand flag",
+				"Did you mean one of these flags?",
+			},
+			expectStderr: true,
+		},
+		{
+			name: "unknown root flag before known command stays flag error",
+			args: []string{"--definitely-not-a-real-kongctl-flag", "version"},
+			wantErr: []string{
+				`Error: unknown flag: --definitely-not-a-real-kongctl-flag`,
+				`Run 'kongctl --help' for usage.`,
+			},
+			wantExit: 1,
+			forbidErr: []string{
+				"Usage:",
+				`unknown command "version"`,
+			},
+			expectStderr: true,
+		},
+		{
 			name: "unknown nested command suggests close match",
 			args: []string{"get", "gatewy"},
 			wantErr: []string{
@@ -190,6 +374,51 @@ func TestRootErrorUX(t *testing.T) {
 				`Run 'kongctl version --help' for usage.`,
 				"Did you mean this flag?",
 				"  --log-level",
+			},
+			wantExit:     1,
+			forbidErr:    []string{"Usage:"},
+			expectStderr: true,
+		},
+		{
+			name: "format flag suggests output when output is valid",
+			args: []string{"version", "--format", "yaml"},
+			wantErr: []string{
+				`Error: unknown flag: --format`,
+				`Run 'kongctl version --help' for usage.`,
+				"Did you mean this flag?",
+				"--output, -o",
+				"Configures the format of data written to STDOUT.",
+			},
+			wantExit:     1,
+			forbidErr:    []string{"Usage:"},
+			expectStderr: true,
+		},
+		{
+			name: "format flag does not suggest output when output is unsupported",
+			args: []string{"scaffold", "--format", "yaml", "api"},
+			wantErr: []string{
+				`Error: unknown flag: --format`,
+				`Run 'kongctl scaffold --help' for usage.`,
+			},
+			wantExit: 1,
+			forbidErr: []string{
+				"Usage:",
+				"Did you mean this flag?",
+				"--output",
+			},
+			expectStderr: true,
+		},
+		{
+			name: "unknown shorthand flag suggestions include descriptions",
+			args: []string{"diff", "-g", "config.yaml"},
+			wantErr: []string{
+				`Error: unknown shorthand flag: 'g' in -g`,
+				`Run 'kongctl diff --help' for usage.`,
+				"Did you mean one of these flags?",
+				"-f, --filename",
+				"Filename or directory to files to use to create the resource",
+				"-R, --recursive",
+				"Process the directory used in -f, --filename recursively",
 			},
 			wantExit:     1,
 			forbidErr:    []string{"Usage:"},
@@ -223,6 +452,19 @@ func TestRootErrorUX(t *testing.T) {
 			wantOut: []string{
 				"Usage:",
 				"kongctl get [command]",
+			},
+			wantExit:     0,
+			forbidErr:    []string{"Error:"},
+			expectStdout: true,
+		},
+		{
+			name: "explicit root help still renders flags",
+			args: []string{"--help"},
+			wantOut: []string{
+				`kongctl is the official command line tool for the Kong Konnect API platform.`,
+				"Find more information at:",
+				"Usage:",
+				"Flags:",
 			},
 			wantExit:     0,
 			forbidErr:    []string{"Error:"},
@@ -525,6 +767,25 @@ func commandPathForTest(path []string) string {
 		return "kongctl"
 	}
 	return "kongctl " + strings.Join(path, " ")
+}
+
+func helpSectionForTest(t *testing.T, help, header string) string {
+	t.Helper()
+	start := strings.Index(help, header)
+	if start < 0 {
+		t.Fatalf("expected help to contain %q\nhelp:\n%s", header, help)
+	}
+	section := help[start:]
+	if end := strings.Index(section, "\n\nAvailable Commands:"); end >= 0 {
+		return strings.TrimSpace(section[:end])
+	}
+	if end := strings.Index(section, "\n\nFlags:"); end >= 0 {
+		return strings.TrimSpace(section[:end])
+	}
+	if end := strings.Index(section, "\n\nUse \""); end >= 0 {
+		return strings.TrimSpace(section[:end])
+	}
+	return strings.TrimSpace(section)
 }
 
 func firstAvailableChildName(command *cobra.Command) string {

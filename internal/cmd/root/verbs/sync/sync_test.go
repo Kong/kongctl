@@ -53,8 +53,10 @@ func TestSyncCmdHelpText(t *testing.T) {
 	assert.Contains(t, cmd.Short, "Synchronize declarative configuration", "Short should mention synchronization")
 	assert.Contains(t, cmd.Long, "Synchronize configuration", "Long should mention configuration")
 	assert.Contains(t, cmd.Example, "-f", "Examples should show -f flag usage")
-	assert.Contains(t, cmd.Example, "--dry-run", "Examples should show dry-run option")
-	assert.Contains(t, cmd.Example, "help sync", "Examples should mention extended help")
+	assert.Contains(t, cmd.Example, "sync konnect -f api.yaml", "Examples should show explicit Konnect usage")
+	assert.Contains(t, cmd.Example, "--plan plan.json --auto-approve", "Examples should show plan execution")
+	assert.NotContains(t, cmd.Example, "sync -f ./configs/ --dry-run", "Examples should not use stale dry-run example")
+	assert.NotContains(t, cmd.Example, "help sync", "Examples should come from Konnect declarative command")
 }
 
 func TestSyncCmd_Flags(t *testing.T) {
