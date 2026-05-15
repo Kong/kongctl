@@ -2,6 +2,8 @@ package profile
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/jq"
@@ -14,10 +16,10 @@ import (
 )
 
 var (
-	profileUse   = "profile"
-	profileShort = i18n.T("root.profile.profileShort", "Manage CLI profiles")
+	profileUse   = "profile [profile-name]"
+	profileShort = i18n.T("root.profile.profileShort", "Manage kongctl profiles")
 	profileLong  = normalizers.LongDesc(i18n.T("root.profile.profileLong",
-		`The profile command allows you to get, create, and delete profiles for the CLI.`))
+		`The profile command allows you to list kongctl profiles and inspect profile configuration.`))
 
 	profileManager profile.Manager
 )
@@ -72,7 +74,12 @@ func runGet(helper cmd.Helper) error {
 	// * If no argument is provided, the user is looking for information on all profiles
 	// * Use the profileManager to get all or one of the profiles and display it
 
-	// TODO: Parse arguments to determine if user is looking for all profiles or a specific profile
+	args := helper.GetArgs()
+	if len(args) > 1 {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("too many arguments. Getting profiles requires 0 or 1 arguments (profile name)"),
+		}
+	}
 
 	outType, err := helper.GetOutputFormat()
 	if err != nil {
@@ -94,7 +101,10 @@ func runGet(helper cmd.Helper) error {
 		return err
 	}
 
-	payload := any(profileManager.GetProfiles())
+	payload, err := profilePayload(args)
+	if err != nil {
+		return err
+	}
 	if jq.HasFilter(jqSettings) {
 		filteredPayload, handled, err := jq.ApplyToRaw(payload, outType, jqSettings, helper.GetStreams().Out)
 		if err != nil {
@@ -116,6 +126,28 @@ func runGet(helper cmd.Helper) error {
 	p.Print(payload)
 
 	return nil
+}
+
+func profilePayload(args []string) (any, error) {
+	if len(args) == 0 {
+		profiles := slices.Clone(profileManager.GetProfiles())
+		slices.Sort(profiles)
+		return profiles, nil
+	}
+
+	name := strings.TrimSpace(args[0])
+	if name == "" {
+		return nil, &cmd.ConfigurationError{
+			Err: fmt.Errorf("profile name cannot be empty"),
+		}
+	}
+
+	profiles := profileManager.GetProfiles()
+	if !slices.Contains(profiles, name) {
+		return nil, fmt.Errorf("profile %q not found", name)
+	}
+
+	return profileManager.GetProfile(name)
 }
 
 //func runCreate(_ *cmd.RunBucket) error {
