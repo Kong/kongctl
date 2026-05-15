@@ -191,6 +191,25 @@ func TestDeleteHelpUsesDeclarativeExamples(t *testing.T) {
 	}
 }
 
+func TestListProfilesMatchesGetProfiles(t *testing.T) {
+	getResult := executeRootForTest(t, "get", "profiles", "--output", "json")
+	if getResult.exitCode != 0 {
+		t.Fatalf("expected get profiles to succeed, got %d\nstdout:\n%s\nstderr:\n%s",
+			getResult.exitCode, getResult.stdout, getResult.stderr)
+	}
+
+	listResult := executeRootForTest(t, "list", "profiles", "--output", "json")
+	if listResult.exitCode != 0 {
+		t.Fatalf("expected list profiles to succeed, got %d\nstdout:\n%s\nstderr:\n%s",
+			listResult.exitCode, listResult.stdout, listResult.stderr)
+	}
+
+	if listResult.stdout != getResult.stdout {
+		t.Fatalf("expected list profiles output to match get profiles\nget:\n%s\nlist:\n%s",
+			getResult.stdout, listResult.stdout)
+	}
+}
+
 func TestRootApplyHelpShowsExamples(t *testing.T) {
 	oldRootCmd := rootCmd
 	t.Cleanup(func() {
