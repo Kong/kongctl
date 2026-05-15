@@ -1,8 +1,6 @@
 package export
 
 import (
-	"context"
-
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -41,10 +39,8 @@ func NewExportCmd() (*cobra.Command, error) {
 		Long:    exportLong,
 		Example: konnectCmd.Example,
 		// Use the konnect command's RunE directly for Konnect-first pattern
-		RunE: konnectCmd.RunE,
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
-		},
+		RunE:              konnectCmd.RunE,
+		PersistentPreRunE: verbs.KonnectFirstPreRunE(Verb, konnectCmd),
 	}
 
 	// Copy flags from konnect command to parent
