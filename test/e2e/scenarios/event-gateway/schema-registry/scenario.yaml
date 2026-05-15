@@ -77,6 +77,9 @@ steps:
           - "{{ .vars.egwName }}"
           - -o
           - json
+        recordVar:
+          name: schemaRegistryID
+          responsePath: "[?name=='{{ .vars.schemaRegistryName }}'] | [0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -87,6 +90,44 @@ steps:
               fields:
                 name: "{{ .vars.schemaRegistryName }}"
                 description: "Default Schema Registry description"
+      - name: 004-get-schema-registry-by-name
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.schemaRegistryName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.schemaRegistryName }}"
+          - select: description
+            expect:
+              fields:
+                "@": "Default Schema Registry description"
+      - name: 005-get-schema-registry-by-id
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.schemaRegistryID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.schemaRegistryName }}"
+          - select: description
+            expect:
+              fields:
+                "@": "Default Schema Registry description"
   - name: 002-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update-fields
