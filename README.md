@@ -28,9 +28,9 @@ By using this software, you acknowledge that:
   - [3. Test the Authentication](#3-test-the-authentication)
   - [4. Switch Region](#4-switch-konnect-regions)
   - [5. Next Steps](#5-next-steps)
+- [Telemetry](#telemetry)
 - [Documentation Listing](#documentation-listing)
 - [Configuration and Profiles](#configuration-and-profiles)
-  - [Telemetry](#telemetry)
   - [Authentication Options](#authentication-options)
   - [Color Themes](#color-themes)
 - [Command Structure](#command-structure)
@@ -128,6 +128,58 @@ default:
 
 **→ [Read the Declarative Configuration Guide](docs/declarative.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
 
+## Telemetry
+
+`kongctl` collects limited usage data to help Kong understand CLI usage.
+
+Collected:
+  - kongctl version
+  - operating system and architecture
+  - command path, such as "login" or "get apis"
+
+Not collected:
+  - hostnames, usernames, or email addresses
+  - command arguments or flag values
+  - resource names or IDs
+  - auth tokens, request bodies, or response bodies
+  - config file contents, file paths
+
+Telemetry can be disabled at any time with:
+  `kongctl --no-telemetry <command>`
+  `KONGCTL_NO_TELEMETRY=true kongctl <command>`
+  `DO_NOT_TRACK=1 kongctl <command>`
+
+The first interactive `kongctl login` also asks whether kongctl may collect
+usage data on this device. The answer is saved to
+`$XDG_CONFIG_HOME/kongctl/.telemetry-enabled` (or
+`$HOME/.config/kongctl/.telemetry-enabled`) and applies to all local profiles.
+This local preference file overrides profile config.
+`DO_NOT_TRACK=1`, `KONGCTL_NO_TELEMETRY=true`, and `--no-telemetry` still disable telemetry even
+when the local preference file says telemetry is enabled.
+
+Disable telemetry persistently for a specific profile:
+
+```yaml
+profile-name:
+  telemetry:
+    enabled: false
+```
+
+Telemetry values can be inspected without sending it by enabling debug
+mode:
+
+```yaml
+profile-name:
+  telemetry:
+    enabled: true
+    debug: true
+```
+
+When debug mode is enabled, events are written to
+`$XDG_CONFIG_HOME/kongctl/logs/telemetry.log` (or
+`$HOME/.config/kongctl/logs/telemetry.log`) and are not sent to the telemetry
+backend.
+
 ## Documentation Listing
 
 - **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide covering quick start, concepts, YAML tags, CI/CD integration, and best practices
@@ -180,67 +232,6 @@ KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis
 To clear saved Konnect credentials for a profile, run `kongctl logout [--profile <name>]`. This removes the local device
 flow token file so that subsequent commands prompt you to authenticate again with `kongctl login`.
 
-### Telemetry
-
-`kongctl` sends a single best-effort telemetry event for each command
-invocation. Telemetry is enabled by default. Events help Kong understand which
-command areas, versions, and platforms are used.
-
-The current event contains only:
-
-- Schema version
-- Event timestamp
-- `kongctl` version
-- Operating system and architecture
-- Command path, such as `get apis` or `apply`
-
-Telemetry does not include command arguments, flag values, auth tokens, request
-or response bodies, resource names, resource IDs, configuration file contents,
-file paths, usernames, email addresses, hostnames, or IP addresses.
-
-Disable telemetry for one command with:
-
-```shell
-kongctl --no-telemetry <command>
-```
-
-Disable telemetry for the current process with either:
-
-```shell
-KONGCTL_NO_TELEMETRY=true kongctl <command>
-DO_NOT_TRACK=1 kongctl <command>
-```
-
-The first interactive `kongctl login` also asks whether kongctl may collect
-usage data on this device. The answer is saved to
-`$XDG_CONFIG_HOME/kongctl/.telemetry-enabled` (or
-`$HOME/.config/kongctl/.telemetry-enabled`) and applies to all local profiles.
-This local preference file overrides profile config. `DO_NOT_TRACK=1`,
-`KONGCTL_NO_TELEMETRY=true`, and `--no-telemetry` still disable telemetry even
-when the local preference file says telemetry is enabled.
-
-Disable telemetry persistently for a profile:
-
-```yaml
-default:
-  telemetry:
-    enabled: false
-```
-
-Developers can inspect the local payload without sending it by enabling debug
-mode:
-
-```yaml
-default:
-  telemetry:
-    enabled: true
-    debug: true
-```
-
-When debug mode is enabled, events are written to
-`$XDG_CONFIG_HOME/kongctl/logs/telemetry.log` (or
-`$HOME/.config/kongctl/logs/telemetry.log`) and are not sent to the telemetry
-backend.
 
 ### Authentication Options
 
