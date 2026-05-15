@@ -232,6 +232,35 @@ func TestRootErrorUX(t *testing.T) {
 			expectStderr: true,
 		},
 		{
+			name: "format flag suggests output when output is valid",
+			args: []string{"version", "--format", "yaml"},
+			wantErr: []string{
+				`Error: unknown flag: --format`,
+				`Run 'kongctl version --help' for usage.`,
+				"Did you mean this flag?",
+				"--output, -o",
+				"Configures the format of data written to STDOUT.",
+			},
+			wantExit:     1,
+			forbidErr:    []string{"Usage:"},
+			expectStderr: true,
+		},
+		{
+			name: "format flag does not suggest output when output is unsupported",
+			args: []string{"scaffold", "--format", "yaml", "api"},
+			wantErr: []string{
+				`Error: unknown flag: --format`,
+				`Run 'kongctl scaffold --help' for usage.`,
+			},
+			wantExit: 1,
+			forbidErr: []string{
+				"Usage:",
+				"Did you mean this flag?",
+				"--output",
+			},
+			expectStderr: true,
+		},
+		{
 			name: "unknown shorthand flag suggestions include descriptions",
 			args: []string{"diff", "-g", "config.yaml"},
 			wantErr: []string{

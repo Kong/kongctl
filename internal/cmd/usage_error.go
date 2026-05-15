@@ -6,11 +6,13 @@ import (
 	"slices"
 	"strings"
 
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
 const RequiresSubcommandAnnotation = "kongctl/requires-subcommand"
+const formatFlagName = "format"
 
 type Suggestion struct {
 	Kind   string
@@ -214,6 +216,11 @@ func SuggestSimilarFlags(command *cobra.Command, err error) Suggestion {
 
 func suggestSimilarLongFlags(command *cobra.Command, typed string) Suggestion {
 	candidates := make([]flagSuggestion, 0)
+	if strings.EqualFold(typed, formatFlagName) {
+		if output := suggestedOutputFlag(command); output != nil {
+			candidates = append(candidates, newFlagSuggestion(outputFlagSuggestionLabel(output), output))
+		}
+	}
 	command.Flags().VisitAll(func(flag *pflag.Flag) {
 		if flag.Hidden {
 			return
@@ -236,6 +243,24 @@ func suggestSimilarShorthandFlags(command *cobra.Command, typed string) Suggesti
 		}
 	})
 	return Suggestion{Kind: "flag", Values: formatFlagSuggestions(candidates)}
+}
+
+func suggestedOutputFlag(command *cobra.Command) *pflag.Flag {
+	if command == nil || cmdcommon.IsOutputFormatValidationSkipped(command) {
+		return nil
+	}
+	flag := command.Flags().Lookup(cmdcommon.OutputFlagName)
+	if flag == nil || flag.Hidden {
+		return nil
+	}
+	return flag
+}
+
+func outputFlagSuggestionLabel(flag *pflag.Flag) string {
+	if flag == nil || strings.TrimSpace(flag.Shorthand) == "" {
+		return "--" + cmdcommon.OutputFlagName
+	}
+	return fmt.Sprintf("--%s, -%s", cmdcommon.OutputFlagName, flag.Shorthand)
 }
 
 type flagSuggestion struct {
