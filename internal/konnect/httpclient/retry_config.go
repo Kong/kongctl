@@ -1,10 +1,5 @@
 package httpclient
 
-import (
-	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	sdkretry "github.com/Kong/sdk-konnect-go/retry"
-)
-
 const (
 	RetryStrategyNone    = "none"
 	RetryStrategyBackoff = "backoff"
@@ -69,27 +64,4 @@ func (rc RetryConfig) computeMaxElapsedTimeMS() int {
 		interval *= rc.BackoffFactor
 	}
 	return total
-}
-
-// ToSDKRetryConfig converts a RetryConfig into the sdk-konnect-go retry.Config
-// that can be passed to SDK operations via WithRetries.
-func (rc RetryConfig) ToSDKRetryConfig() sdkretry.Config {
-	cfg := sdkretry.Config{
-		Strategy:              rc.Strategy,
-		RetryConnectionErrors: rc.RetryConnectionErrors,
-	}
-	if rc.Strategy == RetryStrategyBackoff {
-		cfg.Backoff = &sdkretry.BackoffStrategy{
-			InitialInterval: rc.InitialIntervalMS,
-			MaxInterval:     rc.MaxIntervalMS,
-			Exponent:        rc.BackoffFactor,
-			MaxElapsedTime:  rc.computeMaxElapsedTimeMS(),
-		}
-	}
-	return cfg
-}
-
-// ToSDKOption returns an kkOps.Option that injects this RetryConfig into an SDK call.
-func (rc RetryConfig) ToSDKOption() kkOps.Option {
-	return kkOps.WithRetries(rc.ToSDKRetryConfig())
 }

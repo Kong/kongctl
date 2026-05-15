@@ -353,7 +353,14 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		return nil, err
 	}
 
-	sdk, httpClient, err := auth.GetAuthenticatedClient(baseURL, tokenSource, timeout, transportOptions, logger)
+	retryConfig, err := ResolveRetryConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	sdk, httpClient, err := auth.GetAuthenticatedClient(
+		baseURL, tokenSource, timeout, transportOptions, &retryConfig, logger,
+	)
 	if err != nil {
 		return nil, err
 	}

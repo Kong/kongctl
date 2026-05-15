@@ -25,8 +25,6 @@ import (
 
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
-	// RetryOpts holds per-operation SDK options (e.g. retry config) injected by declarative commands.
-	RetryOpts []kkOps.Option
 	// Core APIs
 	PortalAPI               helpers.PortalAPI
 	APIAPI                  helpers.APIAPI
@@ -89,8 +87,6 @@ type ClientConfig struct {
 
 // Client wraps Konnect SDK for state management
 type Client struct {
-	// retryOpts are per-operation SDK options forwarded to helper API calls that support them.
-	retryOpts []kkOps.Option
 
 	// Core APIs
 	portalAPI               helpers.PortalAPI
@@ -155,7 +151,6 @@ type Client struct {
 // NewClient creates a new state client with the provided configuration
 func NewClient(config ClientConfig) *Client {
 	return &Client{
-		retryOpts: config.RetryOpts,
 
 		// Core APIs
 		portalAPI:               config.PortalAPI,
@@ -420,7 +415,7 @@ func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.portalAPI.ListPortals(ctx, req, c.retryOpts...)
+		resp, err := c.portalAPI.ListPortals(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list portals", nil)
 		}
@@ -476,7 +471,7 @@ func (c *Client) ListAllPortals(ctx context.Context) ([]Portal, error) {
 			// No labels filter - get ALL portals
 		}
 
-		resp, err := c.portalAPI.ListPortals(ctx, req, c.retryOpts...)
+		resp, err := c.portalAPI.ListPortals(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list all portals", nil)
 		}
@@ -585,7 +580,7 @@ func (c *Client) CreatePortal(
 		}
 	}
 
-	resp, err := c.portalAPI.CreatePortal(ctx, portal, c.retryOpts...)
+	resp, err := c.portalAPI.CreatePortal(ctx, portal)
 	if err != nil {
 		return nil, WrapAPIError(err, "create portal", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortal),
@@ -612,7 +607,7 @@ func (c *Client) UpdatePortal(
 	// Labels have already been built by the executor using BuildUpdateLabels
 	// which includes namespace and protection labels with removal support
 
-	resp, err := c.portalAPI.UpdatePortal(ctx, id, portal, c.retryOpts...)
+	resp, err := c.portalAPI.UpdatePortal(ctx, id, portal)
 	if err != nil {
 		// Extract status code from error if possible
 		statusCode := decerrors.ExtractStatusCodeFromError(err)
@@ -642,7 +637,7 @@ func (c *Client) UpdatePortal(
 
 // DeletePortal deletes a portal by ID
 func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error {
-	_, err := c.portalAPI.DeletePortal(ctx, id, force, c.retryOpts...)
+	_, err := c.portalAPI.DeletePortal(ctx, id, force)
 	if err != nil {
 		// Extract status code from error if possible
 		statusCode := decerrors.ExtractStatusCodeFromError(err)
@@ -676,7 +671,7 @@ func (c *Client) ListManagedControlPlanes(ctx context.Context, namespaces []stri
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.controlPlaneAPI.ListControlPlanes(ctx, req, c.retryOpts...)
+		resp, err := c.controlPlaneAPI.ListControlPlanes(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list control planes", nil)
 		}
@@ -729,7 +724,7 @@ func (c *Client) ListAllControlPlanes(ctx context.Context) ([]ControlPlane, erro
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.controlPlaneAPI.ListControlPlanes(ctx, req, c.retryOpts...)
+		resp, err := c.controlPlaneAPI.ListControlPlanes(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list control planes: %w", err)
 		}
@@ -784,7 +779,7 @@ func (c *Client) ListControlPlaneGroupMemberships(ctx context.Context, groupID s
 			req.PageAfter = pageAfter
 		}
 
-		resp, err := c.controlPlaneGroupsAPI.GetControlPlanesIDGroupMemberships(ctx, req, c.retryOpts...)
+		resp, err := c.controlPlaneGroupsAPI.GetControlPlanesIDGroupMemberships(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list control plane group memberships", &ErrorWrapperOptions{
 				ResourceType: string(resources.ResourceTypeControlPlaneGroup),
@@ -836,7 +831,6 @@ func (c *Client) UpsertControlPlaneGroupMemberships(ctx context.Context, groupID
 		ctx,
 		groupID,
 		&req,
-		c.retryOpts...,
 	); err != nil {
 		return WrapAPIError(err, "upsert control plane group memberships", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeControlPlaneGroup),
@@ -872,7 +866,7 @@ func (c *Client) ListGatewayServices(ctx context.Context, controlPlaneID string)
 			req.Offset = &offsetVal
 		}
 
-		resp, err := c.gatewayServiceAPI.ListService(ctx, req, c.retryOpts...)
+		resp, err := c.gatewayServiceAPI.ListService(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list gateway services: %w", err)
 		}
@@ -920,7 +914,7 @@ func (c *Client) ListControlPlaneDataPlaneCertificates(
 		return nil, err
 	}
 
-	resp, err := c.dataPlaneCertificateAPI.ListDpClientCertificates(ctx, controlPlaneID, c.retryOpts...)
+	resp, err := c.dataPlaneCertificateAPI.ListDpClientCertificates(ctx, controlPlaneID)
 	if err != nil {
 		return nil, WrapAPIError(err, "list data plane certificates", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
@@ -952,7 +946,7 @@ func (c *Client) CreateControlPlaneDataPlaneCertificate(
 		return "", err
 	}
 
-	resp, err := c.dataPlaneCertificateAPI.CreateDataplaneCertificate(ctx, controlPlaneID, &req, c.retryOpts...)
+	resp, err := c.dataPlaneCertificateAPI.CreateDataplaneCertificate(ctx, controlPlaneID, &req)
 	if err != nil {
 		return "", WrapAPIError(err, "create data plane certificate", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
@@ -980,7 +974,7 @@ func (c *Client) GetControlPlaneDataPlaneCertificate(
 		return nil, err
 	}
 
-	resp, err := c.dataPlaneCertificateAPI.GetDataplaneCertificate(ctx, controlPlaneID, certificateID, c.retryOpts...)
+	resp, err := c.dataPlaneCertificateAPI.GetDataplaneCertificate(ctx, controlPlaneID, certificateID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get data plane certificate", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
@@ -1006,7 +1000,7 @@ func (c *Client) DeleteControlPlaneDataPlaneCertificate(
 		return err
 	}
 
-	_, err := c.dataPlaneCertificateAPI.DeleteDataplaneCertificate(ctx, controlPlaneID, certificateID, c.retryOpts...)
+	_, err := c.dataPlaneCertificateAPI.DeleteDataplaneCertificate(ctx, controlPlaneID, certificateID)
 	if err != nil {
 		return WrapAPIError(err, "delete data plane certificate", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
@@ -1073,7 +1067,7 @@ func (c *Client) GetControlPlaneByID(ctx context.Context, id string) (*ControlPl
 		return nil, fmt.Errorf("control plane API client not configured")
 	}
 
-	resp, err := c.controlPlaneAPI.GetControlPlane(ctx, id, c.retryOpts...)
+	resp, err := c.controlPlaneAPI.GetControlPlane(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get control plane by ID: %w", err)
 	}
@@ -1108,7 +1102,7 @@ func (c *Client) CreateControlPlane(
 		slog.Any("labels", controlPlane.Labels),
 		slog.String("namespace", namespace))
 
-	resp, err := c.controlPlaneAPI.CreateControlPlane(ctx, controlPlane, c.retryOpts...)
+	resp, err := c.controlPlaneAPI.CreateControlPlane(ctx, controlPlane)
 	if err != nil {
 		return nil, WrapAPIError(err, "create control plane", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeControlPlane),
@@ -1136,7 +1130,7 @@ func (c *Client) UpdateControlPlane(
 		return nil, err
 	}
 
-	resp, err := c.controlPlaneAPI.UpdateControlPlane(ctx, id, controlPlane, c.retryOpts...)
+	resp, err := c.controlPlaneAPI.UpdateControlPlane(ctx, id, controlPlane)
 	if err != nil {
 		statusCode := decerrors.ExtractStatusCodeFromError(err)
 
@@ -1169,7 +1163,7 @@ func (c *Client) DeleteControlPlane(ctx context.Context, id string) error {
 		return err
 	}
 
-	_, err := c.controlPlaneAPI.DeleteControlPlane(ctx, id, c.retryOpts...)
+	_, err := c.controlPlaneAPI.DeleteControlPlane(ctx, id)
 	if err != nil {
 		statusCode := decerrors.ExtractStatusCodeFromError(err)
 		ctx := decerrors.APIErrorContext{
@@ -1200,7 +1194,7 @@ func (c *Client) ListManagedAPIs(ctx context.Context, namespaces []string) ([]AP
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.apiAPI.ListApis(ctx, req, c.retryOpts...)
+		resp, err := c.apiAPI.ListApis(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list APIs", nil)
 		}
@@ -1365,7 +1359,7 @@ func (c *Client) CreateAPI(
 		}
 	}
 
-	resp, err := c.apiAPI.CreateAPI(ctx, api, c.retryOpts...)
+	resp, err := c.apiAPI.CreateAPI(ctx, api)
 	if err != nil {
 		// Extract status code from error if possible
 		statusCode := decerrors.ExtractStatusCodeFromError(err)
@@ -1403,7 +1397,7 @@ func (c *Client) UpdateAPI(
 	// Labels have already been built by the executor using BuildUpdateLabels
 	// which includes namespace and protection labels with removal support
 
-	resp, err := c.apiAPI.UpdateAPI(ctx, id, api, c.retryOpts...)
+	resp, err := c.apiAPI.UpdateAPI(ctx, id, api)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update API: %w", err)
 	}
@@ -1421,7 +1415,7 @@ func (c *Client) DeleteAPI(ctx context.Context, id string) error {
 		return fmt.Errorf("API client not configured")
 	}
 
-	_, err := c.apiAPI.DeleteAPI(ctx, id, c.retryOpts...)
+	_, err := c.apiAPI.DeleteAPI(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete API: %w", err)
 	}
@@ -1441,7 +1435,7 @@ func (c *Client) ListManagedCatalogServices(ctx context.Context, namespaces []st
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.catalogServiceAPI.ListCatalogServices(ctx, req, c.retryOpts...)
+		resp, err := c.catalogServiceAPI.ListCatalogServices(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list catalog services", nil)
 		}
@@ -1499,7 +1493,7 @@ func (c *Client) GetCatalogServiceByID(ctx context.Context, id string) (*Catalog
 		return nil, fmt.Errorf("catalog service API not configured")
 	}
 
-	resp, err := c.catalogServiceAPI.FetchCatalogService(ctx, id, c.retryOpts...)
+	resp, err := c.catalogServiceAPI.FetchCatalogService(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "fetch catalog service", nil)
 	}
@@ -1529,7 +1523,7 @@ func (c *Client) CreateCatalogService(
 		return nil, fmt.Errorf("catalog service API not configured")
 	}
 
-	resp, err := c.catalogServiceAPI.CreateCatalogService(ctx, req, c.retryOpts...)
+	resp, err := c.catalogServiceAPI.CreateCatalogService(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "create catalog service", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeCatalogService),
@@ -1557,7 +1551,7 @@ func (c *Client) UpdateCatalogService(
 		return nil, fmt.Errorf("catalog service API not configured")
 	}
 
-	resp, err := c.catalogServiceAPI.UpdateCatalogService(ctx, id, req, c.retryOpts...)
+	resp, err := c.catalogServiceAPI.UpdateCatalogService(ctx, id, req)
 	if err != nil {
 		resourceName := ""
 		if req.Name != nil {
@@ -1584,7 +1578,7 @@ func (c *Client) DeleteCatalogService(ctx context.Context, id string) error {
 		return fmt.Errorf("catalog service API not configured")
 	}
 
-	_, err := c.catalogServiceAPI.DeleteCatalogService(ctx, id, c.retryOpts...)
+	_, err := c.catalogServiceAPI.DeleteCatalogService(ctx, id)
 	if err != nil {
 		return WrapAPIError(err, "delete catalog service", nil)
 	}
@@ -1751,7 +1745,7 @@ func (c *Client) ListAllAPIs(ctx context.Context) ([]API, error) {
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.apiAPI.ListApis(ctx, req, c.retryOpts...)
+		resp, err := c.apiAPI.ListApis(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list APIs: %w", err)
 		}
@@ -1805,7 +1799,7 @@ func (c *Client) GetAPIByID(ctx context.Context, id string) (*API, error) {
 		return nil, fmt.Errorf("API client not configured")
 	}
 
-	resp, err := c.apiAPI.FetchAPI(ctx, id, c.retryOpts...)
+	resp, err := c.apiAPI.FetchAPI(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API by ID: %w", err)
 	}
@@ -1847,7 +1841,7 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.apiVersionAPI.ListAPIVersions(ctx, req, c.retryOpts...)
+		resp, err := c.apiVersionAPI.ListAPIVersions(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list API versions: %w", err)
 		}
@@ -1888,7 +1882,7 @@ func (c *Client) CreateAPIVersion(
 		return nil, fmt.Errorf("API version client not configured")
 	}
 
-	resp, err := c.apiVersionAPI.CreateAPIVersion(ctx, apiID, version, c.retryOpts...)
+	resp, err := c.apiVersionAPI.CreateAPIVersion(ctx, apiID, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API version: %w", err)
 	}
@@ -1915,7 +1909,7 @@ func (c *Client) UpdateAPIVersion(
 		APIVersionRequest: version,
 	}
 
-	resp, err := c.apiVersionAPI.UpdateAPIVersion(ctx, req, c.retryOpts...)
+	resp, err := c.apiVersionAPI.UpdateAPIVersion(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update API version: %w", err)
 	}
@@ -1933,7 +1927,7 @@ func (c *Client) FetchAPIVersion(ctx context.Context, apiID, versionID string) (
 		return nil, fmt.Errorf("API version client not configured")
 	}
 
-	resp, err := c.apiVersionAPI.FetchAPIVersion(ctx, apiID, versionID, c.retryOpts...)
+	resp, err := c.apiVersionAPI.FetchAPIVersion(ctx, apiID, versionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch API version: %w", err)
 	}
@@ -1962,7 +1956,7 @@ func (c *Client) DeleteAPIVersion(ctx context.Context, apiID string, versionID s
 		return fmt.Errorf("API version client not configured")
 	}
 
-	_, err := c.apiVersionAPI.DeleteAPIVersion(ctx, apiID, versionID, c.retryOpts...)
+	_, err := c.apiVersionAPI.DeleteAPIVersion(ctx, apiID, versionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete API version: %w", err)
 	}
@@ -1993,7 +1987,7 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.apiPublicationAPI.ListAPIPublications(ctx, req, c.retryOpts...)
+		resp, err := c.apiPublicationAPI.ListAPIPublications(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list API publications: %w", err)
 		}
@@ -2041,7 +2035,7 @@ func (c *Client) CreateAPIPublication(
 		APIPublication: publication,
 	}
 
-	resp, err := c.apiPublicationAPI.PublishAPIToPortal(ctx, req, c.retryOpts...)
+	resp, err := c.apiPublicationAPI.PublishAPIToPortal(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API publication: %w", err)
 	}
@@ -2059,7 +2053,7 @@ func (c *Client) DeleteAPIPublication(ctx context.Context, apiID, portalID strin
 		return fmt.Errorf("API publication client not configured")
 	}
 
-	_, err := c.apiPublicationAPI.DeletePublication(ctx, apiID, portalID, c.retryOpts...)
+	_, err := c.apiPublicationAPI.DeletePublication(ctx, apiID, portalID)
 	if err != nil {
 		return fmt.Errorf("failed to delete API publication: %w", err)
 	}
@@ -2090,7 +2084,7 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.apiImplementationAPI.ListAPIImplementations(ctx, req, c.retryOpts...)
+		resp, err := c.apiImplementationAPI.ListAPIImplementations(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list API implementations: %w", err)
 		}
@@ -2142,7 +2136,7 @@ func (c *Client) CreateAPIImplementation(
 		return nil, err
 	}
 
-	resp, err := c.apiImplementationAPI.CreateAPIImplementation(ctx, apiID, implementation, c.retryOpts...)
+	resp, err := c.apiImplementationAPI.CreateAPIImplementation(ctx, apiID, implementation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API implementation: %w", err)
 	}
@@ -2160,7 +2154,7 @@ func (c *Client) DeleteAPIImplementation(ctx context.Context, apiID, implementat
 		return err
 	}
 
-	_, err := c.apiImplementationAPI.DeleteAPIImplementation(ctx, apiID, implementationID, c.retryOpts...)
+	_, err := c.apiImplementationAPI.DeleteAPIImplementation(ctx, apiID, implementationID)
 	if err != nil {
 		return fmt.Errorf("failed to delete API implementation: %w", err)
 	}
@@ -2179,7 +2173,7 @@ func (c *Client) ListAPIDocuments(ctx context.Context, apiID string) ([]APIDocum
 	var allDocuments []APIDocument
 
 	// API Documents don't support pagination in request
-	resp, err := c.apiDocumentAPI.ListAPIDocuments(ctx, apiID, nil, c.retryOpts...)
+	resp, err := c.apiDocumentAPI.ListAPIDocuments(ctx, apiID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list API documents: %w", err)
 	}
@@ -2245,7 +2239,7 @@ func (c *Client) CreateAPIDocument(
 		return nil, fmt.Errorf("API document client not configured")
 	}
 
-	resp, err := c.apiDocumentAPI.CreateAPIDocument(ctx, apiID, document, c.retryOpts...)
+	resp, err := c.apiDocumentAPI.CreateAPIDocument(ctx, apiID, document)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API document: %w", err)
 	}
@@ -2265,7 +2259,7 @@ func (c *Client) UpdateAPIDocument(
 		return nil, fmt.Errorf("API document client not configured")
 	}
 
-	resp, err := c.apiDocumentAPI.UpdateAPIDocument(ctx, apiID, documentID, document, c.retryOpts...)
+	resp, err := c.apiDocumentAPI.UpdateAPIDocument(ctx, apiID, documentID, document)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update API document: %w", err)
 	}
@@ -2283,7 +2277,7 @@ func (c *Client) DeleteAPIDocument(ctx context.Context, apiID, documentID string
 		return fmt.Errorf("API document client not configured")
 	}
 
-	_, err := c.apiDocumentAPI.DeleteAPIDocument(ctx, apiID, documentID, c.retryOpts...)
+	_, err := c.apiDocumentAPI.DeleteAPIDocument(ctx, apiID, documentID)
 	if err != nil {
 		return fmt.Errorf("failed to delete API document: %w", err)
 	}
@@ -2296,7 +2290,7 @@ func (c *Client) GetAPIDocument(ctx context.Context, apiID, documentID string) (
 		return nil, fmt.Errorf("API document client not configured")
 	}
 
-	resp, err := c.apiDocumentAPI.FetchAPIDocument(ctx, apiID, documentID, c.retryOpts...)
+	resp, err := c.apiDocumentAPI.FetchAPIDocument(ctx, apiID, documentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch API document: %w", err)
 	}
@@ -2337,7 +2331,7 @@ func (c *Client) CreateApplicationAuthStrategy(
 	// Labels have already been built by the executor using BuildCreateLabels
 	// Just pass through to the API
 
-	resp, err := c.appAuthAPI.CreateAppAuthStrategy(ctx, authStrategy, c.retryOpts...)
+	resp, err := c.appAuthAPI.CreateAppAuthStrategy(ctx, authStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create application auth strategy: %w", err)
 	}
@@ -2363,7 +2357,7 @@ func (c *Client) ListManagedAuthStrategies(
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.appAuthAPI.ListAppAuthStrategies(ctx, req, c.retryOpts...)
+		resp, err := c.appAuthAPI.ListAppAuthStrategies(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list application auth strategies", nil)
 		}
@@ -2635,7 +2629,7 @@ func (c *Client) CreateDCRProvider(
 		return nil, fmt.Errorf("dcr provider API client not configured")
 	}
 
-	if _, err := c.dcrProviderAPI.CreateDcrProvider(ctx, provider, c.retryOpts...); err != nil {
+	if _, err := c.dcrProviderAPI.CreateDcrProvider(ctx, provider); err != nil {
 		return nil, fmt.Errorf("failed to create DCR provider: %w", err)
 	}
 
@@ -2674,7 +2668,7 @@ func (c *Client) ListManagedDCRProviders(
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.dcrProviderAPI.ListDcrProviderPayloads(ctx, req, c.retryOpts...)
+		resp, err := c.dcrProviderAPI.ListDcrProviderPayloads(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list dcr providers", nil)
 		}
@@ -2737,7 +2731,7 @@ func (c *Client) UpdateDCRProvider(
 	if c.dcrProviderAPI == nil {
 		return fmt.Errorf("dcr provider API client not configured")
 	}
-	if _, err := c.dcrProviderAPI.UpdateDcrProvider(ctx, id, provider, c.retryOpts...); err != nil {
+	if _, err := c.dcrProviderAPI.UpdateDcrProvider(ctx, id, provider); err != nil {
 		return fmt.Errorf("failed to update DCR provider: %w", err)
 	}
 	return nil
@@ -2747,7 +2741,7 @@ func (c *Client) DeleteDCRProvider(ctx context.Context, id string) error {
 	if c.dcrProviderAPI == nil {
 		return fmt.Errorf("dcr provider API client not configured")
 	}
-	if _, err := c.dcrProviderAPI.DeleteDcrProvider(ctx, id, c.retryOpts...); err != nil {
+	if _, err := c.dcrProviderAPI.DeleteDcrProvider(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete DCR provider: %w", err)
 	}
 	return nil
@@ -2776,7 +2770,7 @@ func (c *Client) GetAuthStrategyByID(ctx context.Context, id string) (*Applicati
 		return nil, err
 	}
 
-	resp, err := c.appAuthAPI.GetAppAuthStrategy(ctx, id, c.retryOpts...)
+	resp, err := c.appAuthAPI.GetAppAuthStrategy(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get application auth strategy by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeApplicationAuthStrategy),
@@ -2832,7 +2826,7 @@ func (c *Client) UpdateApplicationAuthStrategy(
 	// Labels have already been built by the executor using BuildUpdateLabels
 	// which includes namespace and protection labels with removal support
 
-	resp, err := c.appAuthAPI.UpdateAppAuthStrategy(ctx, id, authStrategy, c.retryOpts...)
+	resp, err := c.appAuthAPI.UpdateAppAuthStrategy(ctx, id, authStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update application auth strategy: %w", err)
 	}
@@ -2846,7 +2840,7 @@ func (c *Client) DeleteApplicationAuthStrategy(ctx context.Context, id string) e
 		return fmt.Errorf("app auth API client not configured")
 	}
 
-	_, err := c.appAuthAPI.DeleteAppAuthStrategy(ctx, id, c.retryOpts...)
+	_, err := c.appAuthAPI.DeleteAppAuthStrategy(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete application auth strategy: %w", err)
 	}
@@ -2864,7 +2858,7 @@ func (c *Client) GetPortalAuthSettings(
 		return nil, err
 	}
 
-	resp, err := c.portalAuthSettingsAPI.GetPortalAuthenticationSettings(ctx, portalID, c.retryOpts...)
+	resp, err := c.portalAuthSettingsAPI.GetPortalAuthenticationSettings(ctx, portalID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get portal auth settings", nil)
 	}
@@ -2895,7 +2889,7 @@ func (c *Client) UpdatePortalAuthSettings(
 		)
 	}
 
-	_, err := c.portalAuthSettingsAPI.UpdatePortalAuthenticationSettings(ctx, portalID, &settings, c.retryOpts...)
+	_, err := c.portalAuthSettingsAPI.UpdatePortalAuthenticationSettings(ctx, portalID, &settings)
 	if err != nil {
 		return WrapAPIError(err, "update portal auth settings", nil)
 	}
@@ -3005,7 +2999,7 @@ func (c *Client) ListPortalIPAllowLists(ctx context.Context, portalID string) ([
 			req.PageAfter = pageAfter
 		}
 
-		resp, err := c.portalIPAllowListAPI.ListPortalIPAllowList(ctx, req, c.retryOpts...)
+		resp, err := c.portalIPAllowListAPI.ListPortalIPAllowList(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list portal IP allow lists", &ErrorWrapperOptions{
 				ResourceType: string(resources.ResourceTypePortalIPAllowList),
@@ -3070,7 +3064,7 @@ func (c *Client) CreatePortalIPAllowList(
 		return "", err
 	}
 
-	resp, err := c.portalIPAllowListAPI.CreatePortalIPAllowList(ctx, portalID, &req, c.retryOpts...)
+	resp, err := c.portalIPAllowListAPI.CreatePortalIPAllowList(ctx, portalID, &req)
 	if err != nil {
 		if entry, recovered := portalIPAllowListEntryFromStatusOKSDKError(err); recovered {
 			if entry.ID == "" {
@@ -3111,7 +3105,7 @@ func (c *Client) UpdatePortalIPAllowList(
 		PortalID:                        portalID,
 		ID:                              id,
 		UpdatePortalSourceIPRestriction: &req,
-	}, c.retryOpts...)
+	})
 	if err != nil {
 		if entry, recovered := portalIPAllowListEntryFromStatusOKSDKError(err); recovered {
 			if entry.ID == "" {
@@ -3142,7 +3136,7 @@ func (c *Client) DeletePortalIPAllowList(ctx context.Context, portalID string, i
 		return err
 	}
 
-	_, err := c.portalIPAllowListAPI.DeletePortalIPAllowList(ctx, portalID, id, c.retryOpts...)
+	_, err := c.portalIPAllowListAPI.DeletePortalIPAllowList(ctx, portalID, id)
 	if err != nil {
 		return WrapAPIError(err, "delete portal IP allow list", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalIPAllowList),
@@ -3179,7 +3173,7 @@ func (c *Client) GetPortalIntegrations(ctx context.Context, portalID string) (*k
 		logger.Debug("fetching portal integrations", "portal_id", portalID)
 	}
 
-	resp, err := c.portalIntegrationsAPI.GetPortalIntegrations(ctx, portalID, c.retryOpts...)
+	resp, err := c.portalIntegrationsAPI.GetPortalIntegrations(ctx, portalID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get portal integrations", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalIntegration),
@@ -3217,7 +3211,6 @@ func (c *Client) UpsertPortalIntegrations(
 		ctx,
 		portalID,
 		&integrations,
-		c.retryOpts...,
 	); err != nil {
 		return WrapAPIError(err, "upsert portal integrations", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalIntegration),
@@ -3237,7 +3230,6 @@ func (c *Client) ListPortalIdentityProviders(ctx context.Context, portalID strin
 	resp, err := c.portalIdentityProviderAPI.ListPortalIdentityProviders(
 		ctx,
 		kkOps.GetPortalIdentityProvidersRequest{PortalID: portalID},
-		c.retryOpts...,
 	)
 	if err != nil {
 		return nil, WrapAPIError(
@@ -3269,7 +3261,7 @@ func (c *Client) GetPortalIdentityProvider(
 		return nil, err
 	}
 
-	resp, err := c.portalIdentityProviderAPI.GetPortalIdentityProvider(ctx, portalID, id, c.retryOpts...)
+	resp, err := c.portalIdentityProviderAPI.GetPortalIdentityProvider(ctx, portalID, id)
 	if err != nil {
 		var notFound *kkErrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -3304,7 +3296,7 @@ func (c *Client) CreatePortalIdentityProvider(
 		return "", err
 	}
 
-	resp, err := c.portalIdentityProviderAPI.CreatePortalIdentityProvider(ctx, portalID, body, c.retryOpts...)
+	resp, err := c.portalIdentityProviderAPI.CreatePortalIdentityProvider(ctx, portalID, body)
 	if err != nil {
 		resourceName := portalIdentityProviderName(body)
 		return "", WrapAPIError(
@@ -3340,7 +3332,6 @@ func (c *Client) UpdatePortalIdentityProvider(
 	_, err := c.portalIdentityProviderAPI.UpdatePortalIdentityProvider(
 		ctx,
 		kkOps.UpdatePortalIdentityProviderRequest{PortalID: portalID, ID: id, UpdateIdentityProvider: body},
-		c.retryOpts...,
 	)
 	if err != nil {
 		return WrapAPIError(
@@ -3363,7 +3354,7 @@ func (c *Client) DeletePortalIdentityProvider(ctx context.Context, portalID stri
 		return err
 	}
 
-	_, err := c.portalIdentityProviderAPI.DeletePortalIdentityProvider(ctx, portalID, id, c.retryOpts...)
+	_, err := c.portalIdentityProviderAPI.DeletePortalIdentityProvider(ctx, portalID, id)
 	if err != nil {
 		return WrapAPIError(
 			err,
@@ -3404,7 +3395,7 @@ func (c *Client) GetPortalEmailConfig(ctx context.Context, portalID string) (*kk
 		return nil, err
 	}
 
-	resp, err := c.portalEmailsAPI.GetEmailConfig(ctx, portalID, c.retryOpts...)
+	resp, err := c.portalEmailsAPI.GetEmailConfig(ctx, portalID)
 	if err != nil {
 		var notFound *kkErrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -3430,7 +3421,7 @@ func (c *Client) CreatePortalEmailConfig(
 		return "", err
 	}
 
-	resp, err := c.portalEmailsAPI.CreatePortalEmailConfig(ctx, portalID, body, c.retryOpts...)
+	resp, err := c.portalEmailsAPI.CreatePortalEmailConfig(ctx, portalID, body)
 	if err != nil {
 		return "", WrapAPIError(err, "create portal email config", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalEmailConfig),
@@ -3454,7 +3445,7 @@ func (c *Client) UpdatePortalEmailConfig(
 		return "", err
 	}
 
-	resp, err := c.portalEmailsAPI.UpdatePortalEmailConfig(ctx, portalID, body, c.retryOpts...)
+	resp, err := c.portalEmailsAPI.UpdatePortalEmailConfig(ctx, portalID, body)
 	if err != nil {
 		return "", WrapAPIError(err, "update portal email config", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalEmailConfig),
@@ -3474,7 +3465,7 @@ func (c *Client) DeletePortalEmailConfig(ctx context.Context, portalID string) e
 		return err
 	}
 
-	if _, err := c.portalEmailsAPI.DeletePortalEmailConfig(ctx, portalID, c.retryOpts...); err != nil {
+	if _, err := c.portalEmailsAPI.DeletePortalEmailConfig(ctx, portalID); err != nil {
 		return WrapAPIError(err, "delete portal email config", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalEmailConfig),
 			ResourceName: portalID,
@@ -3522,7 +3513,7 @@ func (c *Client) GetPortalAuditLogWebhook(
 		return nil, err
 	}
 
-	resp, err := c.portalAuditLogsAPI.GetPortalAuditLogWebhook(ctx, portalID, c.retryOpts...)
+	resp, err := c.portalAuditLogsAPI.GetPortalAuditLogWebhook(ctx, portalID)
 	if err != nil {
 		var notFound *kkErrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -3548,7 +3539,7 @@ func (c *Client) UpdatePortalAuditLogWebhook(
 		return "", err
 	}
 
-	resp, err := c.portalAuditLogsAPI.UpdatePortalAuditLogWebhook(ctx, portalID, body, c.retryOpts...)
+	resp, err := c.portalAuditLogsAPI.UpdatePortalAuditLogWebhook(ctx, portalID, body)
 	if err != nil {
 		return "", WrapAPIError(err, "update portal audit-log webhook", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalAuditLogWebhook),
@@ -3568,7 +3559,7 @@ func (c *Client) DeletePortalAuditLogWebhook(ctx context.Context, portalID strin
 		return err
 	}
 
-	if _, err := c.portalAuditLogsAPI.DeletePortalAuditLogWebhook(ctx, portalID, c.retryOpts...); err != nil {
+	if _, err := c.portalAuditLogsAPI.DeletePortalAuditLogWebhook(ctx, portalID); err != nil {
 		return WrapAPIError(err, "delete portal audit-log webhook", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalAuditLogWebhook),
 			ResourceName: portalID,
@@ -3583,7 +3574,7 @@ func (c *Client) ListPortalCustomEmailTemplates(ctx context.Context, portalID st
 		return nil, err
 	}
 
-	resp, err := c.portalEmailsAPI.ListPortalCustomEmailTemplates(ctx, portalID, c.retryOpts...)
+	resp, err := c.portalEmailsAPI.ListPortalCustomEmailTemplates(ctx, portalID)
 	if err != nil {
 		return nil, WrapAPIError(err, "list portal email templates", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
@@ -3612,7 +3603,7 @@ func (c *Client) GetPortalCustomEmailTemplate(
 		return nil, err
 	}
 
-	resp, err := c.portalEmailsAPI.GetPortalCustomEmailTemplate(ctx, portalID, name, c.retryOpts...)
+	resp, err := c.portalEmailsAPI.GetPortalCustomEmailTemplate(ctx, portalID, name)
 	if err != nil {
 		var notFound *kkErrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -3650,7 +3641,7 @@ func (c *Client) UpdatePortalEmailTemplate(
 		PatchCustomPortalEmailTemplatePayload: payload,
 	}
 
-	resp, err := c.portalEmailsAPI.UpdatePortalCustomEmailTemplate(ctx, req, c.retryOpts...)
+	resp, err := c.portalEmailsAPI.UpdatePortalCustomEmailTemplate(ctx, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update portal email template", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
@@ -3676,7 +3667,7 @@ func (c *Client) DeletePortalEmailTemplate(
 		return err
 	}
 
-	if _, err := c.portalEmailsAPI.DeletePortalCustomEmailTemplate(ctx, portalID, name, c.retryOpts...); err != nil {
+	if _, err := c.portalEmailsAPI.DeletePortalCustomEmailTemplate(ctx, portalID, name); err != nil {
 		return WrapAPIError(err, "delete portal email template", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
 			ResourceName: string(name),
@@ -3715,7 +3706,7 @@ func (c *Client) GetPortalCustomization(
 		return nil, fmt.Errorf("portal customization API not configured")
 	}
 
-	resp, err := c.portalCustomizationAPI.GetPortalCustomization(ctx, portalID, c.retryOpts...)
+	resp, err := c.portalCustomizationAPI.GetPortalCustomization(ctx, portalID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get portal customization: %w", err)
 	}
@@ -3737,7 +3728,7 @@ func (c *Client) UpdatePortalCustomization(
 		return fmt.Errorf("portal customization API not configured")
 	}
 
-	_, err := c.portalCustomizationAPI.UpdatePortalCustomization(ctx, portalID, &customization, c.retryOpts...)
+	_, err := c.portalCustomizationAPI.UpdatePortalCustomization(ctx, portalID, &customization)
 	if err != nil {
 		return fmt.Errorf("failed to update portal customization: %w", err)
 	}
@@ -3750,7 +3741,7 @@ func (c *Client) GetPortalAssetLogo(ctx context.Context, portalID string) (strin
 		return "", fmt.Errorf("assets API not configured")
 	}
 
-	resp, err := c.assetsAPI.GetPortalAssetLogo(ctx, portalID, c.retryOpts...)
+	resp, err := c.assetsAPI.GetPortalAssetLogo(ctx, portalID)
 	if err != nil {
 		return "", WrapAPIError(err, "get portal logo", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalAssetLogo),
@@ -3776,7 +3767,7 @@ func (c *Client) ReplacePortalAssetLogo(ctx context.Context, portalID, dataURL s
 		Data: dataURL,
 	}
 
-	_, err := c.assetsAPI.ReplacePortalAssetLogo(ctx, portalID, req, c.retryOpts...)
+	_, err := c.assetsAPI.ReplacePortalAssetLogo(ctx, portalID, req)
 	if err != nil {
 		return WrapAPIError(err, "replace portal logo", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalAssetLogo),
@@ -3794,7 +3785,7 @@ func (c *Client) GetPortalAssetFavicon(ctx context.Context, portalID string) (st
 		return "", fmt.Errorf("assets API not configured")
 	}
 
-	resp, err := c.assetsAPI.GetPortalAssetFavicon(ctx, portalID, c.retryOpts...)
+	resp, err := c.assetsAPI.GetPortalAssetFavicon(ctx, portalID)
 	if err != nil {
 		return "", WrapAPIError(err, "get portal favicon", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalAssetFavicon),
@@ -3820,7 +3811,7 @@ func (c *Client) ReplacePortalAssetFavicon(ctx context.Context, portalID, dataUR
 		Data: dataURL,
 	}
 
-	_, err := c.assetsAPI.ReplacePortalAssetFavicon(ctx, portalID, req, c.retryOpts...)
+	_, err := c.assetsAPI.ReplacePortalAssetFavicon(ctx, portalID, req)
 	if err != nil {
 		return WrapAPIError(err, "replace portal favicon", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalAssetFavicon),
@@ -3838,7 +3829,7 @@ func (c *Client) GetPortalCustomDomain(ctx context.Context, portalID string) (*P
 		return nil, err
 	}
 
-	resp, err := c.portalCustomDomainAPI.GetPortalCustomDomain(ctx, portalID, c.retryOpts...)
+	resp, err := c.portalCustomDomainAPI.GetPortalCustomDomain(ctx, portalID)
 	if err != nil {
 		var notFound *kkErrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -3893,7 +3884,7 @@ func (c *Client) CreatePortalCustomDomain(
 		return fmt.Errorf("portal custom domain API not configured")
 	}
 
-	_, err := c.portalCustomDomainAPI.CreatePortalCustomDomain(ctx, portalID, req, c.retryOpts...)
+	_, err := c.portalCustomDomainAPI.CreatePortalCustomDomain(ctx, portalID, req)
 	if err != nil {
 		return fmt.Errorf("failed to create portal custom domain: %w", err)
 	}
@@ -3910,7 +3901,7 @@ func (c *Client) UpdatePortalCustomDomain(
 		return fmt.Errorf("portal custom domain API not configured")
 	}
 
-	_, err := c.portalCustomDomainAPI.UpdatePortalCustomDomain(ctx, portalID, req, c.retryOpts...)
+	_, err := c.portalCustomDomainAPI.UpdatePortalCustomDomain(ctx, portalID, req)
 	if err != nil {
 		return fmt.Errorf("failed to update portal custom domain: %w", err)
 	}
@@ -3923,7 +3914,7 @@ func (c *Client) DeletePortalCustomDomain(ctx context.Context, portalID string) 
 		return fmt.Errorf("portal custom domain API not configured")
 	}
 
-	_, err := c.portalCustomDomainAPI.DeletePortalCustomDomain(ctx, portalID, c.retryOpts...)
+	_, err := c.portalCustomDomainAPI.DeletePortalCustomDomain(ctx, portalID)
 	if err != nil {
 		return fmt.Errorf("failed to delete portal custom domain: %w", err)
 	}
@@ -3943,7 +3934,7 @@ func (c *Client) ListManagedPortalPages(ctx context.Context, portalID string) ([
 		PortalID: portalID,
 	}
 
-	resp, err := c.portalPageAPI.ListPortalPages(ctx, req, c.retryOpts...)
+	resp, err := c.portalPageAPI.ListPortalPages(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list portal pages: %w", err)
 	}
@@ -3997,7 +3988,7 @@ func (c *Client) GetPortalPage(ctx context.Context, portalID string, pageID stri
 		return nil, fmt.Errorf("portal page API not configured")
 	}
 
-	resp, err := c.portalPageAPI.GetPortalPage(ctx, portalID, pageID, c.retryOpts...)
+	resp, err := c.portalPageAPI.GetPortalPage(ctx, portalID, pageID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get portal page: %w", err)
 	}
@@ -4043,7 +4034,7 @@ func (c *Client) CreatePortalPage(
 		return "", fmt.Errorf("portal page API not configured")
 	}
 
-	resp, err := c.portalPageAPI.CreatePortalPage(ctx, portalID, req, c.retryOpts...)
+	resp, err := c.portalPageAPI.CreatePortalPage(ctx, portalID, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create portal page: %w", err)
 	}
@@ -4072,7 +4063,7 @@ func (c *Client) UpdatePortalPage(
 		UpdatePortalPageRequest: req,
 	}
 
-	_, err := c.portalPageAPI.UpdatePortalPage(ctx, updateReq, c.retryOpts...)
+	_, err := c.portalPageAPI.UpdatePortalPage(ctx, updateReq)
 	if err != nil {
 		return fmt.Errorf("failed to update portal page: %w", err)
 	}
@@ -4085,7 +4076,7 @@ func (c *Client) DeletePortalPage(ctx context.Context, portalID string, pageID s
 		return fmt.Errorf("portal page API not configured")
 	}
 
-	_, err := c.portalPageAPI.DeletePortalPage(ctx, portalID, pageID, c.retryOpts...)
+	_, err := c.portalPageAPI.DeletePortalPage(ctx, portalID, pageID)
 	if err != nil {
 		return fmt.Errorf("failed to delete portal page: %w", err)
 	}
@@ -4111,7 +4102,7 @@ func (c *Client) ListPortalSnippets(ctx context.Context, portalID string) ([]Por
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.portalSnippetAPI.ListPortalSnippets(ctx, req, c.retryOpts...)
+		resp, err := c.portalSnippetAPI.ListPortalSnippets(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list portal snippets: %w", err)
 		}
@@ -4161,7 +4152,7 @@ func (c *Client) GetPortalSnippet(ctx context.Context, portalID string, snippetI
 		return nil, fmt.Errorf("portal snippet API not configured")
 	}
 
-	resp, err := c.portalSnippetAPI.GetPortalSnippet(ctx, portalID, snippetID, c.retryOpts...)
+	resp, err := c.portalSnippetAPI.GetPortalSnippet(ctx, portalID, snippetID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get portal snippet: %w", err)
 	}
@@ -4203,7 +4194,7 @@ func (c *Client) CreatePortalSnippet(
 		return "", fmt.Errorf("portal snippet API not configured")
 	}
 
-	resp, err := c.portalSnippetAPI.CreatePortalSnippet(ctx, portalID, req, c.retryOpts...)
+	resp, err := c.portalSnippetAPI.CreatePortalSnippet(ctx, portalID, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create portal snippet: %w", err)
 	}
@@ -4232,7 +4223,7 @@ func (c *Client) UpdatePortalSnippet(
 		UpdatePortalSnippetRequest: req,
 	}
 
-	_, err := c.portalSnippetAPI.UpdatePortalSnippet(ctx, updateReq, c.retryOpts...)
+	_, err := c.portalSnippetAPI.UpdatePortalSnippet(ctx, updateReq)
 	if err != nil {
 		return fmt.Errorf("failed to update portal snippet: %w", err)
 	}
@@ -4245,7 +4236,7 @@ func (c *Client) DeletePortalSnippet(ctx context.Context, portalID string, snipp
 		return fmt.Errorf("portal snippet API not configured")
 	}
 
-	_, err := c.portalSnippetAPI.DeletePortalSnippet(ctx, portalID, snippetID, c.retryOpts...)
+	_, err := c.portalSnippetAPI.DeletePortalSnippet(ctx, portalID, snippetID)
 	if err != nil {
 		return fmt.Errorf("failed to delete portal snippet: %w", err)
 	}
@@ -4271,7 +4262,7 @@ func (c *Client) ListPortalTeams(ctx context.Context, portalID string) ([]Portal
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.portalTeamAPI.ListPortalTeams(ctx, req, c.retryOpts...)
+		resp, err := c.portalTeamAPI.ListPortalTeams(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list portal teams", &ErrorWrapperOptions{
 				ResourceType: string(resources.ResourceTypePortalTeam),
@@ -4327,7 +4318,7 @@ func (c *Client) CreatePortalTeam(
 		return "", fmt.Errorf("portal team API not configured")
 	}
 
-	resp, err := c.portalTeamAPI.CreatePortalTeam(ctx, portalID, &req, c.retryOpts...)
+	resp, err := c.portalTeamAPI.CreatePortalTeam(ctx, portalID, &req)
 	if err != nil {
 		return "", WrapAPIError(err, "create portal team", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalTeam),
@@ -4367,7 +4358,7 @@ func (c *Client) UpdatePortalTeam(
 		PortalUpdateTeamRequest: &req,
 	}
 
-	_, err := c.portalTeamAPI.UpdatePortalTeam(ctx, updateReq, c.retryOpts...)
+	_, err := c.portalTeamAPI.UpdatePortalTeam(ctx, updateReq)
 	if err != nil {
 		teamName := ""
 		if req.Name != nil {
@@ -4390,7 +4381,7 @@ func (c *Client) DeletePortalTeam(ctx context.Context, portalID string, teamID s
 		return fmt.Errorf("portal team API not configured")
 	}
 
-	_, err := c.portalTeamAPI.DeletePortalTeam(ctx, teamID, portalID, c.retryOpts...)
+	_, err := c.portalTeamAPI.DeletePortalTeam(ctx, teamID, portalID)
 	if err != nil {
 		return WrapAPIError(err, "delete portal team", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalTeam),
@@ -4414,7 +4405,7 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.portalTeamRolesAPI.ListPortalTeamRoles(ctx, req, c.retryOpts...)
+		resp, err := c.portalTeamRolesAPI.ListPortalTeamRoles(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list portal team roles", &ErrorWrapperOptions{
 				ResourceType: string(resources.ResourceTypePortalTeamRole),
@@ -4466,7 +4457,7 @@ func (c *Client) AssignPortalTeamRole(
 		PortalAssignRoleRequest: &req,
 	}
 
-	resp, err := c.portalTeamRolesAPI.AssignRoleToPortalTeams(ctx, assignReq, c.retryOpts...)
+	resp, err := c.portalTeamRolesAPI.AssignRoleToPortalTeams(ctx, assignReq)
 	if err != nil {
 		roleName := req.RoleName
 		return "", WrapAPIError(err, "assign portal team role", &ErrorWrapperOptions{
@@ -4496,7 +4487,7 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 		RoleID:   roleID,
 	}
 
-	_, err := c.portalTeamRolesAPI.RemoveRoleFromPortalTeam(ctx, removeReq, c.retryOpts...)
+	_, err := c.portalTeamRolesAPI.RemoveRoleFromPortalTeam(ctx, removeReq)
 	if err != nil {
 		return WrapAPIError(err, "remove portal team role", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypePortalTeamRole),
@@ -4850,7 +4841,7 @@ func (c *Client) GetOrganizationSystemAccount(
 		return nil, err
 	}
 
-	resp, err := c.systemAccountAPI.GetSystemAccount(ctx, accountID, c.retryOpts...)
+	resp, err := c.systemAccountAPI.GetSystemAccount(ctx, accountID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get organization system account", &ErrorWrapperOptions{
 			ResourceType: "organization_system_account",
@@ -4879,7 +4870,7 @@ func (c *Client) ListOrganizationSystemAccounts(ctx context.Context) ([]Organiza
 		resp, err := c.systemAccountAPI.ListSystemAccounts(ctx, kkOps.GetSystemAccountsRequest{
 			PageSize:   ptrInt64(pageSize),
 			PageNumber: ptrInt64(pageNumber),
-		}, c.retryOpts...)
+		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization system accounts", &ErrorWrapperOptions{
 				ResourceType: "organization_system_account",
@@ -5084,7 +5075,7 @@ func (c *Client) ListManagedEventGatewayControlPlanes(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := c.egwControlPlaneAPI.ListEGWControlPlanes(ctx, req, c.retryOpts...)
+		res, err := c.egwControlPlaneAPI.ListEGWControlPlanes(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway control planes", nil)
 		}
@@ -5124,7 +5115,7 @@ func (c *Client) CreateEventGatewayControlPlane(
 	req kkComps.CreateGatewayRequest,
 	namespace string,
 ) (string, error) {
-	resp, err := c.egwControlPlaneAPI.CreateEGWControlPlane(ctx, req, c.retryOpts...)
+	resp, err := c.egwControlPlaneAPI.CreateEGWControlPlane(ctx, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway control plane", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
@@ -5147,7 +5138,7 @@ func (c *Client) UpdateEventGatewayControlPlane(
 	req kkComps.UpdateGatewayRequest,
 	namespace string,
 ) (string, error) {
-	resp, err := c.egwControlPlaneAPI.UpdateEGWControlPlane(ctx, id, req, c.retryOpts...)
+	resp, err := c.egwControlPlaneAPI.UpdateEGWControlPlane(ctx, id, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway control plane", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
@@ -5161,7 +5152,7 @@ func (c *Client) UpdateEventGatewayControlPlane(
 }
 
 func (c *Client) GetEventGatewayControlPlaneByID(ctx context.Context, id string) (*EventGatewayControlPlane, error) {
-	resp, err := c.egwControlPlaneAPI.FetchEGWControlPlane(ctx, id, c.retryOpts...)
+	resp, err := c.egwControlPlaneAPI.FetchEGWControlPlane(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway control plane by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
@@ -5212,7 +5203,7 @@ func (c *Client) GetEventGatewayControlPlaneByName(
 
 func (c *Client) DeleteEventGatewayControlPlane(ctx context.Context, id string) error {
 	// Placeholder for future implementation
-	_, err := c.egwControlPlaneAPI.DeleteEGWControlPlane(ctx, id, c.retryOpts...)
+	_, err := c.egwControlPlaneAPI.DeleteEGWControlPlane(ctx, id)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway control plane", nil)
 	}
@@ -5240,7 +5231,7 @@ func (c *Client) ListEventGatewayBackendClusters(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := c.eventGatewayBackendClusterAPI.ListEventGatewayBackendClusters(ctx, req, c.retryOpts...)
+		res, err := c.eventGatewayBackendClusterAPI.ListEventGatewayBackendClusters(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway backend clusters", nil)
 		}
@@ -5282,7 +5273,7 @@ func (c *Client) CreateEventGatewayBackendCluster(
 	req kkComps.CreateBackendClusterRequest,
 	namespace string,
 ) (string, error) {
-	resp, err := c.eventGatewayBackendClusterAPI.CreateEventGatewayBackendCluster(ctx, gatewayID, req, c.retryOpts...)
+	resp, err := c.eventGatewayBackendClusterAPI.CreateEventGatewayBackendCluster(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway backend cluster", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
@@ -5307,8 +5298,7 @@ func (c *Client) GetEventGatewayBackendCluster(
 	resp, err := c.eventGatewayBackendClusterAPI.FetchEventGatewayBackendCluster(
 		ctx,
 		gatewayID,
-		clusterID,
-		c.retryOpts...)
+		clusterID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway backend cluster by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
@@ -5367,8 +5357,7 @@ func (c *Client) UpdateEventGatewayBackendCluster(
 		ctx,
 		gatewayID,
 		clusterID,
-		req,
-		c.retryOpts...)
+		req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway backend cluster", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
@@ -5389,8 +5378,7 @@ func (c *Client) DeleteEventGatewayBackendCluster(
 	_, err := c.eventGatewayBackendClusterAPI.DeleteEventGatewayBackendCluster(
 		ctx,
 		gatewayID,
-		clusterID,
-		c.retryOpts...)
+		clusterID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway backend cluster", nil)
 	}
@@ -5409,7 +5397,7 @@ func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.organizationTeamAPI.ListOrganizationTeams(ctx, req, c.retryOpts...)
+		resp, err := c.organizationTeamAPI.ListOrganizationTeams(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list teams", nil)
 		}
@@ -5455,7 +5443,7 @@ func (c *Client) GetOrganizationTeamByNameUnfiltered(ctx context.Context, name s
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.organizationTeamAPI.ListOrganizationTeams(ctx, req, c.retryOpts...)
+		resp, err := c.organizationTeamAPI.ListOrganizationTeams(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list teams", nil)
 		}
@@ -5517,7 +5505,7 @@ func (c *Client) GetOrganizationTeamByName(ctx context.Context, name string) (*O
 }
 
 func (c *Client) GetOrganizationTeamByID(ctx context.Context, id string) (*OrganizationTeam, error) {
-	resp, err := c.organizationTeamAPI.GetOrganizationTeam(ctx, id, c.retryOpts...)
+	resp, err := c.organizationTeamAPI.GetOrganizationTeam(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get team by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeTeam),
@@ -5546,7 +5534,7 @@ func (c *Client) GetOrganizationTeamByID(ctx context.Context, id string) (*Organ
 func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.CreateTeam,
 	namespace string,
 ) (string, error) {
-	resp, err := c.organizationTeamAPI.CreateOrganizationTeam(ctx, team, c.retryOpts...)
+	resp, err := c.organizationTeamAPI.CreateOrganizationTeam(ctx, team)
 	if err != nil {
 		return "", WrapAPIError(err, "create organization team", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeOrganizationTeam),
@@ -5570,7 +5558,7 @@ func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.Creat
 func (c *Client) UpdateOrganizationTeam(ctx context.Context, teamID string,
 	team *kkComps.UpdateTeam, namespace string,
 ) (string, error) {
-	resp, err := c.organizationTeamAPI.UpdateOrganizationTeam(ctx, teamID, team, c.retryOpts...)
+	resp, err := c.organizationTeamAPI.UpdateOrganizationTeam(ctx, teamID, team)
 	if err != nil {
 		return "", WrapAPIError(err, "update organization team", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeOrganizationTeam),
@@ -5592,7 +5580,7 @@ func (c *Client) UpdateOrganizationTeam(ctx context.Context, teamID string,
 }
 
 func (c *Client) DeleteOrganizationTeam(ctx context.Context, teamID string) error {
-	_, err := c.organizationTeamAPI.DeleteOrganizationTeam(ctx, teamID, c.retryOpts...)
+	_, err := c.organizationTeamAPI.DeleteOrganizationTeam(ctx, teamID)
 	if err != nil {
 		return WrapAPIError(err, "delete organization team", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeOrganizationTeam),
@@ -5661,7 +5649,7 @@ func (c *Client) ListEventGatewayVirtualClusters(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := c.eventGatewayVirtualClusterAPI.ListEventGatewayVirtualClusters(ctx, req, c.retryOpts...)
+		res, err := c.eventGatewayVirtualClusterAPI.ListEventGatewayVirtualClusters(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway virtual clusters", nil)
 		}
@@ -5703,7 +5691,7 @@ func (c *Client) CreateEventGatewayVirtualCluster(
 	req kkComps.CreateVirtualClusterRequest,
 	namespace string,
 ) (string, error) {
-	resp, err := c.eventGatewayVirtualClusterAPI.CreateEventGatewayVirtualCluster(ctx, gatewayID, req, c.retryOpts...)
+	resp, err := c.eventGatewayVirtualClusterAPI.CreateEventGatewayVirtualCluster(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway virtual cluster", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
@@ -5728,8 +5716,7 @@ func (c *Client) GetEventGatewayVirtualCluster(
 	resp, err := c.eventGatewayVirtualClusterAPI.FetchEventGatewayVirtualCluster(
 		ctx,
 		gatewayID,
-		clusterID,
-		c.retryOpts...)
+		clusterID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway virtual cluster by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
@@ -5786,8 +5773,7 @@ func (c *Client) UpdateEventGatewayVirtualCluster(
 		ctx,
 		gatewayID,
 		clusterID,
-		req,
-		c.retryOpts...)
+		req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway virtual cluster", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
@@ -5808,8 +5794,7 @@ func (c *Client) DeleteEventGatewayVirtualCluster(
 	_, err := c.eventGatewayVirtualClusterAPI.DeleteEventGatewayVirtualCluster(
 		ctx,
 		gatewayID,
-		clusterID,
-		c.retryOpts...)
+		clusterID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway virtual cluster", nil)
 	}
@@ -5839,7 +5824,7 @@ func (c *Client) ListEventGatewayListeners(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := c.eventGatewayListenerAPI.ListEventGatewayListeners(ctx, req, c.retryOpts...)
+		res, err := c.eventGatewayListenerAPI.ListEventGatewayListeners(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway listeners", nil)
 		}
@@ -5881,7 +5866,7 @@ func (c *Client) CreateEventGatewayListener(
 	req kkComps.CreateEventGatewayListenerRequest,
 	namespace string,
 ) (string, error) {
-	resp, err := c.eventGatewayListenerAPI.CreateEventGatewayListener(ctx, gatewayID, req, c.retryOpts...)
+	resp, err := c.eventGatewayListenerAPI.CreateEventGatewayListener(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway listener", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayListener),
@@ -5903,7 +5888,7 @@ func (c *Client) GetEventGatewayListener(
 	gatewayID string,
 	listenerID string,
 ) (*EventGatewayListener, error) {
-	resp, err := c.eventGatewayListenerAPI.FetchEventGatewayListener(ctx, gatewayID, listenerID, c.retryOpts...)
+	resp, err := c.eventGatewayListenerAPI.FetchEventGatewayListener(ctx, gatewayID, listenerID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway listener by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayListener),
@@ -5936,7 +5921,7 @@ func (c *Client) UpdateEventGatewayListener(
 	req kkComps.UpdateEventGatewayListenerRequest,
 	namespace string,
 ) (string, error) {
-	resp, err := c.eventGatewayListenerAPI.UpdateEventGatewayListener(ctx, gatewayID, listenerID, req, c.retryOpts...)
+	resp, err := c.eventGatewayListenerAPI.UpdateEventGatewayListener(ctx, gatewayID, listenerID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway listener", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayListener),
@@ -5954,7 +5939,7 @@ func (c *Client) DeleteEventGatewayListener(
 	gatewayID string,
 	listenerID string,
 ) error {
-	_, err := c.eventGatewayListenerAPI.DeleteEventGatewayListener(ctx, gatewayID, listenerID, c.retryOpts...)
+	_, err := c.eventGatewayListenerAPI.DeleteEventGatewayListener(ctx, gatewayID, listenerID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway listener", nil)
 	}
@@ -6000,7 +5985,7 @@ func (c *Client) ListEventGatewayListenerPolicies(
 		ListenerID: listenerID,
 	}
 
-	res, err := c.eventGatewayListenerPolicyAPI.ListEventGatewayListenerPolicies(ctx, req, c.retryOpts...)
+	res, err := c.eventGatewayListenerPolicyAPI.ListEventGatewayListenerPolicies(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateway listener policies", nil)
 	}
@@ -6054,7 +6039,7 @@ func (c *Client) CreateEventGatewayListenerPolicy(
 		EventGatewayListenerPolicyCreate: req,
 	}
 
-	resp, err := c.eventGatewayListenerPolicyAPI.CreateEventGatewayListenerPolicy(ctx, createReq, c.retryOpts...)
+	resp, err := c.eventGatewayListenerPolicyAPI.CreateEventGatewayListenerPolicy(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway listener policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayListenerPolicy),
@@ -6085,7 +6070,7 @@ func (c *Client) UpdateEventGatewayListenerPolicy(
 		EventGatewayListenerPolicyUpdate: req,
 	}
 
-	resp, err := c.eventGatewayListenerPolicyAPI.UpdateEventGatewayListenerPolicy(ctx, updateReq, c.retryOpts...)
+	resp, err := c.eventGatewayListenerPolicyAPI.UpdateEventGatewayListenerPolicy(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway listener policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayListenerPolicy),
@@ -6109,7 +6094,7 @@ func (c *Client) DeleteEventGatewayListenerPolicy(
 		PolicyID:   policyID,
 	}
 
-	_, err := c.eventGatewayListenerPolicyAPI.DeleteEventGatewayListenerPolicy(ctx, deleteReq, c.retryOpts...)
+	_, err := c.eventGatewayListenerPolicyAPI.DeleteEventGatewayListenerPolicy(ctx, deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway listener policy", nil)
 	}
@@ -6128,7 +6113,7 @@ func (c *Client) GetEventGatewayListenerPolicy(
 		PolicyID:   policyID,
 	}
 
-	resp, err := c.eventGatewayListenerPolicyAPI.GetEventGatewayListenerPolicy(ctx, req, c.retryOpts...)
+	resp, err := c.eventGatewayListenerPolicyAPI.GetEventGatewayListenerPolicy(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway listener policy", nil)
 	}
@@ -6187,8 +6172,7 @@ func (c *Client) ListEventGatewayClusterPolicies(
 
 	res, err := c.eventGatewayClusterPolicyAPI.ListEventGatewayVirtualClusterClusterLevelPolicies(
 		ctx,
-		req,
-		c.retryOpts...)
+		req)
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateway cluster policies", nil)
 	}
@@ -6244,8 +6228,7 @@ func (c *Client) CreateEventGatewayClusterPolicy(
 
 	resp, err := c.eventGatewayClusterPolicyAPI.CreateEventGatewayVirtualClusterClusterLevelPolicy(
 		ctx,
-		createReq,
-		c.retryOpts...)
+		createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway cluster policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayClusterPolicy),
@@ -6278,8 +6261,7 @@ func (c *Client) UpdateEventGatewayClusterPolicy(
 
 	resp, err := c.eventGatewayClusterPolicyAPI.UpdateEventGatewayVirtualClusterClusterLevelPolicy(
 		ctx,
-		updateReq,
-		c.retryOpts...)
+		updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway cluster policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayClusterPolicy),
@@ -6305,8 +6287,7 @@ func (c *Client) DeleteEventGatewayClusterPolicy(
 
 	_, err := c.eventGatewayClusterPolicyAPI.DeleteEventGatewayVirtualClusterClusterLevelPolicy(
 		ctx,
-		deleteReq,
-		c.retryOpts...)
+		deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway cluster policy", nil)
 	}
@@ -6327,8 +6308,7 @@ func (c *Client) GetEventGatewayClusterPolicy(
 
 	resp, err := c.eventGatewayClusterPolicyAPI.GetEventGatewayVirtualClusterClusterLevelPolicy(
 		ctx,
-		req,
-		c.retryOpts...)
+		req)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway cluster policy", nil)
 	}
@@ -6378,7 +6358,7 @@ func (c *Client) ListEventGatewayVirtualClusterProducePolicies(
 		VirtualClusterID: virtualClusterID,
 	}
 
-	res, err := c.eventGatewayProducePolicyAPI.ListEventGatewayVirtualClusterProducePolicies(ctx, req, c.retryOpts...)
+	res, err := c.eventGatewayProducePolicyAPI.ListEventGatewayVirtualClusterProducePolicies(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateway virtual cluster produce policies", nil)
 	}
@@ -6429,8 +6409,7 @@ func (c *Client) CreateEventGatewayVirtualClusterProducePolicy(
 
 	resp, err := c.eventGatewayProducePolicyAPI.CreateEventGatewayVirtualClusterProducePolicy(
 		ctx,
-		createReq,
-		c.retryOpts...)
+		createReq)
 	if err != nil {
 		name := extractProducePolicyCreateName(req)
 		return "", WrapAPIError(err, "create event gateway virtual cluster produce policy", &ErrorWrapperOptions{
@@ -6467,8 +6446,7 @@ func (c *Client) UpdateEventGatewayVirtualClusterProducePolicy(
 
 	resp, err := c.eventGatewayProducePolicyAPI.UpdateEventGatewayVirtualClusterProducePolicy(
 		ctx,
-		updateReq,
-		c.retryOpts...)
+		updateReq)
 	if err != nil {
 		name := extractProducePolicyUpdateName(req)
 		return "", WrapAPIError(err, "update event gateway virtual cluster produce policy", &ErrorWrapperOptions{
@@ -6496,8 +6474,7 @@ func (c *Client) DeleteEventGatewayVirtualClusterProducePolicy(
 
 	_, err := c.eventGatewayProducePolicyAPI.DeleteEventGatewayVirtualClusterProducePolicy(
 		ctx,
-		deleteReq,
-		c.retryOpts...)
+		deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway virtual cluster produce policy", nil)
 	}
@@ -6546,7 +6523,7 @@ func (c *Client) GetEventGatewayVirtualClusterProducePolicy(
 		PolicyID:         policyID,
 	}
 
-	resp, err := c.eventGatewayProducePolicyAPI.GetEventGatewayVirtualClusterProducePolicy(ctx, req, c.retryOpts...)
+	resp, err := c.eventGatewayProducePolicyAPI.GetEventGatewayVirtualClusterProducePolicy(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway virtual cluster produce policy", nil)
 	}
@@ -6601,7 +6578,7 @@ func (c *Client) ListEventGatewayConsumePolicies(
 		VirtualClusterID: virtualClusterID,
 	}
 
-	res, err := c.eventGatewayConsumePolicyAPI.ListEventGatewayVirtualClusterConsumePolicies(ctx, req, c.retryOpts...)
+	res, err := c.eventGatewayConsumePolicyAPI.ListEventGatewayVirtualClusterConsumePolicies(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateway consume policies", nil)
 	}
@@ -6657,8 +6634,7 @@ func (c *Client) CreateEventGatewayConsumePolicy(
 
 	resp, err := c.eventGatewayConsumePolicyAPI.CreateEventGatewayVirtualClusterConsumePolicy(
 		ctx,
-		createReq,
-		c.retryOpts...)
+		createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway consume policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
@@ -6691,8 +6667,7 @@ func (c *Client) UpdateEventGatewayConsumePolicy(
 
 	resp, err := c.eventGatewayConsumePolicyAPI.UpdateEventGatewayVirtualClusterConsumePolicy(
 		ctx,
-		updateReq,
-		c.retryOpts...)
+		updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway consume policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
@@ -6718,8 +6693,7 @@ func (c *Client) DeleteEventGatewayConsumePolicy(
 
 	_, err := c.eventGatewayConsumePolicyAPI.DeleteEventGatewayVirtualClusterConsumePolicy(
 		ctx,
-		deleteReq,
-		c.retryOpts...)
+		deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway consume policy", nil)
 	}
@@ -6738,7 +6712,7 @@ func (c *Client) GetEventGatewayConsumePolicy(
 		PolicyID:         policyID,
 	}
 
-	resp, err := c.eventGatewayConsumePolicyAPI.GetEventGatewayVirtualClusterConsumePolicy(ctx, req, c.retryOpts...)
+	resp, err := c.eventGatewayConsumePolicyAPI.GetEventGatewayVirtualClusterConsumePolicy(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway consume policy", nil)
 	}
@@ -6784,8 +6758,7 @@ func (c *Client) ListEventGatewayDataPlaneCertificates(
 
 		res, err := c.eventGatewayDataPlaneCertificateAPI.ListEventGatewayDataPlaneCertificates(
 			ctx,
-			req,
-			c.retryOpts...)
+			req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway data plane certificates", nil)
 		}
@@ -6830,8 +6803,7 @@ func (c *Client) CreateEventGatewayDataPlaneCertificate(
 	resp, err := c.eventGatewayDataPlaneCertificateAPI.CreateEventGatewayDataPlaneCertificate(
 		ctx,
 		gatewayID,
-		req,
-		c.retryOpts...)
+		req)
 	if err != nil {
 		name := ""
 		if req.Name != nil {
@@ -6859,7 +6831,7 @@ func (c *Client) GetEventGatewayDataPlaneCertificate(
 	certificateID string,
 ) (*EventGatewayDataPlaneCertificate, error) {
 	resp, err := c.eventGatewayDataPlaneCertificateAPI.FetchEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID, c.retryOpts...)
+		ctx, gatewayID, certificateID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway data plane certificate by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayDataPlaneCertificate),
@@ -6884,7 +6856,7 @@ func (c *Client) UpdateEventGatewayDataPlaneCertificate(
 	namespace string,
 ) (string, error) {
 	resp, err := c.eventGatewayDataPlaneCertificateAPI.UpdateEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID, req, c.retryOpts...)
+		ctx, gatewayID, certificateID, req)
 	if err != nil {
 		name := ""
 		if req.Name != nil {
@@ -6907,7 +6879,7 @@ func (c *Client) DeleteEventGatewayDataPlaneCertificate(
 	certificateID string,
 ) error {
 	_, err := c.eventGatewayDataPlaneCertificateAPI.DeleteEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID, c.retryOpts...)
+		ctx, gatewayID, certificateID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway data plane certificate", nil)
 	}
@@ -6937,7 +6909,7 @@ func (c *Client) ListEventGatewaySchemaRegistries(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := c.eventGatewaySchemaRegistryAPI.ListEventGatewaySchemaRegistries(ctx, req, c.retryOpts...)
+		res, err := c.eventGatewaySchemaRegistryAPI.ListEventGatewaySchemaRegistries(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway schema registries", nil)
 		}
@@ -7012,8 +6984,7 @@ func (c *Client) GetEventGatewaySchemaRegistryByID(
 	resp, err := c.eventGatewaySchemaRegistryAPI.GetEventGatewaySchemaRegistry(
 		ctx,
 		gatewayID,
-		schemaRegistryID,
-		c.retryOpts...)
+		schemaRegistryID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway schema registry", nil)
 	}
@@ -7060,7 +7031,7 @@ func (c *Client) CreateEventGatewaySchemaRegistry(
 	req kkComps.SchemaRegistryCreate,
 	_ string, // namespace (not applicable to schema registry, which has no management labels)
 ) (string, error) {
-	resp, err := c.eventGatewaySchemaRegistryAPI.CreateEventGatewaySchemaRegistry(ctx, gatewayID, req, c.retryOpts...)
+	resp, err := c.eventGatewaySchemaRegistryAPI.CreateEventGatewaySchemaRegistry(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway schema registry", nil)
 	}
@@ -7081,7 +7052,7 @@ func (c *Client) UpdateEventGatewaySchemaRegistry(
 	_ string, // namespace
 ) (string, error) {
 	resp, err := c.eventGatewaySchemaRegistryAPI.UpdateEventGatewaySchemaRegistry(
-		ctx, gatewayID, schemaRegistryID, req, c.retryOpts...)
+		ctx, gatewayID, schemaRegistryID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway schema registry", nil)
 	}
@@ -7102,8 +7073,7 @@ func (c *Client) DeleteEventGatewaySchemaRegistry(
 	_, err := c.eventGatewaySchemaRegistryAPI.DeleteEventGatewaySchemaRegistry(
 		ctx,
 		gatewayID,
-		schemaRegistryID,
-		c.retryOpts...)
+		schemaRegistryID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway schema registry", nil)
 	}
@@ -7136,7 +7106,7 @@ func (c *Client) ListEventGatewayStaticKeys(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := c.eventGatewayStaticKeyAPI.ListEventGatewayStaticKeys(ctx, req, c.retryOpts...)
+		res, err := c.eventGatewayStaticKeyAPI.ListEventGatewayStaticKeys(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway static keys", nil)
 		}
@@ -7183,7 +7153,7 @@ func (c *Client) CreateEventGatewayStaticKey(
 		EventGatewayStaticKeyCreate: &req,
 	}
 
-	resp, err := c.eventGatewayStaticKeyAPI.CreateEventGatewayStaticKey(ctx, createReq, c.retryOpts...)
+	resp, err := c.eventGatewayStaticKeyAPI.CreateEventGatewayStaticKey(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway static key", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayStaticKey),
@@ -7214,7 +7184,7 @@ func (c *Client) GetEventGatewayStaticKey(
 		StaticKeyID: staticKeyID,
 	}
 
-	resp, err := c.eventGatewayStaticKeyAPI.GetEventGatewayStaticKey(ctx, req, c.retryOpts...)
+	resp, err := c.eventGatewayStaticKeyAPI.GetEventGatewayStaticKey(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway static key", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayStaticKey),
@@ -7244,7 +7214,7 @@ func (c *Client) DeleteEventGatewayStaticKey(
 		StaticKeyID: staticKeyID,
 	}
 
-	_, err := c.eventGatewayStaticKeyAPI.DeleteEventGatewayStaticKey(ctx, deleteReq, c.retryOpts...)
+	_, err := c.eventGatewayStaticKeyAPI.DeleteEventGatewayStaticKey(ctx, deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway static key", nil)
 	}
@@ -7279,7 +7249,7 @@ func (c *Client) ListEventGatewayTLSTrustBundles(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := c.eventGatewayTLSTrustBundleAPI.ListEventGatewayTLSTrustBundles(ctx, req, c.retryOpts...)
+		res, err := c.eventGatewayTLSTrustBundleAPI.ListEventGatewayTLSTrustBundles(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway TLS trust bundles", nil)
 		}
@@ -7329,7 +7299,7 @@ func (c *Client) CreateEventGatewayTLSTrustBundle(
 		CreateTLSTrustBundleRequest: req,
 	}
 
-	resp, err := c.eventGatewayTLSTrustBundleAPI.CreateEventGatewayTLSTrustBundle(ctx, createReq, c.retryOpts...)
+	resp, err := c.eventGatewayTLSTrustBundleAPI.CreateEventGatewayTLSTrustBundle(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway TLS trust bundle", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayTLSTrustBundle),
@@ -7360,7 +7330,7 @@ func (c *Client) GetEventGatewayTLSTrustBundle(
 		TLSTrustBundleID: bundleID,
 	}
 
-	resp, err := c.eventGatewayTLSTrustBundleAPI.GetEventGatewayTLSTrustBundle(ctx, req, c.retryOpts...)
+	resp, err := c.eventGatewayTLSTrustBundleAPI.GetEventGatewayTLSTrustBundle(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway TLS trust bundle", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayTLSTrustBundle),
@@ -7396,7 +7366,7 @@ func (c *Client) UpdateEventGatewayTLSTrustBundle(
 		UpdateTLSTrustBundleRequest: req,
 	}
 
-	resp, err := c.eventGatewayTLSTrustBundleAPI.UpdateEventGatewayTLSTrustBundle(ctx, updateReq, c.retryOpts...)
+	resp, err := c.eventGatewayTLSTrustBundleAPI.UpdateEventGatewayTLSTrustBundle(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway TLS trust bundle", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayTLSTrustBundle),
@@ -7426,7 +7396,7 @@ func (c *Client) DeleteEventGatewayTLSTrustBundle(
 		TLSTrustBundleID: bundleID,
 	}
 
-	_, err := c.eventGatewayTLSTrustBundleAPI.DeleteEventGatewayTLSTrustBundle(ctx, deleteReq, c.retryOpts...)
+	_, err := c.eventGatewayTLSTrustBundleAPI.DeleteEventGatewayTLSTrustBundle(ctx, deleteReq)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway TLS trust bundle", nil)
 	}
