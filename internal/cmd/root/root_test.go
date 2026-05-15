@@ -119,6 +119,78 @@ func TestOutputFlagHelpVisibility(t *testing.T) {
 	}
 }
 
+func TestKonnectFirstHelpExamplesMatchExplicitTarget(t *testing.T) {
+	tests := []struct {
+		name         string
+		shorthand    []string
+		explicitForm []string
+	}{
+		{
+			name:         "apply",
+			shorthand:    []string{"apply", "--help"},
+			explicitForm: []string{"apply", "konnect", "--help"},
+		},
+		{
+			name:         "diff",
+			shorthand:    []string{"diff", "--help"},
+			explicitForm: []string{"diff", "konnect", "--help"},
+		},
+		{
+			name:         "plan",
+			shorthand:    []string{"plan", "--help"},
+			explicitForm: []string{"plan", "konnect", "--help"},
+		},
+		{
+			name:         "sync",
+			shorthand:    []string{"sync", "--help"},
+			explicitForm: []string{"sync", "konnect", "--help"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			shorthand := executeRootForTest(t, tt.shorthand...)
+			explicitForm := executeRootForTest(t, tt.explicitForm...)
+			if shorthand.exitCode != 0 || explicitForm.exitCode != 0 {
+				t.Fatalf("expected help commands to succeed\nshorthand:\n%s\n%s\nexplicit:\n%s\n%s",
+					shorthand.stdout, shorthand.stderr, explicitForm.stdout, explicitForm.stderr)
+			}
+
+			shorthandExamples := helpSectionForTest(t, shorthand.stdout, "Examples:")
+			explicitExamples := helpSectionForTest(t, explicitForm.stdout, "Examples:")
+			if shorthandExamples != explicitExamples {
+				t.Fatalf("expected shorthand and explicit examples to match\nshorthand:\n%s\nexplicit:\n%s",
+					shorthandExamples, explicitExamples)
+			}
+		})
+	}
+}
+
+func TestDeleteHelpUsesDeclarativeExamples(t *testing.T) {
+	result := executeRootForTest(t, "delete", "--help")
+	if result.exitCode != 0 {
+		t.Fatalf("expected delete help to succeed, got %d\nstdout:\n%s\nstderr:\n%s",
+			result.exitCode, result.stdout, result.stderr)
+	}
+
+	examples := helpSectionForTest(t, result.stdout, "Examples:")
+	for _, want := range []string{
+		"# Delete Konnect resources defined in declarative configuration",
+		"kongctl delete -f config.yaml",
+		"# Preview deletions before executing them",
+		"kongctl delete -f config.yaml --dry-run",
+		"# Execute a reviewed delete plan without prompting",
+		"kongctl delete --plan delete-plan.json --auto-approve",
+	} {
+		if !strings.Contains(examples, want) {
+			t.Fatalf("expected delete examples to contain %q\nexamples:\n%s", want, examples)
+		}
+	}
+	if strings.Contains(examples, "kongctl delete -f ./configs/ --recursive") {
+		t.Fatalf("expected delete examples not to contain stale recursive example\nexamples:\n%s", examples)
+	}
+}
+
 func TestRootApplyHelpShowsExamples(t *testing.T) {
 	oldRootCmd := rootCmd
 	t.Cleanup(func() {
@@ -695,6 +767,25 @@ func commandPathForTest(path []string) string {
 		return "kongctl"
 	}
 	return "kongctl " + strings.Join(path, " ")
+}
+
+func helpSectionForTest(t *testing.T, help, header string) string {
+	t.Helper()
+	start := strings.Index(help, header)
+	if start < 0 {
+		t.Fatalf("expected help to contain %q\nhelp:\n%s", header, help)
+	}
+	section := help[start:]
+	if end := strings.Index(section, "\n\nAvailable Commands:"); end >= 0 {
+		return strings.TrimSpace(section[:end])
+	}
+	if end := strings.Index(section, "\n\nFlags:"); end >= 0 {
+		return strings.TrimSpace(section[:end])
+	}
+	if end := strings.Index(section, "\n\nUse \""); end >= 0 {
+		return strings.TrimSpace(section[:end])
+	}
+	return strings.TrimSpace(section)
 }
 
 func firstAvailableChildName(command *cobra.Command) string {

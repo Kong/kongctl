@@ -11,7 +11,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
@@ -32,14 +31,6 @@ var (
 Deletes all resources defined in the declarative configuration files from Konnect.
 This is equivalent to running:
   kongctl plan --mode delete -f <files> | kongctl sync --plan -`))
-
-	deleteExamples = normalizers.Examples(i18n.T("root.verbs.delete.deleteExamples",
-		fmt.Sprintf(`
-		# Delete resources defined in declarative configuration
-		%[1]s delete -f config.yaml
-		%[1]s delete -f ./configs/ --recursive
-		%[1]s delete -f config.yaml --dry-run
-		`, meta.CLIName)))
 )
 
 func NewDeleteCmd() (*cobra.Command, error) {
@@ -55,7 +46,7 @@ func NewDeleteCmd() (*cobra.Command, error) {
 		Use:     deleteuse,
 		Short:   deleteShort,
 		Long:    deleteLong,
-		Example: deleteExamples,
+		Example: declDeleteCmd.Example,
 		Aliases: []string{"d", "D", "del", "rm", "DEL", "RM"},
 		// When -f is provided, run declarative delete; otherwise show help
 		RunE: func(c *cobra.Command, args []string) error {

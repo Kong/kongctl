@@ -10,7 +10,6 @@ import (
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
-	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
@@ -28,13 +27,6 @@ var (
 
 	planLong = normalizers.LongDesc(i18n.T("root.verbs.plan.planLong",
 		`Generate an execution plan showing what changes will be made to a set of declarative configurations.`))
-
-	planExamples = normalizers.Examples(i18n.T("root.verbs.plan.planExamples",
-		fmt.Sprintf(`  %[1]s plan -f api.yaml
-  %[1]s plan -f ./configs/ --recursive
-  %[1]s plan -f config.yaml --output-file plan.json
-
-Use "%[1]s help plan" for detailed documentation`, meta.CLIName)))
 )
 
 func NewPlanCmd() (*cobra.Command, error) {
@@ -48,7 +40,7 @@ func NewPlanCmd() (*cobra.Command, error) {
 		Use:     planUse,
 		Short:   planShort,
 		Long:    planLong,
-		Example: planExamples,
+		Example: konnectCmd.Example,
 		Args:    verbs.NoPositionalArgs,
 		// Use the konnect command's RunE directly for Konnect-first pattern
 		RunE: konnectCmd.RunE,
