@@ -1,10 +1,14 @@
 package loader
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 )
+
+// ErrNoSources is returned when no configuration sources are provided.
+var ErrNoSources = errors.New("no configuration sources specified; use -f to specify files or directories")
 
 // SourceType represents the type of configuration source
 type SourceType int
@@ -49,12 +53,8 @@ func ParseSources(filenames []string) ([]Source, error) {
 		}
 	}
 
-	// If no sources provided, default to current directory
 	if len(sources) == 0 {
-		sources = append(sources, Source{
-			Path: ".",
-			Type: SourceTypeDirectory,
-		})
+		return nil, ErrNoSources
 	}
 
 	return sources, nil

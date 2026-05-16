@@ -469,6 +469,18 @@ func TestRootErrorUX(t *testing.T) {
 			expectStderr: true,
 		},
 		{
+			name: "bare declarative plan requires filename with concise help hint",
+			args: []string{"plan"},
+			wantErr: []string{
+				`Error: no configuration sources specified; use -f to specify files or directories`,
+				"Error: no configuration sources specified; use -f to specify files or directories\n\n" +
+					`Run 'kongctl plan --help' for usage`,
+			},
+			wantExit:     1,
+			forbidErr:    []string{"Usage:"},
+			expectStderr: true,
+		},
+		{
 			name: "explicit help still renders full help",
 			args: []string{"get", "--help"},
 			wantOut: []string{

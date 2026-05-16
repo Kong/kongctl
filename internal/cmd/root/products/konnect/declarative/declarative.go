@@ -3,6 +3,7 @@ package declarative
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -63,6 +64,17 @@ const (
 )
 
 const diffFieldRedactedValue = "[REDACTED]"
+
+func parseDeclarativeSources(filenames []string) ([]loader.Source, error) {
+	sources, err := loader.ParseSources(filenames)
+	if err != nil {
+		if errors.Is(err, loader.ErrNoSources) {
+			return nil, &cmd.UsageError{Err: err}
+		}
+		return nil, fmt.Errorf("failed to parse sources: %w", err)
+	}
+	return sources, nil
+}
 
 var diffSensitiveExactFieldKeys = map[string]struct{}{
 	"access_token":        {},
@@ -464,6 +476,11 @@ func runPlan(command *cobra.Command, args []string) error {
 	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Plan, planMode)
 	command.SetContext(ctx)
 
+	sources, err := parseDeclarativeSources(filenames)
+	if err != nil {
+		return err
+	}
+
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
 	generator := planGenerator(helper)
@@ -490,12 +507,6 @@ func runPlan(command *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse sources from filenames
-	sources, err := loader.ParseSources(filenames)
-	if err != nil {
-		return fmt.Errorf("failed to parse sources: %w", err)
-	}
-
 	// Load configuration
 	ldr, err := newDeclarativeLoader(command, cfg)
 	if err != nil {
@@ -503,12 +514,6 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 	resourceSet, err := ldr.LoadFromSources(sources, recursive)
 	if err != nil {
-		// Provide more helpful error message for common cases
-		if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-			return fmt.Errorf(
-				"no configuration files found in current directory. Use -f to specify files or directories",
-			)
-		}
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
@@ -520,13 +525,6 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	if totalResources == 0 {
-		// Check if we're using default directory (no explicit sources)
-		if len(filenames) == 0 {
-			return fmt.Errorf(
-				"no configuration files found in current directory. Use -f to specify files or directories",
-			)
-		}
-
 		// In sync mode, empty config is valid - it means delete all managed resources
 		// In apply and delete modes, we need at least one resource
 		if planMode == planner.PlanModeApply || planMode == planner.PlanModeDelete {
@@ -784,6 +782,21 @@ func runDiff(command *cobra.Command, args []string) error {
 	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Diff, planMode)
 	command.SetContext(ctx)
 
+	planFile, _ := command.Flags().GetString("plan")
+	if command.Flags().Changed("mode") && planFile != "" {
+		return fmt.Errorf("--mode cannot be used together with --plan; plan mode is read from the plan artifact")
+	}
+
+	filenames, _ := command.Flags().GetStringSlice("filename")
+	var sources []loader.Source
+	if planFile == "" {
+		var parseErr error
+		sources, parseErr = parseDeclarativeSources(filenames)
+		if parseErr != nil {
+			return parseErr
+		}
+	}
+
 	helper := cmd.BuildHelper(command, args)
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -795,10 +808,6 @@ func runDiff(command *cobra.Command, args []string) error {
 		return err
 	}
 
-	planFile, _ := command.Flags().GetString("plan")
-	if command.Flags().Changed("mode") && planFile != "" {
-		return fmt.Errorf("--mode cannot be used together with --plan; plan mode is read from the plan artifact")
-	}
 	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
 		return fmt.Errorf(
 			"--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead",
@@ -814,7 +823,6 @@ func runDiff(command *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		filenames, _ := command.Flags().GetStringSlice("filename")
 		recursive, _ := command.Flags().GetBool("recursive")
 		generator := planGenerator(helper)
 
@@ -828,20 +836,12 @@ func runDiff(command *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to initialize Konnect client: %w", err)
 		}
 
-		sources, err := loader.ParseSources(filenames)
-		if err != nil {
-			return fmt.Errorf("failed to parse sources: %w", err)
-		}
-
 		ldr, err := newDeclarativeLoader(command, cfg)
 		if err != nil {
 			return err
 		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
-			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-				return fmt.Errorf("no configuration files found. Use -f to specify files or --plan to use existing plan")
-			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
@@ -851,9 +851,6 @@ func runDiff(command *cobra.Command, args []string) error {
 
 		totalResources := resourceSet.ResourceCount()
 		if totalResources == 0 {
-			if len(filenames) == 0 {
-				return fmt.Errorf("no configuration files found. Use -f to specify files or --plan to use existing plan")
-			}
 			return fmt.Errorf("no resources found in configuration files")
 		}
 
@@ -1434,6 +1431,15 @@ func runApply(command *cobra.Command, args []string) error {
 		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
+	var sources []loader.Source
+	if planFile == "" {
+		var parseErr error
+		sources, parseErr = parseDeclarativeSources(filenames)
+		if parseErr != nil {
+			return parseErr
+		}
+	}
+
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
 	generator := planGenerator(helper)
@@ -1492,12 +1498,6 @@ func runApply(command *cobra.Command, args []string) error {
 		// Generate plan from configuration files
 		recursive, _ := command.Flags().GetBool("recursive")
 
-		// Parse sources from filenames
-		sources, err := loader.ParseSources(filenames)
-		if err != nil {
-			return fmt.Errorf("failed to parse sources: %w", err)
-		}
-
 		// Load configuration
 		ldr, err := newDeclarativeLoader(command, cfg)
 		if err != nil {
@@ -1505,10 +1505,6 @@ func runApply(command *cobra.Command, args []string) error {
 		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
-			// Provide more helpful error message for common cases
-			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
-			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
@@ -1520,10 +1516,6 @@ func runApply(command *cobra.Command, args []string) error {
 		totalResources := resourceSet.ResourceCount()
 
 		if totalResources == 0 {
-			// Check if we're using default directory (no explicit sources)
-			if len(filenames) == 0 {
-				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
-			}
 			return fmt.Errorf("no resources found in configuration files")
 		}
 
@@ -1926,6 +1918,15 @@ func runDelete(command *cobra.Command, args []string) error {
 		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
+	var sources []loader.Source
+	if planFile == "" {
+		var parseErr error
+		sources, parseErr = parseDeclarativeSources(filenames)
+		if parseErr != nil {
+			return parseErr
+		}
+	}
+
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
 	generator := planGenerator(helper)
@@ -1983,22 +1984,12 @@ func runDelete(command *cobra.Command, args []string) error {
 		// Generate plan from configuration files
 		recursive, _ := command.Flags().GetBool("recursive")
 
-		sources, err := loader.ParseSources(filenames)
-		if err != nil {
-			return fmt.Errorf("failed to parse sources: %w", err)
-		}
-
 		ldr, err := newDeclarativeLoader(command, cfg)
 		if err != nil {
 			return err
 		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
-			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-				return fmt.Errorf(
-					"no configuration files found in current directory. " +
-						"Use -f to specify files or directories")
-			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
@@ -2008,11 +1999,6 @@ func runDelete(command *cobra.Command, args []string) error {
 
 		totalResources := resourceSet.ResourceCount()
 		if totalResources == 0 {
-			if len(filenames) == 0 {
-				return fmt.Errorf(
-					"no configuration files found in current directory. " +
-						"Use -f to specify files or directories")
-			}
 			return fmt.Errorf("no resources found in configuration files")
 		}
 
@@ -2161,6 +2147,15 @@ func runSync(command *cobra.Command, args []string) error {
 		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
+	var sources []loader.Source
+	if planFile == "" {
+		var parseErr error
+		sources, parseErr = parseDeclarativeSources(filenames)
+		if parseErr != nil {
+			return parseErr
+		}
+	}
+
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
 	generator := planGenerator(helper)
@@ -2220,12 +2215,6 @@ func runSync(command *cobra.Command, args []string) error {
 		// Generate plan from configuration files
 		recursive, _ := command.Flags().GetBool("recursive")
 
-		// Parse sources from filenames
-		sources, err := loader.ParseSources(filenames)
-		if err != nil {
-			return fmt.Errorf("failed to parse sources: %w", err)
-		}
-
 		// Load configuration
 		ldr, err := newDeclarativeLoader(command, cfg)
 		if err != nil {
@@ -2233,10 +2222,6 @@ func runSync(command *cobra.Command, args []string) error {
 		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
-			// Provide more helpful error message for common cases
-			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
-			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
@@ -2249,11 +2234,6 @@ func runSync(command *cobra.Command, args []string) error {
 
 		// In sync mode, allow empty configuration to detect resources to delete
 		if totalResources == 0 {
-			// Check if we're using default directory (no explicit sources)
-			if len(filenames) == 0 {
-				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
-			}
-
 			// In sync mode, empty config is valid - it means delete all managed resources
 			if outputFormat == textOutputFormat {
 				namespaces := resourceSet.DefaultNamespaces

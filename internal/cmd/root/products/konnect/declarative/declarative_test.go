@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -194,6 +195,28 @@ func Test_parsePlanMode(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, mode)
+		})
+	}
+}
+
+func TestDeclarativeCommandsRequireExplicitFilename(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  *cobra.Command
+	}{
+		{name: "plan", cmd: newDeclarativePlanCmd()},
+		{name: "apply", cmd: newDeclarativeApplyCmd()},
+		{name: "sync", cmd: newDeclarativeSyncCmd()},
+		{name: "diff", cmd: newDeclarativeDiffCmd()},
+		{name: "delete", cmd: newDeclarativeDeleteCmd()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.cmd.RunE(tt.cmd, nil)
+			require.Error(t, err)
+			assert.True(t, cmdpkg.IsUsageError(err))
+			assert.Equal(t, "no configuration sources specified; use -f to specify files or directories", err.Error())
 		})
 	}
 }

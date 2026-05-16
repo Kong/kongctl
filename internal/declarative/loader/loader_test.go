@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -904,6 +905,7 @@ func TestLoader_ParseSources(t *testing.T) {
 		name     string
 		input    []string
 		expected []Source
+		err      error
 	}{
 		{
 			name:  "single file",
@@ -936,11 +938,14 @@ func TestLoader_ParseSources(t *testing.T) {
 			},
 		},
 		{
-			name:  "empty defaults to current directory",
+			name:  "empty rejects missing configuration source",
 			input: []string{},
-			expected: []Source{
-				{Path: ".", Type: SourceTypeDirectory},
-			},
+			err:   ErrNoSources,
+		},
+		{
+			name:  "empty comma-separated values reject missing configuration source",
+			input: []string{","},
+			err:   ErrNoSources,
 		},
 	}
 
@@ -949,8 +954,14 @@ func TestLoader_ParseSources(t *testing.T) {
 			// For testing, we need to mock file existence checks
 			// Since ParseSources checks if files exist, we'll test with stdin
 			// which doesn't require file existence
-			if tt.name == "stdin" || tt.name == "empty defaults to current directory" {
+			if tt.name == "stdin" || tt.err != nil {
 				sources, err := ParseSources(tt.input)
+				if tt.err != nil {
+					require.Error(t, err)
+					assert.True(t, errors.Is(err, tt.err))
+					assert.Nil(t, sources)
+					return
+				}
 				assert.NoError(t, err)
 				assert.Equal(t, len(tt.expected), len(sources))
 				for i, expected := range tt.expected {
