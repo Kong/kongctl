@@ -112,7 +112,7 @@ func TestRetryingHTTPClient_NoRetryOnNonRetryableCode(t *testing.T) {
 }
 
 func TestRetryingHTTPClient_RetriesOnRetryableCodes(t *testing.T) {
-	for _, code := range []int{429, 500, 502, 503, 504} {
+	for _, code := range []int{429, 403, 500, 502, 503, 504} {
 		t.Run(http.StatusText(code), func(t *testing.T) {
 			inner := &mockHTTPClient{
 				responses: []*mockResponse{

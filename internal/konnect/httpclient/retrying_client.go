@@ -182,7 +182,6 @@ func (c *RetryingHTTPClient) shouldRetryResponse(req *http.Request, resp *http.R
 }
 
 // shouldRetryError reports whether a transport-level error should be retried.
-// Mirrors the SDK's connection-error retry logic (internal/utils/retries.go):
 //   - url.Error with Temporary() or Timeout() + idempotent method → retry
 //   - url.Error wrapping io.EOF + idempotent method → retry (server closed conn)
 //   - net.OpError with EPIPE or ECONNRESET + idempotent method → retry
@@ -198,7 +197,6 @@ func (c *RetryingHTTPClient) shouldRetryError(req *http.Request, err error) bool
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
 		// Fall back to the method embedded in the url.Error operation name
-		// when the request method is unavailable (matches SDK behaviour).
 		if method == "" {
 			method = strings.ToUpper(urlErr.Op)
 		}
