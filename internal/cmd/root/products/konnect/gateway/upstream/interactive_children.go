@@ -18,7 +18,11 @@ import (
 )
 
 func init() {
-	tableview.RegisterChildLoader(kkCommon.ViewParentControlPlane, kkCommon.ViewFieldUpstreams, loadControlPlaneUpstreams)
+	tableview.RegisterChildLoader(
+		kkCommon.ViewParentControlPlane,
+		kkCommon.ViewFieldUpstreams,
+		loadControlPlaneUpstreams,
+	)
 	tableview.RegisterChildLoader(kkCommon.ViewParentUpstream, kkCommon.ViewFieldTargets, loadUpstreamTargets)
 }
 

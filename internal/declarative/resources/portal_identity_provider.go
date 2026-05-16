@@ -35,9 +35,9 @@ func (p PortalIdentityProviderResource) MarshalYAML() (any, error) {
 }
 
 type portalIdentityProviderAlias struct {
-	portalIdentityProviderCreateAlias `yaml:",inline"`
-	Ref                               string `json:"ref"              yaml:"ref"`
-	Portal                            string `json:"portal,omitempty" yaml:"portal,omitempty"`
+	portalIdentityProviderCreateAlias `       yaml:",inline"`
+	Ref                               string `yaml:"ref"              json:"ref"`
+	Portal                            string `yaml:"portal,omitempty" json:"portal,omitempty"`
 }
 
 type portalIdentityProviderCreateAlias kkComps.CreateIdentityProvider

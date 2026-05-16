@@ -88,7 +88,8 @@ func (o *OrganizationTeamRoleAdapter) Create(
 	}
 
 	if logger := organizationTeamRoleLogger(ctx); logger != nil {
-		logger.LogAttrs(ctx, slog.LevelDebug, "Assigning organization team role",
+		logger.LogAttrs(
+			ctx, slog.LevelDebug, "Assigning organization team role",
 			slog.String("team_id", teamID),
 			slog.String("role_name", getAssignRoleName(req)),
 			slog.String("entity_id", getAssignRoleEntityID(req)),
@@ -142,7 +143,12 @@ func (o *OrganizationTeamRoleAdapter) ResourceType() string {
 }
 
 func (o *OrganizationTeamRoleAdapter) RequiredFields() []string {
-	return []string{planner.FieldRoleName, planner.FieldEntityID, planner.FieldEntityTypeName, planner.FieldEntityRegion}
+	return []string{
+		planner.FieldRoleName,
+		planner.FieldEntityID,
+		planner.FieldEntityTypeName,
+		planner.FieldEntityRegion,
+	}
 }
 
 func (o *OrganizationTeamRoleAdapter) SupportsUpdate() bool {

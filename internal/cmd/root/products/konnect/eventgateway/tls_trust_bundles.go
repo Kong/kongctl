@@ -65,7 +65,8 @@ verification and are referenced by TLS listener policies.`,
 %[1]s get event-gateway tls-trust-bundles --gateway-name my-gateway --tls-trust-bundle-name my-bundle
 # Get a specific TLS trust bundle by ID (flag)
 %[1]s get event-gateway tls-trust-bundles --gateway-id <gateway-id> --tls-trust-bundle-id <bundle-id>
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetEventGatewayTLSTrustBundlesCmd(
@@ -116,7 +117,8 @@ func (h tlsTrustBundlesHandler) run(args []string) error {
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf(
-				"too many arguments. Listing TLS trust bundles requires 0 or 1 arguments (ID or name)"),
+				"too many arguments. Listing TLS trust bundles requires 0 or 1 arguments (ID or name)",
+			),
 		}
 	}
 

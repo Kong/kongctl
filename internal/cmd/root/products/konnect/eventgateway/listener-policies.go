@@ -124,7 +124,8 @@ var (
 %[1]s get event-gateway listener-policies --gateway-id <gateway-id> --listener-id <listener-id> --policy-id <policy-id>
 # Get a specific listener policy by name (flag)
 %[1]s get event-gateway listener-policies --gateway-name my-gateway --listener-name my-listener --policy-name my-policy
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetEventGatewayListenerPoliciesCmd(

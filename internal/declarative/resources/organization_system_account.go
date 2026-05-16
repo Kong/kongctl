@@ -25,12 +25,12 @@ func init() {
 
 // OrganizationSystemAccountResource selects an existing Konnect system account and declares assignments.
 type OrganizationSystemAccountResource struct {
-	Ref     string                                            `yaml:"ref" json:"ref"`
-	Name    string                                            `yaml:"name,omitempty" json:"name,omitempty"`
-	ID      string                                            `yaml:"id,omitempty"   json:"id,omitempty"`
+	Ref     string                                            `yaml:"ref"               json:"ref"`
+	Name    string                                            `yaml:"name,omitempty"    json:"name,omitempty"`
+	ID      string                                            `yaml:"id,omitempty"      json:"id,omitempty"`
 	Kongctl *KongctlMeta                                      `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
-	Teams   []OrganizationSystemAccountTeamMembershipResource `yaml:"teams,omitempty" json:"teams,omitempty"`
-	Roles   []OrganizationSystemAccountRoleResource           `yaml:"roles,omitempty" json:"roles,omitempty"`
+	Teams   []OrganizationSystemAccountTeamMembershipResource `yaml:"teams,omitempty"   json:"teams,omitempty"`
+	Roles   []OrganizationSystemAccountRoleResource           `yaml:"roles,omitempty"   json:"roles,omitempty"`
 
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -69,8 +69,8 @@ func (s *OrganizationSystemAccountResource) SetKonnectID(id string) {
 
 // OrganizationSystemAccountTeamMembershipResource is an internal relation resource.
 type OrganizationSystemAccountTeamMembershipResource struct {
-	Ref           string `yaml:"ref" json:"ref"`
-	SystemAccount string `yaml:"-" json:"-"`
+	Ref           string `yaml:"ref"  json:"ref"`
+	SystemAccount string `yaml:"-"    json:"-"`
 	Team          string `yaml:"team" json:"team"`
 }
 

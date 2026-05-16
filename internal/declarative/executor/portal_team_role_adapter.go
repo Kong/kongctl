@@ -85,7 +85,8 @@ func (p *PortalTeamRoleAdapter) Create(
 
 	logger := portalTeamRoleLogger(ctx)
 	if logger != nil {
-		logger.LogAttrs(ctx, slog.LevelDebug, "Assigning portal team role",
+		logger.LogAttrs(
+			ctx, slog.LevelDebug, "Assigning portal team role",
 			slog.String("portal_id", portalID),
 			slog.String("team_id", teamID),
 			slog.String("role_name", req.RoleName),
@@ -181,7 +182,12 @@ func (p *PortalTeamRoleAdapter) ResourceType() string {
 
 // RequiredFields returns the required fields for creation
 func (p *PortalTeamRoleAdapter) RequiredFields() []string {
-	return []string{planner.FieldRoleName, planner.FieldEntityID, planner.FieldEntityTypeName, planner.FieldEntityRegion}
+	return []string{
+		planner.FieldRoleName,
+		planner.FieldEntityID,
+		planner.FieldEntityTypeName,
+		planner.FieldEntityRegion,
+	}
 }
 
 // SupportsUpdate indicates update is not supported

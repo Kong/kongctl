@@ -200,7 +200,8 @@ func (r *ConsoleReporter) ensureNamespaceStats(namespace string) {
 
 func (r *ConsoleReporter) changePrefix(progress changeProgress) string {
 	if r.totalChanges > 0 {
-		return fmt.Sprintf("[%d/%d] [namespace: %s] %s %s: %s...",
+		return fmt.Sprintf(
+			"[%d/%d] [namespace: %s] %s %s: %s...",
 			progress.Index,
 			r.totalChanges,
 			progress.Namespace,
@@ -210,7 +211,8 @@ func (r *ConsoleReporter) changePrefix(progress changeProgress) string {
 		)
 	}
 
-	return fmt.Sprintf("• [namespace: %s] %s %s: %s...",
+	return fmt.Sprintf(
+		"• [namespace: %s] %s %s: %s...",
 		progress.Namespace,
 		progress.Action,
 		progress.ResourceType,

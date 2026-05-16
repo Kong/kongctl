@@ -18,9 +18,9 @@ func init() {
 
 // PortalIPAllowListResource represents a portal IP allow-list entry.
 type PortalIPAllowListResource struct {
-	Ref        string   `yaml:"ref"                 json:"ref"`
-	Portal     string   `yaml:"portal,omitempty"    json:"portal,omitempty"`
-	AllowedIPs []string `yaml:"allowed_ips"         json:"allowed_ips"`
+	Ref        string   `yaml:"ref"              json:"ref"`
+	Portal     string   `yaml:"portal,omitempty" json:"portal,omitempty"`
+	AllowedIPs []string `yaml:"allowed_ips"      json:"allowed_ips"`
 
 	konnectID string `yaml:"-" json:"-"`
 }

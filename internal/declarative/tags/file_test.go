@@ -179,7 +179,8 @@ servers:
 			}
 
 			if tt.fileRef.Extract != "" {
-				node.Content = append(node.Content,
+				node.Content = append(
+					node.Content,
 					&yaml.Node{Kind: yaml.ScalarNode, Value: "extract"},
 					&yaml.Node{Kind: yaml.ScalarNode, Value: tt.fileRef.Extract},
 				)

@@ -109,7 +109,16 @@ func TestRequestNilBody(t *testing.T) {
 		}, nil
 	})
 
-	result, err := Request(context.Background(), client, http.MethodDelete, "https://example.com", "/foo", "tok", nil, nil)
+	result, err := Request(
+		context.Background(),
+		client,
+		http.MethodDelete,
+		"https://example.com",
+		"/foo",
+		"tok",
+		nil,
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

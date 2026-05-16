@@ -18,7 +18,8 @@ func (p *Planner) planControlPlaneDataPlaneCertificateChanges(
 	desired []resources.ControlPlaneDataPlaneCertificateResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning control plane data plane certificate changes",
+	p.logger.Debug(
+		"Planning control plane data plane certificate changes",
 		"control_plane_name", controlPlaneName,
 		"control_plane_id", controlPlaneID,
 		"control_plane_ref", controlPlaneRef,
@@ -53,7 +54,8 @@ func (p *Planner) planControlPlaneDataPlaneCertificateDiff(
 		return fmt.Errorf("failed to list data plane certificates for control plane %s: %w", controlPlaneID, err)
 	}
 
-	p.logger.Debug("Fetched current control plane data plane certificates",
+	p.logger.Debug(
+		"Fetched current control plane data plane certificates",
 		"control_plane_id", controlPlaneID,
 		"current_count", len(currentCerts),
 	)
@@ -86,7 +88,8 @@ func (p *Planner) planControlPlaneDataPlaneCertificateDiff(
 		identity := resources.ControlPlaneDataPlaneCertificateIdentity(desiredCert.Cert)
 		desiredIdentities[identity] = true
 		if _, exists := currentByIdentity[identity]; exists {
-			p.logger.Debug("Data plane certificate already exists",
+			p.logger.Debug(
+				"Data plane certificate already exists",
 				"cert_ref", desiredCert.Ref,
 				"cert_fingerprint", desiredCert.GetMoniker(),
 				"control_plane_ref", controlPlaneRef,
@@ -184,7 +187,8 @@ func (p *Planner) planControlPlaneDataPlaneCertificateCreate(
 		}
 	}
 
-	p.logger.Debug("Enqueuing control plane data plane certificate CREATE",
+	p.logger.Debug(
+		"Enqueuing control plane data plane certificate CREATE",
 		"cert_ref", cert.Ref,
 		"cert_fingerprint", cert.GetMoniker(),
 		"control_plane_ref", controlPlaneRef,
@@ -214,7 +218,8 @@ func (p *Planner) planControlPlaneDataPlaneCertificateDelete(
 		},
 	}
 
-	p.logger.Debug("Enqueuing control plane data plane certificate DELETE",
+	p.logger.Debug(
+		"Enqueuing control plane data plane certificate DELETE",
 		"cert_fingerprint", certFingerprint,
 		"cert_id", certID,
 		"control_plane_ref", controlPlaneRef,

@@ -30,7 +30,8 @@ func GetSDKFactory(t *testing.T) helpers.SDKAPIFactory {
 			// For real SDK, we would need to build the actual SDK here
 			// For now, return an error indicating real SDK is not implemented
 			return nil, fmt.Errorf(
-				"real Konnect SDK integration not yet implemented - remove KONNECT_INTEGRATION_TOKEN to use mocks")
+				"real Konnect SDK integration not yet implemented - remove KONNECT_INTEGRATION_TOKEN to use mocks",
+			)
 		}
 	}
 

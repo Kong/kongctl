@@ -77,7 +77,8 @@ var (
 %[1]s get event-gateway schema-registries --gateway-id <gateway-id> --schema-registry-id <registry-id>
 # Get a specific schema registry by name (flag)
 %[1]s get event-gateway schema-registries --gateway-name my-gateway --schema-registry-name my-registry
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetEventGatewaySchemaRegistriesCmd(
@@ -128,7 +129,8 @@ func (h schemaRegistriesHandler) run(args []string) error {
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf(
-				"too many arguments. Listing schema registries requires 0 or 1 arguments (ID or name)"),
+				"too many arguments. Listing schema registries requires 0 or 1 arguments (ID or name)",
+			),
 		}
 	}
 
@@ -379,7 +381,8 @@ func fetchSchemaRegistries(
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
 			return nil, cmd.PrepareExecutionError(
-				"Failed to list schema registries", err, helper.GetCmd(), attrs...)
+				"Failed to list schema registries", err, helper.GetCmd(), attrs...,
+			)
 		}
 
 		if res.GetListSchemaRegistriesResponse() == nil {

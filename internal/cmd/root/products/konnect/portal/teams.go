@@ -53,7 +53,8 @@ var (
 %[1]s get portal teams --portal-id <portal-id> <team-id>
 # Get a specific team by name
 %[1]s get portal teams --portal-id <portal-id> developers
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetPortalTeamsCmd(
@@ -209,7 +210,8 @@ func (h portalTeamsHandler) listTeams(
 		return portalTeamDetailView(teams[index])
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,
@@ -266,7 +268,8 @@ func (h portalTeamsHandler) getSingleTeam(
 		}
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,

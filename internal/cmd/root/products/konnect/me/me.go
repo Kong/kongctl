@@ -25,7 +25,8 @@ var (
 			fmt.Sprintf(`
 	# Get current user information
 	%[1]s get me
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 func NewMeCmd(verb verbs.VerbValue,

@@ -930,10 +930,12 @@ func TestLoader_validateResourceSet_RejectsDuplicatePortalIdentityProviderSAMLTy
 
 func TestLoader_validateResourceSet_AllowsMixedPortalIdentityProviderTypesPerPortal(t *testing.T) {
 	loader := New()
-	oidcConfig := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(kkComps.OIDCIdentityProviderConfig{
-		IssuerURL: "https://accounts.google.com",
-		ClientID:  "client-id-a",
-	})
+	oidcConfig := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+		kkComps.OIDCIdentityProviderConfig{
+			IssuerURL: "https://accounts.google.com",
+			ClientID:  "client-id-a",
+		},
+	)
 	samlConfig := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
 		kkComps.SAMLIdentityProviderConfigInput{
 			IdpMetadataURL: new("https://example.test/saml.xml"),

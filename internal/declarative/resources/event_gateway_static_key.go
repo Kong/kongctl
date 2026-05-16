@@ -20,7 +20,7 @@ func init() {
 // This resource does not support update operations – changes are implemented as
 // delete + create.
 type EventGatewayStaticKeyResource struct {
-	kkComps.EventGatewayStaticKeyCreate `yaml:",inline" json:",inline"`
+	kkComps.EventGatewayStaticKeyCreate `       yaml:",inline"                 json:",inline"`
 	Ref                                 string `yaml:"ref"                     json:"ref"`
 	// Parent Event Gateway reference (for root-level definitions)
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`

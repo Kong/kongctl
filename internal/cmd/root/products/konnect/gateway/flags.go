@@ -18,10 +18,12 @@ func AddGatewayFlags(verb verbs.VerbValue, c *cobra.Command) {
 - Default   : [ %s ]`,
 			common.BaseURLConfigPath, common.BaseURLDefault))
 
-	c.Flags().String(common.RegionFlagName, "",
+	c.Flags().String(
+		common.RegionFlagName, "",
 		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-			common.BaseURLFlagName, common.RegionConfigPath))
+			common.BaseURLFlagName, common.RegionConfigPath),
+	)
 
 	c.Flags().String(common.PATFlagName, "",
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
@@ -35,7 +37,8 @@ Setting this value overrides tokens obtained from the login command.
 			common.DefaultRequestPageSize,
 			fmt.Sprintf(`Max number of results to include per response page for get and list operations.
 - Config path: [ %s ]`,
-				common.RequestPageSizeConfigPath))
+				common.RequestPageSizeConfigPath),
+		)
 	}
 }
 

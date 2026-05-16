@@ -32,9 +32,9 @@ type PortalResource struct {
 	Pages             []PortalPageResource                   `yaml:"pages,omitempty"              json:"pages,omitempty"`
 	Snippets          []PortalSnippetResource                `yaml:"snippets,omitempty"           json:"snippets,omitempty"` //nolint:lll
 	Teams             []PortalTeamResource                   `yaml:"teams,omitempty"              json:"teams,omitempty"`
-	EmailConfig       *PortalEmailConfigResource             `yaml:"email_config,omitempty"       json:"email_config,omitempty"`     //nolint:lll
-	EmailTemplates    map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty"    json:"email_templates,omitempty"`  //nolint:lll
-	AuditLogWebhook   *PortalAuditLogWebhookResource         `yaml:"audit_log_webhook,omitempty" json:"audit_log_webhook,omitempty"` //nolint:lll
+	EmailConfig       *PortalEmailConfigResource             `yaml:"email_config,omitempty"       json:"email_config,omitempty"`      //nolint:lll
+	EmailTemplates    map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty"    json:"email_templates,omitempty"`   //nolint:lll
+	AuditLogWebhook   *PortalAuditLogWebhookResource         `yaml:"audit_log_webhook,omitempty"  json:"audit_log_webhook,omitempty"` //nolint:lll
 
 	// Assets object containing logo and favicon (data URLs from !file tag)
 	Assets *PortalAssetsResource `yaml:"assets,omitempty" json:"assets,omitempty"`

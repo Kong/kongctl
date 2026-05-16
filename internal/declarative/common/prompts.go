@@ -132,7 +132,8 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		}
 
 		changesByNamespace[namespace][change.ResourceType] = append(
-			changesByNamespace[namespace][change.ResourceType], change)
+			changesByNamespace[namespace][change.ResourceType], change,
+		)
 
 		// Count protected resource changes by type
 		if change.Action == planner.ActionCreate && willBeProtected(change) {
