@@ -13,6 +13,8 @@ checkout:
 engine:
   id: copilot
   model: claude-opus-4.6
+features:
+  action-mode: "script"
 strict: true
 timeout-minutes: 60
 environment: kongctl-user-agent-eval
