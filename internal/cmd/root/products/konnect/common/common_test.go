@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"maps"
 	"path/filepath"
 	"strconv"
@@ -11,7 +12,9 @@ import (
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/auth"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	configtest "github.com/kong/kongctl/test/config"
 	"github.com/spf13/pflag"
@@ -407,6 +410,65 @@ func TestResolveRetryConfigForVerb(t *testing.T) {
 		require.Equal(t, 3.0, rc.BackoffFactor)
 		require.True(t, rc.RetryConnectionErrors)
 	})
+}
+
+func TestKonnectSDKFactoryRetrySelection(t *testing.T) {
+	t.Run("default factory ignores retry config parsing", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			RegionConfigPath:                 "bad/region",
+			HTTPRetryMaxAttemptsConfigPath:   "banana",
+			HTTPRetryBackoffFactorConfigPath: "not-a-number",
+		})
+
+		_, err := KonnectSDKFactory(cfg, nil)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid konnect region")
+		require.NotContains(t, err.Error(), HTTPRetryMaxAttemptsConfigPath)
+	})
+
+	t.Run("declarative verb factory validates retry config", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			RegionConfigPath:               "bad/region",
+			HTTPRetryMaxAttemptsConfigPath: "banana",
+		})
+
+		_, err := KonnectSDKFactoryForVerb(verbs.Plan, cfg, nil)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), HTTPRetryMaxAttemptsConfigPath)
+		require.NotContains(t, err.Error(), "invalid konnect region")
+	})
+
+	t.Run("imperative verb factory uses no retry config", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			RegionConfigPath:               "bad/region",
+			HTTPRetryMaxAttemptsConfigPath: "banana",
+		})
+
+		_, err := KonnectSDKFactoryForVerb(verbs.Get, cfg, nil)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid konnect region")
+		require.NotContains(t, err.Error(), HTTPRetryMaxAttemptsConfigPath)
+	})
+}
+
+func TestGetSDKFactoryPrefersDefaultOverride(t *testing.T) {
+	original := helpers.DefaultSDKFactory
+	t.Cleanup(func() {
+		helpers.DefaultSDKFactory = original
+	})
+
+	cfg, _ := newTestConfig(map[string]string{})
+
+	helpers.DefaultSDKFactory = func(config.Hook, *slog.Logger) (helpers.SDKAPI, error) {
+		return nil, context.Canceled
+	}
+
+	_, err := GetSDKFactory()(cfg, nil)
+
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestResolveAccessTokenMapsMissingCredentialsToGuidance(t *testing.T) {

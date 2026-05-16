@@ -37,7 +37,6 @@ var idempotentMethods = []string{
 }
 
 // defaultRetryCodes are the HTTP status codes that trigger a retry by default.
-// Matches the SDK's built-in retry status codes.
 var defaultRetryCodes = []int{403, 429, 500, 502, 503, 504}
 
 // RetryClientOption is a functional option for RetryingHTTPClient.
@@ -184,7 +183,7 @@ func (c *RetryingHTTPClient) shouldRetryResponse(req *http.Request, resp *http.R
 
 // shouldRetryError reports whether a transport-level error should be retried.
 // Mirrors the SDK's connection-error retry logic (internal/utils/retries.go):
-//   - url.Error with Temporary() or Timeout() → retry regardless of method
+//   - url.Error with Temporary() or Timeout() + idempotent method → retry
 //   - url.Error wrapping io.EOF + idempotent method → retry (server closed conn)
 //   - net.OpError with EPIPE or ECONNRESET + idempotent method → retry
 //
@@ -198,15 +197,15 @@ func (c *RetryingHTTPClient) shouldRetryError(req *http.Request, err error) bool
 
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
-		// Temporary or timeout errors are safe to retry on any method.
-		if urlErr.Temporary() || urlErr.Timeout() {
-			return true
-		}
-
 		// Fall back to the method embedded in the url.Error operation name
 		// when the request method is unavailable (matches SDK behaviour).
 		if method == "" {
 			method = strings.ToUpper(urlErr.Op)
+		}
+
+		// Temporary or timeout errors are safe to retry on idempotent methods.
+		if (urlErr.Temporary() || urlErr.Timeout()) && slices.Contains(idempotentMethods, method) {
+			return true
 		}
 
 		// Connection closed by the server mid-flight — safe to retry on

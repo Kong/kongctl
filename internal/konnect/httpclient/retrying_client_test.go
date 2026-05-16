@@ -290,9 +290,8 @@ func TestRetryingHTTPClient_ConnectionErrorRetryDisabled(t *testing.T) {
 	assert.Equal(t, 1, inner.calls)
 }
 
-func TestRetryingHTTPClient_URLError_Temporary_RetriesAnyMethod(t *testing.T) {
-	// url.Error with Temporary() should retry on any HTTP method.
-	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete} {
+func TestRetryingHTTPClient_URLError_Temporary_IdempotentRetries(t *testing.T) {
+	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodDelete} {
 		t.Run(method, func(t *testing.T) {
 			urlErr := &url.Error{Op: method, URL: "http://example.com", Err: &mockNetError{temporary: true}}
 			inner := &mockHTTPClient{
@@ -317,12 +316,11 @@ func TestRetryingHTTPClient_URLError_Temporary_RetriesAnyMethod(t *testing.T) {
 	}
 }
 
-func TestRetryingHTTPClient_URLError_Timeout_RetriesAnyMethod(t *testing.T) {
-	urlErr := &url.Error{Op: "Post", URL: "http://example.com", Err: &mockNetError{timeout: true}}
+func TestRetryingHTTPClient_URLError_Temporary_NonIdempotentNoRetry(t *testing.T) {
+	urlErr := &url.Error{Op: "Post", URL: "http://example.com", Err: &mockNetError{temporary: true}}
 	inner := &mockHTTPClient{
 		responses: []*mockResponse{
 			{err: urlErr},
-			{statusCode: 201},
 		},
 	}
 	cfg := defaultRetryConfig()
@@ -333,10 +331,51 @@ func TestRetryingHTTPClient_URLError_Timeout_RetriesAnyMethod(t *testing.T) {
 	require.NoError(t, err)
 
 	c := NewRetryingHTTPClient(inner, cfg, nil)
+	_, err = c.Do(req)
+	require.Error(t, err)
+	assert.Equal(t, 1, inner.calls)
+}
+
+func TestRetryingHTTPClient_URLError_Timeout_IdempotentRetries(t *testing.T) {
+	urlErr := &url.Error{Op: "Get", URL: "http://example.com", Err: &mockNetError{timeout: true}}
+	inner := &mockHTTPClient{
+		responses: []*mockResponse{
+			{err: urlErr},
+			{statusCode: 200},
+		},
+	}
+	cfg := defaultRetryConfig()
+	cfg.RetryConnectionErrors = true
+
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodGet, "http://example.com/path", nil)
+	require.NoError(t, err)
+
+	c := NewRetryingHTTPClient(inner, cfg, nil)
 	resp, err := c.Do(req)
 	require.NoError(t, err)
-	assert.Equal(t, 201, resp.StatusCode)
+	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, 2, inner.calls)
+}
+
+func TestRetryingHTTPClient_URLError_Timeout_NonIdempotentNoRetry(t *testing.T) {
+	urlErr := &url.Error{Op: "Post", URL: "http://example.com", Err: &mockNetError{timeout: true}}
+	inner := &mockHTTPClient{
+		responses: []*mockResponse{
+			{err: urlErr},
+		},
+	}
+	cfg := defaultRetryConfig()
+	cfg.RetryConnectionErrors = true
+
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost, "http://example.com/path", nil)
+	require.NoError(t, err)
+
+	c := NewRetryingHTTPClient(inner, cfg, nil)
+	_, err = c.Do(req)
+	require.Error(t, err)
+	assert.Equal(t, 1, inner.calls)
 }
 
 func TestRetryingHTTPClient_URLError_EOF_IdempotentRetries(t *testing.T) {

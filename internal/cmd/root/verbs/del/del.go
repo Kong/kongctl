@@ -67,7 +67,7 @@ func NewDeleteCmd() (*cobra.Command, error) {
 			}
 			ctx = context.WithValue(ctx, verbs.Verb, Verb)
 			ctx = context.WithValue(ctx, products.Product, konnect.Product)
-			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(Verb))
 			c.SetContext(ctx)
 
 			if err := bindKonnectFlags(c, args); err != nil {

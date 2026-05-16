@@ -404,12 +404,7 @@ func konnectSDKFactory(
 // This is the real implementation of the SDKAPIFactory,
 // which creates a real Konnect SDK instance
 func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
-	retryConfig, err := ResolveRetryConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return konnectSDKFactory(cfg, logger, retryConfig)
+	return konnectSDKFactory(cfg, logger, noRetryConfig())
 }
 
 func KonnectSDKFactoryForVerb(verb verbs.VerbValue, cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
@@ -431,7 +426,9 @@ func GetSDKFactoryForVerb(verb verbs.VerbValue) helpers.SDKAPIFactory {
 	}
 }
 
-// GetSDKFactory returns the SDK factory to use, checking for test overrides
+// GetSDKFactory returns the SDK factory to use, checking for test overrides.
+// The returned factory uses no retry config. Call GetSDKFactoryForVerb to
+// enable retries for declarative verbs.
 func GetSDKFactory() helpers.SDKAPIFactory {
 	if helpers.DefaultSDKFactory != nil {
 		return helpers.DefaultSDKFactory
