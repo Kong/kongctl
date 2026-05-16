@@ -40,7 +40,7 @@ func (c *dcrProviderHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	case http.MethodGet:
 		return dcrProviderJSONResponse(http.StatusOK, `{
 			"data": [{
-				"provider_type": "DcrProviderHttp",
+				"provider_type": "http",
 				"dcr_config": {},
 				"id": "provider-1",
 				"name": "provider-one",
@@ -81,7 +81,7 @@ func dcrProviderJSONResponse(statusCode int, body string) *http.Response {
 
 func dcrProviderResponseBody() string {
 	return `{
-		"provider_type": "DcrProviderHttp",
+		"provider_type": "http",
 		"dcr_config": {},
 		"id": "provider-1",
 		"name": "provider-one",
