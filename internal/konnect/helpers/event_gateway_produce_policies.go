@@ -37,8 +37,7 @@ func (a *EventGatewayProducePolicyAPIImpl) ListEventGatewayVirtualClusterProduce
 	opts ...kkOps.Option,
 ) (*kkOps.ListEventGatewayVirtualClusterProducePoliciesResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterProducePolicies.ListEventGatewayVirtualClusterProducePolicies(
-		ctx, request, opts...,
-	)
+		ctx, request, opts...)
 }
 
 func (a *EventGatewayProducePolicyAPIImpl) GetEventGatewayVirtualClusterProducePolicy(
@@ -47,8 +46,7 @@ func (a *EventGatewayProducePolicyAPIImpl) GetEventGatewayVirtualClusterProduceP
 	opts ...kkOps.Option,
 ) (*kkOps.GetEventGatewayVirtualClusterProducePolicyResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterProducePolicies.GetEventGatewayVirtualClusterProducePolicy(
-		ctx, request, opts...,
-	)
+		ctx, request, opts...)
 }
 
 func (a *EventGatewayProducePolicyAPIImpl) CreateEventGatewayVirtualClusterProducePolicy(
@@ -57,8 +55,7 @@ func (a *EventGatewayProducePolicyAPIImpl) CreateEventGatewayVirtualClusterProdu
 	opts ...kkOps.Option,
 ) (*kkOps.CreateEventGatewayVirtualClusterProducePolicyResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterProducePolicies.CreateEventGatewayVirtualClusterProducePolicy(
-		ctx, request, opts...,
-	)
+		ctx, request, opts...)
 }
 
 func (a *EventGatewayProducePolicyAPIImpl) UpdateEventGatewayVirtualClusterProducePolicy(
@@ -67,8 +64,7 @@ func (a *EventGatewayProducePolicyAPIImpl) UpdateEventGatewayVirtualClusterProdu
 	opts ...kkOps.Option,
 ) (*kkOps.UpdateEventGatewayVirtualClusterProducePolicyResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterProducePolicies.UpdateEventGatewayVirtualClusterProducePolicy(
-		ctx, request, opts...,
-	)
+		ctx, request, opts...)
 }
 
 func (a *EventGatewayProducePolicyAPIImpl) DeleteEventGatewayVirtualClusterProducePolicy(
@@ -77,8 +73,7 @@ func (a *EventGatewayProducePolicyAPIImpl) DeleteEventGatewayVirtualClusterProdu
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteEventGatewayVirtualClusterProducePolicyResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterProducePolicies.DeleteEventGatewayVirtualClusterProducePolicy(
-		ctx, request, opts...,
-	)
+		ctx, request, opts...)
 }
 
 // Compile-time interface assertion

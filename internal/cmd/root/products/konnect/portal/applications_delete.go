@@ -30,8 +30,7 @@ var (
 %[1]s delete portal application --portal-id <portal-id> <application-id>
 # Delete an application by name
 %[1]s delete portal application --portal-name my-portal checkout-app
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newDeletePortalApplicationsCmd(

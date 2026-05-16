@@ -50,8 +50,7 @@ apis:
 	require.NoError(t, err)
 	t.Logf("Loaded APIs: %d, APIImplementations: %d", len(resourceSet.APIs), len(resourceSet.APIImplementations))
 	if len(resourceSet.APIImplementations) > 0 {
-		t.Logf(
-			"Implementation[0]: ref=%s api=%s serviceID=%s controlPlaneID=%s",
+		t.Logf("Implementation[0]: ref=%s api=%s serviceID=%s controlPlaneID=%s",
 			resourceSet.APIImplementations[0].GetRef(),
 			resourceSet.APIImplementations[0].API,
 			func() string {

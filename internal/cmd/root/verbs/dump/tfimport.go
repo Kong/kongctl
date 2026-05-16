@@ -88,8 +88,7 @@ func newTFImportCmd() *cobra.Command {
 - Default   : [ %s ]`,
 			konnectCommon.BaseURLConfigPath, konnectCommon.BaseURLDefault))
 
-	cmd.Flags().String(
-		konnectCommon.RegionFlagName, "",
+	cmd.Flags().String(konnectCommon.RegionFlagName, "",
 		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 			konnectCommon.BaseURLFlagName, konnectCommon.RegionConfigPath),
@@ -105,8 +104,7 @@ Setting this value overrides tokens obtained from the login command.
 		konnectCommon.RequestPageSizeFlagName,
 		konnectCommon.DefaultRequestPageSize,
 		fmt.Sprintf(`Max number of results to include per response page.
-- Config path: [ %s ]`, konnectCommon.RequestPageSizeConfigPath),
-	)
+- Config path: [ %s ]`, konnectCommon.RequestPageSizeConfigPath))
 
 	cmd.PreRunE = func(c *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(c, args)
@@ -167,8 +165,7 @@ func runTerraformDump(helper cmdpkg.Helper, opts tfImportOptions) error {
 	for _, resource := range opts.resources {
 		requestPageSize := int64(cfg.GetIntOrElse(
 			konnectCommon.RequestPageSizeConfigPath,
-			konnectCommon.DefaultRequestPageSize,
-		))
+			konnectCommon.DefaultRequestPageSize))
 
 		switch resource {
 		case "portals":

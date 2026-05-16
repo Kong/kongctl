@@ -153,12 +153,8 @@ func TestE2E_ExtensionsScriptLifecycle(t *testing.T) {
 		"--profile",
 		"literal",
 	)
-	requireStringSliceEqual(
-		t,
-		[]string{"--output", "literal", "--profile", "literal"},
-		runtimeCtx.Invocation.RemainingArgs,
-		"script escape-hatch args",
-	)
+	requireStringSliceEqual(t, []string{"--output", "literal", "--profile", "literal"}, runtimeCtx.Invocation.RemainingArgs,
+		"script escape-hatch args")
 
 	var uninstall map[string]any
 	runKongctlJSON(t, cli, &uninstall, "uninstall", "extension", scriptExtensionID)
@@ -169,12 +165,7 @@ func TestE2E_ExtensionsScriptLifecycle(t *testing.T) {
 	requireEqual(t, "installed", installed.Extension.InstallType, "installed extension install type")
 
 	runKongctlJSON(t, cli, &runtimeCtx, "get", "e2e-script")
-	requireEqual(
-		t,
-		scriptExtensionID,
-		runtimeCtx.MatchedCommandPath.ExtensionID,
-		"installed script runtime extension id",
-	)
+	requireEqual(t, scriptExtensionID, runtimeCtx.MatchedCommandPath.ExtensionID, "installed script runtime extension id")
 
 	runKongctlJSON(t, cli, &uninstall, "uninstall", "extension", scriptExtensionID, "--remove-data")
 	if _, err := os.Stat(filepath.Join(cli.ConfigDir, "kongctl", "extensions", "data", "kong", "e2e-script")); err == nil {
@@ -251,12 +242,7 @@ func TestE2E_ExtensionsRemoteReleaseLifecycle(t *testing.T) {
 	var upgraded extensionInstallResult
 	runKongctlJSON(t, cli, &upgraded, "upgrade", "extension", sourceAtNew, "--yes")
 	requireEqual(t, ext.ID, upgraded.Extension.ID, "upgraded remote extension id")
-	requireEqual(
-		t,
-		newTag,
-		requireInstallSource(t, upgraded.Extension).ReleaseTag,
-		"remote explicit upgrade release tag",
-	)
+	requireEqual(t, newTag, requireInstallSource(t, upgraded.Extension).ReleaseTag, "remote explicit upgrade release tag")
 
 	var uninstall map[string]any
 	runKongctlJSON(t, cli, &uninstall, "uninstall", "extension", ext.ID, "--remove-data")
@@ -350,8 +336,7 @@ func runKongctlJSON(t *testing.T, cli *harness.CLI, out any, args ...string) har
 
 	decoder := json.NewDecoder(strings.NewReader(res.Stdout))
 	if err := decoder.Decode(out); err != nil {
-		t.Fatalf(
-			"decode JSON output for %q: %v\nstdout:\n%s\nstderr:\n%s",
+		t.Fatalf("decode JSON output for %q: %v\nstdout:\n%s\nstderr:\n%s",
 			strings.Join(finalArgs, " "),
 			err,
 			res.Stdout,

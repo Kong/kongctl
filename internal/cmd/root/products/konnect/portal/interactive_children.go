@@ -16,11 +16,7 @@ import (
 
 func init() {
 	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldAuthSettings, loadPortalAuthSettings)
-	tableview.RegisterChildLoader(
-		common.ViewParentPortal,
-		common.ViewFieldIdentityProviders,
-		loadPortalIdentityProviders,
-	)
+	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldIdentityProviders, loadPortalIdentityProviders)
 	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldPages, loadPortalPages)
 	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldSnippets, loadPortalSnippets)
 	tableview.RegisterChildLoader(common.ViewParentPortal, common.ViewFieldApplications, loadPortalApplications)

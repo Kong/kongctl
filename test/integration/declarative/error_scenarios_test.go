@@ -38,8 +38,7 @@ func TestExecutorAPIErrors(t *testing.T) {
 			command: "apply",
 			mockSetup: func(mockAPI *MockPortalAPI) {
 				mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(
-					nil, fmt.Errorf("connection refused"),
-				)
+					nil, fmt.Errorf("connection refused"))
 			},
 			expectedError:      "connection refused",
 			expectFailure:      true,
@@ -50,8 +49,7 @@ func TestExecutorAPIErrors(t *testing.T) {
 			command: "apply",
 			mockSetup: func(mockAPI *MockPortalAPI) {
 				mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(
-					nil, context.DeadlineExceeded,
-				)
+					nil, context.DeadlineExceeded)
 			},
 			expectedError:      "context deadline exceeded",
 			expectFailure:      true,
@@ -73,8 +71,7 @@ func TestExecutorAPIErrors(t *testing.T) {
 				}, nil)
 				// Failed creation
 				mockAPI.On("CreatePortal", mock.Anything, mock.Anything).Return(
-					nil, fmt.Errorf("validation failed: name already exists"),
-				)
+					nil, fmt.Errorf("validation failed: name already exists"))
 			},
 			expectedError:      "validation failed",
 			expectFailure:      true,
@@ -96,8 +93,7 @@ func TestExecutorAPIErrors(t *testing.T) {
 				}, nil)
 				// Rate limited creation
 				mockAPI.On("CreatePortal", mock.Anything, mock.Anything).Return(
-					nil, fmt.Errorf("rate limit exceeded"),
-				)
+					nil, fmt.Errorf("rate limit exceeded"))
 			},
 			expectedError:      "rate limit exceeded",
 			expectFailure:      true,
@@ -382,8 +378,7 @@ func TestNetworkFailures(t *testing.T) {
 			name: "Context Deadline Exceeded",
 			mockSetup: func(mockAPI *MockPortalAPI) {
 				mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(
-					nil, context.DeadlineExceeded,
-				)
+					nil, context.DeadlineExceeded)
 			},
 			expectedError: "context deadline exceeded",
 		},

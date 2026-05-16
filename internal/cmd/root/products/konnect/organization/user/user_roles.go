@@ -174,8 +174,7 @@ func renderOrganizationUserRoles(
 		records = append(records, organizationUserRoleToRecord(role, userID))
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

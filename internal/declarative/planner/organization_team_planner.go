@@ -76,8 +76,7 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 			current, exists := currentByName[desiredTeam.Name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
-					"organization_team %q not found in Konnect, skipping delete", desiredTeam.Name,
-				))
+					"organization_team %q not found in Konnect, skipping delete", desiredTeam.Name))
 				continue
 			}
 

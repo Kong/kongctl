@@ -204,8 +204,7 @@ var (
 	%[1]s get konnect gateway control-plane routes --control-plane-name <name>
 	# Get a specific Kong Gateway Route located on the given control plane (by name)
 	%[1]s get konnect gateway control-plane route --control-plane-name <name> <route-name>
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 func (c *getRouteCmd) validate(helper cmd.Helper) error {
@@ -236,8 +235,7 @@ func (c *getRouteCmd) runListByName(
 
 	for _, route := range allData {
 		if route.RouteJSON != nil && *route.RouteJSON.GetName() == name {
-			return tableview.RenderForFormat(
-				helper,
+			return tableview.RenderForFormat(helper,
 				false,
 				outputFormat,
 				printer,
@@ -274,8 +272,7 @@ func (c *getRouteCmd) runGet(
 		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outputFormat,
 		printer,
@@ -320,8 +317,7 @@ func (c *getRouteCmd) runList(
 		return routeDetailView(allData[index])
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outputFormat,
 		printer,

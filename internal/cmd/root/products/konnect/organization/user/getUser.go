@@ -108,8 +108,7 @@ func (u *getUserCmd) runE(c *cobra.Command, args []string) error {
 			return err
 		}
 
-		return tableview.RenderForFormat(
-			helper,
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -230,8 +229,7 @@ func renderUsersList(
 		records = append(records, userToDisplayRecord(&users[i]))
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

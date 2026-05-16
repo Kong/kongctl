@@ -89,7 +89,7 @@ func GetAllAppAuthStrategies(ctx context.Context, kkClient AppAuthStrategiesAPI)
 
 		// Check if we have more pages
 		if res.ListAppAuthStrategiesResponse.Meta.Page.Total <=
-			float64(requestPageSize*pageNumber) {
+			float64(requestPageSize*(pageNumber)) {
 			break
 		}
 

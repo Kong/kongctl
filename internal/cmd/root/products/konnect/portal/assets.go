@@ -49,8 +49,7 @@ to retrieve the data URL instead.`))
 
 # Get favicon for a portal
 %[1]s get portal assets favicon --portal-id <portal-id>
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 
 	logoShort = i18n.T("root.products.konnect.portal.logoShort",
 		"Retrieve portal logo image")
@@ -62,8 +61,7 @@ to retrieve the data URL instead.`))
 
 # Get logo with custom filename
 %[1]s get portal assets logo --portal-name my-portal --output-file brand-logo.png
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 
 	faviconShort = i18n.T("root.products.konnect.portal.faviconShort",
 		"Retrieve portal favicon image")
@@ -75,8 +73,7 @@ to retrieve the data URL instead.`))
 
 # Get favicon with custom filename
 %[1]s get portal assets favicon --portal-name my-portal --output-file site-icon.ico
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetPortalAssetsCmd(

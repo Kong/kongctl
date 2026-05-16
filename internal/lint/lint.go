@@ -284,8 +284,7 @@ func FormatPlain(w io.Writer, output *Output) error {
 		} else {
 			prefix = fmt.Sprintf("%d:%d: ", v.Line, v.Column)
 		}
-		if _, err := fmt.Fprintf(
-			w, "%s[%s] %s\n",
+		if _, err := fmt.Fprintf(w, "%s[%s] %s\n",
 			prefix, v.Severity, v.Message,
 		); err != nil {
 			return err

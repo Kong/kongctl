@@ -81,8 +81,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			current, exists := currentByName[name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
-					"application_auth_strategy %q not found in Konnect, skipping delete", name,
-				))
+					"application_auth_strategy %q not found in Konnect, skipping delete", name))
 				continue
 			}
 
@@ -151,8 +150,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 				protectionErrors.Add(err)
 				if err == nil {
 					p.planAuthStrategyProtectionChangeWithFields(
-						current, desiredStrategy, isProtected, shouldProtect, updateFields, changedFields, plan,
-					)
+						current, desiredStrategy, isProtected, shouldProtect, updateFields, changedFields, plan)
 				}
 			} else {
 				// Check if update needed based on configuration
@@ -344,8 +342,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 		// Return error via updateFields to be handled by caller
 		updateFields[FieldError] = fmt.Sprintf(
 			"changing strategy_type from %s to %s is not supported. Please delete and recreate the auth strategy",
-			current.StrategyType, desiredStrategyType,
-		)
+			current.StrategyType, desiredStrategyType)
 		return true, updateFields, changedFields
 	}
 

@@ -76,14 +76,14 @@ var (
 )
 
 type Manifest struct {
-	SchemaVersion int           `json:"schema_version"    yaml:"schema_version"`
-	Publisher     string        `json:"publisher"         yaml:"publisher"`
-	Name          string        `json:"name"              yaml:"name"`
+	SchemaVersion int           `json:"schema_version" yaml:"schema_version"`
+	Publisher     string        `json:"publisher"      yaml:"publisher"`
+	Name          string        `json:"name"           yaml:"name"`
 	Version       string        `json:"version,omitempty" yaml:"version,omitempty"`
 	Summary       string        `json:"summary,omitempty" yaml:"summary,omitempty"`
-	Runtime       Runtime       `json:"runtime"           yaml:"runtime"`
-	Compatibility Compatibility `json:"compatibility"     yaml:"compatibility,omitempty"`
-	CommandPaths  []CommandPath `json:"command_paths"     yaml:"command_paths"`
+	Runtime       Runtime       `json:"runtime"        yaml:"runtime"`
+	Compatibility Compatibility `json:"compatibility" yaml:"compatibility,omitempty"`
+	CommandPaths  []CommandPath `json:"command_paths" yaml:"command_paths"`
 }
 
 type Runtime struct {

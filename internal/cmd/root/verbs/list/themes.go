@@ -60,8 +60,7 @@ func runListThemes(helper cmd.Helper) error {
 
 	rows := buildThemeRows(useColor, activeTheme)
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outFormat,
 		printer,
@@ -366,8 +365,7 @@ func renderThemePreviewPanel(p theme.Palette) string {
 		if spec.accent {
 			valueRendered = accentStyle.Render(value)
 		}
-		detailLines = append(detailLines, fmt.Sprintf(
-			"%s %s",
+		detailLines = append(detailLines, fmt.Sprintf("%s %s",
 			labelStyle.Render(spec.label+":"),
 			valueRendered,
 		))

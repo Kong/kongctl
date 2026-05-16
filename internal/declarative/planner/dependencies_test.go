@@ -114,11 +114,7 @@ func TestResolveDependencies_ImplicitReferenceDependencies_WithPlaceholder(t *te
 	authIndex := indexOf(order, "1:u:application_auth_strategy:oidc")
 
 	if dcrIndex >= authIndex {
-		t.Errorf(
-			"DCR provider create (index %d) should come before auth strategy update (index %d)",
-			dcrIndex,
-			authIndex,
-		)
+		t.Errorf("DCR provider create (index %d) should come before auth strategy update (index %d)", dcrIndex, authIndex)
 	}
 }
 
@@ -958,12 +954,7 @@ func TestResolveDependenciesWithGroups_ExplicitPlusImplicit_NoDuplicate(t *testi
 	// should be only one edge (no double-counting in in-degree).
 	d := NewDependencyResolver()
 	changes := []PlannedChange{
-		{
-			ID:           "1-c-auth",
-			ResourceType: ResourceTypeApplicationAuthStrategy,
-			ResourceRef:  "basic-auth",
-			Action:       ActionCreate,
-		},
+		{ID: "1-c-auth", ResourceType: ResourceTypeApplicationAuthStrategy, ResourceRef: "basic-auth", Action: ActionCreate},
 		{
 			ID: "2-c-portal", ResourceType: ResourceTypePortal, ResourceRef: "my-portal", Action: ActionCreate,
 			DependsOn: []string{"1-c-auth"},

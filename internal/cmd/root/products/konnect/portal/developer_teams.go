@@ -48,8 +48,7 @@ var (
 %[1]s get portal developers teams --portal-id <portal-id> --team-id <team-id>
 # List developers for a team by name
 %[1]s get portal developers teams --portal-name my-portal --team-name backend-team
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetPortalDeveloperTeamsCmd(
@@ -236,8 +235,7 @@ func (h portalDeveloperTeamsHandler) run(args []string) error {
 		rootLabel = fmt.Sprintf("%s (%s)", rootLabel, teamName)
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -278,8 +276,7 @@ func fetchPortalTeamDevelopers(
 				"Failed to list portal team developers",
 				err,
 				helper.GetCmd(),
-				attrs...,
-			)
+				attrs...)
 		}
 
 		if res.GetListBasicDevelopersResponse() == nil {

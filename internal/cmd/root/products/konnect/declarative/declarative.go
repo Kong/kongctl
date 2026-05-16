@@ -218,8 +218,7 @@ func parseNamespaceRequirement(
 	if anyNamespaceSet && specificNamespacesSet {
 		return validator.NamespaceRequirement{}, fmt.Errorf(
 			"--%s and --%s are mutually exclusive",
-			requireAnyNamespaceFlagName, requireNamespaceFlagName,
-		)
+			requireAnyNamespaceFlagName, requireNamespaceFlagName)
 	}
 
 	// Check config for mutual exclusivity as well
@@ -231,8 +230,7 @@ func parseNamespaceRequirement(
 		if configAnyNamespace && len(configSpecificNamespaces) > 0 {
 			return validator.NamespaceRequirement{}, fmt.Errorf(
 				"config has both %s and %s set, but they are mutually exclusive",
-				requireAnyNamespaceConfigPath, requireNamespaceConfigPath,
-			)
+				requireAnyNamespaceConfigPath, requireNamespaceConfigPath)
 		}
 	}
 

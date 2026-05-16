@@ -291,8 +291,7 @@ func convertKeyAuthResponseToStrategy(key *kkComps.AppAuthStrategyKeyAuthRespons
 			Name:        key.Name,
 			DisplayName: key.DisplayName,
 			StrategyType: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyStrategyType(
-				key.StrategyType,
-			),
+				key.StrategyType),
 			Configs: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyConfigs{
 				KeyAuth: key.Configs.KeyAuth,
 			},
@@ -328,8 +327,7 @@ func convertOpenIDConnectResponseToStrategy(
 			Name:        oidc.Name,
 			DisplayName: oidc.DisplayName,
 			StrategyType: kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyStrategyType(
-				oidc.StrategyType,
-			),
+				oidc.StrategyType),
 			Configs: kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyConfigs{
 				OpenidConnect: oidc.Configs.OpenidConnect,
 			},

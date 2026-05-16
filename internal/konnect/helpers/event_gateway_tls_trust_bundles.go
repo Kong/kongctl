@@ -45,8 +45,7 @@ func (a *EventGatewayTLSTrustBundleAPIImpl) GetEventGatewayTLSTrustBundle(
 	opts ...kkOps.Option,
 ) (*kkOps.GetEventGatewayTLSTrustBundleResponse, error) {
 	return a.SDK.EventGatewayTLSTrustBundles.GetEventGatewayTLSTrustBundle(
-		ctx, request.GatewayID, request.TLSTrustBundleID, opts...,
-	)
+		ctx, request.GatewayID, request.TLSTrustBundleID, opts...)
 }
 
 func (a *EventGatewayTLSTrustBundleAPIImpl) CreateEventGatewayTLSTrustBundle(
@@ -55,8 +54,7 @@ func (a *EventGatewayTLSTrustBundleAPIImpl) CreateEventGatewayTLSTrustBundle(
 	opts ...kkOps.Option,
 ) (*kkOps.CreateEventGatewayTLSTrustBundleResponse, error) {
 	return a.SDK.EventGatewayTLSTrustBundles.CreateEventGatewayTLSTrustBundle(
-		ctx, request.GatewayID, request.CreateTLSTrustBundleRequest, opts...,
-	)
+		ctx, request.GatewayID, request.CreateTLSTrustBundleRequest, opts...)
 }
 
 func (a *EventGatewayTLSTrustBundleAPIImpl) UpdateEventGatewayTLSTrustBundle(

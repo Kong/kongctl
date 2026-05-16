@@ -23,8 +23,7 @@ func NewDirectPortalCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmd.Flags().String(
-			common.RegionFlagName, "",
+		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),
@@ -67,8 +66,7 @@ func NewDirectControlPlaneCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmd.Flags().String(
-			common.RegionFlagName, "",
+		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),
@@ -111,8 +109,7 @@ func NewDirectAPICmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmd.Flags().String(
-			common.RegionFlagName, "",
+		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),
@@ -155,8 +152,7 @@ func NewDirectEventGatewayCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmd.Flags().String(
-			common.RegionFlagName, "",
+		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),
@@ -236,8 +232,7 @@ func NewDirectAuthStrategyCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmd.Flags().String(
-			common.RegionFlagName, "",
+		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),
@@ -280,8 +275,7 @@ func NewDirectDCRProviderCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmd.Flags().String(
-			common.RegionFlagName, "",
+		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),
@@ -324,8 +318,7 @@ func NewDirectAnalyticsCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmd.Flags().String(
-			common.RegionFlagName, "",
+		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),

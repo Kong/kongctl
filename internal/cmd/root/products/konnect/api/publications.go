@@ -51,8 +51,7 @@ var (
 %[1]s get api publications --api-name my-api
 # Get a publication for a specific portal ID
 %[1]s get api publications --api-id <api-id> <portal-id>
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetAPIPublicationsCmd(
@@ -187,8 +186,7 @@ func (h apiPublicationsHandler) run(args []string) error {
 		return publicationDetailView(&publications[index])
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

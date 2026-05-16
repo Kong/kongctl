@@ -58,8 +58,7 @@ var (
 %[1]s get event-gateway backend-clusters --gateway-id <gateway-id> --backend-cluster-id <cluster-id>
 # Get a specific backend cluster by name (flag)
 %[1]s get event-gateway backend-clusters --gateway-name my-gateway --backend-cluster-name my-cluster
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetEventGatewayBackendClustersCmd(
@@ -246,8 +245,7 @@ func (h backendClustersHandler) listClusters(
 		tableRows = append(tableRows, table.Row{record.ID, record.Name})
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -333,8 +331,7 @@ func (h backendClustersHandler) getSingleCluster(
 		}
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

@@ -30,12 +30,10 @@ import (
 var (
 	getEventGatewayControlPlanesShort = i18n.T(
 		"root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesShort",
-		"List or get Konnect Event Gateways",
-	)
+		"List or get Konnect Event Gateways")
 	getEventGatewayControlPlanesLong = i18n.T(
 		"root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesLong",
-		`Use the get verb with the event-gateway command to query Konnect Event Gateways.`,
-	)
+		`Use the get verb with the event-gateway command to query Konnect Event Gateways.`)
 	getEventGatewayControlPlanesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesExamples",
 			fmt.Sprintf(`# List all the Event Gateways for the organization
@@ -46,8 +44,7 @@ var (
 %[1]s get event-gateway my-eventgateway
 # Get all the Event Gateways using command aliases
 %[1]s get egw
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 type textDisplayRecord struct {
@@ -158,8 +155,7 @@ func runGet(id string, kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 			"Failed to get Event Gateway Control Plane",
 			err,
 			helper.GetCmd(),
-			attrs...,
-		)
+			attrs...)
 	}
 
 	return res.GetEventGatewayInfo(), nil
@@ -236,8 +232,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 			if e != nil {
 				return e
 			}
-			return tableview.RenderForFormat(
-				helper,
+			return tableview.RenderForFormat(helper,
 				false,
 				outType,
 				printer,
@@ -261,8 +256,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 			return e
 		}
 
-		return tableview.RenderForFormat(
-			helper,
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -314,8 +308,7 @@ func renderEventGatewayControlPlaneList(
 		tableview.WithDetailHelper(helper),
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		interactive,
 		outType,
 		printer,

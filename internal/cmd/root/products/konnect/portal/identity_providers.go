@@ -43,8 +43,7 @@ var (
 %[1]s get portal identity-providers --portal-id <portal-id>
 # Filter identity providers by type
 %[1]s get portal identity-providers --portal-name my-portal --type oidc
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetPortalIdentityProvidersCmd(
@@ -157,8 +156,7 @@ func runGetPortalIdentityProviders(c *cobra.Command, args []string) error {
 		records = append(records, portalIdentityProviderToRecord(provider))
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

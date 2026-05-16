@@ -192,8 +192,7 @@ func (p *Planner) planPortalAuthSettingsUpdateWithFields(
 		}
 	}
 
-	p.logger.Debug(
-		"Enqueuing portal auth settings update",
+	p.logger.Debug("Enqueuing portal auth settings update",
 		"portal_ref", settings.Portal,
 		"settings_ref", settings.Ref,
 		"fields", fields,
@@ -210,10 +209,7 @@ func (p *Planner) shouldUpdatePortalAuthSettings(
 
 	if desired.BasicAuthEnabled != nil && !p.compareBoolToPtr(current.BasicAuthEnabled, desired.BasicAuthEnabled) {
 		updates[FieldBasicAuthEnabled] = *desired.BasicAuthEnabled
-		changedFields[FieldBasicAuthEnabled] = FieldChange{
-			Old: current.BasicAuthEnabled,
-			New: *desired.BasicAuthEnabled,
-		}
+		changedFields[FieldBasicAuthEnabled] = FieldChange{Old: current.BasicAuthEnabled, New: *desired.BasicAuthEnabled}
 	}
 
 	if desired.KonnectMappingEnabled != nil &&
@@ -347,15 +343,7 @@ func (p *Planner) planPortalIPAllowListsChanges(
 
 	selected := currentEntries[selectedIndex]
 	if !portalIPAllowListEntriesEqual(selected.AllowedIPs, desiredAllowList.AllowedIPs) {
-		p.planPortalIPAllowListUpdate(
-			parentNamespace,
-			&selected,
-			*desiredAllowList,
-			portalID,
-			portalRef,
-			portalName,
-			plan,
-		)
+		p.planPortalIPAllowListUpdate(parentNamespace, &selected, *desiredAllowList, portalID, portalRef, portalName, plan)
 	}
 
 	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
@@ -403,8 +391,7 @@ func (p *Planner) planPortalIPAllowListCreate(
 
 	p.setPortalIPAllowListReferences(&change, allowList.Portal, portalID, portalRef, portalName)
 
-	p.logger.Debug(
-		"Enqueuing portal IP allow list create",
+	p.logger.Debug("Enqueuing portal IP allow list create",
 		"portal_ref", allowList.Portal,
 		"allow_list_ref", allowList.Ref,
 		"fields", fields,
@@ -446,8 +433,7 @@ func (p *Planner) planPortalIPAllowListUpdate(
 
 	p.setPortalIPAllowListReferences(&change, allowList.Portal, portalID, portalRef, portalName)
 
-	p.logger.Debug(
-		"Enqueuing portal IP allow list update",
+	p.logger.Debug("Enqueuing portal IP allow list update",
 		"portal_ref", allowList.Portal,
 		"allow_list_ref", allowList.Ref,
 		"allow_list_id", current.ID,
@@ -490,8 +476,7 @@ func (p *Planner) planPortalIPAllowListDelete(
 
 	p.setPortalIPAllowListReferences(&change, portalRef, portalID, portalRef, portalName)
 
-	p.logger.Debug(
-		"Enqueuing portal IP allow list delete",
+	p.logger.Debug("Enqueuing portal IP allow list delete",
 		"portal_ref", portalRef,
 		"allow_list_ref", ref,
 		"allow_list_id", current.ID,
@@ -609,8 +594,7 @@ func (p *Planner) planPortalIntegrationsChanges(
 		return nil
 	}
 
-	p.logger.Debug(
-		"Fetching portal integrations",
+	p.logger.Debug("Fetching portal integrations",
 		"portal_ref", portalRef,
 		"portal_id", portalID,
 		"integration_ref", desiredIntegration.Ref,
@@ -687,8 +671,7 @@ func (p *Planner) planPortalIntegrationUpdate(
 		}
 	}
 
-	p.logger.Debug(
-		"Enqueuing portal integrations update",
+	p.logger.Debug("Enqueuing portal integrations update",
 		"portal_ref", ref,
 		"portal_id", portalID,
 		"integration_ref", integration.Ref,
@@ -1869,8 +1852,7 @@ func (p *Planner) planPortalAssetLogosChanges(
 			return fmt.Errorf("failed to compare portal asset logo for portal %q: %w", desiredLogo.Portal, err)
 		}
 		if !needsUpdate {
-			p.logger.Debug(
-				"Skipping portal asset logo update; no changes detected",
+			p.logger.Debug("Skipping portal asset logo update; no changes detected",
 				slog.String("portal", desiredLogo.Portal),
 			)
 			continue
@@ -1991,8 +1973,7 @@ func (p *Planner) planPortalAssetFaviconsChanges(
 			return fmt.Errorf("failed to compare portal asset favicon for portal %q: %w", desiredFavicon.Portal, err)
 		}
 		if !needsUpdate {
-			p.logger.Debug(
-				"Skipping portal asset favicon update; no changes detected",
+			p.logger.Debug("Skipping portal asset favicon update; no changes detected",
 				slog.String("portal", desiredFavicon.Portal),
 			)
 			continue
@@ -3938,7 +3919,6 @@ func (p *Planner) planPortalSnippetCreate(
 
 	plan.AddChange(change)
 } // shouldUpdatePortalSnippet checks if a portal snippet needs updating
-
 func (p *Planner) shouldUpdatePortalSnippet(
 	current *state.PortalSnippet,
 	desired resources.PortalSnippetResource,
@@ -4112,8 +4092,7 @@ func (p *Planner) planPortalTeamsChanges(
 		if count > 1 {
 			return fmt.Errorf(
 				"duplicate team name %q found in portal %q: team names must be unique within a portal",
-				name, portalRef,
-			)
+				name, portalRef)
 		}
 	}
 
@@ -4127,8 +4106,7 @@ func (p *Planner) planPortalTeamsChanges(
 			if count > 1 {
 				return fmt.Errorf(
 					"multiple existing teams found with name %q in portal %q: cannot manage teams with duplicate names",
-					name, portalRef,
-				)
+					name, portalRef)
 			}
 		}
 	}
@@ -4483,8 +4461,7 @@ func (p *Planner) addPortalTeamGroupMappingIDPWarning(
 				if provider.Enabled == nil || !*provider.Enabled {
 					continue
 				}
-				if provider.Type == kkComps.IdentityProviderTypeOidc ||
-					provider.Type == kkComps.IdentityProviderTypeSaml {
+				if provider.Type == kkComps.IdentityProviderTypeOidc || provider.Type == kkComps.IdentityProviderTypeSaml {
 					return
 				}
 			}

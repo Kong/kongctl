@@ -87,8 +87,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
 					"event_gateway_control_plane %q not found in Konnect, skipping delete",
-					desiredEGWCP.Name,
-				))
+					desiredEGWCP.Name))
 				continue
 			}
 

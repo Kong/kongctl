@@ -55,8 +55,7 @@ var (
 %[1]s get portal developers --portal-id <portal-id> dev@example.com
 # List developers in a portal team
 %[1]s get portal developers teams --portal-id <portal-id> --team-id <team-id>
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetPortalDevelopersCmd(
@@ -212,8 +211,7 @@ func (h portalDevelopersHandler) listDevelopers(
 		return portalDeveloperDetailView(developers[index])
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -264,8 +262,7 @@ func (h portalDevelopersHandler) getSingleDeveloper(
 		}
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

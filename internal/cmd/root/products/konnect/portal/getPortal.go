@@ -41,8 +41,7 @@ var (
 	%[1]s get portal my-portal 
 	# Get all the portals using command aliases
 	%[1]s get ps
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 // Represents a text display record for a Portal
@@ -404,8 +403,7 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				}
 				return portalListDetailView(portal)
 			}
-			return tableview.RenderForFormat(
-				helper,
+			return tableview.RenderForFormat(helper,
 				false,
 				outType,
 				printer,
@@ -434,8 +432,7 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			}
 			return portalResponseDetailView(portalResponse)
 		}
-		return tableview.RenderForFormat(
-			helper,
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -489,8 +486,7 @@ func renderPortalList(
 		options = append(options, tableview.WithDetailContext(childView.ParentType, childView.DetailContext))
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

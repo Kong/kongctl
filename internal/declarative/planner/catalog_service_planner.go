@@ -71,8 +71,7 @@ func (p *Planner) planCatalogServiceChanges(
 			current, exists := currentByName[desiredSvc.Name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
-					"catalog_service %q not found in Konnect, skipping delete", desiredSvc.Name,
-				))
+					"catalog_service %q not found in Konnect, skipping delete", desiredSvc.Name))
 				continue
 			}
 

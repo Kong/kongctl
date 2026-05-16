@@ -286,8 +286,7 @@ func PollForToken(ctx context.Context, httpClient *http.Client,
 		return nil, err
 	}
 
-	request, err := http.NewRequestWithContext(
-		ctx,
+	request, err := http.NewRequestWithContext(ctx,
 		http.MethodPost,
 		url,
 		strings.NewReader(urlsValues.Encode()),

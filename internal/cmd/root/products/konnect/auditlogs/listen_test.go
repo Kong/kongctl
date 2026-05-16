@@ -128,8 +128,7 @@ func TestBuildDetachedChildArgs(t *testing.T) {
 		parentArgs := []string{"listen", "--detach", "--endpoint", "https://example.test/audit-logs"}
 		got := buildDetachedChildArgs(parentArgs, childLogTemplate)
 
-		require.Equal(
-			t,
+		require.Equal(t,
 			[]string{"listen", "--endpoint", "https://example.test/audit-logs", "--log-file", childLogTemplate},
 			got,
 		)
@@ -141,8 +140,7 @@ func TestBuildDetachedChildArgs(t *testing.T) {
 		parentArgs := []string{"listen", "-d", "true", "--endpoint", "https://example.test/audit-logs"}
 		got := buildDetachedChildArgs(parentArgs, childLogTemplate)
 
-		require.Equal(
-			t,
+		require.Equal(t,
 			[]string{"listen", "--endpoint", "https://example.test/audit-logs", "--log-file", childLogTemplate},
 			got,
 		)
@@ -161,8 +159,7 @@ func TestBuildDetachedChildArgs(t *testing.T) {
 		}
 		got := buildDetachedChildArgs(parentArgs, childLogTemplate)
 
-		require.Equal(
-			t,
+		require.Equal(t,
 			[]string{"listen", "--endpoint", "https://example.test/audit-logs", "--log-file", childLogTemplate},
 			got,
 		)
@@ -179,8 +176,7 @@ func TestBuildDetachedChildArgs(t *testing.T) {
 		}
 		got := buildDetachedChildArgs(parentArgs, childLogTemplate)
 
-		require.Equal(
-			t,
+		require.Equal(t,
 			[]string{"listen", "--endpoint=https://example.test/audit-logs", "--log-file", childLogTemplate},
 			got,
 		)

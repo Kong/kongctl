@@ -69,15 +69,13 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 				return err
 			}
 			if !changes {
-				p.logger.Debug(
-					"Deck diff reported no changes; skipping deck plan entry",
+				p.logger.Debug("Deck diff reported no changes; skipping deck plan entry",
 					slog.String("control_plane_ref", cpRef),
 				)
 				continue
 			}
 		} else {
-			p.logger.Debug(
-				"Skipping deck diff; control plane not yet available",
+			p.logger.Debug("Skipping deck diff; control plane not yet available",
 				slog.String("control_plane_ref", cpRef),
 			)
 		}
@@ -120,8 +118,7 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 			serviceToDeckChange[svc.ResourceRef] = change.ID
 		}
 
-		p.logger.Debug(
-			"Planned deck config",
+		p.logger.Debug("Planned deck config",
 			slog.String("control_plane_ref", cpRef),
 			slog.Int("files", len(deckFiles)),
 		)
@@ -131,8 +128,7 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 		return nil
 	}
 
-	p.logger.Debug(
-		"Linking deck dependencies to api_implementation changes",
+	p.logger.Debug("Linking deck dependencies to api_implementation changes",
 		slog.Int("deck_configs", deckCount),
 	)
 
@@ -148,8 +144,7 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 		}
 		change.DependsOn = appendDependsOn(change.DependsOn, serviceToDeckChange[ref])
 
-		p.logger.Debug(
-			"Added deck dependency to api_implementation",
+		p.logger.Debug("Added deck dependency to api_implementation",
 			slog.String("api_implementation_ref", change.ResourceRef),
 			slog.String("gateway_service_ref", ref),
 		)
@@ -400,8 +395,7 @@ func (p *Planner) deckDiffHasChanges(
 		WorkDir:                 deckBaseDir,
 	})
 	if err != nil {
-		return false, fmt.Errorf(
-			"control_plane %s: deck diff failed: %w%s",
+		return false, fmt.Errorf("control_plane %s: deck diff failed: %w%s",
 			controlPlaneRef,
 			err,
 			deckRunErrorSuffix(result),
@@ -414,8 +408,7 @@ func (p *Planner) deckDiffHasChanges(
 
 	stdout, normalized := deck.NormalizeMaskedJSONOutput(result.Stdout)
 	if normalized {
-		p.logger.Debug(
-			"Normalized deck masked JSON output",
+		p.logger.Debug("Normalized deck masked JSON output",
 			slog.String("control_plane_ref", controlPlaneRef),
 		)
 	}
@@ -426,8 +419,7 @@ func (p *Planner) deckDiffHasChanges(
 	}
 
 	if len(output.Errors) > 0 {
-		return false, fmt.Errorf(
-			"control_plane %s: deck diff reported errors: %s",
+		return false, fmt.Errorf("control_plane %s: deck diff reported errors: %s",
 			controlPlaneRef,
 			deckErrorsSummary(output.Errors),
 		)

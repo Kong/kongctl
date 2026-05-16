@@ -85,8 +85,7 @@ func NewDeleteCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 			common.BaseURLConfigPath, common.BaseURLDefault))
 
-	cmd.PersistentFlags().String(
-		common.RegionFlagName, "",
+	cmd.PersistentFlags().String(common.RegionFlagName, "",
 		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 			common.BaseURLFlagName, common.RegionConfigPath),

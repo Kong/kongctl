@@ -62,8 +62,7 @@ var (
 %[1]s get event-gateway data-plane-certificates --gateway-id <gateway-id> --data-plane-certificate-id <certificate-id>
 # Get a specific data plane certificate by name (flag)
 %[1]s get event-gateway data-plane-certificates --gateway-name my-gateway --data-plane-certificate-name my-certificate
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetEventGatewayDataPlaneCertificatesCmd(
@@ -114,8 +113,7 @@ func (h dataPlaneCertificatesHandler) run(args []string) error {
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf(
-				"too many arguments. Listing data plane certificates requires 0 or 1 arguments (ID or name)",
-			),
+				"too many arguments. Listing data plane certificates requires 0 or 1 arguments (ID or name)"),
 		}
 	}
 
@@ -357,8 +355,7 @@ func fetchDataPlaneCertificates(
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
 			return nil, cmd.PrepareExecutionError(
-				"Failed to list data plane certificates", err, helper.GetCmd(), attrs...,
-			)
+				"Failed to list data plane certificates", err, helper.GetCmd(), attrs...)
 		}
 
 		if res.GetListEventGatewayDataPlaneCertificatesResponse() == nil {

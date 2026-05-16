@@ -68,8 +68,7 @@ var (
 %[1]s get portal applications --portal-id <portal-id> <application-id>
 # Get a specific application by name
 %[1]s get portal applications --portal-id <portal-id> checkout-app
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetPortalApplicationsCmd(
@@ -222,8 +221,7 @@ func (h portalApplicationsHandler) listApplications(
 		return portalApplicationDetailViewFromUnion(apps[index])
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -274,8 +272,7 @@ func (h portalApplicationsHandler) getSingleApplication(
 		}
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

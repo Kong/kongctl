@@ -103,8 +103,7 @@ var (
 %[1]s get api versions --api-id <api-id> <version-id>
 # Get a specific version by semantic version
 %[1]s get api versions --api-id <api-id> 1.0.0
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetAPIVersionsCmd(
@@ -258,8 +257,7 @@ func (h apiVersionsHandler) listVersions(
 		return versionSummaryDetailView(summary, nil)
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -337,8 +335,7 @@ func (h apiVersionsHandler) getSingleVersion(
 
 	display := any(record)
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

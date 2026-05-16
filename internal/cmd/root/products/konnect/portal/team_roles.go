@@ -53,8 +53,7 @@ var (
 %[1]s get portal team roles --portal-name my-portal
 # List roles for a specific team by name
 %[1]s get portal team roles --portal-name my-portal --team-name backend-team
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetPortalTeamRolesCmd(
@@ -262,8 +261,7 @@ func renderTeamRoles(
 	printer cli.PrintFlusher,
 	records []portalTeamRoleRecord,
 ) error {
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

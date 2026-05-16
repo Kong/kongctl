@@ -85,8 +85,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 					},
 					NormalizedLabels: map[string]string{},
 				}
-				p.planner.logger.Debug(
-					"Planning children for external portal",
+				p.planner.logger.Debug("Planning children for external portal",
 					slog.String("ref", desiredPortal.GetRef()),
 					slog.String("name", desiredPortal.Name),
 					slog.String("id", portalID),
@@ -244,8 +243,7 @@ func (p *portalPlannerImpl) planPortalDeletes(
 		current, exists := currentByName[desiredPortal.Name]
 		if !exists {
 			plan.AddWarning("", fmt.Sprintf(
-				"portal %q not found in Konnect, skipping delete", desiredPortal.Name,
-			))
+				"portal %q not found in Konnect, skipping delete", desiredPortal.Name))
 			continue
 		}
 
@@ -1357,8 +1355,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 						plan,
 					)
 				} else {
-					planner.logger.Debug(
-						"Skipping portal asset logo update; no changes detected",
+					planner.logger.Debug("Skipping portal asset logo update; no changes detected",
 						"portal", desired.Ref,
 					)
 				}
@@ -1387,8 +1384,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 						plan,
 					)
 				} else {
-					planner.logger.Debug(
-						"Skipping portal asset favicon update; no changes detected",
+					planner.logger.Debug("Skipping portal asset favicon update; no changes detected",
 						"portal", desired.Ref,
 					)
 				}

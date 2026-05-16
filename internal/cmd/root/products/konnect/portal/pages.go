@@ -108,8 +108,7 @@ var (
 %[1]s get portal pages --portal-id <portal-id> <page-id>
 # Get a specific page by slug
 %[1]s get portal pages --portal-id <portal-id> getting-started
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetPortalPagesCmd(
@@ -260,8 +259,7 @@ func (h portalPagesHandler) listPages(
 		return portalPageInfoDetail(page, nil)
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -337,8 +335,7 @@ func (h portalPagesHandler) getSinglePage(
 		return portalPageDetailView(record)
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

@@ -56,12 +56,12 @@ func (r OrganizationTeamRoleResource) MarshalJSON() ([]byte, error) {
 
 func (r OrganizationTeamRoleResource) MarshalYAML() (any, error) {
 	type alias struct {
-		Ref            string `json:"ref"              yaml:"ref"`
-		Team           string `json:"team,omitempty"   yaml:"team,omitempty"`
-		RoleName       string `json:"role_name"        yaml:"role_name"`
-		EntityID       string `json:"entity_id"        yaml:"entity_id"`
+		Ref            string `json:"ref" yaml:"ref"`
+		Team           string `json:"team,omitempty" yaml:"team,omitempty"`
+		RoleName       string `json:"role_name" yaml:"role_name"`
+		EntityID       string `json:"entity_id" yaml:"entity_id"`
 		EntityTypeName string `json:"entity_type_name" yaml:"entity_type_name"`
-		EntityRegion   string `json:"entity_region"    yaml:"entity_region"`
+		EntityRegion   string `json:"entity_region" yaml:"entity_region"`
 	}
 
 	return alias{

@@ -41,8 +41,7 @@ See flags for creation options.`)
 %[1]s create konnect gateway control-plane my-control-plane
 # Create a new control plane with the name 'my-control-plane' and specifying all the available options
 %[1]s create konnect gateway control-plane my-control-plane --description "full description" --cluster-type hybrid 
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 
 	createCpDescriptionConfigPath = fmt.Sprintf("konnect.gateway.%s.%s", CommandName, CreateCpDescriptionFlagName)
 	createCpClusterTypeConfigPath = fmt.Sprintf("konnect.gateway.%s.%s", CommandName, CreateCpClusterTypeFlagName)

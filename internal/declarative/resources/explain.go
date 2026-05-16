@@ -47,10 +47,10 @@ type ExplainBuildContext struct {
 }
 
 type ExplainRelation struct {
-	ParentAlias   string `json:"parent_alias"    yaml:"parent_alias"`
-	ParentType    string `json:"parent_type"     yaml:"parent_type"`
-	FieldName     string `json:"field_name"      yaml:"field_name"`
-	ChildAlias    string `json:"child_alias"     yaml:"child_alias"`
+	ParentAlias   string `json:"parent_alias"   yaml:"parent_alias"`
+	ParentType    string `json:"parent_type"    yaml:"parent_type"`
+	FieldName     string `json:"field_name"     yaml:"field_name"`
+	ChildAlias    string `json:"child_alias"    yaml:"child_alias"`
 	ParentRootKey string `json:"parent_root_key" yaml:"parent_root_key"`
 }
 
@@ -123,49 +123,49 @@ type ExplainField struct {
 }
 
 type JSONSchema struct {
-	Schema      string                  `json:"$schema,omitempty"                               yaml:"$schema,omitempty"`
-	ID          string                  `json:"$id,omitempty"                                   yaml:"$id,omitempty"`
-	Title       string                  `json:"title,omitempty"                                 yaml:"title,omitempty"`
-	Description string                  `json:"description,omitempty"                           yaml:"description,omitempty"`
-	Type        any                     `json:"type,omitempty"                                  yaml:"type,omitempty"`
-	Properties  map[string]*JSONSchema  `json:"properties,omitempty"                            yaml:"properties,omitempty"`
-	Required    []string                `json:"required,omitempty"                              yaml:"required,omitempty"`
-	Items       *JSONSchema             `json:"items,omitempty"                                 yaml:"items,omitempty"`
-	Additional  any                     `json:"additionalProperties,omitempty"                  yaml:"additionalProperties,omitempty"`
-	OneOf       []*JSONSchema           `json:"oneOf,omitempty"                                 yaml:"oneOf,omitempty"`
-	Const       any                     `json:"const,omitempty"                                 yaml:"const,omitempty"`
-	Enum        []any                   `json:"enum,omitempty"                                  yaml:"enum,omitempty"`
-	Default     any                     `json:"default,omitempty"                               yaml:"default,omitempty"`
-	XResource   any                     `json:"x-kongctl-resource,omitempty"                    yaml:"x-kongctl-resource,omitempty"`
-	XPath       string                  `json:"x-kongctl-path,omitempty"                        yaml:"x-kongctl-path,omitempty"`
-	XRootKey    string                  `json:"x-kongctl-root-key,omitempty"                    yaml:"x-kongctl-root-key,omitempty"`
-	XClass      string                  `json:"x-kongctl-resource-class,omitempty"              yaml:"x-kongctl-resource-class,omitempty"` //nolint:lll
-	XRefKind    string                  `json:"x-kongctl-ref-kind,omitempty"                    yaml:"x-kongctl-ref-kind,omitempty"`
-	XTag        string                  `json:"x-kongctl-preferred-tag,omitempty"               yaml:"x-kongctl-preferred-tag,omitempty"`
-	XDefault    string                  `json:"x-kongctl-default-from,omitempty"                yaml:"x-kongctl-default-from,omitempty"`
-	XNotes      []string                `json:"x-kongctl-notes,omitempty"                       yaml:"x-kongctl-notes,omitempty"`
-	XSubject    *ExplainSchemaSubject   `json:"x-kongctl-subject,omitempty"                     yaml:"x-kongctl-subject,omitempty"`
-	XPlacement  *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty"                   yaml:"x-kongctl-placement,omitempty"`
-	XRoot       *bool                   `json:"x-kongctl-supports-root,omitempty"               yaml:"x-kongctl-supports-root,omitempty"`
+	Schema      string                  `json:"$schema,omitempty" yaml:"$schema,omitempty"`
+	ID          string                  `json:"$id,omitempty" yaml:"$id,omitempty"`
+	Title       string                  `json:"title,omitempty" yaml:"title,omitempty"`
+	Description string                  `json:"description,omitempty" yaml:"description,omitempty"`
+	Type        any                     `json:"type,omitempty" yaml:"type,omitempty"`
+	Properties  map[string]*JSONSchema  `json:"properties,omitempty" yaml:"properties,omitempty"`
+	Required    []string                `json:"required,omitempty" yaml:"required,omitempty"`
+	Items       *JSONSchema             `json:"items,omitempty" yaml:"items,omitempty"`
+	Additional  any                     `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+	OneOf       []*JSONSchema           `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	Const       any                     `json:"const,omitempty" yaml:"const,omitempty"`
+	Enum        []any                   `json:"enum,omitempty" yaml:"enum,omitempty"`
+	Default     any                     `json:"default,omitempty" yaml:"default,omitempty"`
+	XResource   any                     `json:"x-kongctl-resource,omitempty" yaml:"x-kongctl-resource,omitempty"`
+	XPath       string                  `json:"x-kongctl-path,omitempty" yaml:"x-kongctl-path,omitempty"`
+	XRootKey    string                  `json:"x-kongctl-root-key,omitempty" yaml:"x-kongctl-root-key,omitempty"`
+	XClass      string                  `json:"x-kongctl-resource-class,omitempty" yaml:"x-kongctl-resource-class,omitempty"` //nolint:lll
+	XRefKind    string                  `json:"x-kongctl-ref-kind,omitempty" yaml:"x-kongctl-ref-kind,omitempty"`
+	XTag        string                  `json:"x-kongctl-preferred-tag,omitempty" yaml:"x-kongctl-preferred-tag,omitempty"`
+	XDefault    string                  `json:"x-kongctl-default-from,omitempty" yaml:"x-kongctl-default-from,omitempty"`
+	XNotes      []string                `json:"x-kongctl-notes,omitempty" yaml:"x-kongctl-notes,omitempty"`
+	XSubject    *ExplainSchemaSubject   `json:"x-kongctl-subject,omitempty" yaml:"x-kongctl-subject,omitempty"`
+	XPlacement  *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty" yaml:"x-kongctl-placement,omitempty"`
+	XRoot       *bool                   `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`
 	XNestedDecl *bool                   `json:"x-kongctl-supports-nested-declaration,omitempty" yaml:"x-kongctl-supports-nested-declaration,omitempty"` //nolint:lll
 }
 
 type ExplainSchemaSubject struct {
-	Kind        string `json:"kind"                  yaml:"kind"`
-	Path        string `json:"path"                  yaml:"path"`
-	Required    *bool  `json:"required,omitempty"    yaml:"required,omitempty"`
+	Kind        string `json:"kind" yaml:"kind"`
+	Path        string `json:"path" yaml:"path"`
+	Required    *bool  `json:"required,omitempty" yaml:"required,omitempty"`
 	Recommended *bool  `json:"recommended,omitempty" yaml:"recommended,omitempty"`
 }
 
 type ExplainSchemaPlacement struct {
-	YAMLPath        string   `json:"yaml_path,omitempty"         yaml:"yaml_path,omitempty"`
-	RootYAMLPath    string   `json:"root_yaml_path,omitempty"    yaml:"root_yaml_path,omitempty"`
-	NestedYAMLPath  string   `json:"nested_yaml_path,omitempty"  yaml:"nested_yaml_path,omitempty"`
+	YAMLPath        string   `json:"yaml_path,omitempty" yaml:"yaml_path,omitempty"`
+	RootYAMLPath    string   `json:"root_yaml_path,omitempty" yaml:"root_yaml_path,omitempty"`
+	NestedYAMLPath  string   `json:"nested_yaml_path,omitempty" yaml:"nested_yaml_path,omitempty"`
 	NestedYAMLPaths []string `json:"nested_yaml_paths,omitempty" yaml:"nested_yaml_paths,omitempty"`
 }
 
 type ExplainSchemaResource struct {
-	Name          string `json:"name"           yaml:"name"`
+	Name          string `json:"name" yaml:"name"`
 	ResourceClass string `json:"resource_class" yaml:"resource_class"`
 }
 
@@ -322,8 +322,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}
 		if !doc.SupportsRoot && len(doc.ParentRelations) > 0 {
 			relation := doc.ParentRelations[0]
-			subject.ScaffoldSteps = append(
-				subject.ScaffoldSteps,
+			subject.ScaffoldSteps = append(subject.ScaffoldSteps,
 				ExplainScaffoldStep{Name: relation.ParentRootKey, Array: true},
 				ExplainScaffoldStep{Name: relation.FieldName, Array: true},
 			)
@@ -1334,8 +1333,7 @@ func RenderScaffoldYAML(subject *ExplainSubject) (string, error) {
 		} else if len(subject.Doc.NestedRelations) > 0 {
 			relation := subject.Doc.NestedRelations[0]
 			if parentDoc, ok := explainDocByType(ResourceType(relation.ParentType)); ok {
-				trail = append(
-					trail,
+				trail = append(trail,
 					ExplainScaffoldNode{
 						Step: ExplainScaffoldStep{Name: relation.ParentRootKey, Array: true},
 						Node: parentDoc.Schema.clone(),

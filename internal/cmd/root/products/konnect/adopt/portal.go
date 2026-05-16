@@ -223,8 +223,7 @@ func resolvePortal(
 						"failed to retrieve portal",
 						err,
 						helper.GetCmd(),
-						attrs...,
-					)
+						attrs...)
 				}
 				portal := portalResp.GetPortalResponse()
 				if portal == nil {

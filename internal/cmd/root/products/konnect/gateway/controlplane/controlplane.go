@@ -35,8 +35,7 @@ var (
 	%[1]s get konnect gateway control-plane data-plane-certificates --control-plane-name <name>
 	# Use declarative workflows to provision new resources
 	%[1]s apply -f <config-file>
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 func NewControlPlaneCmd(verb verbs.VerbValue,

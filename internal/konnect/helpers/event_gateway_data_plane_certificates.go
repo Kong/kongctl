@@ -51,8 +51,7 @@ func (a *EventGatewayDataPlaneCertificateAPIImpl) FetchEventGatewayDataPlaneCert
 	opts ...kkOps.Option,
 ) (*kkOps.GetEventGatewayDataPlaneCertificateResponse, error) {
 	return a.SDK.EventGatewayDataPlaneCertificates.GetEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID, opts...,
-	)
+		ctx, gatewayID, certificateID, opts...)
 }
 
 func (a *EventGatewayDataPlaneCertificateAPIImpl) CreateEventGatewayDataPlaneCertificate(
@@ -62,8 +61,7 @@ func (a *EventGatewayDataPlaneCertificateAPIImpl) CreateEventGatewayDataPlaneCer
 	opts ...kkOps.Option,
 ) (*kkOps.CreateEventGatewayDataPlaneCertificateResponse, error) {
 	return a.SDK.EventGatewayDataPlaneCertificates.CreateEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, &request, opts...,
-	)
+		ctx, gatewayID, &request, opts...)
 }
 
 func (a *EventGatewayDataPlaneCertificateAPIImpl) UpdateEventGatewayDataPlaneCertificate(
@@ -89,6 +87,5 @@ func (a *EventGatewayDataPlaneCertificateAPIImpl) DeleteEventGatewayDataPlaneCer
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteEventGatewayDataPlaneCertificateResponse, error) {
 	return a.SDK.EventGatewayDataPlaneCertificates.DeleteEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID, opts...,
-	)
+		ctx, gatewayID, certificateID, opts...)
 }

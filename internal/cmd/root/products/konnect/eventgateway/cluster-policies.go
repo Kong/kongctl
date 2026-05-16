@@ -46,15 +46,15 @@ type clusterPolicySummaryRecord struct {
 // clusterPolicyWithConfig is a wrapper that includes the full config from raw API response.
 // The SDK's EventGatewayPolicyConfig struct is empty, so we use map[string]any to capture actual config.
 type clusterPolicyWithConfig struct {
-	Type           string            `json:"type"                       yaml:"type"`
-	Name           *string           `json:"name,omitempty"             yaml:"name,omitempty"`
-	Description    *string           `json:"description,omitempty"      yaml:"description,omitempty"`
-	Enabled        *bool             `json:"enabled,omitempty"          yaml:"enabled,omitempty"`
-	Labels         map[string]string `json:"labels,omitempty"           yaml:"labels,omitempty"`
-	ID             string            `json:"id"                         yaml:"id"`
-	Config         map[string]any    `json:"config"                     yaml:"config"`
-	CreatedAt      time.Time         `json:"created_at"                 yaml:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"                 yaml:"updated_at"`
+	Type           string            `json:"type" yaml:"type"`
+	Name           *string           `json:"name,omitempty" yaml:"name,omitempty"`
+	Description    *string           `json:"description,omitempty" yaml:"description,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	ID             string            `json:"id" yaml:"id"`
+	Config         map[string]any    `json:"config" yaml:"config"`
+	CreatedAt      time.Time         `json:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at" yaml:"updated_at"`
 	ParentPolicyID *string           `json:"parent_policy_id,omitempty" yaml:"parent_policy_id,omitempty"`
 }
 
@@ -63,10 +63,8 @@ var (
 
 	clusterPoliciesShort = i18n.T("root.products.konnect.eventgateway.clusterPoliciesShort",
 		"Manage cluster policies for an Event Gateway Virtual Cluster")
-	clusterPoliciesLong = normalizers.LongDesc(i18n.T(
-		"root.products.konnect.eventgateway.clusterPoliciesLong",
-		`Use the cluster-policies command to list or retrieve cluster policies for a specific Event Gateway Virtual Cluster.`,
-	)) //nolint:lll
+	clusterPoliciesLong = normalizers.LongDesc(i18n.T("root.products.konnect.eventgateway.clusterPoliciesLong",
+		`Use the cluster-policies command to list or retrieve cluster policies for a specific Event Gateway Virtual Cluster.`)) //nolint:lll
 	clusterPoliciesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.eventgateway.clusterPoliciesExamples",
 			fmt.Sprintf(`
@@ -82,8 +80,7 @@ var (
 %[1]s get event-gateway vc cp --gateway-id <id> --virtual-cluster-id <id> --policy-id <id>
 # Get a specific cluster policy by name (flag)
 %[1]s get event-gateway vc cp --gateway-name gw --virtual-cluster-name vc --policy-name p
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetEventGatewayClusterPoliciesCmd(

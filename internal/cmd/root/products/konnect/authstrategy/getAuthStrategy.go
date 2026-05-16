@@ -43,8 +43,7 @@ var (
 	%[1]s get auth-strategies --type key_auth
 	# Get all the auth strategies using command aliases
 	%[1]s get as
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 const (
@@ -355,8 +354,7 @@ func runGet(id string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
 				Name:        keyAuthResp.Name,
 				DisplayName: keyAuthResp.DisplayName,
 				StrategyType: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyStrategyType(
-					keyAuthResp.StrategyType,
-				),
+					keyAuthResp.StrategyType),
 				Configs: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyConfigs{
 					KeyAuth: keyAuthResp.Configs.KeyAuth,
 				},
@@ -385,8 +383,7 @@ func runGet(id string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
 				Name:        openIDResp.Name,
 				DisplayName: openIDResp.DisplayName,
 				StrategyType: kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyStrategyType(
-					openIDResp.StrategyType,
-				),
+					openIDResp.StrategyType),
 				Configs: kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyConfigs{
 					OpenidConnect: openIDResp.Configs.OpenidConnect,
 				},
@@ -491,8 +488,7 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 			if err != nil {
 				return err
 			}
-			return tableview.RenderForFormat(
-				helper,
+			return tableview.RenderForFormat(helper,
 				false,
 				outType,
 				printer,
@@ -507,8 +503,7 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		if err != nil {
 			return err
 		}
-		return tableview.RenderForFormat(
-			helper,
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -558,8 +553,7 @@ func renderAuthStrategyList(
 		options = append(options, tableview.WithDetailContext(childView.ParentType, func(int) any { return nil }))
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

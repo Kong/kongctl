@@ -34,8 +34,7 @@ authentication token.`)
 			fmt.Sprintf(`
 	# Get current organization information
 	%[1]s get organization
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 type textDisplayRecord struct {
@@ -245,8 +244,7 @@ func (c *getOrganizationCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

@@ -299,12 +299,7 @@ func parseConfig() config {
 		floatEnv("KONGCTL_BENCHMARK_DURATION_THRESHOLD", 0.50),
 		"tracked wall-clock duration increase ratio when comparing to a baseline",
 	)
-	flag.DurationVar(
-		&cfg.CommandTimeout,
-		"command-timeout",
-		defaultTimeout,
-		"timeout for each measured kongctl command",
-	)
+	flag.DurationVar(&cfg.CommandTimeout, "command-timeout", defaultTimeout, "timeout for each measured kongctl command")
 	flag.Parse()
 	if cfg.Repeat < 1 {
 		cfg.Repeat = 1

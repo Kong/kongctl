@@ -22,8 +22,7 @@ func (p *Planner) planEventGatewaySchemaRegistryChanges(
 	desired []resources.EventGatewaySchemaRegistryResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug(
-		"Planning Event Gateway Schema Registry changes",
+	p.logger.Debug("Planning Event Gateway Schema Registry changes",
 		"gateway_name", gatewayName,
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
@@ -40,8 +39,7 @@ func (p *Planner) planEventGatewaySchemaRegistryChanges(
 
 	// Gateway doesn't exist yet: plan creates only with dependency on gateway creation
 	p.planSchemaRegistryCreatesForNewGateway(
-		namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan,
-	)
+		namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan)
 	return nil
 }
 
@@ -56,8 +54,7 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 	desired []resources.EventGatewaySchemaRegistryResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug(
-		"Planning changes for existing gateway schema registries",
+	p.logger.Debug("Planning changes for existing gateway schema registries",
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
 		"desired_count", len(desired),
@@ -68,8 +65,7 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 		return fmt.Errorf("failed to list schema registries for gateway %s: %w", gatewayID, err)
 	}
 
-	p.logger.Debug(
-		"Fetched current schema registries",
+	p.logger.Debug("Fetched current schema registries",
 		"gateway_id", gatewayID,
 		"current_count", len(currentRegistries),
 	)
@@ -88,31 +84,27 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 		current, exists := currentByName[name]
 
 		if !exists {
-			p.logger.Debug(
-				"Planning schema registry CREATE",
+			p.logger.Debug("Planning schema registry CREATE",
 				"registry_name", name,
 				"gateway_ref", gatewayRef,
 			)
 			p.planSchemaRegistryCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredSR, []string{}, plan)
 		} else {
-			p.logger.Debug(
-				"Checking if schema registry needs update",
+			p.logger.Debug("Checking if schema registry needs update",
 				"registry_name", name,
 				"registry_id", current.ID,
 			)
 
 			needsUpdate, updateFields, changedFields := p.shouldUpdateSchemaRegistry(current, desiredSR)
 			if needsUpdate {
-				p.logger.Debug(
-					"Planning schema registry UPDATE",
+				p.logger.Debug("Planning schema registry UPDATE",
 					"registry_name", name,
 					"registry_id", current.ID,
 					"update_fields", updateFields,
 				)
 				p.planSchemaRegistryUpdate(
 					namespace, gatewayRef, gatewayID,
-					current.ID, desiredSR, updateFields, changedFields, plan,
-				)
+					current.ID, desiredSR, updateFields, changedFields, plan)
 			}
 		}
 	}
@@ -121,8 +113,7 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				p.logger.Debug(
-					"Planning schema registry DELETE (sync mode)",
+				p.logger.Debug("Planning schema registry DELETE (sync mode)",
 					"registry_name", name,
 					"registry_id", current.ID,
 				)
@@ -144,8 +135,7 @@ func (p *Planner) planSchemaRegistryCreatesForNewGateway(
 	registries []resources.EventGatewaySchemaRegistryResource,
 	plan *Plan,
 ) {
-	p.logger.Debug(
-		"Planning schema registry creates for new gateway",
+	p.logger.Debug("Planning schema registry creates for new gateway",
 		"gateway_ref", gatewayRef,
 		"gateway_change_id", gatewayChangeID,
 		"registry_count", len(registries),

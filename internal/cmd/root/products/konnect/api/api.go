@@ -37,8 +37,7 @@ var (
 	%[1]s get api implementations --api-id <api-id>
 	# List APIs using explicit konnect product
 	%[1]s get konnect apis
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 func NewAPICmd(verb verbs.VerbValue,

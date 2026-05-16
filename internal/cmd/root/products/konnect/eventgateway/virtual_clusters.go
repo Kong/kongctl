@@ -61,8 +61,7 @@ var (
 %[1]s get event-gateway virtual-clusters --gateway-id <gateway-id> --virtual-cluster-id <cluster-id>
 # Get a specific virtual cluster by name (flag)
 %[1]s get event-gateway virtual-clusters --gateway-name my-gateway --virtual-cluster-name my-cluster
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetEventGatewayVirtualClustersCmd(
@@ -273,8 +272,7 @@ func (h virtualClustersHandler) listClusters(
 		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.DNSLabel})
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -319,8 +317,7 @@ func (h virtualClustersHandler) listClustersByBackendCluster(
 		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.DNSLabel})
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -377,8 +374,7 @@ func (h virtualClustersHandler) getSingleCluster(
 		}
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

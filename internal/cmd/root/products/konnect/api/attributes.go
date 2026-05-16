@@ -43,8 +43,7 @@ var (
 %[1]s get api attributes --api-name my-api
 # Get a specific attribute key
 %[1]s get api attributes --api-id <api-id> category
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetAPIAttributesCmd(
@@ -204,8 +203,7 @@ func (h apiAttributesHandler) run(args []string) error {
 		return attributeDetailView(key, values)
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

@@ -50,8 +50,7 @@ func (a *EventGatewayStaticKeyAPIImpl) CreateEventGatewayStaticKey(
 	opts ...kkOps.Option,
 ) (*kkOps.CreateEventGatewayStaticKeyResponse, error) {
 	return a.SDK.EventGatewayStaticKeys.CreateEventGatewayStaticKey(
-		ctx, request.GatewayID, request.EventGatewayStaticKeyCreate, opts...,
-	)
+		ctx, request.GatewayID, request.EventGatewayStaticKeyCreate, opts...)
 }
 
 func (a *EventGatewayStaticKeyAPIImpl) DeleteEventGatewayStaticKey(
@@ -60,6 +59,5 @@ func (a *EventGatewayStaticKeyAPIImpl) DeleteEventGatewayStaticKey(
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteEventGatewayStaticKeyResponse, error) {
 	return a.SDK.EventGatewayStaticKeys.DeleteEventGatewayStaticKey(
-		ctx, request.GatewayID, request.StaticKeyID, opts...,
-	)
+		ctx, request.GatewayID, request.StaticKeyID, opts...)
 }

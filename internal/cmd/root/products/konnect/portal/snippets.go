@@ -101,8 +101,7 @@ var (
 %[1]s get portal snippets --portal-id <portal-id> <snippet-id>
 # Get a specific snippet by name
 %[1]s get portal snippets --portal-id <portal-id> welcome-message
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetPortalSnippetsCmd(
@@ -261,8 +260,7 @@ func (h portalSnippetsHandler) listSnippets(
 		return portalSnippetInfoDetail(snippet, nil)
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -336,8 +334,7 @@ func (h portalSnippetsHandler) getSingleSnippet(
 		return portalSnippetDetailView(record)
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

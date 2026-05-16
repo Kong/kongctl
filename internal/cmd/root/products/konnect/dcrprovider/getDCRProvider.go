@@ -41,8 +41,7 @@ var (
 	%[1]s get dcr-provider my-okta-dcr-provider
 	# Get all the DCR providers using command aliases
 	%[1]s get dcrps
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 type textDisplayRecord struct {
@@ -57,16 +56,16 @@ type textDisplayRecord struct {
 }
 
 type dcrProvider struct {
-	ID           string            `json:"id"                     yaml:"id"`
-	Name         string            `json:"name"                   yaml:"name"`
+	ID           string            `json:"id" yaml:"id"`
+	Name         string            `json:"name" yaml:"name"`
 	DisplayName  string            `json:"display_name,omitempty" yaml:"display_name,omitempty"`
-	ProviderType string            `json:"provider_type"          yaml:"provider_type"`
-	Issuer       string            `json:"issuer"                 yaml:"issuer"`
-	DCRConfig    map[string]any    `json:"dcr_config,omitempty"   yaml:"dcr_config,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"       yaml:"labels,omitempty"`
-	Active       *bool             `json:"active,omitempty"       yaml:"active,omitempty"`
-	CreatedAt    *time.Time        `json:"created_at,omitempty"   yaml:"created_at,omitempty"`
-	UpdatedAt    *time.Time        `json:"updated_at,omitempty"   yaml:"updated_at,omitempty"`
+	ProviderType string            `json:"provider_type" yaml:"provider_type"`
+	Issuer       string            `json:"issuer" yaml:"issuer"`
+	DCRConfig    map[string]any    `json:"dcr_config,omitempty" yaml:"dcr_config,omitempty"`
+	Labels       map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Active       *bool             `json:"active,omitempty" yaml:"active,omitempty"`
+	CreatedAt    *time.Time        `json:"created_at,omitempty" yaml:"created_at,omitempty"`
+	UpdatedAt    *time.Time        `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 }
 
 type getDCRProviderCmd struct {
@@ -320,8 +319,7 @@ func (c *getDCRProviderCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return tableview.RenderForFormat(
-			helper,
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -366,8 +364,7 @@ func renderDCRProviderList(
 		options = append(options, tableview.WithDetailContext(childView.ParentType, childView.DetailContext))
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

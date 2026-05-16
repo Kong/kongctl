@@ -292,8 +292,7 @@ func renderSystemAccountRoles(
 		records = append(records, systemAccountRoleToRecord(role, accountID))
 	}
 
-	return tableview.RenderForFormat(
-		helper, false, outType, printer, helper.GetStreams(), records, records, "",
+	return tableview.RenderForFormat(helper, false, outType, printer, helper.GetStreams(), records, records, "",
 		tableview.WithRootLabel(common.ViewFieldUserRoles),
 		tableview.WithDetailHelper(helper),
 	)
@@ -311,8 +310,7 @@ func renderSystemAccountTeams(
 		records = append(records, systemAccountTeamToRecord(team, accountID))
 	}
 
-	return tableview.RenderForFormat(
-		helper, false, outType, printer, helper.GetStreams(), records, records, "",
+	return tableview.RenderForFormat(helper, false, outType, printer, helper.GetStreams(), records, records, "",
 		tableview.WithRootLabel(common.ViewFieldTeams),
 		tableview.WithDetailHelper(helper),
 	)

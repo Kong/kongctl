@@ -43,10 +43,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 
 	membershipsByAccount := make(map[string][]resources.OrganizationSystemAccountTeamMembershipResource)
 	for _, membership := range desired {
-		membershipsByAccount[membership.SystemAccount] = append(
-			membershipsByAccount[membership.SystemAccount],
-			membership,
-		)
+		membershipsByAccount[membership.SystemAccount] = append(membershipsByAccount[membership.SystemAccount], membership)
 	}
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, account := range t.organizationSystemAccountsByNamespace(namespace) {
@@ -87,11 +84,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 
 		desiredTeamIDs := make(map[string]bool)
 		for _, membership := range memberships {
-			team, teamID, teamName := t.resolveOrganizationTeamForAssignment(
-				membership.Team,
-				desiredTeams,
-				currentByName,
-			)
+			team, teamID, teamName := t.resolveOrganizationTeamForAssignment(membership.Team, desiredTeams, currentByName)
 			if team == nil {
 				continue
 			}
@@ -207,13 +200,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountRoleChanges(
 		if plan.Metadata.Mode == PlanModeSync {
 			for key, existingRole := range existingRoles {
 				if !desiredKeys[key] {
-					t.planOrganizationSystemAccountRoleDelete(
-						namespace,
-						accountRef,
-						account.GetKonnectID(),
-						existingRole,
-						plan,
-					)
+					t.planOrganizationSystemAccountRoleDelete(namespace, accountRef, account.GetKonnectID(), existingRole, plan)
 				}
 			}
 		}

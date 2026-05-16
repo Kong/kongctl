@@ -80,8 +80,7 @@ func buildCompatibilityConstraint(compatibility Compatibility) (string, error) {
 	if maxVersion != "" {
 		if compatibilityVersionHasWildcard(maxVersion) {
 			if _, err := semver.NewConstraint(maxVersion); err != nil {
-				return "", fmt.Errorf(
-					"compatibility.max_version %q is not a valid semantic version range: %w",
+				return "", fmt.Errorf("compatibility.max_version %q is not a valid semantic version range: %w",
 					maxVersion,
 					err,
 				)
@@ -89,8 +88,7 @@ func buildCompatibilityConstraint(compatibility Compatibility) (string, error) {
 			parts = append(parts, maxVersion)
 		} else {
 			if _, err := semver.NewVersion(maxVersion); err != nil {
-				return "", fmt.Errorf(
-					"compatibility.max_version %q is not a valid semantic version: %w",
+				return "", fmt.Errorf("compatibility.max_version %q is not a valid semantic version: %w",
 					maxVersion,
 					err,
 				)

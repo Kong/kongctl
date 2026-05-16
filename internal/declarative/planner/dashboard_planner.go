@@ -68,8 +68,7 @@ func (p *Planner) planDashboardChanges(
 			}
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
-					"dashboard %q not found in Konnect, skipping delete", desiredDashboard.Name,
-				))
+					"dashboard %q not found in Konnect, skipping delete", desiredDashboard.Name))
 				continue
 			}
 

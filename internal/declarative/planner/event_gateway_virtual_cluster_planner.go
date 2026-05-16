@@ -22,8 +22,7 @@ func (p *Planner) planEventGatewayVirtualClusterChanges(
 	desired []resources.EventGatewayVirtualClusterResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug(
-		"Planning Event Gateway Virtual Cluster changes",
+	p.logger.Debug("Planning Event Gateway Virtual Cluster changes",
 		"gateway_name", gatewayName,
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
@@ -55,8 +54,7 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 	desired []resources.EventGatewayVirtualClusterResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug(
-		"Planning changes for existing gateway virtual clusters",
+	p.logger.Debug("Planning changes for existing gateway virtual clusters",
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
 		"desired_count", len(desired),
@@ -68,8 +66,7 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 		return fmt.Errorf("failed to list virtual clusters for gateway %s: %w", gatewayID, err)
 	}
 
-	p.logger.Debug(
-		"Fetched current virtual clusters",
+	p.logger.Debug("Fetched current virtual clusters",
 		"gateway_id", gatewayID,
 		"current_count", len(currentClusters),
 	)
@@ -87,8 +84,7 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 		current, exists := currentByName[desiredCluster.Name]
 		if !exists {
 			// CREATE
-			p.logger.Debug(
-				"Planning virtual cluster CREATE",
+			p.logger.Debug("Planning virtual cluster CREATE",
 				"cluster_name", desiredCluster.Name,
 				"gateway_ref", gatewayRef,
 			)
@@ -147,8 +143,7 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 			}
 		} else {
 			// CHECK UPDATE
-			p.logger.Debug(
-				"Checking if virtual cluster needs update",
+			p.logger.Debug("Checking if virtual cluster needs update",
 				"cluster_name", desiredCluster.Name,
 				"cluster_id", current.ID,
 			)
@@ -161,8 +156,7 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 
 			needsUpdate, updateFields, changedFields := p.shouldUpdateVirtualCluster(*fullCluster, desiredCluster)
 			if needsUpdate {
-				p.logger.Debug(
-					"Planning virtual cluster UPDATE",
+				p.logger.Debug("Planning virtual cluster UPDATE",
 					"cluster_name", desiredCluster.Name,
 					"cluster_id", current.ID,
 					"update_fields", updateFields,
@@ -170,8 +164,7 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 				)
 				p.planVirtualClusterUpdate(
 					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredCluster, updateFields, changedFields, plan,
-				)
+					current.ID, desiredCluster, updateFields, changedFields, plan)
 			}
 
 			// Plan cluster policies for this existing virtual cluster
@@ -230,8 +223,7 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				p.logger.Debug(
-					"Planning virtual cluster DELETE (sync mode)",
+				p.logger.Debug("Planning virtual cluster DELETE (sync mode)",
 					"cluster_name", name,
 					"cluster_id", current.ID,
 				)
@@ -253,8 +245,7 @@ func (p *Planner) planVirtualClusterCreatesForNewGateway(
 	clusters []resources.EventGatewayVirtualClusterResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug(
-		"Planning virtual cluster creates for new gateway",
+	p.logger.Debug("Planning virtual cluster creates for new gateway",
 		"gateway_ref", gatewayRef,
 		"gateway_change_id", gatewayChangeID,
 		"cluster_count", len(clusters),
@@ -403,8 +394,7 @@ func (p *Planner) planVirtualClusterCreate(
 		}
 	}
 
-	p.logger.Debug(
-		"Enqueuing virtual cluster CREATE",
+	p.logger.Debug("Enqueuing virtual cluster CREATE",
 		"cluster_ref", cluster.Ref,
 		"cluster_name", cluster.Name,
 		"gateway_ref", gatewayRef,
@@ -472,8 +462,7 @@ func (p *Planner) planVirtualClusterUpdate(
 		}
 	}
 
-	p.logger.Debug(
-		"Enqueuing virtual cluster UPDATE",
+	p.logger.Debug("Enqueuing virtual cluster UPDATE",
 		"cluster_ref", cluster.Ref,
 		"cluster_name", cluster.Name,
 		"cluster_id", clusterID,
@@ -503,8 +492,7 @@ func (p *Planner) planVirtualClusterDelete(
 		},
 	}
 
-	p.logger.Debug(
-		"Enqueuing virtual cluster DELETE",
+	p.logger.Debug("Enqueuing virtual cluster DELETE",
 		"cluster_name", clusterName,
 		"cluster_id", clusterID,
 	)

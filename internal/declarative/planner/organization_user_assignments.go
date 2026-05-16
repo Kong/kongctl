@@ -78,11 +78,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 
 		desiredTeamIDs := make(map[string]bool)
 		for _, membership := range memberships {
-			team, teamID, teamName := t.resolveOrganizationTeamForAssignment(
-				membership.Team,
-				desiredTeams,
-				currentByName,
-			)
+			team, teamID, teamName := t.resolveOrganizationTeamForAssignment(membership.Team, desiredTeams, currentByName)
 			if team == nil {
 				continue
 			}

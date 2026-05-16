@@ -179,8 +179,7 @@ func renderOrganizationTeamRoles(
 		records = append(records, organizationTeamRoleToRecord(role, teamID))
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

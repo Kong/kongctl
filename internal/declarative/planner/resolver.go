@@ -80,8 +80,7 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 					if err != nil {
 						result.Errors = append(result.Errors, fmt.Errorf(
 							"change %s: failed to resolve %s reference %q: %w",
-							change.ID, resourceType, ref, err,
-						))
+							change.ID, resourceType, ref, err))
 						continue
 					}
 					changeRefs[fieldName] = ResolvedReference{

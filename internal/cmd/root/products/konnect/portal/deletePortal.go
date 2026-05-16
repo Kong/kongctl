@@ -45,8 +45,7 @@ Use --auto-approve to skip the confirmation prompt.`)
 	# Delete without confirmation prompt
 	%[1]s delete portal my-portal --auto-approve
 
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 type deletePortalCmd struct {

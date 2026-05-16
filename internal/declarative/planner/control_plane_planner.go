@@ -69,8 +69,7 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			current, exists := currentByName[desiredCP.Name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
-					"control_plane %q not found in Konnect, skipping delete", desiredCP.Name,
-				))
+					"control_plane %q not found in Konnect, skipping delete", desiredCP.Name))
 				continue
 			}
 

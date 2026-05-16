@@ -51,8 +51,7 @@ var (
 	%[1]s get konnect gateway control-plane consumers --control-plane-name <name>
 	# Get a specific Kong Gateway Consumer located on the given control plane (by name)
 	%[1]s get konnect gateway control-plane consumer --control-plane-name <name> <consumer-name>
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 func (c *getConsumerCmd) validate(helper cmd.Helper) error {
@@ -256,8 +255,7 @@ func renderConsumers(
 		raw = consumers
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

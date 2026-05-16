@@ -103,8 +103,7 @@ var (
 %[1]s get api documents --api-id <api-id> <document-id>
 # Get a specific document by slug
 %[1]s get api documents --api-id <api-id> getting-started
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetAPIDocumentsCmd(
@@ -247,8 +246,7 @@ func (h apiDocumentsHandler) listDocuments(
 		return documentSummaryDetailView(summary, nil)
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -343,8 +341,7 @@ func (h apiDocumentsHandler) getSingleDocument(
 	cache := newAPIDocumentDetailCache()
 	cache.Set(doc.GetID(), detailRecord)
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

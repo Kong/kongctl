@@ -69,8 +69,7 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 	}
 	flags = ensureDeckOutputFlags(flags)
 
-	logger.Debug(
-		"Executing deck gateway",
+	logger.Debug("Executing deck gateway",
 		slog.String("control_plane_ref", cpRef),
 		slog.Int("files", len(files)),
 	)
@@ -101,8 +100,7 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 	})
 	logDeckRunOutput(logger, cpRef, 0, result, err)
 	if err != nil {
-		return fmt.Errorf(
-			"deck gateway for control_plane %s failed: %w%s",
+		return fmt.Errorf("deck gateway for control_plane %s failed: %w%s",
 			cpRef,
 			err,
 			deckRunErrorSuffix(result),
@@ -120,8 +118,7 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 
 	for _, svc := range services {
 		if !planNeedsGatewayServiceResolution(plan, svc.Ref) {
-			logger.Debug(
-				"Skipping gateway service resolution; no dependent changes",
+			logger.Debug("Skipping gateway service resolution; no dependent changes",
 				slog.String("gateway_service_ref", svc.Ref),
 			)
 			continue
@@ -139,8 +136,7 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 		e.storeGatewayServiceRef(svc.Ref, serviceID)
 		e.updateGatewayServiceReferences(plan, svc.Ref, serviceID, cpID)
 
-		logger.Debug(
-			"Resolved gateway service after deck execution",
+		logger.Debug("Resolved gateway service after deck execution",
 			slog.String("gateway_service_ref", svc.Ref),
 			slog.String("gateway_service_id", serviceID),
 			slog.String("control_plane_id", cpID),
@@ -608,15 +604,13 @@ func logDeckRunOutput(logger *slog.Logger, controlPlaneRef string, step int, res
 		if summary, ok := deckSummaryFromJSON(stdout); ok {
 			logDeckSummary(logger, controlPlaneRef, step, summary)
 		} else if !looksLikeJSON(stdout) {
-			logger.Debug(
-				"deck stdout",
+			logger.Debug("deck stdout",
 				slog.String("control_plane_ref", controlPlaneRef),
 				slog.Int("step", step),
 				slog.String("stdout", truncateDeckOutput(stdout, 4096)),
 			)
 		} else {
-			logger.Debug(
-				"deck stdout omitted (json output)",
+			logger.Debug("deck stdout omitted (json output)",
 				slog.String("control_plane_ref", controlPlaneRef),
 				slog.Int("step", step),
 			)
@@ -628,8 +622,7 @@ func logDeckRunOutput(logger *slog.Logger, controlPlaneRef string, step int, res
 	}
 
 	if runErr != nil {
-		logger.Error(
-			"deck stderr",
+		logger.Error("deck stderr",
 			slog.String("control_plane_ref", controlPlaneRef),
 			slog.Int("step", step),
 			slog.String("stderr", stderr),
@@ -637,8 +630,7 @@ func logDeckRunOutput(logger *slog.Logger, controlPlaneRef string, step int, res
 		return
 	}
 
-	logger.Debug(
-		"deck stderr",
+	logger.Debug("deck stderr",
 		slog.String("control_plane_ref", controlPlaneRef),
 		slog.Int("step", step),
 		slog.String("stderr", truncateDeckOutput(stderr, 4096)),
@@ -722,8 +714,7 @@ func logDeckSummary(logger *slog.Logger, controlPlaneRef string, step int, summa
 		return
 	}
 	if summary.Kind == "diff" {
-		logger.Debug(
-			"deck diff summary",
+		logger.Debug("deck diff summary",
 			slog.String("control_plane_ref", controlPlaneRef),
 			slog.Int("step", step),
 			slog.Int("creating", summary.Creating),
@@ -736,8 +727,7 @@ func logDeckSummary(logger *slog.Logger, controlPlaneRef string, step int, summa
 		return
 	}
 
-	logger.Debug(
-		"deck summary",
+	logger.Debug("deck summary",
 		slog.String("control_plane_ref", controlPlaneRef),
 		slog.Int("step", step),
 		slog.Int("created", summary.Created),

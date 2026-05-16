@@ -46,15 +46,15 @@ type consumePolicySummaryRecord struct {
 // consumePolicyWithConfig is a wrapper that includes the full config from raw API response.
 // The SDK's EventGatewayPolicyConfig struct is empty, so we use map[string]any to capture actual config.
 type consumePolicyWithConfig struct {
-	Type        string            `json:"type"                  yaml:"type"`
-	Name        *string           `json:"name,omitempty"        yaml:"name,omitempty"`
+	Type        string            `json:"type" yaml:"type"`
+	Name        *string           `json:"name,omitempty" yaml:"name,omitempty"`
 	Description *string           `json:"description,omitempty" yaml:"description,omitempty"`
-	Enabled     *bool             `json:"enabled,omitempty"     yaml:"enabled,omitempty"`
-	Labels      map[string]string `json:"labels,omitempty"      yaml:"labels,omitempty"`
-	ID          string            `json:"id"                    yaml:"id"`
-	Config      map[string]any    `json:"config"                yaml:"config"`
-	CreatedAt   time.Time         `json:"created_at"            yaml:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"            yaml:"updated_at"`
+	Enabled     *bool             `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	ID          string            `json:"id" yaml:"id"`
+	Config      map[string]any    `json:"config" yaml:"config"`
+	CreatedAt   time.Time         `json:"created_at" yaml:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at" yaml:"updated_at"`
 }
 
 var (
@@ -62,10 +62,8 @@ var (
 
 	consumePoliciesShort = i18n.T("root.products.konnect.eventgateway.consumePoliciesShort",
 		"Manage consume policies for an Event Gateway Virtual Cluster")
-	consumePoliciesLong = normalizers.LongDesc(i18n.T(
-		"root.products.konnect.eventgateway.consumePoliciesLong",
-		`Use the consume-policies command to list or retrieve consume policies for a specific Event Gateway Virtual Cluster.`,
-	)) //nolint:lll
+	consumePoliciesLong = normalizers.LongDesc(i18n.T("root.products.konnect.eventgateway.consumePoliciesLong",
+		`Use the consume-policies command to list or retrieve consume policies for a specific Event Gateway Virtual Cluster.`)) //nolint:lll
 	consumePoliciesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.eventgateway.consumePoliciesExamples",
 			fmt.Sprintf(`
@@ -81,8 +79,7 @@ var (
 %[1]s get event-gateway vc consume-policies --gateway-id <id> --virtual-cluster-id <id> --consume-policy-id <id>
 # Get a specific consume policy by name (flag)
 %[1]s get event-gateway vc consume-policies --gateway-name gw --virtual-cluster-name vc --consume-policy-name p
-`, meta.CLIName)),
-	)
+`, meta.CLIName)))
 )
 
 func newGetEventGatewayConsumePoliciesCmd(

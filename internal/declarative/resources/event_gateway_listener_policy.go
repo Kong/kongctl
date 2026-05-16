@@ -214,8 +214,7 @@ func validatePolicyTypeFields(data []byte) error {
 
 	if policyTypeStr != tlsServerType && policyTypeStr != forwardToVCType {
 		return fmt.Errorf(
-			"listener policy 'type' must be '%s' or '%s', got '%s'", tlsServerType, forwardToVCType, policyTypeStr,
-		)
+			"listener policy 'type' must be '%s' or '%s', got '%s'", tlsServerType, forwardToVCType, policyTypeStr)
 	}
 
 	// For forward_to_virtual_cluster, validate config.type

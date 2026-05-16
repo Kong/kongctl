@@ -519,12 +519,7 @@ func (s Store) VerifyInstalledRuntime(ext Extension) (string, error) {
 		return "", err
 	}
 	if actual != ext.Install.RuntimeHash {
-		return "", fmt.Errorf(
-			"runtime hash mismatch for %s: expected %s, got %s",
-			ext.ID,
-			ext.Install.RuntimeHash,
-			actual,
-		)
+		return "", fmt.Errorf("runtime hash mismatch for %s: expected %s, got %s", ext.ID, ext.Install.RuntimeHash, actual)
 	}
 	return runtimePath, nil
 }

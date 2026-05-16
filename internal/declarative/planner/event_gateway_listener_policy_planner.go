@@ -26,8 +26,7 @@ func (p *Planner) planEventGatewayListenerPolicyChanges(
 	desired []resources.EventGatewayListenerPolicyResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug(
-		"Planning Event Gateway Listener Policy changes",
+	p.logger.Debug("Planning Event Gateway Listener Policy changes",
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
 		"listener_name", listenerName,
@@ -65,8 +64,7 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 	desired []resources.EventGatewayListenerPolicyResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug(
-		"Planning changes for existing listener policies",
+	p.logger.Debug("Planning changes for existing listener policies",
 		"gateway_id", gatewayID,
 		"listener_id", listenerID,
 		"listener_ref", listenerRef,
@@ -79,8 +77,7 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 		return fmt.Errorf("failed to list listener policies for listener %s: %w", listenerID, err)
 	}
 
-	p.logger.Debug(
-		"Fetched current listener policies",
+	p.logger.Debug("Fetched current listener policies",
 		"listener_id", listenerID,
 		"current_count", len(currentPolicies),
 	)
@@ -101,8 +98,7 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 		current, exists := currentByName[policyName]
 		if !exists {
 			// CREATE
-			p.logger.Debug(
-				"Planning listener policy CREATE",
+			p.logger.Debug("Planning listener policy CREATE",
 				"policy_name", policyName,
 				"listener_ref", listenerRef,
 			)
@@ -112,16 +108,14 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 			)
 		} else {
 			// CHECK UPDATE
-			p.logger.Debug(
-				"Checking if listener policy needs update",
+			p.logger.Debug("Checking if listener policy needs update",
 				"policy_name", policyName,
 				"policy_id", current.ID,
 			)
 
 			needsUpdate, updateFields, changedFields := p.shouldUpdateListenerPolicy(current, desiredPolicy)
 			if needsUpdate {
-				p.logger.Debug(
-					"Planning listener policy UPDATE",
+				p.logger.Debug("Planning listener policy UPDATE",
 					"policy_name", policyName,
 					"policy_id", current.ID,
 					"update_fields", updateFields,
@@ -139,8 +133,7 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				p.logger.Debug(
-					"Planning listener policy DELETE (sync mode)",
+				p.logger.Debug("Planning listener policy DELETE (sync mode)",
 					"policy_name", name,
 					"policy_id", current.ID,
 				)
@@ -166,8 +159,7 @@ func (p *Planner) planListenerPolicyCreatesForNewListener(
 	policies []resources.EventGatewayListenerPolicyResource,
 	plan *Plan,
 ) {
-	p.logger.Debug(
-		"Planning listener policy creates for new listener",
+	p.logger.Debug("Planning listener policy creates for new listener",
 		"listener_ref", listenerRef,
 		"listener_change_id", listenerChangeID,
 		"policy_count", len(policies),
@@ -239,8 +231,7 @@ func (p *Planner) planListenerPolicyCreate(
 	// Add virtual cluster reference if policy config has a destination with ref placeholder
 	p.addVirtualClusterReference(&change, fields)
 
-	p.logger.Debug(
-		"Enqueuing listener policy CREATE",
+	p.logger.Debug("Enqueuing listener policy CREATE",
 		"policy_ref", policy.Ref,
 		"policy_name", policy.GetMoniker(),
 		"listener_ref", listenerRef,
@@ -294,8 +285,7 @@ func (p *Planner) planListenerPolicyUpdate(
 	// Add virtual cluster reference if policy config has a destination with ref placeholder
 	p.addVirtualClusterReference(&change, updateFields)
 
-	p.logger.Debug(
-		"Enqueuing listener policy UPDATE",
+	p.logger.Debug("Enqueuing listener policy UPDATE",
 		"policy_ref", policy.Ref,
 		"policy_name", policy.GetMoniker(),
 		"policy_id", policyID,
@@ -335,8 +325,7 @@ func (p *Planner) planListenerPolicyDelete(
 		},
 	}
 
-	p.logger.Debug(
-		"Enqueuing listener policy DELETE",
+	p.logger.Debug("Enqueuing listener policy DELETE",
 		"policy_name", policyName,
 		"policy_id", policyID,
 	)
@@ -802,8 +791,7 @@ func (p *Planner) addVirtualClusterReference(change *PlannedChange, fields map[s
 		}
 	}
 
-	p.logger.Debug(
-		"Adding virtual cluster reference to listener policy",
+	p.logger.Debug("Adding virtual cluster reference to listener policy",
 		"virtual_cluster_ref", idStr,
 		"virtual_cluster_name", virtualClusterName,
 	)

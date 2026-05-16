@@ -44,8 +44,7 @@ var (
 	%[1]s get konnect gateway control-plane data-plane-certificates --control-plane-name my-control-plane
 	# Get all the control planes for the authorized user using command aliases
 	%[1]s get k gw cps
-	`, meta.CLIName)),
-	)
+	`, meta.CLIName)))
 )
 
 // Represents a text display record for a Control Plane
@@ -347,8 +346,7 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 			_, err = fmt.Fprint(helper.GetStreams().Out, rendered)
 			return err
 		}
-		return tableview.RenderForFormat(
-			helper,
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -404,8 +402,7 @@ func renderControlPlaneList(
 		options = append(options, tableview.WithDetailContext(childView.ParentType, childView.DetailContext))
 	}
 
-	return tableview.RenderForFormat(
-		helper,
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

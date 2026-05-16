@@ -22,8 +22,7 @@ func (p *Planner) planEventGatewayListenerChanges(
 	desired []resources.EventGatewayListenerResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug(
-		"Planning Event Gateway Listener changes",
+	p.logger.Debug("Planning Event Gateway Listener changes",
 		"gateway_name", gatewayName,
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
@@ -54,8 +53,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 	desired []resources.EventGatewayListenerResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug(
-		"Planning changes for existing gateway listeners",
+	p.logger.Debug("Planning changes for existing gateway listeners",
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
 		"desired_count", len(desired),
@@ -67,8 +65,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 		return fmt.Errorf("failed to list listeners for gateway %s: %w", gatewayID, err)
 	}
 
-	p.logger.Debug(
-		"Fetched current listeners",
+	p.logger.Debug("Fetched current listeners",
 		"gateway_id", gatewayID,
 		"current_count", len(currentListeners),
 	)
@@ -86,8 +83,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 		current, exists := currentByName[desiredListener.Name]
 		if !exists {
 			// CREATE
-			p.logger.Debug(
-				"Planning listener CREATE",
+			p.logger.Debug("Planning listener CREATE",
 				"listener_name", desiredListener.Name,
 				"gateway_ref", gatewayRef,
 			)
@@ -113,8 +109,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 			}
 		} else {
 			// CHECK UPDATE
-			p.logger.Debug(
-				"Checking if listener needs update",
+			p.logger.Debug("Checking if listener needs update",
 				"listener_name", desiredListener.Name,
 				"listener_id", current.ID,
 			)
@@ -127,8 +122,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 
 			needsUpdate, updateFields, changedFields := p.shouldUpdateListener(*fullListener, desiredListener)
 			if needsUpdate {
-				p.logger.Debug(
-					"Planning listener UPDATE",
+				p.logger.Debug("Planning listener UPDATE",
 					"listener_name", desiredListener.Name,
 					"listener_id", current.ID,
 					"update_fields", updateFields,
@@ -136,8 +130,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 				)
 				p.planListenerUpdate(
 					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredListener, updateFields, changedFields, plan,
-				)
+					current.ID, desiredListener, updateFields, changedFields, plan)
 			}
 
 			// Plan listener policies for this existing listener
@@ -163,8 +156,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				p.logger.Debug(
-					"Planning listener DELETE (sync mode)",
+				p.logger.Debug("Planning listener DELETE (sync mode)",
 					"listener_name", name,
 					"listener_id", current.ID,
 				)
@@ -185,8 +177,7 @@ func (p *Planner) planListenerCreatesForNewGateway(
 	listeners []resources.EventGatewayListenerResource,
 	plan *Plan,
 ) {
-	p.logger.Debug(
-		"Planning listener creates for new gateway",
+	p.logger.Debug("Planning listener creates for new gateway",
 		"gateway_ref", gatewayRef,
 		"gateway_change_id", gatewayChangeID,
 		"listener_count", len(listeners),
@@ -270,8 +261,7 @@ func (p *Planner) planListenerCreate(
 		}
 	}
 
-	p.logger.Debug(
-		"Enqueuing listener CREATE",
+	p.logger.Debug("Enqueuing listener CREATE",
 		"listener_ref", listener.Ref,
 		"listener_name", listener.Name,
 		"gateway_ref", gatewayRef,
@@ -311,8 +301,7 @@ func (p *Planner) planListenerUpdate(
 		},
 	}
 
-	p.logger.Debug(
-		"Enqueuing listener UPDATE",
+	p.logger.Debug("Enqueuing listener UPDATE",
 		"listener_ref", listener.Ref,
 		"listener_name", listener.Name,
 		"listener_id", listenerID,
@@ -342,8 +331,7 @@ func (p *Planner) planListenerDelete(
 		},
 	}
 
-	p.logger.Debug(
-		"Enqueuing listener DELETE",
+	p.logger.Debug("Enqueuing listener DELETE",
 		"listener_name", listenerName,
 		"listener_id", listenerID,
 	)

@@ -48,12 +48,7 @@ func (s *SystemAccountTeamMembershipAPIImpl) AddSystemAccountToTeam(
 	addSystemAccountToTeam *kkComps.AddSystemAccountToTeam,
 	opts ...kkOps.Option,
 ) (*kkOps.PostTeamsTeamIDSystemAccountsResponse, error) {
-	return s.SDK.SystemAccountsTeamMembership.PostTeamsTeamIDSystemAccounts(
-		ctx,
-		teamID,
-		addSystemAccountToTeam,
-		opts...,
-	)
+	return s.SDK.SystemAccountsTeamMembership.PostTeamsTeamIDSystemAccounts(ctx, teamID, addSystemAccountToTeam, opts...)
 }
 
 func (s *SystemAccountTeamMembershipAPIImpl) RemoveSystemAccountFromTeam(
