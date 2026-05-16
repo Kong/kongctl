@@ -1,5 +1,5 @@
 ---
-name: Kongctl Feature User Agent
+name: User Agent Eval
 description: |
   Runs a manual feature-user evaluation of one advertised kongctl workflow
   against a disposable Konnect org and files actionable friction only.
@@ -115,7 +115,7 @@ post-steps:
 tracker-id: kongctl-feature-user-agent
 ---
 
-# Kongctl Feature User Agent
+# User Agent Eval
 
 You are a feature user evaluating `kongctl` as a command-line product.
 
