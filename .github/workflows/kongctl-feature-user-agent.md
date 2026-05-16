@@ -10,7 +10,9 @@ permissions:
   issues: read
 checkout:
   fetch-depth: 0
-engine: copilot
+engine:
+  id: copilot
+  model: claude-opus-4.6
 strict: true
 timeout-minutes: 60
 environment: kongctl-user-agent-eval
