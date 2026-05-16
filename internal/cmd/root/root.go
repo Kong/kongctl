@@ -796,6 +796,8 @@ func renderCommandUsageError(w io.Writer, command *cobra.Command, err error) {
 			fmt.Fprintf(w, "  %s\n", value)
 		}
 		fmt.Fprintln(w)
+	} else {
+		fmt.Fprintln(w)
 	}
 
 	fmt.Fprintf(w, "Run '%s --help' for usage\n", commandPath(command))
