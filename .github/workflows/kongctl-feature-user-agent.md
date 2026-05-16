@@ -14,7 +14,8 @@ engine:
   id: copilot
   model: claude-opus-4.6
 features:
-  action-mode: "script"
+  action-mode: "action"
+  action-tag: "v0.71.5"
 strict: true
 timeout-minutes: 60
 environment: kongctl-user-agent-eval
