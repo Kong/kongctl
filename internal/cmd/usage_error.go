@@ -203,7 +203,7 @@ func AvailableSubcommands(command *cobra.Command) []string {
 		return nil
 	}
 
-	subcommands := make([]string, 0)
+	var subcommands []string
 	for _, child := range command.Commands() {
 		if child.IsAvailableCommand() {
 			subcommands = append(subcommands, child.Name())

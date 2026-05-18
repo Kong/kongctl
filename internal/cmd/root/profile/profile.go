@@ -35,15 +35,10 @@ func NewProfileCmd() *cobra.Command {
 
 			profileManager = c.Context().Value(profile.ProfileManagerKey).(profile.Manager)
 
-			err := validate(helper)
-			if err != nil {
+			if err := validate(helper); err != nil {
 				return err
 			}
-			err = run(helper)
-			if err != nil {
-				return err
-			}
-			return nil
+			return run(helper)
 		},
 	}
 	return rv
