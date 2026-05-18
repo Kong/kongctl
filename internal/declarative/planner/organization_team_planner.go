@@ -33,9 +33,14 @@ func (t *OrganizationTeamPlannerImpl) PlannerComponent() string {
 func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	namespace := plannerCtx.Namespace
 	desired := t.GetDesiredOrganizationTeams(namespace)
+	shouldPlanUserAssignments := t.planner.shouldPlanOrganizationUsers(plan)
+	shouldPlanSystemAccountAssignments := t.planner.shouldPlanOrganizationSystemAccounts(plan)
 
 	// Skip if no teams to plan and not in sync mode
-	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+	if len(desired) == 0 &&
+		plan.Metadata.Mode != PlanModeSync &&
+		!shouldPlanUserAssignments &&
+		!shouldPlanSystemAccountAssignments {
 		return nil
 	}
 
@@ -175,12 +180,12 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 	if err := t.planOrganizationTeamRoleChanges(ctx, namespace, desired, currentByName, plan); err != nil {
 		return err
 	}
-	if t.planner.shouldPlanOrganizationUsers(plan) {
+	if shouldPlanUserAssignments {
 		if err := t.planOrganizationUserAssignmentChanges(ctx, namespace, desired, currentByName, plan); err != nil {
 			return err
 		}
 	}
-	if t.planner.shouldPlanOrganizationSystemAccounts(plan) {
+	if shouldPlanSystemAccountAssignments {
 		if err := t.planOrganizationSystemAccountAssignmentChanges(ctx, namespace, desired, currentByName, plan); err != nil {
 			return err
 		}

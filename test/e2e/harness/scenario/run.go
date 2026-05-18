@@ -152,7 +152,7 @@ func Run(t *testing.T, scenarioPath string) error {
 				cmdName = fmt.Sprintf("command-%03d", j)
 			}
 			isLastCmdInStep := j == len(st.Commands)-1
-			envOverrides := mergeEnvScopes(st.Env, cmd.Env)
+			envOverrides := renderEnvScope(mergeEnvScopes(st.Env, cmd.Env), tmplCtx)
 			// Handle resetOrg synthetic command
 			if cmd.ResetOrg {
 				if err := step.ResetOrgForRegions("scenario", cmd.ResetRegions); err != nil {
@@ -199,12 +199,17 @@ func Run(t *testing.T, scenarioPath string) error {
 					cli.OverrideNextCommandSlug(cmd.Name)
 				}
 				workdir := renderString(cmd.Workdir, tmplCtx)
-				res, err := cli.RunProgram(
+				timeout, err := commandTimeout(cmdName, cmd, cli.Timeout, tmplCtx)
+				if err != nil {
+					return err
+				}
+				res, err := cli.RunProgramTimeout(
 					context.Background(),
 					renderedArgs[0],
 					renderedArgs[1:],
 					envOverrides,
 					strings.TrimSpace(workdir),
+					timeout,
 				)
 				if err != nil {
 					return fmt.Errorf("command %s external execution failed: %w", cmdName, err)
@@ -522,11 +527,15 @@ func Run(t *testing.T, scenarioPath string) error {
 				res harness.Result
 				err error
 			)
+			timeout, err := commandTimeout(cmdName, cmd, cli.Timeout, tmplCtx)
+			if err != nil {
+				return err
+			}
 			if cmd.ExpectFail != nil {
-				res, err = cli.RunWithEnv(context.Background(), envOverrides, args...)
+				res, err = cli.RunWithEnvTimeout(context.Background(), envOverrides, timeout, args...)
 			} else {
 				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
-				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides, cli.Timeout)
+				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides, timeout)
 			}
 			if cmd.ExpectFail != nil {
 				if err == nil {
@@ -812,7 +821,7 @@ func runCLIWithRetry(
 		err error
 	)
 	for atry := 0; atry < attempts; atry++ {
-		res, err = cli.RunWithEnv(context.Background(), env, args...)
+		res, err = cli.RunWithEnvTimeout(context.Background(), env, timeout, args...)
 		if err == nil {
 			return res, nil
 		}
@@ -837,6 +846,21 @@ func runCLIWithRetry(
 		time.Sleep(delay)
 	}
 	return res, err
+}
+
+func commandTimeout(cmdName string, cmd Command, fallback time.Duration, tmplCtx map[string]any) (time.Duration, error) {
+	raw := strings.TrimSpace(renderString(cmd.Timeout, tmplCtx))
+	if raw == "" {
+		return fallback, nil
+	}
+	timeout, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("command %s timeout invalid %q: %w", cmdName, raw, err)
+	}
+	if timeout < 0 {
+		return 0, fmt.Errorf("command %s timeout invalid %q: must be >= 0", cmdName, raw)
+	}
+	return timeout, nil
 }
 
 // preserveAttemptArtifacts copies all command artifacts into a numbered
@@ -1073,6 +1097,17 @@ func renderString(s string, data any) string {
 		}
 	}
 	return s
+}
+
+func renderEnvScope(env map[string]string, tmplCtx map[string]any) map[string]string {
+	if len(env) == 0 {
+		return env
+	}
+	rendered := make(map[string]string, len(env))
+	for key, value := range env {
+		rendered[key] = renderString(value, tmplCtx)
+	}
+	return rendered
 }
 
 func suiteMaxConcurrencyForScenario(scenarioPath string) (*int, error) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	commoncmd "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/analytics"
@@ -72,6 +73,29 @@ Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 				common.RequestPageSizeConfigPath))
 	}
+
+	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff || verb == verbs.Export || verb == verbs.Apply ||
+		verb == verbs.Delete {
+		cmd.Flags().Int(commoncmd.HTTPRetryMaxAttemptsFlagName, 0,
+			fmt.Sprintf(`Maximum total attempts for retryable HTTP requests (0 = use default, 1 disables retries).
+- Config path: [ %s ]`, common.HTTPRetryMaxAttemptsConfigPath))
+
+		cmd.Flags().Int(commoncmd.HTTPRetryInitialIntervalFlagName, 0,
+			fmt.Sprintf(`Initial retry backoff interval in milliseconds (0 = use default).
+- Config path: [ %s ]`, common.HTTPRetryInitialIntervalConfigPath))
+
+		cmd.Flags().Int(commoncmd.HTTPRetryMaxIntervalFlagName, 0,
+			fmt.Sprintf(`Maximum retry backoff interval in milliseconds (0 = use default).
+- Config path: [ %s ]`, common.HTTPRetryMaxIntervalConfigPath))
+
+		cmd.Flags().Float64(commoncmd.HTTPRetryBackoffFactorFlagName, 0,
+			fmt.Sprintf(`Exponential backoff growth factor for retries (for example: 2.0).
+- Config path: [ %s ]`, common.HTTPRetryBackoffFactorConfigPath))
+
+		cmd.Flags().Bool(commoncmd.HTTPRetryOnConnectionErrorsFlagName, false,
+			fmt.Sprintf(`Retry selected retryable connection-level errors.
+- Config path: [ %s ]`, common.HTTPRetryOnConnectionErrorsConfigPath))
+	}
 }
 
 func bindFlags(c *cobra.Command, args []string) error {
@@ -113,6 +137,46 @@ func bindFlags(c *cobra.Command, args []string) error {
 		}
 	}
 
+	f = c.Flags().Lookup(commoncmd.HTTPRetryMaxAttemptsFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryMaxAttemptsConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(commoncmd.HTTPRetryInitialIntervalFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryInitialIntervalConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(commoncmd.HTTPRetryMaxIntervalFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryMaxIntervalConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(commoncmd.HTTPRetryBackoffFactorFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryBackoffFactorConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(commoncmd.HTTPRetryOnConnectionErrorsFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryOnConnectionErrorsConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -140,7 +204,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 				ctx = context.Background()
 			}
 			ctx = context.WithValue(ctx, products.Product, Product)
-			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(verb))
 			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},
@@ -169,7 +233,8 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	// Handle declarative configuration verbs
-	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff || verb == verbs.Export || verb == verbs.Apply {
+	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff ||
+		verb == verbs.Export || verb == verbs.Apply || verb == verbs.Delete {
 		c, e := declarative.NewDeclarativeCmd(verb)
 		if e != nil {
 			return nil, e

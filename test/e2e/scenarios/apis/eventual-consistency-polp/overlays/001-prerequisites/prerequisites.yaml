@@ -1,0 +1,40 @@
+_defaults:
+  kongctl:
+    namespace: apis-eventual-consistency-polp
+
+portals:
+  - ref: polp-portal
+    name: E2E API POLP Portal
+    display_name: E2E API POLP Portal
+    description: Portal used for API child RBAC propagation E2E
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_api_visibility: private
+
+organization:
+  system-accounts:
+    - ref: polp-system-account
+      id: "{{ .vars.system_account_id }}"
+      roles:
+        - ref: polp-apis-creator
+          role_name: Creator
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: us
+        - ref: polp-api-products-creator
+          role_name: Creator
+          entity_id: "*"
+          entity_type_name: API Products
+          entity_region: us
+        - ref: polp-api-products-viewer
+          role_name: Viewer
+          entity_id: "*"
+          entity_type_name: API Products
+          entity_region: us
+        - ref: polp-api-products-publisher
+          role_name: Publisher
+          entity_id: "*"
+          entity_type_name: API Products
+          entity_region: us

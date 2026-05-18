@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -61,6 +64,12 @@ var (
 	RequestPageSizeConfigPath = "konnect." + RequestPageSizeFlagName
 
 	RegionConfigPath = "konnect." + RegionFlagName
+
+	HTTPRetryMaxAttemptsConfigPath        = "konnect." + cmdcommon.HTTPRetryMaxAttemptsConfigPath
+	HTTPRetryInitialIntervalConfigPath    = "konnect." + cmdcommon.HTTPRetryInitialIntervalConfigPath
+	HTTPRetryMaxIntervalConfigPath        = "konnect." + cmdcommon.HTTPRetryMaxIntervalConfigPath
+	HTTPRetryBackoffFactorConfigPath      = "konnect." + cmdcommon.HTTPRetryBackoffFactorConfigPath
+	HTTPRetryOnConnectionErrorsConfigPath = "konnect." + cmdcommon.HTTPRetryOnConnectionErrorsConfigPath
 )
 
 var regionPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
@@ -141,6 +150,116 @@ func ResolveHTTPTransportOptions(cfg config.Hook) (httpclient.TransportOptions, 
 		DisableKeepAlives:         disableKeepAlives,
 		RecycleConnectionsOnError: recycleOnError,
 	}, nil
+}
+
+// ResolveRetryConfig builds an httpclient.RetryConfig from configuration,
+// applying defaults when values are unset.
+func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
+	maxAttempts, err := resolveOptionalInt(cfg, HTTPRetryMaxAttemptsConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if maxAttempts < 0 {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %d: must be >= 0",
+			HTTPRetryMaxAttemptsConfigPath, maxAttempts)
+	}
+	if maxAttempts > httpclient.MaxRetryMaxAttempts {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be <= %d",
+			HTTPRetryMaxAttemptsConfigPath, maxAttempts, httpclient.MaxRetryMaxAttempts)
+	}
+	if maxAttempts == 0 {
+		maxAttempts = httpclient.DefaultRetryMaxAttempts
+	}
+
+	strategy := httpclient.RetryStrategyBackoff
+	if maxAttempts == 1 {
+		strategy = httpclient.RetryStrategyNone
+	}
+
+	initialIntervalMS, err := resolveOptionalInt(cfg, HTTPRetryInitialIntervalConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if initialIntervalMS == 0 {
+		initialIntervalMS = httpclient.DefaultRetryInitialIntervalMS
+	}
+	if initialIntervalMS < httpclient.MinRetryInitialIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be >= %d ms",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MinRetryInitialIntervalMS)
+	}
+	if initialIntervalMS > httpclient.MaxRetryInitialIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be <= %d ms",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MaxRetryInitialIntervalMS)
+	}
+
+	maxIntervalMS, err := resolveOptionalInt(cfg, HTTPRetryMaxIntervalConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if maxIntervalMS == 0 {
+		maxIntervalMS = httpclient.DefaultRetryMaxIntervalMS
+	}
+	if maxIntervalMS < httpclient.MinRetryMaxIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be >= %d ms",
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MinRetryMaxIntervalMS)
+	}
+	if maxIntervalMS > httpclient.MaxRetryMaxIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be <= %d ms",
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MaxRetryMaxIntervalMS)
+	}
+	if initialIntervalMS > maxIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid configuration: %s (%d ms) must be <= %s (%d ms)",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS,
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS)
+	}
+
+	factor, err := resolveOptionalFloat64(cfg, HTTPRetryBackoffFactorConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if factor == 0 {
+		factor = httpclient.DefaultRetryBackoffFactor
+	}
+	if math.IsNaN(factor) || math.IsInf(factor, 0) {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be a finite number",
+			HTTPRetryBackoffFactorConfigPath, factor)
+	}
+	if factor < httpclient.MinRetryBackoffFactor {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be >= %g",
+			HTTPRetryBackoffFactorConfigPath, factor, httpclient.MinRetryBackoffFactor)
+	}
+	if factor > httpclient.MaxRetryBackoffFactor {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be <= %g",
+			HTTPRetryBackoffFactorConfigPath, factor, httpclient.MaxRetryBackoffFactor)
+	}
+
+	retryConnErrors, err := resolveOptionalBool(cfg, HTTPRetryOnConnectionErrorsConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+
+	retryConfig := httpclient.RetryConfig{
+		Strategy:              strategy,
+		MaxAttempts:           maxAttempts,
+		InitialIntervalMS:     initialIntervalMS,
+		MaxIntervalMS:         maxIntervalMS,
+		BackoffFactor:         factor,
+		RetryConnectionErrors: retryConnErrors,
+	}
+	totalBackoffMS := httpclient.EstimatedRetryBackoffMS(retryConfig)
+	if totalBackoffMS > httpclient.MaxRetryTotalBackoffMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid retry configuration: cumulative backoff budget %d ms must be <= %d ms",
+			totalBackoffMS, httpclient.MaxRetryTotalBackoffMS)
+	}
+
+	return retryConfig, nil
 }
 
 func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
@@ -225,9 +344,35 @@ func accessTokenUnavailableError(cfg config.Hook) error {
 	)
 }
 
-// This is the real implementation of the SDKAPIFactory,
-// which creates a real Konnect SDK instance
-func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+func isDeclarativeRetryVerb(verb verbs.VerbValue) bool {
+	return verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff ||
+		verb == verbs.Export || verb == verbs.Apply || verb == verbs.Delete
+}
+
+func noRetryConfig() httpclient.RetryConfig {
+	return httpclient.RetryConfig{
+		Strategy:              httpclient.RetryStrategyNone,
+		MaxAttempts:           1,
+		InitialIntervalMS:     httpclient.DefaultRetryInitialIntervalMS,
+		MaxIntervalMS:         httpclient.DefaultRetryMaxIntervalMS,
+		BackoffFactor:         httpclient.DefaultRetryBackoffFactor,
+		RetryConnectionErrors: false,
+	}
+}
+
+func resolveRetryConfigForVerb(cfg config.Hook, verb verbs.VerbValue) (httpclient.RetryConfig, error) {
+	if !isDeclarativeRetryVerb(verb) {
+		return noRetryConfig(), nil
+	}
+
+	return ResolveRetryConfig(cfg)
+}
+
+func konnectSDKFactory(
+	cfg config.Hook,
+	logger *slog.Logger,
+	retryConfig httpclient.RetryConfig,
+) (helpers.SDKAPI, error) {
 	tokenSource, e := GetAccessTokenSource(cfg, logger)
 	if e != nil {
 		return nil, e
@@ -252,7 +397,9 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		return nil, err
 	}
 
-	sdk, httpClient, err := auth.GetAuthenticatedClient(baseURL, tokenSource, timeout, transportOptions, logger)
+	sdk, httpClient, err := auth.GetAuthenticatedClient(
+		baseURL, tokenSource, timeout, transportOptions, &retryConfig, logger,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +413,34 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 	}, nil
 }
 
-// GetSDKFactory returns the SDK factory to use, checking for test overrides
+// This is the real implementation of the SDKAPIFactory,
+// which creates a real Konnect SDK instance
+func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	return konnectSDKFactory(cfg, logger, noRetryConfig())
+}
+
+func KonnectSDKFactoryForVerb(verb verbs.VerbValue, cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	retryConfig, err := resolveRetryConfigForVerb(cfg, verb)
+	if err != nil {
+		return nil, err
+	}
+
+	return konnectSDKFactory(cfg, logger, retryConfig)
+}
+
+func GetSDKFactoryForVerb(verb verbs.VerbValue) helpers.SDKAPIFactory {
+	if helpers.DefaultSDKFactory != nil {
+		return helpers.DefaultSDKFactory
+	}
+
+	return func(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+		return KonnectSDKFactoryForVerb(verb, cfg, logger)
+	}
+}
+
+// GetSDKFactory returns the SDK factory to use, checking for test overrides.
+// The returned factory uses no retry config. Call GetSDKFactoryForVerb to
+// enable retries for declarative verbs.
 func GetSDKFactory() helpers.SDKAPIFactory {
 	if helpers.DefaultSDKFactory != nil {
 		return helpers.DefaultSDKFactory
@@ -314,4 +488,28 @@ func resolveOptionalBool(cfg config.Hook, configPath string) (bool, error) {
 	default:
 		return false, fmt.Errorf("invalid %s value %q", configPath, raw)
 	}
+}
+
+func resolveOptionalInt(cfg config.Hook, configPath string) (int, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return 0, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s value %q: must be an integer", configPath, raw)
+	}
+	return v, nil
+}
+
+func resolveOptionalFloat64(cfg config.Hook, configPath string) (float64, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return 0, nil
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s value %q: must be a number", configPath, raw)
+	}
+	return v, nil
 }

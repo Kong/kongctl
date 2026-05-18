@@ -66,6 +66,7 @@ type Command struct {
 	Name           string            `yaml:"name"`
 	Run            []string          `yaml:"run"`
 	Exec           []string          `yaml:"exec"`
+	Timeout        string            `yaml:"timeout"`
 	Stdin          string            `yaml:"stdin"`
 	StdinFile      string            `yaml:"stdinFile"`
 	Env            map[string]string `yaml:"env"`

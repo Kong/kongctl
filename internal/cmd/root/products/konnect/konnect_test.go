@@ -71,6 +71,12 @@ func TestNewKonnectCmdDeclarativeVerbsUseVerbSpecificExamples(t *testing.T) {
 			wantShorthand:    "kongctl apply -f api.yaml",
 			wantExplicitForm: "kongctl apply konnect -f api.yaml",
 		},
+		{
+			name:             "delete",
+			verb:             verbs.Delete,
+			wantShorthand:    "kongctl delete -f config.yaml",
+			wantExplicitForm: "kongctl delete --plan delete-plan.json",
+		},
 	}
 
 	for _, tt := range testCases {
@@ -101,6 +107,32 @@ func TestNewKonnectCmdAdoptExposesAnalytics(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, hasSubcommandNamed(cmd, "analytics"))
 	require.False(t, hasSubcommandNamed(cmd, "dashboard"))
+}
+
+func TestNewKonnectCmdDeclarativeVerbsExposeRetryFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Plan)
+	require.NoError(t, err)
+
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-max-attempts"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-initial-interval"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-max-interval"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-backoff-factor"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-on-connection-errors"))
+}
+
+func TestNewKonnectCmdNonDeclarativeVerbsHideRetryFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Get)
+	require.NoError(t, err)
+
+	require.Nil(t, cmd.Flags().Lookup("http-retry-max-attempts"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-initial-interval"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-max-interval"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-backoff-factor"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-on-connection-errors"))
 }
 
 func hasSubcommandNamed(cmd *cobra.Command, name string) bool {

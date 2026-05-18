@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
@@ -1202,8 +1203,13 @@ func (p *Planner) planAPIPublicationCreate(
 
 	// Set portal reference
 	if publication.PortalID != "" {
+		portalID := ""
+		if util.IsValidUUID(publication.PortalID) {
+			portalID = publication.PortalID
+		}
 		change.References[FieldPortalID] = ReferenceInfo{
 			Ref: publication.PortalID,
+			ID:  portalID,
 			LookupFields: map[string]string{
 				FieldName: portalName,
 			},

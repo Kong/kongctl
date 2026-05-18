@@ -3,7 +3,9 @@
 package scenario
 
 import (
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/kong/kongctl/test/e2e/harness"
@@ -56,6 +58,52 @@ func TestRenderStringReplacesBin(t *testing.T) {
 	got := renderString("{{ .bin }} plan", tmplCtx)
 	if got != "/tmp/kongctl plan" {
 		t.Fatalf("renderString() = %q, want %q", got, "/tmp/kongctl plan")
+	}
+}
+
+func TestRenderEnvScopeReplacesVars(t *testing.T) {
+	tmplCtx := map[string]any{
+		"vars": map[string]any{
+			"systemAccountToken": "kpat_test_token",
+		},
+	}
+
+	got := renderEnvScope(map[string]string{
+		"KONGCTL_E2E_KONNECT_PAT": "{{ .vars.systemAccountToken }}",
+		"UNCHANGED":               "literal",
+	}, tmplCtx)
+
+	if got["KONGCTL_E2E_KONNECT_PAT"] != "kpat_test_token" {
+		t.Fatalf("rendered PAT = %q, want kpat_test_token", got["KONGCTL_E2E_KONNECT_PAT"])
+	}
+	if got["UNCHANGED"] != "literal" {
+		t.Fatalf("UNCHANGED = %q, want literal", got["UNCHANGED"])
+	}
+}
+
+func TestMaybeRecordVarRedactsSensitiveChecksLog(t *testing.T) {
+	dir := t.TempDir()
+	step := &harness.Step{ChecksPath: dir + "/checks.log"}
+	sc := &Scenario{}
+	parsed := map[string]any{"token": "secret-token-value"}
+
+	err := maybeRecordVar(sc, &RecordVar{Name: "systemAccountToken", ResponsePath: "token"}, parsed, nil, step)
+	if err != nil {
+		t.Fatalf("maybeRecordVar() error = %v", err)
+	}
+	if got := sc.Vars["systemAccountToken"]; got != "secret-token-value" {
+		t.Fatalf("recorded var = %v, want original token", got)
+	}
+
+	data, err := os.ReadFile(step.ChecksPath)
+	if err != nil {
+		t.Fatalf("read checks.log: %v", err)
+	}
+	if strings.Contains(string(data), "secret-token-value") {
+		t.Fatalf("checks.log leaked token: %s", string(data))
+	}
+	if !strings.Contains(string(data), "systemAccountToken=***") {
+		t.Fatalf("checks.log missing redacted token: %s", string(data))
 	}
 }
 

@@ -218,7 +218,12 @@ func (r *RuntimeContext) KonnectSDK(ctx context.Context) (*konnectsdk.SDK, error
 		return nil, err
 	}
 
-	sdk, _, err := auth.GetAuthenticatedClient(baseURL, tokenSource, timeout, transportOptions, logger)
+	rtCfg, err := konnectcommon.ResolveRetryConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	sdk, _, err := auth.GetAuthenticatedClient(baseURL, tokenSource, timeout, transportOptions, &rtCfg, logger)
 	if err != nil {
 		return nil, err
 	}

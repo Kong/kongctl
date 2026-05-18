@@ -430,6 +430,7 @@ func GetAuthenticatedClient(
 	tokenSource *TokenSource,
 	timeout time.Duration,
 	transportOptions httpclient.TransportOptions,
+	retryConfig *httpclient.RetryConfig,
 	logger *slog.Logger,
 ) (*kk.SDK, kk.HTTPClient, error) {
 	if err := ValidateKonnectURL(baseURL); err != nil {
@@ -452,7 +453,12 @@ func GetAuthenticatedClient(
 		logger,
 	)
 	refreshingClient := NewRefreshingHTTPClient(loggingClient, tokenSource)
-	opts = append(opts, kk.WithClient(refreshingClient))
 
-	return kk.New(opts...), refreshingClient, nil
+	var sdkHTTPClient kk.HTTPClient = refreshingClient
+	if retryConfig != nil && retryConfig.Strategy == httpclient.RetryStrategyBackoff {
+		sdkHTTPClient = httpclient.NewRetryingHTTPClient(refreshingClient, *retryConfig, logger)
+	}
+	opts = append(opts, kk.WithClient(sdkHTTPClient))
+
+	return kk.New(opts...), sdkHTTPClient, nil
 }
