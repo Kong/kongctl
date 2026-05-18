@@ -23,7 +23,14 @@ import (
 )
 
 const (
-	logTypeRetry = "http_retry"
+	logTypeRetry          = "http_retry"
+	retryEventPolicy      = "retry_policy"
+	retryEventAttempt     = "retry_attempt"
+	retryEventSucceeded   = "retry_succeeded"
+	retryEventExhausted   = "retry_exhausted"
+	retryEventSkipped     = "retry_skipped"
+	retryEventInterrupted = "retry_interrupted"
+	retryEventDisabled    = "retry_disabled"
 )
 
 // idempotentMethods are the HTTP methods safe to retry on connection errors.
@@ -104,6 +111,7 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	if c.cfg.Strategy != RetryStrategyBackoff || c.cfg.MaxAttempts <= 1 {
+		c.logRetryDisabled(req, "retry strategy disabled or max attempts <= 1")
 		return c.inner.Do(req)
 	}
 
@@ -112,6 +120,9 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	bodyReplayable := req.Body == nil || req.Body == http.NoBody || req.GetBody != nil
 
 	requestID := fmt.Sprintf("kretry-%06d", c.requestCounter.Add(1))
+	start := time.Now()
+	c.logRetryPolicy(req, requestID, bodyReplayable)
+
 	var (
 		resp *http.Response
 		err  error
@@ -132,28 +143,46 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		isLast := attempt == c.cfg.MaxAttempts-1
 
 		if err != nil {
-			if isLast || !c.shouldRetryError(req, err) {
+			if !c.shouldRetryError(req, err) {
+				if attempt > 0 {
+					c.logRetrySkipped(req, requestID, attempt+1, 0, "error is not retryable", time.Since(start), err.Error())
+				}
 				return nil, err
 			}
 			// If the body cannot be replayed we cannot safely retry the error.
 			if !bodyReplayable {
+				c.logRetrySkipped(req, requestID, attempt+1, 0, "request body is not replayable", time.Since(start), err.Error())
+				return nil, err
+			}
+			if isLast {
+				c.logRetryExhausted(req, requestID, attempt+1, 0, time.Since(start), err.Error())
 				return nil, err
 			}
 			next := c.nextInterval(attempt)
-			c.logRetry(req, requestID, 0, attempt+1, next, err.Error())
+			c.logRetryAttempt(req, requestID, 0, attempt+1, next, err.Error())
 			if waitErr := c.wait(req.Context(), next); waitErr != nil {
+				c.logRetryInterrupted(req, requestID, attempt+1, next, time.Since(start), waitErr.Error())
 				return nil, waitErr
 			}
 			continue
 		}
 
-		if isLast || !c.shouldRetryResponse(req, resp) {
+		if !c.shouldRetryResponse(req, resp) {
+			if attempt > 0 {
+				c.logRetrySucceeded(req, requestID, resp, attempt+1, time.Since(start))
+			}
 			return resp, nil
 		}
 
 		// Body must be replayable to attempt a retry. If it is not, return
 		// the current response as-is without retrying.
 		if !bodyReplayable {
+			c.logRetrySkipped(
+				req, requestID, attempt+1, resp.StatusCode, "request body is not replayable", time.Since(start), "")
+			return resp, nil
+		}
+		if isLast {
+			c.logRetryExhausted(req, requestID, attempt+1, resp.StatusCode, time.Since(start), "")
 			return resp, nil
 		}
 
@@ -162,9 +191,10 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		drainBody(resp)
 
 		next := c.nextInterval(attempt)
-		c.logRetry(req, requestID, resp.StatusCode, attempt+1, next, "")
+		c.logRetryAttempt(req, requestID, resp.StatusCode, attempt+1, next, "")
 
 		if waitErr := c.wait(req.Context(), next); waitErr != nil {
+			c.logRetryInterrupted(req, requestID, attempt+1, next, time.Since(start), waitErr.Error())
 			return nil, waitErr
 		}
 	}
@@ -239,8 +269,9 @@ func (c *RetryingHTTPClient) methodAllowed(method string) bool {
 // nextInterval computes the backoff wait duration for the given attempt index
 // (0-based). Uses standard exponential backoff:
 //
-//	interval = initialInterval × factor^attempt  (capped at maxInterval)
+//	interval = initialInterval × factor^attempt
 //	+ jitter of ±25%
+//	capped at maxInterval
 //
 // With factor=2 and initial=1s: attempt 0 → 1s, attempt 1 → 2s, attempt 2 → 4s.
 func (c *RetryingHTTPClient) nextInterval(attempt int) time.Duration {
@@ -257,7 +288,7 @@ func (c *RetryingHTTPClient) nextInterval(attempt int) time.Duration {
 	} else {
 		interval -= jitter
 	}
-	interval = max(interval, 0)
+	interval = min(max(interval, 0), maximum)
 
 	return time.Duration(interval)
 }
@@ -272,8 +303,86 @@ func (c *RetryingHTTPClient) wait(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// logRetry emits a debug-level log entry for a retry event.
-func (c *RetryingHTTPClient) logRetry(
+func (c *RetryingHTTPClient) retryLogContext(req *http.Request) context.Context {
+	ctx := req.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return ctx
+}
+
+func (c *RetryingHTTPClient) retryBaseAttrs(req *http.Request, requestID, event string) []slog.Attr {
+	ctx := c.retryLogContext(req)
+	attrs := []slog.Attr{
+		slog.String("log_type", logTypeRetry),
+		slog.String("http_source", httpSource),
+		slog.String("event", event),
+		slog.String("request_id", requestID),
+		slog.String("method", req.Method),
+		slog.String("route", routeFromURL(req.URL)),
+	}
+	attrs = append(attrs, log.HTTPLogContextAttrs(ctx)...)
+
+	if req.URL != nil {
+		attrs = append(attrs, slog.String("host", req.URL.Host))
+	}
+
+	return attrs
+}
+
+func (c *RetryingHTTPClient) retryConfigAttrs() []slog.Attr {
+	methods := any("all")
+	if len(c.retryMethods) > 0 {
+		methods = c.retryMethods
+	}
+
+	return []slog.Attr{
+		slog.String("strategy", c.cfg.Strategy),
+		slog.Int("max_attempts", c.cfg.MaxAttempts),
+		slog.Int("initial_interval_ms", c.cfg.InitialIntervalMS),
+		slog.Int("max_interval_ms", c.cfg.MaxIntervalMS),
+		slog.Float64("backoff_factor", c.cfg.BackoffFactor),
+		slog.Bool("retry_connection_errors", c.cfg.RetryConnectionErrors),
+		slog.Any("retry_status_codes", c.retryCodes),
+		slog.Any("retry_methods", methods),
+	}
+}
+
+func (c *RetryingHTTPClient) logRetryPolicy(req *http.Request, requestID string, bodyReplayable bool) {
+	if c.logger == nil {
+		return
+	}
+	ctx := c.retryLogContext(req)
+	if !c.logger.Enabled(ctx, slog.LevelDebug) {
+		return
+	}
+
+	attrs := c.retryBaseAttrs(req, requestID, retryEventPolicy)
+	attrs = append(attrs, c.retryConfigAttrs()...)
+	attrs = append(attrs, slog.Bool("body_replayable", bodyReplayable))
+
+	c.logger.LogAttrs(ctx, slog.LevelDebug, "http retry policy active", attrs...)
+}
+
+func (c *RetryingHTTPClient) logRetryDisabled(req *http.Request, reason string) {
+	if c.logger == nil {
+		return
+	}
+	ctx := c.retryLogContext(req)
+	if !c.logger.Enabled(ctx, slog.LevelDebug) {
+		return
+	}
+
+	requestID := fmt.Sprintf("kretry-%06d", c.requestCounter.Add(1))
+	attrs := c.retryBaseAttrs(req, requestID, retryEventDisabled)
+	attrs = append(attrs, c.retryConfigAttrs()...)
+	attrs = append(attrs, slog.String("reason", reason))
+
+	c.logger.LogAttrs(ctx, slog.LevelDebug, "http retry disabled", attrs...)
+}
+
+// logRetryAttempt emits a debug-level log entry before sleeping for another attempt.
+func (c *RetryingHTTPClient) logRetryAttempt(
 	req *http.Request,
 	requestID string,
 	statusCode int,
@@ -284,28 +393,19 @@ func (c *RetryingHTTPClient) logRetry(
 	if c.logger == nil {
 		return
 	}
-	ctx := req.Context()
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if !c.logger.Enabled(ctx, slog.LevelDebug) {
+	ctx := c.retryLogContext(req)
+	if !c.logger.Enabled(ctx, slog.LevelWarn) {
 		return
 	}
 
-	attrs := []slog.Attr{
-		slog.String("log_type", logTypeRetry),
-		slog.String("request_id", requestID),
-		slog.String("method", req.Method),
-		slog.Time("timestamp", time.Now()),
-		slog.Int("retry_attempt", retryAttempt),
+	attrs := c.retryBaseAttrs(req, requestID, retryEventAttempt)
+	attrs = append(attrs,
+		slog.Int("attempt", retryAttempt),
+		slog.Int("next_attempt", retryAttempt+1),
+		slog.Int("attempts_remaining", c.cfg.MaxAttempts-retryAttempt),
 		slog.Int64("next_interval_ms", nextInterval.Milliseconds()),
-	}
-	attrs = append(attrs, log.HTTPLogContextAttrs(ctx)...)
-
-	if req.URL != nil {
-		attrs = append(attrs, slog.String("path", req.URL.Path))
-		attrs = append(attrs, slog.String("host", req.URL.Host))
-	}
+	)
+	attrs = append(attrs, c.retryConfigAttrs()...)
 	if statusCode > 0 {
 		attrs = append(attrs, slog.Int("status_code", statusCode))
 	}
@@ -313,7 +413,129 @@ func (c *RetryingHTTPClient) logRetry(
 		attrs = append(attrs, slog.String("error", errMsg))
 	}
 
-	c.logger.LogAttrs(ctx, slog.LevelDebug, "retrying request", attrs...)
+	c.logger.LogAttrs(ctx, slog.LevelWarn, "retrying request", attrs...)
+}
+
+func (c *RetryingHTTPClient) logRetrySucceeded(
+	req *http.Request,
+	requestID string,
+	resp *http.Response,
+	attempt int,
+	duration time.Duration,
+) {
+	if c.logger == nil {
+		return
+	}
+	ctx := c.retryLogContext(req)
+	if !c.logger.Enabled(ctx, slog.LevelWarn) {
+		return
+	}
+
+	attrs := c.retryBaseAttrs(req, requestID, retryEventSucceeded)
+	attrs = append(attrs,
+		slog.Int("attempt", attempt),
+		slog.Int("max_attempts", c.cfg.MaxAttempts),
+		slog.Duration("duration", duration),
+	)
+	if resp != nil {
+		attrs = append(attrs, slog.Int("status_code", resp.StatusCode))
+	}
+
+	c.logger.LogAttrs(ctx, slog.LevelWarn, "request succeeded after retry", attrs...)
+}
+
+func (c *RetryingHTTPClient) logRetrySkipped(
+	req *http.Request,
+	requestID string,
+	attempt int,
+	statusCode int,
+	reason string,
+	duration time.Duration,
+	errMsg string,
+) {
+	if c.logger == nil {
+		return
+	}
+	ctx := c.retryLogContext(req)
+	if !c.logger.Enabled(ctx, slog.LevelWarn) {
+		return
+	}
+
+	attrs := c.retryBaseAttrs(req, requestID, retryEventSkipped)
+	attrs = append(attrs,
+		slog.Int("attempt", attempt),
+		slog.Int("max_attempts", c.cfg.MaxAttempts),
+		slog.Duration("duration", duration),
+		slog.String("reason", reason),
+	)
+	if statusCode > 0 {
+		attrs = append(attrs, slog.Int("status_code", statusCode))
+	}
+	if errMsg != "" {
+		attrs = append(attrs, slog.String("error", errMsg))
+	}
+
+	c.logger.LogAttrs(ctx, slog.LevelWarn, "retry skipped", attrs...)
+}
+
+func (c *RetryingHTTPClient) logRetryExhausted(
+	req *http.Request,
+	requestID string,
+	attempt int,
+	statusCode int,
+	duration time.Duration,
+	errMsg string,
+) {
+	if c.logger == nil {
+		return
+	}
+	ctx := c.retryLogContext(req)
+	if !c.logger.Enabled(ctx, slog.LevelWarn) {
+		return
+	}
+
+	attrs := c.retryBaseAttrs(req, requestID, retryEventExhausted)
+	attrs = append(attrs,
+		slog.Int("attempt", attempt),
+		slog.Duration("duration", duration),
+	)
+	attrs = append(attrs, c.retryConfigAttrs()...)
+	if statusCode > 0 {
+		attrs = append(attrs, slog.Int("status_code", statusCode))
+	}
+	if errMsg != "" {
+		attrs = append(attrs, slog.String("error", errMsg))
+	}
+
+	c.logger.LogAttrs(ctx, slog.LevelWarn, "http retries exhausted", attrs...)
+}
+
+func (c *RetryingHTTPClient) logRetryInterrupted(
+	req *http.Request,
+	requestID string,
+	attempt int,
+	nextInterval time.Duration,
+	duration time.Duration,
+	errMsg string,
+) {
+	if c.logger == nil {
+		return
+	}
+	ctx := c.retryLogContext(req)
+	if !c.logger.Enabled(ctx, slog.LevelWarn) {
+		return
+	}
+
+	attrs := c.retryBaseAttrs(req, requestID, retryEventInterrupted)
+	attrs = append(attrs,
+		slog.Int("attempt", attempt),
+		slog.Int64("next_interval_ms", nextInterval.Milliseconds()),
+		slog.Duration("duration", duration),
+		slog.String("error", errMsg),
+	)
+	attrs = append(attrs, c.retryConfigAttrs()...)
+
+	c.logger.LogAttrs(ctx, slog.LevelWarn, "http retry interrupted", attrs...)
 }
 
 // drainBody reads and discards the response body so the underlying TCP

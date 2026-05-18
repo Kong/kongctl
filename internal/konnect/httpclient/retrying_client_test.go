@@ -1,9 +1,11 @@
 package httpclient
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -145,6 +147,94 @@ func TestRetryingHTTPClient_ExhaustsRetries(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 503, resp.StatusCode)
 	assert.Equal(t, 3, inner.calls)
+}
+
+func TestRetryingHTTPClient_LogsRetryPolicyAttemptAndSuccess(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	inner := &mockHTTPClient{
+		responses: []*mockResponse{
+			{statusCode: 403},
+			{statusCode: 200},
+		},
+	}
+
+	c := NewRetryingHTTPClient(inner, defaultRetryConfig(), logger)
+	resp, err := c.Do(newTestRequest(t))
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+
+	out := logs.String()
+	require.Contains(t, out, "log_type=http_retry")
+	require.Contains(t, out, "http_source=sdk-konnect-go")
+	require.Contains(t, out, "event=retry_policy")
+	require.Contains(t, out, "event=retry_attempt")
+	require.Contains(t, out, "event=retry_succeeded")
+	require.Contains(t, out, "max_attempts=3")
+	require.Contains(t, out, "initial_interval_ms=1")
+	require.Contains(t, out, "status_code=403")
+	require.Contains(t, out, "status_code=200")
+	require.Contains(t, out, "body_replayable=true")
+}
+
+func TestRetryingHTTPClient_LogsRetryAttemptAndSuccessAtWarn(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	inner := &mockHTTPClient{
+		responses: []*mockResponse{
+			{statusCode: 403},
+			{statusCode: 200},
+		},
+	}
+
+	c := NewRetryingHTTPClient(inner, defaultRetryConfig(), logger)
+	resp, err := c.Do(newTestRequest(t))
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+
+	out := logs.String()
+	require.Contains(t, out, "level=WARN")
+	require.Contains(t, out, "log_type=http_retry")
+	require.Contains(t, out, "event=retry_attempt")
+	require.Contains(t, out, "event=retry_succeeded")
+	require.Contains(t, out, "status_code=403")
+	require.Contains(t, out, "status_code=200")
+	require.Contains(t, out, "max_attempts=3")
+	require.Contains(t, out, "initial_interval_ms=1")
+	require.Contains(t, out, "max_interval_ms=5")
+	require.Contains(t, out, "backoff_factor=1")
+	require.NotContains(t, out, "event=retry_policy")
+}
+
+func TestRetryingHTTPClient_LogsRetryExhaustedAtWarn(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	cfg := defaultRetryConfig()
+	cfg.MaxAttempts = 2
+	inner := &mockHTTPClient{
+		responses: []*mockResponse{
+			{statusCode: 403},
+			{statusCode: 403},
+		},
+	}
+
+	c := NewRetryingHTTPClient(inner, cfg, logger)
+	resp, err := c.Do(newTestRequest(t))
+	require.NoError(t, err)
+	require.Equal(t, 403, resp.StatusCode)
+
+	out := logs.String()
+	require.Contains(t, out, "level=WARN")
+	require.Contains(t, out, "log_type=http_retry")
+	require.Contains(t, out, "event=retry_exhausted")
+	require.Contains(t, out, "status_code=403")
+	require.Contains(t, out, "attempt=2")
+	require.Contains(t, out, "max_attempts=2")
+	require.Contains(t, out, "initial_interval_ms=1")
+	require.Contains(t, out, "max_interval_ms=5")
+	require.Contains(t, out, "backoff_factor=1")
+	require.Contains(t, out, "retry_connection_errors=false")
+	require.Contains(t, out, "event=retry_attempt")
 }
 
 func TestRetryingHTTPClient_BodyReplay(t *testing.T) {
@@ -492,10 +582,11 @@ func TestNextInterval(t *testing.T) {
 		assert.LessOrEqual(t, d, high, "attempt %d interval too high", attempt)
 	}
 
-	// Verify cap: at a high attempt number the interval must not exceed max*1.25.
-	bigAttempt := c.nextInterval(100)
-	maxWithJitter := time.Duration(float64(cfg.MaxIntervalMS)*float64(time.Millisecond)*1.25 + float64(time.Millisecond))
-	assert.LessOrEqual(t, bigAttempt, maxWithJitter)
+	// Verify cap: at a high attempt number jitter must not push the interval beyond max.
+	maxInterval := time.Duration(cfg.MaxIntervalMS) * time.Millisecond
+	for range 100 {
+		assert.LessOrEqual(t, c.nextInterval(100), maxInterval)
+	}
 }
 
 // mockNetError implements net.Error for testing.

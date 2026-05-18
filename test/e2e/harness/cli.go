@@ -253,16 +253,31 @@ func (e *CommandError) Unwrap() error {
 
 // Run executes kongctl with the provided args and returns a Result.
 func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
-	return c.runWithEnv(ctx, nil, args...)
+	return c.runWithEnvTimeout(ctx, nil, c.Timeout, args...)
 }
 
 // RunWithEnv executes kongctl with additional environment variables applied only to this invocation.
 func (c *CLI) RunWithEnv(ctx context.Context, env map[string]string, args ...string) (Result, error) {
-	return c.runWithEnv(ctx, env, args...)
+	return c.runWithEnvTimeout(ctx, env, c.Timeout, args...)
 }
 
-func (c *CLI) runWithEnv(ctx context.Context, env map[string]string, args ...string) (Result, error) {
-	return c.runCommand(ctx, c.BinPath, args, env, true, "")
+// RunWithEnvTimeout executes kongctl with a command-specific timeout.
+func (c *CLI) RunWithEnvTimeout(
+	ctx context.Context,
+	env map[string]string,
+	timeout time.Duration,
+	args ...string,
+) (Result, error) {
+	return c.runWithEnvTimeout(ctx, env, timeout, args...)
+}
+
+func (c *CLI) runWithEnvTimeout(
+	ctx context.Context,
+	env map[string]string,
+	timeout time.Duration,
+	args ...string,
+) (Result, error) {
+	return c.runCommand(ctx, c.BinPath, args, env, true, "", timeout)
 }
 
 // RunProgram executes an arbitrary binary with optional env/working directory overrides while
@@ -274,7 +289,19 @@ func (c *CLI) RunProgram(
 	env map[string]string,
 	workdir string,
 ) (Result, error) {
-	return c.runCommand(ctx, bin, args, env, false, workdir)
+	return c.runCommand(ctx, bin, args, env, false, workdir, c.Timeout)
+}
+
+// RunProgramTimeout executes an arbitrary binary with a command-specific timeout.
+func (c *CLI) RunProgramTimeout(
+	ctx context.Context,
+	bin string,
+	args []string,
+	env map[string]string,
+	workdir string,
+	timeout time.Duration,
+) (Result, error) {
+	return c.runCommand(ctx, bin, args, env, false, workdir, timeout)
 }
 
 func (c *CLI) runCommand(
@@ -284,6 +311,7 @@ func (c *CLI) runCommand(
 	env map[string]string,
 	injectFlags bool,
 	workdir string,
+	timeout time.Duration,
 ) (Result, error) {
 	if strings.TrimSpace(bin) == "" {
 		return Result{}, fmt.Errorf("binary is required")
@@ -326,14 +354,15 @@ func (c *CLI) runCommand(
 			value   string
 		}{}
 		haveOut := hasOutputArg(finalArgs)
+		supportsOut := supportsHarnessOutputArg(finalArgs)
 		switch {
 		case outOverride.set && outOverride.disable:
 		case outOverride.set && !outOverride.disable:
-			if !haveOut && strings.TrimSpace(outOverride.value) != "" {
+			if supportsOut && !haveOut && strings.TrimSpace(outOverride.value) != "" {
 				finalArgs = append(finalArgs, "-o", outOverride.value)
 			}
 		default:
-			if out := c.AutoOutput; out != "" && !haveOut {
+			if out := c.AutoOutput; supportsOut && out != "" && !haveOut {
 				finalArgs = append(finalArgs, "-o", out)
 			}
 		}
@@ -357,8 +386,8 @@ func (c *CLI) runCommand(
 	}
 
 	var cancel context.CancelFunc
-	if c.Timeout > 0 {
-		ctx, cancel = context.WithTimeout(ctx, c.Timeout)
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
 
@@ -421,14 +450,7 @@ func (c *CLI) RunJSONWithEnv(ctx context.Context, env map[string]string, out any
 
 func (c *CLI) runJSONWithEnv(ctx context.Context, env map[string]string, out any, args ...string) (Result, error) {
 	// ensure -o json is set unless caller already set it
-	hasOut := false
-	for i := range args {
-		if args[i] == "-o" || args[i] == "--output" || strings.HasPrefix(args[i], "--output=") {
-			hasOut = true
-			break
-		}
-	}
-	if !hasOut {
+	if supportsHarnessOutputArg(args) && !hasOutputArg(args) {
 		args = append(args, "-o", "json")
 	}
 	res, err := c.RunWithEnv(ctx, env, args...)
@@ -551,9 +573,7 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 		if i := strings.IndexByte(kv, '='); i > 0 {
 			k := kv[:i]
 			v := kv[i+1:]
-			ku := strings.ToUpper(k)
-			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
-				strings.Contains(ku, "SECRET") || strings.Contains(ku, "EMAIL") {
+			if isSensitiveName(k) {
 				if v != "" {
 					v = "***"
 				}
@@ -665,6 +685,13 @@ func hasOutputArg(args []string) bool {
 		}
 	}
 	return false
+}
+
+func supportsHarnessOutputArg(args []string) bool {
+	if len(args) == 0 {
+		return true
+	}
+	return args[0] != "plan"
 }
 
 func hasLogFileArg(args []string) bool {

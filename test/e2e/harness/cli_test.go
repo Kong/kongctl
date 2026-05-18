@@ -86,3 +86,21 @@ func TestWithEnvReplacesExistingKeys(t *testing.T) {
 		t.Fatalf("EXISTING entry = %q, want EXISTING=new", existing[0])
 	}
 }
+
+func TestSupportsHarnessOutputArgSkipsPlan(t *testing.T) {
+	if supportsHarnessOutputArg([]string{"plan", "-f", "config.yaml"}) {
+		t.Fatalf("plan command must not receive harness-managed output flags")
+	}
+}
+
+func TestSupportsHarnessOutputArgAllowsOtherCommands(t *testing.T) {
+	if !supportsHarnessOutputArg([]string{"apply", "-f", "config.yaml"}) {
+		t.Fatalf("apply command should support harness-managed output flags")
+	}
+}
+
+func TestHasOutputArgRecognizesShortOutputEquals(t *testing.T) {
+	if !hasOutputArg([]string{"get", "apis", "-o=json"}) {
+		t.Fatalf("expected -o=json to be recognized as an output flag")
+	}
+}

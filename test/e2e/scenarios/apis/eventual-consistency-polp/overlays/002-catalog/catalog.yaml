@@ -1,0 +1,152 @@
+_defaults:
+  kongctl:
+    namespace: apis-eventual-consistency-polp
+
+apis:
+  - ref: polp-claims-api
+    name: "{{ .vars.apiNamePrefix }} Claims"
+    description: API catalog resource used to exercise child creation after RBAC assignment
+    version: "1.0.0"
+    labels:
+      scenario: eventual-consistency-polp
+      domain: platform-operations
+      team: platform-operations
+      env: test
+    versions:
+      - ref: polp-claims-api-v1
+        version: "1.0.0"
+        publish_status: unpublished
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: E2E API POLP Catalog Claims
+              version: 1.0.0
+            paths: {}
+      - ref: polp-claims-api-v1-1
+        version: "1.1.0"
+        publish_status: unpublished
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: E2E API POLP Catalog Claims
+              version: 1.1.0
+            paths: {}
+    documents:
+      - ref: polp-claims-api-overview
+        title: Overview
+        status: published
+        content: |
+          # Overview
+
+          This document is created under a newly created API by a limited
+          system-account token.
+      - ref: polp-claims-api-authentication
+        slug: authentication
+        title: Authentication
+        status: published
+        content: |
+          # Authentication
+
+          This document increases API child fan-out for propagation testing.
+  - ref: polp-payments-api
+    name: "{{ .vars.apiNamePrefix }} Payments"
+    description: Second API catalog resource used to increase child creation fan-out
+    version: "1.0.0"
+    labels:
+      scenario: eventual-consistency-polp
+      domain: platform-operations
+      team: platform-operations
+      env: test
+    versions:
+      - ref: polp-payments-api-v1
+        version: "1.0.0"
+        publish_status: unpublished
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: E2E API POLP Catalog Payments
+              version: 1.0.0
+            paths: {}
+      - ref: polp-payments-api-v1-1
+        version: "1.1.0"
+        publish_status: unpublished
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: E2E API POLP Catalog Payments
+              version: 1.1.0
+            paths: {}
+    documents:
+      - ref: polp-payments-api-overview
+        title: Overview
+        status: published
+        content: |
+          # Overview
+
+          This document is created under a newly created API by a limited
+          system-account token.
+      - ref: polp-payments-api-authentication
+        slug: authentication
+        title: Authentication
+        status: published
+        content: |
+          # Authentication
+
+          This document increases API child fan-out for propagation testing.
+  - ref: polp-operations-api
+    name: "{{ .vars.apiNamePrefix }} Operations"
+    description: Third API catalog resource used to increase child creation fan-out
+    version: "1.0.0"
+    labels:
+      scenario: eventual-consistency-polp
+      domain: platform-operations
+      team: platform-operations
+      env: test
+    versions:
+      - ref: polp-operations-api-v1
+        version: "1.0.0"
+        publish_status: unpublished
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: E2E API POLP Catalog Operations
+              version: 1.0.0
+            paths: {}
+      - ref: polp-operations-api-v1-1
+        version: "1.1.0"
+        publish_status: unpublished
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: E2E API POLP Catalog Operations
+              version: 1.1.0
+            paths: {}
+    documents:
+      - ref: polp-operations-api-overview
+        title: Overview
+        status: published
+        content: |
+          # Overview
+
+          This document is created under a newly created API by a limited
+          system-account token.
+      - ref: polp-operations-api-authentication
+        slug: authentication
+        title: Authentication
+        status: published
+        content: |
+          # Authentication
+
+          This document increases API child fan-out for propagation testing.
