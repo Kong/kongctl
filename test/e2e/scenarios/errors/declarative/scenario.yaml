@@ -138,24 +138,24 @@ steps:
   - name: 010-mode-plan-conflict
     skipInputs: true
     commands:
-      - name: 000-diff-mode-and-plan
+      - name: 000-diff-mode-apply-and-plan
         run:
           - diff
           - --mode
           - apply
           - --plan
-          - /dev/null
+          - "{{ .scenario_dir }}/testdata/empty.plan"
         expectFailure:
           exitCode: 1
           contains: "--mode cannot be used together with --plan"
 
-      - name: 001-plan-mode-and-plan
+      - name: 001-diff-mode-delete-and-plan
         run:
-          - plan
+          - diff
           - --mode
-          - sync
+          - delete
           - --plan
-          - /dev/null
+          - "{{ .scenario_dir }}/testdata/empty.plan"
         expectFailure:
           exitCode: 1
           contains: "--mode cannot be used together with --plan"
@@ -169,7 +169,7 @@ steps:
           - --require-namespace
           - my-ns
           - --plan
-          - /dev/null
+          - "{{ .scenario_dir }}/testdata/empty.plan"
         expectFailure:
           exitCode: 1
           contains: "--require-namespace cannot be used together with --plan"
