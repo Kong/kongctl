@@ -115,6 +115,7 @@ steps:
     skipInputs: true
     commands:
       - name: 000-bare-plan
+        outputFormat: disable
         run:
           - plan
         expectFailure:
@@ -125,6 +126,7 @@ steps:
     skipInputs: true
     commands:
       - name: 000-bare-diff
+        outputFormat: disable
         run:
           - diff
         expectFailure:
