@@ -76,6 +76,15 @@ func parseDeclarativeSources(filenames []string) ([]loader.Source, error) {
 	return sources, nil
 }
 
+// sourcesForCommand returns parsed sources when no plan file is provided.
+// When planFile is non-empty (run from a saved plan) sources are not needed.
+func sourcesForCommand(planFile string, filenames []string) ([]loader.Source, error) {
+	if planFile != "" {
+		return nil, nil
+	}
+	return parseDeclarativeSources(filenames)
+}
+
 var diffSensitiveExactFieldKeys = map[string]struct{}{
 	"access_token":        {},
 	"refresh_token":       {},
@@ -788,13 +797,9 @@ func runDiff(command *cobra.Command, args []string) error {
 	}
 
 	filenames, _ := command.Flags().GetStringSlice("filename")
-	var sources []loader.Source
-	if planFile == "" {
-		var parseErr error
-		sources, parseErr = parseDeclarativeSources(filenames)
-		if parseErr != nil {
-			return parseErr
-		}
+	sources, err := sourcesForCommand(planFile, filenames)
+	if err != nil {
+		return err
 	}
 
 	helper := cmd.BuildHelper(command, args)
@@ -1431,13 +1436,9 @@ func runApply(command *cobra.Command, args []string) error {
 		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
-	var sources []loader.Source
-	if planFile == "" {
-		var parseErr error
-		sources, parseErr = parseDeclarativeSources(filenames)
-		if parseErr != nil {
-			return parseErr
-		}
+	sources, err := sourcesForCommand(planFile, filenames)
+	if err != nil {
+		return err
 	}
 
 	// Build helper
@@ -1918,13 +1919,9 @@ func runDelete(command *cobra.Command, args []string) error {
 		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
-	var sources []loader.Source
-	if planFile == "" {
-		var parseErr error
-		sources, parseErr = parseDeclarativeSources(filenames)
-		if parseErr != nil {
-			return parseErr
-		}
+	sources, err := sourcesForCommand(planFile, filenames)
+	if err != nil {
+		return err
 	}
 
 	// Build helper
@@ -2147,13 +2144,9 @@ func runSync(command *cobra.Command, args []string) error {
 		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
-	var sources []loader.Source
-	if planFile == "" {
-		var parseErr error
-		sources, parseErr = parseDeclarativeSources(filenames)
-		if parseErr != nil {
-			return parseErr
-		}
+	sources, err := sourcesForCommand(planFile, filenames)
+	if err != nil {
+		return err
 	}
 
 	// Build helper
