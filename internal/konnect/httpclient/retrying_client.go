@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -101,7 +102,8 @@ func NewRetryingHTTPClient(
 }
 
 // Do executes the request, retrying on retryable status codes with
-// exponential backoff and jitter. Each retry is logged at debug level.
+// exponential backoff and jitter. Retry attempts and outcomes are logged at
+// warn level.
 func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if c == nil || c.inner == nil {
 		return nil, fmt.Errorf("http client is not configured")
@@ -190,7 +192,7 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		// connection back to the pool.
 		drainBody(resp)
 
-		next := c.nextInterval(attempt)
+		next := c.nextIntervalForResponse(resp, attempt)
 		c.logRetryAttempt(req, requestID, resp.StatusCode, attempt+1, next, "")
 
 		if waitErr := c.wait(req.Context(), next); waitErr != nil {
@@ -291,6 +293,50 @@ func (c *RetryingHTTPClient) nextInterval(attempt int) time.Duration {
 	interval = min(max(interval, 0), maximum)
 
 	return time.Duration(interval)
+}
+
+func (c *RetryingHTTPClient) nextIntervalForResponse(resp *http.Response, attempt int) time.Duration {
+	if retryAfter, ok := c.retryAfterInterval(resp); ok {
+		return retryAfter
+	}
+	return c.nextInterval(attempt)
+}
+
+func (c *RetryingHTTPClient) retryAfterInterval(resp *http.Response) (time.Duration, bool) {
+	if resp == nil {
+		return 0, false
+	}
+
+	value := strings.TrimSpace(resp.Header.Get("Retry-After"))
+	if value == "" {
+		return 0, false
+	}
+
+	if seconds, err := strconv.Atoi(value); err == nil {
+		if seconds <= 0 {
+			return 0, false
+		}
+		return c.clampRetryAfter(time.Duration(seconds) * time.Second), true
+	}
+
+	when, err := http.ParseTime(value)
+	if err != nil {
+		return 0, false
+	}
+
+	delay := time.Until(when)
+	if delay <= 0 {
+		return 0, false
+	}
+	return c.clampRetryAfter(delay), true
+}
+
+func (c *RetryingHTTPClient) clampRetryAfter(delay time.Duration) time.Duration {
+	minimum := time.Duration(c.cfg.InitialIntervalMS) * time.Millisecond
+	maximum := time.Duration(c.cfg.MaxIntervalMS) * time.Millisecond
+
+	delay = max(delay, minimum)
+	return min(delay, maximum)
 }
 
 // wait blocks for the given duration, returning early if ctx is cancelled.

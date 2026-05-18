@@ -26,6 +26,7 @@ type mockHTTPClient struct {
 
 type mockResponse struct {
 	statusCode int
+	headers    http.Header
 	err        error
 }
 
@@ -41,6 +42,7 @@ func (m *mockHTTPClient) Do(_ *http.Request) (*http.Response, error) {
 	}
 	return &http.Response{
 		StatusCode: r.statusCode,
+		Header:     r.headers,
 		Body:       io.NopCloser(strings.NewReader("")),
 	}, nil
 }
@@ -587,6 +589,63 @@ func TestNextInterval(t *testing.T) {
 	for range 100 {
 		assert.LessOrEqual(t, c.nextInterval(100), maxInterval)
 	}
+}
+
+func TestRetryAfterInterval(t *testing.T) {
+	cfg := RetryConfig{
+		InitialIntervalMS: 2_000,
+		MaxIntervalMS:     8_000,
+		BackoffFactor:     2.0,
+	}
+	c := &RetryingHTTPClient{cfg: cfg}
+
+	t.Run("seconds header", func(t *testing.T) {
+		resp := &http.Response{Header: http.Header{"Retry-After": []string{"3"}}}
+
+		delay, ok := c.retryAfterInterval(resp)
+
+		require.True(t, ok)
+		require.Equal(t, 3*time.Second, delay)
+	})
+
+	t.Run("seconds header below minimum is floored", func(t *testing.T) {
+		resp := &http.Response{Header: http.Header{"Retry-After": []string{"1"}}}
+
+		delay, ok := c.retryAfterInterval(resp)
+
+		require.True(t, ok)
+		require.Equal(t, 2*time.Second, delay)
+	})
+
+	t.Run("seconds header above maximum is capped", func(t *testing.T) {
+		resp := &http.Response{Header: http.Header{"Retry-After": []string{"60"}}}
+
+		delay, ok := c.retryAfterInterval(resp)
+
+		require.True(t, ok)
+		require.Equal(t, 8*time.Second, delay)
+	})
+
+	t.Run("date header above maximum is capped", func(t *testing.T) {
+		resp := &http.Response{
+			Header: http.Header{
+				"Retry-After": []string{time.Now().Add(time.Hour).UTC().Format(http.TimeFormat)},
+			},
+		}
+
+		delay, ok := c.retryAfterInterval(resp)
+
+		require.True(t, ok)
+		require.Equal(t, 8*time.Second, delay)
+	})
+
+	t.Run("invalid header is ignored", func(t *testing.T) {
+		resp := &http.Response{Header: http.Header{"Retry-After": []string{"not-a-date"}}}
+
+		_, ok := c.retryAfterInterval(resp)
+
+		require.False(t, ok)
+	})
 }
 
 // mockNetError implements net.Error for testing.

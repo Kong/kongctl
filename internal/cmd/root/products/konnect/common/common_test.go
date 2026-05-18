@@ -232,7 +232,7 @@ func TestResolveRetryConfig(t *testing.T) {
 	t.Run("explicit values", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
 			HTTPRetryMaxAttemptsConfigPath:        "3",
-			HTTPRetryInitialIntervalConfigPath:    "200",
+			HTTPRetryInitialIntervalConfigPath:    "500",
 			HTTPRetryMaxIntervalConfigPath:        "5000",
 			HTTPRetryBackoffFactorConfigPath:      "1.5",
 			HTTPRetryOnConnectionErrorsConfigPath: "true",
@@ -242,7 +242,7 @@ func TestResolveRetryConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 3, rc.MaxAttempts)
 		require.Equal(t, httpclient.RetryStrategyDefault, rc.Strategy)
-		require.Equal(t, 200, rc.InitialIntervalMS)
+		require.Equal(t, 500, rc.InitialIntervalMS)
 		require.Equal(t, 5000, rc.MaxIntervalMS)
 		require.Equal(t, 1.5, rc.BackoffFactor)
 		require.True(t, rc.RetryConnectionErrors)
@@ -351,14 +351,34 @@ func TestResolveRetryConfig(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("backoff factor below 1 returns error", func(t *testing.T) {
-		for _, v := range []string{"0.5", "0.001", "0.999"} {
+	t.Run("backoff factor below minimum returns error", func(t *testing.T) {
+		for _, v := range []string{"0.5", "0.001", "0.999", "1", "1.499"} {
 			cfg, _ := newTestConfig(map[string]string{
 				HTTPRetryBackoffFactorConfigPath: v,
 			})
 			_, err := ResolveRetryConfig(cfg)
 			require.Error(t, err, "factor %s should be rejected", v)
 		}
+	})
+
+	t.Run("backoff factor above maximum returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryBackoffFactorConfigPath: "3.1",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("cumulative backoff budget above maximum returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath:     "10",
+			HTTPRetryInitialIntervalConfigPath: "30000",
+			HTTPRetryMaxIntervalConfigPath:     "120000",
+			HTTPRetryBackoffFactorConfigPath:   "3",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cumulative backoff budget")
 	})
 
 	t.Run("non-finite backoff factor is rejected", func(t *testing.T) {
@@ -376,7 +396,7 @@ func TestResolveRetryConfigForVerb(t *testing.T) {
 	t.Run("imperative verbs force no retry", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
 			HTTPRetryMaxAttemptsConfigPath:        "5",
-			HTTPRetryInitialIntervalConfigPath:    "250",
+			HTTPRetryInitialIntervalConfigPath:    "500",
 			HTTPRetryMaxIntervalConfigPath:        "5000",
 			HTTPRetryBackoffFactorConfigPath:      "3",
 			HTTPRetryOnConnectionErrorsConfigPath: "true",
@@ -395,7 +415,7 @@ func TestResolveRetryConfigForVerb(t *testing.T) {
 	t.Run("declarative verbs use resolved retry config", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
 			HTTPRetryMaxAttemptsConfigPath:        "5",
-			HTTPRetryInitialIntervalConfigPath:    "250",
+			HTTPRetryInitialIntervalConfigPath:    "500",
 			HTTPRetryMaxIntervalConfigPath:        "5000",
 			HTTPRetryBackoffFactorConfigPath:      "3",
 			HTTPRetryOnConnectionErrorsConfigPath: "true",
@@ -405,7 +425,7 @@ func TestResolveRetryConfigForVerb(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, httpclient.RetryStrategyBackoff, rc.Strategy)
 		require.Equal(t, 5, rc.MaxAttempts)
-		require.Equal(t, 250, rc.InitialIntervalMS)
+		require.Equal(t, 500, rc.InitialIntervalMS)
 		require.Equal(t, 5000, rc.MaxIntervalMS)
 		require.Equal(t, 3.0, rc.BackoffFactor)
 		require.True(t, rc.RetryConnectionErrors)

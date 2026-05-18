@@ -230,9 +230,13 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be a finite number",
 			HTTPRetryBackoffFactorConfigPath, factor)
 	}
-	if factor < 1 {
-		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be >= 1",
-			HTTPRetryBackoffFactorConfigPath, factor)
+	if factor < httpclient.MinRetryBackoffFactor {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be >= %g",
+			HTTPRetryBackoffFactorConfigPath, factor, httpclient.MinRetryBackoffFactor)
+	}
+	if factor > httpclient.MaxRetryBackoffFactor {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be <= %g",
+			HTTPRetryBackoffFactorConfigPath, factor, httpclient.MaxRetryBackoffFactor)
 	}
 
 	retryConnErrors, err := resolveOptionalBool(cfg, HTTPRetryOnConnectionErrorsConfigPath)
@@ -240,14 +244,21 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 		return httpclient.RetryConfig{}, err
 	}
 
-	return httpclient.RetryConfig{
+	retryConfig := httpclient.RetryConfig{
 		Strategy:              strategy,
 		MaxAttempts:           maxAttempts,
 		InitialIntervalMS:     initialIntervalMS,
 		MaxIntervalMS:         maxIntervalMS,
 		BackoffFactor:         factor,
 		RetryConnectionErrors: retryConnErrors,
-	}, nil
+	}
+	if totalBackoffMS := httpclient.EstimatedRetryBackoffMS(retryConfig); totalBackoffMS > httpclient.MaxRetryTotalBackoffMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid retry configuration: cumulative backoff budget %d ms must be <= %d ms",
+			totalBackoffMS, httpclient.MaxRetryTotalBackoffMS)
+	}
+
+	return retryConfig, nil
 }
 
 func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
