@@ -252,7 +252,8 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 		BackoffFactor:         factor,
 		RetryConnectionErrors: retryConnErrors,
 	}
-	if totalBackoffMS := httpclient.EstimatedRetryBackoffMS(retryConfig); totalBackoffMS > httpclient.MaxRetryTotalBackoffMS {
+	totalBackoffMS := httpclient.EstimatedRetryBackoffMS(retryConfig)
+	if totalBackoffMS > httpclient.MaxRetryTotalBackoffMS {
 		return httpclient.RetryConfig{}, fmt.Errorf(
 			"invalid retry configuration: cumulative backoff budget %d ms must be <= %d ms",
 			totalBackoffMS, httpclient.MaxRetryTotalBackoffMS)
