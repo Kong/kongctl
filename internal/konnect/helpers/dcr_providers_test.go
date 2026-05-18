@@ -41,7 +41,7 @@ func (c *dcrProviderHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		return dcrProviderJSONResponse(http.StatusOK, `{
 			"data": [{
 				"provider_type": "http",
-				"dcr_config": {},
+				"dcr_config": {"dcr_base_url": "https://dcr.example.test"},
 				"id": "provider-1",
 				"name": "provider-one",
 				"display_name": "Provider One",
@@ -118,6 +118,13 @@ func TestDCRProvidersAPIImplListDcrProviderPayloadsUsesSDKResponse(t *testing.T)
 	}
 	if payload.Total != 51 {
 		t.Fatalf("unexpected total: %v", payload.Total)
+	}
+	provider, err := NormalizeDCRProviderPayload(payload.Data[0])
+	if err != nil {
+		t.Fatalf("unexpected normalize error: %v", err)
+	}
+	if got := provider.DCRConfig["dcr_base_url"]; got != "https://dcr.example.test" {
+		t.Fatalf("unexpected dcr_base_url: %v", got)
 	}
 
 	if len(client.requests) != 1 {

@@ -1,10 +1,12 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 
 	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -111,6 +113,12 @@ func (a *DCRProvidersAPIImpl) ListDcrProviderPayloads(
 		return &DCRProviderListPayload{}, nil
 	}
 
+	if payload, ok, err := listDCRProviderPayloadFromRawResponse(res); err != nil {
+		return nil, err
+	} else if ok {
+		return payload, nil
+	}
+
 	data := make([]any, 0, len(res.ListDcrProvidersResponse.Data))
 	for _, provider := range res.ListDcrProvidersResponse.Data {
 		data = append(data, provider)
@@ -119,6 +127,35 @@ func (a *DCRProvidersAPIImpl) ListDcrProviderPayloads(
 		Data:  data,
 		Total: res.ListDcrProvidersResponse.Meta.Page.Total,
 	}, nil
+}
+
+func listDCRProviderPayloadFromRawResponse(res *kkOPS.ListDcrProvidersResponse) (*DCRProviderListPayload, bool, error) {
+	if res.RawResponse == nil || res.RawResponse.Body == nil {
+		return nil, false, nil
+	}
+
+	body, err := io.ReadAll(res.RawResponse.Body)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to read DCR provider list response body: %w", err)
+	}
+	res.RawResponse.Body = io.NopCloser(bytes.NewReader(body))
+
+	var payload struct {
+		Data []any `json:"data"`
+		Meta struct {
+			Page struct {
+				Total float64 `json:"total"`
+			} `json:"page"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, false, fmt.Errorf("failed to unmarshal DCR provider list response body: %w", err)
+	}
+
+	return &DCRProviderListPayload{
+		Data:  payload.Data,
+		Total: payload.Meta.Page.Total,
+	}, true, nil
 }
 
 func (a *DCRProvidersAPIImpl) CreateDcrProvider(ctx context.Context,
