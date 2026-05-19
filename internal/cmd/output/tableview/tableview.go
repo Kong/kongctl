@@ -684,6 +684,22 @@ func isTerminal(fd uintptr) bool {
 	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
+// isEmptyCollection reports whether v is a nil-element, zero-length slice or
+// array. Pointers are dereferenced before the check.
+func isEmptyCollection(v any) bool {
+	if v == nil {
+		return false
+	}
+	rv := reflect.ValueOf(v)
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return false
+		}
+		rv = rv.Elem()
+	}
+	return (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) && rv.Len() == 0
+}
+
 func buildRows(data any) ([]string, [][]string, error) {
 	if data == nil {
 		return nil, nil, errors.New("tableview: nil data provided")
@@ -2209,6 +2225,12 @@ func RenderForFormat(
 	//exhaustive:ignore // HELM is intentionally not supported here; handled at the call site.
 	switch outType {
 	case cmdCommon.TEXT:
+		if isEmptyCollection(display) {
+			if streams != nil && streams.Out != nil {
+				return writeStaticMessage(streams.Out, "", "No resources found.")
+			}
+			return nil
+		}
 		if printer != nil {
 			printer.Print(display)
 		}

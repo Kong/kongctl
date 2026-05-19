@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cmd "github.com/kong/kongctl/internal/cmd"
+	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/theme"
 )
@@ -453,6 +454,58 @@ func TestFilterPreviewDetailItems_RemovesChildRows(t *testing.T) {
 	filtered := filterPreviewDetailItems(items)
 	require.Len(t, filtered, 1)
 	require.Equal(t, "id", filtered[0].Label)
+}
+
+func TestIsEmptyCollection(t *testing.T) {
+	require.True(t, isEmptyCollection([]string{}))
+	require.True(t, isEmptyCollection([]sampleRecord{}))
+	require.True(t, isEmptyCollection([0]int{}))
+
+	ptr := []string{}
+	require.True(t, isEmptyCollection(&ptr))
+
+	require.False(t, isEmptyCollection(nil))
+	require.False(t, isEmptyCollection([]string{"a"}))
+	require.False(t, isEmptyCollection(sampleRecord{}))
+	require.False(t, isEmptyCollection("not a slice"))
+
+	var nilPtr *[]string
+	require.False(t, isEmptyCollection(nilPtr))
+}
+
+func TestRenderForFormat_EmptyTextOutputWritesNoResourcesFound(t *testing.T) {
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+
+	err := RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		nil,
+		streams,
+		[]sampleRecord{},
+		nil,
+		"",
+	)
+	require.NoError(t, err)
+	require.Contains(t, outBuf.String(), "No resources found.")
+}
+
+func TestRenderForFormat_NonEmptyTextOutputUsePrinter(t *testing.T) {
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+
+	err := RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		nil,
+		streams,
+		[]sampleRecord{{ID: "abc", DisplayName: "Test", LocalUpdatedTime: "2025-01-01"}},
+		nil,
+		"",
+	)
+	// printer is nil so nothing is printed, but no error and no "No resources found." message
+	require.NoError(t, err)
+	require.NotContains(t, outBuf.String(), "No resources found.")
 }
 
 func newMinimalBubbleModel(t *testing.T) *bubbleModel {
