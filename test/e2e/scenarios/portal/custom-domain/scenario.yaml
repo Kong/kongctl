@@ -447,3 +447,88 @@ steps:
             expect:
               fields:
                 "@": true
+
+  - name: 007-dump-and-plan-round-trip
+    inputOverlayDirs:
+      - overlays/007-re-apply-http-domain
+    commands:
+      - name: 000-plan-re-apply-http-domain
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-re-apply.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+      - name: 001-apply-re-apply-http-domain
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-re-apply.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-dump-portal-with-domain
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--filter-name={{ .vars.portal1Ref }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              portals[?name=='{{ .vars.portal1Ref }}'] | [0].custom_domain
+            expect:
+              fields:
+                hostname: "{{ .vars.portal1Hostname }}"
+      - name: 003-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 008-delete-cleanup
+    inputOverlayDirs:
+      - overlays/007-re-apply-http-domain
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
