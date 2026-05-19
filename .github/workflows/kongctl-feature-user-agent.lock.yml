@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"623416f964694ecb1a6375a448c95273c199f636eebb40f26c292a25c30b9dd9","strict":true,"agent_id":"copilot"}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","KONGCTL_FEATURE_USER_AGENT_KONNECT_PAT"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.40","digest":"sha256:14ff567e8d9d4c2fbc5e55c973488381c71d7e0fdbe72d30ee7b8a738fd86504","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.40@sha256:14ff567e8d9d4c2fbc5e55c973488381c71d7e0fdbe72d30ee7b8a738fd86504"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.40","digest":"sha256:2883ca3e5ae9f330cafdd9345bfd4ae17fc8da36c96d4c9a1f76e922b4c45280","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.40@sha256:2883ca3e5ae9f330cafdd9345bfd4ae17fc8da36c96d4c9a1f76e922b4c45280"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.40","digest":"sha256:b084f4a2c771f584ee68084ced52fa6b3245197a1889645d817462d307d3ac51","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.40@sha256:b084f4a2c771f584ee68084ced52fa6b3245197a1889645d817462d307d3ac51"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"ad9d6572c8bbba8c3315addaa8ae2bb44c24ecc96d37f90fee8b7c1a0143feaa","strict":true,"agent_id":"copilot","agent_model":"claude-opus-4.6"}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","KONGCTL_FEATURE_USER_AGENT_KONNECT_PAT"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"b8068426813005612b960b5ab0b8bd2c27142323","version":"v0.71.5"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.40","digest":"sha256:14ff567e8d9d4c2fbc5e55c973488381c71d7e0fdbe72d30ee7b8a738fd86504","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.40@sha256:14ff567e8d9d4c2fbc5e55c973488381c71d7e0fdbe72d30ee7b8a738fd86504"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.40","digest":"sha256:2883ca3e5ae9f330cafdd9345bfd4ae17fc8da36c96d4c9a1f76e922b4c45280","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.40@sha256:2883ca3e5ae9f330cafdd9345bfd4ae17fc8da36c96d4c9a1f76e922b4c45280"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.40","digest":"sha256:b084f4a2c771f584ee68084ced52fa6b3245197a1889645d817462d307d3ac51","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.40@sha256:b084f4a2c771f584ee68084ced52fa6b3245197a1889645d817462d307d3ac51"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -39,6 +39,7 @@
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
 #   - actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+#   - github/gh-aw-actions/setup@b8068426813005612b960b5ab0b8bd2c27142323 # v0.71.5
 #
 # Container images used:
 #   - ghcr.io/github/gh-aw-firewall/agent:0.25.40@sha256:14ff567e8d9d4c2fbc5e55c973488381c71d7e0fdbe72d30ee7b8a738fd86504
@@ -48,7 +49,7 @@
 #   - ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959
 #   - node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
 
-name: "Kongctl Feature User Agent"
+name: "User Agent Eval"
 "on":
   workflow_dispatch:
     inputs:
@@ -64,7 +65,7 @@ concurrency:
   cancel-in-progress: false
   group: konnect-feature-user-agent
 
-run-name: "Kongctl Feature User Agent"
+run-name: "User Agent Eval"
 
 jobs:
   activation:
@@ -81,21 +82,14 @@ jobs:
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         id: setup
-        uses: ./actions/setup
+        uses: github/gh-aw-actions/setup@b8068426813005612b960b5ab0b8bd2c27142323 # v0.71.5
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_SETUP_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/kongctl-feature-user-agent.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.40"
       - name: Generate agentic run info
@@ -103,10 +97,10 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
+          GH_AW_INFO_MODEL: "claude-opus-4.6"
           GH_AW_INFO_VERSION: "1.0.40"
           GH_AW_INFO_AGENT_VERSION: "1.0.40"
-          GH_AW_INFO_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_INFO_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
@@ -130,7 +124,6 @@ jobs:
           sparse-checkout: |
             .github
             .agents
-            actions/setup
             .claude
             .codex
             .crush
@@ -174,20 +167,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_138ae4a3ec841f17_EOF'
+          cat << 'GH_AW_PROMPT_c4448dea2da4085d_EOF'
           <system>
-          GH_AW_PROMPT_138ae4a3ec841f17_EOF
+          GH_AW_PROMPT_c4448dea2da4085d_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_138ae4a3ec841f17_EOF'
+          cat << 'GH_AW_PROMPT_c4448dea2da4085d_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_138ae4a3ec841f17_EOF
+          GH_AW_PROMPT_c4448dea2da4085d_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_138ae4a3ec841f17_EOF'
+          cat << 'GH_AW_PROMPT_c4448dea2da4085d_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -219,12 +212,12 @@ jobs:
             - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
           </github-context>
           
-          GH_AW_PROMPT_138ae4a3ec841f17_EOF
+          GH_AW_PROMPT_c4448dea2da4085d_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_138ae4a3ec841f17_EOF'
+          cat << 'GH_AW_PROMPT_c4448dea2da4085d_EOF'
           </system>
           {{#runtime-import .github/workflows/kongctl-feature-user-agent.md}}
-          GH_AW_PROMPT_138ae4a3ec841f17_EOF
+          GH_AW_PROMPT_c4448dea2da4085d_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -329,22 +322,15 @@ jobs:
       output_types: ${{ steps.collect_output.outputs.output_types }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         id: setup
-        uses: ./actions/setup
+        uses: github/gh-aw-actions/setup@b8068426813005612b960b5ab0b8bd2c27142323 # v0.71.5
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_SETUP_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/kongctl-feature-user-agent.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.40"
       - name: Set runtime paths
@@ -433,9 +419,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_6f7856781ea9deae_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_e905dbbf78405a02_EOF'
           {"create_issue":{"expires":720,"labels":["automation","agentic-workflows","konnect"],"max":1,"title_prefix":"[agent-eval] "},"create_report_incomplete_issue":{},"mentions":{"enabled":false},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"false"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_6f7856781ea9deae_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_e905dbbf78405a02_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -635,7 +621,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_6104746fa5ff1296_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_28252f09508d24ce_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -676,7 +662,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_6104746fa5ff1296_EOF
+          GH_AW_MCP_CONFIG_28252f09508d24ce_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -716,7 +702,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_API_KEY: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
+          COPILOT_MODEL: claude-opus-4.6
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -872,6 +858,9 @@ jobs:
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
       - if: always()
+        name: Append feature-user evaluation summary
+        run: "set -euo pipefail\n\nevidence_dir=\"/tmp/gh-aw/kongctl-feature-user-agent/sanitized\"\nsummary_file=\"${evidence_dir}/evaluation-summary.md\"\n\n{\n  echo \"## User Agent Eval\"\n  echo\n  echo \"- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"\n  echo \"- Sanitized artifacts: \\`kongctl-feature-user-agent-sanitized\\`\"\n  echo\n} >> \"${GITHUB_STEP_SUMMARY}\"\n\nif [ ! -f \"${summary_file}\" ]; then\n  {\n    echo \"No sanitized evaluation summary was produced.\"\n    echo\n    echo \"Check the agent logs and sanitized artifact upload for details.\"\n  } >> \"${GITHUB_STEP_SUMMARY}\"\n  exit 0\nfi\n\nunsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'\nif grep -E -q \"${unsafe_pattern}\" \"${summary_file}\"; then\n  echo \"::error::Evaluation summary contains values that look unsafe. Redact or omit them before upload.\"\n  exit 1\nfi\n\ncat \"${summary_file}\" >> \"${GITHUB_STEP_SUMMARY}\"\n"
+      - if: always()
         name: Check sanitized feature-user artifacts
         run: "set -euo pipefail\n\nevidence_dir=\"/tmp/gh-aw/kongctl-feature-user-agent/sanitized\"\nif [ ! -d \"${evidence_dir}\" ]; then\n  exit 0\nfi\n\nif find \"${evidence_dir}\" -type f -size +1048576c | grep -q .; then\n  echo \"::error::Sanitized artifact files must be 1 MiB or smaller.\"\n  exit 1\nfi\n\nunsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'\nif grep -R -E -q \"${unsafe_pattern}\" \"${evidence_dir}\"; then\n  echo \"::error::Sanitized artifacts contain values that look unsafe. Redact or omit them before upload.\"\n  exit 1\nfi\n"
       - if: always()
@@ -932,22 +921,15 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         id: setup
-        uses: ./actions/setup
+        uses: github/gh-aw-actions/setup@b8068426813005612b960b5ab0b8bd2c27142323 # v0.71.5
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_SETUP_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/kongctl-feature-user-agent.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
@@ -970,7 +952,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
-          GH_AW_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_TRACKER_ID: "kongctl-feature-user-agent"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
@@ -987,7 +969,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_TRACKER_ID: "kongctl-feature-user-agent"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
@@ -1005,7 +987,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_TRACKER_ID: "kongctl-feature-user-agent"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1020,7 +1002,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_TRACKER_ID: "kongctl-feature-user-agent"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1035,7 +1017,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_TRACKER_ID: "kongctl-feature-user-agent"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
@@ -1077,22 +1059,15 @@ jobs:
       detection_reason: ${{ steps.detection_conclusion.outputs.reason }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         id: setup
-        uses: ./actions/setup
+        uses: github/gh-aw-actions/setup@b8068426813005612b960b5ab0b8bd2c27142323 # v0.71.5
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_SETUP_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/kongctl-feature-user-agent.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact
@@ -1159,7 +1134,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          WORKFLOW_NAME: "Kongctl Feature User Agent"
+          WORKFLOW_NAME: "User Agent Eval"
           WORKFLOW_DESCRIPTION: "Runs a manual feature-user evaluation of one advertised kongctl workflow\nagainst a disposable Konnect org and files actionable friction only."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
@@ -1204,7 +1179,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_API_KEY: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'claude-sonnet-4.6' }}
+          COPILOT_MODEL: claude-opus-4.6
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_VERSION: dev
@@ -1277,11 +1252,11 @@ jobs:
       GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
+      GH_AW_ENGINE_MODEL: "claude-opus-4.6"
       GH_AW_ENGINE_VERSION: "1.0.40"
       GH_AW_TRACKER_ID: "kongctl-feature-user-agent"
       GH_AW_WORKFLOW_ID: "kongctl-feature-user-agent"
-      GH_AW_WORKFLOW_NAME: "Kongctl Feature User Agent"
+      GH_AW_WORKFLOW_NAME: "User Agent Eval"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
@@ -1292,22 +1267,15 @@ jobs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions
-          persist-credentials: false
       - name: Setup Scripts
         id: setup
-        uses: ./actions/setup
+        uses: github/gh-aw-actions/setup@b8068426813005612b960b5ab0b8bd2c27142323 # v0.71.5
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Kongctl Feature User Agent"
+          GH_AW_SETUP_WORKFLOW_NAME: "User Agent Eval"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/kongctl-feature-user-agent.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.40"
       - name: Download agent output artifact

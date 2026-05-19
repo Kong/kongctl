@@ -1,5 +1,5 @@
 ---
-name: Kongctl Feature User Agent
+name: User Agent Eval
 description: |
   Runs a manual feature-user evaluation of one advertised kongctl workflow
   against a disposable Konnect org and files actionable friction only.
@@ -10,7 +10,11 @@ permissions:
   issues: read
 checkout:
   fetch-depth: 0
-engine: copilot
+engine:
+  id: copilot
+  model: claude-opus-4.6
+features:
+  action-mode: "action"
 strict: true
 timeout-minutes: 60
 environment: kongctl-user-agent-eval
@@ -82,6 +86,38 @@ pre-agent-steps:
       test -x ./kongctl
       make reset-org
 post-steps:
+  - name: Append feature-user evaluation summary
+    if: always()
+    run: |
+      set -euo pipefail
+
+      evidence_dir="/tmp/gh-aw/kongctl-feature-user-agent/sanitized"
+      summary_file="${evidence_dir}/evaluation-summary.md"
+
+      {
+        echo "## User Agent Eval"
+        echo
+        echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        echo "- Sanitized artifacts: \`kongctl-feature-user-agent-sanitized\`"
+        echo
+      } >> "${GITHUB_STEP_SUMMARY}"
+
+      if [ ! -f "${summary_file}" ]; then
+        {
+          echo "No sanitized evaluation summary was produced."
+          echo
+          echo "Check the agent logs and sanitized artifact upload for details."
+        } >> "${GITHUB_STEP_SUMMARY}"
+        exit 0
+      fi
+
+      unsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'
+      if grep -E -q "${unsafe_pattern}" "${summary_file}"; then
+        echo "::error::Evaluation summary contains values that look unsafe. Redact or omit them before upload."
+        exit 1
+      fi
+
+      cat "${summary_file}" >> "${GITHUB_STEP_SUMMARY}"
   - name: Check sanitized feature-user artifacts
     if: always()
     run: |
@@ -113,7 +149,7 @@ post-steps:
 tracker-id: kongctl-feature-user-agent
 ---
 
-# Kongctl Feature User Agent
+# User Agent Eval
 
 You are a feature user evaluating `kongctl` as a command-line product.
 
@@ -135,6 +171,7 @@ APIs directly.
 - Repository: `${{ github.repository }}`
 - Workspace: `${{ github.workspace }}`
 - Run URL: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+- Run seed: `${{ github.run_id }}`
 - Built binary: `./kongctl`
 - Auth env file: `/tmp/gh-aw/kongctl-feature-user-agent/auth.env`
 - Sanitized artifact directory:
@@ -153,11 +190,17 @@ dedicated Konnect org with the existing e2e reset helper.
 - Treat the Konnect org as disposable.
 - Discover features from `README.md`, `docs/`, `kongctl --help`, command help,
   and public Kong developer docs.
-- Pick one advertised feature or workflow without persona steering, feature
-  selection memory, repo memory, or history-based steering.
+- Build a candidate set of advertised feature workflows before choosing one.
+- Select one candidate with the deterministic run-seeded procedure below.
+- Do not choose the most prominent, obvious, or familiar workflow unless the
+  run-seeded selection lands on it.
+- Do not use persona steering, feature selection memory, repo memory, or
+  history-based steering.
 - Prefer one realistic, bounded workflow over broad coverage.
 - Capture commands, exit codes, sanitized stdout/stderr excerpts, generated
   config, expected vs. actual behavior, and cleanup result.
+- Always write a sanitized `evaluation-summary.md` file in the sanitized
+  artifact directory.
 - Attempt cleanup when created resources are easy to identify.
 - File an issue only for concrete, reproducible friction.
 - Emit `noop` when no actionable friction is found.
@@ -166,17 +209,47 @@ dedicated Konnect org with the existing e2e reset helper.
 
 1. Read the local docs and command help just enough to identify advertised
    workflows.
-2. Select exactly one feature workflow and state the reason in your private
-   notes or sanitized evidence.
-3. Exercise the workflow using `./kongctl` and PAT-based environment auth.
-4. Keep command output excerpts short. Prefer command shapes, exit codes, and
+2. Build a candidate set before selecting a workflow:
+   - Aim for 8 to 12 viable candidates when discoverable; if fewer are
+     discoverable, include all viable candidates.
+   - Prefer breadth across command surfaces, user intents, product resources,
+     and lifecycle phases.
+   - For each candidate, record a short stable title, advertised source,
+     likely user intent, surface or command family, resource or scope,
+     preconditions, expected commands, cleanup path, and feasibility risk.
+   - Keep candidates product-derived. Do not invent workflows that are not
+     supported by docs or command help.
+3. Select exactly one candidate with this deterministic procedure:
+   - Sort candidates by stable title using lowercase lexical order.
+   - Compute selected index as `run seed modulo candidate count`, using
+     zero-based indexing.
+   - If the selected candidate proves impossible after deeper inspection, skip
+     it, select the next candidate cyclically, and document why it was skipped.
+   - Do not re-rank candidates by model preference after sorting.
+4. Exercise the selected workflow using `./kongctl` and PAT-based environment
+   auth.
+5. Keep command output excerpts short. Prefer command shapes, exit codes, and
    non-identifying error text.
-5. If you create resources and can identify them safely, attempt cleanup.
-6. Write sanitized evidence files only under:
+6. If you create resources and can identify them safely, attempt cleanup.
+7. Write sanitized evidence files only under:
    `/tmp/gh-aw/kongctl-feature-user-agent/sanitized`.
-7. Before final output, run a sanitization check over the issue body and every
+8. Write `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/evaluation-summary.md`
+   with these sections:
+   - `Run Seed`: the seed value and candidate count.
+   - `Candidate Set`: the sorted candidate titles, selected index, and any
+     skipped candidate.
+   - `Feature Workflow Selected`: the use case derived from the docs/help.
+   - `Why This Workflow`: which input assets advertised it, and how the
+     run-seeded selection chose it.
+   - `Commands Attempted`: command shapes and exit codes.
+   - `Observed Result`: what happened, including short sanitized excerpts.
+   - `Success Criteria`: how you decided the workflow succeeded or failed.
+   - `Friction Assessment`: why you did or did not find actionable friction.
+   - `Cleanup`: cleanup attempted and result.
+   - `Safe Output`: whether you emitted `create_issue` or `noop`, and why.
+9. Before final output, run a sanitization check over the issue body and every
    file in the sanitized artifact directory. Rewrite or omit unsafe content.
-8. Emit exactly one safe output.
+10. Emit exactly one safe output.
 
 ## Redaction Rules
 
