@@ -90,3 +90,47 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "is too large"
+
+  - name: 006-bare-apply-no-file
+    skipInputs: true
+    commands:
+      - name: 000-bare-apply
+        outputFormat: disable
+        run:
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "no configuration sources specified"
+
+  - name: 007-bare-sync-no-file
+    skipInputs: true
+    commands:
+      - name: 000-bare-sync
+        outputFormat: disable
+        run:
+          - sync
+        expectFailure:
+          exitCode: 1
+          contains: "no configuration sources specified"
+
+  - name: 008-bare-plan-no-file
+    skipInputs: true
+    commands:
+      - name: 000-bare-plan
+        outputFormat: disable
+        run:
+          - plan
+        expectFailure:
+          exitCode: 1
+          contains: "no configuration sources specified"
+
+  - name: 009-bare-diff-no-file
+    skipInputs: true
+    commands:
+      - name: 000-bare-diff
+        outputFormat: disable
+        run:
+          - diff
+        expectFailure:
+          exitCode: 1
+          contains: "no configuration sources specified"
