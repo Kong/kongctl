@@ -682,7 +682,7 @@ func kongLightPalette() Palette {
 			ColorSurfaceText:   singleColor("#000F06"),
 			ColorPrimary:       singleColor("#000F06"),
 			ColorPrimaryText:   singleColor("#FFFFFF"),
-			ColorAccent:        singleColor("#2F5F16"),
+			ColorAccent:        singleColor("#005F28"),
 			ColorAccentText:    singleColor("#FFFFFF"),
 			ColorSelection:     singleColor("#CCFF00"),
 			ColorSelectionText: singleColor("#000F06"),

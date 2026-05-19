@@ -81,8 +81,11 @@ func TestKongLightAccentTextHasReadableContrast(t *testing.T) {
 	require.NoError(t, err)
 	accent, err := colorful.Hex(p.Color(ColorAccent).Light)
 	require.NoError(t, err)
+	primary, err := colorful.Hex(p.Color(ColorTextPrimary).Light)
+	require.NoError(t, err)
 
 	require.GreaterOrEqual(t, contrastRatio(surface, accent), 7.0)
+	require.GreaterOrEqual(t, accent.DistanceLab(primary), 0.35)
 }
 
 func TestDarkBackgroundFromColorFGBG(t *testing.T) {
