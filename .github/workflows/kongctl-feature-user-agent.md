@@ -1,9 +1,13 @@
 ---
 name: User Agent Eval
 description: |
-  Runs a manual feature-user evaluation of one advertised kongctl workflow
-  against a disposable Konnect org and files actionable friction only.
+  Runs a scheduled or manual feature-user evaluation of one advertised kongctl
+  workflow against a disposable Konnect org and files actionable friction only.
 on:
+  schedule:
+    # GitHub schedules are UTC-only. This runs Monday-Friday evenings in
+    # US/Central: 8 PM during daylight time and 7 PM during standard time.
+    - cron: "0 1 * * 2-6"
   workflow_dispatch:
 permissions:
   contents: read
