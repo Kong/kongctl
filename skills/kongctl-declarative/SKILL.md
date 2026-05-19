@@ -114,6 +114,13 @@ state is the best source of truth, such as when adopting existing resources.
   `-o json`/`-o yaml` for machine-readable schema.
 - Use `kongctl scaffold` to bootstrap YAML for new resource types and child
   resources. It writes YAML to stdout and does not support `-o/--output`.
+- For programmatic YAML generation, prefer `kongctl explain <path> -o json`
+  as the source of truth. It returns JSON Schema with kongctl metadata.
+- For resources with JSON Schema `oneOf`, choose exactly one branch. Use
+  discriminator `const` fields such as `type` or `strategy_type` to select the
+  branch, and do not merge branch-specific `config` or `configs` blocks.
+- In scaffold output, `# oneOf option: ...` marks mutually exclusive
+  alternatives. One branch is active and the other branches are commented.
 - Use resource and field paths such as `api`, `api.versions`,
   `api.publications.portal_id`, and `portal.pages` with `explain`.
 - Use resource and child-resource paths such as `api`, `api.versions`, and

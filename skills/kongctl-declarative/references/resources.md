@@ -56,6 +56,27 @@ placeholder values, then validate with `diff` or `plan`.
 Use `dump declarative` when live Konnect state should drive the shape, such as
 adopting an existing resource into declarative management.
 
+## Union and `oneOf` Resources
+
+`kongctl explain <resource-path> -o json` emits JSON Schema. When the schema
+contains `oneOf`, choose exactly one branch.
+
+Common patterns:
+
+- A discriminator field with `const`, such as `strategy_type: key_auth`.
+- A discriminator field with `const`, such as `type: tls_server`.
+- Reference selector alternatives, such as an `id` object or a `name` object.
+
+Do not merge branch-specific fields from multiple options. For example, do not
+combine `configs.key-auth` and `configs.openid-connect` in the same
+`application_auth_strategies` item.
+
+`kongctl scaffold` marks these alternatives with `# oneOf option: ...`. One
+branch is active and the other branches are commented. To switch variants,
+uncomment one whole branch and comment or remove the previously active branch.
+Common fields shown outside the `# oneOf option: ...` blocks apply to all
+variants.
+
 ## Parent and Child Rules
 
 - Parent resources support `kongctl` metadata:
@@ -183,8 +204,11 @@ Common fields:
 - `slug`
 - `labels`
 - `attributes`
-- `spec_content`
 - `kongctl`
+
+Do not use `apis[].spec_content`; it is not supported in declarative
+configuration. Put specs on `apis[].versions[].spec` or root-level
+`api_versions[].spec`.
 
 Common child blocks:
 
@@ -262,7 +286,7 @@ application_auth_strategies:
     display_name: "My Key Auth"
     strategy_type: key_auth
     configs:
-      key_auth:
+      key-auth:
         key_names:
           - X-API-Key
 ```

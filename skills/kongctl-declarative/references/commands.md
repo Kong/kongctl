@@ -93,6 +93,11 @@ output when field details are needed. Use `-o json` or `-o yaml` when an
 agent needs machine-readable JSON Schema, required fields, root keys,
 resource class, or nesting metadata.
 
+For programmatic authoring, treat JSON Schema as the source of truth. When a
+schema contains `oneOf`, choose exactly one branch. Branches commonly use a
+discriminator field with `const`, such as `strategy_type: key_auth` or
+`type: tls_server`.
+
 ## Scaffold Command Detail
 
 `kongctl scaffold` prints commented YAML starter configuration for a resource
@@ -112,6 +117,13 @@ Important behavior:
   `kongctl scaffold api > konnect/resources/apis.yaml`
 - Replace placeholder refs and values such as `my-resource` before planning.
 - Un-comment optional fields only when the user needs them.
+- `# oneOf option: ...` marks mutually exclusive alternatives.
+- One `oneOf` branch is active and the other branches are commented.
+- To switch variants, uncomment one whole branch and comment or remove the
+  previously active branch.
+- Common fields outside `# oneOf option: ...` blocks apply to all variants.
+- Do not merge branch-specific `config` or `configs` blocks from multiple
+  `oneOf` options.
 
 ## decK APIOps Command Detail
 

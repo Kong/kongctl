@@ -766,6 +766,45 @@ func TestLoader_LoadFile_APIWithChildren(t *testing.T) {
 	assert.Equal(t, "my-api", rs.APIImplementations[0].API) // Parent reference
 }
 
+func TestLoader_LoadFile_RejectsAPISpecContent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+apis:
+  - ref: users-api
+    name: Users API
+    spec_content: |
+      openapi: 3.0.0
+      info:
+        title: Users API
+        version: 1.0.0
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "apis[].spec_content is not supported in declarative configuration")
+	assert.Contains(t, err.Error(), "use versions[].spec instead")
+}
+
+func TestLoader_LoadFile_APIUnknownField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+apis:
+  - ref: users-api
+    name: Users API
+    lables:
+      env: test
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field 'lables'")
+	assert.Contains(t, err.Error(), "Did you mean 'labels'?")
+}
+
 func TestLoader_LoadFile_SeparateAPIChildResources(t *testing.T) {
 	loader := New()
 

@@ -14,7 +14,7 @@ steps:
                 "contains(stdout, 'apis:')": true
                 "contains(stdout, '- ref: my-resource')": true
                 "contains(stdout, '# versions:')": true
-                "contains(stdout, 'spec_content: !file ./specs/openapi.yaml')": true
+                "contains(stdout, 'spec_content')": false
 
   - name: 002-scaffold-api-versions-nested
     skipInputs: true
