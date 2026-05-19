@@ -48,7 +48,7 @@ Install using Homebrew (distributed as a cask):
 brew install --cask kong/kongctl/kongctl
 ```
 
-If you previously installed the old formula, remove it first with `brew uninstall kongctl`.
+*Note: If you previously installed the old formula, you may have to remove it first with `brew uninstall kongctl`.*
 
 ### Linux
 
