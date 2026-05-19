@@ -143,6 +143,168 @@ post-steps:
         echo "::error::Sanitized artifacts contain values that look unsafe. Redact or omit them before upload."
         exit 1
       fi
+  - name: Hydrate replay prompt into created issue safe output
+    if: always()
+    run: |
+      set -euo pipefail
+
+      agent_output="/tmp/gh-aw/agent_output.json"
+      replay_prompt="/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md"
+
+      if [ ! -f "${agent_output}" ] || [ ! -f "${replay_prompt}" ]; then
+        exit 0
+      fi
+
+      unsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'
+      if grep -E -q "${unsafe_pattern}" "${replay_prompt}"; then
+        echo "::error::Replay prompt contains values that look unsafe. Redact or omit them before issue creation."
+        exit 1
+      fi
+
+      node <<'NODE'
+      const fs = require("fs");
+
+      const agentOutputPath = "/tmp/gh-aw/agent_output.json";
+      const replayPromptPath = "/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md";
+      const artifactPath = replayPromptPath;
+      const maxInlinePromptLength = 30000;
+      const maxIssueBodyLength = 64000;
+
+      const data = JSON.parse(fs.readFileSync(agentOutputPath, "utf8"));
+      const rawReplayPrompt = fs.readFileSync(replayPromptPath, "utf8").trim();
+      if (!rawReplayPrompt) {
+        process.exit(0);
+      }
+
+      function clippedReplayPrompt(maxLength) {
+        if (rawReplayPrompt.length <= maxLength) {
+          return rawReplayPrompt;
+        }
+
+        return `${rawReplayPrompt.slice(0, maxLength).trimEnd()}
+
+      [Replay prompt truncated in issue; full sanitized prompt is available at ${artifactPath}.]`;
+      }
+
+      function markdownFenceFor(content) {
+        let fence = "```";
+        while (content.includes(fence)) {
+          fence += "`";
+        }
+        return fence;
+      }
+
+      function replayPromptSection(maxPromptLength = maxInlinePromptLength) {
+        const replayPrompt = clippedReplayPrompt(maxPromptLength);
+        const fence = markdownFenceFor(replayPrompt);
+
+        return `## Replay Prompt
+
+      Sanitized replay prompt from \`${artifactPath}\`:
+
+      ${fence}markdown
+      ${replayPrompt}
+      ${fence}`;
+      }
+
+      function hasInlineReplayPrompt(body) {
+        const match = body.match(/^## Replay Prompt\s*$/im);
+        if (!match) {
+          return false;
+        }
+
+        const rest = body.slice(match.index);
+        const next = rest.slice(match[0].length).search(/\n##\s+/);
+        const section = next === -1 ? rest : rest.slice(0, match[0].length + next);
+
+        return section.includes("```") && !/See artifact:\s*\/tmp\/gh-aw\/kongctl-feature-user-agent\/sanitized\/selected-use-case-prompt\.md/i.test(section);
+      }
+
+      function hydrateBody(body) {
+        if (hasInlineReplayPrompt(body)) {
+          return body;
+        }
+
+        function buildHydratedBody(maxPromptLength) {
+          const section = replayPromptSection(maxPromptLength);
+          if (/^## Replay Prompt\s*$/im.test(body)) {
+            return body.replace(
+              /(^|\r?\n)## Replay Prompt[^\n]*\r?\n[\s\S]*?(?=\r?\n##\s+|$)/i,
+              (_, prefix) => `${prefix}${section}`,
+            );
+          }
+
+          return `${body.trimEnd()}
+
+      ${section}`;
+        }
+
+        const hydrated = buildHydratedBody(maxInlinePromptLength);
+        if (hydrated.length <= maxIssueBodyLength) {
+          return hydrated;
+        }
+
+        const overflow = hydrated.length - maxIssueBodyLength;
+        const smallerPromptLength = Math.max(1000, maxInlinePromptLength - overflow - 500);
+
+        return buildHydratedBody(smallerPromptLength);
+      }
+
+      function createIssueArgs(value) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+          return undefined;
+        }
+
+        if (value.create_issue && typeof value.create_issue === "object") {
+          return value.create_issue;
+        }
+
+        const toolName = String(value.name || value.tool || value.tool_name || value.type || "").toLowerCase();
+        const isCreateIssue = toolName === "create_issue" || toolName.endsWith(".create_issue");
+        if (!isCreateIssue) {
+          return undefined;
+        }
+
+        for (const key of ["arguments", "args", "input", "parameters"]) {
+          if (value[key] && typeof value[key] === "object" && typeof value[key].body === "string") {
+            return value[key];
+          }
+        }
+
+        if (typeof value.body === "string") {
+          return value;
+        }
+
+        return undefined;
+      }
+
+      let hydrated = 0;
+      function visit(value) {
+        if (!value || typeof value !== "object") {
+          return;
+        }
+
+        const args = createIssueArgs(value);
+        if (args && typeof args.body === "string") {
+          const nextBody = hydrateBody(args.body);
+          if (nextBody !== args.body) {
+            args.body = nextBody;
+            hydrated += 1;
+          }
+        }
+
+        for (const child of Array.isArray(value) ? value : Object.values(value)) {
+          visit(child);
+        }
+      }
+
+      visit(data);
+
+      if (hydrated > 0) {
+        fs.writeFileSync(agentOutputPath, `${JSON.stringify(data, null, 2)}\n`);
+        console.log(`Hydrated replay prompt into ${hydrated} create_issue safe output item(s).`);
+      }
+      NODE
   - name: Upload sanitized feature-user artifacts
     if: always()
     uses: actions/upload-artifact@v7.0.1
@@ -262,7 +424,7 @@ dedicated Konnect org with the existing e2e reset helper.
    - `Friction Assessment`: why you did or did not find actionable friction.
    - `Cleanup`: cleanup attempted and result.
    - `Selected Use-Case Prompt`: the path to the replay prompt artifact and a
-     compact excerpt when it is useful for a future rerun.
+     compact excerpt that is useful for a future rerun.
    - `Safe Output`: whether you emitted `create_issue` or `noop`, and why.
 10. Before final output, run a sanitization check over the issue body and every
    file in the sanitized artifact directory. Rewrite or omit unsafe content.
@@ -333,6 +495,9 @@ include:
 - The selected-use-case replay prompt, either in full or as a compact sanitized
   excerpt, plus the artifact path
   `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md`.
+  Do not provide only an artifact path; the issue body must contain enough of
+  the replay prompt for a maintainer to understand and rerun the use case
+  without downloading artifacts.
 - The advertised feature/workflow that was evaluated.
 - The expected behavior from docs or command help.
 - The actual behavior observed.
