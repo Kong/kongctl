@@ -1,7 +1,7 @@
 # <picture><source media="(prefers-color-scheme: dark)" srcset="./brand/logo/dark/Kong-Logomark.svg"><source media="(prefers-color-scheme: light)" srcset="./brand/logo/light/Kong-Logomark.svg"><img src="./brand/logo/light/Kong-Logomark.svg" alt="Kong logo" width="32"></picture> kongctl
 
-`kongctl` is a command-line tool for Kong Konnect that provides developer and AI agent friendly capabilities
-for managing [Kong Konnect](https://konghq.com/products/kong-konnect) API Platform resources programmatically
+`kongctl` is a command-line tool for the [Kong Konnect](https://konghq.com/products/kong-konnect) API and AI Platform that 
+provides developer and AI agent friendly capabilities for managing Konnect resources programmatically.
 
 The CLI ships with:
 - A state free and simple yaml based declarative configuration engine allowing you to define your 
