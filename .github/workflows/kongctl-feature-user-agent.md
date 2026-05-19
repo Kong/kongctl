@@ -5,8 +5,9 @@ description: |
   workflow against a disposable Konnect org and files actionable friction only.
 on:
   schedule:
-    # GitHub schedules are UTC-only. This runs Monday-Friday evenings in
-    # US/Central: 8 PM during daylight time and 7 PM during standard time.
+    # GitHub schedules are UTC-only. 01:00 UTC Tuesday-Saturday maps to
+    # Monday-Friday evenings in US/Central: 8 PM during daylight time and
+    # 7 PM during standard time.
     - cron: "0 1 * * 2-6"
   workflow_dispatch:
 permissions:
