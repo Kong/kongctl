@@ -684,8 +684,10 @@ func isTerminal(fd uintptr) bool {
 	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
-// isEmptyCollection reports whether v is a nil-element, zero-length slice or
-// array. Pointers are dereferenced before the check.
+// isEmptyCollection reports whether v is a zero-length slice or array.
+// A typed nil slice (e.g. var s []string) is considered empty because its
+// length is zero. An untyped nil interface value returns false.
+// Pointers are dereferenced before the check; a nil pointer also returns false.
 func isEmptyCollection(v any) bool {
 	if v == nil {
 		return false
@@ -2226,10 +2228,11 @@ func RenderForFormat(
 	switch outType {
 	case cmdCommon.TEXT:
 		if isEmptyCollection(display) {
-			if streams != nil && streams.Out != nil {
-				return writeStaticMessage(streams.Out, "", "No resources found.")
+			var out io.Writer
+			if streams != nil {
+				out = streams.Out
 			}
-			return nil
+			return writeStaticMessage(out, "", "No resources found.")
 		}
 		if printer != nil {
 			printer.Print(display)
