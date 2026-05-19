@@ -30,6 +30,9 @@ on:
         type: boolean
         default: false
 
+env:
+  DO_NOT_TRACK: "1"
+
 jobs:
   e2e-needed:
     name: E2E Needed

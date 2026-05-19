@@ -43,6 +43,7 @@ func (s stubConfig) Get(string) any                        { return nil }
 func (s stubConfig) BindFlag(string, *pflag.Flag) error    { return nil }
 func (s stubConfig) GetProfile() string                    { return s.profile }
 func (s stubConfig) GetPath() string                       { return s.path }
+func (s stubConfig) InConfig(string) bool                  { return false }
 
 func TestDeleteAccessTokenRemovesFile(t *testing.T) {
 	dir := t.TempDir()

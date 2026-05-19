@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/kong/kongctl/internal/build"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -44,6 +45,7 @@ import (
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/profile"
+	"github.com/kong/kongctl/internal/telemetry"
 	"github.com/kong/kongctl/internal/theme"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -95,7 +97,18 @@ Find more information at:
 	logger      *slog.Logger
 	logFilePath string
 	logFile     *os.File
+
+	telemetryRecorder *telemetry.Recorder
+
+	// noTelemetry is set by the persistent --no-telemetry flag. It is the
+	// highest-priority disable signal in telemetry.resolveEnabled; see the
+	// precedence note there.
+	noTelemetry bool
 )
+
+// NoTelemetryFlagName is the persistent root flag that disables telemetry
+// for a single command invocation.
+const NoTelemetryFlagName = "no-telemetry"
 
 const mergedFlagsUsageTemplate = `Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
@@ -206,6 +219,17 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, build.InfoKey, buildInfo)
 			ctx = context.WithValue(ctx, log.LoggerKey, logger)
 			ctx = theme.ContextWithPalette(ctx, theme.Current())
+
+			if telemetryRecorder == nil {
+				telemetryRecorder = telemetry.NewRecorder(
+					ctx, currConfig, buildInfo, streams, logger, noTelemetry,
+				)
+			}
+			telemetryRecorder.SetCommand(telemetry.CommandInfo{
+				Path: cmd.CommandPath(),
+			})
+			ctx = telemetry.ContextWithRecorder(ctx, telemetryRecorder)
+
 			cmd.SetContext(ctx)
 			return nil
 		},
@@ -248,6 +272,13 @@ func newRootCmd() *cobra.Command {
 		fmt.Sprintf(`Write execution logs to the specified file instead of STDERR.
 - Config path: [ %s ]`,
 			common.LogFileConfigPath))
+
+	rootCmd.PersistentFlags().BoolVar(&noTelemetry, NoTelemetryFlagName, false,
+		fmt.Sprintf(`Disable telemetry for this command invocation. Overrides config and env.
+- Config path: [ %s ]
+- Env var    : [ %s ]
+- Default    : [ false ]`,
+			telemetry.ConfigKeyEnabled, telemetry.EnvNoTelemetry))
 
 	themeFlag := theme.NewFlag(common.DefaultColorTheme)
 	rootCmd.PersistentFlags().Var(themeFlag, common.ColorThemeFlagName,
@@ -699,6 +730,13 @@ func initConfig() {
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	var err error
 	executedCmd := rootCmd
+	defer func() {
+		if panicValue := recover(); panicValue != nil {
+			cleanupTelemetryRecorder(ctx)
+			closeLogFile()
+			panic(panicValue)
+		}
+	}()
 	buildInfo = bi
 	version := meta.DefaultCLIVersion
 	if bi != nil {
@@ -722,6 +760,7 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	if err == nil {
 		executedCmd, err = rootCmd.ExecuteContextC(ctx)
 	}
+	cleanupTelemetryRecorder(ctx)
 	if err != nil {
 		// If there was an execution error, use the logger to write it out and exit
 		var executionError *cmdpkg.ExecutionError
@@ -740,6 +779,15 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		os.Exit(1)
 	}
 	closeLogFile()
+}
+
+func cleanupTelemetryRecorder(ctx context.Context) {
+	if telemetryRecorder == nil {
+		return
+	}
+	telemetryRecorder.Finalize(time.Now())
+	_ = telemetryRecorder.Close(ctx)
+	telemetryRecorder = nil
 }
 
 func registerExtensions() error {

@@ -99,6 +99,10 @@ type Hook interface {
 	Set(k string, v any)
 	// Get returns a value from the configuration
 	Get(key string) any
+	// InConfig reports whether key was explicitly present in the config file
+	// for this profile. It intentionally ignores flags, environment variables,
+	// overrides, and defaults.
+	InConfig(key string) bool
 	// BindFlag takes a specific configuration path and
 	// binds it to a specific flag
 	BindFlag(configPath string, f *pflag.Flag) error
@@ -163,6 +167,10 @@ func (p *ProfiledConfig) GetPath() string {
 	return p.Path
 }
 
+func (p *ProfiledConfig) InConfig(key string) bool {
+	return p.subViper.InConfig(key)
+}
+
 func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledConfig {
 	subv := mainv.Sub(profile)
 	if subv == nil {
@@ -175,6 +183,14 @@ func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledC
 		envPrefix := viper.ProfileEnvPrefix(profile)
 		viper.ConfigureEnvVars(subv, envPrefix)
 	}
+
+	// Telemetry is opt-out: enabled by default. Users disable per-invocation
+	// with --no-telemetry, per-process with KONGCTL_NO_TELEMETRY=true or
+	// DO_NOT_TRACK=1, or persistently by setting telemetry.enabled=false in
+	// the profile config.
+	subv.SetDefault("telemetry.enabled", true)
+	// Set this to true only for debugging purposes locally.
+	subv.SetDefault("telemetry.debug", false)
 
 	rv := &ProfiledConfig{
 		Viper:       mainv,

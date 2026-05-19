@@ -207,3 +207,7 @@ func (h *testHook) GetProfile() string {
 func (h *testHook) GetPath() string {
 	return "config.yaml"
 }
+
+func (h *testHook) InConfig(string) bool {
+	return false
+}
