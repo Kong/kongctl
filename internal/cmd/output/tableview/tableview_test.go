@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cmd "github.com/kong/kongctl/internal/cmd"
+	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/theme"
 )
@@ -453,6 +454,72 @@ func TestFilterPreviewDetailItems_RemovesChildRows(t *testing.T) {
 	filtered := filterPreviewDetailItems(items)
 	require.Len(t, filtered, 1)
 	require.Equal(t, "id", filtered[0].Label)
+}
+
+func TestIsEmptyCollection(t *testing.T) {
+	require.True(t, isEmptyCollection([]string{}))
+	require.True(t, isEmptyCollection([]sampleRecord{}))
+	require.True(t, isEmptyCollection([0]int{}))
+
+	ptr := []string{}
+	require.True(t, isEmptyCollection(&ptr))
+
+	// typed nil slice (len==0) is considered empty
+	var typedNil []string
+	require.True(t, isEmptyCollection(typedNil))
+
+	require.False(t, isEmptyCollection(nil))
+	require.False(t, isEmptyCollection([]string{"a"}))
+	require.False(t, isEmptyCollection(sampleRecord{}))
+	require.False(t, isEmptyCollection("not a slice"))
+
+	var nilPtr *[]string
+	require.False(t, isEmptyCollection(nilPtr))
+}
+
+// stubPrinter is a minimal cli.PrintFlusher that records what was passed to Print.
+type stubPrinter struct {
+	printed []any
+}
+
+func (s *stubPrinter) Print(v any) { s.printed = append(s.printed, v) }
+func (s *stubPrinter) Flush()      {}
+
+func TestRenderForFormat_EmptyTextOutputWritesNoResourcesFound(t *testing.T) {
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+
+	err := RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		nil,
+		streams,
+		[]sampleRecord{},
+		nil,
+		"",
+	)
+	require.NoError(t, err)
+	require.Contains(t, outBuf.String(), "No resources found.")
+}
+
+func TestRenderForFormat_NonEmptyTextOutputCallsPrinter(t *testing.T) {
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+	printer := &stubPrinter{}
+
+	record := []sampleRecord{{ID: "abc", DisplayName: "Test", LocalUpdatedTime: "2025-01-01"}}
+	err := RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		printer,
+		streams,
+		record,
+		nil,
+		"",
+	)
+	require.NoError(t, err)
+	require.NotContains(t, outBuf.String(), "No resources found.")
+	require.Len(t, printer.printed, 1, "printer.Print should have been called once")
 }
 
 func newMinimalBubbleModel(t *testing.T) *bubbleModel {
