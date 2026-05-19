@@ -27,8 +27,7 @@ import (
 // Issue: When executing commands via cobra.Command.Execute(), the command creates its own
 // context and SDK factory, overriding test mocks. This causes "unexpected method call" errors.
 //
-// Recommended fix: Mock at the SDK factory level by overriding helpers.DefaultSDKFactory
-// See planning/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
+// Recommended fix: Mock at the SDK factory level by overriding helpers.DefaultSDKFactory.
 func TestPlanGeneration_CreatePortal(t *testing.T) {
 	// Create test configuration
 	configDir := t.TempDir()
@@ -667,8 +666,7 @@ func TestDiffCommand_ModeWithPlanRejected(t *testing.T) {
 	assert.Contains(t, err.Error(), "--mode cannot be used together with --plan")
 }
 
-// TODO: Fix mock injection for command-level tests (same issue as TestPlanGeneration_CreatePortal)
-// See planning/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
+// TODO: Fix mock injection for command-level tests (same issue as TestPlanGeneration_CreatePortal).
 func TestPlanDiffPipeline(t *testing.T) {
 	// Create test configuration
 	configDir := t.TempDir()

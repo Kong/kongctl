@@ -2,18 +2,6 @@
 
 The Kong Konnect CLI
 
-## ⚠️ BETA SOFTWARE ⚠️
-
-**`kongctl` is a _Beta Release_ project. This software is provided by Kong, Inc. without warranty and is not recommended for 
-production use. The CLI is under active development - interfaces, commands, and behaviors are subject to change without notice. 
-Use at your own risk for evaluation and testing purposes only.**
-
-By using this software, you acknowledge that:
-- It may contain bugs and incomplete features
-- It should not be used for critical systems or production workloads
-- Data loss or service disruption may occur
-- No support commitments or SLAs apply
-
 ## Table of Contents
 
 - [What is `kongctl`?](#what-is-kongctl)
@@ -300,5 +288,5 @@ Examples:
 - **Documentation**: [Kong Docs](https://developer.konghq.com)
 - **Community**: [Kong Nation](https://discuss.konghq.com)
 
-Remember: This is tech preview software. Please report bugs and provide feedback through GitHub 
-Issues or the [Kong Nation](https://discuss.konghq.com/) community.
+Please report bugs and provide feedback through GitHub Issues or the
+[Kong Nation](https://discuss.konghq.com/) community.
