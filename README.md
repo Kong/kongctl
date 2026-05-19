@@ -1,10 +1,17 @@
 # <picture><source media="(prefers-color-scheme: dark)" srcset="./brand/logo/dark/Kong-Logomark.svg"><source media="(prefers-color-scheme: light)" srcset="./brand/logo/light/Kong-Logomark.svg"><img src="./brand/logo/light/Kong-Logomark.svg" alt="Kong logo" width="32"></picture> kongctl
 
-The Kong Konnect CLI
+`kongctl` is a command-line tool for Kong Konnect that provides developer and AI agent friendly capabilities
+for managing [Kong Konnect](https://konghq.com/products/kong-konnect) API Platform resources programmatically
+
+The CLI ships with:
+- A state free and simple yaml based declarative configuration engine allowing you to define your 
+  Konnect API Platform infrastructure as code 
+- Enable AI coding agents with built in skills and agent commands and self describing resources
+- CI/CD friendly integrations
+- Ad-hoc developer tools for querying Konnect resource state, listening to audit events, viewing resources interactively, and more
 
 ## Table of Contents
 
-- [What is `kongctl`?](#what-is-kongctl)
 - [Documentation](#documentation)
 - [Installation](#installation)
   - [macOS](#macos)
@@ -24,16 +31,6 @@ The Kong Konnect CLI
 - [Command Structure](#command-structure)
 - [Support](#support)
 - [Security](#security)
-
-## What is `kongctl`?
-
-`kongctl` is a command-line tool for Kong Konnect that enables you to:
-- Manage Konnect resources programmatically
-- Define your Konnect API infrastructure as code using declarative configuration
-- Integrate Konnect into your CI/CD pipelines
-- Automate API lifecycle management
-
-*Note: Future releases may include support for Kong Gateway on-premise deployments.*
 
 ## Documentation
 
