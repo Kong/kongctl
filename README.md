@@ -23,6 +23,7 @@ The Kong Konnect CLI
   - [Color Themes](#color-themes)
 - [Command Structure](#command-structure)
 - [Support](#support)
+- [Security](#security)
 
 ## What is `kongctl`?
 
@@ -85,32 +86,32 @@ kongctl login
 
 Follow the instructions given in the terminal to complete the login process.
 
+*Note: For token-based authentication with Konnect PATs, see
+[Authentication Options](#authentication-options).*
+
 ### 3. Test the Authentication
 
 You can verify that `kongctl` is authenticated and can access information on your Konnect account by running:
 
 ```shell
 kongctl get me
+```
+
+or the associated organization with:
+```shell
 kongctl get organization
 ```
 
 ### 4. Switch Konnect Regions
 
-By default `kongctl` uses the `us` region for Konnect API requests. You can switch regions in two ways:
+By default `kongctl` uses the `us` region for Konnect API requests. You can switch regions be passing the
+`--region` flag to your command with the short region code, such as `eu`, `us`, or `au`.
 
-- Set `--region` (or configure `konnect.region`) to the short region code such as `eu`, `us`, or `au`. `kongctl` automatically builds the matching `https://<region>.api.konghq.com` base URL for you.
-- Provide an explicit `--base-url`/`konnect.base-url`. This always takes precedence over the region value and is useful for testing against bespoke endpoints.
+Run `kongctl get regions` to retrieve the list of currently supported regions directly from Konnect.
+The [Konnect geos documentation](https://developer.konghq.com/konnect-platform/geos/) also tracks new regions as they launch.
 
-Run `kongctl get regions` to retrieve the list of currently supported regions directly from Konnect. The [Konnect geos documentation](https://developer.konghq.com/konnect-platform/geos/) also tracks new regions as they launch.
-
-Here is an example configuration snippet to set the `default` profile to use the `eu` region:
-```yaml
-default:
-    ...
-    konnect:
-      region: eu
-    ...
-```
+*Note: Region can also be configured with the configuration key `konnect.region`. See [Configuration and Profiles](#configuration-and-profiles)
+for details on managing `kongctl` configuration.*
 
 ### 5. Next Steps
 
@@ -123,7 +124,7 @@ default:
 Collected:
   - kongctl version
   - operating system and architecture
-  - command path, such as "login" or "get apis"
+  - command path, such as `login`, `apply`, or `get apis`
 
 Not collected:
   - command arguments or flag values
@@ -139,7 +140,7 @@ Telemetry can be disabled at any time with:
 The first interactive `kongctl login` also asks whether kongctl may collect
 usage data on this device. The answer is saved to
 `$XDG_CONFIG_HOME/kongctl/.telemetry-enabled` (or
-`$HOME/.config/kongctl/.telemetry-enabled`) and applies to all local profiles.
+`$HOME/.config/kongctl/.telemetry-enabled`) and applies to all local configuration profiles.
 This local preference file overrides profile config.
 `DO_NOT_TRACK=1`, `KONGCTL_NO_TELEMETRY=true`, and `--no-telemetry` still
 disable telemetry even when the local preference file says telemetry is
@@ -152,6 +153,8 @@ profile-name:
   telemetry:
     enabled: false
 ```
+
+*Note: See [Configuration and Profiles](#configuration-and-profiles) for configuration instructions.*
 
 Telemetry values can be inspected without sending it by enabling debug
 mode:
@@ -182,6 +185,9 @@ backend.
 configuration values. By default there is a `default` profile, but you can 
 create additional profiles for different environments or configurations.
 
+*Note: By design `kongctl` does not write to your configuration file. The philosphy for this is that
+there should be one owner and writer of configuration data, and that is the user.*
+
 Some flags and options can be changed by providing a value in the configuration file, effectively 
 allowing you to override the default behavior of command options. Flags that support this will 
 be documented in the command help text with a "Config path" note that looks like this:
@@ -195,14 +201,20 @@ be documented in the command help text with a "Config path" note that looks like
 The above help text shows a YAML key path for the `--output` flag which controls the format of output text
 from the CLI. The config path is the location in the configuration file where a flag value can be defaulted. 
 In this case it specifies that output formats can be set in the configuration file under an `output` key. 
+Nested config paths use dots in command help. For example, `konnect.region`
+is configured as `konnect: { region: ... }` in the profile.
 
 The basic example of a configuration file follows:
 
 ```yaml
 default:
   output: text
+  konnect:
+    region: us
 second-profile:
   output: json
+  konnect:
+    region: eu
 ```
 
 Specifying a profile can be done using the `--profile` flag or by setting or exporting
@@ -210,14 +222,13 @@ the `KONGCTL_PROFILE` environment variable.
 
 Configuration values can also be specified using environment variables. `kongctl` looks for environment variables
 which follow the pattern `KONGCTL_<PROFILE>_<PATH>`, where `<PROFILE>` is the profile name in uppercase and `<PATH>` 
-is the configuration path in uppercase. For example, to set the output format for the `default` profile, you can use:
+is the configuration path in uppercase with `_` substituting for `.`.
+For example, to set the `output` format for the `default` profile, you can use:
 
 ```shell
-KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis 
+KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis
 ```
 
-To clear saved Konnect credentials for a profile, run `kongctl logout [--profile <name>]`. This removes the local device
-flow token file so that subsequent commands prompt you to authenticate again with `kongctl login`.
 
 ### Authentication Options
 
@@ -234,6 +245,9 @@ flow token file so that subsequent commands prompt you to authenticate again wit
    This command will generate a web link you can use to open a browser window and authenticate with your Kong Konnect account. 
    After logging in and authorizing the CLI using the provided code, `kongctl` will store token and refresh token data in a file at 
    `$XDG_CONFIG_HOME/kongctl/.<profile>-konnect-token.json`
+
+  *Note: To clear saved Konnect credentials for a profile, run `kongctl logout [--profile <name>]`. This removes the local device
+  flow token file so that subsequent commands prompt you to authenticate again with `kongctl login`.*
 
 2. **Personal Access Token flag**:
 
@@ -284,8 +298,16 @@ Examples:
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/kong/kongctl/issues)
-- **Documentation**: [Kong Docs](https://developer.konghq.com)
+- **Documentation**: [Kong Docs](https://developer.konghq.com/kongctl)
 - **Community**: [Kong Nation](https://discuss.konghq.com)
 
 Please report bugs and provide feedback through GitHub Issues or the
 [Kong Nation](https://discuss.konghq.com/) community.
+
+## Security
+
+For security-related issues, see the [Security Policy](SECURITY.md). Please do
+not publicly disclose vulnerabilities in GitHub issues or community forums.
+Report potential vulnerabilities to
+[vulnerability@konghq.com](mailto:vulnerability@konghq.com). Enterprise
+customers can also use their customer support channels.
