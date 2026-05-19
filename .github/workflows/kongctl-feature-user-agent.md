@@ -86,6 +86,38 @@ pre-agent-steps:
       test -x ./kongctl
       make reset-org
 post-steps:
+  - name: Append feature-user evaluation summary
+    if: always()
+    run: |
+      set -euo pipefail
+
+      evidence_dir="/tmp/gh-aw/kongctl-feature-user-agent/sanitized"
+      summary_file="${evidence_dir}/evaluation-summary.md"
+
+      {
+        echo "## User Agent Eval"
+        echo
+        echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        echo "- Sanitized artifacts: \`kongctl-feature-user-agent-sanitized\`"
+        echo
+      } >> "${GITHUB_STEP_SUMMARY}"
+
+      if [ ! -f "${summary_file}" ]; then
+        {
+          echo "No sanitized evaluation summary was produced."
+          echo
+          echo "Check the agent logs and sanitized artifact upload for details."
+        } >> "${GITHUB_STEP_SUMMARY}"
+        exit 0
+      fi
+
+      unsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'
+      if grep -E -q "${unsafe_pattern}" "${summary_file}"; then
+        echo "::error::Evaluation summary contains values that look unsafe. Redact or omit them before upload."
+        exit 1
+      fi
+
+      cat "${summary_file}" >> "${GITHUB_STEP_SUMMARY}"
   - name: Check sanitized feature-user artifacts
     if: always()
     run: |
@@ -162,6 +194,8 @@ dedicated Konnect org with the existing e2e reset helper.
 - Prefer one realistic, bounded workflow over broad coverage.
 - Capture commands, exit codes, sanitized stdout/stderr excerpts, generated
   config, expected vs. actual behavior, and cleanup result.
+- Always write a sanitized `evaluation-summary.md` file in the sanitized
+  artifact directory.
 - Attempt cleanup when created resources are easy to identify.
 - File an issue only for concrete, reproducible friction.
 - Emit `noop` when no actionable friction is found.
@@ -178,9 +212,19 @@ dedicated Konnect org with the existing e2e reset helper.
 5. If you create resources and can identify them safely, attempt cleanup.
 6. Write sanitized evidence files only under:
    `/tmp/gh-aw/kongctl-feature-user-agent/sanitized`.
-7. Before final output, run a sanitization check over the issue body and every
+7. Write `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/evaluation-summary.md`
+   with these sections:
+   - `Feature Workflow Selected`: the use case derived from the docs/help.
+   - `Why This Workflow`: which input assets led you to choose it.
+   - `Commands Attempted`: command shapes and exit codes.
+   - `Observed Result`: what happened, including short sanitized excerpts.
+   - `Success Criteria`: how you decided the workflow succeeded or failed.
+   - `Friction Assessment`: why you did or did not find actionable friction.
+   - `Cleanup`: cleanup attempted and result.
+   - `Safe Output`: whether you emitted `create_issue` or `noop`, and why.
+8. Before final output, run a sanitization check over the issue body and every
    file in the sanitized artifact directory. Rewrite or omit unsafe content.
-8. Emit exactly one safe output.
+9. Emit exactly one safe output.
 
 ## Redaction Rules
 
