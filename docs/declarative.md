@@ -34,9 +34,9 @@ simple YAML declaration files and a simple state free CLI tool.
    they are generated implicitly and executed immediately.
 1. **State-Free**: `kongctl` does not use a state file or database to store the current state. The system relies on querying of the 
    online Konnect state in order to calculate plans and apply changes.
-1. **Namespace Support**: Namespaces provide a way to isolate resources between teams and environments. 
-   Each resource can be assigned to a specific namespace, and resources in different namespaces are not considered when calculating plans or 
-   applying changes. Namespaces can be set at the resource level or inherited from file-level defaults.
+1. **Namespace Resource Isolation**: Namespaces provide a way to isolate resources however the user desires (teams, environments, etc...). 
+   Each resource under management is assigned to one namespace, and resources in other namespaces are *not considered* when calculating plans or 
+   applying changes. A `default` namespace is used if none is specified in input configurations.
 
 ## Quick Start
 
@@ -105,15 +105,17 @@ to see your developer portal with the published API.
 
 ### Resource Identity
 
-Resources have multiple identifiers:
+Resources can have multiple identifiers:
 
-- **ref**: Required field for each reference in declarative configuration. 
-    `ref` must be unique across any loaded set of configuration files.
-- **id**: Most Konnect resources have an `id` field which is a Konnect
-    assigned UUID. This field is not represented in declarative configuration
-    files.
-- **name**: Many Konnect resources have a `name` field which may or may not be
-    unique within an organization for that resource type.
+- **ref**: `kongctl` declarative engine identifier. `ref` is used to identify the resource uniquely within a 
+    given set of declarative configurations. `ref` is not written to the remote Konnect system and 
+    must be unique across all resources in a given set of input configuration files. This value is used to
+    to create inter-configuration references between resources.
+- **id**: *Most* Konnect resources have an `id` field which is a Konnect
+    assigned UUID. This field is not stored in declarative configuration files but will be used internally
+    by the declarative engine.
+- **name**: *Many* Konnect resources have a `name` field which *may or may not* be
+    subject to a unique constraint within an organization for that resource type.
 
 Top-level resource keys and field names in declarative YAML are stable
 configuration contract names. Use the names documented in the
@@ -133,7 +135,7 @@ portals:
 
 ### Plan Artifacts
 
-Plans are central to how `kongctl` manages resources. Plans are objects which
+Plans are central to how `kongctl` manages resource state. Plans are objects which
 define the required steps to move a set of resources from their current state to a
 desired state. Plans can be created, stored, reviewed, and applied at a later time
 and are stored as JSON files. Plans are not required to be used, 
@@ -141,7 +143,8 @@ but can enable advanced workflows.
 
 #### How Planning Works
 
-Both `apply` and `sync` commands use the planning engine internally:
+The declarative configuration commands 
+(`apply`, `sync`, `delete`, `diff`) commands use the planning engine internally:
 
 **Implicit Planning** (direct execution):
 
@@ -165,30 +168,27 @@ kongctl apply --plan plan.json
 Plan artifacts enable more advanced workflows:
 
 - **Audit Trail**: Store plans in version control alongside configurations
-- **Review Process**: Share plans with team members before execution
+- **Review Process**: Share plans and review with team members before execution
 - **Deferred Execution**: Generate plans in CI, apply them after approval
-- **Rollback Safety**: Keep previously applied plans for rollback
+- **Rollback Safety**: Keep previously applied plans for rollback analysis
 - **Compliance**: Document exactly what changes were planned
-
-## Supported Resource Types
-
-`kongctl` aims to support all of the Kong Konnect resource types but each
-resource requires specific handling and coding changes. The following 
-lists the currently supported resources and their relationships.
 
 ### Parent vs Child Resources
 
-**Parent Resources** (support kongctl metadata):
+Generally the main concepts in the Konnect system are collections and many
+of them support child resources underneath them. 
+
+**Parent Resource Examples**:
 
 - APIs
-- Catalog Services
 - Portals
 - Application Auth Strategies
-- Control Planes (including Control Plane Groups)
-- Dashboards
+- Control Planes 
+- Analytics Dashboards
+- Organization Teams
 - Event Gateways
 
-**Child Resources** (do NOT support kongctl metadata):
+**Child Resource Examples**:
 
 - API Versions
 - API Publications
@@ -200,15 +200,8 @@ lists the currently supported resources and their relationships.
 - Portal Custom Domains
 - Portal Email Configs
 - Portal Email Templates
-- Gateway Services 
 
-> Note: Portal email domains are currently **imperative-only** because the Konnect API exposes them at the
-> organization level without labels or namespace scoping. Use `kongctl get portal email-domains` to inspect them;
-> declarative management will be added when Konnect supports namespacing or labels for these resources.
-
-> Portal email templates are customizable per portal. Apply mode creates/updates templates but will not delete any that
-> already exist in Konnect; sync mode plans deletions for customized templates that are absent from the declarative
-> configuration.
+See the [Declarative Resource Reference](declarative-resource-reference.md) for more details on supported resources.
 
 ## Configuration Structure
 
@@ -221,17 +214,17 @@ _defaults:
     namespace: production
     protected: false
 
-portals: # List of portal resources
+portals: # List of Parent portal resources
   - ref: developer-portal # ref is required on all resources
     name: "developer-portal"
     display_name: "Developer Portal"
     description: "API documentation hub"
-    kongctl: # kongctl metadata defined explicitly on resource
-      namespace: platform-prod
+    kongctl: # kongctl metadata defined explicitly on resource, overrides _defaults
+      namespace: platform-team
       protected: true
 ```
 
-### Root vs hierarchical configuration
+### Hierarchical vs Flattened configuration
 
 Parents are defined at the root of a configuration while
 children can be expressed both nested under their parent
@@ -253,7 +246,7 @@ apis:
         visibility: public
 ```
 
-**Separate Configuration**:
+**Flattened Configuration**:
 
 ```yaml
 apis:
@@ -271,83 +264,6 @@ api_publications:
     api: users-api
     portal_id: !ref main-portal
 ```
-
-### Portal Identity Provider Migration
-
-> Breaking change: portal OIDC and SAML configuration is no longer accepted
-> under `auth_settings` or `portal_auth_settings`.
->
-> Move provider-specific fields to `identity_providers` when they are nested
-> under a portal, or to `portal_identity_providers` when they are declared at
-> the root of a configuration.
->
-> `auth_settings` now only supports:
-> `basic_auth_enabled`, `konnect_mapping_enabled`, and
-> `idp_mapping_enabled`.
-
-Previous configuration:
-
-```yaml
-portals:
-  - ref: developer-portal
-    name: "developer-portal"
-    auth_settings:
-      ref: portal-auth
-      basic_auth_enabled: true
-      konnect_mapping_enabled: false
-      idp_mapping_enabled: true
-      oidc_auth_enabled: true
-      oidc_issuer: !env PORTAL_IDP_ISSUER_URL
-      oidc_client_id: !env PORTAL_IDP_CLIENT_ID
-      oidc_client_secret: !env PORTAL_IDP_CLIENT_SECRET
-      oidc_scopes:
-        - openid
-        - profile
-```
-
-Updated configuration:
-
-```yaml
-portals:
-  - ref: developer-portal
-    name: "developer-portal"
-    auth_settings:
-      ref: portal-auth
-      basic_auth_enabled: true
-      konnect_mapping_enabled: false
-      idp_mapping_enabled: true
-    identity_providers:
-      - ref: portal-oidc
-        type: oidc
-        enabled: true
-        config:
-          issuer_url: !env PORTAL_IDP_ISSUER_URL
-          client_id: !env PORTAL_IDP_CLIENT_ID
-          client_secret: !env PORTAL_IDP_CLIENT_SECRET
-          scopes:
-            - openid
-            - profile
-```
-
-If you keep the deprecated OIDC or SAML fields under `auth_settings`,
-`kongctl` will fail validation and tell you to move that configuration to
-`identity_providers`.
-
-### Control Plane Groups
-
-Control planes can represent Konnect control plane groups by setting their cluster type to `"CLUSTER_TYPE_CONTROL_PLANE_GROUP"`. Group entries manage membership through the `members` array. Each member must resolve to the Konnect ID of a non-group control plane, so you can provide literal UUIDs or reference other declarative control planes with `!ref`.
-
-```yaml
-control_planes:
-  - ref: shared-group
-    name: "shared-group"
-    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
-    members:
-      - id: !ref prod-us-runtime#id
-      - id: !ref prod-eu-runtime#id
-```
-
-When you apply or sync this configuration, `kongctl` replaces the entire membership list in Konnect to match the declarative `members` block.
 
 ## Kongctl Metadata
 
@@ -370,7 +286,7 @@ portals:
 
 ### Namespace Management
 
-The `namespace` field enables multi-team resource isolation:
+The `namespace` field enables resource isolation:
 
 ```yaml
 apis:
@@ -432,13 +348,36 @@ are specified or omitted. The following tables summarize the behavior.
 | true         | false          | false        | Resource overrides |
 | false        | true           | true         | Resource overrides |
 
-Child resources automatically inherit the namespace of their parent resource:
+Child resources automatically inherit the metadata of their parent resource:
 
-#### External Resources and Namespaces
+### Namespace Enforcement Flags
 
-External resources (`_external` blocks) are references to Konnect objects that are managed elsewhere.
-Because kongctl does not own those objects:
+The `kongctl plan` command provides built-in namespace guardrails:
 
+- `--require-any-namespace` forces every managed resource to declare a namespace via `kongctl.namespace`
+  or `_defaults.kongctl.namespace`.
+- `--require-namespace=<ns>` restricts planning to the provided namespaces (repeat or comma-separate the flag
+  to allow multiple values).
+
+These flags help prevent accidentally operating on unexpected namespaces, especially when running in sync mode.
+
+## External Resources and Namespaces
+
+External resources (`_external` pseudo-resource) are references to Konnect objects that are managed elsewhere
+but are "selected" by the `kongctl` declarative engine so they can be referenced by other resources under management.
+
+```yaml
+# External portal definition - this tells kongctl that this portal
+# is managed externally (by the platform team) but we need to reference it
+portals:
+  - ref: shared-developer-portal
+    _external:
+      selector:
+        matchFields:
+          name: "Shared Developer Portal"
+```
+
+Because kongctl does not own those resources:
 - External resources **cannot** declare `kongctl` metadata. Supplying `kongctl.namespace` or `kongctl.protected`
   on an external resource results in a parsing error. File-level defaults are ignored for externals.
 - External references do **not** add their namespaces to sync planning. Only namespaces from managed parent
@@ -447,9 +386,9 @@ Because kongctl does not own those objects:
   Ensure the owning team labels the parent (for example via `kongctl adopt`) so the ID can be resolved, but you do not
   need to (and cannot) assign a namespace to the external definition itself.
 
-#### Resources managed by decK
+## Resources managed by decK
 
-Deck integration is configured on control planes via the `_deck` pseudo-resource. kongctl runs deck once per
+[Deck](https://developer.konghq.com/deck/) integration is configured on control planes via the `_deck` pseudo-resource. kongctl runs deck once per
 control plane that declares `_deck`, then resolves external gateway services by selector name. `_external.requires.deck`
 is not supported.
 
@@ -471,7 +410,7 @@ control_planes:
               name: "billing-service"
 ```
 
-Notes:
+Important notes for deck integration:
 - `_deck` is allowed only on control planes and only one `_deck` config is allowed per control plane.
 - `_deck.files` must include at least one state file.
 - `_deck.flags` can include additional deck flags (but not Konnect auth or output flags).
@@ -494,7 +433,7 @@ Notes:
 - Plans represent deck resolution targets explicitly via `post_resolution_targets` on the `_deck` change entry,
   including control plane identifiers and the gateway service selector.
 
-#### Portal Audit Log Webhooks
+## Portal Audit Log Webhooks
 
 Portal audit-log webhooks can reference organization audit-log destinations
 that are managed outside kongctl. Declare those destinations under
@@ -528,16 +467,6 @@ existing webhook while retaining the portal, declare `audit_log_webhook: {}`.
 `audit_log_webhook: null` is rejected because null is not a reset or delete
 signal.
 
-#### Namespace Enforcement Flags
-
-The `kongctl plan` command provides built-in namespace guardrails:
-
-- `--require-any-namespace` forces every managed resource to declare a namespace via `kongctl.namespace`
-  or `_defaults.kongctl.namespace`.
-- `--require-namespace=<ns>` restricts planning to the provided namespaces (repeat or comma-separate the flag
-  to allow multiple values).
-
-These flags help prevent accidentally operating on unexpected namespaces, especially when running in sync mode.
 
 ## YAML Tags
 
@@ -557,10 +486,68 @@ apis:
     name: "Users API"
     description: !file ./docs/api-description.md
 ```
+All file paths are resolved relative to the directory containing the
+configuration file:
+
+```
+project/
+├── config.yaml          # Main config file
+├── specs/
+│   ├── users-api.yaml
+│   └── products-api.yaml
+└── docs/
+    └── descriptions.txt
+```
+
+In `config.yaml`:
+
+```yaml
+apis:
+  - ref: users-api
+    name: !file ./specs/users-api.yaml#info.title
+    description: !file ./docs/descriptions.txt
+```
 
 Supported file types: Any text file (`.txt`, `.md`, `.yaml`, `.json`, etc.)
 
-### Value Extraction
+#### Security Features
+
+**Path Traversal Prevention**: Absolute paths are blocked. Relative paths may include
+`..`, but the resolved path must stay within the base directory boundary. By default,
+the boundary is the root of each `-f` source (file: its parent dir, dir: the directory itself).
+For stdin, the boundary defaults to the current working directory. Set the base directory with
+`--base-dir` or `konnect.declarative.base-dir` (`KONGCTL_<PROFILE>_KONNECT_DECLARATIVE_BASE_DIR`,
+for example `KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`).
+
+```yaml
+# ❌ These will fail with security errors
+description: !file /etc/passwd
+
+# ❌ This will fail if it resolves outside the base directory
+config: !file ../../../sensitive/file.yaml
+
+# ✅ These are allowed (if they stay within the base directory)
+description: !file ../docs/description.txt
+config: !file ./config/settings.yaml
+```
+
+**File Size Limits**: Files are limited to 10MB.
+
+#### Performance Features
+
+**File Caching**: Files are cached during a single execution to improve
+performance:
+
+```yaml
+apis:
+  - ref: api-1
+    name: !file ./common.yaml#api.name        # File loaded and cached
+    description: !file ./common.yaml#api.desc # Uses cached version
+  - ref: api-2
+    team: !file ./common.yaml#team.name       # Uses cached version
+```
+
+#### Value Extraction
 
 You can extract specific values from structured data loaded from the `file` tag
 with this hash (`#`) notation:
@@ -635,7 +622,7 @@ reading the requested field path.
 A runnable example is available in
 [docs/examples/declarative/env/](examples/declarative/env/).
 
-### !env Behavior
+#### !env Behavior
 
 - `!env` is supported on string-typed fields in this release.
 - Unset environment variables are treated as errors.
@@ -659,7 +646,7 @@ A runnable example is available in
   while planning.
 - Human-readable plan and diff output redact `!env` values.
 
-### Write-only Secret Fields
+## Write-only Secret Fields
 
 Some Konnect APIs accept secret values on create or update but do not return
 them from `get` or `list` responses. Common examples include:
@@ -685,67 +672,6 @@ This means:
 When you need to rotate a write-only secret declaratively, make the change
 alongside another observable field, or recreate the resource if the API does
 not provide a safe observable signal for that update.
-
-### Path Resolution
-
-All file paths are resolved relative to the directory containing the
-configuration file:
-
-```
-project/
-├── config.yaml          # Main config file
-├── specs/
-│   ├── users-api.yaml
-│   └── products-api.yaml
-└── docs/
-    └── descriptions.txt
-```
-
-In `config.yaml`:
-
-```yaml
-apis:
-  - ref: users-api
-    name: !file ./specs/users-api.yaml#info.title
-    description: !file ./docs/descriptions.txt
-```
-
-### Security Features
-
-**Path Traversal Prevention**: Absolute paths are blocked. Relative paths may include
-`..`, but the resolved path must stay within the base directory boundary. By default,
-the boundary is the root of each `-f` source (file: its parent dir, dir: the directory itself).
-For stdin, the boundary defaults to the current working directory. Set the base directory with
-`--base-dir` or `konnect.declarative.base-dir` (`KONGCTL_<PROFILE>_KONNECT_DECLARATIVE_BASE_DIR`,
-for example `KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`).
-
-```yaml
-# ❌ These will fail with security errors
-description: !file /etc/passwd
-
-# ❌ This will fail if it resolves outside the base directory
-config: !file ../../../sensitive/file.yaml
-
-# ✅ These are allowed (if they stay within the base directory)
-description: !file ../docs/description.txt
-config: !file ./config/settings.yaml
-```
-
-**File Size Limits**: Files are limited to 10MB.
-
-### Performance Features
-
-**File Caching**: Files are cached during a single execution to improve
-performance:
-
-```yaml
-apis:
-  - ref: api-1
-    name: !file ./common.yaml#api.name        # File loaded and cached
-    description: !file ./common.yaml#api.desc # Uses cached version
-  - ref: api-2
-    team: !file ./common.yaml#team.name       # Uses cached version
-```
 
 ## Commands Reference
 
@@ -945,9 +871,6 @@ Adopt a custom dashboard by ID:
 kongctl adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
   --namespace analytics
 ```
-
-Dashboard names do not need to be unique in Konnect. If more than one
-dashboard has the same name, adopt the dashboard by ID.
 
 If the resource already has a `KONGCTL-namespace` label, the command fails
 without making changes.
@@ -1232,11 +1155,3 @@ Browse the [examples directory](examples/declarative/)
 ## Related Documentation
 
 - [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions
-
-## Resource Notes
-
-### Portal Custom Domains
-
-- `kongctl plan` / `apply` diff the live Konnect state before deciding what action to schedule. The portal custom domain API only returns a subset of fields (`hostname`, `enabled`, verification method, CNAME status, `skip_ca_check`, timestamps). The raw certificate and private key are never returned.
-- Because the `UpdatePortalCustomDomain` endpoint only patches the `enabled` flag, the planner emits an `UPDATE` change when the desired `enabled` value differs. Every other drift (hostname, verification method, `skip_ca_check`) is treated as an in-place replace: `DELETE` followed by `CREATE`.
-- Pure certificate rotations that keep the same verification method and `skip_ca_check` setting are invisible to the diff because Konnect does not echo those values. To force a replacement, temporarily change a detectable field (e.g., toggle `skip_ca_check` or switch verification method), or remove the domain from configuration, apply, and then reintroduce it with the new certificate material.
