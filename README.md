@@ -57,10 +57,10 @@ If you previously installed the old formula, remove it first with `brew uninstal
 Download from the [release page](https://github.com/kong/kongctl/releases):
 
 ```shell
-# Example: Install v0.0.12 for x86-64
-curl -sL https://github.com/Kong/kongctl/releases/download/v0.0.12/kongctl_linux_amd64.zip -o kongctl_linux_amd64.zip
-unzip kongctl_linux_amd64.zip -d /tmp
-sudo cp /tmp/kongctl /usr/local/bin/
+# Example: Install the latest release for x86-64
+curl -sL https://github.com/Kong/kongctl/releases/latest/download/kongctl_linux_amd64.zip -o kongctl_linux_amd64.zip
+unzip kongctl_linux_amd64.zip -d kongctl-linux-amd64
+sudo install kongctl-linux-amd64/kongctl /usr/local/bin/kongctl
 ```
 
 ### Verify
@@ -77,7 +77,7 @@ If you don't have a Kong Konnect account, [sign up for free](https://konghq.com/
 
 ### 2. Authenticate with Konnect
 
-Use the `kongctl login` command to authenticate with you Kong Konnect account:
+Use the `kongctl login` command to authenticate with your Kong Konnect account:
 
 ```shell
 kongctl login
@@ -173,7 +173,6 @@ backend.
 - **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide covering quick start, concepts, YAML tags, CI/CD integration, and best practices
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
 - **[Examples](docs/examples/)** - Sample configurations and use cases
-- **[E2E Test Harness](docs/e2e.md)** - How to run end-to-end tests locally and in CI
 
 ## Configuration and Profiles
 
@@ -280,7 +279,7 @@ Examples:
 - `kongctl get apis` - List all APIs in Konnect (`konnect` product is implicit)
 - `kongctl get konnect apis` - List all APIs in Konnect (using full product name)
 - `kongctl get api users-api` - Get specific API details
-- `kongctl delete api my-api` - Delete an API from Konnect
+- `kongctl delete -f api.yaml` - Delete resources declared in a file
 
 ## Support
 

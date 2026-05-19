@@ -90,46 +90,46 @@ created, updated, or deleted by declarative apply.
 ```yaml
 apis:
   - ref: string
-   name: string required (1-255 chars)
-   description: string (nullable)
-   version: string (1-255 chars, nullable)
-   slug: string (pattern: ^[\w-]+$, nullable)
-   labels: object [string]string
-     key: value
-   attributes: object [string]array[string]
-     key:
-       - value
-   versions: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-version
-     - ref: string
-       version: string
-       spec: object required
-         content: string required (OpenAPI or AsyncAPI content; json or yaml) # prefer: !file ./specs/api.yaml
-   publications: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/publish-api-to-portal
-     - ref: string
-       portal_id: string required (uuid) # prefer: !ref <portal-ref>
-       auto_approve_registrations: boolean
-       auth_strategy_ids: array[string(uuid)] (nullable, max 1 item) # prefer: !ref values
-       visibility: One of (public | private)
-   implementations: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-implementation
-     - ref: string
-       service: # oneOf variant
-         id: string required (uuid) # prefer: !ref <gateway-service-ref>
-         control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
-       control_plane: # oneOf variant
-         control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
-   documents: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-document
-     - ref: string
-       content: string required (markdown) # prefer: !file ./docs/page.md
-       title: string
-       slug: string (pattern: ^[\w-]+$)
-       status: One of (published | unpublished)
-       parent_document_id: string (uuid, nullable) # prefer: !ref <document-ref>
-       children:
-         - ref: string
-           content: string required (markdown) # prefer: !file ./docs/page.md
-           title: string
-           slug: string (pattern: ^[\w-]+$)
-           status: One of (published | unpublished)
+    name: string required (1-255 chars)
+    description: string (nullable)
+    version: string (1-255 chars, nullable)
+    slug: string (pattern: ^[\w-]+$, nullable)
+    labels: object [string]string
+      key: value
+    attributes: object [string]array[string]
+      key:
+        - value
+    versions: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-version
+      - ref: string
+        version: string
+        spec: object required
+          content: string required (OpenAPI or AsyncAPI content; json or yaml) # prefer: !file ./specs/api.yaml
+    publications: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/publish-api-to-portal
+      - ref: string
+        portal_id: string required (uuid) # prefer: !ref <portal-ref>
+        auto_approve_registrations: boolean
+        auth_strategy_ids: array[string(uuid)] (nullable, max 1 item) # prefer: !ref values
+        visibility: One of (public | private)
+    implementations: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-implementation
+      - ref: string
+        service: # oneOf variant
+          id: string required (uuid) # prefer: !ref <gateway-service-ref>
+          control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
+        control_plane: # oneOf variant
+          control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
+    documents: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-document
+      - ref: string
+        content: string required (markdown) # prefer: !file ./docs/page.md
+        title: string
+        slug: string (pattern: ^[\w-]+$)
+        status: One of (published | unpublished)
+        parent_document_id: string (uuid, nullable) # prefer: !ref <document-ref>
+        children:
+          - ref: string
+            content: string required (markdown) # prefer: !file ./docs/page.md
+            title: string
+            slug: string (pattern: ^[\w-]+$)
+            status: One of (published | unpublished)
 ```
 
 API specifications must be declared on API versions with `versions[].spec` or
@@ -306,12 +306,14 @@ control_plane_data_plane_certificates:
 ## Event Gateways
 
 [API Specification](https://developer.konghq.com/api/konnect/event-gateway/v1/#/operations/create-event-gateway)
-Example: Not published yet.
+[Example](examples/declarative/event-gateway/event-gateway.yaml)
+
+This section is an overview of the Event Gateway resources supported by
+`kongctl`. Use `kongctl explain event_gateways --output yaml` as the
+authoritative schema for nested Event Gateway resources and fields.
 
 ```yaml
 event_gateways:
- # NOTE: This section documents only the Event Gateway resources currently supported by kongctl.
- # Not all resources in the Event Gateway API are supported yet.
  - ref: string
    name: string required (1-255 chars)
    description: string (max 512 chars)
@@ -398,6 +400,10 @@ event_gateways:
              bootstrap_port: One of (none | at_start) # if config.type=port_mapping
              min_broker_id: integer # if config.type=port_mapping
 ```
+
+Additional nested Event Gateway resources include `schema_registries`,
+`static_keys`, `tls_trust_bundles`, `data_plane_certificates`,
+`cluster_policies`, `produce_policies`, and `consume_policies`.
 
 ## Organization
 
@@ -526,44 +532,6 @@ portals:
            groups: string
          idp_metadata_url: string # SAML
          idp_metadata_xml: string # SAML
-portal_identity_providers:
- - ref: string
-   portal: string required # prefer: !ref <portal-ref>
-   type: One of (oidc | saml) required
-   enabled: boolean
-   config: object required
-     issuer_url: string # OIDC
-     client_id: string # OIDC
-     client_secret: string # OIDC
-     scopes: array[string] # OIDC
-     claim_mappings: # OIDC
-       name: string
-       email: string
-       groups: string
-     idp_metadata_url: string # SAML
-     idp_metadata_xml: string # SAML
-portal_integrations:
- - ref: string
-   portal: string required # prefer: !ref <portal-ref>
-   google_tag_manager:
-     enabled: boolean required
-     type: tracking
-     config_data:
-       id: string required (pattern: ^GTM-[A-Za-z0-9]+$)
-       l: string (nullable)
-       preview: string (nullable)
-       cookies_win: boolean (nullable)
-       debug: boolean (nullable)
-       npa: boolean (nullable)
-       data_layer: string (nullable)
-       env_name: string (nullable)
-       auth_referrer_policy: string (nullable)
-   google_analytics_4:
-     enabled: boolean required
-     type: analytics
-     config_data:
-       id: string required (pattern: ^G-[A-Za-z0-9-]+$)
-       l: string (nullable)
    custom_domain: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-custom-domain
      ref: string
      hostname: string required
@@ -632,6 +600,51 @@ portal_integrations:
    assets:
      logo: string # data URL image (png/jpeg/gif/ico/svg)
      favicon: string # data URL image (png/jpeg/gif/ico/svg)
+```
+
+Portal identity providers and integrations can also be declared as root
+resources.
+
+```yaml
+portal_identity_providers:
+ - ref: string
+   portal: string required # prefer: !ref <portal-ref>
+   type: One of (oidc | saml) required
+   enabled: boolean
+   config: object required
+     issuer_url: string # OIDC
+     client_id: string # OIDC
+     client_secret: string # OIDC
+     scopes: array[string] # OIDC
+     claim_mappings: # OIDC
+       name: string
+       email: string
+       groups: string
+     idp_metadata_url: string # SAML
+     idp_metadata_xml: string # SAML
+
+portal_integrations:
+ - ref: string
+   portal: string required # prefer: !ref <portal-ref>
+   google_tag_manager:
+     enabled: boolean required
+     type: tracking
+     config_data:
+       id: string required (pattern: ^GTM-[A-Za-z0-9]+$)
+       l: string (nullable)
+       preview: string (nullable)
+       cookies_win: boolean (nullable)
+       debug: boolean (nullable)
+       npa: boolean (nullable)
+       data_layer: string (nullable)
+       env_name: string (nullable)
+       auth_referrer_policy: string (nullable)
+   google_analytics_4:
+     enabled: boolean required
+     type: analytics
+     config_data:
+       id: string required (pattern: ^G-[A-Za-z0-9-]+$)
+       l: string (nullable)
 ```
 
 Portal IP allow lists can also be declared as root resources.

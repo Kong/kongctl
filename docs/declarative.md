@@ -249,7 +249,7 @@ apis:
         spec: !file ./specs/users-v1.yaml
     publications:
       - ref: public
-        portal: main-portal
+        portal_id: !ref main-portal
         visibility: public
 ```
 
@@ -269,7 +269,7 @@ api_versions:
 api_publications:
   - ref: public
     api: users-api
-    portal: main-portal
+    portal_id: !ref main-portal
 ```
 
 ### Portal Identity Provider Migration
@@ -1086,7 +1086,7 @@ kongctl plan -f production-config.yaml \
 # - Approval triggers next stage
 
 # Stage 3: Plan Execution
-kongctl apply --plan plan-20240115-142530.json --auto-approve
+kongctl sync --plan plan-20240115-142530.json --auto-approve
 ```
 
 #### Emergency Rollback Using Previous Plan
@@ -1232,7 +1232,6 @@ Browse the [examples directory](examples/declarative/)
 ## Related Documentation
 
 - [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions
-- [E2E Test Harness](e2e.md) - How to run end-to-end tests locally and in CI
 
 ## Resource Notes
 

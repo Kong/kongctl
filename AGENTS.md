@@ -11,7 +11,8 @@ This file provides repository-specific guidance for AI coding agents working
 with the kongctl codebase.
 
 For declarative resource type implementation work, use
-`docs/declarative-resource-implementation-guide.md` as the primary guide.
+`docs/contributor/declarative-resource-implementation-guide.md` as the
+primary guide.
 
 ## Repository Overview
 
@@ -474,5 +475,6 @@ KONGCTL_LOG_LEVEL=trace kongctl apply --plan plan.json
 
 - **README.md**: User-facing documentation and getting started guide
 - **docs/declarative.md**: Declarative configuration guide
-- **docs/e2e.md**: E2E test harness documentation
+- **test/e2e/README.md**: E2E test harness documentation
+- **test/e2e/scenarios/README.md**: E2E scenario documentation
 - **docs/troubleshooting.md**: Common issues and solutions
