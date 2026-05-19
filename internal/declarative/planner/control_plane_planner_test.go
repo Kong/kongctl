@@ -339,7 +339,7 @@ func TestControlPlanePlanner_PlanDeleteSync(t *testing.T) {
 	assert.Equal(t, "cp-delete", plan.Changes[0].ResourceRef)
 }
 
-func TestControlPlanePlanner_PlanDeleteGroupDependsOnMemberDeletes(t *testing.T) {
+func TestControlPlanePlanner_PlanDeleteMembersDependOnGroupDelete(t *testing.T) {
 	planner := &Planner{
 		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
@@ -377,12 +377,17 @@ func TestControlPlanePlanner_PlanDeleteGroupDependsOnMemberDeletes(t *testing.T)
 	adjustControlPlaneGroupDeleteDependencies(plan.Changes)
 
 	require.Len(t, plan.Changes, 3)
+	memberAChange := plan.Changes[0]
+	assert.Equal(t, "member-a", memberAChange.ResourceRef)
+	assert.Equal(t, []string{"temp-3:d:control_plane:group-cp"}, memberAChange.DependsOn)
+
+	memberBChange := plan.Changes[1]
+	assert.Equal(t, "member-b", memberBChange.ResourceRef)
+	assert.Equal(t, []string{"temp-3:d:control_plane:group-cp"}, memberBChange.DependsOn)
+
 	groupChange := plan.Changes[2]
 	assert.Equal(t, "group-cp", groupChange.ResourceRef)
-	assert.ElementsMatch(t, []string{
-		"temp-1:d:control_plane:member-a",
-		"temp-2:d:control_plane:member-b",
-	}, groupChange.DependsOn)
+	assert.Empty(t, groupChange.DependsOn)
 	require.NotNil(t, groupChange.References)
 	assert.Equal(t, []string{"member-a-id", "member-b-id"}, groupChange.References[FieldMembers].Refs)
 }
