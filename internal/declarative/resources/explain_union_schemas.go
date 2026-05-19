@@ -132,21 +132,119 @@ func explainResourceRefField() *ExplainField {
 }
 
 func explainUnionNode(branches ...*ExplainNode) *ExplainNode {
-	node := explainObject()
+	node := explainAggregateUnionNode(branches...)
+	node.OneOf = append(node.OneOf, branches...)
+	return node
+}
+
+func explainAggregateUnionNode(branches ...*ExplainNode) *ExplainNode {
+	if len(branches) == 0 {
+		return explainObject()
+	}
+
+	first := branches[0]
+	node := &ExplainNode{
+		Kind:         first.Kind,
+		Description:  first.Description,
+		Default:      first.Default,
+		DefaultFrom:  first.DefaultFrom,
+		Enum:         append([]any(nil), first.Enum...),
+		Nullable:     first.Nullable,
+		Recommended:  first.Recommended,
+		PreferredTag: first.PreferredTag,
+		RefKind:      first.RefKind,
+		Notes:        append([]string(nil), first.Notes...),
+		Literal:      first.Literal,
+		Additional:   first.Additional.clone(),
+	}
+
+	sameKind := true
+	for _, branch := range branches[1:] {
+		if branch.Kind != first.Kind {
+			sameKind = false
+			break
+		}
+	}
+	if !sameKind {
+		node.Kind = "any"
+	}
+
+	if sameKind && first.Kind == explainKindObject {
+		explainAddAggregateUnionFields(node, branches)
+	}
+
+	return node
+}
+
+func explainAddAggregateUnionFields(node *ExplainNode, branches []*ExplainNode) {
+	fieldNames := make([]string, 0)
+	fieldsByName := make(map[string][]*ExplainField)
+
 	for _, branch := range branches {
 		for _, field := range branch.Properties {
-			if !node.propertyExists(field.Name) {
-				node.addField(&ExplainField{
-					Name:        field.Name,
-					Node:        field.Node.clone(),
-					Required:    false,
-					Recommended: field.Recommended,
-				})
+			if _, ok := fieldsByName[field.Name]; !ok {
+				fieldNames = append(fieldNames, field.Name)
 			}
+			fieldsByName[field.Name] = append(fieldsByName[field.Name], field)
 		}
-		node.OneOf = append(node.OneOf, branch)
 	}
-	return node
+
+	for _, name := range fieldNames {
+		fields := fieldsByName[name]
+		node.addField(&ExplainField{
+			Name:        name,
+			Node:        explainAggregateUnionFieldNode(fields),
+			Required:    explainUnionFieldRequired(name, fields, branches),
+			Recommended: explainUnionFieldRecommended(fields),
+		})
+	}
+}
+
+func explainAggregateUnionFieldNode(fields []*ExplainField) *ExplainNode {
+	if len(fields) == 0 {
+		return nil
+	}
+	if len(fields) == 1 || explainUnionFieldsShareNode(fields) {
+		return fields[0].Node.clone()
+	}
+
+	branches := make([]*ExplainNode, 0, len(fields))
+	for _, field := range fields {
+		branches = append(branches, field.Node.clone())
+	}
+	return explainUnionNode(branches...)
+}
+
+func explainUnionFieldRequired(name string, fields []*ExplainField, branches []*ExplainNode) bool {
+	if len(fields) != len(branches) {
+		return false
+	}
+	for _, branch := range branches {
+		field, ok := branch.property(name)
+		if !ok || !field.Required {
+			return false
+		}
+	}
+	return true
+}
+
+func explainUnionFieldRecommended(fields []*ExplainField) bool {
+	for _, field := range fields {
+		if field.Recommended {
+			return true
+		}
+	}
+	return false
+}
+
+func explainUnionFieldsShareNode(fields []*ExplainField) bool {
+	first := fields[0].Node.toJSONSchema()
+	for _, field := range fields[1:] {
+		if !reflect.DeepEqual(first, field.Node.toJSONSchema()) {
+			return false
+		}
+	}
+	return true
 }
 
 func explainWithCommonFields(branch *ExplainNode, fields ...*ExplainField) *ExplainNode {
@@ -254,7 +352,7 @@ func explainSetPathRequired(node *ExplainNode, path []string) bool {
 }
 
 func apiExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	node, err := autoExplainConcreteNode[APIResource](nil)
+	node, err := autoExplainConcreteNode[APIResource](defaultExplainHints(ResourceTypeAPI))
 	if err != nil {
 		return nil, err
 	}

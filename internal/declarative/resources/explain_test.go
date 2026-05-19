@@ -125,6 +125,19 @@ func TestRenderExplainSchema_Metadata(t *testing.T) {
 	assert.False(t, *schema.XNestedDecl)
 }
 
+func TestRenderExplainSchema_APINameDefault(t *testing.T) {
+	subject, err := ResolveExplainSubject("api.name")
+	require.NoError(t, err)
+
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+
+	assert.Equal(t, "ref", schema.XDefault)
+	require.NotNil(t, schema.XSubject)
+	assert.False(t, *schema.XSubject.Required)
+	assert.True(t, *schema.XSubject.Recommended)
+}
+
 func TestRenderExplainSchema_ApplicationAuthStrategyUnion(t *testing.T) {
 	subject, err := ResolveExplainSubject("application_auth_strategies")
 	require.NoError(t, err)
@@ -148,6 +161,36 @@ func TestRenderExplainSchema_ApplicationAuthStrategyUnion(t *testing.T) {
 
 	assert.Nil(t, keyAuth.Properties["app_auth_strategy_key_auth_request"])
 	assert.Nil(t, oidc.Properties["app_auth_strategy_open_i_d_connect_request"])
+}
+
+func TestRenderExplainSchema_ApplicationAuthStrategyUnionField(t *testing.T) {
+	subject, err := ResolveExplainSubject("application_auth_strategies.strategy_type")
+	require.NoError(t, err)
+
+	assert.True(t, subject.FieldRequired)
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+	require.Len(t, schema.OneOf, 2)
+
+	assert.Equal(t, "key_auth", schema.OneOf[0].Const)
+	assert.Equal(t, "openid_connect", schema.OneOf[1].Const)
+	require.NotNil(t, schema.XSubject)
+	assert.True(t, *schema.XSubject.Required)
+}
+
+func TestRenderExplainSchema_ApplicationAuthStrategyConfigsUnionField(t *testing.T) {
+	subject, err := ResolveExplainSubject("application_auth_strategies.configs")
+	require.NoError(t, err)
+
+	assert.True(t, subject.FieldRequired)
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+	require.Len(t, schema.OneOf, 2)
+
+	assert.Contains(t, schema.OneOf[0].Properties, "key-auth")
+	assert.Contains(t, schema.OneOf[1].Properties, "openid-connect")
+	require.NotNil(t, schema.XSubject)
+	assert.True(t, *schema.XSubject.Required)
 }
 
 func TestRenderExplainText_ResourceSubject(t *testing.T) {

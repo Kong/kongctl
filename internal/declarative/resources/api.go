@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -40,7 +41,9 @@ func (a *APIResource) UnmarshalJSON(data []byte) error {
 
 	type apiResourceAlias APIResource
 	var decoded apiResourceAlias
-	if err := json.Unmarshal(data, &decoded); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&decoded); err != nil {
 		return err
 	}
 	*a = APIResource(decoded)

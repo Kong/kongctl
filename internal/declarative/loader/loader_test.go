@@ -787,6 +787,24 @@ apis:
 	assert.Contains(t, err.Error(), "use versions[].spec instead")
 }
 
+func TestLoader_LoadFile_APIUnknownField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+apis:
+  - ref: users-api
+    name: Users API
+    lables:
+      env: test
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field 'lables'")
+	assert.Contains(t, err.Error(), "Did you mean 'labels'?")
+}
+
 func TestLoader_LoadFile_SeparateAPIChildResources(t *testing.T) {
 	loader := New()
 
