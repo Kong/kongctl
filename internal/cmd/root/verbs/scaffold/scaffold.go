@@ -41,6 +41,8 @@ such as apply or sync.`))
 		%[1]s scaffold api_version
 		# Generate a nested child scaffold
 		%[1]s scaffold api.versions
+		# Generate an analytics dashboard scaffold with a starter tile
+		%[1]s scaffold analytics.dashboards
 		`, meta.CLIName)))
 )
 

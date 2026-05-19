@@ -15,6 +15,7 @@ func init() {
 		AutoExplain[DashboardResource](
 			WithExplainAliases("dashboards"),
 			WithExplainRecommendedFields("ref", "name", "definition"),
+			WithExplainSchemaBuilder(dashboardExplainNode),
 		),
 	)
 }

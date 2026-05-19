@@ -322,6 +322,9 @@ func formatYAMLParseError(l *Loader, sourcePath string, err error) error {
 
 	// Try to provide a more helpful error message for unknown fields.
 	errMsg := err.Error()
+	if msg := dashboardUnionParseError(sourcePath, errMsg); msg != "" {
+		return fmt.Errorf("%s: %w", msg, err)
+	}
 	if strings.Contains(errMsg, "unknown field") {
 		// Error format: "error unmarshaling JSON: while decoding JSON: json: unknown field \"fieldname\""
 		if match := regexp.MustCompile(`unknown field "(\w+)"`).FindStringSubmatch(errMsg); len(match) > 1 {
@@ -337,6 +340,32 @@ func formatYAMLParseError(l *Loader, sourcePath string, err error) error {
 	}
 
 	return fmt.Errorf("failed to parse YAML in %s: %w", sourcePath, err)
+}
+
+func dashboardUnionParseError(sourcePath string, errMsg string) string {
+	switch {
+	case strings.Contains(errMsg, "into any supported union types for Query"):
+		return fmt.Sprintf(
+			"failed to parse YAML in %s: invalid analytics dashboard tile query.datasource; "+
+				"expected one of api_usage, llm_usage, agentic_usage",
+			sourcePath,
+		)
+	case strings.Contains(errMsg, "into any supported union types for Chart"):
+		return fmt.Sprintf(
+			"failed to parse YAML in %s: invalid analytics dashboard tile chart.type; "+
+				"expected one of donut, timeseries_line, timeseries_bar, horizontal_bar, vertical_bar, "+
+				"single_value, choropleth_map",
+			sourcePath,
+		)
+	case strings.Contains(errMsg, "into any supported union types for TimeRange"):
+		return fmt.Sprintf(
+			"failed to parse YAML in %s: invalid analytics dashboard tile query.time_range.type; "+
+				"expected one of relative, absolute",
+			sourcePath,
+		)
+	default:
+		return ""
+	}
 }
 
 // loadSTDIN loads configuration from stdin

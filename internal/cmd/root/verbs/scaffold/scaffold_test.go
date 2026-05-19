@@ -50,6 +50,7 @@ func TestNewScaffoldCmd(t *testing.T) {
 	assert.Contains(t, cmd.Short, "YAML scaffold")
 	assert.Contains(t, cmd.Long, "commented YAML starter")
 	assert.Contains(t, cmd.Example, "scaffold api")
+	assert.Contains(t, cmd.Example, "scaffold analytics.dashboards")
 }
 
 func TestScaffoldCmd_RejectsExplicitOutputFlag(t *testing.T) {
