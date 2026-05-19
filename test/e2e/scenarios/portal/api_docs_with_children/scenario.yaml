@@ -253,3 +253,76 @@ steps:
             expect:
               fields:
                 slug: sms-webhooks
+
+  - name: 004-dump-and-plan-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-apis
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          # Verify SMS API documents are present in dump with correct status
+          - select: "apis[?name=='SMS API'] | [0].documents[?slug=='sms-getting-started'] | [0]"
+            expect:
+              fields:
+                slug: sms-getting-started
+                status: published
+          - select: "apis[?name=='SMS API'] | [0].documents[?slug=='sms-authentication'] | [0]"
+            expect:
+              fields:
+                slug: sms-authentication
+                status: unpublished
+          - select: "apis[?name=='SMS API'] | [0].documents[?slug=='sms-webhooks'] | [0]"
+            expect:
+              fields:
+                slug: sms-webhooks
+                status: published
+          # Verify Voice API parent-child hierarchy is preserved
+          - select: >-
+              apis[?name=='Voice API'] | [0].documents[?slug=='voice-ncco'] |
+              [0].children[?slug=='voice-errors'] | [0]
+            expect:
+              fields:
+                slug: voice-errors
+                status: published
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-delete-cleanup
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
