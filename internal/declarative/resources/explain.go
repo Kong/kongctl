@@ -1110,6 +1110,9 @@ func renderExplainFieldText(b *strings.Builder, subject *ExplainSubject) {
 	fmt.Fprintln(b, "FIELD")
 	fmt.Fprintf(b, "PATH: %s\n", subject.DisplayPath)
 	fmt.Fprintf(b, "TYPE: %s\n", explainTypeLabel(subject.Node))
+	if values := explainAllowedValues(subject.Node); len(values) > 0 {
+		fmt.Fprintf(b, "ALLOWED: %s\n", strings.Join(values, "|"))
+	}
 	fmt.Fprintf(b, "OPTIONAL: %t\n", !subject.FieldRequired)
 	if subject.FieldRecommended {
 		fmt.Fprintln(b, "RECOMMENDED: yes")
@@ -1169,7 +1172,8 @@ func renderExplainFields(b *strings.Builder, node *ExplainNode, path string, dep
 		if field.Required {
 			req = "required"
 		}
-		fmt.Fprintf(b, "%s- %s: %s %s\n", prefix, field.Name, explainTypeLabel(field.Node), req)
+		fmt.Fprintf(b, "%s- %s: %s %s%s\n", prefix, field.Name, explainTypeLabel(field.Node), req,
+			explainAllowedValuesLabel(field.Node))
 		renderExplainFields(b, field.Node, fieldPath, depth+1)
 	}
 }
@@ -2053,6 +2057,44 @@ func explainTypeLabel(node *ExplainNode) string {
 		}
 		return node.Kind
 	}
+}
+
+func explainAllowedValuesLabel(node *ExplainNode) string {
+	values := explainAllowedValues(node)
+	if len(values) == 0 {
+		return ""
+	}
+	return " allowed: " + strings.Join(values, "|")
+}
+
+func explainAllowedValues(node *ExplainNode) []string {
+	if node == nil {
+		return nil
+	}
+	if node.Const != nil {
+		return []string{fmt.Sprint(node.Const)}
+	}
+	if len(node.OneOf) > 0 {
+		values := make([]string, 0, len(node.OneOf))
+		for _, branch := range node.OneOf {
+			if branch == nil || branch.Const == nil {
+				values = nil
+				break
+			}
+			values = append(values, fmt.Sprint(branch.Const))
+		}
+		if len(values) > 0 {
+			return values
+		}
+	}
+	if len(node.Enum) > 0 {
+		values := make([]string, 0, len(node.Enum))
+		for _, value := range node.Enum {
+			values = append(values, fmt.Sprint(value))
+		}
+		return values
+	}
+	return nil
 }
 
 func scaffoldOmitFields(ancestors []ResourceType) []string {

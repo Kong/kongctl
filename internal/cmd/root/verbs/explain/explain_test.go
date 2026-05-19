@@ -58,6 +58,7 @@ func TestNewExplainCmd_AddsJQFlags(t *testing.T) {
 	assert.NotNil(t, cmd.PersistentFlags().Lookup(jqoutput.FlagName))
 	assert.NotNil(t, cmd.PersistentFlags().Lookup(jqoutput.RawOutputFlagName))
 	assert.NotNil(t, cmd.Flags().Lookup(extendedFlagName))
+	assert.Contains(t, cmd.Example, "explain analytics.dashboards --extended")
 }
 
 func TestExplainCmd_AppliesJQFilterToJSON(t *testing.T) {

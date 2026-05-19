@@ -1,0 +1,128 @@
+test:
+  requiresPAT: false
+
+baseInputsPath: testdata
+
+steps:
+  - name: 001-scaffold-dashboard-with-chart-tile
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-analytics-dashboard
+        run:
+          - scaffold
+          - analytics.dashboards
+        outputFormat: disable
+        parseAs: raw
+        stdoutFile: "{{ .workdir }}/dashboard-scaffold.yaml"
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'analytics:')": true
+                "contains(stdout, 'dashboards:')": true
+                "contains(stdout, 'tiles:')": true
+                "contains(stdout, '- type: chart')": true
+                "contains(stdout, 'datasource: api_usage')": true
+                "contains(stdout, '- request_count')": true
+                "contains(stdout, '- time')": true
+                "contains(stdout, 'type: timeseries_line')": true
+                "contains(stdout, 'datasource: value')": false
+
+      - name: 001-apply-scaffold-dry-run
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/dashboard-scaffold.yaml"
+          - --auto-approve
+          - --dry-run
+        outputFormat: json
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+                by_resource.dashboard: 1
+          - select: summary
+            expect:
+              fields:
+                status: success
+                skipped: 1
+
+  - name: 002-explain-dashboard-discriminators
+    skipInputs: true
+    commands:
+      - name: 000-explain-query-datasource-text
+        run:
+          - explain
+          - analytics.dashboards.definition.tiles.definition.query.datasource
+          - --extended
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ALLOWED: api_usage|llm_usage|agentic_usage')": true
+
+      - name: 001-explain-dashboard-json-schema
+        run:
+          - explain
+          - analytics.dashboards
+        outputFormat: json
+        assertions:
+          - select: properties.definition.properties.tiles.items.properties.type
+            expect:
+              fields:
+                const: chart
+          - select: properties.definition.properties.tiles.items.properties.definition.properties.query.oneOf[0].properties.datasource
+            expect:
+              fields:
+                const: api_usage
+          - select: properties.definition.properties.tiles.items.properties.definition.properties.query.oneOf[1].properties.datasource
+            expect:
+              fields:
+                const: llm_usage
+          - select: properties.definition.properties.tiles.items.properties.definition.properties.query.oneOf[2].properties.datasource
+            expect:
+              fields:
+                const: agentic_usage
+          - select: properties.definition.properties.tiles.items.properties.definition.properties.chart.oneOf[0].properties.type
+            expect:
+              fields:
+                const: timeseries_line
+
+  - name: 003-apply-inline-dashboard-tile
+    commands:
+      - name: 000-apply-valid-inline-dashboard-dry-run
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/valid-inline-dashboard.yaml"
+          - --auto-approve
+          - --dry-run
+        outputFormat: json
+        assertions:
+          - select: plan.changes[0]
+            expect:
+              fields:
+                resource_type: dashboard
+                action: CREATE
+                fields.definition.tiles[0].type: chart
+                fields.definition.tiles[0].definition.query.datasource: api_usage
+                fields.definition.tiles[0].definition.chart.type: timeseries_line
+          - select: summary
+            expect:
+              fields:
+                status: success
+                skipped: 1
+
+      - name: 001-apply-invalid-basic-datasource
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/invalid-basic-dashboard.yaml"
+          - --auto-approve
+          - --dry-run
+        outputFormat: disable
+        expectFailure:
+          exitCode: 1
+          contains: "invalid analytics dashboard tile query.datasource"

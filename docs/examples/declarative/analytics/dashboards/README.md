@@ -14,6 +14,37 @@ YAML file with `!file`. When using an exported API response, keep the dashboard
 `definition` object and omit API-managed fields such as `id`, `created_at`,
 `created_by`, and `updated_at`.
 
+Inline dashboard definitions use chart tiles. The query `datasource` selects
+the analytics source and must be one of `api_usage`, `llm_usage`, or
+`agentic_usage`.
+
+```yaml
+analytics:
+  dashboards:
+    - ref: request-summary
+      name: Request Summary
+      definition:
+        tiles:
+          - layout:
+              position:
+                col: 0
+                row: 0
+              size:
+                cols: 6
+                rows: 2
+            type: chart
+            definition:
+              query:
+                datasource: api_usage
+                metrics:
+                  - request_count
+                dimensions:
+                  - time
+              chart:
+                chart_title: Request count
+                type: timeseries_line
+```
+
 To bring a dashboard created in the Konnect UI into GitOps, adopt it first and
 then dump the declarative definition:
 

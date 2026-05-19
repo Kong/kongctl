@@ -41,6 +41,8 @@ retrieve the same machine-readable schema document in different serializations.`
 		%[1]s explain api.versions
 		# Explain a specific field
 		%[1]s explain api.publications.portal_id
+		# Explain analytics dashboard tiles and valid discriminator values
+		%[1]s explain analytics.dashboards --extended
 		# Retrieve the machine-readable schema as JSON Schema
 		%[1]s explain api --output json
 		# Retrieve the same schema serialized as YAML

@@ -360,6 +360,142 @@ func apiExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return node, nil
 }
 
+func dashboardExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	hints := defaultExplainHints(ResourceTypeDashboard)
+	hints["name"] = ExplainFieldHint{DefaultFrom: "ref", Literal: "my-resource", Recommended: new(true)}
+
+	node, err := autoExplainConcreteNode[DashboardResource](hints)
+	if err != nil {
+		return nil, err
+	}
+	explainReplacePath(node, []string{"definition"}, dashboardDefinitionExplainNode())
+	return node, nil
+}
+
+func dashboardDefinitionExplainNode() *ExplainNode {
+	return explainObject(
+		explainField("tiles", explainArrayOf(dashboardTileExplainNode()), true, true),
+		explainField("preset_filters", explainArrayOf(dashboardFilterExplainNode()), false, false),
+	)
+}
+
+func dashboardTileExplainNode() *ExplainNode {
+	return explainObject(
+		explainField("type", explainConstStringNode("chart"), true, true),
+		explainField("layout", dashboardLayoutExplainNode(), true, true),
+		explainField("definition", dashboardTileDefinitionExplainNode(), true, true),
+	)
+}
+
+func dashboardLayoutExplainNode() *ExplainNode {
+	return explainObject(
+		explainField("position", explainObject(
+			explainField("col", &ExplainNode{Kind: "integer", Literal: "0"}, true, true),
+			explainField("row", &ExplainNode{Kind: "integer", Literal: "0"}, true, true),
+		), true, true),
+		explainField("size", explainObject(
+			explainField("cols", &ExplainNode{Kind: "integer", Literal: "6"}, true, true),
+			explainField("rows", &ExplainNode{Kind: "integer", Literal: "2"}, true, true),
+		), true, true),
+	)
+}
+
+func dashboardTileDefinitionExplainNode() *ExplainNode {
+	return explainObject(
+		explainField("query", dashboardQueryExplainNode(), true, true),
+		explainField("chart", dashboardChartExplainNode(), true, true),
+	)
+}
+
+func dashboardQueryExplainNode() *ExplainNode {
+	return explainUnionNode(
+		dashboardQueryBranch("api_usage", "request_count"),
+		dashboardQueryBranch("llm_usage", "total_tokens"),
+		dashboardQueryBranch("agentic_usage", "request_count"),
+	)
+}
+
+func dashboardQueryBranch(datasource string, metric string) *ExplainNode {
+	return explainObject(
+		explainField("datasource", explainConstStringNode(datasource), true, true),
+		explainField("metrics", explainArrayOf(explainStringNode(metric)), false, true),
+		explainField("dimensions", explainArrayOf(explainStringNode("time")), false, true),
+		explainField("filters", explainArrayOf(dashboardFilterExplainNode()), false, false),
+		explainField("granularity", &ExplainNode{Kind: "string", Nullable: true, Literal: "hourly"}, false, false),
+		explainField("time_range", dashboardTimeRangeExplainNode(), false, false),
+	)
+}
+
+func dashboardChartExplainNode() *ExplainNode {
+	return explainUnionNode(
+		dashboardChartBranch("timeseries_line", false, false),
+		dashboardChartBranch("timeseries_bar", true, false),
+		dashboardChartBranch("horizontal_bar", true, false),
+		dashboardChartBranch("vertical_bar", true, false),
+		dashboardChartBranch("single_value", false, true),
+		dashboardChartBranch("donut", false, false),
+		dashboardChartBranch("choropleth_map", false, false),
+	)
+}
+
+func dashboardChartBranch(chartType string, stacked bool, decimalPoints bool) *ExplainNode {
+	fields := []*ExplainField{
+		explainField("chart_title", &ExplainNode{Kind: "string", Nullable: true, Literal: "Request count"}, false, true),
+		explainField("type", explainConstStringNode(chartType), true, true),
+	}
+	if stacked {
+		fields = append(fields, explainField(
+			"stacked",
+			&ExplainNode{Kind: "boolean", Nullable: true, Literal: "false"},
+			false,
+			false,
+		))
+	}
+	if decimalPoints {
+		fields = append(fields, explainField(
+			"decimal_points",
+			&ExplainNode{Kind: "number", Nullable: true, Literal: "1"},
+			false,
+			false,
+		))
+	}
+	return explainObject(fields...)
+}
+
+func dashboardTimeRangeExplainNode() *ExplainNode {
+	return explainUnionNode(
+		explainObject(
+			explainField("tz", &ExplainNode{Kind: "string", Nullable: true, Literal: "Etc/UTC"}, false, false),
+			explainField("type", explainConstStringNode("relative"), true, true),
+			explainField("time_range", &ExplainNode{Kind: "string", Nullable: true, Literal: "1h"}, false, false),
+		),
+		explainObject(
+			explainField("tz", &ExplainNode{Kind: "string", Nullable: true, Literal: "Etc/UTC"}, false, false),
+			explainField("type", explainConstStringNode("absolute"), true, true),
+			explainField(
+				"start",
+				&ExplainNode{Kind: "string", Nullable: true, Literal: "2024-01-01T00:00:00Z"},
+				false,
+				false,
+			),
+			explainField(
+				"end",
+				&ExplainNode{Kind: "string", Nullable: true, Literal: "2024-01-01T01:00:00Z"},
+				false,
+				false,
+			),
+		),
+	)
+}
+
+func dashboardFilterExplainNode() *ExplainNode {
+	return explainObject(
+		explainField("field", explainStringNode("control_plane"), true, true),
+		explainField("operator", explainStringNode("in"), true, true),
+		explainField("value", &ExplainNode{Kind: "any", Literal: "value"}, false, false),
+	)
+}
+
 func applicationAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	hints := defaultExplainHints(ResourceTypeApplicationAuthStrategy)
 	hints["name"] = ExplainFieldHint{DefaultFrom: "ref", Literal: "my-resource", Recommended: new(true)}

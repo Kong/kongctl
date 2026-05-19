@@ -54,6 +54,72 @@ analytics:
 	assert.Equal(t, map[string]string{"team": "platform"}, dashboard.Labels)
 }
 
+func TestLoaderLoadsDashboardDefinitionWithInlineChartTile(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte(`
+analytics:
+  dashboards:
+    - ref: traffic-summary
+      name: Traffic Summary
+      definition:
+        tiles:
+          - layout:
+              position:
+                col: 0
+                row: 0
+              size:
+                cols: 6
+                rows: 2
+            type: chart
+            definition:
+              query:
+                datasource: api_usage
+                metrics:
+                  - request_count
+                dimensions:
+                  - time
+              chart:
+                chart_title: Request count
+                type: timeseries_line
+`), 0o600))
+
+	rs, err := New().LoadFile(configPath)
+	require.NoError(t, err)
+	require.Len(t, rs.Dashboards, 1)
+	require.Len(t, rs.Dashboards[0].Definition.Tiles, 1)
+}
+
+func TestLoaderDashboardDefinitionInvalidQueryDatasourceMessage(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte(`
+analytics:
+  dashboards:
+    - ref: traffic-summary
+      name: Traffic Summary
+      definition:
+        tiles:
+          - layout:
+              position: { col: 0, row: 0 }
+              size: { cols: 6, rows: 2 }
+            type: chart
+            definition:
+              query:
+                datasource: basic
+                metrics:
+                  - request_count
+              chart:
+                chart_title: Request count
+                type: timeseries_line
+`), 0o600))
+
+	_, err := New().LoadFile(configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid analytics dashboard tile query.datasource")
+	assert.Contains(t, err.Error(), "expected one of api_usage, llm_usage, agentic_usage")
+}
+
 func TestLoaderDashboardDefinitionPresenceFromYAML(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")

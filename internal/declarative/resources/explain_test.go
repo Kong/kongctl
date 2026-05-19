@@ -193,6 +193,38 @@ func TestRenderExplainSchema_ApplicationAuthStrategyConfigsUnionField(t *testing
 	assert.True(t, *schema.XSubject.Required)
 }
 
+func TestRenderExplainSchema_AnalyticsDashboardDiscriminators(t *testing.T) {
+	subject, err := ResolveExplainSubject("analytics.dashboards")
+	require.NoError(t, err)
+
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+
+	tile := schema.Properties["definition"].Properties["tiles"].Items
+	require.NotNil(t, tile.Properties["type"])
+	assert.Equal(t, "chart", tile.Properties["type"].Const)
+
+	query := tile.Properties["definition"].Properties["query"]
+	require.Len(t, query.OneOf, 3)
+	assert.Equal(t, "api_usage", query.OneOf[0].Properties["datasource"].Const)
+	assert.Equal(t, "llm_usage", query.OneOf[1].Properties["datasource"].Const)
+	assert.Equal(t, "agentic_usage", query.OneOf[2].Properties["datasource"].Const)
+
+	chart := tile.Properties["definition"].Properties["chart"]
+	require.Len(t, chart.OneOf, 7)
+	assert.Equal(t, "timeseries_line", chart.OneOf[0].Properties["type"].Const)
+	assert.Equal(t, "horizontal_bar", chart.OneOf[2].Properties["type"].Const)
+}
+
+func TestRenderExplainText_AnalyticsDashboardAllowedValues(t *testing.T) {
+	subject, err := ResolveExplainSubject("analytics.dashboards.definition.tiles.definition.query.datasource")
+	require.NoError(t, err)
+
+	text := RenderExplainText(subject, false)
+
+	assert.Contains(t, text, "ALLOWED: api_usage|llm_usage|agentic_usage")
+}
+
 func TestRenderExplainText_ResourceSubject(t *testing.T) {
 	subject, err := ResolveExplainSubject("portal")
 	require.NoError(t, err)
@@ -352,6 +384,25 @@ func TestRenderScaffoldYAML_ApplicationAuthStrategyUnion(t *testing.T) {
 	assert.NotContains(t, scaffold, "# name: my-resource")
 	assert.NotContains(t, scaffold, "app_auth_strategy_key_auth_request")
 	assert.NotContains(t, scaffold, "app_auth_strategy_open_i_d_connect_request")
+}
+
+func TestRenderScaffoldYAML_AnalyticsDashboardStarterTile(t *testing.T) {
+	subject, err := ResolveExplainSubject("analytics.dashboards")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "analytics:")
+	assert.Contains(t, scaffold, "  dashboards:")
+	assert.Contains(t, scaffold, "        tiles:")
+	assert.Contains(t, scaffold, "          - type: chart")
+	assert.Contains(t, scaffold, "                datasource: api_usage")
+	assert.Contains(t, scaffold, "                  - request_count")
+	assert.Contains(t, scaffold, "                  - time")
+	assert.Contains(t, scaffold, "                type: timeseries_line")
+	assert.NotContains(t, scaffold, "datasource: value")
+	assert.NotContains(t, scaffold, "# oneOf option: type\n")
 }
 
 func TestRenderScaffoldYAML_EventGatewayListenerPolicyUnion(t *testing.T) {
