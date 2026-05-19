@@ -177,6 +177,9 @@ APIs directly.
 - Workspace: `${{ github.workspace }}`
 - Run URL: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
 - Run seed: `${{ github.run_id }}`
+- Agent engine: `copilot`
+- Agent model: `claude-opus-4.6`
+- Runtime version env: `GH_AW_VERSION` when available.
 - Built binary: `./kongctl`
 - Auth env file: `/tmp/gh-aw/kongctl-feature-user-agent/auth.env`
 - Sanitized artifact directory:
@@ -204,6 +207,9 @@ dedicated Konnect org with the existing e2e reset helper.
 - Prefer one realistic, bounded workflow over broad coverage.
 - Capture commands, exit codes, sanitized stdout/stderr excerpts, generated
   config, expected vs. actual behavior, and cleanup result.
+- After selecting the workflow and before running workflow-specific `kongctl`
+  commands, write a sanitized replay prompt to:
+  `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md`.
 - Always write a sanitized `evaluation-summary.md` file in the sanitized
   artifact directory.
 - Attempt cleanup when created resources are easy to identify.
@@ -231,15 +237,19 @@ dedicated Konnect org with the existing e2e reset helper.
    - If the selected candidate proves impossible after deeper inspection, skip
      it, select the next candidate cyclically, and document why it was skipped.
    - Do not re-rank candidates by model preference after sorting.
-4. Exercise the selected workflow using `./kongctl` and PAT-based environment
+4. Write the sanitized selected-use-case replay prompt described below.
+5. Exercise the selected workflow using `./kongctl` and PAT-based environment
    auth.
-5. Keep command output excerpts short. Prefer command shapes, exit codes, and
+6. Keep command output excerpts short. Prefer command shapes, exit codes, and
    non-identifying error text.
-6. If you create resources and can identify them safely, attempt cleanup.
-7. Write sanitized evidence files only under:
+7. If you create resources and can identify them safely, attempt cleanup.
+8. Write sanitized evidence files only under:
    `/tmp/gh-aw/kongctl-feature-user-agent/sanitized`.
-8. Write `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/evaluation-summary.md`
+9. Write `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/evaluation-summary.md`
    with these sections:
+   - `Agent Runtime`: the engine, model, `GH_AW_VERSION` value when available,
+     run URL, and note that gh-aw appends exact workflow engine/version metadata
+     to created issues.
    - `Run Seed`: the seed value and candidate count.
    - `Candidate Set`: the sorted candidate titles, selected index, and any
      skipped candidate.
@@ -251,10 +261,40 @@ dedicated Konnect org with the existing e2e reset helper.
    - `Success Criteria`: how you decided the workflow succeeded or failed.
    - `Friction Assessment`: why you did or did not find actionable friction.
    - `Cleanup`: cleanup attempted and result.
+   - `Selected Use-Case Prompt`: the path to the replay prompt artifact and a
+     compact excerpt when it is useful for a future rerun.
    - `Safe Output`: whether you emitted `create_issue` or `noop`, and why.
-9. Before final output, run a sanitization check over the issue body and every
+10. Before final output, run a sanitization check over the issue body and every
    file in the sanitized artifact directory. Rewrite or omit unsafe content.
-10. Emit exactly one safe output.
+11. Emit exactly one safe output.
+
+## Selected Use-Case Replay Prompt
+
+The selected-use-case replay prompt should help a maintainer rerun the same
+evaluated user intent after a fix, with the same model or a different model. It
+is not the full workflow prompt and must not include the pre-use-case candidate
+discovery or run-seeded selection instructions.
+
+Write the replay prompt after the selected workflow is known and before
+workflow-specific tool or `kongctl` execution begins. Include:
+
+- Agent runtime target: engine `copilot`, model `claude-opus-4.6` or the
+  `COPILOT_MODEL` value when available, `GH_AW_VERSION` when available, and the
+  run URL for traceability.
+- The selected workflow title, advertised source, user intent, and expected
+  behavior.
+- The exact bounded task to perform against `./kongctl`, including safe command
+  shapes, preconditions, success criteria, evidence to collect, and cleanup
+  expectations.
+- The same auth, artifact directory, and redaction constraints needed to run
+  safely in this workflow.
+
+Exclude:
+
+- The full candidate set.
+- The run-seeded selection algorithm.
+- Any hidden chain-of-thought, private reasoning, secrets, stable Konnect IDs,
+  raw HTTP traces, account identity data, or auth file contents.
 
 ## Redaction Rules
 
@@ -288,6 +328,11 @@ content rather than trying to preserve it.
 Only call `create_issue` for concrete, reproducible friction. The issue must
 include:
 
+- Agent runtime details: engine, model, `GH_AW_VERSION` when available, run URL,
+  and workflow engine/version metadata when available.
+- The selected-use-case replay prompt, either in full or as a compact sanitized
+  excerpt, plus the artifact path
+  `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md`.
 - The advertised feature/workflow that was evaluated.
 - The expected behavior from docs or command help.
 - The actual behavior observed.
