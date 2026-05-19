@@ -95,6 +95,7 @@ steps:
     skipInputs: true
     commands:
       - name: 000-bare-apply
+        outputFormat: disable
         run:
           - apply
         expectFailure:
@@ -105,6 +106,7 @@ steps:
     skipInputs: true
     commands:
       - name: 000-bare-sync
+        outputFormat: disable
         run:
           - sync
         expectFailure:
