@@ -1,4 +1,4 @@
-# kongctl
+# <picture><source media="(prefers-color-scheme: dark)" srcset="./brand/logo/dark/Kong-Logomark.svg"><source media="(prefers-color-scheme: light)" srcset="./brand/logo/light/Kong-Logomark.svg"><img src="./brand/logo/light/Kong-Logomark.svg" alt="Kong logo" width="32"></picture> kongctl
 
 The Kong Konnect CLI
 
