@@ -548,36 +548,37 @@ func toSnakeCase(value string) string {
 	return strings.Trim(string(out), "_")
 }
 
-// adjustControlPlaneGroupDeleteDependencies ensures control plane group DELETE
-// changes execute only after DELETE changes for their member control planes in
-// the same plan. Konnect rejects deleting a group while it still has members.
+// adjustControlPlaneGroupDeleteDependencies ensures member control plane DELETE
+// changes execute only after DELETE changes for their control plane groups in
+// the same plan. Konnect rejects deleting a member while it is still in a group.
 func adjustControlPlaneGroupDeleteDependencies(changes []PlannedChange) {
-	controlPlaneDeletesByID := make(map[string]string)
+	controlPlaneDeletesByID := make(map[string]int)
 	for i := range changes {
 		change := &changes[i]
 		if change.Action != ActionDelete || change.ResourceType != ResourceTypeControlPlane {
 			continue
 		}
 		if change.ResourceID != "" {
-			controlPlaneDeletesByID[change.ResourceID] = change.ID
+			controlPlaneDeletesByID[change.ResourceID] = i
 		}
 	}
 
 	for i := range changes {
-		change := &changes[i]
-		if change.Action != ActionDelete || change.ResourceType != ResourceTypeControlPlane {
+		groupChange := &changes[i]
+		if groupChange.Action != ActionDelete || groupChange.ResourceType != ResourceTypeControlPlane {
 			continue
 		}
 
-		refInfo, ok := change.References[FieldMembers]
+		refInfo, ok := groupChange.References[FieldMembers]
 		if !ok || len(refInfo.Refs) == 0 {
 			continue
 		}
 
 		for _, memberID := range refInfo.Refs {
-			depID, ok := controlPlaneDeletesByID[memberID]
-			if ok && depID != change.ID {
-				change.DependsOn = appendDependsOn(change.DependsOn, depID)
+			memberIdx, ok := controlPlaneDeletesByID[memberID]
+			if ok && memberIdx != i {
+				memberChange := &changes[memberIdx]
+				memberChange.DependsOn = appendDependsOn(memberChange.DependsOn, groupChange.ID)
 			}
 		}
 	}
