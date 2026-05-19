@@ -134,3 +134,42 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "no configuration sources specified"
+
+  - name: 010-mode-plan-conflict
+    skipInputs: true
+    commands:
+      - name: 000-diff-mode-apply-and-plan
+        run:
+          - diff
+          - --mode
+          - apply
+          - --plan
+          - "{{ .scenario_dir }}/testdata/empty.plan"
+        expectFailure:
+          exitCode: 1
+          contains: "--mode cannot be used together with --plan"
+
+      - name: 001-diff-mode-delete-and-plan
+        run:
+          - diff
+          - --mode
+          - delete
+          - --plan
+          - "{{ .scenario_dir }}/testdata/empty.plan"
+        expectFailure:
+          exitCode: 1
+          contains: "--mode cannot be used together with --plan"
+
+  - name: 011-require-namespace-plan-conflict
+    skipInputs: true
+    commands:
+      - name: 000-diff-require-ns-and-plan
+        run:
+          - diff
+          - --require-namespace
+          - my-ns
+          - --plan
+          - "{{ .scenario_dir }}/testdata/empty.plan"
+        expectFailure:
+          exitCode: 1
+          contains: "--require-namespace cannot be used together with --plan"
