@@ -322,8 +322,8 @@ func renderThemePreviewPanel(p theme.Palette) string {
 	styles.Cell = styles.Cell.
 		Foreground(p.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(p.Adaptive(theme.ColorAccentText)).
-		Background(p.Adaptive(theme.ColorAccent))
+		Foreground(p.Adaptive(theme.ColorSelectionText)).
+		Background(p.Adaptive(theme.ColorSelection))
 
 	tbl := table.New(
 		table.WithColumns(columns),

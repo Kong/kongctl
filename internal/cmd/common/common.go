@@ -56,7 +56,7 @@ const (
 	// related to the --color-theme flag
 	ColorThemeFlagName   = "color-theme"
 	ColorThemeConfigPath = "color-theme"
-	DefaultColorTheme    = "kong-light"
+	DefaultColorTheme    = "auto"
 
 	// related to the --profile flag
 	ProfileFlagName  = "profile"

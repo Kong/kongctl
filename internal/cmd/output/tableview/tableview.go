@@ -201,7 +201,7 @@ func newStatusBoxStyle(p theme.Palette) lipgloss.Style {
 // NormalizeSelectedRow ensures that selected rows emitted by the table component
 // keep the highlight active across all columns when wrapped by another style.
 func NormalizeSelectedRow(content string, selected lipgloss.Style) string {
-	prefix, reset := selectionPrefix(selected)
+	prefix, _ := selectionPrefix(selected)
 	if prefix == "" || !strings.Contains(content, prefix) {
 		return content
 	}
@@ -212,13 +212,7 @@ func NormalizeSelectedRow(content string, selected lipgloss.Style) string {
 			continue
 		}
 
-		count := strings.Count(line, reset)
-		if count <= 1 {
-			continue
-		}
-
-		line = strings.ReplaceAll(line, reset+prefix, reset)
-		lines[i] = strings.Replace(line, reset, reset+prefix, count-1)
+		lines[i] = selected.Render(ansi.Strip(line))
 	}
 
 	return strings.Join(lines, "\n")
@@ -465,8 +459,8 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 	styles.Cell = styles.Cell.
 		Foreground(palette.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(palette.Adaptive(theme.ColorAccentText)).
-		Background(palette.Adaptive(theme.ColorAccent))
+		Foreground(palette.Adaptive(theme.ColorSelectionText)).
+		Background(palette.Adaptive(theme.ColorSelection))
 	paddingWidth := max(
 		lipgloss.Width(styles.Header.Render("")),
 		lipgloss.Width(styles.Cell.Render("")),
@@ -1157,7 +1151,7 @@ func newDetailTableDecorator(
 	labelStyle := palette.ForegroundStyle(theme.ColorTextSecondary)
 	valueStyle := palette.ForegroundStyle(theme.ColorTextPrimary)
 	accentStyle := palette.ForegroundStyle(theme.ColorAccent)
-	selectedText := palette.ForegroundStyle(theme.ColorAccentText)
+	selectedText := palette.ForegroundStyle(theme.ColorSelectionText)
 	selectedPrefix, _ := selectionPrefix(selected)
 
 	return detailTableDecorator{
@@ -1962,8 +1956,8 @@ func buildDetailTable(
 		PaddingRight(0)
 	if highlight {
 		styles.Selected = styles.Selected.
-			Foreground(palette.Adaptive(theme.ColorAccentText)).
-			Background(palette.Adaptive(theme.ColorAccent))
+			Foreground(palette.Adaptive(theme.ColorSelectionText)).
+			Background(palette.Adaptive(theme.ColorSelection))
 	} else {
 		styles.Selected = lipgloss.NewStyle()
 	}
@@ -2018,8 +2012,8 @@ func buildChildTable(state *childViewState, width, height int, palette theme.Pal
 	styles.Cell = styles.Cell.
 		Foreground(palette.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(palette.Adaptive(theme.ColorAccentText)).
-		Background(palette.Adaptive(theme.ColorAccent))
+		Foreground(palette.Adaptive(theme.ColorSelectionText)).
+		Background(palette.Adaptive(theme.ColorSelection))
 
 	tbl := table.New(
 		table.WithColumns(columns),
@@ -2516,8 +2510,8 @@ func (m *bubbleModel) applyPalette(p theme.Palette) {
 	styles.Cell = styles.Cell.
 		Foreground(p.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(p.Adaptive(theme.ColorAccentText)).
-		Background(p.Adaptive(theme.ColorAccent))
+		Foreground(p.Adaptive(theme.ColorSelectionText)).
+		Background(p.Adaptive(theme.ColorSelection))
 	m.selectedStyle = styles.Selected
 	m.table.SetStyles(styles)
 

@@ -90,15 +90,48 @@ func TestNormalizeSelectedRow_HandlesAnsiResetStyle(t *testing.T) {
 	selected := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#111111")).
 		Background(lipgloss.Color("#AABBCC"))
+	cell := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFFFF"))
 
 	prefix, reset := selectionPrefix(selected)
 	require.NotEmpty(t, prefix)
 	require.Equal(t, ansi.ResetStyle, reset)
 
-	content := selected.Render("foo" + reset + "bar")
+	content := selected.Render(cell.Render("foo") + reset + "bar")
 	normalized := NormalizeSelectedRow(content, selected)
 
-	require.Contains(t, normalized, reset+prefix)
+	require.Equal(t, "foobar", ansi.Strip(normalized))
+	require.Contains(t, normalized, prefix)
+	require.NotContains(t, normalized, cell.Render("foo"))
+}
+
+func TestNormalizeSelectedRow_RepaintsTableCellForeground(t *testing.T) {
+	selected := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#000F06")).
+		Background(lipgloss.Color("#CCFF00"))
+	cell := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFFFF"))
+
+	styles := table.DefaultStyles()
+	styles.Cell = styles.Cell.Foreground(lipgloss.Color("#FFFFFF"))
+	styles.Selected = selected
+
+	tbl := table.New(
+		table.WithColumns([]table.Column{{Title: "RESOURCE", Width: 10}}),
+		table.WithRows([]table.Row{{"apis"}}),
+		table.WithFocused(true),
+		table.WithStyles(styles),
+	)
+	tbl.SetCursor(0)
+	tbl.SetHeight(3)
+	tbl.SetWidth(20)
+
+	normalized := NormalizeSelectedRow(tbl.View(), selected)
+	prefix, _ := selectionPrefix(selected)
+
+	require.Contains(t, ansi.Strip(normalized), "apis")
+	require.Contains(t, normalized, prefix)
+	require.NotContains(t, normalized, cell.Render("apis"))
 }
 
 func TestNewDetailTableDecorator_TracksSelectedPrefix(t *testing.T) {

@@ -681,8 +681,8 @@ func initConfig() {
 		currConfig.SetString(common.ColorThemeConfigPath, common.DefaultColorTheme)
 		themeName = common.DefaultColorTheme
 	}
-	// Show the hint whenever the active theme is the built-in default.
-	// Users who have chosen any other theme have already discovered the feature.
+	// Show the hint when automatic theme selection is active. Users who have
+	// chosen a fixed theme have already discovered the feature.
 	theme.SetConfiguredExplicitly(themeName != common.DefaultColorTheme)
 
 	loggerOpts := &slog.HandlerOptions{
