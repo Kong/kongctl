@@ -13,7 +13,9 @@ func init() {
 		func(rs *ResourceSet) *[]EventGatewaySchemaRegistryResource {
 			return &rs.EventGatewaySchemaRegistries
 		},
-		AutoExplain[EventGatewaySchemaRegistryResource](),
+		AutoExplain[EventGatewaySchemaRegistryResource](
+			WithExplainSchemaBuilder(eventGatewaySchemaRegistryExplainNode),
+		),
 	)
 }
 

@@ -21,6 +21,16 @@ func TestResolveExplainSubject_Resource(t *testing.T) {
 	assert.Equal(t, "object", subject.Node.Kind)
 }
 
+func TestResolveExplainSubject_HyphenatedAlias(t *testing.T) {
+	subject, err := ResolveExplainSubject("event-gateway")
+	require.NoError(t, err)
+
+	assert.Equal(t, ResourceTypeEventGatewayControlPlane, subject.Doc.ResourceType)
+	assert.Contains(t, subject.Doc.Aliases, "event-gateway")
+	assert.Contains(t, subject.Doc.Aliases, "event-gateways")
+	assert.Contains(t, subject.Doc.Aliases, "egw")
+}
+
 func TestResolveExplainSubject_NestedChildResource(t *testing.T) {
 	subject, err := ResolveExplainSubject("api.versions")
 	require.NoError(t, err)
@@ -113,6 +123,31 @@ func TestRenderExplainSchema_Metadata(t *testing.T) {
 	assert.Equal(t, explainResourceClassTopLevel, schema.XClass)
 	require.NotNil(t, schema.XNestedDecl)
 	assert.False(t, *schema.XNestedDecl)
+}
+
+func TestRenderExplainSchema_ApplicationAuthStrategyUnion(t *testing.T) {
+	subject, err := ResolveExplainSubject("application_auth_strategies")
+	require.NoError(t, err)
+
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+	require.Len(t, schema.OneOf, 2)
+	assert.Nil(t, schema.Properties)
+	assert.Nil(t, schema.Additional)
+
+	keyAuth := schema.OneOf[0]
+	require.NotNil(t, keyAuth.Properties["strategy_type"])
+	assert.Equal(t, "key_auth", keyAuth.Properties["strategy_type"].Const)
+	require.NotNil(t, keyAuth.Properties["configs"].Properties["key-auth"])
+	assert.Contains(t, keyAuth.Properties["configs"].Properties["key-auth"].Required, "key_names")
+
+	oidc := schema.OneOf[1]
+	require.NotNil(t, oidc.Properties["strategy_type"])
+	assert.Equal(t, "openid_connect", oidc.Properties["strategy_type"].Const)
+	require.NotNil(t, oidc.Properties["configs"].Properties["openid-connect"])
+
+	assert.Nil(t, keyAuth.Properties["app_auth_strategy_key_auth_request"])
+	assert.Nil(t, oidc.Properties["app_auth_strategy_open_i_d_connect_request"])
 }
 
 func TestRenderExplainText_ResourceSubject(t *testing.T) {
@@ -252,6 +287,48 @@ func TestRenderScaffoldYAML_RootResource(t *testing.T) {
 	assert.Contains(t, scaffold, "- ref: my-resource")
 	assert.Contains(t, scaffold, "name: my-resource")
 	assert.Contains(t, scaffold, "# versions:")
+	assert.NotContains(t, scaffold, "spec_content")
+}
+
+func TestRenderScaffoldYAML_ApplicationAuthStrategyUnion(t *testing.T) {
+	subject, err := ResolveExplainSubject("application_auth_strategies")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "strategy_type: key_auth")
+	assert.Contains(t, scaffold, "configs:")
+	assert.Contains(t, scaffold, "key-auth:")
+	assert.Contains(t, scaffold, "key_names:")
+	assert.Contains(t, scaffold, "# oneOf option: strategy_type=key_auth")
+	assert.Contains(t, scaffold, "# oneOf option: strategy_type=openid_connect")
+	assert.Contains(t, scaffold, "# strategy_type: openid_connect")
+	assert.Contains(t, scaffold, "# openid-connect:")
+	assert.NotContains(t, scaffold, "# ref: my-resource")
+	assert.NotContains(t, scaffold, "# name: my-resource")
+	assert.NotContains(t, scaffold, "app_auth_strategy_key_auth_request")
+	assert.NotContains(t, scaffold, "app_auth_strategy_open_i_d_connect_request")
+}
+
+func TestRenderScaffoldYAML_EventGatewayListenerPolicyUnion(t *testing.T) {
+	subject, err := ResolveExplainSubject("event_gateway_listener_policy")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "type: tls_server")
+	assert.Contains(t, scaffold, "# oneOf option: type=tls_server")
+	assert.Contains(t, scaffold, "# oneOf option: type=forward_to_virtual_cluster")
+	assert.Contains(t, scaffold, "# oneOf option: type=port_mapping")
+	assert.Contains(t, scaffold, "# type: forward_to_virtual_cluster")
+	assert.Contains(t, scaffold, "# type: port_mapping")
+	assert.Contains(t, scaffold, "# oneOf option: id")
+	assert.Contains(t, scaffold, "# oneOf option: name")
+	assert.NotContains(t, scaffold, "event_gateway_t_l_s_listener_policy")
+	assert.NotContains(t, scaffold, "forward_to_virtual_cluster_policy")
+	assert.NotContains(t, scaffold, "virtual_cluster_reference_by_i_d")
 }
 
 func TestRenderScaffoldYAML_NestedChildResource(t *testing.T) {

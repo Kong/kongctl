@@ -1,0 +1,508 @@
+package resources
+
+import (
+	"fmt"
+	"reflect"
+	"strings"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+)
+
+func autoExplainConcreteNode[T any](hints map[string]ExplainFieldHint) (*ExplainNode, error) {
+	if hints == nil {
+		hints = defaultExplainHints("")
+	}
+	return autoExplainNode(reflect.TypeFor[T](), nil, hints, nil)
+}
+
+func autoExplainSDKUnionNode(
+	typ reflect.Type,
+	path []string,
+	hints map[string]ExplainFieldHint,
+	stack []reflect.Type,
+) (*ExplainNode, bool, error) {
+	typ = derefExplainType(typ)
+	if typ.Kind() != reflect.Struct {
+		return nil, false, nil
+	}
+
+	var branches []*ExplainNode
+	for field := range typ.Fields() {
+		if field.Tag.Get("union") != "member" {
+			continue
+		}
+		memberType := derefExplainType(field.Type)
+		branch, err := autoExplainNode(memberType, path, hints, stack)
+		if err != nil {
+			return nil, true, err
+		}
+		if name, value, ok := explainConstDiscriminator(memberType); ok {
+			explainSetConstStringField(branch, name, value)
+		}
+		branches = append(branches, branch)
+	}
+
+	if len(branches) == 0 {
+		return nil, false, nil
+	}
+	return explainUnionNode(branches...), true, nil
+}
+
+func explainConstDiscriminator(typ reflect.Type) (string, string, bool) {
+	typ = derefExplainType(typ)
+	if typ.Kind() != reflect.Struct {
+		return "", "", false
+	}
+	for field := range typ.Fields() {
+		value := field.Tag.Get("const")
+		if value == "" {
+			continue
+		}
+		name, _, _, skip := explainFieldName(field, "json")
+		if skip || name == "" {
+			name, _, _, skip = explainFieldName(field, "yaml")
+		}
+		if skip || name == "" {
+			continue
+		}
+		return name, value, true
+	}
+	return "", "", false
+}
+
+func explainObject(fields ...*ExplainField) *ExplainNode {
+	node := &ExplainNode{
+		Kind:       explainKindObject,
+		Properties: []*ExplainField{},
+		propIndex:  make(map[string]*ExplainField),
+	}
+	for _, field := range fields {
+		node.addField(field)
+	}
+	return node
+}
+
+func explainField(name string, node *ExplainNode, required, recommended bool) *ExplainField {
+	return &ExplainField{Name: name, Node: node, Required: required, Recommended: recommended}
+}
+
+func explainStringNode(literal string) *ExplainNode {
+	return &ExplainNode{Kind: "string", Literal: literal}
+}
+
+func explainBoolNode(literal string) *ExplainNode {
+	return &ExplainNode{Kind: "boolean", Literal: literal}
+}
+
+func explainConstStringNode(value string) *ExplainNode {
+	return &ExplainNode{Kind: "string", Const: value, Literal: value, Enum: []any{value}}
+}
+
+func explainRefField(name string, kind ResourceType, required bool) *ExplainField {
+	node := explainStringNode(fmt.Sprintf("!ref my-%s", stringsForResourceRef(kind)))
+	node.RefKind = string(kind)
+	node.PreferredTag = "!ref"
+	return explainField(name, node, required, required)
+}
+
+func explainReferenceUnion(kind ResourceType) *ExplainNode {
+	return explainUnionNode(
+		explainObject(explainRefField("id", kind, true)),
+		explainObject(explainField("name", explainStringNode("my-resource"), true, true)),
+	)
+}
+
+func explainArrayOf(item *ExplainNode) *ExplainNode {
+	return &ExplainNode{Kind: explainKindArray, Items: item}
+}
+
+func stringsForResourceRef(kind ResourceType) string {
+	return strings.ReplaceAll(string(kind), "_", "-")
+}
+
+func explainKongctlField() *ExplainField {
+	return explainField("kongctl", explainObject(
+		explainField("protected", &ExplainNode{Kind: "boolean", Nullable: true, Literal: "false"}, false, false),
+		explainField("namespace", &ExplainNode{Kind: "string", Nullable: true, Literal: "default"}, false, false),
+	), false, false)
+}
+
+func explainResourceRefField() *ExplainField {
+	return explainField("ref", explainStringNode("my-resource"), true, true)
+}
+
+func explainUnionNode(branches ...*ExplainNode) *ExplainNode {
+	node := explainObject()
+	for _, branch := range branches {
+		for _, field := range branch.Properties {
+			if !node.propertyExists(field.Name) {
+				node.addField(&ExplainField{
+					Name:        field.Name,
+					Node:        field.Node.clone(),
+					Required:    false,
+					Recommended: field.Recommended,
+				})
+			}
+		}
+		node.OneOf = append(node.OneOf, branch)
+	}
+	return node
+}
+
+func explainWithCommonFields(branch *ExplainNode, fields ...*ExplainField) *ExplainNode {
+	node := explainObject()
+	for _, field := range fields {
+		node.addField(&ExplainField{
+			Name:        field.Name,
+			Node:        field.Node.clone(),
+			Required:    field.Required,
+			Recommended: field.Recommended,
+		})
+	}
+	for _, field := range branch.Properties {
+		if !node.propertyExists(field.Name) {
+			node.addField(field)
+		}
+	}
+	return node
+}
+
+func explainSetConstStringField(node *ExplainNode, name, value string) {
+	field := explainField(name, explainConstStringNode(value), true, true)
+	explainReplaceField(node, field)
+}
+
+func explainReplaceField(node *ExplainNode, field *ExplainField) {
+	if node == nil || field == nil {
+		return
+	}
+	for i, existing := range node.Properties {
+		if existing.Name == field.Name {
+			node.Properties[i] = field
+			if node.propIndex != nil {
+				node.propIndex[field.Name] = field
+			}
+			return
+		}
+	}
+	node.addField(field)
+}
+
+func explainRemoveField(node *ExplainNode, name string) {
+	if node == nil {
+		return
+	}
+	filtered := node.Properties[:0]
+	for _, field := range node.Properties {
+		if field.Name != name {
+			filtered = append(filtered, field)
+		}
+	}
+	node.Properties = filtered
+	if node.propIndex != nil {
+		delete(node.propIndex, name)
+	}
+	for _, branch := range node.OneOf {
+		explainRemoveField(branch, name)
+	}
+}
+
+func explainReplacePath(node *ExplainNode, path []string, replacement *ExplainNode) bool {
+	if len(path) == 0 {
+		return false
+	}
+	if len(path) == 1 {
+		if field, ok := node.property(path[0]); ok {
+			field.Node = replacement
+			return true
+		}
+		return false
+	}
+	field, ok := node.property(path[0])
+	if !ok {
+		return false
+	}
+	child := field.Node
+	if child.Kind == explainKindArray && child.Items != nil {
+		child = child.Items
+	}
+	return explainReplacePath(child, path[1:], replacement)
+}
+
+func explainSetPathRequired(node *ExplainNode, path []string) bool {
+	if len(path) == 0 {
+		return false
+	}
+	node = scaffoldActiveNode(node)
+	if len(path) == 1 {
+		if field, ok := node.property(path[0]); ok {
+			field.Required = true
+			field.Recommended = true
+			return true
+		}
+		return false
+	}
+	field, ok := node.property(path[0])
+	if !ok {
+		return false
+	}
+	child := field.Node
+	if child.Kind == explainKindArray && child.Items != nil {
+		child = child.Items
+	}
+	return explainSetPathRequired(child, path[1:])
+}
+
+func apiExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	node, err := autoExplainConcreteNode[APIResource](nil)
+	if err != nil {
+		return nil, err
+	}
+	explainRemoveField(node, "spec_content")
+	return node, nil
+}
+
+func applicationAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	hints := defaultExplainHints(ResourceTypeApplicationAuthStrategy)
+	hints["name"] = ExplainFieldHint{DefaultFrom: "ref", Literal: "my-resource", Recommended: new(true)}
+	hints["dcr_provider_id"] = ExplainFieldHint{
+		PreferredTag: "!ref",
+		RefKind:      string(ResourceTypeDCRProvider),
+		Literal:      "!ref my-dcr-provider",
+	}
+
+	keyAuth, err := autoExplainConcreteNode[kkComps.AppAuthStrategyKeyAuthRequest](hints)
+	if err != nil {
+		return nil, err
+	}
+	explainSetConstStringField(keyAuth, "strategy_type", "key_auth")
+	explainSetPathRequired(keyAuth, []string{"configs", "key-auth", "key_names"})
+
+	oidc, err := autoExplainConcreteNode[kkComps.AppAuthStrategyOpenIDConnectRequest](hints)
+	if err != nil {
+		return nil, err
+	}
+	explainSetConstStringField(oidc, "strategy_type", "openid_connect")
+	explainSetPathRequired(oidc, []string{"configs", "openid-connect", "credential_claim"})
+	explainSetPathRequired(oidc, []string{"configs", "openid-connect", "scopes"})
+	explainSetPathRequired(oidc, []string{"configs", "openid-connect", "auth_methods"})
+
+	common := []*ExplainField{explainResourceRefField(), explainKongctlField()}
+	return explainUnionNode(
+		explainWithCommonFields(keyAuth, common...),
+		explainWithCommonFields(oidc, common...),
+	), nil
+}
+
+func eventGatewayVirtualClusterExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	node, err := autoExplainConcreteNode[EventGatewayVirtualClusterResource](nil)
+	if err != nil {
+		return nil, err
+	}
+	explainReplacePath(node, []string{"destination"}, explainReferenceUnion(ResourceTypeEventGatewayBackendCluster))
+	return node, nil
+}
+
+func eventGatewayBackendClusterExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	node, err := autoExplainConcreteNode[EventGatewayBackendClusterResource](nil)
+	if err != nil {
+		return nil, err
+	}
+	auth := explainDiscriminatedUnion("type",
+		explainVariant[kkComps.BackendClusterAuthenticationAnonymous]("type", "anonymous"),
+		explainVariant[kkComps.BackendClusterAuthenticationSaslPlain]("type", "sasl_plain"),
+		explainVariant[kkComps.BackendClusterAuthenticationSaslScram]("type", "sasl_scram"),
+	)
+	explainReplacePath(node, []string{"authentication"}, auth)
+	return node, nil
+}
+
+func eventGatewaySchemaRegistryExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	confluent, err := autoExplainConcreteNode[kkComps.SchemaRegistryConfluent](nil)
+	if err != nil {
+		return nil, err
+	}
+	explainSetConstStringField(confluent, "type", "confluent")
+	return explainUnionNode(explainWithCommonFields(
+		confluent,
+		explainResourceRefField(),
+		explainRefField("event_gateway", ResourceTypeEventGatewayControlPlane, false),
+	)), nil
+}
+
+func eventGatewayClusterPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	acls, err := autoExplainConcreteNode[kkComps.EventGatewayACLsPolicy](nil)
+	if err != nil {
+		return nil, err
+	}
+	explainSetConstStringField(acls, "type", "acls")
+	return explainUnionNode(explainWithCommonFields(
+		acls,
+		explainResourceRefField(),
+		explainRefField("virtual_cluster", ResourceTypeEventGatewayVirtualCluster, false),
+		explainRefField("event_gateway", ResourceTypeEventGatewayControlPlane, false),
+	)), nil
+}
+
+func eventGatewayProducePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	modifyHeaders, err := explainVariantNode[kkComps.EventGatewayModifyHeadersPolicyCreate]("type", "modify_headers")
+	if err != nil {
+		return nil, err
+	}
+	schemaValidation, err := explainVariantNode[kkComps.EventGatewayProduceSchemaValidationPolicy](
+		"type",
+		"schema_validation",
+	)
+	if err != nil {
+		return nil, err
+	}
+	encrypt, err := explainVariantNode[kkComps.EventGatewayEncryptPolicy]("type", "encrypt")
+	if err != nil {
+		return nil, err
+	}
+	return eventGatewayVirtualClusterPolicyUnion(modifyHeaders, schemaValidation, encrypt), nil
+}
+
+func eventGatewayConsumePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	modifyHeaders, err := explainVariantNode[kkComps.EventGatewayModifyHeadersPolicyCreate]("type", "modify_headers")
+	if err != nil {
+		return nil, err
+	}
+	schemaValidation, err := explainVariantNode[kkComps.EventGatewayConsumeSchemaValidationPolicy](
+		"type",
+		"schema_validation",
+	)
+	if err != nil {
+		return nil, err
+	}
+	decrypt, err := explainVariantNode[kkComps.EventGatewayDecryptPolicy]("type", "decrypt")
+	if err != nil {
+		return nil, err
+	}
+	skipRecord, err := explainVariantNode[kkComps.EventGatewaySkipRecordPolicyCreate]("type", "skip_record")
+	if err != nil {
+		return nil, err
+	}
+	return eventGatewayVirtualClusterPolicyUnion(modifyHeaders, schemaValidation, decrypt, skipRecord), nil
+}
+
+func eventGatewayVirtualClusterPolicyUnion(branches ...*ExplainNode) *ExplainNode {
+	common := []*ExplainField{
+		explainResourceRefField(),
+		explainRefField("virtual_cluster", ResourceTypeEventGatewayVirtualCluster, false),
+		explainRefField("event_gateway", ResourceTypeEventGatewayControlPlane, false),
+	}
+	withCommon := make([]*ExplainNode, 0, len(branches))
+	for _, branch := range branches {
+		withCommon = append(withCommon, explainWithCommonFields(branch, common...))
+	}
+	return explainUnionNode(withCommon...)
+}
+
+func eventGatewayListenerPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	tlsServer, err := explainVariantNode[kkComps.EventGatewayTLSListenerPolicy]("type", "tls_server")
+	if err != nil {
+		return nil, err
+	}
+	forward, err := explainVariantNode[kkComps.ForwardToVirtualClusterPolicy]("type", "forward_to_virtual_cluster")
+	if err != nil {
+		return nil, err
+	}
+	forwardConfig := explainDiscriminatedUnion("type",
+		explainVariant[kkComps.ForwardToClusterByPortMappingConfig]("type", "port_mapping"),
+		explainVariant[kkComps.ForwardToClusterBySNIConfig]("type", "sni"),
+	)
+	for _, branch := range forwardConfig.OneOf {
+		explainReplacePath(branch, []string{"destination"}, explainReferenceUnion(ResourceTypeEventGatewayVirtualCluster))
+	}
+	explainReplacePath(forward, []string{"config"}, forwardConfig)
+	explainReplacePath(
+		tlsServer,
+		[]string{"config", "client_authentication", "tls_trust_bundles"},
+		explainArrayOf(explainReferenceUnion(ResourceTypeEventGatewayTLSTrustBundle)),
+	)
+
+	common := []*ExplainField{
+		explainResourceRefField(),
+		explainRefField("listener", ResourceTypeEventGatewayListener, false),
+		explainRefField("event_gateway", ResourceTypeEventGatewayControlPlane, false),
+	}
+	return explainUnionNode(
+		explainWithCommonFields(tlsServer, common...),
+		explainWithCommonFields(forward, common...),
+	), nil
+}
+
+func portalIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	oidc, err := autoExplainConcreteNode[kkComps.OIDCIdentityProviderConfig](nil)
+	if err != nil {
+		return nil, err
+	}
+	saml, err := autoExplainConcreteNode[kkComps.SAMLIdentityProviderConfigInput](nil)
+	if err != nil {
+		return nil, err
+	}
+	config := explainUnionNode(oidc, saml)
+	common := []*ExplainField{
+		explainResourceRefField(),
+		explainRefField("portal", ResourceTypePortal, false),
+		explainField("enabled", explainBoolNode("false"), false, false),
+		explainField("login_path", explainStringNode("/login"), false, false),
+	}
+	oidcBranch := explainObject(append(common,
+		explainField("type", explainConstStringNode("oidc"), true, true),
+		explainField("config", config.OneOf[0], true, true),
+	)...)
+	samlBranch := explainObject(append(common,
+		explainField("type", explainConstStringNode("saml"), true, true),
+		explainField("config", config.OneOf[1], true, true),
+	)...)
+	return explainUnionNode(oidcBranch, samlBranch), nil
+}
+
+func portalCustomDomainExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	node, err := autoExplainConcreteNode[PortalCustomDomainResource](nil)
+	if err != nil {
+		return nil, err
+	}
+	ssl := explainDiscriminatedUnion("domain_verification_method",
+		explainVariant[kkComps.HTTP]("domain_verification_method", "http"),
+		explainVariant[kkComps.CustomCertificate]("domain_verification_method", "custom_certificate"),
+	)
+	explainReplacePath(node, []string{"ssl"}, ssl)
+	return node, nil
+}
+
+func explainDiscriminatedUnion(discriminator string, variants ...explainVariantSpec) *ExplainNode {
+	branches := make([]*ExplainNode, 0, len(variants))
+	for _, variant := range variants {
+		if variant.Node == nil {
+			continue
+		}
+		explainSetConstStringField(variant.Node, discriminator, variant.Value)
+		branches = append(branches, variant.Node)
+	}
+	return explainUnionNode(branches...)
+}
+
+type explainVariantSpec struct {
+	Value string
+	Node  *ExplainNode
+}
+
+func explainVariant[T any](discriminator, value string) explainVariantSpec {
+	node, err := explainVariantNode[T](discriminator, value)
+	if err != nil {
+		return explainVariantSpec{}
+	}
+	return explainVariantSpec{Value: value, Node: node}
+}
+
+func explainVariantNode[T any](discriminator, value string) (*ExplainNode, error) {
+	node, err := autoExplainConcreteNode[T](nil)
+	if err != nil {
+		return nil, err
+	}
+	explainSetConstStringField(node, discriminator, value)
+	return node, nil
+}

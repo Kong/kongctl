@@ -14,7 +14,9 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayProducePolicy,
 		func(rs *ResourceSet) *[]EventGatewayProducePolicyResource { return &rs.EventGatewayProducePolicies },
-		AutoExplain[EventGatewayProducePolicyResource](),
+		AutoExplain[EventGatewayProducePolicyResource](
+			WithExplainSchemaBuilder(eventGatewayProducePolicyExplainNode),
+		),
 	)
 }
 

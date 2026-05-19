@@ -11,7 +11,9 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalIdentityProvider,
 		func(rs *ResourceSet) *[]PortalIdentityProviderResource { return &rs.PortalIdentityProviders },
-		AutoExplain[PortalIdentityProviderResource](),
+		AutoExplain[PortalIdentityProviderResource](
+			WithExplainSchemaBuilder(portalIdentityProviderExplainNode),
+		),
 	)
 }
 

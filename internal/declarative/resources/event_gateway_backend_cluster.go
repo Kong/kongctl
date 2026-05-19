@@ -11,7 +11,9 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayBackendCluster,
 		func(rs *ResourceSet) *[]EventGatewayBackendClusterResource { return &rs.EventGatewayBackendClusters },
-		AutoExplain[EventGatewayBackendClusterResource](),
+		AutoExplain[EventGatewayBackendClusterResource](
+			WithExplainSchemaBuilder(eventGatewayBackendClusterExplainNode),
+		),
 	)
 }
 

@@ -15,7 +15,9 @@ func init() {
 		func(rs *ResourceSet) *[]EventGatewayConsumePolicyResource {
 			return &rs.EventGatewayConsumePolicies
 		},
-		AutoExplain[EventGatewayConsumePolicyResource](),
+		AutoExplain[EventGatewayConsumePolicyResource](
+			WithExplainSchemaBuilder(eventGatewayConsumePolicyExplainNode),
+		),
 	)
 }
 

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"reflect"
@@ -181,7 +182,6 @@ var (
 		"version":      {},
 		"slug":         {},
 		"spec":         {},
-		"spec_content": {},
 	}
 	fileFieldSamples = map[string]string{
 		"content":            "./content.txt",
@@ -189,7 +189,6 @@ var (
 		"robots":             "./robots.txt",
 		"spec":               "./specs/openapi.yaml",
 		"spec.content":       "./specs/openapi.yaml",
-		"spec_content":       "./specs/openapi.yaml",
 		"custom_certificate": "./certs/cert.pem",
 		"custom_private_key": "./certs/key.pem",
 	}
@@ -682,8 +681,14 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 
 	rootKey := resourceSetRootKey(reg.typ)
 	aliases := []string{string(rt)}
+	if hyphenAlias := strings.ReplaceAll(string(rt), "_", "-"); hyphenAlias != string(rt) {
+		aliases = append(aliases, hyphenAlias)
+	}
 	if rootKey != "" {
 		aliases = append(aliases, rootKey)
+		if hyphenRootKey := strings.ReplaceAll(rootKey, "_", "-"); hyphenRootKey != rootKey {
+			aliases = append(aliases, hyphenRootKey)
+		}
 	}
 	aliases = append(aliases, reg.aliases...)
 	aliases = slices.Compact(aliases)
@@ -909,7 +914,12 @@ func autoExplainValueNode(
 
 	switch typ.Kind() {
 	case reflect.Struct:
-		if slices.Contains(stack, typ) {
+		if union, ok, err := autoExplainSDKUnionNode(typ, path, hints, stack); err != nil {
+			return nil, err
+		} else if ok {
+			union.Nullable = union.Nullable || nullable
+			node = union
+		} else if slices.Contains(stack, typ) {
 			child := recursiveExplainNode(typ)
 			child.Nullable = child.Nullable || nullable
 			node = child
@@ -1415,6 +1425,7 @@ func renderNestedTrail(write scaffoldWriter, trail []ExplainScaffoldNode, depth 
 }
 
 func firstScaffoldLine(node *ExplainNode, omit map[string]struct{}) string {
+	node = scaffoldActiveNode(node)
 	if field := firstScaffoldField(node, omit); field != nil {
 		return fmt.Sprintf("%s: %s", field.Name, scaffoldLiteral(field.Node))
 	}
@@ -1425,6 +1436,7 @@ func firstScaffoldLine(node *ExplainNode, omit map[string]struct{}) string {
 }
 
 func firstScaffoldField(node *ExplainNode, omit map[string]struct{}) *ExplainField {
+	node = scaffoldActiveNode(node)
 	if node.Kind != "object" {
 		return nil
 	}
@@ -1447,13 +1459,19 @@ func renderScaffoldObject(
 	omit map[string]struct{},
 	skipFirst bool,
 ) {
+	if node == nil {
+		return
+	}
+	if len(node.OneOf) > 0 {
+		renderScaffoldOneOfObject(write, node, depth, omit, false, scaffoldSkippedField(node, omit, skipFirst))
+		return
+	}
+	active := scaffoldActiveNode(node)
 	skipped := ""
 	if skipFirst {
-		if field := firstScaffoldField(node, omit); field != nil {
-			skipped = field.Name
-		}
+		skipped = scaffoldSkippedField(active, omit, true)
 	}
-	for _, field := range node.Properties {
+	for _, field := range active.Properties {
 		if _, ok := omit[field.Name]; ok {
 			continue
 		}
@@ -1473,18 +1491,19 @@ func renderScaffoldField(write scaffoldWriter, depth int, field *ExplainField, o
 		commentPrefix = "# "
 	}
 
-	if field.Node.Kind == explainKindObject && field.Node.Additional == nil && len(field.Node.OneOf) == 0 {
+	node := scaffoldActiveNode(field.Node)
+	if node.Kind == explainKindObject && node.Additional == nil {
 		write(indent + commentPrefix + field.Name + ":")
 		renderCommentedBlock(write, depth+1, field.Node, omit, comment)
 		return
 	}
 
-	if field.Node.Kind == explainKindArray {
+	if node.Kind == explainKindArray {
 		write(indent + commentPrefix + field.Name + ":")
-		itemLine := scaffoldLiteral(field.Node.Items)
-		if field.Node.Items != nil && field.Node.Items.Kind == explainKindObject {
-			write(strings.Repeat("  ", depth+1) + commentPrefix + "- " + firstScaffoldLine(field.Node.Items, omit))
-			renderCommentedBlock(write, depth+2, field.Node.Items, omit, comment)
+		itemLine := scaffoldLiteral(node.Items)
+		if node.Items != nil && node.Items.Kind == explainKindObject {
+			write(strings.Repeat("  ", depth+1) + commentPrefix + "- " + firstScaffoldLine(node.Items, omit))
+			renderCommentedBlockSkippingFirst(write, depth+2, node.Items, omit, comment)
 		} else {
 			write(strings.Repeat("  ", depth+1) + commentPrefix + "- " + itemLine)
 		}
@@ -1494,21 +1513,206 @@ func renderScaffoldField(write scaffoldWriter, depth int, field *ExplainField, o
 	write(indent + commentPrefix + field.Name + ": " + scaffoldLiteral(field.Node))
 }
 
+func renderScaffoldOneOfObject(
+	write scaffoldWriter,
+	node *ExplainNode,
+	depth int,
+	omit map[string]struct{},
+	comment bool,
+	skipped string,
+) {
+	common := scaffoldOneOfCommonFieldNames(node)
+	for _, field := range node.OneOf[0].Properties {
+		if _, ok := common[field.Name]; !ok {
+			continue
+		}
+		if _, ok := omit[field.Name]; ok {
+			continue
+		}
+		if skipped != "" && field.Name == skipped {
+			continue
+		}
+		required := field.Required || field.Recommended
+		renderScaffoldField(write, depth, field, omit, comment || !required)
+	}
+
+	for i, branch := range node.OneOf {
+		if branch == nil || branch.Kind != explainKindObject {
+			continue
+		}
+		fields := scaffoldRenderableBranchFields(branch, common, omit, skipped)
+		if len(fields) == 0 {
+			continue
+		}
+		branchComment := comment || i > 0
+		renderScaffoldOneOfOptionLabel(write, depth, branch, branchComment)
+		for _, field := range fields {
+			required := field.Required || field.Recommended
+			renderScaffoldField(write, depth, field, omit, branchComment || !required)
+		}
+	}
+}
+
+func scaffoldRenderableBranchFields(
+	branch *ExplainNode,
+	common map[string]struct{},
+	omit map[string]struct{},
+	skipped string,
+) []*ExplainField {
+	var fields []*ExplainField
+	for _, field := range branch.Properties {
+		if _, ok := common[field.Name]; ok {
+			continue
+		}
+		if _, ok := omit[field.Name]; ok {
+			continue
+		}
+		if skipped != "" && field.Name == skipped {
+			continue
+		}
+		fields = append(fields, field)
+	}
+	return fields
+}
+
+func renderScaffoldOneOfOptionLabel(write scaffoldWriter, depth int, branch *ExplainNode, comment bool) {
+	indent := strings.Repeat("  ", depth)
+	if label := scaffoldOneOfOptionLabel(branch); label != "" {
+		write(indent + "# oneOf option: " + label)
+		return
+	}
+	if comment {
+		write(indent + "# oneOf option")
+		return
+	}
+	write(indent + "# oneOf option")
+}
+
+func scaffoldOneOfOptionLabel(branch *ExplainNode) string {
+	for _, field := range branch.Properties {
+		if field.Node != nil && field.Node.Const != nil {
+			return fmt.Sprintf("%s=%v", field.Name, field.Node.Const)
+		}
+	}
+	for _, field := range branch.Properties {
+		if field.Required || field.Recommended {
+			return field.Name
+		}
+	}
+	return ""
+}
+
+func scaffoldOneOfCommonFieldNames(node *ExplainNode) map[string]struct{} {
+	common := make(map[string]struct{})
+	if node == nil || len(node.OneOf) < 2 || node.OneOf[0] == nil {
+		return common
+	}
+	for _, field := range node.OneOf[0].Properties {
+		signature := scaffoldFieldSignature(field)
+		foundInAll := true
+		for _, branch := range node.OneOf[1:] {
+			other, ok := branch.property(field.Name)
+			if !ok || scaffoldFieldSignature(other) != signature {
+				foundInAll = false
+				break
+			}
+		}
+		if foundInAll {
+			common[field.Name] = struct{}{}
+		}
+	}
+	return common
+}
+
+func scaffoldFieldSignature(field *ExplainField) string {
+	if field == nil {
+		return ""
+	}
+	payload := struct {
+		Required    bool        `json:"required"`
+		Recommended bool        `json:"recommended"`
+		Schema      *JSONSchema `json:"schema"`
+	}{
+		Required:    field.Required,
+		Recommended: field.Recommended,
+		Schema:      field.Node.toJSONSchema(),
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func scaffoldActiveNode(node *ExplainNode) *ExplainNode {
+	if node != nil && len(node.OneOf) > 0 {
+		return node.OneOf[0]
+	}
+	return node
+}
+
 func renderCommentedBlock(write scaffoldWriter, depth int, node *ExplainNode, omit map[string]struct{}, comment bool) {
+	renderCommentedBlockWithSkip(write, depth, node, omit, comment, "")
+}
+
+func renderCommentedBlockSkippingFirst(
+	write scaffoldWriter,
+	depth int,
+	node *ExplainNode,
+	omit map[string]struct{},
+	comment bool,
+) {
+	skipped := ""
+	if field := firstScaffoldField(node, omit); field != nil {
+		skipped = field.Name
+	}
+	renderCommentedBlockWithSkip(write, depth, node, omit, comment, skipped)
+}
+
+func renderCommentedBlockWithSkip(
+	write scaffoldWriter,
+	depth int,
+	node *ExplainNode,
+	omit map[string]struct{},
+	comment bool,
+	skipped string,
+) {
 	if node == nil || node.Kind != "object" {
 		return
 	}
+	if len(node.OneOf) > 0 {
+		renderScaffoldOneOfObject(write, node, depth, omit, comment, skipped)
+		return
+	}
+	node = scaffoldActiveNode(node)
 	for _, child := range node.Properties {
 		if _, ok := omit[child.Name]; ok {
+			continue
+		}
+		if skipped != "" && child.Name == skipped {
 			continue
 		}
 		renderScaffoldField(write, depth, child, omit, comment || !child.Required && !child.Recommended)
 	}
 }
 
+func scaffoldSkippedField(node *ExplainNode, omit map[string]struct{}, skipFirst bool) string {
+	if !skipFirst {
+		return ""
+	}
+	if field := firstScaffoldField(node, omit); field != nil {
+		return field.Name
+	}
+	return ""
+}
+
 func scaffoldLiteral(node *ExplainNode) string {
 	if node == nil {
 		return "null"
+	}
+	node = scaffoldActiveNode(node)
+	if node.Const != nil {
+		return fmt.Sprint(node.Const)
 	}
 	if node.Literal != "" {
 		return node.Literal
@@ -1560,7 +1764,16 @@ func (n *ExplainNode) lookup(path []string) (*ExplainNode, bool) {
 	for _, segment := range path {
 		field, ok := current.property(segment)
 		if !ok {
-			return nil, false
+			for _, branch := range current.OneOf {
+				if branchField, branchOK := branch.lookup([]string{segment}); branchOK {
+					field = &ExplainField{Node: branchField}
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return nil, false
+			}
 		}
 		current = field.Node
 		if current.Kind == explainKindArray && current.Items != nil {
@@ -1623,21 +1836,26 @@ func (n *ExplainNode) toJSONSchema() *JSONSchema {
 	}
 
 	schema.Type = schemaTypeValue(n.Kind, n.Nullable)
+	if len(n.OneOf) > 0 && !explainOneOfBranchesShareKind(n.OneOf) {
+		schema.Type = nil
+	}
 
 	switch n.Kind {
 	case "object":
-		if n.Additional != nil {
-			schema.Additional = n.Additional.toJSONSchema()
-		} else {
-			schema.Additional = false
-		}
-		if len(n.Properties) > 0 {
-			schema.Properties = make(map[string]*JSONSchema, len(n.Properties))
-		}
-		for _, field := range n.Properties {
-			schema.Properties[field.Name] = field.Node.toJSONSchema()
-			if field.Required {
-				schema.Required = append(schema.Required, field.Name)
+		if len(n.OneOf) == 0 {
+			if n.Additional != nil {
+				schema.Additional = n.Additional.toJSONSchema()
+			} else {
+				schema.Additional = false
+			}
+			if len(n.Properties) > 0 {
+				schema.Properties = make(map[string]*JSONSchema, len(n.Properties))
+			}
+			for _, field := range n.Properties {
+				schema.Properties[field.Name] = field.Node.toJSONSchema()
+				if field.Required {
+					schema.Required = append(schema.Required, field.Name)
+				}
 			}
 		}
 	case "array":
@@ -1651,6 +1869,19 @@ func (n *ExplainNode) toJSONSchema() *JSONSchema {
 	}
 
 	return schema
+}
+
+func explainOneOfBranchesShareKind(branches []*ExplainNode) bool {
+	if len(branches) == 0 || branches[0] == nil {
+		return true
+	}
+	kind := branches[0].Kind
+	for _, branch := range branches[1:] {
+		if branch == nil || branch.Kind != kind {
+			return false
+		}
+	}
+	return true
 }
 
 func schemaTypeValue(kind string, nullable bool) any {

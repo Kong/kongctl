@@ -99,7 +99,6 @@ apis:
    attributes: object [string]array[string]
      key:
        - value
-   spec_content: string (OpenAPI or AsyncAPI content; json or yaml) # prefer: !file ./specs/api.yaml
    versions: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-version
      - ref: string
        version: string
@@ -132,6 +131,10 @@ apis:
            slug: string (pattern: ^[\w-]+$)
            status: One of (published | unpublished)
 ```
+
+API specifications must be declared on API versions with `versions[].spec` or
+root-level `api_versions[].spec`; `apis[].spec_content` is not supported in
+declarative configuration.
 
 ## Application Auth Strategies
 
