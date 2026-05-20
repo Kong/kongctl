@@ -1311,7 +1311,11 @@ func explainNestedFieldPaths(doc *ExplainDoc, relativePath []string) []string {
 	}
 	paths := make([]string, 0, len(doc.ParentRelations))
 	for _, relation := range doc.ParentRelations {
-		parts := []string{explainRelationParentPath(relation), relation.FieldName + "[]"}
+		fieldSegment := relation.FieldName
+		if relation.FieldArray {
+			fieldSegment += "[]"
+		}
+		parts := []string{explainRelationParentPath(relation), fieldSegment}
 		parts = append(parts, relativePath...)
 		paths = append(paths, strings.Join(parts, "."))
 	}
