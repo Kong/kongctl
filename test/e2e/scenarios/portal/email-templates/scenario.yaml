@@ -112,6 +112,58 @@ steps:
                 applied: 2
                 failed: 0
 
+  - name: 002b-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-portal
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          # Portal is present in the dump
+          - select: "portals[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portalRef }}"
+          # reset-password template has the updated content from step 002
+          - select: >-
+              portals[?name=='{{ .vars.portalRef }}'] | [0].email_templates
+            expect:
+              fields:
+                "values(@)[?name=='reset-password'] | [0].content.subject": "Reset your password now"
+                "values(@)[?name=='reset-password'] | [0].content.body": "Use the link below to reset your credentials."
+                "values(@)[?name=='reset-password'] | [0].enabled": true
+          # app-registration-approved template is present and disabled
+          - select: >-
+              portals[?name=='{{ .vars.portalRef }}'] | [0].email_templates
+            expect:
+              fields:
+                "values(@)[?name=='app-registration-approved'] | [0].enabled": false
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 003-sync-remove-email-template
     inputOverlayDirs:
       - overlays/003-remove
