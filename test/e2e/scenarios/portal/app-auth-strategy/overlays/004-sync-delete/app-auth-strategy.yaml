@@ -1,1 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: app-auth-strategy-e2e
+
 application_auth_strategies: []
