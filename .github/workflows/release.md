@@ -408,13 +408,14 @@ steps:
       RELEASE_ID: ${{ needs.release.outputs.release_id }}
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
     run: |
       set -euo pipefail
 
       mkdir -p /tmp/gh-aw/release-data
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
 
-      gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
+      gh api "/repos/$EXPR_GITHUB_REPOSITORY/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
 
       PREV_RELEASE_TAG=$(gh release list \
         --exclude-drafts \
@@ -439,7 +440,7 @@ steps:
           --jq "[.[] | select(.mergedAt >= \"$PREV_PUBLISHED_AT\" and .mergedAt <= \"$CURR_PUBLISHED_AT\")]" \
           > /tmp/gh-aw/release-data/pull_requests.json
 
-        gh api "/repos/${{ github.repository }}/compare/${PREV_RELEASE_TAG}...${RELEASE_TAG}" \
+        gh api "/repos/$EXPR_GITHUB_REPOSITORY/compare/${PREV_RELEASE_TAG}...${RELEASE_TAG}" \
           > /tmp/gh-aw/release-data/compare.json
       fi
 
