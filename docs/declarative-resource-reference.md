@@ -1,14 +1,23 @@
 # `kongctl` Declarative Resource Reference
 
-This document is the reference for `kongctl` declarative configuration. It
-lists supported resource types and their field-level values.
+This document is a reference for `kongctl` declarative
+configuration. It lists supported resource types and common field-level values.
 Resource configurations are provided as YAML files and can be expressed as one
 or more files passed to `kongctl` declarative commands.
 
-The resource keys and field names shown here are the canonical declarative
-configuration names accepted by `kongctl`. Keep this reference aligned with
-`kongctl explain` and `kongctl scaffold` when adding or changing resource
-support.
+The definitive schema for the version of `kongctl` you are using is generated
+by the CLI itself:
+
+```sh
+kongctl explain api
+kongctl explain portal.identity_providers --output yaml
+kongctl scaffold api
+```
+
+Use `kongctl explain` to confirm accepted field names, required fields,
+preferred YAML tags, root keys, and nested or root declaration support. Use
+`kongctl scaffold` to generate starter YAML for a resource path. If this page
+differs from the installed CLI, follow the CLI output.
 
 See the [declarative configuration guide](declarative.md) for information on
 the feature, commands, and options.
@@ -112,11 +121,14 @@ apis:
         visibility: One of (public | private)
     implementations: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-implementation
       - ref: string
-        service: # oneOf variant
-          id: string required (uuid) # prefer: !ref <gateway-service-ref>
-          control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
-        control_plane: # oneOf variant
-          control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
+        type: string required
+        service_reference:
+          service:
+            id: string required (uuid) # prefer: !ref <gateway-service-ref>
+            control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
+        control_plane_reference:
+          control_plane:
+            control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
     documents: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-document
       - ref: string
         content: string required (markdown) # prefer: !file ./docs/page.md
@@ -309,8 +321,9 @@ control_plane_data_plane_certificates:
 [Example](examples/declarative/event-gateway/event-gateway.yaml)
 
 This section is an overview of the Event Gateway resources supported by
-`kongctl`. Use `kongctl explain event_gateways --output yaml` as the
-authoritative schema for nested Event Gateway resources and fields.
+`kongctl`. Use `kongctl explain event_gateway --output yaml` as the
+authoritative schema for nested Event Gateway resources and fields, and use
+`kongctl scaffold event_gateway` to generate starter YAML.
 
 ```yaml
 event_gateways:
