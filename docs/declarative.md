@@ -7,6 +7,7 @@ For supported resource types and field-level resource definitions see the [Decla
 ## Table of Contents
 
 - [Overview](#overview)
+- [AI-Assisted Declarative Setup](#ai-assisted-declarative-setup)
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
 - [Resource Types](#supported-resource-types)
@@ -37,6 +38,31 @@ simple YAML declaration files and a simple state free CLI tool.
 1. **Namespace Resource Isolation**: Namespaces provide a way to isolate resources however the user desires (teams, environments, etc...). 
    Each resource under management is assigned to one namespace, and resources in other namespaces are *not considered* when calculating plans or 
    applying changes. A `default` namespace is used if none is specified in input configurations.
+
+## AI-Assisted Declarative Setup
+
+`kongctl` includes a `kongctl-declarative` skill for AI coding agents. The
+skill helps an agent discover resource schemas with `kongctl explain`, generate
+starter YAML with `kongctl scaffold`, bootstrap declarative files, integrate
+decK through `_deck`, generate API configuration from OpenAPI documents, and
+work through plan, diff, apply, sync, delete, and adopt workflows.
+
+Install the bundled skills from the root of the repository where your agent
+will work:
+
+```shell
+kongctl install skills
+```
+
+Preview the files and symlinks before writing them:
+
+```shell
+kongctl install skills --dry-run
+```
+
+Agent-generated configuration should still be reviewed before it changes
+Konnect. Use `kongctl diff --mode apply` or `kongctl plan` to preview proposed
+changes before running `kongctl apply` or `kongctl sync`.
 
 ## Quick Start
 

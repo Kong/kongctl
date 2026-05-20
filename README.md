@@ -23,6 +23,7 @@ The CLI ships with:
   - [3. Test the Authentication](#3-test-the-authentication)
   - [4. Switch Region](#4-switch-konnect-regions)
   - [5. Next Steps](#5-next-steps)
+- [AI Agent Skills](#ai-agent-skills)
 - [Telemetry](#telemetry)
 - [Documentation Listing](#documentation-listing)
 - [Configuration and Profiles](#configuration-and-profiles)
@@ -114,6 +115,35 @@ for details on managing `kongctl` configuration.*
 
 **→ [Read the Declarative Configuration Guide](docs/declarative.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
 
+## AI Agent Skills
+
+`kongctl` ships with skills for AI coding agents that need to work with
+Konnect resources from a repository. Install the bundled skills in the current
+repository with:
+
+```shell
+kongctl install skills
+```
+
+Preview the files and symlinks before writing them:
+
+```shell
+kongctl install skills --dry-run
+```
+
+The installer writes skill files under `.kongctl/skills/` and creates symlinks
+for supported agent tooling under `.agents/skills/` and `.claude/skills/`.
+Bundled skills include:
+
+- `kongctl-declarative`: Set up and maintain declarative configuration, use
+  `kongctl explain` and `kongctl scaffold`, generate resource YAML, integrate
+  decK through `_deck`, and work through plan, diff, apply, sync, delete, and
+  adopt workflows.
+- `kongctl-extension-builder`: Create, validate, and test local `kongctl`
+  CLI extensions.
+
+See [skills/README.md](skills/README.md) for the full skills overview.
+
 ## Telemetry
 
 `kongctl` collects limited usage data to help Kong understand CLI usage.
@@ -170,7 +200,11 @@ backend.
 
 ## Documentation Listing
 
-- **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide covering quick start, concepts, YAML tags, CI/CD integration, and best practices
+- **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide
+  covering quick start, concepts, YAML tags, CI/CD integration, and best
+  practices
+- **[AI Agent Skills](skills/README.md)** - Agent skills for declarative
+  configuration and extension development
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
 - **[Examples](docs/examples/)** - Sample configurations and use cases
 
