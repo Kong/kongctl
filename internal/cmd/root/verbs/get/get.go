@@ -10,6 +10,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -38,8 +39,12 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		%[1]s get portals
 		# Retrieve Konnect APIs
 		%[1]s get apis
+		# Retrieve Konnect Analytics dashboards
+		%[1]s get analytics dashboards
 		# Retrieve Konnect auth strategies
 		%[1]s get auth-strategies
+		# Retrieve Konnect DCR providers
+		%[1]s get dcr-providers
 		# Retrieve Konnect control planes (Konnect-first)
 		%[1]s get gateway control-planes
 		# Retrieve Konnect control planes (explicit)
@@ -95,8 +100,9 @@ Setting this value overrides tokens obtained from the login command.
 		if _, err := helper.GetOutputFormat(); err != nil {
 			return err
 		}
-		return c.Help()
+		return cmdpkg.RequireSubcommand(c, args)
 	}
+	cmdpkg.MarkRequiresSubcommand(cmd)
 
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
@@ -105,6 +111,7 @@ Setting this value overrides tokens obtained from the login command.
 	cmd.AddCommand(c)
 
 	cmd.AddCommand(profileCmd.NewProfileCmd())
+	cmd.AddCommand(extensioncmd.NewGetExtensionCmd())
 
 	// Add portal command directly for Konnect-first pattern
 	portalCmd, err := NewDirectPortalCmd()
@@ -120,12 +127,25 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(apiCmd)
 
+	analyticsCmd, err := NewDirectAnalyticsCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(analyticsCmd)
+
 	// Add auth strategy command directly for Konnect-first pattern
 	authStrategyCmd, err := NewDirectAuthStrategyCmd()
 	if err != nil {
 		return nil, err
 	}
 	cmd.AddCommand(authStrategyCmd)
+
+	// Add DCR provider command directly for Konnect-first pattern
+	dcrProviderCmd, err := NewDirectDCRProviderCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(dcrProviderCmd)
 
 	// Add catalog command directly for Konnect-first pattern
 	catalogCmd, err := NewDirectCatalogCmd()

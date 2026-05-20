@@ -23,14 +23,18 @@ type PortalResource struct {
 	kkComps.CreatePortal `yaml:",inline" json:",inline"`
 
 	// Child resources that match API endpoints
-	Customization  *PortalCustomizationResource           `yaml:"customization,omitempty"   json:"customization,omitempty"`
-	AuthSettings   *PortalAuthSettingsResource            `yaml:"auth_settings,omitempty"   json:"auth_settings,omitempty"`
-	CustomDomain   *PortalCustomDomainResource            `yaml:"custom_domain,omitempty"   json:"custom_domain,omitempty"`
-	Pages          []PortalPageResource                   `yaml:"pages,omitempty"           json:"pages,omitempty"`
-	Snippets       []PortalSnippetResource                `yaml:"snippets,omitempty"        json:"snippets,omitempty"`
-	Teams          []PortalTeamResource                   `yaml:"teams,omitempty"           json:"teams,omitempty"`
-	EmailConfig    *PortalEmailConfigResource             `yaml:"email_config,omitempty"    json:"email_config,omitempty"`
-	EmailTemplates map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty" json:"email_templates,omitempty"` //nolint:lll
+	Customization     *PortalCustomizationResource           `yaml:"customization,omitempty"      json:"customization,omitempty"`      //nolint:lll
+	AuthSettings      *PortalAuthSettingsResource            `yaml:"auth_settings,omitempty"      json:"auth_settings,omitempty"`      //nolint:lll
+	IPAllowList       *PortalIPAllowListResource             `yaml:"ip_allow_list,omitempty"      json:"ip_allow_list,omitempty"`      //nolint:lll
+	Integrations      *PortalIntegrationResource             `yaml:"integrations,omitempty"       json:"integrations,omitempty"`       //nolint:lll
+	IdentityProviders []PortalIdentityProviderResource       `yaml:"identity_providers,omitempty" json:"identity_providers,omitempty"` //nolint:lll
+	CustomDomain      *PortalCustomDomainResource            `yaml:"custom_domain,omitempty"      json:"custom_domain,omitempty"`      //nolint:lll
+	Pages             []PortalPageResource                   `yaml:"pages,omitempty"              json:"pages,omitempty"`
+	Snippets          []PortalSnippetResource                `yaml:"snippets,omitempty"           json:"snippets,omitempty"` //nolint:lll
+	Teams             []PortalTeamResource                   `yaml:"teams,omitempty"              json:"teams,omitempty"`
+	EmailConfig       *PortalEmailConfigResource             `yaml:"email_config,omitempty"       json:"email_config,omitempty"`     //nolint:lll
+	EmailTemplates    map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty"    json:"email_templates,omitempty"`  //nolint:lll
+	AuditLogWebhook   *PortalAuditLogWebhookResource         `yaml:"audit_log_webhook,omitempty" json:"audit_log_webhook,omitempty"` //nolint:lll
 
 	// Assets object containing logo and favicon (data URLs from !file tag)
 	Assets *PortalAssetsResource `yaml:"assets,omitempty" json:"assets,omitempty"`
@@ -56,7 +60,7 @@ func (p PortalResource) GetDependencies() []ResourceRef {
 	// Portal may depend on an auth strategy
 	if p.DefaultApplicationAuthStrategyID != nil && *p.DefaultApplicationAuthStrategyID != "" {
 		deps = append(deps, ResourceRef{
-			Kind: "application_auth_strategy",
+			Kind: ResourceTypeApplicationAuthStrategy,
 			Ref:  *p.DefaultApplicationAuthStrategyID,
 		})
 	}
@@ -119,6 +123,27 @@ func (p PortalResource) Validate() error {
 			return fmt.Errorf("invalid portal auth settings: %w", err)
 		}
 	}
+	if p.IPAllowList != nil {
+		if err := p.IPAllowList.Validate(); err != nil {
+			return fmt.Errorf("invalid portal IP allow list: %w", err)
+		}
+	}
+	if p.Integrations != nil {
+		if err := p.Integrations.Validate(); err != nil {
+			return fmt.Errorf("invalid portal integrations: %w", err)
+		}
+	}
+
+	providerRefs := make(map[string]bool)
+	for i, provider := range p.IdentityProviders {
+		if err := provider.Validate(); err != nil {
+			return fmt.Errorf("invalid identity provider %d: %w", i, err)
+		}
+		if providerRefs[provider.GetRef()] {
+			return fmt.Errorf("duplicate identity provider ref: %s", provider.GetRef())
+		}
+		providerRefs[provider.GetRef()] = true
+	}
 
 	if p.CustomDomain != nil {
 		if err := p.CustomDomain.Validate(); err != nil {
@@ -168,6 +193,12 @@ func (p PortalResource) Validate() error {
 		}
 	}
 
+	if p.AuditLogWebhook != nil {
+		if err := p.AuditLogWebhook.Validate(); err != nil {
+			return fmt.Errorf("invalid audit log webhook: %w", err)
+		}
+	}
+
 	for key, tpl := range p.EmailTemplates {
 		if tpl.Name == "" {
 			tpl.Name = kkComps.EmailTemplateName(key)
@@ -207,6 +238,18 @@ func (p *PortalResource) SetDefaults() {
 		p.AuthSettings.SetDefaults()
 	}
 
+	if p.IPAllowList != nil {
+		p.IPAllowList.SetDefaults()
+	}
+
+	if p.Integrations != nil {
+		p.Integrations.SetDefaults()
+	}
+
+	for i := range p.IdentityProviders {
+		p.IdentityProviders[i].SetDefaults()
+	}
+
 	if p.CustomDomain != nil {
 		p.CustomDomain.SetDefaults()
 	}
@@ -224,6 +267,10 @@ func (p *PortalResource) SetDefaults() {
 	// Apply defaults to email config
 	if p.EmailConfig != nil {
 		p.EmailConfig.SetDefaults()
+	}
+
+	if p.AuditLogWebhook != nil {
+		p.AuditLogWebhook.SetDefaults()
 	}
 
 	// Apply defaults to teams
@@ -288,12 +335,16 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"kongctl",
 		"customization",
 		"auth_settings",
+		"ip_allow_list",
+		"integrations",
+		"identity_providers",
 		"custom_domain",
 		"pages",
 		"snippets",
 		"teams",
 		"email_config",
 		"email_templates",
+		"audit_log_webhook",
 		"assets",
 		"_external",
 	}
@@ -337,11 +388,35 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		delete(raw, "auth_settings")
 	}
 
-	if v, ok := raw["custom_domain"]; ok {
-		if err := json.Unmarshal(v, &p.CustomDomain); err != nil {
+	if v, ok := raw["ip_allow_list"]; ok {
+		if err := json.Unmarshal(v, &p.IPAllowList); err != nil {
 			return err
 		}
-		delete(raw, "custom_domain")
+		delete(raw, "ip_allow_list")
+	}
+
+	if v, ok := raw["integrations"]; ok {
+		if err := json.Unmarshal(v, &p.Integrations); err != nil {
+			return err
+		}
+		delete(raw, "integrations")
+	}
+
+	if v, ok := raw["identity_providers"]; ok {
+		if err := json.Unmarshal(v, &p.IdentityProviders); err != nil {
+			return err
+		}
+		delete(raw, "identity_providers")
+	}
+
+	if v, ok := raw["custom_domain"]; ok {
+		if isEmptyJSONObject(v) {
+			delete(raw, "custom_domain")
+		} else if err := json.Unmarshal(v, &p.CustomDomain); err != nil {
+			return err
+		} else {
+			delete(raw, "custom_domain")
+		}
 	}
 
 	if v, ok := raw["pages"]; ok {
@@ -366,10 +441,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 	}
 
 	if v, ok := raw["email_config"]; ok {
-		if err := json.Unmarshal(v, &p.EmailConfig); err != nil {
+		if isEmptyJSONObject(v) {
+			delete(raw, "email_config")
+		} else if err := json.Unmarshal(v, &p.EmailConfig); err != nil {
 			return err
+		} else {
+			delete(raw, "email_config")
 		}
-		delete(raw, "email_config")
 	}
 
 	if v, ok := raw["email_templates"]; ok {
@@ -386,6 +464,16 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 			p.EmailTemplates[key] = tpl
 		}
 		delete(raw, "email_templates")
+	}
+
+	if v, ok := raw["audit_log_webhook"]; ok {
+		if isEmptyJSONObject(v) {
+			delete(raw, "audit_log_webhook")
+		} else if err := json.Unmarshal(v, &p.AuditLogWebhook); err != nil {
+			return err
+		} else {
+			delete(raw, "audit_log_webhook")
+		}
 	}
 
 	if v, ok := raw["assets"]; ok {
@@ -427,6 +515,14 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func isEmptyJSONObject(raw json.RawMessage) bool {
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return false
+	}
+	return len(obj) == 0
+}
+
 // MarshalJSON ensures the embedded SDK model and Kongctl fields are preserved when serializing.
 func (p PortalResource) MarshalJSON() ([]byte, error) {
 	alias := p.portalAlias()
@@ -439,19 +535,23 @@ func (p PortalResource) MarshalYAML() (any, error) {
 }
 
 type portalAlias struct {
-	portalCreateAlias `                                       json:",inline"                   yaml:",inline"`
-	Ref               string                                 `json:"ref"                       yaml:"ref"`
-	Kongctl           *KongctlMeta                           `json:"kongctl,omitempty"         yaml:"kongctl,omitempty"`
-	Customization     *PortalCustomizationResource           `json:"customization,omitempty"   yaml:"customization,omitempty"` //nolint:lll
-	AuthSettings      *PortalAuthSettingsResource            `json:"auth_settings,omitempty"   yaml:"auth_settings,omitempty"` //nolint:lll
-	CustomDomain      *PortalCustomDomainResource            `json:"custom_domain,omitempty"   yaml:"custom_domain,omitempty"` //nolint:lll
-	Pages             []PortalPageResource                   `json:"pages,omitempty"           yaml:"pages,omitempty"`
-	Snippets          []PortalSnippetResource                `json:"snippets,omitempty"        yaml:"snippets,omitempty"`
-	Teams             []PortalTeamResource                   `json:"teams,omitempty"           yaml:"teams,omitempty"`
-	EmailConfig       *PortalEmailConfigResource             `json:"email_config,omitempty"    yaml:"email_config,omitempty"`    //nolint:lll
-	EmailTemplates    map[string]PortalEmailTemplateResource `json:"email_templates,omitempty" yaml:"email_templates,omitempty"` //nolint:lll
-	Assets            *PortalAssetsResource                  `json:"assets,omitempty"          yaml:"assets,omitempty"`
-	External          *ExternalBlock                         `json:"_external,omitempty"       yaml:"_external,omitempty"`
+	portalCreateAlias `                                       json:",inline"                      yaml:",inline"`
+	Ref               string                                 `json:"ref"                          yaml:"ref"`
+	Kongctl           *KongctlMeta                           `json:"kongctl,omitempty"            yaml:"kongctl,omitempty"`
+	Customization     *PortalCustomizationResource           `json:"customization,omitempty"      yaml:"customization,omitempty"`      //nolint:lll
+	AuthSettings      *PortalAuthSettingsResource            `json:"auth_settings,omitempty"      yaml:"auth_settings,omitempty"`      //nolint:lll
+	IPAllowList       *PortalIPAllowListResource             `json:"ip_allow_list,omitempty"      yaml:"ip_allow_list,omitempty"`      //nolint:lll
+	Integrations      *PortalIntegrationResource             `json:"integrations,omitempty"       yaml:"integrations,omitempty"`       //nolint:lll
+	IdentityProviders []PortalIdentityProviderResource       `json:"identity_providers,omitempty" yaml:"identity_providers,omitempty"` //nolint:lll
+	CustomDomain      *PortalCustomDomainResource            `json:"custom_domain,omitempty"      yaml:"custom_domain,omitempty"`      //nolint:lll
+	Pages             []PortalPageResource                   `json:"pages,omitempty"              yaml:"pages,omitempty"`
+	Snippets          []PortalSnippetResource                `json:"snippets,omitempty"           yaml:"snippets,omitempty"` //nolint:lll
+	Teams             []PortalTeamResource                   `json:"teams,omitempty"              yaml:"teams,omitempty"`
+	EmailConfig       *PortalEmailConfigResource             `json:"email_config,omitempty"       yaml:"email_config,omitempty"`      //nolint:lll
+	EmailTemplates    map[string]PortalEmailTemplateResource `json:"email_templates,omitempty"    yaml:"email_templates,omitempty"`   //nolint:lll
+	AuditLogWebhook   *PortalAuditLogWebhookResource         `json:"audit_log_webhook,omitempty"  yaml:"audit_log_webhook,omitempty"` //nolint:lll
+	Assets            *PortalAssetsResource                  `json:"assets,omitempty"             yaml:"assets,omitempty"`
+	External          *ExternalBlock                         `json:"_external,omitempty"          yaml:"_external,omitempty"` //nolint:lll
 }
 
 type portalCreateAlias kkComps.CreatePortal
@@ -463,12 +563,16 @@ func (p PortalResource) portalAlias() portalAlias {
 		Kongctl:           p.Kongctl,
 		Customization:     p.Customization,
 		AuthSettings:      p.AuthSettings,
+		IPAllowList:       p.IPAllowList,
+		Integrations:      p.Integrations,
+		IdentityProviders: p.IdentityProviders,
 		CustomDomain:      p.CustomDomain,
 		Pages:             p.Pages,
 		Snippets:          p.Snippets,
 		Teams:             p.Teams,
 		EmailConfig:       p.EmailConfig,
 		EmailTemplates:    p.EmailTemplates,
+		AuditLogWebhook:   p.AuditLogWebhook,
 		Assets:            p.Assets,
 		External:          p.External,
 	}

@@ -14,7 +14,7 @@ apis:
       - ref: sms-v1
         version: !file apis/sms/openapi.yaml#info.version
         spec: !file apis/sms/openapi.yaml
-      - ref: sms-v2
+      - ref: sms-v3
         version: !file apis/sms/openapi-v3.yaml#info.version
         spec: !file apis/sms/openapi-v3.yaml
        

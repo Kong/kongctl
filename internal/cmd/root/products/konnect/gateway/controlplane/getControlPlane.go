@@ -2,7 +2,8 @@ package controlplane
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,6 +40,8 @@ var (
 	%[1]s get konnect gateway control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac
 	# Get details for a control plane with a specific name
 	%[1]s get konnect gateway control-plane my-control-plane 
+	# List data plane certificates for a specific control plane
+	%[1]s get konnect gateway control-plane data-plane-certificates --control-plane-name my-control-plane
 	# Get all the control planes for the authorized user using command aliases
 	%[1]s get k gw cps
 	`, meta.CLIName)))
@@ -78,20 +81,13 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 	}
 
 	description := missing
-	if c.Description != nil {
-		description = *c.Description
+	if d := strings.TrimSpace(c.Description); d != "" {
+		description = d
 	}
 
 	labels := missing
 	if len(c.Labels) > 0 {
-		// 1) pull out the keys…
-		keys := make([]string, 0, len(c.Labels))
-		for k := range c.Labels {
-			keys = append(keys, k)
-		}
-		// 2) sort them lexicographically
-		sort.Strings(keys)
-		// 3) build your pairs in that order
+		keys := slices.Sorted(maps.Keys(c.Labels))
 		labelPairs := make([]string, 0, len(c.Labels))
 		for _, k := range keys {
 			labelPairs = append(labelPairs, fmt.Sprintf("%s: %s", k, c.Labels[k]))
@@ -139,8 +135,8 @@ func controlPlaneDetailView(cp *kkComps.ControlPlane) string {
 	}
 
 	description := missing
-	if cp.Description != nil && strings.TrimSpace(*cp.Description) != "" {
-		description = strings.TrimSpace(*cp.Description)
+	if d := strings.TrimSpace(cp.Description); d != "" {
+		description = d
 	}
 
 	labelsValue := missing
@@ -149,13 +145,13 @@ func controlPlaneDetailView(cp *kkComps.ControlPlane) string {
 		for k, v := range cp.Labels {
 			pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
 		}
-		sort.Strings(pairs)
+		slices.Sort(pairs)
 		labelsValue = strings.Join(pairs, ", ")
 	}
 
 	endpoint := missing
-	if strings.TrimSpace(cp.Config.ControlPlaneEndpoint) != "" {
-		endpoint = strings.TrimSpace(cp.Config.ControlPlaneEndpoint)
+	if v := strings.TrimSpace(cp.Config.ControlPlaneEndpoint); v != "" {
+		endpoint = v
 	}
 
 	created := cp.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
@@ -302,11 +298,14 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
-	if err != nil {
-		return err
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.HELM {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
-	defer printer.Flush()
 
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -339,6 +338,14 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		if err != nil {
 			return err
 		}
+		if outType == cmdCommon.HELM {
+			rendered, err := renderHelmValues(cp)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprint(helper.GetStreams().Out, rendered)
+			return err
+		}
 		return tableview.RenderForFormat(helper,
 			false,
 			outType,
@@ -348,11 +355,17 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 			cp,
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
-			tableview.WithDetailContext("control-plane", func(int) any {
+			tableview.WithDetailContext(common.ViewParentControlPlane, func(int) any {
 				return cp
 			}),
 			tableview.WithDetailHelper(helper),
 		)
+	}
+
+	if outType == cmdCommon.HELM {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("--output helm requires a control plane name or id"),
+		}
 	}
 
 	// list all control planes
@@ -420,7 +433,7 @@ func buildControlPlaneChildView(cps []kkComps.ControlPlane) tableview.ChildView 
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Control Planes",
-		ParentType:     "control-plane",
+		ParentType:     common.ViewParentControlPlane,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(cps) {
 				return nil
@@ -450,6 +463,8 @@ func newGetControlPlaneCmd(verb verbs.VerbValue,
 	if addParentFlags != nil {
 		addParentFlags(verb, rv.Command)
 	}
+
+	cmdCommon.AllowExtraOutputFormats(rv.Command, "helm")
 
 	return &rv
 }

@@ -244,7 +244,7 @@ func runListByName(name string, strategyType string, kkClient helpers.AppAuthStr
 
 		// Apply type filter if specified
 		if strategyType != "" {
-			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{
+			req.Filter = &kkOps.QueryParamFilter{
 				StrategyType: &kkComps.StringFieldFilter{
 					Eq: new(strategyType),
 				},
@@ -294,7 +294,7 @@ func runList(strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper 
 
 		// Apply type filter if specified
 		if strategyType != "" {
-			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{
+			req.Filter = &kkOps.QueryParamFilter{
 				StrategyType: &kkComps.StringFieldFilter{
 					Eq: new(strategyType),
 				},
@@ -584,7 +584,7 @@ func buildAuthStrategyChildView(strategies []kkComps.AppAuthStrategy) tableview.
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Application Auth Strategies",
-		ParentType:     "auth-strategy",
+		ParentType:     common.ViewParentAuthStrategy,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(strategies) {
 				return nil

@@ -427,6 +427,77 @@ steps:
               fields:
                 total_changes: 0
 
+  - name: 005b-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-portal-teams
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=portals,apis"
+          - --include-child-resources
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          # Portal is present in the dump
+          - select: "portals[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+          # Backend Team is present with updated description
+          - select: >-
+              portals[?name=='{{ .vars.portalName }}'] | [0].teams[?name=='Backend Team'] | [0]
+            expect:
+              fields:
+                name: "Backend Team"
+                description: "Updated: Backend API developers"
+          # Frontend Team is present
+          - select: >-
+              portals[?name=='{{ .vars.portalName }}'] | [0].teams[?name=='Frontend Team'] | [0]
+            expect:
+              fields:
+                name: "Frontend Team"
+          # QA Team is present
+          - select: >-
+              portals[?name=='{{ .vars.portalName }}'] | [0].teams[?name=='QA Team'] | [0]
+            expect:
+              fields:
+                name: "QA Team"
+          # Backend Team has API Viewer role assignment
+          - select: >-
+              portals[?name=='{{ .vars.portalName }}'] | [0].teams[?name=='Backend Team'] | [0].roles[?role_name=='API Viewer'] | [0]
+            expect:
+              fields:
+                role_name: "API Viewer"
+                entity_type_name: "Services"
+                entity_region: "us"
+          # API is present in the dump
+          - select: "apis[?name=='roles-api'] | [0]"
+            expect:
+              fields:
+                name: "roles-api"
+
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 006-team-role-removal-sync
     inputOverlayDirs:
       - overlays/006-remove-team-role

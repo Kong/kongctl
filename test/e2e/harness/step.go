@@ -116,7 +116,7 @@ func (s *Step) AppendCheck(format string, args ...any) {
 	if s == nil || s.ChecksPath == "" {
 		return
 	}
-	msg := fmt.Sprintf(format, args...)
+	msg := sanitizeCheckMessage(fmt.Sprintf(format, args...))
 	f, err := os.OpenFile(s.ChecksPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return
@@ -151,6 +151,10 @@ func (s *Step) writePrettyJSON(path string, v any) error {
 		return err
 	}
 	return os.WriteFile(path, b, 0o644)
+}
+
+func (s *Step) writePrettyRedactedJSON(path string, v any) error {
+	return s.writePrettyJSON(path, redactSensitiveJSON(v))
 }
 
 // WriteApplyObservation records an apply summary as observation.json in the last command directory.
@@ -300,6 +304,11 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"auth-strategy": {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
 	"auth_strategy": {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
 	"authstrategy":  {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
+	"dcr-provider":  {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"dcr_provider":  {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"dcrprovider":   {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"dashboard":     {Method: http.MethodPost, Path: "/v2/dashboards"},
+	"dashboards":    {Method: http.MethodPost, Path: "/v2/dashboards"},
 	"control-plane": {Method: http.MethodPost, Path: "/v2/control-planes"},
 	"control_plane": {Method: http.MethodPost, Path: "/v2/control-planes"},
 	"controlplane":  {Method: http.MethodPost, Path: "/v2/control-planes"},
@@ -333,15 +342,48 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 		Path:      "/v3/portals/{portalId}/teams/{teamId}/developers",
 		ParamKeys: []string{"portalId", "teamId"},
 	},
-	"system-account":     {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
-	"system_account":     {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
-	"systemaccount":      {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"system-account": {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"system_account": {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"systemaccount":  {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"system-account-access-token": {
+		Method:    http.MethodPost,
+		Path:      "/v3/system-accounts/{systemAccountId}/access-tokens",
+		ParamKeys: []string{"systemAccountId"},
+		UseGlobal: true,
+	},
+	"system_account_access_token": {
+		Method:    http.MethodPost,
+		Path:      "/v3/system-accounts/{systemAccountId}/access-tokens",
+		ParamKeys: []string{"systemAccountId"},
+		UseGlobal: true,
+	},
+	"systemaccountaccesstoken": {
+		Method:    http.MethodPost,
+		Path:      "/v3/system-accounts/{systemAccountId}/access-tokens",
+		ParamKeys: []string{"systemAccountId"},
+		UseGlobal: true,
+	},
 	"organization_teams": {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
 	"organization_team":  {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
 	"team":               {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
 	"event-gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
 	"event_gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
 	"eventgateway":       {Method: http.MethodPost, Path: "/v1/event-gateways"},
+	"audit-log-destination": {
+		Method:    http.MethodPost,
+		Path:      "/v3/audit-log-destinations",
+		UseGlobal: true,
+	},
+	"audit_log_destination": {
+		Method:    http.MethodPost,
+		Path:      "/v3/audit-log-destinations",
+		UseGlobal: true,
+	},
+	"auditlogdestination": {
+		Method:    http.MethodPost,
+		Path:      "/v3/audit-log-destinations",
+		UseGlobal: true,
+	},
 }
 
 var deleteResourceEndpoints = map[string]resourceEndpoint{
@@ -374,6 +416,21 @@ var deleteResourceEndpoints = map[string]resourceEndpoint{
 		Method:    http.MethodDelete,
 		Path:      "/v3/portals/{portalId}/applications/{applicationId}",
 		ParamKeys: []string{"portalId", "applicationId"},
+	},
+	"audit-log-destination": {
+		Method:    http.MethodDelete,
+		Path:      "/v2/audit-log-destinations/{destinationId}",
+		ParamKeys: []string{"destinationId"},
+	},
+	"audit_log_destination": {
+		Method:    http.MethodDelete,
+		Path:      "/v2/audit-log-destinations/{destinationId}",
+		ParamKeys: []string{"destinationId"},
+	},
+	"auditlogdestination": {
+		Method:    http.MethodDelete,
+		Path:      "/v2/audit-log-destinations/{destinationId}",
+		ParamKeys: []string{"destinationId"},
 	},
 }
 
@@ -574,12 +631,12 @@ func (s *Step) requestResource(
 		if len(body) > 0 {
 			var reqObj any
 			if err := json.Unmarshal(body, &reqObj); err == nil {
-				_ = s.writePrettyJSON(filepath.Join(dir, "request.json"), reqObj)
+				_ = s.writePrettyRedactedJSON(filepath.Join(dir, "request.json"), reqObj)
 			} else {
 				_ = os.WriteFile(filepath.Join(dir, "request.json"), body, 0o644)
 			}
 		}
-		_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), bodyBytes, 0o644)
+		_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), redactSensitiveJSONBytes(bodyBytes), 0o644)
 		_ = os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte{}, 0o644)
 		envMap := snapshotEnv(os.Environ())
 		if b, err := json.MarshalIndent(envMap, "", "  "); err == nil {
@@ -597,16 +654,16 @@ func (s *Step) requestResource(
 			_ = os.WriteFile(filepath.Join(dir, "meta.json"), b, 0o644)
 		}
 		if result.Parsed != nil {
-			_ = s.writePrettyJSON(filepath.Join(dir, "response.json"), result.Parsed)
+			_ = s.writePrettyRedactedJSON(filepath.Join(dir, "response.json"), result.Parsed)
 		} else if len(bodyBytes) > 0 {
-			_ = os.WriteFile(filepath.Join(dir, "response.json"), bodyBytes, 0o644)
+			_ = os.WriteFile(filepath.Join(dir, "response.json"), redactSensitiveJSONBytes(bodyBytes), 0o644)
 		}
 		obs := map[string]any{
 			"type":   "http_observation",
 			"status": resp.StatusCode,
 			"data":   result.Parsed,
 		}
-		_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
+		_ = s.writePrettyRedactedJSON(filepath.Join(dir, "observation.json"), obs)
 		// ensure LastCommandDir reflects this synthetic command
 		s.cli.LastCommandDir = dir
 	}
@@ -736,9 +793,7 @@ func snapshotEnv(environ []string) map[string]string {
 		if i := strings.IndexByte(kv, '='); i > 0 {
 			k := kv[:i]
 			v := kv[i+1:]
-			ku := strings.ToUpper(k)
-			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
-				strings.Contains(ku, "SECRET") {
+			if isSensitiveName(k) {
 				if v != "" {
 					v = "***"
 				}
@@ -747,6 +802,70 @@ func snapshotEnv(environ []string) map[string]string {
 		}
 	}
 	return envMap
+}
+
+func sanitizeCheckMessage(msg string) string {
+	fields := strings.Fields(msg)
+	for i, field := range fields {
+		key, value, ok := strings.Cut(field, "=")
+		if !ok || value == "" || !isSensitiveName(strings.TrimPrefix(key, "SET VAR: ")) {
+			continue
+		}
+		fields[i] = key + "=***"
+	}
+	if len(fields) == 0 {
+		return msg
+	}
+	return strings.Join(fields, " ")
+}
+
+func redactSensitiveJSONBytes(data []byte) []byte {
+	if len(data) == 0 {
+		return data
+	}
+	var parsed any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return data
+	}
+	redacted := redactSensitiveJSON(parsed)
+	out, err := json.MarshalIndent(redacted, "", "  ")
+	if err != nil {
+		return data
+	}
+	out = append(out, '\n')
+	return out
+}
+
+func redactSensitiveJSON(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, child := range v {
+			if isSensitiveName(key) && child != nil {
+				out[key] = "***"
+				continue
+			}
+			out[key] = redactSensitiveJSON(child)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i := range v {
+			out[i] = redactSensitiveJSON(v[i])
+		}
+		return out
+	default:
+		return value
+	}
+}
+
+func isSensitiveName(name string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(name))
+	return strings.Contains(upper, "TOKEN") ||
+		strings.Contains(upper, "PAT") ||
+		strings.Contains(upper, "PASSWORD") ||
+		strings.Contains(upper, "SECRET") ||
+		strings.Contains(upper, "EMAIL")
 }
 
 // ResetOrg runs the destructive reset using the default base URL or env overrides.

@@ -2,7 +2,6 @@ package eventgateway
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -107,6 +107,15 @@ func newGetEventGatewayVirtualClustersCmd(
 	clusterPoliciesCmd := newGetEventGatewayClusterPoliciesCmd(verb, addParentFlags, parentPreRun)
 	if clusterPoliciesCmd != nil {
 		cmd.AddCommand(clusterPoliciesCmd)
+	}
+
+	producePoliciesCmd := newGetEventGatewayProducePoliciesCmd(verb, addParentFlags, parentPreRun)
+	if producePoliciesCmd != nil {
+		cmd.AddCommand(producePoliciesCmd)
+	}
+	consumePoliciesCmd := newGetEventGatewayConsumePoliciesCmd(verb, addParentFlags, parentPreRun)
+	if consumePoliciesCmd != nil {
+		cmd.AddCommand(consumePoliciesCmd)
 	}
 
 	return cmd
@@ -383,10 +392,7 @@ func fetchVirtualClusters(
 	gatewayID string,
 	cfg config.Hook,
 ) ([]kkComps.VirtualCluster, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
-	}
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allData []kkComps.VirtualCluster
 	var pageAfter *string
@@ -414,21 +420,11 @@ func fetchVirtualClusters(
 		data := res.GetListVirtualClustersResponse().Data
 		allData = append(allData, data...)
 
-		if res.GetListVirtualClustersResponse().Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.GetListVirtualClustersResponse().Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.GetListVirtualClustersResponse().Meta.Page.Next)
-		if err != nil {
-			return nil, cmd.PrepareExecutionError(
-				"Failed to list virtual clusters: invalid cursor",
-				err,
-				helper.GetCmd(),
-			)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	return allData, nil
@@ -438,12 +434,10 @@ func findVirtualClusterByName(clusters []kkComps.VirtualCluster, identifier stri
 	lowered := strings.ToLower(identifier)
 	for _, cluster := range clusters {
 		if cluster.ID != "" && strings.ToLower(cluster.ID) == lowered {
-			clusterCopy := cluster
-			return &clusterCopy
+			return &cluster
 		}
 		if cluster.Name != "" && strings.ToLower(cluster.Name) == lowered {
-			clusterCopy := cluster
-			return &clusterCopy
+			return &cluster
 		}
 	}
 	return nil
@@ -512,7 +506,7 @@ func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster, gatewayID s
 		Rows:           rows,
 		DetailRenderer: detailFn,
 		Title:          "Virtual Clusters",
-		ParentType:     "virtual-cluster",
+		ParentType:     common.ViewParentVirtualCluster,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(clusters) {
 				return nil

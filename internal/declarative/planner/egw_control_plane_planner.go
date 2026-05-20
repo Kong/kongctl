@@ -24,7 +24,7 @@ func NewEGWControlPlanePlanner(planner *BasePlanner, resources *resources.Resour
 }
 
 func (p *EGWControlPlanePlannerImpl) PlannerComponent() string {
-	return string(resources.ResourceTypeEventGatewayControlPlane)
+	return ResourceTypeEventGatewayControlPlane
 }
 
 func (p *EGWControlPlanePlannerImpl) GetDesiredEGWControlPlanes(
@@ -93,7 +93,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
 			if err := p.validateProtection(
-				"event-gateway-control-plane", desiredEGWCP.Name, isProtected, ActionDelete,
+				ResourceTypeEventGatewayControlPlane, desiredEGWCP.Name, isProtected, ActionDelete,
 			); err != nil {
 				protectionErrors = append(protectionErrors, err)
 			} else {
@@ -146,7 +146,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 
 				// Validate protection change
 				err := p.validateProtectionWithChange(
-					string(resources.ResourceTypeEventGatewayControlPlane),
+					ResourceTypeEventGatewayControlPlane,
 					desiredEGWCP.Name,
 					isProtected,
 					ActionUpdate,
@@ -172,7 +172,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 				if needsUpdate {
 					// Regular update - check protection
 					if err := p.validateProtection(
-						"event-gateway-control-plane", desiredEGWCP.Name, isProtected, ActionUpdate,
+						ResourceTypeEventGatewayControlPlane, desiredEGWCP.Name, isProtected, ActionUpdate,
 					); err != nil {
 						protectionErrors = append(protectionErrors, err)
 					} else {
@@ -189,7 +189,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 			gatewayID = current.ID
 		}
 
-		if len(backendClusters) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayBackendCluster,
+		) && (len(backendClusters) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayBackendClusterChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, backendClusters, plan,
@@ -201,7 +206,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Plan virtual clusters for this gateway (whether it exists or is being created)
 		virtualClusters := p.resources.GetVirtualClustersForGateway(desiredEGWCP.Ref)
 
-		if len(virtualClusters) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayVirtualCluster,
+		) && (len(virtualClusters) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayVirtualClusterChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, virtualClusters, plan,
@@ -213,7 +223,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Plan listeners for this gateway (whether it exists or is being created)
 		listeners := p.resources.GetListenersForEventGateway(desiredEGWCP.Ref)
 
-		if len(listeners) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayListener,
+		) && (len(listeners) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayListenerChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, listeners, plan,
@@ -225,10 +240,66 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Plan data plane certificates for this gateway (whether it exists or is being created)
 		dataPlaneCerts := p.resources.GetDataPlaneCertificatesForGateway(desiredEGWCP.Ref)
 
-		if len(dataPlaneCerts) > 0 || plan.Metadata.Mode == PlanModeSync {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayDataPlaneCertificate,
+		) && (len(dataPlaneCerts) > 0 || plan.Metadata.Mode == PlanModeSync) {
 			if err := p.planEventGatewayDataPlaneCertificateChanges(
 				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
 				gatewayChangeID, dataPlaneCerts, plan,
+			); err != nil {
+				return err
+			}
+		}
+
+		// Plan schema registries for this gateway (whether it exists or is being created)
+		schemaRegistries := p.resources.GetSchemaRegistriesForGateway(desiredEGWCP.Ref)
+
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewaySchemaRegistry,
+		) && (len(schemaRegistries) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planEventGatewaySchemaRegistryChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, schemaRegistries, plan,
+			); err != nil {
+				return err
+			}
+		}
+
+		// Plan static keys for this gateway (whether it exists or is being created)
+		staticKeys := p.resources.GetStaticKeysForGateway(desiredEGWCP.Ref)
+
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayStaticKey,
+		) && (len(staticKeys) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planEventGatewayStaticKeyChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, staticKeys, plan,
+			); err != nil {
+				return err
+			}
+		}
+
+		// Plan TLS trust bundles for this gateway (whether it exists or is being created)
+		trustBundles := p.resources.GetTrustBundlesForGateway(desiredEGWCP.Ref)
+
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayControlPlane,
+			desiredEGWCP.Ref,
+			resources.ResourceTypeEventGatewayTLSTrustBundle,
+		) && (len(trustBundles) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planEventGatewayTLSTrustBundleChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, trustBundles, plan,
 			); err != nil {
 				return err
 			}
@@ -248,7 +319,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 			if !desiredNames[name] {
 				// Validate protection before adding DELETE
 				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				if err := p.validateProtection("event-gateway-control-plane", name, isProtected, ActionDelete); err != nil {
+				if err := p.validateProtection(ResourceTypeEventGatewayControlPlane, name, isProtected, ActionDelete); err != nil {
 					protectionErrors = append(protectionErrors, err)
 				} else {
 					p.planEGWControlPlaneDelete(current, plan)
@@ -287,7 +358,7 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 
 	// Use generic protection change planner
 	config := ProtectionChangeConfig{
-		ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
+		ResourceType: ResourceTypeEventGatewayControlPlane,
 		ResourceName: desired.Name,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -305,13 +376,13 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 	maps.Copy(fields, updateFields)
 
 	// ALWAYS include essential identification fields for protection changes
-	fields["name"] = current.Name
-	fields["id"] = current.ID
+	fields[FieldName] = current.Name
+	fields[FieldID] = current.ID
 
 	// Preserve namespace context for execution phase
 	if current.Labels != nil {
 		if namespace, exists := current.Labels[labels.NamespaceKey]; exists {
-			fields["namespace"] = namespace
+			fields[FieldNamespace] = namespace
 		}
 	}
 
@@ -325,7 +396,7 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 			}
 		}
 		if len(preservedLabels) > 0 {
-			fields["preserved_labels"] = preservedLabels
+			fields[FieldPreservedLabels] = preservedLabels
 		}
 	}
 
@@ -347,8 +418,8 @@ func (p *Planner) shouldUpdateEGWControlPlaneResource(
 	if desired.Name != current.Name {
 		currentName := current.Name
 		if currentName != desired.Name {
-			updates["name"] = desired.Name
-			changedFields["name"] = FieldChange{
+			updates[FieldName] = desired.Name
+			changedFields[FieldName] = FieldChange{
 				Old: currentName,
 				New: desired.Name,
 			}
@@ -357,8 +428,8 @@ func (p *Planner) shouldUpdateEGWControlPlaneResource(
 
 	if desired.Description != current.Description {
 		if getString(current.Description) != getString(desired.Description) {
-			updates["description"] = getString(desired.Description)
-			changedFields["description"] = FieldChange{
+			updates[FieldDescription] = getString(desired.Description)
+			changedFields[FieldDescription] = FieldChange{
 				Old: getString(current.Description),
 				New: getString(desired.Description),
 			}
@@ -367,8 +438,8 @@ func (p *Planner) shouldUpdateEGWControlPlaneResource(
 
 	if desired.Labels != nil {
 		if labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
-			updates["labels"] = desired.GetLabels()
-			changedFields["labels"] = FieldChange{
+			updates[FieldLabels] = desired.GetLabels()
+			changedFields[FieldLabels] = FieldChange{
 				Old: labels.GetUserLabels(current.NormalizedLabels),
 				New: labels.GetUserLabels(desired.GetLabels()),
 			}
@@ -396,10 +467,10 @@ func (p *Planner) planEGWControlPlaneCreate(
 	}
 
 	config := CreateConfig{
-		ResourceType:   string(egwControlPlane.GetType()),
+		ResourceType:   ResourceTypeEventGatewayControlPlane,
 		ResourceName:   egwControlPlane.Name,
 		ResourceRef:    egwControlPlane.Ref,
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{FieldName},
 		FieldExtractor: func(_ any) map[string]any {
 			return extractEGWControlPlaneFields(egwControlPlane)
 		},
@@ -423,14 +494,14 @@ func extractEGWControlPlaneFields(resource any) map[string]any {
 		return fields
 	}
 
-	fields["name"] = egwControlPlane.Name
+	fields[FieldName] = egwControlPlane.Name
 
 	if egwControlPlane.Description != nil {
-		fields["description"] = *egwControlPlane.Description
+		fields[FieldDescription] = *egwControlPlane.Description
 	}
 
 	if len(egwControlPlane.GetLabels()) > 0 {
-		fields["labels"] = egwControlPlane.GetLabels()
+		fields[FieldLabels] = egwControlPlane.GetLabels()
 	}
 	return fields
 }
@@ -454,18 +525,18 @@ func (p *Planner) planEGWControlPlaneUpdateWithFields(
 	}
 
 	// Always include name for identification
-	updateFields["name"] = current.Name
+	updateFields[FieldName] = current.Name
 
 	updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	config := UpdateConfig{
-		ResourceType:   string(desired.GetType()),
+		ResourceType:   ResourceTypeEventGatewayControlPlane,
 		ResourceName:   desired.Name,
 		ResourceRef:    desired.Ref,
 		ResourceID:     current.ID,
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
 		ChangedFields:  changedFields,
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{FieldName},
 		Namespace:      namespace,
 	}
 
@@ -487,7 +558,7 @@ func (p *Planner) planEGWControlPlaneDelete(egwControlPlane state.EventGatewayCo
 	}
 
 	config := DeleteConfig{
-		ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
+		ResourceType: ResourceTypeEventGatewayControlPlane,
 		ResourceName: egwControlPlane.Name,
 		ResourceRef:  egwControlPlane.Name,
 		ResourceID:   egwControlPlane.ID,

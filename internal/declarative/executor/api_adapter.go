@@ -33,15 +33,15 @@ func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContex
 	create.Name = common.ExtractResourceName(fields)
 
 	// Map optional fields using utilities (SDK uses double pointers)
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
-	common.MapOptionalStringFieldToPtr(&create.Version, fields, "version")
-	common.MapOptionalStringFieldToPtr(&create.Slug, fields, "slug")
+	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
+	common.MapOptionalStringFieldToPtr(&create.Version, fields, planner.FieldVersion)
+	common.MapOptionalStringFieldToPtr(&create.Slug, fields, planner.FieldSlug)
 
 	// Handle labels using centralized helper
-	userLabels := labels.ExtractLabelsFromField(fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	create.Labels = labels.BuildCreateLabels(userLabels, namespace, protection)
 
-	if attrs, ok := fields["attributes"]; ok {
+	if attrs, ok := fields[planner.FieldAttributes]; ok {
 		if normalized, ok := attributes.NormalizeAPIAttributes(attrs); ok {
 			create.Attributes = normalized
 		} else {
@@ -64,19 +64,19 @@ func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContex
 	// These represent actual changes detected by the planner
 	for field, value := range fields {
 		switch field {
-		case "name":
+		case planner.FieldName:
 			if name, ok := value.(string); ok {
 				update.Name = &name
 			}
-		case "description":
+		case planner.FieldDescription:
 			if desc, ok := value.(string); ok {
 				update.Description = &desc
 			}
-		case "version":
+		case planner.FieldVersion:
 			if version, ok := value.(string); ok {
 				update.Version = &version
 			}
-		case "slug":
+		case planner.FieldSlug:
 			if slug, ok := value.(string); ok {
 				update.Slug = &slug
 			}
@@ -85,7 +85,7 @@ func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContex
 	}
 
 	// Handle labels using centralized helper
-	desiredLabels := labels.ExtractLabelsFromField(fields["labels"])
+	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	if desiredLabels != nil {
 		// Get current labels if passed from planner
 		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
@@ -100,7 +100,7 @@ func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContex
 		update.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, namespace, protection)
 	}
 
-	if attrs, ok := fields["attributes"]; ok {
+	if attrs, ok := fields[planner.FieldAttributes]; ok {
 		if normalized, ok := attributes.NormalizeAPIAttributes(attrs); ok {
 			update.Attributes = normalized
 		} else {
@@ -164,12 +164,12 @@ func (p *APIAdapter) GetByID(ctx context.Context, id string, _ *ExecutionContext
 
 // ResourceType returns the resource type name
 func (p *APIAdapter) ResourceType() string {
-	return "api"
+	return planner.ResourceTypeAPI
 }
 
 // RequiredFields returns the required fields for creation
 func (p *APIAdapter) RequiredFields() []string {
-	return []string{"name"}
+	return []string{planner.FieldName}
 }
 
 // SupportsUpdate returns true as APIs support updates

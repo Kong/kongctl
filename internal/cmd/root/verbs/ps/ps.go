@@ -25,9 +25,9 @@ const (
 var (
 	use = "ps"
 
-	short = i18n.T("root.verbs.ps.short", "Manage detached kongctl processes")
+	short = i18n.T("root.verbs.ps.short", "Manage detached processes")
 	long  = normalizers.LongDesc(i18n.T("root.verbs.ps.long",
-		`List and manage detached kongctl background processes tracked by the local process registry.`))
+		`List and manage detached background processes tracked by the local process registry.`))
 	example = normalizers.Examples(i18n.T("root.verbs.ps.examples",
 		fmt.Sprintf(`
   # List detached kongctl processes

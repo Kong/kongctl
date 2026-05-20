@@ -1,20 +1,30 @@
 package konnect
 
 import (
+	"bufio"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/telemetry"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )
 
@@ -29,17 +39,42 @@ var (
 %[1]s login konnect`, meta.CLIName)))
 
 	httpClient *http.Client
+
+	loginInputIsTerminal = isTerminalReader
 )
 
 type loginKonnectCmd struct {
 	*cobra.Command
 }
 
-func (c *loginKonnectCmd) validate(_ cmd.Helper) error {
+// resolveAuthURLs returns the fully constructed auth and token poll URLs from cfg.
+func resolveAuthURLs(cfg config.Hook) (authURL, pollURL string) {
+	authBaseURL := cfg.GetString(common.AuthBaseURLConfigPath)
+	if authBaseURL == "" {
+		authBaseURL = common.AuthBaseURLDefault
+	}
+	return authBaseURL + cfg.GetString(common.AuthPathConfigPath),
+		authBaseURL + cfg.GetString(common.TokenURLPathConfigPath)
+}
+
+func (c *loginKonnectCmd) validate(helper cmd.Helper) error {
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	authURL, pollURL := resolveAuthURLs(cfg)
+	if err := auth.ValidateKonnectURL(authURL); err != nil {
+		return cmd.PrepareExecutionErrorWithHelper(helper, "invalid auth URL", err)
+	}
+	if err := auth.ValidateKonnectURL(pollURL); err != nil {
+		return cmd.PrepareExecutionErrorWithHelper(helper, "invalid token poll URL", err)
+	}
+
 	return nil
 }
 
-func displayUserInstructions(resp auth.DeviceCodeResponse) {
+func displayUserInstructions(w io.Writer, resp auth.DeviceCodeResponse) {
 	userResp := fmt.Sprintf("Logging your CLI into Kong Konnect with the browser...\n\n"+
 		" To login, go to the following URL in your browser:\n\n"+
 		"   %s\n\n"+
@@ -49,7 +84,132 @@ func displayUserInstructions(resp auth.DeviceCodeResponse) {
 		" Waiting for user to Login...",
 		resp.VerificationURIComplete, resp.UserCode, resp.VerificationURI, resp.ExpiresIn)
 
-	fmt.Println(userResp)
+	fmt.Fprintln(w, userResp)
+}
+
+func handleTelemetryPreference(
+	ctx context.Context,
+	streams *iostreams.IOStreams,
+	cfg config.Hook,
+	rec *telemetry.Recorder,
+) error {
+	if streams == nil || cfg == nil || rec == nil || !rec.Enabled() || telemetry.PreferenceFileExists(cfg) {
+		return nil
+	}
+
+	if !loginInputIsTerminal(streams.In) {
+		writeTelemetryDisclosure(streams.ErrOut, false)
+		return nil
+	}
+
+	writeTelemetryDisclosure(streams.Out, true)
+	enabled, ok, err := promptTelemetryPreference(ctx, streams.In, streams.Out)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+	if !enabled {
+		_ = rec.Disable(context.Background())
+	}
+	if err := telemetry.WritePreference(cfg, enabled); err != nil {
+		fmt.Fprintf(streams.ErrOut, "warning: failed to save telemetry preference: %v\n", err)
+	}
+	return nil
+}
+
+func writeTelemetryDisclosure(w io.Writer, prompt bool) {
+	fmt.Fprint(w, `kongctl collects limited usage data to help Kong understand CLI usage.
+
+Collected:
+  - kongctl version
+  - operating system and architecture
+  - command path, such as "login" or "get apis"
+
+Not collected:
+  - command arguments or flag values
+  - resource names or IDs
+  - auth tokens, request bodies, or response bodies
+  - config file contents, file paths, hostnames, usernames, or email addresses
+
+Telemetry can be disabled at any time with:
+  kongctl --no-telemetry <command>
+  KONGCTL_NO_TELEMETRY=true kongctl <command>
+  DO_NOT_TRACK=1 kongctl <command>
+
+`)
+	if prompt {
+		fmt.Fprint(w, "Allow kongctl to collect usage data on this device? [Y/n]: ")
+	}
+}
+
+func promptTelemetryPreference(ctx context.Context, in io.Reader, out io.Writer) (bool, bool, error) {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	defer signal.Stop(sigCh)
+
+	return readTelemetryPreferenceAnswer(ctx, in, out, sigCh)
+}
+
+func readTelemetryPreferenceAnswer(
+	ctx context.Context,
+	in io.Reader,
+	out io.Writer,
+	interrupt <-chan os.Signal,
+) (bool, bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	reader := bufio.NewReader(in)
+	for attempt := range 2 {
+		lineCh := make(chan string, 1)
+		errCh := make(chan error, 1)
+		// A terminal line read cannot be cancelled directly. In the login
+		// prompt we accept this fire-and-forget goroutine so Ctrl-C can abort
+		// immediately; the process exits shortly after this path returns.
+		go func() {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				errCh <- err
+				return
+			}
+			lineCh <- line
+		}()
+
+		var line string
+		select {
+		case <-ctx.Done():
+			return false, false, ctx.Err()
+		case <-interrupt:
+			fmt.Fprintln(out)
+			return false, false, context.Canceled
+		case <-errCh:
+			return false, false, nil
+		case line = <-lineCh:
+		}
+
+		switch strings.ToLower(strings.TrimSpace(line)) {
+		case "", "y", "yes":
+			return true, true, nil
+		case "n", "no":
+			return false, true, nil
+		default:
+			if attempt == 0 {
+				fmt.Fprint(out, "Please answer y or n: ")
+			}
+		}
+	}
+	return false, false, nil
+}
+
+func isTerminalReader(in io.Reader) bool {
+	file, ok := in.(*os.File)
+	if !ok {
+		return false
+	}
+	fd := file.Fd()
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 func (c *loginKonnectCmd) run(helper cmd.Helper) error {
@@ -65,16 +225,19 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		return err
 	}
 
-	authBaseURL := cfg.GetString(common.AuthBaseURLConfigPath)
-	if authBaseURL == "" {
-		authBaseURL = common.AuthBaseURLDefault
+	if err := handleTelemetryPreference(
+		helper.GetContext(),
+		helper.GetStreams(),
+		cfg,
+		telemetry.FromContext(helper.GetContext()),
+	); err != nil {
+		c.SilenceUsage = true
+		c.SilenceErrors = true
+		return err
 	}
-	authPath := cfg.GetString(common.AuthPathConfigPath)
-	// Device authorization endpoints default to the global Konnect API host but can be overridden.
-	authURL := authBaseURL + authPath
 
-	pollPath := cfg.GetString(common.TokenURLPathConfigPath)
-	pollURL := authBaseURL + pollPath
+	// Device authorization endpoints default to the global Konnect API host but can be overridden.
+	authURL, pollURL := resolveAuthURLs(cfg)
 
 	clientID := cfg.GetString(common.MachineClientIDConfigPath)
 
@@ -89,7 +252,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 			fmt.Sprintf("invalid device code request response from Konnect: %v", resp))
 	}
 
-	displayUserInstructions(resp)
+	displayUserInstructions(helper.GetStreams().Out, resp)
 
 	expiresAt := time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second)
 	// poll for token while the user completes authorizing the request
@@ -118,7 +281,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		}
 
 		if pollResp != nil && pollResp.Token.AuthToken != "" {
-			fmt.Println("\nUser successfully authorized")
+			fmt.Fprintln(helper.GetStreams().Out, "\nUser successfully authorized")
 			if err := auth.SaveAccessToken(cfg, pollResp); err != nil {
 				return cmd.PrepareExecutionErrorWithHelper(helper, "failed to save tokens", err)
 			}

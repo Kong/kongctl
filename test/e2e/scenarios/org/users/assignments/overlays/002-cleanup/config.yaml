@@ -1,0 +1,17 @@
+_defaults:
+  kongctl:
+    namespace: org-user-assignments-e2e
+
+apis:
+  - ref: org-user-assignments-api
+    name: org-user-assignments-api
+    description: API used by the organization user assignments E2E scenario
+
+organization:
+  users:
+    - ref: e2e-user-1
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+    - ref: e2e-user-2
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
+    - ref: e2e-user-3
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_3

@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+type KonnectTokenSource interface {
+	Token(ctx context.Context) (string, error)
+}
+
 // Runner executes deck commands.
 type Runner interface {
 	Run(ctx context.Context, opts RunOptions) (*RunResult, error)

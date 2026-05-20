@@ -1,6 +1,7 @@
 package dump
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -52,10 +54,28 @@ func populatePortalChildren(
 			portal.Teams = teams
 		}
 
+		if identityProviders, err := buildPortalIdentityProviders(ctx, client, portalID); err != nil {
+			logWarn(logger, "failed to load portal identity providers", portalID, portal.Name, err)
+		} else if len(identityProviders) > 0 {
+			portal.IdentityProviders = identityProviders
+		}
+
 		if authSettings, err := buildPortalAuthSettings(ctx, client, portalID); err != nil {
 			logWarn(logger, "failed to load portal auth settings", portalID, portal.Name, err)
 		} else if authSettings != nil {
 			portal.AuthSettings = authSettings
+		}
+
+		if allowList, err := buildPortalIPAllowList(ctx, client, portalID); err != nil {
+			logWarn(logger, "failed to load portal IP allow list", portalID, portal.Name, err)
+		} else if allowList != nil {
+			portal.IPAllowList = allowList
+		}
+
+		if integration, err := buildPortalIntegration(ctx, client, portalID); err != nil {
+			logWarn(logger, "failed to load portal integrations", portalID, portal.Name, err)
+		} else if integration != nil {
+			portal.Integrations = integration
 		}
 
 		if customization, err := buildPortalCustomization(ctx, client, portalID); err != nil {
@@ -155,6 +175,12 @@ func populateControlPlaneChildren(
 		} else if len(gatewayServices) > 0 {
 			cp.GatewayServices = gatewayServices
 		}
+
+		if dataPlaneCertificates, err := buildDataPlaneCertificates(ctx, client, controlPlaneID); err != nil {
+			logWarn(logger, "failed to load data plane certificates", controlPlaneID, cp.Name, err)
+		} else if len(dataPlaneCertificates) > 0 {
+			cp.DataPlaneCertificates = dataPlaneCertificates
+		}
 	}
 }
 
@@ -198,6 +224,24 @@ func populateEventGatewayChildren(
 		} else if len(certs) > 0 {
 			gateway.DataPlaneCertificates = certs
 		}
+
+		if regs, err := buildEventGatewaySchemaRegistries(ctx, logger, client, gatewayID, gateway.Name); err != nil {
+			logWarn(logger, "failed to load event gateway schema registries", gatewayID, gateway.Name, err)
+		} else if len(regs) > 0 {
+			gateway.SchemaRegistries = regs
+		}
+
+		if keys, err := buildEventGatewayStaticKeys(ctx, logger, client, gatewayID, gateway.Name); err != nil {
+			logWarn(logger, "failed to load event gateway static keys", gatewayID, gateway.Name, err)
+		} else if len(keys) > 0 {
+			gateway.StaticKeys = keys
+		}
+
+		if bundles, err := buildEventGatewayTLSTrustBundles(ctx, logger, client, gatewayID, gateway.Name); err != nil {
+			logWarn(logger, "failed to load event gateway TLS trust bundles", gatewayID, gateway.Name, err)
+		} else if len(bundles) > 0 {
+			gateway.TrustBundles = bundles
+		}
 	}
 }
 
@@ -234,6 +278,149 @@ func buildEventGatewayDataPlaneCertificates(
 				Description: cert.Description,
 			},
 			Ref: cert.ID,
+		}
+
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func buildEventGatewaySchemaRegistries(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+) ([]declresources.EventGatewaySchemaRegistryResource, error) {
+	registries, err := client.ListEventGatewaySchemaRegistries(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(registries) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewaySchemaRegistryResource, 0, len(registries))
+	for _, sr := range registries {
+		if strings.TrimSpace(sr.ID) == "" {
+			logWarn(logger, "schema registry missing ID", gatewayID, gatewayName, nil)
+			continue
+		}
+
+		// Build the create union using a JSON round-trip (same approach as cluster/listener policies)
+		// because the SDK response Config field is an opaque empty struct.
+		regMap := map[string]any{
+			"name": sr.Name,
+			"type": sr.Type,
+		}
+		if sr.Description != nil {
+			regMap["description"] = *sr.Description
+		}
+		if len(sr.Labels) > 0 {
+			regMap["labels"] = sr.Labels
+		}
+		if sr.RawConfig != nil {
+			regMap["config"] = sr.RawConfig
+		}
+
+		data, marshalErr := json.Marshal(regMap)
+		if marshalErr != nil {
+			logWarn(logger, "failed to marshal schema registry", sr.ID, gatewayName, marshalErr)
+			continue
+		}
+
+		var createReq kkComps.SchemaRegistryCreate
+		if unmarshalErr := json.Unmarshal(data, &createReq); unmarshalErr != nil {
+			logWarn(logger, "failed to unmarshal schema registry create", sr.ID, gatewayName, unmarshalErr)
+			continue
+		}
+
+		res := declresources.EventGatewaySchemaRegistryResource{
+			SchemaRegistryCreate: createReq,
+			Ref:                  sr.ID,
+		}
+
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func buildEventGatewayTLSTrustBundles(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+) ([]declresources.EventGatewayTLSTrustBundleResource, error) {
+	bundles, err := client.ListEventGatewayTLSTrustBundles(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(bundles) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayTLSTrustBundleResource, 0, len(bundles))
+	for _, tb := range bundles {
+		if strings.TrimSpace(tb.ID) == "" {
+			logWarn(logger, "TLS trust bundle missing ID", gatewayID, gatewayName, nil)
+			continue
+		}
+
+		res := declresources.EventGatewayTLSTrustBundleResource{
+			CreateTLSTrustBundleRequest: kkComps.CreateTLSTrustBundleRequest{
+				Name:        tb.Name,
+				Description: tb.Description,
+				Config:      kkComps.TLSTrustBundleConfig{TrustedCa: tb.Config.TrustedCa},
+				Labels:      tb.Labels,
+			},
+			Ref: tb.ID,
+		}
+
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func buildEventGatewayStaticKeys(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+) ([]declresources.EventGatewayStaticKeyResource, error) {
+	keys, err := client.ListEventGatewayStaticKeys(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayStaticKeyResource, 0, len(keys))
+	for _, sk := range keys {
+		if strings.TrimSpace(sk.ID) == "" {
+			logWarn(logger, "static key missing ID", gatewayID, gatewayName, nil)
+			continue
+		}
+
+		// Include the value if the API returned it (vault/template references are echoed
+		// back verbatim; plain-text secrets are omitted by the API and sk.Value will be nil).
+		value := ""
+		if sk.Value != nil {
+			value = *sk.Value
+		}
+		res := declresources.EventGatewayStaticKeyResource{
+			EventGatewayStaticKeyCreate: kkComps.EventGatewayStaticKeyCreate{
+				Name:        sk.Name,
+				Description: sk.Description,
+				Labels:      sk.Labels,
+				Value:       value,
+			},
+			Ref: sk.ID,
 		}
 
 		results = append(results, res)
@@ -465,6 +652,7 @@ func buildPortalTeams(
 			desc := team.Description
 			teamRes.Description = &desc
 		}
+		teamRes.CanOwnApplications = team.CanOwnApplications
 
 		roles, err := client.ListPortalTeamRoles(ctx, portalID, team.ID)
 		if err != nil {
@@ -492,6 +680,109 @@ func buildPortalTeams(
 	return results, nil
 }
 
+func populateOrganizationTeamChildren(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	teams []declresources.OrganizationTeamResource,
+) {
+	for i := range teams {
+		roles, err := client.ListOrganizationTeamRoles(ctx, teams[i].Ref)
+		if err != nil {
+			logWarn(logger, "failed to load organization team roles", teams[i].Ref, teams[i].Name, err)
+			continue
+		}
+		if len(roles) == 0 {
+			continue
+		}
+		teams[i].Roles = make([]declresources.OrganizationTeamRoleResource, 0, len(roles))
+		for _, role := range roles {
+			teams[i].Roles = append(teams[i].Roles, declresources.OrganizationTeamRoleResource{
+				Ref:            role.ID,
+				RoleName:       role.RoleName,
+				EntityID:       role.EntityID,
+				EntityTypeName: role.EntityTypeName,
+				EntityRegion:   role.EntityRegion,
+			})
+		}
+	}
+}
+
+func collectOrganizationUsersFromTeamMemberships(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	teams []declresources.OrganizationTeamResource,
+) []declresources.OrganizationUserResource {
+	usersByRef := make(map[string]*declresources.OrganizationUserResource)
+
+	for _, team := range teams {
+		memberships, err := client.ListOrganizationTeamUsers(ctx, team.Ref)
+		if err != nil {
+			logWarn(logger, "failed to load organization team users", team.Ref, team.Name, err)
+			continue
+		}
+
+		for _, membership := range memberships {
+			userRef := membership.UserEmail
+			if userRef == "" {
+				userRef = membership.UserID
+			}
+			if userRef == "" {
+				continue
+			}
+
+			user := usersByRef[userRef]
+			if user == nil {
+				user = &declresources.OrganizationUserResource{Ref: buildChildRef("user", userRef)}
+				if membership.UserEmail != "" {
+					user.Email = membership.UserEmail
+				} else {
+					user.ID = membership.UserID
+				}
+				user.SetKonnectID(membership.UserID)
+				usersByRef[userRef] = user
+			}
+			user.Teams = append(user.Teams, declresources.OrganizationUserTeamMembershipResource{
+				Ref:  buildChildRef("user-team", user.Ref, team.Ref),
+				Team: team.Ref,
+			})
+		}
+	}
+
+	users := make([]declresources.OrganizationUserResource, 0, len(usersByRef))
+	for _, user := range usersByRef {
+		slices.SortFunc(user.Teams, func(a, b declresources.OrganizationUserTeamMembershipResource) int {
+			return cmp.Compare(a.Ref, b.Ref)
+		})
+		userID := user.GetKonnectID()
+		if userID != "" {
+			roles, err := client.ListOrganizationUserRoles(ctx, userID)
+			if err != nil {
+				logWarn(logger, "failed to load organization user roles", user.Ref, userID, err)
+			}
+			for _, role := range roles {
+				user.Roles = append(user.Roles, declresources.OrganizationUserRoleResource{
+					Ref:            role.ID,
+					RoleName:       role.RoleName,
+					EntityID:       role.EntityID,
+					EntityTypeName: role.EntityTypeName,
+					EntityRegion:   role.EntityRegion,
+				})
+			}
+			slices.SortFunc(user.Roles, func(a, b declresources.OrganizationUserRoleResource) int {
+				return strings.Compare(a.Ref, b.Ref)
+			})
+		}
+		users = append(users, *user)
+	}
+	slices.SortFunc(users, func(a, b declresources.OrganizationUserResource) int {
+		return strings.Compare(a.Ref, b.Ref)
+	})
+
+	return users
+}
+
 func buildPortalAuthSettings(
 	ctx context.Context,
 	client *declstate.Client,
@@ -509,35 +800,134 @@ func buildPortalAuthSettings(
 	resource := declresources.PortalAuthSettingsResource{
 		Ref: ref,
 		PortalAuthenticationSettingsUpdateRequest: kkComps.PortalAuthenticationSettingsUpdateRequest{
-			BasicAuthEnabled:       new(settings.BasicAuthEnabled),
-			OidcAuthEnabled:        new(settings.OidcAuthEnabled),
-			SamlAuthEnabled:        settings.SamlAuthEnabled,
-			OidcTeamMappingEnabled: new(settings.OidcTeamMappingEnabled),
-			KonnectMappingEnabled:  new(settings.KonnectMappingEnabled),
-			IdpMappingEnabled:      settings.IdpMappingEnabled,
+			BasicAuthEnabled:      new(settings.BasicAuthEnabled),
+			KonnectMappingEnabled: new(settings.KonnectMappingEnabled),
+			IdpMappingEnabled:     settings.IdpMappingEnabled,
 		},
 	}
 
-	if settings.OidcConfig != nil {
-		if strings.TrimSpace(settings.OidcConfig.Issuer) != "" {
-			resource.OidcIssuer = stringPointer(settings.OidcConfig.Issuer)
+	return &resource, nil
+}
+
+func buildPortalIPAllowList(
+	ctx context.Context,
+	client *declstate.Client,
+	portalID string,
+) (*declresources.PortalIPAllowListResource, error) {
+	entries, err := client.ListPortalIPAllowLists(ctx, portalID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, nil
 		}
-		if strings.TrimSpace(settings.OidcConfig.ClientID) != "" {
-			resource.OidcClientID = stringPointer(settings.OidcConfig.ClientID)
-		}
-		if len(settings.OidcConfig.Scopes) > 0 {
-			resource.OidcScopes = settings.OidcConfig.Scopes
-		}
-		if settings.OidcConfig.ClaimMappings != nil {
-			resource.OidcClaimMappings = &kkComps.PortalAuthenticationSettingsUpdateRequestPortalClaimMappings{
-				Name:   settings.OidcConfig.ClaimMappings.Name,
-				Email:  settings.OidcConfig.ClaimMappings.Email,
-				Groups: settings.OidcConfig.ClaimMappings.Groups,
-			}
-		}
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return nil, nil
 	}
 
-	return &resource, nil
+	seen := make(map[string]struct{})
+	allowedIPs := make([]string, 0)
+	for _, entry := range entries {
+		for _, value := range entry.AllowedIPs {
+			trimmed := strings.TrimSpace(value)
+			if trimmed == "" {
+				continue
+			}
+			if _, exists := seen[trimmed]; exists {
+				continue
+			}
+			seen[trimmed] = struct{}{}
+			allowedIPs = append(allowedIPs, trimmed)
+		}
+	}
+	if len(allowedIPs) == 0 {
+		return nil, nil
+	}
+
+	slices.Sort(allowedIPs)
+	return &declresources.PortalIPAllowListResource{
+		Ref:        buildChildRef("portal-ip-allow-list", portalID, strings.Join(allowedIPs, ",")),
+		AllowedIPs: allowedIPs,
+	}, nil
+}
+
+func buildPortalIntegration(
+	ctx context.Context,
+	client *declstate.Client,
+	portalID string,
+) (*declresources.PortalIntegrationResource, error) {
+	integration, err := client.GetPortalIntegrations(ctx, portalID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if integration == nil || (integration.GoogleTagManager == nil && integration.GoogleAnalytics4 == nil) {
+		return nil, nil
+	}
+
+	return &declresources.PortalIntegrationResource{
+		Ref:                buildChildRef("portal-integration", portalID),
+		PortalIntegrations: *integration,
+	}, nil
+}
+
+func buildPortalIdentityProviders(
+	ctx context.Context,
+	client *declstate.Client,
+	portalID string,
+) ([]declresources.PortalIdentityProviderResource, error) {
+	providers, err := client.ListPortalIdentityProviders(ctx, portalID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	results := make([]declresources.PortalIdentityProviderResource, 0, len(providers))
+	for _, provider := range providers {
+		providerRes := declresources.PortalIdentityProviderResource{
+			Ref: buildChildRef("portal-identity-provider", provider.ID),
+			CreateIdentityProvider: kkComps.CreateIdentityProvider{
+				Type:      provider.Type.ToPointer(),
+				Enabled:   provider.Enabled,
+				LoginPath: provider.LoginPath,
+			},
+		}
+
+		if provider.Config != nil {
+			switch provider.Config.Type {
+			case kkComps.IdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
+				if provider.Config.OIDCIdentityProviderConfigOutput != nil {
+					config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+						kkComps.OIDCIdentityProviderConfig{
+							IssuerURL:     provider.Config.OIDCIdentityProviderConfigOutput.IssuerURL,
+							ClientID:      provider.Config.OIDCIdentityProviderConfigOutput.ClientID,
+							Scopes:        provider.Config.OIDCIdentityProviderConfigOutput.Scopes,
+							ClaimMappings: provider.Config.OIDCIdentityProviderConfigOutput.ClaimMappings,
+						},
+					)
+					providerRes.Config = &config
+				}
+			case kkComps.IdentityProviderConfigTypeSAMLIdentityProviderConfig:
+				if provider.Config.SAMLIdentityProviderConfig != nil {
+					config := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
+						kkComps.SAMLIdentityProviderConfigInput{
+							IdpMetadataURL: provider.Config.SAMLIdentityProviderConfig.IdpMetadataURL,
+							IdpMetadataXML: provider.Config.SAMLIdentityProviderConfig.IdpMetadataXML,
+						},
+					)
+					providerRes.Config = &config
+				}
+			}
+		}
+
+		results = append(results, providerRes)
+	}
+
+	return results, nil
 }
 
 func buildPortalCustomization(
@@ -630,6 +1020,9 @@ func buildPortalEmailConfig(
 	if cfg == nil {
 		return nil, nil
 	}
+	if cfg.DomainName == nil && cfg.FromName == nil && cfg.FromEmail == nil && cfg.ReplyToEmail == nil {
+		return nil, nil
+	}
 
 	ref := cfg.ID
 	if strings.TrimSpace(ref) == "" {
@@ -640,9 +1033,9 @@ func buildPortalEmailConfig(
 		Ref: ref,
 		PostPortalEmailConfig: kkComps.PostPortalEmailConfig{
 			DomainName:   cfg.DomainName,
-			FromName:     stringPointer(cfg.FromName),
-			FromEmail:    stringPointer(cfg.FromEmail),
-			ReplyToEmail: stringPointer(cfg.ReplyToEmail),
+			FromName:     cfg.FromName,
+			FromEmail:    cfg.FromEmail,
+			ReplyToEmail: cfg.ReplyToEmail,
 		},
 	}
 
@@ -1014,6 +1407,43 @@ func buildGatewayServices(
 	return results, nil
 }
 
+func buildDataPlaneCertificates(
+	ctx context.Context,
+	client *declstate.Client,
+	controlPlaneID string,
+) ([]declresources.ControlPlaneDataPlaneCertificateResource, error) {
+	certs, err := client.ListControlPlaneDataPlaneCertificates(ctx, controlPlaneID)
+	if err != nil {
+		return nil, err
+	}
+	if len(certs) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.ControlPlaneDataPlaneCertificateResource, 0, len(certs))
+	for _, cert := range certs {
+		certValue := ""
+		if cert.Cert != nil {
+			certValue = *cert.Cert
+		}
+		if certValue == "" {
+			continue
+		}
+
+		ref := strings.TrimSpace(declresources.ShortControlPlaneDataPlaneCertificateIdentity(certValue))
+		if cert.ID != nil && strings.TrimSpace(*cert.ID) != "" {
+			ref = strings.TrimSpace(*cert.ID)
+		}
+
+		results = append(results, declresources.ControlPlaneDataPlaneCertificateResource{
+			Ref:  ref,
+			Cert: certValue,
+		})
+	}
+
+	return results, nil
+}
+
 func buildEventGatewayBackendClusters(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -1100,6 +1530,22 @@ func buildEventGatewayVirtualClusters(
 			logWarn(logger, "failed to load cluster policies", cluster.ID, cluster.Name, err)
 		} else if len(policies) > 0 {
 			res.ClusterPolicies = policies
+		}
+
+		// Fetch produce policies for this virtual cluster
+		if policies, err := buildEventGatewayProducePolicies(ctx, logger, client, gatewayID, cluster.ID); err != nil {
+			logWarn(logger, "failed to load produce policies", cluster.ID, cluster.Name, err)
+		} else if len(policies) > 0 {
+			res.ProducePolicies = policies
+		}
+
+		// Fetch consume policies for this virtual cluster
+		if consumePolicies, err := buildEventGatewayConsumePolicies(
+			ctx, logger, client, gatewayID, cluster.ID,
+		); err != nil {
+			logWarn(logger, "failed to load consume policies", cluster.ID, cluster.Name, err)
+		} else if len(consumePolicies) > 0 {
+			res.ConsumePolicies = consumePolicies
 		}
 
 		results = append(results, res)
@@ -1204,6 +1650,34 @@ func buildEventGatewayClusterPolicies(
 	return results, nil
 }
 
+func buildEventGatewayProducePolicies(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	virtualClusterID string,
+) ([]declresources.EventGatewayProducePolicyResource, error) {
+	policies, err := client.ListEventGatewayVirtualClusterProducePolicies(ctx, gatewayID, virtualClusterID)
+	if err != nil {
+		return nil, err
+	}
+	if len(policies) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayProducePolicyResource, 0, len(policies))
+	for _, policy := range policies {
+		res, err := convertProducePolicyToResource(policy.EventGatewayPolicy, policy.RawConfig)
+		if err != nil {
+			logWarn(logger, "failed to convert produce policy", policy.ID, "", err)
+			continue
+		}
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
 // convertListenerPolicyToResource converts an EventGatewayListenerPolicy (response type)
 // to an EventGatewayListenerPolicyResource (which embeds the Create union type).
 // The response type has Type, Name, Description, Enabled, Labels, Config fields.
@@ -1213,6 +1687,24 @@ func convertListenerPolicyToResource(
 	policy kkComps.EventGatewayListenerPolicy,
 	rawConfig map[string]any,
 ) (declresources.EventGatewayListenerPolicyResource, error) {
+	if rawConfig == nil {
+		return declresources.EventGatewayListenerPolicyResource{},
+			fmt.Errorf("listener policy %q has no parsed config", policy.ID)
+	}
+	// For tls_server policies, the API omits config.certificates[i].key (sensitive field).
+	// TLSCertificate.UnmarshalJSON requires the key field, so we default it to "" if absent.
+	if policy.Type == "tls_server" {
+		if certs, ok := rawConfig["certificates"].([]any); ok {
+			for _, c := range certs {
+				if certMap, ok := c.(map[string]any); ok {
+					if _, hasKey := certMap["key"]; !hasKey {
+						certMap["key"] = ""
+					}
+				}
+			}
+		}
+	}
+
 	// Build a map with policy fields plus the raw config
 	policyMap := map[string]any{
 		"type":       policy.Type,
@@ -1263,6 +1755,10 @@ func convertClusterPolicyToResource(
 	policy kkComps.EventGatewayPolicy,
 	rawConfig map[string]any,
 ) (declresources.EventGatewayClusterPolicyResource, error) {
+	if rawConfig == nil {
+		return declresources.EventGatewayClusterPolicyResource{},
+			fmt.Errorf("cluster policy %q has no parsed config", policy.ID)
+	}
 	// Build a map with policy fields plus the raw config
 	policyMap := map[string]any{
 		"type":   policy.Type,
@@ -1297,6 +1793,134 @@ func convertClusterPolicyToResource(
 
 	return declresources.EventGatewayClusterPolicyResource{
 		EventGatewayClusterPolicyModify: modifyPolicy,
+		Ref:                             policy.ID,
+	}, nil
+}
+
+// convertProducePolicyToResource converts an EventGatewayPolicy (response type)
+// to an EventGatewayProducePolicyResource (which embeds the Create union type).
+// We use rawConfig from the raw API response because the SDK's policy config
+// is an empty struct that doesn't capture the actual config data.
+func convertProducePolicyToResource(
+	policy kkComps.EventGatewayPolicy,
+	rawConfig map[string]any,
+) (declresources.EventGatewayProducePolicyResource, error) {
+	if rawConfig == nil {
+		return declresources.EventGatewayProducePolicyResource{},
+			fmt.Errorf("produce policy %q has no parsed config", policy.ID)
+	}
+	policyMap := map[string]any{
+		"type":   policy.Type,
+		"config": rawConfig,
+	}
+	if policy.Name != nil {
+		policyMap["name"] = *policy.Name
+	}
+	if policy.Description != nil {
+		policyMap["description"] = *policy.Description
+	}
+	if policy.Enabled != nil {
+		policyMap["enabled"] = *policy.Enabled
+	}
+	if policy.Labels != nil {
+		policyMap["labels"] = policy.Labels
+	}
+	if policy.Condition != nil {
+		policyMap["condition"] = *policy.Condition
+	}
+	if policy.ParentPolicyID != nil {
+		policyMap["parent_policy_id"] = *policy.ParentPolicyID
+	}
+
+	data, err := json.Marshal(policyMap)
+	if err != nil {
+		return declresources.EventGatewayProducePolicyResource{}, fmt.Errorf("failed to marshal policy: %w", err)
+	}
+
+	var createPolicy kkComps.EventGatewayProducePolicyCreate
+	if err := json.Unmarshal(data, &createPolicy); err != nil {
+		return declresources.EventGatewayProducePolicyResource{}, fmt.Errorf("failed to unmarshal policy: %w", err)
+	}
+
+	return declresources.EventGatewayProducePolicyResource{
+		EventGatewayProducePolicyCreate: createPolicy,
+		Ref:                             policy.ID,
+	}, nil
+}
+
+func buildEventGatewayConsumePolicies(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	virtualClusterID string,
+) ([]declresources.EventGatewayConsumePolicyResource, error) {
+	policies, err := client.ListEventGatewayConsumePolicies(ctx, gatewayID, virtualClusterID)
+	if err != nil {
+		return nil, err
+	}
+	if len(policies) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayConsumePolicyResource, 0, len(policies))
+	for _, policy := range policies {
+		res, err := convertConsumePolicyToResource(policy.EventGatewayPolicy, policy.RawConfig)
+		if err != nil {
+			logWarn(logger, "failed to convert consume policy", policy.ID, "", err)
+			continue
+		}
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+// convertConsumePolicyToResource converts an EventGatewayPolicy (response type)
+// to an EventGatewayConsumePolicyResource (which embeds the Create union type).
+// We use rawConfig from the raw API response because the SDK's EventGatewayPolicyConfig
+// is an empty struct that doesn't capture the actual config data.
+func convertConsumePolicyToResource(
+	policy kkComps.EventGatewayPolicy,
+	rawConfig map[string]any,
+) (declresources.EventGatewayConsumePolicyResource, error) {
+	if rawConfig == nil {
+		return declresources.EventGatewayConsumePolicyResource{},
+			fmt.Errorf("consume policy %q has no parsed config", policy.ID)
+	}
+	policyMap := map[string]any{
+		"type":   policy.Type,
+		"config": rawConfig,
+	}
+	if policy.Name != nil {
+		policyMap["name"] = *policy.Name
+	}
+	if policy.Description != nil {
+		policyMap["description"] = *policy.Description
+	}
+	if policy.Enabled != nil {
+		policyMap["enabled"] = *policy.Enabled
+	}
+	if policy.Labels != nil {
+		policyMap["labels"] = policy.Labels
+	}
+
+	data, err := json.Marshal(policyMap)
+	if err != nil {
+		return declresources.EventGatewayConsumePolicyResource{}, fmt.Errorf(
+			"failed to marshal consume policy: %w",
+			err,
+		)
+	}
+
+	var createPolicy kkComps.EventGatewayConsumePolicyCreate
+	if err := json.Unmarshal(data, &createPolicy); err != nil {
+		return declresources.EventGatewayConsumePolicyResource{},
+			fmt.Errorf("failed to unmarshal consume policy: %w", err)
+	}
+
+	return declresources.EventGatewayConsumePolicyResource{
+		EventGatewayConsumePolicyCreate: createPolicy,
 		Ref:                             policy.ID,
 	}, nil
 }

@@ -1,9 +1,11 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -13,26 +15,81 @@ type scenarioShard struct {
 	Total   int
 }
 
-func selectScenarios(scenarios []string, filter string, shard scenarioShard) []string {
-	selected := make([]string, 0, len(scenarios))
-	for _, p := range scenarios {
-		if filter != "" && !scenarioMatches(p, filter) {
-			continue
-		}
-		selected = append(selected, p)
-	}
+type scenarioAssignment struct {
+	Environment string
+}
 
-	if filter == "" && shard.Enabled {
-		sharded := make([]string, 0, len(selected))
-		for i, p := range selected {
-			if i%shard.Total == shard.Index {
-				sharded = append(sharded, p)
+type scenarioSelectionConfig struct {
+	Filter       string
+	Shard        scenarioShard
+	CurrentEnv   string
+	AllowedEnvs  []string
+	Assignments  map[string]scenarioAssignment
+	ValidateEnvs bool
+	EnforceEnv   bool
+}
+
+func selectScenarios(scenarios []string, filter string, shard scenarioShard) []string {
+	selected, _ := selectScenariosWithConfig(scenarios, scenarioSelectionConfig{
+		Filter: filter,
+		Shard:  shard,
+	})
+	return selected
+}
+
+func selectScenariosWithConfig(scenarios []string, cfg scenarioSelectionConfig) ([]string, error) {
+	if cfg.Filter != "" {
+		selected := make([]string, 0, len(scenarios))
+		for _, p := range scenarios {
+			if scenarioMatches(p, cfg.Filter) {
+				selected = append(selected, p)
 			}
 		}
-		selected = sharded
+		return selected, nil
 	}
 
-	return selected
+	if cfg.ValidateEnvs {
+		for scenarioPath, assignment := range cfg.Assignments {
+			if assignment.Environment == "" {
+				continue
+			}
+			if !slices.Contains(cfg.AllowedEnvs, assignment.Environment) {
+				return nil, fmt.Errorf(
+					"scenario %s is assigned to environment %q, but KONGCTL_E2E_ORGS_JSON does not include that org_name",
+					normalizeScenarioPath(scenarioPath),
+					assignment.Environment,
+				)
+			}
+		}
+	}
+
+	currentEnv := strings.TrimSpace(cfg.CurrentEnv)
+	enforceEnv := cfg.EnforceEnv || currentEnv != ""
+	unassigned := make([]string, 0, len(scenarios))
+	pinned := make([]string, 0)
+	for _, p := range scenarios {
+		assignment := cfg.Assignments[normalizeScenarioPath(p)]
+		if assignment.Environment != "" && enforceEnv {
+			if assignment.Environment == currentEnv {
+				pinned = append(pinned, p)
+			}
+			continue
+		}
+		unassigned = append(unassigned, p)
+	}
+
+	selected := unassigned
+	if cfg.Shard.Enabled {
+		selected = make([]string, 0, len(unassigned))
+		for i, p := range unassigned {
+			if i%cfg.Shard.Total == cfg.Shard.Index {
+				selected = append(selected, p)
+			}
+		}
+	}
+
+	selected = append(selected, pinned...)
+	return selected, nil
 }
 
 func scenarioMatches(scenarioPath, filter string) bool {
@@ -52,7 +109,30 @@ func normalizeScenarioPath(path string) string {
 	path = filepath.ToSlash(path)
 	path = strings.TrimPrefix(path, "scenarios/")
 	path = strings.TrimPrefix(path, "test/e2e/scenarios/")
-	return path
+	return strings.TrimSuffix(path, "/")
+}
+
+func loadScenarioOrgNames(raw string) ([]string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+
+	var orgs []struct {
+		OrgName string `json:"org_name"`
+	}
+	if err := json.Unmarshal([]byte(raw), &orgs); err != nil {
+		return nil, err
+	}
+
+	names := make([]string, 0, len(orgs))
+	for _, org := range orgs {
+		name := strings.TrimSpace(org.OrgName)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return names, nil
 }
 
 func writeScenarioShardManifest(artifactsDir string, shard scenarioShard, selected []string) error {

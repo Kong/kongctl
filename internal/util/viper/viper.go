@@ -68,8 +68,3 @@ func NewViper(path string) *v.Viper {
 	_ = rv.ReadInConfig()
 	return rv
 }
-
-func PersistViper(v *v.Viper) error {
-	// v.Write
-	return v.WriteConfig()
-}

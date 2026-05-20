@@ -19,11 +19,11 @@ import (
 )
 
 func init() {
-	tableview.RegisterChildLoader("control-plane", "plugins", loadControlPlanePlugins)
-	tableview.RegisterChildLoader("gateway-service", "plugins", loadServicePlugins)
-	tableview.RegisterChildLoader("gateway-route", "plugins", loadRoutePlugins)
-	tableview.RegisterChildLoader("gateway-consumer", "plugins", loadConsumerPlugins)
-	tableview.RegisterChildLoader("consumer-group", "plugins", loadConsumerGroupPlugins)
+	tableview.RegisterChildLoader(kkCommon.ViewParentControlPlane, kkCommon.ViewFieldPlugins, loadControlPlanePlugins)
+	tableview.RegisterChildLoader(kkCommon.ViewParentGatewayService, kkCommon.ViewFieldPlugins, loadServicePlugins)
+	tableview.RegisterChildLoader(kkCommon.ViewParentGatewayRoute, kkCommon.ViewFieldPlugins, loadRoutePlugins)
+	tableview.RegisterChildLoader(kkCommon.ViewParentGatewayConsumer, kkCommon.ViewFieldPlugins, loadConsumerPlugins)
+	tableview.RegisterChildLoader(kkCommon.ViewParentConsumerGroup, kkCommon.ViewFieldPlugins, loadConsumerGroupPlugins)
 }
 
 func loadControlPlanePlugins(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -322,7 +322,7 @@ func buildPluginChildView(plugins []kkComps.Plugin) tableview.ChildView {
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Plugins",
-		ParentType:     "gateway-plugin",
+		ParentType:     kkCommon.ViewParentGatewayPlugin,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(plugins) {
 				return nil

@@ -136,10 +136,6 @@ type mockConfig struct {
 	values map[string]any
 }
 
-func (m *mockConfig) Save() error {
-	return nil
-}
-
 func (m *mockConfig) GetString(key string) string {
 	if v, ok := m.values[key].(string); ok {
 		return v
@@ -203,4 +199,8 @@ func (m *mockConfig) GetProfile() string {
 
 func (m *mockConfig) GetPath() string {
 	return ""
+}
+
+func (m *mockConfig) InConfig(string) bool {
+	return false
 }

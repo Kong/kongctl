@@ -83,3 +83,52 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "not found"
+
+  - name: 006-get-helm-output
+    skipInputs: true
+    commands:
+      - name: 000-get-helm-by-name
+        run: ["get", "konnect", "gateway", "control-plane", "kongctl-e2e-get-cp", "-o", "helm"]
+        parseAs: yaml
+        assertions:
+          - select: "ingressController.enabled"
+            expect:
+              fields:
+                "@": false
+          - select: "env"
+            expect:
+              fields:
+                role: data_plane
+                cluster_mtls: pki
+                "type(cluster_control_plane)": string
+                "type(cluster_telemetry_endpoint)": string
+                "type(cluster_telemetry_server_name)": string
+      - name: 001-list-helm-error
+        run: ["get", "konnect", "gateway", "control-planes", "-o", "helm"]
+        expectFailure:
+          exitCode: 1
+          contains: "--output helm requires a control plane name or id"
+
+  - name: 007-delete-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: delete
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success

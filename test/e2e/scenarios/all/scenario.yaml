@@ -1,0 +1,510 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  enabledByEnvVar: KONGCTL_E2E_RUN_PORTAL_IDENTITY_PROVIDERS
+  requiredEnvVars:
+    - KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+    - KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
+    - KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET
+  info: >-
+    Requires real Dev Portal IdP values; set KONGCTL_E2E_RUN_PORTAL_IDENTITY_PROVIDERS=1
+    and provide the KONGCTL_E2E_PORTAL_IDP_* env vars to enable.
+
+vars:
+  namespace: all-resources
+  portalName: all-portal
+  apiName: all-api
+  controlPlaneName: all-cp-runtime
+  certificateControlPlaneName: all-cp-certs
+  controlPlaneGroupName: all-cp-group
+  gatewayServiceName: all-gateway-service
+  organizationTeamName: all-org-team
+  authStrategyName: all-key-auth
+  oidcAuthStrategyName: all-oidc-auth
+  dcrProviderName: all-dcr-http
+  catalogServiceName: all-catalog-service
+  dashboardName: all-dashboard
+  eventGatewayName: all-event-gateway
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - resource_id
+      - change_id
+      - generated_at
+      - created_at
+      - updated_at
+      - api_spec_ids
+
+steps:
+  - name: 000-init
+    skipInputs: true
+    commands:
+      - name: 000-generate-custom-domain-hostname
+        parseAs: raw
+        exec:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            printf 'all-%s.kongctl-e2e.io' "$(date +%s%N | sha256sum | cut -c1-10)"
+        recordVar:
+          name: customDomainHostname
+          responsePath: stdout
+
+  - name: 001-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 002-sync-all
+    inputOverlayOpsFiles:
+      - overlays/randomize-custom-domain/ops.yaml
+    commands:
+      - name: 000-sync-all
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='portal' && resource_ref=='all-portal'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='application_auth_strategy' && resource_ref=='all-key-auth'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='application_auth_strategy' && resource_ref=='all-oidc-auth'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='dcr_provider' && resource_ref=='all-dcr-http'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='control_plane' && resource_ref=='all-cp-runtime'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='control_plane' && resource_ref=='all-cp-certs'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='control_plane' && resource_ref=='all-cp-group'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='control_plane_data_plane_certificate' &&
+              resource_ref=='all-cp-data-plane-cert'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='api' && resource_ref=='all-api'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='api_version' && resource_ref=='all-api-v1'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='api_publication' && resource_ref=='all-api-publication'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='api_implementation' && resource_ref=='all-api-implementation'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='api_document' && resource_ref=='all-api-doc-overview'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='api_document' && resource_ref=='all-api-doc-child'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='_deck' && resource_ref=='all-cp-runtime'] | [0]"
+            expect:
+              fields:
+                action: EXTERNAL_TOOL
+                "length(post_resolution_targets[?resource_type=='gateway_service' && resource_ref=='all-gateway-service'])": 1
+          - select: "plan.changes[?resource_type=='portal_customization' && resource_ref=='all-portal-customization'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+          - select: "plan.changes[?resource_type=='portal_auth_settings' && resource_ref=='all-portal-auth-settings'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+          # Full lifecycle coverage lives in test/e2e/scenarios/portal/integrations.
+          - select: "plan.changes[?resource_type=='portal_integration' && resource_ref=='all-portal-integrations'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+          - select: "plan.changes[?resource_type=='portal_identity_provider' && resource_ref=='all-portal-oidc-idp'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='portal_custom_domain' && resource_ref=='all-portal-custom-domain'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='portal_page' && resource_ref=='all-portal-page'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='portal_page' && resource_ref=='all-portal-child-page'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='portal_snippet' && resource_ref=='all-portal-snippet'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='portal_team' && resource_ref=='all-portal-team'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='portal_team_role' && resource_ref=='all-portal-team-role'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='portal_asset_logo' && resource_ref=='all-portal-logo'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+          - select: "plan.changes[?resource_type=='portal_asset_favicon' && resource_ref=='all-portal-favicon'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+          - select: "plan.changes[?resource_type=='portal_email_config' && resource_ref=='all-portal-email-config'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='portal_email_template' && resource_ref=='all-reset-password-template'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='catalog_service' && resource_ref=='all-catalog-service'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='dashboard' && resource_ref=='all-dashboard'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: All Resources Dashboard
+          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='all-org-team'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='event_gateway' && resource_ref=='all-event-gateway'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_backend_cluster' &&
+              resource_ref=='all-event-backend-cluster'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster' &&
+              resource_ref=='all-event-virtual-cluster'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' &&
+              resource_ref=='all-event-cluster-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' &&
+              resource_ref=='all-event-produce-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' &&
+              resource_ref=='all-event-consume-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_schema_registry' &&
+              resource_ref=='all-event-schema-registry'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='event_gateway_static_key' && resource_ref=='all-event-static-key'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.changes[?resource_type=='event_gateway_listener' && resource_ref=='all-event-listener'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_listener_policy' &&
+              resource_ref=='all-event-listener-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_data_plane_certificate' &&
+              resource_ref=='all-event-data-plane-cert'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_tls_trust_bundle' &&
+              resource_ref=='all-event-tls-trust-bundle'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+                display_name: "All Resources Portal"
+
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiName }}"
+                version: "1.0.0"
+
+      - name: 003-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.controlPlaneName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.controlPlaneName }}"
+          - select: "[?name=='{{ .vars.certificateControlPlaneName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.certificateControlPlaneName }}"
+          - select: "[?name=='{{ .vars.controlPlaneGroupName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.controlPlaneGroupName }}"
+
+      - name: 004-get-gateway-services
+        run:
+          - get
+          - gw
+          - cp
+          - services
+          - --control-plane-name
+          - "{{ .vars.controlPlaneName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.gatewayServiceName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.gatewayServiceName }}"
+
+      - name: 005-get-auth-strategies
+        run: ["get", "auth-strategies", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.authStrategyName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.authStrategyName }}"
+          - select: "[?name=='{{ .vars.oidcAuthStrategyName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.oidcAuthStrategyName }}"
+
+      - name: 006-get-dcr-providers
+        run: ["get", "dcr-providers", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.dcrProviderName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.dcrProviderName }}"
+
+      - name: 007-get-organization-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.organizationTeamName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.organizationTeamName }}"
+
+      - name: 008-get-catalog-services
+        run: ["get", "catalog", "services", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.catalogServiceName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.catalogServiceName }}"
+                display_name: "All Resources Catalog Service"
+
+      - name: 009-get-event-gateways
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.eventGatewayName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.eventGatewayName }}"
+
+  - name: 003-sync-no-op
+    inputOverlayOpsFiles:
+      - overlays/randomize-custom-domain/ops.yaml
+    commands:
+      - name: 000-sync-no-op
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+                failed: 0
+                status: success
+
+  - name: 004-delete-all
+    inputOverlayOpsFiles:
+      - overlays/randomize-custom-domain/ops.yaml
+    commands:
+      - name: 000-delete-all
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 005-verify-deleted
+    skipInputs: true
+    commands:
+      - name: 000-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 002-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.controlPlaneName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.certificateControlPlaneName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.controlPlaneGroupName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 003-get-auth-strategies
+        run: ["get", "auth-strategies", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.authStrategyName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.oidcAuthStrategyName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 004-get-dcr-providers
+        run: ["get", "dcr-providers", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.dcrProviderName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 005-get-organization-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.organizationTeamName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 006-get-catalog-services
+        run: ["get", "catalog", "services", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.catalogServiceName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 007-get-event-gateways
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.eventGatewayName }}']"
+            expect:
+              fields:
+                "length(@)": 0

@@ -281,10 +281,7 @@ func fetchPortalDevelopers(
 	cfg config.Hook,
 ) ([]kkComps.PortalDeveloper, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.PortalDeveloper
 
@@ -309,7 +306,7 @@ func fetchPortalDevelopers(
 		all = append(all, data...)
 
 		total := int(res.GetListDevelopersResponse().GetMeta().Page.Total)
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 
@@ -343,12 +340,12 @@ func portalDeveloperSummaryToRecord(developer kkComps.PortalDeveloper) portalDev
 
 func portalDeveloperDetailView(developer kkComps.PortalDeveloper) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Email: %s\n", developer.GetEmail())
-	fmt.Fprintf(&b, "ID: %s\n", developer.GetID())
-	fmt.Fprintf(&b, "Full Name: %s\n", developer.GetFullName())
-	fmt.Fprintf(&b, "Status: %s\n", string(developer.GetStatus()))
-	fmt.Fprintf(&b, "Created: %s\n", formatTime(developer.GetCreatedAt()))
-	fmt.Fprintf(&b, "Updated: %s\n", formatTime(developer.GetUpdatedAt()))
+	fmt.Fprintf(&b, "email: %s\n", developer.GetEmail())
+	fmt.Fprintf(&b, "id: %s\n", developer.GetID())
+	fmt.Fprintf(&b, "full_name: %s\n", developer.GetFullName())
+	fmt.Fprintf(&b, "status: %s\n", string(developer.GetStatus()))
+	fmt.Fprintf(&b, "created_at: %s\n", formatTime(developer.GetCreatedAt()))
+	fmt.Fprintf(&b, "updated_at: %s\n", formatTime(developer.GetUpdatedAt()))
 
 	return b.String()
 }

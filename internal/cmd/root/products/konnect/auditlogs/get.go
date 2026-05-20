@@ -80,8 +80,9 @@ regional webhook configuration.`
 		if _, err := helper.GetOutputFormat(); err != nil {
 			return err
 		}
-		return cmdObj.Help()
+		return cmd.RequireSubcommand(cmdObj, args)
 	}
+	cmd.MarkRequiresSubcommand(baseCmd)
 
 	baseCmd.AddCommand(newGetAuditLogsDestinationsCmd(verb, addParentFlags, parentPreRun))
 	baseCmd.AddCommand(newGetAuditLogDestinationCmd(verb, addParentFlags, parentPreRun))
@@ -232,7 +233,7 @@ func fetchAuditLogDestinations(helper cmd.Helper) ([]auditLogDestinationRecord, 
 		return nil, err
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Konnect access token: %w", err)
 	}
@@ -241,15 +242,18 @@ func fetchAuditLogDestinations(helper cmd.Helper) ([]auditLogDestinationRecord, 
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return nil, fmt.Errorf("resolve Konnect access token: %w", err)
+	}
 
 	client := httpclient.NewLoggingHTTPClient(logger)
-	result, err := apiutil.Request(
+	result, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodGet,
 		konnectcommon.GlobalBaseURL,
 		listDestinationPath,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)
@@ -281,7 +285,7 @@ func fetchRegionalWebhookConfig(helper cmd.Helper) (auditLogWebhookConfig, error
 		return auditLogWebhookConfig{}, err
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return auditLogWebhookConfig{}, fmt.Errorf("resolve Konnect access token: %w", err)
 	}
@@ -295,15 +299,18 @@ func fetchRegionalWebhookConfig(helper cmd.Helper) (auditLogWebhookConfig, error
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return auditLogWebhookConfig{}, fmt.Errorf("resolve Konnect access token: %w", err)
+	}
 
 	client := httpclient.NewLoggingHTTPClient(logger)
-	result, err := apiutil.Request(
+	result, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodGet,
 		baseURL,
 		webhookPathV2,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)

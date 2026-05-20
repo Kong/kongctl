@@ -11,7 +11,9 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayBackendCluster,
 		func(rs *ResourceSet) *[]EventGatewayBackendClusterResource { return &rs.EventGatewayBackendClusters },
-		AutoExplain[EventGatewayBackendClusterResource](),
+		AutoExplain[EventGatewayBackendClusterResource](
+			WithExplainSchemaBuilder(eventGatewayBackendClusterExplainNode),
+		),
 	)
 }
 
@@ -41,7 +43,7 @@ func (e EventGatewayBackendClusterResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if e.EventGateway != "" {
 		// Dependency on parent Event Gateway when defined at root level
-		deps = append(deps, ResourceRef{Kind: "event_gateway", Ref: e.EventGateway})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeEventGatewayControlPlane, Ref: e.EventGateway})
 	}
 	return deps
 }
@@ -80,7 +82,7 @@ func (e *EventGatewayBackendClusterResource) TryMatchKonnectResource(konnectReso
 // REQUIRED: Implement ResourceWithParent
 func (e EventGatewayBackendClusterResource) GetParentRef() *ResourceRef {
 	if e.EventGateway != "" {
-		return &ResourceRef{Kind: "event_gateway", Ref: e.EventGateway}
+		return &ResourceRef{Kind: ResourceTypeEventGatewayControlPlane, Ref: e.EventGateway}
 	}
 	return nil
 }

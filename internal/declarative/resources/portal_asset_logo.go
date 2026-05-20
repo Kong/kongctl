@@ -44,7 +44,7 @@ func (r PortalAssetLogoResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if r.Portal != "" {
 		deps = append(deps, ResourceRef{
-			Kind: "portal",
+			Kind: ResourceTypePortal,
 			Ref:  r.Portal,
 		})
 	}
@@ -100,7 +100,7 @@ func (r *PortalAssetLogoResource) TryMatchKonnectResource(_ any) bool {
 func (r PortalAssetLogoResource) GetParentRef() *ResourceRef {
 	if r.Portal != "" {
 		return &ResourceRef{
-			Kind: "portal",
+			Kind: ResourceTypePortal,
 			Ref:  r.Portal,
 		}
 	}

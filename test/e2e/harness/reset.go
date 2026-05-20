@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -106,9 +108,13 @@ func skipSystemTeams(resource map[string]any) bool {
 func deleteAll(
 	ctx context.Context,
 	baseURL string,
+	deleteBaseURL string,
 	token string,
 	apiVersion string,
 	endpoint string,
+	deleteAPIVersion string,
+	deleteEndpoint string,
+	idField string,
 	filter filterFunc,
 	// preDeleteFn is called for each resource ID before deletion. It is used to clean up
 	// sub-resources. Any errors must be logged inside the function; the function must not
@@ -118,12 +124,31 @@ func deleteAll(
 	transportOptions HTTPTransportOptions,
 ) (int, int, error) {
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
+	if deleteBaseURL == "" {
+		deleteBaseURL = baseURL
+	}
+	if deleteAPIVersion == "" {
+		deleteAPIVersion = apiVersion
+	}
+	if deleteEndpoint == "" {
+		deleteEndpoint = endpoint
+	}
+	deleteURL := fmt.Sprintf(
+		"%s/%s/%s",
+		strings.TrimRight(deleteBaseURL, "/"),
+		deleteAPIVersion,
+		deleteEndpoint,
+	)
 	Infof("Fetching %s for deletion...", endpoint)
 	session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
 	defer session.Close()
 
 	if filter == nil {
 		filter = shouldDeleteResource
+	}
+	idField = strings.TrimSpace(idField)
+	if idField == "" {
+		idField = "id"
 	}
 
 	const maxAttempts = 5
@@ -154,7 +179,7 @@ func deleteAll(
 		var idsToDelete []string
 		var skipped int
 		for _, item := range items {
-			id, ok := item["id"].(string)
+			id, ok := item[idField].(string)
 			if !ok || id == "" {
 				continue
 			}
@@ -184,15 +209,15 @@ func deleteAll(
 		conflicts := 0
 		for _, id := range idsToDelete {
 			if preDeleteFn != nil {
-				preDeleteFn(ctx, session, url, token, id)
+				preDeleteFn(ctx, session, deleteURL, token, id)
 			}
-			if err := retryDeleteOne(ctx, session, url, token, endpoint, id, policy); err != nil {
-				Warnf("delete %s %s failed: %v", endpoint, id, err)
+			if err := retryDeleteOne(ctx, session, deleteURL, token, deleteEndpoint, id, policy); err != nil {
+				Warnf("delete %s %s failed: %v", deleteEndpoint, id, err)
 				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 					conflicts++
 				}
 			} else {
-				Debugf("deleted %s %s", endpoint, id)
+				Debugf("deleted %s %s", deleteEndpoint, id)
 				deleted++
 			}
 		}
@@ -284,27 +309,54 @@ func (s *resetHTTPSession) Close() {
 	s.client = nil
 }
 
-var resetSequence = []struct {
+type resetResourceSpec struct {
 	Version  string
 	Endpoint string
 	// Use global.api.konghq.com instead of regional URL
 	UseGlobal bool
+	// Optional delete override for resources whose list and delete APIs differ.
+	DeleteVersion     string
+	DeleteEndpoint    string
+	DeleteUseRegional bool
 	// Optional filter to exclude resources from deletion
 	// if nothing is passed default filter that skips konnect-managed resources is used
 	Filter filterFunc
+	// Optional resource identifier field. Defaults to "id".
+	IDField string
 	// PreDeleteFn is called for each resource ID before deletion. It is used to clean
 	// up sub-resources that Konnect does not cascade-delete automatically. Errors are
 	// logged but do not stop the deletion.
 	PreDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string)
-}{
-	{"v3", "apis", false, nil, nil},
-	{"v3", "portals", false, nil, tryDeletePortalCustomDomain},
-	{"v3", "system-accounts", true, nil, nil},
-	{"v3", "teams", true, skipSystemTeams, nil},
-	{"v2", "application-auth-strategies", false, nil, nil},
-	{"v2", "control-planes", false, nil, nil},
-	{"v1", "catalog-services", false, nil, nil},
-	{"v1", "event-gateways", false, nil, nil},
+}
+
+var resetSequence = []resetResourceSpec{
+	{Version: "v3", Endpoint: "apis"},
+	{Version: "v3", Endpoint: "portals", PreDeleteFn: tryDeletePortalCustomDomain},
+	{Version: "v3", Endpoint: "portals/email-domains", Filter: onlyE2EEmailDomains, IDField: "domain"},
+	{
+		Version:           "v3",
+		Endpoint:          "audit-log-destinations",
+		UseGlobal:         true,
+		DeleteVersion:     "v2",
+		DeleteEndpoint:    "audit-log-destinations",
+		DeleteUseRegional: true,
+	},
+	{Version: "v3", Endpoint: "system-accounts", UseGlobal: true},
+	{Version: "v3", Endpoint: "teams", UseGlobal: true, Filter: skipSystemTeams},
+	{Version: "v2", Endpoint: "application-auth-strategies"},
+	{Version: "v2", Endpoint: "dcr-providers"},
+	{Version: "v2", Endpoint: "control-planes"},
+	{Version: "v2", Endpoint: "dashboards"},
+	{Version: "v1", Endpoint: "catalog-services"},
+	{Version: "v1", Endpoint: "event-gateways"},
+}
+
+func onlyE2EEmailDomains(resource map[string]any) bool {
+	domain, ok := resource["domain"].(string)
+	if !ok {
+		return false
+	}
+	return strings.HasSuffix(domain, ".mail.kongctl-e2e.io")
 }
 
 // tryDeletePortalCustomDomain attempts to delete the custom domain for a portal before
@@ -351,6 +403,18 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 	var result resetResult
 	var firstErr error
 
+	tot, del, err := resetConfiguredE2EUserAssignments(ctx, token, policy, transportOptions)
+	if err != nil && firstErr == nil {
+		firstErr = err
+	}
+	result.Details = append(result.Details, resetEndpoint{
+		APIVersion: "v3",
+		Endpoint:   "e2e-user-assignments",
+		Total:      tot,
+		Deleted:    del,
+		Error:      errorString(err),
+	})
+
 	for _, step := range resetSequence {
 		if err := ctx.Err(); err != nil {
 			if firstErr == nil {
@@ -367,12 +431,20 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 		if step.UseGlobal {
 			targetURL = "https://global.api.konghq.com"
 		}
+		deleteTargetURL := targetURL
+		if step.DeleteUseRegional {
+			deleteTargetURL = baseURL
+		}
 		tot, del, err := deleteAll(
 			ctx,
 			targetURL,
+			deleteTargetURL,
 			token,
 			step.Version,
 			step.Endpoint,
+			step.DeleteVersion,
+			step.DeleteEndpoint,
+			step.IDField,
 			step.Filter,
 			step.PreDeleteFn,
 			policy,
@@ -391,6 +463,186 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 	}
 
 	return result, firstErr
+}
+
+type resetUser struct {
+	ID string
+}
+
+func resetConfiguredE2EUserAssignments(
+	ctx context.Context,
+	token string,
+	policy HTTPRetryPolicy,
+	transportOptions HTTPTransportOptions,
+) (int, int, error) {
+	emails := configuredE2EUserEmails()
+	if len(emails) == 0 {
+		Debugf("No KONGCTL_E2E_ORG_USER_EMAIL_* values configured; skipping user assignment reset")
+		return 0, 0, nil
+	}
+
+	session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
+	defer session.Close()
+
+	usersByEmail, err := listUsersByEmail(ctx, session, token, policy)
+	if err != nil {
+		return len(emails), 0, err
+	}
+
+	total := 0
+	deleted := 0
+	for _, email := range emails {
+		user, ok := usersByEmail[email]
+		if !ok {
+			Warnf("reset: configured E2E user was not found; skipping assignment reset")
+			continue
+		}
+		userTotal, userDeleted, err := resetUserAssignments(ctx, session, token, policy, user)
+		total += userTotal
+		deleted += userDeleted
+		if err != nil {
+			return total, deleted, err
+		}
+	}
+	return total, deleted, nil
+}
+
+func configuredE2EUserEmails() []string {
+	seen := map[string]struct{}{}
+	for _, kv := range os.Environ() {
+		key, value, ok := strings.Cut(kv, "=")
+		if !ok || !strings.HasPrefix(key, "KONGCTL_E2E_ORG_USER_EMAIL_") {
+			continue
+		}
+		email := strings.TrimSpace(value)
+		if email == "" {
+			continue
+		}
+		seen[email] = struct{}{}
+	}
+	emails := make([]string, 0, len(seen))
+	for email := range seen {
+		emails = append(emails, email)
+	}
+	slices.Sort(emails)
+	return emails
+}
+
+func listUsersByEmail(
+	ctx context.Context,
+	session *resetHTTPSession,
+	token string,
+	policy HTTPRetryPolicy,
+) (map[string]resetUser, error) {
+	const pageSize = 100
+	usersByEmail := map[string]resetUser{}
+	for pageNumber := 1; pageNumber <= 10000; pageNumber++ {
+		items, err := retryListItems(
+			ctx,
+			session,
+			pagedURL("https://global.api.konghq.com/v3/users", pageSize, pageNumber),
+			token,
+			"users",
+			policy,
+		)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			id, _ := item["id"].(string)
+			email, _ := item["email"].(string)
+			if id == "" || email == "" {
+				continue
+			}
+			usersByEmail[email] = resetUser{ID: id}
+		}
+		if len(items) < pageSize {
+			return usersByEmail, nil
+		}
+	}
+	return nil, fmt.Errorf("organization users pagination exceeded safety limit")
+}
+
+func resetUserAssignments(
+	ctx context.Context,
+	session *resetHTTPSession,
+	token string,
+	policy HTTPRetryPolicy,
+	user resetUser,
+) (int, int, error) {
+	total := 0
+	deleted := 0
+
+	teamItems, err := retryListItems(
+		ctx,
+		session,
+		pagedURL(fmt.Sprintf("https://global.api.konghq.com/v3/users/%s/teams", url.PathEscape(user.ID)), 100, 1),
+		token,
+		"user teams",
+		policy,
+	)
+	if err != nil {
+		return total, deleted, err
+	}
+	total += len(teamItems)
+	for _, team := range teamItems {
+		teamID, _ := team["id"].(string)
+		if teamID == "" {
+			continue
+		}
+		deleteURL := fmt.Sprintf("https://global.api.konghq.com/v3/teams/%s/users", url.PathEscape(teamID))
+		if err := retryDeleteOne(ctx, session, deleteURL, token, "user team assignment", user.ID, policy); err != nil {
+			if he, ok := err.(*httpError); ok && he.status == http.StatusNotFound {
+				continue
+			}
+			return total, deleted, err
+		}
+		deleted++
+	}
+
+	roleItems, err := retryListItems(
+		ctx,
+		session,
+		fmt.Sprintf("https://global.api.konghq.com/v3/users/%s/assigned-roles", url.PathEscape(user.ID)),
+		token,
+		"user roles",
+		policy,
+	)
+	if err != nil {
+		return total, deleted, err
+	}
+	total += len(roleItems)
+	for _, role := range roleItems {
+		roleID, _ := role["id"].(string)
+		if roleID == "" {
+			continue
+		}
+		deleteURL := fmt.Sprintf("https://global.api.konghq.com/v3/users/%s/assigned-roles", url.PathEscape(user.ID))
+		if err := retryDeleteOne(ctx, session, deleteURL, token, "user role assignment", roleID, policy); err != nil {
+			if he, ok := err.(*httpError); ok && he.status == http.StatusNotFound {
+				continue
+			}
+			return total, deleted, err
+		}
+		deleted++
+	}
+
+	if deleted > 0 {
+		Infof("Reset %d assignments for configured E2E user", deleted)
+	}
+	return total, deleted, nil
+}
+
+func pagedURL(rawURL string, pageSize, pageNumber int) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	q := u.Query()
+	q.Set("page[size]", fmt.Sprintf("%d", pageSize))
+	q.Set("page[number]", fmt.Sprintf("%d", pageNumber))
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func errorString(err error) string {
@@ -451,7 +703,7 @@ func captureResetEvent(
 			v := kv[i+1:]
 			ku := strings.ToUpper(k)
 			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
-				strings.Contains(ku, "SECRET") {
+				strings.Contains(ku, "SECRET") || strings.Contains(ku, "EMAIL") {
 				if v != "" {
 					v = "***"
 				}
@@ -512,7 +764,7 @@ func deleteOne(client *http.Client, baseURL, token, id string) error {
 }
 
 func deleteOneWithContext(ctx context.Context, client *http.Client, baseURL, token, id string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, baseURL+"/"+id, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, baseURL+"/"+url.PathEscape(id), nil)
 	if err != nil {
 		return err
 	}

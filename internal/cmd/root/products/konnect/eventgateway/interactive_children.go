@@ -9,18 +9,53 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 )
 
 func init() {
-	if !eventGatewayViewEnabled() {
-		return
-	}
-	tableview.RegisterChildLoader("event-gateway", "backend-clusters", loadEventGatewayBackendClusters)
-	tableview.RegisterChildLoader("event-gateway", "virtual-clusters", loadEventGatewayVirtualClusters)
-	tableview.RegisterChildLoader("event-gateway", "data-plane-certificates", loadEventGatewayDataPlaneCertificates)
-	tableview.RegisterChildLoader("event-gateway", "listeners", loadEventGatewayListeners)
-	tableview.RegisterChildLoader("listener", "policies", loadEventGatewayListenerPolicies)
-	tableview.RegisterChildLoader("virtual-cluster", "cluster-policies", loadEventGatewayVirtualClusterClusterPolicies)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldBackendClusters,
+		loadEventGatewayBackendClusters,
+	)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldVirtualClusters,
+		loadEventGatewayVirtualClusters,
+	)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldDataPlaneCertificates,
+		loadEventGatewayDataPlaneCertificates,
+	)
+	tableview.RegisterChildLoader(common.ViewParentEventGateway, common.ViewFieldListeners, loadEventGatewayListeners)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldSchemaRegistries,
+		loadEventGatewaySchemaRegistries,
+	)
+	tableview.RegisterChildLoader(common.ViewParentEventGateway, common.ViewFieldStaticKeys, loadEventGatewayStaticKeys)
+	tableview.RegisterChildLoader(
+		common.ViewParentEventGateway,
+		common.ViewFieldTLSTrustBundles,
+		loadEventGatewayTLSTrustBundles,
+	)
+	tableview.RegisterChildLoader(common.ViewParentListener, common.ViewFieldPolicies, loadEventGatewayListenerPolicies)
+	tableview.RegisterChildLoader(
+		common.ViewParentVirtualCluster,
+		common.ViewFieldClusterPolicies,
+		loadEventGatewayVirtualClusterClusterPolicies,
+	)
+	tableview.RegisterChildLoader(
+		common.ViewParentVirtualCluster,
+		common.ViewFieldProducePolicies,
+		loadEventGatewayVirtualClusterProducePolicies,
+	)
+	tableview.RegisterChildLoader(
+		common.ViewParentVirtualCluster,
+		common.ViewFieldConsumePolicies,
+		loadEventGatewayVirtualClusterConsumePolicies,
+	)
 }
 
 func loadEventGatewayBackendClusters(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -257,6 +292,82 @@ func loadEventGatewayVirtualClusterClusterPolicies(
 	return buildClusterPolicyChildView(rawPolicies), nil
 }
 
+func loadEventGatewayVirtualClusterProducePolicies(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, virtualClusterID, err := virtualClusterIDsFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	policyAPI := sdk.GetEventGatewayProducePolicyAPI()
+	if policyAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway produce policy client is not available")
+	}
+
+	_, rawPolicies, err := fetchProducePolicies(helper, policyAPI, gatewayID, virtualClusterID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildProducePolicyChildView(rawPolicies), nil
+}
+
+func loadEventGatewayVirtualClusterConsumePolicies(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, virtualClusterID, err := virtualClusterIDsFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	policyAPI := sdk.GetEventGatewayConsumePolicyAPI()
+	if policyAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway consume policy client is not available")
+	}
+
+	_, rawPolicies, err := fetchConsumePolicies(helper, policyAPI, gatewayID, virtualClusterID)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildConsumePolicyChildView(rawPolicies), nil
+}
+
 func virtualClusterIDsFromParent(parent any) (string, string, error) {
 	if parent == nil {
 		return "", "", fmt.Errorf("virtual cluster parent is nil")
@@ -330,4 +441,118 @@ func loadEventGatewayDataPlaneCertificates(
 	}
 
 	return buildDataPlaneCertChildView(certs), nil
+}
+
+func loadEventGatewaySchemaRegistries(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, err := eventGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	registryAPI := sdk.GetEventGatewaySchemaRegistryAPI()
+	if registryAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway schema registry client is not available")
+	}
+
+	registries, err := fetchSchemaRegistries(helper, registryAPI, gatewayID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildSchemaRegistryChildView(registries), nil
+}
+
+func loadEventGatewayStaticKeys(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, err := eventGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	staticKeyAPI := sdk.GetEventGatewayStaticKeyAPI()
+	if staticKeyAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway static key client is not available")
+	}
+
+	keys, err := fetchStaticKeys(helper, staticKeyAPI, gatewayID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildStaticKeyChildView(keys), nil
+}
+
+func loadEventGatewayTLSTrustBundles(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, err := eventGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	bundleAPI := sdk.GetEventGatewayTLSTrustBundleAPI()
+	if bundleAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway TLS trust bundle client is not available")
+	}
+
+	bundles, err := fetchTLSTrustBundles(helper, bundleAPI, gatewayID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildTLSTrustBundleChildView(bundles), nil
 }

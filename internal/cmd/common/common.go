@@ -13,7 +13,19 @@ const (
 	JSON OutputFormat = iota
 	YAML
 	TEXT
+	HELM
 )
+
+// ExtraOutputFormatsAnnotation is the cobra command-annotation key listing
+// extra --output values (comma-separated) that a command opts into beyond
+// the base set (json/yaml/text).
+const ExtraOutputFormatsAnnotation = "kongctl.output.extra-formats"
+
+// SkipOutputFormatValidationAnnotation marks a command (or its subtree) as
+// performing its own --output handling. When set, the root-level output-format
+// validator skips the command so the command's own (often more actionable)
+// error message can surface instead.
+const SkipOutputFormatValidationAnnotation = "kongctl.output.skip-validation"
 
 const (
 	TRACE LogLevel = iota
@@ -44,7 +56,7 @@ const (
 	// related to the --color-theme flag
 	ColorThemeFlagName   = "color-theme"
 	ColorThemeConfigPath = "color-theme"
-	DefaultColorTheme    = "kong-light"
+	DefaultColorTheme    = "auto"
 
 	// related to the --profile flag
 	ProfileFlagName  = "profile"
@@ -71,10 +83,22 @@ const (
 	HTTPDisableKeepAlivesConfigPath         = HTTPDisableKeepAlivesName
 	HTTPRecycleConnectionsOnErrorName       = "http-recycle-connections-on-error"
 	HTTPRecycleConnectionsOnErrorConfigPath = HTTPRecycleConnectionsOnErrorName
+
+	// related to retry/backoff for HTTP requests
+	HTTPRetryMaxAttemptsFlagName          = "http-retry-max-attempts"
+	HTTPRetryMaxAttemptsConfigPath        = HTTPRetryMaxAttemptsFlagName
+	HTTPRetryInitialIntervalFlagName      = "http-retry-initial-interval"
+	HTTPRetryInitialIntervalConfigPath    = HTTPRetryInitialIntervalFlagName
+	HTTPRetryMaxIntervalFlagName          = "http-retry-max-interval"
+	HTTPRetryMaxIntervalConfigPath        = HTTPRetryMaxIntervalFlagName
+	HTTPRetryBackoffFactorFlagName        = "http-retry-backoff-factor"
+	HTTPRetryBackoffFactorConfigPath      = HTTPRetryBackoffFactorFlagName
+	HTTPRetryOnConnectionErrorsFlagName   = "http-retry-on-connection-errors"
+	HTTPRetryOnConnectionErrorsConfigPath = HTTPRetryOnConnectionErrorsFlagName
 )
 
 func (of OutputFormat) String() string {
-	return [...]string{"json", "yaml", "text"}[of]
+	return [...]string{"json", "yaml", "text", "helm"}[of]
 }
 
 func OutputFormatStringToIota(format string) (OutputFormat, error) {
@@ -85,6 +109,8 @@ func OutputFormatStringToIota(format string) (OutputFormat, error) {
 		return YAML, nil
 	case "text":
 		return TEXT, nil
+	case "helm":
+		return HELM, nil
 	default:
 		allowed := []string{"json", "yaml", "text"}
 		return TEXT, fmt.Errorf("invalid output format %q, must be one of %v", format, allowed)

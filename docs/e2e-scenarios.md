@@ -41,6 +41,8 @@ Schema (YAML)
 - vars: free-form variables usable in templates (e.g., for selectors or overlay files)
 - test:
   - enabledByEnvVar: optional opt-in env gate for the scenario
+  - assignedEnvironment: optional GitHub Actions environment / matrix org
+    name. When set, CI runs the scenario only in the matching matrix job.
   - requiresPAT: optional boolean, defaults to true
 - defaults:
   - retry:
@@ -78,7 +80,14 @@ Schema (YAML)
             name?: string,
             # Source: by default, the parent command’s stdout is used.
             # Optionally request a fresh source:
-            source?: { get?: "apis" | "portals" | "…" },
+            source?: {
+              get?: "apis" | "portals" | "…",
+              artifact?: {
+                path?: "stderr.txt" | "meta.json" | "…",
+                glob?: "http-dumps/request-*.txt",
+                parseAs?: "json" | "yaml" | "text"
+              }
+            },
             select: "JMESPath expression",                # isolate object/array/scalar
             expect: {
               file?: path,                                  # expected file (JSON or YAML); required unless fields is used
@@ -149,7 +158,18 @@ Optional And Empty Fields
 Selectors and Sources
 
 - Use JMESPath to target the object/array/scalar you want to compare.
-- Default source is the parent command’s JSON stdout. Alternatively, set `source.get: "<resource>"` to run a fresh `kongctl get <resource>` for the assertion.
+- Default source is the parent command’s JSON stdout.
+- Set `source.get: "<resource>"` to run a fresh `kongctl get <resource>`
+  for the assertion.
+- Set `source.artifact.path` to read a captured command artifact relative to
+  the parent command directory. JSON and YAML files are auto-parsed by
+  extension; other files are exposed as an object with a `text` field. Use
+  `select: "text"` or `expect.fields.text` when asserting on text artifacts.
+  You can override parsing with `parseAs`.
+- Set `source.artifact.glob` to inspect a group of captured files relative to
+  the parent command directory. Glob sources expose
+  `{ count, matches }`, which is useful for request-count assertions against
+  `http-dumps/request-*.txt`.
 - Examples: "[?name=='My First Portal'] | [0]", "[0]", "data[?title=='SMS API']".
 - Tiny example (assert under an apply command using a fresh get source):
 
@@ -158,6 +178,23 @@ Selectors and Sources
       source: { get: "portals" }
       expect:
         file: "expect/portal.json"
+
+  assertions:
+    - source:
+        artifact:
+          glob: "http-dumps/request-*.txt"
+      expect:
+        fields:
+          count: 2
+
+  assertions:
+    - source:
+        artifact:
+          path: "stderr.txt"
+      select: "text"
+      expect:
+        fields:
+          text: "warning: example"
 
 JMESPath Examples (Nested Fields)
 

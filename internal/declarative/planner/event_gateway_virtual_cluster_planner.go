@@ -94,11 +94,49 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 
 			// Plan cluster policies for this new virtual cluster (depends on virtual cluster creation)
 			clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(desiredCluster.Ref)
-			if len(clusterPolicies) > 0 {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayClusterPolicy,
+			) && len(clusterPolicies) > 0 {
 				if err := p.planEventGatewayClusterPolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, "", desiredCluster.Ref,
 					virtualClusterChangeID, clusterPolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
+
+			// Plan produce policies for this new virtual cluster (depends on virtual cluster creation)
+			producePolicies := p.resources.GetProducePoliciesForVirtualCluster(desiredCluster.Ref)
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayProducePolicy,
+			) && len(producePolicies) > 0 {
+				if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, "", desiredCluster.Ref,
+					virtualClusterChangeID, producePolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
+			// Plan consume policies for this new virtual cluster (depends on virtual cluster creation)
+			consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(desiredCluster.Ref)
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayConsumePolicy,
+			) && len(consumePolicies) > 0 {
+				if err := p.planEventGatewayConsumePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, "", desiredCluster.Ref,
+					virtualClusterChangeID, consumePolicies, plan,
 				); err != nil {
 					return err
 				}
@@ -131,11 +169,49 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 
 			// Plan cluster policies for this existing virtual cluster
 			clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(desiredCluster.Ref)
-			if len(clusterPolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayClusterPolicy,
+			) && (len(clusterPolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
 				if err := p.planEventGatewayClusterPolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, current.ID, desiredCluster.Ref,
 					"", clusterPolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
+
+			// Plan produce policies for this existing virtual cluster
+			producePolicies := p.resources.GetProducePoliciesForVirtualCluster(desiredCluster.Ref)
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayProducePolicy,
+			) && (len(producePolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
+				if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, current.ID, desiredCluster.Ref,
+					"", producePolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
+			// Plan consume policies for this existing virtual cluster
+			consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(desiredCluster.Ref)
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayConsumePolicy,
+			) && (len(consumePolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
+				if err := p.planEventGatewayConsumePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, current.ID, desiredCluster.Ref,
+					"", consumePolicies, plan,
 				); err != nil {
 					return err
 				}
@@ -188,11 +264,49 @@ func (p *Planner) planVirtualClusterCreatesForNewGateway(
 
 		// Plan cluster policies for this new virtual cluster (depends on virtual cluster creation)
 		clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(cluster.Ref)
-		if len(clusterPolicies) > 0 {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayVirtualCluster,
+			cluster.Ref,
+			resources.ResourceTypeEventGatewayClusterPolicy,
+		) && len(clusterPolicies) > 0 {
 			if err := p.planEventGatewayClusterPolicyChanges(
 				ctx, nil, namespace, "", gatewayRef,
 				cluster.Name, "", cluster.Ref,
 				virtualClusterChangeID, clusterPolicies, plan,
+			); err != nil {
+				return err
+			}
+		}
+
+		// Plan produce policies for this new virtual cluster (depends on virtual cluster creation)
+		producePolicies := p.resources.GetProducePoliciesForVirtualCluster(cluster.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayVirtualCluster,
+			cluster.Ref,
+			resources.ResourceTypeEventGatewayProducePolicy,
+		) && len(producePolicies) > 0 {
+			if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
+				ctx, nil, namespace, "", gatewayRef,
+				cluster.Name, "", cluster.Ref,
+				virtualClusterChangeID, producePolicies, plan,
+			); err != nil {
+				return err
+			}
+		}
+		// Plan consume policies for this new virtual cluster (depends on virtual cluster creation)
+		consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(cluster.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayVirtualCluster,
+			cluster.Ref,
+			resources.ResourceTypeEventGatewayConsumePolicy,
+		) && len(consumePolicies) > 0 {
+			if err := p.planEventGatewayConsumePolicyChanges(
+				ctx, nil, namespace, "", gatewayRef,
+				cluster.Name, "", cluster.Ref,
+				virtualClusterChangeID, consumePolicies, plan,
 			); err != nil {
 				return err
 			}
@@ -214,19 +328,19 @@ func (p *Planner) planVirtualClusterCreate(
 	plan *Plan,
 ) string {
 	fields := make(map[string]any)
-	fields["name"] = cluster.Name
+	fields[FieldName] = cluster.Name
 	if cluster.Description != nil {
-		fields["description"] = *cluster.Description
+		fields[FieldDescription] = *cluster.Description
 	}
-	fields["destination"] = cluster.Destination
-	fields["authentication"] = cluster.Authentication
-	fields["acl_mode"] = cluster.ACLMode
-	fields["dns_label"] = cluster.DNSLabel
+	fields[FieldDestination] = cluster.Destination
+	fields[FieldAuthentication] = cluster.Authentication
+	fields[FieldACLMode] = cluster.ACLMode
+	fields[FieldDNSLabel] = cluster.DNSLabel
 	if cluster.Namespace != nil {
-		fields["namespace"] = cluster.Namespace
+		fields[FieldNamespace] = cluster.Namespace
 	}
 	if len(cluster.Labels) > 0 {
-		fields["labels"] = cluster.Labels
+		fields[FieldLabels] = cluster.Labels
 	}
 
 	change := PlannedChange{
@@ -248,11 +362,11 @@ func (p *Planner) planVirtualClusterCreate(
 	} else {
 		// Gateway doesn't exist yet, add reference for runtime resolution
 		change.References = map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
-				ID:  "", // to be resolved at runtime
+				ID:  resources.UnknownReferenceID,
 				LookupFields: map[string]string{
-					"name": gatewayName,
+					FieldName: gatewayName,
 				},
 			},
 		}
@@ -271,10 +385,11 @@ func (p *Planner) planVirtualClusterCreate(
 			backendClusterName = backendCluster.Name
 		}
 
-		change.References["event_gateway_backend_cluster_id"] = ReferenceInfo{
+		change.References[FieldEventGatewayBackendClusterID] = ReferenceInfo{
 			Ref: cluster.Destination.BackendClusterReferenceByID.ID,
+			ID:  resources.UnknownReferenceID,
 			LookupFields: map[string]string{
-				"name": backendClusterName,
+				FieldName: backendClusterName,
 			},
 		}
 	}
@@ -318,6 +433,33 @@ func (p *Planner) planVirtualClusterUpdate(
 			Ref: gatewayRef,
 			ID:  gatewayID,
 		},
+	}
+
+	// Set backend cluster reference if destination uses a ref placeholder
+	if cluster.Destination.BackendClusterReferenceByID != nil &&
+		tags.IsRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID) {
+		var backendClusterName string
+		backendCluster := p.resources.GetBackendClusterByRef(cluster.Destination.BackendClusterReferenceByID.ID)
+		if backendCluster != nil {
+			backendClusterName = backendCluster.Name
+		}
+		backendClusterRef, _, ok := tags.ParseRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID)
+		if ok {
+			backendCluster := p.resources.GetBackendClusterByRef(backendClusterRef)
+			if backendCluster != nil {
+				backendClusterName = backendCluster.Name
+			}
+		}
+
+		if change.References == nil {
+			change.References = make(map[string]ReferenceInfo)
+		}
+		change.References[FieldEventGatewayBackendClusterID] = ReferenceInfo{
+			Ref: cluster.Destination.BackendClusterReferenceByID.ID,
+			LookupFields: map[string]string{
+				FieldName: backendClusterName,
+			},
+		}
 	}
 
 	p.logger.Debug("Enqueuing virtual cluster UPDATE",
@@ -369,7 +511,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare name
 	if current.Name != desired.Name {
 		needsUpdate = true
-		changes["name"] = FieldChange{
+		changes[FieldName] = FieldChange{
 			Old: current.Name,
 			New: desired.Name,
 		}
@@ -386,7 +528,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	}
 	if currentDesc != desiredDesc {
 		needsUpdate = true
-		changes["description"] = FieldChange{
+		changes[FieldDescription] = FieldChange{
 			Old: currentDesc,
 			New: desiredDesc,
 		}
@@ -395,7 +537,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare destination
 	if !compareBackendClusterReferences(current.Destination, desired.Destination) {
 		needsUpdate = true
-		changes["destination"] = FieldChange{
+		changes[FieldDestination] = FieldChange{
 			Old: current.Destination,
 			New: desired.Destination,
 		}
@@ -404,7 +546,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare authentication
 	if !compareAuthentication(current.Authentication, desired.Authentication) {
 		needsUpdate = true
-		changes["authentication"] = FieldChange{
+		changes[FieldAuthentication] = FieldChange{
 			Old: current.Authentication,
 			New: desired.Authentication,
 		}
@@ -413,7 +555,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare ACL mode
 	if current.ACLMode != desired.ACLMode {
 		needsUpdate = true
-		changes["acl_mode"] = FieldChange{
+		changes[FieldACLMode] = FieldChange{
 			Old: current.ACLMode,
 			New: desired.ACLMode,
 		}
@@ -422,7 +564,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare DNS label
 	if current.DNSLabel != desired.DNSLabel {
 		needsUpdate = true
-		changes["dns_label"] = FieldChange{
+		changes[FieldDNSLabel] = FieldChange{
 			Old: current.DNSLabel,
 			New: desired.DNSLabel,
 		}
@@ -431,7 +573,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	// Compare namespace
 	if !compareVirtualClusterNamespaces(current.Namespace, desired.Namespace) {
 		needsUpdate = true
-		changes["namespace"] = FieldChange{
+		changes[FieldNamespace] = FieldChange{
 			Old: current.Namespace,
 			New: desired.Namespace,
 		}
@@ -441,7 +583,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	if desired.Labels != nil {
 		if !compareMaps(current.Labels, desired.Labels) {
 			needsUpdate = true
-			changes["labels"] = FieldChange{
+			changes[FieldLabels] = FieldChange{
 				Old: current.Labels,
 				New: desired.Labels,
 			}
@@ -450,23 +592,23 @@ func (p *Planner) shouldUpdateVirtualCluster(
 
 	// If any changes detected, set ALL properties from desired state for PUT request
 	if needsUpdate {
-		updates["name"] = desired.Name
+		updates[FieldName] = desired.Name
 
 		if desired.Description != nil {
-			updates["description"] = *desired.Description
+			updates[FieldDescription] = *desired.Description
 		}
 
-		updates["destination"] = desired.Destination
-		updates["authentication"] = desired.Authentication
-		updates["acl_mode"] = desired.ACLMode
-		updates["dns_label"] = desired.DNSLabel
+		updates[FieldDestination] = desired.Destination
+		updates[FieldAuthentication] = desired.Authentication
+		updates[FieldACLMode] = desired.ACLMode
+		updates[FieldDNSLabel] = desired.DNSLabel
 
 		if desired.Namespace != nil {
-			updates["namespace"] = desired.Namespace
+			updates[FieldNamespace] = desired.Namespace
 		}
 
 		if len(desired.Labels) > 0 {
-			updates["labels"] = desired.Labels
+			updates[FieldLabels] = desired.Labels
 		}
 	}
 
@@ -619,6 +761,16 @@ func compareAuthentication(
 					}
 				}
 			}
+
+		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeClientCertificate:
+			// Client certificate has no additional fields to compare
+			if current[i].VirtualClusterAuthenticationClientCertificate == nil ||
+				desired[i].VirtualClusterAuthenticationClientCertificate == nil {
+				return false
+			}
+
+		default:
+			return false
 		}
 	}
 

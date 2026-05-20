@@ -10,12 +10,13 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	kkCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	gatewaycommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
 func init() {
-	tableview.RegisterChildLoader("control-plane", "consumers", loadControlPlaneConsumers)
+	tableview.RegisterChildLoader(kkCommon.ViewParentControlPlane, kkCommon.ViewFieldConsumers, loadControlPlaneConsumers)
 }
 
 func loadControlPlaneConsumers(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -73,7 +74,7 @@ func loadControlPlaneConsumers(_ context.Context, helper cmd.Helper, parent any)
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Consumers",
-		ParentType:     "gateway-consumer",
+		ParentType:     kkCommon.ViewParentGatewayConsumer,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(consumers) {
 				return nil

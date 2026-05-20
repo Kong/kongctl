@@ -42,9 +42,10 @@ var errGatewayServiceNotFound = errors.New("gateway service not found")
 
 // DeckOptions provides configuration for deck-based planning.
 type DeckOptions struct {
-	Runner         deck.Runner
-	KonnectToken   string
-	KonnectAddress string
+	Runner             deck.Runner
+	KonnectToken       string
+	KonnectTokenSource deck.KonnectTokenSource
+	KonnectAddress     string
 }
 
 // Planner generates execution plans
@@ -69,8 +70,10 @@ type Planner struct {
 	portalPlanner                   PortalPlanner
 	controlPlanePlanner             ControlPlanePlanner
 	authStrategyPlanner             AuthStrategyPlanner
+	dcrProviderPlanner              DCRProviderPlanner
 	apiPlanner                      APIPlanner
 	catalogServicePlanner           CatalogServicePlanner
+	dashboardPlanner                DashboardPlanner
 	eventGatewayControlPlanePlanner EGWControlPlanePlanner
 	organizationTeamPlanner         OrganizationTeamPlanner
 
@@ -78,18 +81,24 @@ type Planner struct {
 	resources *resources.ResourceSet
 
 	// Legacy field access for backward compatibility (provides global access)
-	desiredPortals              []resources.PortalResource
-	desiredPortalPages          []resources.PortalPageResource
-	desiredPortalSnippets       []resources.PortalSnippetResource
-	desiredPortalTeams          []resources.PortalTeamResource
-	desiredPortalTeamRoles      []resources.PortalTeamRoleResource
-	desiredPortalCustomizations []resources.PortalCustomizationResource
-	desiredPortalAuthSettings   []resources.PortalAuthSettingsResource
-	desiredPortalCustomDomains  []resources.PortalCustomDomainResource
-	desiredPortalAssetLogos     []resources.PortalAssetLogoResource
-	desiredPortalAssetFavicons  []resources.PortalAssetFaviconResource
-	desiredPortalEmailConfigs   []resources.PortalEmailConfigResource
-	desiredPortalEmailTemplates []resources.PortalEmailTemplateResource
+	desiredPortals                 []resources.PortalResource
+	desiredPortalPages             []resources.PortalPageResource
+	desiredPortalSnippets          []resources.PortalSnippetResource
+	desiredPortalTeams             []resources.PortalTeamResource
+	desiredPortalTeamRoles         []resources.PortalTeamRoleResource
+	desiredOrganizationTeamRoles   []resources.OrganizationTeamRoleResource
+	desiredPortalCustomizations    []resources.PortalCustomizationResource
+	desiredPortalAuthSettings      []resources.PortalAuthSettingsResource
+	desiredPortalIPAllowLists      []resources.PortalIPAllowListResource
+	desiredPortalIntegrations      []resources.PortalIntegrationResource
+	desiredPortalIdentityProviders []resources.PortalIdentityProviderResource
+	desiredPortalTeamGroupMappings []resources.PortalTeamGroupMappingResource
+	desiredPortalCustomDomains     []resources.PortalCustomDomainResource
+	desiredPortalAssetLogos        []resources.PortalAssetLogoResource
+	desiredPortalAssetFavicons     []resources.PortalAssetFaviconResource
+	desiredPortalEmailConfigs      []resources.PortalEmailConfigResource
+	desiredPortalEmailTemplates    []resources.PortalEmailTemplateResource
+	desiredPortalAuditLogWebhooks  []resources.PortalAuditLogWebhookResource
 }
 
 // NewPlanner creates a new planner
@@ -112,7 +121,9 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, p.resources)
 	p.controlPlanePlanner = NewControlPlanePlanner(base)
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
+	p.dcrProviderPlanner = NewDCRProviderPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
+	p.dashboardPlanner = NewDashboardPlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
 	p.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
 
@@ -134,6 +145,15 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	// Create base plan
 	basePlan := NewPlan("1.0", generator, opts.Mode)
+	p.resources = rs
+
+	if opts.Mode == PlanModeSync {
+		ensurePlanningSyncScope(rs)
+		basePlan.Metadata.SyncScope = syncScopeMetadata(rs.SyncScope)
+		if err := validateSyncScope(rs.SyncScope); err != nil {
+			return nil, err
+		}
+	}
 
 	// Pre-resolution phase: Resolve resource identities before planning
 	if err := p.resolveResourceIdentities(
@@ -208,7 +228,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.portalPlanner = NewPortalPlanner(base)
 		namespacePlanner.controlPlanePlanner = NewControlPlanePlanner(base)
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
+		namespacePlanner.dcrProviderPlanner = NewDCRProviderPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
+		namespacePlanner.dashboardPlanner = NewDashboardPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
 		namespacePlanner.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
@@ -222,13 +244,19 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalSnippets = rs.PortalSnippets
 		namespacePlanner.desiredPortalTeams = rs.PortalTeams
 		namespacePlanner.desiredPortalTeamRoles = rs.PortalTeamRoles
+		namespacePlanner.desiredOrganizationTeamRoles = rs.OrganizationTeamRoles
 		namespacePlanner.desiredPortalCustomizations = rs.PortalCustomizations
 		namespacePlanner.desiredPortalAuthSettings = rs.PortalAuthSettings
+		namespacePlanner.desiredPortalIPAllowLists = rs.PortalIPAllowLists
+		namespacePlanner.desiredPortalIntegrations = rs.PortalIntegrations
+		namespacePlanner.desiredPortalIdentityProviders = rs.PortalIdentityProviders
+		namespacePlanner.desiredPortalTeamGroupMappings = rs.PortalTeamGroupMappings
 		namespacePlanner.desiredPortalCustomDomains = rs.PortalCustomDomains
 		namespacePlanner.desiredPortalAssetLogos = rs.PortalAssetLogos
 		namespacePlanner.desiredPortalAssetFavicons = rs.PortalAssetFavicons
 		namespacePlanner.desiredPortalEmailConfigs = rs.PortalEmailConfigs
 		namespacePlanner.desiredPortalEmailTemplates = rs.PortalEmailTemplates
+		namespacePlanner.desiredPortalAuditLogWebhooks = rs.PortalAuditLogWebhooks
 
 		// Create a plan for this namespace
 		namespacePlan := NewPlan("1.0", generator, opts.Mode)
@@ -244,70 +272,104 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// Create planner context with namespace
 		plannerCtx := NewConfig(actualNamespace)
 
-		if err := namespacePlanner.authStrategyPlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.authStrategyPlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeDCRProvider) {
+			if err := namespacePlanner.dcrProviderPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dcrProviderPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan DCR provider changes for namespace %s: %w", namespace, err)
+			}
 		}
 
-		if err := namespacePlanner.controlPlanePlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.controlPlanePlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan control plane changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeApplicationAuthStrategy) {
+			if err := namespacePlanner.authStrategyPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.authStrategyPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
+			}
 		}
 
-		if err := namespacePlanner.portalPlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.portalPlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan portal changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeControlPlane) {
+			if err := namespacePlanner.controlPlanePlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.controlPlanePlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan control plane changes for namespace %s: %w", namespace, err)
+			}
 		}
 
-		if err := namespacePlanner.catalogServicePlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.catalogServicePlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypePortal) {
+			if err := namespacePlanner.portalPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.portalPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan portal changes for namespace %s: %w", namespace, err)
+			}
+		}
+
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeCatalogService) {
+			if err := namespacePlanner.catalogServicePlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.catalogServicePlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
+			}
+		}
+
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeDashboard) {
+			if err := namespacePlanner.dashboardPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dashboardPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan dashboard changes for namespace %s: %w", namespace, err)
+			}
 		}
 
 		// Plan API changes (includes child resources)
-		if err := namespacePlanner.apiPlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.apiPlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeAPI) {
+			if err := namespacePlanner.apiPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.apiPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
+			}
 		}
 
-		if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(
-			withPlannerHTTPLogContext(
-				namespaceCtx,
-				opts,
-				plannerComponent(namespacePlanner.eventGatewayControlPlanePlanner),
-				"",
-			),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf(
-				"failed to plan Event Gateway Control Plane changes for namespace %s: %w",
-				namespace,
-				err,
-			)
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeEventGatewayControlPlane) {
+			if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(
+				withPlannerHTTPLogContext(
+					namespaceCtx,
+					opts,
+					plannerComponent(namespacePlanner.eventGatewayControlPlanePlanner),
+					"",
+				),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf(
+					"failed to plan Event Gateway Control Plane changes for namespace %s: %w",
+					namespace,
+					err,
+				)
+			}
 		}
 
-		if err := namespacePlanner.organizationTeamPlanner.PlanChanges(
-			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.organizationTeamPlanner), ""),
-			plannerCtx,
-			namespacePlan,
-		); err != nil {
-			return nil, fmt.Errorf("failed to plan Team changes for namespace %s: %w", namespace, err)
+		if namespacePlanner.shouldPlanOrganization(namespacePlan) {
+			if err := namespacePlanner.organizationTeamPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.organizationTeamPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan Team changes for namespace %s: %w", namespace, err)
+			}
 		}
 
 		if err := namespacePlanner.applyInheritedProtection(namespaceCtx, namespacePlan); err != nil {
@@ -370,21 +432,33 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		}
 	}
 
-	// Ensure portal team roles depend on referenced APIs created in the same plan
-	adjustPortalTeamRoleDependencies(basePlan)
+	// Ensure team roles depend on referenced APIs created in the same plan
+	adjustTeamRoleDependencies(basePlan)
 
-	// Resolve dependencies and calculate execution order
-	// Inject additional dependency constraints that span resource planners
+	// Resolve dependencies and calculate execution order.
+	// Inject additional dependency constraints that span resource planners.
+	adjustControlPlaneGroupDeleteDependencies(basePlan.Changes)
 	adjustAuthStrategyDeleteDependencies(basePlan.Changes)
+	adjustDCRProviderDeleteDependencies(basePlan.Changes)
 
-	executionOrder, err := p.depResolver.ResolveDependencies(basePlan.Changes)
+	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
 	}
-	basePlan.SetExecutionOrder(executionOrder)
+
+	// Persist all implicit edges back into DependsOn so the plan is the single
+	// source of truth for ordering, enabling safe concurrent execution.
+	for i := range basePlan.Changes {
+		if fullDeps, ok := depResult.FullDepsMap[basePlan.Changes[i].ID]; ok {
+			basePlan.Changes[i].DependsOn = fullDeps
+		}
+	}
+
+	basePlan.SetExecutionOrder(depResult.ExecutionOrder)
+	basePlan.SetExecutionGroups(depResult.ExecutionGroups)
 
 	// Reassign change IDs to match execution order
-	p.reassignChangeIDs(basePlan, executionOrder)
+	p.reassignChangeIDs(basePlan, depResult.ExecutionOrder)
 
 	p.addUnresolvedReferenceWarnings(basePlan, rs)
 	p.applyDeferredEnvPlaceholders(basePlan, rs)
@@ -474,6 +548,42 @@ func toSnakeCase(value string) string {
 	return strings.Trim(string(out), "_")
 }
 
+// adjustControlPlaneGroupDeleteDependencies ensures member control plane DELETE
+// changes execute only after DELETE changes for their control plane groups in
+// the same plan. Konnect rejects deleting a member while it is still in a group.
+func adjustControlPlaneGroupDeleteDependencies(changes []PlannedChange) {
+	controlPlaneDeletesByID := make(map[string]int)
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete || change.ResourceType != ResourceTypeControlPlane {
+			continue
+		}
+		if change.ResourceID != "" {
+			controlPlaneDeletesByID[change.ResourceID] = i
+		}
+	}
+
+	for i := range changes {
+		groupChange := &changes[i]
+		if groupChange.Action != ActionDelete || groupChange.ResourceType != ResourceTypeControlPlane {
+			continue
+		}
+
+		refInfo, ok := groupChange.References[FieldMembers]
+		if !ok || len(refInfo.Refs) == 0 {
+			continue
+		}
+
+		for _, memberID := range refInfo.Refs {
+			memberIdx, ok := controlPlaneDeletesByID[memberID]
+			if ok && memberIdx != i {
+				memberChange := &changes[memberIdx]
+				memberChange.DependsOn = appendDependsOn(memberChange.DependsOn, groupChange.ID)
+			}
+		}
+	}
+}
+
 // adjustAuthStrategyDeleteDependencies ensures auth strategy DELETE changes execute only
 // after their dependent API and API publication DELETE operations. Without this wiring,
 // the planner can schedule auth strategy removals before the dependent resources are
@@ -489,16 +599,16 @@ func adjustAuthStrategyDeleteDependencies(changes []PlannedChange) {
 		}
 
 		switch change.ResourceType {
-		case "api":
+		case ResourceTypeAPI:
 			apiDeletes = append(apiDeletes, change)
-		case "api_publication":
+		case ResourceTypeAPIPublication:
 			publicationDeletes = append(publicationDeletes, change)
 		}
 	}
 
 	for i := range changes {
 		change := &changes[i]
-		if change.Action != ActionDelete || change.ResourceType != "application_auth_strategy" {
+		if change.Action != ActionDelete || change.ResourceType != ResourceTypeApplicationAuthStrategy {
 			continue
 		}
 
@@ -509,6 +619,33 @@ func adjustAuthStrategyDeleteDependencies(changes []PlannedChange) {
 		}
 
 		for _, dep := range publicationDeletes {
+			if shouldLinkAuthStrategy(change, dep) {
+				change.DependsOn = appendDependsOn(change.DependsOn, dep.ID)
+			}
+		}
+	}
+}
+
+// adjustDCRProviderDeleteDependencies ensures dcr_provider DELETE changes execute only
+// after application_auth_strategy DELETE changes in the same namespace. Konnect rejects
+// deleting a DCR provider that is still referenced by an auth strategy.
+func adjustDCRProviderDeleteDependencies(changes []PlannedChange) {
+	var authStrategyDeletes []*PlannedChange
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action == ActionDelete && change.ResourceType == ResourceTypeApplicationAuthStrategy {
+			authStrategyDeletes = append(authStrategyDeletes, change)
+		}
+	}
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete || change.ResourceType != ResourceTypeDCRProvider {
+			continue
+		}
+
+		for _, dep := range authStrategyDeletes {
 			if shouldLinkAuthStrategy(change, dep) {
 				change.DependsOn = appendDependsOn(change.DependsOn, dep.ID)
 			}
@@ -532,7 +669,7 @@ func shouldLinkAuthStrategy(authDelete, dep *PlannedChange) bool {
 		return authDelete.Namespace == dep.Namespace
 	}
 
-	if dep.ResourceType == "api_publication" {
+	if dep.ResourceType == ResourceTypeAPIPublication {
 		return publicationReferencesAuthStrategy(dep, authDelete)
 	}
 
@@ -545,7 +682,7 @@ func publicationReferencesAuthStrategy(publication, authDelete *PlannedChange) b
 		return false
 	}
 
-	rawIDs, ok := publication.Fields["auth_strategy_ids"]
+	rawIDs, ok := publication.Fields[FieldAuthStrategyIDs]
 	if !ok {
 		return false
 	}
@@ -628,6 +765,15 @@ func (p *Planner) reassignChangeIDs(plan *Plan, executionOrder []string) {
 	for i := range plan.Warnings {
 		if newID, ok := idMapping[plan.Warnings[i].ChangeID]; ok {
 			plan.Warnings[i].ChangeID = newID
+		}
+	}
+
+	// Update execution groups with new IDs
+	for i := range plan.ExecutionGroups {
+		for j := range plan.ExecutionGroups[i] {
+			if newID, ok := idMapping[plan.ExecutionGroups[i][j]]; ok {
+				plan.ExecutionGroups[i][j] = newID
+			}
 		}
 	}
 }
@@ -743,6 +889,10 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve gateway service identities: %w", err)
 	}
 
+	if err := p.resolveAuditLogWebhookDestinationIdentities(ctx, rs.AuditLogs.Destinations); err != nil {
+		return fmt.Errorf("failed to resolve audit log webhook destination identities: %w", err)
+	}
+
 	if err := p.resolveAPIImplementationServiceReferences(rs); err != nil {
 		return fmt.Errorf("failed to resolve API implementation services: %w", err)
 	}
@@ -759,6 +909,19 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 	// Resolve Portal identities
 	if err := p.resolvePortalIdentities(ctx, rs.Portals); err != nil {
 		return fmt.Errorf("failed to resolve portal identities: %w", err)
+	}
+
+	if err := p.resolveOrganizationTeamIdentities(ctx, rs.OrganizationTeams); err != nil {
+		return fmt.Errorf("failed to resolve organization team identities: %w", err)
+	}
+
+	if rs.Organization != nil {
+		if err := p.resolveOrganizationUserIdentities(ctx, rs.Organization.Users); err != nil {
+			return fmt.Errorf("failed to resolve organization user identities: %w", err)
+		}
+		if err := p.resolveOrganizationSystemAccountIdentities(ctx, rs.Organization.SystemAccounts); err != nil {
+			return fmt.Errorf("failed to resolve organization system account identities: %w", err)
+		}
 	}
 
 	// Resolve Auth Strategy identities
@@ -957,7 +1120,7 @@ func (p *Planner) resolveControlPlaneIdentities(
 					return fmt.Errorf("external control_plane %s: not found with id %s", cp.GetRef(), cp.External.ID)
 				}
 			} else if cp.External.Selector != nil {
-				name, ok := cp.External.Selector.MatchFields["name"]
+				name, ok := cp.External.Selector.MatchFields[FieldName]
 				if !ok {
 					return fmt.Errorf("external control_plane %s: selector currently supports 'name' field", cp.GetRef())
 				}
@@ -1138,6 +1301,102 @@ func (p *Planner) resolveGatewayServiceIdentities(
 	return nil
 }
 
+func (p *Planner) resolveAuditLogWebhookDestinationIdentities(
+	ctx context.Context,
+	destinations []resources.AuditLogWebhookDestinationResource,
+) error {
+	if len(destinations) == 0 {
+		return nil
+	}
+
+	available, err := p.client.ListAuditLogWebhookDestinations(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list audit-log webhook destinations: %w", err)
+	}
+
+	for i := range destinations {
+		destination := &destinations[i]
+		if destination.GetKonnectID() != "" {
+			continue
+		}
+
+		match, err := matchAuditLogWebhookDestination(destination, available)
+		if err != nil {
+			return err
+		}
+
+		if !destination.TryMatchKonnectResource(match) {
+			return fmt.Errorf("audit_log_webhook_destination %s: failed to bind Konnect resource", destination.GetRef())
+		}
+
+		p.logger.Debug("Resolved external audit-log webhook destination",
+			slog.String("ref", destination.GetRef()),
+			slog.String("destination_id", destination.GetKonnectID()),
+			slog.String("name", match.Name),
+		)
+	}
+
+	return nil
+}
+
+func matchAuditLogWebhookDestination(
+	destination *resources.AuditLogWebhookDestinationResource,
+	available []state.AuditLogWebhookDestination,
+) (state.AuditLogWebhookDestination, error) {
+	if destination == nil || destination.External == nil {
+		return state.AuditLogWebhookDestination{}, fmt.Errorf("audit_log_webhook_destination requires _external")
+	}
+
+	if destination.External.ID != "" {
+		for _, candidate := range available {
+			if candidate.ID == destination.External.ID {
+				return candidate, nil
+			}
+		}
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"external audit_log_webhook_destination not found with ID: %s",
+			destination.External.ID,
+		)
+	}
+
+	if destination.External.Selector == nil {
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"external audit_log_webhook_destination %s requires selector or id",
+			destination.GetRef(),
+		)
+	}
+
+	name, ok := destination.External.Selector.MatchFields[FieldName]
+	if !ok {
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"external audit_log_webhook_destination %s: only 'name' field selector is currently supported",
+			destination.GetRef(),
+		)
+	}
+
+	matches := make([]state.AuditLogWebhookDestination, 0, 1)
+	for _, candidate := range available {
+		if candidate.Name == name {
+			matches = append(matches, candidate)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"external audit_log_webhook_destination not found with name: %s",
+			name,
+		)
+	case 1:
+		return matches[0], nil
+	default:
+		return state.AuditLogWebhookDestination{}, fmt.Errorf(
+			"multiple audit_log_webhook_destination resources matched name %q; use _external.id",
+			name,
+		)
+	}
+}
+
 func (p *Planner) resolveGatewayServiceControlPlaneID(
 	service *resources.GatewayServiceResource,
 	cpByRef map[string]*resources.ControlPlaneResource,
@@ -1152,7 +1411,7 @@ func (p *Planner) resolveGatewayServiceControlPlaneID(
 		if !ok {
 			return "", fmt.Errorf("gateway_service %s: invalid control_plane reference", service.GetRef())
 		}
-		if field != "id" {
+		if field != FieldID {
 			return "", fmt.Errorf("gateway_service %s: control_plane references support '#id' only", service.GetRef())
 		}
 		value = ref
@@ -1374,7 +1633,7 @@ func (p *Planner) resolveGatewayServiceReference(
 		if !ok {
 			return "", nil, fmt.Errorf("api_implementation %s: invalid service.id reference", implRef)
 		}
-		if field != "id" {
+		if field != FieldID {
 			return "", nil, fmt.Errorf("api_implementation %s: service.id references support '#id' only", implRef)
 		}
 		svc, ok := serviceByRef[ref]
@@ -1429,7 +1688,7 @@ func (p *Planner) resolveImplementationControlPlaneID(
 		if !ok {
 			return "", fmt.Errorf("api_implementation %s: invalid control_plane reference", implRef)
 		}
-		if field != "id" {
+		if field != FieldID {
 			return "", fmt.Errorf("api_implementation %s: control_plane references support '#id' only", implRef)
 		}
 		value = ref
@@ -1529,7 +1788,7 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 			}
 		} else if portal.External.Selector != nil {
 			// Selector-based lookup
-			if name, ok := portal.External.Selector.MatchFields["name"]; ok {
+			if name, ok := portal.External.Selector.MatchFields[FieldName]; ok {
 				// Name-based lookup
 				allPortals, err := p.client.ListAllPortals(ctx)
 				if err != nil {
@@ -1651,6 +1910,175 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 	return nil
 }
 
+func (p *Planner) resolveOrganizationTeamIdentities(
+	ctx context.Context,
+	teams []resources.OrganizationTeamResource,
+) error {
+	for i := range teams {
+		team := &teams[i]
+		if !team.IsExternal() || team.GetKonnectID() != "" {
+			continue
+		}
+
+		if team.External.ID != "" {
+			konnectTeam, err := p.client.GetOrganizationTeamByID(ctx, team.External.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get external organization team %s by ID: %w", team.GetRef(), err)
+			}
+			if konnectTeam == nil {
+				return fmt.Errorf("external organization team not found with ID: %s", team.External.ID)
+			}
+
+			team.SetKonnectID(team.External.ID)
+			if konnectTeam.Name != nil && *konnectTeam.Name != "" {
+				team.Name = *konnectTeam.Name
+			}
+			continue
+		}
+
+		if team.External.Selector == nil {
+			continue
+		}
+
+		name, ok := team.External.Selector.MatchFields[FieldName]
+		if !ok || name == "" {
+			return fmt.Errorf("external organization team %s: only 'name' field selector is currently supported",
+				team.GetRef())
+		}
+
+		konnectTeam, err := p.client.GetOrganizationTeamByNameUnfiltered(ctx, name)
+		if err != nil {
+			return fmt.Errorf("failed to get external organization team %s by name: %w", team.GetRef(), err)
+		}
+		if konnectTeam == nil || konnectTeam.ID == nil || *konnectTeam.ID == "" {
+			return fmt.Errorf("external organization team not found with name: %s", name)
+		}
+
+		team.SetKonnectID(*konnectTeam.ID)
+		team.Name = name
+	}
+
+	return nil
+}
+
+func (p *Planner) resolveOrganizationUserIdentities(
+	ctx context.Context,
+	users []resources.OrganizationUserResource,
+) error {
+	if len(users) == 0 {
+		return nil
+	}
+
+	emailIndex := map[string]state.OrganizationUser{}
+	needsEmailIndex := false
+	for _, user := range users {
+		if user.Email != "" {
+			needsEmailIndex = true
+			break
+		}
+	}
+	if needsEmailIndex {
+		allUsers, err := p.client.ListOrganizationUsers(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list organization users: %w", err)
+		}
+		for _, user := range allUsers {
+			if user.Email != "" {
+				emailIndex[strings.ToLower(user.Email)] = user
+			}
+		}
+	}
+
+	for i := range users {
+		user := &users[i]
+		if user.GetKonnectID() != "" {
+			continue
+		}
+
+		if user.ID != "" {
+			konnectUser, err := p.client.GetOrganizationUser(ctx, user.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get organization user %s by ID: %w", user.Ref, err)
+			}
+			if konnectUser == nil || konnectUser.ID == "" {
+				return fmt.Errorf("organization user not found with ID: %s", user.ID)
+			}
+			user.SetKonnectID(konnectUser.ID)
+			continue
+		}
+
+		konnectUser, ok := emailIndex[strings.ToLower(user.Email)]
+		if !ok || konnectUser.ID == "" {
+			return fmt.Errorf("organization user not found with email: %s", user.Email)
+		}
+		user.SetKonnectID(konnectUser.ID)
+	}
+
+	return nil
+}
+
+func (p *Planner) resolveOrganizationSystemAccountIdentities(
+	ctx context.Context,
+	systemAccounts []resources.OrganizationSystemAccountResource,
+) error {
+	if len(systemAccounts) == 0 {
+		return nil
+	}
+
+	nameIndex := map[string][]state.OrganizationSystemAccount{}
+	needsNameIndex := false
+	for _, systemAccount := range systemAccounts {
+		if systemAccount.Name != "" {
+			needsNameIndex = true
+			break
+		}
+	}
+	if needsNameIndex {
+		allSystemAccounts, err := p.client.ListOrganizationSystemAccounts(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list organization system accounts: %w", err)
+		}
+		for _, systemAccount := range allSystemAccounts {
+			if systemAccount.Name != "" {
+				nameIndex[systemAccount.Name] = append(nameIndex[systemAccount.Name], systemAccount)
+			}
+		}
+	}
+
+	for i := range systemAccounts {
+		systemAccount := &systemAccounts[i]
+		if systemAccount.GetKonnectID() != "" {
+			continue
+		}
+
+		if systemAccount.ID != "" {
+			konnectSystemAccount, err := p.client.GetOrganizationSystemAccount(ctx, systemAccount.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get organization system account %s by ID: %w", systemAccount.Ref, err)
+			}
+			if konnectSystemAccount == nil || konnectSystemAccount.ID == "" {
+				return fmt.Errorf("organization system account not found with ID: %s", systemAccount.ID)
+			}
+			systemAccount.SetKonnectID(konnectSystemAccount.ID)
+			continue
+		}
+
+		matches := nameIndex[systemAccount.Name]
+		if len(matches) == 0 {
+			return fmt.Errorf("organization system account not found with name: %s", systemAccount.Name)
+		}
+		if len(matches) > 1 {
+			return fmt.Errorf("organization system account name %q matched multiple system accounts", systemAccount.Name)
+		}
+		if matches[0].ID == "" {
+			return fmt.Errorf("organization system account %q has no ID", systemAccount.Name)
+		}
+		systemAccount.SetKonnectID(matches[0].ID)
+	}
+
+	return nil
+}
+
 // resolveAuthStrategyIdentities resolves Konnect IDs for Auth Strategy resources
 func (p *Planner) resolveAuthStrategyIdentities(
 	ctx context.Context, strategies []resources.ApplicationAuthStrategyResource,
@@ -1731,6 +2159,7 @@ func (p *Planner) resolveAuthStrategyIdentities(
 func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	namespaceSet := make(map[string]bool)
 	hasExternalPortals := false
+	hasExternalOrganizationTeams := false
 
 	// Extract namespaces from parent resources
 	for _, portal := range rs.Portals {
@@ -1752,6 +2181,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		namespaceSet[ns] = true
 	}
 
+	for _, dashboard := range rs.Dashboards {
+		ns := resources.GetNamespace(dashboard.Kongctl)
+		namespaceSet[ns] = true
+	}
+
 	for _, api := range rs.APIs {
 		ns := resources.GetNamespace(api.Kongctl)
 		namespaceSet[ns] = true
@@ -1762,6 +2196,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		namespaceSet[ns] = true
 	}
 
+	for _, provider := range rs.DCRProviders {
+		ns := resources.GetNamespace(provider.Kongctl)
+		namespaceSet[ns] = true
+	}
+
 	for _, cp := range rs.EventGatewayControlPlanes {
 		ns := resources.GetNamespace(cp.Kongctl)
 		namespaceSet[ns] = true
@@ -1769,10 +2208,21 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, team := range rs.OrganizationTeams {
 		if team.IsExternal() {
+			hasExternalOrganizationTeams = true
 			continue
 		}
 		ns := resources.GetNamespace(team.Kongctl)
 		namespaceSet[ns] = true
+	}
+	if rs.Organization != nil {
+		for _, user := range rs.Organization.Users {
+			ns := resources.GetNamespace(user.Kongctl)
+			namespaceSet[ns] = true
+		}
+		for _, systemAccount := range rs.Organization.SystemAccounts {
+			ns := resources.GetNamespace(systemAccount.Kongctl)
+			namespaceSet[ns] = true
+		}
 	}
 
 	// Convert set to sorted slice for consistent ordering
@@ -1784,7 +2234,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	// Sort for consistent processing order
 	sort.Strings(namespaces)
 
-	if hasExternalPortals {
+	if hasExternalPortals || hasExternalOrganizationTeams {
 		namespaces = append(namespaces, resources.NamespaceExternal)
 	}
 

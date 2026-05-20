@@ -6,16 +6,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	jmespath "github.com/jmespath/go-jmespath"
+	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/test/e2e/harness"
 	"sigs.k8s.io/yaml"
+)
+
+const (
+	maxConcurrencyEnvName       = "KONGCTL_E2E_KONNECT_DECLARATIVE_MAX_CONCURRENCY"
+	maxConcurrencyValuesEnvName = "KONGCTL_E2E_MAX_CONCURRENCY_VALUES"
 )
 
 // checkAndStopAfter checks if execution should stop after the current command.
@@ -59,6 +68,18 @@ func Run(t *testing.T, scenarioPath string) error {
 	}
 	if s.Vars == nil {
 		s.Vars = map[string]any{}
+	}
+	suiteMaxConcurrency, err := suiteMaxConcurrencyForScenario(scenarioPath)
+	if err != nil {
+		return err
+	}
+	if suiteMaxConcurrency != nil {
+		harness.Infof(
+			"Scenario maxConcurrency: %s=%d selected from %s",
+			maxConcurrencyEnvName,
+			*suiteMaxConcurrency,
+			maxConcurrencyValuesEnvName,
+		)
 	}
 
 	// Execute steps
@@ -131,7 +152,7 @@ func Run(t *testing.T, scenarioPath string) error {
 				cmdName = fmt.Sprintf("command-%03d", j)
 			}
 			isLastCmdInStep := j == len(st.Commands)-1
-			envOverrides := mergeEnvScopes(st.Env, cmd.Env)
+			envOverrides := renderEnvScope(mergeEnvScopes(st.Env, cmd.Env), tmplCtx)
 			// Handle resetOrg synthetic command
 			if cmd.ResetOrg {
 				if err := step.ResetOrgForRegions("scenario", cmd.ResetRegions); err != nil {
@@ -178,12 +199,17 @@ func Run(t *testing.T, scenarioPath string) error {
 					cli.OverrideNextCommandSlug(cmd.Name)
 				}
 				workdir := renderString(cmd.Workdir, tmplCtx)
-				res, err := cli.RunProgram(
+				timeout, err := commandTimeout(cmdName, cmd, cli.Timeout, tmplCtx)
+				if err != nil {
+					return err
+				}
+				res, err := cli.RunProgramTimeout(
 					context.Background(),
 					renderedArgs[0],
 					renderedArgs[1:],
 					envOverrides,
 					strings.TrimSpace(workdir),
+					timeout,
 				)
 				if err != nil {
 					return fmt.Errorf("command %s external execution failed: %w", cmdName, err)
@@ -489,15 +515,27 @@ func Run(t *testing.T, scenarioPath string) error {
 				ra := renderString(a, tmplCtx)
 				args = append(args, ra)
 			}
+			if maxConcurrency, ok, err := commandMaxConcurrency(cli, s, st, cmd, envOverrides, suiteMaxConcurrency); err != nil {
+				return fmt.Errorf("command %s maxConcurrency invalid: %w", cmdName, err)
+			} else if ok && !hasMaxConcurrencyArg(args) {
+				envOverrides = mergeEnvScopes(envOverrides, map[string]string{
+					maxConcurrencyEnvName: strconv.Itoa(maxConcurrency),
+				})
+				harness.Debugf("command %s using %s=%d", cmdName, maxConcurrencyEnvName, maxConcurrency)
+			}
 			var (
 				res harness.Result
 				err error
 			)
+			timeout, err := commandTimeout(cmdName, cmd, cli.Timeout, tmplCtx)
+			if err != nil {
+				return err
+			}
 			if cmd.ExpectFail != nil {
-				res, err = cli.RunWithEnv(context.Background(), envOverrides, args...)
+				res, err = cli.RunWithEnvTimeout(context.Background(), envOverrides, timeout, args...)
 			} else {
 				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
-				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides, cli.Timeout)
+				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides, timeout)
 			}
 			if cmd.ExpectFail != nil {
 				if err == nil {
@@ -783,7 +821,7 @@ func runCLIWithRetry(
 		err error
 	)
 	for atry := 0; atry < attempts; atry++ {
-		res, err = cli.RunWithEnv(context.Background(), env, args...)
+		res, err = cli.RunWithEnvTimeout(context.Background(), env, timeout, args...)
 		if err == nil {
 			return res, nil
 		}
@@ -808,6 +846,21 @@ func runCLIWithRetry(
 		time.Sleep(delay)
 	}
 	return res, err
+}
+
+func commandTimeout(cmdName string, cmd Command, fallback time.Duration, tmplCtx map[string]any) (time.Duration, error) {
+	raw := strings.TrimSpace(renderString(cmd.Timeout, tmplCtx))
+	if raw == "" {
+		return fallback, nil
+	}
+	timeout, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("command %s timeout invalid %q: %w", cmdName, raw, err)
+	}
+	if timeout < 0 {
+		return 0, fmt.Errorf("command %s timeout invalid %q: must be >= 0", cmdName, raw)
+	}
+	return timeout, nil
 }
 
 // preserveAttemptArtifacts copies all command artifacts into a numbered
@@ -1046,6 +1099,152 @@ func renderString(s string, data any) string {
 	return s
 }
 
+func renderEnvScope(env map[string]string, tmplCtx map[string]any) map[string]string {
+	if len(env) == 0 {
+		return env
+	}
+	rendered := make(map[string]string, len(env))
+	for key, value := range env {
+		rendered[key] = renderString(value, tmplCtx)
+	}
+	return rendered
+}
+
+func suiteMaxConcurrencyForScenario(scenarioPath string) (*int, error) {
+	values, err := parseMaxConcurrencyValues(os.Getenv(maxConcurrencyValuesEnvName))
+	if err != nil {
+		return nil, err
+	}
+	if len(values) == 0 {
+		return nil, nil
+	}
+	key := stableScenarioKey(scenarioPath)
+	idx := stableIndex(key, len(values))
+	value := values[idx]
+	return &value, nil
+}
+
+func parseMaxConcurrencyValues(raw string) ([]int, error) {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return nil, nil
+	}
+	parts := strings.Split(clean, ",")
+	values := make([]int, 0, len(parts))
+	for _, part := range parts {
+		token := strings.TrimSpace(part)
+		if token == "" {
+			return nil, fmt.Errorf("%s contains an empty value", maxConcurrencyValuesEnvName)
+		}
+		value, err := strconv.Atoi(token)
+		if err != nil {
+			return nil, fmt.Errorf("%s value %q is not an integer", maxConcurrencyValuesEnvName, token)
+		}
+		if err := validateMaxConcurrency(value); err != nil {
+			return nil, fmt.Errorf("%s value %q invalid: %w", maxConcurrencyValuesEnvName, token, err)
+		}
+		values = append(values, value)
+	}
+	return values, nil
+}
+
+func commandMaxConcurrency(
+	cli *harness.CLI,
+	sc Scenario,
+	st Step,
+	cmd Command,
+	env map[string]string,
+	suite *int,
+) (int, bool, error) {
+	value, ok, err := yamlMaxConcurrency(sc.Defaults.MaxConcurrency, st.MaxConcurrency, cmd.MaxConcurrency)
+	if err != nil {
+		return 0, false, err
+	}
+	if ok {
+		return value, true, nil
+	}
+	if suite == nil || maxConcurrencyEnvConfigured(cli, env) {
+		return 0, false, nil
+	}
+	return *suite, true, nil
+}
+
+func yamlMaxConcurrency(values ...*int) (int, bool, error) {
+	var (
+		selected int
+		ok       bool
+	)
+	for _, value := range values {
+		if value == nil {
+			continue
+		}
+		if err := validateMaxConcurrency(*value); err != nil {
+			return 0, false, err
+		}
+		selected = *value
+		ok = true
+	}
+	return selected, ok, nil
+}
+
+func validateMaxConcurrency(value int) error {
+	if value < executor.MinConcurrency || value > executor.MaxConcurrency {
+		return fmt.Errorf(
+			"must be between %d and %d (got %d)",
+			executor.MinConcurrency,
+			executor.MaxConcurrency,
+			value,
+		)
+	}
+	return nil
+}
+
+func maxConcurrencyEnvConfigured(cli *harness.CLI, env map[string]string) bool {
+	if strings.TrimSpace(env[maxConcurrencyEnvName]) != "" {
+		return true
+	}
+	if cli == nil {
+		return false
+	}
+	for _, kv := range cli.Env {
+		key, value, ok := strings.Cut(kv, "=")
+		if ok && key == maxConcurrencyEnvName && strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasMaxConcurrencyArg(args []string) bool {
+	for _, arg := range args {
+		if arg == "--max-concurrency" || strings.HasPrefix(arg, "--max-concurrency=") {
+			return true
+		}
+	}
+	return false
+}
+
+func stableScenarioKey(scenarioPath string) string {
+	root := repoRootFromScenario(scenarioPath)
+	abs, err := filepath.Abs(scenarioPath)
+	if err != nil {
+		abs = scenarioPath
+	}
+	if rel, err := filepath.Rel(root, abs); err == nil {
+		return filepath.ToSlash(rel)
+	}
+	return filepath.ToSlash(abs)
+}
+
+func stableIndex(key string, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(key))
+	return int(h.Sum32() % uint32(n))
+}
+
 func effectiveRetry(d, s, c, a Retry) Retry {
 	merged := Retry{
 		Attempts:      d.Attempts,
@@ -1251,28 +1450,9 @@ func runAssertion(
 	env map[string]string,
 ) error {
 	// Resolve source
-	var src any
-	var err error
-	if as.Source.Get != "" {
-		// run fresh get, carefully tracking the command capture dir to relocate under retries
-		prevCmdDir := cli.LastCommandDir
-		var raw any
-		if _, err = cli.RunJSONWithEnv(context.Background(), env, &raw, "get", as.Source.Get); err != nil {
-			return fmt.Errorf("source.get %s failed: %w", as.Source.Get, err)
-		}
-		src = raw
-		getCmdDir := cli.LastCommandDir
-		// restore parent command dir to avoid confusing subsequent artifact writes
-		cli.LastCommandDir = prevCmdDir
-		// Move captured get command under parent command retries to avoid inflating command counts
-		if getCmdDir != "" && parentDir != "" {
-			dstBase := filepath.Join(parentDir, "assertions", asName, "retries", fmt.Sprintf("%03d", attempt))
-			_ = os.MkdirAll(dstBase, 0o755)
-			dst := filepath.Join(dstBase, filepath.Base(getCmdDir))
-			_ = os.Rename(getCmdDir, dst)
-		}
-	} else {
-		src = parent
+	src, err := resolveAssertionSource(cli, as, parent, asName, attempt, parentDir, tmplCtx, env)
+	if err != nil {
+		return err
 	}
 	// Apply selector
 	var observed any = src
@@ -1397,6 +1577,157 @@ func runAssertion(
 		return nil
 	}
 	return fmt.Errorf("assertion mismatch; see %s", asDir)
+}
+
+func resolveAssertionSource(
+	cli *harness.CLI,
+	as Assertion,
+	parent any,
+	asName string,
+	attempt int,
+	parentDir string,
+	tmplCtx map[string]any,
+	env map[string]string,
+) (any, error) {
+	sourceModes := 0
+	if strings.TrimSpace(as.Source.Get) != "" {
+		sourceModes++
+	}
+	if as.Source.Artifact != nil {
+		sourceModes++
+	}
+	if sourceModes > 1 {
+		return nil, fmt.Errorf("assertion source supports only one of get or artifact")
+	}
+
+	switch {
+	case strings.TrimSpace(as.Source.Get) != "":
+		// run fresh get, carefully tracking the command capture dir to relocate under retries
+		prevCmdDir := cli.LastCommandDir
+		var raw any
+		if _, err := cli.RunJSONWithEnv(context.Background(), env, &raw, "get", as.Source.Get); err != nil {
+			return nil, fmt.Errorf("source.get %s failed: %w", as.Source.Get, err)
+		}
+		getCmdDir := cli.LastCommandDir
+		// restore parent command dir to avoid confusing subsequent artifact writes
+		cli.LastCommandDir = prevCmdDir
+		// Move captured get command under parent command retries to avoid inflating command counts
+		if getCmdDir != "" && parentDir != "" {
+			dstBase := filepath.Join(parentDir, "assertions", asName, "retries", fmt.Sprintf("%03d", attempt))
+			_ = os.MkdirAll(dstBase, 0o755)
+			dst := filepath.Join(dstBase, filepath.Base(getCmdDir))
+			_ = os.Rename(getCmdDir, dst)
+		}
+		return raw, nil
+	case as.Source.Artifact != nil:
+		baseDir := parentDir
+		if strings.TrimSpace(baseDir) == "" {
+			baseDir = cli.LastCommandDir
+		}
+		return loadArtifactAssertionSource(baseDir, *as.Source.Artifact, tmplCtx)
+	default:
+		return parent, nil
+	}
+}
+
+func loadArtifactAssertionSource(
+	baseDir string,
+	src AssertionArtifactSource,
+	tmplCtx map[string]any,
+) (any, error) {
+	if strings.TrimSpace(baseDir) == "" {
+		return nil, fmt.Errorf("artifact source requires a captured command directory")
+	}
+
+	pathTpl := strings.TrimSpace(src.Path)
+	globTpl := strings.TrimSpace(src.Glob)
+	parseMode := strings.TrimSpace(src.ParseAs)
+
+	switch {
+	case pathTpl != "" && globTpl != "":
+		return nil, fmt.Errorf("artifact source supports only one of path or glob")
+	case pathTpl == "" && globTpl == "":
+		return nil, fmt.Errorf("artifact source requires path or glob")
+	}
+
+	if globTpl != "" {
+		if parseMode != "" {
+			return nil, fmt.Errorf("artifact glob does not support parseAs")
+		}
+
+		pattern := renderString(globTpl, tmplCtx)
+		if !filepath.IsAbs(pattern) {
+			pattern = filepath.Join(baseDir, pattern)
+		}
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("artifact glob %q failed: %w", globTpl, err)
+		}
+		slices.Sort(matches)
+
+		relativeMatches := make([]any, 0, len(matches))
+		for _, match := range matches {
+			rel := match
+			if r, err := filepath.Rel(baseDir, match); err == nil {
+				rel = r
+			}
+			relativeMatches = append(relativeMatches, filepath.ToSlash(rel))
+		}
+
+		return map[string]any{
+			"count":   len(matches),
+			"matches": relativeMatches,
+		}, nil
+	}
+
+	path := renderString(pathTpl, tmplCtx)
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(baseDir, path)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read artifact %q failed: %w", pathTpl, err)
+	}
+
+	return parseArtifactAssertionSource(path, parseMode, data)
+}
+
+func parseArtifactAssertionSource(path, parseMode string, data []byte) (any, error) {
+	mode := strings.ToLower(strings.TrimSpace(parseMode))
+	if mode == "" {
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".json":
+			mode = "json"
+		case ".yaml", ".yml":
+			mode = "yaml"
+		default:
+			mode = "text"
+		}
+	}
+
+	switch mode {
+	case "json":
+		decoded, err := decodeJSONOutput(data)
+		if err != nil {
+			return nil, fmt.Errorf("parse artifact as json: %w", err)
+		}
+		return decoded.Value(), nil
+	case "yaml", "yml":
+		jsonBytes, err := yaml.YAMLToJSON(data)
+		if err != nil {
+			return nil, fmt.Errorf("parse artifact as yaml: %w", err)
+		}
+		decoded, err := decodeJSONOutput(jsonBytes)
+		if err != nil {
+			return nil, fmt.Errorf("parse artifact as yaml: %w", err)
+		}
+		return decoded.Value(), nil
+	case "text":
+		return map[string]any{"text": string(data)}, nil
+	default:
+		return nil, fmt.Errorf("unsupported artifact parseAs %q", parseMode)
+	}
 }
 
 func unionKeys(sets ...[]string) []string {

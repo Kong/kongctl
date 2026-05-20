@@ -209,6 +209,38 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.PortalIPAllowLists {
+		if err := resolveResourceFields(ctx, &rs.PortalIPAllowLists[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving portal IP allow list %s: %w", rs.PortalIPAllowLists[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.PortalIntegrations {
+		if err := resolveResourceFields(ctx, &rs.PortalIntegrations[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving portal integration %s: %w", rs.PortalIntegrations[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.PortalIdentityProviders {
+		if err := resolveResourceFields(
+			ctx,
+			&rs.PortalIdentityProviders[i],
+			rs,
+			resolver,
+			resolutionPath,
+			logger,
+		); err != nil {
+			return fmt.Errorf(
+				"resolving portal identity provider %s: %w",
+				rs.PortalIdentityProviders[i].GetRef(),
+				err,
+			)
+		}
+		processCount++
+	}
+
 	for i := range rs.PortalCustomDomains {
 		if err := resolveResourceFields(ctx, &rs.PortalCustomDomains[i], rs, resolver, resolutionPath, logger); err != nil {
 			return fmt.Errorf("resolving portal custom domain %s: %w", rs.PortalCustomDomains[i].GetRef(), err)
@@ -216,9 +248,45 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.PortalAuditLogWebhooks {
+		if err := resolveResourceFields(
+			ctx,
+			&rs.PortalAuditLogWebhooks[i],
+			rs,
+			resolver,
+			resolutionPath,
+			logger,
+		); err != nil {
+			return fmt.Errorf(
+				"resolving portal audit log webhook %s: %w",
+				rs.PortalAuditLogWebhooks[i].GetRef(),
+				err,
+			)
+		}
+		processCount++
+	}
+
 	for i := range rs.GatewayServices {
 		if err := resolveResourceFields(ctx, &rs.GatewayServices[i], rs, resolver, resolutionPath, logger); err != nil {
 			return fmt.Errorf("resolving gateway service %s: %w", rs.GatewayServices[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.ControlPlaneDataPlaneCertificates {
+		if err := resolveResourceFields(
+			ctx,
+			&rs.ControlPlaneDataPlaneCertificates[i],
+			rs,
+			resolver,
+			resolutionPath,
+			logger,
+		); err != nil {
+			return fmt.Errorf(
+				"resolving control plane data plane certificate %s: %w",
+				rs.ControlPlaneDataPlaneCertificates[i].GetRef(),
+				err,
+			)
 		}
 		processCount++
 	}

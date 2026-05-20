@@ -1,0 +1,19 @@
+_defaults:
+  kongctl:
+    namespace: portal-team-group-mappings-no-idp
+
+portals:
+  - ref: portal-no-idp
+    name: portal-no-idp
+    display_name: Portal Without IdP
+    description: Portal with team group mappings but no identity provider
+    kongctl:
+      namespace: portal-team-group-mappings-no-idp
+    teams:
+      - ref: portal-developers
+        name: Portal Developers
+        description: Developers mapped from IdP groups
+        group_mappings:
+          - ref: portal-developers-idp-groups
+            groups:
+              - Portal Developers

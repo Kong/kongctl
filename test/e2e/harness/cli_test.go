@@ -62,3 +62,45 @@ func TestWriteProfileConfigOmitsDisabledHTTPTimeouts(t *testing.T) {
 		t.Fatalf("config unexpectedly contains http-tcp-user-timeout: %s", content)
 	}
 }
+
+func TestWithEnvReplacesExistingKeys(t *testing.T) {
+	cli := &CLI{
+		Env: []string{
+			"EXISTING=old",
+			"OTHER=value",
+		},
+	}
+
+	cli.WithEnv(map[string]string{"EXISTING": "new"})
+
+	var existing []string
+	for _, kv := range cli.Env {
+		if strings.HasPrefix(kv, "EXISTING=") {
+			existing = append(existing, kv)
+		}
+	}
+	if len(existing) != 1 {
+		t.Fatalf("EXISTING entries = %v, want one", existing)
+	}
+	if existing[0] != "EXISTING=new" {
+		t.Fatalf("EXISTING entry = %q, want EXISTING=new", existing[0])
+	}
+}
+
+func TestSupportsHarnessOutputArgSkipsPlan(t *testing.T) {
+	if supportsHarnessOutputArg([]string{"plan", "-f", "config.yaml"}) {
+		t.Fatalf("plan command must not receive harness-managed output flags")
+	}
+}
+
+func TestSupportsHarnessOutputArgAllowsOtherCommands(t *testing.T) {
+	if !supportsHarnessOutputArg([]string{"apply", "-f", "config.yaml"}) {
+		t.Fatalf("apply command should support harness-managed output flags")
+	}
+}
+
+func TestHasOutputArgRecognizesShortOutputEquals(t *testing.T) {
+	if !hasOutputArg([]string{"get", "apis", "-o=json"}) {
+		t.Fatalf("expected -o=json to be recognized as an output flag")
+	}
+}

@@ -1,0 +1,14 @@
+organization:
+  teams:
+    - ref: team-alpha
+      name: e2e-get-team-alpha
+      description: "E2E Get Test Team Alpha"
+      kongctl:
+        namespace: e2e-get-team
+        protected: false
+    - ref: team-beta
+      name: e2e-get-team-beta
+      description: "E2E Get Test Team Beta"
+      kongctl:
+        namespace: e2e-get-team
+        protected: false

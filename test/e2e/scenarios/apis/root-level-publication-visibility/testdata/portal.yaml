@@ -1,0 +1,10 @@
+portals:
+  - ref: e2e-portal
+    name: "E2E Root-Level Publication Portal"
+    display_name: "E2E Root-Level Publication Portal"
+    description: "Portal used to verify omitted root-level publication visibility remains unmanaged"
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_api_visibility: "private"

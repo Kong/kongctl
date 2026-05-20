@@ -1,0 +1,12 @@
+_defaults:
+  kongctl:
+    namespace: sync-partial-scope
+
+portals:
+  - ref: sync-partial-portal
+    name: sync-partial-portal
+    display_name: "Sync Partial Portal (Updated)"
+    description: "Portal for sync partial scope test"
+    authentication_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false

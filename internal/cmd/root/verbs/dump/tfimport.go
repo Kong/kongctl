@@ -358,7 +358,12 @@ func dumpPortals(
 			}
 		}
 
-		return true, nil
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: res.ListPortalsResponse.Meta.Page.Total,
+		}
+		return params.hasMorePages(), nil
 	})
 }
 
@@ -849,7 +854,7 @@ func dumpAppAuthStrategies(
 		}
 
 		if filter.name != "" {
-			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{Name: buildStringFieldFilter(filter.name)}
+			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		res, err := kkClient.ListAppAuthStrategies(ctx, req)

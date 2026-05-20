@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>kongctl Pulse</title>
+  <link rel="icon" href="../../../brand/logo/dark/Kong-Logomark.svg" type="image/svg+xml">
+  <style>
+    :root {
+      color-scheme: dark;
+      --kong-dark: #0b0d12;
+      --kong-graphite: #35363a;
+      --kong-cloud: #f7f9fc;
+      --kong-green: #ccff00;
+      --bg: var(--kong-dark);
+      --panel: #141820;
+      --panel-raised: #1b202a;
+      --ink: var(--kong-cloud);
+      --muted: #aab4c0;
+      --line: rgba(247, 249, 252, 0.14);
+      --green: #ccff00;
+      --teal: #20d9c3;
+      --gold: #f0b429;
+      --red: #ff6b5f;
+      --blue: #8da2ff;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(204, 255, 0, 0.1), transparent 28rem),
+        linear-gradient(180deg, #0b0d12 0%, #121722 48%, #0b0d12 100%);
+      color: var(--ink);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .shell {
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 18px clamp(20px, 4vw, 56px);
+      border-bottom: 3px solid var(--kong-green);
+      background: rgba(11, 13, 18, 0.92);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .brand img {
+      display: block;
+      width: 112px;
+      height: auto;
+    }
+
+    .brand small,
+    .timestamp {
+      color: rgba(247, 249, 252, 0.78);
+      white-space: nowrap;
+    }
+
+    main {
+      padding: 30px clamp(20px, 4vw, 56px) 56px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+
+    .portfolio-hero {
+      grid-template-columns: 1fr;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: clamp(32px, 5vw, 62px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 16px;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .lede {
+      max-width: 850px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-copy {
+      padding: clamp(24px, 4vw, 42px);
+      background:
+        linear-gradient(135deg, rgba(204, 255, 0, 0.1), transparent 34%),
+        var(--kong-dark);
+      color: var(--kong-cloud);
+      border-color: rgba(204, 255, 0, 0.36);
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+      background: var(--panel-raised);
+      border-color: rgba(204, 255, 0, 0.24);
+      color: var(--kong-cloud);
+    }
+
+    .hero-copy .lede,
+    .hero-copy .timestamp,
+    .hero-copy p,
+    .hero-side .label {
+      color: rgba(247, 249, 252, 0.76);
+    }
+
+    .hero-copy a {
+      color: var(--kong-cloud);
+    }
+
+    .hero-side .metric {
+      background: rgba(11, 13, 18, 0.7);
+      border-color: rgba(247, 249, 252, 0.14);
+      box-shadow: none;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .metric {
+      padding: 18px;
+    }
+
+    .metric .value {
+      display: block;
+      font-size: clamp(24px, 3vw, 36px);
+      font-weight: 800;
+      line-height: 1;
+      color: var(--green);
+      text-shadow: 0 0 18px rgba(204, 255, 0, 0.12);
+    }
+
+    .metric .label {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .burn-workstream {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .section {
+      padding: 22px;
+      margin-bottom: 24px;
+    }
+
+    .progress-track {
+      height: 16px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(247, 249, 252, 0.12);
+    }
+
+    .progress-fill {
+      height: 100%;
+      min-width: 2px;
+      border-radius: inherit;
+      background: var(--kong-green);
+      box-shadow: 0 0 0 1px rgba(11, 13, 18, 0.1) inset;
+    }
+
+    .progress-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 10px;
+      color: var(--muted);
+    }
+
+    .chart {
+      width: 100%;
+      min-height: 220px;
+      overflow: hidden;
+    }
+
+    .chart-with-legend {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) max-content;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .chart svg {
+      display: block;
+      width: 100%;
+      height: 240px;
+    }
+
+    .chart-legend {
+      display: grid;
+      gap: 8px;
+      min-width: 118px;
+      padding-top: 10px;
+    }
+
+    .chart-legend .pill {
+      justify-content: flex-start;
+      width: 100%;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 16px;
+    }
+
+    .milestone-card {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      text-decoration: none;
+      transition: transform 160ms ease, border-color 160ms ease;
+    }
+
+    .milestone-card:hover {
+      border-color: #aec1cc;
+      background: #202632;
+      transform: translateY(-2px);
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(247, 249, 252, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .pill.red {
+      color: #ffaca5;
+      border-color: rgba(255, 107, 95, 0.36);
+      background: rgba(255, 107, 95, 0.12);
+    }
+
+    .pill.gold {
+      color: #ffd789;
+      border-color: rgba(240, 180, 41, 0.38);
+      background: rgba(240, 180, 41, 0.14);
+    }
+
+    .pill.green {
+      color: var(--kong-green);
+      border-color: rgba(204, 255, 0, 0.34);
+      background: rgba(204, 255, 0, 0.1);
+    }
+
+    .issue-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .issue {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(247, 249, 252, 0.045);
+    }
+
+    .issue a {
+      display: block;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .issue a:hover {
+      text-decoration: underline;
+    }
+
+    .issue-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .empty {
+      padding: 20px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: rgba(247, 249, 252, 0.045);
+    }
+
+    .footer {
+      color: var(--muted);
+      padding-top: 8px;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .layout,
+      .burn-workstream {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-with-legend {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        min-width: 0;
+        padding-top: 0;
+      }
+
+      .chart-legend .pill {
+        width: auto;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .timestamp {
+        white-space: normal;
+      }
+
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <img src="../../../brand/logo/dark/Kong-Logotype.svg" alt="Kong">
+        <small>kongctl Pulse</small>
+      </div>
+      <div class="timestamp" id="timestamp"></div>
+    </header>
+    <main id="app"></main>
+  </div>
+  <script>
+    window.PULSE_DATA = {"repo":"Kong/kongctl","milestone_state":"open","generated_at":"2026-05-05T21:27:36Z","snapshot_date":"2026-05-05","milestones":[{"number":3,"title":"kongctl GA Release: 1.0.0","slug":"kongctl-ga-release-1-0-0","description":"Planning for GA Release Spring 2026","state":"open","html_url":"https://github.com/Kong/kongctl/milestone/3","created_at":"2026-04-01T18:17:52Z","updated_at":"2026-05-05T20:59:44Z","due_on":"2026-05-18T00:00:00Z","closed_at":null,"days_remaining":13,"items":[{"number":731,"title":"Feat: Implement concurrent planning and execution operations","state":"open","html_url":"https://github.com/Kong/kongctl/issues/731","created_at":"2026-04-02T22:58:50Z","updated_at":"2026-05-05T14:21:03Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative"],"assignees":["harshadixit12"]},{"number":971,"title":"Task: Scan repository for Konnect API invocations outside of sdk-konnect-go","state":"open","html_url":"https://github.com/Kong/kongctl/issues/971","created_at":"2026-05-04T14:56:41Z","updated_at":"2026-05-04T15:03:20Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["triaged","medium-priority","konnect"],"assignees":[]},{"number":462,"title":"Task: Investiate and resolve declarative engine redundant request issues","state":"open","html_url":"https://github.com/Kong/kongctl/issues/462","created_at":"2026-02-21T18:17:10Z","updated_at":"2026-05-03T00:17:25Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["code improvement","triaged","declarative","performance"],"assignees":[]},{"number":727,"title":"Feat: `kongctl` support for defining and managing o11y custom dashboards","state":"open","html_url":"https://github.com/Kong/kongctl/issues/727","created_at":"2026-04-02T20:58:35Z","updated_at":"2026-05-03T00:15:17Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["triaged"],"assignees":["rspurgeon"]},{"number":883,"title":"Feat: Portal IdP Team Group Mappings resource support","state":"open","html_url":"https://github.com/Kong/kongctl/issues/883","created_at":"2026-04-24T02:44:09Z","updated_at":"2026-05-02T19:53:03Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative"],"assignees":["rspurgeon"]},{"number":779,"title":"Docs: GA developer.konghq.com additions and ammendments","state":"open","html_url":"https://github.com/Kong/kongctl/issues/779","created_at":"2026-04-09T18:53:10Z","updated_at":"2026-05-02T19:52:53Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["documentation","triaged","high-priority"],"assignees":["rspurgeon"]},{"number":823,"title":"Docs: Surface `kongctl` skills features sooner in docs and in repo README / docs","state":"open","html_url":"https://github.com/Kong/kongctl/issues/823","created_at":"2026-04-16T14:14:33Z","updated_at":"2026-05-02T19:52:47Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["documentation","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":791,"title":"Docs: Examples for event gateway and child resources","state":"open","html_url":"https://github.com/Kong/kongctl/issues/791","created_at":"2026-04-10T15:23:24Z","updated_at":"2026-05-02T17:21:49Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["documentation","triaged","medium-priority","declarative","konnect"],"assignees":["harshadixit12"]},{"number":945,"title":"Fix: Solve the `sync` scope issue","state":"open","html_url":"https://github.com/Kong/kongctl/issues/945","created_at":"2026-05-01T01:10:35Z","updated_at":"2026-05-01T01:57:58Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","high-priority"],"assignees":["rspurgeon"]},{"number":935,"title":"Fix: event-gateway needs support for `explain` and `scaffold`","state":"open","html_url":"https://github.com/Kong/kongctl/issues/935","created_at":"2026-04-30T00:30:44Z","updated_at":"2026-04-30T00:37:02Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative"],"assignees":["harshadixit12"]},{"number":826,"title":"Feature: Research, document, design, and implement `kongctl` extension system","state":"open","html_url":"https://github.com/Kong/kongctl/issues/826","created_at":"2026-04-16T21:30:00Z","updated_at":"2026-04-27T14:28:32Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":860,"title":"Feat: Portal IP Allow List resource support","state":"open","html_url":"https://github.com/Kong/kongctl/issues/860","created_at":"2026-04-22T14:01:21Z","updated_at":"2026-04-23T15:03:09Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":732,"title":"Feat: add configurable retry and backoff for declarative Konnect operations","state":"open","html_url":"https://github.com/Kong/kongctl/issues/732","created_at":"2026-04-02T23:15:54Z","updated_at":"2026-04-23T08:07:07Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative","konnect"],"assignees":["harshadixit12"]},{"number":733,"title":"Feat: add privacy-first opt-in CLI telemetry","state":"open","html_url":"https://github.com/Kong/kongctl/issues/733","created_at":"2026-04-03T03:40:21Z","updated_at":"2026-04-23T07:12:09Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority"],"assignees":["Prashansa-K"]},{"number":849,"title":"Docs: Enablement videos","state":"open","html_url":"https://github.com/Kong/kongctl/issues/849","created_at":"2026-04-21T13:53:25Z","updated_at":"2026-04-21T13:57:10Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["documentation","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":848,"title":"Docs: GA Release blog post","state":"open","html_url":"https://github.com/Kong/kongctl/issues/848","created_at":"2026-04-21T13:52:17Z","updated_at":"2026-04-21T13:56:07Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["documentation","triaged","release"],"assignees":["rspurgeon"]},{"number":257,"title":"Feat: Organization support","state":"open","html_url":"https://github.com/Kong/kongctl/issues/257","created_at":"2025-11-28T15:43:46Z","updated_at":"2026-04-15T14:12:06Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["do-not-triage"],"assignees":["rspurgeon"]},{"number":370,"title":"Bug: Access token not refreshed during long-running operations; mid-flight 401 causes partial failures","state":"open","html_url":"https://github.com/Kong/kongctl/issues/370","created_at":"2026-02-13T00:38:13Z","updated_at":"2026-04-01T18:50:09Z","closed_at":null,"kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","triaged"],"assignees":["rspurgeon"]},{"number":862,"title":"Feat: Portal Audit Log Webhook resource support","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/862","created_at":"2026-04-22T14:05:15Z","updated_at":"2026-05-05T20:59:44Z","closed_at":"2026-05-05T20:59:44Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative","konnect"],"assignees":["rspurgeon"]},{"number":965,"title":"Feat: Add `_external` support for Konnect Audit Log Webhook destinations","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/965","created_at":"2026-05-03T02:26:03Z","updated_at":"2026-05-04T16:56:45Z","closed_at":"2026-05-04T16:56:45Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative","konnect"],"assignees":["rspurgeon"]},{"number":861,"title":"Feat: Portal Integrations resource support","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/861","created_at":"2026-04-22T14:02:03Z","updated_at":"2026-05-03T13:55:58Z","closed_at":"2026-05-03T13:55:58Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","konnect"],"assignees":["rspurgeon"]},{"number":947,"title":"Test: Add `all` e2e scenario","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/947","created_at":"2026-05-01T01:28:12Z","updated_at":"2026-05-03T00:14:26Z","closed_at":"2026-05-03T00:14:26Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["triaged","medium-priority","declarative"],"assignees":["rspurgeon"]},{"number":91,"title":"Bug: default application auth strategies for portals do not load","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/91","created_at":"2025-10-15T12:25:58Z","updated_at":"2026-05-02T19:51:38Z","closed_at":"2026-05-02T19:51:38Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","code improvement","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":884,"title":"Task: Validate behavior for Serverless Gateway","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/884","created_at":"2026-04-24T14:30:10Z","updated_at":"2026-05-02T19:41:17Z","closed_at":"2026-05-02T19:41:17Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["e2e","triaged","medium-priority","declarative"],"assignees":["rspurgeon"]},{"number":153,"title":"Bug: planner - portal custom domain always re-created on  subsequent plan","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/153","created_at":"2025-11-03T13:16:53Z","updated_at":"2026-05-02T03:50:28Z","closed_at":"2026-05-02T03:50:28Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","triaged","high-priority","declarative"],"assignees":["rspurgeon"]},{"number":910,"title":"Fix: Ignore `text` output format in `api` verb","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/910","created_at":"2026-04-27T16:23:31Z","updated_at":"2026-05-02T03:08:37Z","closed_at":"2026-05-02T03:08:37Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","triaged","high-priority"],"assignees":["rspurgeon"]},{"number":100,"title":"Bug: kongctl get gateway control-planes fails with \"invalid value for ControlPlaneClusterType: CLUSTER_TYPE_CLOUD_API_GATEWAY\"","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/100","created_at":"2025-10-21T20:02:50Z","updated_at":"2026-05-02T02:05:40Z","closed_at":"2026-05-02T02:05:40Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":937,"title":"Fix: Rework the layout of existing core-entity resources in commands","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/937","created_at":"2026-04-30T02:24:47Z","updated_at":"2026-05-01T01:52:36Z","closed_at":"2026-05-01T01:52:36Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","high-priority","konnect"],"assignees":["rspurgeon"]},{"number":936,"title":"Feat: Support api gateway dataplane client certificates","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/936","created_at":"2026-04-30T00:36:49Z","updated_at":"2026-04-30T16:00:28Z","closed_at":"2026-04-30T16:00:28Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative","konnect"],"assignees":["rspurgeon"]},{"number":932,"title":"Task: updates gh-aw and agentic workflows","state":"closed","html_url":"https://github.com/Kong/kongctl/pull/932","created_at":"2026-04-29T21:07:39Z","updated_at":"2026-04-29T23:03:50Z","closed_at":"2026-04-29T23:03:48Z","kind":"pull_request","merged_at":"2026-04-29T23:03:48Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[],"labels":[],"assignees":[]},{"number":792,"title":"Refactor: Implement a consistent resource type, name, field name identifier usage across the codebase","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/792","created_at":"2026-04-10T16:50:07Z","updated_at":"2026-04-26T17:50:35Z","closed_at":"2026-04-26T17:50:35Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["code improvement","triaged","medium-priority","refactoring"],"assignees":["rspurgeon"]},{"number":892,"title":"Task: remove 'kai' subcommand","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/892","created_at":"2026-04-25T13:13:28Z","updated_at":"2026-04-25T17:36:12Z","closed_at":"2026-04-25T17:36:12Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["triaged","high-priority"],"assignees":["rspurgeon"]},{"number":730,"title":"Testing: Build a performance bench-marking process for large configuration sets","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/730","created_at":"2026-04-02T22:56:21Z","updated_at":"2026-04-25T13:51:30Z","closed_at":"2026-04-25T13:51:30Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative","performance"],"assignees":["rspurgeon"]},{"number":39,"title":"Bug: Pagination will silently skip data on large data sets","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/39","created_at":"2025-08-05T18:48:52Z","updated_at":"2026-04-23T19:58:05Z","closed_at":"2026-04-23T19:58:05Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","code improvement","triaged","high-priority"],"assignees":["rspurgeon"]},{"number":239,"title":"Fix: Pagination needs to evaluation and refactoring for consistency across sdk usage","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/239","created_at":"2025-11-18T01:19:40Z","updated_at":"2026-04-23T19:58:04Z","closed_at":"2026-04-23T19:58:04Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","go","code improvement","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":820,"title":"Test: Add widespread `delete` cleanup steps across the e2e scenario base","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/820","created_at":"2026-04-16T02:06:00Z","updated_at":"2026-04-23T17:15:19Z","closed_at":"2026-04-23T17:15:19Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["e2e","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":423,"title":"Fix: Portal Auth Settings API has changed, need to transition to Identity Provider API","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/423","created_at":"2026-02-17T15:43:32Z","updated_at":"2026-04-22T16:25:20Z","closed_at":"2026-04-22T16:25:20Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative","konnect"],"assignees":["rspurgeon"]},{"number":721,"title":"Feat: Event Gateway Trust Bundles","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/721","created_at":"2026-04-01T18:33:30Z","updated_at":"2026-04-21T02:51:49Z","closed_at":"2026-04-21T02:51:49Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","konnect"],"assignees":["harshadixit12"]},{"number":218,"title":"Feat: Event Gateway Static Keys resource support","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/218","created_at":"2025-11-12T02:59:23Z","updated_at":"2026-04-21T02:51:42Z","closed_at":"2026-04-21T02:51:42Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority"],"assignees":["harshadixit12"]},{"number":825,"title":"Task: Update `User-Agent` header to use `vX.X.X` format to match other Kong tools","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/825","created_at":"2026-04-16T18:04:17Z","updated_at":"2026-04-17T15:48:33Z","closed_at":"2026-04-17T15:48:33Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","code improvement","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":112,"title":"Bug: API publications default to \"private\" even when \"public\" is set","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/112","created_at":"2025-10-22T20:56:52Z","updated_at":"2026-04-16T19:18:16Z","closed_at":"2026-04-16T19:18:16Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","code improvement","triaged","high-priority"],"assignees":["rspurgeon"]},{"number":86,"title":"Bug: api_publication resources are not updating properly after initial create","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/86","created_at":"2025-10-07T12:47:41Z","updated_at":"2026-04-15T21:21:45Z","closed_at":"2026-04-15T21:21:45Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","code improvement","triaged","high-priority"],"assignees":["rspurgeon","Copilot"]},{"number":32,"title":"Feat: DCR support in application auth strategy resources","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/32","created_at":"2025-08-05T12:12:15Z","updated_at":"2026-04-15T13:46:01Z","closed_at":"2026-04-15T13:46:01Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority"],"assignees":["rspurgeon"]},{"number":219,"title":"Feat: Event Gateway Schema Registries resource support","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/219","created_at":"2025-11-12T02:59:56Z","updated_at":"2026-04-14T02:35:51Z","closed_at":"2026-04-14T02:35:51Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority"],"assignees":["harshadixit12"]},{"number":216,"title":"Feat: Event Gateway Virtual Cluster Produce Policies resource support","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/216","created_at":"2025-11-12T02:57:20Z","updated_at":"2026-04-13T03:20:21Z","closed_at":"2026-04-13T03:20:21Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority","declarative"],"assignees":["harshadixit12"]},{"number":215,"title":"Feat: Event Gateway Virtual Cluster Consume Policies resource support","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/215","created_at":"2025-11-12T02:56:51Z","updated_at":"2026-04-13T03:20:05Z","closed_at":"2026-04-13T03:20:05Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged","medium-priority"],"assignees":["harshadixit12"]},{"number":37,"title":"Bug: api publication no-op changes continually detected","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/37","created_at":"2025-08-05T16:24:39Z","updated_at":"2026-04-09T21:52:39Z","closed_at":"2026-04-09T21:52:39Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","triaged","medium-priority","declarative"],"assignees":["rspurgeon"]},{"number":353,"title":"Feat: Add `!env` yaml tag processor to support env var value loading","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/353","created_at":"2026-01-30T16:16:17Z","updated_at":"2026-04-03T04:07:20Z","closed_at":"2026-04-03T04:07:20Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["enhancement","triaged"],"assignees":["rspurgeon"]},{"number":714,"title":"Fix: Audit Log capabilities requires authorization key","state":"closed","html_url":"https://github.com/Kong/kongctl/issues/714","created_at":"2026-04-01T15:12:02Z","updated_at":"2026-04-01T23:03:25Z","closed_at":"2026-04-01T23:03:25Z","kind":"issue","merged_at":null,"base_ref":null,"author":null,"linked_issue_numbers":[],"labels":["bug","triaged","high-priority","konnect"],"assignees":["rspurgeon","Copilot"]}],"shipped_items":[{"number":969,"title":"Feat: add root level `audit-logs.destinations` `_external` resource support","html_url":"https://github.com/Kong/kongctl/pull/969","merged_at":"2026-05-04T16:56:44Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[965]},{"number":966,"title":"Feat: add developer portal integrations resource support","html_url":"https://github.com/Kong/kongctl/pull/966","merged_at":"2026-05-03T13:55:57Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[861]},{"number":961,"title":"Test: Add `all` resources e2e scenario","html_url":"https://github.com/Kong/kongctl/pull/961","merged_at":"2026-05-03T00:14:25Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[947]},{"number":960,"title":"Fix: properly resolve portal app auth strategy refs","html_url":"https://github.com/Kong/kongctl/pull/960","merged_at":"2026-05-02T19:51:37Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[91]},{"number":959,"title":"Test: add serverless control v1 plane e2e coverage","html_url":"https://github.com/Kong/kongctl/pull/959","merged_at":"2026-05-02T19:41:16Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[884]},{"number":956,"title":"Test: cover portal custom domain replanning","html_url":"https://github.com/Kong/kongctl/pull/956","merged_at":"2026-05-02T03:50:27Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[153]},{"number":955,"title":"Fix: api sub-command default json output and ignore text config","html_url":"https://github.com/Kong/kongctl/pull/955","merged_at":"2026-05-02T03:08:36Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[910]},{"number":939,"title":"Fix: move gateway core entities get & list commands under control plane parent command","html_url":"https://github.com/Kong/kongctl/pull/939","merged_at":"2026-05-01T01:52:35Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[937]},{"number":938,"title":"Feat: add control plane data plane certificate resource support","html_url":"https://github.com/Kong/kongctl/pull/938","merged_at":"2026-04-30T16:00:27Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[936]},{"number":932,"title":"Task: updates gh-aw and agentic workflows","html_url":"https://github.com/Kong/kongctl/pull/932","merged_at":"2026-04-29T23:03:48Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[]},{"number":904,"title":"Refactor: centralize Konnect view identifiers","html_url":"https://github.com/Kong/kongctl/pull/904","merged_at":"2026-04-26T17:50:34Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[792]},{"number":903,"title":"Refactor: centralize resource type and plan field identifiers","html_url":"https://github.com/Kong/kongctl/pull/903","merged_at":"2026-04-26T16:25:10Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[792]},{"number":893,"title":"Task: Removed kai subcommand","html_url":"https://github.com/Kong/kongctl/pull/893","merged_at":"2026-04-25T17:36:11Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[892]},{"number":885,"title":"Feat: Add declarative benchmark runner, reporting, and notifications","html_url":"https://github.com/Kong/kongctl/pull/885","merged_at":"2026-04-25T13:51:29Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[730]},{"number":865,"title":"Fix: Improve pagination correctness and test coverage","html_url":"https://github.com/Kong/kongctl/pull/865","merged_at":"2026-04-23T19:58:03Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[39,239]},{"number":871,"title":"Test: Adds e2e delete cleanup coverage","html_url":"https://github.com/Kong/kongctl/pull/871","merged_at":"2026-04-23T17:15:18Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[820]},{"number":851,"title":"Feat: Portal IdP resource support","html_url":"https://github.com/Kong/kongctl/pull/851","merged_at":"2026-04-22T16:25:19Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[423]},{"number":829,"title":"[codex] prefix User-Agent versions with v","html_url":"https://github.com/Kong/kongctl/pull/829","merged_at":"2026-04-17T15:48:32Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[825]},{"number":821,"title":"test(e2e): expand default_application_auth_strategy scenario with update and clear lifecycle steps","html_url":"https://github.com/Kong/kongctl/pull/821","merged_at":"2026-04-16T22:36:09Z","base_ref":"main","author":"Copilot","linked_issue_numbers":[91]},{"number":824,"title":"Test: root-level api_publication visibility ownership","html_url":"https://github.com/Kong/kongctl/pull/824","merged_at":"2026-04-16T19:18:15Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[112]},{"number":815,"title":"test: cover api_publication re-apply idempotency","html_url":"https://github.com/Kong/kongctl/pull/815","merged_at":"2026-04-15T21:21:43Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[86]},{"number":795,"title":"Feat: Adds DCR Provider resource support","html_url":"https://github.com/Kong/kongctl/pull/795","merged_at":"2026-04-15T13:45:59Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[32]},{"number":758,"title":"Feat: event gateway consume policy","html_url":"https://github.com/Kong/kongctl/pull/758","merged_at":"2026-04-11T00:49:56Z","base_ref":"main","author":"harshadixit12","linked_issue_numbers":[215]},{"number":781,"title":"test: add api publication omitted-auth no-op e2e coverage","html_url":"https://github.com/Kong/kongctl/pull/781","merged_at":"2026-04-09T21:52:37Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[37]},{"number":702,"title":"Feat: Event Gateway produce policy","html_url":"https://github.com/Kong/kongctl/pull/702","merged_at":"2026-04-09T18:57:09Z","base_ref":"main","author":"harshadixit12","linked_issue_numbers":[216]},{"number":690,"title":"Feat: add `!env` yaml tag support","html_url":"https://github.com/Kong/kongctl/pull/690","merged_at":"2026-04-03T04:07:19Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[353]},{"number":113,"title":"GH-112: Working on API Publications, visibility, and auth strategy id references","html_url":"https://github.com/Kong/kongctl/pull/113","merged_at":"2025-10-23T21:28:26Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[112]},{"number":40,"title":"fix: resolve api document slug generation issue (#36)","html_url":"https://github.com/Kong/kongctl/pull/40","merged_at":"2025-08-05T21:09:24Z","base_ref":"main","author":"rspurgeon","linked_issue_numbers":[37]}],"total_items":49,"open_items":18,"closed_items":31,"issue_items":48,"pull_request_items":1,"open_high_priority":2,"open_medium_priority":11,"open_bugs":1,"open_unassigned":2,"stale_open":4,"completion_percent":63.27}],"totals":{"milestones":1,"total_items":49,"open_items":18,"closed_items":31,"open_high_priority":2,"open_bugs":1,"open_unassigned":2,"stale_open":4,"completion_percent":63.27}}
+;
+    window.PULSE_HISTORY = [{"snapshot_date":"2026-05-05","generated_at":"2026-05-05T21:27:36Z","totals":{"milestones":1,"total_items":49,"open_items":18,"closed_items":31,"open_high_priority":2,"open_bugs":1,"open_unassigned":2,"stale_open":4,"completion_percent":63.27},"milestones":[{"number":3,"title":"kongctl GA Release: 1.0.0","slug":"kongctl-ga-release-1-0-0","total_items":49,"open_items":18,"closed_items":31,"open_high_priority":2,"open_bugs":1,"completion_percent":63.27}]}]
+;
+    window.PULSE_VIEW = "index";
+    window.PULSE_MILESTONE_NUMBER = "";
+
+    const data = window.PULSE_DATA;
+    const history = window.PULSE_HISTORY;
+    const view = window.PULSE_VIEW;
+    const milestoneNumber = Number(window.PULSE_MILESTONE_NUMBER);
+
+    const app = document.getElementById('app');
+    const timestamp = document.getElementById('timestamp');
+    timestamp.textContent = `Generated ${formatDateTime(data.generated_at)} from ${data.repo}`;
+
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[char]);
+    }
+
+    function formatDate(value) {
+      if (!value) return 'No due date';
+      return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(value));
+    }
+
+    function formatDateTime(value) {
+      return new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      }).format(new Date(value));
+    }
+
+    function percent(value) {
+      return `${Number(value || 0).toFixed(Number(value || 0) % 1 === 0 ? 0 : 1)}%`;
+    }
+
+    function daysLabel(days) {
+      if (days === null || days === undefined) return 'No due date';
+      if (days < 0) return `${Math.abs(days)} days past due`;
+      if (days === 0) return 'Due today';
+      return `${days} days remaining`;
+    }
+
+    function metric(value, label) {
+      return `<div class="metric panel"><span class="value">${esc(value)}</span><span class="label">${esc(label)}</span></div>`;
+    }
+
+    function progressBar(done, total) {
+      const pct = total > 0 ? Math.round(done * 1000 / total) / 10 : 0;
+      return `
+        <div class="progress-track" aria-label="${esc(pct)} percent complete">
+          <div class="progress-fill" style="width:${Math.max(0, Math.min(100, pct))}%"></div>
+        </div>
+        <div class="progress-row">
+          <span>${esc(done)} closed</span>
+          <strong>${esc(percent(pct))}</strong>
+          <span>${esc(total - done)} open</span>
+        </div>
+      `;
+    }
+
+    function trendForMilestone(milestone) {
+      return history
+        .map((snapshot) => {
+          const item = snapshot.milestones.find((entry) => entry.number === milestone.number);
+          if (!item) return null;
+          return { date: snapshot.snapshot_date, ...item };
+        })
+        .filter(Boolean);
+    }
+
+    function chart(points, series) {
+      if (!points.length) {
+        return '<div class="empty">Trend data will appear after the first scheduled refresh.</div>';
+      }
+
+      const width = 760;
+      const height = 240;
+      const pad = 34;
+      const maxY = Math.max(1, ...points.flatMap((point) => series.map((item) => Number(point[item.key] || 0))));
+      const x = (index) => points.length === 1 ? width / 2 : pad + (index * (width - pad * 2) / (points.length - 1));
+      const y = (value) => height - pad - (Number(value || 0) * (height - pad * 2) / maxY);
+
+      const paths = series.map((item) => {
+        const d = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${x(index).toFixed(1)} ${y(point[item.key]).toFixed(1)}`).join(' ');
+        const dots = points.map((point, index) => `<circle cx="${x(index).toFixed(1)}" cy="${y(point[item.key]).toFixed(1)}" r="3.5" fill="${item.color}"></circle>`).join('');
+        return `<path d="${d}" fill="none" stroke="${item.color}" stroke-width="3" stroke-linecap="round"></path>${dots}`;
+      }).join('');
+
+      const last = points[points.length - 1];
+      const labels = series.map((item) => `<span class="pill"><span style="color:${item.color};font-weight:800">&bull;</span>&nbsp;${esc(item.label)} ${esc(last[item.key] || 0)}</span>`).join('');
+      const axis = `
+        <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(247,249,252,0.18)"></line>
+        <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(247,249,252,0.18)"></line>
+        <text x="${pad}" y="${pad - 10}" fill="#aab4c0" font-size="12">${esc(maxY)}</text>
+        <text x="${pad}" y="${height - 8}" fill="#aab4c0" font-size="12">${esc(points[0].date)}</text>
+        <text x="${width - pad}" y="${height - 8}" fill="#aab4c0" font-size="12" text-anchor="end">${esc(last.date)}</text>
+      `;
+
+      return `<div class="chart-with-legend"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Milestone trend chart">${axis}${paths}</svg><div class="chart-legend">${labels}</div></div>`;
+    }
+
+    function issueList(items, emptyText, limit = 10) {
+      const limited = items.slice(0, limit);
+      if (!limited.length) return `<div class="empty">${esc(emptyText)}</div>`;
+      return `
+        <ul class="issue-list">
+          ${limited.map((item) => `
+            <li class="issue">
+              <a href="${esc(item.html_url)}">#${esc(item.number)} ${esc(item.title)}</a>
+              <div class="issue-meta">
+                <span>${esc(item.kind === 'pull_request' ? 'PR' : 'Issue')}</span>
+                <span>${esc(item.state)}</span>
+                <span>updated ${esc(formatDate(item.updated_at))}</span>
+                ${item.assignees.length ? `<span>${esc(item.assignees.join(', '))}</span>` : '<span>unassigned</span>'}
+              </div>
+              <div class="pill-row" style="margin-top:8px">
+                ${item.labels.slice(0, 6).map((label) => `<span class="pill">${esc(label)}</span>`).join('')}
+              </div>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+    }
+
+    function mergedList(items, emptyText, limit = 8) {
+      const limited = items.slice(0, limit);
+      if (!limited.length) return `<div class="empty">${esc(emptyText)}</div>`;
+      return `
+        <ul class="issue-list">
+          ${limited.map((item) => `
+            <li class="issue">
+              <a href="${esc(item.html_url)}">#${esc(item.number)} ${esc(item.title)}</a>
+              <div class="issue-meta">
+                <span>merged ${esc(formatDate(item.merged_at))}</span>
+                <span>to ${esc(item.base_ref || 'main')}</span>
+                ${item.linked_issue_numbers && item.linked_issue_numbers.length ? `<span>ships #${esc(item.linked_issue_numbers.join(', #'))}</span>` : ''}
+                ${item.author ? `<span>${esc(item.author)}</span>` : ''}
+              </div>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+    }
+
+    function labelSummary(items) {
+      const ignored = new Set(['triaged', 'do-not-triage']);
+      const counts = new Map();
+      items.forEach((item) => {
+        item.labels.forEach((label) => {
+          if (!ignored.has(label)) counts.set(label, (counts.get(label) || 0) + 1);
+        });
+      });
+      return [...counts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 10)
+        .map(([label, count]) => `<span class="pill">${esc(label)} ${esc(count)}</span>`)
+        .join('');
+    }
+
+    function milestonePulse(milestone, options = {}) {
+      const openItems = milestone.items.filter((item) => item.state === 'open');
+      const shippedItems = milestone.shipped_items || [];
+      const highPriority = openItems.filter((item) => item.labels.includes('high-priority'));
+      const unassigned = openItems.filter((item) => item.assignees.length === 0);
+      const milestoneTrend = trendForMilestone(milestone);
+      const backLink = options.showBackLink ? '<p><a href="../">&larr; kongctl Pulse index</a></p>' : '';
+
+      return `
+        <section class="hero" id="${esc(milestone.slug)}">
+          <div class="hero-copy panel">
+            ${backLink}
+            <h1>${esc(milestone.title)} Pulse</h1>
+            <p class="lede">${esc(milestone.description || 'Progress, open risk, and work remaining for this milestone.')}</p>
+            <div class="pill-row">
+              <span class="pill green">${esc(percent(milestone.completion_percent))} complete</span>
+              <span class="pill">${esc(daysLabel(milestone.days_remaining))}</span>
+              <a class="pill" href="${esc(milestone.html_url)}">GitHub milestone</a>
+            </div>
+          </div>
+          <aside class="hero-side panel">
+            ${metric(milestone.total_items, 'Items in this milestone')}
+            ${metric(milestone.closed_items, 'Closed')}
+            ${metric(milestone.open_items, 'Open')}
+          </aside>
+        </section>
+
+        <section class="burn-workstream">
+          <section class="section panel">
+            <h2>Burnup And Burndown</h2>
+            ${progressBar(milestone.closed_items, milestone.total_items)}
+            <div class="chart" style="margin-top:18px">
+              ${chart(milestoneTrend, [
+                { key: 'total_items', label: 'Scope', color: '#8da2ff' },
+                { key: 'closed_items', label: 'Closed', color: '#ccff00' },
+                { key: 'open_items', label: 'Open', color: '#ff6b5f' }
+              ])}
+            </div>
+          </section>
+
+          <section class="section panel">
+            <h2>Open Workstream Mix</h2>
+            <div class="pill-row">${labelSummary(openItems) || '<span class="pill green">No open labels</span>'}</div>
+          </section>
+        </section>
+
+        <section class="layout">
+          <section class="section panel">
+            <h2>Recently Merged</h2>
+            ${mergedList(shippedItems, 'Merged milestone PRs will appear here as the milestone progresses.', 8)}
+          </section>
+
+          <section class="section panel">
+            <h2>Needs Attention</h2>
+            <h3>High priority</h3>
+            ${issueList(highPriority, 'No open high-priority items.', 6)}
+            <h3 style="margin-top:18px">Unassigned</h3>
+            ${issueList(unassigned, 'No unassigned open items.', 6)}
+          </section>
+        </section>
+      `;
+    }
+
+    function renderIndex() {
+      const milestones = data.milestones;
+
+      app.innerHTML = `
+        <section class="hero portfolio-hero">
+          <div class="hero-copy panel">
+            <h1>kongctl Pulse</h1>
+            <p class="lede"><code>kongctl</code> progress, burn trends, open risks and more... updated daily.</p>
+          </div>
+        </section>
+
+        ${milestones.map((milestone) => milestonePulse(milestone)).join('')}
+
+        <p class="footer">Generated by <code>scripts/milestone-pulse.sh</code>. Daily snapshots live in <code>docs/reports/milestones/data</code>.</p>
+      `;
+    }
+
+    function renderMilestone() {
+      const milestone = data.milestones.find((item) => item.number === milestoneNumber);
+      if (!milestone) {
+        app.innerHTML = '<section class="section panel"><h1>Milestone not found</h1><p class="lede">This Pulse was generated for a milestone that is not in the latest snapshot.</p></section>';
+        return;
+      }
+
+      document.title = `${milestone.title} Pulse`;
+      app.innerHTML = `
+        ${milestonePulse(milestone, { showBackLink: true })}
+        <p class="footer">This Pulse refreshes from GitHub milestone data when the scheduled workflow runs.</p>
+      `;
+    }
+
+    if (view === 'milestone') {
+      renderMilestone();
+    } else {
+      renderIndex();
+    }
+  </script>
+</body>
+</html>

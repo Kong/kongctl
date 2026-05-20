@@ -2,6 +2,8 @@ _defaults:
   kongctl:
     namespace: yaml-env-tags
 
+dcr_providers: []
+
 portals:
   - ref: env-portal
     name: env-portal

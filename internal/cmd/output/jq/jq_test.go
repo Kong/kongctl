@@ -15,7 +15,6 @@ type stubConfig struct {
 	boolValues map[string]bool
 }
 
-func (s stubConfig) Save() error                           { return nil }
 func (s stubConfig) GetString(key string) string           { return s.values[key] }
 func (s stubConfig) GetBool(key string) bool               { return s.boolValues[key] }
 func (s stubConfig) GetInt(string) int                     { return 0 }
@@ -27,6 +26,7 @@ func (s stubConfig) Get(string) any                        { return nil }
 func (s stubConfig) BindFlag(string, *pflag.Flag) error    { return nil }
 func (s stubConfig) GetProfile() string                    { return "default" }
 func (s stubConfig) GetPath() string                       { return "" }
+func (s stubConfig) InConfig(string) bool                  { return false }
 
 func TestResolveSettingsDefaults(t *testing.T) {
 	command := &cobra.Command{Use: "test"}

@@ -141,12 +141,6 @@ func (p *Planner) planDataPlaneCertificateCreatesForNewGateway(
 	certificates []resources.EventGatewayDataPlaneCertificateResource,
 	plan *Plan,
 ) {
-	p.logger.Debug("Planning data plane certificate creates for new gateway",
-		"gateway_ref", gatewayRef,
-		"gateway_change_id", gatewayChangeID,
-		"cert_count", len(certificates),
-	)
-
 	// Build dependencies - certificates depend on gateway being created first
 	var dependsOn []string
 	if gatewayChangeID != "" {
@@ -171,12 +165,12 @@ func (p *Planner) planDataPlaneCertificateCreate(
 	plan *Plan,
 ) {
 	fields := make(map[string]any)
-	fields["certificate"] = cert.Certificate
+	fields[FieldCertificate] = cert.Certificate
 	if cert.Name != nil {
-		fields["name"] = *cert.Name
+		fields[FieldName] = *cert.Name
 	}
 	if cert.Description != nil {
-		fields["description"] = *cert.Description
+		fields[FieldDescription] = *cert.Description
 	}
 
 	change := PlannedChange{
@@ -198,11 +192,11 @@ func (p *Planner) planDataPlaneCertificateCreate(
 	} else {
 		// Gateway doesn't exist yet, add reference for runtime resolution
 		change.References = map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  "", // to be resolved at runtime
 				LookupFields: map[string]string{
-					"name": gatewayName,
+					FieldName: gatewayName,
 				},
 			},
 		}
@@ -295,42 +289,26 @@ func (p *Planner) shouldUpdateDataPlaneCertificate(
 		needsUpdate = true
 	}
 
-	// Compare name
-	currentName := ""
-	if current.Name != nil {
-		currentName = *current.Name
-	}
-	desiredName := ""
-	if desired.Name != nil {
-		desiredName = *desired.Name
-	}
-	if currentName != desiredName {
+	// Compare name (only when desired sets it, to stay convergent)
+	if desired.Name != nil && getString(current.Name) != *desired.Name {
 		needsUpdate = true
 	}
 
-	// Compare description
-	currentDesc := ""
-	if current.Description != nil {
-		currentDesc = *current.Description
-	}
-	desiredDesc := ""
-	if desired.Description != nil {
-		desiredDesc = *desired.Description
-	}
-	if currentDesc != desiredDesc {
+	// Compare description (only when desired sets it, to stay convergent)
+	if desired.Description != nil && getString(current.Description) != *desired.Description {
 		needsUpdate = true
 	}
 
 	// If any changes detected, set ALL properties from desired state for PUT request
 	if needsUpdate {
-		updates["certificate"] = desired.Certificate
+		updates[FieldCertificate] = desired.Certificate
 
 		if desired.Name != nil {
-			updates["name"] = *desired.Name
+			updates[FieldName] = *desired.Name
 		}
 
 		if desired.Description != nil {
-			updates["description"] = *desired.Description
+			updates[FieldDescription] = *desired.Description
 		}
 	}
 

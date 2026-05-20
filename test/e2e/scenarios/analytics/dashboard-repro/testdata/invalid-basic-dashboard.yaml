@@ -1,0 +1,24 @@
+analytics:
+  dashboards:
+    - ref: issue-1107-dashboard
+      name: Issue 1107 Dashboard
+      definition:
+        tiles:
+          - type: chart
+            layout:
+              position:
+                col: 0
+                row: 0
+              size:
+                cols: 6
+                rows: 2
+            definition:
+              query:
+                datasource: basic
+                metrics:
+                  - request_count
+                dimensions:
+                  - time
+              chart:
+                chart_title: Request count
+                type: timeseries_line

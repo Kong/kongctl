@@ -3,8 +3,23 @@ package config
 import (
 	"testing"
 
+	"github.com/kong/kongctl/internal/cmd/common"
 	utilviper "github.com/kong/kongctl/internal/util/viper"
 )
+
+func TestDefaultConfigUsesAutomaticColorTheme(t *testing.T) {
+	cfg := getDefaultConfig("default", "config.yaml")
+	profile, ok := cfg["default"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected default profile config")
+	}
+	if got := profile[common.ColorThemeConfigPath]; got != common.DefaultColorTheme {
+		t.Fatalf("expected default color theme %q, got %v", common.DefaultColorTheme, got)
+	}
+	if common.DefaultColorTheme != "auto" {
+		t.Fatalf("expected automatic color theme default, got %q", common.DefaultColorTheme)
+	}
+}
 
 func TestBuildProfiledConfig_ProfileEnvWithDashes(t *testing.T) {
 	t.Setenv("KONGCTL_TEAM_A_B_C_KONNECT_PAT", "token-123")

@@ -48,11 +48,13 @@ func NewSystemAccountCmd(
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
-		cmd := newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command
-		if err := addAccessTokenChild(cmd, verb, addParentFlags, parentPreRun); err != nil {
+		getSa := newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun)
+		getSa.AddCommand(newGetSystemAccountRolesCmd(verb, addParentFlags, parentPreRun))
+		getSa.AddCommand(newGetSystemAccountTeamsCmd(verb, addParentFlags, parentPreRun))
+		if err := addAccessTokenChild(getSa.Command, verb, addParentFlags, parentPreRun); err != nil {
 			return nil, err
 		}
-		return cmd, nil
+		return getSa.Command, nil
 	}
 
 	if verb == verbs.Create || verb == verbs.Delete {

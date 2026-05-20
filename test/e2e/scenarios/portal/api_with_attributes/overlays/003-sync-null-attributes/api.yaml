@@ -1,0 +1,8 @@
+apis:
+  - ref: simple-api
+    name: "Simple API"
+    description: "A minimal API"
+    slug: "simple-api-deprecated"
+    attributes:
+      owner: null
+      lifecycle: null

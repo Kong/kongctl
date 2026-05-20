@@ -22,7 +22,7 @@ func TestNewPlanCmd(t *testing.T) {
 
 	// Test basic command properties
 	assert.Equal(t, "plan", cmd.Use, "Command use should be 'plan'")
-	assert.Contains(t, cmd.Short, "Preview changes to Kong Konnect resources",
+	assert.Contains(t, cmd.Short, "Generate a declarative configuration execution plan",
 		"Short description should mention preview changes")
 	assert.Contains(t, cmd.Long, "execution plan", "Long description should mention execution plan")
 	assert.Contains(t, cmd.Example, meta.CLIName, "Examples should include CLI name")
@@ -47,10 +47,13 @@ func TestPlanCmdHelpText(t *testing.T) {
 	}
 
 	// Test that help text contains expected content
-	assert.Contains(t, cmd.Short, "Preview changes", "Short should mention preview changes")
+	assert.Contains(t, cmd.Short, "Generate a declarative configuration execution plan",
+		"Short should mention preview changes")
 	assert.Contains(t, cmd.Long, "execution plan", "Long should mention execution plan")
 	assert.Contains(t, cmd.Example, "-f", "Examples should show -f flag usage")
-	assert.Contains(t, cmd.Example, "help plan", "Examples should mention extended help")
+	assert.Contains(t, cmd.Example, "plan konnect -f api.yaml", "Examples should show explicit Konnect usage")
+	assert.Contains(t, cmd.Example, "--output-file plan.json", "Examples should show plan artifact output")
+	assert.NotContains(t, cmd.Example, "help plan", "Examples should come from Konnect declarative command")
 }
 
 func TestPlanCmdSubcommandAccess(t *testing.T) {

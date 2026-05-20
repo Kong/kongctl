@@ -27,12 +27,12 @@ func (e *Executor) createAPIVersion(ctx context.Context, change planner.PlannedC
 	req := kkComps.CreateAPIVersionRequest{}
 
 	// Map fields to SDK request
-	if version, ok := change.Fields["version"].(string); ok {
+	if version, ok := change.Fields[planner.FieldVersion].(string); ok {
 		req.Version = &version
 	}
 	// The SDK only supports Version and Spec fields
-	if spec, ok := change.Fields["spec"].(map[string]any); ok {
-		if content, ok := spec["content"].(string); ok {
+	if spec, ok := change.Fields[planner.FieldSpec].(map[string]any); ok {
+		if content, ok := spec[planner.FieldContent].(string); ok {
 			req.Spec = kkComps.CreateAPIVersionRequestSpec{
 				Content: &content,
 			}

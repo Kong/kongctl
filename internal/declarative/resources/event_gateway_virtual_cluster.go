@@ -11,7 +11,9 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayVirtualCluster,
 		func(rs *ResourceSet) *[]EventGatewayVirtualClusterResource { return &rs.EventGatewayVirtualClusters },
-		AutoExplain[EventGatewayVirtualClusterResource](),
+		AutoExplain[EventGatewayVirtualClusterResource](
+			WithExplainSchemaBuilder(eventGatewayVirtualClusterExplainNode),
+		),
 	)
 }
 
@@ -22,7 +24,9 @@ type EventGatewayVirtualClusterResource struct {
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 
 	// Nested child resources
-	ClusterPolicies []EventGatewayClusterPolicyResource `yaml:"cluster_policies,omitempty" json:"cluster_policies,omitempty"` //nolint:lll
+	ClusterPolicies []EventGatewayClusterPolicyResource `yaml:"cluster_policies,omitempty" json:"cluster_policies,omitempty"`  //nolint:lll
+	ProducePolicies []EventGatewayProducePolicyResource `yaml:"produce_policies,omitempty" json:"produce_policies,omitempty"`  //nolint:lll
+	ConsumePolicies []EventGatewayConsumePolicyResource `yaml:"consume_policies,omitempty"  json:"consume_policies,omitempty"` //nolint:lll
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -44,7 +48,7 @@ func (e EventGatewayVirtualClusterResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if e.EventGateway != "" {
 		// Dependency on parent Event Gateway when defined at root level
-		deps = append(deps, ResourceRef{Kind: "event_gateway", Ref: e.EventGateway})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeEventGatewayControlPlane, Ref: e.EventGateway})
 	}
 	return deps
 }
@@ -70,6 +74,29 @@ func (e EventGatewayVirtualClusterResource) Validate() error {
 		clusterPolicyRefs[cp.GetRef()] = true
 	}
 
+	// Validate produce policies
+	producePolicyRefs := make(map[string]bool)
+	for i, pp := range e.ProducePolicies {
+		if err := pp.Validate(); err != nil {
+			return fmt.Errorf("invalid produce policy %d: %w", i, err)
+		}
+		if producePolicyRefs[pp.GetRef()] {
+			return fmt.Errorf("duplicate produce policy ref: %s", pp.GetRef())
+		}
+		producePolicyRefs[pp.GetRef()] = true
+	}
+	// Validate consume policies
+	consumePolicyRefs := make(map[string]bool)
+	for i, cp := range e.ConsumePolicies {
+		if err := cp.Validate(); err != nil {
+			return fmt.Errorf("invalid consume policy %d: %w", i, err)
+		}
+		if consumePolicyRefs[cp.GetRef()] {
+			return fmt.Errorf("duplicate consume policy ref: %s", cp.GetRef())
+		}
+		consumePolicyRefs[cp.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -82,6 +109,15 @@ func (e *EventGatewayVirtualClusterResource) SetDefaults() {
 	// Apply defaults to cluster policies
 	for i := range e.ClusterPolicies {
 		e.ClusterPolicies[i].SetDefaults()
+	}
+
+	// Apply defaults to produce policies
+	for i := range e.ProducePolicies {
+		e.ProducePolicies[i].SetDefaults()
+	}
+	// Apply defaults to consume policies
+	for i := range e.ConsumePolicies {
+		e.ConsumePolicies[i].SetDefaults()
 	}
 }
 
@@ -100,7 +136,7 @@ func (e *EventGatewayVirtualClusterResource) TryMatchKonnectResource(konnectReso
 // REQUIRED: Implement ResourceWithParent
 func (e EventGatewayVirtualClusterResource) GetParentRef() *ResourceRef {
 	if e.EventGateway != "" {
-		return &ResourceRef{Kind: "event_gateway", Ref: e.EventGateway}
+		return &ResourceRef{Kind: ResourceTypeEventGatewayControlPlane, Ref: e.EventGateway}
 	}
 	return nil
 }
@@ -124,6 +160,8 @@ func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
 
 		// Nested child resources
 		ClusterPolicies []EventGatewayClusterPolicyResource `json:"cluster_policies,omitempty"`
+		ProducePolicies []EventGatewayProducePolicyResource `json:"produce_policies,omitempty"`
+		ConsumePolicies []EventGatewayConsumePolicyResource `json:"consume_policies,omitempty"`
 	}
 
 	payload := alias{
@@ -138,6 +176,8 @@ func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
 		DNSLabel:        e.DNSLabel,
 		Labels:          e.Labels,
 		ClusterPolicies: e.ClusterPolicies,
+		ProducePolicies: e.ProducePolicies,
+		ConsumePolicies: e.ConsumePolicies,
 	}
 
 	return json.Marshal(payload)
@@ -164,6 +204,8 @@ func (e *EventGatewayVirtualClusterResource) UnmarshalJSON(data []byte) error {
 
 		// Nested child resources
 		ClusterPolicies []EventGatewayClusterPolicyResource `json:"cluster_policies,omitempty"`
+		ProducePolicies []EventGatewayProducePolicyResource `json:"produce_policies,omitempty"`
+		ConsumePolicies []EventGatewayConsumePolicyResource `json:"consume_policies,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -190,6 +232,8 @@ func (e *EventGatewayVirtualClusterResource) UnmarshalJSON(data []byte) error {
 
 	// Populate nested child resources
 	e.ClusterPolicies = temp.ClusterPolicies
+	e.ProducePolicies = temp.ProducePolicies
+	e.ConsumePolicies = temp.ConsumePolicies
 
 	return nil
 }

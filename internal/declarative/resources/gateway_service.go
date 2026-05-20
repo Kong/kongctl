@@ -57,7 +57,7 @@ func (s GatewayServiceResource) GetMoniker() string {
 func (s GatewayServiceResource) GetDependencies() []ResourceRef {
 	deps := make([]ResourceRef, 0, 1)
 	if s.ControlPlane != "" {
-		deps = append(deps, ResourceRef{Kind: string(ResourceTypeControlPlane), Ref: s.ControlPlane})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeControlPlane, Ref: s.ControlPlane})
 	}
 	return deps
 }
@@ -221,7 +221,7 @@ func (s GatewayServiceResource) GetParentRef() *ResourceRef {
 	if s.ControlPlane == "" {
 		return nil
 	}
-	return &ResourceRef{Kind: string(ResourceTypeControlPlane), Ref: s.ControlPlane}
+	return &ResourceRef{Kind: ResourceTypeControlPlane, Ref: s.ControlPlane}
 }
 
 // ResolvedControlPlaneID exposes the konnect control plane identifier.

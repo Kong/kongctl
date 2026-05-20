@@ -12,18 +12,5 @@ portals:
     auth_settings:
       ref: portal-auth-settings
       basic_auth_enabled: true
-      oidc_auth_enabled: true
-      saml_auth_enabled: false
-      oidc_team_mapping_enabled: true
-      konnect_mapping_enabled: false
-      idp_mapping_enabled: true
-      oidc_issuer: "https://accounts.google.com"
-      oidc_client_id: "client-id-1"
-      oidc_client_secret: "client-secret-1"
-      oidc_scopes:
-        - openid
-        - profile
-      oidc_claim_mappings:
-        name: name
-        email: email
-        groups: groups
+      konnect_mapping_enabled: true
+      idp_mapping_enabled: false

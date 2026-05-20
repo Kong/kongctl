@@ -2,7 +2,6 @@ package adopt
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -17,6 +16,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -223,15 +223,12 @@ func resolveEventGatewayControlPlane(
 		return egw, nil
 	}
 
-	pageSize := cfg.GetInt(common.RequestPageSizeConfigPath)
-	if pageSize < 1 {
-		pageSize = common.DefaultRequestPageSize
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var pageAfter *string
 	for {
 		req := kkOps.ListEventGatewaysRequest{
-			PageSize: new(int64(pageSize)),
+			PageSize: &pageSize,
 		}
 
 		if pageAfter != nil {
@@ -256,8 +253,7 @@ func resolveEventGatewayControlPlane(
 
 		for _, egw := range list.Data {
 			if egw.Name == identifier {
-				egwCopy := egw
-				return &egwCopy, nil
+				return &egw, nil
 			}
 		}
 
@@ -265,22 +261,11 @@ func resolveEventGatewayControlPlane(
 			break
 		}
 
-		// Page.Next contains a full URL; parse it and extract the cursor from
-		// the `page[after]` query parameter so we can pass it to the next request.
-		u, err := url.Parse(*list.Meta.Page.Next)
-		if err != nil {
-			attrs := cmdpkg.TryConvertErrorToAttrs(err)
-			return nil, cmdpkg.PrepareExecutionError("failed to parse pagination URL", err, helper.GetCmd(), attrs...)
-		}
-
-		values := u.Query()
-		after := values.Get("page[after]")
-		if after == "" {
+		nextCursor := pagination.ExtractPageAfterCursor(list.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-		// allocate a new string so the pointer remains valid across iterations
-		tmp := after
-		pageAfter = &tmp
+		pageAfter = &nextCursor
 	}
 
 	return nil, &cmdpkg.ConfigurationError{

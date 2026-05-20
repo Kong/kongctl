@@ -23,7 +23,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 
 	// Get portal ID from references
 	portalID := ""
-	if portalRef, ok := change.References["portal_id"]; ok {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 		if portalRef.ID != "" {
 			portalID = portalRef.ID
 		} else {
@@ -48,10 +48,10 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 	var customization kkComps.PortalCustomization
 
 	// Handle theme
-	if themeData, ok := change.Fields["theme"].(map[string]any); ok {
+	if themeData, ok := change.Fields[planner.FieldTheme].(map[string]any); ok {
 		theme := &kkComps.Theme{}
 
-		if name, ok := themeData["name"].(string); ok {
+		if name, ok := themeData[planner.FieldName].(string); ok {
 			theme.Name = &name
 		}
 		if mode, ok := themeData["mode"].(string); ok {
@@ -72,21 +72,21 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 	}
 
 	// Handle layout
-	if layout, ok := change.Fields["layout"].(string); ok {
+	if layout, ok := change.Fields[planner.FieldLayout].(string); ok {
 		customization.Layout = &layout
 	}
 
 	// Handle CSS
-	if css, ok := change.Fields["css"].(string); ok {
+	if css, ok := change.Fields[planner.FieldCSS].(string); ok {
 		customization.CSS = &css
 	}
 
 	// Handle menu
 	logger.LogAttrs(ctx, log.LevelTrace, "Processing menu field",
-		slog.Any("menu_data", change.Fields["menu"]),
-		slog.String("menu_type", fmt.Sprintf("%T", change.Fields["menu"])))
+		slog.Any("menu_data", change.Fields[planner.FieldMenu]),
+		slog.String("menu_type", fmt.Sprintf("%T", change.Fields[planner.FieldMenu])))
 
-	if menuData, ok := change.Fields["menu"].(map[string]any); ok {
+	if menuData, ok := change.Fields[planner.FieldMenu].(map[string]any); ok {
 		logger.LogAttrs(ctx, log.LevelTrace, "Menu data found",
 			slog.Any("main", menuData["main"]),
 			slog.String("main_type", fmt.Sprintf("%T", menuData["main"])),
@@ -100,10 +100,10 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 			for _, itemMap := range mainItems {
 				menuItem := kkComps.PortalMenuItem{
 					Path:  itemMap["path"].(string),
-					Title: itemMap["title"].(string),
+					Title: itemMap[planner.FieldTitle].(string),
 				}
 
-				if visibility, ok := itemMap["visibility"].(string); ok {
+				if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
 					visValue := kkComps.PortalMenuItemVisibility(visibility)
 					menuItem.Visibility = visValue
 				}
@@ -121,7 +121,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 			var footerSectionsList []kkComps.PortalFooterMenuSection
 			for _, sectionMap := range footerSections {
 				footerSection := kkComps.PortalFooterMenuSection{
-					Title: sectionMap["title"].(string),
+					Title: sectionMap[planner.FieldTitle].(string),
 				}
 
 				// Process items in the section
@@ -130,10 +130,10 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 					for _, itemMap := range items {
 						footerItem := kkComps.PortalMenuItem{
 							Path:  itemMap["path"].(string),
-							Title: itemMap["title"].(string),
+							Title: itemMap[planner.FieldTitle].(string),
 						}
 
-						if visibility, ok := itemMap["visibility"].(string); ok {
+						if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
 							visValue := kkComps.PortalMenuItemVisibility(visibility)
 							footerItem.Visibility = visValue
 						}
@@ -158,8 +158,8 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 		customization.Menu = menu
 	} else {
 		logger.LogAttrs(ctx, log.LevelTrace, "Menu type assertion failed",
-			slog.String("actual_type", fmt.Sprintf("%T", change.Fields["menu"])),
-			slog.Any("actual_value", change.Fields["menu"]))
+			slog.String("actual_type", fmt.Sprintf("%T", change.Fields[planner.FieldMenu])),
+			slog.Any("actual_value", change.Fields[planner.FieldMenu]))
 	}
 
 	// Log the final customization object before sending
@@ -192,7 +192,7 @@ func (e *Executor) createPortalCustomDomain(ctx context.Context, change planner.
 
 	// Get portal ID from references
 	portalID := ""
-	if portalRef, ok := change.References["portal_id"]; ok {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 		if portalRef.ID != "" {
 			portalID = portalRef.ID
 		} else {
@@ -215,12 +215,12 @@ func (e *Executor) createPortalCustomDomain(ctx context.Context, change planner.
 
 	// Build request
 	req := kkComps.CreatePortalCustomDomainRequest{
-		Hostname: change.Fields["hostname"].(string),
-		Enabled:  change.Fields["enabled"].(bool),
+		Hostname: change.Fields[planner.FieldHostname].(string),
+		Enabled:  change.Fields[planner.FieldEnabled].(bool),
 	}
 
 	// Handle SSL settings
-	if sslData, ok := change.Fields["ssl"].(map[string]any); ok {
+	if sslData, ok := change.Fields[planner.FieldSSL].(map[string]any); ok {
 		if ssl, set, err := buildCreatePortalCustomDomainSSL(sslData); err != nil {
 			return "", err
 		} else if set {
@@ -249,7 +249,7 @@ func (e *Executor) updatePortalCustomDomain(ctx context.Context, change planner.
 	// Get portal ID from references or resource ID
 	portalID := change.ResourceID
 	if portalID == "" && change.References != nil {
-		if portalRef, ok := change.References["portal_id"]; ok {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 			if portalRef.ID != "" {
 				portalID = portalRef.ID
 			} else {
@@ -275,7 +275,7 @@ func (e *Executor) updatePortalCustomDomain(ctx context.Context, change planner.
 	var req kkComps.UpdatePortalCustomDomainRequest
 
 	// Only update enabled field if present
-	if enabled, ok := change.Fields["enabled"].(bool); ok {
+	if enabled, ok := change.Fields[planner.FieldEnabled].(bool); ok {
 		req.Enabled = &enabled
 	}
 
@@ -320,7 +320,7 @@ func (e *Executor) createPortalPage(ctx context.Context, change planner.PlannedC
 
 	// Get portal ID from references
 	portalID := ""
-	if portalRef, ok := change.References["portal_id"]; ok {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 		if portalRef.ID != "" {
 			portalID = portalRef.ID
 		} else {
@@ -343,31 +343,31 @@ func (e *Executor) createPortalPage(ctx context.Context, change planner.PlannedC
 
 	// Build request
 	req := kkComps.CreatePortalPageRequest{
-		Slug:    change.Fields["slug"].(string),
-		Content: change.Fields["content"].(string),
+		Slug:    change.Fields[planner.FieldSlug].(string),
+		Content: change.Fields[planner.FieldContent].(string),
 	}
 
 	// Handle optional fields
-	if title, ok := change.Fields["title"].(string); ok {
+	if title, ok := change.Fields[planner.FieldTitle].(string); ok {
 		req.Title = &title
 	}
 
-	if visibilityStr, ok := change.Fields["visibility"].(string); ok {
+	if visibilityStr, ok := change.Fields[planner.FieldVisibility].(string); ok {
 		visibility := kkComps.PageVisibilityStatus(visibilityStr)
 		req.Visibility = &visibility
 	}
 
-	if statusStr, ok := change.Fields["status"].(string); ok {
+	if statusStr, ok := change.Fields[planner.FieldStatus].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		req.Status = &status
 	}
 
-	if description, ok := change.Fields["description"].(string); ok {
+	if description, ok := change.Fields[planner.FieldDescription].(string); ok {
 		req.Description = &description
 	}
 
 	// Handle parent page reference
-	if parentPageRef, ok := change.References["parent_page_id"]; ok {
+	if parentPageRef, ok := change.References[planner.FieldParentPageID]; ok {
 		if parentPageRef.ID != "" {
 			req.ParentPageID = &parentPageRef.ID
 		} else {
@@ -379,7 +379,7 @@ func (e *Executor) createPortalPage(ctx context.Context, change planner.PlannedC
 			}
 			req.ParentPageID = &parentPageID
 		}
-	} else if parentPageID, ok := change.Fields["parent_page_id"].(string); ok {
+	} else if parentPageID, ok := change.Fields[planner.FieldParentPageID].(string); ok {
 		req.ParentPageID = &parentPageID
 	}
 
@@ -410,7 +410,7 @@ func (e *Executor) updatePortalPage(ctx context.Context, change planner.PlannedC
 
 	// Get portal ID from references or resource ID
 	if change.References != nil {
-		if portalRef, ok := change.References["portal_id"]; ok {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 			if portalRef.ID != "" {
 				portalID = portalRef.ID
 			} else {
@@ -437,34 +437,34 @@ func (e *Executor) updatePortalPage(ctx context.Context, change planner.PlannedC
 	var req kkComps.UpdatePortalPageRequest
 
 	// Handle optional fields
-	if slug, ok := change.Fields["slug"].(string); ok {
+	if slug, ok := change.Fields[planner.FieldSlug].(string); ok {
 		req.Slug = &slug
 	}
 
-	if title, ok := change.Fields["title"].(string); ok {
+	if title, ok := change.Fields[planner.FieldTitle].(string); ok {
 		req.Title = &title
 	}
 
-	if content, ok := change.Fields["content"].(string); ok {
+	if content, ok := change.Fields[planner.FieldContent].(string); ok {
 		req.Content = &content
 	}
 
-	if visibilityStr, ok := change.Fields["visibility"].(string); ok {
+	if visibilityStr, ok := change.Fields[planner.FieldVisibility].(string); ok {
 		visibility := kkComps.VisibilityStatus(visibilityStr)
 		req.Visibility = &visibility
 	}
 
-	if statusStr, ok := change.Fields["status"].(string); ok {
+	if statusStr, ok := change.Fields[planner.FieldStatus].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		req.Status = &status
 	}
 
-	if description, ok := change.Fields["description"].(string); ok {
+	if description, ok := change.Fields[planner.FieldDescription].(string); ok {
 		req.Description = &description
 	}
 
 	// Handle parent page reference
-	if parentPageRef, ok := change.References["parent_page_id"]; ok {
+	if parentPageRef, ok := change.References[planner.FieldParentPageID]; ok {
 		if parentPageRef.ID != "" {
 			req.ParentPageID = &parentPageRef.ID
 		} else {
@@ -476,7 +476,7 @@ func (e *Executor) updatePortalPage(ctx context.Context, change planner.PlannedC
 			}
 			req.ParentPageID = &parentPageID
 		}
-	} else if parentPageID, ok := change.Fields["parent_page_id"].(string); ok {
+	} else if parentPageID, ok := change.Fields[planner.FieldParentPageID].(string); ok {
 		req.ParentPageID = &parentPageID
 	}
 
@@ -504,7 +504,7 @@ func (e *Executor) deletePortalPage(ctx context.Context, change planner.PlannedC
 
 	// Get portal ID from references
 	if change.References != nil {
-		if portalRef, ok := change.References["portal_id"]; ok {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 			if portalRef.ID != "" {
 				portalID = portalRef.ID
 			} else {
@@ -543,7 +543,7 @@ func (e *Executor) createPortalSnippet(ctx context.Context, change planner.Plann
 
 	// Get portal ID from references
 	portalID := ""
-	if portalRef, ok := change.References["portal_id"]; ok {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 		if portalRef.ID != "" {
 			portalID = portalRef.ID
 		} else {
@@ -566,26 +566,26 @@ func (e *Executor) createPortalSnippet(ctx context.Context, change planner.Plann
 
 	// Build request
 	req := kkComps.CreatePortalSnippetRequest{
-		Name:    change.Fields["name"].(string),
-		Content: change.Fields["content"].(string),
+		Name:    change.Fields[planner.FieldName].(string),
+		Content: change.Fields[planner.FieldContent].(string),
 	}
 
 	// Handle optional fields
-	if title, ok := change.Fields["title"].(string); ok {
+	if title, ok := change.Fields[planner.FieldTitle].(string); ok {
 		req.Title = &title
 	}
 
-	if visibilityStr, ok := change.Fields["visibility"].(string); ok {
+	if visibilityStr, ok := change.Fields[planner.FieldVisibility].(string); ok {
 		visibility := kkComps.SnippetVisibilityStatus(visibilityStr)
 		req.Visibility = &visibility
 	}
 
-	if statusStr, ok := change.Fields["status"].(string); ok {
+	if statusStr, ok := change.Fields[planner.FieldStatus].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		req.Status = &status
 	}
 
-	if description, ok := change.Fields["description"].(string); ok {
+	if description, ok := change.Fields[planner.FieldDescription].(string); ok {
 		req.Description = &description
 	}
 
@@ -616,7 +616,7 @@ func (e *Executor) updatePortalSnippet(ctx context.Context, change planner.Plann
 
 	// Get portal ID from references or resource ID
 	if change.References != nil {
-		if portalRef, ok := change.References["portal_id"]; ok {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 			if portalRef.ID != "" {
 				portalID = portalRef.ID
 			} else {
@@ -643,29 +643,29 @@ func (e *Executor) updatePortalSnippet(ctx context.Context, change planner.Plann
 	var req kkComps.UpdatePortalSnippetRequest
 
 	// Handle optional fields
-	if name, ok := change.Fields["name"].(string); ok {
+	if name, ok := change.Fields[planner.FieldName].(string); ok {
 		req.Name = &name
 	}
 
-	if content, ok := change.Fields["content"].(string); ok {
+	if content, ok := change.Fields[planner.FieldContent].(string); ok {
 		req.Content = &content
 	}
 
-	if title, ok := change.Fields["title"].(string); ok {
+	if title, ok := change.Fields[planner.FieldTitle].(string); ok {
 		req.Title = &title
 	}
 
-	if visibilityStr, ok := change.Fields["visibility"].(string); ok {
+	if visibilityStr, ok := change.Fields[planner.FieldVisibility].(string); ok {
 		visibility := kkComps.VisibilityStatus(visibilityStr)
 		req.Visibility = &visibility
 	}
 
-	if statusStr, ok := change.Fields["status"].(string); ok {
+	if statusStr, ok := change.Fields[planner.FieldStatus].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		req.Status = &status
 	}
 
-	if description, ok := change.Fields["description"].(string); ok {
+	if description, ok := change.Fields[planner.FieldDescription].(string); ok {
 		req.Description = &description
 	}
 
@@ -693,7 +693,7 @@ func (e *Executor) deletePortalSnippet(ctx context.Context, change planner.Plann
 
 	// Get portal ID from references
 	if change.References != nil {
-		if portalRef, ok := change.References["portal_id"]; ok {
+		if portalRef, ok := change.References[planner.FieldPortalID]; ok {
 			if portalRef.ID != "" {
 				portalID = portalRef.ID
 			} else {

@@ -414,7 +414,7 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				tableview.WithRootLabel(helper.GetCmd().Name()),
 				tableview.WithDetailRenderer(detailFn),
 				tableview.WithDetailHelper(helper),
-				tableview.WithDetailContext("portal", func(index int) any {
+				tableview.WithDetailContext(common.ViewParentPortal, func(index int) any {
 					if index != 0 {
 						return nil
 					}
@@ -443,7 +443,7 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			tableview.WithRootLabel(helper.GetCmd().Name()),
 			tableview.WithDetailRenderer(detailFn),
 			tableview.WithDetailHelper(helper),
-			tableview.WithDetailContext("portal", func(index int) any {
+			tableview.WithDetailContext(common.ViewParentPortal, func(index int) any {
 				if index != 0 {
 					return nil
 				}
@@ -517,7 +517,7 @@ func buildPortalChildView(portals []kkComps.ListPortalsResponsePortal) tableview
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Portals",
-		ParentType:     "portal",
+		ParentType:     common.ViewParentPortal,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(portals) {
 				return nil
@@ -582,6 +582,14 @@ func newGetPortalCmd(verb verbs.VerbValue,
 
 	if authSettingsCmd := newGetPortalAuthSettingsCmd(verb, addParentFlags, parentPreRun); authSettingsCmd != nil {
 		rv.AddCommand(authSettingsCmd)
+	}
+
+	if identityProvidersCmd := newGetPortalIdentityProvidersCmd(
+		verb,
+		addParentFlags,
+		parentPreRun,
+	); identityProvidersCmd != nil {
+		rv.AddCommand(identityProvidersCmd)
 	}
 
 	if assetsCmd := newGetPortalAssetsCmd(verb, addParentFlags, parentPreRun); assetsCmd != nil {

@@ -1,0 +1,301 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  assignedEnvironment: kongctl-acceptance
+  requiredEnvVars:
+    - KONGCTL_E2E_ORG_USER_EMAIL_1
+    - KONGCTL_E2E_ORG_USER_EMAIL_2
+    - KONGCTL_E2E_ORG_USER_EMAIL_3
+  info: >-
+    Organization user assignment E2E requires three existing Konnect users via
+    KONGCTL_E2E_ORG_USER_EMAIL_1, KONGCTL_E2E_ORG_USER_EMAIL_2, and
+    KONGCTL_E2E_ORG_USER_EMAIL_3; users are lookup selectors, not managed
+    resources.
+
+vars:
+  namespace: org-user-assignments-e2e
+  apiRef: org-user-assignments-api
+  teamRef: org-user-assignments-team
+  teamName: Organization User Assignments Team
+  teamApiRoleRef: org-user-assignments-team-api-viewer
+  teamWildcardRoleRef: org-user-assignments-team-global-admin
+  apiUserRoleRef: org-user-assignments-api-viewer
+  wildcardUserRoleRef: org-user-assignments-global-viewer
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+      - email
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-user-assignments
+    inputOverlayDirs:
+      - overlays/001-config
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 9
+                by_action.CREATE: 9
+          - select: summary
+            expect:
+              fields:
+                applied: 9
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='organization_user_team_membership'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_user_role' &&
+                            resource_ref=='{{ .vars.apiUserRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' &&
+                            resource_ref=='{{ .vars.teamApiRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' &&
+                            resource_ref=='{{ .vars.teamWildcardRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Admin
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: "*"
+          - select: >-
+              plan.changes[?resource_type=='organization_user_role' &&
+                            resource_ref=='{{ .vars.wildcardUserRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Viewer
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: "*"
+          - select: plan.changes[?resource_type=='organization_user_team_membership']
+            expect:
+              fields:
+                "length(@)": 3
+          - select: plan.changes[?resource_type=='organization_user_role']
+            expect:
+              fields:
+                "length(@)": 2
+          - select: plan.changes[?resource_type=='organization_team_role']
+            expect:
+              fields:
+                "length(@)": 2
+
+      - name: 001-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 002-get-team-roles
+        run:
+          - get
+          - org
+          - team
+          - roles
+          - --team-name
+          - "{{ .vars.teamName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+          - select: "[?role_name=='Admin'] | [0]"
+            expect:
+              fields:
+                role_name: Admin
+                entity_id: "*"
+                entity_type_name: APIs
+                entity_region: "*"
+
+      - name: 003-get-users-with-jq
+        exec:
+          - sh
+          - -c
+          - >-
+            {{ .bin }} get org users --profile e2e -o json
+            --jq '{"matches": ([.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'")] | length)}'
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                matches: 1
+
+      - name: 004-get-user-roles-by-email
+        exec:
+          - sh
+          - -c
+          - >-
+            {{ .bin }} get org user roles --profile e2e
+            --user-email "$KONGCTL_E2E_ORG_USER_EMAIL_1"
+            -o json
+        assertions:
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+
+      - name: 005-get-user-roles-by-id
+        exec:
+          - sh
+          - -c
+          - >-
+            uid=$({{ .bin }} get org users --profile e2e -o json
+            --jq '.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'") | .id'
+            -r);
+            {{ .bin }} get org user roles --profile e2e --user-id "$uid" -o json
+        assertions:
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+
+      - name: 006-dump-team-with-users
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources=organization.teams,apis
+          - --include-child-resources
+          - --filter-name
+          - "{{ .vars.teamName }}"
+        assertions:
+          - select: "organization.teams[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamName }}"
+                "length(roles)": 2
+          - select: >-
+              organization.teams[?name=='{{ .vars.teamName }}'] |
+              [0].roles[?role_name=='Viewer'] | [0]
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+          - select: >-
+              organization.teams[?name=='{{ .vars.teamName }}'] |
+              [0].roles[?role_name=='Admin'] | [0]
+            expect:
+              fields:
+                role_name: Admin
+                entity_id: "*"
+                entity_type_name: APIs
+                entity_region: "*"
+          - select: organization.users[0]
+            expect:
+              fields:
+                "length(teams)": 1
+          - select: organization.users
+            expect:
+              fields:
+                "length(@)": 3
+          - select: organization.users[].roles[]
+            expect:
+              fields:
+                "length(@)": 2
+          - select: organization.users[].teams[]
+            expect:
+              fields:
+                "length(@)": 3
+          - select: organization.users[].roles[] | [?entity_id=='*'] | [0]
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: "*"
+
+  - name: 002-cleanup
+    inputOverlayDirs:
+      - overlays/002-cleanup
+    commands:
+      - name: 000-sync-remove-assignments-and-managed-resources
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 001-delete-cleanup-api
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

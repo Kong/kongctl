@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -10,7 +12,9 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPI,
 		func(rs *ResourceSet) *[]APIResource { return &rs.APIs },
-		AutoExplain[APIResource](),
+		AutoExplain[APIResource](
+			WithExplainSchemaBuilder(apiExplainNode),
+		),
 	)
 }
 
@@ -24,6 +28,26 @@ type APIResource struct {
 	Publications    []APIPublicationResource    `yaml:"publications,omitempty"    json:"publications,omitempty"`
 	Implementations []APIImplementationResource `yaml:"implementations,omitempty" json:"implementations,omitempty"`
 	Documents       []APIDocumentResource       `yaml:"documents,omitempty"       json:"documents,omitempty"`
+}
+
+func (a *APIResource) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["spec_content"]; ok {
+		return fmt.Errorf("apis[].spec_content is not supported in declarative configuration; use versions[].spec instead")
+	}
+
+	type apiResourceAlias APIResource
+	var decoded apiResourceAlias
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&decoded); err != nil {
+		return err
+	}
+	*a = APIResource(decoded)
+	return nil
 }
 
 // GetType returns the resource type

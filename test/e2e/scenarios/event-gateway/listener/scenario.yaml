@@ -3,8 +3,6 @@ baseInputsPath: testdata
 env:
   KONGCTL_LOG_LEVEL: info
 
-test:
-  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
 
 vars:
   egwName: egw-cp-for-listener-test-name
@@ -80,6 +78,9 @@ steps:
           - "{{ .vars.egwName }}"
           - -o
           - json
+        recordVar:
+          name: listenerID
+          responsePath: "[?name=='{{ .vars.listenerName }}'] | [0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -95,6 +96,44 @@ steps:
                   - "9093-9095"
                 addresses:
                   - localhost
+      - name: 004-get-listener-by-name
+        run:
+          - get
+          - event-gateway
+          - listeners
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.listenerName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.listenerName }}"
+          - select: ports
+            expect:
+              fields:
+                "length(@)": 2
+      - name: 005-get-listener-by-id
+        run:
+          - get
+          - event-gateway
+          - listeners
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.listenerID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.listenerName }}"
+          - select: ports
+            expect:
+              fields:
+                "length(@)": 2
   - name: 002-plan-update
     inputOverlayDirs:
       - overlays/001-update-fields

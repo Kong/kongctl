@@ -3,6 +3,7 @@ package declarative
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -29,6 +30,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	applog "github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )
@@ -55,9 +57,33 @@ const (
 	requireAnyNamespaceFlagName = "require-any-namespace"
 	// requireAnyNamespaceConfigPath is the config path backing the any namespace flag
 	requireAnyNamespaceConfigPath = "konnect.declarative." + requireAnyNamespaceFlagName
+	// maxConcurrencyFlagName is the CLI flag for maximum concurrency during execution
+	maxConcurrencyFlagName = "max-concurrency"
+	// maxConcurrencyConfigPath is the config path backing the max concurrency flag
+	maxConcurrencyConfigPath = "konnect.declarative." + maxConcurrencyFlagName
 )
 
 const diffFieldRedactedValue = "[REDACTED]"
+
+func parseDeclarativeSources(filenames []string) ([]loader.Source, error) {
+	sources, err := loader.ParseSources(filenames)
+	if err != nil {
+		if errors.Is(err, loader.ErrNoSources) {
+			return nil, &cmd.UsageError{Err: err}
+		}
+		return nil, fmt.Errorf("failed to parse sources: %w", err)
+	}
+	return sources, nil
+}
+
+// sourcesForCommand returns parsed sources when no plan file is provided.
+// When planFile is non-empty (run from a saved plan) sources are not needed.
+func sourcesForCommand(planFile string, filenames []string) ([]loader.Source, error) {
+	if planFile != "" {
+		return nil, nil
+	}
+	return parseDeclarativeSources(filenames)
+}
 
 var diffSensitiveExactFieldKeys = map[string]struct{}{
 	"access_token":        {},
@@ -90,6 +116,14 @@ func addBaseDirFlag(cmd *cobra.Command) {
 		fmt.Sprintf(`Base directory boundary for !file resolution.
 Defaults to each -f source root (file: its parent dir, dir: the directory itself). For stdin, defaults to CWD.
 - Config path: [ %s ]`, baseDirConfigPath))
+}
+
+func addMaxConcurrencyFlag(cmd *cobra.Command) {
+	cmd.Flags().Int(maxConcurrencyFlagName, executor.DefaultMaxConcurrency,
+		fmt.Sprintf(`Maximum number of concurrent API operations during execution (min %d, max %d).
+When the plan contains execution_groups, operations within each group run
+concurrently up to this limit. Use 1 for sequential execution.
+- Config path: [ %s ]`, executor.MinConcurrency, executor.MaxConcurrency, maxConcurrencyConfigPath))
 }
 
 func addRequireNamespaceFlags(cmd *cobra.Command) {
@@ -318,14 +352,84 @@ func NewDeclarativeCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	return nil, fmt.Errorf("verb %s does not support declarative configuration", verb)
 }
 
+func declarativePlanExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Generate a Konnect execution plan (Konnect is the default target)
+  %[1]s plan -f api.yaml
+
+  # Generate a plan using the explicit Konnect target form
+  %[1]s plan konnect -f api.yaml
+
+  # Save a plan artifact for review or later execution
+  %[1]s plan -f config.yaml --output-file plan.json`, meta.CLIName))
+}
+
+func declarativeSyncExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Synchronize Konnect resources from declarative configuration
+  %[1]s sync -f api.yaml
+
+  # Synchronize using the explicit Konnect target form
+  %[1]s sync konnect -f api.yaml
+
+  # Execute a reviewed plan without prompting
+  %[1]s sync --plan plan.json --auto-approve`, meta.CLIName))
+}
+
+func declarativeDiffExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Preview changes from declarative configuration
+  %[1]s diff -f api.yaml
+
+  # Preview changes using the explicit Konnect target form
+  %[1]s diff konnect -f api.yaml
+
+  # Display differences from an existing plan artifact
+  %[1]s diff --plan plan.json`, meta.CLIName))
+}
+
+func declarativeExportExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Export Konnect resources to declarative configuration files
+  %[1]s export -o ./exported-config
+
+  # Export using the explicit Konnect target form
+  %[1]s export konnect -o ./exported-config
+
+  # Export specific resource types
+  %[1]s export -o ./exported-config --resources portals,apis`, meta.CLIName))
+}
+
+func declarativeApplyExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Apply Konnect configuration changes (Konnect is the default target)
+  %[1]s apply -f api.yaml
+
+  # Apply using the explicit Konnect target form
+  %[1]s apply konnect -f api.yaml
+
+  # Apply from a pre-generated plan
+  %[1]s apply --plan plan.json`, meta.CLIName))
+}
+
+func declarativeDeleteExamples() string {
+	return normalizers.Examples(fmt.Sprintf(`  # Delete Konnect resources defined in declarative configuration
+  %[1]s delete -f config.yaml
+
+  # Preview deletions before executing them
+  %[1]s delete -f config.yaml --dry-run
+
+  # Execute a reviewed delete plan without prompting
+  %[1]s delete --plan delete-plan.json --auto-approve`, meta.CLIName))
+}
+
 func newDeclarativePlanCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Generate a plan artifact for Konnect resources",
+		Use:     "konnect",
+		Short:   "Generate a plan artifact for Konnect resources",
+		Example: declarativePlanExamples(),
 		Long: `Generate a plan artifact from declarative configuration files for Konnect.
 
 The plan artifact represents the desired state of Konnect resources and can be used
-for review, approval workflows, or as input to sync operations.`,
+for review, approval workflows, or as input to sync operations.
+
+Konnect is the default target for this command, so "kongctl plan" and
+"kongctl plan konnect" are equivalent.`,
 		RunE: runPlan,
 	}
 
@@ -361,10 +465,10 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	// Reject --output/-o flag: plan always outputs JSON; use --output-file to save to a file
 	if outputFlag := command.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Changed {
-		return fmt.Errorf(
+		return &cmd.UsageError{Err: fmt.Errorf(
 			"flags -o/--%s are not supported for the plan command; use --output-file to save the plan to a file",
 			cmdcommon.OutputFlagName,
-		)
+		)}
 	}
 
 	ctx := command.Context()
@@ -380,6 +484,11 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Plan, planMode)
 	command.SetContext(ctx)
+
+	sources, err := parseDeclarativeSources(filenames)
+	if err != nil {
+		return err
+	}
 
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
@@ -407,12 +516,6 @@ func runPlan(command *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse sources from filenames
-	sources, err := loader.ParseSources(filenames)
-	if err != nil {
-		return fmt.Errorf("failed to parse sources: %w", err)
-	}
-
 	// Load configuration
 	ldr, err := newDeclarativeLoader(command, cfg)
 	if err != nil {
@@ -420,12 +523,6 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 	resourceSet, err := ldr.LoadFromSources(sources, recursive)
 	if err != nil {
-		// Provide more helpful error message for common cases
-		if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-			return fmt.Errorf(
-				"no configuration files found in current directory. Use -f to specify files or directories",
-			)
-		}
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
@@ -437,13 +534,6 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	if totalResources == 0 {
-		// Check if we're using default directory (no explicit sources)
-		if len(filenames) == 0 {
-			return fmt.Errorf(
-				"no configuration files found in current directory. Use -f to specify files or directories",
-			)
-		}
-
 		// In sync mode, empty config is valid - it means delete all managed resources
 		// In apply and delete modes, we need at least one resource
 		if planMode == planner.PlanModeApply || planMode == planner.PlanModeDelete {
@@ -616,7 +706,11 @@ func deckPlanOptions(
 		return planner.DeckOptions{}, nil
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return planner.DeckOptions{}, err
+	}
+	token, err := konnectcommon.ResolveAccessToken(context.Background(), cfg, tokenSource)
 	if err != nil {
 		return planner.DeckOptions{}, err
 	}
@@ -627,8 +721,9 @@ func deckPlanOptions(
 	}
 
 	return planner.DeckOptions{
-		KonnectToken:   token,
-		KonnectAddress: baseURL,
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectAddress:     baseURL,
 	}, nil
 }
 
@@ -696,6 +791,17 @@ func runDiff(command *cobra.Command, args []string) error {
 	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Diff, planMode)
 	command.SetContext(ctx)
 
+	planFile, _ := command.Flags().GetString("plan")
+	if command.Flags().Changed("mode") && planFile != "" {
+		return fmt.Errorf("--mode cannot be used together with --plan; plan mode is read from the plan artifact")
+	}
+
+	filenames, _ := command.Flags().GetStringSlice("filename")
+	sources, err := sourcesForCommand(planFile, filenames)
+	if err != nil {
+		return err
+	}
+
 	helper := cmd.BuildHelper(command, args)
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -707,10 +813,6 @@ func runDiff(command *cobra.Command, args []string) error {
 		return err
 	}
 
-	planFile, _ := command.Flags().GetString("plan")
-	if command.Flags().Changed("mode") && planFile != "" {
-		return fmt.Errorf("--mode cannot be used together with --plan; plan mode is read from the plan artifact")
-	}
 	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
 		return fmt.Errorf(
 			"--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead",
@@ -726,7 +828,6 @@ func runDiff(command *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		filenames, _ := command.Flags().GetStringSlice("filename")
 		recursive, _ := command.Flags().GetBool("recursive")
 		generator := planGenerator(helper)
 
@@ -740,20 +841,12 @@ func runDiff(command *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to initialize Konnect client: %w", err)
 		}
 
-		sources, err := loader.ParseSources(filenames)
-		if err != nil {
-			return fmt.Errorf("failed to parse sources: %w", err)
-		}
-
 		ldr, err := newDeclarativeLoader(command, cfg)
 		if err != nil {
 			return err
 		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
-			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-				return fmt.Errorf("no configuration files found. Use -f to specify files or --plan to use existing plan")
-			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
@@ -763,9 +856,6 @@ func runDiff(command *cobra.Command, args []string) error {
 
 		totalResources := resourceSet.ResourceCount()
 		if totalResources == 0 {
-			if len(filenames) == 0 {
-				return fmt.Errorf("no configuration files found. Use -f to specify files or --plan to use existing plan")
-			}
 			return fmt.Errorf("no resources found in configuration files")
 		}
 
@@ -1231,13 +1321,17 @@ func displayField(out io.Writer, field string, value any, indent string, fullCon
 
 func newDeclarativeSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Synchronize declarative configuration to Konnect",
+		Use:     "konnect",
+		Short:   "Synchronize declarative configuration to Konnect",
+		Example: declarativeSyncExamples(),
 		Long: `Synchronize declarative configuration files to Konnect.
 
 Sync analyzes the current state of Konnect resources, compares it with the desired
 state defined in the configuration files, and applies the necessary changes to
-achieve the desired state.`,
+achieve the desired state.
+
+Konnect is the default target for this command, so "kongctl sync" and
+"kongctl sync konnect" are equivalent.`,
 		RunE: runSync,
 	}
 
@@ -1252,6 +1346,7 @@ achieve the desired state.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -1259,13 +1354,17 @@ achieve the desired state.`,
 
 func newDeclarativeDiffCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Display differences between current and desired Konnect state",
+		Use:     "konnect",
+		Short:   "Display differences between current and desired Konnect state",
+		Example: declarativeDiffExamples(),
 		Long: `Compare the current state of Konnect resources with the desired state
 defined in declarative configuration files and display the differences.
 
 The diff output shows what changes would be made without actually applying them,
-useful for reviewing changes before synchronization.`,
+useful for reviewing changes before synchronization.
+
+Konnect is the default target for this command, so "kongctl diff" and
+"kongctl diff konnect" are equivalent.`,
 		RunE: runDiff,
 	}
 
@@ -1286,13 +1385,17 @@ useful for reviewing changes before synchronization.`,
 
 func newDeclarativeExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Export current Konnect state as declarative configuration",
+		Use:     "konnect",
+		Short:   "Export current Konnect state as declarative configuration",
+		Example: declarativeExportExamples(),
 		Long: `Export the current state of Konnect resources as declarative configuration files.
 
 This command retrieves the current configuration from Konnect and generates
 declarative configuration files that can be version controlled, modified,
-and applied to other environments.`,
+and applied to other environments.
+
+Konnect is the default target for this command, so "kongctl export" and
+"kongctl export konnect" are equivalent.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return fmt.Errorf("export command not yet implemented")
 		},
@@ -1333,12 +1436,21 @@ func runApply(command *cobra.Command, args []string) error {
 		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
+	sources, err := sourcesForCommand(planFile, filenames)
+	if err != nil {
+		return err
+	}
+
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
 	generator := planGenerator(helper)
 
 	// Get configuration
 	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	maxConcurrency, err := maxConcurrencyFromCmd(command, cfg)
 	if err != nil {
 		return err
 	}
@@ -1387,12 +1499,6 @@ func runApply(command *cobra.Command, args []string) error {
 		// Generate plan from configuration files
 		recursive, _ := command.Flags().GetBool("recursive")
 
-		// Parse sources from filenames
-		sources, err := loader.ParseSources(filenames)
-		if err != nil {
-			return fmt.Errorf("failed to parse sources: %w", err)
-		}
-
 		// Load configuration
 		ldr, err := newDeclarativeLoader(command, cfg)
 		if err != nil {
@@ -1400,10 +1506,6 @@ func runApply(command *cobra.Command, args []string) error {
 		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
-			// Provide more helpful error message for common cases
-			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
-			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
@@ -1415,10 +1517,6 @@ func runApply(command *cobra.Command, args []string) error {
 		totalResources := resourceSet.ResourceCount()
 
 		if totalResources == 0 {
-			// Check if we're using default directory (no explicit sources)
-			if len(filenames) == 0 {
-				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
-			}
 			return fmt.Errorf("no resources found in configuration files")
 		}
 
@@ -1507,7 +1605,11 @@ func runApply(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return err
+	}
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return err
 	}
@@ -1517,10 +1619,12 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:   token,
-		KonnectBaseURL: baseURL,
-		Mode:           planner.PlanModeApply,
-		PlanBaseDir:    resolvePlanBaseDir(planFile),
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectBaseURL:     baseURL,
+		Mode:               planner.PlanModeApply,
+		PlanBaseDir:        resolvePlanBaseDir(planFile),
+		MaxConcurrency:     maxConcurrency,
 	})
 
 	// Execute plan
@@ -1725,13 +1829,17 @@ func outputExecutionResult(command *cobra.Command,
 
 func newDeclarativeApplyCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Apply configuration changes (create/update only)",
+		Use:     "konnect",
+		Short:   "Apply configuration changes (create/update only)",
+		Example: declarativeApplyExamples(),
 		Long: `Execute a plan to create new resources and update existing ones. Never deletes resources.
 
 The apply command provides a safe way to apply configuration changes by only
 performing CREATE and UPDATE operations. Use the sync command if you need to
-delete resources.`,
+delete resources.
+
+Konnect is the default target for this command, so "kongctl apply" and
+"kongctl apply konnect" are equivalent.`,
 		RunE: runApply,
 	}
 
@@ -1746,6 +1854,7 @@ delete resources.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -1753,8 +1862,9 @@ delete resources.`,
 
 func newDeclarativeDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "konnect",
-		Short: "Delete resources defined in declarative configuration",
+		Use:     "konnect",
+		Short:   "Delete resources defined in declarative configuration",
+		Example: declarativeDeleteExamples(),
 		Long: `Delete Konnect resources defined in declarative configuration files.
 
 The delete command generates a delete plan from the configuration files and
@@ -1778,6 +1888,7 @@ This is equivalent to running:
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -1808,12 +1919,21 @@ func runDelete(command *cobra.Command, args []string) error {
 		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
+	sources, err := sourcesForCommand(planFile, filenames)
+	if err != nil {
+		return err
+	}
+
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
 	generator := planGenerator(helper)
 
 	// Get configuration
 	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	maxConcurrency, err := maxConcurrencyFromCmd(command, cfg)
 	if err != nil {
 		return err
 	}
@@ -1861,22 +1981,12 @@ func runDelete(command *cobra.Command, args []string) error {
 		// Generate plan from configuration files
 		recursive, _ := command.Flags().GetBool("recursive")
 
-		sources, err := loader.ParseSources(filenames)
-		if err != nil {
-			return fmt.Errorf("failed to parse sources: %w", err)
-		}
-
 		ldr, err := newDeclarativeLoader(command, cfg)
 		if err != nil {
 			return err
 		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
-			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-				return fmt.Errorf(
-					"no configuration files found in current directory. " +
-						"Use -f to specify files or directories")
-			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
@@ -1886,11 +1996,6 @@ func runDelete(command *cobra.Command, args []string) error {
 
 		totalResources := resourceSet.ResourceCount()
 		if totalResources == 0 {
-			if len(filenames) == 0 {
-				return fmt.Errorf(
-					"no configuration files found in current directory. " +
-						"Use -f to specify files or directories")
-			}
 			return fmt.Errorf("no resources found in configuration files")
 		}
 
@@ -1974,7 +2079,11 @@ func runDelete(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return err
+	}
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return err
 	}
@@ -1984,10 +2093,12 @@ func runDelete(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:   token,
-		KonnectBaseURL: baseURL,
-		Mode:           planner.PlanModeDelete,
-		PlanBaseDir:    resolvePlanBaseDir(planFile),
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectBaseURL:     baseURL,
+		Mode:               planner.PlanModeDelete,
+		PlanBaseDir:        resolvePlanBaseDir(planFile),
+		MaxConcurrency:     maxConcurrency,
 	})
 
 	// Execute plan
@@ -2033,12 +2144,21 @@ func runSync(command *cobra.Command, args []string) error {
 		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
+	sources, err := sourcesForCommand(planFile, filenames)
+	if err != nil {
+		return err
+	}
+
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
 	generator := planGenerator(helper)
 
 	// Get configuration
 	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	maxConcurrency, err := maxConcurrencyFromCmd(command, cfg)
 	if err != nil {
 		return err
 	}
@@ -2088,12 +2208,6 @@ func runSync(command *cobra.Command, args []string) error {
 		// Generate plan from configuration files
 		recursive, _ := command.Flags().GetBool("recursive")
 
-		// Parse sources from filenames
-		sources, err := loader.ParseSources(filenames)
-		if err != nil {
-			return fmt.Errorf("failed to parse sources: %w", err)
-		}
-
 		// Load configuration
 		ldr, err := newDeclarativeLoader(command, cfg)
 		if err != nil {
@@ -2101,10 +2215,6 @@ func runSync(command *cobra.Command, args []string) error {
 		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
-			// Provide more helpful error message for common cases
-			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
-			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
@@ -2117,11 +2227,6 @@ func runSync(command *cobra.Command, args []string) error {
 
 		// In sync mode, allow empty configuration to detect resources to delete
 		if totalResources == 0 {
-			// Check if we're using default directory (no explicit sources)
-			if len(filenames) == 0 {
-				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
-			}
-
 			// In sync mode, empty config is valid - it means delete all managed resources
 			if outputFormat == textOutputFormat {
 				namespaces := resourceSet.DefaultNamespaces
@@ -2220,7 +2325,11 @@ func runSync(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return err
+	}
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
 	if err != nil {
 		return err
 	}
@@ -2230,10 +2339,12 @@ func runSync(command *cobra.Command, args []string) error {
 	}
 
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:   token,
-		KonnectBaseURL: baseURL,
-		Mode:           planner.PlanModeSync,
-		PlanBaseDir:    resolvePlanBaseDir(planFile),
+		KonnectToken:       token,
+		KonnectTokenSource: tokenSource,
+		KonnectBaseURL:     baseURL,
+		Mode:               planner.PlanModeSync,
+		PlanBaseDir:        resolvePlanBaseDir(planFile),
+		MaxConcurrency:     maxConcurrency,
 	})
 
 	// Execute plan
@@ -2251,28 +2362,59 @@ func runSync(command *cobra.Command, args []string) error {
 	return nil
 }
 
+// maxConcurrencyFromCmd reads and validates --max-concurrency, falling back to config.
+func maxConcurrencyFromCmd(cmd *cobra.Command, cfg config.Hook) (int, error) {
+	v := executor.DefaultMaxConcurrency
+	if cmd.Flags().Changed(maxConcurrencyFlagName) {
+		flagValue, err := cmd.Flags().GetInt(maxConcurrencyFlagName)
+		if err != nil {
+			return 0, err
+		}
+		v = flagValue
+	} else if cfg != nil {
+		v = cfg.GetIntOrElse(maxConcurrencyConfigPath, executor.DefaultMaxConcurrency)
+	}
+	if v < executor.MinConcurrency || v > executor.MaxConcurrency {
+		return 0, fmt.Errorf(
+			"--max-concurrency must be between %d and %d (got %d)",
+			executor.MinConcurrency,
+			executor.MaxConcurrency,
+			v,
+		)
+	}
+	return v, nil
+}
+
 // createStateClient creates a new state client with all necessary APIs
 func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 	return state.NewClient(state.ClientConfig{
 		// Core APIs
-		PortalAPI:             kkClient.GetPortalAPI(),
-		APIAPI:                kkClient.GetAPIAPI(),
-		AppAuthAPI:            kkClient.GetAppAuthStrategiesAPI(),
-		ControlPlaneAPI:       kkClient.GetControlPlaneAPI(),
-		ControlPlaneGroupsAPI: kkClient.GetControlPlaneGroupsAPI(),
-		GatewayServiceAPI:     kkClient.GetGatewayServiceAPI(),
-		CatalogServiceAPI:     kkClient.GetCatalogServicesAPI(),
+		PortalAPI:               kkClient.GetPortalAPI(),
+		APIAPI:                  kkClient.GetAPIAPI(),
+		AppAuthAPI:              kkClient.GetAppAuthStrategiesAPI(),
+		DCRProviderAPI:          kkClient.GetDCRProvidersAPI(),
+		ControlPlaneAPI:         kkClient.GetControlPlaneAPI(),
+		ControlPlaneGroupsAPI:   kkClient.GetControlPlaneGroupsAPI(),
+		GatewayServiceAPI:       kkClient.GetGatewayServiceAPI(),
+		DataPlaneCertificateAPI: kkClient.GetDataPlaneCertificateAPI(),
+		CatalogServiceAPI:       kkClient.GetCatalogServicesAPI(),
+		DashboardsAPI:           kkClient.GetDashboardsAPI(),
 
 		// Portal child resource APIs
-		PortalPageAPI:          kkClient.GetPortalPageAPI(),
-		PortalAuthSettingsAPI:  kkClient.GetPortalAuthSettingsAPI(),
-		PortalCustomizationAPI: kkClient.GetPortalCustomizationAPI(),
-		PortalCustomDomainAPI:  kkClient.GetPortalCustomDomainAPI(),
-		PortalSnippetAPI:       kkClient.GetPortalSnippetAPI(),
-		PortalTeamAPI:          kkClient.GetPortalTeamAPI(),
-		PortalTeamRolesAPI:     kkClient.GetPortalTeamRolesAPI(),
-		PortalEmailsAPI:        kkClient.GetPortalEmailsAPI(),
-		AssetsAPI:              kkClient.GetAssetsAPI(),
+		PortalPageAPI:             kkClient.GetPortalPageAPI(),
+		PortalAuthSettingsAPI:     kkClient.GetPortalAuthSettingsAPI(),
+		PortalIPAllowListAPI:      kkClient.GetPortalIPAllowListAPI(),
+		PortalIntegrationsAPI:     kkClient.GetPortalIntegrationsAPI(),
+		PortalIdentityProviderAPI: kkClient.GetPortalIdentityProviderAPI(),
+		PortalCustomizationAPI:    kkClient.GetPortalCustomizationAPI(),
+		PortalCustomDomainAPI:     kkClient.GetPortalCustomDomainAPI(),
+		PortalSnippetAPI:          kkClient.GetPortalSnippetAPI(),
+		PortalTeamAPI:             kkClient.GetPortalTeamAPI(),
+		PortalTeamRolesAPI:        kkClient.GetPortalTeamRolesAPI(),
+		PortalEmailsAPI:           kkClient.GetPortalEmailsAPI(),
+		PortalAuditLogsAPI:        kkClient.GetPortalAuditLogsAPI(),
+		AssetsAPI:                 kkClient.GetAssetsAPI(),
+		AuditLogDestinationsAPI:   kkClient.GetAuditLogDestinationsAPI(),
 
 		// API child resource APIs
 		APIVersionAPI:        kkClient.GetAPIVersionAPI(),
@@ -2288,7 +2430,18 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		EventGatewayListenerPolicyAPI:       kkClient.GetEventGatewayListenerPolicyAPI(),
 		EventGatewayDataPlaneCertificateAPI: kkClient.GetEventGatewayDataPlaneCertificateAPI(),
 		EventGatewayClusterPolicyAPI:        kkClient.GetEventGatewayClusterPolicyAPI(),
+		EventGatewayProducePolicyAPI:        kkClient.GetEventGatewayProducePolicyAPI(),
+		EventGatewayConsumePolicyAPI:        kkClient.GetEventGatewayConsumePolicyAPI(),
+		EventGatewaySchemaRegistryAPI:       kkClient.GetEventGatewaySchemaRegistryAPI(),
+		EventGatewayStaticKeyAPI:            kkClient.GetEventGatewayStaticKeyAPI(),
+		EventGatewayTLSTrustBundleAPI:       kkClient.GetEventGatewayTLSTrustBundleAPI(),
 		// Organization APIs
-		OrganizationTeamAPI: kkClient.GetOrganizationTeamAPI(),
+		OrganizationTeamAPI:        kkClient.GetOrganizationTeamAPI(),
+		OrganizationTeamRolesAPI:   kkClient.GetOrganizationTeamRolesAPI(),
+		OrganizationUsersAPI:       kkClient.GetOrganizationUsersAPI(),
+		OrganizationMembershipAPI:  kkClient.GetOrganizationTeamMembershipAPI(),
+		SystemAccountAPI:           kkClient.GetSystemAccountAPI(),
+		SystemAccountRolesAPI:      kkClient.GetSystemAccountRolesAPI(),
+		SystemAccountMembershipAPI: kkClient.GetSystemAccountTeamMembershipAPI(),
 	})
 }

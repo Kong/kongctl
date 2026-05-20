@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"maps"
 	"reflect"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -89,19 +90,16 @@ func resolveDeferredEnvValue(value any) (any, error) {
 		typed.New = resolvedNew
 		return typed, nil
 	case map[string]any:
-		if _, hasOld := typed["old"]; hasOld {
-			if _, hasNew := typed["new"]; hasNew {
-				resolvedNew, err := resolveDeferredEnvValue(typed["new"])
-				if err != nil {
-					return nil, err
-				}
-				copied := make(map[string]any, len(typed))
-				for key, entry := range typed {
-					copied[key] = entry
-				}
-				copied["new"] = resolvedNew
-				return copied, nil
+		_, hasOld := typed["old"]
+		_, hasNew := typed["new"]
+		if hasOld && hasNew {
+			resolvedNew, err := resolveDeferredEnvValue(typed["new"])
+			if err != nil {
+				return nil, err
 			}
+			copied := maps.Clone(typed)
+			copied["new"] = resolvedNew
+			return copied, nil
 		}
 	}
 
@@ -113,14 +111,14 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 		return nil, nil
 	}
 
-	//nolint:exhaustive // reflect.Kind handling is intentionally partial for declarative execution values.
+	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.Interface:
 		if value.IsNil() {
 			return nil, nil
 		}
 		return resolveDeferredEnvReflect(value.Elem())
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if value.IsNil() {
 			return value.Interface(), nil
 		}
@@ -132,7 +130,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 		if resolved == nil {
 			return ptr.Interface(), nil
 		}
-		if !assignResolvedReflectValue(ptr.Elem(), reflect.ValueOf(resolved)) {
+		if !tags.AssignReflectValue(ptr.Elem(), reflect.ValueOf(resolved)) {
 			return value.Interface(), nil
 		}
 		return ptr.Interface(), nil
@@ -155,14 +153,14 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 				continue
 			}
 			entryValue := reflect.ValueOf(entry)
-			if !setResolvedMapValue(resolved, iter.Key(), entryValue) {
+			if !tags.SetMapValue(resolved, iter.Key(), entryValue) {
 				resolved.SetMapIndex(iter.Key(), iter.Value())
 			}
 		}
 		return resolved.Interface(), nil
 	case reflect.Slice:
 		resolved := reflect.MakeSlice(value.Type(), value.Len(), value.Len())
-		for i := 0; i < value.Len(); i++ {
+		for i := range value.Len() {
 			entry, err := resolveDeferredEnvReflect(value.Index(i))
 			if err != nil {
 				return nil, err
@@ -170,14 +168,14 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 			if entry == nil {
 				continue
 			}
-			if !assignResolvedReflectValue(resolved.Index(i), reflect.ValueOf(entry)) {
+			if !tags.AssignReflectValue(resolved.Index(i), reflect.ValueOf(entry)) {
 				resolved.Index(i).Set(value.Index(i))
 			}
 		}
 		return resolved.Interface(), nil
 	case reflect.Array:
 		resolved := reflect.New(value.Type()).Elem()
-		for i := 0; i < value.Len(); i++ {
+		for i := range value.Len() {
 			entry, err := resolveDeferredEnvReflect(value.Index(i))
 			if err != nil {
 				return nil, err
@@ -185,13 +183,13 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 			if entry == nil {
 				continue
 			}
-			if !assignResolvedReflectValue(resolved.Index(i), reflect.ValueOf(entry)) {
+			if !tags.AssignReflectValue(resolved.Index(i), reflect.ValueOf(entry)) {
 				resolved.Index(i).Set(value.Index(i))
 			}
 		}
 		return resolved.Interface(), nil
 	case reflect.Struct:
-		if value.Type() == reflect.TypeOf(planner.FieldChange{}) {
+		if value.Type() == reflect.TypeFor[planner.FieldChange]() {
 			current := value.Interface().(planner.FieldChange)
 			resolvedNew, err := resolveDeferredEnvValue(current.New)
 			if err != nil {
@@ -202,7 +200,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 		}
 		resolved := reflect.New(value.Type()).Elem()
 		resolved.Set(value)
-		for i := 0; i < value.NumField(); i++ {
+		for i := range value.NumField() {
 			field := value.Field(i)
 			target := resolved.Field(i)
 			if !target.CanSet() {
@@ -215,7 +213,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 			if entry == nil {
 				continue
 			}
-			if !assignResolvedReflectValue(target, reflect.ValueOf(entry)) {
+			if !tags.AssignReflectValue(target, reflect.ValueOf(entry)) {
 				target.Set(field)
 			}
 		}
@@ -223,46 +221,4 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 	default:
 		return value.Interface(), nil
 	}
-}
-
-func assignResolvedReflectValue(target reflect.Value, value reflect.Value) bool {
-	if !target.CanSet() || !value.IsValid() {
-		return false
-	}
-	if value.Type().AssignableTo(target.Type()) {
-		target.Set(value)
-		return true
-	}
-	if value.Type().ConvertibleTo(target.Type()) {
-		target.Set(value.Convert(target.Type()))
-		return true
-	}
-	return false
-}
-
-func setResolvedMapValue(target reflect.Value, key reflect.Value, value reflect.Value) bool {
-	elem := reflect.New(target.Type().Elem()).Elem()
-	if !assignResolvedReflectValue(elem, value) {
-		return false
-	}
-	target.SetMapIndex(key, elem)
-	return true
-}
-
-func actualRefForExecution(ref string) (string, error) {
-	actualRef := ref
-	if tags.IsEnvPlaceholder(actualRef) {
-		resolved, err := tags.ResolveEnvPlaceholder(actualRef)
-		if err != nil {
-			return "", err
-		}
-		actualRef = resolved
-	}
-	if tags.IsRefPlaceholder(actualRef) {
-		parsedRef, _, ok := tags.ParseRefPlaceholder(actualRef)
-		if ok && parsedRef != "" {
-			actualRef = parsedRef
-		}
-	}
-	return actualRef, nil
 }

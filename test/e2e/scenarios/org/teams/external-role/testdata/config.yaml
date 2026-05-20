@@ -1,0 +1,16 @@
+organization:
+  teams:
+    - ref: external-role-team
+      name: e2e-external-role-team
+      _external:
+        selector:
+          matchFields:
+            name: e2e-external-role-team
+
+organization_team_roles:
+  - ref: external-team-api-admin
+    team: external-role-team
+    role_name: Admin
+    entity_id: "*"
+    entity_type_name: APIs
+    entity_region: us

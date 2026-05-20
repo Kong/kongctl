@@ -1,0 +1,241 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  assignedEnvironment: kongctl-acceptance
+  info: >-
+    Organization system account sync E2E creates a temporary Konnect system
+    account through the harness, applies initial role and team assignments,
+    then exercises the sync command to verify incremental updates and deletions.
+
+vars:
+  namespace: org-sa-sync-e2e
+  systemAccountName: e2e-sa-sync
+  systemAccountDescription: E2E system account used for sync tests
+  apiRef: org-sa-sync-api
+  teamRef: org-sa-sync-team
+  teamName: Organization SA Sync Team
+  saTeamMembershipRef: e2e-sa-org-sa-sync-team
+  saRoleRef: org-sa-sync-sa-api-viewer
+  teamRoleRef: org-sa-sync-team-api-viewer
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+      - system_account_id
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-system-account
+    skipInputs: true
+    commands:
+      - name: 000-create-system-account
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.systemAccountName }}"
+              description: "{{ .vars.systemAccountDescription }}"
+          recordVar:
+            name: system_account_id
+            responsePath: id
+
+  - name: 002-apply-initial
+    inputOverlayDirs:
+      - overlays/001-config
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 5
+                by_action.CREATE: 5
+          - select: summary
+            expect:
+              fields:
+                applied: 5
+                failed: 0
+                status: success
+          - select: plan.changes[?resource_type=='organization_system_account_team_membership']
+            expect:
+              fields:
+                "length(@)": 1
+          - select: plan.changes[?resource_type=='organization_system_account_role']
+            expect:
+              fields:
+                "length(@)": 1
+          - select: >-
+              plan.changes[?resource_type=='organization_system_account_role' &&
+                            resource_ref=='{{ .vars.saRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+
+      - name: 001-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-sync-update
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='organization_system_account_team_membership' &&
+                            action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_system_account_role' &&
+                            action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' &&
+                            resource_ref=='org-sa-sync-team-wildcard-admin'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Admin
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: "*"
+          - select: >-
+              plan.changes[?resource_type=='organization_system_account_role' &&
+                            action=='CREATE'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Admin
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: "*"
+
+      - name: 001-get-sa-roles
+        run:
+          - get
+          - org
+          - system-account
+          - roles
+          - --system-account-name
+          - "{{ .vars.systemAccountName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?role_name=='Admin'] | [0]"
+            expect:
+              fields:
+                role_name: Admin
+                entity_id: "*"
+                entity_type_name: APIs
+                entity_region: "*"
+
+      - name: 002-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-cleanup
+    inputOverlayDirs:
+      - overlays/003-cleanup
+    commands:
+      - name: 000-sync-remove-assignments
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: plan.changes[?resource_type=='organization_system_account_role']
+            expect:
+              fields:
+                "length(@)": 1
+
+      - name: 001-delete-cleanup-api
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

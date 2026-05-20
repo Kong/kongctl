@@ -9,11 +9,17 @@ import (
 
 // Plan represents a declarative configuration plan
 type Plan struct {
-	Metadata       PlanMetadata    `json:"metadata"`
-	Changes        []PlannedChange `json:"changes"`
-	ExecutionOrder []string        `json:"execution_order"`
-	Summary        PlanSummary     `json:"summary"`
-	Warnings       []PlanWarning   `json:"warnings,omitempty"`
+	Metadata PlanMetadata    `json:"metadata"`
+	Changes  []PlannedChange `json:"changes"`
+	// Legacy execution order for sequential plans; ignored if ExecutionGroups is set
+	ExecutionOrder []string `json:"execution_order"`
+	// ExecutionGroups is an ordered list of concurrency groups.
+	// Changes within a group are safe to execute concurrently; group N+1 must
+	// not start until group N is fully complete. Plans without this field
+	// (legacy plans or plans with no changes) execute sequentially via ExecutionOrder.
+	ExecutionGroups [][]string    `json:"execution_groups,omitempty"`
+	Summary         PlanSummary   `json:"summary"`
+	Warnings        []PlanWarning `json:"warnings,omitempty"`
 }
 
 // PlanMode represents the mode of plan generation
@@ -27,10 +33,27 @@ const (
 
 // PlanMetadata contains plan generation information
 type PlanMetadata struct {
-	Version     string    `json:"version"`
-	GeneratedAt time.Time `json:"generated_at"`
-	Generator   string    `json:"generator"`
-	Mode        PlanMode  `json:"mode"`
+	Version     string         `json:"version"`
+	GeneratedAt time.Time      `json:"generated_at"`
+	Generator   string         `json:"generator"`
+	Mode        PlanMode       `json:"mode"`
+	SyncScope   *PlanSyncScope `json:"sync_scope,omitempty"`
+}
+
+// PlanSyncScope records the explicit resource collections used for sync planning.
+type PlanSyncScope struct {
+	RootResourceTypes          []string             `json:"root_resource_types,omitempty"`
+	ChildResourceTypes         []PlanSyncChildScope `json:"child_resource_types,omitempty"`
+	RootChildResourceTypes     []string             `json:"root_child_resource_types,omitempty"`
+	OrganizationUsers          bool                 `json:"organization_users,omitempty"`
+	OrganizationSystemAccounts bool                 `json:"organization_system_accounts,omitempty"`
+}
+
+// PlanSyncChildScope identifies a child collection scoped under one parent.
+type PlanSyncChildScope struct {
+	ParentType   string `json:"parent_type"`
+	ParentRef    string `json:"parent_ref"`
+	ResourceType string `json:"resource_type"`
 }
 
 // PlannedChange represents a single resource change
@@ -75,6 +98,21 @@ type ReferenceInfo struct {
 	ResolvedIDs  []string            `json:"resolved_ids,omitempty"`  // Array of resolved UUIDs
 	LookupArrays map[string][]string `json:"lookup_arrays,omitempty"` // Array lookup fields
 	IsArray      bool                `json:"is_array,omitempty"`      // Flag to indicate array reference
+}
+
+// HasID reports whether the reference carries any ID value.
+func (r ReferenceInfo) HasID() bool {
+	return strings.TrimSpace(r.ID) != ""
+}
+
+// IsUnknownID reports whether the reference ID is the unresolved placeholder.
+func (r ReferenceInfo) IsUnknownID() bool {
+	return strings.TrimSpace(r.ID) == "[unknown]"
+}
+
+// HasResolvedID reports whether the reference has a concrete, non-placeholder ID.
+func (r ReferenceInfo) HasResolvedID() bool {
+	return r.HasID() && !r.IsUnknownID()
 }
 
 // ParentInfo tracks parent relationships
@@ -196,6 +234,13 @@ func (p *Plan) SetExecutionOrder(order []string) {
 	p.ExecutionOrder = order
 }
 
+// SetExecutionGroups sets the concurrency groups computed during dependency
+// resolution. Each group holds change IDs that are safe to run concurrently;
+// groups must be executed one at a time in order.
+func (p *Plan) SetExecutionGroups(groups [][]string) {
+	p.ExecutionGroups = groups
+}
+
 // AddWarning adds a warning to the plan
 func (p *Plan) AddWarning(changeID, message string) {
 	p.Warnings = append(p.Warnings, PlanWarning{
@@ -254,13 +299,13 @@ func (p *Plan) UpdateSummary() {
 func externalToolDependencyFromChange(change PlannedChange) ExternalToolDependency {
 	fields := change.Fields
 	dependency := ExternalToolDependency{
-		ControlPlaneRef:  stringFromField(fields, "control_plane_ref"),
-		ControlPlaneID:   stringFromField(fields, "control_plane_id"),
-		ControlPlaneName: stringFromField(fields, "control_plane_name"),
+		ControlPlaneRef:  stringFromField(fields, FieldControlPlaneRef),
+		ControlPlaneID:   stringFromField(fields, FieldControlPlaneID),
+		ControlPlaneName: stringFromField(fields, FieldControlPlaneName),
 		GatewayServices:  gatewayTargetsFromPostResolutionTargets(change.PostResolutionTargets),
-		Files:            stringSliceFromField(fields, "files"),
-		Flags:            stringSliceFromField(fields, "flags"),
-		DeckBaseDir:      stringFromField(fields, "deck_base_dir"),
+		Files:            stringSliceFromField(fields, FieldFiles),
+		Flags:            stringSliceFromField(fields, FieldFlags),
+		DeckBaseDir:      stringFromField(fields, FieldDeckBaseDir),
 	}
 
 	if len(dependency.GatewayServices) == 0 {
@@ -280,7 +325,7 @@ func gatewayTargetsFromPostResolutionTargets(targets []PostResolutionTarget) []E
 		if strings.TrimSpace(target.ResourceRef) == "" {
 			continue
 		}
-		if target.ResourceType != "" && target.ResourceType != "gateway_service" {
+		if target.ResourceType != "" && target.ResourceType != ResourceTypeGatewayService {
 			continue
 		}
 		out = append(out, ExternalToolGatewayTarget{
@@ -299,7 +344,7 @@ func gatewayTargetsFromFields(fields map[string]any) []ExternalToolGatewayTarget
 		return nil
 	}
 
-	raw, ok := fields["gateway_services"]
+	raw, ok := fields[FieldGatewayServices]
 	if !ok || raw == nil {
 		return nil
 	}
@@ -343,7 +388,7 @@ func selectorFromEntry(entry map[string]any) *ExternalToolSelector {
 		return nil
 	}
 	if name, ok := entry["selector_name"].(string); ok && name != "" {
-		return &ExternalToolSelector{MatchFields: map[string]string{"name": name}}
+		return &ExternalToolSelector{MatchFields: map[string]string{FieldName: name}}
 	}
 	raw, ok := entry["selector"]
 	if !ok || raw == nil {

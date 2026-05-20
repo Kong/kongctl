@@ -32,10 +32,11 @@ type APIPublicationAPI interface {
 
 // APIPublicationAPIImpl provides an implementation of the APIPublicationAPI interface
 type APIPublicationAPIImpl struct {
-	SDK        *kkSDK.SDK
-	BaseURL    string
-	Token      string
-	HTTPClient kkSDK.HTTPClient
+	SDK         *kkSDK.SDK
+	BaseURL     string
+	Token       string
+	TokenSource apiutil.TokenSource
+	HTTPClient  kkSDK.HTTPClient
 }
 
 // PublishAPIToPortal implements the APIPublicationAPI interface
@@ -92,40 +93,38 @@ func GetPublicationsForAPI(ctx context.Context, kkClient APIPublicationAPI, apiI
 		return nil, fmt.Errorf("APIPublicationAPI client is nil")
 	}
 
-	// Create a filter to get publications for this API
 	apiIDFilter := &kkComponents.UUIDFieldFilter{
 		Eq: &apiID,
 	}
 
-	// Create a request to list API publications for this API
-	req := kkOps.ListAPIPublicationsRequest{
-		Filter: &kkComponents.APIPublicationFilterParameters{
-			APIID: apiIDFilter,
-		},
-	}
+	publications, err := paginateAllPageNumber(func(pageSize, pageNumber int64) (
+		[]kkComponents.APIPublicationListItem, float64, error,
+	) {
+		req := kkOps.ListAPIPublicationsRequest{
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
+			Filter: &kkComponents.APIPublicationFilterParameters{
+				APIID: apiIDFilter,
+			},
+		}
 
-	// Call the SDK's ListAPIPublications method
-	res, err := kkClient.ListAPIPublications(ctx, req)
+		res, err := kkClient.ListAPIPublications(ctx, req)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if res == nil || res.ListAPIPublicationResponse == nil {
+			return []kkComponents.APIPublicationListItem{}, 0, nil
+		}
+
+		return res.ListAPIPublicationResponse.Data, res.ListAPIPublicationResponse.Meta.Page.Total, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	if res == nil {
-		return []any{}, nil
-	}
-
-	if res.ListAPIPublicationResponse == nil {
-		return []any{}, nil
-	}
-
-	// Check if we have data in the response
-	if len(res.ListAPIPublicationResponse.Data) == 0 {
-		return []any{}, nil
-	}
-
-	// Convert to []any and return
-	result := make([]any, len(res.ListAPIPublicationResponse.Data))
-	for i, pub := range res.ListAPIPublicationResponse.Data {
+	result := make([]any, len(publications))
+	for i, pub := range publications {
 		result[i] = pub
 	}
 
@@ -204,16 +203,11 @@ func (a *APIPublicationAPIImpl) publishAPIToPortalWithMergedPayload(
 	}
 
 	path := fmt.Sprintf("/v3/apis/%s/publications/%s", url.PathEscape(request.APIID), url.PathEscape(request.PortalID))
-	result, err := apiutil.Request(
+	result, err := a.request(
 		ctx,
-		a.HTTPClient,
 		http.MethodPut,
-		a.BaseURL,
 		path,
-		a.Token,
-		map[string]string{
-			"Content-Type": "application/json",
-		},
+		map[string]string{"Content-Type": "application/json"},
 		bytes.NewReader(payload),
 	)
 	if err != nil {
@@ -249,6 +243,19 @@ func (a *APIPublicationAPIImpl) publishAPIToPortalWithMergedPayload(
 	response.APIPublicationResponse = &publicationResponse
 
 	return response, nil
+}
+
+func (a *APIPublicationAPIImpl) request(
+	ctx context.Context,
+	method string,
+	path string,
+	headers map[string]string,
+	body io.Reader,
+) (*apiutil.Result, error) {
+	if a.TokenSource != nil {
+		return apiutil.RequestWithTokenSource(ctx, a.HTTPClient, method, a.BaseURL, path, a.TokenSource, headers, body)
+	}
+	return apiutil.Request(ctx, a.HTTPClient, method, a.BaseURL, path, a.Token, headers, body)
 }
 
 func (a *APIPublicationAPIImpl) fetchExistingPublication(

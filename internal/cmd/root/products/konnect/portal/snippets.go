@@ -272,7 +272,7 @@ func (h portalSnippetsHandler) listSnippets(
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("portal-snippet", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentPortalSnippet, func(index int) any {
 			if index < 0 || index >= len(snippets) {
 				return nil
 			}
@@ -345,7 +345,7 @@ func (h portalSnippetsHandler) getSingleSnippet(
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailRenderer(detailRenderer),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("portal-snippet", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentPortalSnippet, func(index int) any {
 			if index != 0 {
 				return nil
 			}
@@ -365,10 +365,7 @@ func fetchPortalSnippetSummaries(
 	cfg config.Hook,
 ) ([]kkComps.PortalSnippetInfo, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.PortalSnippetInfo
 
@@ -393,7 +390,7 @@ func fetchPortalSnippetSummaries(
 		all = append(all, data...)
 
 		total := int(res.GetListPortalSnippetsResponse().GetMeta().Page.Total)
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 

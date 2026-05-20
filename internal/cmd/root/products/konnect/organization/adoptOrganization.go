@@ -1,6 +1,7 @@
 package organization
 
 import (
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/organization/team"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/spf13/cobra"
@@ -24,9 +25,7 @@ func newAdoptOrganizationCmd(
 	cmd.Long = "Manage organization-level resources such as teams for adoption into namespace management"
 
 	// Make org command require a subcommand - it should not run on its own
-	cmd.RunE = func(c *cobra.Command, _ []string) error {
-		return c.Help()
-	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd.Command)
 
 	teamCmd, err := team.NewTeamCmd(verb, &cobra.Command{}, addParentFlags, parentPreRun)
 	if err == nil && teamCmd != nil {

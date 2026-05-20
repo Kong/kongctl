@@ -30,6 +30,14 @@ func (s *stubDeckRunner) Run(_ context.Context, opts deck.RunOptions) (*deck.Run
 	return &deck.RunResult{}, s.err
 }
 
+type stubDeckTokenSource struct {
+	token string
+}
+
+func (s stubDeckTokenSource) Token(context.Context) (string, error) {
+	return s.token, nil
+}
+
 type stubGatewayServiceAPI struct {
 	services []kkComps.ServiceOutput
 }
@@ -69,11 +77,12 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 	})
 
 	exec := NewWithOptions(stateClient, nil, false, Options{
-		DeckRunner:     runner,
-		KonnectToken:   "token-123",
-		KonnectBaseURL: "https://api.konghq.com",
-		Mode:           planner.PlanModeApply,
-		PlanBaseDir:    planBaseDir,
+		DeckRunner:         runner,
+		KonnectToken:       "stale-token",
+		KonnectTokenSource: stubDeckTokenSource{token: "token-123"},
+		KonnectBaseURL:     "https://api.konghq.com",
+		Mode:               planner.PlanModeApply,
+		PlanBaseDir:        planBaseDir,
 	})
 
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
@@ -125,6 +134,7 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 
 	require.Len(t, runner.calls, 1)
 	require.Equal(t, "apply", runner.calls[0].Mode)
+	require.Equal(t, "token-123", runner.calls[0].KonnectToken)
 	require.Equal(t, cpName, runner.calls[0].KonnectControlPlaneName)
 	require.Equal(t, expectedWorkDir, runner.calls[0].WorkDir)
 	expectedArgs := []string{
@@ -224,4 +234,21 @@ func TestExecuteDeckStepSkipsResolutionWithoutDependencies(t *testing.T) {
 	err := exec.executeDeckStep(ctx, &plan.Changes[0], plan)
 	require.NoError(t, err)
 	require.Len(t, runner.calls, 1)
+}
+
+func TestDeckSummaryFromJSONNormalizesBareMaskedDeckEnvValues(t *testing.T) {
+	stdout := `{
+		"summary":{"created":1,"updated":0,"deleted":0},
+		"changes":[{"kind":"plugin","config":{"minute":[masked]}}],
+		"warnings":[],
+		"errors":[]
+	}`
+
+	summary, ok := deckSummaryFromJSON(stdout)
+	require.True(t, ok)
+	require.Equal(t, "apply", summary.Kind)
+	require.Equal(t, 1, summary.Created)
+	require.Equal(t, 0, summary.Updated)
+	require.Equal(t, 0, summary.Deleted)
+	require.True(t, summary.HasSummary)
 }

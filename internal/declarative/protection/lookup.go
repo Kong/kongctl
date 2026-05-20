@@ -78,6 +78,14 @@ func IsManagedResourceProtected(
 			}
 			return r.NormalizedLabels, err
 		})
+	case resources.ResourceTypeDCRProvider:
+		return fetchProtection(resourceName, "DCR provider", func() (map[string]string, error) {
+			r, err := client.GetDCRProviderByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
+			}
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeEventGatewayControlPlane:
 		return fetchProtection(resourceName, "event gateway", func() (map[string]string, error) {
 			r, err := client.GetEventGatewayControlPlaneByName(ctx, resourceName)
@@ -98,10 +106,17 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeAPIPublication,
 		resources.ResourceTypeAPIImplementation,
 		resources.ResourceTypeAPIDocument,
+		resources.ResourceTypeDashboard,
 		resources.ResourceTypeGatewayService,
+		resources.ResourceTypeControlPlaneDataPlaneCertificate,
+		resources.ResourceTypeControlPlaneGroup,
 		resources.ResourceTypePortalCustomization,
 		resources.ResourceTypePortalCustomDomain,
 		resources.ResourceTypePortalAuthSettings,
+		resources.ResourceTypePortalIPAllowList,
+		resources.ResourceTypePortalIntegration,
+		resources.ResourceTypePortalIdentityProvider,
+		resources.ResourceTypePortalTeamGroupMapping,
 		resources.ResourceTypePortalPage,
 		resources.ResourceTypePortalSnippet,
 		resources.ResourceTypePortalTeam,
@@ -110,12 +125,27 @@ func IsManagedResourceProtected(
 		resources.ResourceTypePortalAssetFavicon,
 		resources.ResourceTypePortalEmailConfig,
 		resources.ResourceTypePortalEmailTemplate,
+		resources.ResourceTypePortalAuditLogWebhook,
+		resources.ResourceTypeAuditLogWebhookDestination,
+		resources.ResourceTypeOrganizationTeamRole,
+		resources.ResourceTypeOrganizationUser,
+		resources.ResourceTypeOrganizationUserTeamMembership,
+		resources.ResourceTypeOrganizationUserRole,
+		resources.ResourceTypeOrganizationSystemAccount,
+		resources.ResourceTypeOrganizationSystemAccountTeamMembership,
+		resources.ResourceTypeOrganizationSystemAccountRole,
+		resources.ResourceTypeTeam,
 		resources.ResourceTypeEventGatewayBackendCluster,
 		resources.ResourceTypeEventGatewayVirtualCluster,
 		resources.ResourceTypeEventGatewayClusterPolicy,
+		resources.ResourceTypeEventGatewayConsumePolicy,
 		resources.ResourceTypeEventGatewayListener,
 		resources.ResourceTypeEventGatewayListenerPolicy,
-		resources.ResourceTypeEventGatewayDataPlaneCertificate:
+		resources.ResourceTypeEventGatewayDataPlaneCertificate,
+		resources.ResourceTypeEventGatewayProducePolicy,
+		resources.ResourceTypeEventGatewaySchemaRegistry,
+		resources.ResourceTypeEventGatewayStaticKey,
+		resources.ResourceTypeEventGatewayTLSTrustBundle:
 		return false, nil
 	}
 

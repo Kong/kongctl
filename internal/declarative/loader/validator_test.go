@@ -6,7 +6,9 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoader_validateResourceSet_EmptyResourceSet(t *testing.T) {
@@ -551,6 +553,24 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "raw UUID reference should be accepted without local ref match",
+			rs: &resources.ResourceSet{
+				Portals: []resources.PortalResource{
+					{
+						BaseResource: resources.BaseResource{
+							Ref: "portal1",
+						},
+						CreatePortal: kkComps.CreatePortal{
+							// A raw UUID is an already-resolved Konnect resource ID;
+							// it cannot be matched against local refs and must be allowed.
+							DefaultApplicationAuthStrategyID: new("5cb6138c-fcf4-4db6-8972-756262d743ac"),
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -572,6 +592,92 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestLoader_validateOrganizationTeamRoles_ValidatesReferences(t *testing.T) {
+	loader := New()
+
+	tests := []struct {
+		name        string
+		rs          *resources.ResourceSet
+		expectError string
+	}{
+		{
+			name: "valid team and api refs",
+			rs: &resources.ResourceSet{
+				OrganizationTeams: []resources.OrganizationTeamResource{
+					{
+						BaseResource: resources.BaseResource{Ref: "platform-team"},
+						CreateTeam:   kkComps.CreateTeam{Name: "Platform"},
+					},
+				},
+				APIs: []resources.APIResource{
+					{BaseResource: resources.BaseResource{Ref: "products-api"}},
+				},
+				OrganizationTeamRoles: []resources.OrganizationTeamRoleResource{
+					{
+						Ref:            "platform-admin",
+						Team:           "platform-team",
+						RoleName:       "Admin",
+						EntityID:       tags.RefPlaceholderPrefix + "products-api#id",
+						EntityTypeName: "APIs",
+						EntityRegion:   "us",
+					},
+				},
+			},
+		},
+		{
+			name: "unknown team ref",
+			rs: &resources.ResourceSet{
+				OrganizationTeamRoles: []resources.OrganizationTeamRoleResource{
+					{
+						Ref:            "platform-admin",
+						Team:           "missing-team",
+						RoleName:       "Admin",
+						EntityID:       "*",
+						EntityTypeName: "APIs",
+						EntityRegion:   "us",
+					},
+				},
+			},
+			expectError: `organization_team_role "platform-admin" references unknown organization_team: missing-team`,
+		},
+		{
+			name: "unknown entity api ref",
+			rs: &resources.ResourceSet{
+				OrganizationTeams: []resources.OrganizationTeamResource{
+					{
+						BaseResource: resources.BaseResource{Ref: "platform-team"},
+						CreateTeam:   kkComps.CreateTeam{Name: "Platform"},
+					},
+				},
+				OrganizationTeamRoles: []resources.OrganizationTeamRoleResource{
+					{
+						Ref:            "platform-admin",
+						Team:           "platform-team",
+						RoleName:       "Admin",
+						EntityID:       tags.RefPlaceholderPrefix + "missing-api#id",
+						EntityTypeName: "APIs",
+						EntityRegion:   "us",
+					},
+				},
+			},
+			expectError: `organization_team_role "platform-admin" references unknown api: missing-api (field: entity_id)`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := loader.validateOrganizationTeamRoles(tt.rs.OrganizationTeamRoles, tt.rs)
+			if tt.expectError == "" {
+				assert.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectError)
 		})
 	}
 }
@@ -708,4 +814,186 @@ func extractNestedResourcesForTest(rs *resources.ResourceSet) {
 		}
 		api.Implementations = nil
 	}
+}
+
+func TestLoader_validateResourceSet_RejectsDeprecatedPortalAuthSettingsFields(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{{
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+			CreatePortal: kkComps.CreatePortal{Name: "portal-one"},
+		}},
+		PortalAuthSettings: []resources.PortalAuthSettingsResource{{
+			Ref:    "portal-auth-settings",
+			Portal: "portal-1",
+			PortalAuthenticationSettingsUpdateRequest: kkComps.PortalAuthenticationSettingsUpdateRequest{
+				OidcAuthEnabled: new(true),
+			},
+		}},
+	}
+
+	err := loader.validateResourceSet(rs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "uses deprecated field \"oidc_auth_enabled\"")
+	assert.Contains(t, err.Error(), "move identity provider configuration to identity_providers")
+}
+
+func TestLoader_validateResourceSet_RejectsDuplicatePortalIdentityProviderTypesPerPortal(t *testing.T) {
+	loader := New()
+	configA := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(kkComps.OIDCIdentityProviderConfig{
+		IssuerURL: "https://accounts.google.com",
+		ClientID:  "client-id-a",
+	})
+	configB := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(kkComps.OIDCIdentityProviderConfig{
+		IssuerURL: "https://login.microsoftonline.com/common/v2.0",
+		ClientID:  "client-id-b",
+	})
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{{
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+			CreatePortal: kkComps.CreatePortal{Name: "portal-one"},
+		}},
+		PortalIdentityProviders: []resources.PortalIdentityProviderResource{
+			{
+				Ref:    "portal-oidc-a",
+				Portal: "portal-1",
+				CreateIdentityProvider: kkComps.CreateIdentityProvider{
+					Type:   kkComps.IdentityProviderTypeOidc.ToPointer(),
+					Config: &configA,
+				},
+			},
+			{
+				Ref:    "portal-oidc-b",
+				Portal: "portal-1",
+				CreateIdentityProvider: kkComps.CreateIdentityProvider{
+					Type:   kkComps.IdentityProviderTypeOidc.ToPointer(),
+					Config: &configB,
+				},
+			},
+		},
+	}
+
+	err := loader.validateResourceSet(rs)
+	assert.Error(t, err)
+	assert.Contains(
+		t,
+		err.Error(),
+		"multiple portal_identity_provider entries target portal \"portal-1\" and type \"oidc\"",
+	)
+}
+
+func TestLoader_validateResourceSet_RejectsDuplicatePortalIdentityProviderSAMLTypesPerPortal(t *testing.T) {
+	loader := New()
+	configA := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
+		kkComps.SAMLIdentityProviderConfigInput{
+			IdpMetadataURL: new("https://example-a.test/saml.xml"),
+		},
+	)
+	configB := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
+		kkComps.SAMLIdentityProviderConfigInput{
+			IdpMetadataURL: new("https://example-b.test/saml.xml"),
+		},
+	)
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{{
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+			CreatePortal: kkComps.CreatePortal{Name: "portal-one"},
+		}},
+		PortalIdentityProviders: []resources.PortalIdentityProviderResource{
+			{
+				Ref:    "portal-saml-a",
+				Portal: "portal-1",
+				CreateIdentityProvider: kkComps.CreateIdentityProvider{
+					Type:   kkComps.IdentityProviderTypeSaml.ToPointer(),
+					Config: &configA,
+				},
+			},
+			{
+				Ref:    "portal-saml-b",
+				Portal: "portal-1",
+				CreateIdentityProvider: kkComps.CreateIdentityProvider{
+					Type:   kkComps.IdentityProviderTypeSaml.ToPointer(),
+					Config: &configB,
+				},
+			},
+		},
+	}
+
+	err := loader.validateResourceSet(rs)
+	assert.Error(t, err)
+	assert.Contains(
+		t,
+		err.Error(),
+		"multiple portal_identity_provider entries target portal \"portal-1\" and type \"saml\"",
+	)
+}
+
+func TestLoader_validateResourceSet_AllowsMixedPortalIdentityProviderTypesPerPortal(t *testing.T) {
+	loader := New()
+	oidcConfig := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(kkComps.OIDCIdentityProviderConfig{
+		IssuerURL: "https://accounts.google.com",
+		ClientID:  "client-id-a",
+	})
+	samlConfig := kkComps.CreateCreateIdentityProviderConfigSAMLIdentityProviderConfigInput(
+		kkComps.SAMLIdentityProviderConfigInput{
+			IdpMetadataURL: new("https://example.test/saml.xml"),
+		},
+	)
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{{
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+			CreatePortal: kkComps.CreatePortal{Name: "portal-one"},
+		}},
+		PortalIdentityProviders: []resources.PortalIdentityProviderResource{
+			{
+				Ref:    "portal-oidc",
+				Portal: "portal-1",
+				CreateIdentityProvider: kkComps.CreateIdentityProvider{
+					Type:   kkComps.IdentityProviderTypeOidc.ToPointer(),
+					Config: &oidcConfig,
+				},
+			},
+			{
+				Ref:    "portal-saml",
+				Portal: "portal-1",
+				CreateIdentityProvider: kkComps.CreateIdentityProvider{
+					Type:   kkComps.IdentityProviderTypeSaml.ToPointer(),
+					Config: &samlConfig,
+				},
+			},
+		},
+	}
+
+	err := loader.validateResourceSet(rs)
+	assert.NoError(t, err)
+}
+
+func TestLoader_validateResourceSet_RejectsDuplicatePortalIPAllowListsPerPortal(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{{
+			BaseResource: resources.BaseResource{Ref: "portal-1"},
+			CreatePortal: kkComps.CreatePortal{Name: "portal-one"},
+		}},
+		PortalIPAllowLists: []resources.PortalIPAllowListResource{
+			{
+				Ref:        "portal-allow-list-a",
+				Portal:     "portal-1",
+				AllowedIPs: []string{"192.0.2.10"},
+			},
+			{
+				Ref:        "portal-allow-list-b",
+				Portal:     "portal-1",
+				AllowedIPs: []string{"198.51.100.0/24"},
+			},
+		},
+	}
+
+	err := loader.validateResourceSet(rs)
+	assert.Error(t, err)
+	assert.Contains(
+		t,
+		err.Error(),
+		"multiple portal_ip_allow_list entries target portal \"portal-1\"",
+	)
 }

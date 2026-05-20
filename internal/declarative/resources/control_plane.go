@@ -24,10 +24,11 @@ type ControlPlaneGroupMember struct {
 type ControlPlaneResource struct {
 	BaseResource
 	kkComps.CreateControlPlaneRequest `                          yaml:",inline"                    json:",inline"`
-	External                          *ExternalBlock            `yaml:"_external,omitempty"        json:"_external,omitempty"` //nolint:lll
-	Deck                              *DeckConfig               `yaml:"_deck,omitempty"            json:"_deck,omitempty"`
-	GatewayServices                   []GatewayServiceResource  `yaml:"gateway_services,omitempty" json:"gateway_services,omitempty"` //nolint:lll
-	Members                           []ControlPlaneGroupMember `yaml:"members,omitempty"          json:"members,omitempty"`          //nolint:lll
+	External                          *ExternalBlock                             `yaml:"_external,omitempty"        json:"_external,omitempty"`                      //nolint:lll
+	Deck                              *DeckConfig                                `yaml:"_deck,omitempty"            json:"_deck,omitempty"`                          //nolint:lll
+	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty" json:"gateway_services,omitempty"`               //nolint:lll
+	DataPlaneCertificates             []ControlPlaneDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
+	Members                           []ControlPlaneGroupMember                  `yaml:"members,omitempty"          json:"members,omitempty"`                        //nolint:lll
 
 	deckBaseDir string `yaml:"-" json:"-"`
 }
@@ -102,6 +103,10 @@ func (c *ControlPlaneResource) SetDefaults() {
 
 	for i := range c.GatewayServices {
 		c.GatewayServices[i].SetDefaults()
+	}
+
+	for i := range c.DataPlaneCertificates {
+		c.DataPlaneCertificates[i].SetDefaults()
 	}
 }
 

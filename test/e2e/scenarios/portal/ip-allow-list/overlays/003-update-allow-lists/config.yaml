@@ -1,0 +1,30 @@
+_defaults:
+  kongctl:
+    namespace: portal-ip-allow-list
+
+portals:
+  - ref: e2e-portal-ip-allow-list-nested
+    name: e2e-portal-ip-allow-list-nested
+    display_name: E2E Portal IP Allow List Nested
+    description: Portal with a nested declarative IP allow list
+    authentication_enabled: false
+    rbac_enabled: false
+    ip_allow_list:
+      ref: e2e-portal-ip-allow-list-nested-config
+      allowed_ips:
+        - 198.51.100.20
+        - 203.0.113.128/25
+
+  - ref: e2e-portal-ip-allow-list-root
+    name: e2e-portal-ip-allow-list-root
+    display_name: E2E Portal IP Allow List Root
+    description: Portal with a top-level declarative IP allow list
+    authentication_enabled: false
+    rbac_enabled: false
+
+portal_ip_allow_lists:
+  - ref: e2e-portal-ip-allow-list-root-config
+    portal: e2e-portal-ip-allow-list-root
+    allowed_ips:
+      - 192.0.2.50
+      - 198.51.100.128/25

@@ -21,7 +21,7 @@ const (
 var (
 	viewUse = Verb.String()
 
-	viewShort = i18n.T("root.verbs.view.viewShort", "Launch the Konnect resource viewer")
+	viewShort = i18n.T("root.verbs.view.viewShort", "Launch the Konnect TUI resource viewer")
 
 	viewLong = normalizers.LongDesc(i18n.T("root.verbs.view.viewLong",
 		`Open an interactive view into Konnect resources.`))

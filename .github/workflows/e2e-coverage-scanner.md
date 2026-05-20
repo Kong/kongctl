@@ -50,6 +50,14 @@ The goal is steady daily improvement, not issue spam.
 Prefer deep analysis of one slice over shallow analysis of the whole
 repository.
 
+**Important tool usage notes:**
+- Use GitHub MCP tools (for example `search_issues` and `list_issues`) for all
+  GitHub reads and issue deduplication checks.
+- Use safe-output tools (`create_issue`, `noop`) for all GitHub writes and
+  completion signaling.
+- Do NOT use `gh` CLI commands for GitHub API reads or writes because the CLI
+  is not authenticated in this environment.
+
 ## Persistent State
 
 Use cache-memory exactly as lightweight workflow state.
@@ -230,6 +238,8 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
    - If one focused verification pass does not resolve the candidate, drop it
 
 5. Deduplicate before creating anything.
+   - Use GitHub MCP issue search and list tools for this step; do not use
+     shell `gh` commands
    - Search open issues in this repository for similar titles and bodies
    - Pay special attention to open issues with the `e2e` label
    - If an open issue already tracks the same gap or a substantially similar
@@ -244,7 +254,7 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
 
 7. Finalize before timeout.
    - Update cache-memory state for the chosen slice before finishing
-   - Emit `create-issue` for each approved finding, or `noop` if none qualify
+   - Emit `create_issue` for each approved finding, or `noop` if none qualify
    - Do not perform more exploratory reads after starting finalization
 
 ## Issue Requirements

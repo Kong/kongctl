@@ -3,7 +3,6 @@ package dump
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"reflect"
 	"sort"
 	"strings"
@@ -37,7 +36,9 @@ var declarativeAllowedResources = map[string]struct{}{
 	"portals":                     {},
 	"apis":                        {},
 	"application_auth_strategies": {},
+	"dcr_providers":               {},
 	"control_planes":              {},
+	"analytics.dashboards":        {},
 	"event_gateways":              {},
 	"organization.teams":          {},
 }
@@ -70,7 +71,8 @@ func newDeclarativeCmd() *cobra.Command {
 
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
-			"(portals, apis, application_auth_strategies, control_planes, event_gateways, organization.teams).")
+			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
+			"analytics.dashboards, event_gateways, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -168,19 +170,27 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			PortalAPI:                           sdk.GetPortalAPI(),
 			APIAPI:                              sdk.GetAPIAPI(),
 			AppAuthAPI:                          sdk.GetAppAuthStrategiesAPI(),
+			DCRProviderAPI:                      sdk.GetDCRProvidersAPI(),
 			ControlPlaneAPI:                     sdk.GetControlPlaneAPI(),
 			GatewayServiceAPI:                   sdk.GetGatewayServiceAPI(),
+			DataPlaneCertificateAPI:             sdk.GetDataPlaneCertificateAPI(),
 			ControlPlaneGroupsAPI:               sdk.GetControlPlaneGroupsAPI(),
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
+			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
+			PortalIPAllowListAPI:                sdk.GetPortalIPAllowListAPI(),
+			PortalIntegrationsAPI:               sdk.GetPortalIntegrationsAPI(),
+			PortalIdentityProviderAPI:           sdk.GetPortalIdentityProviderAPI(),
 			PortalCustomizationAPI:              sdk.GetPortalCustomizationAPI(),
 			PortalCustomDomainAPI:               sdk.GetPortalCustomDomainAPI(),
 			PortalSnippetAPI:                    sdk.GetPortalSnippetAPI(),
 			PortalTeamAPI:                       sdk.GetPortalTeamAPI(),
 			PortalTeamRolesAPI:                  sdk.GetPortalTeamRolesAPI(),
 			PortalEmailsAPI:                     sdk.GetPortalEmailsAPI(),
+			PortalAuditLogsAPI:                  sdk.GetPortalAuditLogsAPI(),
 			AssetsAPI:                           sdk.GetAssetsAPI(),
+			AuditLogDestinationsAPI:             sdk.GetAuditLogDestinationsAPI(),
 			APIVersionAPI:                       sdk.GetAPIVersionAPI(),
 			APIPublicationAPI:                   sdk.GetAPIPublicationAPI(),
 			APIImplementationAPI:                sdk.GetAPIImplementationAPI(),
@@ -191,8 +201,16 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			EventGatewayListenerAPI:             sdk.GetEventGatewayListenerAPI(),
 			EventGatewayListenerPolicyAPI:       sdk.GetEventGatewayListenerPolicyAPI(),
 			EventGatewayDataPlaneCertificateAPI: sdk.GetEventGatewayDataPlaneCertificateAPI(),
+			EventGatewayProducePolicyAPI:        sdk.GetEventGatewayProducePolicyAPI(),
 			EventGatewayClusterPolicyAPI:        sdk.GetEventGatewayClusterPolicyAPI(),
+			EventGatewayConsumePolicyAPI:        sdk.GetEventGatewayConsumePolicyAPI(),
+			EventGatewaySchemaRegistryAPI:       sdk.GetEventGatewaySchemaRegistryAPI(),
+			EventGatewayStaticKeyAPI:            sdk.GetEventGatewayStaticKeyAPI(),
+			EventGatewayTLSTrustBundleAPI:       sdk.GetEventGatewayTLSTrustBundleAPI(),
 			OrganizationTeamAPI:                 sdk.GetOrganizationTeamAPI(),
+			OrganizationTeamRolesAPI:            sdk.GetOrganizationTeamRolesAPI(),
+			OrganizationUsersAPI:                sdk.GetOrganizationUsersAPI(),
+			OrganizationMembershipAPI:           sdk.GetOrganizationTeamMembershipAPI(),
 		})
 	}
 
@@ -241,6 +259,14 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.ApplicationAuthStrategies = append(resourceSet.ApplicationAuthStrategies, authStrategies...)
+		case "dcr_providers":
+			dcrProviders, err := collectDeclarativeDCRProviders(
+				ctx, sdk.GetDCRProvidersAPI(), requestPageSize, opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.DCRProviders = append(resourceSet.DCRProviders, dcrProviders...)
 		case "control_planes":
 			controlPlanes, err := collectDeclarativeControlPlanes(
 				ctx,
@@ -256,6 +282,15 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				populateControlPlaneChildren(ctx, logger, stateClient, controlPlanes)
 			}
 			resourceSet.ControlPlanes = append(resourceSet.ControlPlanes, controlPlanes...)
+		case "analytics.dashboards":
+			dashboards, err := collectDeclarativeDashboards(ctx, sdk.GetDashboardsAPI(), requestPageSize, opts.filter)
+			if err != nil {
+				return err
+			}
+			if resourceSet.Analytics == nil {
+				resourceSet.Analytics = &declresources.AnalyticsResource{}
+			}
+			resourceSet.Analytics.Dashboards = append(resourceSet.Analytics.Dashboards, dashboards...)
 		case "event_gateways":
 			eventGateways, err := collectDeclarativeEventGateways(
 				ctx,
@@ -280,11 +315,20 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			if err != nil {
 				return err
 			}
+			if opts.includeChildResources {
+				populateOrganizationTeamChildren(ctx, logger, stateClient, teams)
+			}
 			// Wrap teams in organization grouping for the new format
 			if resourceSet.Organization == nil {
 				resourceSet.Organization = &declresources.OrganizationResource{}
 			}
 			resourceSet.Organization.Teams = append(resourceSet.Organization.Teams, teams...)
+			if opts.includeChildResources {
+				resourceSet.Organization.Users = append(
+					resourceSet.Organization.Users,
+					collectOrganizationUsersFromTeamMemberships(ctx, logger, stateClient, teams)...,
+				)
+			}
 		}
 	}
 
@@ -343,8 +387,8 @@ func collectDeclarativePortals(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListPortalsRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -373,6 +417,9 @@ func collectDeclarativePortals(
 	}
 
 	sort.Slice(results, func(i, j int) bool {
+		if results[i].Name == results[j].Name {
+			return results[i].Ref < results[j].Ref
+		}
 		return results[i].Name < results[j].Name
 	})
 
@@ -393,8 +440,8 @@ func collectDeclarativeAPIs(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListApisRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -428,6 +475,71 @@ func collectDeclarativeAPIs(
 	}
 
 	sort.Slice(results, func(i, j int) bool {
+		if results[i].Name == results[j].Name {
+			return results[i].Ref < results[j].Ref
+		}
+		return results[i].Name < results[j].Name
+	})
+
+	return results, nil
+}
+
+func collectDeclarativeDashboards(
+	ctx context.Context,
+	api helpers.DashboardsAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.DashboardResource, error) {
+	if api == nil {
+		return nil, fmt.Errorf("dashboards API client is not configured")
+	}
+
+	var results []declresources.DashboardResource
+
+	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
+		req := kkOps.DashboardsListRequest{
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
+		}
+
+		if filter.name != "" {
+			req.Filter = &kkComps.DashboardFilterParameters{Name: buildStringFieldFilter(filter.name)}
+		} else if filter.id != "" {
+			req.Filter = &kkComps.DashboardFilterParameters{ID: &kkComps.UUIDFieldFilter{Eq: &filter.id}}
+		}
+
+		resp, err := api.DashboardsList(ctx, req)
+		if err != nil {
+			return false, fmt.Errorf("failed to list dashboards: %w", err)
+		}
+
+		if resp == nil || resp.Object == nil || len(resp.Object.Data) == 0 {
+			return false, nil
+		}
+
+		for _, dashboard := range resp.Object.Data {
+			results = append(results, mapDashboardToDeclarativeResource(dashboard))
+		}
+
+		var total float64
+		if resp.Object.Meta != nil {
+			total = resp.Object.Meta.Page.Total
+		}
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: total,
+		}
+		return params.hasMorePages(), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Name == results[j].Name {
+			return results[i].Ref < results[j].Ref
+		}
 		return results[i].Name < results[j].Name
 	})
 
@@ -449,7 +561,7 @@ func collectDeclarativeEventGateways(
 
 	for {
 		req := kkOps.ListEventGatewaysRequest{
-			PageSize: new(requestPageSize),
+			PageSize: &requestPageSize,
 		}
 
 		if pageAfter != nil {
@@ -475,17 +587,11 @@ func collectDeclarativeEventGateways(
 			allData = append(allData, mapEventGatewayToDeclarativeResource(egw))
 		}
 
-		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewaysResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, err
-		}
-
-		values := u.Query()
-		pageAfter = stringPointer(values.Get("page[after]"))
+		pageAfter = stringPointer(nextCursor)
 	}
 
 	// Client-side filtering for exact name match or ID (not supported server-side)
@@ -520,8 +626,8 @@ func collectDeclarativeOrganizationTeams(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListTeamsRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -649,6 +755,24 @@ func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.AP
 	return result
 }
 
+func mapDashboardToDeclarativeResource(dashboard kkComps.DashboardResponse) declresources.DashboardResource {
+	result := declresources.DashboardResource{
+		BaseResource: declresources.BaseResource{Ref: getString(dashboard.ID)},
+		Name:         dashboard.Name,
+		Definition:   dashboard.Definition,
+	}
+
+	if result.Ref == "" {
+		result.Ref = dashboard.Name
+	}
+
+	if labels := decllabels.GetUserLabels(dashboard.Labels); len(labels) > 0 {
+		result.Labels = labels
+	}
+
+	return result
+}
+
 func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declresources.EventGatewayControlPlaneResource {
 	result := declresources.EventGatewayControlPlaneResource{
 		BaseResource: declresources.BaseResource{Ref: egw.ID},
@@ -759,12 +883,12 @@ func collectDeclarativeAuthStrategies(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListAppAuthStrategiesRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
-			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{Name: buildStringFieldFilter(filter.name)}
+			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		resp, err := api.ListAppAuthStrategies(ctx, req)
@@ -894,6 +1018,95 @@ func buildAuthStrategyRef(id, name string) string {
 	return strings.TrimSpace(name)
 }
 
+func buildDCRProviderRef(id, name string) string {
+	if trimmed := strings.TrimSpace(id); trimmed != "" {
+		return trimmed
+	}
+	return strings.TrimSpace(name)
+}
+
+func collectDeclarativeDCRProviders(
+	ctx context.Context,
+	api helpers.DCRProvidersAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.DCRProviderResource, error) {
+	if api == nil {
+		return nil, fmt.Errorf("DCR providers API is not configured")
+	}
+
+	var results []declresources.DCRProviderResource
+
+	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
+		req := kkOps.ListDcrProvidersRequest{
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := api.ListDcrProviderPayloads(ctx, req)
+		if err != nil {
+			return false, fmt.Errorf("failed to list DCR providers: %w", err)
+		}
+
+		if resp == nil || len(resp.Data) == 0 {
+			return false, nil
+		}
+
+		for _, provider := range resp.Data {
+			mapped, mapErr := mapDCRProviderToDeclarativeResource(provider)
+			if mapErr != nil {
+				return false, mapErr
+			}
+			results = append(results, mapped)
+		}
+
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: resp.Total,
+		}
+		return params.hasMorePages(), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	results = filterByNameOrID(results, filter, func(r declresources.DCRProviderResource) (string, string) {
+		return r.Name, r.Ref
+	})
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
+
+	return results, nil
+}
+
+func mapDCRProviderToDeclarativeResource(data any) (declresources.DCRProviderResource, error) {
+	provider, err := helpers.NormalizeDCRProviderPayload(data)
+	if err != nil {
+		return declresources.DCRProviderResource{}, err
+	}
+
+	resource := declresources.DCRProviderResource{
+		BaseResource: declresources.BaseResource{Ref: buildDCRProviderRef(provider.ID, provider.Name)},
+		Name:         provider.Name,
+		ProviderType: provider.ProviderType,
+		Issuer:       provider.Issuer,
+		DCRConfig:    provider.DCRConfig,
+		Labels:       decllabels.GetUserLabels(provider.Labels),
+	}
+
+	if resource.DCRConfig == nil {
+		resource.DCRConfig = map[string]any{}
+	}
+	if provider.DisplayNameSet {
+		resource.DisplayName = provider.DisplayName
+	}
+
+	return resource, nil
+}
+
 func collectDeclarativeControlPlanes(
 	ctx context.Context,
 	api helpers.ControlPlaneAPI,
@@ -909,8 +1122,8 @@ func collectDeclarativeControlPlanes(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListControlPlanesRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
 		}
 
 		if filter.name != "" {
@@ -975,9 +1188,11 @@ func mapControlPlaneToDeclarativeResource(
 	mapped := declresources.ControlPlaneResource{
 		BaseResource: declresources.BaseResource{Ref: cp.ID},
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
-			Name:        cp.Name,
-			Description: cp.Description,
+			Name: cp.Name,
 		},
+	}
+	if strings.TrimSpace(cp.Description) != "" {
+		mapped.Description = &cp.Description
 	}
 
 	config := cp.Config
@@ -1042,8 +1257,8 @@ func fetchControlPlaneGroupMembers(
 
 	for {
 		req := kkOps.GetControlPlanesIDGroupMembershipsRequest{
-			ID:       controlPlaneID,
-			PageSize: &pageSize,
+			ControlPlaneID: controlPlaneID,
+			PageSize:       &pageSize,
 		}
 
 		if pageAfter != nil {

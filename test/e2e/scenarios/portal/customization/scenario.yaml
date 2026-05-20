@@ -148,3 +148,25 @@ steps:
             expect:
               fields:
                 total_changes: 0
+
+  - name: 005-delete-cleanup
+    inputOverlayDirs:
+      - overlays/003-update
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

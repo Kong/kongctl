@@ -56,7 +56,7 @@ func (d APIDocumentResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if d.API != "" {
 		// Dependency on parent API when defined at root level
-		deps = append(deps, ResourceRef{Kind: "api", Ref: d.API})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeAPI, Ref: d.API})
 	}
 	// Note: Parent document dependency is handled through reference field mappings
 	return deps
@@ -155,7 +155,7 @@ func (d *APIDocumentResource) TryMatchKonnectResource(konnectResource any) bool 
 // GetParentRef returns the parent API reference for ResourceWithParent interface
 func (d APIDocumentResource) GetParentRef() *ResourceRef {
 	if d.API != "" {
-		return &ResourceRef{Kind: "api", Ref: d.API}
+		return &ResourceRef{Kind: ResourceTypeAPI, Ref: d.API}
 	}
 	return nil
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTextDisplayConversion(t *testing.T) {
@@ -64,7 +65,7 @@ func TestTextDisplayConversion(t *testing.T) {
 			input: kkComps.ControlPlane{
 				ID:          "id-field",
 				Name:        "name-field",
-				Description: new("description-field"),
+				Description: "description-field",
 				Config: kkComps.ControlPlaneConfig{
 					ControlPlaneEndpoint: "config-endpoint-field",
 				},
@@ -124,6 +125,16 @@ func TestTextDisplayConversion(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewControlPlaneCmdIncludesDataPlaneCertificates(t *testing.T) {
+	command, err := NewControlPlaneCmd(verbs.Get, nil, nil)
+	require.NoError(t, err)
+
+	child, _, err := command.Find([]string{"data-plane-certs"})
+	require.NoError(t, err)
+	require.NotNil(t, child)
+	assert.Equal(t, "data-plane-certificates", child.Use)
 }
 
 func TestRunGet(t *testing.T) {
@@ -268,7 +279,7 @@ func TestGetControlPlaneCmd(t *testing.T) {
 								{
 									ID:          "4d9b3f3e-7b1b-4b6b-8b1b-4b6b7b1b4b6b",
 									Name:        "foo",
-									Description: new("blah"),
+									Description: "blah",
 									Config: kkComps.ControlPlaneConfig{
 										ControlPlaneEndpoint: "https://foo.bar",
 									},

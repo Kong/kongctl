@@ -19,12 +19,63 @@ directory.
 ## Top-Level Resource Keys
 
 - `apis`
+- `audit-logs`
 - `application_auth_strategies`
 - `catalog_services`
 - `control_planes`
+- `dcr_providers`
 - `event_gateways`
+- `gateway_services`
 - `organization` (contains `teams`)
 - `portals`
+
+## Schema-First Authoring
+
+Use `kongctl explain` and `kongctl scaffold` before guessing at resource
+shape. These commands are local schema helpers and do not require Konnect
+authentication.
+
+```bash
+kongctl explain api --extended -o text
+kongctl explain api.publications.portal_id
+kongctl scaffold api
+kongctl scaffold api.versions
+```
+
+Use `explain` to confirm:
+
+- accepted resource aliases and root YAML keys
+- required and recommended fields
+- field types, enum values, tags, and reference kinds
+- whether a child resource can be declared at root level, nested, or both
+- field placement paths for root and nested YAML declarations
+
+Use `scaffold` to generate a commented starter YAML shape. Edit the generated
+placeholder values, then validate with `diff` or `plan`.
+
+Use `dump declarative` when live Konnect state should drive the shape, such as
+adopting an existing resource into declarative management.
+
+## Union and `oneOf` Resources
+
+`kongctl explain <resource-path> -o json` emits JSON Schema. When the schema
+contains `oneOf`, choose exactly one branch.
+
+Common patterns:
+
+- A discriminator field with `const`, such as `strategy_type: key_auth`.
+- A discriminator field with `const`, such as `type: tls_server`.
+- Reference selector alternatives, such as an `id` object or a `name` object.
+
+Do not merge branch-specific fields from multiple options. For example, do not
+combine `configs.key-auth` and `configs.openid-connect` in the same
+`application_auth_strategies` item.
+
+`kongctl scaffold` marks these alternatives with `# oneOf option: ...`. One
+branch is active and the other branches are commented. To switch variants,
+uncomment one whole branch and comment or remove the previously active branch.
+Common fields shown outside the `# oneOf option: ...` blocks apply to all
+variants.
 
 ## Parent and Child Rules
 
@@ -81,7 +132,15 @@ Common fields:
 - `cloud_gateway`
 - `proxy_urls`
 - `labels`
+- `_deck`
+- `_external`
 - `kongctl`
+
+Common child blocks:
+
+- `gateway_services`
+- `data_plane_certificates`
+- `members`
 
 Example:
 
@@ -91,6 +150,10 @@ control_planes:
     name: "my-control-plane"
     cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
 ```
+
+Use `_deck` for control-plane scoped decK Gateway state. Load
+`references/deck-gateway.md` when adding `_deck` or `gateway_services`
+selectors.
 
 ### `portals`
 
@@ -141,8 +204,11 @@ Common fields:
 - `slug`
 - `labels`
 - `attributes`
-- `spec_content`
 - `kongctl`
+
+Do not use `apis[].spec_content`; it is not supported in declarative
+configuration. Put specs on `apis[].versions[].spec` or root-level
+`api_versions[].spec`.
 
 Common child blocks:
 
@@ -168,6 +234,38 @@ apis:
         visibility: public
 ```
 
+### `gateway_services`
+
+Use `gateway_services` as external selectors for Kong Gateway services created
+by decK. Prefer nesting under the control plane that declares `_deck`.
+
+```yaml
+control_planes:
+  - ref: cp-main
+    name: "my-control-plane"
+    _deck:
+      files:
+        - "gateway.yaml"
+    gateway_services:
+      - ref: payments-gw-svc
+        _external:
+          selector:
+            matchFields:
+              name: "payments-service"
+```
+
+Reference the selected service from API implementations:
+
+```yaml
+apis:
+  - ref: payments-api
+    implementations:
+      - ref: payments-impl
+        service:
+          control_plane_id: !ref cp-main#id
+          id: !ref payments-gw-svc#id
+```
+
 ### `application_auth_strategies`
 
 Common fields:
@@ -188,7 +286,7 @@ application_auth_strategies:
     display_name: "My Key Auth"
     strategy_type: key_auth
     configs:
-      key_auth:
+      key-auth:
         key_names:
           - X-API-Key
 ```
@@ -220,7 +318,14 @@ organization:
 
 ## Schema Discovery Without Local Docs
 
-When field-level uncertainty remains, sample live schema with dump commands:
+When field-level uncertainty remains, inspect the local schema first:
+
+```bash
+kongctl explain <resource-path> -o text --extended
+kongctl scaffold <resource-path>
+```
+
+Then sample live Konnect state with dump commands when needed:
 
 ```bash
 kongctl dump declarative --resources=portal --include-child-resources -o yaml

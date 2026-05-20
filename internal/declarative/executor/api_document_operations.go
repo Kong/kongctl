@@ -27,23 +27,23 @@ func (e *Executor) createAPIDocument(ctx context.Context, change planner.Planned
 	req := kkComps.CreateAPIDocumentRequest{}
 
 	// Map fields to SDK request - Content is required
-	if content, ok := change.Fields["content"].(string); ok {
+	if content, ok := change.Fields[planner.FieldContent].(string); ok {
 		req.Content = content
 	} else {
 		return "", fmt.Errorf("content is required for API document")
 	}
 
-	if title, ok := change.Fields["title"].(string); ok {
+	if title, ok := change.Fields[planner.FieldTitle].(string); ok {
 		req.Title = &title
 	}
-	if slug, ok := change.Fields["slug"].(string); ok {
+	if slug, ok := change.Fields[planner.FieldSlug].(string); ok {
 		req.Slug = &slug
 	}
-	if status, ok := change.Fields["status"].(string); ok {
+	if status, ok := change.Fields[planner.FieldStatus].(string); ok {
 		s := kkComps.APIDocumentStatus(status)
 		req.Status = &s
 	}
-	if parentDocID, ok := change.Fields["parent_document_id"].(string); ok {
+	if parentDocID, ok := change.Fields[planner.FieldParentDocumentID].(string); ok {
 		req.ParentDocumentID = &parentDocID
 	}
 
@@ -75,20 +75,20 @@ func (e *Executor) updateAPIDocument(ctx context.Context, change planner.Planned
 	req := kkComps.APIDocument{}
 
 	// Map fields to SDK request
-	if content, ok := change.Fields["content"].(string); ok {
+	if content, ok := change.Fields[planner.FieldContent].(string); ok {
 		req.Content = &content
 	}
-	if title, ok := change.Fields["title"].(string); ok {
+	if title, ok := change.Fields[planner.FieldTitle].(string); ok {
 		req.Title = &title
 	}
-	if slug, ok := change.Fields["slug"].(string); ok {
+	if slug, ok := change.Fields[planner.FieldSlug].(string); ok {
 		req.Slug = &slug
 	}
-	if status, ok := change.Fields["status"].(string); ok {
+	if status, ok := change.Fields[planner.FieldStatus].(string); ok {
 		s := kkComps.APIDocumentStatus(status)
 		req.Status = &s
 	}
-	if parentDocID, ok := change.Fields["parent_document_id"].(string); ok {
+	if parentDocID, ok := change.Fields[planner.FieldParentDocumentID].(string); ok {
 		req.ParentDocumentID = &parentDocID
 	}
 

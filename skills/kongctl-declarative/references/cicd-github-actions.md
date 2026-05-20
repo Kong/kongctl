@@ -14,7 +14,7 @@ Use this file when asked to create or modify GitHub Actions workflows for
    - Deployment jobs can run `apply` or `sync`.
 3. Install required tooling:
    - `kong/setup-kongctl@v1`
-   - `kong/setup-deck@v1` when deck is required
+   - `kong/setup-deck@v1` when `_deck` is declared or APIOps scripts run
 4. Inject secrets via workflow `env` or step-level `env`.
 5. Upload artifacts for audit and troubleshooting.
 
@@ -60,6 +60,11 @@ steps:
 
 Use a repository script when available (`./scripts/konnect-sync.sh`) so CI
 logic and local developer flows stay aligned.
+
+When OpenAPI specs generate Gateway config, put the `deck file openapi2kong`,
+`deck file patch`, `deck file add-plugins`, and `deck file add-tags` calls in
+a repository script. Run that script before `kongctl plan`, `diff`, `apply`,
+or `sync` so `_deck.files` points at generated decK state.
 
 ## Auth and Environment Conventions
 

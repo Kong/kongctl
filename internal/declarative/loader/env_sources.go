@@ -3,6 +3,7 @@ package loader
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -41,20 +42,19 @@ func visitResourceSetResources(rs *resources.ResourceSet, fn func(resources.Reso
 	}
 
 	value := reflect.ValueOf(rs).Elem()
-	resourceType := reflect.TypeOf((*resources.Resource)(nil)).Elem()
+	resourceType := reflect.TypeFor[resources.Resource]()
 
-	for i := 0; i < value.NumField(); i++ {
+	for i := range value.NumField() {
 		fieldValue := value.Field(i)
 		fieldType := value.Type().Field(i)
-
 		if fieldType.PkgPath != "" || fieldType.Tag.Get("yaml") == "-" {
 			continue
 		}
 
-		//nolint:exhaustive // only slice and pointer fields can contain resource entries in ResourceSet.
+		//exhaustive:ignore
 		switch fieldValue.Kind() {
 		case reflect.Slice:
-			for j := 0; j < fieldValue.Len(); j++ {
+			for j := range fieldValue.Len() {
 				item := fieldValue.Index(j)
 				if !item.IsValid() {
 					continue
@@ -73,7 +73,7 @@ func visitResourceSetResources(rs *resources.ResourceSet, fn func(resources.Reso
 					}
 				}
 			}
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if fieldValue.IsNil() || !fieldValue.Type().Implements(resourceType) {
 				continue
 			}
@@ -91,14 +91,14 @@ func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(
 		return nil
 	}
 
-	for value.Kind() == reflect.Ptr {
+	for value.Kind() == reflect.Pointer {
 		if value.IsNil() {
 			return nil
 		}
 		value = value.Elem()
 	}
 
-	//nolint:exhaustive // reflect walk only needs container and string kinds for deferred env discovery.
+	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.String:
 		strValue := value.String()
@@ -108,7 +108,7 @@ func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(
 		return nil
 	case reflect.Struct:
 		valueType := value.Type()
-		for i := 0; i < value.NumField(); i++ {
+		for i := range value.NumField() {
 			field := valueType.Field(i)
 			if field.PkgPath != "" {
 				continue
@@ -138,7 +138,7 @@ func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(
 		}
 		return nil
 	case reflect.Slice, reflect.Array:
-		for i := 0; i < value.Len(); i++ {
+		for i := range value.Len() {
 			if err := walkDeferredEnvPlaceholders(value.Index(i), append(path, strconv.Itoa(i)), visit); err != nil {
 				return err
 			}
@@ -198,13 +198,10 @@ func parseStructuredFieldTag(tag string) (name string, inline bool, skip bool) {
 	if parts[0] != "" {
 		name = parts[0]
 	}
-	for _, part := range parts[1:] {
-		if part == "inline" {
-			inline = true
-		}
-	}
-	return name, inline, false
+	return name, slices.Contains(parts[1:], "inline"), false
 }
+
+var jsonPointerEscaper = strings.NewReplacer("~", "~0", "/", "~1")
 
 func pointerPath(segments []string) string {
 	if len(segments) == 0 {
@@ -214,7 +211,7 @@ func pointerPath(segments []string) string {
 	var builder strings.Builder
 	for _, segment := range segments {
 		builder.WriteByte('/')
-		builder.WriteString(strings.NewReplacer("~", "~0", "/", "~1").Replace(segment))
+		builder.WriteString(jsonPointerEscaper.Replace(segment))
 	}
 	return builder.String()
 }

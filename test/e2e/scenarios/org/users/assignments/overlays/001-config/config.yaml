@@ -1,0 +1,55 @@
+_defaults:
+  kongctl:
+    namespace: org-user-assignments-e2e
+
+apis:
+  - ref: org-user-assignments-api
+    name: org-user-assignments-api
+    description: API used by the organization user assignments E2E scenario
+
+organization:
+  teams:
+    - ref: org-user-assignments-team
+      name: Organization User Assignments Team
+      description: Team used by the organization user assignments E2E scenario
+      labels:
+        scenario: org-user-assignments
+      roles:
+        - ref: org-user-assignments-team-api-viewer
+          role_name: Viewer
+          entity_id: !ref org-user-assignments-api#id
+          entity_type_name: APIs
+          entity_region: us
+        - ref: org-user-assignments-team-global-admin
+          role_name: Admin
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: "*"
+  users:
+    - ref: e2e-user-1
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+      teams:
+        - ref: e2e-user-1-org-user-assignments-team
+          team: org-user-assignments-team
+      roles:
+        - ref: org-user-assignments-api-viewer
+          role_name: Viewer
+          entity_id: !ref org-user-assignments-api#id
+          entity_type_name: APIs
+          entity_region: us
+    - ref: e2e-user-2
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_2
+      teams:
+        - ref: e2e-user-2-org-user-assignments-team
+          team: org-user-assignments-team
+      roles:
+        - ref: org-user-assignments-global-viewer
+          role_name: Viewer
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: "*"
+    - ref: e2e-user-3
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_3
+      teams:
+        - ref: e2e-user-3-org-user-assignments-team
+          team: org-user-assignments-team

@@ -2,14 +2,12 @@ package apply
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
@@ -22,17 +20,10 @@ const (
 var (
 	applyUse = Verb.String()
 
-	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply configuration changes (create/update only)")
+	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply declarative configuration changes (create/update only)")
 
 	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
 		`Apply configuration changes to Kong Konnect. Creates new resources and updates existing ones.`))
-
-	applyExamples = normalizers.Examples(i18n.T("root.verbs.apply.applyExamples",
-		fmt.Sprintf(`  %[1]s apply -f api.yaml
-  %[1]s apply -f ./configs/ --recursive
-  %[1]s apply --plan plan.json
-
-Use "%[1]s help apply" for detailed documentation`, meta.CLIName)))
 )
 
 func NewApplyCmd() (*cobra.Command, error) {
@@ -46,8 +37,9 @@ func NewApplyCmd() (*cobra.Command, error) {
 		Use:     applyUse,
 		Short:   applyShort,
 		Long:    applyLong,
-		Example: applyExamples,
+		Example: konnectCmd.Example,
 		Aliases: []string{"a", "A"},
+		Args:    verbs.NoPositionalArgs,
 		// Use the konnect command's RunE directly for Konnect-first pattern
 		RunE: konnectCmd.RunE,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cmd "github.com/kong/kongctl/internal/cmd"
+	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/theme"
 )
@@ -90,15 +91,48 @@ func TestNormalizeSelectedRow_HandlesAnsiResetStyle(t *testing.T) {
 	selected := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#111111")).
 		Background(lipgloss.Color("#AABBCC"))
+	cell := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFFFF"))
 
 	prefix, reset := selectionPrefix(selected)
 	require.NotEmpty(t, prefix)
 	require.Equal(t, ansi.ResetStyle, reset)
 
-	content := selected.Render("foo" + reset + "bar")
+	content := selected.Render(cell.Render("foo") + reset + "bar")
 	normalized := NormalizeSelectedRow(content, selected)
 
-	require.Contains(t, normalized, reset+prefix)
+	require.Equal(t, "foobar", ansi.Strip(normalized))
+	require.Contains(t, normalized, prefix)
+	require.NotContains(t, normalized, cell.Render("foo"))
+}
+
+func TestNormalizeSelectedRow_RepaintsTableCellForeground(t *testing.T) {
+	selected := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#000F06")).
+		Background(lipgloss.Color("#CCFF00"))
+	cell := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFFFF"))
+
+	styles := table.DefaultStyles()
+	styles.Cell = styles.Cell.Foreground(lipgloss.Color("#FFFFFF"))
+	styles.Selected = selected
+
+	tbl := table.New(
+		table.WithColumns([]table.Column{{Title: "RESOURCE", Width: 10}}),
+		table.WithRows([]table.Row{{"apis"}}),
+		table.WithFocused(true),
+		table.WithStyles(styles),
+	)
+	tbl.SetCursor(0)
+	tbl.SetHeight(3)
+	tbl.SetWidth(20)
+
+	normalized := NormalizeSelectedRow(tbl.View(), selected)
+	prefix, _ := selectionPrefix(selected)
+
+	require.Contains(t, ansi.Strip(normalized), "apis")
+	require.Contains(t, normalized, prefix)
+	require.NotContains(t, normalized, cell.Render("apis"))
 }
 
 func TestNewDetailTableDecorator_TracksSelectedPrefix(t *testing.T) {
@@ -420,6 +454,72 @@ func TestFilterPreviewDetailItems_RemovesChildRows(t *testing.T) {
 	filtered := filterPreviewDetailItems(items)
 	require.Len(t, filtered, 1)
 	require.Equal(t, "id", filtered[0].Label)
+}
+
+func TestIsEmptyCollection(t *testing.T) {
+	require.True(t, isEmptyCollection([]string{}))
+	require.True(t, isEmptyCollection([]sampleRecord{}))
+	require.True(t, isEmptyCollection([0]int{}))
+
+	ptr := []string{}
+	require.True(t, isEmptyCollection(&ptr))
+
+	// typed nil slice (len==0) is considered empty
+	var typedNil []string
+	require.True(t, isEmptyCollection(typedNil))
+
+	require.False(t, isEmptyCollection(nil))
+	require.False(t, isEmptyCollection([]string{"a"}))
+	require.False(t, isEmptyCollection(sampleRecord{}))
+	require.False(t, isEmptyCollection("not a slice"))
+
+	var nilPtr *[]string
+	require.False(t, isEmptyCollection(nilPtr))
+}
+
+// stubPrinter is a minimal cli.PrintFlusher that records what was passed to Print.
+type stubPrinter struct {
+	printed []any
+}
+
+func (s *stubPrinter) Print(v any) { s.printed = append(s.printed, v) }
+func (s *stubPrinter) Flush()      {}
+
+func TestRenderForFormat_EmptyTextOutputWritesNoResourcesFound(t *testing.T) {
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+
+	err := RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		nil,
+		streams,
+		[]sampleRecord{},
+		nil,
+		"",
+	)
+	require.NoError(t, err)
+	require.Contains(t, outBuf.String(), "No resources found.")
+}
+
+func TestRenderForFormat_NonEmptyTextOutputCallsPrinter(t *testing.T) {
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+	printer := &stubPrinter{}
+
+	record := []sampleRecord{{ID: "abc", DisplayName: "Test", LocalUpdatedTime: "2025-01-01"}}
+	err := RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		printer,
+		streams,
+		record,
+		nil,
+		"",
+	)
+	require.NoError(t, err)
+	require.NotContains(t, outBuf.String(), "No resources found.")
+	require.Len(t, printer.printed, 1, "printer.Print should have been called once")
 }
 
 func newMinimalBubbleModel(t *testing.T) *bubbleModel {

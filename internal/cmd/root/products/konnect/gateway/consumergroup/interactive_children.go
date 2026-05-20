@@ -19,8 +19,16 @@ import (
 )
 
 func init() {
-	tableview.RegisterChildLoader("control-plane", "consumer-groups", loadControlPlaneConsumerGroups)
-	tableview.RegisterChildLoader("consumer-group", "consumers", loadConsumerGroupConsumers)
+	tableview.RegisterChildLoader(
+		kkCommon.ViewParentControlPlane,
+		kkCommon.ViewFieldConsumerGroups,
+		loadControlPlaneConsumerGroups,
+	)
+	tableview.RegisterChildLoader(
+		kkCommon.ViewParentConsumerGroup,
+		kkCommon.ViewFieldConsumers,
+		loadConsumerGroupConsumers,
+	)
 }
 
 func loadControlPlaneConsumerGroups(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -84,7 +92,7 @@ func loadControlPlaneConsumerGroups(_ context.Context, helper cmd.Helper, parent
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Consumer Groups",
-		ParentType:     "consumer-group",
+		ParentType:     kkCommon.ViewParentConsumerGroup,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(groups) {
 				return nil
@@ -163,7 +171,7 @@ func loadConsumerGroupConsumers(_ context.Context, helper cmd.Helper, parent any
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Consumers",
-		ParentType:     "gateway-consumer",
+		ParentType:     kkCommon.ViewParentGatewayConsumer,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(consumers) {
 				return nil

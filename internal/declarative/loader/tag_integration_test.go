@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -253,6 +254,88 @@ portals:
 	assert.Equal(t, "__ENV__:PORTAL_DESCRIPTION", rs.GetEnvSources("env-portal")["/description"])
 }
 
+func TestLoader_EnvTagIntegration_DCRProviderDynamicConfig(t *testing.T) {
+	t.Setenv("DCR_BASE_URL", "https://dcr.example.test/register")
+	t.Setenv("DCR_API_KEY", "api-key-from-env")
+
+	tmpDir := t.TempDir()
+	mainContent := `
+dcr_providers:
+  - ref: env-dcr
+    name: env-dcr
+    provider_type: http
+    issuer: https://issuer.example.test
+    dcr_config:
+      dcr_base_url: !env DCR_BASE_URL
+      api_key: !env DCR_API_KEY
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	rs, err := loader.LoadFile(mainFile)
+	require.NoError(t, err)
+	require.NotNil(t, rs)
+	require.Len(t, rs.DCRProviders, 1)
+
+	dcrConfig := rs.DCRProviders[0].DCRConfig
+	assert.Equal(t, "https://dcr.example.test/register", dcrConfig["dcr_base_url"])
+	assert.Equal(t, "api-key-from-env", dcrConfig["api_key"])
+
+	envSources := rs.GetEnvSources("env-dcr")
+	assert.Equal(t, "__ENV__:DCR_BASE_URL", envSources["/dcr_config/dcr_base_url"])
+	assert.Equal(t, "__ENV__:DCR_API_KEY", envSources["/dcr_config/api_key"])
+}
+
+func TestLoader_EnvTagIntegration_DCRProviderBoolConfigRejectsString(t *testing.T) {
+	t.Setenv("DCR_DISABLE_EVENT_HOOKS", "true")
+
+	tmpDir := t.TempDir()
+	mainContent := `
+dcr_providers:
+  - ref: env-dcr
+    name: env-dcr
+    provider_type: http
+    issuer: https://issuer.example.test
+    dcr_config:
+      dcr_base_url: https://dcr.example.test/register
+      disable_event_hooks: !env DCR_DISABLE_EVENT_HOOKS
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	_, err := loader.LoadFile(mainFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "dcr_config.disable_event_hooks must be a boolean")
+}
+
+func TestLoader_EnvTagIntegration_DCRProviderDynamicConfigRejectsNonStringEnvValue(t *testing.T) {
+	t.Setenv("DCR_SETTINGS", "api_key_enabled: true")
+
+	tmpDir := t.TempDir()
+	mainContent := `
+dcr_providers:
+  - ref: env-dcr
+    name: env-dcr
+    provider_type: http
+    issuer: https://issuer.example.test
+    dcr_config:
+      dcr_base_url: https://dcr.example.test/register
+      api_key: !env DCR_SETTINGS#api_key_enabled
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	_, err := loader.LoadFile(mainFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "!env value must resolve to a string")
+}
+
 func TestLoader_EnvTagStringOnlyFields(t *testing.T) {
 	t.Setenv("PORTAL_AUTH_ENABLED", "true")
 
@@ -334,4 +417,103 @@ portals:
 	envSources := rs.GetEnvSources("env-portal-domain")
 	assert.Equal(t, "__ENV__:CUSTOM_CERT", envSources["/ssl/custom_certificate"])
 	assert.Equal(t, "__ENV__:CUSTOM_KEY", envSources["/ssl/custom_private_key"])
+}
+
+func TestLoader_EnvTagIntegration_PortalIdentityProviderConfig(t *testing.T) {
+	t.Setenv("IDP_ISSUER_URL", "https://example.okta.test/oauth2/default")
+	t.Setenv("IDP_CLIENT_ID", "client-id-from-env")
+	t.Setenv("IDP_CLIENT_SECRET", "client-secret-from-env")
+
+	tmpDir, err := os.MkdirTemp("", "loader-env-portal-idp-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	mainContent := `
+portals:
+  - ref: env-portal
+    name: env-portal
+    identity_providers:
+      - ref: env-portal-idp
+        type: oidc
+        config:
+          issuer_url: !env IDP_ISSUER_URL
+          client_id: !env IDP_CLIENT_ID
+          client_secret: !env IDP_CLIENT_SECRET
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	rs, err := loader.LoadFile(mainFile)
+	require.NoError(t, err)
+	require.NotNil(t, rs)
+	require.Len(t, rs.PortalIdentityProviders, 1)
+
+	config := rs.PortalIdentityProviders[0].Config
+	require.NotNil(t, config)
+	require.NotNil(t, config.OIDCIdentityProviderConfig)
+	assert.Equal(t, "https://example.okta.test/oauth2/default", config.OIDCIdentityProviderConfig.IssuerURL)
+	assert.Equal(t, "client-id-from-env", config.OIDCIdentityProviderConfig.ClientID)
+	require.NotNil(t, config.OIDCIdentityProviderConfig.ClientSecret)
+	assert.Equal(t, "client-secret-from-env", *config.OIDCIdentityProviderConfig.ClientSecret)
+
+	envSources := rs.GetEnvSources("env-portal-idp")
+	assert.Equal(t, "__ENV__:IDP_ISSUER_URL", envSources["/config/issuer_url"])
+	assert.Equal(t, "__ENV__:IDP_CLIENT_ID", envSources["/config/client_id"])
+	assert.Equal(t, "__ENV__:IDP_CLIENT_SECRET", envSources["/config/client_secret"])
+}
+
+func TestLoader_ControlPlaneDataPlaneCertificateTags(t *testing.T) {
+	t.Setenv("DP_CERT", "-----BEGIN CERTIFICATE-----\nENV\n-----END CERTIFICATE-----")
+
+	tmpDir := t.TempDir()
+	rootCertPath := filepath.Join(tmpDir, "root.pem")
+	require.NoError(t, os.WriteFile(
+		rootCertPath,
+		[]byte("-----BEGIN CERTIFICATE-----\nFILE\n-----END CERTIFICATE-----"),
+		0o600,
+	))
+
+	mainContent := `
+control_planes:
+  - ref: cp
+    name: cp
+    data_plane_certificates:
+      - ref: nested-dp-cert
+        cert: !env DP_CERT
+
+control_plane_data_plane_certificates:
+  - ref: root-dp-cert
+    control_plane: cp
+    cert: !file ./root.pem
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	rs, err := loader.LoadFile(mainFile)
+	require.NoError(t, err)
+	require.NotNil(t, rs)
+
+	require.Len(t, rs.ControlPlanes, 1)
+	assert.Empty(t, rs.ControlPlanes[0].DataPlaneCertificates)
+	require.Len(t, rs.ControlPlaneDataPlaneCertificates, 2)
+
+	certsByRef := make(map[string]resources.ControlPlaneDataPlaneCertificateResource)
+	for _, cert := range rs.ControlPlaneDataPlaneCertificates {
+		certsByRef[cert.Ref] = cert
+	}
+
+	nested := certsByRef["nested-dp-cert"]
+	assert.Equal(t, "nested-dp-cert", nested.Ref)
+	assert.Equal(t, "cp", nested.ControlPlane)
+	assert.Equal(t, "-----BEGIN CERTIFICATE-----\nENV\n-----END CERTIFICATE-----", nested.Cert)
+	assert.Equal(t, "__ENV__:DP_CERT", rs.GetEnvSources("nested-dp-cert")["/cert"])
+
+	root := certsByRef["root-dp-cert"]
+	assert.Equal(t, "root-dp-cert", root.Ref)
+	assert.Equal(t, "cp", root.ControlPlane)
+	assert.Equal(t, "-----BEGIN CERTIFICATE-----\nFILE\n-----END CERTIFICATE-----", root.Cert)
 }

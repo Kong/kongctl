@@ -28,6 +28,32 @@ New resource implementations should follow these refactored patterns.
   files. Ensure your new resource has `GetType()` and `GetRef()` implemented and
   is wired into `ResourceSet`.
 
+## IDENTIFIER CONSTANTS
+
+Do not add new string literals for identifiers that are part of internal
+resource, plan, or view contracts.
+
+- Declarative resource type identifiers are canonical in
+  `internal/declarative/resources/types.go`.
+- Planner and executor code should use the compatibility aliases in
+  `internal/declarative/planner/constants.go`, such as `ResourceTypeFoo`.
+- Plan field names belong in `internal/declarative/planner/constants.go`.
+  Use `Field*` constants for plan `Fields`, `References`, required fields, and
+  executor field access.
+- Resource dependencies use `resources.ResourceRef{Kind: ResourceTypeFoo}` or
+  another typed `resources.ResourceType` value, not a raw string.
+- Konnect view/tableview identifiers belong in
+  `internal/cmd/root/products/konnect/common`. Use `ViewParent*`, `ViewField*`,
+  and `ViewResource*` constants for tableview parent types, child loader fields,
+  detail contexts, and navigator resource selectors.
+- `kongctl view` detail renderers should label direct API response fields with
+  the API JSON field name, such as `created_at` or `display_name`. Use
+  `snake_case` for kongctl-derived fields, such as `value_count`. Avoid
+  title-cased friendly labels in detail renderers.
+- Leave user-facing help text, table headers, Cobra command aliases,
+  JSON/YAML tags, API payload keys, and external schema field names as literals
+  unless they are also used as one of the internal identifiers above.
+
 ## RESOURCE TYPES
 
 ### PARENT RESOURCES
@@ -98,6 +124,94 @@ New resource implementations should follow these refactored patterns.
 - Child resources must work in both canonical and nested-path forms when the
   declarative engine supports both, for example `api_version` and
   `api.versions`.
+
+### SYNC SCOPE (REQUIRED)
+
+`sync` uses explicit manifest scope. Do not treat omitted configuration as a
+delete signal.
+
+- Omitted root collections are ignored by sync.
+- Explicit empty root collections mean desired count zero. For example,
+  `foos: []` deletes managed foos in the selected namespace.
+- Child collections are scoped independently under each parent. A parent block
+  without a child key leaves that child collection alone.
+- Empty child collections must be nested under the parent. Root-level empty
+  child lists such as `foo_children: []` are rejected because they do not
+  identify which parent owns the desired zero count.
+- Map-shaped child collections follow the same rule with an empty object. For
+  example, `foo_templates: {}` means the parent should have no templates.
+- Singleton-shaped child sections are also scoped by key presence. Omit the key
+  to ignore the child. Provide a non-empty object or map to manage it. Reject
+  `null`; it is not a reset or delete signal.
+- For optional, delete-capable singleton children, support an explicit empty
+  object as desired count zero. For example, `custom_domain: {}` should scope
+  that child for the parent but produce no desired child resource, allowing
+  sync to delete an existing managed child. For update-only or always-present
+  singletons, do not document or implement `{}` as delete/reset unless the API
+  has explicit support for that behavior.
+
+When adding a resource, update the sync-scope plumbing:
+
+- Add the root collection key to `rootCollectionScopes` in
+  `internal/declarative/loader/sync_scope.go`.
+- For root-level child declarations, add the canonical root key and parent ref
+  key to `rootChildCollectionScopes`.
+- For nested child declarations, add the nested child key to the relevant
+  nested scope list, such as `apiChildCollectionScopes`,
+  `portalChildCollectionScopes`, or the new parent-specific equivalent.
+- For nested singleton children, add null-key rejection in the loader before
+  planning. Null is not a supported reset/delete semantic.
+- For optional, delete-capable nested singleton children, make empty-object
+  handling preserve sync scope while leaving the desired child absent. Scope is
+  captured before nested resource extraction; custom unmarshaling may need to
+  drop the empty raw key after scope capture instead of populating a zero-value
+  desired child.
+- If the resource has a new planner entry point, gate it in sync mode with
+  `shouldPlanRoot(...)`.
+- If a parent planner prunes child resources, gate each child planner with
+  `shouldPlanChild(...)`.
+- Update `docs/declarative.md`, `docs/declarative-resource-reference.md`, help
+  templates, examples, and e2e scenario fixtures so users can see the new
+  explicit empty-list behavior.
+
+Root planner gating pattern:
+
+```go
+if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeFoo) {
+    if err := namespacePlanner.fooPlanner.PlanChanges(
+        withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.fooPlanner), ""),
+        plannerCtx,
+        namespacePlan,
+    ); err != nil {
+        return nil, fmt.Errorf("failed to plan foo changes for namespace %s: %w", namespace, err)
+    }
+}
+```
+
+Child planner gating pattern:
+
+```go
+children := p.resources.GetFooChildrenForFoo(desiredFoo.Ref)
+if p.shouldPlanChild(
+    plan,
+    resources.ResourceTypeFoo,
+    desiredFoo.Ref,
+    resources.ResourceTypeFooChild,
+) && (len(children) > 0 || plan.Metadata.Mode == PlanModeSync) {
+    if err := p.planFooChildChanges(
+        ctx, plannerCtx, namespace, fooID, desiredFoo.Ref, children, plan,
+    ); err != nil {
+        return err
+    }
+}
+```
+
+Programmatic tests that construct `ResourceSet` directly cannot express
+"explicit empty list" through a nil/empty slice alone. Set
+`ResourceSet.SyncScope` in those tests when asserting sync-delete behavior for
+an empty collection. Loader tests should cover YAML key presence, omitted
+collections, nested empty child lists, root-level empty child rejection,
+singleton `null` rejection, and delete-capable singleton empty-object behavior.
 
 ### PARENT RESOURCE
 
@@ -252,6 +366,17 @@ type ResourceSet struct {
 `ResourceSet` operations will not include the new type, and the resource will
 not participate in `kongctl explain` or `kongctl scaffold`.
 
+**ADD TO**: `internal/declarative/planner/constants.go`
+```go
+const (
+    ResourceTypeFoo = string(resources.ResourceTypeFoo)
+    FieldFooID      = "foo_id"
+)
+```
+
+Add any new plan field constants in the planner package before using them in
+`Fields`, `References`, `RequiredFields`, or executor adapters.
+
 #### 2. STATE CLIENT METHODS
 **Location**: `internal/declarative/state/client.go`
 
@@ -290,7 +415,8 @@ func (c *Client) ListManagedFoos(ctx context.Context, namespaces []string) ([]Fo
             // Normalize labels
             normalized := normalizeLabels(f.Labels)  // Handle SDK label format
 
-            // Filter by managed status and namespace
+            // Filtering is safe here because pagination completion still uses
+            // raw API totals from resp.ListFoosResponse.Meta.Page.Total.
             if labels.IsManagedResource(normalized) {
                 if shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
                     foo := Foo{
@@ -309,11 +435,16 @@ func (c *Client) ListManagedFoos(ctx context.Context, namespaces []string) ([]Fo
     return PaginateAll(ctx, lister)
 }
 
+// Important: if you use PaginateAll with page-local filtering, always return
+// pagination metadata from the raw API response. If an endpoint does not
+// expose reliable raw totals, keep a manual loop instead of relying on
+// PaginateAll.
+
 func (c *Client) CreateFoo(ctx context.Context, foo kkComps.CreateFoo, namespace string) (*kkComps.FooResponse, error) {
     resp, err := c.fooAPI.CreateFoo(ctx, foo)
     if err != nil {
         return nil, WrapAPIError(err, "create foo", &ErrorWrapperOptions{
-            ResourceType: "foo",
+            ResourceType: string(resources.ResourceTypeFoo),
             ResourceName: foo.Name,
             Namespace:    namespace,
             UseEnhanced:  true,
@@ -331,7 +462,7 @@ func (c *Client) UpdateFoo(ctx context.Context, id string, foo kkComps.UpdateFoo
     resp, err := c.fooAPI.UpdateFoo(ctx, id, foo)
     if err != nil {
         return nil, WrapAPIError(err, "update foo", &ErrorWrapperOptions{
-            ResourceType: "foo",
+            ResourceType: string(resources.ResourceTypeFoo),
             ResourceName: *foo.Name,  // Adjust based on SDK
             Namespace:    namespace,
             UseEnhanced:  true,
@@ -447,7 +578,7 @@ func (p *Planner) planFooChanges(
                 needsUpdate, updateFields := p.shouldUpdateFoo(current, desiredFoo)
                 protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
 
-                if err := p.validateProtectionWithChange("foo", desiredFoo.Name,
+                if err := p.validateProtectionWithChange(ResourceTypeFoo, desiredFoo.Name,
                                                           protectionChange, ActionUpdate); err != nil {
                     protectionErrors = append(protectionErrors, err)
                 } else {
@@ -458,7 +589,7 @@ func (p *Planner) planFooChanges(
                 // Regular update
                 needsUpdate, updateFields := p.shouldUpdateFoo(current, desiredFoo)
                 if needsUpdate {
-                    if err := p.validateProtection("foo", desiredFoo.Name, isProtected, ActionUpdate); err != nil {
+                    if err := p.validateProtection(ResourceTypeFoo, desiredFoo.Name, isProtected, ActionUpdate); err != nil {
                         protectionErrors = append(protectionErrors, err)
                     } else {
                         p.planFooUpdateWithFields(current, desiredFoo, updateFields, plan)
@@ -471,12 +602,14 @@ func (p *Planner) planFooChanges(
         }
     }
 
-    // 4. SYNC MODE: Delete unmanaged
+    // 4. SYNC MODE: Delete unmanaged.
+    // This block is safe only because GeneratePlan calls this planner when
+    // ResourceTypeFoo is in sync scope via shouldPlanRoot(...).
     if plan.Metadata.Mode == PlanModeSync {
         for name, current := range currentByName {
             if !desiredNames[name] {
                 isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-                if err := p.validateProtection("foo", name, isProtected, ActionDelete); err != nil {
+                if err := p.validateProtection(ResourceTypeFoo, name, isProtected, ActionDelete); err != nil {
                     protectionErrors = append(protectionErrors, err)
                 } else {
                     p.planFooDelete(current, plan)
@@ -500,7 +633,7 @@ func (p *Planner) shouldUpdateFoo(current state.Foo, desired resources.FooResour
     if desired.Description != nil {
         currentDesc := getString(current.Description)
         if currentDesc != *desired.Description {
-            updates["description"] = *desired.Description
+            updates[FieldDescription] = *desired.Description
         }
     }
 
@@ -508,7 +641,7 @@ func (p *Planner) shouldUpdateFoo(current state.Foo, desired resources.FooResour
     // NOTE: CompareUserLabels returns TRUE when labels DIFFER (not when equal)
     if desired.Labels != nil {
         if labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
-            updates["labels"] = desired.GetLabels()
+            updates[FieldLabels] = desired.GetLabels()
         }
     }
 
@@ -522,10 +655,10 @@ func (p *Planner) planFooCreate(foo resources.FooResource, plan *Plan) string {
     namespace := extractNamespace(foo.Kongctl)
 
     config := CreateConfig{
-        ResourceType:   "foo",
+        ResourceType:   ResourceTypeFoo,
         ResourceName:   foo.Name,
         ResourceRef:    foo.GetRef(),
-        RequiredFields: []string{"name"},
+        RequiredFields: []string{FieldName},
         FieldExtractor: func(_ any) map[string]any {
             return extractFooFields(foo)
         },
@@ -549,14 +682,14 @@ func extractFooFields(resource any) map[string]any {
     fields := make(map[string]any)
     foo := resource.(resources.FooResource)
 
-    fields["name"] = foo.Name
+    fields[FieldName] = foo.Name
     if foo.Description != nil {
-        fields["description"] = *foo.Description
+        fields[FieldDescription] = *foo.Description
     }
 
     // Copy user labels (namespace/protection added during execution)
     if len(foo.Labels) > 0 {
-        fields["labels"] = foo.GetLabels()
+        fields[FieldLabels] = foo.GetLabels()
     }
 
     return fields
@@ -573,7 +706,7 @@ func (p *Planner) planFooUpdateWithFields(
     updateFields[FieldCurrentLabels] = current.NormalizedLabels
 
     config := UpdateConfig{
-        ResourceType:   "foo",
+        ResourceType:   ResourceTypeFoo,
         ResourceName:   desired.Name,
         ResourceRef:    desired.GetRef(),
         ResourceID:     current.ID,
@@ -601,7 +734,7 @@ func (p *Planner) planFooDelete(foo state.Foo, plan *Plan) {
     }
 
     config := DeleteConfig{
-        ResourceType: "foo",
+        ResourceType: ResourceTypeFoo,
         ResourceName: foo.Name,
         ResourceRef:  foo.Name,
         ResourceID:   foo.ID,
@@ -631,9 +764,11 @@ func NewPlanner(client *state.Client, resourceSet *resources.ResourceSet) *Plann
 }
 
 func (p *Planner) GeneratePlan(...) {
-    // In namespace loop, add:
-    if err := p.fooPlannerImpl.PlanChanges(ctx, plannerCtx, plan); err != nil {
-        return nil, err
+    // In namespace loop, add root planning behind sync scope gating:
+    if p.shouldPlanRoot(namespacePlan, resources.ResourceTypeFoo) {
+        if err := p.fooPlannerImpl.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+            return nil, err
+        }
     }
 }
 ```
@@ -646,8 +781,11 @@ package executor
 
 import (
     "context"
+
     "github.com/Kong/sdk-konnect-go/models/components"
+    "github.com/kong/kongctl/internal/declarative/common"
     "github.com/kong/kongctl/internal/declarative/labels"
+    "github.com/kong/kongctl/internal/declarative/planner"
     "github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -670,10 +808,10 @@ func (a *FooAdapter) MapCreateFields(
     create.Name = common.ExtractResourceName(fields)
 
     // Map optional fields
-    common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
+    common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
 
     // Handle labels
-    userLabels := labels.ExtractLabelsFromField(fields["labels"])
+    userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
     labelsMap := labels.BuildCreateLabels(userLabels, namespace, protection)
 
     // Convert to SDK format
@@ -698,11 +836,11 @@ func (a *FooAdapter) MapUpdateFields(
     // Only include changed fields
     for field, value := range fields {
         switch field {
-        case "name":
+        case planner.FieldName:
             if name, ok := value.(string); ok {
                 update.Name = &name
             }
-        case "description":
+        case planner.FieldDescription:
             if desc, ok := value.(string); ok {
                 update.Description = &desc
             }
@@ -710,7 +848,7 @@ func (a *FooAdapter) MapUpdateFields(
     }
 
     // Handle labels
-    desiredLabels := labels.ExtractLabelsFromField(fields["labels"])
+    desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
     if desiredLabels != nil {
         plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
         if plannerCurrentLabels != nil {
@@ -758,11 +896,11 @@ func (a *FooAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext)
 }
 
 func (a *FooAdapter) ResourceType() string {
-    return "foo"
+    return planner.ResourceTypeFoo
 }
 
 func (a *FooAdapter) RequiredFields() []string {
-    return []string{"name"}
+    return []string{planner.FieldName}
 }
 
 func (a *FooAdapter) SupportsUpdate() bool {
@@ -786,7 +924,7 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 
 func (e *Executor) executeChange(ctx context.Context, change planner.PlannedChange) error {
     switch change.ResourceType {
-    case "foo":
+    case planner.ResourceTypeFoo:
         return e.executeFooChange(ctx, change)
     // ... other cases
     }
@@ -869,7 +1007,7 @@ func (f FooChildResource) GetMoniker() string {
 func (f FooChildResource) GetDependencies() []ResourceRef {
     deps := []ResourceRef{}
     if f.Foo != "" {
-        deps = append(deps, ResourceRef{Kind: "foo", Ref: f.Foo})
+        deps = append(deps, ResourceRef{Kind: ResourceTypeFoo, Ref: f.Foo})
     }
     return deps
 }
@@ -925,7 +1063,7 @@ func (f *FooChildResource) TryMatchKonnectResource(konnectResource any) bool {
 // REQUIRED: Implement ResourceWithParent
 func (f FooChildResource) GetParentRef() *ResourceRef {
     if f.Foo != "" {
-        return &ResourceRef{Kind: "foo", Ref: f.Foo}
+        return &ResourceRef{Kind: ResourceTypeFoo, Ref: f.Foo}
     }
     return nil
 }
@@ -1061,8 +1199,11 @@ func (f *fooPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, pl
         return err
     }
 
-    // Plan root-level child resources
-    if err := f.planner.planFooChildrenChanges(ctx, plannerCtx, namespace, f.GetDesiredFooChildren(namespace), plan); err != nil {
+    // Plan root-level child resources. The child planner must check
+    // shouldPlanChild(...) before listing or pruning existing children in sync.
+    if err := f.planner.planFooChildrenChanges(
+        ctx, plannerCtx, namespace, f.GetDesiredFooChildren(namespace), plan,
+    ); err != nil {
         return err
     }
 
@@ -1138,7 +1279,9 @@ func (p *Planner) planFooChildChangesForExistingFoo(
         }
     }
 
-    // 4. SYNC MODE: Delete unmanaged
+    // 4. SYNC MODE: Delete unmanaged.
+    // The caller must reach this path only when shouldPlanChild(...) returned true
+    // for this parent ref and child resource type.
     if plan.Metadata.Mode == PlanModeSync {
         for slug, current := range currentBySlug {
             if !desiredSlugs[slug] {
@@ -1163,12 +1306,12 @@ func (p *Planner) planFooChildCreate(
     child resources.FooChildResource, dependsOn []string, plan *Plan,
 ) {
     fields := make(map[string]any)
-    fields["slug"] = child.Slug
-    fields["content"] = child.Content
+    fields[FieldSlug] = child.Slug
+    fields[FieldContent] = child.Content
 
     change := &planner.PlannedChange{
         ID:           fmt.Sprintf("change-%d", len(plan.Changes)+1),
-        ResourceType: "foo_child",
+        ResourceType: ResourceTypeFooChild,
         ResourceRef:  child.GetRef(),
         Action:       planner.ActionCreate,
         Fields:       fields,
@@ -1179,18 +1322,18 @@ func (p *Planner) planFooChildCreate(
     // Set parent reference
     if fooID != "" {
         change.Parent = &planner.ParentInfo{
-            Type: "foo",
+            Type: ResourceTypeFoo,
             Ref:  fooRef,
             ID:   fooID,
         }
     } else {
         // Parent doesn't exist yet, add reference for runtime resolution
         change.References = map[string]planner.ReferenceInfo{
-            "foo_id": {
+            FieldFooID: {
                 Ref: fooRef,
                 ID:  "",  // Will be resolved at execution
                 LookupFields: map[string]string{
-                    "name": fooRef,
+                    FieldName: fooRef,
                 },
             },
         }
@@ -1216,10 +1359,10 @@ func (p *Planner) planFooCreate(foo resources.FooResource, plan *Plan) string {
     namespace := extractNamespace(foo.Kongctl)
 
     config := CreateConfig{
-        ResourceType:   "foo",
+        ResourceType:   ResourceTypeFoo,
         ResourceName:   foo.Name,
         ResourceRef:    foo.GetRef(),
-        RequiredFields: []string{"name"},
+        RequiredFields: []string{FieldName},
         FieldExtractor: func(_ any) map[string]any {
             return extractFooFields(foo)
         },
@@ -1269,13 +1412,13 @@ func (a *FooChildAdapter) MapCreateFields(
     _ context.Context, execCtx *ExecutionContext,
     fields map[string]any, create *components.CreateFooChildRequest,
 ) error {
-    slug, ok := fields["slug"].(string)
+    slug, ok := fields[FieldSlug].(string)
     if !ok {
         return fmt.Errorf("slug is required")
     }
     create.Slug = slug
 
-    content, ok := fields["content"].(string)
+    content, ok := fields[FieldContent].(string)
     if !ok {
         return fmt.Errorf("content is required")
     }
@@ -1298,11 +1441,11 @@ func (a *FooChildAdapter) MapUpdateFields(
     fields map[string]any, update *components.UpdateFooChildRequest,
     _ map[string]string,
 ) error {
-    if slug, ok := fields["slug"].(string); ok {
+    if slug, ok := fields[FieldSlug].(string); ok {
         update.Slug = &slug
     }
 
-    if content, ok := fields["content"].(string); ok {
+    if content, ok := fields[FieldContent].(string); ok {
         update.Content = &content
     }
 
@@ -1346,11 +1489,11 @@ func (a *FooChildAdapter) Delete(ctx context.Context, id string, execCtx *Execut
 }
 
 func (a *FooChildAdapter) ResourceType() string {
-    return "foo_child"
+    return planner.ResourceTypeFooChild
 }
 
 func (a *FooChildAdapter) RequiredFields() []string {
-    return []string{"slug", "content"}
+    return []string{planner.FieldSlug, planner.FieldContent}
 }
 
 func (a *FooChildAdapter) SupportsUpdate() bool {
@@ -1365,7 +1508,7 @@ func (a *FooChildAdapter) getFooIDFromExecutionContext(execCtx *ExecutionContext
     change := *execCtx.PlannedChange
 
     // Priority 1: Check References (for new parent)
-    if fooRef, ok := change.References["foo_id"]; ok && fooRef.ID != "" {
+    if fooRef, ok := change.References[planner.FieldFooID]; ok && fooRef.ID != "" {
         return fooRef.ID, nil
     }
 
@@ -1394,7 +1537,7 @@ func New(...) *Executor {
 
 func (e *Executor) executeChange(ctx context.Context, change planner.PlannedChange) error {
     switch change.ResourceType {
-    case "foo_child":
+    case planner.ResourceTypeFooChild:
         return e.executeFooChildChange(ctx, change)
     // ...
     }
@@ -1439,12 +1582,18 @@ func (e *Executor) executeFooChildChange(ctx context.Context, change planner.Pla
 
 ### SINGLETON CHILD RESOURCE
 
-**Pattern**: Same as child resource, but:
-1. **NO CREATE/DELETE**: Only UPDATE operations
-2. **Always exists**: For every parent instance
-3. **Planner always generates UPDATE**: Never checks if exists
+**Pattern**: A singleton child has at most one logical child per parent, but
+there are two important API shapes:
 
-**Example**: PortalCustomization
+1. **Update-only/always-present**: The child always exists for every parent.
+   There are no create or delete operations, and the planner only emits
+   updates. Example: `PortalCustomization`.
+2. **Optional/delete-capable**: The child may be absent and the API supports
+   delete. The planner may create, update, or delete the child. In sync mode,
+   omitted config means ignored; an empty object such as `custom_domain: {}`
+   means the child is in scope with desired count zero.
+
+The example below is the update-only/always-present pattern.
 
 **Key Differences**:
 
@@ -1488,6 +1637,13 @@ func (a *FooCustomizationAdapter) Create(...) { panic("not supported") }
 func (a *FooCustomizationAdapter) Delete(...) { panic("not supported") }
 func (a *FooCustomizationAdapter) SupportsUpdate() bool { return true }
 ```
+
+For optional/delete-capable singleton children, follow the normal child
+resource planner shape with one desired resource per parent. The planner must
+be gated with `shouldPlanChild(...)`; when the singleton key is in sync scope
+and the desired resource is absent because the user wrote `{}`, list/fetch the
+existing child and plan a DELETE if one exists. Do not infer delete/reset from
+`null`.
 
 ---
 
@@ -1626,6 +1782,8 @@ application_auth_strategies:
 11. **Forgetting explain/scaffold hints for declarative-only fields or unions**
 12. **Skipping E2E coverage for new explain/scaffold-facing behavior**
 13. **Assuming imperative `get` commands are required for declarative support changes**
+14. **Forgetting sync-scope wiring, which can make omitted config destructive**
+15. **Allowing singleton child `null` values to imply unsupported reset/delete behavior**
 
 ---
 
@@ -1636,6 +1794,8 @@ After implementing new resource:
 ### Declarative Configuration
 - [ ] Resource definition in `resources/` with all interface methods
 - [ ] Resource type constant added to `types.go`
+- [ ] Planner resource type alias added to `planner/constants.go`
+- [ ] Plan field constants added to `planner/constants.go`
 - [ ] ResourceSet includes new resource array
 - [ ] Resource type registered via `registerResourceType(...)` in `init()`
 - [ ] Explain registration provided, usually via `AutoExplain[...]`
@@ -1644,12 +1804,19 @@ After implementing new resource:
 - [ ] State client has CRUD methods
 - [ ] State client has ListManaged method with namespace filtering
 - [ ] Planner implementation with CREATE/UPDATE/DELETE logic
-- [ ] Planner added to GeneratePlan loop
+- [ ] Planner added to GeneratePlan loop and sync-gated with `shouldPlanRoot`
+- [ ] Sync scope loader tables updated for root, child, and nested child keys
+- [ ] Child pruning paths sync-gated with `shouldPlanChild`
+- [ ] Singleton child `null` values rejected when the key would otherwise look like managed scope
 - [ ] Executor adapter with MapCreateFields/MapUpdateFields
 - [ ] Executor adapter handles parent ID resolution (if child)
 - [ ] Executor change handler added to executeChange switch
 - [ ] Labels properly converted between SDK and internal formats
+- [ ] Literal audit completed for resource types, plan fields, references, and
+      view identifiers
 - [ ] `docs/declarative-resource-reference.md` updated for new parent/child resources
+- [ ] `docs/declarative.md`, help templates, examples, and e2e fixtures updated
+      for sync omission, explicit empty-list, and nested child behavior
 
 ### Imperative Get Command
 - [ ] Add only if imperative support is in scope for the change
@@ -1657,6 +1824,10 @@ After implementing new resource:
 - [ ] Resource command in `products/konnect/<resource>/`
 - [ ] GET handler with list/get by ID/name
 - [ ] Child resource subcommands (if applicable)
+- [ ] View/tableview identifiers use `konnect/common` `ViewParent*`,
+      `ViewField*`, and `ViewResource*` constants
+- [ ] View detail labels use API JSON field names for direct fields and
+      `snake_case` names for kongctl-derived fields
 - [ ] Output formatting (JSON, YAML, table, detail)
 - [ ] Command added to get.go
 

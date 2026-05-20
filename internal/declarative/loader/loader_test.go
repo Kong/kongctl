@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,65 @@ import (
 func TestNew(t *testing.T) {
 	loader := New()
 	assert.NotNil(t, loader)
+}
+
+func TestLoaderPortalTeamGroupMappingsNestedAndRoot(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+portals:
+  - ref: portal-1
+    name: Portal 1
+    teams:
+      - ref: developers
+        name: Developers
+        group_mappings:
+          - ref: developers-idp-groups
+            groups:
+              - Service Developer
+portal_team_group_mappings:
+  - ref: admins-idp-groups
+    portal: portal-1
+    team: admins
+    groups: []
+`), 0o600)
+	require.NoError(t, err)
+
+	rs, err := New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, rs.PortalTeamGroupMappings, 2)
+
+	byRef := map[string]resources.PortalTeamGroupMappingResource{}
+	for _, mapping := range rs.PortalTeamGroupMappings {
+		byRef[mapping.Ref] = mapping
+	}
+
+	assert.Equal(t, "portal-1", byRef["developers-idp-groups"].Portal)
+	assert.Equal(t, "developers", byRef["developers-idp-groups"].Team)
+	assert.Equal(t, []string{"Service Developer"}, byRef["developers-idp-groups"].Groups)
+	assert.Equal(t, "portal-1", byRef["admins-idp-groups"].Portal)
+	assert.Equal(t, "admins", byRef["admins-idp-groups"].Team)
+	assert.Empty(t, byRef["admins-idp-groups"].Groups)
+}
+
+func TestLoaderPortalTeamGroupMappingsPortalLevelNestedRejected(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+portals:
+  - ref: portal-1
+    name: Portal 1
+    team_group_mappings:
+      - ref: developers-idp-groups
+        team: developers
+        groups:
+          - Service Developer
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field 'team_group_mappings'")
 }
 
 func TestLoader_LoadFile_ValidConfigs(t *testing.T) {
@@ -185,6 +245,438 @@ portals:
 	assert.Equal(t, "portal-email-config", rs.PortalEmailConfigs[0].Ref)
 }
 
+func TestLoader_EmptyPortalSingletonChildrenAreScopeOnly(t *testing.T) {
+	tests := []struct {
+		name         string
+		childYAML    string
+		resourceType resources.ResourceType
+		assertEmpty  func(*testing.T, *resources.ResourceSet)
+	}{
+		{
+			name:         "custom domain",
+			childYAML:    "    custom_domain: {}\n",
+			resourceType: resources.ResourceTypePortalCustomDomain,
+			assertEmpty: func(t *testing.T, rs *resources.ResourceSet) {
+				t.Helper()
+				assert.Empty(t, rs.PortalCustomDomains)
+			},
+		},
+		{
+			name:         "email config",
+			childYAML:    "    email_config: {}\n",
+			resourceType: resources.ResourceTypePortalEmailConfig,
+			assertEmpty: func(t *testing.T, rs *resources.ResourceSet) {
+				t.Helper()
+				assert.Empty(t, rs.PortalEmailConfigs)
+			},
+		},
+		{
+			name:         "audit log webhook",
+			childYAML:    "    audit_log_webhook: {}\n",
+			resourceType: resources.ResourceTypePortalAuditLogWebhook,
+			assertEmpty: func(t *testing.T, rs *resources.ResourceSet) {
+				t.Helper()
+				assert.Empty(t, rs.PortalAuditLogWebhooks)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := `
+portals:
+  - ref: portal-email
+    name: portal-email
+` + tt.childYAML
+
+			loader := New()
+			rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+			require.NoError(t, err)
+			require.NoError(t, loader.validateResourceSet(rs))
+
+			require.NotNil(t, rs.SyncScope)
+			assert.True(t, rs.SyncScope.ChildInScope(resources.ResourceTypePortal, "portal-email", tt.resourceType))
+			tt.assertEmpty(t, rs)
+		})
+	}
+}
+
+func TestLoader_FlattensPortalIntegration(t *testing.T) {
+	content := `
+portals:
+  - ref: portal-integrations
+    name: portal-integrations
+    integrations:
+      ref: portal-integrations-config
+      google_tag_manager:
+        enabled: true
+        config_data:
+          id: GTM-ABC123
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.Portals, 1)
+	require.Len(t, rs.PortalIntegrations, 1)
+	assert.Equal(t, "portal-integrations", rs.PortalIntegrations[0].Portal)
+	assert.Equal(t, "portal-integrations-config", rs.PortalIntegrations[0].Ref)
+	assert.Nil(t, rs.Portals[0].Integrations)
+}
+
+func TestLoader_FlattensPortalIPAllowList(t *testing.T) {
+	content := `
+portals:
+  - ref: portal-ip-allow-list
+    name: portal-ip-allow-list
+    ip_allow_list:
+      ref: portal-ip-allow-list-config
+      allowed_ips:
+        - 192.0.2.10
+        - 198.51.100.0/24
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.Portals, 1)
+	require.Len(t, rs.PortalIPAllowLists, 1)
+	assert.Equal(t, "portal-ip-allow-list", rs.PortalIPAllowLists[0].Portal)
+	assert.Equal(t, "portal-ip-allow-list-config", rs.PortalIPAllowLists[0].Ref)
+	assert.Nil(t, rs.Portals[0].IPAllowList)
+}
+
+func TestLoader_FlattensOrganizationTeamRoles(t *testing.T) {
+	content := `
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+      roles:
+        - ref: platform-admin
+          role_name: Admin
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: us
+organization_team_roles:
+  - ref: platform-viewer
+    team: platform-team
+    role_name: Viewer
+    entity_id: "*"
+    entity_type_name: APIs
+    entity_region: us
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.OrganizationTeams, 1)
+	require.Len(t, rs.OrganizationTeamRoles, 2)
+	assert.Empty(t, rs.OrganizationTeams[0].Roles)
+	rolesByRef := map[string]string{}
+	for _, role := range rs.OrganizationTeamRoles {
+		rolesByRef[role.Ref] = role.Team
+	}
+	assert.Equal(t, map[string]string{
+		"platform-admin":  "platform-team",
+		"platform-viewer": "platform-team",
+	}, rolesByRef)
+}
+
+func TestLoader_FlattensOrganizationUserAssignments(t *testing.T) {
+	content := `
+apis:
+  - ref: products-api
+    name: Products API
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+  users:
+    - ref: alice
+      email: alice@example.com
+      teams:
+        - ref: alice-platform-team
+          team: platform-team
+      roles:
+        - ref: alice-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.OrganizationTeams, 1)
+	require.Len(t, rs.OrganizationUserTeamMemberships, 1)
+	require.Len(t, rs.OrganizationUserRoles, 1)
+	assert.Equal(t, "alice-platform-team", rs.OrganizationUserTeamMemberships[0].Ref)
+	assert.Equal(t, "alice", rs.OrganizationUserTeamMemberships[0].User)
+	assert.Equal(t, "platform-team", rs.OrganizationUserTeamMemberships[0].Team)
+	assert.Equal(t, "alice", rs.OrganizationUserRoles[0].User)
+	assert.Equal(t, "__REF__:products-api#id", rs.OrganizationUserRoles[0].EntityID)
+	require.NotNil(t, rs.Organization)
+	require.Len(t, rs.Organization.Users, 1)
+	assert.Empty(t, rs.Organization.Users[0].Teams)
+	assert.Empty(t, rs.Organization.Users[0].Roles)
+}
+
+func TestLoader_FlattensOrganizationSystemAccountAssignments(t *testing.T) {
+	content := `
+apis:
+  - ref: products-api
+    name: Products API
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+  system-accounts:
+    - ref: ci-bot
+      name: ci-bot
+      teams:
+        - ref: ci-bot-platform-team
+          team: platform-team
+      roles:
+        - ref: ci-bot-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.NoError(t, err)
+
+	require.Len(t, rs.OrganizationTeams, 1)
+	require.Len(t, rs.OrganizationSystemAccountTeamMemberships, 1)
+	require.Len(t, rs.OrganizationSystemAccountRoles, 1)
+	assert.Equal(t, "ci-bot-platform-team", rs.OrganizationSystemAccountTeamMemberships[0].Ref)
+	assert.Equal(t, "ci-bot", rs.OrganizationSystemAccountTeamMemberships[0].SystemAccount)
+	assert.Equal(t, "platform-team", rs.OrganizationSystemAccountTeamMemberships[0].Team)
+	assert.Equal(t, "ci-bot", rs.OrganizationSystemAccountRoles[0].SystemAccount)
+	assert.Equal(t, "__REF__:products-api#id", rs.OrganizationSystemAccountRoles[0].EntityID)
+	require.NotNil(t, rs.Organization)
+	require.Len(t, rs.Organization.SystemAccounts, 1)
+	assert.Empty(t, rs.Organization.SystemAccounts[0].Teams)
+	assert.Empty(t, rs.Organization.SystemAccounts[0].Roles)
+}
+
+func TestLoader_ValidatesOrganizationUserRefsAndSelectors(t *testing.T) {
+	tests := []struct {
+		name    string
+		user    string
+		wantErr string
+	}{
+		{
+			name: "missing ref",
+			user: `
+    - email: alice@example.com
+`,
+			wantErr: "ref cannot be empty",
+		},
+		{
+			name: "missing selector",
+			user: `
+    - ref: alice
+`,
+			wantErr: "exactly one of email or id is required",
+		},
+		{
+			name: "multiple selectors",
+			user: `
+    - ref: alice
+      email: alice@example.com
+      id: 00000000-0000-0000-0000-000000000000
+`,
+			wantErr: "exactly one of email or id is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := `
+organization:
+  users:
+` + tt.user
+
+			dir := t.TempDir()
+			file := filepath.Join(dir, "config.yaml")
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+			loader := New()
+			_, err := loader.LoadFile(file)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestLoader_ValidatesOrganizationSystemAccountSelectors(t *testing.T) {
+	tests := []struct {
+		name    string
+		account string
+		wantErr string
+	}{
+		{
+			name: "missing selector",
+			account: `
+    - ref: ci-bot
+      teams:
+        - ref: ci-bot-platform-team
+          team: platform-team
+`,
+			wantErr: "exactly one of name or id is required",
+		},
+		{
+			name: "multiple selectors",
+			account: `
+    - ref: ci-bot
+      id: 00000000-0000-0000-0000-000000000000
+      name: ci-bot
+`,
+			wantErr: "exactly one of name or id is required",
+		},
+		{
+			name: "missing ref",
+			account: `
+    - name: ci-bot
+`,
+			wantErr: "ref cannot be empty",
+		},
+		{
+			name: "empty team ref",
+			account: `
+    - ref: ci-bot
+      name: ci-bot
+      teams:
+        - ref: ci-bot-platform-team
+          team: ""
+`,
+			wantErr: "team is required",
+		},
+		{
+			name: "missing team membership ref",
+			account: `
+    - ref: ci-bot
+      name: ci-bot
+      teams:
+        - team: platform-team
+`,
+			wantErr: "ref cannot be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := `
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+  system-accounts:
+` + tt.account
+
+			dir := t.TempDir()
+			file := filepath.Join(dir, "config.yaml")
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+			loader := New()
+			_, err := loader.LoadFile(file)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestLoader_RejectsDuplicateOrganizationUserAndSystemAccountRef(t *testing.T) {
+	content := `
+organization:
+  users:
+    - ref: automation-principal
+      email: alice@example.com
+  system-accounts:
+    - ref: automation-principal
+      name: ci-bot
+`
+
+	dir := t.TempDir()
+	file := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+	loader := New()
+	_, err := loader.LoadFile(file)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate ref 'automation-principal'")
+	assert.Contains(t, err.Error(), string(resources.ResourceTypeOrganizationUser))
+}
+
+func TestLoader_LoadFilePreservesOrganizationUsers(t *testing.T) {
+	content := `
+_defaults:
+  kongctl:
+    namespace: org-users-test
+apis:
+  - ref: products-api
+    name: Products API
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+  users:
+    - ref: alice
+      email: alice@example.com
+      teams:
+        - ref: alice-platform-team
+          team: platform-team
+      roles:
+        - ref: alice-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+`
+
+	dir := t.TempDir()
+	file := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+	loader := New()
+	rs, err := loader.LoadFile(file)
+	require.NoError(t, err)
+
+	require.NotNil(t, rs.Organization)
+	require.Len(t, rs.Organization.Users, 1)
+	require.NotNil(t, rs.Organization.Users[0].Kongctl)
+	require.NotNil(t, rs.Organization.Users[0].Kongctl.Namespace)
+	assert.Equal(t, "org-users-test", *rs.Organization.Users[0].Kongctl.Namespace)
+	require.Len(t, rs.GetOrganizationUserTeamMembershipsByNamespace("org-users-test"), 1)
+	require.Len(t, rs.GetOrganizationUserRolesByNamespace("org-users-test"), 1)
+}
+
+func TestLoader_RejectsSingularPortalIntegrationKey(t *testing.T) {
+	content := `
+portals:
+  - ref: portal-integrations
+    name: portal-integrations
+    integration:
+      ref: portal-integrations-config
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
+	require.Error(t, err)
+	assert.Nil(t, rs)
+	assert.Contains(t, err.Error(), "unknown field 'integration'")
+	assert.Contains(t, err.Error(), "Did you mean 'integrations'?")
+}
+
 func TestLoader_LoadFile_PortalEmailConfigFlattening(t *testing.T) {
 	loader := New()
 	rs, err := loader.LoadFile(filepath.Join(
@@ -272,6 +764,45 @@ func TestLoader_LoadFile_APIWithChildren(t *testing.T) {
 	// Check implementation
 	assert.Equal(t, "my-api-impl", rs.APIImplementations[0].GetRef())
 	assert.Equal(t, "my-api", rs.APIImplementations[0].API) // Parent reference
+}
+
+func TestLoader_LoadFile_RejectsAPISpecContent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+apis:
+  - ref: users-api
+    name: Users API
+    spec_content: |
+      openapi: 3.0.0
+      info:
+        title: Users API
+        version: 1.0.0
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "apis[].spec_content is not supported in declarative configuration")
+	assert.Contains(t, err.Error(), "use versions[].spec instead")
+}
+
+func TestLoader_LoadFile_APIUnknownField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+apis:
+  - ref: users-api
+    name: Users API
+    lables:
+      env: test
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field 'lables'")
+	assert.Contains(t, err.Error(), "Did you mean 'labels'?")
 }
 
 func TestLoader_LoadFile_SeparateAPIChildResources(t *testing.T) {
@@ -413,6 +944,7 @@ func TestLoader_ParseSources(t *testing.T) {
 		name     string
 		input    []string
 		expected []Source
+		err      error
 	}{
 		{
 			name:  "single file",
@@ -445,11 +977,14 @@ func TestLoader_ParseSources(t *testing.T) {
 			},
 		},
 		{
-			name:  "empty defaults to current directory",
+			name:  "empty rejects missing configuration source",
 			input: []string{},
-			expected: []Source{
-				{Path: ".", Type: SourceTypeDirectory},
-			},
+			err:   ErrNoSources,
+		},
+		{
+			name:  "empty comma-separated values reject missing configuration source",
+			input: []string{","},
+			err:   ErrNoSources,
 		},
 	}
 
@@ -458,8 +993,14 @@ func TestLoader_ParseSources(t *testing.T) {
 			// For testing, we need to mock file existence checks
 			// Since ParseSources checks if files exist, we'll test with stdin
 			// which doesn't require file existence
-			if tt.name == "stdin" || tt.name == "empty defaults to current directory" {
+			if tt.name == "stdin" || tt.err != nil {
 				sources, err := ParseSources(tt.input)
+				if tt.err != nil {
+					require.Error(t, err)
+					assert.True(t, errors.Is(err, tt.err))
+					assert.Nil(t, sources)
+					return
+				}
 				assert.NoError(t, err)
 				assert.Equal(t, len(tt.expected), len(sources))
 				for i, expected := range tt.expected {

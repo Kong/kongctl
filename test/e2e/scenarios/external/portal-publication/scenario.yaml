@@ -117,3 +117,46 @@ steps:
             expect:
               fields:
                 "length(@)": 1
+
+  - name: 004-delete-cleanup
+    commands:
+      - name: 000-delete-api-publication
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/team-a/api.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                "total_changes > `0`": true
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 001-delete-platform-portal
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/platform/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                "total_changes > `0`": true
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

@@ -319,7 +319,7 @@ func buildPortalTeamRolesChildView(records []portalTeamRoleRecord) tableview.Chi
 		Rows:           portalTeamRoleTableRows(records),
 		DetailRenderer: detailFn,
 		Title:          "Team Roles",
-		ParentType:     "portal-team-role",
+		ParentType:     common.ViewParentPortalTeamRole,
 	}
 }
 
@@ -354,10 +354,7 @@ func fetchPortalTeamRoles(
 	cfg config.Hook,
 ) ([]kkComps.PortalAssignedRoleResponse, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.PortalAssignedRoleResponse
 
@@ -384,7 +381,7 @@ func fetchPortalTeamRoles(
 		all = append(all, data...)
 
 		total := int(res.GetAssignedPortalRoleCollectionResponse().GetMeta().Page.Total)
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 

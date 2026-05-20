@@ -14,6 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -257,7 +258,7 @@ func (h apiDocumentsHandler) listDocuments(
 		tableview.WithCustomTable([]string{"DOCUMENT", "TITLE"}, rows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
-		tableview.WithDetailContext("api-document", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIDocument, func(index int) any {
 			if index < 0 || index >= len(flattened) {
 				return nil
 			}
@@ -354,7 +355,7 @@ func (h apiDocumentsHandler) getSingleDocument(
 		}),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("api-document", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIDocument, func(index int) any {
 			if index != 0 {
 				return nil
 			}

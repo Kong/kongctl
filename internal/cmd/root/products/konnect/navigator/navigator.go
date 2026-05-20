@@ -78,7 +78,7 @@ func Run(helper cmd.Helper, opts Options) error {
 			ctx = context.Background()
 		}
 		if ctx.Value(products.Product) == nil {
-			ctx = context.WithValue(ctx, products.Product, products.ProductValue("konnect"))
+			ctx = context.WithValue(ctx, products.Product, products.ProductKonnect)
 		}
 		if ctx.Value(helpers.SDKAPIFactoryKey) == nil {
 			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())

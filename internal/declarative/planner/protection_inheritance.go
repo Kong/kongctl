@@ -143,13 +143,13 @@ func (p *Planner) withProtectionLookupLogger(ctx context.Context) context.Contex
 }
 
 func extractInheritedProtectionResourceName(change PlannedChange) string {
-	if name, ok := change.Fields["name"].(string); ok && name != "" {
+	if name, ok := change.Fields[FieldName].(string); ok && name != "" {
 		return name
 	}
-	if version, ok := change.Fields["version"].(string); ok && version != "" {
+	if version, ok := change.Fields[FieldVersion].(string); ok && version != "" {
 		return version
 	}
-	if title, ok := change.Fields["title"].(string); ok && title != "" {
+	if title, ok := change.Fields[FieldTitle].(string); ok && title != "" {
 		return title
 	}
 	if change.ResourceRef != "" && change.ResourceRef != resources.UnknownReferenceID {

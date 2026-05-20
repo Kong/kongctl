@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	Verb                    = verbs.Scaffold
+	Verb                     = verbs.Scaffold
 	outputFlagUnsupportedMsg = "flags -o/--" + cmdcommon.OutputFlagName + " are not supported for the scaffold command"
 )
 
@@ -40,6 +41,8 @@ such as apply or sync.`))
 		%[1]s scaffold api_version
 		# Generate a nested child scaffold
 		%[1]s scaffold api.versions
+		# Generate an analytics dashboard scaffold with a starter tile
+		%[1]s scaffold analytics.dashboards
 		`, meta.CLIName)))
 )
 
@@ -60,10 +63,15 @@ func NewScaffoldCmd() (*cobra.Command, error) {
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		if strings.Contains(err.Error(), "--"+cmdcommon.OutputFlagName) ||
 			strings.Contains(err.Error(), "-"+cmdcommon.OutputFlagShort) {
-			return errors.New(outputFlagUnsupportedMsg)
+			return &cmdpkg.UsageError{Err: errors.New(outputFlagUnsupportedMsg)}
 		}
 		return err
 	})
+
+	// scaffold rejects --output itself in RunE; opt out of root validation so
+	// the actionable "not supported" message can surface instead of the
+	// generic "invalid value" from the root validator.
+	cmdcommon.SkipOutputFormatValidation(cmd)
 
 	return cmd, nil
 }
@@ -72,7 +80,7 @@ func runScaffold(command *cobra.Command, args []string) error {
 	command.SilenceUsage = true
 
 	if outputFlag := command.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Changed {
-		return errors.New(outputFlagUnsupportedMsg)
+		return &cmdpkg.UsageError{Err: errors.New(outputFlagUnsupportedMsg)}
 	}
 
 	subject, err := resources.ResolveExplainSubject(args[0])

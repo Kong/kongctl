@@ -5,12 +5,13 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"charm.land/bubbles/v2/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -492,8 +493,7 @@ func findClusterPolicyByName(
 	lowered := strings.ToLower(identifier)
 	for _, policy := range policies {
 		if policy.Name != nil && strings.ToLower(*policy.Name) == lowered {
-			policyCopy := policy
-			return &policyCopy
+			return &policy
 		}
 	}
 	return nil
@@ -656,7 +656,7 @@ func buildClusterPolicyChildView(policies []clusterPolicyWithConfig) tableview.C
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Cluster Policies",
-		ParentType:     "cluster-policy",
+		ParentType:     common.ViewParentVirtualClusterClusterPolicy,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(policies) {
 				return nil

@@ -12,7 +12,9 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayListenerPolicy,
 		func(rs *ResourceSet) *[]EventGatewayListenerPolicyResource { return &rs.EventGatewayListenerPolicies },
-		AutoExplain[EventGatewayListenerPolicyResource](),
+		AutoExplain[EventGatewayListenerPolicyResource](
+			WithExplainSchemaBuilder(eventGatewayListenerPolicyExplainNode),
+		),
 	)
 }
 
@@ -53,7 +55,7 @@ func (e EventGatewayListenerPolicyResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if e.EventGatewayListener != "" {
 		// Dependency on parent Event Gateway Listener when defined at root level
-		deps = append(deps, ResourceRef{Kind: "event_gateway_listener", Ref: e.EventGatewayListener})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeEventGatewayListener, Ref: e.EventGatewayListener})
 	}
 	return deps
 }
@@ -119,7 +121,7 @@ func (e *EventGatewayListenerPolicyResource) TryMatchKonnectResource(konnectReso
 // REQUIRED: Implement ResourceWithParent
 func (e EventGatewayListenerPolicyResource) GetParentRef() *ResourceRef {
 	if e.EventGatewayListener != "" {
-		return &ResourceRef{Kind: "event_gateway_listener", Ref: e.EventGatewayListener}
+		return &ResourceRef{Kind: ResourceTypeEventGatewayListener, Ref: e.EventGatewayListener}
 	}
 	return nil
 }

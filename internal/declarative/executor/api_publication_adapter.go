@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -29,35 +31,31 @@ func (a *APIPublicationAdapter) MapCreateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.APIPublication,
 ) error {
-	// Get the planned change from execution context to access references
 	change := *execCtx.PlannedChange
 
 	// Handle auth strategy IDs references
-	if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok && authStrategyRefs.IsArray {
-		// Handle array references - use ResolvedIDs if available
+	if authStrategyRefs, ok := change.References[planner.FieldAuthStrategyIDs]; ok && authStrategyRefs.IsArray {
 		if len(authStrategyRefs.ResolvedIDs) > 0 {
 			create.AuthStrategyIds = authStrategyRefs.ResolvedIDs
 		}
-	} else if authStrategyIDs, ok := fields["auth_strategy_ids"].([]any); ok {
-		// Fallback: Convert interface array to string array
-		ids := make([]string, 0, len(authStrategyIDs))
-		for _, id := range authStrategyIDs {
+	} else if rawIDs, ok := fields[planner.FieldAuthStrategyIDs].([]any); ok {
+		// convert []any to []string, skipping non-string elements
+		ids := make([]string, 0, len(rawIDs))
+		for _, id := range rawIDs {
 			if strID, ok := id.(string); ok {
 				ids = append(ids, strID)
 			}
 		}
 		create.AuthStrategyIds = ids
-	} else if authStrategyIDsList, ok := fields["auth_strategy_ids"].([]string); ok {
-		// Direct array assignment
-		create.AuthStrategyIds = authStrategyIDsList
+	} else if ids, ok := fields[planner.FieldAuthStrategyIDs].([]string); ok {
+		create.AuthStrategyIds = ids
 	}
 
-	// Optional fields
-	if autoApprove, ok := fields["auto_approve_registrations"].(bool); ok {
+	if autoApprove, ok := fields[planner.FieldAutoApproveRegistrations].(bool); ok {
 		create.AutoApproveRegistrations = &autoApprove
 	}
 
-	if visibilityStr, ok := fields["visibility"].(string); ok {
+	if visibilityStr, ok := fields[planner.FieldVisibility].(string); ok {
 		visibility := kkComps.APIPublicationVisibility(visibilityStr)
 		create.Visibility = &visibility
 	}
@@ -69,13 +67,11 @@ func (a *APIPublicationAdapter) MapCreateFields(
 func (a *APIPublicationAdapter) Create(ctx context.Context, req kkComps.APIPublication,
 	_ string, execCtx *ExecutionContext,
 ) (string, error) {
-	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
 
-	// Get portal ID from execution context
 	portalID, err := a.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
@@ -91,13 +87,24 @@ func (a *APIPublicationAdapter) Create(ctx context.Context, req kkComps.APIPubli
 
 // Delete deletes an API publication
 func (a *APIPublicationAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
 	}
 
-	return a.client.DeleteAPIPublication(ctx, apiID, id)
+	portalID, err := a.getPortalIDFromExecutionContext(execCtx)
+	if err != nil {
+		// Older plans may only provide the composite api_id:portal_id resource ID.
+		if _, parsedPortalID, ok := strings.Cut(id, ":"); ok && parsedPortalID != "" {
+			portalID = parsedPortalID
+		} else if id != "" {
+			portalID = id
+		} else {
+			return err
+		}
+	}
+
+	return a.client.DeleteAPIPublication(ctx, apiID, portalID)
 }
 
 // GetByName gets an API publication by name
@@ -116,12 +123,12 @@ func (a *APIPublicationAdapter) GetByID(_ context.Context, _ string, _ *Executio
 
 // ResourceType returns the resource type name
 func (a *APIPublicationAdapter) ResourceType() string {
-	return "api_publication"
+	return planner.ResourceTypeAPIPublication
 }
 
 // RequiredFields returns the required fields for creation
 func (a *APIPublicationAdapter) RequiredFields() []string {
-	return []string{"portal_id"}
+	return []string{planner.FieldPortalID}
 }
 
 // MapUpdateFields maps fields for update operations (not supported for API publications)
@@ -151,11 +158,11 @@ func (a *APIPublicationAdapter) getPortalIDFromExecutionContext(execCtx *Executi
 	}
 
 	change := *execCtx.PlannedChange
-	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
 	// Check fields as fallback
-	if portalID, ok := change.Fields["portal_id"].(string); ok {
+	if portalID, ok := change.Fields[planner.FieldPortalID].(string); ok {
 		return portalID, nil
 	}
 
@@ -171,7 +178,7 @@ func (a *APIPublicationAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionC
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for Create operations)
-	if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
+	if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID != "" {
 		return apiRef.ID, nil
 	}
 
@@ -181,7 +188,7 @@ func (a *APIPublicationAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionC
 	}
 
 	// Priority 3: Check Fields (special case for api_publication delete)
-	if apiID, ok := change.Fields["api_id"].(string); ok && apiID != "" {
+	if apiID, ok := change.Fields[planner.FieldAPIID].(string); ok && apiID != "" {
 		return apiID, nil
 	}
 

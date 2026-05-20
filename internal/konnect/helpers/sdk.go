@@ -6,6 +6,7 @@ import (
 	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/konnect/apiutil"
 )
 
 const (
@@ -22,19 +23,30 @@ type SDKAPI interface {
 	GetPortalAPI() PortalAPI
 	GetAPIAPI() APIFullAPI // TODO: Change to APIAPI once refactoring is complete
 	GetCatalogServicesAPI() CatalogServicesAPI
+	GetDashboardsAPI() DashboardsAPI
 	GetAPIDocumentAPI() APIDocumentAPI
 	GetAPIVersionAPI() APIVersionAPI
 	GetAPIPublicationAPI() APIPublicationAPI
 	GetAPIImplementationAPI() APIImplementationAPI
 	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
+	GetDCRProvidersAPI() DCRProvidersAPI
 	GetMeAPI() MeAPI
 	GetGatewayServiceAPI() GatewayServiceAPI
+	GetDataPlaneCertificateAPI() DataPlaneCertificateAPI
 	GetSystemAccountAPI() SystemAccountAPI
 	GetSystemAccountAccessTokenAPI() SystemAccountAccessTokenAPI
+	GetSystemAccountRolesAPI() SystemAccountRolesAPI
+	GetSystemAccountTeamMembershipAPI() SystemAccountTeamMembershipAPI
 	GetOrganizationTeamAPI() OrganizationTeamAPI
+	GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI
+	GetOrganizationUsersAPI() OrganizationUsersAPI
+	GetOrganizationTeamMembershipAPI() OrganizationTeamMembershipAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
 	GetPortalAuthSettingsAPI() PortalAuthSettingsAPI
+	GetPortalIPAllowListAPI() PortalIPAllowListAPI
+	GetPortalIntegrationsAPI() PortalIntegrationsAPI
+	GetPortalIdentityProviderAPI() PortalIdentityProviderAPI
 	GetPortalCustomizationAPI() PortalCustomizationAPI
 	GetPortalCustomDomainAPI() PortalCustomDomainAPI
 	GetPortalSnippetAPI() PortalSnippetAPI
@@ -46,23 +58,31 @@ type SDKAPI interface {
 	GetPortalTeamMembershipAPI() PortalTeamMembershipAPI
 	GetAssetsAPI() AssetsAPI
 	GetPortalEmailsAPI() PortalEmailsAPI
+	GetPortalAuditLogsAPI() PortalAuditLogsAPI
+	GetAuditLogDestinationsAPI() AuditLogDestinationsAPI
 	GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI
 	GetEventGatewayBackendClusterAPI() EventGatewayBackendClusterAPI
 	GetEventGatewayVirtualClusterAPI() EventGatewayVirtualClusterAPI
 	GetEventGatewayListenerAPI() EventGatewayListenerAPI
 	GetEventGatewayListenerPolicyAPI() EventGatewayListenerPolicyAPI
 	GetEventGatewayClusterPolicyAPI() EventGatewayClusterPolicyAPI
+	GetEventGatewayProducePolicyAPI() EventGatewayProducePolicyAPI
+	GetEventGatewayConsumePolicyAPI() EventGatewayConsumePolicyAPI
 	GetEventGatewayDataPlaneCertificateAPI() EventGatewayDataPlaneCertificateAPI
+	GetEventGatewaySchemaRegistryAPI() EventGatewaySchemaRegistryAPI
+	GetEventGatewayStaticKeyAPI() EventGatewayStaticKeyAPI
+	GetEventGatewayTLSTrustBundleAPI() EventGatewayTLSTrustBundleAPI
 }
 
 // This is the real implementation of the SDKAPI
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
-	SDK        *kkSDK.SDK
-	BaseURL    string
-	Token      string
-	HTTPClient kkSDK.HTTPClient
-	portalImpl *PortalAPIImpl
+	SDK         *kkSDK.SDK
+	BaseURL     string
+	Token       string
+	TokenSource apiutil.TokenSource
+	HTTPClient  kkSDK.HTTPClient
+	portalImpl  *PortalAPIImpl
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
@@ -108,6 +128,15 @@ func (k *KonnectSDK) GetCatalogServicesAPI() CatalogServicesAPI {
 	return &CatalogServicesAPIImpl{SDK: k.SDK}
 }
 
+// Returns the implementation of the DashboardsAPI interface.
+func (k *KonnectSDK) GetDashboardsAPI() DashboardsAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &DashboardsAPIImpl{SDK: k.SDK}
+}
+
 // Returns the implementation of the APIDocumentAPI interface
 func (k *KonnectSDK) GetAPIDocumentAPI() APIDocumentAPI {
 	if k.SDK == nil {
@@ -133,10 +162,11 @@ func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
 	}
 
 	return &APIPublicationAPIImpl{
-		SDK:        k.SDK,
-		BaseURL:    k.BaseURL,
-		Token:      k.Token,
-		HTTPClient: k.HTTPClient,
+		SDK:         k.SDK,
+		BaseURL:     k.BaseURL,
+		Token:       k.Token,
+		TokenSource: k.TokenSource,
+		HTTPClient:  k.HTTPClient,
 	}
 }
 
@@ -158,6 +188,21 @@ func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	return &AppAuthStrategiesAPIImpl{SDK: k.SDK}
 }
 
+// Returns the implementation of the DCRProvidersAPI interface
+func (k *KonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &DCRProvidersAPIImpl{
+		SDK:         k.SDK,
+		BaseURL:     k.BaseURL,
+		Token:       k.Token,
+		TokenSource: k.TokenSource,
+		HTTPClient:  k.HTTPClient,
+	}
+}
+
 // Returns the implementation of the GatewayServiceAPI interface
 func (k *KonnectSDK) GetGatewayServiceAPI() GatewayServiceAPI {
 	if k.SDK == nil {
@@ -165,6 +210,14 @@ func (k *KonnectSDK) GetGatewayServiceAPI() GatewayServiceAPI {
 	}
 
 	return k.SDK.Services
+}
+
+func (k *KonnectSDK) GetDataPlaneCertificateAPI() DataPlaneCertificateAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &DataPlaneCertificateAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the PortalPageAPI interface
@@ -183,6 +236,39 @@ func (k *KonnectSDK) GetPortalAuthSettingsAPI() PortalAuthSettingsAPI {
 	}
 
 	return &PortalAuthSettingsAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalIPAllowListAPI interface
+func (k *KonnectSDK) GetPortalIPAllowListAPI() PortalIPAllowListAPI {
+	if k.SDK == nil || k.SDK.PortalsIPAllowList == nil {
+		return nil
+	}
+
+	return &PortalIPAllowListAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalIntegrationsAPI interface
+func (k *KonnectSDK) GetPortalIntegrationsAPI() PortalIntegrationsAPI {
+	if k.SDK == nil || k.SDK.PortalIntegrations == nil {
+		return nil
+	}
+
+	return &PortalIntegrationsAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalIdentityProviderAPI interface
+func (k *KonnectSDK) GetPortalIdentityProviderAPI() PortalIdentityProviderAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalIdentityProviderAPIImpl{
+		SDK:         k.SDK,
+		BaseURL:     k.BaseURL,
+		Token:       k.Token,
+		TokenSource: k.TokenSource,
+		HTTPClient:  k.HTTPClient,
+	}
 }
 
 // Returns the implementation of the PortalCustomizationAPI interface
@@ -257,6 +343,33 @@ func (k *KonnectSDK) GetPortalTeamRolesAPI() PortalTeamRolesAPI {
 	return &PortalTeamRolesAPIImpl{SDK: k.SDK}
 }
 
+// Returns the implementation of the OrganizationTeamRolesAPI interface.
+func (k *KonnectSDK) GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &OrganizationTeamRolesAPIImpl{SDK: k.SDK}
+}
+
+// GetOrganizationUsersAPI returns the implementation of the OrganizationUsersAPI interface.
+func (k *KonnectSDK) GetOrganizationUsersAPI() OrganizationUsersAPI {
+	if k.SDK == nil || k.SDK.Users == nil {
+		return nil
+	}
+
+	return &OrganizationUsersAPIImpl{SDK: k.SDK}
+}
+
+// GetOrganizationTeamMembershipAPI returns the implementation of the OrganizationTeamMembershipAPI interface.
+func (k *KonnectSDK) GetOrganizationTeamMembershipAPI() OrganizationTeamMembershipAPI {
+	if k.SDK == nil || k.SDK.TeamMembership == nil {
+		return nil
+	}
+
+	return &OrganizationTeamMembershipAPIImpl{SDK: k.SDK}
+}
+
 // Returns the implementation of the PortalTeamMembershipAPI interface
 func (k *KonnectSDK) GetPortalTeamMembershipAPI() PortalTeamMembershipAPI {
 	if k.SDK == nil {
@@ -293,6 +406,23 @@ func (k *KonnectSDK) GetPortalEmailsAPI() PortalEmailsAPI {
 	return &PortalEmailsAPIImpl{SDK: k.SDK}
 }
 
+// GetPortalAuditLogsAPI returns the implementation of the PortalAuditLogsAPI interface.
+func (k *KonnectSDK) GetPortalAuditLogsAPI() PortalAuditLogsAPI {
+	if k.SDK == nil || k.SDK.PortalAuditLogs == nil {
+		return nil
+	}
+
+	return &PortalAuditLogsAPIImpl{SDK: k.SDK}
+}
+
+// GetAuditLogDestinationsAPI returns the implementation of the AuditLogDestinationsAPI interface.
+func (k *KonnectSDK) GetAuditLogDestinationsAPI() AuditLogDestinationsAPI {
+	return &AuditLogDestinationsAPIImpl{
+		Token:      k.Token,
+		HTTPClient: k.HTTPClient,
+	}
+}
+
 // Returns the implementation of the EGWControlPlaneAPI interface
 func (k *KonnectSDK) GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI {
 	if k.SDK == nil {
@@ -316,6 +446,22 @@ func (k *KonnectSDK) GetSystemAccountAccessTokenAPI() SystemAccountAccessTokenAP
 	}
 
 	return &SystemAccountAccessTokenAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetSystemAccountRolesAPI() SystemAccountRolesAPI {
+	if k.SDK == nil || k.SDK.SystemAccountsRoles == nil {
+		return nil
+	}
+
+	return &SystemAccountRolesAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetSystemAccountTeamMembershipAPI() SystemAccountTeamMembershipAPI {
+	if k.SDK == nil || k.SDK.SystemAccountsTeamMembership == nil {
+		return nil
+	}
+
+	return &SystemAccountTeamMembershipAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the EventGatewayBackendCluster interface
@@ -370,6 +516,51 @@ func (k *KonnectSDK) GetEventGatewayClusterPolicyAPI() EventGatewayClusterPolicy
 	}
 
 	return &EventGatewayClusterPolicyAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the EventGatewayProducePolicyAPI interface
+func (k *KonnectSDK) GetEventGatewayProducePolicyAPI() EventGatewayProducePolicyAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayProducePolicyAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the EventGatewayConsumePolicyAPI interface
+func (k *KonnectSDK) GetEventGatewayConsumePolicyAPI() EventGatewayConsumePolicyAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayConsumePolicyAPIImpl{SDK: k.SDK}
+}
+
+// GetEventGatewaySchemaRegistryAPI returns the implementation of the EventGatewaySchemaRegistryAPI interface.
+func (k *KonnectSDK) GetEventGatewaySchemaRegistryAPI() EventGatewaySchemaRegistryAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewaySchemaRegistryAPIImpl{SDK: k.SDK}
+}
+
+// GetEventGatewayStaticKeyAPI returns the implementation of the EventGatewayStaticKeyAPI interface.
+func (k *KonnectSDK) GetEventGatewayStaticKeyAPI() EventGatewayStaticKeyAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayStaticKeyAPIImpl{SDK: k.SDK}
+}
+
+// GetEventGatewayTLSTrustBundleAPI returns the implementation of the EventGatewayTLSTrustBundleAPI interface.
+func (k *KonnectSDK) GetEventGatewayTLSTrustBundleAPI() EventGatewayTLSTrustBundleAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayTLSTrustBundleAPIImpl{SDK: k.SDK}
 }
 
 func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {

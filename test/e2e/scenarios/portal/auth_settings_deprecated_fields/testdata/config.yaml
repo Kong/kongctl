@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: portal-auth-settings
+
+portals:
+  - ref: portal-auth
+    name: portal-auth
+    display_name: Portal Auth Settings
+    description: Portal with deprecated auth settings fields
+    kongctl:
+      namespace: portal-auth-settings
+    auth_settings:
+      ref: portal-auth-settings
+      basic_auth_enabled: true
+      oidc_auth_enabled: true

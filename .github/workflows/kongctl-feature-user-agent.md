@@ -1,0 +1,511 @@
+---
+name: User Agent Eval
+description: |
+  Runs a scheduled or manual feature-user evaluation of one advertised kongctl
+  workflow against a disposable Konnect org and files actionable friction only.
+on:
+  schedule:
+    # GitHub schedules are UTC-only. 01:00 UTC Tuesday-Saturday maps to
+    # Monday-Friday evenings in US/Central: 8 PM during daylight time and
+    # 7 PM during standard time.
+    - cron: "0 1 * * 2-6"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+checkout:
+  fetch-depth: 0
+engine:
+  id: copilot
+  model: claude-opus-4.6
+features:
+  action-mode: "action"
+strict: true
+timeout-minutes: 60
+environment: kongctl-user-agent-eval
+concurrency:
+  group: konnect-feature-user-agent
+  cancel-in-progress: false
+network:
+  allowed:
+    - defaults
+    - github
+    - "*.api.konghq.com"
+    - developer.konghq.com
+    - docs.konghq.com
+tools:
+  web-fetch:
+  github:
+    toolsets: [issues]
+    lockdown: false
+safe-outputs:
+  mentions: false
+  allowed-github-references:
+    - repo
+  noop:
+    report-as-issue: false
+    max: 1
+  create-issue:
+    title-prefix: "[agent-eval] "
+    labels:
+      - automation
+      - agentic-workflows
+      - konnect
+    expires: 30d
+    max: 1
+pre-agent-steps:
+  - name: Build kongctl and reset feature-user org
+    env:
+      KONGCTL_FEATURE_USER_AGENT_KONNECT_PAT: ${{ secrets.KONGCTL_FEATURE_USER_AGENT_KONNECT_PAT }}
+      KONGCTL_FEATURE_USER_AGENT_KONNECT_BASE_URL: ${{ vars.KONGCTL_FEATURE_USER_AGENT_KONNECT_BASE_URL || 'https://us.api.konghq.com' }}
+    run: |
+      set -euo pipefail
+
+      run_dir="/tmp/gh-aw/kongctl-feature-user-agent"
+      evidence_dir="/tmp/gh-aw/kongctl-feature-user-agent/sanitized"
+      auth_env="${run_dir}/auth.env"
+      mkdir -p "${evidence_dir}"
+      umask 077
+      {
+        printf 'KONGCTL_DEFAULT_KONNECT_PAT=%q\n' "${KONGCTL_FEATURE_USER_AGENT_KONNECT_PAT}"
+        printf 'KONGCTL_DEFAULT_KONNECT_BASE_URL=%q\n' "${KONGCTL_FEATURE_USER_AGENT_KONNECT_BASE_URL}"
+      } > "${auth_env}"
+
+      export KONGCTL_DEFAULT_KONNECT_PAT="${KONGCTL_FEATURE_USER_AGENT_KONNECT_PAT}"
+      export KONGCTL_DEFAULT_KONNECT_BASE_URL="${KONGCTL_FEATURE_USER_AGENT_KONNECT_BASE_URL}"
+      export KONGCTL_E2E_KONNECT_PAT="${KONGCTL_FEATURE_USER_AGENT_KONNECT_PAT}"
+      export KONGCTL_E2E_KONNECT_BASE_URL="${KONGCTL_FEATURE_USER_AGENT_KONNECT_BASE_URL}"
+      export KONGCTL_E2E_RESET=1
+      export KONGCTL_E2E_LOG_LEVEL=debug
+      export KONGCTL_E2E_CONSOLE_LOG_LEVEL=warn
+
+      cat > "${evidence_dir}/README.md" <<'EOF'
+      # Kongctl Feature User Agent Evidence
+
+      This directory is reserved for sanitized evaluation artifacts only.
+      Raw command logs, HTTP traces, headers, secrets, and stable Konnect
+      identifiers must not be written here.
+      EOF
+
+      make build-ci
+      test -x ./kongctl
+      make reset-org
+post-steps:
+  - name: Append feature-user evaluation summary
+    if: always()
+    run: |
+      set -euo pipefail
+
+      evidence_dir="/tmp/gh-aw/kongctl-feature-user-agent/sanitized"
+      summary_file="${evidence_dir}/evaluation-summary.md"
+
+      {
+        echo "## User Agent Eval"
+        echo
+        echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        echo "- Sanitized artifacts: \`kongctl-feature-user-agent-sanitized\`"
+        echo
+      } >> "${GITHUB_STEP_SUMMARY}"
+
+      if [ ! -f "${summary_file}" ]; then
+        {
+          echo "No sanitized evaluation summary was produced."
+          echo
+          echo "Check the agent logs and sanitized artifact upload for details."
+        } >> "${GITHUB_STEP_SUMMARY}"
+        exit 0
+      fi
+
+      unsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'
+      if grep -E -q "${unsafe_pattern}" "${summary_file}"; then
+        echo "::error::Evaluation summary contains values that look unsafe. Redact or omit them before upload."
+        exit 1
+      fi
+
+      cat "${summary_file}" >> "${GITHUB_STEP_SUMMARY}"
+  - name: Check sanitized feature-user artifacts
+    if: always()
+    run: |
+      set -euo pipefail
+
+      evidence_dir="/tmp/gh-aw/kongctl-feature-user-agent/sanitized"
+      if [ ! -d "${evidence_dir}" ]; then
+        exit 0
+      fi
+
+      if find "${evidence_dir}" -type f -size +1048576c | grep -q .; then
+        echo "::error::Sanitized artifact files must be 1 MiB or smaller."
+        exit 1
+      fi
+
+      unsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'
+      if grep -R -E -q "${unsafe_pattern}" "${evidence_dir}"; then
+        echo "::error::Sanitized artifacts contain values that look unsafe. Redact or omit them before upload."
+        exit 1
+      fi
+  - name: Hydrate replay prompt into created issue safe output
+    if: always()
+    run: |
+      set -euo pipefail
+
+      agent_output="/tmp/gh-aw/agent_output.json"
+      replay_prompt="/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md"
+
+      if [ ! -f "${agent_output}" ] || [ ! -f "${replay_prompt}" ]; then
+        exit 0
+      fi
+
+      unsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'
+      if grep -E -q "${unsafe_pattern}" "${replay_prompt}"; then
+        echo "::error::Replay prompt contains values that look unsafe. Redact or omit them before issue creation."
+        exit 1
+      fi
+
+      node <<'NODE'
+      const fs = require("fs");
+
+      const agentOutputPath = "/tmp/gh-aw/agent_output.json";
+      const replayPromptPath = "/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md";
+      const artifactPath = replayPromptPath;
+      const maxInlinePromptLength = 30000;
+      const maxIssueBodyLength = 64000;
+
+      const data = JSON.parse(fs.readFileSync(agentOutputPath, "utf8"));
+      const rawReplayPrompt = fs.readFileSync(replayPromptPath, "utf8").trim();
+      if (!rawReplayPrompt) {
+        process.exit(0);
+      }
+
+      function clippedReplayPrompt(maxLength) {
+        if (rawReplayPrompt.length <= maxLength) {
+          return rawReplayPrompt;
+        }
+
+        return `${rawReplayPrompt.slice(0, maxLength).trimEnd()}
+
+      [Replay prompt truncated in issue; full sanitized prompt is available at ${artifactPath}.]`;
+      }
+
+      function markdownFenceFor(content) {
+        let fence = "```";
+        while (content.includes(fence)) {
+          fence += "`";
+        }
+        return fence;
+      }
+
+      function replayPromptSection(maxPromptLength = maxInlinePromptLength) {
+        const replayPrompt = clippedReplayPrompt(maxPromptLength);
+        const fence = markdownFenceFor(replayPrompt);
+
+        return `## Replay Prompt
+
+      Sanitized replay prompt from \`${artifactPath}\`:
+
+      ${fence}markdown
+      ${replayPrompt}
+      ${fence}`;
+      }
+
+      function hasInlineReplayPrompt(body) {
+        const match = body.match(/^## Replay Prompt\s*$/im);
+        if (!match) {
+          return false;
+        }
+
+        const rest = body.slice(match.index);
+        const next = rest.slice(match[0].length).search(/\n##\s+/);
+        const section = next === -1 ? rest : rest.slice(0, match[0].length + next);
+
+        return section.includes("```") && !/See artifact:\s*\/tmp\/gh-aw\/kongctl-feature-user-agent\/sanitized\/selected-use-case-prompt\.md/i.test(section);
+      }
+
+      function hydrateBody(body) {
+        if (hasInlineReplayPrompt(body)) {
+          return body;
+        }
+
+        function buildHydratedBody(maxPromptLength) {
+          const section = replayPromptSection(maxPromptLength);
+          if (/^## Replay Prompt\s*$/im.test(body)) {
+            return body.replace(
+              /(^|\r?\n)## Replay Prompt[^\n]*\r?\n[\s\S]*?(?=\r?\n##\s+|$)/i,
+              (_, prefix) => `${prefix}${section}`,
+            );
+          }
+
+          return `${body.trimEnd()}
+
+      ${section}`;
+        }
+
+        const hydrated = buildHydratedBody(maxInlinePromptLength);
+        if (hydrated.length <= maxIssueBodyLength) {
+          return hydrated;
+        }
+
+        const overflow = hydrated.length - maxIssueBodyLength;
+        const smallerPromptLength = Math.max(1000, maxInlinePromptLength - overflow - 500);
+
+        return buildHydratedBody(smallerPromptLength);
+      }
+
+      function createIssueArgs(value) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+          return undefined;
+        }
+
+        if (value.create_issue && typeof value.create_issue === "object") {
+          return value.create_issue;
+        }
+
+        const toolName = String(value.name || value.tool || value.tool_name || value.type || "").toLowerCase();
+        const isCreateIssue = toolName === "create_issue" || toolName.endsWith(".create_issue");
+        if (!isCreateIssue) {
+          return undefined;
+        }
+
+        for (const key of ["arguments", "args", "input", "parameters"]) {
+          if (value[key] && typeof value[key] === "object" && typeof value[key].body === "string") {
+            return value[key];
+          }
+        }
+
+        if (typeof value.body === "string") {
+          return value;
+        }
+
+        return undefined;
+      }
+
+      let hydrated = 0;
+      function visit(value) {
+        if (!value || typeof value !== "object") {
+          return;
+        }
+
+        const args = createIssueArgs(value);
+        if (args && typeof args.body === "string") {
+          const nextBody = hydrateBody(args.body);
+          if (nextBody !== args.body) {
+            args.body = nextBody;
+            hydrated += 1;
+          }
+        }
+
+        for (const child of Array.isArray(value) ? value : Object.values(value)) {
+          visit(child);
+        }
+      }
+
+      visit(data);
+
+      if (hydrated > 0) {
+        fs.writeFileSync(agentOutputPath, `${JSON.stringify(data, null, 2)}\n`);
+        console.log(`Hydrated replay prompt into ${hydrated} create_issue safe output item(s).`);
+      }
+      NODE
+  - name: Upload sanitized feature-user artifacts
+    if: always()
+    uses: actions/upload-artifact@v7.0.1
+    with:
+      name: kongctl-feature-user-agent-sanitized
+      path: /tmp/gh-aw/kongctl-feature-user-agent/sanitized
+      if-no-files-found: ignore
+      retention-days: 14
+tracker-id: kongctl-feature-user-agent
+---
+
+# User Agent Eval
+
+You are a feature user evaluating `kongctl` as a command-line product.
+
+Your job is to discover an advertised `kongctl` feature, choose one natural
+use case, exercise it against the disposable Konnect org prepared for this run,
+capture sanitized evidence, and file feedback only when the friction is
+concrete and reproducible.
+
+Emit exactly one completion safe output:
+
+- Use `create_issue` when you found actionable friction.
+- Use `noop` when no actionable friction is found.
+
+Do not emit more than one `create_issue` or `noop`. Do not use GitHub write
+APIs directly.
+
+## Runtime Context
+
+- Repository: `${{ github.repository }}`
+- Workspace: `${{ github.workspace }}`
+- Run URL: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+- Run seed: `${{ github.run_id }}`
+- Agent engine: `copilot`
+- Agent model: `claude-opus-4.6`
+- Runtime version env: `GH_AW_VERSION` when available.
+- Built binary: `./kongctl`
+- Auth env file: `/tmp/gh-aw/kongctl-feature-user-agent/auth.env`
+- Sanitized artifact directory:
+  `/tmp/gh-aw/kongctl-feature-user-agent/sanitized`
+
+The workflow has already built `./kongctl` with `make build-ci` and reset the
+dedicated Konnect org with the existing e2e reset helper.
+
+## Editable Agent Guidance
+
+- Use `KONGCTL_DEFAULT_KONNECT_PAT`; do not run `kongctl login`.
+- Before running `kongctl` commands, load auth with:
+  `set -a; . /tmp/gh-aw/kongctl-feature-user-agent/auth.env; set +a`.
+- Never print, quote, copy, summarize, or upload the auth env file or its
+  contents.
+- Treat the Konnect org as disposable.
+- Discover features from `README.md`, `docs/`, `kongctl --help`, command help,
+  and public Kong developer docs.
+- Build a candidate set of advertised feature workflows before choosing one.
+- Select one candidate with the deterministic run-seeded procedure below.
+- Do not choose the most prominent, obvious, or familiar workflow unless the
+  run-seeded selection lands on it.
+- Do not use persona steering, feature selection memory, repo memory, or
+  history-based steering.
+- Prefer one realistic, bounded workflow over broad coverage.
+- Capture commands, exit codes, sanitized stdout/stderr excerpts, generated
+  config, expected vs. actual behavior, and cleanup result.
+- After selecting the workflow and before running workflow-specific `kongctl`
+  commands, write a sanitized replay prompt to:
+  `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md`.
+- Always write a sanitized `evaluation-summary.md` file in the sanitized
+  artifact directory.
+- Attempt cleanup when created resources are easy to identify.
+- File an issue only for concrete, reproducible friction.
+- Emit `noop` when no actionable friction is found.
+
+## Evaluation Process
+
+1. Read the local docs and command help just enough to identify advertised
+   workflows.
+2. Build a candidate set before selecting a workflow:
+   - Aim for 8 to 12 viable candidates when discoverable; if fewer are
+     discoverable, include all viable candidates.
+   - Prefer breadth across command surfaces, user intents, product resources,
+     and lifecycle phases.
+   - For each candidate, record a short stable title, advertised source,
+     likely user intent, surface or command family, resource or scope,
+     preconditions, expected commands, cleanup path, and feasibility risk.
+   - Keep candidates product-derived. Do not invent workflows that are not
+     supported by docs or command help.
+3. Select exactly one candidate with this deterministic procedure:
+   - Sort candidates by stable title using lowercase lexical order.
+   - Compute selected index as `run seed modulo candidate count`, using
+     zero-based indexing.
+   - If the selected candidate proves impossible after deeper inspection, skip
+     it, select the next candidate cyclically, and document why it was skipped.
+   - Do not re-rank candidates by model preference after sorting.
+4. Write the sanitized selected-use-case replay prompt described below.
+5. Exercise the selected workflow using `./kongctl` and PAT-based environment
+   auth.
+6. Keep command output excerpts short. Prefer command shapes, exit codes, and
+   non-identifying error text.
+7. If you create resources and can identify them safely, attempt cleanup.
+8. Write sanitized evidence files only under:
+   `/tmp/gh-aw/kongctl-feature-user-agent/sanitized`.
+9. Write `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/evaluation-summary.md`
+   with these sections:
+   - `Agent Runtime`: the engine, model, `GH_AW_VERSION` value when available,
+     run URL, and note that gh-aw appends exact workflow engine/version metadata
+     to created issues.
+   - `Run Seed`: the seed value and candidate count.
+   - `Candidate Set`: the sorted candidate titles, selected index, and any
+     skipped candidate.
+   - `Feature Workflow Selected`: the use case derived from the docs/help.
+   - `Why This Workflow`: which input assets advertised it, and how the
+     run-seeded selection chose it.
+   - `Commands Attempted`: command shapes and exit codes.
+   - `Observed Result`: what happened, including short sanitized excerpts.
+   - `Success Criteria`: how you decided the workflow succeeded or failed.
+   - `Friction Assessment`: why you did or did not find actionable friction.
+   - `Cleanup`: cleanup attempted and result.
+   - `Selected Use-Case Prompt`: the path to the replay prompt artifact and a
+     compact excerpt that is useful for a future rerun.
+   - `Safe Output`: whether you emitted `create_issue` or `noop`, and why.
+10. Before final output, run a sanitization check over the issue body and every
+   file in the sanitized artifact directory. Rewrite or omit unsafe content.
+11. Emit exactly one safe output.
+
+## Selected Use-Case Replay Prompt
+
+The selected-use-case replay prompt should help a maintainer rerun the same
+evaluated user intent after a fix, with the same model or a different model. It
+is not the full workflow prompt and must not include the pre-use-case candidate
+discovery or run-seeded selection instructions.
+
+Write the replay prompt after the selected workflow is known and before
+workflow-specific tool or `kongctl` execution begins. Include:
+
+- Agent runtime target: engine `copilot`, model `claude-opus-4.6` or the
+  `COPILOT_MODEL` value when available, `GH_AW_VERSION` when available, and the
+  run URL for traceability.
+- The selected workflow title, advertised source, user intent, and expected
+  behavior.
+- The exact bounded task to perform against `./kongctl`, including safe command
+  shapes, preconditions, success criteria, evidence to collect, and cleanup
+  expectations.
+- The same auth, artifact directory, and redaction constraints needed to run
+  safely in this workflow.
+
+Exclude:
+
+- The full candidate set.
+- The run-seeded selection algorithm.
+- Any hidden chain-of-thought, private reasoning, secrets, stable Konnect IDs,
+  raw HTTP traces, account identity data, or auth file contents.
+
+## Redaction Rules
+
+Do not include any of the following in GitHub issues, summaries, or uploaded
+artifacts:
+
+- Konnect PATs, bearer tokens, refresh tokens, API keys, cookies, auth headers,
+  private keys, certificates, or signed URLs.
+- Organization IDs, account IDs, user IDs, team IDs, system account IDs, portal
+  IDs, API IDs, control plane IDs, or other stable Konnect UUIDs.
+- Email addresses, names of real users, usernames, organization names, team
+  names, domains, or URLs that identify the eval org or account.
+- Full raw HTTP trace logs, request/response headers, or raw JSON bodies unless
+  sanitized first.
+
+Use these masking conventions:
+
+- Replace tokens and keys with `[REDACTED_SECRET]`.
+- Replace stable resource IDs and UUIDs with `[REDACTED_ID]`.
+- Replace emails and user names with `[REDACTED_IDENTITY]`.
+- Replace org/account names or domains with `[REDACTED_ORG]`.
+- Keep generic command shapes and non-identifying error text.
+
+Immediately before any `create_issue`, `noop`, or artifact-producing file is
+finalized, review the issue body and sanitized artifact files for secrets,
+identity data, stable IDs, raw traces, and unsafe URLs. Rewrite or omit unsafe
+content rather than trying to preserve it.
+
+## Issue Requirements
+
+Only call `create_issue` for concrete, reproducible friction. The issue must
+include:
+
+- Agent runtime details: engine, model, `GH_AW_VERSION` when available, run URL,
+  and workflow engine/version metadata when available.
+- The selected-use-case replay prompt, either in full or as a compact sanitized
+  excerpt, plus the artifact path
+  `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md`.
+  Do not provide only an artifact path; the issue body must contain enough of
+  the replay prompt for a maintainer to understand and rerun the use case
+  without downloading artifacts.
+- The advertised feature/workflow that was evaluated.
+- The expected behavior from docs or command help.
+- The actual behavior observed.
+- Minimal sanitized reproduction steps.
+- Sanitized command shapes and exit codes.
+- Short sanitized stdout/stderr excerpts when useful.
+- Cleanup attempted and result.
+- Why this is actionable for maintainers.
+
+If the workflow is successful, the result is ambiguous, or the only observations
+are subjective preferences, call `noop` with a concise summary instead.

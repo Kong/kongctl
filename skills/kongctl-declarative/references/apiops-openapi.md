@@ -25,6 +25,21 @@ aligned with spec changes.
 4. Populate API metadata from `info.*` in each OpenAPI file.
 5. Keep `versions[].spec` pointing to the full OpenAPI document file.
 
+## Gateway APIOps Split
+
+OpenAPI can drive two related outputs:
+
+- Konnect API catalog config (`apis`, `versions`, `publications`) using
+  `!file` extraction.
+- Kong Gateway runtime config using decK (`services`, `routes`, `plugins`).
+
+When the user asks to "set up an API Gateway", "create routes/services", or
+"configure plugins" from OpenAPI, also load
+`references/deck-gateway.md`. Generate decK state with
+`deck file openapi2kong`, then wire the resulting service into kongctl with
+`control_planes[]._deck`, external `gateway_services`, and
+`apis[].implementations`.
+
 ## Canonical Example
 
 ```yaml
@@ -47,6 +62,7 @@ apis:
 When working in the `kongctl` repository, use this concrete example:
 
 - `docs/examples/declarative/portal/apis.yaml`
+- `docs/examples/declarative/deck/`
 
 ## Validation Loop
 
@@ -60,5 +76,6 @@ When OpenAPI specs are outside the resources directory, add `--base-dir`
 with the absolute project root:
 
 ```bash
-kongctl diff -f <resources-path> --recursive --base-dir "$(pwd)" --mode apply -o text
+kongctl diff -f <resources-path> --recursive \
+  --base-dir "$(pwd)" --mode apply -o text
 ```

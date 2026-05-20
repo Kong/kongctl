@@ -9,7 +9,6 @@ type stubConfig struct {
 	pageSize int
 }
 
-func (s stubConfig) Save() error                           { return nil }
 func (s stubConfig) GetString(string) string               { return "" }
 func (s stubConfig) GetBool(string) bool                   { return false }
 func (s stubConfig) GetInt(string) int                     { return s.pageSize }
@@ -21,5 +20,6 @@ func (s stubConfig) Get(string) any                        { return nil }
 func (s stubConfig) BindFlag(string, *pflag.Flag) error    { return nil }
 func (s stubConfig) GetProfile() string                    { return "default" }
 func (s stubConfig) GetPath() string                       { return "" }
+func (s stubConfig) InConfig(string) bool                  { return false }
 
 var _ config.Hook = stubConfig{}

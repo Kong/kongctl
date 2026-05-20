@@ -8,7 +8,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
-	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -135,9 +134,6 @@ func runGetPortalAuthSettings(c *cobra.Command, args []string) error {
 	}
 
 	settings := res.PortalAuthenticationSettingsResponse
-	if err := helpers.HydratePortalAuthSettingsOIDCConfig(settings, res.RawResponse); err != nil && logger != nil {
-		logger.Debug("failed to hydrate portal auth settings OIDC config from raw response", "error", err)
-	}
 
 	return tableview.RenderForFormat(helper,
 		false,
@@ -152,30 +148,35 @@ func runGetPortalAuthSettings(c *cobra.Command, args []string) error {
 }
 
 func portalAuthSettingsToRecord(settings *kkComps.PortalAuthenticationSettingsResponse) any {
-	oidcConfig := settings.GetOidcConfig()
-
 	return struct {
-		BasicAuthEnabled       string `json:"basic_auth_enabled"`
-		OidcAuthEnabled        string `json:"oidc_auth_enabled"`
-		SamlAuthEnabled        string `json:"saml_auth_enabled"`
-		OidcTeamMappingEnabled string `json:"oidc_team_mapping_enabled"`
-		IdpMappingEnabled      string `json:"idp_mapping_enabled"`
-		KonnectMappingEnabled  string `json:"konnect_mapping_enabled"`
-		OidcIssuer             string `json:"oidc_config.issuer"`
-		OidcClientID           string `json:"oidc_config.client_id"`
-		OidcScopes             string `json:"oidc_config.scopes"`
-		OidcClaimMappings      string `json:"oidc_config.claim_mappings"`
+		BasicAuthEnabled      string `json:"basic_auth_enabled"`
+		IdpMappingEnabled     string `json:"idp_mapping_enabled"`
+		KonnectMappingEnabled string `json:"konnect_mapping_enabled"`
 	}{
-		BasicAuthEnabled:       fmt.Sprintf("%v", settings.BasicAuthEnabled),
-		OidcAuthEnabled:        fmt.Sprintf("%v", settings.OidcAuthEnabled),
-		SamlAuthEnabled:        fmt.Sprintf("%v", valueOrNA(settings.SamlAuthEnabled)),
-		OidcTeamMappingEnabled: fmt.Sprintf("%v", settings.OidcTeamMappingEnabled),
-		IdpMappingEnabled:      fmt.Sprintf("%v", valueOrNA(settings.IdpMappingEnabled)),
-		KonnectMappingEnabled:  fmt.Sprintf("%v", settings.KonnectMappingEnabled),
-		OidcIssuer:             fmt.Sprintf("%v", valueOrNAString(oidcConfig.GetIssuer())),
-		OidcClientID:           fmt.Sprintf("%v", valueOrNAString(oidcConfig.GetClientID())),
-		OidcScopes:             fmt.Sprintf("%v", sliceOrNA(oidcConfig.GetScopes())),
-		OidcClaimMappings:      fmt.Sprintf("%v", valueOrNA(oidcConfig.GetClaimMappings())),
+		BasicAuthEnabled:      fmt.Sprintf("%v", settings.BasicAuthEnabled),
+		IdpMappingEnabled:     fmt.Sprintf("%v", valueOrNA(settings.IdpMappingEnabled)),
+		KonnectMappingEnabled: fmt.Sprintf("%v", settings.KonnectMappingEnabled),
+	}
+}
+
+func portalAuthSettingsDetailView(settings *kkComps.PortalAuthenticationSettingsResponse) string {
+	if settings == nil {
+		return ""
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "basic_auth_enabled: %t\n", settings.BasicAuthEnabled)
+	fmt.Fprintf(&b, "idp_mapping_enabled: %v\n", valueOrNA(settings.IdpMappingEnabled))
+	fmt.Fprintf(&b, "konnect_mapping_enabled: %t\n", settings.KonnectMappingEnabled)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func buildPortalAuthSettingsChildView(settings *kkComps.PortalAuthenticationSettingsResponse) tableview.ChildView {
+	return tableview.ChildView{
+		Title:          "Authentication Settings",
+		Mode:           tableview.ChildViewModeDetail,
+		DetailRenderer: func(int) string { return portalAuthSettingsDetailView(settings) },
 	}
 }
 
@@ -191,18 +192,4 @@ func valueOrNA(value any) any {
 	default:
 		return v
 	}
-}
-
-func valueOrNAString(value string) any {
-	if strings.TrimSpace(value) == "" {
-		return valueNA
-	}
-	return value
-}
-
-func sliceOrNA(values []string) any {
-	if len(values) == 0 {
-		return valueNA
-	}
-	return strings.Join(values, ",")
 }

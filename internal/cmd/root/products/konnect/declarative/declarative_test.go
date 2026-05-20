@@ -4,12 +4,114 @@ import (
 	"bytes"
 	"testing"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	utilviper "github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMaxConcurrencyFromCmd(t *testing.T) {
+	t.Run("uses default value when flag is not set", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+
+		got, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.NoError(t, err)
+		assert.Equal(t, executor.DefaultMaxConcurrency, got)
+	})
+
+	t.Run("uses config value when flag is not set", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+		cfg.Set(maxConcurrencyConfigPath, 17)
+
+		got, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.NoError(t, err)
+		assert.Equal(t, 17, got)
+	})
+
+	t.Run("accepts value within range", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+		require.NoError(t, cmd.Flags().Set("max-concurrency", "42"))
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+
+		got, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.NoError(t, err)
+		assert.Equal(t, 42, got)
+	})
+
+	t.Run("prefers flag value over config value", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+		require.NoError(t, cmd.Flags().Set("max-concurrency", "42"))
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+		cfg.Set(maxConcurrencyConfigPath, 17)
+
+		got, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.NoError(t, err)
+		assert.Equal(t, 42, got)
+	})
+
+	t.Run("rejects value below minimum", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+		require.NoError(t, cmd.Flags().Set("max-concurrency", "0"))
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+
+		_, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--max-concurrency must be between")
+	})
+
+	t.Run("rejects value above maximum", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+		require.NoError(t, cmd.Flags().Set("max-concurrency", "1000"))
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+
+		_, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--max-concurrency must be between")
+	})
+
+	t.Run("rejects out-of-range value from config (below minimum)", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+		cfg.Set(maxConcurrencyConfigPath, 0)
+
+		_, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--max-concurrency must be between")
+	})
+
+	t.Run("rejects out-of-range value from config (above maximum)", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		addMaxConcurrencyFlag(cmd)
+
+		cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+		cfg.Set(maxConcurrencyConfigPath, 1000)
+
+		_, err := maxConcurrencyFromCmd(cmd, cfg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--max-concurrency must be between")
+	})
+}
 
 func Test_validateDeletePlan(t *testing.T) {
 	tests := []struct {
@@ -93,6 +195,28 @@ func Test_parsePlanMode(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, mode)
+		})
+	}
+}
+
+func TestDeclarativeCommandsRequireExplicitFilename(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  *cobra.Command
+	}{
+		{name: "plan", cmd: newDeclarativePlanCmd()},
+		{name: "apply", cmd: newDeclarativeApplyCmd()},
+		{name: "sync", cmd: newDeclarativeSyncCmd()},
+		{name: "diff", cmd: newDeclarativeDiffCmd()},
+		{name: "delete", cmd: newDeclarativeDeleteCmd()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.cmd.RunE(tt.cmd, nil)
+			require.Error(t, err)
+			assert.True(t, cmdpkg.IsUsageError(err))
+			assert.Equal(t, "no configuration sources specified; use -f to specify files or directories", err.Error())
 		})
 	}
 }

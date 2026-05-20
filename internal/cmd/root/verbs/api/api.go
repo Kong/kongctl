@@ -252,7 +252,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		return cmd.PrepareExecutionError("failed to resolve Konnect base URL", err, helper.GetCmd())
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to resolve Konnect access token", err, helper.GetCmd())
 	}
@@ -269,10 +269,13 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		return err
 	}
 	if outType == cmdcommon.TEXT {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("%s command supports only json or yaml output formats (received %q)",
-				helper.GetCmd().CommandPath(), outType.String()),
+		if helper.GetCmd().Flags().Changed(cmdcommon.OutputFlagName) {
+			return &cmd.ConfigurationError{
+				Err: fmt.Errorf("%s command supports only json or yaml output formats (received %q)",
+					helper.GetCmd().CommandPath(), outType.String()),
+			}
 		}
+		outType = cmdcommon.JSON
 	}
 
 	jqSettings, err := jqoutput.ResolveSettings(helper.GetCmd(), cfg)
@@ -336,6 +339,10 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	}
 
 	client := httpclient.NewLoggingHTTPClient(logger)
+	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
+	if err != nil {
+		return cmd.PrepareExecutionError("failed to resolve Konnect access token", err, helper.GetCmd())
+	}
 	result, err := requestFn(ctx, client, method, baseURL, endpoint, token, headers, bodyReader)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to call Konnect API", err, helper.GetCmd())
@@ -390,6 +397,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		bodyToRender = filtered
 	}
 
+	//exhaustive:ignore // HELM is unsupported here and falls through to the default error.
 	switch outType {
 	case cmdcommon.TEXT:
 		return &cmd.ConfigurationError{

@@ -21,6 +21,16 @@ func TestResolveExplainSubject_Resource(t *testing.T) {
 	assert.Equal(t, "object", subject.Node.Kind)
 }
 
+func TestResolveExplainSubject_HyphenatedAlias(t *testing.T) {
+	subject, err := ResolveExplainSubject("event-gateway")
+	require.NoError(t, err)
+
+	assert.Equal(t, ResourceTypeEventGatewayControlPlane, subject.Doc.ResourceType)
+	assert.Contains(t, subject.Doc.Aliases, "event-gateway")
+	assert.Contains(t, subject.Doc.Aliases, "event-gateways")
+	assert.Contains(t, subject.Doc.Aliases, "egw")
+}
+
 func TestResolveExplainSubject_NestedChildResource(t *testing.T) {
 	subject, err := ResolveExplainSubject("api.versions")
 	require.NoError(t, err)
@@ -32,6 +42,48 @@ func TestResolveExplainSubject_NestedChildResource(t *testing.T) {
 	assert.True(t, subject.ResourceTarget)
 	assert.Equal(t, []string{"versions"}, subject.FieldPath)
 	assert.Equal(t, []ResourceType{ResourceTypeAPI}, subject.AncestorTypes)
+}
+
+func TestResolveExplainSubject_OrganizationTeamsGroupedResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("organization.teams")
+	require.NoError(t, err)
+
+	assert.Equal(t, "organization.teams", subject.DisplayPath)
+	assert.Equal(t, ResourceTypeOrganizationTeam, subject.Doc.ResourceType)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []string{"teams"}, subject.FieldPath)
+	assert.Equal(t, []ExplainScaffoldStep{
+		{Name: "organization"},
+		{Name: "teams", Array: true},
+	}, subject.ScaffoldSteps)
+}
+
+func TestResolveExplainSubject_OrganizationTeamRolesNestedResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("organization.teams.roles")
+	require.NoError(t, err)
+
+	assert.Equal(t, "organization.teams.roles", subject.DisplayPath)
+	assert.Equal(t, ResourceTypeOrganizationTeamRole, subject.Doc.ResourceType)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []string{"teams", "roles"}, subject.FieldPath)
+	assert.Equal(t, []ResourceType{ResourceTypeOrganizationTeam}, subject.AncestorTypes)
+	assert.Equal(t, []ExplainScaffoldStep{
+		{Name: "organization"},
+		{Name: "teams", Array: true},
+		{Name: "roles", Array: true},
+	}, subject.ScaffoldSteps)
+}
+
+func TestResolveExplainSubject_NestedSingletonChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("portal.auth_settings")
+	require.NoError(t, err)
+
+	assert.Equal(t, ResourceTypePortalAuthSettings, subject.Doc.ResourceType)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []ExplainScaffoldStep{
+		{Name: "portals", Array: true},
+		{Name: "auth_settings"},
+	}, subject.ScaffoldSteps)
 }
 
 func TestResolveExplainSubject_FieldPath(t *testing.T) {
@@ -85,6 +137,122 @@ func TestRenderExplainSchema_Metadata(t *testing.T) {
 	assert.False(t, *schema.XNestedDecl)
 }
 
+func TestRenderExplainSchema_APINameDefault(t *testing.T) {
+	subject, err := ResolveExplainSubject("api.name")
+	require.NoError(t, err)
+
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+
+	assert.Equal(t, "ref", schema.XDefault)
+	require.NotNil(t, schema.XSubject)
+	assert.False(t, *schema.XSubject.Required)
+	assert.True(t, *schema.XSubject.Recommended)
+}
+
+func TestRenderExplainSchema_ApplicationAuthStrategyUnion(t *testing.T) {
+	subject, err := ResolveExplainSubject("application_auth_strategies")
+	require.NoError(t, err)
+
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+	require.Len(t, schema.OneOf, 2)
+	assert.Nil(t, schema.Properties)
+	assert.Nil(t, schema.Additional)
+
+	keyAuth := schema.OneOf[0]
+	require.NotNil(t, keyAuth.Properties["strategy_type"])
+	assert.Equal(t, "key_auth", keyAuth.Properties["strategy_type"].Const)
+	require.NotNil(t, keyAuth.Properties["configs"].Properties["key-auth"])
+	assert.Contains(t, keyAuth.Properties["configs"].Properties["key-auth"].Required, "key_names")
+
+	oidc := schema.OneOf[1]
+	require.NotNil(t, oidc.Properties["strategy_type"])
+	assert.Equal(t, "openid_connect", oidc.Properties["strategy_type"].Const)
+	require.NotNil(t, oidc.Properties["configs"].Properties["openid-connect"])
+
+	assert.Nil(t, keyAuth.Properties["app_auth_strategy_key_auth_request"])
+	assert.Nil(t, oidc.Properties["app_auth_strategy_open_i_d_connect_request"])
+}
+
+func TestRenderExplainSchema_ApplicationAuthStrategyUnionField(t *testing.T) {
+	subject, err := ResolveExplainSubject("application_auth_strategies.strategy_type")
+	require.NoError(t, err)
+
+	assert.True(t, subject.FieldRequired)
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+	require.Len(t, schema.OneOf, 2)
+
+	assert.Equal(t, "key_auth", schema.OneOf[0].Const)
+	assert.Equal(t, "openid_connect", schema.OneOf[1].Const)
+	require.NotNil(t, schema.XSubject)
+	assert.True(t, *schema.XSubject.Required)
+}
+
+func TestRenderExplainSchema_ApplicationAuthStrategyConfigsUnionField(t *testing.T) {
+	subject, err := ResolveExplainSubject("application_auth_strategies.configs")
+	require.NoError(t, err)
+
+	assert.True(t, subject.FieldRequired)
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+	require.Len(t, schema.OneOf, 2)
+
+	assert.Contains(t, schema.OneOf[0].Properties, "key-auth")
+	assert.Contains(t, schema.OneOf[1].Properties, "openid-connect")
+	require.NotNil(t, schema.XSubject)
+	assert.True(t, *schema.XSubject.Required)
+}
+
+func TestRenderExplainSchema_PortalAuthSettingsOmitsDeprecatedFields(t *testing.T) {
+	subject, err := ResolveExplainSubject("portal.auth_settings")
+	require.NoError(t, err)
+
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+
+	assert.Contains(t, schema.Properties, "basic_auth_enabled")
+	assert.Contains(t, schema.Properties, "konnect_mapping_enabled")
+	assert.Contains(t, schema.Properties, "idp_mapping_enabled")
+	assert.NotContains(t, schema.Properties, "oidc_auth_enabled")
+	assert.NotContains(t, schema.Properties, "saml_auth_enabled")
+	assert.NotContains(t, schema.Properties, "oidc_client_id")
+	assert.NotContains(t, schema.Properties, "oidc_claim_mappings")
+}
+
+func TestRenderExplainSchema_AnalyticsDashboardDiscriminators(t *testing.T) {
+	subject, err := ResolveExplainSubject("analytics.dashboards")
+	require.NoError(t, err)
+
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+
+	tile := schema.Properties["definition"].Properties["tiles"].Items
+	require.NotNil(t, tile.Properties["type"])
+	assert.Equal(t, "chart", tile.Properties["type"].Const)
+
+	query := tile.Properties["definition"].Properties["query"]
+	require.Len(t, query.OneOf, 3)
+	assert.Equal(t, "api_usage", query.OneOf[0].Properties["datasource"].Const)
+	assert.Equal(t, "llm_usage", query.OneOf[1].Properties["datasource"].Const)
+	assert.Equal(t, "agentic_usage", query.OneOf[2].Properties["datasource"].Const)
+
+	chart := tile.Properties["definition"].Properties["chart"]
+	require.Len(t, chart.OneOf, 7)
+	assert.Equal(t, "timeseries_line", chart.OneOf[0].Properties["type"].Const)
+	assert.Equal(t, "horizontal_bar", chart.OneOf[2].Properties["type"].Const)
+}
+
+func TestRenderExplainText_AnalyticsDashboardAllowedValues(t *testing.T) {
+	subject, err := ResolveExplainSubject("analytics.dashboards.definition.tiles.definition.query.datasource")
+	require.NoError(t, err)
+
+	text := RenderExplainText(subject, false)
+
+	assert.Contains(t, text, "ALLOWED: api_usage|llm_usage|agentic_usage")
+}
+
 func TestRenderExplainText_ResourceSubject(t *testing.T) {
 	subject, err := ResolveExplainSubject("portal")
 	require.NoError(t, err)
@@ -96,8 +264,11 @@ func TestRenderExplainText_ResourceSubject(t *testing.T) {
 	assert.Contains(t, text, "SUPPORTS ROOT: true")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: false")
 	assert.Contains(t, text, "ACCEPTS kongctl metadata: yes")
-	assert.Contains(t, text,
-		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, pages, snippets, teams")
+	assert.Contains(
+		t,
+		text,
+		"CHILD RESOURCES: audit_log_webhook, auth_settings, custom_domain, customization, email_config, identity_providers, integrations, ip_allow_list, pages, snippets, teams", //nolint:lll
+	)
 	assert.Contains(t, text, "\nFIELD DETAILS: use --extended")
 	assert.NotContains(t, text, "RESOURCE: portal")
 	assert.NotContains(t, text, "PATH: portal")
@@ -129,8 +300,11 @@ func TestRenderExplainText_FieldSubject(t *testing.T) {
 	assert.Contains(t, text, "\nRESOURCE\nRESOURCE CLASS: top-level")
 	assert.Contains(t, text, "ROOT KEY: portals[]")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: false")
-	assert.Contains(t, text,
-		"CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, pages, snippets, teams")
+	assert.Contains(
+		t,
+		text,
+		"CHILD RESOURCES: audit_log_webhook, auth_settings, custom_domain, customization, email_config, identity_providers, integrations, ip_allow_list, pages, snippets, teams", //nolint:lll
+	)
 	assert.NotContains(t, text, "PLACEMENT")
 	assert.NotContains(t, text, "YAML PATH:")
 }
@@ -216,6 +390,67 @@ func TestRenderScaffoldYAML_RootResource(t *testing.T) {
 	assert.Contains(t, scaffold, "- ref: my-resource")
 	assert.Contains(t, scaffold, "name: my-resource")
 	assert.Contains(t, scaffold, "# versions:")
+	assert.NotContains(t, scaffold, "spec_content")
+}
+
+func TestRenderScaffoldYAML_ApplicationAuthStrategyUnion(t *testing.T) {
+	subject, err := ResolveExplainSubject("application_auth_strategies")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "strategy_type: key_auth")
+	assert.Contains(t, scaffold, "configs:")
+	assert.Contains(t, scaffold, "key-auth:")
+	assert.Contains(t, scaffold, "key_names:")
+	assert.Contains(t, scaffold, "# oneOf option: strategy_type=key_auth")
+	assert.Contains(t, scaffold, "# oneOf option: strategy_type=openid_connect")
+	assert.Contains(t, scaffold, "# strategy_type: openid_connect")
+	assert.Contains(t, scaffold, "# openid-connect:")
+	assert.NotContains(t, scaffold, "# ref: my-resource")
+	assert.NotContains(t, scaffold, "# name: my-resource")
+	assert.NotContains(t, scaffold, "app_auth_strategy_key_auth_request")
+	assert.NotContains(t, scaffold, "app_auth_strategy_open_i_d_connect_request")
+}
+
+func TestRenderScaffoldYAML_AnalyticsDashboardStarterTile(t *testing.T) {
+	subject, err := ResolveExplainSubject("analytics.dashboards")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "analytics:")
+	assert.Contains(t, scaffold, "  dashboards:")
+	assert.Contains(t, scaffold, "        tiles:")
+	assert.Contains(t, scaffold, "          - type: chart")
+	assert.Contains(t, scaffold, "                datasource: api_usage")
+	assert.Contains(t, scaffold, "                  - request_count")
+	assert.Contains(t, scaffold, "                  - time")
+	assert.Contains(t, scaffold, "                type: timeseries_line")
+	assert.NotContains(t, scaffold, "datasource: value")
+	assert.NotContains(t, scaffold, "# oneOf option: type\n")
+}
+
+func TestRenderScaffoldYAML_EventGatewayListenerPolicyUnion(t *testing.T) {
+	subject, err := ResolveExplainSubject("event_gateway_listener_policy")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "type: tls_server")
+	assert.Contains(t, scaffold, "# oneOf option: type=tls_server")
+	assert.Contains(t, scaffold, "# oneOf option: type=forward_to_virtual_cluster")
+	assert.Contains(t, scaffold, "# oneOf option: type=port_mapping")
+	assert.Contains(t, scaffold, "# type: forward_to_virtual_cluster")
+	assert.Contains(t, scaffold, "# type: port_mapping")
+	assert.Contains(t, scaffold, "# oneOf option: id")
+	assert.Contains(t, scaffold, "# oneOf option: name")
+	assert.NotContains(t, scaffold, "event_gateway_t_l_s_listener_policy")
+	assert.NotContains(t, scaffold, "forward_to_virtual_cluster_policy")
+	assert.NotContains(t, scaffold, "virtual_cluster_reference_by_i_d")
 }
 
 func TestRenderScaffoldYAML_NestedChildResource(t *testing.T) {
@@ -231,4 +466,48 @@ func TestRenderScaffoldYAML_NestedChildResource(t *testing.T) {
 	assert.Contains(t, scaffold, "- ref: my-resource")
 	assert.NotContains(t, scaffold, "api: value")
 	assert.NotContains(t, scaffold, "kongctl:")
+}
+
+func TestRenderScaffoldYAML_NestedSingletonChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("portal.auth_settings")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "portals:")
+	assert.Contains(t, scaffold, "auth_settings:")
+	assert.NotContains(t, scaffold, "auth_settings:\n      - ref:")
+	assert.NotContains(t, scaffold, "oidc_auth_enabled")
+	assert.NotContains(t, scaffold, "saml_auth_enabled")
+	assert.NotContains(t, scaffold, "oidc_client_id")
+}
+
+func TestRenderScaffoldYAML_OrganizationTeamResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("organization_team")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "organization:")
+	assert.Contains(t, scaffold, "  teams:")
+	assert.Contains(t, scaffold, "    - ref: my-resource")
+	assert.Contains(t, scaffold, "      name: my-resource")
+}
+
+func TestRenderScaffoldYAML_OrganizationTeamRoleNestedResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("organization.teams.roles")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "organization:")
+	assert.Contains(t, scaffold, "  teams:")
+	assert.Contains(t, scaffold, "    - ref: my-resource")
+	assert.Contains(t, scaffold, "      roles:")
+	assert.Contains(t, scaffold, "        - ref: my-resource")
+	assert.Contains(t, scaffold, "          role_name: viewer")
+	assert.NotContains(t, scaffold, "team: value")
 }

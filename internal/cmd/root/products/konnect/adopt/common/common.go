@@ -17,7 +17,7 @@ type AdoptResult struct {
 }
 
 func PointerLabelMap(existing map[string]string, namespace string) map[string]*string {
-	cloned := make(map[string]string, len(existing)+1)
+	cloned := make(map[string]string, len(existing))
 	maps.Copy(cloned, existing)
 	cloned[labels.NamespaceKey] = namespace
 
@@ -31,7 +31,7 @@ func PointerLabelMap(existing map[string]string, namespace string) map[string]*s
 }
 
 func StringLabelMap(existing map[string]string, namespace string) map[string]string {
-	cloned := make(map[string]string, len(existing)+1)
+	cloned := make(map[string]string, len(existing))
 	maps.Copy(cloned, existing)
 	cloned[labels.NamespaceKey] = namespace
 	return cloned

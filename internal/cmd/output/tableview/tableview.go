@@ -27,12 +27,13 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/glamour"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/iostreams"
-	kairender "github.com/kong/kongctl/internal/kai/render"
 	"github.com/kong/kongctl/internal/theme"
+	"github.com/muesli/termenv"
 	"github.com/segmentio/cli"
 )
 
@@ -200,7 +201,7 @@ func newStatusBoxStyle(p theme.Palette) lipgloss.Style {
 // NormalizeSelectedRow ensures that selected rows emitted by the table component
 // keep the highlight active across all columns when wrapped by another style.
 func NormalizeSelectedRow(content string, selected lipgloss.Style) string {
-	prefix, reset := selectionPrefix(selected)
+	prefix, _ := selectionPrefix(selected)
 	if prefix == "" || !strings.Contains(content, prefix) {
 		return content
 	}
@@ -211,13 +212,7 @@ func NormalizeSelectedRow(content string, selected lipgloss.Style) string {
 			continue
 		}
 
-		count := strings.Count(line, reset)
-		if count <= 1 {
-			continue
-		}
-
-		line = strings.ReplaceAll(line, reset+prefix, reset)
-		lines[i] = strings.Replace(line, reset, reset+prefix, count-1)
+		lines[i] = selected.Render(ansi.Strip(line))
 	}
 
 	return strings.Join(lines, "\n")
@@ -464,8 +459,8 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 	styles.Cell = styles.Cell.
 		Foreground(palette.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(palette.Adaptive(theme.ColorAccentText)).
-		Background(palette.Adaptive(theme.ColorAccent))
+		Foreground(palette.Adaptive(theme.ColorSelectionText)).
+		Background(palette.Adaptive(theme.ColorSelection))
 	paddingWidth := max(
 		lipgloss.Width(styles.Header.Render("")),
 		lipgloss.Width(styles.Cell.Render("")),
@@ -687,6 +682,24 @@ func getFD(w io.Writer) (uintptr, bool) {
 
 func isTerminal(fd uintptr) bool {
 	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+}
+
+// isEmptyCollection reports whether v is a zero-length slice or array.
+// A typed nil slice (e.g. var s []string) is considered empty because its
+// length is zero. An untyped nil interface value returns false.
+// Pointers are dereferenced before the check; a nil pointer also returns false.
+func isEmptyCollection(v any) bool {
+	if v == nil {
+		return false
+	}
+	rv := reflect.ValueOf(v)
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return false
+		}
+		rv = rv.Elem()
+	}
+	return (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) && rv.Len() == 0
 }
 
 func buildRows(data any) ([]string, [][]string, error) {
@@ -1062,7 +1075,34 @@ func renderMarkdownContent(raw string, width int) string {
 	if width <= 0 {
 		width = 80
 	}
-	return kairender.Markdown(raw, kairender.Options{Width: width})
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithColorProfile(termenv.TrueColor),
+		glamour.WithWordWrap(width),
+	)
+	if err != nil {
+		return raw
+	}
+	rendered, err := renderer.Render(raw)
+	if err != nil {
+		return raw
+	}
+	return normalizeMarkdownSpacing(rendered)
+}
+
+func normalizeMarkdownSpacing(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return trimmed
+	}
+	lines := strings.Split(trimmed, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " ")
+		if i == 0 {
+			lines[i] = strings.TrimLeft(lines[i], " ")
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func defaultRootLabel(_ []string) string {
@@ -1129,7 +1169,7 @@ func newDetailTableDecorator(
 	labelStyle := palette.ForegroundStyle(theme.ColorTextSecondary)
 	valueStyle := palette.ForegroundStyle(theme.ColorTextPrimary)
 	accentStyle := palette.ForegroundStyle(theme.ColorAccent)
-	selectedText := palette.ForegroundStyle(theme.ColorAccentText)
+	selectedText := palette.ForegroundStyle(theme.ColorSelectionText)
 	selectedPrefix, _ := selectionPrefix(selected)
 
 	return detailTableDecorator{
@@ -1934,8 +1974,8 @@ func buildDetailTable(
 		PaddingRight(0)
 	if highlight {
 		styles.Selected = styles.Selected.
-			Foreground(palette.Adaptive(theme.ColorAccentText)).
-			Background(palette.Adaptive(theme.ColorAccent))
+			Foreground(palette.Adaptive(theme.ColorSelectionText)).
+			Background(palette.Adaptive(theme.ColorSelection))
 	} else {
 		styles.Selected = lipgloss.NewStyle()
 	}
@@ -1990,8 +2030,8 @@ func buildChildTable(state *childViewState, width, height int, palette theme.Pal
 	styles.Cell = styles.Cell.
 		Foreground(palette.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(palette.Adaptive(theme.ColorAccentText)).
-		Background(palette.Adaptive(theme.ColorAccent))
+		Foreground(palette.Adaptive(theme.ColorSelectionText)).
+		Background(palette.Adaptive(theme.ColorSelection))
 
 	tbl := table.New(
 		table.WithColumns(columns),
@@ -2184,8 +2224,16 @@ func RenderForFormat(
 		return Render(streams, display, opts...)
 	}
 
+	//exhaustive:ignore // HELM is intentionally not supported here; handled at the call site.
 	switch outType {
 	case cmdCommon.TEXT:
+		if isEmptyCollection(display) {
+			var out io.Writer
+			if streams != nil {
+				out = streams.Out
+			}
+			return writeStaticMessage(out, "", "No resources found.")
+		}
 		if printer != nil {
 			printer.Print(display)
 		}
@@ -2487,8 +2535,8 @@ func (m *bubbleModel) applyPalette(p theme.Palette) {
 	styles.Cell = styles.Cell.
 		Foreground(p.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(p.Adaptive(theme.ColorAccentText)).
-		Background(p.Adaptive(theme.ColorAccent))
+		Foreground(p.Adaptive(theme.ColorSelectionText)).
+		Background(p.Adaptive(theme.ColorSelection))
 	m.selectedStyle = styles.Selected
 	m.table.SetStyles(styles)
 

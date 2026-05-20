@@ -1,0 +1,10 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-tls-trust-bundle-test
+
+# Legacy directory name; sync delete intent is now a nested empty child list.
+event_gateways:
+  - ref: egw-cp-for-tls-trust-bundle-test-ref
+    name: egw-cp-for-tls-trust-bundle-test-name
+    description: "EGW CP for TLS Trust Bundle Test"
+    tls_trust_bundles: []

@@ -31,18 +31,18 @@ func (a *EventGatewayDataPlaneCertificateAdapter) MapCreateFields(
 	create *kkComps.CreateEventGatewayDataPlaneCertificateRequest,
 ) error {
 	// Required fields
-	certificate, ok := fields["certificate"].(string)
+	certificate, ok := fields[planner.FieldCertificate].(string)
 	if !ok {
 		return fmt.Errorf("certificate is required")
 	}
 	create.Certificate = certificate
 
 	// Optional fields
-	if name, ok := fields["name"].(string); ok {
+	if name, ok := fields[planner.FieldName].(string); ok {
 		create.Name = &name
 	}
 
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		create.Description = &desc
 	}
 
@@ -58,23 +58,17 @@ func (a *EventGatewayDataPlaneCertificateAdapter) MapUpdateFields(
 	_ map[string]string,
 ) error {
 	// Certificate is required for updates
-	if certificate, ok := fieldsToUpdate["certificate"].(string); ok {
+	if certificate, ok := fieldsToUpdate[planner.FieldCertificate].(string); ok {
 		update.Certificate = certificate
 	}
 
 	// Optional fields
-	if name, ok := fieldsToUpdate["name"].(string); ok {
+	if name, ok := fieldsToUpdate[planner.FieldName].(string); ok {
 		update.Name = &name
 	}
 
-	if description, ok := fieldsToUpdate["description"]; ok {
-		if desc, ok := description.(string); ok {
-			update.Description = &desc
-		} else if description == nil {
-			// Handle nil description (clear it)
-			emptyStr := ""
-			update.Description = &emptyStr
-		}
+	if desc, ok := fieldsToUpdate[planner.FieldDescription].(string); ok {
+		update.Description = &desc
 	}
 
 	return nil
@@ -87,7 +81,6 @@ func (a *EventGatewayDataPlaneCertificateAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	// Get event gateway ID from execution context
 	gatewayID, err := a.getEventGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
@@ -104,7 +97,6 @@ func (a *EventGatewayDataPlaneCertificateAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	// Get event gateway ID from execution context
 	gatewayID, err := a.getEventGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
@@ -119,7 +111,6 @@ func (a *EventGatewayDataPlaneCertificateAdapter) Delete(
 	id string,
 	execCtx *ExecutionContext,
 ) error {
-	// Get event gateway ID from execution context
 	gatewayID, err := a.getEventGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
@@ -134,7 +125,6 @@ func (a *EventGatewayDataPlaneCertificateAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	// Get event gateway ID from execution context
 	gatewayID, err := a.getEventGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return nil, err
@@ -167,7 +157,7 @@ func (a *EventGatewayDataPlaneCertificateAdapter) ResourceType() string {
 
 // RequiredFields returns the list of required fields for this resource
 func (a *EventGatewayDataPlaneCertificateAdapter) RequiredFields() []string {
-	return []string{"certificate"}
+	return []string{planner.FieldCertificate}
 }
 
 // SupportsUpdate indicates whether this resource supports update operations
@@ -186,7 +176,7 @@ func (a *EventGatewayDataPlaneCertificateAdapter) getEventGatewayIDFromExecution
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for new parent)
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		return gatewayRef.ID, nil
 	}
 

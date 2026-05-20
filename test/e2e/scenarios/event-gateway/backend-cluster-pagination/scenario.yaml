@@ -1,0 +1,77 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  egwName: egw-cp-for-bc-pagination-test
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-backend-clusters
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/egw-bc-pagination.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 12
+                failed: 0
+
+      - name: 001-get-backend-clusters-default-page-size
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 11
+                "[?name=='bc-pagination-01'] | length(@)": 1
+                "[?name=='bc-pagination-11'] | length(@)": 1
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                count: 3
+
+  - name: 002-delete-cleanup
+    commands:
+      - name: 002-000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/egw-bc-pagination.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                "total_changes > `0`": true
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

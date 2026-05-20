@@ -1,0 +1,482 @@
+_defaults:
+  kongctl:
+    namespace: all-resources
+
+dcr_providers:
+  - ref: all-dcr-http
+    name: all-dcr-http
+    provider_type: http
+    issuer: https://all-dcr-issuer.example.com
+    dcr_config:
+      dcr_base_url: https://all-dcr.example.com/v1/dcr
+      api_key: all_dcr_api_key
+    labels:
+      suite: all
+      resource: dcr-provider
+
+application_auth_strategies:
+  - ref: all-key-auth
+    name: all-key-auth
+    display_name: All Resources Key Auth
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - X-API-Key
+          - Api-Key
+    labels:
+      suite: all
+      resource: key-auth-strategy
+
+  - ref: all-oidc-auth
+    name: all-oidc-auth
+    display_name: All Resources OIDC Auth
+    strategy_type: openid_connect
+    dcr_provider_id: !ref all-dcr-http
+    configs:
+      openid_connect:
+        issuer: https://all-dcr-issuer.example.com
+        credential_claim:
+          - sub
+        auth_methods:
+          - bearer
+        scopes:
+          - openid
+          - profile
+          - email
+    labels:
+      suite: all
+      resource: oidc-auth-strategy
+
+control_planes:
+  - ref: all-cp-runtime
+    name: all-cp-runtime
+    description: Control plane with deck-managed gateway entities
+    cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+    _deck:
+      files:
+        - kong.yaml
+      flags:
+        - --analytics=false
+    gateway_services:
+      - ref: all-gateway-service
+        _external:
+          selector:
+            matchFields:
+              name: all-gateway-service
+
+  - ref: all-cp-certs
+    name: all-cp-certs
+    description: Control plane with a data plane certificate
+    cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+    auth_type: pinned_client_certs
+    proxy_urls:
+      - host: all-cp-certs.example.com
+        port: 443
+        protocol: https
+    data_plane_certificates:
+      - ref: all-cp-data-plane-cert
+        cert: |-
+          -----BEGIN CERTIFICATE-----
+          MIIB4TCCAYugAwIBAgIUAenxUyPjkSLCe2BQXoBMBacqgLowDQYJKoZIhvcNAQEL
+          BQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
+          GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yNDEwMjgyMDA3NDlaFw0zNDEw
+          MjYyMDA3NDlaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+          HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwXDANBgkqhkiG9w0BAQEF
+          AANLADBIAkEAyzipjrbAaLO/yPg7lL1dLWzhqNdc3S4YNR7f1RG9whWhbsPE2z42
+          e6WGFf9hggP6xjG4qbU8jFVczpd1UPwGbQIDAQABo1MwUTAdBgNVHQ4EFgQUkPPB
+          ghj+iHOHAKJlC1gLbKT/ZHQwHwYDVR0jBBgwFoAUkPPBghj+iHOHAKJlC1gLbKT/
+          ZHQwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAANBALfy49GvA2ld+u+G
+          Koxa8kCt7uywoqu0hfbBfUT4HqmXPvsuhz8RinE5ltxId108vtDNlD/+bKl+N5Ub
+          qKjBs0k=
+          -----END CERTIFICATE-----
+
+  - ref: all-cp-group
+    name: all-cp-group
+    description: Control plane group covering group membership configuration
+    cluster_type: CLUSTER_TYPE_CONTROL_PLANE_GROUP
+    members:
+      - id: !ref all-cp-runtime#id
+      - id: !ref all-cp-certs#id
+
+portals:
+  - ref: all-portal
+    name: all-portal
+    display_name: All Resources Portal
+    description: Portal covering declarative child resources
+    authentication_enabled: false
+    rbac_enabled: true
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_page_visibility: public
+    default_application_auth_strategy_id: !ref all-key-auth#id
+    labels:
+      suite: all
+      resource: portal
+    customization:
+      ref: all-portal-customization
+      theme:
+        mode: light
+        colors:
+          primary: "#8250FF"
+      layout: topnav
+      menu:
+        main:
+          - path: /guides
+            title: Guides
+            external: false
+            visibility: public
+          - path: /apis
+            title: APIs
+            external: false
+            visibility: public
+        footer_sections:
+          - title: Resources
+            items:
+              - path: "#"
+                title: Documentation
+                external: false
+                visibility: public
+    auth_settings:
+      ref: all-portal-auth-settings
+      basic_auth_enabled: true
+      konnect_mapping_enabled: true
+      idp_mapping_enabled: false
+    integrations:
+      ref: all-portal-integrations
+      google_tag_manager:
+        enabled: false
+        config_data:
+          id: GTM-ABC123
+      google_analytics_4:
+        enabled: false
+        config_data:
+          id: G-ABC123
+    identity_providers:
+      - ref: all-portal-oidc-idp
+        type: oidc
+        enabled: true
+        config:
+          issuer_url: !env KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+          client_id: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
+          client_secret: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET
+          scopes:
+            - openid
+            - profile
+          claim_mappings:
+            name: name
+            email: email
+            groups: groups
+    custom_domain:
+      ref: all-portal-custom-domain
+      hostname: all-placeholder.kongctl-e2e.io
+      enabled: true
+      ssl:
+        domain_verification_method: http
+    pages:
+      - ref: all-portal-page
+        slug: guides
+        title: Guides
+        description: Guides page
+        visibility: public
+        status: published
+        content: |-
+          # Guides
+
+          Start here for the all resources e2e scenario.
+        children:
+          - ref: all-portal-child-page
+            slug: getting-started
+            title: Getting Started
+            description: Getting started child page
+            visibility: public
+            status: published
+            content: |-
+              ## Getting Started
+
+              This child page validates nested portal pages.
+    snippets:
+      - ref: all-portal-snippet
+        name: all-portal-snippet
+        title: All Resources Snippet
+        description: Reusable content for the all resources scenario
+        visibility: public
+        status: published
+        content: |-
+          <section>All resources snippet</section>
+    teams:
+      - ref: all-portal-team
+        name: all-portal-team
+        description: Portal team for all resources
+        roles:
+          - ref: all-portal-team-role
+            role_name: API Viewer
+            entity_id: !ref all-api#id
+            entity_type_name: Services
+            entity_region: us
+    email_config:
+      ref: all-portal-email-config
+      from_name: Kong Developer Portal
+      from_email: noreply@example.com
+      reply_to_email: support@example.com
+    email_templates:
+      reset-password:
+        ref: all-reset-password-template
+        enabled: true
+        content:
+          subject: Reset your password
+          title: Reset Password
+          body: Click the button to reset your password.
+          button_label: Reset
+    assets:
+      logo: data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==
+      favicon: data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==
+
+apis:
+  - ref: all-api
+    name: all-api
+    description: API covering versions, publications, implementations, and docs
+    version: 1.0.0
+    labels:
+      suite: all
+      resource: api
+    attributes:
+      domains:
+        - platform
+      environments:
+        - dev
+    versions:
+      - ref: all-api-v1
+        version: 1.0.0
+        publish_status: published
+        deprecated: false
+        spec:
+          content: |-
+            openapi: 3.0.0
+            info:
+              title: All API
+              version: 1.0.0
+            paths: {}
+    publications:
+      - ref: all-api-publication
+        portal_id: !ref all-portal#id
+        visibility: private
+        auth_strategy_ids:
+          - !ref all-key-auth#id
+        auto_approve_registrations: false
+    implementations:
+      - ref: all-api-implementation
+        service:
+          control_plane_id: !ref all-cp-runtime#id
+          id: !ref all-gateway-service#id
+    documents:
+      - ref: all-api-doc-overview
+        title: Overview
+        slug: overview
+        status: published
+        content: |-
+          # Overview
+
+          Overview documentation for the all API.
+        children:
+          - ref: all-api-doc-child
+            title: Child Guide
+            slug: child-guide
+            status: published
+            content: |-
+              ## Child Guide
+
+              Child documentation validates nested API documents.
+
+catalog_services:
+  - ref: all-catalog-service
+    name: all-catalog-service
+    display_name: All Resources Catalog Service
+    description: Catalog service for the all resources scenario
+    labels:
+      suite: all
+      resource: catalog-service
+    custom_fields:
+      owner: platform-team
+      cost_center: "R&D"
+      product_manager: "All Resources PM"
+      jira_project:
+        name: All Resources Project
+        link: https://jira.example.com/projects/ALL
+      dashboard:
+        name: All Resources Dashboard
+        link: https://dashboards.example.com/all-resources
+      git_repo:
+        name: all-resources
+        link: https://github.com/example/all-resources
+      slack_channel:
+        name: "#all-resources"
+        link: https://slack.example.com/archives/all-resources
+
+analytics:
+  dashboards:
+    - ref: all-dashboard
+      name: All Resources Dashboard
+      definition:
+        tiles: []
+        preset_filters:
+          - field: control_plane
+            operator: in
+            value:
+              - !ref all-cp-runtime#id
+      labels:
+        suite: all
+        resource: dashboard
+
+organization:
+  teams:
+    - ref: all-org-team
+      name: all-org-team
+      description: Organization team for the all resources scenario
+      labels:
+        suite: all
+        resource: organization-team
+
+event_gateways:
+  - ref: all-event-gateway
+    name: all-event-gateway
+    description: Event gateway covering all nested event gateway resources
+    backend_clusters:
+      - ref: all-event-backend-cluster
+        name: all-event-backend-cluster
+        description: Backend cluster for all resources
+        bootstrap_servers:
+          - all-backend.example.com:9092
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: all-event-virtual-cluster
+        name: all-event-virtual-cluster
+        description: Virtual cluster for all resources
+        destination:
+          id: !ref all-event-backend-cluster#id
+        authentication:
+          - type: anonymous
+        acl_mode: enforce_on_gateway
+        dns_label: all-vc
+        cluster_policies:
+          - ref: all-event-cluster-policy
+            name: all-event-cluster-policy
+            description: Cluster policy for all resources
+            type: acls
+            enabled: true
+            config:
+              rules:
+                - action: deny
+                  operations:
+                    - name: describe_configs
+                  resource_names:
+                    - match: "*"
+                  resource_type: transactional_id
+        produce_policies:
+          - ref: all-event-produce-policy
+            name: all-event-produce-policy
+            description: Produce policy for all resources
+            type: modify_headers
+            enabled: true
+            labels:
+              suite: all
+            config:
+              actions:
+                - op: set
+                  key: x-producer-id
+                  value: "${client_id}"
+        consume_policies:
+          - ref: all-event-consume-policy
+            name: all-event-consume-policy
+            description: Consume policy for all resources
+            type: schema_validation
+            enabled: true
+            condition: ""
+            config:
+              key_validation_action: mark
+              type: json
+              value_validation_action: skip
+    schema_registries:
+      - ref: all-event-schema-registry
+        name: all-event-schema-registry
+        description: Schema registry for all resources
+        type: confluent
+        config:
+          schema_type: json
+          endpoint: https://schema-registry.example.com
+          timeout_seconds: 30
+          authentication:
+            type: basic
+            username: all-user
+            password: all-password
+    static_keys:
+      - ref: all-event-static-key
+        name: all-event-static-key
+        description: Static key for all resources
+        value: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+    listeners:
+      - ref: all-event-listener
+        name: all-event-listener
+        description: Listener for all resources
+        ports:
+          - 9092
+        addresses:
+          - localhost
+        policies:
+          - ref: all-event-listener-policy
+            name: all-event-listener-policy
+            type: forward_to_virtual_cluster
+            description: Listener policy for all resources
+            enabled: true
+            condition: "${ssl_sni} == \"all.example.com\""
+            labels:
+              suite: all
+            config:
+              type: port_mapping
+              destination:
+                id: !ref all-event-virtual-cluster#id
+              advertised_host: all.example.com
+    data_plane_certificates:
+      - ref: all-event-data-plane-cert
+        name: all-event-data-plane-cert
+        description: Event gateway data plane certificate for all resources
+        certificate: |-
+          -----BEGIN CERTIFICATE-----
+          MIIB4TCCAYugAwIBAgIUAenxUyPjkSLCe2BQXoBMBacqgLowDQYJKoZIhvcNAQEL
+          BQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
+          GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yNDEwMjgyMDA3NDlaFw0zNDEw
+          MjYyMDA3NDlaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+          HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwXDANBgkqhkiG9w0BAQEF
+          AANLADBIAkEAyzipjrbAaLO/yPg7lL1dLWzhqNdc3S4YNR7f1RG9whWhbsPE2z42
+          e6WGFf9hggP6xjG4qbU8jFVczpd1UPwGbQIDAQABo1MwUTAdBgNVHQ4EFgQUkPPB
+          ghj+iHOHAKJlC1gLbKT/ZHQwHwYDVR0jBBgwFoAUkPPBghj+iHOHAKJlC1gLbKT/
+          ZHQwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAANBALfy49GvA2ld+u+G
+          Koxa8kCt7uywoqu0hfbBfUT4HqmXPvsuhz8RinE5ltxId108vtDNlD/+bKl+N5Ub
+          qKjBs0k=
+          -----END CERTIFICATE-----
+    tls_trust_bundles:
+      - ref: all-event-tls-trust-bundle
+        name: all-event-tls-trust-bundle
+        description: TLS trust bundle for all resources
+        config:
+          trusted_ca: |-
+            -----BEGIN CERTIFICATE-----
+            MIIB4TCCAYugAwIBAgIUAenxUyPjkSLCe2BQXoBMBacqgLowDQYJKoZIhvcNAQEL
+            BQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
+            GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yNDEwMjgyMDA3NDlaFw0zNDEw
+            MjYyMDA3NDlaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+            HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwXDANBgkqhkiG9w0BAQEF
+            AANLADBIAkEAyzipjrbAaLO/yPg7lL1dLWzhqNdc3S4YNR7f1RG9whWhbsPE2z42
+            e6WGFf9hggP6xjG4qbU8jFVczpd1UPwGbQIDAQABo1MwUTAdBgNVHQ4EFgQUkPPB
+            ghj+iHOHAKJlC1gLbKT/ZHQwHwYDVR0jBBgwFoAUkPPBghj+iHOHAKJlC1gLbKT/
+            ZHQwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAANBALfy49GvA2ld+u+G
+            Koxa8kCt7uywoqu0hfbBfUT4HqmXPvsuhz8RinE5ltxId108vtDNlD/+bKl+N5Ub
+            qKjBs0k=
+            -----END CERTIFICATE-----

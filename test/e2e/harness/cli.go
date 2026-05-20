@@ -117,6 +117,13 @@ func NewCLI() (*CLI, error) {
 // NewCLIT constructs a CLI instance under the per-run artifacts dir using the test's name.
 func NewCLIT(t *testing.T) (*CLI, error) {
 	t.Helper()
+	return NewCLIForArtifacts(t.Name(), "tests")
+}
+
+// NewCLIForArtifacts constructs a CLI instance under the per-run artifacts dir.
+// The group controls the subdirectory under the run root, for example "tests"
+// or "benchmarks".
+func NewCLIForArtifacts(name, group string) (*CLI, error) {
 	bin, err := BinPath()
 	if err != nil {
 		return nil, err
@@ -125,8 +132,15 @@ func NewCLIT(t *testing.T) (*CLI, error) {
 	if err != nil {
 		return nil, err
 	}
-	name := sanitizeName(t.Name())
-	testDir := filepath.Join(rd, "tests", name)
+	name = sanitizeName(name)
+	group = sanitizeName(group)
+	if strings.TrimSpace(name) == "" {
+		name = "run"
+	}
+	if strings.TrimSpace(group) == "" {
+		group = "runs"
+	}
+	testDir := filepath.Join(rd, group, name)
 	cfgDir := filepath.Join(testDir, "config")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		return nil, err
@@ -163,8 +177,8 @@ func (c *CLI) WithEnv(kv map[string]string) *CLI {
 	if len(kv) == 0 {
 		return c
 	}
+	c.Env = mergeEnvSlices(c.Env, kv)
 	for k, v := range kv {
-		c.Env = append(c.Env, fmt.Sprintf("%s=%s", k, v))
 		Debugf("WithEnv: set %s", redactEnv(fmt.Sprintf("%s=%s", k, v)))
 	}
 	return c
@@ -239,16 +253,31 @@ func (e *CommandError) Unwrap() error {
 
 // Run executes kongctl with the provided args and returns a Result.
 func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
-	return c.runWithEnv(ctx, nil, args...)
+	return c.runWithEnvTimeout(ctx, nil, c.Timeout, args...)
 }
 
 // RunWithEnv executes kongctl with additional environment variables applied only to this invocation.
 func (c *CLI) RunWithEnv(ctx context.Context, env map[string]string, args ...string) (Result, error) {
-	return c.runWithEnv(ctx, env, args...)
+	return c.runWithEnvTimeout(ctx, env, c.Timeout, args...)
 }
 
-func (c *CLI) runWithEnv(ctx context.Context, env map[string]string, args ...string) (Result, error) {
-	return c.runCommand(ctx, c.BinPath, args, env, true, "")
+// RunWithEnvTimeout executes kongctl with a command-specific timeout.
+func (c *CLI) RunWithEnvTimeout(
+	ctx context.Context,
+	env map[string]string,
+	timeout time.Duration,
+	args ...string,
+) (Result, error) {
+	return c.runWithEnvTimeout(ctx, env, timeout, args...)
+}
+
+func (c *CLI) runWithEnvTimeout(
+	ctx context.Context,
+	env map[string]string,
+	timeout time.Duration,
+	args ...string,
+) (Result, error) {
+	return c.runCommand(ctx, c.BinPath, args, env, true, "", timeout)
 }
 
 // RunProgram executes an arbitrary binary with optional env/working directory overrides while
@@ -260,7 +289,19 @@ func (c *CLI) RunProgram(
 	env map[string]string,
 	workdir string,
 ) (Result, error) {
-	return c.runCommand(ctx, bin, args, env, false, workdir)
+	return c.runCommand(ctx, bin, args, env, false, workdir, c.Timeout)
+}
+
+// RunProgramTimeout executes an arbitrary binary with a command-specific timeout.
+func (c *CLI) RunProgramTimeout(
+	ctx context.Context,
+	bin string,
+	args []string,
+	env map[string]string,
+	workdir string,
+	timeout time.Duration,
+) (Result, error) {
+	return c.runCommand(ctx, bin, args, env, false, workdir, timeout)
 }
 
 func (c *CLI) runCommand(
@@ -270,6 +311,7 @@ func (c *CLI) runCommand(
 	env map[string]string,
 	injectFlags bool,
 	workdir string,
+	timeout time.Duration,
 ) (Result, error) {
 	if strings.TrimSpace(bin) == "" {
 		return Result{}, fmt.Errorf("binary is required")
@@ -312,14 +354,15 @@ func (c *CLI) runCommand(
 			value   string
 		}{}
 		haveOut := hasOutputArg(finalArgs)
+		supportsOut := supportsHarnessOutputArg(finalArgs)
 		switch {
 		case outOverride.set && outOverride.disable:
 		case outOverride.set && !outOverride.disable:
-			if !haveOut && strings.TrimSpace(outOverride.value) != "" {
+			if supportsOut && !haveOut && strings.TrimSpace(outOverride.value) != "" {
 				finalArgs = append(finalArgs, "-o", outOverride.value)
 			}
 		default:
-			if out := c.AutoOutput; out != "" && !haveOut {
+			if out := c.AutoOutput; supportsOut && out != "" && !haveOut {
 				finalArgs = append(finalArgs, "-o", out)
 			}
 		}
@@ -343,8 +386,8 @@ func (c *CLI) runCommand(
 	}
 
 	var cancel context.CancelFunc
-	if c.Timeout > 0 {
-		ctx, cancel = context.WithTimeout(ctx, c.Timeout)
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
 
@@ -407,14 +450,7 @@ func (c *CLI) RunJSONWithEnv(ctx context.Context, env map[string]string, out any
 
 func (c *CLI) runJSONWithEnv(ctx context.Context, env map[string]string, out any, args ...string) (Result, error) {
 	// ensure -o json is set unless caller already set it
-	hasOut := false
-	for i := range args {
-		if args[i] == "-o" || args[i] == "--output" || strings.HasPrefix(args[i], "--output=") {
-			hasOut = true
-			break
-		}
-	}
-	if !hasOut {
+	if supportsHarnessOutputArg(args) && !hasOutputArg(args) {
 		args = append(args, "-o", "json")
 	}
 	res, err := c.RunWithEnv(ctx, env, args...)
@@ -537,9 +573,7 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 		if i := strings.IndexByte(kv, '='); i > 0 {
 			k := kv[:i]
 			v := kv[i+1:]
-			ku := strings.ToUpper(k)
-			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
-				strings.Contains(ku, "SECRET") {
+			if isSensitiveName(k) {
 				if v != "" {
 					v = "***"
 				}
@@ -651,6 +685,13 @@ func hasOutputArg(args []string) bool {
 		}
 	}
 	return false
+}
+
+func supportsHarnessOutputArg(args []string) bool {
+	if len(args) == 0 {
+		return true
+	}
+	return args[0] != "plan"
 }
 
 func hasLogFileArg(args []string) bool {

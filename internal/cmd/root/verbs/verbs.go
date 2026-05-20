@@ -1,37 +1,40 @@
 package verbs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 )
 
 const (
-	Add      = VerbValue("add")
-	Listen   = VerbValue("listen")
-	Apply    = VerbValue("apply")
-	Adopt    = VerbValue("adopt")
-	Kai      = VerbValue("kai")
-	Lint     = VerbValue("lint")
-	API      = VerbValue("api")
-	Get      = VerbValue("get")
-	Create   = VerbValue("create")
-	Dump     = VerbValue("dump")
-	Update   = VerbValue("update")
-	Delete   = VerbValue("delete")
-	Help     = VerbValue("help")
-	List     = VerbValue("list")
-	Login    = VerbValue("login")
-	Install  = VerbValue("install")
-	Logout   = VerbValue("logout")
-	Plan     = VerbValue("plan")
-	View     = VerbValue("view")
-	Sync     = VerbValue("sync")
-	Diff     = VerbValue("diff")
-	Export   = VerbValue("export")
-	Patch    = VerbValue("patch")
-	Explain  = VerbValue("explain")
-	Scaffold = VerbValue("scaffold")
+	Add       = VerbValue("add")
+	Listen    = VerbValue("listen")
+	Apply     = VerbValue("apply")
+	Adopt     = VerbValue("adopt")
+	Lint      = VerbValue("lint")
+	API       = VerbValue("api")
+	Get       = VerbValue("get")
+	Create    = VerbValue("create")
+	Dump      = VerbValue("dump")
+	Update    = VerbValue("update")
+	Delete    = VerbValue("delete")
+	Help      = VerbValue("help")
+	List      = VerbValue("list")
+	Login     = VerbValue("login")
+	Install   = VerbValue("install")
+	Link      = VerbValue("link")
+	Logout    = VerbValue("logout")
+	Plan      = VerbValue("plan")
+	View      = VerbValue("view")
+	Sync      = VerbValue("sync")
+	Diff      = VerbValue("diff")
+	Export    = VerbValue("export")
+	Patch     = VerbValue("patch")
+	Explain   = VerbValue("explain")
+	Scaffold  = VerbValue("scaffold")
+	Uninstall = VerbValue("uninstall")
+	Upgrade   = VerbValue("upgrade")
 )
 
 // Empty type to represent the _type_ Verb. Genesis is to support a key in a Context
@@ -55,4 +58,16 @@ func NoPositionalArgs(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("unexpected argument %q: use -f/--filename to specify input files", args[0])
 	}
 	return nil
+}
+
+// KonnectFirstPreRunE returns a PersistentPreRunE that stamps the verb onto
+// the context and delegates to the konnect command's own PersistentPreRunE.
+func KonnectFirstPreRunE(verb VerbValue, konnectCmd *cobra.Command) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		cmd.SetContext(context.WithValue(cmd.Context(), Verb, verb))
+		if konnectCmd.PersistentPreRunE != nil {
+			return konnectCmd.PersistentPreRunE(cmd, args)
+		}
+		return nil
+	}
 }

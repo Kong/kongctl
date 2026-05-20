@@ -14,10 +14,17 @@ import (
 	"charm.land/lipgloss/v2"
 	tint "github.com/lrstanley/bubbletint/v2"
 	"github.com/lucasb-eyer/go-colorful"
+	"github.com/muesli/termenv"
 )
 
-// DefaultName is the built-in theme used when no override is provided.
+// AutoName selects a built-in Kong theme based on the terminal background.
+const AutoName = "auto"
+
+// DefaultName is the built-in Kong theme optimized for light terminal backgrounds.
 const DefaultName = "kong-light"
+
+// DarkName is the built-in Kong theme optimized for dark terminal backgrounds.
+const DarkName = "kong-dark"
 
 // LegacyName is the deprecated theme name kept for backward compatibility.
 const LegacyName = "kong"
@@ -36,6 +43,8 @@ const (
 	ColorPrimaryText   Token = "primary.text"
 	ColorAccent        Token = "accent"
 	ColorAccentText    Token = "accent.text"
+	ColorSelection     Token = "selection"
+	ColorSelectionText Token = "selection.text"
 	ColorSuccess       Token = "success"
 	ColorSuccessText   Token = "success.text"
 	ColorInfo          Token = "info"
@@ -123,16 +132,17 @@ func (p Palette) BackgroundStyle(token Token) lipgloss.Style {
 type contextKey struct{}
 
 var (
-	registryOnce         sync.Once
-	registryMu           sync.RWMutex
-	palettes             map[string]Palette
-	current              Palette
-	defaultPal           Palette
-	themeKey             contextKey
-	configuredExplicitly bool
-	darkBackgroundOnce   sync.Once
-	darkBackgroundCached bool
-	hasDarkBackground = detectDarkBackground
+	registryOnce             sync.Once
+	registryMu               sync.RWMutex
+	palettes                 map[string]Palette
+	current                  Palette
+	defaultPal               Palette
+	themeKey                 contextKey
+	configuredExplicitly     bool
+	darkBackgroundOnce       sync.Once
+	darkBackgroundCached     bool
+	hasDarkBackground        = detectDarkBackground
+	termenvHasDarkBackground = termenv.HasDarkBackground
 )
 
 func detectDarkBackground() bool {
@@ -145,7 +155,10 @@ func detectDarkBackground() bool {
 
 func detectDarkBackgroundFromEnv() bool {
 	dark, ok := darkBackgroundFromColorFGBG(os.Getenv("COLORFGBG"))
-	return ok && dark
+	if ok {
+		return dark
+	}
+	return termenvHasDarkBackground()
 }
 
 func darkBackgroundFromColorFGBG(value string) (bool, bool) {
@@ -223,6 +236,10 @@ func AvailableDisplayNames() map[string]string {
 func Exists(name string) bool {
 	ensureRegistry()
 
+	if resolveName(name) == AutoName {
+		return true
+	}
+
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
@@ -234,10 +251,15 @@ func Exists(name string) bool {
 func Get(name string) (Palette, bool) {
 	ensureRegistry()
 
+	name = resolveName(name)
+	if name == AutoName {
+		name = DetectDefaultName()
+	}
+
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
-	p, ok := palettes[resolveName(name)]
+	p, ok := palettes[name]
 	return p, ok
 }
 
@@ -247,7 +269,10 @@ func SetCurrent(name string) error {
 
 	name = resolveName(name)
 	if name == "" {
-		name = DefaultName
+		name = AutoName
+	}
+	if name == AutoName {
+		name = DetectDefaultName()
 	}
 
 	registryMu.Lock()
@@ -259,6 +284,15 @@ func SetCurrent(name string) error {
 	}
 	current = p
 	return nil
+}
+
+// DetectDefaultName returns the built-in Kong theme that best matches the
+// detected terminal background.
+func DetectDefaultName() string {
+	if hasDarkBackground() {
+		return DarkName
+	}
+	return DefaultName
 }
 
 // SetConfiguredExplicitly records whether the active theme was set by the user
@@ -300,8 +334,11 @@ type Flag struct {
 // NewFlag returns a Flag with the provided default value.
 func NewFlag(defaultValue string) *Flag {
 	name := resolveName(defaultValue)
-	if name == "" || !Exists(name) {
-		name = DefaultName
+	if name == "" {
+		name = AutoName
+	}
+	if name != AutoName && !Exists(name) {
+		name = AutoName
 	}
 	return &Flag{value: name}
 }
@@ -309,7 +346,7 @@ func NewFlag(defaultValue string) *Flag {
 // String implements pflag.Value.
 func (f *Flag) String() string {
 	if f == nil {
-		return DefaultName
+		return AutoName
 	}
 	return f.value
 }
@@ -318,7 +355,7 @@ func (f *Flag) String() string {
 func (f *Flag) Set(v string) error {
 	name := resolveName(v)
 	if name == "" {
-		name = DefaultName
+		name = AutoName
 	}
 	if !Exists(name) {
 		return fmt.Errorf("invalid color theme %q", v)
@@ -402,6 +439,8 @@ func resolveName(name string) string {
 	switch normalized {
 	case "":
 		return ""
+	case AutoName:
+		return AutoName
 	case LegacyName:
 		return DefaultName
 	default:
@@ -443,6 +482,8 @@ func paletteFromTint(t *tint.Tint) Palette {
 		ColorPrimaryText:   singleColor(contrastColor(accent)),
 		ColorAccent:        pairColor(accentBright, accentBright),
 		ColorAccentText:    singleColor(contrastColor(accentBright)),
+		ColorSelection:     pairColor(accentBright, accentBright),
+		ColorSelectionText: singleColor(contrastColor(accentBright)),
 		ColorSuccess:       pairColor(success, success),
 		ColorSuccessText:   singleColor(contrastColor(success)),
 		ColorInfo:          pairColor(info, info),
@@ -641,8 +682,10 @@ func kongLightPalette() Palette {
 			ColorSurfaceText:   singleColor("#000F06"),
 			ColorPrimary:       singleColor("#000F06"),
 			ColorPrimaryText:   singleColor("#FFFFFF"),
-			ColorAccent:        singleColor("#CCFF00"),
-			ColorAccentText:    singleColor("#000F06"),
+			ColorAccent:        singleColor("#005F28"),
+			ColorAccentText:    singleColor("#FFFFFF"),
+			ColorSelection:     singleColor("#CCFF00"),
+			ColorSelectionText: singleColor("#000F06"),
 			ColorSuccess:       singleColor("#000F06"),
 			ColorSuccessText:   singleColor("#FFFFFF"),
 			ColorInfo:          singleColor("#B7BDB5"),
@@ -658,7 +701,7 @@ func kongLightPalette() Palette {
 
 func kongDarkPalette() Palette {
 	return Palette{
-		Name:        "kong-dark",
+		Name:        DarkName,
 		DisplayName: "Kong Dark",
 		About:       "Kong dark theme based on the 2026 brand guidelines.",
 		Colors: map[Token]Color{
@@ -670,8 +713,10 @@ func kongDarkPalette() Palette {
 			ColorSurfaceText:   singleColor("#FFFFFF"),
 			ColorPrimary:       singleColor("#CCFF00"),
 			ColorPrimaryText:   singleColor("#000F06"),
-			ColorAccent:        singleColor("#B7BDB5"),
+			ColorAccent:        singleColor("#CCFF00"),
 			ColorAccentText:    singleColor("#000F06"),
+			ColorSelection:     singleColor("#CCFF00"),
+			ColorSelectionText: singleColor("#000F06"),
 			ColorSuccess:       singleColor("#CCFF00"),
 			ColorSuccessText:   singleColor("#000F06"),
 			ColorInfo:          singleColor("#B7BDB5"),

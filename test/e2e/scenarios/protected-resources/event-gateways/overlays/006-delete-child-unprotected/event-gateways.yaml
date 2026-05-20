@@ -12,3 +12,4 @@ event_gateways:
     kongctl:
       namespace: "egw-protection"
       protected: false
+    backend_clusters: []

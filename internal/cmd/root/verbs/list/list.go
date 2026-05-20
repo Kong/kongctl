@@ -8,7 +8,9 @@ import (
 	"github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -22,10 +24,10 @@ const (
 var (
 	listUse = Verb.String()
 
-	listShort = i18n.T("root.verbs.list.listShort", "Retrieve object lists")
+	listShort = i18n.T("root.verbs.list.listShort", "List resources or other collections")
 
 	listLong = normalizers.LongDesc(i18n.T("root.verbs.list.listLong",
-		`Use list to retrieve a list of objects.
+		`Use list to retrieve resources or other local collections.
 
 Further sub-commands are required to determine which remote system is contacted (if necessary). 
 The command will return a list depending on further arguments.
@@ -33,16 +35,18 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 	listExamples = normalizers.Examples(i18n.T("root.verbs.list.listExamples",
 		fmt.Sprintf(`
+		# Retrieve Konnect control planes
+		%[1]s list konnect gateway control-planes
+		# Retrieve Konnect control planes ('konnect' is implied)
+		%[1]s list gateway control-planes
 		# Retrieve Konnect portals
 		%[1]s list portals
 		# Retrieve Konnect APIs
 		%[1]s list apis
 		# Retrieve Konnect auth strategies
 		%[1]s list auth-strategies
-		# Retrieve Konnect control planes (Konnect-first)
-		%[1]s list gateway control-planes
-		# Retrieve Konnect control planes (explicit)
-		%[1]s list konnect gateway control-planes
+		# Retrieve kongctl extensions
+		%[1]s list extensions
 		`, meta.CLIName)))
 )
 
@@ -58,6 +62,7 @@ func NewListCmd() (*cobra.Command, error) {
 			return bindKonnectFlags(c, args)
 		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 
 	// Add Konnect-specific flags as persistent flags so they appear in help
 	cmd.PersistentFlags().String(common.BaseURLFlagName, "",
@@ -93,6 +98,8 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(c)
 
+	cmd.AddCommand(profileCmd.NewProfileCmd())
+
 	// Add portal command directly for Konnect-first pattern
 	portalCmd, err := NewDirectPortalCmd()
 	if err != nil {
@@ -114,6 +121,13 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(authStrategyCmd)
 
+	// Add DCR provider command directly for Konnect-first pattern
+	dcrProviderCmd, err := NewDirectDCRProviderCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(dcrProviderCmd)
+
 	// Add gateway command directly for Konnect-first pattern
 	gatewayCmd, err := NewDirectGatewayCmd()
 	if err != nil {
@@ -122,6 +136,7 @@ Setting this value overrides tokens obtained from the login command.
 	cmd.AddCommand(gatewayCmd)
 
 	cmd.AddCommand(newThemesCmd())
+	cmd.AddCommand(extensioncmd.NewListExtensionsCmd())
 
 	organizationCmd, err := NewDirectOrganizationCmd()
 	if err != nil {

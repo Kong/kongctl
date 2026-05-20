@@ -1,0 +1,25 @@
+application_auth_strategies:
+  - ref: adopt-e2e-auth-strategy
+    name: adopt-e2e-auth-strategy
+    display_name: "Adopt E2E Auth Strategy"
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-API-Key
+          - apikey
+    kongctl:
+      namespace: team-auth-test
+      protected: false
+
+  - ref: adopt-e2e-auth-strategy-uuid
+    name: adopt-e2e-auth-strategy-uuid
+    display_name: "Adopt E2E Auth Strategy UUID"
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-API-Key
+    kongctl:
+      namespace: team-auth-test
+      protected: false

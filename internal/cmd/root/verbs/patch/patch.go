@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -46,13 +47,11 @@ func NewPatchCmd() (*cobra.Command, error) {
 		Long:    patchLong,
 		Example: patchExamples,
 		Aliases: []string{"p"},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
 		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 
 	cmd.AddCommand(newFileCmd())
 

@@ -90,3 +90,86 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "is too large"
+
+  - name: 006-bare-apply-no-file
+    skipInputs: true
+    commands:
+      - name: 000-bare-apply
+        outputFormat: disable
+        run:
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "no configuration sources specified"
+
+  - name: 007-bare-sync-no-file
+    skipInputs: true
+    commands:
+      - name: 000-bare-sync
+        outputFormat: disable
+        run:
+          - sync
+        expectFailure:
+          exitCode: 1
+          contains: "no configuration sources specified"
+
+  - name: 008-bare-plan-no-file
+    skipInputs: true
+    commands:
+      - name: 000-bare-plan
+        outputFormat: disable
+        run:
+          - plan
+        expectFailure:
+          exitCode: 1
+          contains: "no configuration sources specified"
+
+  - name: 009-bare-diff-no-file
+    skipInputs: true
+    commands:
+      - name: 000-bare-diff
+        outputFormat: disable
+        run:
+          - diff
+        expectFailure:
+          exitCode: 1
+          contains: "no configuration sources specified"
+
+  - name: 010-mode-plan-conflict
+    skipInputs: true
+    commands:
+      - name: 000-diff-mode-apply-and-plan
+        run:
+          - diff
+          - --mode
+          - apply
+          - --plan
+          - "{{ .scenario_dir }}/testdata/empty.plan"
+        expectFailure:
+          exitCode: 1
+          contains: "--mode cannot be used together with --plan"
+
+      - name: 001-diff-mode-delete-and-plan
+        run:
+          - diff
+          - --mode
+          - delete
+          - --plan
+          - "{{ .scenario_dir }}/testdata/empty.plan"
+        expectFailure:
+          exitCode: 1
+          contains: "--mode cannot be used together with --plan"
+
+  - name: 011-require-namespace-plan-conflict
+    skipInputs: true
+    commands:
+      - name: 000-diff-require-ns-and-plan
+        run:
+          - diff
+          - --require-namespace
+          - my-ns
+          - --plan
+          - "{{ .scenario_dir }}/testdata/empty.plan"
+        expectFailure:
+          exitCode: 1
+          contains: "--require-namespace cannot be used together with --plan"

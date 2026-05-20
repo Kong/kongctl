@@ -95,3 +95,24 @@ steps:
               fields:
                 failed: 0
                 total_changes: 0
+
+  - name: 003-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-modify
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete

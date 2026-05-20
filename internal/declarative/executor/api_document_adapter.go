@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -25,30 +26,30 @@ func (a *APIDocumentAdapter) MapCreateFields(
 	create *kkComps.CreateAPIDocumentRequest,
 ) error {
 	// Required fields
-	title, ok := fields["title"].(string)
+	title, ok := fields[planner.FieldTitle].(string)
 	if !ok {
 		return fmt.Errorf("title is required")
 	}
 	create.Title = &title
 
-	content, ok := fields["content"].(string)
+	content, ok := fields[planner.FieldContent].(string)
 	if !ok {
 		return fmt.Errorf("content is required")
 	}
 	create.Content = content
 
 	// Optional fields
-	if slug, ok := fields["slug"].(string); ok {
+	if slug, ok := fields[planner.FieldSlug].(string); ok {
 		create.Slug = &slug
 	}
 
-	if statusStr, ok := fields["status"].(string); ok {
+	if statusStr, ok := fields[planner.FieldStatus].(string); ok {
 		status := kkComps.APIDocumentStatus(statusStr)
 		create.Status = &status
 	}
 
 	if execCtx != nil && execCtx.PlannedChange != nil {
-		if parentRef, ok := execCtx.PlannedChange.References["parent_document_id"]; ok {
+		if parentRef, ok := execCtx.PlannedChange.References[planner.FieldParentDocumentID]; ok {
 			if parentRef.ID != "" && parentRef.ID != resources.UnknownReferenceID {
 				create.ParentDocumentID = &parentRef.ID
 			}
@@ -56,7 +57,7 @@ func (a *APIDocumentAdapter) MapCreateFields(
 	}
 
 	if create.ParentDocumentID == nil {
-		if parentID, ok := fields["parent_document_id"].(string); ok && parentID != "" {
+		if parentID, ok := fields[planner.FieldParentDocumentID].(string); ok && parentID != "" {
 			create.ParentDocumentID = &parentID
 		}
 	}
@@ -69,25 +70,25 @@ func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, execCtx *Executi
 	update *kkComps.APIDocument, _ map[string]string,
 ) error {
 	// Optional fields - all fields are optional for updates
-	if title, ok := fields["title"].(string); ok {
+	if title, ok := fields[planner.FieldTitle].(string); ok {
 		update.Title = &title
 	}
 
-	if content, ok := fields["content"].(string); ok {
+	if content, ok := fields[planner.FieldContent].(string); ok {
 		update.Content = &content
 	}
 
-	if slug, ok := fields["slug"].(string); ok {
+	if slug, ok := fields[planner.FieldSlug].(string); ok {
 		update.Slug = &slug
 	}
 
-	if statusStr, ok := fields["status"].(string); ok {
+	if statusStr, ok := fields[planner.FieldStatus].(string); ok {
 		status := kkComps.APIDocumentStatus(statusStr)
 		update.Status = &status
 	}
 
 	if execCtx != nil && execCtx.PlannedChange != nil {
-		if parentRef, ok := execCtx.PlannedChange.References["parent_document_id"]; ok {
+		if parentRef, ok := execCtx.PlannedChange.References[planner.FieldParentDocumentID]; ok {
 			if parentRef.ID != "" && parentRef.ID != resources.UnknownReferenceID {
 				update.ParentDocumentID = &parentRef.ID
 			}
@@ -95,7 +96,7 @@ func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, execCtx *Executi
 	}
 
 	if update.ParentDocumentID == nil {
-		if parentID, ok := fields["parent_document_id"].(string); ok && parentID != "" {
+		if parentID, ok := fields[planner.FieldParentDocumentID].(string); ok && parentID != "" {
 			update.ParentDocumentID = &parentID
 		}
 	}
@@ -177,12 +178,12 @@ func (a *APIDocumentAdapter) GetByID(ctx context.Context, id string, execCtx *Ex
 
 // ResourceType returns the resource type name
 func (a *APIDocumentAdapter) ResourceType() string {
-	return "api_document"
+	return planner.ResourceTypeAPIDocument
 }
 
 // RequiredFields returns the required fields for creation
 func (a *APIDocumentAdapter) RequiredFields() []string {
-	return []string{"title", "content"}
+	return []string{planner.FieldTitle, planner.FieldContent}
 }
 
 // SupportsUpdate returns true as documents support updates
@@ -199,7 +200,7 @@ func (a *APIDocumentAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionCont
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for Create operations)
-	if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
+	if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID != "" {
 		return apiRef.ID, nil
 	}
 

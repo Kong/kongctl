@@ -1,0 +1,36 @@
+_defaults:
+  kongctl:
+    namespace: org-sa-sync-e2e
+
+apis:
+  - ref: org-sa-sync-api
+    name: org-sa-sync-api
+    description: API used by the organization system account sync E2E scenario
+
+organization:
+  teams:
+    - ref: org-sa-sync-team
+      name: Organization SA Sync Team
+      description: Team used by the organization system account sync E2E scenario
+      labels:
+        scenario: org-sa-sync
+      roles:
+        - ref: org-sa-sync-team-api-viewer
+          role_name: Viewer
+          entity_id: !ref org-sa-sync-api#id
+          entity_type_name: APIs
+          entity_region: us
+        - ref: org-sa-sync-team-wildcard-admin
+          role_name: Admin
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: "*"
+  system-accounts:
+    - ref: e2e-system-account
+      id: "{{ .vars.system_account_id }}"
+      roles:
+        - ref: org-sa-sync-sa-wildcard-admin
+          role_name: Admin
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: "*"

@@ -93,7 +93,12 @@ func (p *Planner) planListenerChangesForExistingGateway(
 
 			// Plan listener policies for this new listener (depends on listener creation)
 			listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
-			if len(listenerPolicies) > 0 {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayListener,
+				desiredListener.Ref,
+				resources.ResourceTypeEventGatewayListenerPolicy,
+			) && len(listenerPolicies) > 0 {
 				if err := p.planEventGatewayListenerPolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredListener.Name, "", desiredListener.Ref,
@@ -130,7 +135,12 @@ func (p *Planner) planListenerChangesForExistingGateway(
 
 			// Plan listener policies for this existing listener
 			listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
-			if len(listenerPolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayListener,
+				desiredListener.Ref,
+				resources.ResourceTypeEventGatewayListenerPolicy,
+			) && (len(listenerPolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
 				if err := p.planEventGatewayListenerPolicyChanges(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredListener.Name, current.ID, desiredListener.Ref,
@@ -186,7 +196,12 @@ func (p *Planner) planListenerCreatesForNewGateway(
 
 		// Plan listener policies for this new listener (depends on listener creation)
 		listenerPolicies := p.resources.GetPoliciesForListener(listener.Ref)
-		if len(listenerPolicies) > 0 {
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeEventGatewayListener,
+			listener.Ref,
+			resources.ResourceTypeEventGatewayListenerPolicy,
+		) && len(listenerPolicies) > 0 {
 			p.planListenerPolicyCreatesForNewListener(
 				namespace, gatewayRef, listener.Ref, listener.Name,
 				listenerChangeID, listenerPolicies, plan,
@@ -206,15 +221,15 @@ func (p *Planner) planListenerCreate(
 	plan *Plan,
 ) string {
 	fields := make(map[string]any)
-	fields["name"] = listener.Name
+	fields[FieldName] = listener.Name
 	if listener.Description != nil {
-		fields["description"] = *listener.Description
+		fields[FieldDescription] = *listener.Description
 	}
-	fields["addresses"] = listener.Addresses
+	fields[FieldAddresses] = listener.Addresses
 	// Normalize ports to strings for API compatibility
-	fields["ports"] = normalizePortsToStrings(convertPortsToAny(listener.Ports))
+	fields[FieldPorts] = normalizePortsToStrings(convertPortsToAny(listener.Ports))
 	if len(listener.Labels) > 0 {
-		fields["labels"] = listener.Labels
+		fields[FieldLabels] = listener.Labels
 	}
 
 	change := PlannedChange{
@@ -236,11 +251,11 @@ func (p *Planner) planListenerCreate(
 	} else {
 		// Gateway doesn't exist yet, add reference for runtime resolution
 		change.References = map[string]ReferenceInfo{
-			"event_gateway_id": {
+			FieldEventGatewayID: {
 				Ref: gatewayRef,
 				ID:  "", // to be resolved at runtime
 				LookupFields: map[string]string{
-					"name": gatewayName,
+					FieldName: gatewayName,
 				},
 			},
 		}
@@ -420,7 +435,7 @@ func (p *Planner) shouldUpdateListener(
 	// Compare name
 	if current.Name != desired.Name {
 		needsUpdate = true
-		changes["name"] = FieldChange{
+		changes[FieldName] = FieldChange{
 			Old: current.Name,
 			New: desired.Name,
 		}
@@ -437,7 +452,7 @@ func (p *Planner) shouldUpdateListener(
 	}
 	if currentDesc != desiredDesc {
 		needsUpdate = true
-		changes["description"] = FieldChange{
+		changes[FieldDescription] = FieldChange{
 			Old: currentDesc,
 			New: desiredDesc,
 		}
@@ -446,7 +461,7 @@ func (p *Planner) shouldUpdateListener(
 	// Compare addresses
 	if !compareStringSlices(current.Addresses, desired.Addresses) {
 		needsUpdate = true
-		changes["addresses"] = FieldChange{
+		changes[FieldAddresses] = FieldChange{
 			Old: current.Addresses,
 			New: desired.Addresses,
 		}
@@ -458,7 +473,7 @@ func (p *Planner) shouldUpdateListener(
 	desiredPortStrings := extractPortStrings(desired.Ports)
 	if !compareStringSlices(currentPortStrings, desiredPortStrings) {
 		needsUpdate = true
-		changes["ports"] = FieldChange{
+		changes[FieldPorts] = FieldChange{
 			Old: currentPortStrings,
 			New: desiredPortStrings,
 		}
@@ -468,14 +483,14 @@ func (p *Planner) shouldUpdateListener(
 	if desired.Labels != nil {
 		if !compareMaps(current.Labels, desired.Labels) {
 			needsUpdate = true
-			changes["labels"] = FieldChange{
+			changes[FieldLabels] = FieldChange{
 				Old: current.Labels,
 				New: desired.Labels,
 			}
 		}
 	} else if len(current.Labels) > 0 {
 		needsUpdate = true
-		changes["labels"] = FieldChange{
+		changes[FieldLabels] = FieldChange{
 			Old: current.Labels,
 			New: map[string]string{},
 		}
@@ -483,21 +498,21 @@ func (p *Planner) shouldUpdateListener(
 
 	// If any changes detected, set ALL properties from desired state for PUT request
 	if needsUpdate {
-		updates["name"] = desired.Name
+		updates[FieldName] = desired.Name
 
 		if desired.Description != nil {
-			updates["description"] = *desired.Description
+			updates[FieldDescription] = *desired.Description
 		}
 
-		updates["addresses"] = desired.Addresses
+		updates[FieldAddresses] = desired.Addresses
 		// Extract string values from ports for updates
-		updates["ports"] = extractPortStrings(desired.Ports)
+		updates[FieldPorts] = extractPortStrings(desired.Ports)
 
 		if len(desired.Labels) > 0 {
-			updates["labels"] = desired.Labels
+			updates[FieldLabels] = desired.Labels
 		} else if len(current.Labels) > 0 {
 			// Clear labels if desired state has no labels but current state has labels
-			updates["labels"] = map[string]string{}
+			updates[FieldLabels] = map[string]string{}
 		}
 	}
 

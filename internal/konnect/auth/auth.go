@@ -12,7 +12,6 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/google/uuid"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkMetadata "github.com/Kong/sdk-konnect-go/pkg/metadata"
 
 	"github.com/kong/kongctl/internal/config"
@@ -102,12 +100,38 @@ type AccessToken struct {
 }
 
 func (t *AccessToken) IsExpired() bool {
-	return time.Now().After(t.ReceivedAt.Add(time.Duration(t.Token.ExpiresAfter) * time.Second))
+	return t.expiresWithin(0)
+}
+
+// trustedKonnectDomains is the allow list of Kong-owned domains accepted as
+// Konnect API endpoints. konghq.tech is used for staging/test environments.
+var trustedKonnectDomains = []string{"konghq.com", "konghq.tech"}
+
+// ValidateKonnectURL parses rawURL and ensures it uses HTTPS and targets a
+// trusted Kong-owned domains.
+func ValidateKonnectURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid Konnect URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("konnect URL must use HTTPS, got %q", u.Scheme)
+	}
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	for _, domain := range trustedKonnectDomains {
+		if host == domain || strings.HasSuffix(host, "."+domain) {
+			return nil
+		}
+	}
+	return fmt.Errorf("konnect URL host %q is not a trusted konghq.com domain", host)
 }
 
 func RequestDeviceCode(httpClient *http.Client,
 	url string, clientID string, logger *slog.Logger,
 ) (DeviceCodeResponse, error) {
+	if err := ValidateKonnectURL(url); err != nil {
+		return DeviceCodeResponse{}, err
+	}
 	logger.Info("Requesting device code", "url", url, "client_id", clientID)
 	requestBody := struct {
 		ClientID uuid.UUID `form:"client_id"`
@@ -135,6 +159,14 @@ func RequestDeviceCode(httpClient *http.Client,
 		logger.Error("Device code request failed", "error", err)
 		return DeviceCodeResponse{}, err
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return DeviceCodeResponse{}, fmt.Errorf(
+			"device code request to %s failed with HTTP %d",
+			url, resp.StatusCode,
+		)
+	}
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -160,6 +192,10 @@ func RefreshAccessToken(
 ) (*AccessToken, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := ValidateKonnectURL(refreshURL); err != nil {
 		return nil, err
 	}
 
@@ -193,6 +229,7 @@ func RefreshAccessToken(
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to refresh token: %s", res.Status)
 	}
@@ -230,6 +267,9 @@ func RefreshAccessToken(
 func PollForToken(ctx context.Context, httpClient *http.Client,
 	url string, clientID string, deviceCode string, logger *slog.Logger,
 ) (*AccessToken, error) {
+	if err := ValidateKonnectURL(url); err != nil {
+		return nil, err
+	}
 	logger.Info("Polling for token", "url", url, "client_id", clientID, "device_code", deviceCode)
 	requestBody := struct {
 		GrantType  string    `form:"grant_type"`
@@ -309,9 +349,8 @@ func LoadAccessToken(
 	transportOptions httpclient.TransportOptions,
 	logger *slog.Logger,
 ) (*AccessToken, error) {
-	profile := cfg.GetProfile()
-	cfgPath := filepath.Dir(cfg.GetPath())
-	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
+	logger = loggerOrDiscard(logger)
+	credsPath := credentialFilePath(cfg)
 
 	creds, err := loadAccessTokenFromDisk(credsPath)
 	if err != nil {
@@ -357,19 +396,11 @@ func loadAccessTokenFromDisk(path string) (*AccessToken, error) {
 }
 
 func SaveAccessToken(cfg config.Hook, token *AccessToken) error {
-	profile := cfg.GetProfile()
-	cfgPath := filepath.Dir(cfg.GetPath())
-	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
-
-	return saveAccessTokenToDisk(credsPath, token)
+	return saveAccessTokenToDisk(credentialFilePath(cfg), token)
 }
 
 func DeleteAccessToken(cfg config.Hook) (bool, error) {
-	profile := cfg.GetProfile()
-	cfgPath := filepath.Dir(cfg.GetPath())
-	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
-
-	err := os.Remove(credsPath)
+	err := os.Remove(credentialFilePath(cfg))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
@@ -396,18 +427,22 @@ func saveAccessTokenToDisk(path string, token *AccessToken) error {
 
 func GetAuthenticatedClient(
 	baseURL string,
-	token string,
+	tokenSource *TokenSource,
 	timeout time.Duration,
 	transportOptions httpclient.TransportOptions,
+	retryConfig *httpclient.RetryConfig,
 	logger *slog.Logger,
 ) (*kk.SDK, kk.HTTPClient, error) {
+	if err := ValidateKonnectURL(baseURL); err != nil {
+		return nil, nil, err
+	}
 	kkMetadata.SetUserAgent(meta.UserAgent())
 
 	opts := []kk.SDKOption{
 		kk.WithServerURL(baseURL),
-		kk.WithSecurity(kkComps.Security{
-			PersonalAccessToken: new(token),
-		}),
+	}
+	if tokenSource != nil {
+		opts = append(opts, kk.WithSecuritySource(tokenSource.Security))
 	}
 
 	loggingClient := httpclient.NewLoggingHTTPClientWithClient(
@@ -417,7 +452,13 @@ func GetAuthenticatedClient(
 		}),
 		logger,
 	)
-	opts = append(opts, kk.WithClient(loggingClient))
+	refreshingClient := NewRefreshingHTTPClient(loggingClient, tokenSource)
 
-	return kk.New(opts...), loggingClient, nil
+	var sdkHTTPClient kk.HTTPClient = refreshingClient
+	if retryConfig != nil && retryConfig.Strategy == httpclient.RetryStrategyBackoff {
+		sdkHTTPClient = httpclient.NewRetryingHTTPClient(refreshingClient, *retryConfig, logger)
+	}
+	opts = append(opts, kk.WithClient(sdkHTTPClient))
+
+	return kk.New(opts...), sdkHTTPClient, nil
 }

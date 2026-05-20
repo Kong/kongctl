@@ -2,7 +2,6 @@ package eventgateway
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -313,10 +313,7 @@ func fetchListeners(
 	cfg config.Hook,
 	nameFilter string,
 ) ([]kkComps.EventGatewayListener, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
-	}
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allData []kkComps.EventGatewayListener
 	var pageAfter *string
@@ -353,21 +350,13 @@ func fetchListeners(
 		data := res.GetListEventGatewayListenersResponse().Data
 		allData = append(allData, data...)
 
-		if res.GetListEventGatewayListenersResponse().Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(
+			res.GetListEventGatewayListenersResponse().Meta.Page.Next,
+		)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.GetListEventGatewayListenersResponse().Meta.Page.Next)
-		if err != nil {
-			return nil, cmd.PrepareExecutionError(
-				"Failed to list listeners: invalid cursor",
-				err,
-				helper.GetCmd(),
-			)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	return allData, nil
@@ -377,8 +366,7 @@ func findListenerByName(listeners []kkComps.EventGatewayListener, name string) *
 	lowered := strings.ToLower(name)
 	for _, listener := range listeners {
 		if listener.Name != "" && strings.ToLower(listener.Name) == lowered {
-			listenerCopy := listener
-			return &listenerCopy
+			return &listener
 		}
 	}
 	return nil
@@ -486,7 +474,7 @@ func buildListenerChildView(listeners []kkComps.EventGatewayListener, gatewayID 
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Listeners",
-		ParentType:     "listener",
+		ParentType:     common.ViewParentListener,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(listeners) {
 				return nil

@@ -70,9 +70,19 @@ func (b *BasePlanner) GetDesiredCatalogServices(namespace string) []resources.Ca
 	return b.planner.resources.GetCatalogServicesByNamespace(namespace)
 }
 
+// GetDesiredDashboards returns desired dashboard resources from the specified namespace.
+func (b *BasePlanner) GetDesiredDashboards(namespace string) []resources.DashboardResource {
+	return b.planner.resources.GetDashboardsByNamespace(namespace)
+}
+
 // GetDesiredAuthStrategies returns desired auth strategy resources from the specified namespace
 func (b *BasePlanner) GetDesiredAuthStrategies(namespace string) []resources.ApplicationAuthStrategyResource {
 	return b.planner.resources.GetAuthStrategiesByNamespace(namespace)
+}
+
+// GetDesiredDCRProviders returns desired DCR provider resources from the specified namespace
+func (b *BasePlanner) GetDesiredDCRProviders(namespace string) []resources.DCRProviderResource {
+	return b.planner.resources.GetDCRProvidersByNamespace(namespace)
 }
 
 // GetDesiredAPIs returns desired API resources from the specified namespace
@@ -110,6 +120,21 @@ func (b *BasePlanner) GetDesiredPortalAuthSettings(namespace string) []resources
 	return b.planner.resources.GetPortalAuthSettingsByNamespace(namespace)
 }
 
+// GetDesiredPortalIPAllowLists returns desired portal IP allow list resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalIPAllowLists(namespace string) []resources.PortalIPAllowListResource {
+	return b.planner.resources.GetPortalIPAllowListsByNamespace(namespace)
+}
+
+// GetDesiredPortalIntegrations returns desired portal integration resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalIntegrations(namespace string) []resources.PortalIntegrationResource {
+	return b.planner.resources.GetPortalIntegrationsByNamespace(namespace)
+}
+
+// GetDesiredPortalIdentityProviders returns desired portal identity provider resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalIdentityProviders(namespace string) []resources.PortalIdentityProviderResource {
+	return b.planner.resources.GetPortalIdentityProvidersByNamespace(namespace)
+}
+
 // GetDesiredPortalCustomDomains returns desired portal custom domain resources from the specified namespace
 func (b *BasePlanner) GetDesiredPortalCustomDomains(namespace string) []resources.PortalCustomDomainResource {
 	return b.planner.resources.GetPortalCustomDomainsByNamespace(namespace)
@@ -118,6 +143,11 @@ func (b *BasePlanner) GetDesiredPortalCustomDomains(namespace string) []resource
 // GetDesiredPortalEmailConfigs returns desired portal email config resources from the specified namespace
 func (b *BasePlanner) GetDesiredPortalEmailConfigs(namespace string) []resources.PortalEmailConfigResource {
 	return b.planner.resources.GetPortalEmailConfigsByNamespace(namespace)
+}
+
+// GetDesiredPortalAuditLogWebhooks returns desired portal audit-log webhook resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalAuditLogWebhooks(namespace string) []resources.PortalAuditLogWebhookResource {
+	return b.planner.resources.GetPortalAuditLogWebhooksByNamespace(namespace)
 }
 
 // GetDesiredPortalPages returns desired portal page resources from the specified namespace
@@ -140,6 +170,37 @@ func (b *BasePlanner) GetDesiredEventGatewayControlPlanes(
 // GetDesiredOrganizationTeams returns desired organization_team resources from the specified namespace
 func (b *BasePlanner) GetDesiredOrganizationTeams(namespace string) []resources.OrganizationTeamResource {
 	return b.planner.resources.GetOrganizationTeamsByNamespace(namespace)
+}
+
+// GetDesiredOrganizationTeamRoles returns desired organization_team_role resources from the specified namespace.
+func (b *BasePlanner) GetDesiredOrganizationTeamRoles(namespace string) []resources.OrganizationTeamRoleResource {
+	return b.planner.resources.GetOrganizationTeamRolesByNamespace(namespace)
+}
+
+// GetDesiredOrganizationUserTeamMemberships returns desired user team memberships from the specified namespace.
+func (b *BasePlanner) GetDesiredOrganizationUserTeamMemberships(
+	namespace string,
+) []resources.OrganizationUserTeamMembershipResource {
+	return b.planner.resources.GetOrganizationUserTeamMembershipsByNamespace(namespace)
+}
+
+// GetDesiredOrganizationUserRoles returns desired organization user roles from the specified namespace.
+func (b *BasePlanner) GetDesiredOrganizationUserRoles(namespace string) []resources.OrganizationUserRoleResource {
+	return b.planner.resources.GetOrganizationUserRolesByNamespace(namespace)
+}
+
+// GetDesiredOrganizationSystemAccountTeamMemberships returns desired system account team memberships.
+func (b *BasePlanner) GetDesiredOrganizationSystemAccountTeamMemberships(
+	namespace string,
+) []resources.OrganizationSystemAccountTeamMembershipResource {
+	return b.planner.resources.GetOrganizationSystemAccountTeamMembershipsByNamespace(namespace)
+}
+
+// GetDesiredOrganizationSystemAccountRoles returns desired organization system account roles.
+func (b *BasePlanner) GetDesiredOrganizationSystemAccountRoles(
+	namespace string,
+) []resources.OrganizationSystemAccountRoleResource {
+	return b.planner.resources.GetOrganizationSystemAccountRolesByNamespace(namespace)
 }
 
 // GetGenericPlanner returns the generic planner instance

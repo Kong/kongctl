@@ -1,0 +1,15 @@
+rules:
+  must-have-name:
+    description: "All objects must have a name field"
+    given: "$"
+    severity: error
+    then:
+      field: name
+      function: truthy
+  should-have-version:
+    description: "Objects should include a version field"
+    given: "$"
+    severity: warn
+    then:
+      field: version
+      function: truthy

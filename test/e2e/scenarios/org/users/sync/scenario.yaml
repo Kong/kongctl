@@ -1,0 +1,233 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  assignedEnvironment: kongctl-acceptance
+  requiredEnvVars:
+    - KONGCTL_E2E_ORG_USER_EMAIL_1
+    - KONGCTL_E2E_ORG_USER_EMAIL_2
+  info: >-
+    Organization users sync E2E requires two existing Konnect users via
+    KONGCTL_E2E_ORG_USER_EMAIL_1 and KONGCTL_E2E_ORG_USER_EMAIL_2; users are
+    lookup selectors, not managed resources.
+
+vars:
+  namespace: org-users-sync-e2e
+  apiRef: org-users-sync-api
+  teamRef: org-users-sync-team
+  teamName: Organization Users Sync Team
+  teamApiViewerRoleRef: org-users-sync-team-api-viewer
+  teamWildcardAdminRoleRef: org-users-sync-team-wildcard-admin
+  user1ApiViewerRoleRef: org-users-sync-user1-api-viewer
+  user1WildcardAdminRoleRef: org-users-sync-user1-wildcard-admin
+  user2WildcardViewerRoleRef: org-users-sync-user2-wildcard-viewer
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+      - email
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-initial
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 7
+                by_action.CREATE: 7
+          - select: summary
+            expect:
+              fields:
+                applied: 7
+                failed: 0
+                status: success
+          - select: plan.changes[?resource_type=='organization_user_team_membership']
+            expect:
+              fields:
+                "length(@)": 2
+          - select: plan.changes[?resource_type=='organization_user_role']
+            expect:
+              fields:
+                "length(@)": 2
+          - select: plan.changes[?resource_type=='organization_team_role']
+            expect:
+              fields:
+                "length(@)": 1
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' &&
+                            resource_ref=='{{ .vars.teamApiViewerRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+
+      - name: 001-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 002-sync-update
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='organization_user_team_membership' &&
+                            action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_user_role' &&
+                            action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' &&
+                            resource_ref=='{{ .vars.teamWildcardAdminRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Admin
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: "*"
+          - select: >-
+              plan.changes[?resource_type=='organization_user_role' &&
+                            resource_ref=='{{ .vars.user1WildcardAdminRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Admin
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: "*"
+
+      - name: 001-get-team-roles
+        run:
+          - get
+          - org
+          - team
+          - roles
+          - --team-name
+          - "{{ .vars.teamName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+          - select: "[?role_name=='Admin'] | [0]"
+            expect:
+              fields:
+                role_name: Admin
+                entity_id: "*"
+                entity_type_name: APIs
+                entity_region: "*"
+
+      - name: 002-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-cleanup
+    inputOverlayDirs:
+      - overlays/003-cleanup
+    commands:
+      - name: 000-sync-remove-assignments
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 001-delete-managed-resources
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

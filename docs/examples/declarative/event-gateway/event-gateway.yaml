@@ -1,0 +1,134 @@
+event_gateways:
+  - ref: my-event-gateway
+    name: my-event-gateway
+    description: "My Event Gateway Control Plane"
+    listeners:
+      - ref: default-listener-ref
+        name: default-listener-name
+        description: "Default Listener description"
+        ports:
+          - 9092
+          - "9093-9095"
+        addresses:
+          - localhost
+        policies:
+          - ref: default-listener-1-policy-1-ref
+            name: default-listener-1-policy-1
+            type: forward_to_virtual_cluster
+            description: "Default Listener 1 root level Policy 1"
+            enabled: true
+            labels:
+              env: staging
+              team: payments
+            config:
+              type: sni
+              advertised_port: 9092
+              sni_suffix: ".example.com"
+    backend_clusters:
+      - ref: default-backend-cluster
+        name: default-backend-cluster
+        description: "Backend Cluster"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+          - "egw-backend-2.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: default-virtual-cluster
+        name: default-virtual-cluster
+        description: "Virtual Cluster"
+        destination:
+          id: !ref default-backend-cluster#id
+        authentication:
+          - type: anonymous
+        acl_mode: enforce_on_gateway
+        dns_label: vc-default
+        cluster_policies:
+          - ref: default-cluster-policy
+            name: default-cluster-policy-name-for-test
+            description: Default Cluster Policy description
+            type: acls
+            enabled: true
+            config:
+              rules:
+                - action: "deny"
+                  operations:
+                    - name: "describe_configs"
+                  resource_names:
+                    - match: "*"
+                  resource_type: "transactional_id"
+        produce_policies:
+          - ref: default-produce-policy
+            name: default-produce-policy
+            description: Default Produce Policy
+            type: modify_headers
+            enabled: true
+            config:
+              actions:
+                - op: set
+                  key: x-producer-id
+                  value: "${client_id}"
+                - op: remove
+                  key: x-original-header
+        consume_policies:
+          - ref: default-consume-policy
+            name: default-consume-policy
+            description: ""
+            condition: ""
+            type: schema_validation
+            enabled: true
+            config:
+              key_validation_action: mark
+              type: json
+              value_validation_action: skip
+    schema_registries:
+      - ref: default-schema-registry
+        name: default-schema-registry
+        description: "Default Schema Registry"
+        type: confluent
+        config:
+          schema_type: json
+          endpoint: https://schema-registry.example.com
+          timeout_seconds: 30
+          authentication:
+            type: basic
+            username: testuser
+            password: "${env[\"KAFKA_PASSWORD\"]}"
+    static_keys:
+      - ref: default-static-key
+        name: default-static-key
+        description: "Default Static Key"
+        value: !env "ENV_STATIC_KEY_VALUE"
+    tls_trust_bundles:
+      - ref: default-tls-trust-bundle
+        name: default-tls-trust-bundle
+        description: "Default TLS Trust Bundle"
+        config:
+          trusted_ca: |-
+            -----BEGIN CERTIFICATE-----
+            <base64-encoded-certificate>
+            -----END CERTIFICATE-----
+    data_plane_certificates:
+      - ref: default-dataplane-certificate-ref
+        name: default-dataplane-certificate-name
+        description: "Default Dataplane Certificate description"
+        certificate: |-
+          -----BEGIN CERTIFICATE-----
+          MIIB4TCCAYugAwIBAgIUAenxUyPjkSLCe2BQXoBMBacqgLowDQYJKoZIhvcNAQEL
+          BQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
+          GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yNDEwMjgyMDA3NDlaFw0zNDEw
+          MjYyMDA3NDlaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+          HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwXDANBgkqhkiG9w0BAQEF
+          AANLADBIAkEAyzipjrbAaLO/yPg7lL1dLWzhqNdc3S4YNR7f1RG9whWhbsPE2z42
+          e6WGFf9hggP6xjG4qbU8jFVczpd1UPwGbQIDAQABo1MwUTAdBgNVHQ4EFgQUkPPB
+          ghj+iHOHAKJlC1gLbKT/ZHQwHwYDVR0jBBgwFoAUkPPBghj+iHOHAKJlC1gLbKT/
+          ZHQwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAANBALfy49GvA2ld+u+G
+          Koxa8kCt7uywoqu0hfbBfUT4HqmXPvsuhz8RinE5ltxId108vtDNlD/+bKl+N5Ub
+          qKjBs0k=
+          -----END CERTIFICATE-----

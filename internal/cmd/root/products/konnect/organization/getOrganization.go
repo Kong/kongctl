@@ -7,8 +7,10 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/systemaccount"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/team"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/user"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -107,7 +109,7 @@ func buildOrganizationChildView(org *kkComps.MeOrganization) tableview.ChildView
 	return tableview.ChildView{
 		DetailRenderer: detailFn,
 		Title:          "Organization",
-		ParentType:     "organization",
+		ParentType:     common.ViewParentOrganization,
 		DetailContext: func(int) any {
 			return org
 		},
@@ -284,6 +286,11 @@ func newGetOrganizationCmd(verb verbs.VerbValue,
 	teamCmd, err := team.NewTeamCmd(verb, addParentFlags, parentPreRun)
 	if err == nil && teamCmd != nil {
 		cmd.AddCommand(teamCmd)
+	}
+
+	userCmd, err := user.NewUserCmd(verb, addParentFlags, parentPreRun)
+	if err == nil && userCmd != nil {
+		cmd.AddCommand(userCmd)
 	}
 
 	return &cmd

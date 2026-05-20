@@ -1,0 +1,15 @@
+# Overlay: Set protected: false on the control plane
+# This should allow the protection label to be removed
+
+_defaults:
+  kongctl:
+    namespace: "cp-protection"
+
+control_planes:
+  - ref: cp-protected
+    name: "kongctl-e2e-protected-cp"
+    description: "Protected Control Plane for E2E testing via kongctl"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    kongctl:
+      namespace: "cp-protection"
+      protected: false

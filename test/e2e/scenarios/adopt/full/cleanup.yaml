@@ -1,0 +1,24 @@
+control_planes:
+  - ref: adopt-e2e-cp
+    name: adopt-e2e-cp
+    description: "Adopt Scenario Control Plane"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    kongctl:
+      namespace: team-e2e
+      protected: false
+
+portals:
+  - ref: adopt-e2e-portal
+    name: adopt-e2e-portal
+    display_name: "Adopt Scenario Portal"
+    kongctl:
+      namespace: team-e2e
+      protected: false
+
+apis:
+  - ref: adopt-e2e-api
+    name: adopt-e2e-api
+    description: "Adopt Scenario API"
+    kongctl:
+      namespace: team-e2e
+      protected: false

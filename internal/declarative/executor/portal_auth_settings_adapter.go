@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/log"
@@ -32,64 +33,14 @@ func (p *PortalAuthSettingsAdapter) MapUpdateFields(
 		logger.Debug("mapping portal auth settings update fields", "fields", fields)
 	}
 
-	if v, ok := fields["basic_auth_enabled"].(bool); ok {
+	if v, ok := fields[planner.FieldBasicAuthEnabled].(bool); ok {
 		update.BasicAuthEnabled = &v
 	}
-	if v, ok := fields["oidc_auth_enabled"].(bool); ok {
-		update.OidcAuthEnabled = &v
-	}
-	if v, ok := fields["saml_auth_enabled"].(bool); ok {
-		update.SamlAuthEnabled = &v
-	}
-	if v, ok := fields["oidc_team_mapping_enabled"].(bool); ok {
-		update.OidcTeamMappingEnabled = &v
-	}
-	if v, ok := fields["konnect_mapping_enabled"].(bool); ok {
+	if v, ok := fields[planner.FieldKonnectMappingEnabled].(bool); ok {
 		update.KonnectMappingEnabled = &v
 	}
-	if v, ok := fields["idp_mapping_enabled"].(bool); ok {
+	if v, ok := fields[planner.FieldIDPMappingEnabled].(bool); ok {
 		update.IdpMappingEnabled = &v
-	}
-	if v, ok := fields["oidc_issuer"].(string); ok {
-		update.OidcIssuer = &v
-	}
-	if v, ok := fields["oidc_client_id"].(string); ok {
-		update.OidcClientID = &v
-	}
-	if v, ok := fields["oidc_client_secret"].(string); ok {
-		update.OidcClientSecret = &v
-	}
-	if v, ok := fields["oidc_scopes"].([]string); ok {
-		update.OidcScopes = v
-	}
-	if v, ok := fields["oidc_claim_mappings"].(*kkComps.PortalClaimMappings); ok {
-		// Convert PortalClaimMappings to PortalAuthenticationSettingsUpdateRequestPortalClaimMappings
-		converted := &kkComps.PortalAuthenticationSettingsUpdateRequestPortalClaimMappings{
-			Name:   v.Name,
-			Email:  v.Email,
-			Groups: v.Groups,
-		}
-		update.OidcClaimMappings = converted
-	} else if v, ok := fields["oidc_claim_mappings"].(kkComps.PortalClaimMappings); ok {
-		// Convert PortalClaimMappings to PortalAuthenticationSettingsUpdateRequestPortalClaimMappings
-		converted := &kkComps.PortalAuthenticationSettingsUpdateRequestPortalClaimMappings{
-			Name:   v.Name,
-			Email:  v.Email,
-			Groups: v.Groups,
-		}
-		update.OidcClaimMappings = converted
-	} else if m, ok := fields["oidc_claim_mappings"].(map[string]any); ok {
-		claim := &kkComps.PortalAuthenticationSettingsUpdateRequestPortalClaimMappings{}
-		if name, ok := m["name"].(string); ok {
-			claim.Name = &name
-		}
-		if email, ok := m["email"].(string); ok {
-			claim.Email = &email
-		}
-		if groups, ok := m["groups"].(string); ok {
-			claim.Groups = &groups
-		}
-		update.OidcClaimMappings = claim
 	}
 
 	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {

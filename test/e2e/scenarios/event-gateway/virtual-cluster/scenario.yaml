@@ -3,8 +3,6 @@ baseInputsPath: ./testdata
 env:
   KONGCTL_LOG_LEVEL: info
 
-test:
-  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
 
 vars:
   egwName: egw-cp-for-bc-vc-test
@@ -106,6 +104,9 @@ steps:
           - "{{ .vars.egwName }}"
           - -o
           - json
+        recordVar:
+          name: vcID
+          responsePath: "[?name=='{{ .vars.vcRef }}'] | [0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -118,6 +119,44 @@ steps:
                 description: "Virtual Cluster for Test"
                 acl_mode: passthrough
                 dns_label: vc-default
+      - name: 005-get-vc-by-name
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.vcRef }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.vcRef }}"
+          - select: dns_label
+            expect:
+              fields:
+                "@": vc-default
+      - name: 006-get-vc-by-id
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.vcID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.vcRef }}"
+          - select: dns_label
+            expect:
+              fields:
+                "@": vc-default
   - name: 002-plan-update
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -181,6 +220,21 @@ steps:
                 description: "Virtual Cluster for Test Updated"
                 acl_mode: enforce_on_gateway
                 dns_label: vc-default-updated
+                "authentication[0].type": sasl_plain
+      - name: 004-idempotency-check
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-idempotency.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 003-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete

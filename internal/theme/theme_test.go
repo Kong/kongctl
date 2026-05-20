@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tint "github.com/lrstanley/bubbletint/v2"
+	"github.com/lucasb-eyer/go-colorful"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,6 +63,31 @@ func TestPaletteFromTintPreservesAbout(t *testing.T) {
 	require.Equal(t, "Tint: Example Theme\nTint credits:\n  * Alice (https://example.com)", p.About)
 }
 
+func TestKongDarkSelectedRowColorsHaveReadableContrast(t *testing.T) {
+	p := kongDarkPalette()
+	selection, err := colorful.Hex(p.Color(ColorSelection).Dark)
+	require.NoError(t, err)
+	text, err := colorful.Hex(p.Color(ColorSelectionText).Dark)
+	require.NoError(t, err)
+
+	require.Equal(t, "#CCFF00", p.Color(ColorSelection).Dark)
+	require.Equal(t, "#000F06", p.Color(ColorSelectionText).Dark)
+	require.GreaterOrEqual(t, contrastRatio(selection, text), 7.0)
+}
+
+func TestKongLightAccentTextHasReadableContrast(t *testing.T) {
+	p := kongLightPalette()
+	surface, err := colorful.Hex(p.Color(ColorSurface).Light)
+	require.NoError(t, err)
+	accent, err := colorful.Hex(p.Color(ColorAccent).Light)
+	require.NoError(t, err)
+	primary, err := colorful.Hex(p.Color(ColorTextPrimary).Light)
+	require.NoError(t, err)
+
+	require.GreaterOrEqual(t, contrastRatio(surface, accent), 7.0)
+	require.GreaterOrEqual(t, accent.DistanceLab(primary), 0.35)
+}
+
 func TestDarkBackgroundFromColorFGBG(t *testing.T) {
 	t.Parallel()
 
@@ -92,11 +118,28 @@ func TestDarkBackgroundFromColorFGBG(t *testing.T) {
 }
 
 func TestDetectDarkBackgroundFromEnv(t *testing.T) {
+	prev := termenvHasDarkBackground
+	t.Cleanup(func() {
+		termenvHasDarkBackground = prev
+	})
+	termenvHasDarkBackground = func() bool { return false }
+
 	t.Setenv("COLORFGBG", "15;0")
 	require.True(t, detectDarkBackgroundFromEnv())
 
 	t.Setenv("COLORFGBG", "bogus")
 	require.False(t, detectDarkBackgroundFromEnv())
+}
+
+func TestDetectDarkBackgroundFallsBackToTermenv(t *testing.T) {
+	prev := termenvHasDarkBackground
+	t.Cleanup(func() {
+		termenvHasDarkBackground = prev
+	})
+	termenvHasDarkBackground = func() bool { return true }
+
+	t.Setenv("COLORFGBG", "")
+	require.True(t, detectDarkBackgroundFromEnv())
 }
 
 func TestDetectDarkBackgroundMemoizesEnv(t *testing.T) {
@@ -112,4 +155,40 @@ func TestDetectDarkBackgroundMemoizesEnv(t *testing.T) {
 
 	t.Setenv("COLORFGBG", "0;15")
 	require.True(t, detectDarkBackground())
+}
+
+func TestSetCurrentAutoUsesDetectedBackground(t *testing.T) {
+	prev := hasDarkBackground
+	t.Cleanup(func() {
+		hasDarkBackground = prev
+		require.NoError(t, SetCurrent(DefaultName))
+	})
+
+	hasDarkBackground = func() bool { return true }
+	require.NoError(t, SetCurrent(AutoName))
+	require.Equal(t, DarkName, CurrentName())
+
+	hasDarkBackground = func() bool { return false }
+	require.NoError(t, SetCurrent(AutoName))
+	require.Equal(t, DefaultName, CurrentName())
+}
+
+func TestThemeFlagAcceptsAuto(t *testing.T) {
+	flag := NewFlag(AutoName)
+	require.Equal(t, AutoName, flag.String())
+
+	require.NoError(t, flag.Set(""))
+	require.Equal(t, AutoName, flag.String())
+
+	require.NoError(t, flag.Set(AutoName))
+	require.Equal(t, AutoName, flag.String())
+}
+
+func contrastRatio(a, b colorful.Color) float64 {
+	l1 := relativeLuminance(a)
+	l2 := relativeLuminance(b)
+	if l1 < l2 {
+		l1, l2 = l2, l1
+	}
+	return (l1 + 0.05) / (l2 + 0.05)
 }

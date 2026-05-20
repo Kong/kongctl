@@ -1,0 +1,6 @@
+patches:
+  - selectors:
+      - "$..services[*]"
+    values:
+      read_timeout: 30000
+      write_timeout: 30000

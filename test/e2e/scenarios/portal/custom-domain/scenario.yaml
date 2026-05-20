@@ -8,6 +8,7 @@ vars:
   portal1Ref: portal-1
   portal1DomainRef: portal-1-custom-domain
   portal1Hostname: ""
+  portal1ReplacementHostname: ""
   portal2Ref: portal-2
   portal2DomainRef: portal-2-custom-domain
   portal2Hostname: ""
@@ -48,6 +49,18 @@ steps:
             printf 'portal2-cert-%s.kongctl-e2e.io' "$(date +%s%N | sha256sum | cut -c1-10)"
         recordVar:
           name: portal2Hostname
+          responsePath: stdout
+
+      - name: 002-generate-portal1-replacement-hostname
+        parseAs: raw
+        exec:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            printf 'portal1-replacement-%s.kongctl-e2e.io' "$(date +%s%N | sha256sum | cut -c1-10)"
+        recordVar:
+          name: portal1ReplacementHostname
           responsePath: stdout
 
   - name: 000-reset-org
@@ -110,6 +123,24 @@ steps:
               fields:
                 name: "{{ .vars.portal1Ref }}"
                 canonical_domain: "{{ .vars.portal1Hostname }}"
+      - name: 003-plan-http-domain-no-op
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-http-domain-no-op.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='portal_custom_domain']"
+            expect:
+              fields:
+                "length(@)": 0
 
   - name: 002-plan-apply-custom-certificate
     inputOverlayDirs:
@@ -233,3 +264,271 @@ steps:
             expect:
               fields:
                 canonical_domain: "{{ .vars.portal1Hostname }}"
+
+  - name: 004-replace-http-domain
+    inputOverlayDirs:
+      - overlays/004-replace-http-domain
+    commands:
+      - name: 000-plan-replace-http-domain
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-replace-http-domain.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='portal_custom_domain' && action=='DELETE' &&
+              resource_ref=='{{ .vars.portal1DomainRef }}']
+            expect:
+              fields:
+                "length(@)": 1
+          - select: >-
+              changes[?resource_type=='portal_custom_domain' && action=='CREATE' &&
+              resource_ref=='{{ .vars.portal1DomainRef }}'] | [0]
+            expect:
+              fields:
+                "fields.hostname": "{{ .vars.portal1ReplacementHostname }}"
+                "fields.enabled": true
+                "fields.ssl.domain_verification_method": http
+      - name: 001-sync-replace-http-domain
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-replace-http-domain.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-get-portals-replacement
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portal1Ref }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portal1Ref }}"
+                canonical_domain: "{{ .vars.portal1ReplacementHostname }}"
+      - name: 003-plan-replacement-no-op
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-replacement-no-op.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='portal_custom_domain']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 005-update-http-domain-enabled
+    inputOverlayDirs:
+      - overlays/005-disable-http-domain
+    commands:
+      - name: 000-plan-disable-http-domain
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-disable-http-domain.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_custom_domain' && action=='UPDATE' &&
+              resource_ref=='{{ .vars.portal1DomainRef }}'] | [0]
+            expect:
+              fields:
+                "fields.enabled": false
+                "changed_fields.enabled.new": false
+      - name: 001-apply-disable-http-domain
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-disable-http-domain.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-plan-disable-no-op
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-disable-no-op.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='portal_custom_domain']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 006-sync-remove-http-domain-retain-portal
+    inputOverlayDirs:
+      - overlays/006-remove-http-domain-retain-portal
+    commands:
+      - name: 000-plan-remove-http-domain
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-remove-http-domain.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='portal_custom_domain' && action=='DELETE' &&
+              resource_ref=='{{ .vars.portal1Ref }}__custom_domain']
+            expect:
+              fields:
+                "length(@)": 1
+      - name: 001-sync-remove-http-domain
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-remove-http-domain.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-portals-domain-removed
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portal1Ref }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portal1Ref }}"
+          - select: >-
+              [?name=='{{ .vars.portal1Ref }}'] | [0].canonical_domain != '{{ .vars.portal1ReplacementHostname }}'
+            expect:
+              fields:
+                "@": true
+
+  - name: 007-dump-and-plan-round-trip
+    inputOverlayDirs:
+      - overlays/007-re-apply-http-domain
+    commands:
+      - name: 000-plan-re-apply-http-domain
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-re-apply.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+      - name: 001-apply-re-apply-http-domain
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-re-apply.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-dump-portal-with-domain
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--filter-name={{ .vars.portal1Ref }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              portals[?name=='{{ .vars.portal1Ref }}'] | [0].custom_domain
+            expect:
+              fields:
+                hostname: "{{ .vars.portal1Hostname }}"
+      - name: 003-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 008-delete-cleanup
+    inputOverlayDirs:
+      - overlays/007-re-apply-http-domain
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

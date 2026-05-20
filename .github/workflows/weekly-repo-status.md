@@ -24,6 +24,8 @@ tools:
     lockdown: false
 
 safe-outputs:
+  noop:
+    report-as-issue: true
   create-discussion:
     title-prefix: "[repo-status] "
     category: "announcements"    # category slug, name, or ID (use lowercase, prefer announcement-capable)
@@ -36,6 +38,13 @@ source: githubnext/agentics/workflows/daily-repo-status.md@69b5e3ae5fa7f35fa555b
 # Weekly Repo Status
 
 Create an upbeat weekly status report for the repo as a GitHub Discussion.
+
+**Important tool usage notes:**
+- Use GitHub MCP tools for all GitHub reads when gathering repository activity.
+- Use safe-output tools (`create_discussion`, `noop`) for all GitHub writes and
+  completion signaling.
+- Do NOT use `gh` CLI commands for GitHub API reads or writes because the CLI
+  is not authenticated in this environment.
 
 ## What to include
 
@@ -55,3 +64,12 @@ Create an upbeat weekly status report for the repo as a GitHub Discussion.
 1. Gather recent activity from the repository
 2. Study the repository, its issues and its pull requests
 3. Create a new GitHub discussion with your findings and insights
+
+## Finalization
+
+Before finishing, emit exactly one safe output.
+
+- Prefer `create_discussion` with the weekly report.
+- If no meaningful report can be created, emit `noop` explaining why.
+- If the discussion tool is unavailable or fails, emit `missing_tool` or `noop`
+  so the workflow never finishes with no safe outputs.

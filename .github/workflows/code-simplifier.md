@@ -11,8 +11,10 @@ tools:
   github:
     toolsets: [default]
 safe-outputs:
+  noop:
+    report-as-issue: false
   create-issue:
-    expires: 1d
+    expires: 5d
     title-prefix: "[simplifier] "
     labels:
     - refactoring
@@ -44,6 +46,15 @@ preserving all functionality. Create an issue detailing the recomended simplifie
 - **Analysis Date**: $(date +%Y-%m-%d)
 - **Workspace**: ${{ github.workspace }}
 
+**Important tool usage notes:**
+- Use GitHub MCP tools (for example `search_pull_requests`,
+  `list_pull_requests`, `pull_request_read`, `get_commit`, and
+  `get_file_contents`) for all GitHub reads.
+- Use safe-output tools (`create_issue`, `noop`) for all GitHub writes and
+  completion signaling.
+- Do NOT use `gh` CLI commands for GitHub API reads or writes because the CLI
+  is not authenticated in this environment.
+
 ## Phase 1: Identify Recently Modified Code
 
 ### 1.1 Find Recent Changes
@@ -58,7 +69,7 @@ YESTERDAY=$(date -d '1 day ago' '+%Y-%m-%d' 2>/dev/null || date -v-1d '+%Y-%m-%d
 git log --since="24 hours ago" --pretty=format:"%H %s" --no-merges
 ```
 
-Use GitHub tools to:
+Use GitHub MCP tools to:
 - Search for pull requests merged in the last 24 hours: `repo:${{ github.repository }} is:pr is:merged merged:>=${YESTERDAY}`
 - Get details of merged PRs to understand what files were changed
 - Ignore changes that are purely documentation, cicd, workflows, configuration, or non-code files (non .go or non go related files).
@@ -74,12 +85,16 @@ For each merged PR or recent commit:
 
 ### 1.3 Determine Scope
 
-If **no files were changed in the last 24 hours**, exit gracefully without creating a PR:
+If **no files were changed in the last 24 hours**, exit gracefully without creating an issue:
 
-```
-✅ No code changes detected in the last 24 hours.
+When this condition is met, call the `noop` safe output tool with this exact message and stop:
+
+```text
+No code changes detected in the last 24 hours.
 Code simplifier has nothing to process today.
 ```
+
+Do not emit plain progress text as the only final output. The `noop` safe output must be used so this workflow records a safe-output item.
 
 If **files were changed**, proceed to Phase 2.
 
@@ -183,12 +198,14 @@ Only create an issue if:
 - ✅ You recommend actual code simplifications
 - ✅ Changes improve code quality without breaking functionality
 
-If no improvements are needed, exit gracefully:
+If no improvements are needed, call the `noop` safe output tool and stop with this exact message:
 
-```
-✅ Code analyzed from last 24 hours.
+```text
+Code analyzed from last 24 hours.
 No simplifications needed - code already meets quality standards.
 ```
+
+Do not emit plain progress text as the only final output. The `noop` safe output must be used for this no-op result as well.
 
 ### 4.2 Generate Issue
 
@@ -245,7 +262,8 @@ Please verify:
 
 ### 4.3 Use Safe Outputs
 
-Create the issue request using the safe-outputs tool with the generated information.
+Create the issue request by emitting `create_issue` with the generated content in
+the required format.
 
 ## Important Guidelines
 
@@ -271,8 +289,13 @@ Exit gracefully without creating an issue if:
 
 Your output MUST either:
 
-1. **If no changes in last 24 hours**: Output a brief status message
-2. **If no simplifications beneficial**: Output a brief status message
+This rule applies to **all no-op outcomes in this workflow**. If there are no
+code changes to review, or if later analysis finds no meaningful
+simplification to make, emit a `noop` safe output instead of only outputting a
+brief status message.
+
+1. **If no changes in last 24 hours**: Emit `noop`
+2. **If no simplifications beneficial**: Emit `noop`
 3. **If simplifications made**: Create an issue detailing the changes
 
 Begin your code simplification analysis now.

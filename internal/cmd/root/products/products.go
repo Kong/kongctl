@@ -12,3 +12,7 @@ type ProductValue string
 func (p ProductValue) String() string {
 	return string(p)
 }
+
+const (
+	ProductKonnect = ProductValue("konnect")
+)

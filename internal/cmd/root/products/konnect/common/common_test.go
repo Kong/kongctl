@@ -1,12 +1,20 @@
 package common
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"maps"
+	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/konnect/auth"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	configtest "github.com/kong/kongctl/test/config"
 	"github.com/spf13/pflag"
@@ -24,10 +32,13 @@ func newTestConfig(initial map[string]string) (*configtest.MockConfigHook, map[s
 		GetBoolMock: func(string) bool {
 			return false
 		},
-		GetIntMock: func(string) int {
-			return 0
+		GetIntMock: func(key string) int {
+			value, err := strconv.Atoi(store[key])
+			if err != nil {
+				return 0
+			}
+			return value
 		},
-		SaveMock: func() error { return nil },
 		BindFlagMock: func(string, *pflag.Flag) error {
 			return nil
 		},
@@ -202,4 +213,323 @@ func TestResolveHTTPTransportOptions(t *testing.T) {
 		_, err := ResolveHTTPTransportOptions(cfg)
 		require.Error(t, err)
 	})
+}
+
+func TestResolveRetryConfig(t *testing.T) {
+	t.Run("defaults when unset", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{})
+
+		rc, err := ResolveRetryConfig(cfg)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.RetryStrategyDefault, rc.Strategy)
+		require.Equal(t, httpclient.DefaultRetryMaxAttempts, rc.MaxAttempts)
+		require.Equal(t, httpclient.DefaultRetryInitialIntervalMS, rc.InitialIntervalMS)
+		require.Equal(t, httpclient.DefaultRetryMaxIntervalMS, rc.MaxIntervalMS)
+		require.Equal(t, httpclient.DefaultRetryBackoffFactor, rc.BackoffFactor)
+		require.False(t, rc.RetryConnectionErrors)
+	})
+
+	t.Run("explicit values", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath:        "3",
+			HTTPRetryInitialIntervalConfigPath:    "500",
+			HTTPRetryMaxIntervalConfigPath:        "5000",
+			HTTPRetryBackoffFactorConfigPath:      "1.5",
+			HTTPRetryOnConnectionErrorsConfigPath: "true",
+		})
+
+		rc, err := ResolveRetryConfig(cfg)
+		require.NoError(t, err)
+		require.Equal(t, 3, rc.MaxAttempts)
+		require.Equal(t, httpclient.RetryStrategyDefault, rc.Strategy)
+		require.Equal(t, 500, rc.InitialIntervalMS)
+		require.Equal(t, 5000, rc.MaxIntervalMS)
+		require.Equal(t, 1.5, rc.BackoffFactor)
+		require.True(t, rc.RetryConnectionErrors)
+	})
+
+	t.Run("Max attempts = 1 disables retries", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath: "1",
+		})
+
+		rc, err := ResolveRetryConfig(cfg)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.RetryStrategyNone, rc.Strategy)
+		require.Equal(t, 1, rc.MaxAttempts)
+	})
+
+	t.Run("invalid max attempts returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath: "banana",
+		})
+
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("negative max attempts returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath: "-1",
+		})
+
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("invalid initial interval returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryInitialIntervalConfigPath: "banana",
+		})
+
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+
+		cfg, _ = newTestConfig(map[string]string{
+			HTTPRetryInitialIntervalConfigPath: "-1",
+		})
+
+		_, err = ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("initial interval below min returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryInitialIntervalConfigPath: "50",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("initial interval above max returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryInitialIntervalConfigPath: "31000",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("max interval below min returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxIntervalConfigPath: "500",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("max interval above max returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxIntervalConfigPath: "301000",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("initial interval greater than max interval returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryInitialIntervalConfigPath: "5000",
+			HTTPRetryMaxIntervalConfigPath:     "2000",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("max attempts above cap returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath: "11",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("invalid backoff factor returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryBackoffFactorConfigPath: "not-a-number",
+		})
+
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("backoff factor below minimum returns error", func(t *testing.T) {
+		for _, v := range []string{"0.5", "0.001", "0.999", "1", "1.499"} {
+			cfg, _ := newTestConfig(map[string]string{
+				HTTPRetryBackoffFactorConfigPath: v,
+			})
+			_, err := ResolveRetryConfig(cfg)
+			require.Error(t, err, "factor %s should be rejected", v)
+		}
+	})
+
+	t.Run("backoff factor above maximum returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryBackoffFactorConfigPath: "3.1",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("cumulative backoff budget above maximum returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath:     "10",
+			HTTPRetryInitialIntervalConfigPath: "30000",
+			HTTPRetryMaxIntervalConfigPath:     "120000",
+			HTTPRetryBackoffFactorConfigPath:   "3",
+		})
+		_, err := ResolveRetryConfig(cfg)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cumulative backoff budget")
+	})
+
+	t.Run("non-finite backoff factor is rejected", func(t *testing.T) {
+		for _, v := range []string{"NaN", "+Inf", "-Inf", "Inf"} {
+			cfg, _ := newTestConfig(map[string]string{
+				HTTPRetryBackoffFactorConfigPath: v,
+			})
+			_, err := ResolveRetryConfig(cfg)
+			require.Error(t, err, "factor %s should be rejected", v)
+		}
+	})
+}
+
+func TestResolveRetryConfigForVerb(t *testing.T) {
+	t.Run("imperative verbs force no retry", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath:        "5",
+			HTTPRetryInitialIntervalConfigPath:    "500",
+			HTTPRetryMaxIntervalConfigPath:        "5000",
+			HTTPRetryBackoffFactorConfigPath:      "3",
+			HTTPRetryOnConnectionErrorsConfigPath: "true",
+		})
+
+		rc, err := resolveRetryConfigForVerb(cfg, verbs.Get)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.RetryStrategyNone, rc.Strategy)
+		require.Equal(t, 1, rc.MaxAttempts)
+		require.Equal(t, httpclient.DefaultRetryInitialIntervalMS, rc.InitialIntervalMS)
+		require.Equal(t, httpclient.DefaultRetryMaxIntervalMS, rc.MaxIntervalMS)
+		require.Equal(t, httpclient.DefaultRetryBackoffFactor, rc.BackoffFactor)
+		require.False(t, rc.RetryConnectionErrors)
+	})
+
+	t.Run("declarative verbs use resolved retry config", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			HTTPRetryMaxAttemptsConfigPath:        "5",
+			HTTPRetryInitialIntervalConfigPath:    "500",
+			HTTPRetryMaxIntervalConfigPath:        "5000",
+			HTTPRetryBackoffFactorConfigPath:      "3",
+			HTTPRetryOnConnectionErrorsConfigPath: "true",
+		})
+
+		rc, err := resolveRetryConfigForVerb(cfg, verbs.Plan)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.RetryStrategyBackoff, rc.Strategy)
+		require.Equal(t, 5, rc.MaxAttempts)
+		require.Equal(t, 500, rc.InitialIntervalMS)
+		require.Equal(t, 5000, rc.MaxIntervalMS)
+		require.Equal(t, 3.0, rc.BackoffFactor)
+		require.True(t, rc.RetryConnectionErrors)
+	})
+}
+
+func TestKonnectSDKFactoryRetrySelection(t *testing.T) {
+	t.Run("default factory ignores retry config parsing", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			RegionConfigPath:                 "bad/region",
+			HTTPRetryMaxAttemptsConfigPath:   "banana",
+			HTTPRetryBackoffFactorConfigPath: "not-a-number",
+		})
+
+		_, err := KonnectSDKFactory(cfg, nil)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid konnect region")
+		require.NotContains(t, err.Error(), HTTPRetryMaxAttemptsConfigPath)
+	})
+
+	t.Run("declarative verb factory validates retry config", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			RegionConfigPath:               "bad/region",
+			HTTPRetryMaxAttemptsConfigPath: "banana",
+		})
+
+		_, err := KonnectSDKFactoryForVerb(verbs.Plan, cfg, nil)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), HTTPRetryMaxAttemptsConfigPath)
+		require.NotContains(t, err.Error(), "invalid konnect region")
+	})
+
+	t.Run("imperative verb factory uses no retry config", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			RegionConfigPath:               "bad/region",
+			HTTPRetryMaxAttemptsConfigPath: "banana",
+		})
+
+		_, err := KonnectSDKFactoryForVerb(verbs.Get, cfg, nil)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid konnect region")
+		require.NotContains(t, err.Error(), HTTPRetryMaxAttemptsConfigPath)
+	})
+}
+
+func TestGetSDKFactoryPrefersDefaultOverride(t *testing.T) {
+	original := helpers.DefaultSDKFactory
+	t.Cleanup(func() {
+		helpers.DefaultSDKFactory = original
+	})
+
+	cfg, _ := newTestConfig(map[string]string{})
+
+	helpers.DefaultSDKFactory = func(config.Hook, *slog.Logger) (helpers.SDKAPI, error) {
+		return nil, context.Canceled
+	}
+
+	_, err := GetSDKFactory()(cfg, nil)
+
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestResolveAccessTokenMapsMissingCredentialsToGuidance(t *testing.T) {
+	dir := t.TempDir()
+	cfg, _ := newTestConfig(map[string]string{})
+	cfg.GetPathMock = func() string { return filepath.Join(dir, "config.yaml") }
+	source := auth.NewTokenSource(cfg, auth.TokenSourceOptions{
+		RefreshURL: BaseURLDefault + RefreshPathDefault,
+	})
+
+	_, err := ResolveAccessToken(t.Context(), cfg, source)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "authentication token not available")
+	require.Contains(t, err.Error(), "kongctl login")
+	require.NotContains(t, err.Error(), dir)
+	require.NotContains(t, err.Error(), "stat ")
+}
+
+func TestResolveAccessTokenPreservesContextErrors(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	cfg, _ := newTestConfig(map[string]string{})
+	source := auth.NewTokenSource(cfg, auth.TokenSourceOptions{
+		RefreshURL: BaseURLDefault + RefreshPathDefault,
+	})
+
+	_, err := ResolveAccessToken(ctx, cfg, source)
+
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestKonnectSDKFactoryReturnsAuthConfigurationErrors(t *testing.T) {
+	cfg, _ := newTestConfig(map[string]string{
+		RegionConfigPath: "bad/region",
+	})
+
+	_, err := KonnectSDKFactory(cfg, nil)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid konnect region")
+	require.NotContains(t, err.Error(), "authentication token not available")
+	require.NotContains(t, err.Error(), "no access token available")
 }

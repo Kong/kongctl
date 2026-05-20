@@ -32,16 +32,16 @@ func (a *CatalogServiceAdapter) MapCreateFields(
 
 	create.Name = common.ExtractResourceName(fields)
 
-	if displayName, ok := fields["display_name"].(string); ok {
+	if displayName, ok := fields[planner.FieldDisplayName].(string); ok {
 		create.DisplayName = displayName
 	}
 
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
+	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
 
-	userLabels := labels.ExtractLabelsFromField(fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	create.Labels = labels.BuildCreateLabels(userLabels, namespace, protection)
 
-	if customFields, ok := fields["custom_fields"]; ok {
+	if customFields, ok := fields[planner.FieldCustomFields]; ok {
 		create.CustomFields = customFields
 	}
 
@@ -61,24 +61,24 @@ func (a *CatalogServiceAdapter) MapUpdateFields(
 
 	for field, value := range fields {
 		switch field {
-		case "name":
+		case planner.FieldName:
 			if name, ok := value.(string); ok {
 				update.Name = &name
 			}
-		case "display_name":
+		case planner.FieldDisplayName:
 			if displayName, ok := value.(string); ok {
 				update.DisplayName = &displayName
 			}
-		case "description":
+		case planner.FieldDescription:
 			if desc, ok := value.(string); ok {
 				update.Description = &desc
 			}
-		case "custom_fields":
+		case planner.FieldCustomFields:
 			update.CustomFields = value
 		}
 	}
 
-	desiredLabels := labels.ExtractLabelsFromField(fields["labels"])
+	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	if desiredLabels != nil {
 		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
 		if plannerCurrentLabels != nil {
@@ -152,12 +152,12 @@ func (a *CatalogServiceAdapter) GetByID(ctx context.Context, id string, _ *Execu
 
 // ResourceType returns the resource type.
 func (a *CatalogServiceAdapter) ResourceType() string {
-	return "catalog_service"
+	return planner.ResourceTypeCatalogService
 }
 
 // RequiredFields returns required fields for create.
 func (a *CatalogServiceAdapter) RequiredFields() []string {
-	return []string{"name", "display_name"}
+	return []string{planner.FieldName, planner.FieldDisplayName}
 }
 
 // SupportsUpdate indicates update support.

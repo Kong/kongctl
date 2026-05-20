@@ -11,10 +11,11 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/util"
 )
 
 type paginationHandler func(pageNumber int64) (bool, error)
+
+const maxPaginationPages int64 = 10000
 
 type paginationParams struct {
 	pageSize   int64
@@ -30,6 +31,10 @@ func processPaginatedRequests(handler paginationHandler) error {
 	pageNumber := int64(1)
 
 	for {
+		if pageNumber > maxPaginationPages {
+			return fmt.Errorf("pagination exceeded safety limit of %d pages", maxPaginationPages)
+		}
+
 		hasMore, err := handler(pageNumber)
 		if err != nil {
 			return err
@@ -106,8 +111,12 @@ func mapResourceName(name string) string {
 		return "apis"
 	case "app-auth-strategies", "application_auth_strategies", "application-auth-strategies", "app_auth_strategies":
 		return "application_auth_strategies"
+	case "dcr-provider", "dcr-providers", "dcr_provider", "dcr_providers", "dcrprovider", "dcrproviders":
+		return "dcr_providers"
 	case "control-plane", "controlplane", "controlplanes", "control_planes":
 		return "control_planes"
+	case "dashboard", "dashboards", "analytics.dashboard", "analytics.dashboards":
+		return "analytics.dashboards"
 	case "org.team", "org.teams", "organization.team", "organization.teams":
 		return "organization.teams"
 	default:
@@ -121,29 +130,12 @@ func normalizeResourceList(resources string, allowed map[string]struct{}) ([]str
 		normalized[i] = mapResourceName(normalized[i])
 	}
 
-	// Filter out event gateway resources if preview is not enabled
-	if !util.IsEventGatewayEnabled() {
-		filtered := make([]string, 0, len(normalized))
-		for _, resource := range normalized {
-			if !isEventGatewayResource(resource) {
-				filtered = append(filtered, resource)
-			}
-		}
-		normalized = filtered
-	}
-
 	joined := strings.Join(normalized, ",")
 	if err := validateResourceList(joined, allowed); err != nil {
 		return nil, err
 	}
 
 	return normalized, nil
-}
-
-func isEventGatewayResource(resource string) bool {
-	r := strings.TrimSpace(strings.ToLower(resource))
-	return strings.Contains(r, "event_gateway") ||
-		strings.Contains(r, "event-gateway")
 }
 
 const (

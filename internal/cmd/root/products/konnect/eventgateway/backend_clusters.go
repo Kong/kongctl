@@ -2,7 +2,6 @@ package eventgateway
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -277,7 +277,7 @@ func buildBackendClusterChildView(clusters []kkComps.BackendCluster) tableview.C
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Backend Clusters",
-		ParentType:     "backend-cluster",
+		ParentType:     common.ViewParentBackendCluster,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(clusters) {
 				return nil
@@ -349,10 +349,7 @@ func fetchBackendClusters(
 	gatewayID string,
 	cfg config.Hook,
 ) ([]kkComps.BackendCluster, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
-	}
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allData []kkComps.BackendCluster
 	var pageAfter *string
@@ -380,21 +377,11 @@ func fetchBackendClusters(
 		data := res.GetListBackendClustersResponse().Data
 		allData = append(allData, data...)
 
-		if res.GetListBackendClustersResponse().Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.GetListBackendClustersResponse().Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.GetListBackendClustersResponse().Meta.Page.Next)
-		if err != nil {
-			return nil, cmd.PrepareExecutionError(
-				"Failed to list backend clusters: invalid cursor",
-				err,
-				helper.GetCmd(),
-			)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	return allData, nil
@@ -404,12 +391,10 @@ func findClusterByName(clusters []kkComps.BackendCluster, identifier string) *kk
 	lowered := strings.ToLower(identifier)
 	for _, cluster := range clusters {
 		if cluster.ID != "" && strings.ToLower(cluster.ID) == lowered {
-			clusterCopy := cluster
-			return &clusterCopy
+			return &cluster
 		}
 		if cluster.Name != "" && strings.ToLower(cluster.Name) == lowered {
-			clusterCopy := cluster
-			return &clusterCopy
+			return &cluster
 		}
 	}
 	return nil

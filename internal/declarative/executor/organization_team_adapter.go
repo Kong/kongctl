@@ -25,9 +25,9 @@ func (a *OrganizationTeamAdapter) MapCreateFields(_ context.Context, execCtx *Ex
 	fields map[string]any, create *kkComps.CreateTeam,
 ) error {
 	create.Name = common.ExtractResourceName(fields)
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
+	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
 
-	userLabels := labels.ExtractLabelsFromField(fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	create.Labels = labels.BuildCreateLabels(userLabels, execCtx.Namespace, execCtx.Protection)
 
 	return nil
@@ -39,18 +39,18 @@ func (a *OrganizationTeamAdapter) MapUpdateFields(_ context.Context, execCtx *Ex
 ) error {
 	for field, value := range fields {
 		switch field {
-		case "name":
+		case planner.FieldName:
 			if name, ok := value.(string); ok {
 				update.Name = &name
 			}
-		case "description":
+		case planner.FieldDescription:
 			if desc, ok := value.(string); ok {
 				update.Description = &desc
 			}
 		}
 	}
 
-	desiredLabels := labels.ExtractLabelsFromField(fields["labels"])
+	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	if plannerLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels]); plannerLabels != nil {
 		currentLabels = plannerLabels
 	}
@@ -127,12 +127,12 @@ func (a *OrganizationTeamAdapter) GetByID(ctx context.Context, id string, _ *Exe
 
 // ResourceType returns the adapter resource type
 func (a *OrganizationTeamAdapter) ResourceType() string {
-	return "organization_team"
+	return planner.ResourceTypeOrganizationTeam
 }
 
 // RequiredFields lists required fields for create
 func (a *OrganizationTeamAdapter) RequiredFields() []string {
-	return []string{"name"}
+	return []string{planner.FieldName}
 }
 
 // SupportsUpdate indicates team support updates

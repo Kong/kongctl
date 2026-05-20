@@ -20,7 +20,7 @@ const (
 var (
 	adoptUse = Verb.String()
 
-	adoptShort = i18n.T("root.verbs.adopt.adoptShort", "Adopt existing Konnect resources into namespace management")
+	adoptShort = i18n.T("root.verbs.adopt.adoptShort", "Adopt existing resources into declarative management")
 
 	adoptLong = normalizers.LongDesc(i18n.T("root.verbs.adopt.adoptLong",
 		`Apply the KONGCTL-namespace label to existing Konnect resources so they become managed by kongctl.`))
@@ -30,6 +30,10 @@ var (
   %[1]s adopt portal my-portal --namespace team-alpha
   # Adopt a control plane by ID
   %[1]s adopt control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace platform
+  # Adopt a dashboard by ID
+  %[1]s adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace analytics
+  # Adopt a DCR provider by name
+  %[1]s adopt dcr-provider my-dcr-provider --namespace team-alpha
   # Adopt an API explicitly via the konnect product
   %[1]s adopt konnect api my-api --namespace team-alpha
 `, meta.CLIName)))
@@ -95,6 +99,18 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(authStrategyCmd)
+
+	dcrProviderCmd, err := NewDirectDCRProviderCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(dcrProviderCmd)
+
+	analyticsCmd, err := NewDirectAnalyticsCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(analyticsCmd)
 
 	eventGatewayCmd, err := NewDirectEventGatewayCmd()
 	if err != nil {

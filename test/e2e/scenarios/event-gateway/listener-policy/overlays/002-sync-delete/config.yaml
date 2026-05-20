@@ -15,4 +15,4 @@ event_gateways:
           - "9093-9095"
         addresses:
           - localhost
-        # No listener_policies - they will be deleted by sync
+        policies: []
