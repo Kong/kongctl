@@ -51,6 +51,7 @@ type ExplainRelation struct {
 	ParentAlias   string `json:"parent_alias"   yaml:"parent_alias"`
 	ParentType    string `json:"parent_type"    yaml:"parent_type"`
 	FieldName     string `json:"field_name"     yaml:"field_name"`
+	FieldArray    bool   `json:"field_array"    yaml:"field_array"`
 	ChildAlias    string `json:"child_alias"    yaml:"child_alias"`
 	ParentRootKey string `json:"parent_root_key" yaml:"parent_root_key"`
 }
@@ -323,7 +324,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			relation := doc.ParentRelations[0]
 			subject.ScaffoldSteps = append(subject.ScaffoldSteps,
 				ExplainScaffoldStep{Name: relation.ParentRootKey, Array: true},
-				ExplainScaffoldStep{Name: relation.FieldName, Array: true},
+				ExplainScaffoldStep{Name: relation.FieldName, Array: relation.FieldArray},
 			)
 			if parentDoc, ok := explainDocByType(ResourceType(relation.ParentType)); ok {
 				subject.ScaffoldTrail = []ExplainScaffoldNode{
@@ -332,7 +333,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 						Node: parentDoc.Schema.clone(),
 					},
 					{
-						Step: ExplainScaffoldStep{Name: relation.FieldName, Array: true},
+						Step: ExplainScaffoldStep{Name: relation.FieldName, Array: relation.FieldArray},
 						Node: doc.Schema.clone(),
 						Omit: scaffoldOmitFields([]ResourceType{ResourceType(relation.ParentType)}),
 					},
@@ -380,10 +381,13 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 				if len(subject.ScaffoldSteps) == 0 {
 					subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: currentDoc.RootKey, Array: true}}
 				}
-				subject.ScaffoldSteps = append(subject.ScaffoldSteps, ExplainScaffoldStep{Name: segment, Array: true})
+				subject.ScaffoldSteps = append(
+					subject.ScaffoldSteps,
+					ExplainScaffoldStep{Name: segment, Array: field.Node.Kind == explainKindArray},
+				)
 				ancestors = append(ancestors, currentDoc.ResourceType)
 				subject.ScaffoldTrail = append(subject.ScaffoldTrail, ExplainScaffoldNode{
-					Step: ExplainScaffoldStep{Name: segment, Array: true},
+					Step: ExplainScaffoldStep{Name: segment, Array: field.Node.Kind == explainKindArray},
 					Node: childDoc.Schema.clone(),
 					Omit: scaffoldOmitFields(ancestors),
 				})
@@ -1353,7 +1357,7 @@ func RenderScaffoldYAML(subject *ExplainSubject) (string, error) {
 						Node: parentDoc.Schema.clone(),
 					},
 					ExplainScaffoldNode{
-						Step: ExplainScaffoldStep{Name: relation.FieldName, Array: true},
+						Step: ExplainScaffoldStep{Name: relation.FieldName, Array: relation.FieldArray},
 						Node: subject.Doc.Schema.clone(),
 						Omit: scaffoldOmitFields([]ResourceType{ResourceType(relation.ParentType)}),
 					},
@@ -1936,6 +1940,7 @@ func explainNestedRelations(parentType ResourceType, parent reflect.Type) []Expl
 			ParentAlias:   string(parentType),
 			ParentType:    string(parentType),
 			FieldName:     name,
+			FieldArray:    derefExplainType(field.Type).Kind() == reflect.Slice,
 			ChildAlias:    string(childType),
 			ParentRootKey: resourceSetRootKey(parent),
 		})

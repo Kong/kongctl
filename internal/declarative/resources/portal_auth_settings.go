@@ -11,8 +11,32 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalAuthSettings,
 		func(rs *ResourceSet) *[]PortalAuthSettingsResource { return &rs.PortalAuthSettings },
-		AutoExplain[PortalAuthSettingsResource](),
+		AutoExplain[PortalAuthSettingsResource](
+			WithExplainSchemaBuilder(portalAuthSettingsExplainNode),
+		),
 	)
+}
+
+func portalAuthSettingsExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	node, err := autoExplainConcreteNode[PortalAuthSettingsResource](defaultExplainHints(ResourceTypePortalAuthSettings))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, field := range []string{
+		"oidc_auth_enabled",
+		"saml_auth_enabled",
+		"oidc_team_mapping_enabled",
+		"oidc_issuer",
+		"oidc_client_id",
+		"oidc_client_secret",
+		"oidc_scopes",
+		"oidc_claim_mappings",
+	} {
+		explainRemoveField(node, field)
+	}
+
+	return node, nil
 }
 
 // PortalAuthSettingsResource represents portal authentication settings (singleton child).

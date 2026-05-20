@@ -74,6 +74,18 @@ func TestResolveExplainSubject_OrganizationTeamRolesNestedResource(t *testing.T)
 	}, subject.ScaffoldSteps)
 }
 
+func TestResolveExplainSubject_NestedSingletonChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("portal.auth_settings")
+	require.NoError(t, err)
+
+	assert.Equal(t, ResourceTypePortalAuthSettings, subject.Doc.ResourceType)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []ExplainScaffoldStep{
+		{Name: "portals", Array: true},
+		{Name: "auth_settings"},
+	}, subject.ScaffoldSteps)
+}
+
 func TestResolveExplainSubject_FieldPath(t *testing.T) {
 	subject, err := ResolveExplainSubject("api.publications.portal_id")
 	require.NoError(t, err)
@@ -191,6 +203,22 @@ func TestRenderExplainSchema_ApplicationAuthStrategyConfigsUnionField(t *testing
 	assert.Contains(t, schema.OneOf[1].Properties, "openid-connect")
 	require.NotNil(t, schema.XSubject)
 	assert.True(t, *schema.XSubject.Required)
+}
+
+func TestRenderExplainSchema_PortalAuthSettingsOmitsDeprecatedFields(t *testing.T) {
+	subject, err := ResolveExplainSubject("portal.auth_settings")
+	require.NoError(t, err)
+
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+
+	assert.Contains(t, schema.Properties, "basic_auth_enabled")
+	assert.Contains(t, schema.Properties, "konnect_mapping_enabled")
+	assert.Contains(t, schema.Properties, "idp_mapping_enabled")
+	assert.NotContains(t, schema.Properties, "oidc_auth_enabled")
+	assert.NotContains(t, schema.Properties, "saml_auth_enabled")
+	assert.NotContains(t, schema.Properties, "oidc_client_id")
+	assert.NotContains(t, schema.Properties, "oidc_claim_mappings")
 }
 
 func TestRenderExplainSchema_AnalyticsDashboardDiscriminators(t *testing.T) {
@@ -438,6 +466,21 @@ func TestRenderScaffoldYAML_NestedChildResource(t *testing.T) {
 	assert.Contains(t, scaffold, "- ref: my-resource")
 	assert.NotContains(t, scaffold, "api: value")
 	assert.NotContains(t, scaffold, "kongctl:")
+}
+
+func TestRenderScaffoldYAML_NestedSingletonChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("portal.auth_settings")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "portals:")
+	assert.Contains(t, scaffold, "auth_settings:")
+	assert.NotContains(t, scaffold, "auth_settings:\n      - ref:")
+	assert.NotContains(t, scaffold, "oidc_auth_enabled")
+	assert.NotContains(t, scaffold, "saml_auth_enabled")
+	assert.NotContains(t, scaffold, "oidc_client_id")
 }
 
 func TestRenderScaffoldYAML_OrganizationTeamResource(t *testing.T) {
