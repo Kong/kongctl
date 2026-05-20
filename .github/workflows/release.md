@@ -193,6 +193,7 @@ jobs:
     env:
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
@@ -203,15 +204,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
-
-      - name: Export release variables
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        run: |
-          set -euo pipefail
-          echo "RELEASE_TAG=${{ needs.config.outputs.release_tag }}" >> "$GITHUB_ENV"
-          echo "RELEASE_VERSION=${{ needs.config.outputs.release_version }}" >> "$GITHUB_ENV"
-          echo "DOCKER_USERNAME=${DOCKER_USERNAME}" >> "$GITHUB_ENV"
 
       - name: Determine build mode
         env:
