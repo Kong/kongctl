@@ -381,13 +381,14 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 				if len(subject.ScaffoldSteps) == 0 {
 					subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: currentDoc.RootKey, Array: true}}
 				}
+				isArray := field.Node.Kind == explainKindArray
 				subject.ScaffoldSteps = append(
 					subject.ScaffoldSteps,
-					ExplainScaffoldStep{Name: segment, Array: field.Node.Kind == explainKindArray},
+					ExplainScaffoldStep{Name: segment, Array: isArray},
 				)
 				ancestors = append(ancestors, currentDoc.ResourceType)
 				subject.ScaffoldTrail = append(subject.ScaffoldTrail, ExplainScaffoldNode{
-					Step: ExplainScaffoldStep{Name: segment, Array: field.Node.Kind == explainKindArray},
+					Step: ExplainScaffoldStep{Name: segment, Array: isArray},
 					Node: childDoc.Schema.clone(),
 					Omit: scaffoldOmitFields(ancestors),
 				})
