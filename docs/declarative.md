@@ -124,13 +124,13 @@ configuration contract names. Use the names documented in the
 
 ```yaml
 application_auth_strategies:
-  - ref: oauth-strategy              # ref identifies a resource within a configuration
-    name: "OAuth 2.0 Strategy"       # Identifies an auth strategy within Konnect
+  - ref: oauth-strategy
+    name: "OAuth 2.0 Strategy"
 
 portals:
   - ref: developer-portal
     name: "Developer Portal"
-    default_application_auth_strategy: oauth-strategy  # References the auth strategy by it's ref value
+    default_application_auth_strategy_id: !ref oauth-strategy#id
 ```
 
 ### Plan Artifacts
