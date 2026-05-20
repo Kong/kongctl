@@ -117,6 +117,8 @@ steps:
           - "{{ .workdir }}/catalog.yaml"
           - --mode
           - apply
+          - --log-level
+          - trace
         assertions:
           - select: summary
             expect:
@@ -135,6 +137,14 @@ steps:
             expect:
               fields:
                 "length(@)": 6
+          - source:
+              artifact:
+                path: kongctl.log
+            select: text
+            expect:
+              fields:
+                "contains(@, '/v3/teams')": false
+                "contains(@, 'workflow_component=organization_team')": false
       - name: 001-apply-catalog-limited-token
         timeout: 2m
         outputFormat: json
