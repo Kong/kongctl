@@ -3,7 +3,6 @@
 ## Repository Overview
 
 kongctl is a command-line interface (CLI) tool for managing Kong Konnect and (eventually) Kong Gateway on-prem. 
-This tool is currently under heavy development and is released as Beta software.
 
 Main documentation is published at:
 https://developer.konghq.com/kongctl/
@@ -12,12 +11,13 @@ This file provides repository-specific guidance for AI coding agents working
 with the kongctl codebase.
 
 For declarative resource type implementation work, use
-`planning/DECLARATIVE_RESOURCE_IMPLEMENTATION_GUIDE.md` as the primary guide.
+`docs/contributor/declarative-resource-implementation-guide.md` as the
+primary guide.
 
 ## Repository Overview
 
 **kongctl** is a command-line interface (CLI) tool for operating Kong Konnect
-and (eventually) Kong Gateway on-prem. The tool is currently in beta.
+and (eventually) Kong Gateway on-prem.
 
 - **Language**: Go 1.26
 - **CLI Framework**: Cobra for command-line processing
@@ -475,5 +475,6 @@ KONGCTL_LOG_LEVEL=trace kongctl apply --plan plan.json
 
 - **README.md**: User-facing documentation and getting started guide
 - **docs/declarative.md**: Declarative configuration guide
-- **docs/e2e.md**: E2E test harness documentation
+- **test/e2e/README.md**: E2E test harness documentation
+- **test/e2e/scenarios/README.md**: E2E scenario documentation
 - **docs/troubleshooting.md**: Common issues and solutions

@@ -266,7 +266,7 @@ When an assertion fails:
 
 ## Next Steps
 
-- Review `docs/e2e-scenarios.md` for advanced features (overlays, masking,
+- Review `README.md` for advanced features (overlays, masking,
   retries)
 - Look at existing scenarios in `test/e2e/scenarios/` for patterns
 - Run scenarios during development to catch regressions early

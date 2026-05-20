@@ -91,7 +91,7 @@ portals:
 api_publications:
   - ref: example-api-pub
     api: example-api
-    portal: dev-portal
+    portal_id: !ref dev-portal
 ```
 
 ## Scripts

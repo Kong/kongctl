@@ -31,7 +31,7 @@ This guide helps you diagnose and resolve common issues when using kongctl.
 
 Verify current state:
 ```bash
-kongctl dump > current-state.yaml
+kongctl dump declarative --resources=portal,api > current-state.yaml
 diff current-state.yaml your-config.yaml
 ```
 
@@ -42,7 +42,7 @@ grep "ref:" your-config.yaml
 
 Verify namespace:
 ```bash
-kongctl get apis --format json | jq '.[] | select(.labels."KONGCTL-namespace")'
+kongctl get apis -o json | jq '.[] | select(.labels."KONGCTL-namespace")'
 ```
 
 ### Issue: "Resource not found" errors
@@ -98,7 +98,7 @@ kongctl login
 
 Verify PAT (if using):
 ```bash
-echo $KONGCTL_KONNECT_PAT
+echo $KONGCTL_DEFAULT_KONNECT_PAT
 ```
 Should start with "kpat_"
 
@@ -350,7 +350,7 @@ Error: resource "my-api" references unknown portal: unknown-portal
    ```yaml
    api_publications:
      - ref: api-pub
-       portal: dev-portal     # ❌ Wrong ref
+       portal_id: !ref dev-portal-name     # Wrong ref
    ```
 
 2. **Resource ordering**:
@@ -362,7 +362,7 @@ Error: resource "my-api" references unknown portal: unknown-portal
    
    api_publications:
      - ref: api-pub
-       portal: my-portal
+       portal_id: !ref my-portal
    ```
 
 3. **Nested vs separate resources**:
@@ -416,7 +416,7 @@ api_implementations:
 kongctl plan -f config.yaml --log-level debug
 
 # 2. Check network connectivity
-curl -I https://global.api.konghq.com/v2/portals
+curl -I https://us.api.konghq.com/v2/portals
 
 # 3. Try smaller configuration
 kongctl plan -f single-resource.yaml
@@ -431,22 +431,11 @@ Error: circular dependency detected: api1 -> api2 -> api1
 
 **Solutions:**
 
-```yaml
-# BAD - Circular reference
-apis:
-  - ref: api1
-    depends_on: api2
-  - ref: api2  
-    depends_on: api1
-
-# GOOD - Break circular dependency
-apis:
-  - ref: api-base
-  - ref: api1
-    depends_on: api-base
-  - ref: api2
-    depends_on: api-base
-```
+- Avoid making resources reference each other in a cycle.
+- Remove one side of the cycle, or split ownership so one resource can be
+  created before the other references it.
+- Generate a plan with debug logging and inspect each change's `references` and
+  `depends_on` fields.
 
 ## Plan Artifact Debugging
 
@@ -456,21 +445,34 @@ Plan artifacts are JSON files with the following structure:
 
 ```json
 {
-  "version": "1.0",
-  "generated_at": "2024-01-15T14:30:00Z",
-  "summary": {
-    "create": 2,
-    "update": 1,
-    "delete": 0
+  "metadata": {
+    "version": "1.0",
+    "generated_at": "2024-01-15T14:30:00Z",
+    "generator": "kongctl",
+    "mode": "sync"
   },
   "changes": [
     {
-      "operation": "CREATE",
+      "id": "api:user-api",
       "resource_type": "api",
       "resource_ref": "user-api",
-      "changes": { /* full resource definition */ }
+      "action": "CREATE",
+      "fields": {},
+      "namespace": "default",
+      "depends_on": []
     }
-  ]
+  ],
+  "execution_order": ["api:user-api"],
+  "execution_groups": [["api:user-api"]],
+  "summary": {
+    "total_changes": 1,
+    "by_action": {
+      "CREATE": 1
+    },
+    "by_resource": {
+      "api": 1
+    }
+  }
 }
 ```
 
@@ -490,7 +492,7 @@ cat plan.json | jq . > /dev/null
 
 Check plan version compatibility:
 ```bash
-jq '.version' plan.json
+jq '.metadata.version' plan.json
 ```
 
 Ensure plan hasn't been corrupted:
@@ -531,26 +533,26 @@ jq '.summary' plan.json
 
 **List all operations:**
 ```bash
-jq '.changes[] | {op: .operation, type: .resource_type, ref: .resource_ref}' plan.json
+jq '.changes[] | {action: .action, type: .resource_type, ref: .resource_ref}' plan.json
 ```
 
 **Filter specific operations:**
 
 Show only CREATE operations:
 ```bash
-jq '.changes[] | select(.operation == "CREATE")' plan.json
+jq '.changes[] | select(.action == "CREATE")' plan.json
 ```
 
 Show only API updates:
 ```bash
-jq '.changes[] | select(.operation == "UPDATE" and .resource_type == "api")' plan.json
+jq '.changes[] | select(.action == "UPDATE" and .resource_type == "api")' plan.json
 ```
 
 **Check execution order:**
 
 Plans are ordered by dependencies:
 ```bash
-jq '.changes[] | {order: ._order, ref: .resource_ref, deps: .depends_on}' plan.json
+jq '{execution_order, changes: [.changes[] | {id, ref: .resource_ref, deps: .depends_on}]}' plan.json
 ```
 
 ## Execution Failures
@@ -626,7 +628,7 @@ kongctl sync -f team-config.yaml
 # Only affects resources in that namespace
 
 # 3. Check managed labels
-kongctl get apis -o json | jq '.[] | select(.labels."KONGCTL-managed" == "true")'
+kongctl get apis -o json | jq '.[] | select(.labels."KONGCTL-namespace")'
 ```
 
 ## Performance Issues
@@ -694,7 +696,7 @@ kongctl apply -f config.yaml --log-level trace
 When trace logging is enabled:
 
 ```
-time=2024-01-15T12:00:00.000Z level=TRACE msg="HTTP request" method=GET url=https://global.api.konghq.com/v2/portals
+time=2024-01-15T12:00:00.000Z level=TRACE msg="HTTP request" method=GET url=https://us.api.konghq.com/v2/portals
 time=2024-01-15T12:00:01.000Z level=TRACE msg="HTTP response" status=200 duration=1s
 ```
 
@@ -739,7 +741,7 @@ kongctl apply --plan plan.json --log-level trace
 
 Check current state:
 ```bash
-kongctl dump > current.yaml
+kongctl dump declarative --resources=portal,api > current.yaml
 ```
 
 Compare configurations:
@@ -749,7 +751,7 @@ diff -u current.yaml desired.yaml
 
 List managed resources:
 ```bash
-kongctl get apis -o json | jq '.[] | select(.labels."KONGCTL-managed")'
+kongctl get apis -o json | jq '.[] | select(.labels."KONGCTL-namespace")'
 ```
 
 Check specific resource:

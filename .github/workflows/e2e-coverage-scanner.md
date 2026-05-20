@@ -148,7 +148,7 @@ Use these slices for bounded analysis:
 Start by reading these files:
 
 - `AGENTS.md`
-- `docs/e2e.md`
+- `test/e2e/README.md`
 
 Then inspect the code that defines or exercises the main Konnect-facing
 surface area:

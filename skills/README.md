@@ -12,7 +12,39 @@ with `kongctl`.
 
 ## Install in Agent Tooling
 
-Copy or symlink each skill directory into your tool's skills directory.
+Use `kongctl install skills` from the root of the repository where your agent
+will work:
+
+```sh
+kongctl install skills
+```
+
+To preview the files and symlinks before writing them, run:
+
+```sh
+kongctl install skills --dry-run
+```
+
+By default, the installer writes skill files to `.kongctl/skills/` and creates
+symlinks for supported agent tooling:
+
+- `.agents/skills/kongctl-declarative`
+- `.agents/skills/kongctl-extension-builder`
+- `.claude/skills/kongctl-declarative`
+- `.claude/skills/kongctl-extension-builder`
+
+Use `--path` to choose a different directory for installed skill files:
+
+```sh
+kongctl install skills --path .tools/kongctl/skills
+```
+
+Keep the skill folder names unchanged so each `SKILL.md` is discoverable.
+
+## Manual Install
+
+If the installer is unavailable, copy or symlink each skill directory into your
+tool's skills directory.
 
 ### Claude Code
 
@@ -27,5 +59,3 @@ Copy or symlink each skill directory into your tool's skills directory.
 - Example:
   - `ln -s ../../skills/kongctl-declarative .agents/skills/kongctl-declarative`
   - `ln -s ../../skills/kongctl-extension-builder .agents/skills/kongctl-extension-builder`
-
-Keep the skill folder names unchanged so each `SKILL.md` is discoverable.

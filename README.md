@@ -1,22 +1,17 @@
-# kongctl
+# <picture><source media="(prefers-color-scheme: dark)" srcset="./brand/logo/dark/Kong-Logomark.svg"><source media="(prefers-color-scheme: light)" srcset="./brand/logo/light/Kong-Logomark.svg"><img src="./brand/logo/light/Kong-Logomark.svg" alt="Kong logo" width="32"></picture> kongctl
 
-The Kong Konnect CLI
+[kongctl](https://developer.konghq.com/kongctl) is a command-line tool for the [Kong Konnect](https://konghq.com/products/kong-konnect) API and AI Platform that 
+provides developer and AI agent friendly capabilities for managing Konnect resources programmatically.
 
-## ⚠️ BETA SOFTWARE ⚠️
-
-**`kongctl` is a _Beta Release_ project. This software is provided by Kong, Inc. without warranty and is not recommended for 
-production use. The CLI is under active development - interfaces, commands, and behaviors are subject to change without notice. 
-Use at your own risk for evaluation and testing purposes only.**
-
-By using this software, you acknowledge that:
-- It may contain bugs and incomplete features
-- It should not be used for critical systems or production workloads
-- Data loss or service disruption may occur
-- No support commitments or SLAs apply
+The CLI ships with:
+- A state free and simple yaml based declarative configuration engine allowing you to define your 
+  Konnect API Platform infrastructure as code 
+- Enable AI coding agents with built in skills and agent commands and self describing resources
+- CI/CD friendly integrations
+- Ad-hoc developer tools for querying Konnect resource state, listening to audit events, viewing resources interactively, and more
 
 ## Table of Contents
 
-- [What is `kongctl`?](#what-is-kongctl)
 - [Documentation](#documentation)
 - [Installation](#installation)
   - [macOS](#macos)
@@ -28,6 +23,7 @@ By using this software, you acknowledge that:
   - [3. Test the Authentication](#3-test-the-authentication)
   - [4. Switch Region](#4-switch-konnect-regions)
   - [5. Next Steps](#5-next-steps)
+- [AI Agent Skills](#ai-agent-skills)
 - [Telemetry](#telemetry)
 - [Documentation Listing](#documentation-listing)
 - [Configuration and Profiles](#configuration-and-profiles)
@@ -35,16 +31,7 @@ By using this software, you acknowledge that:
   - [Color Themes](#color-themes)
 - [Command Structure](#command-structure)
 - [Support](#support)
-
-## What is `kongctl`?
-
-`kongctl` is a command-line tool for Kong Konnect that enables you to:
-- Manage Konnect resources programmatically
-- Define your Konnect API infrastructure as code using declarative configuration
-- Integrate Konnect into your CI/CD pipelines
-- Automate API lifecycle management
-
-*Note: Future releases may include support for Kong Gateway on-premise deployments.*
+- [Security](#security)
 
 ## Documentation
 
@@ -62,17 +49,17 @@ Install using Homebrew (distributed as a cask):
 brew install --cask kong/kongctl/kongctl
 ```
 
-If you previously installed the old formula, remove it first with `brew uninstall kongctl`.
+*Note: If you previously installed the old formula, you may have to remove it first with `brew uninstall kongctl`.*
 
 ### Linux
 
 Download from the [release page](https://github.com/kong/kongctl/releases):
 
 ```shell
-# Example: Install v0.0.12 for x86-64
-curl -sL https://github.com/Kong/kongctl/releases/download/v0.0.12/kongctl_linux_amd64.zip -o kongctl_linux_amd64.zip
-unzip kongctl_linux_amd64.zip -d /tmp
-sudo cp /tmp/kongctl /usr/local/bin/
+# Example: Install the latest release for x86-64
+curl -sL https://github.com/Kong/kongctl/releases/latest/download/kongctl_linux_amd64.zip -o kongctl_linux_amd64.zip
+unzip kongctl_linux_amd64.zip -d kongctl-linux-amd64
+sudo install kongctl-linux-amd64/kongctl /usr/local/bin/kongctl
 ```
 
 ### Verify
@@ -89,7 +76,7 @@ If you don't have a Kong Konnect account, [sign up for free](https://konghq.com/
 
 ### 2. Authenticate with Konnect
 
-Use the `kongctl login` command to authenticate with you Kong Konnect account:
+Use the `kongctl login` command to authenticate with your Kong Konnect account:
 
 ```shell
 kongctl login
@@ -97,36 +84,65 @@ kongctl login
 
 Follow the instructions given in the terminal to complete the login process.
 
+*Note: For token-based authentication with Konnect PATs, see
+[Authentication Options](#authentication-options).*
+
 ### 3. Test the Authentication
 
 You can verify that `kongctl` is authenticated and can access information on your Konnect account by running:
 
 ```shell
 kongctl get me
+```
+
+or the associated organization with:
+```shell
 kongctl get organization
 ```
 
 ### 4. Switch Konnect Regions
 
-By default `kongctl` uses the `us` region for Konnect API requests. You can switch regions in two ways:
+By default `kongctl` uses the `us` region for Konnect API requests. You can switch regions be passing the
+`--region` flag to your command with the short region code, such as `eu`, `us`, or `au`.
 
-- Set `--region` (or configure `konnect.region`) to the short region code such as `eu`, `us`, or `au`. `kongctl` automatically builds the matching `https://<region>.api.konghq.com` base URL for you.
-- Provide an explicit `--base-url`/`konnect.base-url`. This always takes precedence over the region value and is useful for testing against bespoke endpoints.
+Run `kongctl get regions` to retrieve the list of currently supported regions directly from Konnect.
+The [Konnect geos documentation](https://developer.konghq.com/konnect-platform/geos/) also tracks new regions as they launch.
 
-Run `kongctl get regions` to retrieve the list of currently supported regions directly from Konnect. The [Konnect geos documentation](https://developer.konghq.com/konnect-platform/geos/) also tracks new regions as they launch.
-
-Here is an example configuration snippet to set the `default` profile to use the `eu` region:
-```yaml
-default:
-    ...
-    konnect:
-      region: eu
-    ...
-```
+*Note: Region can also be configured with the configuration key `konnect.region`. See [Configuration and Profiles](#configuration-and-profiles)
+for details on managing `kongctl` configuration.*
 
 ### 5. Next Steps
 
 **→ [Read the Declarative Configuration Guide](docs/declarative.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
+
+## AI Agent Skills
+
+`kongctl` ships with skills for AI coding agents that need to work with
+Konnect resources from a repository. Install the bundled skills in the current
+repository with:
+
+```shell
+kongctl install skills
+```
+
+Preview the files and symlinks before writing them:
+
+```shell
+kongctl install skills --dry-run
+```
+
+The installer writes skill files under `.kongctl/skills/` and creates symlinks
+for supported agent tooling under `.agents/skills/` and `.claude/skills/`.
+Bundled skills include:
+
+- `kongctl-declarative`: Set up and maintain declarative configuration, use
+  `kongctl explain` and `kongctl scaffold`, generate resource YAML, integrate
+  decK through `_deck`, and work through plan, diff, apply, sync, delete, and
+  adopt workflows.
+- `kongctl-extension-builder`: Create, validate, and test local `kongctl`
+  CLI extensions.
+
+See [skills/README.md](skills/README.md) for the full skills overview.
 
 ## Telemetry
 
@@ -135,7 +151,7 @@ default:
 Collected:
   - kongctl version
   - operating system and architecture
-  - command path, such as "login" or "get apis"
+  - command path, such as `login`, `apply`, or `get apis`
 
 Not collected:
   - command arguments or flag values
@@ -151,7 +167,7 @@ Telemetry can be disabled at any time with:
 The first interactive `kongctl login` also asks whether kongctl may collect
 usage data on this device. The answer is saved to
 `$XDG_CONFIG_HOME/kongctl/.telemetry-enabled` (or
-`$HOME/.config/kongctl/.telemetry-enabled`) and applies to all local profiles.
+`$HOME/.config/kongctl/.telemetry-enabled`) and applies to all local configuration profiles.
 This local preference file overrides profile config.
 `DO_NOT_TRACK=1`, `KONGCTL_NO_TELEMETRY=true`, and `--no-telemetry` still
 disable telemetry even when the local preference file says telemetry is
@@ -164,6 +180,8 @@ profile-name:
   telemetry:
     enabled: false
 ```
+
+*Note: See [Configuration and Profiles](#configuration-and-profiles) for configuration instructions.*
 
 Telemetry values can be inspected without sending it by enabling debug
 mode:
@@ -182,10 +200,13 @@ backend.
 
 ## Documentation Listing
 
-- **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide covering quick start, concepts, YAML tags, CI/CD integration, and best practices
+- **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide
+  covering quick start, concepts, YAML tags, CI/CD integration, and best
+  practices
+- **[AI Agent Skills](skills/README.md)** - Agent skills for declarative
+  configuration and extension development
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
 - **[Examples](docs/examples/)** - Sample configurations and use cases
-- **[E2E Test Harness](docs/e2e.md)** - How to run end-to-end tests locally and in CI
 
 ## Configuration and Profiles
 
@@ -194,6 +215,9 @@ backend.
 `config.yaml`. At the root level you specify profiles where a profile is a named collection of 
 configuration values. By default there is a `default` profile, but you can 
 create additional profiles for different environments or configurations.
+
+*Note: By design `kongctl` does not write to your configuration file. The philosphy for this is that
+there should be one owner and writer of configuration data, and that is the user.*
 
 Some flags and options can be changed by providing a value in the configuration file, effectively 
 allowing you to override the default behavior of command options. Flags that support this will 
@@ -208,14 +232,20 @@ be documented in the command help text with a "Config path" note that looks like
 The above help text shows a YAML key path for the `--output` flag which controls the format of output text
 from the CLI. The config path is the location in the configuration file where a flag value can be defaulted. 
 In this case it specifies that output formats can be set in the configuration file under an `output` key. 
+Nested config paths use dots in command help. For example, `konnect.region`
+is configured as `konnect: { region: ... }` in the profile.
 
 The basic example of a configuration file follows:
 
 ```yaml
 default:
   output: text
+  konnect:
+    region: us
 second-profile:
   output: json
+  konnect:
+    region: eu
 ```
 
 Specifying a profile can be done using the `--profile` flag or by setting or exporting
@@ -223,14 +253,13 @@ the `KONGCTL_PROFILE` environment variable.
 
 Configuration values can also be specified using environment variables. `kongctl` looks for environment variables
 which follow the pattern `KONGCTL_<PROFILE>_<PATH>`, where `<PROFILE>` is the profile name in uppercase and `<PATH>` 
-is the configuration path in uppercase. For example, to set the output format for the `default` profile, you can use:
+is the configuration path in uppercase with `_` substituting for `.`.
+For example, to set the `output` format for the `default` profile, you can use:
 
 ```shell
-KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis 
+KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis
 ```
 
-To clear saved Konnect credentials for a profile, run `kongctl logout [--profile <name>]`. This removes the local device
-flow token file so that subsequent commands prompt you to authenticate again with `kongctl login`.
 
 ### Authentication Options
 
@@ -247,6 +276,9 @@ flow token file so that subsequent commands prompt you to authenticate again wit
    This command will generate a web link you can use to open a browser window and authenticate with your Kong Konnect account. 
    After logging in and authorizing the CLI using the provided code, `kongctl` will store token and refresh token data in a file at 
    `$XDG_CONFIG_HOME/kongctl/.<profile>-konnect-token.json`
+
+  *Note: To clear saved Konnect credentials for a profile, run `kongctl logout [--profile <name>]`. This removes the local device
+  flow token file so that subsequent commands prompt you to authenticate again with `kongctl login`.*
 
 2. **Personal Access Token flag**:
 
@@ -292,13 +324,21 @@ Examples:
 - `kongctl get apis` - List all APIs in Konnect (`konnect` product is implicit)
 - `kongctl get konnect apis` - List all APIs in Konnect (using full product name)
 - `kongctl get api users-api` - Get specific API details
-- `kongctl delete api my-api` - Delete an API from Konnect
+- `kongctl delete -f api.yaml` - Delete resources declared in a file
 
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/kong/kongctl/issues)
-- **Documentation**: [Kong Docs](https://developer.konghq.com)
+- **Documentation**: [Kong Docs](https://developer.konghq.com/kongctl)
 - **Community**: [Kong Nation](https://discuss.konghq.com)
 
-Remember: This is tech preview software. Please report bugs and provide feedback through GitHub 
-Issues or the [Kong Nation](https://discuss.konghq.com/) community.
+Please report bugs and provide feedback through GitHub Issues or the
+[Kong Nation](https://discuss.konghq.com/) community.
+
+## Security
+
+For security-related issues, see the [Security Policy](SECURITY.md). Please do
+not publicly disclose vulnerabilities in GitHub issues or community forums.
+Report potential vulnerabilities to
+[vulnerability@konghq.com](mailto:vulnerability@konghq.com). Enterprise
+customers can also use their customer support channels.
