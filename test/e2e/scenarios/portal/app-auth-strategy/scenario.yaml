@@ -3,6 +3,9 @@ baseInputsPath: testdata
 env:
   KONGCTL_LOG_LEVEL: debug
 
+vars:
+  namespace: app-auth-strategy-e2e
+
 steps:
   - name: 000-reset-org
     skipInputs: true
@@ -129,7 +132,45 @@ steps:
                 applied: 1
                 failed: 0
 
-  - name: 004-sync-delete
+  - name: 004-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-auth-strategies
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=application_auth_strategies"
+          - "--default-namespace={{ .vars.namespace }}"
+        assertions:
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - select: "application_auth_strategies[?name=='key-auth-strategy-e2e'] | [0]"
+            expect:
+              fields:
+                name: "key-auth-strategy-e2e"
+                display_name: "E2E Key Auth Strategy"
+                strategy_type: "key_auth"
+
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-sync-delete
     inputOverlayDirs:
       - overlays/004-sync-delete
     commands:
