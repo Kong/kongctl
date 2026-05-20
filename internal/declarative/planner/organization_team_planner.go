@@ -33,8 +33,8 @@ func (t *OrganizationTeamPlannerImpl) PlannerComponent() string {
 func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	namespace := plannerCtx.Namespace
 	desired := t.GetDesiredOrganizationTeams(namespace)
-	shouldPlanUserAssignments := t.planner.shouldPlanOrganizationUsers(plan)
-	shouldPlanSystemAccountAssignments := t.planner.shouldPlanOrganizationSystemAccounts(plan)
+	shouldPlanUserAssignments := t.shouldPlanOrganizationUserAssignments(namespace, plan)
+	shouldPlanSystemAccountAssignments := t.shouldPlanOrganizationSystemAccountAssignments(namespace, plan)
 
 	// Skip if no teams to plan and not in sync mode
 	if len(desired) == 0 &&
@@ -220,6 +220,49 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 	}
 
 	return nil
+}
+
+func (t *OrganizationTeamPlannerImpl) shouldPlanOrganizationUserAssignments(namespace string, plan *Plan) bool {
+	if plan != nil && plan.Metadata.Mode == PlanModeSync {
+		return t.planner.shouldPlanOrganizationUsers(plan)
+	}
+	return t.hasDesiredOrganizationUserAssignments(namespace)
+}
+
+func (t *OrganizationTeamPlannerImpl) shouldPlanOrganizationSystemAccountAssignments(
+	namespace string,
+	plan *Plan,
+) bool {
+	if plan != nil && plan.Metadata.Mode == PlanModeSync {
+		return t.planner.shouldPlanOrganizationSystemAccounts(plan)
+	}
+	return t.hasDesiredOrganizationSystemAccountAssignments(namespace)
+}
+
+func (t *OrganizationTeamPlannerImpl) hasDesiredOrganizationUserAssignments(namespace string) bool {
+	if len(t.GetDesiredOrganizationUserTeamMemberships(namespace)) > 0 ||
+		len(t.GetDesiredOrganizationUserRoles(namespace)) > 0 {
+		return true
+	}
+	for _, user := range t.organizationUsersByNamespace(namespace) {
+		if len(user.Teams) > 0 || len(user.Roles) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *OrganizationTeamPlannerImpl) hasDesiredOrganizationSystemAccountAssignments(namespace string) bool {
+	if len(t.GetDesiredOrganizationSystemAccountTeamMemberships(namespace)) > 0 ||
+		len(t.GetDesiredOrganizationSystemAccountRoles(namespace)) > 0 {
+		return true
+	}
+	for _, account := range t.organizationSystemAccountsByNamespace(namespace) {
+		if len(account.Teams) > 0 || len(account.Roles) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleDeletesForDesired(
