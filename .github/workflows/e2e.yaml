@@ -33,6 +33,12 @@ on:
 env:
   DO_NOT_TRACK: "1"
 
+# The E2E target orgs are shared stateful environments. Queue full workflow
+# runs so one run completes all shards before the next run starts.
+concurrency:
+  group: kongctl-e2e-global
+  queue: max
+
 jobs:
   e2e-needed:
     name: E2E Needed
@@ -168,10 +174,11 @@ jobs:
     if: needs.e2e-needed.outputs.required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    # Serialize Konnect-mutating runs per target org across refs without
-    # preventing the lightweight gate jobs from running and failing closed.
+    # Backstop serialization per target org if workflow-level serialization is
+    # relaxed in the future.
     concurrency:
       group: konnect-e2e-${{ matrix.org_name }}
+      queue: max
       cancel-in-progress: false
     environment: ${{ matrix.org_name }}
     strategy:
