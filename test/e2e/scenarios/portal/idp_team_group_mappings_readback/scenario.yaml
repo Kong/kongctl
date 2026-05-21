@@ -16,7 +16,6 @@ test:
 vars:
   namespace: portal-idp-team-group-mappings
   portalRef: portal-idp-team-group-mappings
-  providerRef: portal-oidc
   teamRef: portal-developers
   mappingRef: portal-developers-idp-groups
   expectedGroup: Portal Developers
@@ -86,19 +85,7 @@ steps:
           name: portalID
           responsePath: id
 
-      - name: 003-record-provider-id
-        outputFormat: json
-        run:
-          - get
-          - portal
-          - identity-providers
-          - --portal-name
-          - "{{ .vars.portalRef }}"
-        recordVar:
-          name: providerID
-          responsePath: "[?type=='oidc'] | [0].id"
-
-      - name: 004-record-team-id
+      - name: 003-record-team-id
         outputFormat: json
         run:
           - get
@@ -110,32 +97,18 @@ steps:
           name: teamID
           responsePath: "[?name=='{{ .vars.expectedGroup }}'] | [0].id"
 
-      - name: 005-readback-idp-team-group-mappings
-        parseAs: json
-        exec:
-          - bash
-          - -c
-          - |
-            set -euo pipefail
-            base_url="${KONGCTL_E2E_KONNECT_BASE_URL:-https://us.api.konghq.com}"
-            token="${KONGCTL_E2E_KONNECT_PAT:-}"
-            if [ -z "$token" ]; then
-              echo "KONGCTL_E2E_KONNECT_PAT not set" >&2
-              exit 1
-            fi
-            curl --fail-with-body --silent --show-error \
-              -H "Authorization: Bearer ${token}" \
-              -H "Accept: application/json" \
-              "${base_url%/}/v3/portals/{{ .vars.portalID }}/identity-providers/{{ .vars.providerID }}/team-group-mappings"
+      - name: 004-readback-idp-team-group-mappings
+        outputFormat: json
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portalID }}/identity-provider/team-group-mappings"
         assertions:
-          - select: data
+          - select: "data[?team_id=='{{ .vars.teamID }}'] | [0]"
             expect:
               fields:
-                "contains([].group, 'Portal Developers')": true
-          - select: "data[?team_id=='{{ .vars.teamID }}' && group=='{{ .vars.expectedGroup }}']"
-            expect:
-              fields:
-                "length(@)": 1
+                "contains(groups, 'Portal Developers')": true
+                "length(groups)": 1
 
   - name: 002-add-second-team-group-mapping-value
     inputOverlayDirs:
@@ -179,32 +152,18 @@ steps:
                 failed: 0
 
       - name: 002-readback-added-second-idp-team-group-mapping-value
-        parseAs: json
-        exec:
-          - bash
-          - -c
-          - |
-            set -euo pipefail
-            base_url="${KONGCTL_E2E_KONNECT_BASE_URL:-https://us.api.konghq.com}"
-            token="${KONGCTL_E2E_KONNECT_PAT:-}"
-            if [ -z "$token" ]; then
-              echo "KONGCTL_E2E_KONNECT_PAT not set" >&2
-              exit 1
-            fi
-            curl --fail-with-body --silent --show-error \
-              -H "Authorization: Bearer ${token}" \
-              -H "Accept: application/json" \
-              "${base_url%/}/v3/portals/{{ .vars.portalID }}/identity-providers/{{ .vars.providerID }}/team-group-mappings"
+        outputFormat: json
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portalID }}/identity-provider/team-group-mappings"
         assertions:
-          - select: data
+          - select: "data[?team_id=='{{ .vars.teamID }}'] | [0]"
             expect:
               fields:
-                "contains([].group, 'Portal Developers')": true
-                "contains([].group, 'Platform Developers')": true
-          - select: "data[?team_id=='{{ .vars.teamID }}']"
-            expect:
-              fields:
-                "length(@)": 2
+                "contains(groups, 'Portal Developers')": true
+                "contains(groups, 'Platform Developers')": true
+                "length(groups)": 2
 
   - name: 003-update-team-group-mapping
     inputOverlayDirs:
@@ -247,32 +206,18 @@ steps:
                 failed: 0
 
       - name: 002-readback-updated-idp-team-group-mappings
-        parseAs: json
-        exec:
-          - bash
-          - -c
-          - |
-            set -euo pipefail
-            base_url="${KONGCTL_E2E_KONNECT_BASE_URL:-https://us.api.konghq.com}"
-            token="${KONGCTL_E2E_KONNECT_PAT:-}"
-            if [ -z "$token" ]; then
-              echo "KONGCTL_E2E_KONNECT_PAT not set" >&2
-              exit 1
-            fi
-            curl --fail-with-body --silent --show-error \
-              -H "Authorization: Bearer ${token}" \
-              -H "Accept: application/json" \
-              "${base_url%/}/v3/portals/{{ .vars.portalID }}/identity-providers/{{ .vars.providerID }}/team-group-mappings"
+        outputFormat: json
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portalID }}/identity-provider/team-group-mappings"
         assertions:
-          - select: data
+          - select: "data[?team_id=='{{ .vars.teamID }}'] | [0]"
             expect:
               fields:
-                "contains([].group, 'Platform Developers')": true
-                "contains([].group, 'Portal Developers')": false
-          - select: "data[?team_id=='{{ .vars.teamID }}']"
-            expect:
-              fields:
-                "length(@)": 1
+                "contains(groups, 'Platform Developers')": true
+                "contains(groups, 'Portal Developers')": false
+                "length(groups)": 1
 
   - name: 004-clear-team-group-mapping
     inputOverlayDirs:
@@ -315,24 +260,14 @@ steps:
                 failed: 0
 
       - name: 002-readback-cleared-idp-team-group-mappings
-        parseAs: json
-        exec:
-          - bash
-          - -c
-          - |
-            set -euo pipefail
-            base_url="${KONGCTL_E2E_KONNECT_BASE_URL:-https://us.api.konghq.com}"
-            token="${KONGCTL_E2E_KONNECT_PAT:-}"
-            if [ -z "$token" ]; then
-              echo "KONGCTL_E2E_KONNECT_PAT not set" >&2
-              exit 1
-            fi
-            curl --fail-with-body --silent --show-error \
-              -H "Authorization: Bearer ${token}" \
-              -H "Accept: application/json" \
-              "${base_url%/}/v3/portals/{{ .vars.portalID }}/identity-providers/{{ .vars.providerID }}/team-group-mappings"
+        outputFormat: json
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portalID }}/identity-provider/team-group-mappings"
         assertions:
           - select: "data[?team_id=='{{ .vars.teamID }}']"
             expect:
               fields:
-                "length(@)": 0
+                "[?length(groups) > `0`] | length(@)": 0
+                "length(@) <= `1`": true
