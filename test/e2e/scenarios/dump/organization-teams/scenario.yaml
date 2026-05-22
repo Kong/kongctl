@@ -1,0 +1,158 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  teamAlphaName: e2e-dump-org-team-alpha
+  teamBetaName: e2e-dump-org-team-beta
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-sync-bootstrap
+    commands:
+      - name: 000-sync-bootstrap
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+                status: success
+
+  - name: 002-dump-filtered-org-teams
+    skipInputs: true
+    commands:
+      - name: 000-dump-org-teams
+        run:
+          - dump
+          - declarative
+          - "--resources=organization.teams"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - name: org-teams-key-present
+            select: organization.teams
+            expect:
+              fields:
+                "length(@)": 2
+          - name: alpha-team-present
+            select: "organization.teams[?name=='{{ .vars.teamAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamAlphaName }}"
+          - name: beta-team-present
+            select: "organization.teams[?name=='{{ .vars.teamBetaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamBetaName }}"
+          - name: alpha-team-role-present
+            select: >-
+              organization.teams[?name=='{{ .vars.teamAlphaName }}'] |
+              [0].roles[?role_name=='Viewer'] | [0]
+            expect:
+              fields:
+                role_name: Viewer
+                entity_id: "*"
+                entity_type_name: APIs
+                entity_region: us
+
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-round-trip-sync-from-dump
+    skipInputs: true
+    commands:
+      - name: 000-reset-before-round-trip
+        resetOrg: true
+
+      - name: 001-sync-dumped-config
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+                status: success
+
+      - name: 002-get-teams
+        run:
+          - get
+          - org
+          - teams
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.teamAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamAlphaName }}"
+          - select: "[?name=='{{ .vars.teamBetaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamBetaName }}"
+
+      - name: 003-get-alpha-team-roles
+        run:
+          - get
+          - org
+          - team
+          - roles
+          - --team-name
+          - "{{ .vars.teamAlphaName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?role_name=='Viewer' && entity_type_name=='APIs'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_id: "*"
+                entity_type_name: APIs
+                entity_region: us
+
+  - name: 004-reset-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true
