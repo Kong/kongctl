@@ -1,0 +1,37 @@
+_defaults:
+  kongctl:
+    namespace: portal-idp-team-group-mappings
+
+portals:
+  - ref: portal-idp-team-group-mappings
+    name: portal-idp-team-group-mappings
+    display_name: Portal IdP Team Group Mappings
+    description: Portal with an IdP-backed team group mapping
+    kongctl:
+      namespace: portal-idp-team-group-mappings
+    auth_settings:
+      ref: portal-idp-team-group-mappings-auth-settings
+      idp_mapping_enabled: true
+    identity_providers:
+      - ref: portal-oidc
+        type: oidc
+        enabled: true
+        config:
+          issuer_url: !env KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+          client_id: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
+          client_secret: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET
+          scopes:
+            - openid
+            - profile
+          claim_mappings:
+            name: name
+            email: email
+            groups: groups
+    teams:
+      - ref: portal-developers
+        name: Portal Developers
+        description: Developers mapped from IdP groups
+        group_mappings:
+          - ref: portal-developers-idp-groups
+            groups:
+              - Platform Developers
