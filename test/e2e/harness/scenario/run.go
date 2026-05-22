@@ -842,6 +842,7 @@ func executeAssertions(
 		parentDir := cli.LastCommandDir
 		tmplCtx := map[string]any{
 			"vars":     sc.Vars,
+			"env":      requiredEnvValues(sc.Test.RequiredEnvVars),
 			"scenario": filepath.Dir(scenarioPath),
 			"bin":      cli.BinPath,
 			"step":     stepName,
