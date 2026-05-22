@@ -7,6 +7,15 @@ apis:
     name: products-api
     description: Product catalog API managed by the platform team.
 
+portals:
+  - ref: developer-portal
+    name: developer-portal
+    display_name: Developer Portal
+    description: Developer portal managed by the platform team.
+    authentication_enabled: false
+    default_api_visibility: public
+    default_page_visibility: private
+
 organization:
   teams:
     - ref: platform-team
@@ -20,6 +29,11 @@ organization:
           role_name: Viewer
           entity_id: !ref products-api#id
           entity_type_name: APIs
+          entity_region: us
+        - ref: platform-portal-viewer
+          role_name: Viewer
+          entity_id: !ref developer-portal#id
+          entity_type_name: Portals
           entity_region: us
 
     - ref: api-admins
