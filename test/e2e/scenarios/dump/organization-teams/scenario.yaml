@@ -39,7 +39,7 @@ steps:
                 failed: 0
                 status: success
 
-  - name: 002-dump-filtered-org-teams
+  - name: 002-dump-and-round-trip
     skipInputs: true
     commands:
       - name: 000-dump-org-teams
@@ -47,6 +47,7 @@ steps:
           - dump
           - declarative
           - "--resources=organization.teams"
+          - --include-child-resources
         outputFormat: none
         parseAs: yaml
         stdoutFile: "{{ .workdir }}/dump.yaml"
@@ -91,13 +92,10 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003-round-trip-sync-from-dump
-    skipInputs: true
-    commands:
-      - name: 000-reset-before-round-trip
+      - name: 002-reset-before-round-trip
         resetOrg: true
 
-      - name: 001-sync-dumped-config
+      - name: 003-sync-dumped-config
         outputFormat: json
         run:
           - sync
@@ -116,7 +114,7 @@ steps:
                 failed: 0
                 status: success
 
-      - name: 002-get-teams
+      - name: 004-get-teams
         run:
           - get
           - org
@@ -133,7 +131,7 @@ steps:
               fields:
                 name: "{{ .vars.teamBetaName }}"
 
-      - name: 003-get-alpha-team-roles
+      - name: 005-get-alpha-team-roles
         run:
           - get
           - org
@@ -152,7 +150,7 @@ steps:
                 entity_type_name: APIs
                 entity_region: us
 
-  - name: 004-reset-cleanup
+  - name: 003-reset-cleanup
     skipInputs: true
     commands:
       - resetOrg: true
