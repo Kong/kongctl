@@ -61,6 +61,35 @@ func TestRenderStringReplacesBin(t *testing.T) {
 	}
 }
 
+func TestRenderStringReplacesRequiredEnv(t *testing.T) {
+	tmplCtx := map[string]any{
+		"env": map[string]string{
+			"KONGCTL_TEST_EMAIL": "user@example.com",
+		},
+	}
+
+	got := renderString("get org user {{ .env.KONGCTL_TEST_EMAIL }}", tmplCtx)
+	if got != "get org user user@example.com" {
+		t.Fatalf("renderString() = %q, want env value", got)
+	}
+}
+
+func TestRenderTemplateReplacesRequiredEnv(t *testing.T) {
+	tmplCtx := map[string]any{
+		"env": map[string]string{
+			"KONGCTL_TEST_EMAIL_1": "user@example.com",
+		},
+	}
+
+	got, err := renderTemplate([]byte("{{ .env.KONGCTL_TEST_EMAIL_1 }}"), tmplCtx)
+	if err != nil {
+		t.Fatalf("renderTemplate() error = %v", err)
+	}
+	if string(got) != "user@example.com" {
+		t.Fatalf("renderTemplate() = %q, want env value", string(got))
+	}
+}
+
 func TestRenderEnvScopeReplacesVars(t *testing.T) {
 	tmplCtx := map[string]any{
 		"vars": map[string]any{
@@ -78,6 +107,62 @@ func TestRenderEnvScopeReplacesVars(t *testing.T) {
 	}
 	if got["UNCHANGED"] != "literal" {
 		t.Fatalf("UNCHANGED = %q, want literal", got["UNCHANGED"])
+	}
+}
+
+func TestMaybeRecordVarsRecordsMultipleValues(t *testing.T) {
+	sc := &Scenario{}
+	parsed := map[string]any{
+		"id":    "user-123",
+		"email": "user@example.com",
+	}
+
+	err := maybeRecordVars(sc, nil, []RecordVar{
+		{Name: "userID", ResponsePath: "id"},
+		{Name: "userEmail", ResponsePath: "email"},
+	}, parsed, nil, nil)
+	if err != nil {
+		t.Fatalf("maybeRecordVars() error = %v", err)
+	}
+	if got := sc.Vars["userID"]; got != "user-123" {
+		t.Fatalf("userID = %v, want user-123", got)
+	}
+	if got := sc.Vars["userEmail"]; got != "user@example.com" {
+		t.Fatalf("userEmail = %v, want user@example.com", got)
+	}
+}
+
+func TestMaybeRecordVarsRejectsDuplicateNames(t *testing.T) {
+	sc := &Scenario{}
+	parsed := map[string]any{
+		"id":    "user-123",
+		"email": "user@example.com",
+	}
+
+	err := maybeRecordVars(sc, &RecordVar{Name: "user", ResponsePath: "id"}, []RecordVar{
+		{Name: "user", ResponsePath: "email"},
+	}, parsed, nil, nil)
+	if err == nil {
+		t.Fatal("maybeRecordVars() error = nil, want duplicate-name error")
+	}
+	if !strings.Contains(err.Error(), `recordVar name "user" is duplicated`) {
+		t.Fatalf("maybeRecordVars() error = %v, want duplicate-name error", err)
+	}
+}
+
+func TestRequiredEnvValuesIncludesOnlyDeclaredNames(t *testing.T) {
+	t.Setenv("KONGCTL_TEST_REQUIRED", "required-value")
+	t.Setenv("KONGCTL_TEST_UNDECLARED", "undeclared-value")
+
+	got := requiredEnvValues([]string{"KONGCTL_TEST_REQUIRED", " "})
+	if got["KONGCTL_TEST_REQUIRED"] != "required-value" {
+		t.Fatalf("required env = %q, want required-value", got["KONGCTL_TEST_REQUIRED"])
+	}
+	if _, ok := got["KONGCTL_TEST_UNDECLARED"]; ok {
+		t.Fatalf("undeclared env was exposed: %v", got)
+	}
+	if _, ok := got[""]; ok {
+		t.Fatalf("blank env name was exposed: %v", got)
 	}
 }
 

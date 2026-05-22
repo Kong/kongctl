@@ -20,84 +20,67 @@ steps:
     skipInputs: true
     commands:
       - name: 000-get-user-1-by-email
-        exec:
-          - sh
-          - -c
-          - >-
-            {{ .bin }} get org user --profile e2e
-            "$KONGCTL_E2E_ORG_USER_EMAIL_1" -o json
-        recordVar:
-          name: user_1_email
-          responsePath: email
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
+        recordVars:
+          - name: user_1_id
+            responsePath: id
+          - name: user_1_email
+            responsePath: email
         assertions:
           - expect:
               fields:
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
                 "length(id) > `0`": true
                 "full_name != 'n/a'": true
                 "contains(['true','false'], active)": true
 
-      - name: 001-record-user-1-id
-        exec:
-          - sh
-          - -c
-          - >-
-            {{ .bin }} get org user --profile e2e
-            "$KONGCTL_E2E_ORG_USER_EMAIL_1" -o json
-        recordVar:
-          name: user_1_id
-          responsePath: id
-
-      - name: 002-get-user-2-by-email
-        exec:
-          - sh
-          - -c
-          - >-
-            {{ .bin }} get org user --profile e2e
-            "$KONGCTL_E2E_ORG_USER_EMAIL_2" -o json
-        recordVar:
-          name: user_2_email
-          responsePath: email
+      - name: 001-get-user-2-by-email
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}"
+        recordVars:
+          - name: user_2_id
+            responsePath: id
+          - name: user_2_email
+            responsePath: email
         assertions:
           - expect:
               fields:
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}"
                 "length(id) > `0`": true
                 "full_name != 'n/a'": true
                 "contains(['true','false'], active)": true
-
-      - name: 003-record-user-2-id
-        exec:
-          - sh
-          - -c
-          - >-
-            {{ .bin }} get org user --profile e2e
-            "$KONGCTL_E2E_ORG_USER_EMAIL_2" -o json
-        recordVar:
-          name: user_2_id
-          responsePath: id
 
   - name: 002-get-all-users
     skipInputs: true
     commands:
       - name: 000-get-all-users
+        outputFormat: json
         run:
           - get
           - org
           - user
-          - -o
-          - json
         assertions:
           - select: "[?id=='{{ .vars.user_1_id }}'] | [0]"
             expect:
               fields:
                 id: "{{ .vars.user_1_id }}"
-                email: "{{ .vars.user_1_email }}"
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
                 "full_name != 'n/a'": true
                 "contains(['true','false'], active)": true
           - select: "[?id=='{{ .vars.user_2_id }}'] | [0]"
             expect:
               fields:
                 id: "{{ .vars.user_2_id }}"
-                email: "{{ .vars.user_2_email }}"
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}"
                 "full_name != 'n/a'": true
                 "contains(['true','false'], active)": true
 
@@ -105,18 +88,17 @@ steps:
     skipInputs: true
     commands:
       - name: 000-get-user-1-by-email
+        outputFormat: json
         run:
           - get
           - org
           - user
           - "{{ .vars.user_1_email }}"
-          - -o
-          - json
         assertions:
           - expect:
               fields:
                 id: "{{ .vars.user_1_id }}"
-                email: "{{ .vars.user_1_email }}"
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
                 "full_name != 'n/a'": true
                 "contains(['true','false'], active)": true
 
@@ -124,18 +106,17 @@ steps:
     skipInputs: true
     commands:
       - name: 000-get-user-1-by-id
+        outputFormat: json
         run:
           - get
           - org
           - user
           - "{{ .vars.user_1_id }}"
-          - -o
-          - json
         assertions:
           - expect:
               fields:
                 id: "{{ .vars.user_1_id }}"
-                email: "{{ .vars.user_1_email }}"
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
                 "full_name != 'n/a'": true
                 "contains(['true','false'], active)": true
 
@@ -153,11 +134,11 @@ steps:
           - name: user-1-in-output
             expect:
               fields:
-                "contains(stdout, '{{ .vars.user_1_email }}')": true
+                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}')": true
           - name: user-2-in-output
             expect:
               fields:
-                "contains(stdout, '{{ .vars.user_2_email }}')": true
+                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}')": true
 
   - name: 006-list-user-by-email-text
     skipInputs: true
@@ -174,8 +155,8 @@ steps:
           - name: user-1-in-output
             expect:
               fields:
-                "contains(stdout, '{{ .vars.user_1_email }}')": true
+                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}')": true
           - name: user-2-not-in-output
             expect:
               fields:
-                "contains(stdout, '{{ .vars.user_2_email }}')": false
+                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}')": false

@@ -69,6 +69,7 @@ func Run(t *testing.T, scenarioPath string) error {
 	if s.Vars == nil {
 		s.Vars = map[string]any{}
 	}
+	envVars := requiredEnvValues(s.Test.RequiredEnvVars)
 	suiteMaxConcurrency, err := suiteMaxConcurrencyForScenario(scenarioPath)
 	if err != nil {
 		return err
@@ -121,6 +122,7 @@ func Run(t *testing.T, scenarioPath string) error {
 		repoRoot := repoRootFromScenario(scenarioPath)
 		tmplCtx := map[string]any{
 			"vars":         s.Vars,
+			"env":          envVars,
 			"scenario_dir": ScenarioRoot(scenarioPath),
 			"repo_dir":     repoRoot,
 			"bin":          cli.BinPath,
@@ -236,7 +238,7 @@ func Run(t *testing.T, scenarioPath string) error {
 						snippet,
 					)
 				}
-				if err := maybeRecordVar(&s, cmd.RecordVar, parentData.Value(), tmplCtx, step); err != nil {
+				if err := maybeRecordVars(&s, cmd.RecordVar, cmd.RecordVars, parentData.Value(), tmplCtx, step); err != nil {
 					return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 				}
 				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
@@ -292,7 +294,14 @@ func Run(t *testing.T, scenarioPath string) error {
 						},
 					)
 					if lastErr == nil {
-						if err := maybeRecordVar(&s, cmd.Create.RecordVar, result.Parsed, tmplCtx, step); err != nil {
+						if err := maybeRecordVars(
+							&s,
+							cmd.Create.RecordVar,
+							cmd.Create.RecordVars,
+							result.Parsed,
+							tmplCtx,
+							step,
+						); err != nil {
 							return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 						}
 						step.AppendCheck(
@@ -409,7 +418,14 @@ func Run(t *testing.T, scenarioPath string) error {
 						},
 					)
 					if lastErr == nil {
-						if err := maybeRecordVar(&s, cmd.Delete.RecordVar, result.Parsed, tmplCtx, step); err != nil {
+						if err := maybeRecordVars(
+							&s,
+							cmd.Delete.RecordVar,
+							cmd.Delete.RecordVars,
+							result.Parsed,
+							tmplCtx,
+							step,
+						); err != nil {
 							return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 						}
 						step.AppendCheck(
@@ -609,7 +625,7 @@ func Run(t *testing.T, scenarioPath string) error {
 				return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 			}
 
-			if err := maybeRecordVar(&s, cmd.RecordVar, parentData.Value(), tmplCtx, step); err != nil {
+			if err := maybeRecordVars(&s, cmd.RecordVar, cmd.RecordVars, parentData.Value(), tmplCtx, step); err != nil {
 				return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 			}
 			if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
@@ -702,6 +718,47 @@ func prepareEndpointParams(endpointParams map[string]string, tmplCtx map[string]
 	return resolved, nil
 }
 
+func maybeRecordVars(
+	s *Scenario,
+	recordVar *RecordVar,
+	recordVars []RecordVar,
+	parsed any,
+	tmplCtx map[string]any,
+	step *harness.Step,
+) error {
+	if recordVar == nil && len(recordVars) == 0 {
+		return nil
+	}
+
+	specs := make([]*RecordVar, 0, len(recordVars)+1)
+	if recordVar != nil {
+		specs = append(specs, recordVar)
+	}
+	for i := range recordVars {
+		specs = append(specs, &recordVars[i])
+	}
+
+	seen := map[string]struct{}{}
+	for _, spec := range specs {
+		name := strings.TrimSpace(spec.Name)
+		if name == "" {
+			return fmt.Errorf("recordVar name is required")
+		}
+		if _, ok := seen[name]; ok {
+			return fmt.Errorf("recordVar name %q is duplicated", name)
+		}
+		seen[name] = struct{}{}
+	}
+
+	for _, spec := range specs {
+		if err := maybeRecordVar(s, spec, parsed, tmplCtx, step); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func maybeRecordVar(s *Scenario, spec *RecordVar, parsed any, tmplCtx map[string]any, step *harness.Step) error {
 	if spec == nil {
 		return nil
@@ -741,6 +798,21 @@ func maybeRecordVar(s *Scenario, spec *RecordVar, parsed any, tmplCtx map[string
 		step.AppendCheck("SET VAR: %s=%s", spec.Name, strVal)
 	}
 	return nil
+}
+
+func requiredEnvValues(names []string) map[string]string {
+	if len(names) == 0 {
+		return nil
+	}
+	env := make(map[string]string, len(names))
+	for _, name := range names {
+		n := strings.TrimSpace(name)
+		if n == "" {
+			continue
+		}
+		env[n] = os.Getenv(n)
+	}
+	return env
 }
 
 func executeAssertions(
@@ -1092,6 +1164,17 @@ func renderString(s string, data any) string {
 					if sv, ok3 := v.(string); ok3 {
 						s = strings.ReplaceAll(s, ph, sv)
 					}
+				}
+			}
+		}
+	}
+	// required environment variables: {{ .env.KEY }}
+	if strings.Contains(s, "{{ .env.") {
+		if m, ok := data.(map[string]any); ok {
+			if env, ok2 := m["env"].(map[string]string); ok2 {
+				for k, v := range env {
+					ph := fmt.Sprintf("{{ .env.%s }}", k)
+					s = strings.ReplaceAll(s, ph, v)
 				}
 			}
 		}

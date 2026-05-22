@@ -84,6 +84,7 @@ type Command struct {
 	ParseAs        string            `yaml:"parseAs"`
 	StdoutFile     string            `yaml:"stdoutFile"`
 	RecordVar      *RecordVar        `yaml:"recordVar"`
+	RecordVars     []RecordVar       `yaml:"recordVars"`
 }
 
 type CreateSpec struct {
@@ -91,6 +92,7 @@ type CreateSpec struct {
 	Payload        CreatePayload     `yaml:"payload"`
 	ExpectStatus   int               `yaml:"expectStatus"`
 	RecordVar      *RecordVar        `yaml:"recordVar"`
+	RecordVars     []RecordVar       `yaml:"recordVars"`
 	EndpointParams map[string]string `yaml:"endpointParams"`
 }
 
@@ -98,6 +100,7 @@ type DeleteSpec struct {
 	Resource       string            `yaml:"resource"`
 	ExpectStatus   int               `yaml:"expectStatus"`
 	RecordVar      *RecordVar        `yaml:"recordVar"`
+	RecordVars     []RecordVar       `yaml:"recordVars"`
 	EndpointParams map[string]string `yaml:"endpointParams"`
 }
 
