@@ -9,6 +9,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/labels"
+	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
@@ -431,6 +432,88 @@ func TestResolveReferences_PortalReference(t *testing.T) {
 	}
 
 	mockAPI.AssertExpectations(t)
+}
+
+func TestResolveReferences_RoleEntityPortalReferenceCreatedInPlan(t *testing.T) {
+	ctx := context.Background()
+	client := state.NewClient(state.ClientConfig{})
+	resolver := NewReferenceResolver(client, nil)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-portal",
+			ResourceType: ResourceTypePortal,
+			ResourceRef:  "dev-portal",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldName: "Dev Portal",
+			},
+		},
+		{
+			ID:           "2-c-role",
+			ResourceType: ResourceTypeOrganizationTeamRole,
+			ResourceRef:  "portal-viewer",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldRoleName:       "Viewer",
+				FieldEntityID:       "__REF__:dev-portal#id",
+				FieldEntityTypeName: "Portals",
+				FieldEntityRegion:   "us",
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Empty(t, result.Errors)
+
+	roleRefs, ok := result.ChangeReferences["2-c-role"]
+	require.True(t, ok, "expected role references")
+	entityRef, ok := roleRefs[FieldEntityID]
+	require.True(t, ok, "expected entity_id reference")
+	assert.Equal(t, "__REF__:dev-portal#id", entityRef.Ref)
+	assert.Equal(t, "[unknown]", entityRef.ID)
+}
+
+func TestResolveReferences_RoleEntityPortalReferenceUsesEntityTypeName(t *testing.T) {
+	ctx := context.Background()
+	client := state.NewClient(state.ClientConfig{})
+
+	api := declresources.APIResource{BaseResource: declresources.BaseResource{Ref: "shared-ref"}}
+	api.SetKonnectID("api-id")
+	portal := declresources.PortalResource{BaseResource: declresources.BaseResource{Ref: "shared-ref"}}
+	portal.SetKonnectID("portal-id")
+	resourceSet := &declresources.ResourceSet{
+		APIs:    []declresources.APIResource{api},
+		Portals: []declresources.PortalResource{portal},
+	}
+	resolver := NewReferenceResolver(client, resourceSet)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-role",
+			ResourceType: ResourceTypeOrganizationTeamRole,
+			ResourceRef:  "portal-viewer",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldRoleName:       "Viewer",
+				FieldEntityID:       "__REF__:shared-ref#id",
+				FieldEntityTypeName: "Portals",
+				FieldEntityRegion:   "us",
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Empty(t, result.Errors)
+
+	roleRefs, ok := result.ChangeReferences["1-c-role"]
+	require.True(t, ok, "expected role references")
+	entityRef, ok := roleRefs[FieldEntityID]
+	require.True(t, ok, "expected entity_id reference")
+	assert.Equal(t, "__REF__:shared-ref#id", entityRef.Ref)
+	assert.Equal(t, "portal-id", entityRef.ID)
 }
 
 func TestResolveReferences_ExistingPortal(t *testing.T) {

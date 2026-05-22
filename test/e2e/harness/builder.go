@@ -4,6 +4,7 @@ package harness
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -57,19 +58,24 @@ func BinPath() (string, error) {
 		Debugf("Module root located at: %s", modRoot)
 		out := filepath.Join(rd, "bin", exeName("kongctl"))
 		_ = os.MkdirAll(filepath.Dir(out), 0o755)
-		cmd := exec.Command("go", "build", "-trimpath", "-o", out)
+		cmd := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", out)
 		cmd.Dir = modRoot
 		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		// Optional ldflags via env for reproducibility if desired.
 		if ld := os.Getenv("KONGCTL_E2E_LDFLAGS"); ld != "" {
 			Debugf("Building with ldflags: %s", ld)
-			cmd = exec.Command("go", "build", "-trimpath", "-ldflags", ld, "-o", out)
+			cmd = exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-ldflags", ld, "-o", out)
 			cmd.Dir = modRoot
 			cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		}
 		Debugf("Executing: %s (dir=%s)", strings.Join(cmd.Args, " "), cmd.Dir)
-		if err := cmd.Run(); err != nil {
-			buildErr = err
+		if output, err := cmd.CombinedOutput(); err != nil {
+			outputText := strings.TrimSpace(string(output))
+			if outputText != "" {
+				buildErr = fmt.Errorf("%w: %s", err, outputText)
+			} else {
+				buildErr = err
+			}
 			return
 		}
 		Infof("Built kongctl binary: %s", out)

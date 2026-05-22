@@ -293,11 +293,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountRoleCreate(
 ) {
 	dependencies := []string{}
 	if tags.IsRefPlaceholder(role.EntityID) {
-		if apiRef, _, ok := tags.ParseRefPlaceholder(role.EntityID); ok {
-			if apiChangeID := findChangeID(plan, string(resources.ResourceTypeAPI), apiRef); apiChangeID != "" {
-				dependencies = append(dependencies, apiChangeID)
-			}
-		}
+		dependencies = appendRoleEntityDependency(dependencies, plan, role.EntityID, role.EntityTypeName)
 	}
 
 	refs := map[string]ReferenceInfo{

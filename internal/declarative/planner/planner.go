@@ -432,7 +432,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		}
 	}
 
-	// Ensure team roles depend on referenced APIs created in the same plan
+	// Ensure team roles depend on referenced entities created in the same plan.
 	adjustTeamRoleDependencies(basePlan)
 
 	// Resolve dependencies and calculate execution order.

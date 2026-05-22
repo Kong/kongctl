@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 func init() {
@@ -114,17 +112,8 @@ func (r PortalTeamRoleResource) GetDependencies() []ResourceRef {
 		})
 	}
 
-	if tags.IsRefPlaceholder(r.EntityID) {
-		if ref, _, ok := tags.ParseRefPlaceholder(r.EntityID); ok && ref != "" {
-			deps = append(deps, ResourceRef{
-				Kind: ResourceTypeAPI,
-				Ref:  ref,
-			})
-		}
-	}
+	deps = append(deps, roleEntityDependency(r.EntityID, r.EntityTypeName)...)
 
-	// EntityID may be a !ref to another resource; we rely on loader reference
-	// resolution to inject reference metadata rather than explicit dependency here.
 	return deps
 }
 

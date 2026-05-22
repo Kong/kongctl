@@ -161,25 +161,13 @@ func (l *Loader) validateUserRoleEntityReference(
 	role *resources.OrganizationUserRoleResource,
 	rs *resources.ResourceSet,
 ) error {
-	if !tags.IsRefPlaceholder(role.EntityID) {
-		return nil
-	}
-
-	apiRef, _, ok := tags.ParseRefPlaceholder(role.EntityID)
-	if !ok || apiRef == "" {
-		return fmt.Errorf("organization_user_role %q has invalid entity_id reference: %s",
-			role.GetRef(), role.EntityID)
-	}
-
-	if resource, found := rs.GetResourceByRef(apiRef); !found {
-		return fmt.Errorf("organization_user_role %q references unknown api: %s (field: entity_id)",
-			role.GetRef(), apiRef)
-	} else if resource.GetType() != resources.ResourceTypeAPI {
-		return fmt.Errorf("organization_user_role %q references %s but expected api: %s (field: entity_id)",
-			role.GetRef(), resource.GetType(), apiRef)
-	}
-
-	return nil
+	return validateRoleEntityReference(
+		resources.ResourceTypeOrganizationUserRole,
+		role.GetRef(),
+		role.EntityID,
+		role.EntityTypeName,
+		rs,
+	)
 }
 
 func (l *Loader) validateOrganizationSystemAccounts(rs *resources.ResourceSet) error {
@@ -260,25 +248,13 @@ func (l *Loader) validateSystemAccountRoleEntityReference(
 	role *resources.OrganizationSystemAccountRoleResource,
 	rs *resources.ResourceSet,
 ) error {
-	if !tags.IsRefPlaceholder(role.EntityID) {
-		return nil
-	}
-
-	apiRef, _, ok := tags.ParseRefPlaceholder(role.EntityID)
-	if !ok || apiRef == "" {
-		return fmt.Errorf("organization_system_account_role %q has invalid entity_id reference: %s",
-			role.GetRef(), role.EntityID)
-	}
-
-	if resource, found := rs.GetResourceByRef(apiRef); !found {
-		return fmt.Errorf("organization_system_account_role %q references unknown api: %s (field: entity_id)",
-			role.GetRef(), apiRef)
-	} else if resource.GetType() != resources.ResourceTypeAPI {
-		return fmt.Errorf("organization_system_account_role %q references %s but expected api: %s (field: entity_id)",
-			role.GetRef(), resource.GetType(), apiRef)
-	}
-
-	return nil
+	return validateRoleEntityReference(
+		resources.ResourceTypeOrganizationSystemAccountRole,
+		role.GetRef(),
+		role.EntityID,
+		role.EntityTypeName,
+		rs,
+	)
 }
 
 func (l *Loader) validateOrganizationTeamRoles(roles []resources.OrganizationTeamRoleResource,
@@ -328,18 +304,47 @@ func (l *Loader) validateOrganizationTeamRoleReferences(
 		return nil
 	}
 
-	apiRef, _, ok := tags.ParseRefPlaceholder(role.EntityID)
-	if !ok || apiRef == "" {
-		return fmt.Errorf("organization_team_role %q has invalid entity_id reference: %s",
-			role.GetRef(), role.EntityID)
+	return validateRoleEntityReference(
+		resources.ResourceTypeOrganizationTeamRole,
+		role.GetRef(),
+		role.EntityID,
+		role.EntityTypeName,
+		rs,
+	)
+}
+
+func validateRoleEntityReference(
+	roleType resources.ResourceType,
+	roleRef string,
+	entityID string,
+	entityTypeName string,
+	rs *resources.ResourceSet,
+) error {
+	if !tags.IsRefPlaceholder(entityID) {
+		return nil
 	}
 
-	if resource, found := rs.GetResourceByRef(apiRef); !found {
-		return fmt.Errorf("organization_team_role %q references unknown api: %s (field: entity_id)",
-			role.GetRef(), apiRef)
-	} else if resource.GetType() != resources.ResourceTypeAPI {
-		return fmt.Errorf("organization_team_role %q references %s but expected api: %s (field: entity_id)",
-			role.GetRef(), resource.GetType(), apiRef)
+	entityRef, _, ok := tags.ParseRefPlaceholder(entityID)
+	if !ok || entityRef == "" {
+		return fmt.Errorf("%s %q has invalid entity_id reference: %s", roleType, roleRef, entityID)
+	}
+
+	expectedType, ok := resources.RoleEntityResourceType(entityTypeName)
+	if !ok {
+		return fmt.Errorf(
+			"%s %q has unsupported entity_type_name for entity_id reference: %s",
+			roleType,
+			roleRef,
+			entityTypeName,
+		)
+	}
+
+	if resource, found := rs.GetResourceByRef(entityRef); !found {
+		return fmt.Errorf("%s %q references unknown %s: %s (field: entity_id)",
+			roleType, roleRef, expectedType, entityRef)
+	} else if resource.GetType() != expectedType {
+		return fmt.Errorf("%s %q references %s but expected %s: %s (field: entity_id)",
+			roleType, roleRef, resource.GetType(), expectedType, entityRef)
 	}
 
 	return nil

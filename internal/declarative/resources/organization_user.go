@@ -2,8 +2,6 @@ package resources
 
 import (
 	"fmt"
-
-	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 func init() {
@@ -149,13 +147,7 @@ func (r OrganizationUserRoleResource) GetMoniker() string {
 }
 
 func (r OrganizationUserRoleResource) GetDependencies() []ResourceRef {
-	deps := []ResourceRef{}
-	if tags.IsRefPlaceholder(r.EntityID) {
-		if ref, _, ok := tags.ParseRefPlaceholder(r.EntityID); ok && ref != "" {
-			deps = append(deps, ResourceRef{Kind: ResourceTypeAPI, Ref: ref})
-		}
-	}
-	return deps
+	return roleEntityDependency(r.EntityID, r.EntityTypeName)
 }
 
 func (r OrganizationUserRoleResource) Validate() error {
