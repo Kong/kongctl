@@ -1,0 +1,181 @@
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  assignedEnvironment: kongctl-acceptance
+  requiredEnvVars:
+    - KONGCTL_E2E_ORG_USER_EMAIL_1
+    - KONGCTL_E2E_ORG_USER_EMAIL_2
+  info: >-
+    Organization user get E2E requires two existing Konnect users via
+    KONGCTL_E2E_ORG_USER_EMAIL_1 and KONGCTL_E2E_ORG_USER_EMAIL_2.
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-resolve-users
+    skipInputs: true
+    commands:
+      - name: 000-get-user-1-by-email
+        exec:
+          - sh
+          - -c
+          - >-
+            {{ .bin }} get org user --profile e2e
+            "$KONGCTL_E2E_ORG_USER_EMAIL_1" -o json
+        recordVar:
+          name: user_1_email
+          responsePath: email
+        assertions:
+          - expect:
+              fields:
+                "length(id) > `0`": true
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+      - name: 001-record-user-1-id
+        exec:
+          - sh
+          - -c
+          - >-
+            {{ .bin }} get org user --profile e2e
+            "$KONGCTL_E2E_ORG_USER_EMAIL_1" -o json
+        recordVar:
+          name: user_1_id
+          responsePath: id
+
+      - name: 002-get-user-2-by-email
+        exec:
+          - sh
+          - -c
+          - >-
+            {{ .bin }} get org user --profile e2e
+            "$KONGCTL_E2E_ORG_USER_EMAIL_2" -o json
+        recordVar:
+          name: user_2_email
+          responsePath: email
+        assertions:
+          - expect:
+              fields:
+                "length(id) > `0`": true
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+      - name: 003-record-user-2-id
+        exec:
+          - sh
+          - -c
+          - >-
+            {{ .bin }} get org user --profile e2e
+            "$KONGCTL_E2E_ORG_USER_EMAIL_2" -o json
+        recordVar:
+          name: user_2_id
+          responsePath: id
+
+  - name: 002-get-all-users
+    skipInputs: true
+    commands:
+      - name: 000-get-all-users
+        run:
+          - get
+          - org
+          - user
+          - -o
+          - json
+        assertions:
+          - select: "[?id=='{{ .vars.user_1_id }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.user_1_id }}"
+                email: "{{ .vars.user_1_email }}"
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+          - select: "[?id=='{{ .vars.user_2_id }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.user_2_id }}"
+                email: "{{ .vars.user_2_email }}"
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+  - name: 003-get-user-by-email
+    skipInputs: true
+    commands:
+      - name: 000-get-user-1-by-email
+        run:
+          - get
+          - org
+          - user
+          - "{{ .vars.user_1_email }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.user_1_id }}"
+                email: "{{ .vars.user_1_email }}"
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+  - name: 004-get-user-by-id
+    skipInputs: true
+    commands:
+      - name: 000-get-user-1-by-id
+        run:
+          - get
+          - org
+          - user
+          - "{{ .vars.user_1_id }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.user_1_id }}"
+                email: "{{ .vars.user_1_email }}"
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+  - name: 005-list-users-text
+    skipInputs: true
+    commands:
+      - name: 000-list-all-users
+        run:
+          - list
+          - org
+          - user
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - name: user-1-in-output
+            expect:
+              fields:
+                "contains(stdout, '{{ .vars.user_1_email }}')": true
+          - name: user-2-in-output
+            expect:
+              fields:
+                "contains(stdout, '{{ .vars.user_2_email }}')": true
+
+  - name: 006-list-user-by-email-text
+    skipInputs: true
+    commands:
+      - name: 000-list-user-1-by-email
+        run:
+          - list
+          - org
+          - user
+          - "{{ .vars.user_1_email }}"
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - name: user-1-in-output
+            expect:
+              fields:
+                "contains(stdout, '{{ .vars.user_1_email }}')": true
+          - name: user-2-not-in-output
+            expect:
+              fields:
+                "contains(stdout, '{{ .vars.user_2_email }}')": false
