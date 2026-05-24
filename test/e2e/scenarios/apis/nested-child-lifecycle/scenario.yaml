@@ -137,6 +137,10 @@ steps:
               fields:
                 version: "1.0.0"
                 "spec.type": "oas3"
+                "spec.content != null": true
+                "contains(spec.content, 'openapi')": true
+                "contains(spec.content, '3.0.0')": true
+                "contains(spec.content, 'API Nested')": true
       - name: 004-get-version-by-uuid
         run: ["get", "api", "versions", "--api-name", "API Nested", "{{ .vars.v1VersionID }}", "-o", "json"]
         assertions:
@@ -145,6 +149,10 @@ steps:
               fields:
                 version: "1.0.0"
                 "spec.type": "oas3"
+                "spec.content != null": true
+                "contains(spec.content, 'openapi')": true
+                "contains(spec.content, '3.0.0')": true
+                "contains(spec.content, 'API Nested')": true
       - name: 005-get-version-not-found
         run: ["get", "api", "versions", "--api-name", "API Nested", "nonexistent-99.0.0", "-o", "json"]
         expectFailure:
