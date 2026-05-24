@@ -13,6 +13,9 @@ func TestCopyFilePreservesExecutablePermissions(t *testing.T) {
 	if err := os.WriteFile(src, []byte("binary"), 0o755); err != nil {
 		t.Fatalf("write source file: %v", err)
 	}
+	if err := os.Chmod(src, 0o755); err != nil {
+		t.Fatalf("chmod source file: %v", err)
+	}
 
 	dst := filepath.Join(t.TempDir(), "dst")
 	if err := copyFile(src, dst); err != nil {

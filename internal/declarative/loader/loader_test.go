@@ -386,6 +386,37 @@ organization_team_roles:
 	}, rolesByRef)
 }
 
+func TestLoader_LoadFileAllowsOrganizationTeamRolePortalRef(t *testing.T) {
+	content := `
+organization:
+  teams:
+    - ref: repro-team
+      name: repro-team
+      roles:
+        - ref: repro-team-role
+          role_name: viewer
+          entity_id: !ref repro-portal
+          entity_type_name: Portals
+          entity_region: us
+
+portals:
+  - ref: repro-portal
+    name: repro-portal
+`
+
+	dir := t.TempDir()
+	file := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+	loader := New()
+	rs, err := loader.LoadFile(file)
+	require.NoError(t, err)
+
+	require.Len(t, rs.OrganizationTeamRoles, 1)
+	assert.Equal(t, "__REF__:repro-portal#id", rs.OrganizationTeamRoles[0].EntityID)
+	assert.Equal(t, "Portals", rs.OrganizationTeamRoles[0].EntityTypeName)
+}
+
 func TestLoader_FlattensOrganizationUserAssignments(t *testing.T) {
 	content := `
 apis:

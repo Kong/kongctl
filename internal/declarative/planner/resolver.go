@@ -65,11 +65,12 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 		// Check fields that might contain references
 		for fieldName, fieldValue := range change.Fields {
 			if ref, isRef := r.extractReference(fieldName, fieldValue); isRef {
-				// Determine resource type from field name
-				resourceType := r.getResourceTypeForField(fieldName)
+				// Determine resource type from field name and role entity metadata.
+				resourceType := r.getResourceTypeForChangeField(change, fieldName)
+				targetRef := referenceTargetRef(ref)
 
 				// Check if this references something being created
-				if _, inPlan := createdResources[resourceType][ref]; inPlan {
+				if _, inPlan := createdResources[resourceType][targetRef]; inPlan {
 					changeRefs[fieldName] = ResolvedReference{
 						Ref: ref,
 						ID:  "[unknown]", // Will be resolved at execution
@@ -171,6 +172,24 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 	}
 }
 
+func (r *ReferenceResolver) getResourceTypeForChangeField(change PlannedChange, fieldName string) string {
+	if fieldName == FieldEntityID {
+		entityTypeName, _ := change.Fields[FieldEntityTypeName].(string)
+		if resourceType, ok := resources.RoleEntityResourceType(entityTypeName); ok {
+			return string(resourceType)
+		}
+	}
+	return r.getResourceTypeForField(fieldName)
+}
+
+func referenceTargetRef(ref string) string {
+	targetRef, _, ok := tags.ParseRefPlaceholder(ref)
+	if ok {
+		return targetRef
+	}
+	return ref
+}
+
 // resolveReference looks up a reference in existing resources
 func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, ref string) (string, error) {
 	var targetRef string
@@ -191,8 +210,7 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 
 	// Find resource in ResourceSet by ref
 	if r.resources != nil {
-		resource, exists := r.resources.GetResourceByRef(targetRef)
-		if exists {
+		if resource, exists := r.getResourceByTypeAndRef(resourceType, targetRef); exists {
 			// Special handling for "id" field - return konnectID
 			if fieldName == FieldID || fieldName == "ID" {
 				konnectID := resource.GetKonnectID()
@@ -221,6 +239,21 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 	default:
 		return "", fmt.Errorf("unknown resource type: %s", resourceType)
 	}
+}
+
+func (r *ReferenceResolver) getResourceByTypeAndRef(resourceType string, ref string) (resources.Resource, bool) {
+	if r.resources == nil {
+		return nil, false
+	}
+	if resourceType == "" {
+		return r.resources.GetResourceByRef(ref)
+	}
+	for _, resource := range r.resources.AllResourcesByType(resources.ResourceType(resourceType)) {
+		if resource.GetRef() == ref {
+			return resource, true
+		}
+	}
+	return nil, false
 }
 
 func (r *ReferenceResolver) resolveDCRProviderRef(ctx context.Context, ref string) (string, error) {

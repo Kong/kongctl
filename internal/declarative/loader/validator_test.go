@@ -629,6 +629,33 @@ func TestLoader_validateOrganizationTeamRoles_ValidatesReferences(t *testing.T) 
 			},
 		},
 		{
+			name: "valid team and portal refs",
+			rs: &resources.ResourceSet{
+				OrganizationTeams: []resources.OrganizationTeamResource{
+					{
+						BaseResource: resources.BaseResource{Ref: "platform-team"},
+						CreateTeam:   kkComps.CreateTeam{Name: "Platform"},
+					},
+				},
+				Portals: []resources.PortalResource{
+					{
+						BaseResource: resources.BaseResource{Ref: "developer-portal"},
+						CreatePortal: kkComps.CreatePortal{Name: "Developer Portal"},
+					},
+				},
+				OrganizationTeamRoles: []resources.OrganizationTeamRoleResource{
+					{
+						Ref:            "platform-portal-viewer",
+						Team:           "platform-team",
+						RoleName:       "Viewer",
+						EntityID:       tags.RefPlaceholderPrefix + "developer-portal#id",
+						EntityTypeName: "Portals",
+						EntityRegion:   "us",
+					},
+				},
+			},
+		},
+		{
 			name: "unknown team ref",
 			rs: &resources.ResourceSet{
 				OrganizationTeamRoles: []resources.OrganizationTeamRoleResource{
@@ -666,6 +693,32 @@ func TestLoader_validateOrganizationTeamRoles_ValidatesReferences(t *testing.T) 
 			},
 			expectError: `organization_team_role "platform-admin" references unknown api: missing-api (field: entity_id)`,
 		},
+		{
+			name: "entity type mismatch",
+			rs: &resources.ResourceSet{
+				OrganizationTeams: []resources.OrganizationTeamResource{
+					{
+						BaseResource: resources.BaseResource{Ref: "platform-team"},
+						CreateTeam:   kkComps.CreateTeam{Name: "Platform"},
+					},
+				},
+				APIs: []resources.APIResource{
+					{BaseResource: resources.BaseResource{Ref: "products-api"}},
+				},
+				OrganizationTeamRoles: []resources.OrganizationTeamRoleResource{
+					{
+						Ref:            "platform-admin",
+						Team:           "platform-team",
+						RoleName:       "Admin",
+						EntityID:       tags.RefPlaceholderPrefix + "products-api#id",
+						EntityTypeName: "Portals",
+						EntityRegion:   "us",
+					},
+				},
+			},
+			expectError: `organization_team_role "platform-admin" references api but expected portal: ` +
+				`products-api (field: entity_id)`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -680,6 +733,50 @@ func TestLoader_validateOrganizationTeamRoles_ValidatesReferences(t *testing.T) 
 			assert.Contains(t, err.Error(), tt.expectError)
 		})
 	}
+}
+
+func TestLoader_validateOrganizationUserRole_AllowsPortalEntityRef(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{
+			{
+				BaseResource: resources.BaseResource{Ref: "developer-portal"},
+				CreatePortal: kkComps.CreatePortal{Name: "Developer Portal"},
+			},
+		},
+	}
+	role := &resources.OrganizationUserRoleResource{
+		Ref:            "alice-portal-viewer",
+		User:           "alice",
+		RoleName:       "Viewer",
+		EntityID:       tags.RefPlaceholderPrefix + "developer-portal#id",
+		EntityTypeName: "Portals",
+		EntityRegion:   "us",
+	}
+
+	require.NoError(t, loader.validateUserRoleEntityReference(role, rs))
+}
+
+func TestLoader_validateOrganizationSystemAccountRole_AllowsPortalEntityRef(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{
+			{
+				BaseResource: resources.BaseResource{Ref: "developer-portal"},
+				CreatePortal: kkComps.CreatePortal{Name: "Developer Portal"},
+			},
+		},
+	}
+	role := &resources.OrganizationSystemAccountRoleResource{
+		Ref:            "ci-bot-portal-viewer",
+		SystemAccount:  "ci-bot",
+		RoleName:       "Viewer",
+		EntityID:       tags.RefPlaceholderPrefix + "developer-portal#id",
+		EntityTypeName: "Portals",
+		EntityRegion:   "us",
+	}
+
+	require.NoError(t, loader.validateSystemAccountRoleEntityReference(role, rs))
 }
 
 func TestLoader_getFieldValue(t *testing.T) {

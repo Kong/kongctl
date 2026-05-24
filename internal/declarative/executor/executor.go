@@ -1318,6 +1318,48 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 	return cp.ID, nil
 }
 
+func (e *Executor) resolveRoleEntityRef(ctx context.Context, change *planner.PlannedChange) error {
+	if change == nil {
+		return nil
+	}
+
+	entityRef, ok := change.References[planner.FieldEntityID]
+	if !ok || !unresolvedReferenceID(entityRef.ID) {
+		return nil
+	}
+
+	entityTypeName, _ := change.Fields[planner.FieldEntityTypeName].(string)
+	entityResourceType, ok := resources.RoleEntityResourceType(entityTypeName)
+	if !ok {
+		return fmt.Errorf("failed to resolve entity reference: unsupported entity_type_name %q", entityTypeName)
+	}
+
+	var (
+		entityID string
+		err      error
+	)
+	switch entityResourceType { //nolint:exhaustive
+	case resources.ResourceTypeAPI:
+		entityID, err = e.resolveAPIRef(ctx, entityRef)
+	case resources.ResourceTypePortal:
+		entityID, err = e.resolvePortalRef(ctx, entityRef)
+	case resources.ResourceTypeControlPlane:
+		entityID, err = e.resolveControlPlaneRef(ctx, entityRef)
+	default:
+		return fmt.Errorf(
+			"failed to resolve entity reference: unsupported entity resource type %s",
+			entityResourceType,
+		)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to resolve entity reference: %w", err)
+	}
+
+	entityRef.ID = entityID
+	change.References[planner.FieldEntityID] = entityRef
+	return nil
+}
+
 func (e *Executor) syncControlPlaneGroupMembers(
 	ctx context.Context,
 	change *planner.PlannedChange,
@@ -2304,14 +2346,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldTeamID] = teamRef
 		}
 
-		if entityRef, ok := change.References[planner.FieldEntityID]; ok &&
-			(entityRef.ID == "" || entityRef.ID == "[unknown]") {
-			apiID, err := e.resolveAPIRef(ctx, entityRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
-			}
-			entityRef.ID = apiID
-			change.References[planner.FieldEntityID] = entityRef
+		if err := e.resolveRoleEntityRef(ctx, change); err != nil {
+			return "", err
 		}
 
 		return e.portalTeamRoleExecutor.Create(ctx, *change)
@@ -2408,14 +2444,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			teamRef.ID = teamID
 			change.References[planner.FieldTeamID] = teamRef
 		}
-		if entityRef, ok := change.References[planner.FieldEntityID]; ok &&
-			(entityRef.ID == "" || entityRef.ID == "[unknown]") {
-			apiID, err := e.resolveAPIRef(ctx, entityRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
-			}
-			entityRef.ID = apiID
-			change.References[planner.FieldEntityID] = entityRef
+		if err := e.resolveRoleEntityRef(ctx, change); err != nil {
+			return "", err
 		}
 		return e.organizationTeamRoleExecutor.Create(ctx, *change)
 	case planner.ResourceTypeOrganizationUserTeamMembership:
@@ -2429,13 +2459,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.organizationUserTeamMembershipExecutor.Create(ctx, *change)
 	case planner.ResourceTypeOrganizationUserRole:
-		if entityRef, ok := change.References[planner.FieldEntityID]; ok && unresolvedReferenceID(entityRef.ID) {
-			apiID, err := e.resolveAPIRef(ctx, entityRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
-			}
-			entityRef.ID = apiID
-			change.References[planner.FieldEntityID] = entityRef
+		if err := e.resolveRoleEntityRef(ctx, change); err != nil {
+			return "", err
 		}
 		return e.organizationUserRoleExecutor.Create(ctx, *change)
 	case planner.ResourceTypeOrganizationSystemAccountTeamMembership:
@@ -2449,13 +2474,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.organizationSystemAccountTeamMembershipExecutor.Create(ctx, *change)
 	case planner.ResourceTypeOrganizationSystemAccountRole:
-		if entityRef, ok := change.References[planner.FieldEntityID]; ok && unresolvedReferenceID(entityRef.ID) {
-			apiID, err := e.resolveAPIRef(ctx, entityRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
-			}
-			entityRef.ID = apiID
-			change.References[planner.FieldEntityID] = entityRef
+		if err := e.resolveRoleEntityRef(ctx, change); err != nil {
+			return "", err
 		}
 		return e.organizationSystemAccountRoleExecutor.Create(ctx, *change)
 

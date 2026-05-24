@@ -5,8 +5,8 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
-// adjustTeamRoleDependencies wires team role changes to depend on API creations when
-// entity_id is a reference placeholder pointing to an API being created in the same plan.
+// adjustTeamRoleDependencies wires team role changes to depend on entity creations when
+// entity_id is a reference placeholder pointing to a resource being created in the same plan.
 func adjustTeamRoleDependencies(plan *Plan) {
 	if plan == nil {
 		return
@@ -16,8 +16,8 @@ func adjustTeamRoleDependencies(plan *Plan) {
 	adjustTeamRoleDeleteDependencies(plan)
 }
 
-// adjustTeamRoleCreateDependencies wires team role changes to depend on API creations when
-// entity_id is a reference placeholder pointing to an API being created in the same plan.
+// adjustTeamRoleCreateDependencies wires team role changes to depend on entity creations when
+// entity_id is a reference placeholder pointing to a resource being created in the same plan.
 func adjustTeamRoleCreateDependencies(plan *Plan) {
 	changeByKey := make(map[string]string) // resource_type|ref -> changeID
 	for _, change := range plan.Changes {
@@ -49,10 +49,16 @@ func adjustTeamRoleCreateDependencies(plan *Plan) {
 			continue
 		}
 
-		apiKey := string(resources.ResourceTypeAPI) + "|" + parsedRef
-		if apiChangeID, exists := changeByKey[apiKey]; exists {
-			if !containsString(change.DependsOn, apiChangeID) {
-				change.DependsOn = append(change.DependsOn, apiChangeID)
+		entityTypeName, _ := change.Fields[FieldEntityTypeName].(string)
+		entityResourceType, ok := resources.RoleEntityResourceType(entityTypeName)
+		if !ok {
+			continue
+		}
+
+		entityKey := string(entityResourceType) + "|" + parsedRef
+		if entityChangeID, exists := changeByKey[entityKey]; exists {
+			if !containsString(change.DependsOn, entityChangeID) {
+				change.DependsOn = append(change.DependsOn, entityChangeID)
 			}
 		}
 	}
@@ -96,14 +102,50 @@ func adjustTeamRoleDeleteDependencies(plan *Plan) {
 					change.DependsOn = appendDependsOn(change.DependsOn, roleDelete.ID)
 				}
 			}
-		case ResourceTypeAPI:
+		case ResourceTypeAPI, ResourceTypePortal, ResourceTypeControlPlane:
 			for _, roleDelete := range roleDeletes {
-				if teamRoleReferencesEntity(roleDelete, change.ResourceID) {
+				if teamRoleEntityResourceType(roleDelete) == change.ResourceType &&
+					teamRoleReferencesEntity(roleDelete, change.ResourceID) {
 					change.DependsOn = appendDependsOn(change.DependsOn, roleDelete.ID)
 				}
 			}
 		}
 	}
+}
+
+func appendRoleEntityDependency(dependencies []string, plan *Plan, entityID, entityTypeName string) []string {
+	entityRef, _, ok := tags.ParseRefPlaceholder(entityID)
+	if !ok || entityRef == "" {
+		return dependencies
+	}
+
+	entityResourceType, ok := resources.RoleEntityResourceType(entityTypeName)
+	if !ok {
+		return dependencies
+	}
+
+	entityChangeID := findChangeID(plan, string(entityResourceType), entityRef)
+	if entityChangeID == "" || containsString(dependencies, entityChangeID) {
+		return dependencies
+	}
+	return append(dependencies, entityChangeID)
+}
+
+func teamRoleEntityResourceType(roleDelete *PlannedChange) string {
+	if roleDelete == nil {
+		return ""
+	}
+
+	entityTypeName, _ := roleDelete.Fields[FieldEntityTypeName].(string)
+	if entityTypeName == "" {
+		return ResourceTypeAPI
+	}
+
+	resourceType, ok := resources.RoleEntityResourceType(entityTypeName)
+	if !ok {
+		return ""
+	}
+	return string(resourceType)
 }
 
 func teamMembershipBelongsToTeam(change *PlannedChange, teamID string) bool {

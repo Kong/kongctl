@@ -6,9 +6,10 @@ These examples demonstrate how to manage Konnect organization resources with
 ## Files
 
 - `teams.yaml` - defines organization teams with namespaces.
-- `team-roles.yaml` - defines organization teams and assigns roles to an API.
-  The example shows both nested `organization.teams[].roles` declarations and
-  root-level `organization_team_roles` declarations.
+- `team-roles.yaml` - defines organization teams and assigns roles to API and
+  portal resources using `!ref` in `entity_id`. The example shows both nested
+  `organization.teams[].roles` declarations and root-level
+  `organization_team_roles` declarations.
 - `user-assignments.yaml` - assigns existing organization users to teams and
   direct roles. Users have a local `ref` and are selected by exactly one of
   `email` or `id`; team memberships and roles also have local refs. kongctl
