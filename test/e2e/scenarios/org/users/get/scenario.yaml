@@ -1,0 +1,162 @@
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  assignedEnvironment: kongctl-acceptance
+  requiredEnvVars:
+    - KONGCTL_E2E_ORG_USER_EMAIL_1
+    - KONGCTL_E2E_ORG_USER_EMAIL_2
+  info: >-
+    Organization user get E2E requires two existing Konnect users via
+    KONGCTL_E2E_ORG_USER_EMAIL_1 and KONGCTL_E2E_ORG_USER_EMAIL_2.
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-resolve-users
+    skipInputs: true
+    commands:
+      - name: 000-get-user-1-by-email
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
+        recordVars:
+          - name: user_1_id
+            responsePath: id
+          - name: user_1_email
+            responsePath: email
+        assertions:
+          - expect:
+              fields:
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
+                "length(id) > `0`": true
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+      - name: 001-get-user-2-by-email
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}"
+        recordVars:
+          - name: user_2_id
+            responsePath: id
+          - name: user_2_email
+            responsePath: email
+        assertions:
+          - expect:
+              fields:
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}"
+                "length(id) > `0`": true
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+  - name: 002-get-all-users
+    skipInputs: true
+    commands:
+      - name: 000-get-all-users
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+        assertions:
+          - select: "[?id=='{{ .vars.user_1_id }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.user_1_id }}"
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+          - select: "[?id=='{{ .vars.user_2_id }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.user_2_id }}"
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}"
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+  - name: 003-get-user-by-email
+    skipInputs: true
+    commands:
+      - name: 000-get-user-1-by-email
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - "{{ .vars.user_1_email }}"
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.user_1_id }}"
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+  - name: 004-get-user-by-id
+    skipInputs: true
+    commands:
+      - name: 000-get-user-1-by-id
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - "{{ .vars.user_1_id }}"
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.user_1_id }}"
+                email: "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
+                "full_name != 'n/a'": true
+                "contains(['true','false'], active)": true
+
+  - name: 005-list-users-text
+    skipInputs: true
+    commands:
+      - name: 000-list-all-users
+        run:
+          - list
+          - org
+          - user
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - name: user-1-in-output
+            expect:
+              fields:
+                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}')": true
+          - name: user-2-in-output
+            expect:
+              fields:
+                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}')": true
+
+  - name: 006-list-user-by-email-text
+    skipInputs: true
+    commands:
+      - name: 000-list-user-1-by-email
+        run:
+          - list
+          - org
+          - user
+          - "{{ .vars.user_1_email }}"
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - name: user-1-in-output
+            expect:
+              fields:
+                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}')": true
+          - name: user-2-not-in-output
+            expect:
+              fields:
+                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}')": false
