@@ -1569,6 +1569,10 @@ func runAssertion(
 		actualSubset := map[string]any{}
 		expectedSubset := map[string]any{}
 		for k, v := range as.Expect.Fields {
+			fieldExpr := k
+			if rb, rerr := renderTemplate([]byte(k), tmplCtx); rerr == nil {
+				fieldExpr = string(rb)
+			}
 			// Template string values in expected
 			var ev any = v
 			if sv, ok := v.(string); ok {
@@ -1576,14 +1580,14 @@ func runAssertion(
 					ev = string(rb)
 				}
 			}
-			expectedSubset[k] = ev
+			expectedSubset[fieldExpr] = ev
 			// Resolve from observed using JMESPath over the selected object
-			av, aerr := jmespath.Search(k, observed)
+			av, aerr := jmespath.Search(fieldExpr, observed)
 			if aerr != nil {
 				// record nil if not found
-				actualSubset[k] = nil
+				actualSubset[fieldExpr] = nil
 			} else {
-				actualSubset[k] = av
+				actualSubset[fieldExpr] = av
 			}
 		}
 		// Normalize numeric types in both subsets to avoid int vs float64 diffs

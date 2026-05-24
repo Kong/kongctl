@@ -118,6 +118,34 @@ func TestExecuteAssertionsRendersRequiredEnv(t *testing.T) {
 	}
 }
 
+func TestExecuteAssertionsRendersRequiredEnvInFieldExpressions(t *testing.T) {
+	t.Setenv("KONGCTL_TEST_ASSERT_EMAIL", "user@example.com")
+
+	cli := &harness.CLI{LastCommandDir: t.TempDir()}
+	sc := Scenario{
+		Test: ScenarioTest{
+			RequiredEnvVars: []string{"KONGCTL_TEST_ASSERT_EMAIL"},
+		},
+	}
+	cmd := Command{
+		Assertions: []Assertion{{
+			Expect: Expect{
+				Fields: map[string]any{
+					"contains(stdout, '{{ .env.KONGCTL_TEST_ASSERT_EMAIL }}')": true,
+				},
+			},
+		}},
+	}
+	parent := map[string]any{
+		"stdout": "ID EMAIL\nuser-123 user@example.com\n",
+	}
+
+	err := executeAssertions(cli, "scenario.yaml", sc, Step{}, cmd, parent, t.TempDir(), "step", "cmd", nil)
+	if err != nil {
+		t.Fatalf("executeAssertions() error = %v", err)
+	}
+}
+
 func TestRenderEnvScopeReplacesVars(t *testing.T) {
 	tmplCtx := map[string]any{
 		"vars": map[string]any{
