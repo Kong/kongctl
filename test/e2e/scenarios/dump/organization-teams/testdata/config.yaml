@@ -1,0 +1,25 @@
+_defaults:
+  kongctl:
+    namespace: dump-org-teams-e2e
+
+organization:
+  teams:
+    - ref: dump-org-team-alpha
+      name: e2e-dump-org-team-alpha
+      description: Alpha team for filtered organization teams dump E2E coverage
+      roles:
+        - ref: dump-org-team-alpha-viewer
+          role_name: Viewer
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: us
+
+    - ref: dump-org-team-beta
+      name: e2e-dump-org-team-beta
+      description: Beta team for filtered organization teams dump E2E coverage
+      roles:
+        - ref: dump-org-team-beta-admin
+          role_name: Admin
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: us
