@@ -559,3 +559,106 @@ func TestValidateNamespaceRequirementSpecific(t *testing.T) {
 		}
 	})
 }
+
+func TestValidateNamespaceRequirementCoversAllNamespacedParents(t *testing.T) {
+	validator := NewNamespaceValidator()
+	requireAny := NamespaceRequirement{Mode: NamespaceRequirementAny}
+
+	for _, tt := range []struct {
+		name string
+		rs   resources.ResourceSet
+	}{
+		{
+			name: "catalog service",
+			rs: resources.ResourceSet{
+				CatalogServices: []resources.CatalogServiceResource{
+					{BaseResource: namespacedBaseResource("repro-service", "ns-a", resources.NamespaceOriginExplicit)},
+				},
+			},
+		},
+		{
+			name: "dashboard",
+			rs: resources.ResourceSet{
+				Dashboards: []resources.DashboardResource{
+					{BaseResource: namespacedBaseResource("repro-dashboard", "ns-a", resources.NamespaceOriginExplicit)},
+				},
+			},
+		},
+		{
+			name: "organization team",
+			rs: resources.ResourceSet{
+				OrganizationTeams: []resources.OrganizationTeamResource{
+					{BaseResource: namespacedBaseResource("repro-team", "ns-a", resources.NamespaceOriginExplicit)},
+				},
+			},
+		},
+		{
+			name: "organization user",
+			rs: resources.ResourceSet{
+				Organization: &resources.OrganizationResource{
+					Users: []resources.OrganizationUserResource{
+						{
+							Ref:     "repro-user",
+							Kongctl: namespacedMeta("ns-a", resources.NamespaceOriginExplicit),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "organization system account",
+			rs: resources.ResourceSet{
+				Organization: &resources.OrganizationResource{
+					SystemAccounts: []resources.OrganizationSystemAccountResource{
+						{
+							Ref:     "repro-system-account",
+							Kongctl: namespacedMeta("ns-a", resources.NamespaceOriginExplicit),
+						},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := validator.ValidateNamespaceRequirement(&tt.rs, requireAny); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateNamespaceRequirementOrganizationTeamMismatchUsesResourceViolation(t *testing.T) {
+	validator := NewNamespaceValidator()
+	requirement := NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"ns-b"}}
+	rs := resources.ResourceSet{
+		OrganizationTeams: []resources.OrganizationTeamResource{
+			{BaseResource: namespacedBaseResource("repro-team", "ns-a", resources.NamespaceOriginFileDefault)},
+		},
+	}
+
+	err := validator.ValidateNamespaceRequirement(&rs, requirement)
+
+	if err == nil {
+		t.Fatal("expected namespace mismatch error")
+	}
+	if !strings.Contains(err.Error(), "organization_team 'repro-team': uses namespace 'ns-a'") {
+		t.Fatalf("expected organization_team mismatch, got: %v", err)
+	}
+	if strings.Contains(err.Error(), "no resources or _defaults") {
+		t.Fatalf("expected resource violation, got no-resources error: %v", err)
+	}
+}
+
+func namespacedBaseResource(ref, namespace string, origin resources.NamespaceOrigin) resources.BaseResource {
+	return resources.BaseResource{
+		Ref:     ref,
+		Kongctl: namespacedMeta(namespace, origin),
+	}
+}
+
+func namespacedMeta(namespace string, origin resources.NamespaceOrigin) *resources.KongctlMeta {
+	return &resources.KongctlMeta{
+		Namespace:       &namespace,
+		NamespaceOrigin: origin,
+	}
+}

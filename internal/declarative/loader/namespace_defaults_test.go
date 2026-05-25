@@ -495,6 +495,103 @@ portals: []
 	})
 }
 
+func TestLoaderRejectsInvalidNamespacesOnAllParentResourceTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{
+			name: "catalog service",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+catalog_services:
+  - ref: repro-service
+    name: repro-service
+    display_name: Repro Service
+`,
+		},
+		{
+			name: "dashboard",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+analytics:
+  dashboards:
+    - ref: repro-dashboard
+      name: repro-dashboard
+      definition:
+        tiles:
+          - type: chart
+            layout:
+              position:
+                col: 0
+                row: 0
+              size:
+                cols: 6
+                rows: 4
+            definition:
+              query:
+                datasource: api_usage
+              chart:
+                type: timeseries_line
+`,
+		},
+		{
+			name: "organization team",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+organization:
+  teams:
+    - ref: repro-team
+      name: repro-team
+`,
+		},
+		{
+			name: "organization user",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+organization:
+  users:
+    - ref: repro-user
+      email: repro@example.com
+`,
+		},
+		{
+			name: "organization system account",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+organization:
+  system-accounts:
+    - ref: repro-system-account
+      name: repro-system-account
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, "test.yaml")
+			require.NoError(t, os.WriteFile(file, []byte(tt.yaml), 0o600))
+
+			_, err := New().LoadFile(file)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "namespace validation failed")
+			assert.Contains(t, err.Error(), "Invalid_Namespace!")
+		})
+	}
+}
+
 func TestApplyNamespaceDefaultsExternalWithKongctlFails(t *testing.T) {
 	ns := "team-alpha"
 	l := New()

@@ -1,0 +1,58 @@
+test:
+  requiresPAT: false
+
+baseInputsPath: testdata
+
+steps:
+  - name: 001-invalid-dashboard-namespace
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/invalid-dashboard.yaml"
+        expectFailure:
+          exitCode: 1
+          contains: "namespace validation failed"
+
+  - name: 002-invalid-organization-team-namespace
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/invalid-team.yaml"
+        expectFailure:
+          exitCode: 1
+          contains: "namespace validation failed"
+
+  - name: 003-organization-team-require-namespace-mismatch
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/default-team.yaml"
+          - --require-namespace
+          - ns-b
+        expectFailure:
+          exitCode: 1
+          contains: "organization_team 'repro-team': uses namespace 'ns-a'"
+
+  - name: 004-organization-team-require-any-explicit-namespace
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/explicit-team.yaml"
+          - --require-any-namespace
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
