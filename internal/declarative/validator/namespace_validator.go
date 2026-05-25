@@ -217,11 +217,27 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		managedControlPlanes = append(managedControlPlanes, cp)
 	}
 
+	managedOrganizationTeams := make([]resources.OrganizationTeamResource, 0, len(rs.OrganizationTeams))
+	for _, team := range rs.OrganizationTeams {
+		if team.IsExternal() {
+			continue
+		}
+		managedOrganizationTeams = append(managedOrganizationTeams, team)
+	}
+
 	totalParents := len(managedPortals) +
 		len(rs.ApplicationAuthStrategies) +
 		len(rs.DCRProviders) +
 		len(managedControlPlanes) +
-		len(rs.APIs)
+		len(rs.CatalogServices) +
+		len(rs.APIs) +
+		len(rs.EventGatewayControlPlanes) +
+		len(rs.Dashboards) +
+		len(managedOrganizationTeams)
+	if rs.Organization != nil {
+		totalParents += len(rs.Organization.Users)
+		totalParents += len(rs.Organization.SystemAccounts)
+	}
 
 	if totalParents == 0 {
 		switch req.Mode {
@@ -305,8 +321,18 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 	for i := range rs.APIs {
 		check(string(resources.ResourceTypeAPI), rs.APIs[i].Ref, rs.APIs[i].Kongctl)
 	}
+	for i := range rs.CatalogServices {
+		check(string(resources.ResourceTypeCatalogService), rs.CatalogServices[i].Ref, rs.CatalogServices[i].Kongctl)
+	}
 	for i := range rs.Dashboards {
 		check(string(resources.ResourceTypeDashboard), rs.Dashboards[i].Ref, rs.Dashboards[i].Kongctl)
+	}
+	for i := range rs.EventGatewayControlPlanes {
+		check(
+			string(resources.ResourceTypeEventGatewayControlPlane),
+			rs.EventGatewayControlPlanes[i].Ref,
+			rs.EventGatewayControlPlanes[i].Kongctl,
+		)
 	}
 	for i := range rs.ApplicationAuthStrategies {
 		check(string(resources.ResourceTypeApplicationAuthStrategy),
@@ -319,6 +345,29 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 	}
 	for i := range managedControlPlanes {
 		check(string(resources.ResourceTypeControlPlane), managedControlPlanes[i].Ref, managedControlPlanes[i].Kongctl)
+	}
+	for i := range managedOrganizationTeams {
+		check(
+			string(resources.ResourceTypeOrganizationTeam),
+			managedOrganizationTeams[i].Ref,
+			managedOrganizationTeams[i].Kongctl,
+		)
+	}
+	if rs.Organization != nil {
+		for i := range rs.Organization.Users {
+			check(
+				string(resources.ResourceTypeOrganizationUser),
+				rs.Organization.Users[i].Ref,
+				rs.Organization.Users[i].Kongctl,
+			)
+		}
+		for i := range rs.Organization.SystemAccounts {
+			check(
+				string(resources.ResourceTypeOrganizationSystemAccount),
+				rs.Organization.SystemAccounts[i].Ref,
+				rs.Organization.SystemAccounts[i].Kongctl,
+			)
+		}
 	}
 
 	if len(violations) == 0 {

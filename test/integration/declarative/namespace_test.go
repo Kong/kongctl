@@ -888,7 +888,7 @@ organization:
 		t.Run(tc.name, func(t *testing.T) {
 			configFile := writeNamespaceRegressionConfig(t, tc.yaml)
 
-			_, err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile)
+			err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile)
 
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "failed to load configuration")
@@ -910,7 +910,7 @@ organization:
       name: repro-team
 `)
 
-		_, err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile, "--require-namespace", "ns-b")
+		err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile, "--require-namespace", "ns-b")
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "organization_team 'repro-team': uses namespace 'ns-a'")
@@ -927,7 +927,7 @@ organization:
         namespace: ns-a
 `)
 
-		_, err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile, "--require-any-namespace")
+		err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile, "--require-any-namespace")
 
 		require.NoError(t, err)
 	})
@@ -1113,7 +1113,7 @@ func writeNamespaceRegressionConfig(t *testing.T, content string) string {
 	return configFile
 }
 
-func executeDeclarativeNamespaceCommand(t *testing.T, verb string, args ...string) (string, error) {
+func executeDeclarativeNamespaceCommand(t *testing.T, verb string, args ...string) error {
 	t.Helper()
 
 	cmd, err := declarative.NewDeclarativeCmd(verbs.VerbValue(verb))
@@ -1125,6 +1125,5 @@ func executeDeclarativeNamespaceCommand(t *testing.T, verb string, args ...strin
 	cmd.SetErr(&output)
 	cmd.SetArgs(args)
 
-	err = cmd.Execute()
-	return output.String(), err
+	return cmd.Execute()
 }

@@ -55,4 +55,9 @@ steps:
           - select: metadata
             expect:
               fields:
-                mode: apply
+                mode: sync
+          - select: changes[0]
+            expect:
+              fields:
+                resource_type: organization_team
+                namespace: ns-a

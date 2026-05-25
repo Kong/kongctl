@@ -572,7 +572,7 @@ func TestValidateNamespaceRequirementCoversAllNamespacedParents(t *testing.T) {
 			name: "catalog service",
 			rs: resources.ResourceSet{
 				CatalogServices: []resources.CatalogServiceResource{
-					{BaseResource: namespacedBaseResource("repro-service", "ns-a", resources.NamespaceOriginExplicit)},
+					{BaseResource: namespacedBaseResource("repro-service", resources.NamespaceOriginExplicit)},
 				},
 			},
 		},
@@ -580,7 +580,7 @@ func TestValidateNamespaceRequirementCoversAllNamespacedParents(t *testing.T) {
 			name: "dashboard",
 			rs: resources.ResourceSet{
 				Dashboards: []resources.DashboardResource{
-					{BaseResource: namespacedBaseResource("repro-dashboard", "ns-a", resources.NamespaceOriginExplicit)},
+					{BaseResource: namespacedBaseResource("repro-dashboard", resources.NamespaceOriginExplicit)},
 				},
 			},
 		},
@@ -588,7 +588,7 @@ func TestValidateNamespaceRequirementCoversAllNamespacedParents(t *testing.T) {
 			name: "organization team",
 			rs: resources.ResourceSet{
 				OrganizationTeams: []resources.OrganizationTeamResource{
-					{BaseResource: namespacedBaseResource("repro-team", "ns-a", resources.NamespaceOriginExplicit)},
+					{BaseResource: namespacedBaseResource("repro-team", resources.NamespaceOriginExplicit)},
 				},
 			},
 		},
@@ -632,7 +632,7 @@ func TestValidateNamespaceRequirementOrganizationTeamMismatchUsesResourceViolati
 	requirement := NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"ns-b"}}
 	rs := resources.ResourceSet{
 		OrganizationTeams: []resources.OrganizationTeamResource{
-			{BaseResource: namespacedBaseResource("repro-team", "ns-a", resources.NamespaceOriginFileDefault)},
+			{BaseResource: namespacedBaseResource("repro-team", resources.NamespaceOriginFileDefault)},
 		},
 	}
 
@@ -649,10 +649,10 @@ func TestValidateNamespaceRequirementOrganizationTeamMismatchUsesResourceViolati
 	}
 }
 
-func namespacedBaseResource(ref, namespace string, origin resources.NamespaceOrigin) resources.BaseResource {
+func namespacedBaseResource(ref string, origin resources.NamespaceOrigin) resources.BaseResource {
 	return resources.BaseResource{
 		Ref:     ref,
-		Kongctl: namespacedMeta(namespace, origin),
+		Kongctl: namespacedMeta("ns-a", origin),
 	}
 }
 
