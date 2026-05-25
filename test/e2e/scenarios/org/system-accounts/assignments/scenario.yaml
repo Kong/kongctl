@@ -276,9 +276,9 @@ steps:
                 action: CREATE
                 namespace: "{{ .vars.portalRoleNamespace }}"
                 fields.role_name: Viewer
-                fields.entity_id: "__REF__:{{ .vars.portalRef }}#id"
                 fields.entity_type_name: Portals
                 fields.entity_region: us
+                references.entity_id.ref: "__REF__:{{ .vars.portalRef }}#id"
 
       - name: 001-diff-noop
         run:
