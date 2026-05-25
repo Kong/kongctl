@@ -6,11 +6,14 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/jq"
+	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -62,7 +65,14 @@ func NewGetCmd() (*cobra.Command, error) {
 		Example: getExamples,
 		Aliases: []string{"g", "G"},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
+			ctx := c.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			ctx = context.WithValue(ctx, verbs.Verb, Verb)
+			ctx = context.WithValue(ctx, products.Product, konnect.Product)
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(Verb))
+			c.SetContext(ctx)
 			return bindKonnectFlags(c, args)
 		},
 	}
@@ -109,6 +119,18 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, e
 	}
 	cmd.AddCommand(c)
+
+	patCmd, err := token.NewPATCmd(Verb, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(patCmd)
+
+	spatCmd, err := token.NewSPATCmd(Verb, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(spatCmd)
 
 	cmd.AddCommand(profileCmd.NewProfileCmd())
 	cmd.AddCommand(extensioncmd.NewGetExtensionCmd())

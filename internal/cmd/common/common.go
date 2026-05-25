@@ -14,6 +14,8 @@ const (
 	YAML
 	TEXT
 	HELM
+	TOKEN
+	ENV
 )
 
 // ExtraOutputFormatsAnnotation is the cobra command-annotation key listing
@@ -98,7 +100,7 @@ const (
 )
 
 func (of OutputFormat) String() string {
-	return [...]string{"json", "yaml", "text", "helm"}[of]
+	return [...]string{"json", "yaml", "text", "helm", "token", "env"}[of]
 }
 
 func OutputFormatStringToIota(format string) (OutputFormat, error) {
@@ -111,6 +113,10 @@ func OutputFormatStringToIota(format string) (OutputFormat, error) {
 		return TEXT, nil
 	case "helm":
 		return HELM, nil
+	case "token":
+		return TOKEN, nil
+	case "env":
+		return ENV, nil
 	default:
 		allowed := []string{"json", "yaml", "text"}
 		return TEXT, fmt.Errorf("invalid output format %q, must be one of %v", format, allowed)

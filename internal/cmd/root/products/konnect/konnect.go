@@ -21,6 +21,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/regions"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -220,6 +221,14 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return newLogoutKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
 	}
 
+	if verb == verbs.Create {
+		if err := addTokenCommands(cmd, verb, addFlags, preRunE); err != nil {
+			return nil, err
+		}
+		addFlags(verb, cmd)
+		return cmd, nil
+	}
+
 	// Do not expose audit-logs under `create`, which is reserved for
 	// resource creation flows.
 	if verb == verbs.Listen {
@@ -313,6 +322,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 	cmd.AddCommand(c)
 
+	if verb == verbs.Get {
+		if err := addDirectTokenCommands(cmd, verb, addFlags, preRunE); err != nil {
+			return nil, err
+		}
+	}
+
 	// Add portal command
 	pc, e := portal.NewPortalCmd(verb, addFlags, preRunE)
 	if e != nil {
@@ -395,4 +410,44 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	return cmd, e
+}
+
+func addTokenCommands(
+	cmd *cobra.Command,
+	verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) error {
+	if err := addDirectTokenCommands(cmd, verb, addParentFlags, parentPreRun); err != nil {
+		return err
+	}
+
+	orgCmd, err := organization.NewOrganizationCmd(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(orgCmd)
+
+	return nil
+}
+
+func addDirectTokenCommands(
+	cmd *cobra.Command,
+	verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) error {
+	patCmd, err := token.NewPATCmd(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(patCmd)
+
+	spatCmd, err := token.NewSPATCmd(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(spatCmd)
+
+	return nil
 }

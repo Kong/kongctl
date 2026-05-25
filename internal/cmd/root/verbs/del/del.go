@@ -10,6 +10,8 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -123,7 +125,55 @@ Setting this value overrides tokens obtained from the login command.
 		fmt.Sprintf(`Retry selected retryable connection-level errors.
 - Config path: [ %s ]`, common.HTTPRetryOnConnectionErrorsConfigPath))
 
+	if err := addDeleteTokenCommands(cmd); err != nil {
+		return nil, err
+	}
+
 	return cmd, nil
+}
+
+func addDeleteTokenCommands(cmd *cobra.Command) error {
+	patCmd, err := token.NewPATCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(patCmd)
+
+	spatCmd, err := token.NewSPATCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(spatCmd)
+
+	orgCmd, err := organization.NewOrganizationCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(orgCmd)
+
+	konnectCmd := &cobra.Command{
+		Use:     konnect.Product.String(),
+		Short:   "Delete Konnect tokens",
+		Aliases: []string{"k", "K"},
+	}
+	konnectPATCmd, err := token.NewPATCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	konnectCmd.AddCommand(konnectPATCmd)
+	konnectSPATCmd, err := token.NewSPATCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	konnectCmd.AddCommand(konnectSPATCmd)
+	konnectOrgCmd, err := organization.NewOrganizationCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	konnectCmd.AddCommand(konnectOrgCmd)
+	cmd.AddCommand(konnectCmd)
+
+	return nil
 }
 
 // bindKonnectFlags binds Konnect-specific flags to configuration
