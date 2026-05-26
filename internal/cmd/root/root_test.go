@@ -433,6 +433,21 @@ func TestSPATGetAndDeleteCommands(t *testing.T) {
 	if !strings.Contains(result.stdout, `"status": "deleted"`) {
 		t.Fatalf("expected delete output to include deleted status\nstdout:\n%s", result.stdout)
 	}
+
+	unnamedID := "55555555-5555-5555-5555-555555555555"
+	spatAPI.tokens = append(spatAPI.tokens, kkComps.SystemAccountAccessToken{ID: &unnamedID})
+	result = executeRootForTest(t,
+		"delete", "spat", unnamedID,
+		"--system-account-id", accountID,
+		"--auto-approve",
+		"-o", "text",
+	)
+	if result.exitCode != 0 {
+		t.Fatalf("expected delete unnamed spat by id to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if result.stdout != fmt.Sprintf("Deleted spat %q\n", unnamedID) {
+		t.Fatalf("expected unnamed SPAT delete text to use token id, got %q", result.stdout)
+	}
 }
 
 func TestTokenGetEmptyTextOutput(t *testing.T) {

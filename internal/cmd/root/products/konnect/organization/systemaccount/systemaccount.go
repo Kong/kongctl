@@ -51,7 +51,11 @@ func NewSystemAccountCmd(
 		cmd := newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun)
 		cmd.AddCommand(newGetSystemAccountRolesCmd(verb, addParentFlags, parentPreRun))
 		cmd.AddCommand(newGetSystemAccountTeamsCmd(verb, addParentFlags, parentPreRun))
-		if spatCmd, err := token.NewSPATCmd(verb, addParentFlags, parentPreRun); err == nil && spatCmd != nil {
+		spatCmd, err := token.NewSPATCmd(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		if spatCmd != nil {
 			cmd.AddCommand(spatCmd)
 		}
 		return cmd.Command, nil

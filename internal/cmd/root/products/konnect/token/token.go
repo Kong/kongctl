@@ -508,7 +508,7 @@ func runDeleteSPAT(c *cobra.Command, args []string, opts *spatOptions) error {
 		return err
 	}
 
-	accountID, accountName, err := resolveSystemAccount(opts.systemAccountID, opts.systemAccountName, sdk, helper, cfg)
+	accountID, _, err := resolveSystemAccount(opts.systemAccountID, opts.systemAccountName, sdk, helper, cfg)
 	if err != nil {
 		return err
 	}
@@ -522,7 +522,8 @@ func runDeleteSPAT(c *cobra.Command, args []string, opts *spatOptions) error {
 		return err
 	}
 	record := spatDeleteRecord(token)
-	if err := cmdpkg.ConfirmDelete(helper, fmt.Sprintf("system account access token %q", record.Name)); err != nil {
+	deleteLabel := deleteRecordLabel(record)
+	if err := cmdpkg.ConfirmDelete(helper, fmt.Sprintf("system account access token %q", deleteLabel)); err != nil {
 		return err
 	}
 	tokenID := pointerValue(token.ID)
@@ -531,9 +532,6 @@ func runDeleteSPAT(c *cobra.Command, args []string, opts *spatOptions) error {
 		return cmdpkg.PrepareExecutionError("Failed to delete system account access token", err, helper.GetCmd(), attrs...)
 	}
 	record.Status = "deleted"
-	if record.Name == "" {
-		record.Name = accountName
-	}
 	return renderDeleteRecord(helper, record)
 }
 
@@ -1035,10 +1033,17 @@ func renderDeleteRecord(helper cmdpkg.Helper, record deleteTokenRecord) error {
 		return err
 	}
 	if outType == cmdcommon.TEXT {
-		_, err = fmt.Fprintf(helper.GetStreams().Out, "Deleted %s %q\n", record.Type, record.Name)
+		_, err = fmt.Fprintf(helper.GetStreams().Out, "Deleted %s %q\n", record.Type, deleteRecordLabel(record))
 		return err
 	}
 	return printStructured(helper, outType, record)
+}
+
+func deleteRecordLabel(record deleteTokenRecord) string {
+	if record.Name != "" {
+		return record.Name
+	}
+	return record.ID
 }
 
 func printStructured(helper cmdpkg.Helper, outType cmdcommon.OutputFormat, data any) error {
