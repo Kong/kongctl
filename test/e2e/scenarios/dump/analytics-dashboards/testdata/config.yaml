@@ -1,0 +1,17 @@
+_defaults:
+  kongctl:
+    namespace: dump-analytics-dashboards-e2e
+
+analytics:
+  dashboards:
+    - ref: dump-analytics-traffic-overview
+      name: E2E Dump Traffic Overview Dashboard
+      definition: !file ./definitions/traffic-overview.json
+      labels:
+        purpose: e2e
+
+    - ref: dump-analytics-latency-overview
+      name: E2E Dump Latency Overview Dashboard
+      definition: !file ./definitions/latency-overview.json
+      labels:
+        purpose: e2e
