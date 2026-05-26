@@ -17,6 +17,8 @@ organization:
         focus: platform
 
   system-accounts:
+    # This system account must already exist in the Konnect organization. This
+    # example selects it by name and manages only its team and role assignments.
     - ref: ci-bot
       name: ci-bot
       teams:
