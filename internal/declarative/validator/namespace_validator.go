@@ -168,23 +168,11 @@ func (v *NamespaceValidator) ValidateNamespace(namespace string) error {
 
 // ValidateNamespaces validates a collection of namespaces
 func (v *NamespaceValidator) ValidateNamespaces(namespaces []string) error {
-	seen := make(map[string]bool)
-
 	for _, ns := range namespaces {
-		// Validate individual namespace
 		if err := v.ValidateNamespace(ns); err != nil {
 			return err
 		}
-
-		// Check for duplicates (shouldn't happen but good to verify)
-		if seen[ns] {
-			// This is not an error, just means the same namespace appears multiple times
-			// which is fine for our use case
-			continue
-		}
-		seen[ns] = true
 	}
-
 	return nil
 }
 
@@ -256,15 +244,9 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 				)
 			}
 			// Check if default namespace is in allowed list
-			allowed := false
-			for _, ns := range req.AllowedNamespaces {
-				if slices.Contains(defaultNamespaces, ns) {
-					allowed = true
-				}
-				if allowed {
-					break
-				}
-			}
+			allowed := slices.ContainsFunc(req.AllowedNamespaces, func(ns string) bool {
+				return slices.Contains(defaultNamespaces, ns)
+			})
 			if !allowed {
 				namespaceList := strings.Join(req.AllowedNamespaces, ", ")
 				return fmt.Errorf(
