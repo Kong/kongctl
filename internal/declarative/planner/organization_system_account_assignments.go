@@ -219,7 +219,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 	teamName string,
 	plan *Plan,
 ) {
-	dependencies := []string{}
+	var dependencies []string
 	if teamChangeID := findChangeID(plan, ResourceTypeOrganizationTeam, teamRef); teamChangeID != "" {
 		dependencies = append(dependencies, teamChangeID)
 	}
@@ -291,7 +291,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountRoleCreate(
 	role resources.OrganizationSystemAccountRoleResource,
 	plan *Plan,
 ) {
-	dependencies := []string{}
+	var dependencies []string
 	if tags.IsRefPlaceholder(role.EntityID) {
 		dependencies = appendRoleEntityDependency(dependencies, plan, role.EntityID, role.EntityTypeName)
 	}
