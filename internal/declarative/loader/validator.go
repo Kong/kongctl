@@ -1403,40 +1403,63 @@ func (l *Loader) toPascalCase(s string) string {
 func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
 	nsValidator := validator.NewNamespaceValidator()
 	namespaces := make(map[string]bool)
+	addNamespace := func(meta *resources.KongctlMeta) {
+		if meta != nil && meta.Namespace != nil {
+			namespaces[*meta.Namespace] = true
+		}
+	}
 
 	// Collect all unique namespaces from parent resources
 	// Portals
 	for _, portal := range rs.Portals {
-		if portal.Kongctl != nil && portal.Kongctl.Namespace != nil {
-			namespaces[*portal.Kongctl.Namespace] = true
-		}
+		addNamespace(portal.Kongctl)
 	}
 
 	// APIs
 	for _, api := range rs.APIs {
-		if api.Kongctl != nil && api.Kongctl.Namespace != nil {
-			namespaces[*api.Kongctl.Namespace] = true
-		}
+		addNamespace(api.Kongctl)
 	}
 
 	// Application Auth Strategies
 	for _, strategy := range rs.ApplicationAuthStrategies {
-		if strategy.Kongctl != nil && strategy.Kongctl.Namespace != nil {
-			namespaces[*strategy.Kongctl.Namespace] = true
-		}
+		addNamespace(strategy.Kongctl)
 	}
 
 	// DCR Providers
 	for _, provider := range rs.DCRProviders {
-		if provider.Kongctl != nil && provider.Kongctl.Namespace != nil {
-			namespaces[*provider.Kongctl.Namespace] = true
-		}
+		addNamespace(provider.Kongctl)
 	}
 
 	// Control Planes
 	for _, cp := range rs.ControlPlanes {
-		if cp.Kongctl != nil && cp.Kongctl.Namespace != nil {
-			namespaces[*cp.Kongctl.Namespace] = true
+		addNamespace(cp.Kongctl)
+	}
+
+	// Catalog Services
+	for _, service := range rs.CatalogServices {
+		addNamespace(service.Kongctl)
+	}
+
+	// Dashboards
+	for _, dashboard := range rs.Dashboards {
+		addNamespace(dashboard.Kongctl)
+	}
+
+	// Event Gateway Control Planes
+	for _, cp := range rs.EventGatewayControlPlanes {
+		addNamespace(cp.Kongctl)
+	}
+
+	// Organization resources
+	for _, team := range rs.OrganizationTeams {
+		addNamespace(team.Kongctl)
+	}
+	if rs.Organization != nil {
+		for _, user := range rs.Organization.Users {
+			addNamespace(user.Kongctl)
+		}
+		for _, systemAccount := range rs.Organization.SystemAccounts {
+			addNamespace(systemAccount.Kongctl)
 		}
 	}
 

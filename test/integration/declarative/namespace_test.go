@@ -3,6 +3,7 @@
 package declarative_test
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"os"
@@ -12,6 +13,8 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/loader"
@@ -799,6 +802,137 @@ apis:
 	}
 }
 
+func TestNamespace_CommandRejectsInvalidNamespacesOnNewParentResources(t *testing.T) {
+	testCases := []struct {
+		name string
+		yaml string
+	}{
+		{
+			name: "catalog service",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+catalog_services:
+  - ref: repro-service
+    name: repro-service
+    display_name: Repro Service
+`,
+		},
+		{
+			name: "dashboard",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+analytics:
+  dashboards:
+    - ref: repro-dashboard
+      name: repro-dashboard
+      definition:
+        tiles:
+          - type: chart
+            layout:
+              position:
+                col: 0
+                row: 0
+              size:
+                cols: 6
+                rows: 4
+            definition:
+              query:
+                datasource: api_usage
+              chart:
+                type: timeseries_line
+`,
+		},
+		{
+			name: "organization team",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+organization:
+  teams:
+    - ref: repro-team
+      name: repro-team
+`,
+		},
+		{
+			name: "organization user",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+organization:
+  users:
+    - ref: repro-user
+      email: repro@example.com
+`,
+		},
+		{
+			name: "organization system account",
+			yaml: `
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+organization:
+  system-accounts:
+    - ref: repro-system-account
+      name: repro-system-account
+`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			configFile := writeNamespaceRegressionConfig(t, tc.yaml)
+
+			err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "failed to load configuration")
+			assert.Contains(t, err.Error(), "namespace validation failed")
+			assert.Contains(t, err.Error(), "Invalid_Namespace!")
+		})
+	}
+}
+
+func TestNamespace_CommandRequirementCoversOrganizationTeams(t *testing.T) {
+	t.Run("specific namespace reports team mismatch", func(t *testing.T) {
+		configFile := writeNamespaceRegressionConfig(t, `
+_defaults:
+  kongctl:
+    namespace: ns-a
+organization:
+  teams:
+    - ref: repro-team
+      name: repro-team
+`)
+
+		err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile, "--require-namespace", "ns-b")
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "organization_team 'repro-team': uses namespace 'ns-a'")
+		assert.NotContains(t, err.Error(), "no resources or _defaults")
+	})
+
+	t.Run("any namespace passes with explicit team namespace", func(t *testing.T) {
+		configFile := writeNamespaceRegressionConfig(t, `
+organization:
+  teams:
+    - ref: repro-team
+      name: repro-team
+      kongctl:
+        namespace: ns-a
+`)
+
+		err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile, "--require-any-namespace")
+
+		require.NoError(t, err)
+	})
+}
+
 // TestNamespace_ProtectedResourcesWithNamespaces tests protected flag behavior with namespaces
 func TestNamespace_ProtectedResourcesWithNamespaces(t *testing.T) {
 	ctx := SetupTestContext(t)
@@ -969,4 +1103,27 @@ func GetMockAppAuthStrategiesAPI(ctx context.Context, _ *testing.T) *MockAppAuth
 	konnectSDK, _ := sdk(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 	return mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+}
+
+func writeNamespaceRegressionConfig(t *testing.T, content string) string {
+	t.Helper()
+
+	configFile := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(content), 0o600))
+	return configFile
+}
+
+func executeDeclarativeNamespaceCommand(t *testing.T, verb string, args ...string) error {
+	t.Helper()
+
+	cmd, err := declarative.NewDeclarativeCmd(verbs.VerbValue(verb))
+	require.NoError(t, err)
+	cmd.SetContext(SetupTestContext(t))
+
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetErr(&output)
+	cmd.SetArgs(args)
+
+	return cmd.Execute()
 }

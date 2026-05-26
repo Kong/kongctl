@@ -1,0 +1,23 @@
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+
+analytics:
+  dashboards:
+    - ref: repro-dashboard
+      name: repro-dashboard
+      definition:
+        tiles:
+          - type: chart
+            layout:
+              position:
+                col: 0
+                row: 0
+              size:
+                cols: 6
+                rows: 4
+            definition:
+              query:
+                datasource: api_usage
+              chart:
+                type: timeseries_line

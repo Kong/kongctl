@@ -520,7 +520,9 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			len(source.ApplicationAuthStrategies) +
 			len(source.DCRProviders) +
 			len(source.ControlPlanes) +
+			len(source.CatalogServices) +
 			len(source.APIs) +
+			len(source.EventGatewayControlPlanes) +
 			len(source.Dashboards) +
 			len(source.OrganizationTeams)
 		if source.Organization != nil {
