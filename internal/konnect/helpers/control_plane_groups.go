@@ -21,4 +21,11 @@ type ControlPlaneGroupsAPI interface {
 		groupMembership *kkCOM.GroupMembership,
 		opts ...kkOPS.Option,
 	) (*kkOPS.PutControlPlanesIDGroupMembershipsResponse, error)
+
+	PostControlPlanesIDGroupMembershipsRemove(
+		ctx context.Context,
+		id string,
+		groupMembership *kkCOM.GroupMembership,
+		opts ...kkOPS.Option,
+	) (*kkOPS.PostControlPlanesIDGroupMembershipsRemoveResponse, error)
 }

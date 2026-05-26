@@ -75,3 +75,32 @@ func (m *MockControlPlaneGroupsAPI) PutControlPlanesIDGroupMemberships(
 
 	return resp, err
 }
+
+// PostControlPlanesIDGroupMembershipsRemove mocks the remove API call.
+func (m *MockControlPlaneGroupsAPI) PostControlPlanesIDGroupMembershipsRemove(
+	ctx context.Context,
+	id string,
+	groupMembership *kkComps.GroupMembership,
+	opts ...kkOps.Option,
+) (*kkOps.PostControlPlanesIDGroupMembershipsRemoveResponse, error) {
+	args := []any{ctx, id, groupMembership}
+	for _, opt := range opts {
+		args = append(args, opt)
+	}
+
+	ret := m.Called(args...)
+
+	var resp *kkOps.PostControlPlanesIDGroupMembershipsRemoveResponse
+	if len(ret) > 0 && ret.Get(0) != nil {
+		resp = ret.Get(0).(*kkOps.PostControlPlanesIDGroupMembershipsRemoveResponse)
+	}
+
+	var err error
+	if len(ret) > 1 {
+		if e, ok := ret.Get(1).(error); ok {
+			err = e
+		}
+	}
+
+	return resp, err
+}

@@ -1,0 +1,30 @@
+_defaults:
+  kongctl:
+    namespace: delete-groups
+
+control_planes:
+  - ref: delete-groups-runtime-a
+    name: "delete-groups-runtime-a"
+    description: "First runtime for control plane group delete coverage"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    proxy_urls:
+      - host: delete-groups-runtime-a.example.com
+        port: 443
+        protocol: https
+
+  - ref: delete-groups-runtime-b
+    name: "delete-groups-runtime-b"
+    description: "Second runtime for control plane group delete coverage"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    proxy_urls:
+      - host: delete-groups-runtime-b.example.com
+        port: 8443
+        protocol: https
+
+  - ref: delete-groups-shared-group
+    name: "delete-groups-shared-group"
+    description: "Shared group for delete membership detach coverage"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+    members:
+      - id: !ref delete-groups-runtime-a#id
+      - id: !ref delete-groups-runtime-b#id

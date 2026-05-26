@@ -836,6 +836,38 @@ func (c *Client) UpsertControlPlaneGroupMemberships(ctx context.Context, groupID
 	return nil
 }
 
+// RemoveControlPlaneGroupMemberships removes members from a control plane group.
+func (c *Client) RemoveControlPlaneGroupMemberships(ctx context.Context, groupID string, memberIDs []string) error {
+	if err := ValidateAPIClient(c.controlPlaneGroupsAPI, "Control Plane Groups API"); err != nil {
+		return err
+	}
+
+	members := make([]kkComps.Members, 0, len(memberIDs))
+	for _, id := range memberIDs {
+		if strings.TrimSpace(id) == "" {
+			continue
+		}
+		members = append(members, kkComps.Members{ID: id})
+	}
+	if len(members) == 0 {
+		return nil
+	}
+
+	req := kkComps.GroupMembership{
+		Members: members,
+	}
+
+	if _, err := c.controlPlaneGroupsAPI.PostControlPlanesIDGroupMembershipsRemove(ctx, groupID, &req); err != nil {
+		return WrapAPIError(err, "remove control plane group memberships", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneGroup),
+			ResourceName: groupID,
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
 // ListGatewayServices returns all gateway services for the provided control plane.
 func (c *Client) ListGatewayServices(ctx context.Context, controlPlaneID string) ([]GatewayService, error) {
 	if err := ValidateAPIClient(c.gatewayServiceAPI, "Gateway Service API"); err != nil {
