@@ -4,6 +4,10 @@ description: |
   Analyzes declarative benchmark regression data and adds a human-readable
   explanation with action items to the rolling benchmark regression issue.
 on:
+  schedule:
+    # GitHub schedules are UTC-only. 06:00 UTC Sunday-Thursday maps to
+    # midnight US/Central during standard time and 1 AM during daylight time.
+    - cron: "0 6 * * 0-4"
   workflow_call:
     inputs:
       issue_number:
@@ -87,12 +91,12 @@ safe-outputs:
   noop:
     report-as-issue: false
   add-comment:
-    target: ${{ inputs.issue_number }}
     hide-older-comments: true
     max: 1
 steps:
   - name: Prepare benchmark analysis data
     env:
+      GH_TOKEN: ${{ github.token }}
       ISSUE_NUMBER: ${{ inputs.issue_number }}
       BENCHMARK_RUN_ID: ${{ inputs.run_id }}
       BENCHMARK_RUN_URL: ${{ inputs.run_url }}
@@ -111,6 +115,26 @@ steps:
         echo "Could not fetch benchmark-results branch" >> "${data_dir}/missing-files.txt"
       fi
 
+      if [ -z "${RESULTS_PATH}" ]; then
+        RESULTS_PATH="latest/results.json"
+      fi
+      if [ -z "${HISTORY_REPORT_PATH}" ]; then
+        HISTORY_REPORT_PATH="latest/history-report.json"
+      fi
+      if [ -z "${REGRESSIONS_PATH}" ]; then
+        REGRESSIONS_PATH="latest/regressions.md"
+      fi
+      if [ -z "${ANALYSIS_CONTEXT_PATH}" ]; then
+        ANALYSIS_CONTEXT_PATH="latest/analysis-context.json"
+      fi
+
+      run_records_dir="${RESULTS_PATH%/*}"
+      if [ "${run_records_dir}" = "${RESULTS_PATH}" ]; then
+        run_records_dir="latest"
+      fi
+      METADATA_PATH="${run_records_dir}/metadata.json"
+      REGRESSIONS_JSON_PATH="${run_records_dir}/regressions.json"
+
       copy_from_history() {
         source_path="$1"
         output_name="$2"
@@ -122,13 +146,45 @@ steps:
         fi
       }
 
+      copy_optional_from_history() {
+        source_path="$1"
+        output_name="$2"
+        if [ -z "${source_path}" ]; then
+          return 0
+        fi
+        git show "origin/benchmark-results:${source_path}" > "${data_dir}/${output_name}" 2>/dev/null || true
+      }
+
       copy_from_history "${RESULTS_PATH}" "results.json"
       copy_from_history "${HISTORY_REPORT_PATH}" "history-report.json"
       copy_from_history "${REGRESSIONS_PATH}" "regressions.md"
       copy_from_history "${ANALYSIS_CONTEXT_PATH}" "analysis-context.json"
+      copy_optional_from_history "${METADATA_PATH}" "metadata.json"
+      copy_optional_from_history "${REGRESSIONS_JSON_PATH}" "regressions.json"
+
+      if [ -f "${data_dir}/metadata.json" ]; then
+        if [ -z "${BENCHMARK_RUN_ID}" ]; then
+          BENCHMARK_RUN_ID="$(jq -r '.run_id // ""' "${data_dir}/metadata.json")"
+        fi
+        if [ -z "${BENCHMARK_RUN_URL}" ]; then
+          BENCHMARK_RUN_URL="$(jq -r '.run_url // ""' "${data_dir}/metadata.json")"
+        fi
+      fi
+
+      if [ -z "${ISSUE_NUMBER}" ]; then
+        title="[benchmark-regression] Declarative benchmark regressions"
+        ISSUE_NUMBER="$(gh issue list \
+          --state open \
+          --search "${title} in:title" \
+          --json number \
+          --jq '.[0].number // empty' 2>/dev/null || true)"
+        if [ -z "${ISSUE_NUMBER}" ]; then
+          echo "Could not find an open benchmark regression issue" >> "${data_dir}/missing-files.txt"
+        fi
+      fi
 
       artifact_url="${BENCHMARK_ARTIFACT_URL}"
-      if [ -z "${artifact_url}" ]; then
+      if [ -z "${artifact_url}" ] && [ -n "${BENCHMARK_RUN_URL}" ]; then
         artifact_url="${BENCHMARK_RUN_URL}#artifacts"
       fi
 
@@ -151,10 +207,14 @@ steps:
         --arg history_report_path "${HISTORY_REPORT_PATH}" \
         --arg regressions_path "${REGRESSIONS_PATH}" \
         --arg analysis_context_path "${ANALYSIS_CONTEXT_PATH}" \
+        --arg metadata_path "${METADATA_PATH}" \
+        --arg regressions_json_path "${REGRESSIONS_JSON_PATH}" \
         --arg results_url "$(make_blob_url "${RESULTS_PATH}")" \
         --arg history_report_url "$(make_blob_url "${HISTORY_REPORT_PATH}")" \
         --arg regressions_url "$(make_blob_url "${REGRESSIONS_PATH}")" \
         --arg analysis_context_url "$(make_blob_url "${ANALYSIS_CONTEXT_PATH}")" \
+        --arg metadata_url "$(make_blob_url "${METADATA_PATH}")" \
+        --arg regressions_json_url "$(make_blob_url "${REGRESSIONS_JSON_PATH}")" \
         '{
           repository: $repository,
           issue_number: $issue_number,
@@ -166,7 +226,9 @@ steps:
             results: $results_path,
             history_report: $history_report_path,
             regressions: $regressions_path,
-            analysis_context: $analysis_context_path
+            analysis_context: $analysis_context_path,
+            metadata: $metadata_path,
+            regressions_json: $regressions_json_path
           },
           links: {
             workflow_run: $run_url,
@@ -174,7 +236,9 @@ steps:
             results_json: $results_url,
             history_report_json: $history_report_url,
             regressions_markdown: $regressions_url,
-            analysis_context_json: $analysis_context_url
+            analysis_context_json: $analysis_context_url,
+            metadata_json: $metadata_url,
+            regressions_json: $regressions_json_url
           }
         }' > "${data_dir}/run-context.json"
 tracker-id: benchmark-regression-analysis
@@ -202,6 +266,8 @@ Prepared files are under `/tmp/gh-aw/benchmark-analysis`:
 - `history-report.json`: full current-vs-history comparison
 - `results.json`: full benchmark suite result
 - `regressions.md`: deterministic regression issue body
+- `regressions.json`: machine-readable deterministic regression status
+- `metadata.json`: benchmark-results metadata for the benchmark run
 - `missing-files.txt`: optional list of files that could not be fetched
 
 Use `analysis-context.json` first. Fall back to the other files only when you
@@ -211,10 +277,11 @@ need detail that the compact context does not include.
 
 Emit exactly one safe output:
 
-- Use `add_comment` with `item_number: ${{ inputs.issue_number }}` when there
+- Use `add_comment` with the `issue_number` from `run-context.json` when there
   is enough data to explain the regression.
 - Use `noop` if there are no regressions, if required files are missing, or if
-  the data is too incomplete to explain safely.
+  the data is too incomplete to explain safely. Also use `noop` if
+  `run-context.json` does not contain an `issue_number`.
 
 Do not use `gh` CLI commands for GitHub reads or writes. Use the prepared local
 files first and GitHub MCP tools only if you need repository context.
