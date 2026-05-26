@@ -191,6 +191,20 @@ analyze-latest-e2e:
 	PROMPT=$$(printf "%s\n\nLatest artifacts: %s (also via .latest-e2e)." "$$(cat "$$PROMPT_FILE")" "$$ART_DIR"); \
 	LATEST_E2E_DIR="$$ART_DIR" codex exec --sandbox read-only --cd "$(CURDIR)" "$$PROMPT"
 
+E2E_CI_DIAGNOSE_FLAGS ?=
+
+.PHONY: diagnose-e2e-ci
+diagnose-e2e-ci:
+	@python3 scripts/e2e-ci-diagnose.py \
+		$(if $(RUN),--run "$(RUN)") \
+		$(if $(PR),--pr "$(PR)") \
+		$(if $(WORKFLOW),--workflow "$(WORKFLOW)") \
+		$(if $(ORG),--org "$(ORG)") \
+		$(if $(ARTIFACT),--artifact "$(ARTIFACT)") \
+		$(if $(ARTIFACTS_DIR),--artifacts-dir "$(ARTIFACTS_DIR)") \
+		$(if $(DOWNLOAD_DIR),--download-dir "$(DOWNLOAD_DIR)") \
+		$(E2E_CI_DIAGNOSE_FLAGS)
+
 .PHONY: reset-org
 reset-org:
 	@echo "Resetting Konnect org (requires KONGCTL_E2E_KONNECT_PAT, optional KONGCTL_E2E_KONNECT_BASE_URL, KONGCTL_E2E_RESET)"

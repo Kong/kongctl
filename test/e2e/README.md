@@ -433,3 +433,34 @@ have a `default` environment or a temporary repository-level
   throttling responses and fails faster after repeated full request timeouts.
 - If JSON parsing fails due to extra fields, either add those fields to the
   relevant test struct or keep the default lenient mode.
+
+### Remote CI Failure Diagnosis
+
+Use `make diagnose-e2e-ci` to download E2E workflow artifacts and summarize the
+failed shard from `scenario-results.txt`, `run.log`, per-command `meta.json`,
+`stderr.txt`, `kongctl.log`, and HTTP dump artifacts.
+
+```sh
+# Diagnose failed E2E shards for workflow run number 2254.
+make diagnose-e2e-ci RUN=2254
+
+# Diagnose failed E2E shards for the latest E2E run on PR 123.
+make diagnose-e2e-ci PR=123
+
+# Diagnose one matrix org/shard.
+make diagnose-e2e-ci RUN=2254 ORG=kongctl-acceptance-5
+
+# Analyze artifacts that have already been downloaded.
+make diagnose-e2e-ci ARTIFACTS_DIR=.e2e-artifacts/ci/e2e-run-2254-attempt-1
+```
+
+The helper uses `gh`, so authenticate once with `gh auth login`. By default it
+resolves `RUN` as an E2E workflow run number, or `PR` as the latest E2E run for
+that pull request. It downloads only failed E2E shard artifacts into
+`.e2e-artifacts/ci/`, prints a markdown report, and also writes
+`e2e-ci-diagnosis.md` beside the downloaded artifacts. Pass additional script
+flags through `E2E_CI_DIAGNOSE_FLAGS`, for example:
+
+```sh
+make diagnose-e2e-ci RUN=2254 E2E_CI_DIAGNOSE_FLAGS="--all-shards"
+```
