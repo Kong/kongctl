@@ -153,7 +153,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountRoleChanges(
 			}
 		}
 	}
-	scopedEntityIDs := t.organizationUserRoleScopedEntityIDs(namespace)
+	scopedEntityIDs := t.organizationRoleScopedEntityIDs(namespace)
 
 	for accountRef, roles := range rolesByAccount {
 		account := t.organizationSystemAccountByRef(accountRef)
@@ -182,7 +182,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountRoleChanges(
 		for _, role := range roles {
 			key := buildOrganizationTeamRoleKey(
 				role.RoleName,
-				t.resolveOrganizationTeamRoleEntityID(role.EntityID),
+				t.resolveOrganizationTeamRoleEntityID(role.EntityID, role.EntityTypeName),
 				role.EntityTypeName,
 				role.EntityRegion,
 			)
