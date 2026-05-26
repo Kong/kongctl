@@ -5,9 +5,7 @@ env:
 
 vars:
   namespace: dump-analytics-dashboards-e2e
-  dashboardAlphaRef: dump-analytics-traffic-overview
   dashboardAlphaName: E2E Dump Traffic Overview Dashboard
-  dashboardBetaRef: dump-analytics-latency-overview
   dashboardBetaName: E2E Dump Latency Overview Dashboard
 
 steps:
