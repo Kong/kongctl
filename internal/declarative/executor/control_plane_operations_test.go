@@ -2,6 +2,8 @@ package executor
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -168,5 +170,140 @@ func TestExecutorSyncControlPlaneGroupMembersOnCreate(t *testing.T) {
 	id, err := exec.createResource(ctx, change)
 	require.NoError(t, err)
 	assert.Equal(t, "group-id", id)
+	mockGroupsAPI.AssertExpectations(t)
+}
+
+func TestExecutorDetachControlPlaneGroupMembersBeforeDelete(t *testing.T) {
+	ctx := testContextWithLogger()
+	mockCPAPI := helpers.NewMockControlPlaneAPI(t)
+	mockGroupsAPI := &helpers.MockControlPlaneGroupsAPI{}
+
+	var detached atomic.Bool
+	var groupDeleted atomic.Bool
+
+	mockCPAPI.EXPECT().
+		GetControlPlane(mock.Anything, "group-id").
+		Return(&kkOps.GetControlPlaneResponse{
+			ControlPlane: &kkComps.ControlPlane{
+				ID:     "group-id",
+				Name:   "group-cp",
+				Labels: map[string]string{labels.NamespaceKey: "default"},
+			},
+		}, nil).
+		Once()
+
+	for _, member := range []struct {
+		id   string
+		name string
+	}{
+		{id: "member-a-id", name: "member-a"},
+		{id: "member-b-id", name: "member-b"},
+	} {
+		mockCPAPI.EXPECT().
+			GetControlPlane(mock.Anything, member.id).
+			Return(&kkOps.GetControlPlaneResponse{
+				ControlPlane: &kkComps.ControlPlane{
+					ID:     member.id,
+					Name:   member.name,
+					Labels: map[string]string{labels.NamespaceKey: "default"},
+				},
+			}, nil).
+			Maybe()
+	}
+
+	mockGroupsAPI.On(
+		"PostControlPlanesIDGroupMembershipsRemove",
+		mock.Anything,
+		"group-id",
+		mock.MatchedBy(func(req *kkComps.GroupMembership) bool {
+			require.NotNil(t, req)
+			require.Len(t, req.Members, 2)
+			assert.Equal(t, "member-a-id", req.Members[0].ID)
+			assert.Equal(t, "member-b-id", req.Members[1].ID)
+			return true
+		}),
+	).Run(func(_ mock.Arguments) {
+		detached.Store(true)
+	}).Return(&kkOps.PostControlPlanesIDGroupMembershipsRemoveResponse{}, nil).Once()
+
+	mockCPAPI.EXPECT().
+		DeleteControlPlane(mock.Anything, "group-id").
+		RunAndReturn(func(context.Context, string, ...kkOps.Option) (*kkOps.DeleteControlPlaneResponse, error) {
+			if !detached.Load() {
+				return nil, fmt.Errorf("control plane group deleted before members were detached")
+			}
+			groupDeleted.Store(true)
+			return &kkOps.DeleteControlPlaneResponse{}, nil
+		}).
+		Once()
+
+	for _, memberID := range []string{"member-a-id", "member-b-id"} {
+		mockCPAPI.EXPECT().
+			DeleteControlPlane(mock.Anything, memberID).
+			RunAndReturn(func(context.Context, string, ...kkOps.Option) (*kkOps.DeleteControlPlaneResponse, error) {
+				if !groupDeleted.Load() {
+					return nil, fmt.Errorf("member control plane deleted before group delete completed")
+				}
+				return &kkOps.DeleteControlPlaneResponse{}, nil
+			}).
+			Once()
+	}
+
+	client := state.NewClient(state.ClientConfig{
+		ControlPlaneAPI:       mockCPAPI,
+		ControlPlaneGroupsAPI: mockGroupsAPI,
+	})
+	exec := NewWithOptions(client, nil, false, Options{MaxConcurrency: 4})
+
+	groupChangeID := "1:d:control_plane:group-cp"
+	memberAChangeID := "2:d:control_plane:member-a"
+	memberBChangeID := "3:d:control_plane:member-b"
+
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeDelete)
+	plan.AddChange(planner.PlannedChange{
+		ID:           groupChangeID,
+		ResourceType: planner.ResourceTypeControlPlane,
+		ResourceRef:  "group-cp",
+		ResourceID:   "group-id",
+		Action:       planner.ActionDelete,
+		Fields: map[string]any{
+			planner.FieldName: "group-cp",
+			planner.FieldMembers: []map[string]string{
+				{planner.FieldID: "member-a-id"},
+				{planner.FieldID: "member-b-id"},
+			},
+		},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldMembers: {
+				Refs:    []string{"member-a-id", "member-b-id"},
+				IsArray: true,
+			},
+		},
+	})
+	plan.AddChange(planner.PlannedChange{
+		ID:           memberAChangeID,
+		ResourceType: planner.ResourceTypeControlPlane,
+		ResourceRef:  "member-a",
+		ResourceID:   "member-a-id",
+		Action:       planner.ActionDelete,
+		Fields:       map[string]any{planner.FieldName: "member-a"},
+		DependsOn:    []string{groupChangeID},
+	})
+	plan.AddChange(planner.PlannedChange{
+		ID:           memberBChangeID,
+		ResourceType: planner.ResourceTypeControlPlane,
+		ResourceRef:  "member-b",
+		ResourceID:   "member-b-id",
+		Action:       planner.ActionDelete,
+		Fields:       map[string]any{planner.FieldName: "member-b"},
+		DependsOn:    []string{groupChangeID},
+	})
+	plan.SetExecutionOrder([]string{groupChangeID, memberAChangeID, memberBChangeID})
+	plan.SetExecutionGroups([][]string{{groupChangeID}, {memberAChangeID, memberBChangeID}})
+
+	result := exec.Execute(ctx, plan)
+
+	require.False(t, result.HasErrors(), "unexpected execution errors: %#v", result.Errors)
+	assert.Equal(t, 3, result.SuccessCount)
 	mockGroupsAPI.AssertExpectations(t)
 }

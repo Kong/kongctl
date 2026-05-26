@@ -1,0 +1,92 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  runtimeAName: "delete-groups-runtime-a"
+  runtimeBName: "delete-groups-runtime-b"
+  groupName: "delete-groups-shared-group"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - resource_id
+      - change_id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-group-members
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='delete-groups-shared-group'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+  - name: 002-delete-group-members
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 003-verify-deleted
+    skipInputs: true
+    commands:
+      - name: 000-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.runtimeAName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.runtimeBName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.groupName }}']"
+            expect:
+              fields:
+                "length(@)": 0
