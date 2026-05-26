@@ -3,6 +3,13 @@
 These examples demonstrate how to manage Konnect organization resources with
 `kongctl` declarative configuration.
 
+## Important: system account selectors
+
+System accounts are selector-only for now. The Konnect API does not currently
+support labels on system accounts, so `kongctl` cannot manage them by namespace.
+Any system account referenced in these examples must already exist in the
+organization and must be selected by `name` or `id`.
+
 ## Files
 
 - `teams.yaml` - defines organization teams with namespaces.
