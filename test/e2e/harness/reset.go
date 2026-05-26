@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+const (
+	resetListPageSize = 100
+	resetListMaxPages = 10000
+)
+
 // truthy returns true if v is a typical truthy string.
 func truthyEnv(v string) bool {
 	switch strings.ToLower(strings.TrimSpace(v)) {
@@ -162,7 +167,7 @@ func deleteAll(
 		if err := ctx.Err(); err != nil {
 			return total, deleted, err
 		}
-		items, err := retryListItems(ctx, session, url, token, endpoint, policy)
+		items, err := retryListAllItems(ctx, session, url, token, endpoint, policy)
 		if err != nil {
 			return total, deleted, err
 		}
@@ -240,6 +245,36 @@ func deleteAll(
 			return total, deleted, err
 		}
 	}
+}
+
+func retryListAllItems(
+	ctx context.Context,
+	session *resetHTTPSession,
+	rawURL string,
+	token string,
+	endpoint string,
+	policy HTTPRetryPolicy,
+) ([]map[string]any, error) {
+	var allItems []map[string]any
+	for pageNumber := 1; pageNumber <= resetListMaxPages; pageNumber++ {
+		items, err := retryListItems(
+			ctx,
+			session,
+			pagedURL(rawURL, resetListPageSize, pageNumber),
+			token,
+			endpoint,
+			policy,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		allItems = append(allItems, items...)
+		if len(items) < resetListPageSize {
+			return allItems, nil
+		}
+	}
+	return nil, fmt.Errorf("%s pagination exceeded safety limit", endpoint)
 }
 
 type httpError struct {

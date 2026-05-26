@@ -3,8 +3,14 @@
 package harness
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestOnlyE2EEmailDomains(t *testing.T) {
@@ -50,5 +56,113 @@ func TestConfiguredE2EUserEmails(t *testing.T) {
 	want := []string{"user-1@example.com", "user-2@example.com"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("configuredE2EUserEmails() = %#v, want %#v", got, want)
+	}
+}
+
+func TestDeleteAllDeletesFilteredItemsAcrossPages(t *testing.T) {
+	type team struct {
+		id         string
+		systemTeam bool
+	}
+
+	teams := make([]team, 0, resetListPageSize+2)
+	for i := range resetListPageSize {
+		teams = append(teams, team{
+			id:         "system-team-" + strconv.Itoa(i),
+			systemTeam: true,
+		})
+	}
+	teams = append(teams,
+		team{id: "e2e-team-alpha"},
+		team{id: "e2e-team-beta"},
+	)
+
+	deleted := map[string]bool{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v3/teams":
+			pageSize, pageNumber := resetListPageSize, 1
+			if v := r.URL.Query().Get("page[size]"); v != "" {
+				if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+					pageSize = parsed
+				}
+			}
+			if v := r.URL.Query().Get("page[number]"); v != "" {
+				if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+					pageNumber = parsed
+				}
+			}
+
+			active := make([]map[string]any, 0, len(teams))
+			for _, t := range teams {
+				if deleted[t.id] {
+					continue
+				}
+				active = append(active, map[string]any{
+					"id":          t.id,
+					"system_team": t.systemTeam,
+				})
+			}
+
+			start := (pageNumber - 1) * pageSize
+			end := min(start+pageSize, len(active))
+			if start > len(active) {
+				start = len(active)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": active[start:end],
+			})
+
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/v3/teams/"):
+			id := strings.TrimPrefix(r.URL.Path, "/v3/teams/")
+			for _, t := range teams {
+				if t.id == id && !deleted[id] {
+					deleted[id] = true
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+			}
+			http.NotFound(w, r)
+
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	policy := HTTPRetryPolicy{
+		RequestTimeout: time.Second,
+		Backoff:        BackoffConfig{Attempts: 1},
+	}
+	total, deleteCount, err := deleteAll(
+		t.Context(),
+		server.URL,
+		server.URL,
+		"test-token",
+		"v3",
+		"teams",
+		"",
+		"",
+		"",
+		skipSystemTeams,
+		nil,
+		policy,
+		HTTPTransportOptions{},
+	)
+	if err != nil {
+		t.Fatalf("deleteAll() error = %v", err)
+	}
+	if total != resetListPageSize+2 {
+		t.Fatalf("deleteAll() total = %d, want %d", total, resetListPageSize+2)
+	}
+	if deleteCount != 2 {
+		t.Fatalf("deleteAll() deleteCount = %d, want 2", deleteCount)
+	}
+	if !deleted["e2e-team-alpha"] || !deleted["e2e-team-beta"] {
+		t.Fatalf("deleteAll() deleted = %#v, want both e2e teams deleted", deleted)
+	}
+	if deleted["system-team-0"] {
+		t.Fatal("deleteAll() deleted system-team-0, want system teams skipped")
 	}
 }
