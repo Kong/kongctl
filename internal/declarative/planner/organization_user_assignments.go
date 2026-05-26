@@ -141,7 +141,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserRoleChanges(
 			}
 		}
 	}
-	scopedEntityIDs := t.organizationUserRoleScopedEntityIDs(namespace)
+	scopedEntityIDs := t.organizationRoleScopedEntityIDs(namespace)
 
 	for userRef, roles := range rolesByUser {
 		user := t.organizationUserByRef(userRef)
@@ -170,7 +170,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserRoleChanges(
 		for _, role := range roles {
 			key := buildOrganizationTeamRoleKey(
 				role.RoleName,
-				t.resolveOrganizationTeamRoleEntityID(role.EntityID),
+				t.resolveOrganizationTeamRoleEntityID(role.EntityID, role.EntityTypeName),
 				role.EntityTypeName,
 				role.EntityRegion,
 			)
@@ -361,18 +361,25 @@ func (t *OrganizationTeamPlannerImpl) organizationUserByRef(userRef string) *res
 	return nil
 }
 
-func (t *OrganizationTeamPlannerImpl) organizationUserRoleScopedEntityIDs(namespace string) map[string]bool {
+func (t *OrganizationTeamPlannerImpl) organizationRoleScopedEntityIDs(namespace string) map[string]bool {
 	scoped := map[string]bool{
 		"*": true,
 	}
-	if t.planner.resources == nil {
+	if t.planner == nil || t.planner.resources == nil {
 		return scoped
 	}
-	for _, api := range t.planner.resources.APIs {
-		if resources.GetNamespace(api.Kongctl) != namespace {
-			continue
-		}
+	for _, api := range t.planner.resources.GetAPIsByNamespace(namespace) {
 		if id := api.GetKonnectID(); id != "" {
+			scoped[id] = true
+		}
+	}
+	for _, portal := range t.planner.resources.GetPortalsByNamespace(namespace) {
+		if id := portal.GetKonnectID(); id != "" {
+			scoped[id] = true
+		}
+	}
+	for _, controlPlane := range t.planner.resources.GetControlPlanesByNamespace(namespace) {
+		if id := controlPlane.GetKonnectID(); id != "" {
 			scoped[id] = true
 		}
 	}

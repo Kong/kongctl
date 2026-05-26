@@ -24,6 +24,10 @@ vars:
   teamWildcardRoleRef: org-user-assignments-team-global-admin
   apiUserRoleRef: org-user-assignments-api-viewer
   wildcardUserRoleRef: org-user-assignments-global-viewer
+  portalRoleNamespace: org-user-assignments-portal-e2e
+  portalRef: org-user-assignments-portal
+  portalName: org-user-assignments-portal
+  portalUserRoleRef: org-user-assignments-portal-viewer
 
 defaults:
   mask:
@@ -287,6 +291,110 @@ steps:
                 failed: 0
                 status: success
       - name: 001-delete-cleanup-api
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 003-portal-entity-ref
+    inputOverlayDirs:
+      - overlays/003-portal-entity-ref
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='portal' &&
+                            resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.portalRoleNamespace }}"
+                fields.name: "{{ .vars.portalName }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_user_role' &&
+                            resource_ref=='{{ .vars.portalUserRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.portalRoleNamespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: Portals
+                fields.entity_region: us
+                references.entity_id.ref: "__REF__:{{ .vars.portalRef }}#id"
+
+      - name: 001-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 002-get-user-roles-by-email
+        exec:
+          - sh
+          - -c
+          - >-
+            {{ .bin }} get org user roles --profile e2e
+            --user-email "$KONGCTL_E2E_ORG_USER_EMAIL_1"
+            -o json
+        assertions:
+          - select: "[?role_name=='Viewer' && entity_type_name=='Portals'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: Portals
+                entity_region: us
+
+  - name: 004-portal-entity-ref-cleanup
+    inputOverlayDirs:
+      - overlays/004-portal-entity-ref-cleanup
+    commands:
+      - name: 000-sync-remove-portal-role
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 001-delete-portal
         outputFormat: json
         run:
           - delete

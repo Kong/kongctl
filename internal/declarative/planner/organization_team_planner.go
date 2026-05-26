@@ -303,7 +303,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleDeletesForDesired(
 	for _, desiredRole := range desiredRoles {
 		key := buildOrganizationTeamRoleKey(
 			desiredRole.RoleName,
-			t.resolveOrganizationTeamRoleEntityID(desiredRole.EntityID),
+			t.resolveOrganizationTeamRoleEntityID(desiredRole.EntityID, desiredRole.EntityTypeName),
 			desiredRole.EntityTypeName,
 			desiredRole.EntityRegion,
 		)
@@ -416,7 +416,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 		for _, role := range roles {
 			key := buildOrganizationTeamRoleKey(
 				role.RoleName,
-				t.resolveOrganizationTeamRoleEntityID(role.EntityID),
+				t.resolveOrganizationTeamRoleEntityID(role.EntityID, role.EntityTypeName),
 				role.EntityTypeName,
 				role.EntityRegion,
 			)
@@ -538,8 +538,8 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleDelete(
 	plan.AddChange(change)
 }
 
-func (t *OrganizationTeamPlannerImpl) resolveOrganizationTeamRoleEntityID(entityID string) string {
-	if t.planner.resources == nil || !tags.IsRefPlaceholder(entityID) {
+func (t *OrganizationTeamPlannerImpl) resolveOrganizationTeamRoleEntityID(entityID, entityTypeName string) string {
+	if t.planner == nil || t.planner.resources == nil || !tags.IsRefPlaceholder(entityID) {
 		return entityID
 	}
 
@@ -548,11 +548,43 @@ func (t *OrganizationTeamPlannerImpl) resolveOrganizationTeamRoleEntityID(entity
 		return entityID
 	}
 
-	if api := t.planner.resources.GetAPIByRef(ref); api != nil && api.GetKonnectID() != "" {
-		return api.GetKonnectID()
+	resourceType, ok := resources.RoleEntityResourceType(entityTypeName)
+	if !ok {
+		return entityID
+	}
+
+	if id := t.resolveRoleEntityResourceID(resourceType, ref); id != "" {
+		return id
 	}
 
 	return entityID
+}
+
+func (t *OrganizationTeamPlannerImpl) resolveRoleEntityResourceID(
+	resourceType resources.ResourceType,
+	ref string,
+) string {
+	if t.planner == nil || t.planner.resources == nil {
+		return ""
+	}
+
+	switch resourceType { //nolint:exhaustive
+	case resources.ResourceTypeAPI:
+		if api := t.planner.resources.GetAPIByRef(ref); api != nil {
+			return api.GetKonnectID()
+		}
+	case resources.ResourceTypePortal:
+		if portal := t.planner.resources.GetPortalByRef(ref); portal != nil {
+			return portal.GetKonnectID()
+		}
+	case resources.ResourceTypeControlPlane:
+		if controlPlane := t.planner.resources.GetControlPlaneByRef(ref); controlPlane != nil {
+			return controlPlane.GetKonnectID()
+		}
+	default:
+		return ""
+	}
+	return ""
 }
 
 func buildOrganizationTeamRoleKey(roleName, entityID, entityTypeName, entityRegion string) string {
