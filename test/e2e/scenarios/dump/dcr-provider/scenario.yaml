@@ -90,7 +90,27 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003-reset-cleanup
-    skipInputs: true
+  - name: 003-delete-cleanup
     commands:
-      - resetOrg: true
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
