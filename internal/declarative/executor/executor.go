@@ -1412,6 +1412,25 @@ func (e *Executor) syncControlPlaneGroupMembers(
 	return e.client.UpsertControlPlaneGroupMemberships(ctx, controlPlaneID, normalized)
 }
 
+func (e *Executor) detachControlPlaneGroupMembers(ctx context.Context, change *planner.PlannedChange) error {
+	field, ok := change.Fields[planner.FieldMembers]
+	if !ok {
+		return nil
+	}
+
+	memberIDs, err := extractMemberIDsFromField(field)
+	if err != nil {
+		return fmt.Errorf("failed to extract control plane group members: %w", err)
+	}
+
+	normalized := normalizers.NormalizeMemberIDs(memberIDs)
+	if len(normalized) == 0 {
+		return nil
+	}
+
+	return e.client.RemoveControlPlaneGroupMemberships(ctx, change.ResourceID, normalized)
+}
+
 func (e *Executor) resolveMemberReference(
 	ctx context.Context,
 	placeholder string,
@@ -3107,6 +3126,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		// No references to resolve for portal
 		return e.portalExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeControlPlane:
+		if err := e.detachControlPlaneGroupMembers(ctx, change); err != nil {
+			return fmt.Errorf("failed to detach control plane group members: %w", err)
+		}
 		return e.controlPlaneExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeControlPlaneDataPlaneCertificate:
 		return e.controlPlaneDataPlaneCertificateExecutor.Delete(ctx, *change)
