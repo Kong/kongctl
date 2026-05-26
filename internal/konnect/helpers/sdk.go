@@ -31,6 +31,8 @@ type SDKAPI interface {
 	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
 	GetDCRProvidersAPI() DCRProvidersAPI
 	GetMeAPI() MeAPI
+	GetPersonalAccessTokenAPI() PersonalAccessTokenAPI
+	GetSystemAccountAccessTokenAPI() SystemAccountAccessTokenAPI
 	GetGatewayServiceAPI() GatewayServiceAPI
 	GetDataPlaneCertificateAPI() DataPlaneCertificateAPI
 	GetSystemAccountAPI() SystemAccountAPI
@@ -385,6 +387,22 @@ func (k *KonnectSDK) GetMeAPI() MeAPI {
 	}
 
 	return k.SDK.Me
+}
+
+func (k *KonnectSDK) GetPersonalAccessTokenAPI() PersonalAccessTokenAPI {
+	if k.SDK == nil || k.SDK.PersonalAccessTokens == nil {
+		return nil
+	}
+
+	return &PersonalAccessTokenAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetSystemAccountAccessTokenAPI() SystemAccountAccessTokenAPI {
+	if k.SDK == nil || k.SDK.SystemAccountsAccessTokens == nil {
+		return nil
+	}
+
+	return &SystemAccountAccessTokenAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the AssetsAPI interface

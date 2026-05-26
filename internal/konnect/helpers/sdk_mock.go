@@ -19,6 +19,8 @@ type MockKonnectSDK struct {
 	AppAuthStrategiesFactory           func() AppAuthStrategiesAPI
 	DCRProvidersFactory                func() DCRProvidersAPI
 	MeFactory                          func() MeAPI
+	PersonalAccessTokenFactory         func() PersonalAccessTokenAPI
+	SystemAccountAccessTokenFactory    func() SystemAccountAccessTokenAPI
 	GatewayServiceFactory              func() GatewayServiceAPI
 	DataPlaneCertificateFactory        func() DataPlaneCertificateAPI
 	SystemAccountFactory               func() SystemAccountAPI
@@ -287,6 +289,20 @@ func (m *MockKonnectSDK) GetPortalTeamMembershipAPI() PortalTeamMembershipAPI {
 func (m *MockKonnectSDK) GetMeAPI() MeAPI {
 	if m.MeFactory != nil {
 		return m.MeFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetPersonalAccessTokenAPI() PersonalAccessTokenAPI {
+	if m.PersonalAccessTokenFactory != nil {
+		return m.PersonalAccessTokenFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetSystemAccountAccessTokenAPI() SystemAccountAccessTokenAPI {
+	if m.SystemAccountAccessTokenFactory != nil {
+		return m.SystemAccountAccessTokenFactory()
 	}
 	return nil
 }

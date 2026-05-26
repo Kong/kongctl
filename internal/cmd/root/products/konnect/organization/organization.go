@@ -3,6 +3,7 @@ package organization
 import (
 	"fmt"
 
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/systemaccount"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -51,6 +52,21 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 	}
 	if verb == verbs.Adopt {
 		return newAdoptOrganizationCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+	}
+	if verb == verbs.Create || verb == verbs.Delete {
+		if parentPreRun != nil {
+			baseCmd.PreRunE = parentPreRun
+		}
+		if addParentFlags != nil {
+			addParentFlags(verb, &baseCmd)
+		}
+
+		systemAccountCmd, err := systemaccount.NewSystemAccountCmd(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		baseCmd.AddCommand(systemAccountCmd)
+		return &baseCmd, nil
 	}
 
 	// Return base command for unsupported verbs
