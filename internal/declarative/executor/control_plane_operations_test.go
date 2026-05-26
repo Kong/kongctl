@@ -307,3 +307,32 @@ func TestExecutorDetachControlPlaneGroupMembersBeforeDelete(t *testing.T) {
 	assert.Equal(t, 3, result.SuccessCount)
 	mockGroupsAPI.AssertExpectations(t)
 }
+
+func TestExecutorDoesNotDetachControlPlaneGroupMembersInDryRun(t *testing.T) {
+	ctx := testContextWithLogger()
+	mockGroupsAPI := &helpers.MockControlPlaneGroupsAPI{}
+	client := state.NewClient(state.ClientConfig{ControlPlaneGroupsAPI: mockGroupsAPI})
+	exec := New(client, nil, true)
+
+	change := &planner.PlannedChange{
+		ResourceType: planner.ResourceTypeControlPlane,
+		ResourceRef:  "group-cp",
+		ResourceID:   "group-id",
+		Action:       planner.ActionDelete,
+		Fields: map[string]any{
+			planner.FieldName: "group-cp",
+			planner.FieldMembers: []map[string]string{
+				{planner.FieldID: "member-a-id"},
+			},
+		},
+	}
+
+	require.NoError(t, exec.detachControlPlaneGroupMembers(ctx, change))
+	mockGroupsAPI.AssertNotCalled(
+		t,
+		"PostControlPlanesIDGroupMembershipsRemove",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	)
+}

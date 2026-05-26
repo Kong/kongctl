@@ -1427,6 +1427,9 @@ func (e *Executor) detachControlPlaneGroupMembers(ctx context.Context, change *p
 	if len(normalized) == 0 {
 		return nil
 	}
+	if e.dryRun {
+		return nil
+	}
 
 	return e.client.RemoveControlPlaneGroupMemberships(ctx, change.ResourceID, normalized)
 }
