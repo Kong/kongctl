@@ -91,6 +91,9 @@ safe-outputs:
   noop:
     report-as-issue: false
   add-comment:
+    target: "*"
+    discussions: false
+    pull-requests: false
     hide-older-comments: true
     max: 1
 steps:
@@ -217,7 +220,7 @@ steps:
         --arg regressions_json_url "$(make_blob_url "${REGRESSIONS_JSON_PATH}")" \
         '{
           repository: $repository,
-          issue_number: $issue_number,
+          issue_number: (if $issue_number == "" then null else $issue_number end),
           run_id: $run_id,
           run_url: $run_url,
           artifact_url: $artifact_url,
@@ -241,6 +244,78 @@ steps:
             regressions_json: $regressions_json_url
           }
         }' > "${data_dir}/run-context.json"
+post-steps:
+  - name: Validate benchmark analysis comment target
+    if: always()
+    run: |
+      set -euo pipefail
+
+      data_dir="/tmp/gh-aw/benchmark-analysis"
+      run_context="${data_dir}/run-context.json"
+      agent_output="/tmp/gh-aw/agent_output.json"
+      safe_outputs="${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl"
+
+      if [ ! -f "${safe_outputs}" ] && [ ! -f "${agent_output}" ]; then
+        exit 0
+      fi
+
+      issue_number=""
+      if [ -f "${run_context}" ]; then
+        issue_number="$(jq -r '.issue_number // ""' "${run_context}")"
+      fi
+
+      filtered_outputs="${data_dir}/safeoutputs.validated.jsonl"
+      invalid_comment_count=0
+
+      if [ -f "${safe_outputs}" ]; then
+        invalid_comment_count="$(
+          jq -s --arg issue_number "${issue_number}" \
+            '[.[] | select(.type == "add_comment" and ($issue_number == "" or ((.item_number // .issue_number // "") | tostring) != $issue_number))] | length' \
+            "${safe_outputs}"
+        )"
+
+        if [ "${invalid_comment_count}" -gt 0 ]; then
+          jq -c --arg issue_number "${issue_number}" \
+            'select(.type != "add_comment" or ($issue_number != "" and ((.item_number // .issue_number // "") | tostring) == $issue_number))' \
+            "${safe_outputs}" > "${filtered_outputs}"
+
+          if [ ! -s "${filtered_outputs}" ]; then
+            jq -cn --arg message \
+              "Skipped benchmark analysis comment because the requested target did not match the resolved benchmark regression issue." \
+              '{type: "noop", message: $message}' >> "${filtered_outputs}"
+          fi
+
+          mv "${filtered_outputs}" "${safe_outputs}"
+        fi
+      fi
+
+      if [ -f "${agent_output}" ]; then
+        agent_invalid_comment_count="$(
+          jq --arg issue_number "${issue_number}" \
+            '[.items[]? | select(.type == "add_comment" and ($issue_number == "" or ((.item_number // .issue_number // "") | tostring) != $issue_number))] | length' \
+            "${agent_output}"
+        )"
+        if [ "${agent_invalid_comment_count}" -eq 0 ]; then
+          exit 0
+        fi
+
+        filtered_agent_output="${data_dir}/agent_output.validated.json"
+        jq --arg issue_number "${issue_number}" --arg message \
+          "Skipped benchmark analysis comment because the requested target did not match the resolved benchmark regression issue." \
+          '
+          def valid_output:
+            .type != "add_comment" or
+            ($issue_number != "" and ((.item_number // .issue_number // "") | tostring) == $issue_number);
+
+          .items = ([.items[]? | select(valid_output)]) |
+          if (.items | length) == 0 then
+            .items = [{type: "noop", message: $message}]
+          else
+            .
+          end
+          ' "${agent_output}" > "${filtered_agent_output}"
+        mv "${filtered_agent_output}" "${agent_output}"
+      fi
 tracker-id: benchmark-regression-analysis
 ---
 
@@ -277,11 +352,11 @@ need detail that the compact context does not include.
 
 Emit exactly one safe output:
 
-- Use `add_comment` with the `issue_number` from `run-context.json` when there
-  is enough data to explain the regression.
+- Use `add_comment` with `item_number` set to the `issue_number` from
+  `run-context.json` when there is enough data to explain the regression.
 - Use `noop` if there are no regressions, if required files are missing, or if
   the data is too incomplete to explain safely. Also use `noop` if
-  `run-context.json` does not contain an `issue_number`.
+  `run-context.json` has an empty, null, or missing `issue_number`.
 
 Do not use `gh` CLI commands for GitHub reads or writes. Use the prepared local
 files first and GitHub MCP tools only if you need repository context.
