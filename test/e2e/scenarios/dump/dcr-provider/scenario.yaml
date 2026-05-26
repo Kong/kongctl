@@ -71,6 +71,7 @@ steps:
                 name: "{{ .vars.dcrProviderName }}"
                 provider_type: http
                 issuer: "{{ .vars.dcrProviderIssuer }}"
+                dcr_config.api_key: null
 
       - name: 001-round-trip-sync
         outputFormat: json
