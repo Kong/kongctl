@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -170,7 +171,8 @@ def main(argv: list[str]) -> int:
             run_info = resolve_pr_run(repo, args.workflow, pr_info, args.max_pages)
         else:
             run_info = resolve_run(repo, args.workflow, args.run, args.max_pages)
-        jobs = fetch_jobs(repo, run_info.database_id, args.attempt or run_info.run_attempt)
+        effective_attempt = args.attempt or run_info.run_attempt
+        jobs = fetch_jobs(repo, run_info.database_id, effective_attempt)
         artifacts = fetch_artifacts(repo, run_info.database_id)
         selected_artifacts = select_artifacts(
             artifacts=artifacts,
@@ -185,12 +187,12 @@ def main(argv: list[str]) -> int:
                 return fail("no matching E2E artifacts found for this run")
             artifact_dirs = []
         else:
-            artifact_dirs = download_artifacts(repo, run_info.database_id, selected_artifacts, download_dir)
+            artifact_dirs = download_artifacts(repo, selected_artifacts, download_dir)
 
     if artifact_dirs:
         shard_results = analyze_artifacts(
             artifact_dirs,
-            requested_attempt=args.attempt,
+            requested_attempt=effective_attempt if run_info else args.attempt,
             include_success=args.include_success,
             max_snippet_lines=args.max_snippet_lines,
         )
@@ -247,6 +249,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         parser.error("--run or --pr is required unless --artifacts-dir is provided")
     if args.run and args.pr:
         parser.error("--run and --pr cannot both be provided")
+    if args.attempt is not None and args.attempt < 1:
+        parser.error("--attempt must be greater than zero")
     return args
 
 
@@ -552,8 +556,6 @@ def select_artifacts(
         for artifact in artifacts
         if artifact.name.startswith(DEFAULT_ARTIFACT_PREFIX) and not artifact.expired
     ]
-    by_name = dedupe_artifacts_by_name(e2e_artifacts)
-    e2e_artifacts = list(by_name.values())
 
     if artifact_filters:
         wanted = set(artifact_filters)
@@ -577,44 +579,57 @@ def select_artifacts(
     return e2e_artifacts
 
 
-def dedupe_artifacts_by_name(artifacts: list[Artifact]) -> dict[str, Artifact]:
-    by_name: dict[str, Artifact] = {}
-    for artifact in sorted(artifacts, key=lambda item: item.updated_at):
-        by_name[artifact.name] = artifact
-    return by_name
-
-
-def download_artifacts(repo: str, run_id: int, artifacts: list[Artifact], download_dir: Path) -> list[Path]:
+def download_artifacts(repo: str, artifacts: list[Artifact], download_dir: Path) -> list[Path]:
     download_dir.mkdir(parents=True, exist_ok=True)
     artifact_dirs: list[Path] = []
+    duplicate_names = artifact_names_with_duplicates(artifacts)
     for artifact in artifacts:
-        artifact_dir = download_dir / artifact.name
+        artifact_dir = download_dir / artifact_dir_name(artifact, duplicate_names)
         artifact_dirs.append(artifact_dir)
         if artifact_dir.exists() and any(artifact_dir.iterdir()):
             continue
         artifact_dir.mkdir(parents=True, exist_ok=True)
-        result = subprocess.run(
-            [
-                "gh",
-                "run",
-                "download",
-                str(run_id),
-                "--repo",
-                repo,
-                "--name",
-                artifact.name,
-                "--dir",
-                str(artifact_dir),
-            ],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
+        zip_path = download_dir / f".artifact-{artifact.artifact_id}.zip"
+        with zip_path.open("wb") as archive_file:
+            result = subprocess.run(
+                [
+                    "gh",
+                    "api",
+                    "-H",
+                    "Accept: application/vnd.github+json",
+                    f"/repos/{repo}/actions/artifacts/{artifact.artifact_id}/zip",
+                ],
+                stdout=archive_file,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
         if result.returncode != 0:
-            detail = result.stderr.strip() or result.stdout.strip()
+            detail = result.stderr.decode("utf-8", errors="replace").strip()
             raise SystemExit(f"failed to download artifact {artifact.name}: {detail}")
+        try:
+            with zipfile.ZipFile(zip_path) as archive:
+                archive.extractall(artifact_dir)
+        except zipfile.BadZipFile as err:
+            raise SystemExit(f"downloaded artifact {artifact.name} was not a valid zip archive") from err
+        finally:
+            zip_path.unlink(missing_ok=True)
     return artifact_dirs
+
+
+def artifact_names_with_duplicates(artifacts: list[Artifact]) -> set[str]:
+    seen: set[str] = set()
+    duplicates: set[str] = set()
+    for artifact in artifacts:
+        if artifact.name in seen:
+            duplicates.add(artifact.name)
+        seen.add(artifact.name)
+    return duplicates
+
+
+def artifact_dir_name(artifact: Artifact, duplicate_names: set[str]) -> str:
+    if artifact.name in duplicate_names:
+        return f"{artifact.name}-{artifact.artifact_id}"
+    return artifact.name
 
 
 def analyze_artifacts(
@@ -640,15 +655,20 @@ def analyze_artifacts(
 
     filtered: list[ShardResult] = []
     seen_keys: set[tuple[int | None, str]] = set()
+    matched_selected_attempt = False
     for result in sorted(all_results, key=lambda item: (item.run_attempt or 0, str(item.artifact_dir)), reverse=True):
         if selected_attempt is not None and result.run_attempt not in {None, selected_attempt}:
             continue
+        matched_selected_attempt = True
         key = (result.shard_index, result.org_name)
         if key in seen_keys:
             continue
         seen_keys.add(key)
         if include_success or result.failed_count > 0 or (result.exit_code or 0) != 0:
             filtered.append(result)
+
+    if requested_attempt is not None and not matched_selected_attempt:
+        raise SystemExit(f"no shard results found for workflow attempt {requested_attempt}")
 
     return sorted(filtered, key=lambda item: (item.shard_index if item.shard_index is not None else 9999, item.org_name))
 
