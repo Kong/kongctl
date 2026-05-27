@@ -40,9 +40,9 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		# Create a Konnect personal access token and print only the token value
 		%[1]s create pat --name ci --expires-in 30d -o token
 		# Create a Konnect personal access token and extract the token with jq
-		%[1]s create pat --name ci --expires-in 12h --jq -r '.token'
+		%[1]s create pat --name ci --expires-in 7d --jq -r '.token'
 		# Create a Konnect system account access token as an environment export
-		%[1]s create spat --system-account-name ci-bot --name ci --expires-at 2026-06-24T12:00:00Z -o env
+		%[1]s create spat --system-account-name ci-bot --name ci --expires-in 30d -o env
 		`, meta.CLIName)))
 )
 
