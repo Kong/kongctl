@@ -87,6 +87,52 @@ steps:
                 service.control_plane_id: "{{ .vars.cp_id }}"
                 service.id: "{{ .vars.gw_svc_id }}"
 
+  - name: 004b-sync-delete-implementation
+    inputOverlayDirs:
+      - overlays/001-remove-impl
+    commands:
+      - name: 000-sync-delete
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: "plan.changes[?resource_type=='api_implementation'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: e2e-api-implementation
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+  - name: 004c-verify-implementation-removed
+    skipInputs: true
+    commands:
+      - name: 000-get-implementations
+        run: ["get", "api", "implementations", "--api-name", "e2e-api", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 001-get-api
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='e2e-api']"
+            expect:
+              fields:
+                "length(@)": 1
+
   - name: 005-cleanup
     skipInputs: true
     commands:
