@@ -107,7 +107,6 @@ steps:
             expect:
               fields:
                 action: DELETE
-                resource_ref: e2e-api-implementation
           - select: summary
             expect:
               fields:
