@@ -133,7 +133,33 @@ steps:
               fields:
                 "length(@)": 1
 
-  - name: 005-cleanup
-    skipInputs: true
+  - name: 005-delete-cleanup
     commands:
-      - resetOrg: true
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: "plan.changes[?resource_type=='api'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: e2e-api
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
