@@ -34,11 +34,22 @@ const (
 	flagSystemAccountID   = "system-account-id"
 	flagSystemAccountName = "system-account-name"
 
-	expiresInHelp = "Token lifetime. Accepts Go durations with ns, us, ms, s, m, h, " +
-		"plus numeric days with d. Examples: 90m, 12h, 30d."
-	expiresAtHelp        = "Token expiration timestamp in RFC3339 format, for example 2026-06-24T12:00:00Z."
-	expiresInExpectation = "use a positive duration like 90m, 12h, or 30d " +
-		"(supported units: ns, us, ms, s, m, h, d)"
+	secondsPerDay = int64(24 * 60 * 60)
+
+	minTokenTTLDays = int64(1)
+	maxTokenTTLDays = int64(365)
+
+	minTokenTTLSeconds = minTokenTTLDays * secondsPerDay
+	maxTokenTTLSeconds = maxTokenTTLDays * secondsPerDay
+
+	expiresInHelp = "Token lifetime. Use a duration between 1 day and 365 days (12 months). " +
+		"Supported units are ns, us, ms, s, m, h, and d (days). Examples: 24h, 36h, 1d, 30d."
+	expiresAtHelp = "Token expiration timestamp in RFC3339 format, for example 2026-06-24T12:00:00Z " +
+		"or 2026-06-24T12:00:00+02:00. Fractional seconds are accepted. " +
+		"Must be between 1 day and 365 days (12 months) from now."
+	expiresInExpectation       = "use a valid duration with a unit suffix"
+	createExpiresInExpectation = "use a duration between 1 day and 365 days (12 months) " +
+		"with units ns, us, ms, s, m, h, or d (days)"
 )
 
 type expiration struct {
@@ -120,7 +131,7 @@ func NewPATCmd(
 		cmd.Use = PATCommandName
 		cmd.Short = "Create a Konnect personal access token"
 		cmd.Example = fmt.Sprintf(`  %[1]s create pat --name ci --expires-in 30d -o token
-  %[1]s create pat --name ci --expires-in 12h --jq -r '.token'`, meta.CLIName)
+  %[1]s create pat --name ci --expires-in 7d --jq -r '.token'`, meta.CLIName)
 		cmd.Args = createTokenArgs
 		addPATCreateFlags(cmd, opts)
 		cmdcommon.AllowExtraOutputFormats(cmd, cmdcommon.TOKEN.String(), cmdcommon.ENV.String())
@@ -178,7 +189,7 @@ func NewSPATCmd(
 		cmd.Use = SPATCommandName
 		cmd.Short = "Create a Konnect system account access token"
 		cmd.Example = fmt.Sprintf(
-			`  %[1]s create spat --system-account-name ci-bot --name ci --expires-at 2026-06-24T12:00:00Z -o env`,
+			`  %[1]s create spat --system-account-name ci-bot --name ci --expires-in 30d -o env`,
 			meta.CLIName,
 		)
 		cmd.Args = createTokenArgs
@@ -268,7 +279,7 @@ func runCreatePAT(c *cobra.Command, args []string, opts *patOptions) error {
 		return &cmdpkg.ConfigurationError{Err: fmt.Errorf("--%s is required", flagName)}
 	}
 
-	exp, err := parseExpiration(opts.expiresIn, opts.expiresAt)
+	exp, err := parseCreateTokenExpiration(opts.expiresIn, opts.expiresAt)
 	if err != nil {
 		return err
 	}
@@ -401,7 +412,7 @@ func runCreateSPAT(c *cobra.Command, args []string, opts *spatOptions) error {
 		return err
 	}
 
-	exp, err := parseExpiration(opts.expiresIn, opts.expiresAt)
+	exp, err := parseCreateTokenExpiration(opts.expiresIn, opts.expiresAt)
 	if err != nil {
 		return err
 	}
@@ -794,6 +805,10 @@ func requestPageSize(cfg config.Hook) int64 {
 }
 
 func parseExpiration(expiresIn, expiresAt string) (expiration, error) {
+	return parseExpirationWithExpectation(expiresIn, expiresAt, expiresInExpectation)
+}
+
+func parseExpirationWithExpectation(expiresIn, expiresAt string, expectation string) (expiration, error) {
 	expiresIn = strings.TrimSpace(expiresIn)
 	expiresAt = strings.TrimSpace(expiresAt)
 	if (expiresIn == "") == (expiresAt == "") {
@@ -814,16 +829,83 @@ func parseExpiration(expiresIn, expiresAt string) (expiration, error) {
 	duration, err := parseDurationWithDays(expiresIn)
 	if err != nil {
 		return expiration{}, &cmdpkg.ConfigurationError{
-			Err: fmt.Errorf("invalid --%s value %q: %s", flagExpiresIn, expiresIn, expiresInExpectation),
+			Err: fmt.Errorf("invalid --%s value %q: %s", flagExpiresIn, expiresIn, expectation),
 		}
 	}
 	ttl := int64(duration.Seconds())
 	if ttl <= 0 {
 		return expiration{}, &cmdpkg.ConfigurationError{
-			Err: fmt.Errorf("--%s must be greater than zero; %s", flagExpiresIn, expiresInExpectation),
+			Err: fmt.Errorf("--%s must be greater than zero; %s", flagExpiresIn, expectation),
 		}
 	}
 	return expiration{TTLSeconds: &ttl}, nil
+}
+
+func parseCreateTokenExpiration(expiresIn, expiresAt string) (expiration, error) {
+	return parseCreateTokenExpirationAt(expiresIn, expiresAt, time.Now().UTC())
+}
+
+func parseCreateTokenExpirationAt(expiresIn, expiresAt string, now time.Time) (expiration, error) {
+	expiresIn = strings.TrimSpace(expiresIn)
+	expiresAt = strings.TrimSpace(expiresAt)
+	if (expiresIn == "") == (expiresAt == "") {
+		return expiration{}, &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf("exactly one of --%s or --%s is required", flagExpiresIn, flagExpiresAt),
+		}
+	}
+
+	if expiresAt != "" {
+		return parseCreateTokenExpiresAt(expiresAt, now)
+	}
+
+	duration, err := parseDurationWithDays(expiresIn)
+	if err != nil {
+		return expiration{}, &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf("invalid --%s value %q: %s", flagExpiresIn, expiresIn, createExpiresInExpectation),
+		}
+	}
+	if duration < time.Duration(minTokenTTLSeconds)*time.Second {
+		return expiration{}, &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf("minimum token lifetime is 1 day (--%s must be at least 1d)", flagExpiresIn),
+		}
+	}
+	if duration > time.Duration(maxTokenTTLSeconds)*time.Second {
+		return expiration{}, &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf(
+				"maximum token lifetime is 365 days (12 months) (--%s must be at most 365d)",
+				flagExpiresIn,
+			),
+		}
+	}
+	ttl := int64(duration / time.Second)
+	return expiration{TTLSeconds: &ttl}, nil
+}
+
+func parseCreateTokenExpiresAt(expiresAt string, now time.Time) (expiration, error) {
+	parsed, err := time.Parse(time.RFC3339, expiresAt)
+	if err != nil {
+		return expiration{}, &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf("invalid --%s value %q: %w", flagExpiresAt, expiresAt, err),
+		}
+	}
+	ttlSeconds := parsed.Unix() - now.Unix()
+	if ttlSeconds < minTokenTTLSeconds {
+		return expiration{}, &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf(
+				"minimum token lifetime is 1 day (--%s must be at least 1 day from now)",
+				flagExpiresAt,
+			),
+		}
+	}
+	if ttlSeconds > maxTokenTTLSeconds {
+		return expiration{}, &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf(
+				"maximum token lifetime is 365 days (12 months) (--%s must be at most 365 days from now)",
+				flagExpiresAt,
+			),
+		}
+	}
+	return expiration{ExpiresAt: &parsed}, nil
 }
 
 func parseDurationWithDays(raw string) (time.Duration, error) {

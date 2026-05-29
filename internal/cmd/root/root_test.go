@@ -221,14 +221,87 @@ func TestCreatePATHelpIncludesTokenExamplesAndFormats(t *testing.T) {
 	}
 	for _, want := range []string{
 		"kongctl create pat --name ci --expires-in 30d -o token",
-		"kongctl create pat --name ci --expires-in 12h --jq -r '.token'",
-		"Accepts Go durations with ns, us, ms, s, m, h, plus numeric days with d.",
-		"Token expiration timestamp in RFC3339 format, for example 2026-06-24T12:00:00Z.",
+		"kongctl create pat --name ci --expires-in 7d --jq -r '.token'",
+		"Use a duration between 1 day and 365 days (12 months).",
+		"Supported units are ns, us, ms, s, m, h, and d (days).",
+		"Examples: 24h, 36h, 1d, 30d.",
+		"Token expiration timestamp in RFC3339 format, for example 2026-06-24T12:00:00Z",
+		"or 2026-06-24T12:00:00+02:00. Fractional seconds are accepted.",
+		"Must be between 1 day and 365 days (12 months) from now.",
 		"Allowed    : [ json|yaml|text|token|env ]",
 	} {
 		if !strings.Contains(result.stdout, want) {
 			t.Fatalf("expected help to contain %q\nstdout:\n%s", want, result.stdout)
 		}
+	}
+}
+
+func TestCreatePATRejectsBelowMinDuration(t *testing.T) {
+	result := executeRootForTest(t, "create", "pat", "--name", "ci", "--expires-in", "12h")
+	if result.exitCode == 0 {
+		t.Fatalf("expected create pat with below-min duration to fail\nstdout:\n%s", result.stdout)
+	}
+	for _, want := range []string{
+		"minimum token lifetime is 1 day",
+		"--expires-in must be at least 1d",
+	} {
+		if !strings.Contains(result.stderr, want) {
+			t.Fatalf("expected stderr to contain %q\nstderr:\n%s", want, result.stderr)
+		}
+	}
+}
+
+func TestCreatePATRejectsOverMaxDuration(t *testing.T) {
+	result := executeRootForTest(t, "create", "pat", "--name", "ci", "--expires-in", "366d")
+	if result.exitCode == 0 {
+		t.Fatalf("expected create pat with over-max duration to fail\nstdout:\n%s", result.stdout)
+	}
+	for _, want := range []string{
+		"maximum token lifetime is 365 days (12 months)",
+		"--expires-in must be at most 365d",
+	} {
+		if !strings.Contains(result.stderr, want) {
+			t.Fatalf("expected stderr to contain %q\nstderr:\n%s", want, result.stderr)
+		}
+	}
+}
+
+func TestCreatePATRejectsExpiresAtOutsideBounds(t *testing.T) {
+	tests := []struct {
+		name      string
+		expiresAt string
+		want      []string
+	}{
+		{
+			name:      "too soon",
+			expiresAt: time.Now().UTC().Add(12 * time.Hour).Format(time.RFC3339),
+			want: []string{
+				"minimum token lifetime is 1 day",
+				"--expires-at must be at least 1 day from now",
+			},
+		},
+		{
+			name:      "too far",
+			expiresAt: time.Now().UTC().Add(366 * 24 * time.Hour).Format(time.RFC3339),
+			want: []string{
+				"maximum token lifetime is 365 days (12 months)",
+				"--expires-at must be at most 365 days from now",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executeRootForTest(t, "create", "pat", "--name", "ci", "--expires-at", tt.expiresAt)
+			if result.exitCode == 0 {
+				t.Fatalf("expected create pat with %s expires-at to fail\nstdout:\n%s", tt.name, result.stdout)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(result.stderr, want) {
+					t.Fatalf("expected stderr to contain %q\nstderr:\n%s", want, result.stderr)
+				}
+			}
+		})
 	}
 }
 
@@ -246,7 +319,7 @@ func TestCreatePATTokenOutputAndJQ(t *testing.T) {
 	result := executeRootForTest(t,
 		"create", "pat",
 		"--name", "ci",
-		"--expires-in", "12h",
+		"--expires-in", "24h",
 		"-o", "token",
 	)
 	if result.exitCode != 0 {
@@ -258,14 +331,14 @@ func TestCreatePATTokenOutputAndJQ(t *testing.T) {
 	if patAPI.createdUserID != "user-1" {
 		t.Fatalf("expected current user id to be used, got %q", patAPI.createdUserID)
 	}
-	if got := patAPI.createdRequest.PersonalAccessTokenCreateRequestWithTTL.GetTTLSeconds(); got != 43200 {
-		t.Fatalf("expected 12h ttl to be 43200 seconds, got %d", got)
+	if got := patAPI.createdRequest.PersonalAccessTokenCreateRequestWithTTL.GetTTLSeconds(); got != 86400 {
+		t.Fatalf("expected 24h ttl to be 86400 seconds, got %d", got)
 	}
 
 	result = executeRootForTest(t,
 		"create", "pat",
 		"--name", "ci",
-		"--expires-in", "12h",
+		"--expires-in", "7d",
 		"--user-id", "user-2",
 		"--jq", "-r", ".token",
 	)
@@ -297,7 +370,7 @@ func TestCreateSPATEnvOutputResolvesSystemAccountName(t *testing.T) {
 		"create", "spat",
 		"--system-account-name", "ci-bot",
 		"--name", "ci",
-		"--expires-at", "2026-06-24T12:00:00Z",
+		"--expires-in", "30d",
 		"-o", "env",
 	)
 	if result.exitCode != 0 {
@@ -305,6 +378,90 @@ func TestCreateSPATEnvOutputResolvesSystemAccountName(t *testing.T) {
 	}
 	if result.stdout != "export KONGCTL_TEAM_A_KONNECT_PAT='spat_123'\n" {
 		t.Fatalf("unexpected env output: %q", result.stdout)
+	}
+}
+
+func TestCreateSPATRejectsBelowMinDuration(t *testing.T) {
+	result := executeRootForTest(t,
+		"create", "spat",
+		"--system-account-id", "system-account-id",
+		"--name", "ci",
+		"--expires-in", "12h",
+	)
+	if result.exitCode == 0 {
+		t.Fatalf("expected create spat with below-min duration to fail\nstdout:\n%s", result.stdout)
+	}
+	for _, want := range []string{
+		"minimum token lifetime is 1 day",
+		"--expires-in must be at least 1d",
+	} {
+		if !strings.Contains(result.stderr, want) {
+			t.Fatalf("expected stderr to contain %q\nstderr:\n%s", want, result.stderr)
+		}
+	}
+}
+
+func TestCreateSPATRejectsOverMaxDuration(t *testing.T) {
+	result := executeRootForTest(t,
+		"create", "spat",
+		"--system-account-id", "system-account-id",
+		"--name", "ci",
+		"--expires-in", "366d",
+	)
+	if result.exitCode == 0 {
+		t.Fatalf("expected create spat with over-max duration to fail\nstdout:\n%s", result.stdout)
+	}
+	for _, want := range []string{
+		"maximum token lifetime is 365 days (12 months)",
+		"--expires-in must be at most 365d",
+	} {
+		if !strings.Contains(result.stderr, want) {
+			t.Fatalf("expected stderr to contain %q\nstderr:\n%s", want, result.stderr)
+		}
+	}
+}
+
+func TestCreateSPATRejectsExpiresAtOutsideBounds(t *testing.T) {
+	tests := []struct {
+		name      string
+		expiresAt string
+		want      []string
+	}{
+		{
+			name:      "too soon",
+			expiresAt: time.Now().UTC().Add(12 * time.Hour).Format(time.RFC3339),
+			want: []string{
+				"minimum token lifetime is 1 day",
+				"--expires-at must be at least 1 day from now",
+			},
+		},
+		{
+			name:      "too far",
+			expiresAt: time.Now().UTC().Add(366 * 24 * time.Hour).Format(time.RFC3339),
+			want: []string{
+				"maximum token lifetime is 365 days (12 months)",
+				"--expires-at must be at most 365 days from now",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executeRootForTest(t,
+				"create", "spat",
+				"--system-account-id", "system-account-id",
+				"--name", "ci",
+				"--expires-at", tt.expiresAt,
+			)
+			if result.exitCode == 0 {
+				t.Fatalf("expected create spat with %s expires-at to fail\nstdout:\n%s", tt.name, result.stdout)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(result.stderr, want) {
+					t.Fatalf("expected stderr to contain %q\nstderr:\n%s", want, result.stderr)
+				}
+			}
+		})
 	}
 }
 
