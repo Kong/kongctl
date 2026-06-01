@@ -132,27 +132,18 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if f := c.Flags().Lookup(common.BaseURLFlagName); f != nil {
-		if err := cfg.BindFlag(common.BaseURLConfigPath, f); err != nil {
-			return err
+	bindings := []struct{ flag, path string }{
+		{common.BaseURLFlagName, common.BaseURLConfigPath},
+		{common.RegionFlagName, common.RegionConfigPath},
+		{common.PATFlagName, common.PATConfigPath},
+	}
+	for _, b := range bindings {
+		if f := c.Flags().Lookup(b.flag); f != nil {
+			if err := cfg.BindFlag(b.path, f); err != nil {
+				return err
+			}
 		}
 	}
 
-	if f := c.Flags().Lookup(common.RegionFlagName); f != nil {
-		if err := cfg.BindFlag(common.RegionConfigPath, f); err != nil {
-			return err
-		}
-	}
-
-	if f := c.Flags().Lookup(common.PATFlagName); f != nil {
-		if err := cfg.BindFlag(common.PATConfigPath, f); err != nil {
-			return err
-		}
-	}
-
-	if err := jq.BindFlags(cfg, c.Flags()); err != nil {
-		return err
-	}
-
-	return nil
+	return jq.BindFlags(cfg, c.Flags())
 }
