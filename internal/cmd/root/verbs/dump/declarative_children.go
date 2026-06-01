@@ -102,6 +102,12 @@ func populatePortalChildren(
 			portal.EmailTemplates = emailTemplates
 		}
 
+		if auditLogWebhook, err := buildPortalAuditLogWebhook(ctx, client, portalID); err != nil {
+			logWarn(logger, "failed to load portal audit log webhook", portalID, portal.Name, err)
+		} else if auditLogWebhook != nil {
+			portal.AuditLogWebhook = auditLogWebhook
+		}
+
 		if assets := buildPortalAssets(ctx, logger, client, portalID, portal.Name); assets != nil {
 			portal.Assets = assets
 		}
@@ -849,6 +855,29 @@ func buildPortalIPAllowList(
 		Ref:        buildChildRef("portal-ip-allow-list", portalID, strings.Join(allowedIPs, ",")),
 		AllowedIPs: allowedIPs,
 	}, nil
+}
+
+func buildPortalAuditLogWebhook(
+	ctx context.Context,
+	client *declstate.Client,
+	portalID string,
+) (*declresources.PortalAuditLogWebhookResource, error) {
+	webhook, err := client.GetPortalAuditLogWebhook(ctx, portalID)
+	if err != nil {
+		return nil, err
+	}
+	if webhook == nil {
+		return nil, nil
+	}
+
+	resource := &declresources.PortalAuditLogWebhookResource{
+		Ref:     buildChildRef("portal-audit-log-webhook", portalID),
+		Enabled: webhook.GetEnabled(),
+	}
+	if destID := webhook.GetAuditLogDestinationID(); destID != nil {
+		resource.AuditLogDestinationID = *destID
+	}
+	return resource, nil
 }
 
 func buildPortalIntegration(
