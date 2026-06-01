@@ -844,9 +844,13 @@ func RedactSensitiveCommandArtifactString(args []string, data string) string {
 		return data
 	}
 
-	redacted := string(redactSensitiveJSONBytes([]byte(data)))
+	redactedJSON := redactSensitiveJSONBytes([]byte(data))
+	redacted := string(redactedJSON)
 	if isCreateTokenCommand(args) && outputLooksLikeRawSecret(redacted) {
 		return preserveFinalNewline(data, "***")
+	}
+	if json.Valid(redactedJSON) {
+		return redacted
 	}
 
 	lines := strings.Split(redacted, "\n")
