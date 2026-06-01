@@ -1632,8 +1632,8 @@ func runAssertion(
 	if selUsed != "" {
 		_ = os.WriteFile(filepath.Join(asDir, "select.txt"), []byte(selUsed+"\n"), 0o644)
 	}
-	_ = writeJSON(filepath.Join(asDir, "observed.json"), observed)
-	_ = writeJSON(filepath.Join(asDir, "expected.json"), exp)
+	_ = writeJSON(filepath.Join(asDir, "observed.json"), harness.RedactSensitiveCommandArtifactValue(cmd.Run, observed))
+	_ = writeJSON(filepath.Join(asDir, "expected.json"), harness.RedactSensitiveCommandArtifactValue(cmd.Run, exp))
 
 	// Compare and write single result.txt
 	updateMode := os.Getenv("KONGCTL_E2E_UPDATE_EXPECT") == "1"

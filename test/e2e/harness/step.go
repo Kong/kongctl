@@ -836,6 +836,160 @@ func redactSensitiveJSONBytes(data []byte) []byte {
 	return out
 }
 
+// RedactSensitiveCommandArtifactString redacts sensitive command output before
+// it is persisted as a test artifact. It does not alter the in-memory command
+// result used by assertions.
+func RedactSensitiveCommandArtifactString(args []string, data string) string {
+	if strings.TrimSpace(data) == "" {
+		return data
+	}
+
+	redactedJSON := redactSensitiveJSONBytes([]byte(data))
+	redacted := string(redactedJSON)
+	if isCreateTokenCommand(args) && outputLooksLikeRawSecret(redacted) {
+		return preserveFinalNewline(data, "***")
+	}
+	if json.Valid(redactedJSON) {
+		return redacted
+	}
+
+	lines := strings.Split(redacted, "\n")
+	changed := false
+	for i, line := range lines {
+		replacement, ok := redactSensitiveArtifactLine(line)
+		if !ok {
+			continue
+		}
+		lines[i] = replacement
+		changed = true
+	}
+	if !changed {
+		return redacted
+	}
+	return strings.Join(lines, "\n")
+}
+
+// RedactSensitiveCommandArtifactValue redacts sensitive assertion values before
+// they are written to observed/expected artifact JSON.
+func RedactSensitiveCommandArtifactValue(args []string, value any) any {
+	return redactSensitiveCommandArtifactValue(args, value)
+}
+
+func redactSensitiveCommandArtifactValue(args []string, value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, child := range v {
+			if isSensitiveName(key) && child != nil {
+				out[key] = "***"
+				continue
+			}
+			if key == "stdout" {
+				if raw, ok := child.(string); ok {
+					out[key] = RedactSensitiveCommandArtifactString(args, raw)
+					continue
+				}
+			}
+			out[key] = redactSensitiveCommandArtifactValue(args, child)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i := range v {
+			out[i] = redactSensitiveCommandArtifactValue(args, v[i])
+		}
+		return out
+	case string:
+		if isCreateTokenCommand(args) && outputLooksLikeRawSecret(v) {
+			return RedactSensitiveCommandArtifactString(args, v)
+		}
+		return value
+	default:
+		return value
+	}
+}
+
+func redactSensitiveArtifactLine(line string) (string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return line, false
+	}
+
+	if before, after, ok := strings.Cut(trimmed, ":"); ok && isSensitiveName(before) && strings.TrimSpace(after) != "" {
+		return leadingWhitespace(line) + before + ": ***", true
+	}
+
+	if !strings.HasPrefix(trimmed, "export ") {
+		return line, false
+	}
+	assignment := strings.TrimSpace(strings.TrimPrefix(trimmed, "export "))
+	name, _, ok := strings.Cut(assignment, "=")
+	if !ok || strings.TrimSpace(name) == "" || !isSensitiveName(name) {
+		return line, false
+	}
+	return leadingWhitespace(line) + "export " + strings.TrimSpace(name) + "=***", true
+}
+
+func leadingWhitespace(line string) string {
+	return line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+}
+
+func isCreateTokenCommand(args []string) bool {
+	words := commandWords(args)
+	for i, word := range words {
+		if word != "create" {
+			continue
+		}
+		for _, resource := range words[i+1:] {
+			switch resource {
+			case "pat", "pats", "spat", "spats":
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func commandWords(args []string) []string {
+	words := make([]string, 0, len(args))
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			break
+		}
+		clean := strings.ToLower(strings.TrimSpace(arg))
+		if clean == "" {
+			continue
+		}
+		words = append(words, clean)
+	}
+	return words
+}
+
+func outputLooksLikeRawSecret(data string) bool {
+	lines := strings.Split(strings.TrimSpace(data), "\n")
+	nonEmpty := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if clean := strings.TrimSpace(line); clean != "" {
+			nonEmpty = append(nonEmpty, clean)
+		}
+	}
+	if len(nonEmpty) != 1 {
+		return false
+	}
+	line := nonEmpty[0]
+	if line == "***" || strings.ContainsAny(line, " \t{}[]:") {
+		return false
+	}
+	return len(line) >= 8
+}
+
+func preserveFinalNewline(original, replacement string) string {
+	if strings.HasSuffix(original, "\n") {
+		return replacement + "\n"
+	}
+	return replacement
+}
+
 func redactSensitiveJSON(value any) any {
 	switch v := value.(type) {
 	case map[string]any:

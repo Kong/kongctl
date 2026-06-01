@@ -1,0 +1,283 @@
+# PAT and SPAT Token Lifecycle E2E Scenario
+#
+# This scenario tests the kongctl CLI's token management commands:
+#   - create pat, get pat, delete pat (Personal Access Token)
+#   - create spat, get spat, delete spat (System Account Personal Access Token)
+#
+# Test flow:
+#  1. Reset org (cleans up system accounts and other org resources)
+#  2. PAT lifecycle:
+#     a. Create a PAT (-o json), assert token/id/name/expires_at fields, record pat_id
+#     b. Verify -o token format emits a non-empty raw token string
+#     c. List PATs and assert the new PAT is present
+#     d. Get PAT by name, assert fields
+#     e. Get PAT by ID, assert fields
+#     f. Delete PAT by name
+#     g. Verify PAT no longer appears in the list
+#  3. SPAT lifecycle:
+#     a. Create a system account via harness API, record sa_id
+#     b. Create a SPAT (-o json), assert token/name/system_account_id, record spat_id
+#     c. List SPATs for the system account, assert the new SPAT is present
+#     d. Get SPAT by name, assert fields
+#     e. Delete SPAT by name
+#     f. Verify SPAT no longer appears in the list
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  assignedEnvironment: kongctl-acceptance
+
+vars:
+  pat_name: e2e-pat
+  spat_name: e2e-spat
+  system_account_name: e2e-token-test-sa
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  # ── PAT lifecycle ─────────────────────────────────────────────────────────────
+
+  - name: 001-create-pat
+    skipInputs: true
+    commands:
+      - name: 000-create-pat-json
+        outputFormat: json
+        run:
+          - create
+          - pat
+          - --name
+          - "{{ .vars.pat_name }}"
+          - --expires-in
+          - 24h
+        recordVars:
+          - name: pat_id
+            responsePath: id
+        assertions:
+          - select: >-
+              {
+                name: name,
+                id_present: length(id) > `0`,
+                token_present: length(token) > `0`,
+                expires_at_present: length(expires_at) > `0`
+              }
+            expect:
+              fields:
+                name: "{{ .vars.pat_name }}"
+                id_present: true
+                token_present: true
+                expires_at_present: true
+
+  - name: 002-create-pat-token-format
+    skipInputs: true
+    commands:
+      - name: 000-create-pat-token-output
+        run:
+          - create
+          - pat
+          - --name
+          - "{{ .vars.pat_name }}-token-fmt"
+          - --expires-in
+          - 24h
+          - -o
+          - token
+        parseAs: raw
+        assertions:
+          - select: "{stdout_present: length(stdout) > `0`}"
+            expect:
+              fields:
+                stdout_present: true
+
+      - name: 001-delete-pat-token-fmt
+        run:
+          - delete
+          - pat
+          - "{{ .vars.pat_name }}-token-fmt"
+          - --auto-approve
+
+  - name: 003-get-pat-list
+    skipInputs: true
+    commands:
+      - name: 000-list-pats
+        outputFormat: json
+        run:
+          - get
+          - pat
+        assertions:
+          - select: "[?name=='{{ .vars.pat_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.pat_name }}"
+                id: "{{ .vars.pat_id }}"
+
+  - name: 004-get-pat-by-name
+    skipInputs: true
+    commands:
+      - name: 000-get-pat-by-name
+        outputFormat: json
+        run:
+          - get
+          - pat
+          - "{{ .vars.pat_name }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.pat_name }}"
+                id: "{{ .vars.pat_id }}"
+
+  - name: 005-get-pat-by-id
+    skipInputs: true
+    commands:
+      - name: 000-get-pat-by-id
+        outputFormat: json
+        run:
+          - get
+          - pat
+          - "{{ .vars.pat_id }}"
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.pat_id }}"
+                name: "{{ .vars.pat_name }}"
+
+  - name: 006-delete-pat
+    skipInputs: true
+    commands:
+      - name: 000-delete-pat-by-name
+        run:
+          - delete
+          - pat
+          - "{{ .vars.pat_name }}"
+          - --auto-approve
+
+  - name: 007-verify-pat-deleted
+    skipInputs: true
+    commands:
+      - name: 000-list-pats-after-delete
+        outputFormat: json
+        run:
+          - get
+          - pat
+        assertions:
+          - select: "[?name=='{{ .vars.pat_name }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.pat_name }}-token-fmt']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  # ── SPAT lifecycle ────────────────────────────────────────────────────────────
+
+  - name: 008-create-system-account
+    skipInputs: true
+    commands:
+      - name: 000-create-system-account
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.system_account_name }}"
+              description: "E2E system account for token lifecycle test"
+          recordVar:
+            name: sa_id
+            responsePath: id
+
+  - name: 009-create-spat
+    skipInputs: true
+    commands:
+      - name: 000-create-spat-json
+        outputFormat: json
+        run:
+          - create
+          - spat
+          - --system-account-id
+          - "{{ .vars.sa_id }}"
+          - --name
+          - "{{ .vars.spat_name }}"
+          - --expires-in
+          - 24h
+        recordVars:
+          - name: spat_id
+            responsePath: id
+        assertions:
+          - select: >-
+              {
+                name: name,
+                system_account_id: system_account_id,
+                token_present: length(token) > `0`,
+                expires_at_present: length(expires_at) > `0`
+              }
+            expect:
+              fields:
+                name: "{{ .vars.spat_name }}"
+                system_account_id: "{{ .vars.sa_id }}"
+                token_present: true
+                expires_at_present: true
+
+  - name: 010-get-spat-list
+    skipInputs: true
+    commands:
+      - name: 000-list-spats
+        outputFormat: json
+        run:
+          - get
+          - spat
+          - --system-account-id
+          - "{{ .vars.sa_id }}"
+        assertions:
+          - select: "[?name=='{{ .vars.spat_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.spat_name }}"
+                id: "{{ .vars.spat_id }}"
+
+  - name: 011-get-spat-by-name
+    skipInputs: true
+    commands:
+      - name: 000-get-spat-by-name
+        outputFormat: json
+        run:
+          - get
+          - spat
+          - --system-account-id
+          - "{{ .vars.sa_id }}"
+          - "{{ .vars.spat_name }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.spat_name }}"
+                id: "{{ .vars.spat_id }}"
+                system_account_id: "{{ .vars.sa_id }}"
+
+  - name: 012-delete-spat
+    skipInputs: true
+    commands:
+      - name: 000-delete-spat-by-name
+        run:
+          - delete
+          - spat
+          - "{{ .vars.spat_name }}"
+          - --system-account-id
+          - "{{ .vars.sa_id }}"
+          - --auto-approve
+
+  - name: 013-verify-spat-deleted
+    skipInputs: true
+    commands:
+      - name: 000-list-spats-after-delete
+        outputFormat: json
+        run:
+          - get
+          - spat
+          - --system-account-id
+          - "{{ .vars.sa_id }}"
+        assertions:
+          - select: "[?name=='{{ .vars.spat_name }}']"
+            expect:
+              fields:
+                "length(@)": 0
