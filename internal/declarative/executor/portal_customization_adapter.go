@@ -218,6 +218,38 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 		update.Menu = menu
 	}
 
+	if specRendererData, ok := fields[planner.FieldSpecRenderer].(map[string]any); ok {
+		specRenderer := &kkComps.SpecRenderer{}
+
+		if tryItUI, ok := specRendererData[planner.FieldTryItUI].(bool); ok {
+			specRenderer.TryItUI = &tryItUI
+		}
+		if tryItInsomnia, ok := specRendererData[planner.FieldTryItInsomnia].(bool); ok {
+			specRenderer.TryItInsomnia = &tryItInsomnia
+		}
+		if infiniteScroll, ok := specRendererData[planner.FieldInfiniteScroll].(bool); ok {
+			specRenderer.InfiniteScroll = &infiniteScroll
+		}
+		if showSchemas, ok := specRendererData[planner.FieldShowSchemas].(bool); ok {
+			specRenderer.ShowSchemas = &showSchemas
+		}
+		if hideInternal, ok := specRendererData[planner.FieldHideInternal].(bool); ok {
+			specRenderer.HideInternal = &hideInternal
+		}
+		if hideDeprecated, ok := specRendererData[planner.FieldHideDeprecated].(bool); ok {
+			specRenderer.HideDeprecated = &hideDeprecated
+		}
+		if allowCustomServerURLs, ok := specRendererData[planner.FieldAllowCustomServerURLs].(bool); ok {
+			specRenderer.AllowCustomServerUrls = &allowCustomServerURLs
+		}
+
+		update.SpecRenderer = specRenderer
+	}
+
+	if robots, ok := fields[planner.FieldRobots].(string); ok {
+		update.Robots = &robots
+	}
+
 	return nil
 }
 

@@ -54,6 +54,14 @@ steps:
                 "theme.mode": light
                 "theme.colors.primary": "#8250FF"
                 layout: topnav
+                "spec_renderer.try_it_ui": true
+                "spec_renderer.try_it_insomnia": true
+                "spec_renderer.infinite_scroll": true
+                "spec_renderer.show_schemas": true
+                "spec_renderer.hide_internal": false
+                "spec_renderer.hide_deprecated": false
+                "spec_renderer.allow_custom_server_urls": true
+                robots: "User-agent: *"
                 "length(menu.main)": 3
                 "length(menu.footer_sections)": 1
       - name: 001-apply-customization
@@ -114,6 +122,14 @@ steps:
                 "theme.mode": dark
                 "theme.colors.primary": "#FF5733"
                 layout: sidebar
+                "spec_renderer.try_it_ui": false
+                "spec_renderer.try_it_insomnia": false
+                "spec_renderer.infinite_scroll": false
+                "spec_renderer.show_schemas": false
+                "spec_renderer.hide_internal": true
+                "spec_renderer.hide_deprecated": true
+                "spec_renderer.allow_custom_server_urls": false
+                robots: "User-agent: *\nDisallow: /internal"
                 "length(menu.main)": 2
                 "length(menu.footer_sections)": 1
       - name: 001-apply-customization-update

@@ -1212,6 +1212,27 @@ func (p *Planner) shouldUpdatePortalCustomization(
 		}
 	}
 
+	if !p.compareSpecRenderer(current.SpecRenderer, desired.SpecRenderer) {
+		if desired.SpecRenderer != nil {
+			newSpecRenderer := p.buildSpecRendererFields(desired.SpecRenderer)
+			updates[FieldSpecRenderer] = newSpecRenderer
+			changedFields[FieldSpecRenderer] = FieldChange{
+				Old: current.SpecRenderer,
+				New: newSpecRenderer,
+			}
+		}
+	}
+
+	if !p.compareStringPtr(current.Robots, desired.Robots) {
+		if desired.Robots != nil {
+			updates[FieldRobots] = *desired.Robots
+			changedFields[FieldRobots] = FieldChange{
+				Old: current.Robots,
+				New: *desired.Robots,
+			}
+		}
+	}
+
 	return len(updates) > 0, updates, changedFields
 }
 
@@ -1239,6 +1260,14 @@ func (p *Planner) buildAllCustomizationFields(
 	// Add menu settings if present
 	if customization.Menu != nil {
 		fields[FieldMenu] = p.buildMenuFields(customization.Menu)
+	}
+
+	if customization.SpecRenderer != nil {
+		fields[FieldSpecRenderer] = p.buildSpecRendererFields(customization.SpecRenderer)
+	}
+
+	if customization.Robots != nil {
+		fields[FieldRobots] = *customization.Robots
 	}
 
 	return fields
@@ -1313,6 +1342,34 @@ func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]any {
 	}
 
 	return menuFields
+}
+
+func (p *Planner) buildSpecRendererFields(specRenderer *kkComps.SpecRenderer) map[string]any {
+	specRendererFields := make(map[string]any)
+
+	if specRenderer.TryItUI != nil {
+		specRendererFields[FieldTryItUI] = *specRenderer.TryItUI
+	}
+	if specRenderer.TryItInsomnia != nil {
+		specRendererFields[FieldTryItInsomnia] = *specRenderer.TryItInsomnia
+	}
+	if specRenderer.InfiniteScroll != nil {
+		specRendererFields[FieldInfiniteScroll] = *specRenderer.InfiniteScroll
+	}
+	if specRenderer.ShowSchemas != nil {
+		specRendererFields[FieldShowSchemas] = *specRenderer.ShowSchemas
+	}
+	if specRenderer.HideInternal != nil {
+		specRendererFields[FieldHideInternal] = *specRenderer.HideInternal
+	}
+	if specRenderer.HideDeprecated != nil {
+		specRendererFields[FieldHideDeprecated] = *specRenderer.HideDeprecated
+	}
+	if specRenderer.AllowCustomServerUrls != nil {
+		specRendererFields[FieldAllowCustomServerURLs] = *specRenderer.AllowCustomServerUrls
+	}
+
+	return specRendererFields
 }
 
 // compareTheme does deep comparison of theme objects
@@ -1394,8 +1451,35 @@ func (p *Planner) compareMenu(current, desired *kkComps.Menu) bool {
 	return true
 }
 
+func (p *Planner) compareSpecRenderer(current, desired *kkComps.SpecRenderer) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+
+	return p.compareBoolPtr(current.TryItUI, desired.TryItUI) &&
+		p.compareBoolPtr(current.TryItInsomnia, desired.TryItInsomnia) &&
+		p.compareBoolPtr(current.InfiniteScroll, desired.InfiniteScroll) &&
+		p.compareBoolPtr(current.ShowSchemas, desired.ShowSchemas) &&
+		p.compareBoolPtr(current.HideInternal, desired.HideInternal) &&
+		p.compareBoolPtr(current.HideDeprecated, desired.HideDeprecated) &&
+		p.compareBoolPtr(current.AllowCustomServerUrls, desired.AllowCustomServerUrls)
+}
+
 // compareStringPtr compares two string pointers
 func (p *Planner) compareStringPtr(current, desired *string) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+	return *current == *desired
+}
+
+func (p *Planner) compareBoolPtr(current, desired *bool) bool {
 	if current == nil && desired == nil {
 		return true
 	}

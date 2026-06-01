@@ -16,6 +16,15 @@ portals:
         colors:
           primary: "#FF5733"
       layout: "sidebar"
+      spec_renderer:
+        try_it_ui: false
+        try_it_insomnia: false
+        infinite_scroll: false
+        show_schemas: false
+        hide_internal: true
+        hide_deprecated: true
+        allow_custom_server_urls: false
+      robots: "User-agent: *\nDisallow: /internal"
       menu:
         main:
           - path: "/home"

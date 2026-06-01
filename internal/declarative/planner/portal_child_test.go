@@ -258,6 +258,127 @@ func TestPlanPortalTeamGroupMappingUpdatePreservesEmptyGroups(t *testing.T) {
 	assert.Equal(t, []string{}, plan.Changes[0].ChangedFields[FieldGroups].New)
 }
 
+func TestShouldUpdatePortalCustomizationDetectsSpecRendererAndRobots(t *testing.T) {
+	planner := NewPlanner(nil, slog.Default())
+	boolPtr := func(v bool) *bool { return &v }
+	stringPtr := func(v string) *string { return &v }
+
+	current := &kkComps.PortalCustomization{
+		SpecRenderer: &kkComps.SpecRenderer{
+			TryItUI:               boolPtr(true),
+			TryItInsomnia:         boolPtr(true),
+			InfiniteScroll:        boolPtr(true),
+			ShowSchemas:           boolPtr(true),
+			HideInternal:          boolPtr(false),
+			HideDeprecated:        boolPtr(false),
+			AllowCustomServerUrls: boolPtr(true),
+		},
+		Robots: stringPtr("User-agent: *"),
+	}
+	desired := resources.PortalCustomizationResource{
+		PortalCustomization: kkComps.PortalCustomization{
+			SpecRenderer: &kkComps.SpecRenderer{
+				TryItUI:               boolPtr(false),
+				TryItInsomnia:         boolPtr(false),
+				InfiniteScroll:        boolPtr(false),
+				ShowSchemas:           boolPtr(false),
+				HideInternal:          boolPtr(true),
+				HideDeprecated:        boolPtr(true),
+				AllowCustomServerUrls: boolPtr(false),
+			},
+			Robots: stringPtr("User-agent: *\nDisallow: /internal"),
+		},
+	}
+
+	needsUpdate, updates, changedFields := planner.shouldUpdatePortalCustomization(current, desired)
+
+	require.True(t, needsUpdate)
+	require.Contains(t, updates, FieldSpecRenderer)
+	specRenderer, ok := updates[FieldSpecRenderer].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, false, specRenderer[FieldTryItUI])
+	assert.Equal(t, false, specRenderer[FieldTryItInsomnia])
+	assert.Equal(t, false, specRenderer[FieldInfiniteScroll])
+	assert.Equal(t, false, specRenderer[FieldShowSchemas])
+	assert.Equal(t, true, specRenderer[FieldHideInternal])
+	assert.Equal(t, true, specRenderer[FieldHideDeprecated])
+	assert.Equal(t, false, specRenderer[FieldAllowCustomServerURLs])
+	assert.Equal(t, "User-agent: *\nDisallow: /internal", updates[FieldRobots])
+	assert.Contains(t, changedFields, FieldSpecRenderer)
+	assert.Contains(t, changedFields, FieldRobots)
+}
+
+func TestShouldUpdatePortalCustomizationIgnoresMatchingSpecRendererAndRobots(t *testing.T) {
+	planner := NewPlanner(nil, slog.Default())
+	boolPtr := func(v bool) *bool { return &v }
+	stringPtr := func(v string) *string { return &v }
+
+	current := &kkComps.PortalCustomization{
+		SpecRenderer: &kkComps.SpecRenderer{
+			TryItUI:               boolPtr(true),
+			TryItInsomnia:         boolPtr(false),
+			InfiniteScroll:        boolPtr(true),
+			ShowSchemas:           boolPtr(false),
+			HideInternal:          boolPtr(true),
+			HideDeprecated:        boolPtr(false),
+			AllowCustomServerUrls: boolPtr(true),
+		},
+		Robots: stringPtr("User-agent: *"),
+	}
+	desired := resources.PortalCustomizationResource{
+		PortalCustomization: kkComps.PortalCustomization{
+			SpecRenderer: &kkComps.SpecRenderer{
+				TryItUI:               boolPtr(true),
+				TryItInsomnia:         boolPtr(false),
+				InfiniteScroll:        boolPtr(true),
+				ShowSchemas:           boolPtr(false),
+				HideInternal:          boolPtr(true),
+				HideDeprecated:        boolPtr(false),
+				AllowCustomServerUrls: boolPtr(true),
+			},
+			Robots: stringPtr("User-agent: *"),
+		},
+	}
+
+	needsUpdate, updates, changedFields := planner.shouldUpdatePortalCustomization(current, desired)
+
+	require.False(t, needsUpdate)
+	assert.Empty(t, updates)
+	assert.Empty(t, changedFields)
+}
+
+func TestBuildAllCustomizationFieldsIncludesSpecRendererAndRobots(t *testing.T) {
+	planner := NewPlanner(nil, slog.Default())
+	boolPtr := func(v bool) *bool { return &v }
+	stringPtr := func(v string) *string { return &v }
+
+	fields := planner.buildAllCustomizationFields(resources.PortalCustomizationResource{
+		PortalCustomization: kkComps.PortalCustomization{
+			SpecRenderer: &kkComps.SpecRenderer{
+				TryItUI:               boolPtr(false),
+				TryItInsomnia:         boolPtr(true),
+				InfiniteScroll:        boolPtr(false),
+				ShowSchemas:           boolPtr(true),
+				HideInternal:          boolPtr(false),
+				HideDeprecated:        boolPtr(true),
+				AllowCustomServerUrls: boolPtr(false),
+			},
+			Robots: stringPtr("User-agent: *"),
+		},
+	})
+
+	specRenderer, ok := fields[FieldSpecRenderer].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, false, specRenderer[FieldTryItUI])
+	assert.Equal(t, true, specRenderer[FieldTryItInsomnia])
+	assert.Equal(t, false, specRenderer[FieldInfiniteScroll])
+	assert.Equal(t, true, specRenderer[FieldShowSchemas])
+	assert.Equal(t, false, specRenderer[FieldHideInternal])
+	assert.Equal(t, true, specRenderer[FieldHideDeprecated])
+	assert.Equal(t, false, specRenderer[FieldAllowCustomServerURLs])
+	assert.Equal(t, "User-agent: *", fields[FieldRobots])
+}
+
 func TestPlanPortalTeamGroupMappingsSkipsUnconfiguredPortalAuthSettingsAPI(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{})
 	planner := NewPlanner(client, slog.Default())
