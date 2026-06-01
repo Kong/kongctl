@@ -146,6 +146,52 @@ func TestExecuteAssertionsRendersRequiredEnvInFieldExpressions(t *testing.T) {
 	}
 }
 
+func TestRunAssertionRedactsObservedArtifactForRawTokenOutput(t *testing.T) {
+	parentDir := t.TempDir()
+	cli := &harness.CLI{LastCommandDir: parentDir}
+	cmd := Command{
+		Run: []string{"create", "pat", "-o", "token"},
+	}
+	as := Assertion{
+		Expect: Expect{
+			Fields: map[string]any{
+				"length(stdout) > `0`": true,
+			},
+		},
+	}
+	parent := map[string]any{"stdout": "kpat_secret_value\n"}
+
+	err := runAssertion(
+		cli,
+		"scenario.yaml",
+		t.TempDir(),
+		Scenario{},
+		Step{},
+		cmd,
+		as,
+		parent,
+		"assert-000",
+		0,
+		parentDir,
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("runAssertion() error = %v", err)
+	}
+
+	data, err := os.ReadFile(parentDir + "/assertions/assert-000/observed.json")
+	if err != nil {
+		t.Fatalf("read observed artifact: %v", err)
+	}
+	if strings.Contains(string(data), "kpat_secret_value") {
+		t.Fatalf("observed artifact leaked token: %s", string(data))
+	}
+	if !strings.Contains(string(data), `"stdout": "***\n"`) {
+		t.Fatalf("observed artifact missing redacted stdout: %s", string(data))
+	}
+}
+
 func TestRenderEnvScopeReplacesVars(t *testing.T) {
 	tmplCtx := map[string]any{
 		"vars": map[string]any{

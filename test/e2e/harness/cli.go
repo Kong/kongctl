@@ -563,8 +563,16 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 	if trimmedStdout != "" {
 		trimmedStdout += "\n"
 	}
-	_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), []byte(trimmedStdout), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte(res.Stderr), 0o644)
+	_ = os.WriteFile(
+		filepath.Join(dir, "stdout.txt"),
+		[]byte(RedactSensitiveCommandArtifactString(args, trimmedStdout)),
+		0o644,
+	)
+	_ = os.WriteFile(
+		filepath.Join(dir, "stderr.txt"),
+		[]byte(RedactSensitiveCommandArtifactString(args, res.Stderr)),
+		0o644,
+	)
 	c.movePendingLog(dir)
 	c.writeHTTPDumps(dir, dumps)
 	// Sanitized env snapshot

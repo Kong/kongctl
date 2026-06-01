@@ -44,6 +44,76 @@ func TestRedactSensitiveJSONRedactsTokenFields(t *testing.T) {
 	}
 }
 
+func TestRedactSensitiveCommandArtifactStringRedactsCreateTokenJSON(t *testing.T) {
+	got := RedactSensitiveCommandArtifactString(
+		[]string{"create", "pat", "-o", "json"},
+		`{"id":"token-id","token":"secret-token"}`,
+	)
+
+	if strings.Contains(got, "secret-token") {
+		t.Fatalf("redacted output leaked token: %s", got)
+	}
+	if !strings.Contains(got, `"token": "***"`) {
+		t.Fatalf("redacted output missing token placeholder: %s", got)
+	}
+	if !strings.Contains(got, "token-id") {
+		t.Fatalf("redacted output removed non-sensitive id: %s", got)
+	}
+}
+
+func TestRedactSensitiveCommandArtifactStringRedactsRawTokenOutput(t *testing.T) {
+	got := RedactSensitiveCommandArtifactString(
+		[]string{"create", "pat", "-o", "token"},
+		"kpat_secret_value\n",
+	)
+
+	if strings.Contains(got, "kpat_secret_value") {
+		t.Fatalf("redacted output leaked token: %s", got)
+	}
+	if got != "***\n" {
+		t.Fatalf("redacted output = %q, want placeholder", got)
+	}
+}
+
+func TestRedactSensitiveCommandArtifactStringRedactsExplicitKonnectRawTokenOutput(t *testing.T) {
+	got := RedactSensitiveCommandArtifactString(
+		[]string{"konnect", "create", "pat", "-o", "token"},
+		"kpat_secret_value\n",
+	)
+
+	if strings.Contains(got, "kpat_secret_value") {
+		t.Fatalf("redacted output leaked token: %s", got)
+	}
+	if got != "***\n" {
+		t.Fatalf("redacted output = %q, want placeholder", got)
+	}
+}
+
+func TestRedactSensitiveCommandArtifactStringRedactsEnvOutput(t *testing.T) {
+	got := RedactSensitiveCommandArtifactString(
+		[]string{"create", "spat", "-o", "env"},
+		"export KONGCTL_E2E_KONNECT_PAT='secret-token'\n",
+	)
+
+	if strings.Contains(got, "secret-token") {
+		t.Fatalf("redacted output leaked token: %s", got)
+	}
+	if !strings.Contains(got, "export KONGCTL_E2E_KONNECT_PAT=***") {
+		t.Fatalf("redacted output missing redacted export: %s", got)
+	}
+}
+
+func TestRedactSensitiveCommandArtifactValueRedactsRawStdout(t *testing.T) {
+	got := RedactSensitiveCommandArtifactValue(
+		[]string{"create", "pat", "-o", "token"},
+		map[string]any{"stdout": "kpat_secret_value\n"},
+	).(map[string]any)
+
+	if got["stdout"] != "***\n" {
+		t.Fatalf("stdout = %q, want redacted placeholder", got["stdout"])
+	}
+}
+
 func TestAppendCheckRedactsSensitiveAssignments(t *testing.T) {
 	step := &Step{ChecksPath: t.TempDir() + "/checks.log"}
 

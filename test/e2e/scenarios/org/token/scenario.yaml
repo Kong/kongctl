@@ -57,12 +57,19 @@ steps:
           - name: pat_id
             responsePath: id
         assertions:
-          - expect:
+          - select: >-
+              {
+                name: name,
+                id_present: length(id) > `0`,
+                token_present: length(token) > `0`,
+                expires_at_present: length(expires_at) > `0`
+              }
+            expect:
               fields:
                 name: "{{ .vars.pat_name }}"
-                "length(id) > `0`": true
-                "length(token) > `0`": true
-                "length(expires_at) > `0`": true
+                id_present: true
+                token_present: true
+                expires_at_present: true
 
   - name: 002-create-pat-token-format
     skipInputs: true
@@ -79,9 +86,17 @@ steps:
           - token
         parseAs: raw
         assertions:
-          - expect:
+          - select: "{stdout_present: length(stdout) > `0`}"
+            expect:
               fields:
-                "length(stdout) > `0`": true
+                stdout_present: true
+
+      - name: 001-delete-pat-token-fmt
+        run:
+          - delete
+          - pat
+          - "{{ .vars.pat_name }}-token-fmt"
+          - --auto-approve
 
   - name: 003-get-pat-list
     skipInputs: true
@@ -138,13 +153,6 @@ steps:
           - "{{ .vars.pat_name }}"
           - --auto-approve
 
-      - name: 001-delete-pat-token-fmt
-        run:
-          - delete
-          - pat
-          - "{{ .vars.pat_name }}-token-fmt"
-          - --auto-approve
-
   - name: 007-verify-pat-deleted
     skipInputs: true
     commands:
@@ -155,6 +163,10 @@ steps:
           - pat
         assertions:
           - select: "[?name=='{{ .vars.pat_name }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.pat_name }}-token-fmt']"
             expect:
               fields:
                 "length(@)": 0
@@ -193,12 +205,19 @@ steps:
           - name: spat_id
             responsePath: id
         assertions:
-          - expect:
+          - select: >-
+              {
+                name: name,
+                system_account_id: system_account_id,
+                token_present: length(token) > `0`,
+                expires_at_present: length(expires_at) > `0`
+              }
+            expect:
               fields:
                 name: "{{ .vars.spat_name }}"
                 system_account_id: "{{ .vars.sa_id }}"
-                "length(token) > `0`": true
-                "length(expires_at) > `0`": true
+                token_present: true
+                expires_at_present: true
 
   - name: 010-get-spat-list
     skipInputs: true
