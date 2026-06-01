@@ -16,6 +16,15 @@ portals:
         colors:
           primary: "#8250FF"
       layout: "topnav"
+      spec_renderer:
+        try_it_ui: true
+        try_it_insomnia: true
+        infinite_scroll: true
+        show_schemas: true
+        hide_internal: false
+        hide_deprecated: false
+        allow_custom_server_urls: true
+      robots: "User-agent: *"
       menu:
         main:
           - path: "/getting-started"

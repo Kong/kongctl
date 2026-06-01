@@ -76,6 +76,53 @@ portals:
 	assert.Contains(t, err.Error(), "unknown field 'team_group_mappings'")
 }
 
+func TestLoaderFlattensPortalCustomizationSpecRendererAndRobots(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+portals:
+  - ref: portal-1
+    name: Portal 1
+    customization:
+      ref: portal-customization
+      spec_renderer:
+        try_it_ui: false
+        try_it_insomnia: true
+        infinite_scroll: false
+        show_schemas: true
+        hide_internal: true
+        hide_deprecated: false
+        allow_custom_server_urls: true
+      robots: "User-agent: *"
+`), 0o600)
+	require.NoError(t, err)
+
+	rs, err := New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, rs.PortalCustomizations, 1)
+
+	customization := rs.PortalCustomizations[0]
+	assert.Equal(t, "portal-1", customization.Portal)
+	assert.Equal(t, "portal-customization", customization.Ref)
+	require.NotNil(t, customization.SpecRenderer)
+	require.NotNil(t, customization.SpecRenderer.TryItUI)
+	assert.False(t, *customization.SpecRenderer.TryItUI)
+	require.NotNil(t, customization.SpecRenderer.TryItInsomnia)
+	assert.True(t, *customization.SpecRenderer.TryItInsomnia)
+	require.NotNil(t, customization.SpecRenderer.InfiniteScroll)
+	assert.False(t, *customization.SpecRenderer.InfiniteScroll)
+	require.NotNil(t, customization.SpecRenderer.ShowSchemas)
+	assert.True(t, *customization.SpecRenderer.ShowSchemas)
+	require.NotNil(t, customization.SpecRenderer.HideInternal)
+	assert.True(t, *customization.SpecRenderer.HideInternal)
+	require.NotNil(t, customization.SpecRenderer.HideDeprecated)
+	assert.False(t, *customization.SpecRenderer.HideDeprecated)
+	require.NotNil(t, customization.SpecRenderer.AllowCustomServerUrls)
+	assert.True(t, *customization.SpecRenderer.AllowCustomServerUrls)
+	require.NotNil(t, customization.Robots)
+	assert.Equal(t, "User-agent: *", *customization.Robots)
+}
+
 func TestLoader_LoadFile_ValidConfigs(t *testing.T) {
 	tests := []struct {
 		name                  string

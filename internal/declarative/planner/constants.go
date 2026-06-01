@@ -143,10 +143,23 @@ const (
 	FieldReplyToEmail                 = "reply_to_email"
 	FieldRBACEnabled                  = "rbac_enabled"
 	FieldSSL                          = "ssl"
+	FieldRobots                       = "robots"
+	FieldSpecRenderer                 = "spec_renderer"
 	FieldTheme                        = "theme"
 	FieldVisibility                   = "visibility"
 	FieldCustomFields                 = "custom_fields"
 	FieldAuthenticationStrategyUpdate = "authentication_strategy_update"
+)
+
+// Common portal customization spec renderer plan field identifiers.
+const (
+	FieldAllowCustomServerURLs = "allow_custom_server_urls"
+	FieldHideDeprecated        = "hide_deprecated"
+	FieldHideInternal          = "hide_internal"
+	FieldInfiniteScroll        = "infinite_scroll"
+	FieldShowSchemas           = "show_schemas"
+	FieldTryItInsomnia         = "try_it_insomnia"
+	FieldTryItUI               = "try_it_ui"
 )
 
 // Common gateway and event-gateway plan field identifiers.
