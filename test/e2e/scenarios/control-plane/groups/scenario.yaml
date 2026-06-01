@@ -26,7 +26,7 @@ steps:
               fields:
                 action: CREATE
 
-  - name: 002-verify-group-membership
+  - name: 002-verify-group-type-and-name
     skipInputs: true
     commands:
       - name: 000-get-group

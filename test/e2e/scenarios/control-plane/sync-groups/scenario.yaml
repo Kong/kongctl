@@ -62,7 +62,7 @@ steps:
               fields:
                 action: UPDATE
 
-  - name: 003-verify-updated-membership
+  - name: 003-verify-group-type-and-name
     skipInputs: true
     commands:
       - name: 000-get-group
