@@ -26,9 +26,24 @@ steps:
               fields:
                 action: CREATE
 
-  - name: 002-plan-idempotent
+  - name: 002-verify-group-membership
+    skipInputs: true
     commands:
-      - name: 002-plan
+      - name: 000-get-group
+        run: ["get", "konnect", "gateway", "control-plane", "groups-shared-group", "-o", "json"]
+        assertions:
+          - select: config.cluster_type
+            expect:
+              fields:
+                "@": "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+          - select: name
+            expect:
+              fields:
+                "@": "groups-shared-group"
+
+  - name: 003-plan-idempotent
+    commands:
+      - name: 003-plan
         outputFormat: disable
         run:
           - plan
@@ -42,7 +57,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003-delete-cleanup
+  - name: 004-delete-cleanup
     commands:
       - name: 000-delete
         maxConcurrency: 1
