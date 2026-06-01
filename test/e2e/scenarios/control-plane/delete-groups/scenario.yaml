@@ -48,7 +48,46 @@ steps:
               fields:
                 action: CREATE
 
-  - name: 002-delete-group-members
+  - name: 002-plan-delete-verify
+    commands:
+      - name: 000-plan-delete
+        outputFormat: disable
+        run:
+          - plan
+          - --mode
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                      resource_ref=='delete-groups-runtime-a'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                      resource_ref=='delete-groups-runtime-b'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                      resource_ref=='delete-groups-shared-group'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+  - name: 003-delete-group-members
     commands:
       - name: 000-delete
         run:
@@ -66,13 +105,31 @@ steps:
               fields:
                 total_changes: 3
                 by_action.DELETE: 3
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                           resource_ref=='delete-groups-runtime-a'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                           resource_ref=='delete-groups-runtime-b'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                           resource_ref=='delete-groups-shared-group'] | [0]
+            expect:
+              fields:
+                action: DELETE
           - select: summary
             expect:
               fields:
                 failed: 0
                 status: success
 
-  - name: 003-verify-deleted
+  - name: 004-verify-deleted
     skipInputs: true
     commands:
       - name: 000-get-control-planes
