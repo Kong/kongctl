@@ -576,12 +576,12 @@ You MUST call the `safeoutputs/update_release` MCP tool exactly once:
 The body should begin with:
 
 ```markdown
-## kongctl Release Highlights
+## <img src="https://raw.githubusercontent.com/Kong/kongctl/main/brand/logo/dark/Kong-Logomark.svg" alt="Kong logo" width="20" /> kongctl Release Highlights
 ```
 
-Do not emit raw HTML in the release body. The `safeoutputs/update_release`
-safe-output tool sanitizes the `body` field before publishing, so tags like
-`<img>` will be escaped or stripped instead of rendered.
+The `<img>` tag in the opening heading is intentional and must be preserved so
+the Kong logo renders in the GitHub release body. Avoid other raw HTML unless it
+is required for GitHub-flavored Markdown rendering.
 
 When commits are available, include this section near the end:
 
