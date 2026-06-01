@@ -131,7 +131,41 @@ steps:
                 applied: 1
                 failed: 0
 
-  - name: 004-sync-delete
+  - name: 004-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-oidc-strategy
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=application_auth_strategies"
+          - "--filter-name=oidc-e2e"
+        assertions:
+          - select: "application_auth_strategies[?name=='oidc-e2e'] | [0]"
+            expect:
+              fields:
+                name: "oidc-e2e"
+                display_name: "E2E OIDC Strategy"
+                strategy_type: "openid_connect"
+
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-sync-delete
     inputOverlayDirs:
       - overlays/004-sync-delete
     commands:
