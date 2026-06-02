@@ -61,158 +61,11 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 	if menuData, ok := fields[planner.FieldMenu].(map[string]any); ok {
 		menu := &kkComps.Menu{}
 
-		// Handle main menu items
-		if mainItems, ok := menuData["main"].([]map[string]any); ok {
-			var mainMenu []kkComps.PortalMenuItem
-			for _, itemMap := range mainItems {
-				menuItem := kkComps.PortalMenuItem{
-					Path:  itemMap["path"].(string),
-					Title: itemMap[planner.FieldTitle].(string),
-				}
-
-				if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
-					visValue := kkComps.PortalMenuItemVisibility(visibility)
-					menuItem.Visibility = visValue
-				}
-				if external, ok := itemMap["external"].(bool); ok {
-					menuItem.External = external
-				}
-
-				mainMenu = append(mainMenu, menuItem)
-			}
-			menu.Main = mainMenu
-		} else if mainItemsInterface, ok := menuData["main"].([]any); ok {
-			// Handle []any case
-			var mainMenu []kkComps.PortalMenuItem
-			for _, item := range mainItemsInterface {
-				if itemMap, ok := item.(map[string]any); ok {
-					menuItem := kkComps.PortalMenuItem{
-						Path:  itemMap["path"].(string),
-						Title: itemMap[planner.FieldTitle].(string),
-					}
-
-					if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
-						visValue := kkComps.PortalMenuItemVisibility(visibility)
-						menuItem.Visibility = visValue
-					}
-					if external, ok := itemMap["external"].(bool); ok {
-						menuItem.External = external
-					}
-
-					mainMenu = append(mainMenu, menuItem)
-				}
-			}
-			menu.Main = mainMenu
+		if mainItems := toAnySlice(menuData["main"]); mainItems != nil {
+			menu.Main = mapPortalMenuItems(mainItems)
 		}
-
-		// Handle footer sections
-		if footerSections, ok := menuData["footer_sections"].([]map[string]any); ok {
-			var footerSectionsList []kkComps.PortalFooterMenuSection
-			for _, sectionMap := range footerSections {
-				footerSection := kkComps.PortalFooterMenuSection{
-					Title: sectionMap[planner.FieldTitle].(string),
-				}
-
-				// Process items in the section
-				if items, ok := sectionMap["items"].([]map[string]any); ok {
-					var sectionItems []kkComps.PortalMenuItem
-					for _, itemMap := range items {
-						footerItem := kkComps.PortalMenuItem{
-							Path:  itemMap["path"].(string),
-							Title: itemMap[planner.FieldTitle].(string),
-						}
-
-						if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
-							visValue := kkComps.PortalMenuItemVisibility(visibility)
-							footerItem.Visibility = visValue
-						}
-						if external, ok := itemMap["external"].(bool); ok {
-							footerItem.External = external
-						}
-
-						sectionItems = append(sectionItems, footerItem)
-					}
-					footerSection.Items = sectionItems
-				} else if itemsInterface, ok := sectionMap["items"].([]any); ok {
-					// Handle []any case
-					var sectionItems []kkComps.PortalMenuItem
-					for _, item := range itemsInterface {
-						if itemMap, ok := item.(map[string]any); ok {
-							footerItem := kkComps.PortalMenuItem{
-								Path:  itemMap["path"].(string),
-								Title: itemMap[planner.FieldTitle].(string),
-							}
-
-							if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
-								visValue := kkComps.PortalMenuItemVisibility(visibility)
-								footerItem.Visibility = visValue
-							}
-							if external, ok := itemMap["external"].(bool); ok {
-								footerItem.External = external
-							}
-
-							sectionItems = append(sectionItems, footerItem)
-						}
-					}
-					footerSection.Items = sectionItems
-				}
-
-				footerSectionsList = append(footerSectionsList, footerSection)
-			}
-			menu.FooterSections = footerSectionsList
-		} else if footerSectionsInterface, ok := menuData["footer_sections"].([]any); ok {
-			// Handle []any case
-			var footerSectionsList []kkComps.PortalFooterMenuSection
-			for _, section := range footerSectionsInterface {
-				if sectionMap, ok := section.(map[string]any); ok {
-					footerSection := kkComps.PortalFooterMenuSection{
-						Title: sectionMap[planner.FieldTitle].(string),
-					}
-
-					// Process items - handle both types
-					var sectionItems []kkComps.PortalMenuItem
-					if items, ok := sectionMap["items"].([]map[string]any); ok {
-						for _, itemMap := range items {
-							footerItem := kkComps.PortalMenuItem{
-								Path:  itemMap["path"].(string),
-								Title: itemMap[planner.FieldTitle].(string),
-							}
-
-							if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
-								visValue := kkComps.PortalMenuItemVisibility(visibility)
-								footerItem.Visibility = visValue
-							}
-							if external, ok := itemMap["external"].(bool); ok {
-								footerItem.External = external
-							}
-
-							sectionItems = append(sectionItems, footerItem)
-						}
-					} else if itemsInterface, ok := sectionMap["items"].([]any); ok {
-						for _, item := range itemsInterface {
-							if itemMap, ok := item.(map[string]any); ok {
-								footerItem := kkComps.PortalMenuItem{
-									Path:  itemMap["path"].(string),
-									Title: itemMap[planner.FieldTitle].(string),
-								}
-
-								if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
-									visValue := kkComps.PortalMenuItemVisibility(visibility)
-									footerItem.Visibility = visValue
-								}
-								if external, ok := itemMap["external"].(bool); ok {
-									footerItem.External = external
-								}
-
-								sectionItems = append(sectionItems, footerItem)
-							}
-						}
-					}
-					footerSection.Items = sectionItems
-					footerSectionsList = append(footerSectionsList, footerSection)
-				}
-			}
-			menu.FooterSections = footerSectionsList
+		if footerItems := toAnySlice(menuData["footer_sections"]); footerItems != nil {
+			menu.FooterSections = mapFooterSections(footerItems)
 		}
 
 		update.Menu = menu
@@ -263,4 +116,59 @@ func (p *PortalCustomizationAdapter) Update(ctx context.Context, portalID string
 // ResourceType returns the resource type name
 func (p *PortalCustomizationAdapter) ResourceType() string {
 	return planner.ResourceTypePortalCustomization
+}
+
+// toAnySlice normalizes []map[string]any or []any to []any, returning nil for any other type.
+func toAnySlice(v any) []any {
+	switch s := v.(type) {
+	case []any:
+		return s
+	case []map[string]any:
+		result := make([]any, len(s))
+		for i, m := range s {
+			result[i] = m
+		}
+		return result
+	}
+	return nil
+}
+
+func mapPortalMenuItems(raw []any) []kkComps.PortalMenuItem {
+	var items []kkComps.PortalMenuItem
+	for _, entry := range raw {
+		itemMap, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		menuItem := kkComps.PortalMenuItem{
+			Path:  itemMap["path"].(string),
+			Title: itemMap[planner.FieldTitle].(string),
+		}
+		if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
+			menuItem.Visibility = kkComps.PortalMenuItemVisibility(visibility)
+		}
+		if external, ok := itemMap["external"].(bool); ok {
+			menuItem.External = external
+		}
+		items = append(items, menuItem)
+	}
+	return items
+}
+
+func mapFooterSections(raw []any) []kkComps.PortalFooterMenuSection {
+	var sections []kkComps.PortalFooterMenuSection
+	for _, entry := range raw {
+		sectionMap, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		section := kkComps.PortalFooterMenuSection{
+			Title: sectionMap[planner.FieldTitle].(string),
+		}
+		if items := toAnySlice(sectionMap["items"]); items != nil {
+			section.Items = mapPortalMenuItems(items)
+		}
+		sections = append(sections, section)
+	}
+	return sections
 }
