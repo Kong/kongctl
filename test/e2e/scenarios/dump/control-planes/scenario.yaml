@@ -172,6 +172,7 @@ steps:
             expect:
               fields:
                 "length(@)": 2
+                "length([?id!=''])": 2
 
       - name: 002-round-trip-plan-group
         outputFormat: disable
