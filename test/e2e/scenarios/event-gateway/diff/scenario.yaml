@@ -189,18 +189,32 @@ steps:
               fields:
                 name: "{{ .vars.vcName }}"
 
-  - name: 005-sync-delete
-    inputOverlayDirs:
-      - overlays/005-cleanup
+  - name: 005-delete
     commands:
-      - name: 000-sync-delete
+      - name: 000-delete
         run:
-          - sync
+          - delete
           - -f
           - "{{ .workdir }}/config.yaml"
           - --auto-approve
         assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: delete
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: >-
+              plan.changes[?resource_type=='event_gateway' &&
+                            resource_ref=='{{ .vars.egwRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
           - select: "summary"
             expect:
               fields:
                 failed: 0
+                status: success
