@@ -114,7 +114,7 @@ func TestAdoptEventGatewayControlPlaneByName(t *testing.T) {
 
 	cfg := stubConfig{pageSize: 50}
 
-	result, err := adoptEventGatewayControlPlane(helper, egw, cfg, "team-events", "production-egw")
+	result, err := adoptEventGatewayControlPlane(helper, egw, cfg, "team-events", false, "production-egw")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "event_gateway", result.ResourceType)
@@ -149,6 +149,7 @@ func TestAdoptEventGatewayControlPlaneById(t *testing.T) {
 		egw,
 		cfg,
 		"team-events",
+		false,
 		"f3b8c0d1-9a2e-4f12-8d3c-1e4a5b6c7d8e",
 	)
 	assert.NoError(t, err)
@@ -182,11 +183,45 @@ func TestAdoptEventGatewayControlPlaneRejectsExistingNamespace(t *testing.T) {
 
 	cfg := stubConfig{pageSize: 50}
 
-	_, err := adoptEventGatewayControlPlane(helper, egw, cfg, "team-events", "production-egw")
+	_, err := adoptEventGatewayControlPlane(helper, egw, cfg, "team-events", false, "production-egw")
 	assert.Error(t, err)
 	var cfgErr *cmd.ConfigurationError
 	assert.ErrorAs(t, err, &cfgErr)
 	assert.Equal(t, 0, egw.updateCalls)
+
+	helper.AssertExpectations(t)
+}
+
+func TestAdoptEventGatewayControlPlaneOverwritesExistingNamespace(t *testing.T) {
+	helper := new(cmd.MockHelper)
+	helper.EXPECT().GetContext().Return(context.Background())
+
+	egw := &egwControlPlaneAPIStub{
+		t: t,
+		fetchResponse: &kkComps.EventGatewayInfo{
+			ID:   "f3b8c0d1-9a2e-4f12-8d3c-1e4a5b6c7d8e",
+			Name: "production-egw",
+		},
+		listResponse: []kkComps.EventGatewayInfo{
+			{
+				ID:   "f3b8c0d1-9a2e-4f12-8d3c-1e4a5b6c7d8e",
+				Name: "production-egw",
+				Labels: map[string]string{
+					"env":               "prod",
+					labels.NamespaceKey: "existing-team",
+				},
+			},
+		},
+	}
+
+	cfg := stubConfig{pageSize: 50}
+
+	result, err := adoptEventGatewayControlPlane(helper, egw, cfg, "team-events", true, "production-egw")
+	assert.NoError(t, err)
+	assert.Equal(t, "team-events", result.Namespace)
+	assert.Equal(t, 1, egw.updateCalls)
+	assert.Equal(t, "prod", egw.lastUpdate.Labels["env"])
+	assert.Equal(t, "team-events", egw.lastUpdate.Labels[labels.NamespaceKey])
 
 	helper.AssertExpectations(t)
 }

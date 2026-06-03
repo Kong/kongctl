@@ -4,5 +4,5 @@ organization:
       name: e2e-adopt-test-team
       description: E2E test team for adopt and dump workflow
       kongctl:
-        namespace: team-e2e-test
+        namespace: team-e2e-test-overwrite
         protected: false

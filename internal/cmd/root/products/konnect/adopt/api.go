@@ -13,7 +13,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/labels"
-	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/segmentio/cli"
@@ -53,22 +52,12 @@ func NewAPICmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
-		return nil, err
-	}
-
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
+		adoptFlags, err := adoptCommon.ReadAdoptFlags(cobraCmd)
 		if err != nil {
 			return err
-		}
-
-		nsValidator := validator.NewNamespaceValidator()
-		if err := nsValidator.ValidateNamespace(namespace); err != nil {
-			return &cmdpkg.ConfigurationError{Err: err}
 		}
 
 		outType, err := helper.GetOutputFormat()
@@ -91,7 +80,14 @@ func NewAPICmd(
 			return err
 		}
 
-		result, err := adoptAPI(helper, sdk.GetAPIAPI(), cfg, namespace, strings.TrimSpace(args[0]))
+		result, err := adoptAPI(
+			helper,
+			sdk.GetAPIAPI(),
+			cfg,
+			adoptFlags.Namespace,
+			adoptFlags.OverwriteNamespace,
+			strings.TrimSpace(args[0]),
+		)
 		if err != nil {
 			return err
 		}
@@ -123,6 +119,7 @@ func adoptAPI(
 	apiClient helpers.APIAPI,
 	cfg config.Hook,
 	namespace string,
+	overwriteNamespace bool,
 	identifier string,
 ) (*adoptCommon.AdoptResult, error) {
 	api, err := resolveAPI(helper, apiClient, cfg, identifier)
@@ -130,7 +127,7 @@ func adoptAPI(
 		return nil, err
 	}
 
-	if existing := api.Labels; existing != nil {
+	if existing := api.Labels; existing != nil && !overwriteNamespace {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
 				Err: fmt.Errorf("API %q already has namespace label %q", api.Name, currentNamespace),

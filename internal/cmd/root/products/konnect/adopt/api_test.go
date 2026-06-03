@@ -109,7 +109,7 @@ func TestAdoptAPIByNameAssignsNamespaceLabel(t *testing.T) {
 
 	cfg := stubConfig{pageSize: 50}
 
-	result, err := adoptAPI(helper, api, cfg, "team-alpha", "payments")
+	result, err := adoptAPI(helper, api, cfg, "team-alpha", false, "payments")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "api", result.ResourceType)
@@ -146,7 +146,7 @@ func TestAdoptAPIRejectsExistingNamespace(t *testing.T) {
 
 	cfg := stubConfig{pageSize: 50}
 
-	_, err := adoptAPI(helper, api, cfg, "team-alpha", "payments")
+	_, err := adoptAPI(helper, api, cfg, "team-alpha", false, "payments")
 	assert.Error(t, err)
 	var cfgErr *cmd.ConfigurationError
 	assert.ErrorAs(t, err, &cfgErr)
@@ -174,9 +174,47 @@ func TestResolveAPIDefaultsPageSize(t *testing.T) {
 	cfg := stubConfig{pageSize: 0}
 
 	// Should resolve by name with fallback page size and succeed
-	_, err := adoptAPI(helper, api, cfg, "platform", "billing")
+	_, err := adoptAPI(helper, api, cfg, "platform", false, "billing")
 	assert.NoError(t, err)
 	assert.Equal(t, 1, api.updateCalls)
+
+	helper.AssertExpectations(t)
+}
+
+func TestAdoptAPIOverwritesExistingNamespace(t *testing.T) {
+	helper := new(cmd.MockHelper)
+	helper.EXPECT().GetContext().Return(context.Background())
+
+	api := &apiAPIStub{
+		t: t,
+		fetchResponse: &kkComps.APIResponseSchema{
+			ID:   "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
+			Name: "payments",
+			Labels: map[string]string{
+				"tier":              "gold",
+				labels.NamespaceKey: "existing",
+			},
+		},
+		listResponse: []kkComps.APIResponseSchema{
+			{
+				ID:   "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
+				Name: "payments",
+				Labels: map[string]string{
+					"tier":              "gold",
+					labels.NamespaceKey: "existing",
+				},
+			},
+		},
+	}
+
+	cfg := stubConfig{pageSize: 50}
+
+	result, err := adoptAPI(helper, api, cfg, "team-alpha", true, "payments")
+	assert.NoError(t, err)
+	assert.Equal(t, "team-alpha", result.Namespace)
+	assert.Equal(t, 1, api.updateCalls)
+	assert.Equal(t, "gold", derefString(api.lastUpdate.Labels["tier"]))
+	assert.Equal(t, "team-alpha", derefString(api.lastUpdate.Labels[labels.NamespaceKey]))
 
 	helper.AssertExpectations(t)
 }

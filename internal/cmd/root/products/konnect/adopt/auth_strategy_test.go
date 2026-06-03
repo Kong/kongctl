@@ -75,12 +75,17 @@ func (a *authStrategyAPIStub) DeleteAppAuthStrategy(
 	return nil, nil
 }
 
-func keyAuthStrategyResponse(id, name string, lbls map[string]string) *kkComps.CreateAppAuthStrategyResponse {
+const (
+	authStrategyTestID   = "22cd8a0b-72e7-4212-9099-0764f8e9c5ac"
+	authStrategyTestName = "key-auth"
+)
+
+func keyAuthStrategyResponse(lbls map[string]string) *kkComps.CreateAppAuthStrategyResponse {
 	return &kkComps.CreateAppAuthStrategyResponse{
 		AppAuthStrategyKeyAuthResponse: &kkComps.AppAuthStrategyKeyAuthResponse{
-			ID:           id,
-			Name:         name,
-			DisplayName:  name,
+			ID:           authStrategyTestID,
+			Name:         authStrategyTestName,
+			DisplayName:  authStrategyTestName,
 			StrategyType: kkComps.AppAuthStrategyKeyAuthResponseStrategyType("key_auth"),
 			Configs: kkComps.AppAuthStrategyKeyAuthResponseConfigs{
 				KeyAuth: kkComps.AppAuthStrategyConfigKeyAuth{},
@@ -91,11 +96,11 @@ func keyAuthStrategyResponse(id, name string, lbls map[string]string) *kkComps.C
 	}
 }
 
-func keyAuthStrategy(id, name string, lbls map[string]string) kkComps.AppAuthStrategy {
+func keyAuthStrategy(lbls map[string]string) kkComps.AppAuthStrategy {
 	resp := kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse{
-		ID:           id,
-		Name:         name,
-		DisplayName:  name,
+		ID:           authStrategyTestID,
+		Name:         authStrategyTestName,
+		DisplayName:  authStrategyTestName,
 		StrategyType: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyStrategyType("key_auth"),
 		Configs: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyConfigs{
 			KeyAuth: kkComps.AppAuthStrategyConfigKeyAuth{},
@@ -110,21 +115,20 @@ func TestAdoptAuthStrategyAssignsNamespace(t *testing.T) {
 	helper := new(cmd.MockHelper)
 	helper.EXPECT().GetContext().Return(context.Background())
 
-	id := "22cd8a0b-72e7-4212-9099-0764f8e9c5ac"
 	stub := &authStrategyAPIStub{
 		t:             t,
-		fetchResponse: keyAuthStrategyResponse(id, "key-auth", map[string]string{"tier": "gold"}),
+		fetchResponse: keyAuthStrategyResponse(map[string]string{"tier": "gold"}),
 		listResponse: []kkComps.AppAuthStrategy{
-			keyAuthStrategy(id, "key-auth", map[string]string{"tier": "gold"}),
+			keyAuthStrategy(map[string]string{"tier": "gold"}),
 		},
 	}
 
 	cfg := stubConfig{pageSize: 50}
 
-	result, err := adoptAuthStrategy(helper, stub, cfg, "team-alpha", "key-auth")
+	result, err := adoptAuthStrategy(helper, stub, cfg, "team-alpha", false, authStrategyTestName)
 	assert.NoError(t, err)
 	assert.Equal(t, "auth_strategy", result.ResourceType)
-	assert.Equal(t, id, result.ID)
+	assert.Equal(t, authStrategyTestID, result.ID)
 	assert.Equal(t, "team-alpha", result.Namespace)
 	assert.Equal(t, 1, stub.updateCalls)
 	assert.Equal(t, "gold", derefString(stub.lastUpdate.Labels["tier"]))
@@ -137,16 +141,15 @@ func TestAdoptAuthStrategyRejectsExistingNamespace(t *testing.T) {
 	helper := new(cmd.MockHelper)
 	helper.EXPECT().GetContext().Return(context.Background())
 
-	id := "22cd8a0b-72e7-4212-9099-0764f8e9c5ac"
 	stub := &authStrategyAPIStub{
 		t:             t,
-		fetchResponse: keyAuthStrategyResponse(id, "key-auth", map[string]string{labels.NamespaceKey: "existing"}),
+		fetchResponse: keyAuthStrategyResponse(map[string]string{labels.NamespaceKey: "existing"}),
 		listResponse: []kkComps.AppAuthStrategy{
-			keyAuthStrategy(id, "key-auth", map[string]string{labels.NamespaceKey: "existing"}),
+			keyAuthStrategy(map[string]string{labels.NamespaceKey: "existing"}),
 		},
 	}
 
-	_, err := adoptAuthStrategy(helper, stub, stubConfig{pageSize: 50}, "team-alpha", "key-auth")
+	_, err := adoptAuthStrategy(helper, stub, stubConfig{pageSize: 50}, "team-alpha", false, authStrategyTestName)
 	assert.Error(t, err)
 	var cfgErr *cmd.ConfigurationError
 	assert.ErrorAs(t, err, &cfgErr)
@@ -159,18 +162,43 @@ func TestAdoptAuthStrategyDefaultsPageSize(t *testing.T) {
 	helper := new(cmd.MockHelper)
 	helper.EXPECT().GetContext().Return(context.Background()).Times(2)
 
-	id := "22cd8a0b-72e7-4212-9099-0764f8e9c5ac"
 	stub := &authStrategyAPIStub{
 		t:             t,
-		fetchResponse: keyAuthStrategyResponse(id, "key-auth", nil),
+		fetchResponse: keyAuthStrategyResponse(nil),
 		listResponse: []kkComps.AppAuthStrategy{
-			keyAuthStrategy(id, "key-auth", nil),
+			keyAuthStrategy(nil),
 		},
 	}
 
-	_, err := adoptAuthStrategy(helper, stub, stubConfig{pageSize: 0}, "default", "key-auth")
+	_, err := adoptAuthStrategy(helper, stub, stubConfig{pageSize: 0}, "default", false, authStrategyTestName)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, stub.updateCalls)
+
+	helper.AssertExpectations(t)
+}
+
+func TestAdoptAuthStrategyOverwritesExistingNamespace(t *testing.T) {
+	helper := new(cmd.MockHelper)
+	helper.EXPECT().GetContext().Return(context.Background())
+
+	existingLabels := map[string]string{
+		"tier":              "gold",
+		labels.NamespaceKey: "existing",
+	}
+	stub := &authStrategyAPIStub{
+		t:             t,
+		fetchResponse: keyAuthStrategyResponse(existingLabels),
+		listResponse: []kkComps.AppAuthStrategy{
+			keyAuthStrategy(existingLabels),
+		},
+	}
+
+	result, err := adoptAuthStrategy(helper, stub, stubConfig{pageSize: 50}, "team-alpha", true, authStrategyTestName)
+	assert.NoError(t, err)
+	assert.Equal(t, "team-alpha", result.Namespace)
+	assert.Equal(t, 1, stub.updateCalls)
+	assert.Equal(t, "gold", derefString(stub.lastUpdate.Labels["tier"]))
+	assert.Equal(t, "team-alpha", derefString(stub.lastUpdate.Labels[labels.NamespaceKey]))
 
 	helper.AssertExpectations(t)
 }

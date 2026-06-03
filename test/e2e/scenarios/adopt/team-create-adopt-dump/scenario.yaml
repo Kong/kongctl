@@ -2,6 +2,7 @@ vars:
   team_name: e2e-adopt-test-team
   team_description: E2E test team for adopt and dump workflow
   namespace: team-e2e-test
+  overwrite_namespace: team-e2e-test-overwrite
 
 steps:
   - name: 000-reset
@@ -39,13 +40,30 @@ steps:
                 resource_type: organization_team
                 name: "{{ .vars.team_name }}"
 
-      - name: 002-dump-teams
+      - name: 002-overwrite-team-namespace
+        run:
+          - adopt
+          - org
+          - team
+          - "{{ .vars.team_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.team_id }}"
+                resource_type: organization_team
+                name: "{{ .vars.team_name }}"
+
+      - name: 003-dump-teams
         run:
           - dump
           - declarative
           - "--resources=org.teams"
           - --default-namespace
-          - "{{ .vars.namespace }}"
+          - "{{ .vars.overwrite_namespace }}"
         outputFormat: none
         parseAs: yaml
         stdoutFile: "{{ .workdir }}/dump.yaml"
@@ -58,13 +76,13 @@ steps:
           - select: "organization.teams[?ref=='{{ .vars.team_id }}'] | [0].kongctl"
             expect:
               fields:
-                namespace: "{{ .vars.namespace }}"
+                namespace: "{{ .vars.overwrite_namespace }}"
           - select: "_defaults.kongctl"
             expect:
               fields:
-                namespace: "{{ .vars.namespace }}"
+                namespace: "{{ .vars.overwrite_namespace }}"
 
-      - name: 003-plan-from-dump
+      - name: 004-plan-from-dump
         outputFormat: disable
         run:
           - plan
