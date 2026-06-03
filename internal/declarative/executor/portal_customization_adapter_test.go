@@ -10,6 +10,124 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_MapSlice(t *testing.T) {
+	adapter := NewPortalCustomizationAdapter(nil)
+	fields := map[string]any{
+		planner.FieldMenu: map[string]any{
+			"main": []map[string]any{
+				{
+					"path":                    "/docs",
+					planner.FieldTitle:        "Docs",
+					planner.FieldVisibility:   "public",
+					"external":                false,
+				},
+			},
+		},
+	}
+	var update kkComps.PortalCustomization
+
+	err := adapter.MapUpdateFields(context.Background(), fields, &update)
+
+	require.NoError(t, err)
+	require.NotNil(t, update.Menu)
+	require.Len(t, update.Menu.Main, 1)
+	assert.Equal(t, "/docs", update.Menu.Main[0].Path)
+	assert.Equal(t, "Docs", update.Menu.Main[0].Title)
+	assert.Equal(t, kkComps.PortalMenuItemVisibility("public"), update.Menu.Main[0].Visibility)
+	assert.False(t, update.Menu.Main[0].External)
+}
+
+func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_AnySlice(t *testing.T) {
+	adapter := NewPortalCustomizationAdapter(nil)
+	fields := map[string]any{
+		planner.FieldMenu: map[string]any{
+			"main": []any{
+				map[string]any{
+					"path":                  "/blog",
+					planner.FieldTitle:      "Blog",
+					planner.FieldVisibility: "private",
+					"external":              true,
+				},
+			},
+		},
+	}
+	var update kkComps.PortalCustomization
+
+	err := adapter.MapUpdateFields(context.Background(), fields, &update)
+
+	require.NoError(t, err)
+	require.NotNil(t, update.Menu)
+	require.Len(t, update.Menu.Main, 1)
+	assert.Equal(t, "/blog", update.Menu.Main[0].Path)
+	assert.Equal(t, "Blog", update.Menu.Main[0].Title)
+	assert.Equal(t, kkComps.PortalMenuItemVisibility("private"), update.Menu.Main[0].Visibility)
+	assert.True(t, update.Menu.Main[0].External)
+}
+
+func TestPortalCustomizationAdapterMapUpdateFieldsMenuFooterSections_MapSlice(t *testing.T) {
+	adapter := NewPortalCustomizationAdapter(nil)
+	fields := map[string]any{
+		planner.FieldMenu: map[string]any{
+			"footer_sections": []map[string]any{
+				{
+					planner.FieldTitle: "Company",
+					"items": []map[string]any{
+						{
+							"path":                  "/about",
+							planner.FieldTitle:       "About",
+							planner.FieldVisibility: "public",
+							"external":               false,
+						},
+					},
+				},
+			},
+		},
+	}
+	var update kkComps.PortalCustomization
+
+	err := adapter.MapUpdateFields(context.Background(), fields, &update)
+
+	require.NoError(t, err)
+	require.NotNil(t, update.Menu)
+	require.Len(t, update.Menu.FooterSections, 1)
+	assert.Equal(t, "Company", update.Menu.FooterSections[0].Title)
+	require.Len(t, update.Menu.FooterSections[0].Items, 1)
+	assert.Equal(t, "/about", update.Menu.FooterSections[0].Items[0].Path)
+	assert.Equal(t, "About", update.Menu.FooterSections[0].Items[0].Title)
+}
+
+func TestPortalCustomizationAdapterMapUpdateFieldsMenuFooterSections_AnySlice(t *testing.T) {
+	adapter := NewPortalCustomizationAdapter(nil)
+	fields := map[string]any{
+		planner.FieldMenu: map[string]any{
+			"footer_sections": []any{
+				map[string]any{
+					planner.FieldTitle: "Legal",
+					"items": []any{
+						map[string]any{
+							"path":                  "/privacy",
+							planner.FieldTitle:       "Privacy",
+							planner.FieldVisibility: "public",
+							"external":               false,
+						},
+					},
+				},
+			},
+		},
+	}
+	var update kkComps.PortalCustomization
+
+	err := adapter.MapUpdateFields(context.Background(), fields, &update)
+
+	require.NoError(t, err)
+	require.NotNil(t, update.Menu)
+	require.Len(t, update.Menu.FooterSections, 1)
+	assert.Equal(t, "Legal", update.Menu.FooterSections[0].Title)
+	require.Len(t, update.Menu.FooterSections[0].Items, 1)
+	assert.Equal(t, "/privacy", update.Menu.FooterSections[0].Items[0].Path)
+	assert.Equal(t, "Privacy", update.Menu.FooterSections[0].Items[0].Title)
+}
+
 func TestPortalCustomizationAdapterMapUpdateFieldsSpecRendererAndRobots(t *testing.T) {
 	adapter := NewPortalCustomizationAdapter(nil)
 	fields := map[string]any{
