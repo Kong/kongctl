@@ -142,7 +142,7 @@ steps:
 
   - name: 007-cleanup
     inputOverlayDirs:
-      - overlays/006-cleanup
+      - overlays/007-cleanup
     commands:
       - name: sync-delete
         run:
