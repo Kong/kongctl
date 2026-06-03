@@ -143,6 +143,17 @@ steps:
               fields:
                 description: "{{ .vars.egwDesc }}"
 
+      - name: 002-verify-backend-clusters-unchanged
+        run: ["get", "event-gateway", "backend-clusters", "--gateway-name", "{{ .vars.egwName }}", "-o", "json"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0].name"
+            expect:
+              fields:
+                "@": "{{ .vars.bcName }}"
   - name: 004-diff-sync-mode
     inputOverlayDirs:
       - overlays/004-diff-sync
