@@ -128,7 +128,91 @@ steps:
               fields:
                 name: "e2e-dump-cp"
 
-  - name: 005-delete-cleanup
+  # ── control-plane group dump + round-trip idempotency ──────────
+  - name: 005-dump-control-plane-group
+    commands:
+      - name: 000-apply-group
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane-group.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - name: group-created
+            select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            action=='CREATE' &&
+                            resource_ref=='e2e-dump-cp-group'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+      - name: 001-dump-group
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+          - "--filter-name=e2e-dump-cp-group"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-group.yaml"
+        assertions:
+          - name: group-present
+            select: "control_planes[?name=='e2e-dump-cp-group'] | [0]"
+            expect:
+              fields:
+                name: "e2e-dump-cp-group"
+                cluster_type: "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+          - name: members-populated
+            select: "control_planes[?name=='e2e-dump-cp-group'] | [0].members"
+            expect:
+              fields:
+                "length(@)": 2
+                "length([?id!=''])": 2
+
+      - name: 002-round-trip-plan-group
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-group.yaml"
+          - --mode
+          - apply
+        assertions:
+          - name: idempotent-zero-changes
+            select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 003-delete-group
+        maxConcurrency: 1
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane-group.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 006-delete-cleanup
     commands:
       - name: 000-delete
         run:

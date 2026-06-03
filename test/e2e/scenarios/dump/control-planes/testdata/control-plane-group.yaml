@@ -1,0 +1,18 @@
+control_planes:
+  - ref: e2e-dump-cp-member1
+    name: "e2e-dump-cp-member1"
+    description: "E2E Dump Test CP Group Member 1"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+
+  - ref: e2e-dump-cp-member2
+    name: "e2e-dump-cp-member2"
+    description: "E2E Dump Test CP Group Member 2"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+
+  - ref: e2e-dump-cp-group
+    name: "e2e-dump-cp-group"
+    description: "E2E Dump Test Control Plane Group"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+    members:
+      - id: !ref e2e-dump-cp-member1#id
+      - id: !ref e2e-dump-cp-member2#id
