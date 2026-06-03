@@ -1,0 +1,206 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  egwRef: egw-diff-test
+  egwName: egw-diff-test
+  egwDesc: "EGW for diff scenario test"
+  egwUpdatedDesc: "Updated EGW description for diff test"
+  bcRef: diff-backend-cluster
+  bcName: diff-backend-cluster
+  bc2Ref: diff-backend-cluster-2
+  bc2Name: diff-backend-cluster-2
+  vcRef: diff-virtual-cluster
+  vcName: diff-virtual-cluster
+  namespace: event-gateways-diff-test
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-state
+    commands:
+      - name: 000-sync-initial
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: "summary"
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+          - select: >-
+              plan.changes[?resource_type=='event_gateway' &&
+                            resource_ref=='{{ .vars.egwRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_backend_cluster' &&
+                            resource_ref=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster' &&
+                            resource_ref=='{{ .vars.vcRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+  - name: 002-diff-noop
+    commands:
+      - name: 000-diff
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-diff-with-modifications
+    inputOverlayDirs:
+      - overlays/003-diff
+    commands:
+      - name: 000-diff-apply-mode
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - -o
+          - json
+        assertions:
+          - select: "metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 1
+                by_action.CREATE: 1
+          - expect:
+              fields:
+                "length(changes[?action=='DELETE'])": 0
+          - select: >-
+              changes[?resource_type=='event_gateway' &&
+                       resource_ref=='{{ .vars.egwRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.egwUpdatedDesc }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' &&
+                       resource_ref=='{{ .vars.bc2Ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+      # Verify Konnect state was NOT modified (diff is read-only)
+      - name: 001-verify-state-unchanged
+        run:
+          - get
+          - event-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.egwName }}'] | [0]"
+            expect:
+              fields:
+                description: "{{ .vars.egwDesc }}"
+
+  - name: 004-diff-sync-mode
+    inputOverlayDirs:
+      - overlays/004-diff-sync
+    commands:
+      - name: 000-diff-sync-mode
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+          - -o
+          - json
+        assertions:
+          - select: "metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' &&
+                       resource_ref=='{{ .vars.vcRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      # Verify Konnect state was NOT modified (diff is read-only)
+      - name: 001-verify-state-unchanged
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.vcName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.vcName }}"
+
+  - name: 005-sync-delete
+    inputOverlayDirs:
+      - overlays/005-cleanup
+    commands:
+      - name: 000-sync-delete
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0

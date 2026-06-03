@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-diff-test
+
+event_gateways: []
