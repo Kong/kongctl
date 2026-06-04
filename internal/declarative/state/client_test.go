@@ -666,6 +666,7 @@ func TestGetOrganizationTeamByNameUnfilteredFindsUnmanagedTeam(t *testing.T) {
 	}
 	if team == nil {
 		t.Fatal("GetOrganizationTeamByNameUnfiltered() returned nil team")
+		return
 	}
 	if team.ID == nil || *team.ID != teamID {
 		t.Fatalf("GetOrganizationTeamByNameUnfiltered() ID = %v, want %s", team.ID, teamID)
