@@ -49,9 +49,9 @@ type portalPageDetailRecord struct {
 	Visibility       string
 	Status           string
 	ParentPageID     string
-	Content          string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+	content          string
 	rawID            string
 }
 
@@ -511,7 +511,7 @@ func portalPageInfoDetail(page kkComps.PortalPageInfo, detail *portalPageDetailR
 
 	fmt.Fprintf(&b, "content: %s (press enter to view)", portalPageContentIndicator)
 	if detail != nil {
-		if preview := previewPortalPageContent(detail.Content); preview != "" {
+		if preview := previewPortalPageContent(detail.content); preview != "" {
 			fmt.Fprintf(&b, " %s", preview)
 		}
 	}
@@ -556,7 +556,7 @@ func portalPageDetailView(record portalPageDetailRecord) string {
 	}
 
 	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
-	if preview := previewPortalPageContent(record.Content); preview != "" {
+	if preview := previewPortalPageContent(record.content); preview != "" {
 		fmt.Fprintf(&b, " %s", preview)
 	}
 	fmt.Fprintln(&b)
@@ -596,9 +596,9 @@ func portalPageDetailToRecord(page *kkComps.PortalPageResponse) portalPageDetail
 		Visibility:       string(page.GetVisibility()),
 		Status:           string(page.GetStatus()),
 		ParentPageID:     parentID,
-		Content:          normalizePortalPageContent(page.GetContent()),
 		LocalCreatedTime: formatTime(page.GetCreatedAt()),
 		LocalUpdatedTime: formatTime(page.GetUpdatedAt()),
+		content:          normalizePortalPageContent(page.GetContent()),
 	}
 	record.rawID = strings.TrimSpace(page.GetID())
 	return record
@@ -694,7 +694,7 @@ func loadPortalPageContent(ctx context.Context, helper cmd.Helper, parent any) (
 		record = detail
 	}
 
-	raw := normalizePortalPageContent(record.Content)
+	raw := normalizePortalPageContent(record.content)
 	if strings.TrimSpace(raw) == "" {
 		raw = "(content is empty)"
 	}

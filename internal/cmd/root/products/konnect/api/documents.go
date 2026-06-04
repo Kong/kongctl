@@ -47,9 +47,9 @@ type apiDocumentDetailRecord struct {
 	Slug             string
 	Status           string
 	ParentDocumentID string
-	Content          string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+	content          string
 }
 
 type apiDocumentContentContext struct {
@@ -480,7 +480,7 @@ func documentSummaryDetailView(doc *kkComps.APIDocumentSummaryWithChildren, deta
 
 	fmt.Fprintf(&b, "content: %s (press enter to view)", apiDocumentContentIndicator)
 	if detail != nil {
-		if preview := previewAPIDocumentContent(detail.Content, apiDocumentContentPreviewLimit); preview != "" {
+		if preview := previewAPIDocumentContent(detail.content, apiDocumentContentPreviewLimit); preview != "" {
 			fmt.Fprintf(&b, " %s", preview)
 		}
 	}
@@ -519,7 +519,7 @@ func apiDocumentDetailView(record apiDocumentDetailRecord) string {
 	}
 
 	fmt.Fprintf(&b, "content: %s (press enter to view)", apiDocumentContentIndicator)
-	if preview := previewAPIDocumentContent(record.Content, apiDocumentContentPreviewLimit); preview != "" {
+	if preview := previewAPIDocumentContent(record.content, apiDocumentContentPreviewLimit); preview != "" {
 		fmt.Fprintf(&b, " %s", preview)
 	}
 	fmt.Fprintln(&b)
@@ -551,9 +551,9 @@ func apiDocumentDetailToRecord(doc *kkComps.APIDocumentResponse) apiDocumentDeta
 			return valueNA
 		}(),
 		ParentDocumentID: parentID,
-		Content:          content,
 		LocalCreatedTime: doc.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 		LocalUpdatedTime: doc.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		content:          content,
 	}
 }
 
@@ -628,7 +628,7 @@ func loadAPIDocumentContent(_ context.Context, helper cmd.Helper, parent any) (t
 		record = detail
 	}
 
-	raw := normalizeAPIDocumentContent(record.Content)
+	raw := normalizeAPIDocumentContent(record.content)
 	if strings.TrimSpace(raw) == "" {
 		raw = "(content is empty)"
 	}

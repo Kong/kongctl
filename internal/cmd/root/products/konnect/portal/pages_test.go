@@ -4,6 +4,10 @@ import (
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/segmentio/cli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -75,4 +79,78 @@ func TestFindPageBySlugOrTitle(t *testing.T) {
 		require.NotNil(t, match)
 		require.Equal(t, "page-1", match.ID)
 	})
+}
+
+func TestPortalPageDetailTextOutputOmitsContentField(t *testing.T) {
+	content := `---
+title: "APIs"
+description: "Explore a wide range of API products in our Developer Portal designed for fast, flexible development."
+---
+
+::apis-list
+---
+persist-page-number: true
+cta-text: "View APIs"
+---
+::`
+	record := portalPageDetailRecord{
+		ID:               "b9f7...",
+		Title:            "APIs",
+		Slug:             "apis",
+		Visibility:       "private",
+		Status:           "published",
+		ParentPageID:     valueNA,
+		LocalCreatedTime: "2025-08-27 14:42:18",
+		LocalUpdatedTime: "2025-08-27 14:42:18",
+		content:          normalizePortalPageContent(content),
+	}
+
+	output := renderPortalRecordAsText(t, record)
+
+	require.NotContains(t, output, "CONTENT")
+	require.NotContains(t, output, `title: "APIs"`)
+	require.NotContains(t, output, "persist-page-number")
+}
+
+func TestPortalSnippetDetailTextOutputOmitsContentField(t *testing.T) {
+	record := portalSnippetDetailRecord{
+		ID:               "a130...",
+		Name:             "hero-snippet",
+		Title:            "Hero Snippet",
+		Visibility:       "public",
+		Status:           "published",
+		Description:      "Reusable page hero",
+		LocalCreatedTime: "2025-08-27 14:42:18",
+		LocalUpdatedTime: "2025-08-27 14:42:18",
+		content:          "snippet-frontmatter: true\n\n::hero\nSnippet content\n::",
+	}
+
+	output := renderPortalRecordAsText(t, record)
+
+	require.NotContains(t, output, "CONTENT")
+	require.NotContains(t, output, "snippet-frontmatter")
+	require.NotContains(t, output, "Snippet content")
+}
+
+func renderPortalRecordAsText(t *testing.T, record any) string {
+	t.Helper()
+
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+	printer, err := cli.Format("text", streams.Out)
+	require.NoError(t, err)
+
+	err = tableview.RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		printer,
+		streams,
+		record,
+		nil,
+		"",
+	)
+	require.NoError(t, err)
+	printer.Flush()
+
+	return outBuf.String()
 }
