@@ -15,6 +15,7 @@ import (
 type portalPaginationStub struct {
 	t               *testing.T
 	listPortalsFunc func(context.Context, kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error)
+	getPortalFunc   func(context.Context, string) (*kkOps.GetPortalResponse, error)
 }
 
 func (p *portalPaginationStub) ListPortals(
@@ -28,7 +29,10 @@ func (p *portalPaginationStub) ListPortals(
 	return nil, nil
 }
 
-func (p *portalPaginationStub) GetPortal(context.Context, string) (*kkOps.GetPortalResponse, error) {
+func (p *portalPaginationStub) GetPortal(ctx context.Context, id string) (*kkOps.GetPortalResponse, error) {
+	if p.getPortalFunc != nil {
+		return p.getPortalFunc(ctx, id)
+	}
 	p.t.Fatalf("unexpected GetPortal call")
 	return nil, nil
 }

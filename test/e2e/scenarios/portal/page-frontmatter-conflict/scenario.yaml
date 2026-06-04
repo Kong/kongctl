@@ -1,0 +1,215 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: portal-page-frontmatter-conflict
+  portalRef: frontmatter-conflict-portal
+  portalName: frontmatter-conflict-portal
+  pageRef: frontmatter-conflict-page
+  pageTitle: "Frontmatter Page Title"
+  pageDescription: "Frontmatter page description"
+  conflictingTitle: "Configured Page Title"
+  conflictingDescription: "Configured page description"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-frontmatter-only-applies-and-converges
+    commands:
+      - name: 000-plan-frontmatter-only
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-frontmatter-only.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+                by_resource.portal: 1
+                by_resource.portal_page: 1
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.pageRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                "fields.title": "{{ .vars.pageTitle }}"
+                "fields.description": "{{ .vars.pageDescription }}"
+                "contains(fields.content, '{{ .vars.pageTitle }}')": true
+                "contains(fields.content, '{{ .vars.pageDescription }}')": true
+      - name: 001-apply-frontmatter-only
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-frontmatter-only.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-plan-after-frontmatter-only-is-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 002-top-level-only-applies-and-converges
+    inputOverlayDirs:
+      - overlays/002-top-level-only
+    commands:
+      - name: 000-plan-top-level-only
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-top-level-only.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                by_resource.portal_page: 1
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.pageRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "contains(fields.content, 'Top-level-only body')": true
+      - name: 001-apply-top-level-only
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-top-level-only.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-plan-after-top-level-only-is-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-matching-both-applies-and-converges
+    inputOverlayDirs:
+      - overlays/003-matching-both
+    commands:
+      - name: 000-plan-matching-both
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-matching-both.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                by_resource.portal_page: 1
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.pageRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "contains(fields.content, 'Matching both body')": true
+      - name: 001-apply-matching-both
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-matching-both.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-plan-after-matching-both-is-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-conflicting-both-fails-during-load
+    inputOverlayDirs:
+      - overlays/004-conflicting-both
+    commands:
+      - name: 000-plan-conflicting-both
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "configuration error for portal_page \"{{ .vars.pageRef }}\": field \"title\""
+      - name: 001-apply-conflicting-both
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "top-level: \"{{ .vars.conflictingTitle }}\", frontmatter: \"{{ .vars.pageTitle }}\""

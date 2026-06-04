@@ -172,7 +172,94 @@ steps:
                 visibility: "public"
                 status: "published"
 
-  - name: 003-sync-delete-leaf-page
+  - name: 003-plan-apply-update-page-content
+    inputOverlayDirs:
+      - overlays/003-update-page-content
+    commands:
+      - name: 000-plan-update-page-content
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update-page-content.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                by_resource.portal_page: 1
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.gettingStartedPageRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "fields.slug": "/getting-started"
+                "contains(fields.content, 'Issue 1210 content-only update')": true
+                "contains(changed_fields.content.new, 'Issue 1210 content-only update')": true
+      - name: 001-apply-update-page-content
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update-page-content.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-plan-after-page-content-update-is-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: changes
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 004-plan-update-page-content-missing-frontmatter-start
+    inputOverlayDirs:
+      - overlays/004-update-page-content-missing-frontmatter-start
+    commands:
+      - name: 000-plan-update-page-content
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update-page-content-missing-frontmatter-start.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                by_resource.portal_page: 1
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.gettingStartedPageRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "contains(fields.content, 'Issue 1210 content-only update')": true
+                "starts_with(fields.content, 'title:')": true
+
+  - name: 005-sync-delete-leaf-page
     inputOverlayDirs:
       - overlays/003-delete-leaf-page
     commands:

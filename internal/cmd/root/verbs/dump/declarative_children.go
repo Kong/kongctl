@@ -15,6 +15,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
 
+	"github.com/kong/kongctl/internal/declarative/frontmatter"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	declstate "github.com/kong/kongctl/internal/declarative/state"
 )
@@ -521,11 +522,13 @@ func mapPortalPageToResource(page *declstate.PortalPage) (declresources.PortalPa
 		Ref: page.ID,
 	}
 
-	if strings.TrimSpace(page.Title) != "" {
+	if strings.TrimSpace(page.Title) != "" &&
+		!contentFrontmatterHasField(page.Content, frontmatter.PortalPageFields, frontmatter.FieldTitle) {
 		title := page.Title
 		res.Title = &title
 	}
-	if strings.TrimSpace(page.Description) != "" {
+	if strings.TrimSpace(page.Description) != "" &&
+		!contentFrontmatterHasField(page.Content, frontmatter.PortalPageFields, frontmatter.FieldDescription) {
 		desc := page.Description
 		res.Description = &desc
 	}
@@ -604,11 +607,13 @@ func mapPortalSnippetToResource(snippet *declstate.PortalSnippet) declresources.
 		Content: snippet.Content,
 	}
 
-	if strings.TrimSpace(snippet.Title) != "" {
+	if strings.TrimSpace(snippet.Title) != "" &&
+		!contentFrontmatterHasField(snippet.Content, frontmatter.PortalSnippetFields, frontmatter.FieldTitle) {
 		title := snippet.Title
 		res.Title = &title
 	}
-	if strings.TrimSpace(snippet.Description) != "" {
+	if strings.TrimSpace(snippet.Description) != "" &&
+		!contentFrontmatterHasField(snippet.Content, frontmatter.PortalSnippetFields, frontmatter.FieldDescription) {
 		desc := snippet.Description
 		res.Description = &desc
 	}
@@ -1342,20 +1347,32 @@ func mapAPIDocumentToResource(doc *declstate.APIDocument) declresources.APIDocum
 		Ref: doc.ID,
 	}
 
-	if strings.TrimSpace(doc.Title) != "" {
+	if strings.TrimSpace(doc.Title) != "" &&
+		!contentFrontmatterHasField(doc.Content, frontmatter.APIDocumentFields, frontmatter.FieldTitle) {
 		title := doc.Title
 		res.Title = &title
 	}
-	if strings.TrimSpace(doc.Slug) != "" {
+	if strings.TrimSpace(doc.Slug) != "" &&
+		!contentFrontmatterHasField(doc.Content, frontmatter.APIDocumentFields, frontmatter.FieldSlug) {
 		slug := doc.Slug
 		res.Slug = &slug
 	}
-	if strings.TrimSpace(doc.Status) != "" {
+	if strings.TrimSpace(doc.Status) != "" &&
+		!contentFrontmatterHasField(doc.Content, frontmatter.APIDocumentFields, frontmatter.FieldStatus) {
 		status := kkComps.APIDocumentStatus(doc.Status)
 		res.Status = &status
 	}
 
 	return res
+}
+
+func contentFrontmatterHasField(content string, recognized []string, field string) bool {
+	metadata, err := frontmatter.Parse(content, recognized)
+	if err != nil {
+		return false
+	}
+	_, ok := metadata[field]
+	return ok
 }
 
 func buildGatewayServices(

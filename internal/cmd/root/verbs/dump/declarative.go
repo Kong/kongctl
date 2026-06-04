@@ -407,7 +407,18 @@ func collectDeclarativePortals(
 		}
 
 		for _, portal := range resp.ListPortalsResponse.Data {
-			results = append(results, mapPortalToDeclarativeResource(portal))
+			resource := mapPortalToDeclarativeResource(portal)
+			if portalID := strings.TrimSpace(portal.GetID()); portalID != "" {
+				detail, err := portalAPI.GetPortal(ctx, portalID)
+				if err != nil {
+					return false, fmt.Errorf("failed to get portal %q: %w", portalID, err)
+				}
+				if detailedPortal := detail.GetPortalResponse(); detailedPortal != nil {
+					resource = mapPortalResponseToDeclarativeResource(*detailedPortal)
+				}
+			}
+
+			results = append(results, resource)
 		}
 
 		return true, nil
@@ -732,6 +743,31 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 	}
 
 	return result
+}
+
+func mapPortalResponseToDeclarativeResource(portal kkComps.PortalResponse) declresources.PortalResource {
+	listPortal := kkComps.ListPortalsResponsePortal{
+		ID:                               portal.GetID(),
+		Name:                             portal.GetName(),
+		DisplayName:                      portal.GetDisplayName(),
+		Description:                      portal.GetDescription(),
+		AuthenticationEnabled:            portal.GetAuthenticationEnabled(),
+		RbacEnabled:                      portal.GetRbacEnabled(),
+		DefaultApplicationAuthStrategyID: portal.GetDefaultApplicationAuthStrategyID(),
+		AutoApproveDevelopers:            portal.GetAutoApproveDevelopers(),
+		AutoApproveApplications:          portal.GetAutoApproveApplications(),
+		Labels:                           portal.GetLabels(),
+	}
+
+	if visibility := portal.GetDefaultAPIVisibility(); visibility != "" {
+		listPortal.DefaultAPIVisibility = kkComps.ListPortalsResponseDefaultAPIVisibility(visibility)
+	}
+
+	if visibility := portal.GetDefaultPageVisibility(); visibility != "" {
+		listPortal.DefaultPageVisibility = kkComps.ListPortalsResponseDefaultPageVisibility(visibility)
+	}
+
+	return mapPortalToDeclarativeResource(listPortal)
 }
 
 func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.APIResource {
