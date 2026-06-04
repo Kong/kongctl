@@ -32,9 +32,9 @@ type PortalResource struct {
 	Pages             []PortalPageResource                   `yaml:"pages,omitempty"              json:"pages,omitempty"`
 	Snippets          []PortalSnippetResource                `yaml:"snippets,omitempty"           json:"snippets,omitempty"` //nolint:lll
 	Teams             []PortalTeamResource                   `yaml:"teams,omitempty"              json:"teams,omitempty"`
-	EmailConfig       *PortalEmailConfigResource             `yaml:"email_config,omitempty"       json:"email_config,omitempty"`     //nolint:lll
-	EmailTemplates    map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty"    json:"email_templates,omitempty"`  //nolint:lll
-	AuditLogWebhook   *PortalAuditLogWebhookResource         `yaml:"audit_log_webhook,omitempty" json:"audit_log_webhook,omitempty"` //nolint:lll
+	EmailConfig       *PortalEmailConfigResource             `yaml:"email_config,omitempty"       json:"email_config,omitempty"`      //nolint:lll
+	EmailTemplates    map[string]PortalEmailTemplateResource `yaml:"email_templates,omitempty"    json:"email_templates,omitempty"`   //nolint:lll
+	AuditLogWebhook   *PortalAuditLogWebhookResource         `yaml:"audit_log_webhook,omitempty"  json:"audit_log_webhook,omitempty"` //nolint:lll
 
 	// Assets object containing logo and favicon (data URLs from !file tag)
 	Assets *PortalAssetsResource `yaml:"assets,omitempty" json:"assets,omitempty"`
@@ -331,7 +331,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 
 	// Add kongctl-specific fields
 	extraKeys := []string{
-		"ref",
+		SchemaFieldRef,
 		"kongctl",
 		"customization",
 		"auth_settings",
@@ -341,7 +341,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"custom_domain",
 		"pages",
 		"snippets",
-		"teams",
+		SchemaFieldTeams,
 		"email_config",
 		"email_templates",
 		"audit_log_webhook",
@@ -360,11 +360,11 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 	}
 
 	// Extract kongctl-specific fields
-	if v, ok := raw["ref"]; ok {
+	if v, ok := raw[SchemaFieldRef]; ok {
 		if err := json.Unmarshal(v, &p.Ref); err != nil {
 			return err
 		}
-		delete(raw, "ref")
+		delete(raw, SchemaFieldRef)
 	}
 
 	if v, ok := raw["kongctl"]; ok {
@@ -433,11 +433,11 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		delete(raw, "snippets")
 	}
 
-	if v, ok := raw["teams"]; ok {
+	if v, ok := raw[SchemaFieldTeams]; ok {
 		if err := json.Unmarshal(v, &p.Teams); err != nil {
 			return err
 		}
-		delete(raw, "teams")
+		delete(raw, SchemaFieldTeams)
 	}
 
 	if v, ok := raw["email_config"]; ok {

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -107,7 +108,7 @@ func (r ReferenceInfo) HasID() bool {
 
 // IsUnknownID reports whether the reference ID is the unresolved placeholder.
 func (r ReferenceInfo) IsUnknownID() bool {
-	return strings.TrimSpace(r.ID) == "[unknown]"
+	return strings.TrimSpace(r.ID) == resources.UnknownReferenceID
 }
 
 // HasResolvedID reports whether the reference has a concrete, non-placeholder ID.

@@ -1296,7 +1296,9 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 		}
 	}
 
-	if id, ok := e.getRef(planner.ResourceTypeControlPlane, lookupRef); ok && id != "" && id != "[unknown]" {
+	if id, ok := e.getRef(planner.ResourceTypeControlPlane, lookupRef); ok &&
+		id != "" &&
+		id != resources.UnknownReferenceID {
 		return id, nil
 	}
 
@@ -1534,7 +1536,8 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 
 	// First check if it was created in this execution
 	if id, ok := e.getRef(planner.FieldAPI, lookupRef); ok {
-		slog.Debug("Resolved API reference from created resources",
+		slog.Debug(
+			"Resolved API reference from created resources",
 			"api_ref", lookupRef,
 			"api_id", id,
 		)
@@ -1559,7 +1562,8 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 		api, err := e.client.GetAPIByName(ctx, lookupValue)
 		if err == nil && api != nil {
 			apiID := api.ID
-			slog.Debug("Resolved API reference from Konnect",
+			slog.Debug(
+				"Resolved API reference from Konnect",
 				"api_ref", refInfo.Ref,
 				"lookup_value", lookupValue,
 				"api_id", apiID,
@@ -1588,7 +1592,8 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 
 	// First check if it was created in this execution
 	if id, ok := e.getRef(planner.ResourceTypeEventGatewayControlPlane, lookupRef); ok {
-		slog.Debug("Resolved event gateway reference from created resources",
+		slog.Debug(
+			"Resolved event gateway reference from created resources",
 			"gateway_ref", lookupRef,
 			"gateway_id", id,
 		)
@@ -1613,7 +1618,8 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 	}
 
 	gatewayID := gateway.ID
-	slog.Debug("Resolved event gateway reference from Konnect",
+	slog.Debug(
+		"Resolved event gateway reference from Konnect",
 		"gateway_ref", refInfo.Ref,
 		"lookup_value", lookupValue,
 		"gateway_id", gatewayID,
@@ -1638,7 +1644,8 @@ func (e *Executor) resolveEventGatewayBackendClusterRef(
 
 	// First check if it was created in this execution
 	if id, ok := e.getRef(planner.ResourceTypeEventGatewayBackendCluster, lookupRef); ok {
-		slog.Debug("Resolved event gateway backend cluster reference from created resources",
+		slog.Debug(
+			"Resolved event gateway backend cluster reference from created resources",
 			"backend_cluster_ref", lookupRef,
 			"backend_cluster_id", id,
 		)
@@ -1664,7 +1671,8 @@ func (e *Executor) resolveEventGatewayBackendClusterRef(
 	}
 
 	backendClusterID := backendCluster.ID
-	slog.Debug("Resolved event gateway backend cluster reference from Konnect",
+	slog.Debug(
+		"Resolved event gateway backend cluster reference from Konnect",
 		"backend_cluster_ref", refInfo.Ref,
 		"lookup_value", lookupValue,
 		"gateway_id", backendClusterID,
@@ -1690,7 +1698,8 @@ func (e *Executor) resolveEventGatewayVirtualClusterRef(
 
 	// First check if it was created in this execution
 	if id, ok := e.getRef(planner.ResourceTypeEventGatewayVirtualCluster, lookupRef); ok {
-		slog.Debug("Resolved event gateway virtual cluster reference from created resources",
+		slog.Debug(
+			"Resolved event gateway virtual cluster reference from created resources",
 			"virtual_cluster_ref", lookupRef,
 			"virtual_cluster_id", id,
 		)
@@ -1716,7 +1725,8 @@ func (e *Executor) resolveEventGatewayVirtualClusterRef(
 	}
 
 	virtualClusterID := virtualCluster.ID
-	slog.Debug("Resolved event gateway virtual cluster reference from Konnect",
+	slog.Debug(
+		"Resolved event gateway virtual cluster reference from Konnect",
 		"virtual_cluster_ref", refInfo.Ref,
 		"lookup_value", lookupValue,
 		"virtual_cluster_id", virtualClusterID,
@@ -1742,7 +1752,8 @@ func (e *Executor) resolveEventGatewayListenerRef(
 
 	// First check if it was created in this execution
 	if id, ok := e.getRef(planner.ResourceTypeEventGatewayListener, lookupRef); ok {
-		slog.Debug("Resolved event gateway listener reference from created resources",
+		slog.Debug(
+			"Resolved event gateway listener reference from created resources",
 			"listener_ref", lookupRef,
 			"listener_id", id,
 		)
@@ -1777,7 +1788,8 @@ func (e *Executor) resolveEventGatewayListenerRef(
 
 	for _, listener := range listeners {
 		if listener.Name == lookupValue {
-			slog.Debug("Resolved event gateway listener reference from Konnect",
+			slog.Debug(
+				"Resolved event gateway listener reference from Konnect",
 				"listener_ref", refInfo.Ref,
 				"lookup_value", lookupValue,
 				"listener_id", listener.ID,
@@ -2422,7 +2434,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		// When the gateway was already created at plan time, its ID is in change.Parent.ID.
 		// When the gateway was being created in the same plan run, change.Parent is nil and
 		// the ID is stored in change.References["event_gateway_id"] after resolution below.
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && unresolvedReferenceID(gatewayRef.ID) {
+		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok &&
+			unresolvedReferenceID(gatewayRef.ID) {
 			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
@@ -3373,7 +3386,8 @@ func actionToVerb(action planner.ActionType) string {
 func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Add debug logging
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
-	logger.Debug("getParentAPIID called",
+	logger.Debug(
+		"getParentAPIID called",
 		slog.String("change_id", change.ID),
 		slog.String("resource_type", change.ResourceType),
 		slog.String("resource_ref", change.ResourceRef),
@@ -3385,7 +3399,8 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 	}
 
 	// Log parent details
-	logger.Debug("Parent details",
+	logger.Debug(
+		"Parent details",
 		slog.String("parent_ref", change.Parent.Ref),
 		slog.String("parent_id", change.Parent.ID),
 		slog.Bool("parent_id_empty", change.Parent.ID == ""),
@@ -3410,7 +3425,8 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 	}
 	e.mu.Unlock()
 	if parentFromCreated != "" {
-		logger.Debug("Found parent in created resources",
+		logger.Debug(
+			"Found parent in created resources",
 			slog.String("resource_id", parentFromCreated),
 		)
 		return parentFromCreated, nil
@@ -3426,7 +3442,8 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 		return "", fmt.Errorf("parent API not found: %s", change.Parent.Ref)
 	}
 
-	logger.Debug("Found parent API by name",
+	logger.Debug(
+		"Found parent API by name",
 		slog.String("api_name", parentAPI.Name),
 		slog.String("api_id", parentAPI.ID),
 	)

@@ -137,7 +137,7 @@ func (p PortalPageResource) GetType() ResourceType {
 // GetReferenceFieldMappings returns cross-resource reference mappings for validation
 func (p PortalPageResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{
-		"portal":          "portal",
+		SchemaFieldPortal: string(ResourceTypePortal),
 		"parent_page_ref": "portal_page",
 	}
 }
@@ -264,7 +264,7 @@ func (s PortalSnippetResource) GetType() ResourceType {
 // GetReferenceFieldMappings returns cross-resource reference mappings for validation
 func (s PortalSnippetResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{
-		"portal": "portal",
+		SchemaFieldPortal: string(ResourceTypePortal),
 	}
 }
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3" //nolint:gomodguard // yaml.v3 required for custom tag processing
+	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 )
 
 func TestEnvTagResolver_Tag(t *testing.T) {

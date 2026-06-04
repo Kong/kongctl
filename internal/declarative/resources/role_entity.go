@@ -12,7 +12,7 @@ func RoleEntityResourceType(entityTypeName string) (ResourceType, bool) {
 	switch normalizeRoleEntityTypeName(entityTypeName) {
 	case "api", "apis", "apiproduct", "apiproducts", "service", "services":
 		return ResourceTypeAPI, true
-	case "portal", "portals":
+	case string(ResourceTypePortal), "portals":
 		return ResourceTypePortal, true
 	case "controlplane", "controlplanes":
 		return ResourceTypeControlPlane, true

@@ -108,11 +108,11 @@ func (p *PortalTeamGroupMappingResource) UnmarshalJSON(data []byte) error {
 	}
 
 	allowedKeys := map[string]struct{}{
-		"ref":     {},
-		"portal":  {},
-		"team":    {},
-		"groups":  {},
-		"kongctl": {},
+		SchemaFieldRef:    {},
+		SchemaFieldPortal: {},
+		"team":            {},
+		"groups":          {},
+		"kongctl":         {},
 	}
 	for key := range raw {
 		if _, ok := allowedKeys[key]; !ok {

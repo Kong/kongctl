@@ -66,6 +66,12 @@ const (
 	NamespaceExternal = ""
 )
 
+const (
+	SchemaFieldRef    = "ref"
+	SchemaFieldPortal = "portal"
+	SchemaFieldTeams  = "teams"
+)
+
 // ResourceRef represents a reference to another resource
 type ResourceRef struct {
 	Kind ResourceType `json:"kind" yaml:"kind"`

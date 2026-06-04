@@ -58,7 +58,7 @@ func (p APIPublicationResource) GetDependencies() []ResourceRef {
 // GetReferenceFieldMappings returns the field mappings for reference validation
 func (p APIPublicationResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{
-		"portal_id":         "portal",
+		"portal_id":         string(ResourceTypePortal),
 		"auth_strategy_ids": "application_auth_strategy",
 	}
 }
@@ -120,8 +120,8 @@ func (p APIPublicationResource) GetParentRef() *ResourceRef {
 // Without this, the embedded APIPublication's MarshalJSON is promoted and drops metadata fields.
 func (p APIPublicationResource) MarshalJSON() ([]byte, error) {
 	payload := map[string]any{
-		"ref":       p.Ref,
-		"portal_id": p.PortalID,
+		SchemaFieldRef: p.Ref,
+		"portal_id":    p.PortalID,
 	}
 
 	if p.API != "" {

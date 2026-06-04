@@ -258,7 +258,7 @@ func (h dataPlaneCertificatesHandler) listDataPlaneCerts(
 		records,
 		certs,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -534,7 +534,7 @@ func buildDataPlaneCertChildView(certs []kkComps.EventGatewayDataPlaneCertificat
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        []string{"ID", tableHeaderName},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Data Plane Certificates",

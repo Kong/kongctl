@@ -1,7 +1,7 @@
 package tags
 
 // We need gopkg.in/yaml.v3 for custom YAML tag support which sigs.k8s.io/yaml doesn't provide
-//nolint:gomodguard // yaml.v3 required for custom tag processing
+//nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 import "gopkg.in/yaml.v3"
 
 // TagResolver processes custom YAML tags

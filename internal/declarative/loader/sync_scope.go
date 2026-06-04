@@ -63,97 +63,97 @@ var rootChildCollectionScopes = []childCollectionScope{
 	{
 		key:          "portal_customizations",
 		resourceType: resources.ResourceTypePortalCustomization,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_auth_settings",
 		resourceType: resources.ResourceTypePortalAuthSettings,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_ip_allow_lists",
 		resourceType: resources.ResourceTypePortalIPAllowList,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_integrations",
 		resourceType: resources.ResourceTypePortalIntegration,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_identity_providers",
 		resourceType: resources.ResourceTypePortalIdentityProvider,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_team_group_mappings",
 		resourceType: resources.ResourceTypePortalTeamGroupMapping,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_custom_domains",
 		resourceType: resources.ResourceTypePortalCustomDomain,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_pages",
 		resourceType: resources.ResourceTypePortalPage,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_snippets",
 		resourceType: resources.ResourceTypePortalSnippet,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_teams",
 		resourceType: resources.ResourceTypePortalTeam,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_team_roles",
 		resourceType: resources.ResourceTypePortalTeamRole,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_asset_logos",
 		resourceType: resources.ResourceTypePortalAssetLogo,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_asset_favicons",
 		resourceType: resources.ResourceTypePortalAssetFavicon,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_email_configs",
 		resourceType: resources.ResourceTypePortalEmailConfig,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_email_templates",
 		resourceType: resources.ResourceTypePortalEmailTemplate,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
 		key:          "portal_audit_log_webhooks",
 		resourceType: resources.ResourceTypePortalAuditLogWebhook,
-		parentKey:    "portal",
+		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
@@ -274,7 +274,11 @@ var portalChildCollectionScopes = []childCollectionScope{
 	},
 	{key: "pages", resourceType: resources.ResourceTypePortalPage, parentType: resources.ResourceTypePortal},
 	{key: "snippets", resourceType: resources.ResourceTypePortalSnippet, parentType: resources.ResourceTypePortal},
-	{key: "teams", resourceType: resources.ResourceTypePortalTeam, parentType: resources.ResourceTypePortal},
+	{
+		key:          resources.SchemaFieldTeams,
+		resourceType: resources.ResourceTypePortalTeam,
+		parentType:   resources.ResourceTypePortal,
+	},
 	{
 		key:          "email_config",
 		resourceType: resources.ResourceTypePortalEmailConfig,
@@ -431,7 +435,7 @@ func captureNestedCollectionScopes(
 		if !ok {
 			continue
 		}
-		parentRef := stringValue(parent["ref"])
+		parentRef := stringValue(parent[resources.SchemaFieldRef])
 		if parentRef == "" {
 			continue
 		}
@@ -453,7 +457,7 @@ func captureNestedPortalScopes(scope *resources.SyncScope, raw map[string]any) e
 		if !ok {
 			continue
 		}
-		portalRef := stringValue(portal["ref"])
+		portalRef := stringValue(portal[resources.SchemaFieldRef])
 		if portalRef == "" {
 			continue
 		}
@@ -571,7 +575,7 @@ func captureVirtualClusterPolicyScopes(scope *resources.SyncScope, value any) {
 		if !ok {
 			continue
 		}
-		ref := stringValue(vc["ref"])
+		ref := stringValue(vc[resources.SchemaFieldRef])
 		if ref == "" {
 			continue
 		}
@@ -609,7 +613,7 @@ func captureListenerPolicyScopes(scope *resources.SyncScope, value any) {
 		if !ok {
 			continue
 		}
-		ref := stringValue(listener["ref"])
+		ref := stringValue(listener[resources.SchemaFieldRef])
 		if ref == "" {
 			continue
 		}
@@ -628,7 +632,7 @@ func captureOrganizationScope(scope *resources.SyncScope, raw map[string]any) {
 	if !ok {
 		return
 	}
-	if teams, ok := org["teams"]; ok {
+	if teams, ok := org[resources.SchemaFieldTeams]; ok {
 		scope.AddRoot(resources.ResourceTypeOrganizationTeam)
 		captureOrganizationTeamRoleScopes(scope, teams)
 	}
@@ -650,7 +654,7 @@ func captureOrganizationTeamRoleScopes(scope *resources.SyncScope, value any) {
 		if !ok {
 			continue
 		}
-		ref := stringValue(team["ref"])
+		ref := stringValue(team[resources.SchemaFieldRef])
 		if ref == "" {
 			continue
 		}

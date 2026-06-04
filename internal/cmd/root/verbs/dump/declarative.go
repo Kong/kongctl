@@ -34,11 +34,11 @@ type declarativeOptions struct {
 
 var declarativeAllowedResources = map[string]struct{}{
 	"portals":                     {},
-	"apis":                        {},
+	resourceAPIs:                  {},
 	"application_auth_strategies": {},
 	"dcr_providers":               {},
 	"control_planes":              {},
-	"analytics.dashboards":        {},
+	resourceAnalyticsDashboards:   {},
 	"event_gateways":              {},
 	"organization.teams":          {},
 }
@@ -72,7 +72,7 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
-			"analytics.dashboards, event_gateways, organization.teams).")
+			resourceAnalyticsDashboards+", event_gateways, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -98,7 +98,8 @@ func newDeclarativeCmd() *cobra.Command {
 - Default   : [ %s ]`,
 			konnectCommon.BaseURLConfigPath, konnectCommon.BaseURLDefault))
 
-	cmd.Flags().String(konnectCommon.RegionFlagName, "",
+	cmd.Flags().String(
+		konnectCommon.RegionFlagName, "",
 		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 			konnectCommon.BaseURLFlagName, konnectCommon.RegionConfigPath),
@@ -114,7 +115,8 @@ Setting this value overrides tokens obtained from the login command.
 		konnectCommon.RequestPageSizeFlagName,
 		konnectCommon.DefaultRequestPageSize,
 		fmt.Sprintf(`Max number of results to include per response page.
-- Config path: [ %s ]`, konnectCommon.RequestPageSizeConfigPath))
+- Config path: [ %s ]`, konnectCommon.RequestPageSizeConfigPath),
+	)
 
 	cmd.PreRunE = func(c *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(c, args)
@@ -227,7 +229,8 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 
 	requestPageSize := int64(cfg.GetIntOrElse(
 		konnectCommon.RequestPageSizeConfigPath,
-		konnectCommon.DefaultRequestPageSize))
+		konnectCommon.DefaultRequestPageSize,
+	))
 
 	for _, resource := range opts.resources {
 		switch resource {
@@ -242,7 +245,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				}
 			}
 			resourceSet.Portals = append(resourceSet.Portals, portals...)
-		case "apis":
+		case resourceAPIs:
 			apis, err := collectDeclarativeAPIs(ctx, sdk.GetAPIAPI(), requestPageSize, opts.filter)
 			if err != nil {
 				return err
@@ -282,7 +285,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				populateControlPlaneChildren(ctx, logger, stateClient, controlPlanes)
 			}
 			resourceSet.ControlPlanes = append(resourceSet.ControlPlanes, controlPlanes...)
-		case "analytics.dashboards":
+		case resourceAnalyticsDashboards:
 			dashboards, err := collectDeclarativeDashboards(ctx, sdk.GetDashboardsAPI(), requestPageSize, opts.filter)
 			if err != nil {
 				return err
@@ -633,7 +636,7 @@ func collectDeclarativeOrganizationTeams(
 		if filter.name != "" {
 			op, val := parseFilterName(filter.name)
 			nameFilter := &kkComps.LegacyStringFieldFilter{}
-			if op == "contains" {
+			if op == filterOpContains {
 				nameFilter.Contains = &val
 			} else {
 				nameFilter.Eq = &val
@@ -1129,7 +1132,7 @@ func collectDeclarativeControlPlanes(
 		if filter.name != "" {
 			op, val := parseFilterName(filter.name)
 			nameFilter := &kkComps.ControlPlaneFilterParametersName{}
-			if op == "contains" {
+			if op == filterOpContains {
 				nameFilter.Contains = &val
 			} else {
 				nameFilter.Eq = &val

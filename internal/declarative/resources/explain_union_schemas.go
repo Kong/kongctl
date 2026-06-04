@@ -87,7 +87,7 @@ func explainField(name string, node *ExplainNode, required, recommended bool) *E
 }
 
 func explainStringNode(literal string) *ExplainNode {
-	return &ExplainNode{Kind: "string", Literal: literal}
+	return &ExplainNode{Kind: explainKindString, Literal: literal}
 }
 
 func explainBoolNode(literal string) *ExplainNode {
@@ -95,7 +95,7 @@ func explainBoolNode(literal string) *ExplainNode {
 }
 
 func explainConstStringNode(value string) *ExplainNode {
-	return &ExplainNode{Kind: "string", Const: value, Literal: value, Enum: []any{value}}
+	return &ExplainNode{Kind: explainKindString, Const: value, Literal: value, Enum: []any{value}}
 }
 
 func explainRefField(name string, kind ResourceType, required bool) *ExplainField {
@@ -123,12 +123,17 @@ func stringsForResourceRef(kind ResourceType) string {
 func explainKongctlField() *ExplainField {
 	return explainField("kongctl", explainObject(
 		explainField("protected", &ExplainNode{Kind: "boolean", Nullable: true, Literal: "false"}, false, false),
-		explainField("namespace", &ExplainNode{Kind: "string", Nullable: true, Literal: "default"}, false, false),
+		explainField(
+			"namespace",
+			&ExplainNode{Kind: explainKindString, Nullable: true, Literal: "default"},
+			false,
+			false,
+		),
 	), false, false)
 }
 
 func explainResourceRefField() *ExplainField {
-	return explainField("ref", explainStringNode("my-resource"), true, true)
+	return explainField(SchemaFieldRef, explainStringNode("my-resource"), true, true)
 }
 
 func explainUnionNode(branches ...*ExplainNode) *ExplainNode {
@@ -362,7 +367,7 @@ func apiExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 
 func dashboardExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	hints := defaultExplainHints(ResourceTypeDashboard)
-	hints["name"] = ExplainFieldHint{DefaultFrom: "ref", Literal: "my-resource", Recommended: new(true)}
+	hints["name"] = ExplainFieldHint{DefaultFrom: SchemaFieldRef, Literal: "my-resource", Recommended: new(true)}
 
 	node, err := autoExplainConcreteNode[DashboardResource](hints)
 	if err != nil {
@@ -421,7 +426,12 @@ func dashboardQueryBranch(datasource string, metric string) *ExplainNode {
 		explainField("metrics", explainArrayOf(explainStringNode(metric)), false, true),
 		explainField("dimensions", explainArrayOf(explainStringNode("time")), false, true),
 		explainField("filters", explainArrayOf(dashboardFilterExplainNode()), false, false),
-		explainField("granularity", &ExplainNode{Kind: "string", Nullable: true, Literal: "hourly"}, false, false),
+		explainField(
+			"granularity",
+			&ExplainNode{Kind: explainKindString, Nullable: true, Literal: "hourly"},
+			false,
+			false,
+		),
 		explainField("time_range", dashboardTimeRangeExplainNode(), false, false),
 	)
 }
@@ -440,7 +450,12 @@ func dashboardChartExplainNode() *ExplainNode {
 
 func dashboardChartBranch(chartType string, stacked bool, decimalPoints bool) *ExplainNode {
 	fields := []*ExplainField{
-		explainField("chart_title", &ExplainNode{Kind: "string", Nullable: true, Literal: "Request count"}, false, true),
+		explainField(
+			"chart_title",
+			&ExplainNode{Kind: explainKindString, Nullable: true, Literal: "Request count"},
+			false,
+			true,
+		),
 		explainField("type", explainConstStringNode(chartType), true, true),
 	}
 	if stacked {
@@ -465,22 +480,27 @@ func dashboardChartBranch(chartType string, stacked bool, decimalPoints bool) *E
 func dashboardTimeRangeExplainNode() *ExplainNode {
 	return explainUnionNode(
 		explainObject(
-			explainField("tz", &ExplainNode{Kind: "string", Nullable: true, Literal: "Etc/UTC"}, false, false),
+			explainField("tz", &ExplainNode{Kind: explainKindString, Nullable: true, Literal: "Etc/UTC"}, false, false),
 			explainField("type", explainConstStringNode("relative"), true, true),
-			explainField("time_range", &ExplainNode{Kind: "string", Nullable: true, Literal: "1h"}, false, false),
+			explainField(
+				"time_range",
+				&ExplainNode{Kind: explainKindString, Nullable: true, Literal: "1h"},
+				false,
+				false,
+			),
 		),
 		explainObject(
-			explainField("tz", &ExplainNode{Kind: "string", Nullable: true, Literal: "Etc/UTC"}, false, false),
+			explainField("tz", &ExplainNode{Kind: explainKindString, Nullable: true, Literal: "Etc/UTC"}, false, false),
 			explainField("type", explainConstStringNode("absolute"), true, true),
 			explainField(
 				"start",
-				&ExplainNode{Kind: "string", Nullable: true, Literal: "2024-01-01T00:00:00Z"},
+				&ExplainNode{Kind: explainKindString, Nullable: true, Literal: "2024-01-01T00:00:00Z"},
 				false,
 				false,
 			),
 			explainField(
 				"end",
-				&ExplainNode{Kind: "string", Nullable: true, Literal: "2024-01-01T01:00:00Z"},
+				&ExplainNode{Kind: explainKindString, Nullable: true, Literal: "2024-01-01T01:00:00Z"},
 				false,
 				false,
 			),
@@ -498,7 +518,7 @@ func dashboardFilterExplainNode() *ExplainNode {
 
 func applicationAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	hints := defaultExplainHints(ResourceTypeApplicationAuthStrategy)
-	hints["name"] = ExplainFieldHint{DefaultFrom: "ref", Literal: "my-resource", Recommended: new(true)}
+	hints["name"] = ExplainFieldHint{DefaultFrom: SchemaFieldRef, Literal: "my-resource", Recommended: new(true)}
 	hints["dcr_provider_id"] = ExplainFieldHint{
 		PreferredTag: "!ref",
 		RefKind:      string(ResourceTypeDCRProvider),
@@ -542,7 +562,8 @@ func eventGatewayBackendClusterExplainNode(_ ExplainBuildContext) (*ExplainNode,
 	if err != nil {
 		return nil, err
 	}
-	auth := explainDiscriminatedUnion("type",
+	auth := explainDiscriminatedUnion(
+		"type",
 		explainVariant[kkComps.BackendClusterAuthenticationAnonymous]("type", "anonymous"),
 		explainVariant[kkComps.BackendClusterAuthenticationSaslPlain]("type", "sasl_plain"),
 		explainVariant[kkComps.BackendClusterAuthenticationSaslScram]("type", "sasl_scram"),
@@ -642,12 +663,17 @@ func eventGatewayListenerPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode,
 	if err != nil {
 		return nil, err
 	}
-	forwardConfig := explainDiscriminatedUnion("type",
+	forwardConfig := explainDiscriminatedUnion(
+		"type",
 		explainVariant[kkComps.ForwardToClusterByPortMappingConfig]("type", "port_mapping"),
 		explainVariant[kkComps.ForwardToClusterBySNIConfig]("type", "sni"),
 	)
 	for _, branch := range forwardConfig.OneOf {
-		explainReplacePath(branch, []string{"destination"}, explainReferenceUnion(ResourceTypeEventGatewayVirtualCluster))
+		explainReplacePath(
+			branch,
+			[]string{"destination"},
+			explainReferenceUnion(ResourceTypeEventGatewayVirtualCluster),
+		)
 	}
 	explainReplacePath(forward, []string{"config"}, forwardConfig)
 	explainReplacePath(
@@ -679,15 +705,17 @@ func portalIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, err
 	config := explainUnionNode(oidc, saml)
 	common := []*ExplainField{
 		explainResourceRefField(),
-		explainRefField("portal", ResourceTypePortal, false),
+		explainRefField(SchemaFieldPortal, ResourceTypePortal, false),
 		explainField("enabled", explainBoolNode("false"), false, false),
 		explainField("login_path", explainStringNode("/login"), false, false),
 	}
-	oidcBranch := explainObject(append(common,
+	oidcBranch := explainObject(append(
+		common,
 		explainField("type", explainConstStringNode("oidc"), true, true),
 		explainField("config", config.OneOf[0], true, true),
 	)...)
-	samlBranch := explainObject(append(common,
+	samlBranch := explainObject(append(
+		common,
 		explainField("type", explainConstStringNode("saml"), true, true),
 		explainField("config", config.OneOf[1], true, true),
 	)...)
@@ -699,7 +727,8 @@ func portalCustomDomainExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 	if err != nil {
 		return nil, err
 	}
-	ssl := explainDiscriminatedUnion("domain_verification_method",
+	ssl := explainDiscriminatedUnion(
+		"domain_verification_method",
 		explainVariant[kkComps.HTTP]("domain_verification_method", "http"),
 		explainVariant[kkComps.CustomCertificate]("domain_verification_method", "custom_certificate"),
 	)

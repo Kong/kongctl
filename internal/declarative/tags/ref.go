@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gopkg.in/yaml.v3" //nolint:gomodguard // yaml.v3 required for custom tag processing
+	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 )
 
 // RefPlaceholderPrefix is the special prefix for serialized placeholders

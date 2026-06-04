@@ -243,7 +243,7 @@ func (h listenersHandler) listListeners(
 		records,
 		listeners,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -470,7 +470,7 @@ func buildListenerChildView(listeners []kkComps.EventGatewayListener, gatewayID 
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        []string{"ID", tableHeaderName},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Listeners",

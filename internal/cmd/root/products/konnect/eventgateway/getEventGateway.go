@@ -27,6 +27,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	tableHeaderName = "NAME"
+	tableHeaderType = "TYPE"
+)
+
 var (
 	getEventGatewayControlPlanesShort = i18n.T(
 		"root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesShort",
@@ -335,7 +340,7 @@ func buildEventGatewayChildView(eventGatewayControlPlanes []kkComps.EventGateway
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        []string{"ID", tableHeaderName},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Event Gateways",

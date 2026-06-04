@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
 // ConsoleReporter provides console output for plan execution progress
@@ -151,7 +152,7 @@ func (r *ConsoleReporter) SkipChange(change planner.PlannedChange, reason string
 func buildChangeProgress(change planner.PlannedChange, index int) changeProgress {
 	namespace := change.Namespace
 	if namespace == "" {
-		namespace = "default"
+		namespace = planner.DefaultNamespace
 	}
 
 	return changeProgress{
@@ -200,7 +201,8 @@ func (r *ConsoleReporter) ensureNamespaceStats(namespace string) {
 
 func (r *ConsoleReporter) changePrefix(progress changeProgress) string {
 	if r.totalChanges > 0 {
-		return fmt.Sprintf("[%d/%d] [namespace: %s] %s %s: %s...",
+		return fmt.Sprintf(
+			"[%d/%d] [namespace: %s] %s %s: %s...",
 			progress.Index,
 			r.totalChanges,
 			progress.Namespace,
@@ -210,7 +212,8 @@ func (r *ConsoleReporter) changePrefix(progress changeProgress) string {
 		)
 	}
 
-	return fmt.Sprintf("• [namespace: %s] %s %s: %s...",
+	return fmt.Sprintf(
+		"• [namespace: %s] %s %s: %s...",
 		progress.Namespace,
 		progress.Action,
 		progress.ResourceType,
@@ -313,7 +316,7 @@ func formatResourceNameForProgress(change planner.PlannedChange) string {
 	resourceName := change.ResourceRef
 
 	// If resource ref is unknown, try to build a meaningful name from monikers
-	if resourceName == "[unknown]" && len(change.ResourceMonikers) > 0 {
+	if resourceName == resources.UnknownReferenceID && len(change.ResourceMonikers) > 0 {
 		switch change.ResourceType {
 		case planner.ResourceTypePortalPage:
 			if slug, ok := change.ResourceMonikers[planner.FieldSlug]; ok {
