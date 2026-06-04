@@ -216,8 +216,9 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 3
-                by_action.DELETE: 3
+                total_changes: 1
+                by_action.DELETE: 1
+                by_resource.event_gateway: 1
           - select: >-
               plan.changes[?resource_type=='event_gateway' &&
                             resource_ref=='{{ .vars.egwRef }}'] | [0]
