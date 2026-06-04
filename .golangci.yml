@@ -11,7 +11,7 @@ linters:
     - errorlint
     - exhaustive
     - goconst
-    - gomodguard
+    - gomodguard_v2
     - gosec
     - importas
     - lll
@@ -28,25 +28,26 @@ linters:
   settings:
     goconst:
       min-occurrences: 10
-    gomodguard:
+      ignore-string-values:
+        - "^n/a$"
+    gomodguard_v2:
       blocked:
-        modules:
-          - github.com/ghodss/yaml:
-              recommendations:
-                - sigs.k8s.io/yaml
-          - gopkg.in/yaml.v2:
-              recommendations:
-                - sigs.k8s.io/yaml
-          - gopkg.in/yaml.v3:
-              recommendations:
-                - sigs.k8s.io/yaml
-          - github.com/pkg/errors:
-              recommendations:
-                - fmt
-                - errors
-          - golang.org/x/net/context:
-              recommendations:
-                - context
+        - module: github.com/ghodss/yaml
+          recommendations:
+            - sigs.k8s.io/yaml
+        - module: gopkg.in/yaml.v2
+          recommendations:
+            - sigs.k8s.io/yaml
+        - module: gopkg.in/yaml.v3
+          recommendations:
+            - sigs.k8s.io/yaml
+        - module: github.com/pkg/errors
+          recommendations:
+            - fmt
+            - errors
+        - module: golang.org/x/net/context
+          recommendations:
+            - context
   exclusions:
     generated: lax
     presets:
@@ -55,6 +56,9 @@ linters:
       - legacy
       - std-error-handling
     rules:
+      - linters:
+          - goconst
+        path: _test\.go
       - linters:
           - gosec
         path: state/indexers/md5Indexer.*

@@ -18,9 +18,9 @@ func init() {
 
 // PortalIPAllowListResource represents a portal IP allow-list entry.
 type PortalIPAllowListResource struct {
-	Ref        string   `yaml:"ref"                 json:"ref"`
-	Portal     string   `yaml:"portal,omitempty"    json:"portal,omitempty"`
-	AllowedIPs []string `yaml:"allowed_ips"         json:"allowed_ips"`
+	Ref        string   `yaml:"ref"              json:"ref"`
+	Portal     string   `yaml:"portal,omitempty" json:"portal,omitempty"`
+	AllowedIPs []string `yaml:"allowed_ips"      json:"allowed_ips"`
 
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -75,7 +75,7 @@ func (l PortalIPAllowListResource) GetDependencies() []ResourceRef {
 
 func (l PortalIPAllowListResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{
-		"portal": "portal",
+		SchemaFieldPortal: string(ResourceTypePortal),
 	}
 }
 
@@ -108,10 +108,10 @@ func (l *PortalIPAllowListResource) UnmarshalJSON(data []byte) error {
 	}
 
 	allowedKeys := map[string]struct{}{
-		"ref":         {},
-		"portal":      {},
-		"allowed_ips": {},
-		"kongctl":     {},
+		SchemaFieldRef:    {},
+		SchemaFieldPortal: {},
+		"allowed_ips":     {},
+		"kongctl":         {},
 	}
 	for key := range raw {
 		if _, ok := allowedKeys[key]; !ok {

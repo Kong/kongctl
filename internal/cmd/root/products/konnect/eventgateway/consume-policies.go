@@ -356,7 +356,7 @@ func (h consumePoliciesHandler) listPolicies(
 		records,
 		outputData,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "TYPE"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName, tableHeaderType}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -624,7 +624,7 @@ func buildConsumePolicyChildView(policies []consumePolicyWithConfig) tableview.C
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME", "TYPE"},
+		Headers:        []string{"ID", tableHeaderName, tableHeaderType},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Consume Policies",

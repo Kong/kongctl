@@ -100,7 +100,7 @@ func (w PortalAuditLogWebhookResource) GetParentRef() *ResourceRef {
 
 func (w PortalAuditLogWebhookResource) GetReferenceFieldMappings() map[string]string {
 	mappings := map[string]string{
-		"portal": string(ResourceTypePortal),
+		SchemaFieldPortal: string(ResourceTypePortal),
 	}
 	if ref := auditLogDestinationRef(w.AuditLogDestinationID); ref != "" {
 		mappings["audit_log_destination_id"] = string(ResourceTypeAuditLogWebhookDestination)

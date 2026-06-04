@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3" //nolint:gomodguard // yaml.v3 required for custom tag processing
+	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 )
 
 // mockTagResolver is a mock implementation for testing

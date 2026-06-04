@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"gopkg.in/yaml.v3" //nolint:gomodguard // yaml.v3 required for custom tag inspection
+	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag inspection
 )
 
 func validateEnvTagStringFields(rawContent []byte) error {

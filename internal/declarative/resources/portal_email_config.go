@@ -58,7 +58,7 @@ func (c PortalEmailConfigResource) GetDependencies() []ResourceRef {
 // GetReferenceFieldMappings returns cross-resource reference mappings for validation.
 func (c PortalEmailConfigResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{
-		"portal": "portal",
+		SchemaFieldPortal: string(ResourceTypePortal),
 	}
 }
 

@@ -37,9 +37,9 @@ func (p PortalIdentityProviderResource) MarshalYAML() (any, error) {
 }
 
 type portalIdentityProviderAlias struct {
-	portalIdentityProviderCreateAlias `yaml:",inline"`
-	Ref                               string `json:"ref"              yaml:"ref"`
-	Portal                            string `json:"portal,omitempty" yaml:"portal,omitempty"`
+	portalIdentityProviderCreateAlias `       yaml:",inline"`
+	Ref                               string `yaml:"ref"              json:"ref"`
+	Portal                            string `yaml:"portal,omitempty" json:"portal,omitempty"`
 }
 
 type portalIdentityProviderCreateAlias kkComps.CreateIdentityProvider
@@ -149,13 +149,13 @@ func (p *PortalIdentityProviderResource) UnmarshalJSON(data []byte) error {
 	}
 
 	allowedKeys := map[string]struct{}{
-		"ref":        {},
-		"portal":     {},
-		"kongctl":    {},
-		"type":       {},
-		"enabled":    {},
-		"login_path": {},
-		"config":     {},
+		SchemaFieldRef:    {},
+		SchemaFieldPortal: {},
+		"kongctl":         {},
+		"type":            {},
+		"enabled":         {},
+		"login_path":      {},
+		"config":          {},
 	}
 	for key := range raw {
 		if _, ok := allowedKeys[key]; !ok {
@@ -165,13 +165,13 @@ func (p *PortalIdentityProviderResource) UnmarshalJSON(data []byte) error {
 
 	p.CreateIdentityProvider = kkComps.CreateIdentityProvider{}
 
-	if v, ok := raw["ref"]; ok {
+	if v, ok := raw[SchemaFieldRef]; ok {
 		if err := json.Unmarshal(v, &p.Ref); err != nil {
 			return err
 		}
 	}
 
-	if v, ok := raw["portal"]; ok {
+	if v, ok := raw[SchemaFieldPortal]; ok {
 		if err := json.Unmarshal(v, &p.Portal); err != nil {
 			return err
 		}

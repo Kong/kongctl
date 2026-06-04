@@ -252,7 +252,7 @@ func (h tlsTrustBundlesHandler) listTLSTrustBundles(
 		records,
 		bundles,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "DESCRIPTION"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName, "DESCRIPTION"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -468,7 +468,7 @@ func buildTLSTrustBundleChildView(bundles []kkComps.TLSTrustBundle) tableview.Ch
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME", "DESCRIPTION"},
+		Headers:        []string{"ID", tableHeaderName, "DESCRIPTION"},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "TLS Trust Bundles",

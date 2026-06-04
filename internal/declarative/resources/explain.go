@@ -14,6 +14,7 @@ const (
 	jsonSchemaDraft202012 = "https://json-schema.org/draft/2020-12/schema"
 	explainKindArray      = "array"
 	explainKindObject     = "object"
+	explainKindString     = "string"
 
 	explainResourceClassTopLevel = "top-level"
 	explainResourceClassChild    = "child"
@@ -176,7 +177,7 @@ var (
 	explainDocCacheMu sync.RWMutex
 
 	recommendedFieldNames = map[string]struct{}{
-		"ref":          {},
+		SchemaFieldRef: {},
 		"name":         {},
 		"display_name": {},
 		"description":  {},
@@ -322,7 +323,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}
 		if !doc.SupportsRoot && len(doc.ParentRelations) > 0 {
 			relation := doc.ParentRelations[0]
-			subject.ScaffoldSteps = append(subject.ScaffoldSteps,
+			subject.ScaffoldSteps = append(
+				subject.ScaffoldSteps,
 				ExplainScaffoldStep{Name: relation.ParentRootKey, Array: true},
 				ExplainScaffoldStep{Name: relation.FieldName, Array: relation.FieldArray},
 			)
@@ -412,7 +414,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 }
 
 func resolveOrganizationExplainSubject(path string, segments []string) (*ExplainSubject, error) {
-	if len(segments) < 2 || strings.TrimSpace(segments[1]) != "teams" {
+	if len(segments) < 2 || strings.TrimSpace(segments[1]) != SchemaFieldTeams {
 		return nil, fmt.Errorf("unsupported resource path %q", path)
 	}
 
@@ -431,10 +433,10 @@ func resolveOrganizationExplainSubject(path string, segments []string) (*Explain
 		Node:           teamDoc.Schema.clone(),
 		DisplayPath:    path,
 		ResourceTarget: true,
-		FieldPath:      []string{"teams"},
+		FieldPath:      []string{SchemaFieldTeams},
 		ScaffoldSteps: []ExplainScaffoldStep{
 			{Name: "organization"},
-			{Name: "teams", Array: true},
+			{Name: SchemaFieldTeams, Array: true},
 		},
 		ScaffoldTrail: []ExplainScaffoldNode{
 			{
@@ -442,7 +444,7 @@ func resolveOrganizationExplainSubject(path string, segments []string) (*Explain
 				Node: organizationNode,
 			},
 			{
-				Step: ExplainScaffoldStep{Name: "teams", Array: true},
+				Step: ExplainScaffoldStep{Name: SchemaFieldTeams, Array: true},
 				Node: teamDoc.Schema.clone(),
 			},
 		},
@@ -591,7 +593,7 @@ func applyOrganizationTeamScaffold(subject *ExplainSubject) error {
 
 	subject.ScaffoldSteps = []ExplainScaffoldStep{
 		{Name: "organization"},
-		{Name: "teams", Array: true},
+		{Name: SchemaFieldTeams, Array: true},
 	}
 	subject.ScaffoldTrail = []ExplainScaffoldNode{
 		{
@@ -599,7 +601,7 @@ func applyOrganizationTeamScaffold(subject *ExplainSubject) error {
 			Node: organizationNode,
 		},
 		{
-			Step: ExplainScaffoldStep{Name: "teams", Array: true},
+			Step: ExplainScaffoldStep{Name: SchemaFieldTeams, Array: true},
 			Node: subject.Doc.Schema.clone(),
 		},
 	}
@@ -785,11 +787,11 @@ func buildExplainSchema(rt ResourceType, reg ExplainRegistration) (*ExplainNode,
 
 func defaultExplainHints(rt ResourceType) map[string]ExplainFieldHint {
 	hints := make(map[string]ExplainFieldHint)
-	hints["ref"] = ExplainFieldHint{Recommended: new(true)}
+	hints[SchemaFieldRef] = ExplainFieldHint{Recommended: new(true)}
 
 	if hasBaseResource(rt) {
 		hints["name"] = ExplainFieldHint{
-			DefaultFrom: "ref",
+			DefaultFrom: SchemaFieldRef,
 			Recommended: new(true),
 		}
 	}
@@ -964,7 +966,7 @@ func autoExplainValueNode(
 		node.Kind = explainKindObject
 		node.Additional = child
 	case reflect.String:
-		node.Kind = "string"
+		node.Kind = explainKindString
 	case reflect.Bool:
 		node.Kind = "boolean"
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -994,7 +996,7 @@ func autoExplainValueNode(
 
 func recursiveExplainNode(typ reflect.Type) *ExplainNode {
 	return &ExplainNode{
-		Kind:        "object",
+		Kind:        explainKindObject,
 		Description: fmt.Sprintf("Recursive %s object", snakeCase(typ.Name())),
 		Notes: []string{
 			"schema recursion truncated after the first expansion",
@@ -1045,9 +1047,9 @@ func explainLiteralFor(node *ExplainNode, name string) string {
 		return fmt.Sprintf("!ref my-%s", strings.ReplaceAll(node.RefKind, "_", "-"))
 	}
 	switch node.Kind {
-	case "string":
+	case explainKindString:
 		switch name {
-		case "ref":
+		case SchemaFieldRef:
 			return "my-resource"
 		case "name":
 			return "my-resource"
@@ -1356,7 +1358,8 @@ func RenderScaffoldYAML(subject *ExplainSubject) (string, error) {
 		} else if len(subject.Doc.NestedRelations) > 0 {
 			relation := subject.Doc.NestedRelations[0]
 			if parentDoc, ok := explainDocByType(ResourceType(relation.ParentType)); ok {
-				trail = append(trail,
+				trail = append(
+					trail,
 					ExplainScaffoldNode{
 						Step: ExplainScaffoldStep{Name: relation.ParentRootKey, Array: true},
 						Node: parentDoc.Schema.clone(),
@@ -1394,7 +1397,7 @@ func renderScaffoldTrail(write scaffoldWriter, trail []ExplainScaffoldNode, dept
 	write(indent + current.Step.Name + ":")
 	omit := scaffoldOmitSet(current.Omit)
 	if len(trail) > 1 {
-		for field := range scaffoldFocusedOmitFields(current.Node, "ref", trail[1].Step.Name) {
+		for field := range scaffoldFocusedOmitFields(current.Node, SchemaFieldRef, trail[1].Step.Name) {
 			omit[field] = struct{}{}
 		}
 		omit[trail[1].Step.Name] = struct{}{}
@@ -1731,7 +1734,7 @@ func scaffoldLiteral(node *ExplainNode) string {
 		return node.Literal
 	}
 	switch node.Kind {
-	case "string", "integer", "number", "boolean":
+	case explainKindString, "integer", "number", "boolean":
 		return ""
 	case "array":
 		if node.Items != nil {
@@ -2138,8 +2141,8 @@ func scaffoldFocusedOmitFields(node *ExplainNode, keep ...string) map[string]str
 		}
 		keepSet[field] = struct{}{}
 	}
-	if _, ok := keepSet["ref"]; !ok && node.propertyExists("ref") {
-		keepSet["ref"] = struct{}{}
+	if _, ok := keepSet[SchemaFieldRef]; !ok && node.propertyExists(SchemaFieldRef) {
+		keepSet[SchemaFieldRef] = struct{}{}
 	}
 
 	omit := make(map[string]struct{}, len(node.Properties))

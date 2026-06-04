@@ -280,7 +280,7 @@ func (h virtualClustersHandler) listClusters(
 		records,
 		clusters,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "DNS LABEL"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName, "DNS LABEL"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -325,7 +325,7 @@ func (h virtualClustersHandler) listClustersByBackendCluster(
 		records,
 		filtered,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "DNS LABEL"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName, "DNS LABEL"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -502,7 +502,7 @@ func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster, gatewayID s
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME", "DNS LABEL"},
+		Headers:        []string{"ID", tableHeaderName, "DNS LABEL"},
 		Rows:           rows,
 		DetailRenderer: detailFn,
 		Title:          "Virtual Clusters",

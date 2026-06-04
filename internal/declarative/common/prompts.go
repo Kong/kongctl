@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
 // ConfirmExecution prompts for confirmation.
@@ -32,7 +33,7 @@ func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) 
 			if change.Action == planner.ActionDelete {
 				namespace := change.Namespace
 				if namespace == "" {
-					namespace = "default"
+					namespace = planner.DefaultNamespace
 				}
 				deletesByNamespace[namespace] = append(deletesByNamespace[namespace], change)
 			}
@@ -119,7 +120,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 	for _, change := range plan.Changes {
 		namespace := change.Namespace
 		if namespace == "" {
-			namespace = "default"
+			namespace = planner.DefaultNamespace
 		}
 
 		if !namespaceSeen[namespace] {
@@ -132,7 +133,8 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		}
 
 		changesByNamespace[namespace][change.ResourceType] = append(
-			changesByNamespace[namespace][change.ResourceType], change)
+			changesByNamespace[namespace][change.ResourceType], change,
+		)
 
 		// Count protected resource changes by type
 		if change.Action == planner.ActionCreate && willBeProtected(change) {
@@ -449,7 +451,7 @@ func formatResourceName(change planner.PlannedChange) string {
 	resourceName := change.ResourceRef
 
 	// If resource ref is unknown, try to build a meaningful name from monikers
-	if resourceName == "[unknown]" && len(change.ResourceMonikers) > 0 {
+	if resourceName == resources.UnknownReferenceID && len(change.ResourceMonikers) > 0 {
 		switch change.ResourceType {
 		case planner.ResourceTypePortalPage:
 			if slug, ok := change.ResourceMonikers["slug"]; ok {
@@ -520,7 +522,7 @@ func displaySummary(plan *planner.Plan, out io.Writer) {
 	for _, change := range plan.Changes {
 		namespace := change.Namespace
 		if namespace == "" {
-			namespace = "default"
+			namespace = planner.DefaultNamespace
 		}
 		namespaces[namespace] = true
 	}

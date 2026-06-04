@@ -253,7 +253,7 @@ func (h backendClustersHandler) listClusters(
 		records,
 		clusters,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -273,7 +273,7 @@ func buildBackendClusterChildView(clusters []kkComps.BackendCluster) tableview.C
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        []string{"ID", tableHeaderName},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Backend Clusters",

@@ -207,8 +207,11 @@ func RefreshAccessToken(
 	// set the state as a cookie
 	jar.SetCookies(cookieURL, []*http.Cookie{
 		{
-			Name:  "konnectrefreshtoken",
-			Value: refreshToken,
+			Name:     "konnectrefreshtoken",
+			Value:    refreshToken,
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteStrictMode,
 		},
 	})
 
@@ -286,7 +289,8 @@ func PollForToken(ctx context.Context, httpClient *http.Client,
 		return nil, err
 	}
 
-	request, err := http.NewRequestWithContext(ctx,
+	request, err := http.NewRequestWithContext(
+		ctx,
 		http.MethodPost,
 		url,
 		strings.NewReader(urlsValues.Encode()),

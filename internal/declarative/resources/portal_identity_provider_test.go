@@ -6,7 +6,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/require"
-	yamlv3 "gopkg.in/yaml.v3" //nolint:gomodguard // yaml.v3 required to exercise MarshalYAML directly
+	yamlv3 "gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required to exercise MarshalYAML directly
 	sigsyaml "sigs.k8s.io/yaml"
 )
 

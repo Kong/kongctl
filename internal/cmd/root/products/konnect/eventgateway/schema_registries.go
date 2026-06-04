@@ -272,7 +272,7 @@ func (h schemaRegistriesHandler) listSchemaRegistries(
 		records,
 		registries,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "TYPE"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName, tableHeaderType}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -528,7 +528,7 @@ func buildSchemaRegistryChildView(registries []schemaRegistryEntry) tableview.Ch
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME", "TYPE"},
+		Headers:        []string{"ID", tableHeaderName, tableHeaderType},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Schema Registries",

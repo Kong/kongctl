@@ -249,7 +249,7 @@ func (h staticKeysHandler) listStaticKeys(
 		records,
 		keys,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "DESCRIPTION"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName, "DESCRIPTION"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -464,7 +464,7 @@ func buildStaticKeyChildView(keys []kkComps.EventGatewayStaticKey) tableview.Chi
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME", "DESCRIPTION"},
+		Headers:        []string{"ID", tableHeaderName, "DESCRIPTION"},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Static Keys",

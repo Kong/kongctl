@@ -119,7 +119,8 @@ func (p *Planner) planAPIChanges(
 			current, exists := currentByName[desiredAPI.Name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
-					"api %q not found in Konnect, skipping delete", desiredAPI.Name))
+					"api %q not found in Konnect, skipping delete", desiredAPI.Name,
+				))
 				continue
 			}
 
@@ -748,7 +749,8 @@ func (p *Planner) planAPIChildResourceChanges(
 
 	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIImplementation) {
 		if err := p.planAPIImplementationChanges(
-			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
+			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan,
+		); err != nil {
 			return fmt.Errorf("failed to plan API implementation changes: %w", err)
 		}
 	}
@@ -830,7 +832,8 @@ func (p *Planner) planAPIVersionChanges(
 
 		// If there are extracted versions, skip deletion during child resource planning
 		if hasExtractedVersions && len(desired) == 0 {
-			p.logger.Debug("Skipping version deletion - extracted versions exist",
+			p.logger.Debug(
+				"Skipping version deletion - extracted versions exist",
 				slog.String("api", apiRef),
 				slog.Int("current_count", len(currentByVersion)),
 			)
@@ -844,7 +847,8 @@ func (p *Planner) planAPIVersionChanges(
 			}
 		}
 
-		p.logger.Debug("Sync mode: checking for versions to delete",
+		p.logger.Debug(
+			"Sync mode: checking for versions to delete",
 			slog.String("api", apiRef),
 			slog.Int("current_count", len(currentByVersion)),
 			slog.Int("desired_count", len(desiredVersions)),
@@ -852,7 +856,8 @@ func (p *Planner) planAPIVersionChanges(
 
 		for versionStr, current := range currentByVersion {
 			if !desiredVersions[versionStr] {
-				p.logger.Debug("Marking version for deletion",
+				p.logger.Debug(
+					"Marking version for deletion",
 					slog.String("api", apiRef),
 					slog.String("version", versionStr),
 					slog.String("version_id", current.ID),
@@ -922,7 +927,7 @@ func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID st
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypeAPIVersion, versionID),
 		ResourceType: ResourceTypeAPIVersion,
-		ResourceRef:  "[unknown]",
+		ResourceRef:  resources.UnknownReferenceID,
 		ResourceID:   versionID,
 		ResourceMonikers: map[string]string{
 			FieldVersion: versionStr,
@@ -967,7 +972,8 @@ func (p *Planner) planAPIPublicationChanges(
 	portalRefToID := make(map[string]string)
 	portalIDToRef := make(map[string]string) // Reverse mapping for deletion display
 
-	p.logger.Debug("Building portal reference mapping",
+	p.logger.Debug(
+		"Building portal reference mapping",
 		slog.Int("desired_portals", len(p.resources.Portals)),
 	)
 
@@ -976,7 +982,8 @@ func (p *Planner) planAPIPublicationChanges(
 		if resolvedID := portal.GetKonnectID(); resolvedID != "" {
 			portalRefToID[portal.Ref] = resolvedID
 			portalIDToRef[resolvedID] = portal.Ref
-			p.logger.Debug("Added desired portal to mapping",
+			p.logger.Debug(
+				"Added desired portal to mapping",
 				slog.String("ref", portal.Ref),
 				slog.String("id", resolvedID),
 			)
@@ -987,7 +994,8 @@ func (p *Planner) planAPIPublicationChanges(
 	// This handles cases where publications exist for portals not in current desired state
 	allPortals, err := p.listManagedPortals(ctx, namespaceFilter)
 	if err == nil {
-		p.logger.Debug("Fetched all managed portals",
+		p.logger.Debug(
+			"Fetched all managed portals",
 			slog.Int("count", len(allPortals)),
 		)
 		// Add any portals not already in the mapping
@@ -1007,7 +1015,8 @@ func (p *Planner) planAPIPublicationChanges(
 				if _, exists := portalRefToID[portalRef]; !exists {
 					portalRefToID[portalRef] = portal.ID
 				}
-				p.logger.Debug("Added existing portal to mapping",
+				p.logger.Debug(
+					"Added existing portal to mapping",
 					slog.String("name", portal.Name),
 					slog.String("ref", portalRef),
 					slog.String("id", portal.ID),
@@ -1015,7 +1024,8 @@ func (p *Planner) planAPIPublicationChanges(
 			}
 		}
 	} else {
-		p.logger.Debug("Failed to fetch managed portals",
+		p.logger.Debug(
+			"Failed to fetch managed portals",
 			slog.String("error", err.Error()),
 		)
 	}
@@ -1040,7 +1050,8 @@ func (p *Planner) planAPIPublicationChanges(
 
 		current, exists := currentByPortal[resolvedPortalID]
 
-		p.logger.Debug("Checking publication existence",
+		p.logger.Debug(
+			"Checking publication existence",
 			slog.String("api", apiRef),
 			slog.String("portal_ref", desiredPub.PortalID),
 			slog.String("resolved_portal_id", resolvedPortalID),
@@ -1054,7 +1065,8 @@ func (p *Planner) planAPIPublicationChanges(
 			// Check if update needed - publications use PUT which supports both create/update
 			needsUpdate, updateFields, changedFields := p.shouldUpdateAPIPublication(current, desiredPub)
 			if needsUpdate {
-				p.logger.Debug("API publication needs update",
+				p.logger.Debug(
+					"API publication needs update",
 					slog.String("api", apiRef),
 					slog.String("portal", desiredPub.PortalID),
 					slog.Any("fields", updateFields),
@@ -1088,7 +1100,8 @@ func (p *Planner) planAPIPublicationChanges(
 		// If there are extracted publications, skip deletion during child resource planning
 		// The extracted publications will handle deletion properly when they are processed
 		if hasExtractedPublications && len(desired) == 0 {
-			p.logger.Debug("Skipping publication deletion - extracted publications exist",
+			p.logger.Debug(
+				"Skipping publication deletion - extracted publications exist",
 				slog.String("api", apiRef),
 				slog.Int("current_count", len(currentByPortal)),
 			)
@@ -1110,14 +1123,16 @@ func (p *Planner) planAPIPublicationChanges(
 				resolvedPortalID = id
 			}
 			desiredPortals[resolvedPortalID] = true
-			p.logger.Debug("Added to desired portals for sync",
+			p.logger.Debug(
+				"Added to desired portals for sync",
 				slog.String("api", apiRef),
 				slog.String("portal_ref", pub.PortalID),
 				slog.String("resolved_portal_id", resolvedPortalID),
 			)
 		}
 
-		p.logger.Debug("Sync mode: checking for publications to delete",
+		p.logger.Debug(
+			"Sync mode: checking for publications to delete",
 			slog.String("api", apiRef),
 			slog.Int("current_count", len(currentByPortal)),
 			slog.Int("desired_count", len(desiredPortals)),
@@ -1125,7 +1140,8 @@ func (p *Planner) planAPIPublicationChanges(
 
 		for portalID := range currentByPortal {
 			if !desiredPortals[portalID] {
-				p.logger.Debug("Marking publication for deletion",
+				p.logger.Debug(
+					"Marking publication for deletion",
 					slog.String("api", apiRef),
 					slog.String("portal_id", portalID),
 					slog.Bool("in_desired", desiredPortals[portalID]),
@@ -1490,7 +1506,8 @@ func (p *Planner) planAPIImplementationChanges(
 		return fmt.Errorf("failed to list current API implementations: %w", err)
 	}
 
-	p.logger.Debug("Planning api_implementation changes",
+	p.logger.Debug(
+		"Planning api_implementation changes",
 		slog.String("api_ref", apiRef),
 		slog.String("api_id", apiID),
 		slog.Int("desired_count", len(desired)),
@@ -1510,7 +1527,8 @@ func (p *Planner) planAPIImplementationChanges(
 			currentMissingService++
 		}
 	}
-	p.logger.Debug("Indexed current api_implementations by service",
+	p.logger.Debug(
+		"Indexed current api_implementations by service",
 		slog.String("api_ref", apiRef),
 		slog.Int("current_with_service", currentWithService),
 		slog.Int("current_missing_service", currentMissingService),
@@ -1524,7 +1542,8 @@ func (p *Planner) planAPIImplementationChanges(
 		if service := desiredImpl.ServiceReference.GetService(); service != nil {
 			key := fmt.Sprintf("%s:%s", service.ID, service.ControlPlaneID)
 			if _, exists := currentByService[key]; !exists {
-				p.logger.Debug("Planning api_implementation CREATE (service not found)",
+				p.logger.Debug(
+					"Planning api_implementation CREATE (service not found)",
 					slog.String("api_ref", apiRef),
 					slog.String("api_implementation_ref", desiredImpl.GetRef()),
 					slog.String("service_key", key),
@@ -1533,7 +1552,8 @@ func (p *Planner) planAPIImplementationChanges(
 			}
 			// Note: Implementation IDs are managed by the SDK
 		} else {
-			p.logger.Debug("Desired api_implementation missing service reference; skipping match",
+			p.logger.Debug(
+				"Desired api_implementation missing service reference; skipping match",
 				slog.String("api_ref", apiRef),
 				slog.String("api_implementation_ref", desiredImpl.GetRef()),
 			)
@@ -1553,7 +1573,8 @@ func (p *Planner) planAPIImplementationChanges(
 
 		// If there are extracted implementations, skip deletion during child resource planning
 		if hasExtractedImplementations && len(desired) == 0 {
-			p.logger.Debug("Skipping implementation deletion - extracted implementations exist",
+			p.logger.Debug(
+				"Skipping implementation deletion - extracted implementations exist",
 				slog.String("api", apiRef),
 				slog.Int("current_count", len(currentByService)),
 			)
@@ -1568,7 +1589,8 @@ func (p *Planner) planAPIImplementationChanges(
 			}
 		}
 
-		p.logger.Debug("Sync mode api_implementation pruning",
+		p.logger.Debug(
+			"Sync mode api_implementation pruning",
 			slog.String("api_ref", apiRef),
 			slog.Int("desired_services", len(desiredServices)),
 			slog.Int("current_services", len(currentByService)),
@@ -1576,7 +1598,8 @@ func (p *Planner) planAPIImplementationChanges(
 
 		for serviceKey, current := range currentByService {
 			if !desiredServices[serviceKey] {
-				p.logger.Debug("Planning api_implementation DELETE (service not desired)",
+				p.logger.Debug(
+					"Planning api_implementation DELETE (service not desired)",
 					slog.String("api_ref", apiRef),
 					slog.String("service_key", serviceKey),
 					slog.String("implementation_id", current.ID),
@@ -2074,7 +2097,7 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypeAPIDocument, documentID),
 		ResourceType: ResourceTypeAPIDocument,
-		ResourceRef:  "[unknown]",
+		ResourceRef:  resources.UnknownReferenceID,
 		ResourceID:   documentID,
 		ResourceMonikers: map[string]string{
 			FieldSlug:    path,

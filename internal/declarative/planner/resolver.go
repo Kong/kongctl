@@ -73,7 +73,7 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 				if _, inPlan := createdResources[resourceType][targetRef]; inPlan {
 					changeRefs[fieldName] = ResolvedReference{
 						Ref: ref,
-						ID:  "[unknown]", // Will be resolved at execution
+						ID:  resources.UnknownReferenceID, // Will be resolved at execution
 					}
 				} else {
 					// Resolve from existing resources
@@ -81,7 +81,8 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 					if err != nil {
 						result.Errors = append(result.Errors, fmt.Errorf(
 							"change %s: failed to resolve %s reference %q: %w",
-							change.ID, resourceType, ref, err))
+							change.ID, resourceType, ref, err,
+						))
 						continue
 					}
 					changeRefs[fieldName] = ResolvedReference{
@@ -216,7 +217,7 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 				konnectID := resource.GetKonnectID()
 				if konnectID == "" {
 					// Resource exists but no Konnect ID (will be created)
-					return "[unknown]", nil // Trigger forward reference
+					return resources.UnknownReferenceID, nil // Trigger forward reference
 				}
 				return konnectID, nil
 			}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"gopkg.in/yaml.v3" //nolint:gomodguard // yaml.v3 required for custom tag processing
+	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 )
 
 // ResolverRegistry manages tag resolvers and processes YAML with custom tags

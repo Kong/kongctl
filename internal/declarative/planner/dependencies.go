@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
@@ -275,7 +276,7 @@ func (d *DependencyResolver) findImplicitDependencies(change PlannedChange, allC
 
 func unresolvedReferenceID(id string) bool {
 	trimmed := strings.TrimSpace(id)
-	return trimmed == "" || trimmed == "[unknown]"
+	return trimmed == "" || trimmed == resources.UnknownReferenceID
 }
 
 // findParentChange finds the change that creates the parent resource
