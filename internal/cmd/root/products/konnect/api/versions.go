@@ -45,9 +45,9 @@ type apiVersionDetailRecord struct {
 	RawID            string
 	Version          string
 	SpecType         string
-	SpecContent      string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+	specContent      string
 }
 
 type apiVersionContentContext struct {
@@ -443,7 +443,7 @@ func versionDetailToRecord(version *kkComps.APIVersionResponse) apiVersionDetail
 		RawID:    strings.TrimSpace(version.GetID()),
 		Version:  version.GetVersion(),
 		SpecType: specType,
-		SpecContent: func() string {
+		specContent: func() string {
 			if version.GetSpec() != nil && version.GetSpec().GetContent() != nil {
 				return normalizeAPIVersionContent(*version.GetSpec().GetContent())
 			}
@@ -488,7 +488,7 @@ func versionSummaryDetailView(
 
 	fmt.Fprintf(&b, "spec: %s (press enter to view)", apiVersionSpecIndicator)
 	if detail != nil {
-		if preview := previewAPIVersionContent(detail.SpecContent, apiVersionSpecPreviewLimit); preview != "" {
+		if preview := previewAPIVersionContent(detail.specContent, apiVersionSpecPreviewLimit); preview != "" {
 			fmt.Fprintf(&b, " %s", preview)
 		}
 	}
@@ -518,7 +518,7 @@ func apiVersionDetailView(record apiVersionDetailRecord) string {
 	}
 
 	fmt.Fprintf(&b, "spec: %s (press enter to view)", apiVersionSpecIndicator)
-	if preview := previewAPIVersionContent(record.SpecContent, apiVersionSpecPreviewLimit); preview != "" {
+	if preview := previewAPIVersionContent(record.specContent, apiVersionSpecPreviewLimit); preview != "" {
 		fmt.Fprintf(&b, " %s", preview)
 	}
 	fmt.Fprintln(&b)
@@ -648,7 +648,7 @@ func loadAPIVersionSpec(_ context.Context, helper cmd.Helper, parent any) (table
 }
 
 func renderAPIVersionSpecMarkdown(record apiVersionDetailRecord) string {
-	content, language := formatAPIVersionSpecContent(record.SpecContent)
+	content, language := formatAPIVersionSpecContent(record.specContent)
 	specType := strings.TrimSpace(record.SpecType)
 	if specType == "" {
 		specType = valueNA

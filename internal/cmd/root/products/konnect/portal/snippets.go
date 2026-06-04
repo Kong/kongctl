@@ -47,9 +47,9 @@ type portalSnippetDetailRecord struct {
 	Visibility       string
 	Status           string
 	Description      string
-	Content          string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+	content          string
 	rawID            string
 }
 
@@ -433,9 +433,9 @@ func portalSnippetDetailToRecord(snippet *kkComps.PortalSnippetResponse) portalS
 		Visibility:       string(snippet.GetVisibility()),
 		Status:           string(snippet.GetStatus()),
 		Description:      formatOptionalString(snippet.GetDescription()),
-		Content:          content,
 		LocalCreatedTime: formatTime(snippet.GetCreatedAt()),
 		LocalUpdatedTime: formatTime(snippet.GetUpdatedAt()),
+		content:          content,
 		rawID:            strings.TrimSpace(snippet.GetID()),
 	}
 	return record
@@ -505,7 +505,7 @@ func portalSnippetInfoDetail(snippet kkComps.PortalSnippetInfo, detail *portalSn
 
 	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
 	if detail != nil {
-		if preview := previewPortalPageContent(detail.Content); preview != "" {
+		if preview := previewPortalPageContent(detail.content); preview != "" {
 			fmt.Fprintf(&b, " %s", preview)
 		}
 	}
@@ -552,7 +552,7 @@ func portalSnippetDetailView(record portalSnippetDetailRecord) string {
 	}
 
 	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
-	if preview := previewPortalPageContent(record.Content); preview != "" {
+	if preview := previewPortalPageContent(record.content); preview != "" {
 		fmt.Fprintf(&b, " %s", preview)
 	}
 	fmt.Fprintln(&b)
@@ -580,7 +580,7 @@ func loadPortalSnippetContent(ctx context.Context, helper cmd.Helper, parent any
 		record = detail
 	}
 
-	raw := normalizePortalPageContent(record.Content)
+	raw := normalizePortalPageContent(record.content)
 	if strings.TrimSpace(raw) == "" {
 		raw = "(content is empty)"
 	}
