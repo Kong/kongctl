@@ -1,0 +1,32 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-diff-test
+
+event_gateways:
+  - ref: egw-diff-test
+    name: egw-diff-test
+    description: "EGW for diff scenario test"
+    backend_clusters:
+      - ref: diff-backend-cluster
+        name: diff-backend-cluster
+        description: "Backend Cluster for diff test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: diff-virtual-cluster
+        name: diff-virtual-cluster
+        description: "Virtual Cluster for diff test"
+        destination:
+          id: !ref diff-backend-cluster#id
+        authentication:
+          - type: anonymous
+        acl_mode: passthrough
+        dns_label: vc-diff
