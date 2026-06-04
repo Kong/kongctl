@@ -89,7 +89,7 @@ func TestAdoptPortalAssignsNamespaceLabel(t *testing.T) {
 		},
 	}
 
-	result, err := adoptPortal(helper, portal, stubConfig{pageSize: 50}, "team-alpha", portal.fetchResponse.ID)
+	result, err := adoptPortal(helper, portal, stubConfig{pageSize: 50}, "team-alpha", false, portal.fetchResponse.ID)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "portal", result.ResourceType)
@@ -119,7 +119,7 @@ func TestAdoptPortalRejectsExistingNamespace(t *testing.T) {
 		},
 	}
 
-	_, err := adoptPortal(helper, portal, stubConfig{pageSize: 50}, "team-alpha", portal.fetchResponse.ID)
+	_, err := adoptPortal(helper, portal, stubConfig{pageSize: 50}, "team-alpha", false, portal.fetchResponse.ID)
 	assert.Error(t, err)
 	var cfgErr *cmd.ConfigurationError
 	assert.ErrorAs(t, err, &cfgErr)
@@ -142,10 +142,36 @@ func TestAdoptPortalDefaultsPageSize(t *testing.T) {
 		},
 	}
 
-	result, err := adoptPortal(helper, portal, stubConfig{pageSize: 0}, "default", portal.fetchResponse.ID)
+	result, err := adoptPortal(helper, portal, stubConfig{pageSize: 0}, "default", false, portal.fetchResponse.ID)
 	assert.NoError(t, err)
 	assert.Equal(t, "default", result.Namespace)
 	assert.Equal(t, 1, portal.updateCalls)
+
+	helper.AssertExpectations(t)
+}
+
+func TestAdoptPortalOverwritesExistingNamespace(t *testing.T) {
+	helper := new(cmd.MockHelper)
+	helper.EXPECT().GetContext().Return(context.Background())
+
+	portal := &portalAPIStub{
+		t: t,
+		fetchResponse: &kkComps.PortalResponse{
+			ID:   "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
+			Name: "dev-portal",
+			Labels: map[string]string{
+				"team":              "platform",
+				labels.NamespaceKey: "existing",
+			},
+		},
+	}
+
+	result, err := adoptPortal(helper, portal, stubConfig{pageSize: 50}, "team-alpha", true, portal.fetchResponse.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, "team-alpha", result.Namespace)
+	assert.Equal(t, 1, portal.updateCalls)
+	assert.Equal(t, "platform", derefString(portal.lastUpdate.Labels["team"]))
+	assert.Equal(t, "team-alpha", derefString(portal.lastUpdate.Labels[labels.NamespaceKey]))
 
 	helper.AssertExpectations(t)
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/labels"
-	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/pagination"
@@ -54,22 +53,12 @@ func NewEventGatewayControlPlaneCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
-		return nil, err
-	}
-
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
+		adoptFlags, err := adoptCommon.ReadAdoptFlags(cobraCmd)
 		if err != nil {
 			return err
-		}
-
-		nsValidator := validator.NewNamespaceValidator()
-		if err := nsValidator.ValidateNamespace(namespace); err != nil {
-			return &cmdpkg.ConfigurationError{Err: err}
 		}
 
 		outType, err := helper.GetOutputFormat()
@@ -96,7 +85,8 @@ func NewEventGatewayControlPlaneCmd(
 			helper,
 			sdk.GetEventGatewayControlPlaneAPI(),
 			cfg,
-			namespace,
+			adoptFlags.Namespace,
+			adoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
 		if err != nil {
@@ -136,6 +126,7 @@ func adoptEventGatewayControlPlane(
 	egwClient helpers.EGWControlPlaneAPI,
 	cfg config.Hook,
 	namespace string,
+	overwriteNamespace bool,
 	identifier string,
 ) (*adoptCommon.AdoptResult, error) {
 	egw, err := resolveEventGatewayControlPlane(helper, egwClient, cfg, identifier)
@@ -143,7 +134,7 @@ func adoptEventGatewayControlPlane(
 		return nil, err
 	}
 
-	if existing := egw.Labels; existing != nil {
+	if existing := egw.Labels; existing != nil && !overwriteNamespace {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
 				Err: fmt.Errorf(

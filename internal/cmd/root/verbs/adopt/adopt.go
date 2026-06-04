@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
@@ -23,11 +24,15 @@ var (
 	adoptShort = i18n.T("root.verbs.adopt.adoptShort", "Adopt existing resources into declarative management")
 
 	adoptLong = normalizers.LongDesc(i18n.T("root.verbs.adopt.adoptLong",
-		`Apply the KONGCTL-namespace label to existing Konnect resources so they become managed by kongctl.`))
+		"Apply the KONGCTL-namespace label to existing Konnect resources so they become managed by kongctl.\n"+
+			"By default, adopt refuses to replace an existing namespace label. Use --overwrite-namespace "+
+			"to explicitly move an already adopted resource to the provided --namespace value."))
 
 	adoptExamples = normalizers.Examples(i18n.T("root.verbs.adopt.adoptExamples",
 		fmt.Sprintf(`  # Adopt a portal by name into the "team-alpha" namespace
   %[1]s adopt portal my-portal --namespace team-alpha
+  # Move an already adopted portal to a different namespace
+  %[1]s adopt --namespace platform --overwrite-namespace portal my-portal
   # Adopt a control plane by ID
   %[1]s adopt control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace platform
   # Adopt a dashboard by ID
@@ -58,7 +63,8 @@ func NewAdoptCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 			common.BaseURLConfigPath, common.BaseURLDefault))
 
-	cmd.PersistentFlags().String(common.RegionFlagName, "",
+	cmd.PersistentFlags().String(
+		common.RegionFlagName, "",
 		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 			common.BaseURLFlagName, common.RegionConfigPath),
@@ -69,6 +75,10 @@ func NewAdoptCmd() (*cobra.Command, error) {
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 			common.PATConfigPath))
+
+	if err := adoptCommon.AddAdoptFlags(cmd); err != nil {
+		return nil, err
+	}
 
 	konnectCmd, err := konnect.NewKonnectCmd(Verb)
 	if err != nil {

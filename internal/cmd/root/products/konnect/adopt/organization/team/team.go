@@ -11,7 +11,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/labels"
-	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/segmentio/cli"
@@ -52,22 +51,12 @@ func NewTeamCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
-		return nil, err
-	}
-
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
+		adoptFlags, err := adoptCommon.ReadAdoptFlags(cobraCmd)
 		if err != nil {
 			return err
-		}
-
-		nsValidator := validator.NewNamespaceValidator()
-		if err := nsValidator.ValidateNamespace(namespace); err != nil {
-			return &cmdpkg.ConfigurationError{Err: err}
 		}
 
 		outType, err := helper.GetOutputFormat()
@@ -90,7 +79,14 @@ func NewTeamCmd(
 			return err
 		}
 
-		result, err := adoptTeam(helper, sdk.GetOrganizationTeamAPI(), cfg, namespace, strings.TrimSpace(args[0]))
+		result, err := adoptTeam(
+			helper,
+			sdk.GetOrganizationTeamAPI(),
+			cfg,
+			adoptFlags.Namespace,
+			adoptFlags.OverwriteNamespace,
+			strings.TrimSpace(args[0]),
+		)
 		if err != nil {
 			return err
 		}
@@ -128,6 +124,7 @@ func adoptTeam(
 	teamAPI helpers.OrganizationTeamAPI,
 	cfg config.Hook,
 	namespace string,
+	overwriteNamespace bool,
 	identifier string,
 ) (*adoptCommon.AdoptResult, error) {
 	team, err := resolveTeam(helper, teamAPI, cfg, identifier)
@@ -135,7 +132,7 @@ func adoptTeam(
 		return nil, err
 	}
 
-	if existing := team.Labels; existing != nil {
+	if existing := team.Labels; existing != nil && !overwriteNamespace {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
 				Err: fmt.Errorf("team %q already has namespace label %q", util.GetString(team.Name), currentNamespace),

@@ -4,7 +4,7 @@ control_planes:
     description: "Adopt Scenario Control Plane"
     cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
     kongctl:
-      namespace: team-e2e
+      namespace: team-e2e-overwrite
       protected: false
 
 portals:
@@ -12,7 +12,7 @@ portals:
     name: adopt-e2e-portal
     display_name: "Adopt Scenario Portal"
     kongctl:
-      namespace: team-e2e
+      namespace: team-e2e-overwrite
       protected: false
 
 apis:
@@ -20,5 +20,5 @@ apis:
     name: adopt-e2e-api
     description: "Adopt Scenario API"
     kongctl:
-      namespace: team-e2e
+      namespace: team-e2e-overwrite
       protected: false

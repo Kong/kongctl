@@ -1,5 +1,5 @@
 _defaults:
   kongctl:
-    namespace: "egw-adopt-e2e"
+    namespace: "egw-adopt-e2e-overwrite"
 
 event_gateways: []

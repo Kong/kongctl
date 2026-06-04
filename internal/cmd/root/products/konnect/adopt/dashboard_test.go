@@ -116,7 +116,7 @@ func TestAdoptDashboardAssignsNamespace(t *testing.T) {
 		},
 	}
 
-	result, err := adoptDashboard(helper, stub, stubConfig{pageSize: 50}, "team-alpha", "API Summary")
+	result, err := adoptDashboard(helper, stub, stubConfig{pageSize: 50}, "team-alpha", false, "API Summary")
 	require.NoError(t, err)
 	assert.Equal(t, "dashboard", result.ResourceType)
 	assert.Equal(t, id, result.ID)
@@ -149,11 +149,41 @@ func TestAdoptDashboardRejectsExistingNamespace(t *testing.T) {
 		},
 	}
 
-	_, err := adoptDashboard(helper, stub, stubConfig{pageSize: 50}, "team-alpha", "API Summary")
+	_, err := adoptDashboard(helper, stub, stubConfig{pageSize: 50}, "team-alpha", false, "API Summary")
 	assert.Error(t, err)
 	var cfgErr *cmd.ConfigurationError
 	assert.ErrorAs(t, err, &cfgErr)
 	assert.Empty(t, stub.updateID)
+
+	helper.AssertExpectations(t)
+}
+
+func TestAdoptDashboardOverwritesExistingNamespace(t *testing.T) {
+	helper := new(cmd.MockHelper)
+	helper.EXPECT().GetContext().Return(context.Background()).Times(2)
+
+	id := "22cd8a0b-72e7-4212-9099-0764f8e9c5ac"
+	stub := &adoptDashboardAPIStub{
+		t: t,
+		dashboards: []kkComps.DashboardResponse{
+			{
+				ID:         &id,
+				Name:       "API Summary",
+				Definition: kkComps.Dashboard{Tiles: []kkComps.Tile{}},
+				Labels: map[string]string{
+					"team":              "platform",
+					labels.NamespaceKey: "existing",
+				},
+			},
+		},
+	}
+
+	result, err := adoptDashboard(helper, stub, stubConfig{pageSize: 50}, "team-alpha", true, "API Summary")
+	require.NoError(t, err)
+	assert.Equal(t, "team-alpha", result.Namespace)
+	assert.Equal(t, id, stub.updateID)
+	assert.Equal(t, "platform", stub.lastUpdate.Labels["team"])
+	assert.Equal(t, "team-alpha", stub.lastUpdate.Labels[labels.NamespaceKey])
 
 	helper.AssertExpectations(t)
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/labels"
-	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/segmentio/cli"
@@ -53,22 +52,12 @@ func NewAuthStrategyCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
-		return nil, err
-	}
-
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
+		adoptFlags, err := adoptCommon.ReadAdoptFlags(cobraCmd)
 		if err != nil {
 			return err
-		}
-
-		nsValidator := validator.NewNamespaceValidator()
-		if err := nsValidator.ValidateNamespace(namespace); err != nil {
-			return &cmdpkg.ConfigurationError{Err: err}
 		}
 
 		outType, err := helper.GetOutputFormat()
@@ -95,7 +84,8 @@ func NewAuthStrategyCmd(
 			helper,
 			sdk.GetAppAuthStrategiesAPI(),
 			cfg,
-			namespace,
+			adoptFlags.Namespace,
+			adoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
 		if err != nil {
@@ -135,6 +125,7 @@ func adoptAuthStrategy(
 	api helpers.AppAuthStrategiesAPI,
 	cfg config.Hook,
 	namespace string,
+	overwriteNamespace bool,
 	identifier string,
 ) (*adoptCommon.AdoptResult, error) {
 	strategy, err := resolveAuthStrategy(helper, api, cfg, identifier)
@@ -149,7 +140,7 @@ func adoptAuthStrategy(
 		}
 	}
 
-	if existingLabels != nil {
+	if existingLabels != nil && !overwriteNamespace {
 		if currentNamespace, ok := existingLabels[labels.NamespaceKey]; ok && currentNamespace != "" {
 			display := name
 			if display == "" {
@@ -291,7 +282,8 @@ func convertKeyAuthResponseToStrategy(key *kkComps.AppAuthStrategyKeyAuthRespons
 			Name:        key.Name,
 			DisplayName: key.DisplayName,
 			StrategyType: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyStrategyType(
-				key.StrategyType),
+				key.StrategyType,
+			),
 			Configs: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyConfigs{
 				KeyAuth: key.Configs.KeyAuth,
 			},
@@ -327,7 +319,8 @@ func convertOpenIDConnectResponseToStrategy(
 			Name:        oidc.Name,
 			DisplayName: oidc.DisplayName,
 			StrategyType: kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyStrategyType(
-				oidc.StrategyType),
+				oidc.StrategyType,
+			),
 			Configs: kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyConfigs{
 				OpenidConnect: oidc.Configs.OpenidConnect,
 			},

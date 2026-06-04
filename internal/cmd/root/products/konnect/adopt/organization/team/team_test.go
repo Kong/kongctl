@@ -91,7 +91,7 @@ func TestAdoptTeamAssignsNamespaceLabel(t *testing.T) {
 		},
 	}
 
-	result, err := adoptTeam(helper, stub, nil, "team-alpha", testTeamID)
+	result, err := adoptTeam(helper, stub, nil, "team-alpha", false, testTeamID)
 	assert.NoError(t, err)
 	assert.Equal(t, "organization_team", result.ResourceType)
 	assert.Equal(t, testTeamID, result.ID)
@@ -119,7 +119,7 @@ func TestAdoptTeamRejectsExistingNamespace(t *testing.T) {
 		},
 	}
 
-	_, err := adoptTeam(helper, stub, nil, "team-alpha", testTeamID)
+	_, err := adoptTeam(helper, stub, nil, "team-alpha", false, testTeamID)
 	assert.Error(t, err)
 	var cfgErr *cmd.ConfigurationError
 	assert.ErrorAs(t, err, &cfgErr)
@@ -145,7 +145,7 @@ func TestAdoptTeamWithExistingLabels(t *testing.T) {
 		},
 	}
 
-	result, err := adoptTeam(helper, stub, nil, "team-alpha", testTeamID)
+	result, err := adoptTeam(helper, stub, nil, "team-alpha", false, testTeamID)
 	assert.NoError(t, err)
 	assert.Equal(t, "organization_team", result.ResourceType)
 	assert.Equal(t, testTeamID, result.ID)
@@ -158,6 +158,33 @@ func TestAdoptTeamWithExistingLabels(t *testing.T) {
 	assert.Equal(t, "us-west", *stub.lastUpdate.Labels["region"])
 	assert.Equal(t, "api", *stub.lastUpdate.Labels["component"])
 	// Namespace label should be added
+	assert.Equal(t, "team-alpha", *stub.lastUpdate.Labels[labels.NamespaceKey])
+
+	helper.AssertExpectations(t)
+}
+
+func TestAdoptTeamOverwritesExistingNamespace(t *testing.T) {
+	helper := new(cmd.MockHelper)
+	helper.EXPECT().GetContext().Return(context.Background())
+
+	stub := &teamAPIStub{
+		t: t,
+		team: &kkComps.Team{
+			ID:   &testTeamID,
+			Name: &testTeamName,
+			Labels: map[string]string{
+				"env":               "prod",
+				labels.NamespaceKey: "existing",
+			},
+		},
+	}
+
+	result, err := adoptTeam(helper, stub, nil, "team-alpha", true, testTeamID)
+	assert.NoError(t, err)
+	assert.Equal(t, "team-alpha", result.Namespace)
+	assert.Equal(t, 1, stub.updateCall)
+	assert.NotNil(t, stub.lastUpdate.Labels)
+	assert.Equal(t, "prod", *stub.lastUpdate.Labels["env"])
 	assert.Equal(t, "team-alpha", *stub.lastUpdate.Labels[labels.NamespaceKey])
 
 	helper.AssertExpectations(t)

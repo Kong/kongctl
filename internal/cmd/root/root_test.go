@@ -55,6 +55,7 @@ func TestMergedFlagUsagesUsesCommandSpecificOutputFormats(t *testing.T) {
 	outputFlag := rootCmd.PersistentFlags().Lookup(common.OutputFlagName)
 	if outputFlag == nil {
 		t.Fatal("expected root output flag")
+		return
 	}
 	if strings.Contains(outputFlag.Usage, "helm") {
 		t.Fatalf("expected merged usage rendering not to mutate root output flag usage, got:\n%s", outputFlag.Usage)

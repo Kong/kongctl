@@ -2,6 +2,7 @@ vars:
   auth_strategy_name: adopt-e2e-auth-strategy
   auth_strategy_name_2: adopt-e2e-auth-strategy-uuid
   namespace: team-auth-test
+  overwrite_namespace: team-auth-test-overwrite
 
 steps:
   - name: 000-reset
@@ -49,13 +50,27 @@ steps:
   - name: 003-dump-and-plan
     skipInputs: true
     commands:
+      - name: overwrite-auth-strategy-namespace
+        run:
+          - adopt
+          - auth-strategy
+          - "{{ .vars.auth_strategy_name }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.auth_strategy_id }}"
+                resource_type: auth_strategy
       - name: dump
         run:
           - dump
           - declarative
           - "--resources=application_auth_strategies"
           - --default-namespace
-          - "{{ .vars.namespace }}"
+          - "{{ .vars.overwrite_namespace }}"
         outputFormat: none
         parseAs: yaml
         stdoutFile: "{{ .workdir }}/dump.yaml"
@@ -67,7 +82,7 @@ steps:
           - select: "_defaults.kongctl"
             expect:
               fields:
-                namespace: "{{ .vars.namespace }}"
+                namespace: "{{ .vars.overwrite_namespace }}"
       - name: plan-from-dump
         outputFormat: disable
         run:
@@ -110,11 +125,11 @@ steps:
           - auth-strategy
           - "{{ .vars.auth_strategy_id_2 }}"
           - --namespace
-          - "{{ .vars.namespace }}"
+          - "{{ .vars.overwrite_namespace }}"
         assertions:
           - expect:
               fields:
-                namespace: "{{ .vars.namespace }}"
+                namespace: "{{ .vars.overwrite_namespace }}"
                 id: "{{ .vars.auth_strategy_id_2 }}"
                 resource_type: auth_strategy
 

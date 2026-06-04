@@ -8,6 +8,7 @@ vars:
   egw1_name: adopt-e2e-egw-1
   egw2_name: adopt-e2e-egw-2
   namespace: egw-adopt-e2e
+  overwrite_namespace: egw-adopt-e2e-overwrite
 
 defaults:
   mask:
@@ -92,7 +93,37 @@ steps:
           exitCode: 1
           contains: "already has namespace label"
 
-  - name: 005-adopt-by-uuid
+  - name: 005-overwrite-namespace
+    skipInputs: true
+    commands:
+      - name: overwrite-egw1-namespace
+        run:
+          - adopt
+          - event-gateway
+          - "{{ .vars.egw1_name }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                resource_type: event_gateway
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.egw1_id }}"
+      - name: get-egw1-by-name-after-overwrite
+        run:
+          - get
+          - event-gateway
+          - "{{ .vars.egw1_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "labels.\"KONGCTL-namespace\""
+            expect:
+              fields:
+                "@": "{{ .vars.overwrite_namespace }}"
+
+  - name: 006-adopt-by-uuid
     skipInputs: true
     commands:
       - name: adopt-egw-by-uuid
@@ -101,17 +132,17 @@ steps:
           - event-gateway
           - "{{ .vars.egw2_id }}"
           - --namespace
-          - "{{ .vars.namespace }}"
+          - "{{ .vars.overwrite_namespace }}"
         assertions:
           - expect:
               fields:
                 resource_type: event_gateway
-                namespace: "{{ .vars.namespace }}"
+                namespace: "{{ .vars.overwrite_namespace }}"
                 id: "{{ .vars.egw2_id }}"
 
-  - name: 006-cleanup
+  - name: 007-cleanup
     inputOverlayDirs:
-      - overlays/006-cleanup
+      - overlays/007-cleanup
     commands:
       - name: sync-delete
         run:

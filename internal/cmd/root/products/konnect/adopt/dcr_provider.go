@@ -12,7 +12,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/labels"
-	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/segmentio/cli"
@@ -58,22 +57,12 @@ func NewDCRProviderCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
-		return nil, err
-	}
-
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
+		adoptFlags, err := adoptCommon.ReadAdoptFlags(cobraCmd)
 		if err != nil {
 			return err
-		}
-
-		nsValidator := validator.NewNamespaceValidator()
-		if err := nsValidator.ValidateNamespace(namespace); err != nil {
-			return &cmdpkg.ConfigurationError{Err: err}
 		}
 
 		outType, err := helper.GetOutputFormat()
@@ -100,7 +89,8 @@ func NewDCRProviderCmd(
 			helper,
 			sdk.GetDCRProvidersAPI(),
 			cfg,
-			namespace,
+			adoptFlags.Namespace,
+			adoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
 		if err != nil {
@@ -140,6 +130,7 @@ func adoptDCRProvider(
 	api helpers.DCRProvidersAPI,
 	cfg config.Hook,
 	namespace string,
+	overwriteNamespace bool,
 	identifier string,
 ) (*adoptCommon.AdoptResult, error) {
 	provider, err := resolveDCRProvider(helper, api, cfg, identifier)
@@ -153,7 +144,8 @@ func adoptDCRProvider(
 		}
 	}
 
-	if currentNamespace, ok := provider.Labels[labels.NamespaceKey]; ok && currentNamespace != "" {
+	if currentNamespace, ok := provider.Labels[labels.NamespaceKey]; ok && currentNamespace != "" &&
+		!overwriteNamespace {
 		display := provider.Name
 		if display == "" {
 			display = provider.ID
