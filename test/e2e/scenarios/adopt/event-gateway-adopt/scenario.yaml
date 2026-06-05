@@ -1,5 +1,6 @@
 vars:
-  egw_name: adopt-e2e-event-gateway
+  egw1_name: adopt-e2e-event-gateway-1
+  egw2_name: adopt-e2e-event-gateway-2
   namespace: egw-adopt-test
   overwrite_namespace: egw-adopt-test-overwrite
 
@@ -9,18 +10,28 @@ steps:
     commands:
       - resetOrg: true
 
-  - name: 001-create-event-gateway
+  - name: 001-create-event-gateways
     skipInputs: true
     commands:
-      - name: create-event-gateway
+      - name: create-event-gateway-1
         create:
           resource: event_gateway
           payload:
             inline:
-              name: "{{ .vars.egw_name }}"
-              description: "Event Gateway for adopt E2E test"
+              name: "{{ .vars.egw1_name }}"
+              description: "Event Gateway 1 for adopt E2E test (adopt by name)"
           recordVar:
-            name: egw_id
+            name: egw1_id
+            responsePath: id
+      - name: create-event-gateway-2
+        create:
+          resource: event_gateway
+          payload:
+            inline:
+              name: "{{ .vars.egw2_name }}"
+              description: "Event Gateway 2 for adopt E2E test (adopt by ID)"
+          recordVar:
+            name: egw2_id
             responsePath: id
 
   - name: 002-adopt-by-name
@@ -30,14 +41,14 @@ steps:
         run:
           - adopt
           - event-gateway
-          - "{{ .vars.egw_name }}"
+          - "{{ .vars.egw1_name }}"
           - --namespace
           - "{{ .vars.namespace }}"
         assertions:
           - expect:
               fields:
                 namespace: "{{ .vars.namespace }}"
-                id: "{{ .vars.egw_id }}"
+                id: "{{ .vars.egw1_id }}"
                 resource_type: event_gateway
 
   - name: 003-adopt-by-id
@@ -47,14 +58,14 @@ steps:
         run:
           - adopt
           - event-gateway
-          - "{{ .vars.egw_id }}"
+          - "{{ .vars.egw2_id }}"
           - --namespace
           - "{{ .vars.namespace }}"
         assertions:
           - expect:
               fields:
                 namespace: "{{ .vars.namespace }}"
-                id: "{{ .vars.egw_id }}"
+                id: "{{ .vars.egw2_id }}"
                 resource_type: event_gateway
 
   - name: 004-overwrite-namespace
@@ -64,7 +75,7 @@ steps:
         run:
           - adopt
           - event-gateway
-          - "{{ .vars.egw_id }}"
+          - "{{ .vars.egw2_id }}"
           - --namespace
           - "{{ .vars.overwrite_namespace }}"
           - --overwrite-namespace
@@ -72,7 +83,7 @@ steps:
           - expect:
               fields:
                 namespace: "{{ .vars.overwrite_namespace }}"
-                id: "{{ .vars.egw_id }}"
+                id: "{{ .vars.egw2_id }}"
                 resource_type: event_gateway
 
   - name: 005-dump-and-plan
@@ -89,10 +100,14 @@ steps:
         parseAs: yaml
         stdoutFile: "{{ .workdir }}/dump.yaml"
         assertions:
-          - select: "event_gateways[?ref=='{{ .vars.egw_id }}'] | [0]"
+          - select: "event_gateways[?ref=='{{ .vars.egw1_id }}'] | [0]"
             expect:
               fields:
-                name: "{{ .vars.egw_name }}"
+                name: "{{ .vars.egw1_name }}"
+          - select: "event_gateways[?ref=='{{ .vars.egw2_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egw2_name }}"
           - select: "_defaults.kongctl"
             expect:
               fields:
@@ -128,8 +143,8 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 1
-                by_action.DELETE: 1
+                total_changes: 2
+                by_action.DELETE: 2
           - select: summary
             expect:
               fields:
