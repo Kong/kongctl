@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
-	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -14,7 +13,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
-	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -58,68 +56,24 @@ func NewDCRProviderCmd(
 	}
 
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		helper := cmdpkg.BuildHelper(cobraCmd, args)
-
-		adoptFlags, err := adoptCommon.ReadAdoptFlags(cobraCmd)
-		if err != nil {
-			return err
-		}
-
-		outType, err := helper.GetOutputFormat()
-		if err != nil {
-			return err
-		}
-
-		cfg, err := helper.GetConfig()
-		if err != nil {
-			return err
-		}
-
-		logger, err := helper.GetLogger()
-		if err != nil {
-			return err
-		}
-
-		sdk, err := helper.GetKonnectSDK(cfg, logger)
+		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
 
 		result, err := adoptDCRProvider(
-			helper,
-			sdk.GetDCRProvidersAPI(),
-			cfg,
-			adoptFlags.Namespace,
-			adoptFlags.OverwriteNamespace,
+			s.Helper,
+			s.SDK.GetDCRProvidersAPI(),
+			s.Cfg,
+			s.AdoptFlags.Namespace,
+			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
 		if err != nil {
 			return err
 		}
 
-		streams := helper.GetStreams()
-		if outType == cmdCommon.TEXT {
-			name := result.Name
-			if name == "" {
-				name = result.ID
-			}
-			fmt.Fprintf(
-				streams.Out,
-				"Adopted DCR provider %q (%s) into namespace %q\n",
-				name,
-				result.ID,
-				result.Namespace,
-			)
-			return nil
-		}
-
-		printer, err := cli.Format(outType.String(), streams.Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-		printer.Print(result)
-		return nil
+		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "DCR provider")
 	}
 
 	return cmd, nil
