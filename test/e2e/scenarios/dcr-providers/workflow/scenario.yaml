@@ -5,10 +5,12 @@ env:
 
 vars:
   namespace: dcr-workflow
+  overwrite_namespace: dcr-workflow-overwrite
   oktaName: e2e-dcr-okta
   httpName: e2e-dcr-http
   httpSyncName: e2e-dcr-http-sync
   adoptName: e2e-dcr-adopt
+  overwriteAdoptName: e2e-dcr-overwrite-adopt
   authStrategyRef: e2e-oidc-dcr-auth
   authStrategyName: e2e-oidc-dcr-auth
 
@@ -221,7 +223,102 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-plan-and-sync
+  - name: 005-overwrite-namespace-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-create-unmanaged-overwrite-dcr-provider
+        create:
+          resource: dcr_provider
+          payload:
+            inline:
+              name: "{{ .vars.overwriteAdoptName }}"
+              provider_type: okta
+              issuer: https://e2e-overwrite-adopt-okta.example.com/oauth2/default
+              dcr_config:
+                dcr_token: e2e_overwrite_adopt_okta_token
+          recordVar:
+            name: overwriteAdoptID
+            responsePath: id
+      - name: 001-adopt-overwrite-dcr-provider
+        run:
+          - adopt
+          - dcr-provider
+          - "{{ .vars.overwriteAdoptName }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                resource_type: dcr_provider
+                name: "{{ .vars.overwriteAdoptName }}"
+                namespace: "{{ .vars.namespace }}"
+      - name: 002-overwrite-dcr-provider-namespace
+        run:
+          - adopt
+          - dcr-provider
+          - "{{ .vars.overwriteAdoptName }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                resource_type: dcr_provider
+                name: "{{ .vars.overwriteAdoptName }}"
+                namespace: "{{ .vars.overwrite_namespace }}"
+      - name: 003-dump-overwritten-dcr-provider
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/overwrite-dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=dcr_providers"
+          - "--filter-name={{ .vars.overwriteAdoptName }}"
+          - --default-namespace
+          - "{{ .vars.overwrite_namespace }}"
+        assertions:
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+          - select: "dcr_providers[?name=='{{ .vars.overwriteAdoptName }}'] | [0]"
+            expect:
+              fields:
+                provider_type: okta
+                issuer: https://e2e-overwrite-adopt-okta.example.com/oauth2/default
+      - name: 004-plan-from-overwrite-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/overwrite-dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 005-delete-overwritten-dcr-provider
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/overwrite-dump.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 006-plan-and-sync
     commands:
       - name: 000-plan-sync
         outputFormat: disable
@@ -329,7 +426,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 006-delete-managed-dcr-providers
+  - name: 007-delete-managed-dcr-providers
     commands:
       - name: 000-delete
         run:
