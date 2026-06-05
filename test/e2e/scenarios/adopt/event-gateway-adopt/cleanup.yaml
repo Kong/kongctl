@@ -1,0 +1,7 @@
+event_gateways:
+  - ref: adopt-e2e-event-gateway
+    name: adopt-e2e-event-gateway
+    description: "Event Gateway for adopt E2E test"
+    kongctl:
+      namespace: egw-adopt-test-overwrite
+      protected: false
