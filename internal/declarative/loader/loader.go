@@ -120,8 +120,12 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 		}
 	}
 
-	// Apply SDK defaults to merged resources
-	// Note: Only namespace defaults are applied per-file in parseYAML
+	if err := l.normalizeContentMetadata(&allResources); err != nil {
+		return nil, err
+	}
+
+	// Apply SDK defaults to merged resources.
+	// Note: Only namespace defaults are applied per-file in parseYAML.
 	l.applyDefaults(&allResources)
 
 	// Reference resolution must happen after all files are loaded but before validation.
@@ -149,6 +153,10 @@ func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
 	var rs resources.ResourceSet
 	refIndex := make(map[string]resources.ResourceType)
 	if err := l.loadSingleFile(path, filepath.Dir(path), &rs, refIndex); err != nil {
+		return nil, err
+	}
+
+	if err := l.normalizeContentMetadata(&rs); err != nil {
 		return nil, err
 	}
 

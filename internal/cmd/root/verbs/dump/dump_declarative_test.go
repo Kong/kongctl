@@ -1,10 +1,12 @@
 package dump
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 
 	decllabels "github.com/kong/kongctl/internal/declarative/labels"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
@@ -88,6 +90,75 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 
 	if *resource.AutoApproveApplications != *portal.AutoApproveApplications {
 		t.Fatalf("expected auto approve applications to match input")
+	}
+}
+
+func TestCollectDeclarativePortalsUsesPortalDetails(t *testing.T) {
+	listAuthEnabled := false
+	detailAuthEnabled := true
+	var getPortalIDs []string
+
+	api := &portalPaginationStub{
+		t: t,
+		listPortalsFunc: func(
+			_ context.Context,
+			req kkOps.ListPortalsRequest,
+		) (*kkOps.ListPortalsResponse, error) {
+			pageNumber := int64(1)
+			if req.PageNumber != nil {
+				pageNumber = *req.PageNumber
+			}
+
+			switch pageNumber {
+			case 1:
+				return &kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.ListPortalsResponsePortal{
+							{
+								ID:                    "portal-id",
+								Name:                  "portal-name",
+								AuthenticationEnabled: &listAuthEnabled,
+							},
+						},
+					},
+				}, nil
+			case 2:
+				return &kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{},
+				}, nil
+			default:
+				t.Fatalf("unexpected page request: %d", pageNumber)
+				return nil, nil
+			}
+		},
+		getPortalFunc: func(_ context.Context, id string) (*kkOps.GetPortalResponse, error) {
+			getPortalIDs = append(getPortalIDs, id)
+			return &kkOps.GetPortalResponse{
+				PortalResponse: &kkComps.PortalResponse{
+					ID:                    id,
+					Name:                  "portal-name",
+					AuthenticationEnabled: &detailAuthEnabled,
+				},
+			}, nil
+		},
+	}
+
+	resources, err := collectDeclarativePortals(t.Context(), api, 100, filterOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error collecting portals: %v", err)
+	}
+
+	if len(resources) != 1 {
+		t.Fatalf("expected one portal resource, got %d", len(resources))
+	}
+
+	if resources[0].AuthenticationEnabled == nil || !*resources[0].AuthenticationEnabled {
+		t.Fatalf("expected authentication_enabled to come from portal detail, got %+v",
+			resources[0].AuthenticationEnabled)
+	}
+
+	if len(getPortalIDs) != 1 || getPortalIDs[0] != "portal-id" {
+		t.Fatalf("expected GetPortal to be called once for portal-id, got %v", getPortalIDs)
 	}
 }
 

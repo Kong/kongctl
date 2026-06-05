@@ -20,6 +20,70 @@ type stubPortalCustomDomainAPI struct {
 	getFn func(ctx context.Context, portalID string, opts ...kkOps.Option) (*kkOps.GetPortalCustomDomainResponse, error)
 }
 
+type stubPortalPageAPI struct {
+	listData []kkComps.PortalPageInfo
+	getData  map[string]kkComps.PortalPageResponse
+}
+
+func (s *stubPortalPageAPI) CreatePortalPage(
+	_ context.Context,
+	_ string,
+	_ kkComps.CreatePortalPageRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreatePortalPageResponse, error) {
+	return nil, nil
+}
+
+func (s *stubPortalPageAPI) UpdatePortalPage(
+	_ context.Context,
+	_ kkOps.UpdatePortalPageRequest,
+	_ ...kkOps.Option,
+) (*kkOps.UpdatePortalPageResponse, error) {
+	return nil, nil
+}
+
+func (s *stubPortalPageAPI) DeletePortalPage(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeletePortalPageResponse, error) {
+	return nil, nil
+}
+
+func (s *stubPortalPageAPI) ListPortalPages(
+	_ context.Context,
+	_ kkOps.ListPortalPagesRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListPortalPagesResponse, error) {
+	data := s.listData
+	if data == nil {
+		data = []kkComps.PortalPageInfo{}
+	}
+	return &kkOps.ListPortalPagesResponse{
+		StatusCode: 200,
+		ListPortalPagesResponse: &kkComps.ListPortalPagesResponse{
+			Data: data,
+		},
+	}, nil
+}
+
+func (s *stubPortalPageAPI) GetPortalPage(
+	_ context.Context,
+	_ string,
+	pageID string,
+	_ ...kkOps.Option,
+) (*kkOps.GetPortalPageResponse, error) {
+	page, ok := s.getData[pageID]
+	if !ok {
+		return &kkOps.GetPortalPageResponse{StatusCode: 404}, nil
+	}
+	return &kkOps.GetPortalPageResponse{
+		StatusCode:         200,
+		PortalPageResponse: &page,
+	}, nil
+}
+
 func (s *stubPortalCustomDomainAPI) CreatePortalCustomDomain(
 	_ context.Context,
 	_ string,
@@ -256,6 +320,102 @@ func TestPlanPortalTeamGroupMappingUpdatePreservesEmptyGroups(t *testing.T) {
 	assert.Empty(t, plan.Changes[0].Fields[FieldGroups])
 	assert.NotNil(t, plan.Changes[0].Fields[FieldGroups])
 	assert.Equal(t, []string{}, plan.Changes[0].ChangedFields[FieldGroups].New)
+}
+
+func TestPlanPortalPagesChanges_PlansContentOnlyUpdate(t *testing.T) {
+	t.Parallel()
+
+	title := "Getting Started"
+	description := "A quick-start guide for new users"
+	currentContent := "# Getting Started\n\nFollow this guide to get up and running quickly with our platform."
+	desiredContent := `---
+title: "Getting Started"
+description: "A quick-start guide for new users"
+---
+
+# Getting Started
+
+This body changed without changing page metadata.
+Issue 1210 content-only update.
+`
+	desiredVisibility := kkComps.PageVisibilityStatusPublic
+	desiredStatus := kkComps.PublishedStatusPublished
+
+	pageAPI := &stubPortalPageAPI{
+		listData: []kkComps.PortalPageInfo{
+			{
+				ID:          "page-getting-started",
+				Slug:        "getting-started",
+				Title:       title,
+				Description: &description,
+				Visibility:  kkComps.VisibilityStatusPublic,
+				Status:      kkComps.PublishedStatusPublished,
+			},
+		},
+		getData: map[string]kkComps.PortalPageResponse{
+			"page-getting-started": {
+				ID:          "page-getting-started",
+				Slug:        "getting-started",
+				Title:       title,
+				Content:     currentContent,
+				Description: &description,
+				Visibility:  kkComps.VisibilityStatusPublic,
+				Status:      kkComps.PublishedStatusPublished,
+			},
+		},
+	}
+
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{PortalPageAPI: pageAPI}),
+		logger: slog.Default(),
+		desiredPortals: []resources.PortalResource{
+			{
+				CreatePortal: kkComps.CreatePortal{Name: "pages-portal"},
+				BaseResource: resources.BaseResource{
+					Ref: "pages-portal",
+				},
+			},
+		},
+	}
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	desired := []resources.PortalPageResource{
+		{
+			Ref:    "getting-started-page",
+			Portal: "pages-portal",
+			CreatePortalPageRequest: kkComps.CreatePortalPageRequest{
+				Slug:        "getting-started",
+				Title:       &title,
+				Description: &description,
+				Content:     desiredContent,
+				Visibility:  &desiredVisibility,
+				Status:      &desiredStatus,
+			},
+		},
+	}
+
+	err := planner.planPortalPagesChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"pages-portal",
+		desired,
+		plan,
+	)
+	require.NoError(t, err)
+
+	require.Len(t, plan.Changes, 1)
+	change := plan.Changes[0]
+	assert.Equal(t, ActionUpdate, change.Action)
+	assert.Equal(t, ResourceTypePortalPage, change.ResourceType)
+	assert.Equal(t, "getting-started-page", change.ResourceRef)
+	assert.Equal(t, "page-getting-started", change.ResourceID)
+	assert.Equal(t, "getting-started", change.Fields[FieldSlug])
+	assert.Equal(t, desiredContent, change.Fields[FieldContent])
+	assert.NotContains(t, change.Fields, FieldTitle)
+	assert.NotContains(t, change.Fields, FieldVisibility)
+	assert.NotContains(t, change.Fields, FieldStatus)
+	assert.Equal(t, currentContent, change.ChangedFields[FieldContent].Old)
+	assert.Equal(t, desiredContent, change.ChangedFields[FieldContent].New)
 }
 
 func TestShouldUpdatePortalCustomizationDetectsSpecRendererAndRobots(t *testing.T) {

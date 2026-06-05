@@ -1,0 +1,27 @@
+_defaults:
+  kongctl:
+    namespace: portal-page-frontmatter-conflict
+
+portals:
+  - ref: frontmatter-conflict-portal
+    name: "frontmatter-conflict-portal"
+    display_name: "Frontmatter Conflict Portal"
+    description: "Portal for testing page metadata conflicts with markdown frontmatter"
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_page_visibility: "public"
+    kongctl:
+      namespace: portal-page-frontmatter-conflict
+    pages:
+      - ref: frontmatter-conflict-page
+        slug: "frontmatter-conflict"
+        title: "Frontmatter Page Title"
+        description: "Frontmatter page description"
+        visibility: "public"
+        status: "published"
+        content: |
+          # Top Level Only
+
+          Top-level-only body.

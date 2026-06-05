@@ -86,6 +86,104 @@ func TestNormalizePortalPageSlug(t *testing.T) {
 	}
 }
 
+func TestMapPortalPageToResourceOmitsMetadataPresentInFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	resource, err := mapPortalPageToResource(&declstate.PortalPage{
+		ID:          "page-1",
+		Slug:        "/getting-started",
+		Title:       "API title",
+		Description: "API description",
+		Content: `---
+title: Frontmatter title
+description: Frontmatter description
+---
+
+# Body
+`,
+		Visibility: "public",
+		Status:     "published",
+	})
+	require.NoError(t, err)
+
+	require.Nil(t, resource.Title)
+	require.Nil(t, resource.Description)
+	require.Equal(t, "getting-started", resource.Slug)
+	require.Contains(t, resource.Content, "title: Frontmatter title")
+}
+
+func TestMapPortalSnippetToResourceOmitsMetadataPresentInFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	resource := mapPortalSnippetToResource(&declstate.PortalSnippet{
+		ID:          "snippet-1",
+		Name:        "welcome",
+		Title:       "API title",
+		Description: "API description",
+		Content: `---
+title: Frontmatter title
+description: Frontmatter description
+---
+
+<div>Welcome</div>
+`,
+		Visibility: "public",
+		Status:     "published",
+	})
+
+	require.Nil(t, resource.Title)
+	require.Nil(t, resource.Description)
+	require.Equal(t, "welcome", resource.Name)
+	require.Contains(t, resource.Content, "description: Frontmatter description")
+}
+
+func TestMapAPIDocumentToResourceOmitsMetadataPresentInFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	resource := mapAPIDocumentToResource(&declstate.APIDocument{
+		ID:     "doc-1",
+		Title:  "API title",
+		Slug:   "api-slug",
+		Status: "published",
+		Content: `---
+title: Frontmatter title
+slug: frontmatter-slug
+status: unpublished
+---
+
+# Body
+`,
+	})
+
+	require.Nil(t, resource.Title)
+	require.Nil(t, resource.Slug)
+	require.Nil(t, resource.Status)
+	require.Contains(t, resource.Content, "status: unpublished")
+}
+
+func TestMapAPIDocumentToResourceKeepsMetadataAbsentFromFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	resource := mapAPIDocumentToResource(&declstate.APIDocument{
+		ID:     "doc-1",
+		Title:  "API title",
+		Slug:   "api-slug",
+		Status: "published",
+		Content: `---
+title: Frontmatter title
+---
+
+# Body
+`,
+	})
+
+	require.Nil(t, resource.Title)
+	require.NotNil(t, resource.Slug)
+	require.Equal(t, "api-slug", *resource.Slug)
+	require.NotNil(t, resource.Status)
+	require.Equal(t, "published", string(*resource.Status))
+}
+
 func TestResolveAPIPublicationRef(t *testing.T) {
 	apiID := "api-123"
 	portalID := "portal-456"
