@@ -203,7 +203,7 @@ steps:
           - apply
         expectFailure:
           exitCode: 1
-          contains: "configuration error for portal_page \"{{ .vars.pageRef }}\": field \"title\""
+          contains: "configuration error for portal_page \"frontmatter-conflict-page\": field \"title\""
       - name: 001-apply-conflicting-both
         run:
           - apply
@@ -212,4 +212,4 @@ steps:
           - --auto-approve
         expectFailure:
           exitCode: 1
-          contains: "top-level: \"{{ .vars.conflictingTitle }}\", frontmatter: \"{{ .vars.pageTitle }}\""
+          contains: "top-level: \"Configured Page Title\", frontmatter: \"Frontmatter Page Title\""
