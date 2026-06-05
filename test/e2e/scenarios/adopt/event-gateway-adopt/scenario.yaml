@@ -1,0 +1,166 @@
+vars:
+  egw1_name: adopt-e2e-event-gateway-1
+  egw2_name: adopt-e2e-event-gateway-2
+  namespace: egw-adopt-test
+  overwrite_namespace: egw-adopt-test-overwrite
+
+steps:
+  - name: 000-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-event-gateways
+    skipInputs: true
+    commands:
+      - name: create-event-gateway-1
+        create:
+          resource: event_gateway
+          payload:
+            inline:
+              name: "{{ .vars.egw1_name }}"
+              description: "Event Gateway 1 for adopt E2E test (adopt by name)"
+          recordVar:
+            name: egw1_id
+            responsePath: id
+      - name: create-event-gateway-2
+        create:
+          resource: event_gateway
+          payload:
+            inline:
+              name: "{{ .vars.egw2_name }}"
+              description: "Event Gateway 2 for adopt E2E test (adopt by ID)"
+          recordVar:
+            name: egw2_id
+            responsePath: id
+
+  - name: 002-adopt-by-name
+    skipInputs: true
+    commands:
+      - name: adopt-event-gateway-by-name
+        run:
+          - adopt
+          - event-gateway
+          - "{{ .vars.egw1_name }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.egw1_id }}"
+                resource_type: event_gateway
+
+  - name: 003-adopt-by-id
+    skipInputs: true
+    commands:
+      - name: adopt-event-gateway-by-id
+        run:
+          - adopt
+          - event-gateway
+          - "{{ .vars.egw2_id }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.egw2_id }}"
+                resource_type: event_gateway
+
+  - name: 004-overwrite-namespace
+    skipInputs: true
+    commands:
+      - name: overwrite-event-gateway-by-name-namespace
+        run:
+          - adopt
+          - event-gateway
+          - "{{ .vars.egw1_name }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.egw1_id }}"
+                resource_type: event_gateway
+      - name: overwrite-event-gateway-by-id-namespace
+        run:
+          - adopt
+          - event-gateway
+          - "{{ .vars.egw2_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.egw2_id }}"
+                resource_type: event_gateway
+
+  - name: 005-dump-and-plan
+    skipInputs: true
+    commands:
+      - name: dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --default-namespace
+          - "{{ .vars.overwrite_namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "event_gateways[?ref=='{{ .vars.egw1_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egw1_name }}"
+          - select: "event_gateways[?ref=='{{ .vars.egw2_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egw2_name }}"
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+      - name: plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-cleanup
+    skipInputs: true
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .scenario_dir }}/cleanup.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
