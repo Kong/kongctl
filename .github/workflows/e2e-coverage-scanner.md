@@ -208,6 +208,11 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
 Prefer improving coverage density inside existing scenarios over increasing the
 number of scenarios.
 
+For this workflow, a scenario is one `scenario.yaml` file under
+`test/e2e/scenarios`. A scenario step is one entry in that file's `steps` list,
+and an assertion is one `assertions` entry under a step command. See
+`test/e2e/scenarios/README.md` for the scenario schema and terminology.
+
 For every candidate finding, evaluate the implementation path in this order:
 
 1. Expand assertions in an existing scenario step.
@@ -231,7 +236,9 @@ For every candidate finding, evaluate the implementation path in this order:
      be expanded
 
 When filing an issue, guide the follow-on implementor toward the smallest
-scenario change that materially improves coverage.
+coherent change inside the best-fitting existing scenario. If a new scenario is
+required, keep it limited to the distinct workflow or resource gap that made the
+existing scenarios insufficient.
 
 ## Analysis Process
 
@@ -293,9 +300,14 @@ scenario change that materially improves coverage.
 
 Create one issue per distinct gap.
 
-Use a concise title in this style:
+Use one of these concise title styles:
 
-- `Test: Improve e2e coverage for <resource or command> <gap>`
+- `Test: Improve e2e coverage for <target> <gap> (expand scenario)`
+- `Test: Improve e2e coverage for <target> <gap> (new scenario)`
+
+Use `(expand scenario)` when the issue proposes adding assertions or steps to
+an existing scenario. Use `(new scenario)` only when no existing scenario is a
+good fit.
 
 Each issue body must be implementation-ready and use GitHub-flavored markdown.
 Start section headers at `###`.
