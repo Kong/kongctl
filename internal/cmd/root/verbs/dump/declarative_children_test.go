@@ -213,6 +213,39 @@ func (s *stubDumpPortalIdentityProviderAPI) DeletePortalIdentityProvider(
 	return nil, nil
 }
 
+type stubDumpPortalAuditLogsAPI struct {
+	getResponse *kkOps.GetPortalAuditLogWebhookResponse
+	getErr      error
+}
+
+func (s *stubDumpPortalAuditLogsAPI) GetPortalAuditLogWebhook(
+	_ context.Context,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.GetPortalAuditLogWebhookResponse, error) {
+	if s.getResponse != nil || s.getErr != nil {
+		return s.getResponse, s.getErr
+	}
+	return &kkOps.GetPortalAuditLogWebhookResponse{}, nil
+}
+
+func (s *stubDumpPortalAuditLogsAPI) UpdatePortalAuditLogWebhook(
+	context.Context,
+	string,
+	*kkComps.UpdatePortalAuditLogWebhook,
+	...kkOps.Option,
+) (*kkOps.UpdatePortalAuditLogWebhookResponse, error) {
+	return nil, nil
+}
+
+func (s *stubDumpPortalAuditLogsAPI) DeletePortalAuditLogWebhook(
+	context.Context,
+	string,
+	...kkOps.Option,
+) (*kkOps.DeletePortalAuditLogWebhookResponse, error) {
+	return nil, nil
+}
+
 func TestBuildPortalAuthSettings_IncludesOnlySupportedFields(t *testing.T) {
 	t.Parallel()
 
@@ -320,4 +353,91 @@ func TestBuildPortalIdentityProviders_MapsOIDCAndSAMLChildren(t *testing.T) {
 		"https://issuer.example.test/saml.xml",
 		*resources[1].Config.SAMLIdentityProviderConfigInput.IdpMetadataURL,
 	)
+}
+
+func TestBuildPortalAuditLogWebhook_OnlyIncludesConfiguredWebhooks(t *testing.T) {
+	t.Parallel()
+
+	boolPtr := func(v bool) *bool { return &v }
+	stringPtr := func(v string) *string { return &v }
+
+	tests := []struct {
+		name              string
+		webhook           *kkComps.PortalAuditLogWebhook
+		wantResource      bool
+		wantEnabled       *bool
+		wantDestinationID string
+	}{
+		{
+			name:         "nil webhook",
+			webhook:      nil,
+			wantResource: false,
+		},
+		{
+			name: "disabled without destination",
+			webhook: &kkComps.PortalAuditLogWebhook{
+				Enabled: boolPtr(false),
+			},
+			wantResource: false,
+		},
+		{
+			name: "disabled with destination",
+			webhook: &kkComps.PortalAuditLogWebhook{
+				Enabled:               boolPtr(false),
+				AuditLogDestinationID: stringPtr("destination-1"),
+			},
+			wantResource:      true,
+			wantEnabled:       boolPtr(false),
+			wantDestinationID: "destination-1",
+		},
+		{
+			name: "destination without enabled",
+			webhook: &kkComps.PortalAuditLogWebhook{
+				AuditLogDestinationID: stringPtr("destination-1"),
+			},
+			wantResource:      true,
+			wantDestinationID: "destination-1",
+		},
+		{
+			name: "enabled with destination",
+			webhook: &kkComps.PortalAuditLogWebhook{
+				Enabled:               boolPtr(true),
+				AuditLogDestinationID: stringPtr("destination-1"),
+			},
+			wantResource:      true,
+			wantEnabled:       boolPtr(true),
+			wantDestinationID: "destination-1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := declstate.NewClient(declstate.ClientConfig{
+				PortalAuditLogsAPI: &stubDumpPortalAuditLogsAPI{
+					getResponse: &kkOps.GetPortalAuditLogWebhookResponse{
+						PortalAuditLogWebhook: tt.webhook,
+					},
+				},
+			})
+
+			resource, err := buildPortalAuditLogWebhook(context.Background(), client, "portal-1")
+			require.NoError(t, err)
+			if !tt.wantResource {
+				require.Nil(t, resource)
+				return
+			}
+
+			require.NotNil(t, resource)
+			require.NotEmpty(t, resource.Ref)
+			if tt.wantEnabled == nil {
+				require.Nil(t, resource.Enabled)
+			} else {
+				require.NotNil(t, resource.Enabled)
+				require.Equal(t, *tt.wantEnabled, *resource.Enabled)
+			}
+			require.Equal(t, tt.wantDestinationID, resource.AuditLogDestinationID)
+		})
+	}
 }
