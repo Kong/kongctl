@@ -5,6 +5,7 @@ env:
 
 vars:
   namespace: dcr-workflow
+  overwrite_namespace: dcr-workflow-overwrite
   oktaName: e2e-dcr-okta
   httpName: e2e-dcr-http
   httpSyncName: e2e-dcr-http-sync
@@ -172,6 +173,20 @@ steps:
                 resource_type: dcr_provider
                 name: "{{ .vars.adoptName }}"
                 namespace: "{{ .vars.namespace }}"
+      - name: 002-overwrite-dcr-provider-namespace
+        run:
+          - adopt
+          - dcr-provider
+          - "{{ .vars.adoptName }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                resource_type: dcr_provider
+                name: "{{ .vars.adoptName }}"
+                namespace: "{{ .vars.overwrite_namespace }}"
 
   - name: 004-dump-and-round-trip
     skipInputs: true
@@ -185,12 +200,12 @@ steps:
           - declarative
           - "--resources=dcr_providers,application_auth_strategies"
           - --default-namespace
-          - "{{ .vars.namespace }}"
+          - "{{ .vars.overwrite_namespace }}"
         assertions:
           - select: "_defaults.kongctl"
             expect:
               fields:
-                namespace: "{{ .vars.namespace }}"
+                namespace: "{{ .vars.overwrite_namespace }}"
           - select: "dcr_providers[?name=='{{ .vars.httpName }}'] | [0]"
             expect:
               fields:
