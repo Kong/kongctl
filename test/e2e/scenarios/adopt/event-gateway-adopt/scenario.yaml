@@ -71,7 +71,21 @@ steps:
   - name: 004-overwrite-namespace
     skipInputs: true
     commands:
-      - name: overwrite-event-gateway-namespace
+      - name: overwrite-event-gateway-by-name-namespace
+        run:
+          - adopt
+          - event-gateway
+          - "{{ .vars.egw1_name }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.egw1_id }}"
+                resource_type: event_gateway
+      - name: overwrite-event-gateway-by-id-namespace
         run:
           - adopt
           - event-gateway
