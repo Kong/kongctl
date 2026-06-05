@@ -522,13 +522,14 @@ func mapPortalPageToResource(page *declstate.PortalPage) (declresources.PortalPa
 		Ref: page.ID,
 	}
 
-	if strings.TrimSpace(page.Title) != "" &&
-		!contentFrontmatterHasField(page.Content, frontmatter.PortalPageFields, frontmatter.FieldTitle) {
+	contentMetadata := contentFrontmatterFields(page.Content, frontmatter.PortalPageFields)
+
+	if strings.TrimSpace(page.Title) != "" && !contentMetadataHasField(contentMetadata, frontmatter.FieldTitle) {
 		title := page.Title
 		res.Title = &title
 	}
 	if strings.TrimSpace(page.Description) != "" &&
-		!contentFrontmatterHasField(page.Content, frontmatter.PortalPageFields, frontmatter.FieldDescription) {
+		!contentMetadataHasField(contentMetadata, frontmatter.FieldDescription) {
 		desc := page.Description
 		res.Description = &desc
 	}
@@ -607,13 +608,14 @@ func mapPortalSnippetToResource(snippet *declstate.PortalSnippet) declresources.
 		Content: snippet.Content,
 	}
 
-	if strings.TrimSpace(snippet.Title) != "" &&
-		!contentFrontmatterHasField(snippet.Content, frontmatter.PortalSnippetFields, frontmatter.FieldTitle) {
+	contentMetadata := contentFrontmatterFields(snippet.Content, frontmatter.PortalSnippetFields)
+
+	if strings.TrimSpace(snippet.Title) != "" && !contentMetadataHasField(contentMetadata, frontmatter.FieldTitle) {
 		title := snippet.Title
 		res.Title = &title
 	}
 	if strings.TrimSpace(snippet.Description) != "" &&
-		!contentFrontmatterHasField(snippet.Content, frontmatter.PortalSnippetFields, frontmatter.FieldDescription) {
+		!contentMetadataHasField(contentMetadata, frontmatter.FieldDescription) {
 		desc := snippet.Description
 		res.Description = &desc
 	}
@@ -1347,18 +1349,17 @@ func mapAPIDocumentToResource(doc *declstate.APIDocument) declresources.APIDocum
 		Ref: doc.ID,
 	}
 
-	if strings.TrimSpace(doc.Title) != "" &&
-		!contentFrontmatterHasField(doc.Content, frontmatter.APIDocumentFields, frontmatter.FieldTitle) {
+	contentMetadata := contentFrontmatterFields(doc.Content, frontmatter.APIDocumentFields)
+
+	if strings.TrimSpace(doc.Title) != "" && !contentMetadataHasField(contentMetadata, frontmatter.FieldTitle) {
 		title := doc.Title
 		res.Title = &title
 	}
-	if strings.TrimSpace(doc.Slug) != "" &&
-		!contentFrontmatterHasField(doc.Content, frontmatter.APIDocumentFields, frontmatter.FieldSlug) {
+	if strings.TrimSpace(doc.Slug) != "" && !contentMetadataHasField(contentMetadata, frontmatter.FieldSlug) {
 		slug := doc.Slug
 		res.Slug = &slug
 	}
-	if strings.TrimSpace(doc.Status) != "" &&
-		!contentFrontmatterHasField(doc.Content, frontmatter.APIDocumentFields, frontmatter.FieldStatus) {
+	if strings.TrimSpace(doc.Status) != "" && !contentMetadataHasField(contentMetadata, frontmatter.FieldStatus) {
 		status := kkComps.APIDocumentStatus(doc.Status)
 		res.Status = &status
 	}
@@ -1366,11 +1367,15 @@ func mapAPIDocumentToResource(doc *declstate.APIDocument) declresources.APIDocum
 	return res
 }
 
-func contentFrontmatterHasField(content string, recognized []string, field string) bool {
+func contentFrontmatterFields(content string, recognized []string) map[string]string {
 	metadata, err := frontmatter.Parse(content, recognized)
 	if err != nil {
-		return false
+		return nil
 	}
+	return metadata
+}
+
+func contentMetadataHasField(metadata map[string]string, field string) bool {
 	_, ok := metadata[field]
 	return ok
 }
