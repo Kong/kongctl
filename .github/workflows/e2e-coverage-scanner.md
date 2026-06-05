@@ -203,6 +203,43 @@ Look for high-signal gaps such as:
 Do not file issues for speculative ideas, stylistic preferences, or vague
 "more tests would be nice" suggestions.
 
+## Scenario Expansion Preference
+
+Prefer improving coverage density inside existing scenarios over increasing the
+number of scenarios.
+
+For this workflow, a scenario is one `scenario.yaml` file under
+`test/e2e/scenarios`. A scenario step is one entry in that file's `steps` list,
+and an assertion is one `assertions` entry under a step command. See
+`test/e2e/scenarios/README.md` for the scenario schema and terminology.
+
+For every candidate finding, evaluate the implementation path in this order:
+
+1. Expand assertions in an existing scenario step.
+   - Prefer this when an existing command already exercises the relevant
+     resource, field, relationship, or behavior but its assertions are shallow
+     or incomplete
+   - Propose the exact expected output, response field, state check, or
+     negative assertion that should be added
+
+2. Add a focused step to an existing scenario.
+   - Prefer this when the existing scenario already owns the same resource
+     lifecycle, fixture, environment prerequisite, or workflow context
+   - Keep the added step tied to the scenario's current purpose instead of
+     broadening it into a mixed-topic scenario
+
+3. Create a new scenario only when no existing scenario is a good fit.
+   - Use a new scenario for uncovered resources, materially different
+     workflows, incompatible environment requirements, or cases that would make
+     an existing scenario hard to understand or maintain
+   - In the issue, explain briefly why the nearest existing scenario should not
+     be expanded
+
+When filing an issue, guide the follow-on implementor toward the smallest
+coherent change inside the best-fitting existing scenario. If a new scenario is
+required, keep it limited to the distinct workflow or resource gap that made the
+existing scenarios insufficient.
+
 ## Analysis Process
 
 1. Determine the target slice.
@@ -233,6 +270,8 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
 4. Validate each candidate gap before filing.
    - Confirm the gap is real from current repository state
    - Confirm the gap is meaningful enough for a dedicated issue
+   - Identify the best existing scenario to expand, unless the coverage gap
+     clearly requires a new scenario
    - Prefer gaps that a follow-on coding agent could implement in one focused
      PR
    - If one focused verification pass does not resolve the candidate, drop it
@@ -261,9 +300,14 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
 
 Create one issue per distinct gap.
 
-Use a concise title in this style:
+Use one of these concise title styles:
 
-- `Test: Add e2e scenario for <resource or command> <gap>`
+- `Test: Improve e2e coverage for <target> <gap> (expand scenario)`
+- `Test: Improve e2e coverage for <target> <gap> (new scenario)`
+
+Use `(expand scenario)` when the issue proposes adding assertions or steps to
+an existing scenario. Use `(new scenario)` only when no existing scenario is a
+good fit.
 
 Each issue body must be implementation-ready and use GitHub-flavored markdown.
 Start section headers at `###`.
@@ -283,8 +327,11 @@ Include all of the following:
 
 ### Proposed Scenario Work
 
-- Whether this should be a new scenario or an expansion of an existing one
-- A concrete outline of the scenario steps or overlays to add
+- Whether this should expand assertions in an existing step, add a step to an
+  existing scenario, or create a new scenario
+- The existing scenario path to expand, or a brief explanation of why the
+  nearest existing scenario is not sufficient
+- A concrete outline of the assertions, scenario steps, or overlays to add
 - Any important assertions that should be included
 - Any environment or harness prerequisites that matter
 
