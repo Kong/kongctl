@@ -65,9 +65,12 @@ func ReadAdoptFlags(cmd *cobra.Command) (AdoptFlags, error) {
 		return flags, &cmdpkg.ConfigurationError{Err: err}
 	}
 
+	if cmd.Flags().Lookup(OverwriteNamespaceFlagName) == nil {
+		return flags, nil
+	}
 	overwrite, err := cmd.Flags().GetBool(OverwriteNamespaceFlagName)
 	if err != nil {
-		return flags, nil
+		return flags, fmt.Errorf("invalid --%s value: %w", OverwriteNamespaceFlagName, err)
 	}
 	flags.OverwriteNamespace = overwrite
 
