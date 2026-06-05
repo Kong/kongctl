@@ -869,6 +869,9 @@ func buildPortalAuditLogWebhook(
 	if webhook == nil {
 		return nil, nil
 	}
+	if !portalAuditLogWebhookConfigured(webhook) {
+		return nil, nil
+	}
 
 	resource := &declresources.PortalAuditLogWebhookResource{
 		Ref:     buildChildRef("portal-audit-log-webhook", portalID),
@@ -878,6 +881,17 @@ func buildPortalAuditLogWebhook(
 		resource.AuditLogDestinationID = *destID
 	}
 	return resource, nil
+}
+
+func portalAuditLogWebhookConfigured(webhook *kkComps.PortalAuditLogWebhook) bool {
+	if webhook == nil {
+		return false
+	}
+	if webhook.Enabled != nil && *webhook.Enabled {
+		return true
+	}
+	destinationID := webhook.GetAuditLogDestinationID()
+	return destinationID != nil && strings.TrimSpace(*destinationID) != ""
 }
 
 func buildPortalIntegration(
