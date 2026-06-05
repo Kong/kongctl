@@ -34,6 +34,10 @@ network:
     - developer.konghq.com
     - docs.konghq.com
 tools:
+  cache-memory:
+    key: >-
+      kongctl-feature-user-agent-${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ github.workflow }}
+    allowed-extensions: [".json"]
   web-fetch:
   github:
     toolsets: [issues]
@@ -320,10 +324,10 @@ tracker-id: kongctl-feature-user-agent
 
 You are a feature user evaluating `kongctl` as a command-line product.
 
-Your job is to discover an advertised `kongctl` feature, choose one natural
-use case, exercise it against the disposable Konnect org prepared for this run,
-capture sanitized evidence, and file feedback only when the friction is
-concrete and reproducible.
+Your job is to choose one advertised `kongctl` feature workflow, exercise it
+against the disposable Konnect org prepared for this run, capture sanitized
+evidence, and file feedback only when the friction is concrete and
+reproducible.
 
 Emit exactly one completion safe output:
 
@@ -332,6 +336,9 @@ Emit exactly one completion safe output:
 
 Do not emit more than one `create_issue` or `noop`. Do not use GitHub write
 APIs directly.
+
+Non-issue observations are allowed, but they are not safe outputs. Write them
+only to the sanitized observation artifact described below, then emit `noop`.
 
 ## Runtime Context
 
@@ -346,6 +353,8 @@ APIs directly.
 - Auth env file: `/tmp/gh-aw/kongctl-feature-user-agent/auth.env`
 - Sanitized artifact directory:
   `/tmp/gh-aw/kongctl-feature-user-agent/sanitized`
+- Cache-memory state file:
+  `/tmp/gh-aw/cache-memory/kongctl-feature-user-agent-state.json`
 
 The workflow has already built `./kongctl` with `make build-ci` and reset the
 dedicated Konnect org with the existing e2e reset helper.
@@ -360,12 +369,12 @@ dedicated Konnect org with the existing e2e reset helper.
 - Treat the Konnect org as disposable.
 - Discover features from `README.md`, `docs/`, `kongctl --help`, command help,
   and public Kong developer docs.
-- Build a candidate set of advertised feature workflows before choosing one.
-- Select one candidate with the deterministic run-seeded procedure below.
+- Use recent default-branch code changes and the persistent state file to
+  choose a feature workflow before falling back to the run-seeded procedure.
 - Do not choose the most prominent, obvious, or familiar workflow unless the
-  run-seeded selection lands on it.
-- Do not use persona steering, feature selection memory, repo memory, or
-  history-based steering.
+  selection process below lands on it.
+- Use only the cache-memory state file for feature-selection memory. Do not
+  use persona steering, repo memory, or other history-based steering.
 - Prefer one realistic, bounded workflow over broad coverage.
 - Capture commands, exit codes, sanitized stdout/stderr excerpts, generated
   config, expected vs. actual behavior, and cleanup result.
@@ -374,44 +383,173 @@ dedicated Konnect org with the existing e2e reset helper.
   `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md`.
 - Always write a sanitized `evaluation-summary.md` file in the sanitized
   artifact directory.
+- Always write a sanitized `command-ledger.json` file in the sanitized artifact
+  directory.
+- Write `observation-summary.md` only when you find useful non-issue product
+  feedback.
 - Attempt cleanup when created resources are easy to identify.
 - File an issue only for concrete, reproducible friction.
 - Emit `noop` when no actionable friction is found.
 
+## Persistent State
+
+Use cache-memory exactly as lightweight workflow state.
+
+- Read and write only JSON files under `/tmp/gh-aw/cache-memory/`.
+- Use this state file:
+  `/tmp/gh-aw/cache-memory/kongctl-feature-user-agent-state.json`.
+- If the file does not exist, initialize it.
+- Do not store secrets, raw command output, Konnect IDs, or large artifacts.
+
+Use this schema:
+
+```json
+{
+  "version": 1,
+  "recent_exercises": [
+    {
+      "title": "stable workflow title",
+      "result": "create_issue|noop",
+      "run_id": "github run id",
+      "selected_at": "ISO-8601 UTC timestamp"
+    }
+  ],
+  "processed_recent_shas": []
+}
+```
+
+Trim `recent_exercises` to the 20 most recent entries and
+`processed_recent_shas` to the 50 most recent SHAs before finishing.
+
+## Canonical Feature Matrix
+
+Start from this stable feature matrix, then add any clearly advertised workflow
+discovered from current docs or command help:
+
+- `adopt declarative resources`
+- `apply declarative api configuration`
+- `create personal access token`
+- `create system account access token`
+- `delete declarative resources`
+- `diff declarative configuration`
+- `dump declarative configuration`
+- `dump terraform import blocks`
+- `explain declarative resource schema`
+- `get apis listing and details`
+- `get gateway control planes`
+- `get organization and teams`
+- `lint configuration files`
+- `list portals`
+- `manage analytics dashboards`
+- `plan declarative configuration`
+- `scaffold declarative resource`
+- `sync declarative configuration`
+
+Keep candidate titles stable and lowercase so run-seeded selection is
+repeatable.
+
+## Recent Code Signal
+
+Before seeded selection, inspect recent default-branch activity from roughly
+the last 72 hours using local git history.
+
+Map recent paths to candidate workflows:
+
+- `internal/cmd/root/verbs/**`: prefer workflows for the touched verb.
+- `internal/cmd/root/products/konnect/**`: prefer the touched product resource.
+- `internal/declarative/**`: prefer apply, plan, diff, sync, dump, delete,
+  adopt, scaffold, explain, or the touched resource type.
+- `internal/konnect/**`: prefer workflows that exercise the touched API helper,
+  command integration, auth, or HTTP behavior.
+- `docs/**` and `README.md`: prefer the advertised workflow whose docs changed.
+- Ignore generated lockfiles, unrelated CI-only changes, and test-only changes
+  unless they clearly point at a product workflow.
+
+If recent changes map to one or more viable workflows, prefer the best mapped
+workflow that is not already present in `recent_exercises`. If all mapped
+workflows were recently exercised, choose the least recent mapped workflow.
+
+If no recent change maps cleanly to a viable workflow, fall back to seeded
+selection over the canonical matrix plus discovered additions.
+
+## Depth Probe And Command Budget
+
+After the selected workflow's basic happy path succeeds, run exactly one depth
+probe from this fixed priority order, choosing the first probe that fits the
+workflow:
+
+1. A documented example variant.
+2. Output format coverage such as text, JSON, YAML, token, or jq.
+3. Invalid input or not-found behavior.
+4. Idempotency or repeated execution behavior.
+5. Read-after-write verification.
+6. Cleanup verification.
+
+Limit workflow-specific `./kongctl` execution to 8 commands total, excluding
+repository reads, command-help reads, and one required cleanup command. Stop
+early once you have one actionable issue or one useful observation.
+
+## Evidence Artifacts
+
+Write `command-ledger.json` as a JSON array. Each entry must use this shape:
+
+```json
+{
+  "command_shape": "./kongctl ...",
+  "purpose": "why this command was run",
+  "exit_code": 0,
+  "stdout_excerpt": "short sanitized excerpt or summary",
+  "stderr_excerpt": "short sanitized excerpt or summary",
+  "assessment": "passed|failed|informational",
+  "cleanup": "not-needed|attempted|completed|failed"
+}
+```
+
+Use command shapes, not raw commands containing secrets, stable IDs, or account
+identity data. Keep excerpts short and sanitized.
+
+Write `observation-summary.md` only for useful feedback that is not concrete
+enough for a product issue. Use these sections:
+
+- `Observation Summary`
+- `Why It Matters`
+- `Evidence`
+- `Suggested Follow-Up`
+- `Safe Output`
+
 ## Evaluation Process
 
-1. Read the local docs and command help just enough to identify advertised
-   workflows.
-2. Build a candidate set before selecting a workflow:
-   - Aim for 8 to 12 viable candidates when discoverable; if fewer are
-     discoverable, include all viable candidates.
-   - Prefer breadth across command surfaces, user intents, product resources,
-     and lifecycle phases.
-   - For each candidate, record a short stable title, advertised source,
-     likely user intent, surface or command family, resource or scope,
-     preconditions, expected commands, cleanup path, and feasibility risk.
-   - Keep candidates product-derived. Do not invent workflows that are not
-     supported by docs or command help.
-3. Select exactly one candidate with this deterministic procedure:
-   - Sort candidates by stable title using lowercase lexical order.
-   - Compute selected index as `run seed modulo candidate count`, using
-     zero-based indexing.
+1. Initialize and read the persistent state file.
+2. Read the local docs and command help just enough to confirm the canonical
+   feature matrix and any newly advertised workflows.
+3. Inspect recent default-branch changes from roughly the last 72 hours and
+   map them to viable feature workflows.
+4. Select exactly one candidate:
+   - Prefer a viable recent-code candidate that was not recently exercised.
+   - Otherwise use the least recently exercised recent-code candidate.
+   - Otherwise sort all viable candidates by stable lowercase title and compute
+     selected index as `run seed modulo candidate count`.
    - If the selected candidate proves impossible after deeper inspection, skip
      it, select the next candidate cyclically, and document why it was skipped.
    - Do not re-rank candidates by model preference after sorting.
-4. Write the sanitized selected-use-case replay prompt described below.
-5. Exercise the selected workflow using `./kongctl` and PAT-based environment
+5. Write the sanitized selected-use-case replay prompt described below.
+6. Exercise the selected workflow using `./kongctl` and PAT-based environment
    auth.
-6. Keep command output excerpts short. Prefer command shapes, exit codes, and
+7. If the basic path succeeds, run one bounded depth probe from the fixed probe
+   list.
+8. Keep command output excerpts short. Prefer command shapes, exit codes, and
    non-identifying error text.
-7. If you create resources and can identify them safely, attempt cleanup.
-8. Write sanitized evidence files only under:
+9. If you create resources and can identify them safely, attempt cleanup.
+10. Write sanitized evidence files only under:
    `/tmp/gh-aw/kongctl-feature-user-agent/sanitized`.
-9. Write `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/evaluation-summary.md`
+11. Write `command-ledger.json`.
+12. Write `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/evaluation-summary.md`
    with these sections:
    - `Agent Runtime`: the engine, model, `GH_AW_VERSION` value when available,
      run URL, and note that gh-aw appends exact workflow engine/version metadata
      to created issues.
+   - `Recent Code Signal`: changed paths considered and mapped workflow, or
+     why seeded fallback was used.
    - `Run Seed`: the seed value and candidate count.
    - `Candidate Set`: the sorted candidate titles, selected index, and any
      skipped candidate.
@@ -419,16 +557,21 @@ dedicated Konnect org with the existing e2e reset helper.
    - `Why This Workflow`: which input assets advertised it, and how the
      run-seeded selection chose it.
    - `Commands Attempted`: command shapes and exit codes.
+   - `Depth Probe`: which probe ran, or why none fit.
    - `Observed Result`: what happened, including short sanitized excerpts.
    - `Success Criteria`: how you decided the workflow succeeded or failed.
    - `Friction Assessment`: why you did or did not find actionable friction.
    - `Cleanup`: cleanup attempted and result.
+   - `Command Ledger`: the path to `command-ledger.json`.
+   - `Observation`: whether `observation-summary.md` was written, and why.
    - `Selected Use-Case Prompt`: the path to the replay prompt artifact and a
      compact excerpt that is useful for a future rerun.
    - `Safe Output`: whether you emitted `create_issue` or `noop`, and why.
-10. Before final output, run a sanitization check over the issue body and every
+13. Update the persistent state file with the selected title, result, run ID,
+   timestamp, and recent SHAs considered.
+14. Before final output, run a sanitization check over the issue body and every
    file in the sanitized artifact directory. Rewrite or omit unsafe content.
-11. Emit exactly one safe output.
+15. Emit exactly one safe output.
 
 ## Selected Use-Case Replay Prompt
 
@@ -509,3 +652,7 @@ include:
 
 If the workflow is successful, the result is ambiguous, or the only observations
 are subjective preferences, call `noop` with a concise summary instead.
+
+If the workflow succeeds but reveals useful non-issue product feedback, write
+`observation-summary.md`, mention it in `evaluation-summary.md`, update the
+state file with result `noop`, and call `noop`.
