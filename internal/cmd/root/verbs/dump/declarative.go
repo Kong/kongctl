@@ -1,10 +1,11 @@
 package dump
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -430,11 +431,11 @@ func collectDeclarativePortals(
 		return nil, err
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Name == results[j].Name {
-			return results[i].Ref < results[j].Ref
+	slices.SortFunc(results, func(a, b declresources.PortalResource) int {
+		if n := cmp.Compare(a.Name, b.Name); n != 0 {
+			return n
 		}
-		return results[i].Name < results[j].Name
+		return cmp.Compare(a.Ref, b.Ref)
 	})
 
 	return results, nil
@@ -488,11 +489,11 @@ func collectDeclarativeAPIs(
 		return nil, err
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Name == results[j].Name {
-			return results[i].Ref < results[j].Ref
+	slices.SortFunc(results, func(a, b declresources.APIResource) int {
+		if n := cmp.Compare(a.Name, b.Name); n != 0 {
+			return n
 		}
-		return results[i].Name < results[j].Name
+		return cmp.Compare(a.Ref, b.Ref)
 	})
 
 	return results, nil
@@ -550,11 +551,11 @@ func collectDeclarativeDashboards(
 		return nil, err
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Name == results[j].Name {
-			return results[i].Ref < results[j].Ref
+	slices.SortFunc(results, func(a, b declresources.DashboardResource) int {
+		if n := cmp.Compare(a.Name, b.Name); n != 0 {
+			return n
 		}
-		return results[i].Name < results[j].Name
+		return cmp.Compare(a.Ref, b.Ref)
 	})
 
 	return results, nil
@@ -619,8 +620,8 @@ func collectDeclarativeEventGateways(
 		)
 	}
 
-	sort.Slice(allData, func(i, j int) bool {
-		return allData[i].Name < allData[j].Name
+	slices.SortFunc(allData, func(a, b declresources.EventGatewayControlPlaneResource) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return allData, nil
@@ -692,8 +693,8 @@ func collectDeclarativeOrganizationTeams(
 		})
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Name < results[j].Name
+	slices.SortFunc(results, func(a, b declresources.OrganizationTeamResource) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return results, nil
@@ -970,8 +971,8 @@ func collectDeclarativeAuthStrategies(
 		)
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].GetMoniker() < results[j].GetMoniker()
+	slices.SortFunc(results, func(a, b declresources.ApplicationAuthStrategyResource) int {
+		return cmp.Compare(a.GetMoniker(), b.GetMoniker())
 	})
 
 	return results, nil
@@ -1114,8 +1115,8 @@ func collectDeclarativeDCRProviders(
 		return r.Name, r.Ref
 	})
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Name < results[j].Name
+	slices.SortFunc(results, func(a, b declresources.DCRProviderResource) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return results, nil
@@ -1213,8 +1214,8 @@ func collectDeclarativeControlPlanes(
 		return nil, err
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Name < results[j].Name
+	slices.SortFunc(results, func(a, b declresources.ControlPlaneResource) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return results, nil

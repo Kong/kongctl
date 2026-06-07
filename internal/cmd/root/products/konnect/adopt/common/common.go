@@ -80,11 +80,9 @@ func ReadAdoptFlags(cmd *cobra.Command) (AdoptFlags, error) {
 func PointerLabelMap(existing map[string]string, namespace string) map[string]*string {
 	result := make(map[string]*string, len(existing))
 	for k, v := range existing {
-		val := v
-		result[k] = &val
+		result[k] = &v
 	}
-	ns := namespace
-	result[labels.NamespaceKey] = &ns
+	result[labels.NamespaceKey] = &namespace
 
 	return result
 }
