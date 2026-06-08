@@ -805,14 +805,14 @@ func (rs *ResourceSet) GetOrganizationTeamRolesByNamespace(namespace string) []O
 func (rs *ResourceSet) GetOrganizationUserTeamMembershipsByNamespace(
 	namespace string,
 ) []OrganizationUserTeamMembershipResource {
-	userByRef := make(map[string]OrganizationUserResource)
-	for _, user := range rs.organizationUsers() {
-		userByRef[user.Ref] = user
+	teamByRef := make(map[string]OrganizationTeamResource)
+	for _, team := range rs.GetOrganizationTeamsByNamespace(namespace) {
+		teamByRef[team.Ref] = team
 	}
 
 	var filtered []OrganizationUserTeamMembershipResource
 	for _, membership := range rs.OrganizationUserTeamMemberships {
-		if user, ok := userByRef[membership.User]; ok && GetNamespace(user.Kongctl) == namespace {
+		if _, ok := teamByRef[membership.Team]; ok {
 			filtered = append(filtered, membership)
 		}
 	}
@@ -839,15 +839,14 @@ func (rs *ResourceSet) GetOrganizationUserRolesByNamespace(namespace string) []O
 func (rs *ResourceSet) GetOrganizationSystemAccountTeamMembershipsByNamespace(
 	namespace string,
 ) []OrganizationSystemAccountTeamMembershipResource {
-	systemAccountByRef := make(map[string]OrganizationSystemAccountResource)
-	for _, systemAccount := range rs.organizationSystemAccounts() {
-		systemAccountByRef[systemAccount.Ref] = systemAccount
+	teamByRef := make(map[string]OrganizationTeamResource)
+	for _, team := range rs.GetOrganizationTeamsByNamespace(namespace) {
+		teamByRef[team.Ref] = team
 	}
 
 	var filtered []OrganizationSystemAccountTeamMembershipResource
 	for _, membership := range rs.OrganizationSystemAccountTeamMemberships {
-		if systemAccount, ok := systemAccountByRef[membership.SystemAccount]; ok &&
-			GetNamespace(systemAccount.Kongctl) == namespace {
+		if _, ok := teamByRef[membership.Team]; ok {
 			filtered = append(filtered, membership)
 		}
 	}
