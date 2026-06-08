@@ -427,6 +427,36 @@ func TestRecorder_BareKongctl_SkipsEvent(t *testing.T) {
 	}
 }
 
+func TestRecorder_SkippedCommands_DoNotEmit(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "version", path: "kongctl version"},
+		{name: "completion", path: "kongctl completion bash"},
+		{name: "__complete", path: "kongctl __complete get apis"},
+		{name: "__completeNoDesc", path: "kongctl __completeNoDesc get apis"},
+		{name: "help", path: "kongctl help plan"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sink := &capturingSink{}
+			rec := newTestRecorder(sink)
+
+			rec.SetCommand(CommandInfo{Path: tt.path})
+			rec.Finalize(time.Now())
+			if err := rec.Close(t.Context()); err != nil {
+				t.Fatalf("Close: %v", err)
+			}
+
+			if got := sink.Events(); len(got) != 0 {
+				t.Errorf("%s emitted %d events, want 0", tt.path, len(got))
+			}
+		})
+	}
+}
+
 func TestRecorder_FinalizeWithoutSetCommand_Skips(t *testing.T) {
 	sink := &capturingSink{}
 	rec := newTestRecorder(sink)

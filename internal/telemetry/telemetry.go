@@ -206,6 +206,14 @@ type CommandInfo struct {
 	Path string
 }
 
+var skippedCommandPrefixes = map[string]struct{}{
+	"version":          {},
+	"completion":       {},
+	"__complete":       {},
+	"__completeNoDesc": {},
+	"help":             {},
+}
+
 // Recorder buffers a single event for the duration of one command execution
 // and flushes it to a Sink on Close. A Recorder is single-use: Begin → (one
 // SetCommand) → Finalize → Close. When telemetry is disabled, NewRecorder
@@ -321,13 +329,19 @@ func (r *Recorder) SetCommand(info CommandInfo) {
 		return
 	}
 	info.Path = trimBinaryPrefix(info.Path)
-	if info.Path == "" {
+	if info.Path == "" || shouldSkipCommand(info.Path) {
 		return
 	}
 	r.mu.Lock()
 	r.cmdInfo = info
 	r.cmdSet = true
 	r.mu.Unlock()
+}
+
+func shouldSkipCommand(path string) bool {
+	firstSegment, _, _ := strings.Cut(path, " ")
+	_, skip := skippedCommandPrefixes[firstSegment]
+	return skip
 }
 
 // trimBinaryPrefix strips the leading "kongctl" / "kongctl " from a cobra
