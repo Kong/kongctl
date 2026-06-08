@@ -211,6 +211,31 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "not found"
+      - name: 011-get-implementations
+        run: ["get", "api", "implementations", "--api-name", "API Nested", "-o", "json"]
+        recordVar:
+          name: implID
+          responsePath: "[0].id"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                "length(id) > `0`": true
+                service.control_plane_id: "{{ .vars.controlPlaneID }}"
+                service.id: "{{ .vars.gatewayServiceID }}"
+      - name: 012-get-implementation-by-id
+        run: ["get", "api", "implementations", "--api-name", "API Nested", "{{ .vars.implID }}", "-o", "json"]
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                id: "{{ .vars.implID }}"
+                service.control_plane_id: "{{ .vars.controlPlaneID }}"
+                service.id: "{{ .vars.gatewayServiceID }}"
 
   - name: 003-apply-update
     inputOverlayDirs:
