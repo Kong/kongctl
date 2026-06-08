@@ -30,7 +30,6 @@
         "docs/examples/extensions/go/go.mod"
       ],
       "matchPackageNames": [
-      "matchPackageNames": [
         "github.com/kong/kongctl"
       ],
       "minimumReleaseAge": "0 days"
