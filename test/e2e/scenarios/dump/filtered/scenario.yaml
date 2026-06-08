@@ -111,6 +111,19 @@ steps:
             expect:
               fields:
                 slug: "sms-getting-started"
+          # SMS API has 1 publication to My First Portal
+          - name: api-has-publication
+            select: "apis[0].publications[0]"
+            expect:
+              fields:
+                "length(portal_id) > `0`": true
+                visibility: "public"
+          # At least one auth strategy ID should be present on the publication
+          - name: api-publication-has-auth-strategy
+            select: "apis[0].publications[0].auth_strategy_ids"
+            expect:
+              fields:
+                "length(@)": 1
 
   # ── filter-name on portals ────────────────────────────────────
   - name: 005-dump-filter-portal-name
