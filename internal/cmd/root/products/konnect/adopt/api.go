@@ -173,8 +173,7 @@ func resolveAPI(
 
 		for _, api := range list.Data {
 			if api.Name == identifier {
-				apiCopy := api
-				return &apiCopy, nil
+				return &api, nil
 			}
 		}
 
