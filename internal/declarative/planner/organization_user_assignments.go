@@ -41,7 +41,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 	}
 
 	if plan.Metadata.Mode == PlanModeSync {
-		for _, user := range t.organizationUsersByNamespace(namespace) {
+		for _, user := range t.usersForTeamMembershipSync() {
 			if _, ok := membershipsByUser[user.Ref]; !ok {
 				membershipsByUser[user.Ref] = []resources.OrganizationUserTeamMembershipResource{}
 			}
@@ -347,6 +347,13 @@ func (t *OrganizationTeamPlannerImpl) organizationUsersByNamespace(
 		}
 	}
 	return users
+}
+
+func (t *OrganizationTeamPlannerImpl) usersForTeamMembershipSync() []resources.OrganizationUserResource {
+	if t.planner.resources == nil || t.planner.resources.Organization == nil {
+		return nil
+	}
+	return t.planner.resources.Organization.Users
 }
 
 func (t *OrganizationTeamPlannerImpl) organizationUserByRef(userRef string) *resources.OrganizationUserResource {

@@ -46,7 +46,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 		membershipsByAccount[membership.SystemAccount] = append(membershipsByAccount[membership.SystemAccount], membership)
 	}
 	if plan.Metadata.Mode == PlanModeSync {
-		for _, account := range t.organizationSystemAccountsByNamespace(namespace) {
+		for _, account := range t.accountsForTeamMembershipSync() {
 			if _, ok := membershipsByAccount[account.Ref]; !ok {
 				membershipsByAccount[account.Ref] = []resources.OrganizationSystemAccountTeamMembershipResource{}
 			}
@@ -364,6 +364,13 @@ func (t *OrganizationTeamPlannerImpl) organizationSystemAccountsByNamespace(
 		}
 	}
 	return systemAccounts
+}
+
+func (t *OrganizationTeamPlannerImpl) accountsForTeamMembershipSync() []resources.OrganizationSystemAccountResource {
+	if t.planner.resources == nil || t.planner.resources.Organization == nil {
+		return nil
+	}
+	return t.planner.resources.Organization.SystemAccounts
 }
 
 func (t *OrganizationTeamPlannerImpl) organizationSystemAccountByRef(
