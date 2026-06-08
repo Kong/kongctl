@@ -22,6 +22,19 @@
       "dependencyDashboardApproval": true
     },
     {
+      "description": "Allow the example Go extension SDK dependency to update immediately",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchFileNames": [
+        "docs/examples/extensions/go/go.mod"
+      ],
+      "matchPackageNames": [
+        "github.com/kong/kongctl"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
       "description": "Batch gh-aw updates weekly after a short aging period to reduce daily churn",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["github/gh-aw"],
