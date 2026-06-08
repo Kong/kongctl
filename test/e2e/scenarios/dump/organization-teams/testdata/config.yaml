@@ -23,3 +23,9 @@ organization:
           entity_id: "*"
           entity_type_name: APIs
           entity_region: us
+  users:
+    - ref: dump-user-1
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_1
+      teams:
+        - ref: dump-user-1-alpha-team
+          team: dump-org-team-alpha
