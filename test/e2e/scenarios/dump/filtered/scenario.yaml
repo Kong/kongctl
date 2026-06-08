@@ -28,6 +28,11 @@ steps:
             expect:
               fields:
                 mode: apply
+        recordVars:
+          - name: portalID
+            responsePath: "execution.applied_changes[?resource_ref=='getting-started-portal'] | [0].resource_id"
+          - name: keyAuthID
+            responsePath: "execution.applied_changes[?resource_ref=='key-auth'] | [0].resource_id"
 
   # ── filter-name: exact match on APIs ──────────────────────────
   - name: 002-dump-filter-name-exact
@@ -111,19 +116,20 @@ steps:
             expect:
               fields:
                 slug: "sms-getting-started"
-          # SMS API has 1 publication to My First Portal
+          # SMS API has 1 publication; assert portal_id matches the applied portal
           - name: api-has-publication
             select: "apis[0].publications[0]"
             expect:
               fields:
-                "length(portal_id) > `0`": true
+                portal_id: "{{ .vars.portalID }}"
                 visibility: "public"
-          # At least one auth strategy ID should be present on the publication
+          # Exactly one auth strategy ID on the publication, matching the applied key-auth strategy
           - name: api-publication-has-auth-strategy
             select: "apis[0].publications[0].auth_strategy_ids"
             expect:
               fields:
                 "length(@)": 1
+                "[0]": "{{ .vars.keyAuthID }}"
 
   # ── filter-name on portals ────────────────────────────────────
   - name: 005-dump-filter-portal-name
