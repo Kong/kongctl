@@ -738,6 +738,38 @@ organization:
 	require.Len(t, rs.GetOrganizationUserRolesByNamespace("org-users-test"), 1)
 }
 
+func TestLoader_LoadFileScopesOrganizationUserTeamMembershipsByTeamNamespace(t *testing.T) {
+	content := `
+organization:
+  teams:
+    - ref: platform-team
+      kongctl:
+        namespace: dumped-team-namespace
+      name: Platform Engineering
+  users:
+    - ref: alice
+      email: alice@example.com
+      teams:
+        - ref: alice-platform-team
+          team: platform-team
+`
+
+	dir := t.TempDir()
+	file := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+	loader := New()
+	rs, err := loader.LoadFile(file)
+	require.NoError(t, err)
+
+	require.NotNil(t, rs.Organization)
+	require.Len(t, rs.Organization.Users, 1)
+	memberships := rs.GetOrganizationUserTeamMembershipsByNamespace("dumped-team-namespace")
+	require.Len(t, memberships, 1)
+	assert.Equal(t, "alice-platform-team", memberships[0].Ref)
+	assert.Empty(t, rs.GetOrganizationUserTeamMembershipsByNamespace("default"))
+}
+
 func TestLoader_RejectsSingularPortalIntegrationKey(t *testing.T) {
 	content := `
 portals:

@@ -42,6 +42,22 @@ type systemAccountRolesAPIStub struct {
 	) (*kkOps.GetSystemAccountsAccountIDAssignedRolesResponse, error)
 }
 
+type organizationTeamMembershipAPIStub struct {
+	listUserTeams func(
+		context.Context,
+		kkOps.ListUserTeamsRequest,
+		...kkOps.Option,
+	) (*kkOps.ListUserTeamsResponse, error)
+}
+
+type systemAccountTeamMembershipAPIStub struct {
+	listSystemAccountTeams func(
+		context.Context,
+		kkOps.GetSystemAccountsAccountIDTeamsRequest,
+		...kkOps.Option,
+	) (*kkOps.GetSystemAccountsAccountIDTeamsResponse, error)
+}
+
 func (s *organizationTeamAPIStub) ListOrganizationTeams(
 	ctx context.Context,
 	req kkOps.ListTeamsRequest,
@@ -178,8 +194,89 @@ func (s *systemAccountRolesAPIStub) RemoveSystemAccountRole(
 	return nil, fmt.Errorf("RemoveSystemAccountRole not implemented")
 }
 
+func (s *organizationTeamMembershipAPIStub) ListTeamUsers(
+	_ context.Context,
+	_ kkOps.ListTeamUsersRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListTeamUsersResponse, error) {
+	return nil, fmt.Errorf("ListTeamUsers not implemented")
+}
+
+func (s *organizationTeamMembershipAPIStub) ListUserTeams(
+	ctx context.Context,
+	req kkOps.ListUserTeamsRequest,
+	opts ...kkOps.Option,
+) (*kkOps.ListUserTeamsResponse, error) {
+	if s.listUserTeams != nil {
+		return s.listUserTeams(ctx, req, opts...)
+	}
+	return &kkOps.ListUserTeamsResponse{TeamCollection: teamCollection()}, nil
+}
+
+func (s *organizationTeamMembershipAPIStub) AddUserToTeam(
+	_ context.Context,
+	_ string,
+	_ *kkComps.AddUserToTeam,
+	_ ...kkOps.Option,
+) (*kkOps.AddUserToTeamResponse, error) {
+	return nil, fmt.Errorf("AddUserToTeam not implemented")
+}
+
+func (s *organizationTeamMembershipAPIStub) RemoveUserFromTeam(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.RemoveUserFromTeamResponse, error) {
+	return nil, fmt.Errorf("RemoveUserFromTeam not implemented")
+}
+
+func (s *systemAccountTeamMembershipAPIStub) ListSystemAccountTeams(
+	ctx context.Context,
+	req kkOps.GetSystemAccountsAccountIDTeamsRequest,
+	opts ...kkOps.Option,
+) (*kkOps.GetSystemAccountsAccountIDTeamsResponse, error) {
+	if s.listSystemAccountTeams != nil {
+		return s.listSystemAccountTeams(ctx, req, opts...)
+	}
+	return &kkOps.GetSystemAccountsAccountIDTeamsResponse{TeamCollection: teamCollection()}, nil
+}
+
+func (s *systemAccountTeamMembershipAPIStub) AddSystemAccountToTeam(
+	_ context.Context,
+	_ string,
+	_ *kkComps.AddSystemAccountToTeam,
+	_ ...kkOps.Option,
+) (*kkOps.PostTeamsTeamIDSystemAccountsResponse, error) {
+	return nil, fmt.Errorf("AddSystemAccountToTeam not implemented")
+}
+
+func (s *systemAccountTeamMembershipAPIStub) RemoveSystemAccountFromTeam(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteTeamsTeamIDSystemAccountsAccountIDResponse, error) {
+	return nil, fmt.Errorf("RemoveSystemAccountFromTeam not implemented")
+}
+
 func discardPlannerLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+func stringPtr(value string) *string {
+	return &value
+}
+
+func plannerNamespaceMeta(namespace string) *resources.KongctlMeta {
+	return &resources.KongctlMeta{Namespace: &namespace}
+}
+
+func teamCollection(teams ...kkComps.Team) *kkComps.TeamCollection {
+	return &kkComps.TeamCollection{
+		Data: teams,
+		Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: float64(len(teams))}},
+	}
 }
 
 func assignedRoleCollection(roles ...kkComps.AssignedRole) *kkComps.AssignedRoleCollection {
@@ -304,6 +401,142 @@ func TestOrganizationUserAssignmentPlansCreateChanges(t *testing.T) {
 	require.Equal(t, ResourceTypeOrganizationUserRole, plan.Changes[1].ResourceType)
 	require.Equal(t, "alice-products-viewer", plan.Changes[1].ResourceRef)
 	require.Equal(t, "__REF__:products-api#id", plan.Changes[1].References[FieldEntityID].Ref)
+}
+
+func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDifferentNamespace(t *testing.T) {
+	const (
+		namespace = "team-namespace"
+		userID    = "user-123"
+		teamID    = "team-123"
+		teamName  = "Platform Engineering"
+	)
+
+	user := resources.OrganizationUserResource{Ref: "alice", Email: "alice@example.com"}
+	user.SetKonnectID(userID)
+
+	resourceSet := &resources.ResourceSet{
+		Organization: &resources.OrganizationResource{
+			Users: []resources.OrganizationUserResource{user},
+		},
+		OrganizationTeams: []resources.OrganizationTeamResource{
+			{
+				BaseResource: resources.BaseResource{
+					Ref:     "platform-team",
+					Kongctl: plannerNamespaceMeta(namespace),
+				},
+				CreateTeam: kkComps.CreateTeam{Name: teamName},
+			},
+		},
+	}
+
+	var queriedUserIDs []string
+	client := state.NewClient(state.ClientConfig{
+		OrganizationMembershipAPI: &organizationTeamMembershipAPIStub{
+			listUserTeams: func(
+				_ context.Context,
+				req kkOps.ListUserTeamsRequest,
+				_ ...kkOps.Option,
+			) (*kkOps.ListUserTeamsResponse, error) {
+				queriedUserIDs = append(queriedUserIDs, req.UserID)
+				return &kkOps.ListUserTeamsResponse{
+					TeamCollection: teamCollection(kkComps.Team{
+						ID:   stringPtr(teamID),
+						Name: stringPtr(teamName),
+					}),
+				}, nil
+			},
+		},
+	})
+	planner := NewPlanner(client, discardPlannerLogger())
+	planner.resources = resourceSet
+	teamPlanner := NewOrganizationTeamPlanner(NewBasePlanner(planner)).(*OrganizationTeamPlannerImpl)
+	plan := NewPlan("1.0", "test", PlanModeSync)
+
+	err := teamPlanner.planOrganizationUserTeamMembershipChanges(
+		t.Context(),
+		namespace,
+		nil,
+		map[string]state.OrganizationTeam{
+			teamName: {Team: kkComps.Team{ID: stringPtr(teamID), Name: stringPtr(teamName)}},
+		},
+		plan,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, []string{userID}, queriedUserIDs)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+	require.Equal(t, ResourceTypeOrganizationUserTeamMembership, plan.Changes[0].ResourceType)
+	require.Equal(t, "alice|team-123", plan.Changes[0].ResourceRef)
+	require.Equal(t, namespace, plan.Changes[0].Namespace)
+}
+
+func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelectorInDifferentNamespace(t *testing.T) {
+	const (
+		namespace = "team-namespace"
+		accountID = "account-123"
+		teamID    = "team-123"
+		teamName  = "Platform Engineering"
+	)
+
+	account := resources.OrganizationSystemAccountResource{Ref: "ci-bot", Name: "CI Bot"}
+	account.SetKonnectID(accountID)
+
+	resourceSet := &resources.ResourceSet{
+		Organization: &resources.OrganizationResource{
+			SystemAccounts: []resources.OrganizationSystemAccountResource{account},
+		},
+		OrganizationTeams: []resources.OrganizationTeamResource{
+			{
+				BaseResource: resources.BaseResource{
+					Ref:     "platform-team",
+					Kongctl: plannerNamespaceMeta(namespace),
+				},
+				CreateTeam: kkComps.CreateTeam{Name: teamName},
+			},
+		},
+	}
+
+	var queriedAccountIDs []string
+	client := state.NewClient(state.ClientConfig{
+		SystemAccountMembershipAPI: &systemAccountTeamMembershipAPIStub{
+			listSystemAccountTeams: func(
+				_ context.Context,
+				req kkOps.GetSystemAccountsAccountIDTeamsRequest,
+				_ ...kkOps.Option,
+			) (*kkOps.GetSystemAccountsAccountIDTeamsResponse, error) {
+				queriedAccountIDs = append(queriedAccountIDs, req.AccountID)
+				return &kkOps.GetSystemAccountsAccountIDTeamsResponse{
+					TeamCollection: teamCollection(kkComps.Team{
+						ID:   stringPtr(teamID),
+						Name: stringPtr(teamName),
+					}),
+				}, nil
+			},
+		},
+	})
+	planner := NewPlanner(client, discardPlannerLogger())
+	planner.resources = resourceSet
+	teamPlanner := NewOrganizationTeamPlanner(NewBasePlanner(planner)).(*OrganizationTeamPlannerImpl)
+	plan := NewPlan("1.0", "test", PlanModeSync)
+
+	err := teamPlanner.planOrganizationSystemAccountTeamMembershipChanges(
+		t.Context(),
+		namespace,
+		nil,
+		map[string]state.OrganizationTeam{
+			teamName: {Team: kkComps.Team{ID: stringPtr(teamID), Name: stringPtr(teamName)}},
+		},
+		plan,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, []string{accountID}, queriedAccountIDs)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+	require.Equal(t, ResourceTypeOrganizationSystemAccountTeamMembership, plan.Changes[0].ResourceType)
+	require.Equal(t, "ci-bot|team-123", plan.Changes[0].ResourceRef)
+	require.Equal(t, namespace, plan.Changes[0].Namespace)
 }
 
 func TestOrganizationTeamRolePortalEntityRefMatchesExistingRole(t *testing.T) {
