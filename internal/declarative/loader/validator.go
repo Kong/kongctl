@@ -50,8 +50,10 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	}
 
 	// Validate audit-log webhook destinations
-	if err := l.validateAuditLogWebhookDestinations(rs.AuditLogs.Destinations, rs); err != nil {
-		return err
+	if rs.AuditLogs != nil {
+		if err := l.validateAuditLogWebhookDestinations(rs.AuditLogs.Destinations, rs); err != nil {
+			return err
+		}
 	}
 
 	// Validate control plane data plane certificates

@@ -82,7 +82,7 @@ type ResourceRef struct {
 type ResourceSet struct {
 	Portals []PortalResource `yaml:"portals,omitempty"                                        json:"portals,omitempty"`
 	// AuditLogs contains organization-scoped audit-log resources.
-	AuditLogs AuditLogsResource `yaml:"audit-logs,omitempty"                                     json:"audit-logs,omitempty"` //nolint:lll
+	AuditLogs *AuditLogsResource `yaml:"audit-logs,omitempty"                                    json:"audit-logs,omitempty"` //nolint:lll
 	// ApplicationAuthStrategies contains auth strategy configurations
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"                    json:"application_auth_strategies,omitempty"` //nolint:lll
 	DCRProviders              []DCRProviderResource             `yaml:"dcr_providers,omitempty"                                  json:"dcr_providers,omitempty"`               //nolint:lll

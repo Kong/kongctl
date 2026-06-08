@@ -94,7 +94,7 @@ func TestPlanPortalAuditLogWebhookCreateUsesResolvedDestinationReference(t *test
 		Portals: []resources.PortalResource{
 			{BaseResource: resources.BaseResource{Ref: "portal"}},
 		},
-		AuditLogs: resources.AuditLogsResource{
+		AuditLogs: &resources.AuditLogsResource{
 			Destinations: []resources.AuditLogWebhookDestinationResource{destination},
 		},
 	}

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/yaml"
 )
 
 func namespaceMeta(namespace string) *KongctlMeta {
@@ -130,4 +131,17 @@ func TestGetOrganizationSystemAccountTeamMembershipsByNamespaceUsesTeamNamespace
 	require.Equal(t, "existing-system-account-managed-team", memberships[0].Ref)
 
 	require.Empty(t, rs.GetOrganizationSystemAccountTeamMembershipsByNamespace("default"))
+}
+
+func TestResourceSetMarshalOmitsEmptyAuditLogs(t *testing.T) {
+	rs := &ResourceSet{}
+
+	require.True(t, rs.IsEmpty())
+	require.Empty(t, rs.AllResourcesByType(ResourceTypeAuditLogWebhookDestination))
+	require.Nil(t, rs.AuditLogs)
+
+	yamlBytes, err := yaml.Marshal(rs)
+	require.NoError(t, err)
+	require.NotContains(t, string(yamlBytes), "audit-logs:")
+	require.Nil(t, rs.AuditLogs)
 }
