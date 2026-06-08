@@ -206,7 +206,7 @@ type CommandInfo struct {
 	Path string
 }
 
-var skippedCommandPrefixes = map[string]struct{}{
+var skippedCommands = map[string]struct{}{
 	"version":          {},
 	"completion":       {},
 	"__complete":       {},
@@ -340,7 +340,7 @@ func (r *Recorder) SetCommand(info CommandInfo) {
 
 func shouldSkipCommand(path string) bool {
 	firstSegment, _, _ := strings.Cut(path, " ")
-	_, skip := skippedCommandPrefixes[firstSegment]
+	_, skip := skippedCommands[firstSegment]
 	return skip
 }
 
