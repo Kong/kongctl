@@ -2,6 +2,7 @@ package loader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -77,6 +78,34 @@ func TestFetchURL(t *testing.T) {
 
 		_, err := fetchURL(t.Context(), server.URL, urlFetchConfig{maxBytes: 3})
 		require.Error(t, err)
+		assert.Contains(t, err.Error(), "response is too large")
+	})
+
+	t.Run("sanitizes URL in status errors", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, "not found", http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		_, err := fetchURL(t.Context(), sensitiveURLForTest(t, server.URL+"/config.yaml"), urlFetchConfig{})
+		require.Error(t, err)
+		assertURLFetchErrorSanitized(t, err)
+		assert.Contains(t, err.Error(), "/config.yaml")
+	})
+
+	t.Run("sanitizes URL in response size errors", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Length", "4")
+			_, err := w.Write([]byte("data"))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		_, err := fetchURL(t.Context(), sensitiveURLForTest(t, server.URL+"/config.yaml"), urlFetchConfig{
+			maxBytes: 3,
+		})
+		require.Error(t, err)
+		assertURLFetchErrorSanitized(t, err)
 		assert.Contains(t, err.Error(), "response is too large")
 	})
 
@@ -217,6 +246,25 @@ func TestFetchURLAuth(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, req.Header.Get(httpheaders.HeaderAuthorization))
 	})
+
+	t.Run("sanitizes URL in token source errors", func(t *testing.T) {
+		req, err := http.NewRequestWithContext(
+			t.Context(),
+			http.MethodGet,
+			sensitiveURLForTest(t, "https://example.com/config.yaml"),
+			nil,
+		)
+		require.NoError(t, err)
+
+		err = configureURLFetchAuth(req, URLFetchOptions{
+			AuthPolicy:       URLFetchAuthAuto,
+			AuthAllowedHosts: []string{"example.com"},
+			TokenSource:      staticURLFetchTokenSource{err: errors.New("token unavailable")},
+		})
+		require.Error(t, err)
+		assertURLFetchErrorSanitized(t, err)
+		assert.Contains(t, err.Error(), "token unavailable")
+	})
 }
 
 func TestLoader_LoadFromSources_URL(t *testing.T) {
@@ -240,10 +288,32 @@ portals:
 
 type staticURLFetchTokenSource struct {
 	token string
+	err   error
 }
 
 func (s staticURLFetchTokenSource) Token(context.Context) (string, error) {
+	if s.err != nil {
+		return "", s.err
+	}
 	return s.token, nil
+}
+
+func sensitiveURLForTest(t *testing.T, rawURL string) string {
+	t.Helper()
+	parsed, err := url.Parse(rawURL)
+	require.NoError(t, err)
+	parsed.User = url.UserPassword("user", "pass")
+	parsed.RawQuery = "token=secret"
+	parsed.Fragment = "fragment"
+	return parsed.String()
+}
+
+func assertURLFetchErrorSanitized(t *testing.T, err error) {
+	t.Helper()
+	errText := err.Error()
+	assert.NotContains(t, errText, "user:pass")
+	assert.NotContains(t, errText, "token=secret")
+	assert.NotContains(t, errText, "fragment")
 }
 
 func mustURLHostname(t *testing.T, rawURL string) string {
@@ -291,4 +361,11 @@ func TestFetchURLRejectsInvalidURL(t *testing.T) {
 			assert.Contains(t, fmt.Sprint(err), "URL")
 		})
 	}
+}
+
+func TestFetchURLRejectsMalformedURLWithoutLeakingSecrets(t *testing.T) {
+	_, err := FetchURL(t.Context(), "https://user:pass@example.com/%zz?token=secret#fragment")
+	require.Error(t, err)
+	assertURLFetchErrorSanitized(t, err)
+	assert.Contains(t, err.Error(), "https://example.com/%zz")
 }

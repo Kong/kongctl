@@ -96,7 +96,7 @@ func fetchURL(ctx context.Context, rawURL string, cfg urlFetchConfig) ([]byte, e
 			return nil, err
 		}
 		if err := waitBeforeURLFetchRetry(ctx, backoff, attempt); err != nil {
-			return nil, fmt.Errorf("failed to fetch URL %s: %w", rawURL, err)
+			return nil, fmt.Errorf("failed to fetch URL %s: %w", safeURLForLog(rawURL), err)
 		}
 	}
 
@@ -106,7 +106,7 @@ func fetchURL(ctx context.Context, rawURL string, cfg urlFetchConfig) ([]byte, e
 func parseFetchURL(rawURL string) (*url.URL, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, fmt.Errorf("invalid URL %q: %w", rawURL, err)
+		return nil, fmt.Errorf("invalid URL %q: %s", safeURLForLog(rawURL), safeURLErrorMessage(rawURL, err))
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return nil, fmt.Errorf("unsupported URL scheme %q", parsed.Scheme)
@@ -165,9 +165,10 @@ func fetchURLOnce(
 	options URLFetchOptions,
 	attempt int,
 ) ([]byte, bool, error) {
+	safeURL := safeURLForLog(rawURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to create request for URL %s: %w", rawURL, err)
+		return nil, false, fmt.Errorf("failed to create request for URL %s: %w", safeURL, err)
 	}
 	httpheaders.SetUserAgent(req, meta.UserAgent())
 	httpheaders.SetAccept(req, "application/yaml, text/yaml, text/plain, */*")
@@ -184,7 +185,7 @@ func fetchURLOnce(
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, isRetryableURLFetchError(ctx, err), fmt.Errorf("failed to fetch URL %s: %w", rawURL, err)
+		return nil, isRetryableURLFetchError(ctx, err), fmt.Errorf("failed to fetch URL %s: %w", safeURL, err)
 	}
 	defer resp.Body.Close()
 
@@ -196,7 +197,7 @@ func fetchURLOnce(
 	if resp.ContentLength > maxBytes {
 		return nil, false, fmt.Errorf(
 			"failed to fetch URL %s: response is too large (%d bytes, limit %d bytes)",
-			rawURL, resp.ContentLength, maxBytes,
+			safeURL, resp.ContentLength, maxBytes,
 		)
 	}
 
@@ -211,12 +212,12 @@ func fetchURLOnce(
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
 	if err != nil {
-		return nil, isRetryableURLFetchError(ctx, err), fmt.Errorf("failed to read URL %s: %w", rawURL, err)
+		return nil, isRetryableURLFetchError(ctx, err), fmt.Errorf("failed to read URL %s: %w", safeURL, err)
 	}
 	if int64(len(body)) > maxBytes {
 		return nil, false, fmt.Errorf(
 			"failed to fetch URL %s: response is too large (limit %d bytes)",
-			rawURL, maxBytes,
+			safeURL, maxBytes,
 		)
 	}
 
@@ -264,11 +265,14 @@ func configureURLFetchAuth(req *http.Request, options URLFetchOptions) error {
 
 	token, err := options.TokenSource.Token(req.Context())
 	if err != nil {
-		return fmt.Errorf("failed to resolve authentication token for URL %s: %w", req.URL.String(), err)
+		return fmt.Errorf("failed to resolve authentication token for URL %s: %w", safeURLForLog(req.URL.String()), err)
 	}
 	token = strings.TrimSpace(token)
 	if token == "" {
-		return fmt.Errorf("failed to resolve authentication token for URL %s: token is empty", req.URL.String())
+		return fmt.Errorf(
+			"failed to resolve authentication token for URL %s: token is empty",
+			safeURLForLog(req.URL.String()),
+		)
 	}
 	httpheaders.SetBearerAuthorization(req, token)
 	return nil
@@ -306,12 +310,13 @@ func normalizeURLFetchAuthHost(host string) string {
 }
 
 func unexpectedURLFetchStatusError(rawURL string, resp *http.Response) error {
+	safeURL := safeURLForLog(rawURL)
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 	snippet := strings.TrimSpace(string(body))
 	if snippet == "" {
-		return fmt.Errorf("failed to fetch URL %s: unexpected HTTP status %s", rawURL, resp.Status)
+		return fmt.Errorf("failed to fetch URL %s: unexpected HTTP status %s", safeURL, resp.Status)
 	}
-	return fmt.Errorf("failed to fetch URL %s: unexpected HTTP status %s: %s", rawURL, resp.Status, snippet)
+	return fmt.Errorf("failed to fetch URL %s: unexpected HTTP status %s: %s", safeURL, resp.Status, snippet)
 }
 
 func isRetryableURLFetchStatus(statusCode int) bool {
@@ -364,10 +369,45 @@ func loggerFromContext(ctx context.Context) *slog.Logger {
 func safeURLForLog(rawURL string) string {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return rawURL
+		return redactMalformedURL(rawURL)
 	}
 	parsed.User = nil
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return parsed.String()
+}
+
+func redactMalformedURL(rawURL string) string {
+	redacted := rawURL
+	if idx := strings.IndexAny(redacted, "?#"); idx >= 0 {
+		redacted = redacted[:idx]
+	}
+	scheme, rest, ok := strings.Cut(redacted, "://")
+	if !ok {
+		return redacted
+	}
+
+	authority := rest
+	suffix := ""
+	if idx := strings.Index(authority, "/"); idx >= 0 {
+		suffix = authority[idx:]
+		authority = authority[:idx]
+	}
+	if idx := strings.LastIndex(authority, "@"); idx >= 0 {
+		authority = authority[idx+1:]
+	}
+	return scheme + "://" + authority + suffix
+}
+
+func safeURLErrorMessage(rawURL string, err error) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	redactedURL := safeURLForLog(rawURL)
+	message = strings.ReplaceAll(message, rawURL, redactedURL)
+	if rawWithoutFragment, _, ok := strings.Cut(rawURL, "#"); ok {
+		message = strings.ReplaceAll(message, rawWithoutFragment, redactedURL)
+	}
+	return message
 }
