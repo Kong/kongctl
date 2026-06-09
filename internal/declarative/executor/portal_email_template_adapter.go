@@ -6,6 +6,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -93,11 +94,11 @@ func (a *PortalEmailTemplateAdapter) GetByID(
 }
 
 func (a *PortalEmailTemplateAdapter) ResourceType() string {
-	return "portal_email_template"
+	return planner.ResourceTypePortalEmailTemplate
 }
 
 func (a *PortalEmailTemplateAdapter) RequiredFields() []string {
-	return []string{"name"}
+	return []string{planner.FieldName}
 }
 
 func (a *PortalEmailTemplateAdapter) SupportsUpdate() bool {
@@ -111,7 +112,7 @@ func (a *PortalEmailTemplateAdapter) portalID(execCtx *ExecutionContext) (string
 
 	change := *execCtx.PlannedChange
 
-	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
 
@@ -143,7 +144,7 @@ func mapPortalEmailTemplateFields(
 	fields map[string]any,
 	req *kkOps.UpdatePortalCustomEmailTemplateRequest,
 ) error {
-	nameVal, ok := fields["name"]
+	nameVal, ok := fields[planner.FieldName]
 	if !ok {
 		return fmt.Errorf("name is required for portal email template")
 	}
@@ -156,7 +157,7 @@ func mapPortalEmailTemplateFields(
 		return fmt.Errorf("name must be a string")
 	}
 
-	if enabledVal, ok := fields["enabled"]; ok {
+	if enabledVal, ok := fields[planner.FieldEnabled]; ok {
 		switch v := enabledVal.(type) {
 		case bool:
 			req.PatchCustomPortalEmailTemplatePayload.Enabled = &v
@@ -169,7 +170,7 @@ func mapPortalEmailTemplateFields(
 		}
 	}
 
-	if contentVal, ok := fields["content"]; ok {
+	if contentVal, ok := fields[planner.FieldContent]; ok {
 		if contentVal == nil {
 			req.PatchCustomPortalEmailTemplatePayload.Content = nil
 		} else {
@@ -187,7 +188,7 @@ func mapPortalEmailTemplateFields(
 				content.Subject = subject
 			}
 
-			if v, ok := contentMap["title"]; ok {
+			if v, ok := contentMap[planner.FieldTitle]; ok {
 				title, err := parseOptionalString(v)
 				if err != nil {
 					return fmt.Errorf("invalid title: %w", err)

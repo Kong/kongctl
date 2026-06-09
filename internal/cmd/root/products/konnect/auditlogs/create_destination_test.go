@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kong/kongctl/internal/konnect/apiutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -109,7 +110,9 @@ func TestEnsureNoActiveRegionalWebhookAllowsWhenDisabled(t *testing.T) {
 		return httpResponse(http.StatusOK, `{"enabled":false,"endpoint":"unconfigured"}`), nil
 	})
 
-	err := ensureNoActiveRegionalWebhook(context.Background(), client, "https://region.example.com", "token", nil)
+	err := ensureNoActiveRegionalWebhook(
+		context.Background(), client, "https://region.example.com", testTokenSource(), nil,
+	)
 	require.NoError(t, err)
 }
 
@@ -122,7 +125,9 @@ func TestEnsureNoActiveRegionalWebhookBlocksWhenConnected(t *testing.T) {
 		return httpResponse(http.StatusOK, `{"enabled":true,"endpoint":"https://example.com/audit-logs"}`), nil
 	})
 
-	err := ensureNoActiveRegionalWebhook(context.Background(), client, "https://region.example.com", "token", nil)
+	err := ensureNoActiveRegionalWebhook(
+		context.Background(), client, "https://region.example.com", testTokenSource(), nil,
+	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "regional audit-log webhook is already configured")
 	require.Contains(t, err.Error(), "enabled=true")
@@ -137,7 +142,9 @@ func TestEnsureNoActiveRegionalWebhookBlocksWhenDisabledButConfigured(t *testing
 		return httpResponse(http.StatusOK, `{"enabled":false,"endpoint":"https://example.com/audit-logs"}`), nil
 	})
 
-	err := ensureNoActiveRegionalWebhook(context.Background(), client, "https://region.example.com", "token", nil)
+	err := ensureNoActiveRegionalWebhook(
+		context.Background(), client, "https://region.example.com", testTokenSource(), nil,
+	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "regional audit-log webhook is already configured")
 	require.Contains(t, err.Error(), "enabled=false")
@@ -152,7 +159,9 @@ func TestEnsureNoActiveRegionalWebhookBlocksWhenStateIsUnknown(t *testing.T) {
 		return httpResponse(http.StatusOK, `{"enabled":false}`), nil
 	})
 
-	err := ensureNoActiveRegionalWebhook(context.Background(), client, "https://region.example.com", "token", nil)
+	err := ensureNoActiveRegionalWebhook(
+		context.Background(), client, "https://region.example.com", testTokenSource(), nil,
+	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "regional audit-log webhook is already configured")
 }
@@ -178,7 +187,7 @@ func TestDeleteDestinationWithRetryRetriesDestinationInUseConflict(t *testing.T)
 		client,
 		"https://region.example.com",
 		"/v2/audit-log-destinations/dest-123",
-		"token",
+		testTokenSource(),
 		"dest-123",
 		nil,
 	)
@@ -203,7 +212,7 @@ func TestDeleteDestinationWithRetryDoesNotRetryOtherConflict(t *testing.T) {
 		client,
 		"https://region.example.com",
 		"/v2/audit-log-destinations/dest-123",
-		"token",
+		testTokenSource(),
 		"dest-123",
 		nil,
 	)
@@ -233,7 +242,7 @@ func TestReleaseRegionalWebhookDisablesAndDeletes(t *testing.T) {
 		}
 	})
 
-	err := releaseRegionalWebhook(context.Background(), client, "https://region.example.com", "token", nil)
+	err := releaseRegionalWebhook(context.Background(), client, "https://region.example.com", testTokenSource(), nil)
 	require.NoError(t, err)
 	require.EqualValues(t, 2, attempts.Load())
 }
@@ -260,7 +269,7 @@ func TestReleaseRegionalWebhookTreatsNotFoundAsSuccess(t *testing.T) {
 		}
 	})
 
-	err := releaseRegionalWebhook(context.Background(), client, "https://region.example.com", "token", nil)
+	err := releaseRegionalWebhook(context.Background(), client, "https://region.example.com", testTokenSource(), nil)
 	require.NoError(t, err)
 	require.EqualValues(t, 2, attempts.Load())
 }
@@ -287,7 +296,7 @@ func TestReleaseRegionalWebhookReturnsErrorOnUnexpectedStatus(t *testing.T) {
 		}
 	})
 
-	err := releaseRegionalWebhook(context.Background(), client, "https://region.example.com", "token", nil)
+	err := releaseRegionalWebhook(context.Background(), client, "https://region.example.com", testTokenSource(), nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "delete audit-log webhook failed")
 	require.EqualValues(t, 2, attempts.Load())
@@ -313,7 +322,7 @@ func TestDeleteDestinationWithRetryStopsOnContextTimeout(t *testing.T) {
 		client,
 		"https://region.example.com",
 		"/v2/audit-log-destinations/dest-123",
-		"token",
+		testTokenSource(),
 		"dest-123",
 		nil,
 	)
@@ -343,6 +352,10 @@ type doerFunc func(*http.Request) (*http.Response, error)
 
 func (f doerFunc) Do(r *http.Request) (*http.Response, error) {
 	return f(r)
+}
+
+func testTokenSource() apiutil.StaticTokenSource {
+	return apiutil.NewStaticTokenSource("token")
 }
 
 func httpResponse(status int, body string) *http.Response {

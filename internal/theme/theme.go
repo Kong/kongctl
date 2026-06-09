@@ -3,17 +3,28 @@ package theme
 import (
 	"context"
 	"fmt"
-	"sort"
+	"image/color"
+	"maps"
+	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/charmbracelet/lipgloss"
-	tint "github.com/lrstanley/bubbletint"
+	"charm.land/lipgloss/v2"
+	tint "github.com/lrstanley/bubbletint/v2"
 	"github.com/lucasb-eyer/go-colorful"
+	"github.com/muesli/termenv"
 )
 
-// DefaultName is the built-in theme used when no override is provided.
+// AutoName selects a built-in Kong theme based on the terminal background.
+const AutoName = "auto"
+
+// DefaultName is the built-in Kong theme optimized for light terminal backgrounds.
 const DefaultName = "kong-light"
+
+// DarkName is the built-in Kong theme optimized for dark terminal backgrounds.
+const DarkName = "kong-dark"
 
 // LegacyName is the deprecated theme name kept for backward compatibility.
 const LegacyName = "kong"
@@ -32,6 +43,8 @@ const (
 	ColorPrimaryText   Token = "primary.text"
 	ColorAccent        Token = "accent"
 	ColorAccentText    Token = "accent.text"
+	ColorSelection     Token = "selection"
+	ColorSelectionText Token = "selection.text"
 	ColorSuccess       Token = "success"
 	ColorSuccessText   Token = "success.text"
 	ColorInfo          Token = "info"
@@ -49,18 +62,38 @@ type Color struct {
 	Dark  string
 }
 
-// Adaptive converts the color into a lipgloss adaptive color.
-func (c Color) Adaptive() lipgloss.AdaptiveColor {
-	light, dark := strings.TrimSpace(c.Light), strings.TrimSpace(c.Dark)
+type adaptiveColor struct {
+	light color.Color
+	dark  color.Color
+}
+
+func (c adaptiveColor) RGBA() (uint32, uint32, uint32, uint32) {
+	if hasDarkBackground() {
+		return c.dark.RGBA()
+	}
+	return c.light.RGBA()
+}
+
+// Adaptive returns a lipgloss-compatible adaptive color that preserves
+// distinct light and dark variants when both are provided.
+func (c Color) Adaptive() color.Color {
+	light := strings.TrimSpace(c.Light)
+	dark := strings.TrimSpace(c.Dark)
 	switch {
 	case light == "" && dark == "":
-		return lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"}
+		return adaptiveColor{
+			light: lipgloss.Color("#FFFFFF"),
+			dark:  lipgloss.Color("#000000"),
+		}
 	case light == "":
 		light = dark
 	case dark == "":
 		dark = light
 	}
-	return lipgloss.AdaptiveColor{Light: light, Dark: dark}
+	return adaptiveColor{
+		light: lipgloss.Color(light),
+		dark:  lipgloss.Color(dark),
+	}
 }
 
 // Palette represents a concrete theme.
@@ -81,8 +114,8 @@ func (p Palette) Color(token Token) Color {
 	return fallbackColor(token)
 }
 
-// Adaptive returns the lipgloss adaptive color for the provided token.
-func (p Palette) Adaptive(token Token) lipgloss.AdaptiveColor {
+// Adaptive returns the resolved lipgloss color for the provided token.
+func (p Palette) Adaptive(token Token) color.Color {
 	return p.Color(token).Adaptive()
 }
 
@@ -99,14 +132,63 @@ func (p Palette) BackgroundStyle(token Token) lipgloss.Style {
 type contextKey struct{}
 
 var (
-	registryOnce        sync.Once
-	registryMu          sync.RWMutex
-	palettes            map[string]Palette
-	current             Palette
-	defaultPal          Palette
-	themeKey            contextKey
-	configuredExplicitly bool
+	registryOnce             sync.Once
+	registryMu               sync.RWMutex
+	palettes                 map[string]Palette
+	current                  Palette
+	defaultPal               Palette
+	themeKey                 contextKey
+	configuredExplicitly     bool
+	darkBackgroundOnce       sync.Once
+	darkBackgroundCached     bool
+	hasDarkBackground        = detectDarkBackground
+	termenvHasDarkBackground = termenv.HasDarkBackground
 )
+
+func detectDarkBackground() bool {
+	darkBackgroundOnce.Do(func() {
+		darkBackgroundCached = detectDarkBackgroundFromEnv()
+	})
+
+	return darkBackgroundCached
+}
+
+func detectDarkBackgroundFromEnv() bool {
+	dark, ok := darkBackgroundFromColorFGBG(os.Getenv("COLORFGBG"))
+	if ok {
+		return dark
+	}
+	return termenvHasDarkBackground()
+}
+
+func darkBackgroundFromColorFGBG(value string) (bool, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false, false
+	}
+
+	bgText := value
+	if idx := strings.LastIndex(value, ";"); idx >= 0 {
+		bgText = strings.TrimSpace(value[idx+1:])
+		if bgText == "" {
+			return false, false
+		}
+	}
+
+	bg, err := strconv.Atoi(strings.TrimSpace(bgText))
+	if err != nil || bg < 0 {
+		return false, false
+	}
+
+	switch {
+	case bg <= 6 || bg == 8:
+		return true, true
+	case bg == 7 || (bg >= 9 && bg <= 15):
+		return false, true
+	default:
+		return false, false
+	}
+}
 
 // ContextWithPalette stores the palette on the context.
 func ContextWithPalette(ctx context.Context, p Palette) context.Context {
@@ -131,11 +213,8 @@ func Available() []string {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
-	keys := make([]string, 0, len(palettes))
-	for k := range palettes {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := slices.Collect(maps.Keys(palettes))
+	slices.Sort(keys)
 	return keys
 }
 
@@ -157,6 +236,10 @@ func AvailableDisplayNames() map[string]string {
 func Exists(name string) bool {
 	ensureRegistry()
 
+	if resolveName(name) == AutoName {
+		return true
+	}
+
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
@@ -168,10 +251,15 @@ func Exists(name string) bool {
 func Get(name string) (Palette, bool) {
 	ensureRegistry()
 
+	name = resolveName(name)
+	if name == AutoName {
+		name = DetectDefaultName()
+	}
+
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
-	p, ok := palettes[resolveName(name)]
+	p, ok := palettes[name]
 	return p, ok
 }
 
@@ -181,7 +269,10 @@ func SetCurrent(name string) error {
 
 	name = resolveName(name)
 	if name == "" {
-		name = DefaultName
+		name = AutoName
+	}
+	if name == AutoName {
+		name = DetectDefaultName()
 	}
 
 	registryMu.Lock()
@@ -193,6 +284,15 @@ func SetCurrent(name string) error {
 	}
 	current = p
 	return nil
+}
+
+// DetectDefaultName returns the built-in Kong theme that best matches the
+// detected terminal background.
+func DetectDefaultName() string {
+	if hasDarkBackground() {
+		return DarkName
+	}
+	return DefaultName
 }
 
 // SetConfiguredExplicitly records whether the active theme was set by the user
@@ -234,8 +334,11 @@ type Flag struct {
 // NewFlag returns a Flag with the provided default value.
 func NewFlag(defaultValue string) *Flag {
 	name := resolveName(defaultValue)
-	if name == "" || !Exists(name) {
-		name = DefaultName
+	if name == "" {
+		name = AutoName
+	}
+	if name != AutoName && !Exists(name) {
+		name = AutoName
 	}
 	return &Flag{value: name}
 }
@@ -243,7 +346,7 @@ func NewFlag(defaultValue string) *Flag {
 // String implements pflag.Value.
 func (f *Flag) String() string {
 	if f == nil {
-		return DefaultName
+		return AutoName
 	}
 	return f.value
 }
@@ -252,7 +355,7 @@ func (f *Flag) String() string {
 func (f *Flag) Set(v string) error {
 	name := resolveName(v)
 	if name == "" {
-		name = DefaultName
+		name = AutoName
 	}
 	if !Exists(name) {
 		return fmt.Errorf("invalid color theme %q", v)
@@ -284,7 +387,8 @@ func ensureRegistry() {
 		defaultPal = palettes[DefaultName]
 		current = defaultPal
 
-		for _, t := range tint.DefaultTints() {
+		tint.NewDefaultRegistry()
+		for _, t := range tint.Tints() {
 			registerPalette(paletteFromTint(t))
 		}
 	})
@@ -335,6 +439,8 @@ func resolveName(name string) string {
 	switch normalized {
 	case "":
 		return ""
+	case AutoName:
+		return AutoName
 	case LegacyName:
 		return DefaultName
 	default:
@@ -342,21 +448,28 @@ func resolveName(name string) string {
 	}
 }
 
-func paletteFromTint(t tint.Tint) Palette {
+func tintColorHex(c *tint.Color) string {
+	if c == nil {
+		return ""
+	}
+	return normalizeHex(c.Hex())
+}
+
+func paletteFromTint(t *tint.Tint) Palette {
 	if t == nil {
 		return Palette{}
 	}
 
-	fg := normalizeHex(tint.Hex(t.Fg()))
-	bg := normalizeHex(tint.Hex(t.Bg()))
-	muted := normalizeHex(tint.Hex(t.BrightBlack()))
-	accent := normalizeHex(tint.Hex(t.Cyan()))
-	accentBright := normalizeHex(tint.Hex(t.BrightBlue()))
-	success := normalizeHex(tint.Hex(t.Green()))
-	info := normalizeHex(tint.Hex(t.Blue()))
-	warning := normalizeHex(tint.Hex(t.Yellow()))
-	danger := normalizeHex(tint.Hex(t.Red()))
-	highlight := normalizeHex(tint.Hex(t.BrightWhite()))
+	fg := tintColorHex(t.Fg)
+	bg := tintColorHex(t.Bg)
+	muted := tintColorHex(t.BrightBlack)
+	accent := tintColorHex(t.Cyan)
+	accentBright := tintColorHex(t.BrightBlue)
+	success := tintColorHex(t.Green)
+	info := tintColorHex(t.Blue)
+	warning := tintColorHex(t.Yellow)
+	danger := tintColorHex(t.Red)
+	highlight := tintColorHex(t.BrightWhite)
 
 	colors := map[Token]Color{
 		ColorTextPrimary:   pairColor(fg, fg),
@@ -369,6 +482,8 @@ func paletteFromTint(t tint.Tint) Palette {
 		ColorPrimaryText:   singleColor(contrastColor(accent)),
 		ColorAccent:        pairColor(accentBright, accentBright),
 		ColorAccentText:    singleColor(contrastColor(accentBright)),
+		ColorSelection:     pairColor(accentBright, accentBright),
+		ColorSelectionText: singleColor(contrastColor(accentBright)),
 		ColorSuccess:       pairColor(success, success),
 		ColorSuccessText:   singleColor(contrastColor(success)),
 		ColorInfo:          pairColor(info, info),
@@ -381,11 +496,57 @@ func paletteFromTint(t tint.Tint) Palette {
 	}
 
 	return Palette{
-		Name:        sanitizeName(t.ID()),
-		DisplayName: strings.TrimSpace(t.DisplayName()),
-		About:       strings.TrimSpace(t.About()),
+		Name:        sanitizeName(t.ID),
+		DisplayName: strings.TrimSpace(t.DisplayName),
+		About:       aboutFromTint(t),
 		Colors:      colors,
 	}
+}
+
+func aboutFromTint(t *tint.Tint) string {
+	if t == nil {
+		return ""
+	}
+
+	name := strings.TrimSpace(t.DisplayName)
+	if name == "" {
+		name = strings.TrimSpace(t.ID)
+	}
+	if name == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Tint: %s", name)
+
+	credits := make([]string, 0, len(t.CreditSources))
+	for _, source := range t.CreditSources {
+		if source == nil {
+			continue
+		}
+
+		sourceName := strings.TrimSpace(source.Name)
+		sourceLink := strings.TrimSpace(source.Link)
+		switch {
+		case sourceName != "" && sourceLink != "":
+			credits = append(credits, fmt.Sprintf("%s (%s)", sourceName, sourceLink))
+		case sourceName != "":
+			credits = append(credits, sourceName)
+		case sourceLink != "":
+			credits = append(credits, sourceLink)
+		}
+	}
+
+	if len(credits) == 0 {
+		return b.String()
+	}
+
+	b.WriteString("\nTint credits:")
+	for _, credit := range credits {
+		fmt.Fprintf(&b, "\n  * %s", credit)
+	}
+
+	return b.String()
 }
 
 func singleColor(hex string) Color {
@@ -499,13 +660,7 @@ func darkenHex(hex string, amount float64) string {
 }
 
 func clampFloat(val, minVal, maxVal float64) float64 {
-	if val < minVal {
-		return minVal
-	}
-	if val > maxVal {
-		return maxVal
-	}
-	return val
+	return min(max(val, minVal), maxVal)
 }
 
 func relativeLuminance(c colorful.Color) float64 {
@@ -527,8 +682,10 @@ func kongLightPalette() Palette {
 			ColorSurfaceText:   singleColor("#000F06"),
 			ColorPrimary:       singleColor("#000F06"),
 			ColorPrimaryText:   singleColor("#FFFFFF"),
-			ColorAccent:        singleColor("#CCFF00"),
-			ColorAccentText:    singleColor("#000F06"),
+			ColorAccent:        singleColor("#005F28"),
+			ColorAccentText:    singleColor("#FFFFFF"),
+			ColorSelection:     singleColor("#CCFF00"),
+			ColorSelectionText: singleColor("#000F06"),
 			ColorSuccess:       singleColor("#000F06"),
 			ColorSuccessText:   singleColor("#FFFFFF"),
 			ColorInfo:          singleColor("#B7BDB5"),
@@ -544,7 +701,7 @@ func kongLightPalette() Palette {
 
 func kongDarkPalette() Palette {
 	return Palette{
-		Name:        "kong-dark",
+		Name:        DarkName,
 		DisplayName: "Kong Dark",
 		About:       "Kong dark theme based on the 2026 brand guidelines.",
 		Colors: map[Token]Color{
@@ -556,8 +713,10 @@ func kongDarkPalette() Palette {
 			ColorSurfaceText:   singleColor("#FFFFFF"),
 			ColorPrimary:       singleColor("#CCFF00"),
 			ColorPrimaryText:   singleColor("#000F06"),
-			ColorAccent:        singleColor("#B7BDB5"),
+			ColorAccent:        singleColor("#CCFF00"),
 			ColorAccentText:    singleColor("#000F06"),
+			ColorSelection:     singleColor("#CCFF00"),
+			ColorSelectionText: singleColor("#000F06"),
 			ColorSuccess:       singleColor("#CCFF00"),
 			ColorSuccessText:   singleColor("#000F06"),
 			ColorInfo:          singleColor("#B7BDB5"),

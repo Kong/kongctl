@@ -1,0 +1,10 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-bc-comprehensive-test
+
+# Legacy directory name; sync delete intent is now a nested empty child list.
+event_gateways:
+  - ref: egw-cp-for-bc-test
+    name: egw-cp-for-bc-test
+    description: "EGW CP for Backend Cluster Test"
+    backend_clusters: []

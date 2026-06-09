@@ -132,7 +132,7 @@ func (p *Planner) planCatalogServiceChanges(
 		} else {
 			needsUpdate, updateFields, changedFields := p.shouldUpdateCatalogService(current, desiredSvc)
 			if needsUpdate {
-				if err := p.validateProtection("catalog_service", desiredSvc.Name, isProtected, ActionUpdate); err != nil {
+				if err := p.validateProtection(ResourceTypeCatalogService, desiredSvc.Name, isProtected, ActionUpdate); err != nil {
 					protectionErrors = append(protectionErrors, err)
 				} else {
 					p.planCatalogServiceUpdateWithFields(current, desiredSvc, updateFields, changedFields, plan)
@@ -148,7 +148,7 @@ func (p *Planner) planCatalogServiceChanges(
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection("catalog_service", name, isProtected, ActionDelete); err != nil {
+			if err := p.validateProtection(ResourceTypeCatalogService, name, isProtected, ActionDelete); err != nil {
 				protectionErrors = append(protectionErrors, err)
 			} else {
 				p.planCatalogServiceDelete(current, plan)
@@ -177,16 +177,16 @@ func (p *Planner) shouldUpdateCatalogService(
 	changedFields := make(map[string]FieldChange)
 
 	if desired.Name != "" && current.Name != desired.Name {
-		updates["name"] = desired.Name
-		changedFields["name"] = FieldChange{
+		updates[FieldName] = desired.Name
+		changedFields[FieldName] = FieldChange{
 			Old: current.Name,
 			New: desired.Name,
 		}
 	}
 
 	if desired.DisplayName != "" && current.DisplayName != desired.DisplayName {
-		updates["display_name"] = desired.DisplayName
-		changedFields["display_name"] = FieldChange{
+		updates[FieldDisplayName] = desired.DisplayName
+		changedFields[FieldDisplayName] = FieldChange{
 			Old: current.DisplayName,
 			New: desired.DisplayName,
 		}
@@ -195,8 +195,8 @@ func (p *Planner) shouldUpdateCatalogService(
 	if desired.Description != nil {
 		currentDesc := getString(current.Description)
 		if currentDesc != *desired.Description {
-			updates["description"] = *desired.Description
-			changedFields["description"] = FieldChange{
+			updates[FieldDescription] = *desired.Description
+			changedFields[FieldDescription] = FieldChange{
 				Old: currentDesc,
 				New: *desired.Description,
 			}
@@ -205,8 +205,8 @@ func (p *Planner) shouldUpdateCatalogService(
 
 	if desired.CustomFields != nil {
 		if !reflect.DeepEqual(current.CustomFields, desired.CustomFields) {
-			updates["custom_fields"] = desired.CustomFields
-			changedFields["custom_fields"] = FieldChange{
+			updates[FieldCustomFields] = desired.CustomFields
+			changedFields[FieldCustomFields] = FieldChange{
 				Old: current.CustomFields,
 				New: desired.CustomFields,
 			}
@@ -215,8 +215,8 @@ func (p *Planner) shouldUpdateCatalogService(
 
 	if desired.Labels != nil {
 		if labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
-			updates["labels"] = desired.GetLabels()
-			changedFields["labels"] = FieldChange{
+			updates[FieldLabels] = desired.GetLabels()
+			changedFields[FieldLabels] = FieldChange{
 				Old: labels.GetUserLabels(current.NormalizedLabels),
 				New: labels.GetUserLabels(desired.GetLabels()),
 			}
@@ -238,10 +238,10 @@ func (p *Planner) planCatalogServiceCreate(resource resources.CatalogServiceReso
 	}
 
 	config := CreateConfig{
-		ResourceType:   "catalog_service",
+		ResourceType:   ResourceTypeCatalogService,
 		ResourceName:   resource.Name,
 		ResourceRef:    resource.GetRef(),
-		RequiredFields: []string{"name", "display_name"},
+		RequiredFields: []string{FieldName, FieldDisplayName},
 		FieldExtractor: func(_ any) map[string]any {
 			return extractCatalogServiceFields(resource)
 		},
@@ -264,16 +264,16 @@ func (p *Planner) planCatalogServiceCreate(resource resources.CatalogServiceReso
 func extractCatalogServiceFields(resource resources.CatalogServiceResource) map[string]any {
 	fields := make(map[string]any)
 
-	fields["name"] = resource.Name
-	fields["display_name"] = resource.DisplayName
+	fields[FieldName] = resource.Name
+	fields[FieldDisplayName] = resource.DisplayName
 	if resource.Description != nil {
-		fields["description"] = *resource.Description
+		fields[FieldDescription] = *resource.Description
 	}
 	if len(resource.Labels) > 0 {
-		fields["labels"] = resource.GetLabels()
+		fields[FieldLabels] = resource.GetLabels()
 	}
 	if resource.CustomFields != nil {
-		fields["custom_fields"] = resource.CustomFields
+		fields[FieldCustomFields] = resource.CustomFields
 	}
 
 	return fields
@@ -299,30 +299,27 @@ func (p *Planner) planCatalogServiceUpdateWithFields(
 		}
 	}
 
-	if _, ok := updateFields["name"]; !ok {
-		updateFields["name"] = current.Name
+	if _, ok := updateFields[FieldName]; !ok {
+		updateFields[FieldName] = current.Name
 	}
-	if _, ok := updateFields["display_name"]; !ok {
-		updateFields["display_name"] = current.DisplayName
+	if _, ok := updateFields[FieldDisplayName]; !ok {
+		updateFields[FieldDisplayName] = current.DisplayName
 	}
-	if _, hasLabels := updateFields["labels"]; hasLabels {
+	if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
 
 	config := UpdateConfig{
-		ResourceType:  "catalog_service",
-		ResourceName:  desired.Name,
-		ResourceRef:   desired.GetRef(),
-		ResourceID:    current.ID,
-		DesiredFields: updateFields,
-		ChangedFields: changedFields,
-		CurrentLabels: current.NormalizedLabels,
-		DesiredLabels: desired.GetLabels(),
-		RequiredFields: []string{
-			"name",
-			"display_name",
-		},
-		Namespace: namespace,
+		ResourceType:   ResourceTypeCatalogService,
+		ResourceName:   desired.Name,
+		ResourceRef:    desired.GetRef(),
+		ResourceID:     current.ID,
+		DesiredFields:  updateFields,
+		ChangedFields:  changedFields,
+		CurrentLabels:  current.NormalizedLabels,
+		DesiredLabels:  desired.GetLabels(),
+		RequiredFields: []string{FieldName, FieldDisplayName},
+		Namespace:      namespace,
 	}
 
 	change, err := p.genericPlanner.PlanUpdate(context.Background(), config)
@@ -330,10 +327,10 @@ func (p *Planner) planCatalogServiceUpdateWithFields(
 		p.logger.Error("Failed to plan catalog service update", slog.String("error", err.Error()))
 		fields := make(map[string]any, len(updateFields))
 		maps.Copy(fields, updateFields)
-		changeID := p.nextChangeID(ActionUpdate, "catalog_service", desired.GetRef())
+		changeID := p.nextChangeID(ActionUpdate, ResourceTypeCatalogService, desired.GetRef())
 		fallback := PlannedChange{
 			ID:            changeID,
-			ResourceType:  "catalog_service",
+			ResourceType:  ResourceTypeCatalogService,
 			ResourceRef:   desired.GetRef(),
 			ResourceID:    current.ID,
 			Action:        ActionUpdate,
@@ -369,7 +366,7 @@ func (p *Planner) planCatalogServiceProtectionChangeWithFields(
 	}
 
 	config := ProtectionChangeConfig{
-		ResourceType: "catalog_service",
+		ResourceType: ResourceTypeCatalogService,
 		ResourceName: desired.Name,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -382,12 +379,12 @@ func (p *Planner) planCatalogServiceProtectionChangeWithFields(
 
 	fields := make(map[string]any)
 	maps.Copy(fields, updateFields)
-	fields["name"] = current.Name
-	fields["display_name"] = current.DisplayName
-	fields["id"] = current.ID
+	fields[FieldName] = current.Name
+	fields[FieldDisplayName] = current.DisplayName
+	fields[FieldID] = current.ID
 
 	if ns, ok := current.NormalizedLabels[labels.NamespaceKey]; ok {
-		fields["namespace"] = ns
+		fields[FieldNamespace] = ns
 	}
 
 	if current.NormalizedLabels != nil {
@@ -398,7 +395,7 @@ func (p *Planner) planCatalogServiceProtectionChangeWithFields(
 			}
 		}
 		if len(preserved) > 0 {
-			fields["preserved_labels"] = preserved
+			fields[FieldPreservedLabels] = preserved
 		}
 	}
 
@@ -416,7 +413,7 @@ func (p *Planner) planCatalogServiceDelete(current state.CatalogService, plan *P
 	}
 
 	config := DeleteConfig{
-		ResourceType: "catalog_service",
+		ResourceType: ResourceTypeCatalogService,
 		ResourceName: current.Name,
 		ResourceRef:  current.Name,
 		ResourceID:   current.ID,

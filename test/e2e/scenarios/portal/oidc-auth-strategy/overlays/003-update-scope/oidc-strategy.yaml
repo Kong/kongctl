@@ -1,0 +1,16 @@
+application_auth_strategies:
+  - ref: oidc-e2e
+    name: oidc-e2e
+    display_name: E2E OIDC Strategy
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: https://issuer.example.com
+        credential_claim:
+          - sub
+        auth_methods:
+          - bearer
+        scopes:
+          - openid
+          - profile
+          - email

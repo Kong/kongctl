@@ -27,8 +27,15 @@ func TestDataPlaneCertFlagValidation(t *testing.T) {
 			wantErr: "if any flags in the group [gateway-id gateway-name] are set none of the others can be",
 		},
 		{
-			name:    "both data plane certificate flags mutually exclusive",
-			args:    []string{"--gateway-id", "gw-1", "--data-plane-certificate-id", "cert-1", "--data-plane-certificate-name", "cert"},                                                                          //nolint:lll
+			name: "both data plane certificate flags mutually exclusive",
+			args: []string{
+				"--gateway-id",
+				"gw-1",
+				"--data-plane-certificate-id",
+				"cert-1",
+				"--data-plane-certificate-name",
+				"cert",
+			},
 			wantErr: "if any flags in the group [data-plane-certificate-id data-plane-certificate-name] are set none of the others can be; [data-plane-certificate-id data-plane-certificate-name] were all set", //nolint:lll
 		},
 	}
@@ -57,7 +64,7 @@ func TestDataPlaneCertFlagValidation(t *testing.T) {
 
 func TestFindDataPlaneCertByName(t *testing.T) {
 	certs := []kkComps.EventGatewayDataPlaneCertificate{
-		{ID: "cert-1", Name: ptr("Alpha-Cert")},
+		{ID: "cert-1", Name: new("Alpha-Cert")},
 		{ID: "cert-2", Name: nil},
 	}
 
@@ -71,8 +78,6 @@ func TestFormatCertificateMetadata(t *testing.T) {
 	// Nil returns n/a
 	assert.Contains(t, formatCertificateMetadata(nil), valueNA)
 	// Populated field appears
-	meta := &kkComps.CertificateMetadata{Subject: ptr("CN=test")}
+	meta := &kkComps.CertificateMetadata{Subject: new("CN=test")}
 	assert.Contains(t, formatCertificateMetadata(meta), "subject: CN=test")
 }
-
-func ptr(s string) *string { return &s }

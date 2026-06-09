@@ -1,0 +1,44 @@
+_defaults:
+  kongctl:
+    namespace: portal-customization
+
+portals:
+  - ref: portal-customization
+    name: portal-customization
+    display_name: Portal Customization
+    description: Portal with customization managed declaratively
+    kongctl:
+      namespace: portal-customization
+    customization:
+      ref: portal-customization-settings
+      theme:
+        mode: "dark"
+        colors:
+          primary: "#FF5733"
+      layout: "sidebar"
+      spec_renderer:
+        try_it_ui: false
+        try_it_insomnia: false
+        infinite_scroll: false
+        show_schemas: false
+        hide_internal: true
+        hide_deprecated: true
+        allow_custom_server_urls: false
+      robots: "User-agent: *\nDisallow: /internal"
+      menu:
+        main:
+          - path: "/home"
+            title: "Home"
+            external: false
+            visibility: "public"
+          - path: "/docs"
+            title: "Docs"
+            external: false
+            visibility: "public"
+        footer_sections:
+          - title: "Company"
+            items:
+              - path: "#"
+                title: "About"
+                external: false
+                visibility: "public"

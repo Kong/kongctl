@@ -3,9 +3,6 @@ baseInputsPath: testdata
 env:
   KONGCTL_LOG_LEVEL: info
 
-test:
-  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
-
 vars:
   egwName: egw-cp-for-dataplane-cert-test-name
   dataplaneCertRef: default-dataplane-certificate-ref

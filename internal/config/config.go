@@ -79,15 +79,10 @@ type Key struct{}
 // Config is a global instance of the Key type
 var ConfigKey = Key{}
 
-// Hook provides a generatlization of the Viper interface
-// but allows some control, specifically over the Save functionality
+// Hook provides a generalization of the Viper interface
+// but allows some control,
 // which we extend to provide safer file management handling
 type Hook interface {
-	// Save writes the configuration to the file system
-	// TODO: Evaluate if writing the credentials is something we want to do at all
-	//   I saw some issues related to writing config which may have been loaded by a variety of sources
-	//   and is that desirable behavior (also security concerns with secrets loaded at runtime)
-	Save() error
 	// GetString returns a string value from the configuration
 	GetString(key string) string
 	// GetBool returns a boolean value from the configuration
@@ -104,6 +99,10 @@ type Hook interface {
 	Set(k string, v any)
 	// Get returns a value from the configuration
 	Get(key string) any
+	// InConfig reports whether key was explicitly present in the config file
+	// for this profile. It intentionally ignores flags, environment variables,
+	// overrides, and defaults.
+	InConfig(key string) bool
 	// BindFlag takes a specific configuration path and
 	// binds it to a specific flag
 	BindFlag(configPath string, f *pflag.Flag) error
@@ -127,14 +126,6 @@ type ProfiledConfig struct {
 
 func (p *ProfiledConfig) GetProfile() string {
 	return p.ProfileName
-}
-
-func (p *ProfiledConfig) Save() error {
-	// For now just defer to the write, but we want to add
-	// file backups and better handling here to protect
-	// user data
-	// TODO: Improve / Evaluate writing of configs (if at all)
-	return p.WriteConfig()
 }
 
 func (p *ProfiledConfig) GetString(key string) string {
@@ -176,6 +167,10 @@ func (p *ProfiledConfig) GetPath() string {
 	return p.Path
 }
 
+func (p *ProfiledConfig) InConfig(key string) bool {
+	return p.subViper.InConfig(key)
+}
+
 func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledConfig {
 	subv := mainv.Sub(profile)
 	if subv == nil {
@@ -188,6 +183,14 @@ func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledC
 		envPrefix := viper.ProfileEnvPrefix(profile)
 		viper.ConfigureEnvVars(subv, envPrefix)
 	}
+
+	// Telemetry is opt-out: enabled by default. Users disable per-invocation
+	// with --no-telemetry, per-process with KONGCTL_NO_TELEMETRY=true or
+	// DO_NOT_TRACK=1, or persistently by setting telemetry.enabled=false in
+	// the profile config.
+	subv.SetDefault("telemetry.enabled", true)
+	// Set this to true only for debugging purposes locally.
+	subv.SetDefault("telemetry.debug", false)
 
 	rv := &ProfiledConfig{
 		Viper:       mainv,

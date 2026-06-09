@@ -1,14 +1,22 @@
 package common
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
 )
 
@@ -56,6 +64,12 @@ var (
 	RequestPageSizeConfigPath = "konnect." + RequestPageSizeFlagName
 
 	RegionConfigPath = "konnect." + RegionFlagName
+
+	HTTPRetryMaxAttemptsConfigPath        = "konnect." + cmdcommon.HTTPRetryMaxAttemptsConfigPath
+	HTTPRetryInitialIntervalConfigPath    = "konnect." + cmdcommon.HTTPRetryInitialIntervalConfigPath
+	HTTPRetryMaxIntervalConfigPath        = "konnect." + cmdcommon.HTTPRetryMaxIntervalConfigPath
+	HTTPRetryBackoffFactorConfigPath      = "konnect." + cmdcommon.HTTPRetryBackoffFactorConfigPath
+	HTTPRetryOnConnectionErrorsConfigPath = "konnect." + cmdcommon.HTTPRetryOnConnectionErrorsConfigPath
 )
 
 var regionPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
@@ -104,15 +118,186 @@ func ResolveBaseURL(cfg config.Hook) (string, error) {
 	return resolved, nil
 }
 
+func ResolveHTTPTimeout(cfg config.Hook) (time.Duration, error) {
+	timeout, set, err := resolveOptionalDuration(cfg, cmdcommon.HTTPTimeoutConfigPath)
+	if err != nil {
+		return 0, err
+	}
+	if !set {
+		return httpclient.DefaultHTTPClientTimeout, nil
+	}
+	return timeout, nil
+}
+
+func ResolveHTTPTransportOptions(cfg config.Hook) (httpclient.TransportOptions, error) {
+	tcpUserTimeout, _, err := resolveOptionalDuration(cfg, cmdcommon.HTTPTCPUserTimeoutConfigPath)
+	if err != nil {
+		return httpclient.TransportOptions{}, err
+	}
+
+	disableKeepAlives, err := resolveOptionalBool(cfg, cmdcommon.HTTPDisableKeepAlivesConfigPath)
+	if err != nil {
+		return httpclient.TransportOptions{}, err
+	}
+
+	recycleOnError, err := resolveOptionalBool(cfg, cmdcommon.HTTPRecycleConnectionsOnErrorConfigPath)
+	if err != nil {
+		return httpclient.TransportOptions{}, err
+	}
+
+	return httpclient.TransportOptions{
+		TCPUserTimeout:            tcpUserTimeout,
+		DisableKeepAlives:         disableKeepAlives,
+		RecycleConnectionsOnError: recycleOnError,
+	}, nil
+}
+
+// ResolveRetryConfig builds an httpclient.RetryConfig from configuration,
+// applying defaults when values are unset.
+func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
+	maxAttempts, err := resolveOptionalInt(cfg, HTTPRetryMaxAttemptsConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if maxAttempts < 0 {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %d: must be >= 0",
+			HTTPRetryMaxAttemptsConfigPath, maxAttempts)
+	}
+	if maxAttempts > httpclient.MaxRetryMaxAttempts {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be <= %d",
+			HTTPRetryMaxAttemptsConfigPath, maxAttempts, httpclient.MaxRetryMaxAttempts)
+	}
+	if maxAttempts == 0 {
+		maxAttempts = httpclient.DefaultRetryMaxAttempts
+	}
+
+	strategy := httpclient.RetryStrategyBackoff
+	if maxAttempts == 1 {
+		strategy = httpclient.RetryStrategyNone
+	}
+
+	initialIntervalMS, err := resolveOptionalInt(cfg, HTTPRetryInitialIntervalConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if initialIntervalMS == 0 {
+		initialIntervalMS = httpclient.DefaultRetryInitialIntervalMS
+	}
+	if initialIntervalMS < httpclient.MinRetryInitialIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be >= %d ms",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MinRetryInitialIntervalMS)
+	}
+	if initialIntervalMS > httpclient.MaxRetryInitialIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be <= %d ms",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MaxRetryInitialIntervalMS)
+	}
+
+	maxIntervalMS, err := resolveOptionalInt(cfg, HTTPRetryMaxIntervalConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if maxIntervalMS == 0 {
+		maxIntervalMS = httpclient.DefaultRetryMaxIntervalMS
+	}
+	if maxIntervalMS < httpclient.MinRetryMaxIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be >= %d ms",
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MinRetryMaxIntervalMS)
+	}
+	if maxIntervalMS > httpclient.MaxRetryMaxIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid %s value %d: must be <= %d ms",
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MaxRetryMaxIntervalMS)
+	}
+	if initialIntervalMS > maxIntervalMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid configuration: %s (%d ms) must be <= %s (%d ms)",
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS,
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS)
+	}
+
+	factor, err := resolveOptionalFloat64(cfg, HTTPRetryBackoffFactorConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if factor == 0 {
+		factor = httpclient.DefaultRetryBackoffFactor
+	}
+	if math.IsNaN(factor) || math.IsInf(factor, 0) {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be a finite number",
+			HTTPRetryBackoffFactorConfigPath, factor)
+	}
+	if factor < httpclient.MinRetryBackoffFactor {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be >= %g",
+			HTTPRetryBackoffFactorConfigPath, factor, httpclient.MinRetryBackoffFactor)
+	}
+	if factor > httpclient.MaxRetryBackoffFactor {
+		return httpclient.RetryConfig{}, fmt.Errorf("invalid %s value %g: must be <= %g",
+			HTTPRetryBackoffFactorConfigPath, factor, httpclient.MaxRetryBackoffFactor)
+	}
+
+	retryConnErrors, err := resolveOptionalBool(cfg, HTTPRetryOnConnectionErrorsConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+
+	retryConfig := httpclient.RetryConfig{
+		Strategy:              strategy,
+		MaxAttempts:           maxAttempts,
+		InitialIntervalMS:     initialIntervalMS,
+		MaxIntervalMS:         maxIntervalMS,
+		BackoffFactor:         factor,
+		RetryConnectionErrors: retryConnErrors,
+	}
+	totalBackoffMS := httpclient.EstimatedRetryBackoffMS(retryConfig)
+	if totalBackoffMS > httpclient.MaxRetryTotalBackoffMS {
+		return httpclient.RetryConfig{}, fmt.Errorf(
+			"invalid retry configuration: cumulative backoff budget %d ms must be <= %d ms",
+			totalBackoffMS, httpclient.MaxRetryTotalBackoffMS)
+	}
+
+	return retryConfig, nil
+}
+
 func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
+	source, err := GetAccessTokenSource(cfg, logger)
+	if err != nil {
+		return "", err
+	}
+
+	return ResolveAccessToken(context.Background(), cfg, source)
+}
+
+func ResolveAccessToken(ctx context.Context, cfg config.Hook, source *auth.TokenSource) (string, error) {
+	if source == nil {
+		return "", accessTokenUnavailableError(cfg)
+	}
+
+	token, err := source.Token(ctx)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return "", err
+		}
+		return "", accessTokenUnavailableError(cfg)
+	}
+	return token, nil
+}
+
+func GetAccessTokenSource(cfg config.Hook, logger *slog.Logger) (*auth.TokenSource, error) {
 	pat := cfg.GetString(PATConfigPath)
 	if pat != "" {
-		return pat, nil
+		return auth.NewTokenSource(cfg, auth.TokenSourceOptions{
+			PAT:    pat,
+			Logger: logger,
+		}), nil
 	}
 
 	baseURL, err := ResolveBaseURL(cfg)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	refreshPath := cfg.GetString(RefreshPathConfigPath)
@@ -120,39 +305,81 @@ func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 		refreshPath = RefreshPathDefault
 	}
 	refreshURL := baseURL + refreshPath
-	tok, err := auth.LoadAccessToken(cfg, refreshURL, logger)
-	if err != nil {
-		// Provide helpful guidance on authentication options instead of exposing
-		// internal implementation details like file paths
-		profile := cfg.GetProfile()
-		envVar := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", strings.ToUpper(profile))
 
-		return "", fmt.Errorf(
-			"authentication token not available. Use one of the following to authorize %s:\n"+
-				"  - '%s login' to authenticate via the web\n"+
-				"  - provide a token via the --%s flag\n"+
-				"  - set the %s environment variable\n"+
-				"  - configure a token value in the '%s.%s' path of your configuration file",
-			meta.CLIName,
-			meta.CLIName,
-			PATFlagName,
-			envVar,
-			profile,
-			PATConfigPath,
-		)
+	timeout, err := ResolveHTTPTimeout(cfg)
+	if err != nil {
+		return nil, err
 	}
-	return tok.Token.AuthToken, nil
+
+	transportOptions, err := ResolveHTTPTransportOptions(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return auth.NewTokenSource(cfg, auth.TokenSourceOptions{
+		PAT:              pat,
+		RefreshURL:       refreshURL,
+		Timeout:          timeout,
+		TransportOptions: transportOptions,
+		Logger:           logger,
+	}), nil
 }
 
-// This is the real implementation of the SDKAPIFactory,
-// which creates a real Konnect SDK instance
-func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
-	token, e := GetAccessToken(cfg, logger)
+func accessTokenUnavailableError(cfg config.Hook) error {
+	profile := cfg.GetProfile()
+	envVar := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", strings.ToUpper(profile))
+
+	return fmt.Errorf(
+		"authentication token not available. Use one of the following to authorize %s:\n"+
+			"  - '%s login' to authenticate via the web\n"+
+			"  - provide a token via the --%s flag\n"+
+			"  - set the %s environment variable\n"+
+			"  - configure a token value in the '%s.%s' path of your configuration file",
+		meta.CLIName,
+		meta.CLIName,
+		PATFlagName,
+		envVar,
+		profile,
+		PATConfigPath,
+	)
+}
+
+func isDeclarativeRetryVerb(verb verbs.VerbValue) bool {
+	return verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff ||
+		verb == verbs.Export || verb == verbs.Apply || verb == verbs.Delete
+}
+
+func noRetryConfig() httpclient.RetryConfig {
+	return httpclient.RetryConfig{
+		Strategy:              httpclient.RetryStrategyNone,
+		MaxAttempts:           1,
+		InitialIntervalMS:     httpclient.DefaultRetryInitialIntervalMS,
+		MaxIntervalMS:         httpclient.DefaultRetryMaxIntervalMS,
+		BackoffFactor:         httpclient.DefaultRetryBackoffFactor,
+		RetryConnectionErrors: false,
+	}
+}
+
+func resolveRetryConfigForVerb(cfg config.Hook, verb verbs.VerbValue) (httpclient.RetryConfig, error) {
+	if !isDeclarativeRetryVerb(verb) {
+		return noRetryConfig(), nil
+	}
+
+	return ResolveRetryConfig(cfg)
+}
+
+func konnectSDKFactory(
+	cfg config.Hook,
+	logger *slog.Logger,
+	retryConfig httpclient.RetryConfig,
+) (helpers.SDKAPI, error) {
+	tokenSource, e := GetAccessTokenSource(cfg, logger)
 	if e != nil {
-		return nil, fmt.Errorf(
-			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,
-			meta.CLIName,
-		)
+		return nil, e
+	}
+	token, e := ResolveAccessToken(context.Background(), cfg, tokenSource)
+	if e != nil {
+		return nil, e
 	}
 
 	baseURL, err := ResolveBaseURL(cfg)
@@ -160,20 +387,129 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		return nil, err
 	}
 
-	sdk, err := auth.GetAuthenticatedClient(baseURL, token, logger)
+	timeout, err := ResolveHTTPTimeout(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	transportOptions, err := ResolveHTTPTransportOptions(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	sdk, httpClient, err := auth.GetAuthenticatedClient(
+		baseURL, tokenSource, timeout, transportOptions, &retryConfig, logger,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	return &helpers.KonnectSDK{
-		SDK: sdk,
+		SDK:         sdk,
+		BaseURL:     baseURL,
+		Token:       token,
+		TokenSource: tokenSource,
+		HTTPClient:  httpClient,
 	}, nil
 }
 
-// GetSDKFactory returns the SDK factory to use, checking for test overrides
+// This is the real implementation of the SDKAPIFactory,
+// which creates a real Konnect SDK instance
+func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	return konnectSDKFactory(cfg, logger, noRetryConfig())
+}
+
+func KonnectSDKFactoryForVerb(verb verbs.VerbValue, cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	retryConfig, err := resolveRetryConfigForVerb(cfg, verb)
+	if err != nil {
+		return nil, err
+	}
+
+	return konnectSDKFactory(cfg, logger, retryConfig)
+}
+
+func GetSDKFactoryForVerb(verb verbs.VerbValue) helpers.SDKAPIFactory {
+	if helpers.DefaultSDKFactory != nil {
+		return helpers.DefaultSDKFactory
+	}
+
+	return func(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+		return KonnectSDKFactoryForVerb(verb, cfg, logger)
+	}
+}
+
+// GetSDKFactory returns the SDK factory to use, checking for test overrides.
+// The returned factory uses no retry config. Call GetSDKFactoryForVerb to
+// enable retries for declarative verbs.
 func GetSDKFactory() helpers.SDKAPIFactory {
 	if helpers.DefaultSDKFactory != nil {
 		return helpers.DefaultSDKFactory
 	}
 	return KonnectSDKFactory
+}
+
+func resolveOptionalDuration(cfg config.Hook, configPath string) (time.Duration, bool, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return 0, false, nil
+	}
+	if timeoutDisabled(raw) {
+		return 0, true, nil
+	}
+
+	value, err := time.ParseDuration(raw)
+	if err != nil || value < 0 {
+		return 0, true, fmt.Errorf("invalid %s value %q", configPath, raw)
+	}
+
+	return value, true, nil
+}
+
+func timeoutDisabled(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "0", "default", "defaults", "disable", "disabled", "none", "off", "platform", "system":
+		return true
+	default:
+		return false
+	}
+}
+
+func resolveOptionalBool(cfg config.Hook, configPath string) (bool, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return false, nil
+	}
+
+	switch strings.ToLower(raw) {
+	case "1", "true", "yes", "on", "y":
+		return true, nil
+	case "0", "false", "no", "off", "n":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid %s value %q", configPath, raw)
+	}
+}
+
+func resolveOptionalInt(cfg config.Hook, configPath string) (int, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return 0, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s value %q: must be an integer", configPath, raw)
+	}
+	return v, nil
+}
+
+func resolveOptionalFloat64(cfg config.Hook, configPath string) (float64, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return 0, nil
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s value %q: must be a number", configPath, raw)
+	}
+	return v, nil
 }

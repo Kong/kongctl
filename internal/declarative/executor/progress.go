@@ -5,17 +5,30 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
 // ConsoleReporter provides console output for plan execution progress
 type ConsoleReporter struct {
+	mu             sync.Mutex
 	writer         io.Writer
 	dryRun         bool
 	totalChanges   int
 	currentIndex   int
 	namespaceStats map[string]*namespaceStats
+	pendingByID    map[string]changeProgress
+	pendingByKey   map[string][]changeProgress
+}
+
+type changeProgress struct {
+	Index        int
+	Namespace    string
+	Action       string
+	ResourceType string
+	ResourceName string
 }
 
 // namespaceStats tracks execution statistics per namespace
@@ -33,6 +46,8 @@ func NewConsoleReporter(w io.Writer) *ConsoleReporter {
 		totalChanges:   0,
 		currentIndex:   0,
 		namespaceStats: make(map[string]*namespaceStats),
+		pendingByID:    make(map[string]changeProgress),
+		pendingByKey:   make(map[string][]changeProgress),
 	}
 }
 
@@ -44,6 +59,8 @@ func NewConsoleReporterWithOptions(w io.Writer, dryRun bool) *ConsoleReporter {
 		totalChanges:   0,
 		currentIndex:   0,
 		namespaceStats: make(map[string]*namespaceStats),
+		pendingByID:    make(map[string]changeProgress),
+		pendingByKey:   make(map[string][]changeProgress),
 	}
 }
 
@@ -56,6 +73,8 @@ func (r *ConsoleReporter) StartExecution(plan *planner.Plan) {
 	// Store total changes and reset current index
 	r.totalChanges = plan.Summary.TotalChanges
 	r.currentIndex = 0
+	r.pendingByID = make(map[string]changeProgress)
+	r.pendingByKey = make(map[string][]changeProgress)
 
 	if plan.Summary.TotalChanges == 0 {
 		fmt.Fprintln(r.writer, "No changes to execute.")
@@ -76,29 +95,21 @@ func (r *ConsoleReporter) StartChange(change planner.PlannedChange) {
 		return
 	}
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	// Increment current index for this change
 	r.currentIndex++
 
-	// Initialize namespace stats if needed
-	namespace := change.Namespace
-	if namespace == "" {
-		namespace = "default"
-	}
-	if r.namespaceStats[namespace] == nil {
-		r.namespaceStats[namespace] = &namespaceStats{}
+	progress := buildChangeProgress(change, r.currentIndex)
+
+	if change.ID != "" {
+		r.pendingByID[change.ID] = progress
+		return
 	}
 
-	action := getActionVerb(change.Action)
-	resourceName := formatResourceNameForProgress(change)
-
-	// Show progress counter with namespace if we have total changes
-	if r.totalChanges > 0 {
-		fmt.Fprintf(r.writer, "[%d/%d] [namespace: %s] %s %s: %s... ",
-			r.currentIndex, r.totalChanges, namespace, action, change.ResourceType, resourceName)
-	} else {
-		fmt.Fprintf(r.writer, "• [namespace: %s] %s %s: %s... ",
-			namespace, action, change.ResourceType, resourceName)
-	}
+	key := changeProgressFallbackKey(change)
+	r.pendingByKey[key] = append(r.pendingByKey[key], progress)
 }
 
 // CompleteChange is called after a change is executed (success or failure)
@@ -107,22 +118,18 @@ func (r *ConsoleReporter) CompleteChange(change planner.PlannedChange, err error
 		return
 	}
 
-	// Update namespace stats
-	namespace := change.Namespace
-	if namespace == "" {
-		namespace = "default"
-	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	progress := r.takeOrCreateProgress(change)
+	r.ensureNamespaceStats(progress.Namespace)
 
 	if err != nil {
-		fmt.Fprintf(r.writer, "✗ Error: %s\n", err.Error())
-		if stats := r.namespaceStats[namespace]; stats != nil {
-			stats.failureCount++
-		}
+		r.namespaceStats[progress.Namespace].failureCount++
+		fmt.Fprintf(r.writer, "%s ✗ Error: %s\n", r.changePrefix(progress), err.Error())
 	} else {
-		fmt.Fprintln(r.writer, "✓")
-		if stats := r.namespaceStats[namespace]; stats != nil {
-			stats.successCount++
-		}
+		r.namespaceStats[progress.Namespace].successCount++
+		fmt.Fprintf(r.writer, "%s ✓\n", r.changePrefix(progress))
 	}
 }
 
@@ -132,16 +139,86 @@ func (r *ConsoleReporter) SkipChange(change planner.PlannedChange, reason string
 		return
 	}
 
-	// Update namespace stats
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	progress := r.takeOrCreateProgress(change)
+	r.ensureNamespaceStats(progress.Namespace)
+	r.namespaceStats[progress.Namespace].skippedCount++
+
+	fmt.Fprintf(r.writer, "%s ⚠ Skipped: %s\n", r.changePrefix(progress), reason)
+}
+
+func buildChangeProgress(change planner.PlannedChange, index int) changeProgress {
 	namespace := change.Namespace
 	if namespace == "" {
-		namespace = "default"
-	}
-	if stats := r.namespaceStats[namespace]; stats != nil {
-		stats.skippedCount++
+		namespace = planner.DefaultNamespace
 	}
 
-	fmt.Fprintf(r.writer, "⚠ Skipped: %s\n", reason)
+	return changeProgress{
+		Index:        index,
+		Namespace:    namespace,
+		Action:       getActionVerb(change.Action),
+		ResourceType: change.ResourceType,
+		ResourceName: formatResourceNameForProgress(change),
+	}
+}
+
+func changeProgressFallbackKey(change planner.PlannedChange) string {
+	return change.Namespace + "|" + string(change.Action) + "|" + change.ResourceType + "|" + change.ResourceRef
+}
+
+func (r *ConsoleReporter) takeOrCreateProgress(change planner.PlannedChange) changeProgress {
+	if change.ID != "" {
+		if progress, ok := r.pendingByID[change.ID]; ok {
+			delete(r.pendingByID, change.ID)
+			return progress
+		}
+	}
+
+	key := changeProgressFallbackKey(change)
+	if queue := r.pendingByKey[key]; len(queue) > 0 {
+		progress := queue[0]
+		rest := queue[1:]
+		if len(rest) == 0 {
+			delete(r.pendingByKey, key)
+		} else {
+			r.pendingByKey[key] = rest
+		}
+		return progress
+	}
+
+	// Fall back gracefully when completion arrives without a recorded start.
+	r.currentIndex++
+	return buildChangeProgress(change, r.currentIndex)
+}
+
+func (r *ConsoleReporter) ensureNamespaceStats(namespace string) {
+	if r.namespaceStats[namespace] == nil {
+		r.namespaceStats[namespace] = &namespaceStats{}
+	}
+}
+
+func (r *ConsoleReporter) changePrefix(progress changeProgress) string {
+	if r.totalChanges > 0 {
+		return fmt.Sprintf(
+			"[%d/%d] [namespace: %s] %s %s: %s...",
+			progress.Index,
+			r.totalChanges,
+			progress.Namespace,
+			progress.Action,
+			progress.ResourceType,
+			progress.ResourceName,
+		)
+	}
+
+	return fmt.Sprintf(
+		"• [namespace: %s] %s %s: %s...",
+		progress.Namespace,
+		progress.Action,
+		progress.ResourceType,
+		progress.ResourceName,
+	)
 }
 
 // FinishExecution is called at the end of plan execution
@@ -239,30 +316,30 @@ func formatResourceNameForProgress(change planner.PlannedChange) string {
 	resourceName := change.ResourceRef
 
 	// If resource ref is unknown, try to build a meaningful name from monikers
-	if resourceName == "[unknown]" && len(change.ResourceMonikers) > 0 {
+	if resourceName == resources.UnknownReferenceID && len(change.ResourceMonikers) > 0 {
 		switch change.ResourceType {
-		case "portal_page":
-			if slug, ok := change.ResourceMonikers["slug"]; ok {
+		case planner.ResourceTypePortalPage:
+			if slug, ok := change.ResourceMonikers[planner.FieldSlug]; ok {
 				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
 					return fmt.Sprintf("page '%s' in portal:%s", slug, parent)
 				}
 				return fmt.Sprintf("page '%s'", slug)
 			}
-		case "portal_snippet":
-			if name, ok := change.ResourceMonikers["name"]; ok {
+		case planner.ResourceTypePortalSnippet:
+			if name, ok := change.ResourceMonikers[planner.FieldName]; ok {
 				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
 					return fmt.Sprintf("snippet '%s' in portal:%s", name, parent)
 				}
 				return fmt.Sprintf("snippet '%s'", name)
 			}
-		case "api_document":
-			if slug, ok := change.ResourceMonikers["slug"]; ok {
+		case planner.ResourceTypeAPIDocument:
+			if slug, ok := change.ResourceMonikers[planner.FieldSlug]; ok {
 				if parent, ok := change.ResourceMonikers["parent_api"]; ok {
 					return fmt.Sprintf("document '%s' in api:%s", slug, parent)
 				}
 				return fmt.Sprintf("document '%s'", slug)
 			}
-		case "api_publication":
+		case planner.ResourceTypeAPIPublication:
 			if portal, ok := change.ResourceMonikers["portal_name"]; ok {
 				if api, ok := change.ResourceMonikers["api_ref"]; ok {
 					return fmt.Sprintf("api:%s published to portal:%s", api, portal)

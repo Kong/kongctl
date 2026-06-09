@@ -1,0 +1,8 @@
+control_planes:
+  - ref: e2e-cp
+    name: "kongctl-e2e-cp"
+    description: "Updated description for E2E apply test"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      env: e2e
+      owner: kongctl-test

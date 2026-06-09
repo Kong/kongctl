@@ -14,15 +14,18 @@ type Scenario struct {
 }
 
 type Defaults struct {
-	Retry Retry `yaml:"retry"`
-	Mask  Mask  `yaml:"mask"`
+	Retry          Retry `yaml:"retry"`
+	Mask           Mask  `yaml:"mask"`
+	MaxConcurrency *int  `yaml:"maxConcurrency"`
 }
 
 type ScenarioTest struct {
-	Enabled         *bool    `yaml:"enabled"`
-	EnabledByEnvVar string   `yaml:"enabledByEnvVar"`
-	RequiredEnvVars []string `yaml:"requiredEnvVars"`
-	Info            string   `yaml:"info"`
+	Enabled             *bool    `yaml:"enabled"`
+	EnabledByEnvVar     string   `yaml:"enabledByEnvVar"`
+	RequiredEnvVars     []string `yaml:"requiredEnvVars"`
+	RequiresPAT         *bool    `yaml:"requiresPAT"`
+	AssignedEnvironment string   `yaml:"assignedEnvironment"`
+	Info                string   `yaml:"info"`
 }
 
 type Retry struct {
@@ -48,6 +51,7 @@ type Step struct {
 	Env                  map[string]string `yaml:"env"`
 	Mask                 Mask              `yaml:"mask"`
 	Retry                Retry             `yaml:"retry"`
+	MaxConcurrency       *int              `yaml:"maxConcurrency"`
 	Commands             []Command         `yaml:"commands"`
 }
 
@@ -59,25 +63,28 @@ type InlineOp struct {
 }
 
 type Command struct {
-	Name         string            `yaml:"name"`
-	Run          []string          `yaml:"run"`
-	Exec         []string          `yaml:"exec"`
-	Stdin        string            `yaml:"stdin"`
-	StdinFile    string            `yaml:"stdinFile"`
-	Env          map[string]string `yaml:"env"`
-	ResetOrg     bool              `yaml:"resetOrg"`
-	ResetRegions []string          `yaml:"resetOrgRegions"`
-	Workdir      string            `yaml:"workdir"`
-	Mask         Mask              `yaml:"mask"`
-	Retry        Retry             `yaml:"retry"`
-	Assertions   []Assertion       `yaml:"assertions"`
-	ExpectFail   *ExpectedFailure  `yaml:"expectFailure"`
-	Create       *CreateSpec       `yaml:"create"`
-	Delete       *DeleteSpec       `yaml:"delete"`
-	OutputFormat string            `yaml:"outputFormat"`
-	ParseAs      string            `yaml:"parseAs"`
-	StdoutFile   string            `yaml:"stdoutFile"`
-	RecordVar    *RecordVar        `yaml:"recordVar"`
+	Name           string            `yaml:"name"`
+	Run            []string          `yaml:"run"`
+	Exec           []string          `yaml:"exec"`
+	Timeout        string            `yaml:"timeout"`
+	Stdin          string            `yaml:"stdin"`
+	StdinFile      string            `yaml:"stdinFile"`
+	Env            map[string]string `yaml:"env"`
+	ResetOrg       bool              `yaml:"resetOrg"`
+	ResetRegions   []string          `yaml:"resetOrgRegions"`
+	Workdir        string            `yaml:"workdir"`
+	Mask           Mask              `yaml:"mask"`
+	Retry          Retry             `yaml:"retry"`
+	Assertions     []Assertion       `yaml:"assertions"`
+	ExpectFail     *ExpectedFailure  `yaml:"expectFailure"`
+	Create         *CreateSpec       `yaml:"create"`
+	Delete         *DeleteSpec       `yaml:"delete"`
+	OutputFormat   string            `yaml:"outputFormat"`
+	MaxConcurrency *int              `yaml:"maxConcurrency"`
+	ParseAs        string            `yaml:"parseAs"`
+	StdoutFile     string            `yaml:"stdoutFile"`
+	RecordVar      *RecordVar        `yaml:"recordVar"`
+	RecordVars     []RecordVar       `yaml:"recordVars"`
 }
 
 type CreateSpec struct {
@@ -85,6 +92,7 @@ type CreateSpec struct {
 	Payload        CreatePayload     `yaml:"payload"`
 	ExpectStatus   int               `yaml:"expectStatus"`
 	RecordVar      *RecordVar        `yaml:"recordVar"`
+	RecordVars     []RecordVar       `yaml:"recordVars"`
 	EndpointParams map[string]string `yaml:"endpointParams"`
 }
 
@@ -92,6 +100,7 @@ type DeleteSpec struct {
 	Resource       string            `yaml:"resource"`
 	ExpectStatus   int               `yaml:"expectStatus"`
 	RecordVar      *RecordVar        `yaml:"recordVar"`
+	RecordVars     []RecordVar       `yaml:"recordVars"`
 	EndpointParams map[string]string `yaml:"endpointParams"`
 }
 
@@ -123,7 +132,14 @@ type Assertion struct {
 }
 
 type AssertionSrc struct {
-	Get string `yaml:"get"`
+	Get      string                   `yaml:"get"`
+	Artifact *AssertionArtifactSource `yaml:"artifact"`
+}
+
+type AssertionArtifactSource struct {
+	Path    string `yaml:"path"`
+	Glob    string `yaml:"glob"`
+	ParseAs string `yaml:"parseAs"`
 }
 
 type Expect struct {

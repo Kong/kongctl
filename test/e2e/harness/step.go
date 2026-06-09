@@ -37,11 +37,13 @@ type CreateResourceOptions struct {
 }
 
 type CreateResourceResult struct {
-	Status int
-	Body   []byte
-	Parsed any
-	Method string
-	URL    string
+	Status   int
+	Body     []byte
+	Parsed   any
+	Method   string
+	URL      string
+	Duration time.Duration
+	TimedOut bool
 }
 
 type DeleteResourceOptions struct {
@@ -51,11 +53,13 @@ type DeleteResourceOptions struct {
 }
 
 type DeleteResourceResult struct {
-	Status int
-	Body   []byte
-	Parsed any
-	Method string
-	URL    string
+	Status   int
+	Body     []byte
+	Parsed   any
+	Method   string
+	URL      string
+	Duration time.Duration
+	TimedOut bool
 }
 
 // NewStep initializes a new step directory under the CLI's TestDir and
@@ -112,7 +116,7 @@ func (s *Step) AppendCheck(format string, args ...any) {
 	if s == nil || s.ChecksPath == "" {
 		return
 	}
-	msg := fmt.Sprintf(format, args...)
+	msg := sanitizeCheckMessage(fmt.Sprintf(format, args...))
 	f, err := os.OpenFile(s.ChecksPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return
@@ -147,6 +151,10 @@ func (s *Step) writePrettyJSON(path string, v any) error {
 		return err
 	}
 	return os.WriteFile(path, b, 0o644)
+}
+
+func (s *Step) writePrettyRedactedJSON(path string, v any) error {
+	return s.writePrettyJSON(path, redactSensitiveJSON(v))
 }
 
 // WriteApplyObservation records an apply summary as observation.json in the last command directory.
@@ -296,6 +304,11 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"auth-strategy": {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
 	"auth_strategy": {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
 	"authstrategy":  {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
+	"dcr-provider":  {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"dcr_provider":  {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"dcrprovider":   {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"dashboard":     {Method: http.MethodPost, Path: "/v2/dashboards"},
+	"dashboards":    {Method: http.MethodPost, Path: "/v2/dashboards"},
 	"control-plane": {Method: http.MethodPost, Path: "/v2/control-planes"},
 	"control_plane": {Method: http.MethodPost, Path: "/v2/control-planes"},
 	"controlplane":  {Method: http.MethodPost, Path: "/v2/control-planes"},
@@ -329,12 +342,48 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 		Path:      "/v3/portals/{portalId}/teams/{teamId}/developers",
 		ParamKeys: []string{"portalId", "teamId"},
 	},
-	"system-account":     {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
-	"system_account":     {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
-	"systemaccount":      {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"system-account": {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"system_account": {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"systemaccount":  {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"system-account-access-token": {
+		Method:    http.MethodPost,
+		Path:      "/v3/system-accounts/{systemAccountId}/access-tokens",
+		ParamKeys: []string{"systemAccountId"},
+		UseGlobal: true,
+	},
+	"system_account_access_token": {
+		Method:    http.MethodPost,
+		Path:      "/v3/system-accounts/{systemAccountId}/access-tokens",
+		ParamKeys: []string{"systemAccountId"},
+		UseGlobal: true,
+	},
+	"systemaccountaccesstoken": {
+		Method:    http.MethodPost,
+		Path:      "/v3/system-accounts/{systemAccountId}/access-tokens",
+		ParamKeys: []string{"systemAccountId"},
+		UseGlobal: true,
+	},
 	"organization_teams": {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
 	"organization_team":  {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
 	"team":               {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
+	"event-gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
+	"event_gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
+	"eventgateway":       {Method: http.MethodPost, Path: "/v1/event-gateways"},
+	"audit-log-destination": {
+		Method:    http.MethodPost,
+		Path:      "/v3/audit-log-destinations",
+		UseGlobal: true,
+	},
+	"audit_log_destination": {
+		Method:    http.MethodPost,
+		Path:      "/v3/audit-log-destinations",
+		UseGlobal: true,
+	},
+	"auditlogdestination": {
+		Method:    http.MethodPost,
+		Path:      "/v3/audit-log-destinations",
+		UseGlobal: true,
+	},
 }
 
 var deleteResourceEndpoints = map[string]resourceEndpoint{
@@ -368,6 +417,21 @@ var deleteResourceEndpoints = map[string]resourceEndpoint{
 		Path:      "/v3/portals/{portalId}/applications/{applicationId}",
 		ParamKeys: []string{"portalId", "applicationId"},
 	},
+	"audit-log-destination": {
+		Method:    http.MethodDelete,
+		Path:      "/v2/audit-log-destinations/{destinationId}",
+		ParamKeys: []string{"destinationId"},
+	},
+	"audit_log_destination": {
+		Method:    http.MethodDelete,
+		Path:      "/v2/audit-log-destinations/{destinationId}",
+		ParamKeys: []string{"destinationId"},
+	},
+	"auditlogdestination": {
+		Method:    http.MethodDelete,
+		Path:      "/v2/audit-log-destinations/{destinationId}",
+		ParamKeys: []string{"destinationId"},
+	},
 }
 
 func defaultStatusForMethod(method string) int {
@@ -389,11 +453,13 @@ type resourceRequestOptions struct {
 }
 
 type resourceRequestResult struct {
-	Status int
-	Body   []byte
-	Parsed any
-	Method string
-	URL    string
+	Status   int
+	Body     []byte
+	Parsed   any
+	Method   string
+	URL      string
+	Duration time.Duration
+	TimedOut bool
 }
 
 // CreateResource issues an authenticated Konnect API call to create an unmanaged resource and
@@ -415,11 +481,13 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 	}
 
 	return CreateResourceResult{
-		Status: result.Status,
-		Body:   result.Body,
-		Parsed: result.Parsed,
-		Method: result.Method,
-		URL:    result.URL,
+		Status:   result.Status,
+		Body:     result.Body,
+		Parsed:   result.Parsed,
+		Method:   result.Method,
+		URL:      result.URL,
+		Duration: result.Duration,
+		TimedOut: result.TimedOut,
 	}, nil
 }
 
@@ -442,11 +510,13 @@ func (s *Step) DeleteResource(resource string, opts DeleteResourceOptions) (Dele
 	}
 
 	return DeleteResourceResult{
-		Status: result.Status,
-		Body:   result.Body,
-		Parsed: result.Parsed,
-		Method: result.Method,
-		URL:    result.URL,
+		Status:   result.Status,
+		Body:     result.Body,
+		Parsed:   result.Parsed,
+		Method:   result.Method,
+		URL:      result.URL,
+		Duration: result.Duration,
+		TimedOut: result.TimedOut,
 	}, nil
 }
 
@@ -496,6 +566,7 @@ func (s *Step) requestResource(
 	if token == "" {
 		return result, fmt.Errorf("KONGCTL_E2E_KONNECT_PAT not set")
 	}
+	timeout := HTTPRequestTimeout()
 	ctx := context.Background()
 	req, err := http.NewRequestWithContext(ctx, endpoint.Method, fullURL, bytes.NewReader(body))
 	if err != nil {
@@ -506,9 +577,15 @@ func (s *Step) requestResource(
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := newHTTPClient(timeout)
 	start := time.Now()
 	resp, err := client.Do(req)
+	result.Duration = time.Since(start)
+	errDetail := ""
+	if err != nil {
+		errDetail = err.Error()
+	}
+	result.TimedOut = IsTimeoutRetry(err, errDetail)
 	if err != nil {
 		return result, err
 	}
@@ -517,7 +594,7 @@ func (s *Step) requestResource(
 	if err != nil {
 		return result, fmt.Errorf("failed to read response body: %w", err)
 	}
-	duration := time.Since(start)
+	duration := result.Duration
 	end := time.Now()
 	result.Status = resp.StatusCode
 	result.Body = append([]byte(nil), bodyBytes...)
@@ -538,7 +615,12 @@ func (s *Step) requestResource(
 		if len(snippet) > 2048 {
 			snippet = snippet[:2048] + "…"
 		}
-		return result, fmt.Errorf("unexpected status %d (expected %d): %s", resp.StatusCode, expect, snippet)
+		return result, fmt.Errorf(
+			"unexpected status %d (expected %d): %w",
+			resp.StatusCode,
+			expect,
+			&httpError{status: resp.StatusCode, body: snippet, header: resp.Header.Clone()},
+		)
 	}
 	if dir != "" {
 		_ = os.WriteFile(
@@ -549,12 +631,12 @@ func (s *Step) requestResource(
 		if len(body) > 0 {
 			var reqObj any
 			if err := json.Unmarshal(body, &reqObj); err == nil {
-				_ = s.writePrettyJSON(filepath.Join(dir, "request.json"), reqObj)
+				_ = s.writePrettyRedactedJSON(filepath.Join(dir, "request.json"), reqObj)
 			} else {
 				_ = os.WriteFile(filepath.Join(dir, "request.json"), body, 0o644)
 			}
 		}
-		_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), bodyBytes, 0o644)
+		_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), redactSensitiveJSONBytes(bodyBytes), 0o644)
 		_ = os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte{}, 0o644)
 		envMap := snapshotEnv(os.Environ())
 		if b, err := json.MarshalIndent(envMap, "", "  "); err == nil {
@@ -572,16 +654,16 @@ func (s *Step) requestResource(
 			_ = os.WriteFile(filepath.Join(dir, "meta.json"), b, 0o644)
 		}
 		if result.Parsed != nil {
-			_ = s.writePrettyJSON(filepath.Join(dir, "response.json"), result.Parsed)
+			_ = s.writePrettyRedactedJSON(filepath.Join(dir, "response.json"), result.Parsed)
 		} else if len(bodyBytes) > 0 {
-			_ = os.WriteFile(filepath.Join(dir, "response.json"), bodyBytes, 0o644)
+			_ = os.WriteFile(filepath.Join(dir, "response.json"), redactSensitiveJSONBytes(bodyBytes), 0o644)
 		}
 		obs := map[string]any{
 			"type":   "http_observation",
 			"status": resp.StatusCode,
 			"data":   result.Parsed,
 		}
-		_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
+		_ = s.writePrettyRedactedJSON(filepath.Join(dir, "observation.json"), obs)
 		// ensure LastCommandDir reflects this synthetic command
 		s.cli.LastCommandDir = dir
 	}
@@ -628,7 +710,7 @@ func (s *Step) GetKonnectJSON(name string, path string, out any, selector any) e
 	_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte("HTTP GET "+fullURL+"\n"), 0o644)
 
 	// Execute request
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := newHTTPClient(HTTPRequestTimeout())
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, fullURL, nil)
 	if err != nil {
 		return err
@@ -691,9 +773,13 @@ func (s *Step) GetKonnectJSON(name string, path string, out any, selector any) e
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		if decodeErr != nil {
-			return fmt.Errorf("http %d; decode error: %v", resp.StatusCode, decodeErr)
+			return fmt.Errorf(
+				"http %d; decode error: %w",
+				resp.StatusCode,
+				&httpError{status: resp.StatusCode, body: decodeErr.Error(), header: resp.Header.Clone()},
+			)
 		}
-		return fmt.Errorf("http %d", resp.StatusCode)
+		return &httpError{status: resp.StatusCode, body: string(body), header: resp.Header.Clone()}
 	}
 	if decodeErr != nil {
 		return decodeErr
@@ -707,9 +793,7 @@ func snapshotEnv(environ []string) map[string]string {
 		if i := strings.IndexByte(kv, '='); i > 0 {
 			k := kv[:i]
 			v := kv[i+1:]
-			ku := strings.ToUpper(k)
-			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
-				strings.Contains(ku, "SECRET") {
+			if isSensitiveName(k) {
 				if v != "" {
 					v = "***"
 				}
@@ -718,6 +802,224 @@ func snapshotEnv(environ []string) map[string]string {
 		}
 	}
 	return envMap
+}
+
+func sanitizeCheckMessage(msg string) string {
+	fields := strings.Fields(msg)
+	for i, field := range fields {
+		key, value, ok := strings.Cut(field, "=")
+		if !ok || value == "" || !isSensitiveName(strings.TrimPrefix(key, "SET VAR: ")) {
+			continue
+		}
+		fields[i] = key + "=***"
+	}
+	if len(fields) == 0 {
+		return msg
+	}
+	return strings.Join(fields, " ")
+}
+
+func redactSensitiveJSONBytes(data []byte) []byte {
+	if len(data) == 0 {
+		return data
+	}
+	var parsed any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return data
+	}
+	redacted := redactSensitiveJSON(parsed)
+	out, err := json.MarshalIndent(redacted, "", "  ")
+	if err != nil {
+		return data
+	}
+	out = append(out, '\n')
+	return out
+}
+
+// RedactSensitiveCommandArtifactString redacts sensitive command output before
+// it is persisted as a test artifact. It does not alter the in-memory command
+// result used by assertions.
+func RedactSensitiveCommandArtifactString(args []string, data string) string {
+	if strings.TrimSpace(data) == "" {
+		return data
+	}
+
+	redactedJSON := redactSensitiveJSONBytes([]byte(data))
+	redacted := string(redactedJSON)
+	if isCreateTokenCommand(args) && outputLooksLikeRawSecret(redacted) {
+		return preserveFinalNewline(data, "***")
+	}
+	if json.Valid(redactedJSON) {
+		return redacted
+	}
+
+	lines := strings.Split(redacted, "\n")
+	changed := false
+	for i, line := range lines {
+		replacement, ok := redactSensitiveArtifactLine(line)
+		if !ok {
+			continue
+		}
+		lines[i] = replacement
+		changed = true
+	}
+	if !changed {
+		return redacted
+	}
+	return strings.Join(lines, "\n")
+}
+
+// RedactSensitiveCommandArtifactValue redacts sensitive assertion values before
+// they are written to observed/expected artifact JSON.
+func RedactSensitiveCommandArtifactValue(args []string, value any) any {
+	return redactSensitiveCommandArtifactValue(args, value)
+}
+
+func redactSensitiveCommandArtifactValue(args []string, value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, child := range v {
+			if isSensitiveName(key) && child != nil {
+				out[key] = "***"
+				continue
+			}
+			if key == "stdout" {
+				if raw, ok := child.(string); ok {
+					out[key] = RedactSensitiveCommandArtifactString(args, raw)
+					continue
+				}
+			}
+			out[key] = redactSensitiveCommandArtifactValue(args, child)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i := range v {
+			out[i] = redactSensitiveCommandArtifactValue(args, v[i])
+		}
+		return out
+	case string:
+		if isCreateTokenCommand(args) && outputLooksLikeRawSecret(v) {
+			return RedactSensitiveCommandArtifactString(args, v)
+		}
+		return value
+	default:
+		return value
+	}
+}
+
+func redactSensitiveArtifactLine(line string) (string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return line, false
+	}
+
+	if before, after, ok := strings.Cut(trimmed, ":"); ok && isSensitiveName(before) && strings.TrimSpace(after) != "" {
+		return leadingWhitespace(line) + before + ": ***", true
+	}
+
+	if !strings.HasPrefix(trimmed, "export ") {
+		return line, false
+	}
+	assignment := strings.TrimSpace(strings.TrimPrefix(trimmed, "export "))
+	name, _, ok := strings.Cut(assignment, "=")
+	if !ok || strings.TrimSpace(name) == "" || !isSensitiveName(name) {
+		return line, false
+	}
+	return leadingWhitespace(line) + "export " + strings.TrimSpace(name) + "=***", true
+}
+
+func leadingWhitespace(line string) string {
+	return line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+}
+
+func isCreateTokenCommand(args []string) bool {
+	words := commandWords(args)
+	for i, word := range words {
+		if word != "create" {
+			continue
+		}
+		for _, resource := range words[i+1:] {
+			switch resource {
+			case "pat", "pats", "spat", "spats":
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func commandWords(args []string) []string {
+	words := make([]string, 0, len(args))
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			break
+		}
+		clean := strings.ToLower(strings.TrimSpace(arg))
+		if clean == "" {
+			continue
+		}
+		words = append(words, clean)
+	}
+	return words
+}
+
+func outputLooksLikeRawSecret(data string) bool {
+	lines := strings.Split(strings.TrimSpace(data), "\n")
+	nonEmpty := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if clean := strings.TrimSpace(line); clean != "" {
+			nonEmpty = append(nonEmpty, clean)
+		}
+	}
+	if len(nonEmpty) != 1 {
+		return false
+	}
+	line := nonEmpty[0]
+	if line == "***" || strings.ContainsAny(line, " \t{}[]:") {
+		return false
+	}
+	return len(line) >= 8
+}
+
+func preserveFinalNewline(original, replacement string) string {
+	if strings.HasSuffix(original, "\n") {
+		return replacement + "\n"
+	}
+	return replacement
+}
+
+func redactSensitiveJSON(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, child := range v {
+			if isSensitiveName(key) && child != nil {
+				out[key] = "***"
+				continue
+			}
+			out[key] = redactSensitiveJSON(child)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i := range v {
+			out[i] = redactSensitiveJSON(v[i])
+		}
+		return out
+	default:
+		return value
+	}
+}
+
+func isSensitiveName(name string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(name))
+	return strings.Contains(upper, "TOKEN") ||
+		strings.Contains(upper, "PAT") ||
+		strings.Contains(upper, "PASSWORD") ||
+		strings.Contains(upper, "SECRET") ||
+		strings.Contains(upper, "EMAIL")
 }
 
 // ResetOrg runs the destructive reset using the default base URL or env overrides.
@@ -777,14 +1079,14 @@ func (s *Step) ResetOrgForRegions(stage string, regions []string) error {
 		return err
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	policy := resetHTTPPolicyFromEnv()
 	var (
 		summaries []map[string]any
 		firstErr  error
 	)
 
 	for _, baseURL := range baseURLs {
-		result, runErr := executeReset(client, baseURL, token)
+		result, runErr := executeReset(baseURL, token, policy)
 		details := make([]map[string]any, 0, len(result.Details))
 		for _, d := range result.Details {
 			details = append(details, map[string]any{

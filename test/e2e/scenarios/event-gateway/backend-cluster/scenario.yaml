@@ -1,10 +1,8 @@
-baseInputsPath: ../../../testdata/declarative/event-gateways/backend-cluster
+baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
 
-test:
-  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
 
 vars:
   egwName: egw-cp-for-bc-test
@@ -79,6 +77,9 @@ steps:
           - "{{ .vars.egwName }}"
           - -o
           - json
+        recordVar:
+          name: bcID
+          responsePath: "[?name=='{{ .vars.bcRef }}'] | [0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -89,6 +90,73 @@ steps:
               fields:
                 name: "{{ .vars.bcRef }}"
                 description: "First Backend Cluster for Test"
+      - name: 004-record-egw-id
+        run: ["get", "event-gateways", "-o", "json"]
+        recordVar:
+          name: egwID
+          responsePath: "[?name=='{{ .vars.egwName }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.egwName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+      - name: 005-get-by-gateway-id
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-id
+          - "{{ .vars.egwID }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+                description: "First Backend Cluster for Test"
+      - name: 006-get-bc-by-name
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.bcRef }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.bcRef }}"
+          - select: bootstrap_servers
+            expect:
+              fields:
+                "length(@)": 2
+      - name: 007-get-bc-by-id
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.bcID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.bcRef }}"
+          - select: bootstrap_servers
+            expect:
+              fields:
+                "length(@)": 2
   - name: 002-plan-update
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -283,3 +351,59 @@ steps:
                   - "egw-backend-1.example.com:9092"
                   - "egw-backend-2.example.com:9092"
                 authentication.type: "anonymous"
+  - name: 005-sync-delete-root-level
+    inputOverlayDirs:
+      - overlays/004-sync-delete-root-level-declaration
+    commands:
+      - name: 001-plan-sync-delete-root-level
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.bcRef }}"
+      - name: 002-sync-delete-root-level
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-delete-root-level
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0

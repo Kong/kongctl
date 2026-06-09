@@ -1,0 +1,4 @@
+apis:
+  - ref: e2e-api
+    name: "e2e-api"
+    implementations: []

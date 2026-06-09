@@ -168,23 +168,11 @@ func (v *NamespaceValidator) ValidateNamespace(namespace string) error {
 
 // ValidateNamespaces validates a collection of namespaces
 func (v *NamespaceValidator) ValidateNamespaces(namespaces []string) error {
-	seen := make(map[string]bool)
-
 	for _, ns := range namespaces {
-		// Validate individual namespace
 		if err := v.ValidateNamespace(ns); err != nil {
 			return err
 		}
-
-		// Check for duplicates (shouldn't happen but good to verify)
-		if seen[ns] {
-			// This is not an error, just means the same namespace appears multiple times
-			// which is fine for our use case
-			continue
-		}
-		seen[ns] = true
 	}
-
 	return nil
 }
 
@@ -217,10 +205,27 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		managedControlPlanes = append(managedControlPlanes, cp)
 	}
 
+	managedOrganizationTeams := make([]resources.OrganizationTeamResource, 0, len(rs.OrganizationTeams))
+	for _, team := range rs.OrganizationTeams {
+		if team.IsExternal() {
+			continue
+		}
+		managedOrganizationTeams = append(managedOrganizationTeams, team)
+	}
+
 	totalParents := len(managedPortals) +
 		len(rs.ApplicationAuthStrategies) +
+		len(rs.DCRProviders) +
 		len(managedControlPlanes) +
-		len(rs.APIs)
+		len(rs.CatalogServices) +
+		len(rs.APIs) +
+		len(rs.EventGatewayControlPlanes) +
+		len(rs.Dashboards) +
+		len(managedOrganizationTeams)
+	if rs.Organization != nil {
+		totalParents += len(rs.Organization.Users)
+		totalParents += len(rs.Organization.SystemAccounts)
+	}
 
 	if totalParents == 0 {
 		switch req.Mode {
@@ -239,15 +244,9 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 				)
 			}
 			// Check if default namespace is in allowed list
-			allowed := false
-			for _, ns := range req.AllowedNamespaces {
-				if slices.Contains(defaultNamespaces, ns) {
-					allowed = true
-				}
-				if allowed {
-					break
-				}
-			}
+			allowed := slices.ContainsFunc(req.AllowedNamespaces, func(ns string) bool {
+				return slices.Contains(defaultNamespaces, ns)
+			})
 			if !allowed {
 				namespaceList := strings.Join(req.AllowedNamespaces, ", ")
 				return fmt.Errorf(
@@ -304,14 +303,53 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 	for i := range rs.APIs {
 		check(string(resources.ResourceTypeAPI), rs.APIs[i].Ref, rs.APIs[i].Kongctl)
 	}
+	for i := range rs.CatalogServices {
+		check(string(resources.ResourceTypeCatalogService), rs.CatalogServices[i].Ref, rs.CatalogServices[i].Kongctl)
+	}
+	for i := range rs.Dashboards {
+		check(string(resources.ResourceTypeDashboard), rs.Dashboards[i].Ref, rs.Dashboards[i].Kongctl)
+	}
+	for i := range rs.EventGatewayControlPlanes {
+		check(
+			string(resources.ResourceTypeEventGatewayControlPlane),
+			rs.EventGatewayControlPlanes[i].Ref,
+			rs.EventGatewayControlPlanes[i].Kongctl,
+		)
+	}
 	for i := range rs.ApplicationAuthStrategies {
 		check(string(resources.ResourceTypeApplicationAuthStrategy),
 			rs.ApplicationAuthStrategies[i].Ref,
 			rs.ApplicationAuthStrategies[i].Kongctl,
 		)
 	}
+	for i := range rs.DCRProviders {
+		check(string(resources.ResourceTypeDCRProvider), rs.DCRProviders[i].Ref, rs.DCRProviders[i].Kongctl)
+	}
 	for i := range managedControlPlanes {
 		check(string(resources.ResourceTypeControlPlane), managedControlPlanes[i].Ref, managedControlPlanes[i].Kongctl)
+	}
+	for i := range managedOrganizationTeams {
+		check(
+			string(resources.ResourceTypeOrganizationTeam),
+			managedOrganizationTeams[i].Ref,
+			managedOrganizationTeams[i].Kongctl,
+		)
+	}
+	if rs.Organization != nil {
+		for i := range rs.Organization.Users {
+			check(
+				string(resources.ResourceTypeOrganizationUser),
+				rs.Organization.Users[i].Ref,
+				rs.Organization.Users[i].Kongctl,
+			)
+		}
+		for i := range rs.Organization.SystemAccounts {
+			check(
+				string(resources.ResourceTypeOrganizationSystemAccount),
+				rs.Organization.SystemAccounts[i].Ref,
+				rs.Organization.SystemAccounts[i].Kongctl,
+			)
+		}
 	}
 
 	if len(violations) == 0 {

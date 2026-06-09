@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/diff
+baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
@@ -11,6 +11,17 @@ vars:
   existingAPIName: orders-api
   removedAPIName: legacy-api
   newAPIRef: analytics-api
+  cpRef: diff-cp
+  cpName: "diff-coverage-cp"
+  cpDesc: "Control plane for diff coverage E2E"
+  cpUpdatedDesc: "Updated description for diff test"
+  authStrategyRef: diff-key-auth
+  authStrategyUpdatedDisplayName: "Diff Key Auth (Updated)"
+  dcrProviderRef: diff-dcr-http
+  dcrProviderUpdatedIssuer: "https://e2ediffissuer-updated.example.com/oauth2/default"
+  teamRef: diff-backend-team
+  teamName: diff-backend-team-name
+  teamUpdatedDesc: "Backend team for diff coverage (updated)"
 
 defaults:
   mask:
@@ -40,12 +51,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 3
-                by_action.CREATE: 3
+                total_changes: 7
+                by_action.CREATE: 7
           - select: "summary"
             expect:
               fields:
-                applied: 3
+                applied: 7
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='portal' &&
@@ -114,12 +125,19 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 2
+                total_changes: 6
                 by_action.CREATE: 1
-                by_action.UPDATE: 1
+                by_action.UPDATE: 5
           - expect:
               fields:
                 "length(changes[?action=='DELETE'])": 0
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                       resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.cpUpdatedDesc }}"
           - select: >-
               changes[?resource_type=='portal' &&
                        resource_ref=='{{ .vars.portalRef }}'] | [0]
@@ -134,6 +152,27 @@ steps:
               fields:
                 action: CREATE
                 namespace: "{{ .vars.namespace }}"
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                       resource_ref=='{{ .vars.authStrategyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.display_name.new, fields.display_name)": "{{ .vars.authStrategyUpdatedDisplayName }}"
+          - select: >-
+              changes[?resource_type=='dcr_provider' &&
+                       resource_ref=='{{ .vars.dcrProviderRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.issuer.new, fields.issuer)": "{{ .vars.dcrProviderUpdatedIssuer }}"
+          - select: >-
+              changes[?resource_type=='organization_team' &&
+                       resource_ref=='{{ .vars.teamRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.teamUpdatedDesc }}"
 
       - name: 001-diff-delete-mode
         run:
@@ -152,12 +191,18 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 2
-                by_action.DELETE: 2
+                total_changes: 6
+                by_action.DELETE: 6
           - expect:
               fields:
                 "length(changes[?action=='CREATE'])": 0
                 "length(changes[?action=='UPDATE'])": 0
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                       resource_ref=='{{ .vars.cpName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
           - select: >-
               changes[?resource_type=='portal' &&
                        resource_ref=='{{ .vars.portalRef }}'] | [0]
@@ -167,6 +212,24 @@ steps:
           - select: >-
               changes[?resource_type=='api' &&
                        resource_ref=='{{ .vars.existingAPIName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                       resource_ref=='{{ .vars.authStrategyRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='dcr_provider' &&
+                       resource_ref=='{{ .vars.dcrProviderRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='organization_team' &&
+                       resource_ref=='{{ .vars.teamName }}'] | [0]
             expect:
               fields:
                 action: DELETE
@@ -189,10 +252,17 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 3
+                total_changes: 7
                 by_action.CREATE: 1
-                by_action.UPDATE: 1
+                by_action.UPDATE: 5
                 by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                       resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.cpUpdatedDesc }}"
           - select: >-
               changes[?resource_type=='portal' &&
                        resource_ref=='{{ .vars.portalRef }}'] | [0]
@@ -214,6 +284,27 @@ steps:
               fields:
                 action: DELETE
                 namespace: "{{ .vars.namespace }}"
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                       resource_ref=='{{ .vars.authStrategyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.display_name.new, fields.display_name)": "{{ .vars.authStrategyUpdatedDisplayName }}"
+          - select: >-
+              changes[?resource_type=='dcr_provider' &&
+                       resource_ref=='{{ .vars.dcrProviderRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.issuer.new, fields.issuer)": "{{ .vars.dcrProviderUpdatedIssuer }}"
+          - select: >-
+              changes[?resource_type=='organization_team' &&
+                       resource_ref=='{{ .vars.teamRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.teamUpdatedDesc }}"
 
       - name: 003-diff-plan-file
         run:
@@ -226,7 +317,7 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 3
+                total_changes: 7
           - select: >-
               changes[?resource_ref=='{{ .vars.newAPIRef }}'] | [0]
             expect:
@@ -252,3 +343,11 @@ steps:
             expect:
               fields:
                 "length(@)": 0
+
+      - name: 006-get-control-planes
+        run: ["get", "gateway", "control-planes"]
+        assertions:
+          - select: "[?name=='{{ .vars.cpName }}'] | [0]"
+            expect:
+              fields:
+                description: "{{ .vars.cpDesc }}"

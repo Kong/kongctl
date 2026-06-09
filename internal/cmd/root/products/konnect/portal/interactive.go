@@ -3,6 +3,7 @@ package portal
 import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 )
 
@@ -34,8 +35,8 @@ func BuildListView(helper cmd.Helper) (tableview.ChildView, error) {
 
 func init() {
 	navigator.RegisterResource(
-		"portals",
-		[]string{"portals", "portal"},
+		common.ViewResourcePortals,
+		[]string{common.ViewAliasPortals, common.ViewParentPortal},
 		BuildListView,
 	)
 }

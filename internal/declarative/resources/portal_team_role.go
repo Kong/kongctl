@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 func init() {
 	registerResourceType(
 		ResourceTypePortalTeamRole,
 		func(rs *ResourceSet) *[]PortalTeamRoleResource { return &rs.PortalTeamRoles },
+		AutoExplain[PortalTeamRoleResource](),
 	)
 }
 
@@ -32,6 +31,52 @@ type PortalTeamRoleResource struct {
 
 	// Resolved Konnect assignment ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
+}
+
+// MarshalJSON ensures role metadata is preserved when serializing nested child resources.
+func (r PortalTeamRoleResource) MarshalJSON() ([]byte, error) {
+	type alias struct {
+		Ref            string `json:"ref"`
+		Portal         string `json:"portal,omitempty"`
+		Team           string `json:"team,omitempty"`
+		RoleName       string `json:"role_name"`
+		EntityID       string `json:"entity_id"`
+		EntityTypeName string `json:"entity_type_name"`
+		EntityRegion   string `json:"entity_region"`
+	}
+
+	return json.Marshal(alias{
+		Ref:            r.Ref,
+		Portal:         r.Portal,
+		Team:           r.Team,
+		RoleName:       r.RoleName,
+		EntityID:       r.EntityID,
+		EntityTypeName: r.EntityTypeName,
+		EntityRegion:   r.EntityRegion,
+	})
+}
+
+// MarshalYAML ensures YAML output mirrors the custom JSON encoding.
+func (r PortalTeamRoleResource) MarshalYAML() (any, error) {
+	type alias struct {
+		Ref            string `json:"ref" yaml:"ref"`
+		Portal         string `json:"portal,omitempty" yaml:"portal,omitempty"`
+		Team           string `json:"team,omitempty" yaml:"team,omitempty"`
+		RoleName       string `json:"role_name" yaml:"role_name"`
+		EntityID       string `json:"entity_id" yaml:"entity_id"`
+		EntityTypeName string `json:"entity_type_name" yaml:"entity_type_name"`
+		EntityRegion   string `json:"entity_region" yaml:"entity_region"`
+	}
+
+	return alias{
+		Ref:            r.Ref,
+		Portal:         r.Portal,
+		Team:           r.Team,
+		RoleName:       r.RoleName,
+		EntityID:       r.EntityID,
+		EntityTypeName: r.EntityTypeName,
+		EntityRegion:   r.EntityRegion,
+	}, nil
 }
 
 // GetType returns the resource type
@@ -55,29 +100,20 @@ func (r PortalTeamRoleResource) GetDependencies() []ResourceRef {
 
 	if r.Portal != "" {
 		deps = append(deps, ResourceRef{
-			Kind: "portal",
+			Kind: ResourceTypePortal,
 			Ref:  r.Portal,
 		})
 	}
 
 	if r.Team != "" {
 		deps = append(deps, ResourceRef{
-			Kind: "portal_team",
+			Kind: ResourceTypePortalTeam,
 			Ref:  r.Team,
 		})
 	}
 
-	if tags.IsRefPlaceholder(r.EntityID) {
-		if ref, _, ok := tags.ParseRefPlaceholder(r.EntityID); ok && ref != "" {
-			deps = append(deps, ResourceRef{
-				Kind: "api",
-				Ref:  ref,
-			})
-		}
-	}
+	deps = append(deps, roleEntityDependency(r.EntityID, r.EntityTypeName)...)
 
-	// EntityID may be a !ref to another resource; we rely on loader reference
-	// resolution to inject reference metadata rather than explicit dependency here.
 	return deps
 }
 
@@ -146,7 +182,7 @@ func (r *PortalTeamRoleResource) TryMatchKonnectResource(konnectResource any) bo
 // GetParentRef returns the immediate parent reference (portal team)
 func (r PortalTeamRoleResource) GetParentRef() *ResourceRef {
 	if r.Team != "" {
-		return &ResourceRef{Kind: "portal_team", Ref: r.Team}
+		return &ResourceRef{Kind: ResourceTypePortalTeam, Ref: r.Team}
 	}
 	return nil
 }

@@ -5,12 +5,15 @@ import (
 	"fmt"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	commoncmd "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/analytics"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/auditlogs"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/authstrategy"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/dcrprovider"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/eventgateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
@@ -18,6 +21,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/regions"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -27,7 +31,7 @@ import (
 )
 
 const (
-	Product = products.ProductValue("konnect")
+	Product = products.ProductKonnect
 )
 
 var (
@@ -70,6 +74,29 @@ Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 				common.RequestPageSizeConfigPath))
 	}
+
+	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff || verb == verbs.Export || verb == verbs.Apply ||
+		verb == verbs.Delete {
+		cmd.Flags().Int(commoncmd.HTTPRetryMaxAttemptsFlagName, 0,
+			fmt.Sprintf(`Maximum total attempts for retryable HTTP requests (0 = use default, 1 disables retries).
+- Config path: [ %s ]`, common.HTTPRetryMaxAttemptsConfigPath))
+
+		cmd.Flags().Int(commoncmd.HTTPRetryInitialIntervalFlagName, 0,
+			fmt.Sprintf(`Initial retry backoff interval in milliseconds (0 = use default).
+- Config path: [ %s ]`, common.HTTPRetryInitialIntervalConfigPath))
+
+		cmd.Flags().Int(commoncmd.HTTPRetryMaxIntervalFlagName, 0,
+			fmt.Sprintf(`Maximum retry backoff interval in milliseconds (0 = use default).
+- Config path: [ %s ]`, common.HTTPRetryMaxIntervalConfigPath))
+
+		cmd.Flags().Float64(commoncmd.HTTPRetryBackoffFactorFlagName, 0,
+			fmt.Sprintf(`Exponential backoff growth factor for retries (for example: 2.0).
+- Config path: [ %s ]`, common.HTTPRetryBackoffFactorConfigPath))
+
+		cmd.Flags().Bool(commoncmd.HTTPRetryOnConnectionErrorsFlagName, false,
+			fmt.Sprintf(`Retry selected retryable connection-level errors.
+- Config path: [ %s ]`, common.HTTPRetryOnConnectionErrorsConfigPath))
+	}
 }
 
 func bindFlags(c *cobra.Command, args []string) error {
@@ -111,6 +138,46 @@ func bindFlags(c *cobra.Command, args []string) error {
 		}
 	}
 
+	f = c.Flags().Lookup(commoncmd.HTTPRetryMaxAttemptsFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryMaxAttemptsConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(commoncmd.HTTPRetryInitialIntervalFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryInitialIntervalConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(commoncmd.HTTPRetryMaxIntervalFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryMaxIntervalConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(commoncmd.HTTPRetryBackoffFactorFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryBackoffFactorConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(commoncmd.HTTPRetryOnConnectionErrorsFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.HTTPRetryOnConnectionErrorsConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -138,7 +205,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 				ctx = context.Background()
 			}
 			ctx = context.WithValue(ctx, products.Product, Product)
-			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(verb))
 			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},
@@ -154,6 +221,14 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return newLogoutKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
 	}
 
+	if verb == verbs.Create {
+		if err := addTokenCommands(cmd, verb, addFlags, preRunE); err != nil {
+			return nil, err
+		}
+		addFlags(verb, cmd)
+		return cmd, nil
+	}
+
 	// Do not expose audit-logs under `create`, which is reserved for
 	// resource creation flows.
 	if verb == verbs.Listen {
@@ -167,7 +242,8 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	// Handle declarative configuration verbs
-	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff || verb == verbs.Export || verb == verbs.Apply {
+	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff ||
+		verb == verbs.Export || verb == verbs.Apply || verb == verbs.Delete {
 		c, e := declarative.NewDeclarativeCmd(verb)
 		if e != nil {
 			return nil, e
@@ -176,6 +252,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		cmd.Use = c.Use
 		cmd.Short = c.Short
 		cmd.Long = c.Long
+		cmd.Example = c.Example
 		cmd.RunE = c.RunE
 		// Copy flags from declarative command
 		cmd.Flags().AddFlagSet(c.Flags())
@@ -209,6 +286,18 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 		cmd.AddCommand(authStrategyCmd)
 
+		dcrProviderCmd, err := adopt.NewDCRProviderCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(dcrProviderCmd)
+
+		analyticsCmd, err := adopt.NewAnalyticsCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(analyticsCmd)
+
 		eventGatewayCmd, err := adopt.NewEventGatewayControlPlaneCmd(verb, &cobra.Command{}, addFlags, preRunE)
 		if err != nil {
 			return nil, err
@@ -233,6 +322,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 	cmd.AddCommand(c)
 
+	if verb == verbs.Get {
+		if err := addDirectTokenCommands(cmd, verb, addFlags, preRunE); err != nil {
+			return nil, err
+		}
+	}
+
 	// Add portal command
 	pc, e := portal.NewPortalCmd(verb, addFlags, preRunE)
 	if e != nil {
@@ -247,12 +342,26 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 	cmd.AddCommand(ac)
 
+	// Add analytics command
+	analyticsCmd, e := analytics.NewAnalyticsCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(analyticsCmd)
+
 	// Add auth strategy command
 	asc, e := authstrategy.NewAuthStrategyCmd(verb, addFlags, preRunE)
 	if e != nil {
 		return nil, e
 	}
 	cmd.AddCommand(asc)
+
+	// Add DCR provider command
+	dcrpc, e := dcrprovider.NewDCRProviderCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(dcrpc)
 
 	// Add me command (read-only)
 	if verb == verbs.Get {
@@ -295,9 +404,50 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 			if _, err := helper.GetOutputFormat(); err != nil {
 				return err
 			}
-			return c.Help()
+			return cmdpkg.RequireSubcommand(c, args)
 		}
+		cmdpkg.MarkRequiresSubcommand(cmd)
 	}
 
 	return cmd, e
+}
+
+func addTokenCommands(
+	cmd *cobra.Command,
+	verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) error {
+	if err := addDirectTokenCommands(cmd, verb, addParentFlags, parentPreRun); err != nil {
+		return err
+	}
+
+	orgCmd, err := organization.NewOrganizationCmd(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(orgCmd)
+
+	return nil
+}
+
+func addDirectTokenCommands(
+	cmd *cobra.Command,
+	verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) error {
+	patCmd, err := token.NewPATCmd(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(patCmd)
+
+	spatCmd, err := token.NewSPATCmd(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(spatCmd)
+
+	return nil
 }

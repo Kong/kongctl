@@ -1,0 +1,20 @@
+_defaults:
+  kongctl:
+    namespace: "{{ .vars.portalRoleNamespace }}"
+
+portals:
+  - ref: "{{ .vars.portalRef }}"
+    name: "{{ .vars.portalName }}"
+    display_name: "{{ .vars.portalName }}"
+    description: Portal used by the organization user role entity ref E2E scenario
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_api_visibility: public
+    default_page_visibility: private
+
+organization:
+  users:
+    - ref: e2e-user-1
+      email: !env KONGCTL_E2E_ORG_USER_EMAIL_1

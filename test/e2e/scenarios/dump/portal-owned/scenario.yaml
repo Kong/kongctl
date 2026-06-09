@@ -41,6 +41,10 @@ steps:
             expect:
               fields:
                 display_name: "A Getting Started Portal"
+          - select: "portals[?name=='My First Portal'] | [0].teams[?name=='Platform Team'] | [0]"
+            expect:
+              fields:
+                name: "Platform Team"
           - select: "portals[?name=='My First Portal'] | [0].pages[?title=='Kong API'] | [0]"
             expect:
               fields:
@@ -53,6 +57,18 @@ steps:
             expect:
               fields:
                 slug: "document-apis"
+          - select: "portals[?name=='My First Portal'] | [0].teams[?name=='Platform Team'] | [0].roles[?role_name=='API Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: "API Viewer"
+                entity_type_name: "Services"
+                entity_region: "us"
+          - select: "application_auth_strategies[?strategy_type=='key_auth'] | [0]"
+            expect:
+              fields:
+                strategy_type: key_auth
+                name: key-auth
+                'configs."key-auth".key_names[0]': X-API-Key
 
       - name: 001-plan-from-dump
         outputFormat: disable
@@ -67,3 +83,26 @@ steps:
             expect:
               fields:
                 total_changes: 0
+
+  - name: 003-delete-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

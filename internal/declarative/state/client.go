@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/url"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -17,6 +17,7 @@ import (
 	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
 	decerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/util/pagination"
@@ -25,24 +26,34 @@ import (
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
 	// Core APIs
-	PortalAPI             helpers.PortalAPI
-	APIAPI                helpers.APIAPI
-	AppAuthAPI            helpers.AppAuthStrategiesAPI
-	ControlPlaneAPI       helpers.ControlPlaneAPI
-	GatewayServiceAPI     helpers.GatewayServiceAPI
-	ControlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
-	CatalogServiceAPI     helpers.CatalogServicesAPI
+	PortalAPI               helpers.PortalAPI
+	APIAPI                  helpers.APIAPI
+	AppAuthAPI              helpers.AppAuthStrategiesAPI
+	DCRProviderAPI          helpers.DCRProvidersAPI
+	ControlPlaneAPI         helpers.ControlPlaneAPI
+	GatewayServiceAPI       helpers.GatewayServiceAPI
+	DataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
+	ControlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
+	CatalogServiceAPI       helpers.CatalogServicesAPI
+	DashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
-	PortalPageAPI          helpers.PortalPageAPI
-	PortalAuthSettingsAPI  helpers.PortalAuthSettingsAPI
-	PortalCustomizationAPI helpers.PortalCustomizationAPI
-	PortalCustomDomainAPI  helpers.PortalCustomDomainAPI
-	PortalSnippetAPI       helpers.PortalSnippetAPI
-	PortalTeamAPI          helpers.PortalTeamAPI
-	PortalTeamRolesAPI     helpers.PortalTeamRolesAPI
-	PortalEmailsAPI        helpers.PortalEmailsAPI
-	AssetsAPI              helpers.AssetsAPI
+	PortalPageAPI             helpers.PortalPageAPI
+	PortalAuthSettingsAPI     helpers.PortalAuthSettingsAPI
+	PortalIPAllowListAPI      helpers.PortalIPAllowListAPI
+	PortalIntegrationsAPI     helpers.PortalIntegrationsAPI
+	PortalIdentityProviderAPI helpers.PortalIdentityProviderAPI
+	PortalCustomizationAPI    helpers.PortalCustomizationAPI
+	PortalCustomDomainAPI     helpers.PortalCustomDomainAPI
+	PortalSnippetAPI          helpers.PortalSnippetAPI
+	PortalTeamAPI             helpers.PortalTeamAPI
+	PortalTeamRolesAPI        helpers.PortalTeamRolesAPI
+	PortalEmailsAPI           helpers.PortalEmailsAPI
+	PortalAuditLogsAPI        helpers.PortalAuditLogsAPI
+	AssetsAPI                 helpers.AssetsAPI
+
+	// Organization-scoped support resources
+	AuditLogDestinationsAPI helpers.AuditLogDestinationsAPI
 
 	// API child resource APIs
 	APIVersionAPI        helpers.APIVersionAPI
@@ -56,33 +67,55 @@ type ClientConfig struct {
 	EventGatewayVirtualClusterAPI       helpers.EventGatewayVirtualClusterAPI
 	EventGatewayListenerAPI             helpers.EventGatewayListenerAPI
 	EventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
+	EventGatewayClusterPolicyAPI        helpers.EventGatewayClusterPolicyAPI
+	EventGatewayProducePolicyAPI        helpers.EventGatewayProducePolicyAPI
+	EventGatewayConsumePolicyAPI        helpers.EventGatewayConsumePolicyAPI
 	EventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
+	EventGatewaySchemaRegistryAPI       helpers.EventGatewaySchemaRegistryAPI
+	EventGatewayStaticKeyAPI            helpers.EventGatewayStaticKeyAPI
+	EventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Identity resources
-	OrganizationTeamAPI helpers.OrganizationTeamAPI
+	OrganizationTeamAPI        helpers.OrganizationTeamAPI
+	OrganizationTeamRolesAPI   helpers.OrganizationTeamRolesAPI
+	OrganizationUsersAPI       helpers.OrganizationUsersAPI
+	OrganizationMembershipAPI  helpers.OrganizationTeamMembershipAPI
+	SystemAccountAPI           helpers.SystemAccountAPI
+	SystemAccountRolesAPI      helpers.SystemAccountRolesAPI
+	SystemAccountMembershipAPI helpers.SystemAccountTeamMembershipAPI
 }
 
 // Client wraps Konnect SDK for state management
 type Client struct {
 	// Core APIs
-	portalAPI             helpers.PortalAPI
-	apiAPI                helpers.APIAPI
-	appAuthAPI            helpers.AppAuthStrategiesAPI
-	controlPlaneAPI       helpers.ControlPlaneAPI
-	gatewayServiceAPI     helpers.GatewayServiceAPI
-	controlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
-	catalogServiceAPI     helpers.CatalogServicesAPI
+	portalAPI               helpers.PortalAPI
+	apiAPI                  helpers.APIAPI
+	appAuthAPI              helpers.AppAuthStrategiesAPI
+	dcrProviderAPI          helpers.DCRProvidersAPI
+	controlPlaneAPI         helpers.ControlPlaneAPI
+	gatewayServiceAPI       helpers.GatewayServiceAPI
+	dataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
+	controlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
+	catalogServiceAPI       helpers.CatalogServicesAPI
+	dashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
-	portalPageAPI          helpers.PortalPageAPI
-	portalAuthSettingsAPI  helpers.PortalAuthSettingsAPI
-	portalCustomizationAPI helpers.PortalCustomizationAPI
-	portalCustomDomainAPI  helpers.PortalCustomDomainAPI
-	portalSnippetAPI       helpers.PortalSnippetAPI
-	portalTeamAPI          helpers.PortalTeamAPI
-	portalTeamRolesAPI     helpers.PortalTeamRolesAPI
-	portalEmailsAPI        helpers.PortalEmailsAPI
-	assetsAPI              helpers.AssetsAPI
+	portalPageAPI             helpers.PortalPageAPI
+	portalAuthSettingsAPI     helpers.PortalAuthSettingsAPI
+	portalIPAllowListAPI      helpers.PortalIPAllowListAPI
+	portalIntegrationsAPI     helpers.PortalIntegrationsAPI
+	portalIdentityProviderAPI helpers.PortalIdentityProviderAPI
+	portalCustomizationAPI    helpers.PortalCustomizationAPI
+	portalCustomDomainAPI     helpers.PortalCustomDomainAPI
+	portalSnippetAPI          helpers.PortalSnippetAPI
+	portalTeamAPI             helpers.PortalTeamAPI
+	portalTeamRolesAPI        helpers.PortalTeamRolesAPI
+	portalEmailsAPI           helpers.PortalEmailsAPI
+	portalAuditLogsAPI        helpers.PortalAuditLogsAPI
+	assetsAPI                 helpers.AssetsAPI
+
+	// Organization-scoped support resources
+	auditLogDestinationsAPI helpers.AuditLogDestinationsAPI
 
 	// API child resource APIs
 	apiVersionAPI        helpers.APIVersionAPI
@@ -96,34 +129,54 @@ type Client struct {
 	eventGatewayVirtualClusterAPI       helpers.EventGatewayVirtualClusterAPI
 	eventGatewayListenerAPI             helpers.EventGatewayListenerAPI
 	eventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
+	eventGatewayClusterPolicyAPI        helpers.EventGatewayClusterPolicyAPI
+	eventGatewayProducePolicyAPI        helpers.EventGatewayProducePolicyAPI
+	eventGatewayConsumePolicyAPI        helpers.EventGatewayConsumePolicyAPI
 	eventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
+	eventGatewaySchemaRegistryAPI       helpers.EventGatewaySchemaRegistryAPI
+	eventGatewayStaticKeyAPI            helpers.EventGatewayStaticKeyAPI
+	eventGatewayTLSTrustBundleAPI       helpers.EventGatewayTLSTrustBundleAPI
 
 	// Organization resource APIs
-	organizationTeamAPI helpers.OrganizationTeamAPI
+	organizationTeamAPI        helpers.OrganizationTeamAPI
+	organizationTeamRolesAPI   helpers.OrganizationTeamRolesAPI
+	organizationUsersAPI       helpers.OrganizationUsersAPI
+	organizationMembershipAPI  helpers.OrganizationTeamMembershipAPI
+	systemAccountAPI           helpers.SystemAccountAPI
+	systemAccountRolesAPI      helpers.SystemAccountRolesAPI
+	systemAccountMembershipAPI helpers.SystemAccountTeamMembershipAPI
 }
 
 // NewClient creates a new state client with the provided configuration
 func NewClient(config ClientConfig) *Client {
 	return &Client{
 		// Core APIs
-		portalAPI:             config.PortalAPI,
-		apiAPI:                config.APIAPI,
-		appAuthAPI:            config.AppAuthAPI,
-		controlPlaneAPI:       config.ControlPlaneAPI,
-		gatewayServiceAPI:     config.GatewayServiceAPI,
-		controlPlaneGroupsAPI: config.ControlPlaneGroupsAPI,
-		catalogServiceAPI:     config.CatalogServiceAPI,
+		portalAPI:               config.PortalAPI,
+		apiAPI:                  config.APIAPI,
+		appAuthAPI:              config.AppAuthAPI,
+		dcrProviderAPI:          config.DCRProviderAPI,
+		controlPlaneAPI:         config.ControlPlaneAPI,
+		gatewayServiceAPI:       config.GatewayServiceAPI,
+		dataPlaneCertificateAPI: config.DataPlaneCertificateAPI,
+		controlPlaneGroupsAPI:   config.ControlPlaneGroupsAPI,
+		catalogServiceAPI:       config.CatalogServiceAPI,
+		dashboardsAPI:           config.DashboardsAPI,
 
 		// Portal child resource APIs
-		portalPageAPI:          config.PortalPageAPI,
-		portalAuthSettingsAPI:  config.PortalAuthSettingsAPI,
-		portalCustomizationAPI: config.PortalCustomizationAPI,
-		portalCustomDomainAPI:  config.PortalCustomDomainAPI,
-		portalSnippetAPI:       config.PortalSnippetAPI,
-		portalTeamAPI:          config.PortalTeamAPI,
-		portalTeamRolesAPI:     config.PortalTeamRolesAPI,
-		portalEmailsAPI:        config.PortalEmailsAPI,
-		assetsAPI:              config.AssetsAPI,
+		portalPageAPI:             config.PortalPageAPI,
+		portalAuthSettingsAPI:     config.PortalAuthSettingsAPI,
+		portalIPAllowListAPI:      config.PortalIPAllowListAPI,
+		portalIntegrationsAPI:     config.PortalIntegrationsAPI,
+		portalIdentityProviderAPI: config.PortalIdentityProviderAPI,
+		portalCustomizationAPI:    config.PortalCustomizationAPI,
+		portalCustomDomainAPI:     config.PortalCustomDomainAPI,
+		portalSnippetAPI:          config.PortalSnippetAPI,
+		portalTeamAPI:             config.PortalTeamAPI,
+		portalTeamRolesAPI:        config.PortalTeamRolesAPI,
+		portalEmailsAPI:           config.PortalEmailsAPI,
+		portalAuditLogsAPI:        config.PortalAuditLogsAPI,
+		assetsAPI:                 config.AssetsAPI,
+		auditLogDestinationsAPI:   config.AuditLogDestinationsAPI,
 
 		// API child resource APIs
 		apiVersionAPI:        config.APIVersionAPI,
@@ -137,10 +190,22 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayVirtualClusterAPI:       config.EventGatewayVirtualClusterAPI,
 		eventGatewayListenerAPI:             config.EventGatewayListenerAPI,
 		eventGatewayListenerPolicyAPI:       config.EventGatewayListenerPolicyAPI,
+		eventGatewayClusterPolicyAPI:        config.EventGatewayClusterPolicyAPI,
+		eventGatewayProducePolicyAPI:        config.EventGatewayProducePolicyAPI,
+		eventGatewayConsumePolicyAPI:        config.EventGatewayConsumePolicyAPI,
 		eventGatewayDataPlaneCertificateAPI: config.EventGatewayDataPlaneCertificateAPI,
+		eventGatewaySchemaRegistryAPI:       config.EventGatewaySchemaRegistryAPI,
+		eventGatewayStaticKeyAPI:            config.EventGatewayStaticKeyAPI,
+		eventGatewayTLSTrustBundleAPI:       config.EventGatewayTLSTrustBundleAPI,
 
 		// Identity resource APIs
-		organizationTeamAPI: config.OrganizationTeamAPI,
+		organizationTeamAPI:        config.OrganizationTeamAPI,
+		organizationTeamRolesAPI:   config.OrganizationTeamRolesAPI,
+		organizationUsersAPI:       config.OrganizationUsersAPI,
+		organizationMembershipAPI:  config.OrganizationMembershipAPI,
+		systemAccountAPI:           config.SystemAccountAPI,
+		systemAccountRolesAPI:      config.SystemAccountRolesAPI,
+		systemAccountMembershipAPI: config.SystemAccountMembershipAPI,
 	}
 }
 
@@ -174,6 +239,12 @@ type GatewayService struct {
 // CatalogService represents a catalog service for internal use.
 type CatalogService struct {
 	kkComps.CatalogService
+	NormalizedLabels map[string]string
+}
+
+// Dashboard represents a Konnect Analytics custom dashboard for internal use.
+type Dashboard struct {
+	kkComps.DashboardResponse
 	NormalizedLabels map[string]string
 }
 
@@ -224,6 +295,17 @@ type PortalEmailTemplateContent struct {
 	ButtonLabel *string
 }
 
+// AuditLogWebhookDestination represents a Konnect audit-log webhook destination.
+type AuditLogWebhookDestination struct {
+	ID                  string
+	Name                string
+	Endpoint            string
+	LogFormat           string
+	SkipSSLVerification *bool
+	CreatedAt           string
+	UpdatedAt           string
+}
+
 // APIDocument represents an API document for internal use
 type APIDocument struct {
 	ID               string
@@ -253,8 +335,22 @@ type ApplicationAuthStrategy struct {
 	Name             string
 	DisplayName      string
 	StrategyType     string
+	DCRProviderID    string
+	DCRProviderName  string
 	Configs          map[string]any
 	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+// DCRProvider represents a normalized DCR provider for internal use.
+type DCRProvider struct {
+	ID               string
+	Name             string
+	DisplayName      string
+	DisplayNameSet   bool
+	ProviderType     string
+	Issuer           string
+	DCRConfig        map[string]any
+	NormalizedLabels map[string]string
 }
 
 type EventGatewayControlPlane struct {
@@ -287,6 +383,18 @@ type EventGatewayListener struct {
 // EventGatewayDataPlaneCertificate represents a data plane certificate for internal use
 type EventGatewayDataPlaneCertificate struct {
 	kkComps.EventGatewayDataPlaneCertificate
+}
+
+// ControlPlaneDataPlaneCertificate represents a data plane certificate for internal use.
+type ControlPlaneDataPlaneCertificate struct {
+	kkComps.DataPlaneClientCertificate
+}
+
+// EventGatewaySchemaRegistry represents a schema registry for internal use
+type EventGatewaySchemaRegistry struct {
+	kkComps.SchemaRegistry
+	NormalizedLabels map[string]string // Non-pointer labels
+	RawConfig        map[string]any    // Full config from raw API response
 }
 
 // ListManagedPortals returns all KONGCTL-managed portals in the specified namespaces
@@ -473,7 +581,7 @@ func (c *Client) CreatePortal(
 	resp, err := c.portalAPI.CreatePortal(ctx, portal)
 	if err != nil {
 		return nil, WrapAPIError(err, "create portal", &ErrorWrapperOptions{
-			ResourceType: "portal",
+			ResourceType: string(resources.ResourceTypePortal),
 			ResourceName: portal.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -504,7 +612,7 @@ func (c *Client) UpdatePortal(
 
 		// Create enhanced error with context and hints
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "portal",
+			ResourceType: string(resources.ResourceTypePortal),
 			ResourceName: func() string {
 				if portal.Name != nil {
 					return *portal.Name
@@ -534,7 +642,7 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 
 		// Create enhanced error with context and hints
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "portal",
+			ResourceType: string(resources.ResourceTypePortal),
 			ResourceName: id, // Using ID since we don't have name in delete context
 			Operation:    "delete",
 			StatusCode:   statusCode,
@@ -661,8 +769,8 @@ func (c *Client) ListControlPlaneGroupMemberships(ctx context.Context, groupID s
 
 	for {
 		req := kkOps.GetControlPlanesIDGroupMembershipsRequest{
-			ID:       groupID,
-			PageSize: &pageSize,
+			ControlPlaneID: groupID,
+			PageSize:       &pageSize,
 		}
 
 		if pageAfter != nil {
@@ -672,7 +780,7 @@ func (c *Client) ListControlPlaneGroupMemberships(ctx context.Context, groupID s
 		resp, err := c.controlPlaneGroupsAPI.GetControlPlanesIDGroupMemberships(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list control plane group memberships", &ErrorWrapperOptions{
-				ResourceType: "control_plane_group",
+				ResourceType: string(resources.ResourceTypeControlPlaneGroup),
 				ResourceName: groupID,
 				UseEnhanced:  true,
 			})
@@ -719,7 +827,39 @@ func (c *Client) UpsertControlPlaneGroupMemberships(ctx context.Context, groupID
 
 	if _, err := c.controlPlaneGroupsAPI.PutControlPlanesIDGroupMemberships(ctx, groupID, &req); err != nil {
 		return WrapAPIError(err, "upsert control plane group memberships", &ErrorWrapperOptions{
-			ResourceType: "control_plane_group",
+			ResourceType: string(resources.ResourceTypeControlPlaneGroup),
+			ResourceName: groupID,
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
+// RemoveControlPlaneGroupMemberships removes members from a control plane group.
+func (c *Client) RemoveControlPlaneGroupMemberships(ctx context.Context, groupID string, memberIDs []string) error {
+	if err := ValidateAPIClient(c.controlPlaneGroupsAPI, "Control Plane Groups API"); err != nil {
+		return err
+	}
+
+	members := make([]kkComps.Members, 0, len(memberIDs))
+	for _, id := range memberIDs {
+		if strings.TrimSpace(id) == "" {
+			continue
+		}
+		members = append(members, kkComps.Members{ID: id})
+	}
+	if len(members) == 0 {
+		return nil
+	}
+
+	req := kkComps.GroupMembership{
+		Members: members,
+	}
+
+	if _, err := c.controlPlaneGroupsAPI.PostControlPlanesIDGroupMembershipsRemove(ctx, groupID, &req); err != nil {
+		return WrapAPIError(err, "remove control plane group memberships", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneGroup),
 			ResourceName: groupID,
 			UseEnhanced:  true,
 		})
@@ -780,8 +920,8 @@ func (c *Client) ListGatewayServices(ctx context.Context, controlPlaneID string)
 			})
 		}
 
-		if resp.Object.Offset != nil && *resp.Object.Offset != "" && len(resp.Object.Data) > 0 {
-			offsetVal = *resp.Object.Offset
+		if resp.Object.Offset != nil && strings.TrimSpace(*resp.Object.Offset) != "" && len(resp.Object.Data) > 0 {
+			offsetVal = strings.TrimSpace(*resp.Object.Offset)
 			hasOffset = true
 			continue
 		}
@@ -790,6 +930,110 @@ func (c *Client) ListGatewayServices(ctx context.Context, controlPlaneID string)
 	}
 
 	return services, nil
+}
+
+func (c *Client) ListControlPlaneDataPlaneCertificates(
+	ctx context.Context,
+	controlPlaneID string,
+) ([]ControlPlaneDataPlaneCertificate, error) {
+	if err := ValidateAPIClient(c.dataPlaneCertificateAPI, "Data Plane Certificate API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.dataPlaneCertificateAPI.ListDpClientCertificates(ctx, controlPlaneID)
+	if err != nil {
+		return nil, WrapAPIError(err, "list data plane certificates", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.ListDataPlaneCertificatesResponse == nil {
+		return nil, nil
+	}
+
+	items := resp.ListDataPlaneCertificatesResponse.GetItems()
+	certs := make([]ControlPlaneDataPlaneCertificate, 0, len(items))
+	for _, cert := range items {
+		certs = append(certs, ControlPlaneDataPlaneCertificate{
+			DataPlaneClientCertificate: cert,
+		})
+	}
+
+	return certs, nil
+}
+
+func (c *Client) CreateControlPlaneDataPlaneCertificate(
+	ctx context.Context,
+	controlPlaneID string,
+	req kkComps.DataPlaneClientCertificateRequest,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.dataPlaneCertificateAPI, "Data Plane Certificate API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.dataPlaneCertificateAPI.CreateDataplaneCertificate(ctx, controlPlaneID, &req)
+	if err != nil {
+		return "", WrapAPIError(err, "create data plane certificate", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
+			ResourceName: resources.ShortControlPlaneDataPlaneCertificateIdentity(req.Cert),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.DataPlaneClientCertificateResponse == nil ||
+		resp.DataPlaneClientCertificateResponse.Item == nil ||
+		resp.DataPlaneClientCertificateResponse.Item.ID == nil {
+		return "", fmt.Errorf("create data plane certificate response missing certificate ID")
+	}
+
+	return *resp.DataPlaneClientCertificateResponse.Item.ID, nil
+}
+
+func (c *Client) GetControlPlaneDataPlaneCertificate(
+	ctx context.Context,
+	controlPlaneID string,
+	certificateID string,
+) (*ControlPlaneDataPlaneCertificate, error) {
+	if err := ValidateAPIClient(c.dataPlaneCertificateAPI, "Data Plane Certificate API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.dataPlaneCertificateAPI.GetDataplaneCertificate(ctx, controlPlaneID, certificateID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get data plane certificate", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.DataPlaneClientCertificateResponse == nil ||
+		resp.DataPlaneClientCertificateResponse.Item == nil {
+		return nil, nil
+	}
+
+	return &ControlPlaneDataPlaneCertificate{
+		DataPlaneClientCertificate: *resp.DataPlaneClientCertificateResponse.Item,
+	}, nil
+}
+
+func (c *Client) DeleteControlPlaneDataPlaneCertificate(
+	ctx context.Context,
+	controlPlaneID string,
+	certificateID string,
+) error {
+	if err := ValidateAPIClient(c.dataPlaneCertificateAPI, "Data Plane Certificate API"); err != nil {
+		return err
+	}
+
+	_, err := c.dataPlaneCertificateAPI.DeleteDataplaneCertificate(ctx, controlPlaneID, certificateID)
+	if err != nil {
+		return WrapAPIError(err, "delete data plane certificate", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeControlPlaneDataPlaneCertificate),
+			UseEnhanced:  true,
+		})
+	}
+	return nil
 }
 
 // GetControlPlaneByName finds a managed control plane by name
@@ -887,7 +1131,7 @@ func (c *Client) CreateControlPlane(
 	resp, err := c.controlPlaneAPI.CreateControlPlane(ctx, controlPlane)
 	if err != nil {
 		return nil, WrapAPIError(err, "create control plane", &ErrorWrapperOptions{
-			ResourceType: "control_plane",
+			ResourceType: string(resources.ResourceTypeControlPlane),
 			ResourceName: controlPlane.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -917,7 +1161,7 @@ func (c *Client) UpdateControlPlane(
 		statusCode := decerrors.ExtractStatusCodeFromError(err)
 
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "control_plane",
+			ResourceType: string(resources.ResourceTypeControlPlane),
 			ResourceName: func() string {
 				if controlPlane.Name != nil {
 					return *controlPlane.Name
@@ -949,7 +1193,7 @@ func (c *Client) DeleteControlPlane(ctx context.Context, id string) error {
 	if err != nil {
 		statusCode := decerrors.ExtractStatusCodeFromError(err)
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "control_plane",
+			ResourceType: string(resources.ResourceTypeControlPlane),
 			ResourceName: id,
 			Operation:    "delete",
 			StatusCode:   statusCode,
@@ -1148,7 +1392,7 @@ func (c *Client) CreateAPI(
 
 		// Create enhanced error with context and hints
 		ctx := decerrors.APIErrorContext{
-			ResourceType: "api",
+			ResourceType: string(resources.ResourceTypeAPI),
 			ResourceName: api.Name,
 			Namespace:    namespace,
 			Operation:    "create",
@@ -1308,7 +1552,7 @@ func (c *Client) CreateCatalogService(
 	resp, err := c.catalogServiceAPI.CreateCatalogService(ctx, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "create catalog service", &ErrorWrapperOptions{
-			ResourceType: "catalog_service",
+			ResourceType: string(resources.ResourceTypeCatalogService),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -1340,7 +1584,7 @@ func (c *Client) UpdateCatalogService(
 			resourceName = *req.Name
 		}
 		return nil, WrapAPIError(err, "update catalog service", &ErrorWrapperOptions{
-			ResourceType: "catalog_service",
+			ResourceType: string(resources.ResourceTypeCatalogService),
 			ResourceName: resourceName,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -1363,6 +1607,149 @@ func (c *Client) DeleteCatalogService(ctx context.Context, id string) error {
 	_, err := c.catalogServiceAPI.DeleteCatalogService(ctx, id)
 	if err != nil {
 		return WrapAPIError(err, "delete catalog service", nil)
+	}
+
+	return nil
+}
+
+// ListManagedDashboards returns all KONGCTL-managed dashboards in the specified namespaces.
+// If namespaces is empty, no resources are returned. To get all managed resources, pass []string{"*"}.
+func (c *Client) ListManagedDashboards(ctx context.Context, namespaces []string) ([]Dashboard, error) {
+	if err := ValidateAPIClient(c.dashboardsAPI, "Dashboards API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]Dashboard, *PageMeta, error) {
+		req := kkOps.DashboardsListRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.dashboardsAPI.DashboardsList(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list dashboards", nil)
+		}
+
+		if resp.Object == nil {
+			return []Dashboard{}, &PageMeta{Total: 0}, nil
+		}
+
+		var filtered []Dashboard
+		for _, dashboard := range resp.Object.Data {
+			normalized := dashboard.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			if labels.IsManagedResource(normalized) && shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+				filtered = append(filtered, Dashboard{
+					DashboardResponse: dashboard,
+					NormalizedLabels:  normalized,
+				})
+			}
+		}
+
+		var total float64
+		if resp.Object.Meta != nil {
+			total = resp.Object.Meta.Page.Total
+		}
+		meta := &PageMeta{Total: total}
+		return filtered, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+// GetDashboardByID fetches a dashboard by ID.
+func (c *Client) GetDashboardByID(ctx context.Context, id string) (*Dashboard, error) {
+	if c.dashboardsAPI == nil {
+		return nil, fmt.Errorf("dashboards API not configured")
+	}
+
+	resp, err := c.dashboardsAPI.DashboardsGet(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "fetch dashboard", nil)
+	}
+
+	if resp.DashboardResponse == nil {
+		return nil, nil
+	}
+
+	normalized := resp.DashboardResponse.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &Dashboard{
+		DashboardResponse: *resp.DashboardResponse,
+		NormalizedLabels:  normalized,
+	}, nil
+}
+
+// CreateDashboard creates a dashboard.
+func (c *Client) CreateDashboard(
+	ctx context.Context,
+	req kkComps.DashboardUpdateRequest,
+	namespace string,
+) (*kkComps.DashboardResponse, error) {
+	if c.dashboardsAPI == nil {
+		return nil, fmt.Errorf("dashboards API not configured")
+	}
+
+	resp, err := c.dashboardsAPI.DashboardsCreate(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "create dashboard", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeDashboard),
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.DashboardResponse == nil {
+		return nil, fmt.Errorf("create dashboard response missing data")
+	}
+
+	return resp.DashboardResponse, nil
+}
+
+// UpdateDashboard updates a dashboard.
+func (c *Client) UpdateDashboard(
+	ctx context.Context,
+	id string,
+	req kkComps.DashboardUpdateRequest,
+	namespace string,
+) (*kkComps.DashboardResponse, error) {
+	if c.dashboardsAPI == nil {
+		return nil, fmt.Errorf("dashboards API not configured")
+	}
+
+	resp, err := c.dashboardsAPI.DashboardsUpdate(ctx, id, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "update dashboard", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeDashboard),
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.DashboardResponse == nil {
+		return nil, fmt.Errorf("update dashboard response missing data")
+	}
+
+	return resp.DashboardResponse, nil
+}
+
+// DeleteDashboard deletes a dashboard by ID.
+func (c *Client) DeleteDashboard(ctx context.Context, id string) error {
+	if c.dashboardsAPI == nil {
+		return fmt.Errorf("dashboards API not configured")
+	}
+
+	_, err := c.dashboardsAPI.DashboardsDelete(ctx, id)
+	if err != nil {
+		return WrapAPIError(err, "delete dashboard", nil)
 	}
 
 	return nil
@@ -1502,12 +1889,12 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 			allVersions = append(allVersions, version)
 		}
 
-		pageNumber++
-
 		// Check if we've fetched all pages
 		if resp.ListAPIVersionResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
+
+		pageNumber++
 	}
 
 	return allVersions, nil
@@ -1535,7 +1922,7 @@ func (c *Client) CreateAPIVersion(
 
 // UpdateAPIVersion updates an existing API version
 func (c *Client) UpdateAPIVersion(
-	ctx context.Context, apiID, versionID string, version kkComps.APIVersion,
+	ctx context.Context, apiID, versionID string, version kkComps.APIVersionRequest,
 ) (*kkComps.APIVersionResponse, error) {
 	if c.apiVersionAPI == nil {
 		return nil, fmt.Errorf("API version client not configured")
@@ -1543,9 +1930,9 @@ func (c *Client) UpdateAPIVersion(
 
 	// Create the request object as expected by the SDK
 	req := kkOps.UpdateAPIVersionRequest{
-		APIID:      apiID,
-		VersionID:  versionID,
-		APIVersion: version,
+		APIID:             apiID,
+		VersionID:         versionID,
+		APIVersionRequest: version,
 	}
 
 	resp, err := c.apiVersionAPI.UpdateAPIVersion(ctx, req)
@@ -1649,12 +2036,12 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 			allPublications = append(allPublications, pub)
 		}
 
-		pageNumber++
-
 		// Check if we've fetched all pages
 		if resp.ListAPIPublicationResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
+
+		pageNumber++
 	}
 
 	return allPublications, nil
@@ -1756,12 +2143,12 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 			allImplementations = append(allImplementations, impl)
 		}
 
-		pageNumber++
-
 		// Check if we've fetched all pages
 		if resp.ListAPIImplementationsResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
+
+		pageNumber++
 	}
 
 	return allImplementations, nil
@@ -2035,65 +2422,355 @@ func (c *Client) ListManagedAuthStrategies(
 
 // extractAuthStrategyFromUnion extracts a normalized auth strategy from the SDK union type
 func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *ApplicationAuthStrategy {
-	var strategy ApplicationAuthStrategy
-	var labelMap map[string]string
-
-	// The SDK returns AppAuthStrategy which is a union type
-	// We need to check which type it is by checking the embedded fields
 	if s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse != nil {
 		keyAuthResp := s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse
-		strategy.ID = keyAuthResp.ID
-		strategy.Name = keyAuthResp.Name
-		strategy.DisplayName = keyAuthResp.DisplayName
-		strategy.StrategyType = "key_auth"
+		return normalizeKeyAuthStrategy(
+			keyAuthResp.ID,
+			keyAuthResp.Name,
+			keyAuthResp.DisplayName,
+			keyAuthResp.Labels,
+			keyAuthResp.Configs.KeyAuth.KeyNames,
+			idValue(keyAuthResp.DcrProvider),
+			nameValue(keyAuthResp.DcrProvider),
+		)
+	}
 
-		// Extract configs
-		configs := make(map[string]any)
-		keyAuthConfig := make(map[string]any)
-		if keyAuthResp.Configs.KeyAuth.KeyNames != nil {
-			keyAuthConfig["key_names"] = keyAuthResp.Configs.KeyAuth.KeyNames
-		}
-		configs["key-auth"] = keyAuthConfig
-		strategy.Configs = configs
-
-		labelMap = keyAuthResp.Labels
-
-	} else if s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
+	if s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
 		oidcResp := s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse
-		strategy.ID = oidcResp.ID
-		strategy.Name = oidcResp.Name
-		strategy.DisplayName = oidcResp.DisplayName
-		strategy.StrategyType = "openid_connect"
+		return normalizeOIDCStrategy(
+			oidcResp.ID,
+			oidcResp.Name,
+			oidcResp.DisplayName,
+			oidcResp.Labels,
+			oidcResp.Configs.OpenidConnect.Issuer,
+			oidcResp.Configs.OpenidConnect.CredentialClaim,
+			oidcResp.Configs.OpenidConnect.Scopes,
+			oidcResp.Configs.OpenidConnect.AuthMethods,
+			idValue(oidcResp.DcrProvider),
+			nameValue(oidcResp.DcrProvider),
+		)
+	}
 
-		// Extract configs
-		configs := make(map[string]any)
-		oidcConfig := make(map[string]any)
-		oidcConfig["issuer"] = oidcResp.Configs.OpenidConnect.Issuer
-		if oidcResp.Configs.OpenidConnect.CredentialClaim != nil {
-			oidcConfig["credential_claim"] = oidcResp.Configs.OpenidConnect.CredentialClaim
-		}
-		if oidcResp.Configs.OpenidConnect.Scopes != nil {
-			oidcConfig["scopes"] = oidcResp.Configs.OpenidConnect.Scopes
-		}
-		if oidcResp.Configs.OpenidConnect.AuthMethods != nil {
-			oidcConfig["auth_methods"] = oidcResp.Configs.OpenidConnect.AuthMethods
-		}
-		configs["openid-connect"] = oidcConfig
-		strategy.Configs = configs
+	return nil
+}
 
-		labelMap = oidcResp.Labels
-	} else {
-		// Unknown type
+func (c *Client) extractAuthStrategyFromCreateResponse(
+	resp *kkComps.CreateAppAuthStrategyResponse,
+) *ApplicationAuthStrategy {
+	if resp == nil {
 		return nil
 	}
 
-	// Normalize labels
-	if labelMap == nil {
-		labelMap = make(map[string]string)
+	if keyAuthResp := resp.AppAuthStrategyKeyAuthResponse; keyAuthResp != nil {
+		return normalizeKeyAuthStrategy(
+			keyAuthResp.ID,
+			keyAuthResp.Name,
+			keyAuthResp.DisplayName,
+			keyAuthResp.Labels,
+			keyAuthResp.Configs.KeyAuth.KeyNames,
+			idValue(keyAuthResp.DcrProvider),
+			nameValue(keyAuthResp.DcrProvider),
+		)
 	}
-	strategy.NormalizedLabels = labelMap
 
-	return &strategy
+	if oidcResp := resp.AppAuthStrategyOpenIDConnectResponse; oidcResp != nil {
+		return normalizeOIDCStrategy(
+			oidcResp.ID,
+			oidcResp.Name,
+			oidcResp.DisplayName,
+			oidcResp.Labels,
+			oidcResp.Configs.OpenidConnect.Issuer,
+			oidcResp.Configs.OpenidConnect.CredentialClaim,
+			oidcResp.Configs.OpenidConnect.Scopes,
+			oidcResp.Configs.OpenidConnect.AuthMethods,
+			idValue(oidcResp.DcrProvider),
+			nameValue(oidcResp.DcrProvider),
+		)
+	}
+
+	return nil
+}
+
+func normalizeLabelMap(m map[string]string) map[string]string {
+	if m == nil {
+		return make(map[string]string)
+	}
+	return m
+}
+
+func normalizeKeyAuthStrategy(
+	id, name, displayName string,
+	labelMap map[string]string,
+	keyNames []string,
+	dcrProviderID string,
+	dcrProviderName string,
+) *ApplicationAuthStrategy {
+	strategy := &ApplicationAuthStrategy{
+		ID:              id,
+		Name:            name,
+		DisplayName:     displayName,
+		StrategyType:    "key_auth",
+		DCRProviderID:   dcrProviderID,
+		DCRProviderName: dcrProviderName,
+		Configs: map[string]any{
+			"key-auth": map[string]any{},
+		},
+	}
+
+	if keyNames != nil {
+		strategy.Configs["key-auth"].(map[string]any)["key_names"] = keyNames
+	}
+
+	strategy.NormalizedLabels = normalizeLabelMap(labelMap)
+
+	return strategy
+}
+
+func normalizeOIDCStrategy(
+	id, name, displayName string,
+	labelMap map[string]string,
+	issuer string,
+	credentialClaim, scopes, authMethods []string,
+	dcrProviderID string,
+	dcrProviderName string,
+) *ApplicationAuthStrategy {
+	oidcConfig := map[string]any{
+		"issuer": issuer,
+	}
+	if credentialClaim != nil {
+		oidcConfig["credential_claim"] = credentialClaim
+	}
+	if scopes != nil {
+		oidcConfig["scopes"] = scopes
+	}
+	if authMethods != nil {
+		oidcConfig["auth_methods"] = authMethods
+	}
+
+	return &ApplicationAuthStrategy{
+		ID:              id,
+		Name:            name,
+		DisplayName:     displayName,
+		StrategyType:    "openid_connect",
+		DCRProviderID:   dcrProviderID,
+		DCRProviderName: dcrProviderName,
+		Configs: map[string]any{
+			"openid-connect": oidcConfig,
+		},
+		NormalizedLabels: normalizeLabelMap(labelMap),
+	}
+}
+
+type normalizedDCRProviderPayload struct {
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	DisplayName  *string           `json:"display_name"`
+	ProviderType string            `json:"provider_type"`
+	Issuer       string            `json:"issuer"`
+	DCRConfig    map[string]any    `json:"dcr_config"`
+	Labels       map[string]string `json:"labels"`
+}
+
+func normalizeDCRProviderFromAny(data any) (*DCRProvider, error) {
+	payloadBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal DCR provider payload: %w", err)
+	}
+
+	var payload normalizedDCRProviderPayload
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal DCR provider payload: %w", err)
+	}
+
+	displayName := ""
+	if payload.DisplayName != nil {
+		displayName = *payload.DisplayName
+	}
+
+	return &DCRProvider{
+		ID:               payload.ID,
+		Name:             payload.Name,
+		DisplayName:      displayName,
+		DisplayNameSet:   payload.DisplayName != nil,
+		ProviderType:     payload.ProviderType,
+		Issuer:           payload.Issuer,
+		DCRConfig:        payload.DCRConfig,
+		NormalizedLabels: normalizeLabelMap(payload.Labels),
+	}, nil
+}
+
+func idValue(v any) string {
+	if v == nil {
+		return ""
+	}
+
+	payloadBytes, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return ""
+	}
+
+	str, _ := payload["id"].(string)
+	if str != "" {
+		return str
+	}
+	str, _ = payload["ID"].(string)
+	return str
+}
+
+func nameValue(v any) string {
+	if v == nil {
+		return ""
+	}
+
+	payloadBytes, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return ""
+	}
+
+	str, _ := payload["name"].(string)
+	if str != "" {
+		return str
+	}
+	str, _ = payload["Name"].(string)
+	return str
+}
+
+// CreateDCRProvider creates a new DCR provider with management labels.
+func (c *Client) CreateDCRProvider(
+	ctx context.Context,
+	provider kkComps.CreateDcrProviderRequest,
+	_ string,
+) (*DCRProvider, error) {
+	if c.dcrProviderAPI == nil {
+		return nil, fmt.Errorf("dcr provider API client not configured")
+	}
+
+	if _, err := c.dcrProviderAPI.CreateDcrProvider(ctx, provider); err != nil {
+		return nil, fmt.Errorf("failed to create DCR provider: %w", err)
+	}
+
+	providerBytes, err := json.Marshal(provider)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect DCR provider create request: %w", err)
+	}
+
+	var payload normalizedDCRProviderPayload
+	if err := json.Unmarshal(providerBytes, &payload); err != nil {
+		return nil, fmt.Errorf("failed to read DCR provider create request: %w", err)
+	}
+
+	created, err := c.GetDCRProviderByName(ctx, payload.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch DCR provider after create: %w", err)
+	}
+	if created == nil {
+		return nil, fmt.Errorf("created DCR provider not found by name: %s", payload.Name)
+	}
+
+	return created, nil
+}
+
+// ListManagedDCRProviders returns all KONGCTL-managed DCR providers in the specified namespaces.
+func (c *Client) ListManagedDCRProviders(
+	ctx context.Context, namespaces []string,
+) ([]DCRProvider, error) {
+	if err := ValidateAPIClient(c.dcrProviderAPI, "dcr provider API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]DCRProvider, *PageMeta, error) {
+		req := kkOps.ListDcrProvidersRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.dcrProviderAPI.ListDcrProviderPayloads(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list dcr providers", nil)
+		}
+
+		if resp == nil {
+			return []DCRProvider{}, &PageMeta{Total: 0}, nil
+		}
+
+		var filtered []DCRProvider
+		for _, p := range resp.Data {
+			provider, err := normalizeDCRProviderFromAny(p)
+			if err != nil {
+				return nil, nil, err
+			}
+			if labels.IsManagedResource(provider.NormalizedLabels) &&
+				shouldIncludeNamespace(provider.NormalizedLabels[labels.NamespaceKey], namespaces) {
+				filtered = append(filtered, *provider)
+			}
+		}
+
+		meta := &PageMeta{Total: resp.Total}
+		return filtered, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+func (c *Client) GetDCRProviderByName(ctx context.Context, name string) (*DCRProvider, error) {
+	providers, err := c.ListManagedDCRProviders(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+	for _, provider := range providers {
+		if provider.Name == name {
+			return &provider, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *Client) GetDCRProviderByID(ctx context.Context, id string) (*DCRProvider, error) {
+	providers, err := c.ListManagedDCRProviders(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+	for _, provider := range providers {
+		if provider.ID == id {
+			return &provider, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *Client) UpdateDCRProvider(
+	ctx context.Context,
+	id string,
+	provider kkComps.UpdateDcrProviderRequest,
+	_ string,
+) error {
+	if c.dcrProviderAPI == nil {
+		return fmt.Errorf("dcr provider API client not configured")
+	}
+	if _, err := c.dcrProviderAPI.UpdateDcrProvider(ctx, id, provider); err != nil {
+		return fmt.Errorf("failed to update DCR provider: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) DeleteDCRProvider(ctx context.Context, id string) error {
+	if c.dcrProviderAPI == nil {
+		return fmt.Errorf("dcr provider API client not configured")
+	}
+	if _, err := c.dcrProviderAPI.DeleteDcrProvider(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete DCR provider: %w", err)
+	}
+	return nil
 }
 
 // GetAuthStrategyByName finds a managed auth strategy by name
@@ -2111,6 +2788,26 @@ func (c *Client) GetAuthStrategyByName(ctx context.Context, name string) (*Appli
 	}
 
 	return nil, nil // Not found
+}
+
+// GetAuthStrategyByID finds a managed auth strategy by ID.
+func (c *Client) GetAuthStrategyByID(ctx context.Context, id string) (*ApplicationAuthStrategy, error) {
+	if err := ValidateAPIClient(c.appAuthAPI, "app auth API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.appAuthAPI.GetAppAuthStrategy(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "get application auth strategy by ID", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeApplicationAuthStrategy),
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil {
+		return nil, nil
+	}
+
+	return c.extractAuthStrategyFromCreateResponse(resp.GetCreateAppAuthStrategyResponse()), nil
 }
 
 // GetAuthStrategyByFilter finds a managed auth strategy using a filter expression
@@ -2213,15 +2910,8 @@ func (c *Client) UpdatePortalAuthSettings(
 		logger.Debug("updating portal auth settings",
 			"portal_id", portalID,
 			"basic_auth_enabled", settings.BasicAuthEnabled,
-			"oidc_auth_enabled", settings.OidcAuthEnabled,
-			"saml_auth_enabled", settings.SamlAuthEnabled,
-			"oidc_team_mapping_enabled", settings.OidcTeamMappingEnabled,
 			"idp_mapping_enabled", settings.IdpMappingEnabled,
 			"konnect_mapping_enabled", settings.KonnectMappingEnabled,
-			"oidc_issuer", settings.OidcIssuer,
-			"oidc_client_id", settings.OidcClientID,
-			"oidc_scopes", settings.OidcScopes,
-			"oidc_claim_mappings", settings.OidcClaimMappings,
 		)
 	}
 
@@ -2230,6 +2920,495 @@ func (c *Client) UpdatePortalAuthSettings(
 		return WrapAPIError(err, "update portal auth settings", nil)
 	}
 	return nil
+}
+
+// ListPortalTeamGroupMappings returns all team group mappings for a portal.
+func (c *Client) ListPortalTeamGroupMappings(ctx context.Context, portalID string) ([]PortalTeamGroupMapping, error) {
+	if err := ValidateAPIClient(c.portalAuthSettingsAPI, "portal auth settings API"); err != nil {
+		return nil, err
+	}
+
+	var allMappings []PortalTeamGroupMapping
+	var pageNumber int64 = 1
+	pageSize := int64(100)
+
+	for {
+		resp, err := c.portalAuthSettingsAPI.ListPortalTeamGroupMappings(ctx, kkOps.ListPortalTeamGroupMappingsRequest{
+			PortalID:   portalID,
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list portal team group mappings", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalTeamGroupMapping),
+				ResourceName: portalID,
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.PortalTeamGroupMappingResponse == nil {
+			return allMappings, nil
+		}
+
+		for _, item := range resp.PortalTeamGroupMappingResponse.Data {
+			teamID := ""
+			if item.TeamID != nil {
+				teamID = *item.TeamID
+			}
+			allMappings = append(allMappings, PortalTeamGroupMapping{
+				TeamID: teamID,
+				Groups: append([]string(nil), item.Groups...),
+			})
+		}
+
+		meta := resp.PortalTeamGroupMappingResponse.Meta
+		if meta == nil || meta.Page.Total <= float64(pageSize*pageNumber) {
+			break
+		}
+		pageNumber++
+	}
+
+	return allMappings, nil
+}
+
+// UpdatePortalTeamGroupMapping replaces one team's IdP group list.
+func (c *Client) UpdatePortalTeamGroupMapping(
+	ctx context.Context,
+	portalID string,
+	teamID string,
+	groups []string,
+) error {
+	if err := ValidateAPIClient(c.portalAuthSettingsAPI, "portal auth settings API"); err != nil {
+		return err
+	}
+
+	req := kkComps.PortalTeamGroupMappingsUpdateRequest{
+		Data: []kkComps.PortalTeamGroupMappingsUpdateRequestData{{
+			TeamID: &teamID,
+			Groups: groups,
+		}},
+	}
+
+	if _, err := c.portalAuthSettingsAPI.UpdatePortalTeamGroupMappings(ctx, portalID, &req); err != nil {
+		return WrapAPIError(err, "update portal team group mappings", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalTeamGroupMapping),
+			ResourceName: teamID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// ValidatePortalIPAllowListAPI returns an error if the portal IP allow list API is not configured.
+func (c *Client) ValidatePortalIPAllowListAPI() error {
+	if c == nil {
+		return NewAPIClientNotConfiguredError("portal IP allow list API")
+	}
+	return ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API")
+}
+
+// ListPortalIPAllowLists lists all IP allow list entries for a portal.
+func (c *Client) ListPortalIPAllowLists(ctx context.Context, portalID string) ([]PortalIPAllowList, error) {
+	if err := c.ValidatePortalIPAllowListAPI(); err != nil {
+		return nil, err
+	}
+
+	var entries []PortalIPAllowList
+	pageSize := int64(100)
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListPortalIPAllowListRequest{
+			PortalID: portalID,
+			PageSize: &pageSize,
+		}
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		resp, err := c.portalIPAllowListAPI.ListPortalIPAllowList(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list portal IP allow lists", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIPAllowList),
+				ResourceName: portalID,
+				UseEnhanced:  true,
+			})
+		}
+		if err := ValidateResponse(resp, "list portal IP allow lists"); err != nil {
+			return nil, err
+		}
+
+		page := resp.GetPortalSourceIPRestrictionPaginatedResponse()
+		if page == nil {
+			return nil, NewResponseValidationError(
+				"list portal IP allow lists",
+				"PortalSourceIPRestrictionPaginatedResponse",
+			)
+		}
+
+		for _, entry := range page.GetData() {
+			entries = append(entries, PortalIPAllowList{
+				ID:         entry.ID,
+				PortalID:   portalID,
+				AllowedIPs: slices.Clone(entry.AllowedIps),
+			})
+		}
+
+		nextCursor := pagination.ExtractPageAfterCursor(page.Meta.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	return entries, nil
+}
+
+// GetPortalIPAllowList fetches a portal IP allow list entry by ID.
+func (c *Client) GetPortalIPAllowList(ctx context.Context, portalID string, id string) (*PortalIPAllowList, error) {
+	entries, err := c.ListPortalIPAllowLists(ctx, portalID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range entries {
+		if entries[i].ID == id {
+			return &entries[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// CreatePortalIPAllowList creates a portal IP allow list entry.
+func (c *Client) CreatePortalIPAllowList(
+	ctx context.Context,
+	portalID string,
+	req kkComps.CreatePortalSourceIPRestriction,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalIPAllowListAPI.CreatePortalIPAllowList(ctx, portalID, &req)
+	if err != nil {
+		if entry, recovered := portalIPAllowListEntryFromStatusOKSDKError(err); recovered {
+			if entry.ID == "" {
+				return "", NewResponseValidationError("create portal IP allow list", "IPEntry")
+			}
+			return entry.ID, nil
+		}
+		return "", WrapAPIError(err, "create portal IP allow list", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIPAllowList),
+			ResourceName: portalID,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+	if err := ValidateResponse(resp, "create portal IP allow list"); err != nil {
+		return "", err
+	}
+	if resp.IPEntry == nil {
+		return "", NewResponseValidationError("create portal IP allow list", "IPEntry")
+	}
+
+	return resp.IPEntry.ID, nil
+}
+
+// UpdatePortalIPAllowList updates a portal IP allow list entry.
+func (c *Client) UpdatePortalIPAllowList(
+	ctx context.Context,
+	portalID string,
+	id string,
+	req kkComps.UpdatePortalSourceIPRestriction,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalIPAllowListAPI.UpdatePortalIPAllowList(ctx, kkOps.UpdatePortalIPAllowListRequest{
+		PortalID:                        portalID,
+		ID:                              id,
+		UpdatePortalSourceIPRestriction: &req,
+	})
+	if err != nil {
+		if entry, recovered := portalIPAllowListEntryFromStatusOKSDKError(err); recovered {
+			if entry.ID == "" {
+				return "", NewResponseValidationError("update portal IP allow list", "IPEntry")
+			}
+			return entry.ID, nil
+		}
+		return "", WrapAPIError(err, "update portal IP allow list", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIPAllowList),
+			ResourceName: id,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+	if err := ValidateResponse(resp, "update portal IP allow list"); err != nil {
+		return "", err
+	}
+	if resp.IPEntry == nil {
+		return "", NewResponseValidationError("update portal IP allow list", "IPEntry")
+	}
+
+	return resp.IPEntry.ID, nil
+}
+
+// DeletePortalIPAllowList deletes a portal IP allow list entry.
+func (c *Client) DeletePortalIPAllowList(ctx context.Context, portalID string, id string) error {
+	if err := ValidateAPIClient(c.portalIPAllowListAPI, "portal IP allow list API"); err != nil {
+		return err
+	}
+
+	_, err := c.portalIPAllowListAPI.DeletePortalIPAllowList(ctx, portalID, id)
+	if err != nil {
+		return WrapAPIError(err, "delete portal IP allow list", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIPAllowList),
+			ResourceName: id,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+func portalIPAllowListEntryFromStatusOKSDKError(err error) (*kkComps.IPEntry, bool) {
+	var sdkErr *kkErrors.SDKError
+	if !errors.As(err, &sdkErr) ||
+		sdkErr.StatusCode != http.StatusOK ||
+		sdkErr.Message != "unknown status code returned" ||
+		strings.TrimSpace(sdkErr.Body) == "" {
+		return nil, false
+	}
+
+	var entry kkComps.IPEntry
+	if err := json.Unmarshal([]byte(sdkErr.Body), &entry); err != nil {
+		return nil, false
+	}
+	return &entry, true
+}
+
+// GetPortalIntegrations fetches current integration configuration for a portal.
+func (c *Client) GetPortalIntegrations(ctx context.Context, portalID string) (*kkComps.PortalIntegrations, error) {
+	if err := ValidateAPIClient(c.portalIntegrationsAPI, "portal integrations API"); err != nil {
+		return nil, err
+	}
+
+	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
+		logger.Debug("fetching portal integrations", "portal_id", portalID)
+	}
+
+	resp, err := c.portalIntegrationsAPI.GetPortalIntegrations(ctx, portalID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get portal integrations", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIntegration),
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.PortalIntegrations == nil {
+		return nil, NewResponseValidationError("get portal integrations", "PortalIntegrations")
+	}
+
+	return resp.PortalIntegrations, nil
+}
+
+// UpsertPortalIntegrations replaces portal integration configuration.
+func (c *Client) UpsertPortalIntegrations(
+	ctx context.Context,
+	portalID string,
+	integrations kkComps.PortalIntegrations,
+) error {
+	if err := ValidateAPIClient(c.portalIntegrationsAPI, "portal integrations API"); err != nil {
+		return err
+	}
+
+	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
+		logger.Debug("upserting portal integrations",
+			"portal_id", portalID,
+			"has_google_tag_manager", integrations.GoogleTagManager != nil,
+			"has_google_analytics_4", integrations.GoogleAnalytics4 != nil,
+		)
+	}
+
+	if _, err := c.portalIntegrationsAPI.UpsertPortalIntegrations(ctx, portalID, &integrations); err != nil {
+		return WrapAPIError(err, "upsert portal integrations", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalIntegration),
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// ListPortalIdentityProviders returns all identity providers for a portal.
+func (c *Client) ListPortalIdentityProviders(ctx context.Context, portalID string) ([]PortalIdentityProvider, error) {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalIdentityProviderAPI.ListPortalIdentityProviders(
+		ctx,
+		kkOps.GetPortalIdentityProvidersRequest{PortalID: portalID},
+	)
+	if err != nil {
+		return nil, WrapAPIError(
+			err,
+			"list portal identity providers",
+			&ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
+				ResourceName: portalID,
+				UseEnhanced:  true,
+			},
+		)
+	}
+
+	providers := make([]PortalIdentityProvider, 0, len(resp.IdentityProviders))
+	for _, provider := range resp.IdentityProviders {
+		providers = append(providers, normalizePortalIdentityProvider(provider))
+	}
+
+	return providers, nil
+}
+
+// GetPortalIdentityProvider fetches a single identity provider for a portal.
+func (c *Client) GetPortalIdentityProvider(
+	ctx context.Context,
+	portalID string,
+	id string,
+) (*PortalIdentityProvider, error) {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalIdentityProviderAPI.GetPortalIdentityProvider(ctx, portalID, id)
+	if err != nil {
+		var notFound *kkErrors.NotFoundError
+		if errors.As(err, &notFound) {
+			return nil, nil
+		}
+		return nil, WrapAPIError(
+			err,
+			"get portal identity provider",
+			&ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
+				ResourceName: id,
+				UseEnhanced:  true,
+			},
+		)
+	}
+	if resp == nil || resp.IdentityProvider == nil {
+		return nil, nil
+	}
+
+	provider := normalizePortalIdentityProvider(*resp.IdentityProvider)
+	return &provider, nil
+}
+
+// CreatePortalIdentityProvider creates a new identity provider for a portal.
+func (c *Client) CreatePortalIdentityProvider(
+	ctx context.Context,
+	portalID string,
+	body kkComps.CreateIdentityProvider,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalIdentityProviderAPI.CreatePortalIdentityProvider(ctx, portalID, body)
+	if err != nil {
+		resourceName := portalIdentityProviderName(body)
+		return "", WrapAPIError(
+			err,
+			"create portal identity provider",
+			&ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
+				ResourceName: resourceName,
+				Namespace:    namespace,
+				UseEnhanced:  true,
+			},
+		)
+	}
+	if resp == nil || resp.IdentityProvider == nil || resp.IdentityProvider.ID == nil {
+		return "", NewResponseValidationError("create portal identity provider", "IdentityProvider")
+	}
+
+	return *resp.IdentityProvider.ID, nil
+}
+
+// UpdatePortalIdentityProvider updates an identity provider for a portal.
+func (c *Client) UpdatePortalIdentityProvider(
+	ctx context.Context,
+	portalID string,
+	id string,
+	body kkComps.UpdateIdentityProvider,
+	namespace string,
+) error {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return err
+	}
+
+	_, err := c.portalIdentityProviderAPI.UpdatePortalIdentityProvider(
+		ctx,
+		kkOps.UpdatePortalIdentityProviderRequest{PortalID: portalID, ID: id, UpdateIdentityProvider: body},
+	)
+	if err != nil {
+		return WrapAPIError(
+			err,
+			"update portal identity provider",
+			&ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
+				ResourceName: id,
+				Namespace:    namespace,
+				UseEnhanced:  true,
+			},
+		)
+	}
+	return nil
+}
+
+// DeletePortalIdentityProvider deletes an identity provider from a portal.
+func (c *Client) DeletePortalIdentityProvider(ctx context.Context, portalID string, id string) error {
+	if err := ValidateAPIClient(c.portalIdentityProviderAPI, "portal identity provider API"); err != nil {
+		return err
+	}
+
+	_, err := c.portalIdentityProviderAPI.DeletePortalIdentityProvider(ctx, portalID, id)
+	if err != nil {
+		return WrapAPIError(
+			err,
+			"delete portal identity provider",
+			&ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalIdentityProvider),
+				ResourceName: id,
+				UseEnhanced:  true,
+			},
+		)
+	}
+	return nil
+}
+
+func normalizePortalIdentityProvider(provider kkComps.IdentityProvider) PortalIdentityProvider {
+	normalized := PortalIdentityProvider{Config: provider.Config}
+	if provider.ID != nil {
+		normalized.ID = *provider.ID
+	}
+	if provider.Type != nil {
+		normalized.Type = *provider.Type
+	}
+	normalized.Enabled = provider.Enabled
+	normalized.LoginPath = provider.LoginPath
+	return normalized
+}
+
+func portalIdentityProviderName(body kkComps.CreateIdentityProvider) string {
+	if body.Type == nil {
+		return ""
+	}
+	return string(*body.Type)
 }
 
 // GetPortalEmailConfig fetches the current email configuration for a portal.
@@ -2267,7 +3446,7 @@ func (c *Client) CreatePortalEmailConfig(
 	resp, err := c.portalEmailsAPI.CreatePortalEmailConfig(ctx, portalID, body)
 	if err != nil {
 		return "", WrapAPIError(err, "create portal email config", &ErrorWrapperOptions{
-			ResourceType: "portal_email_config",
+			ResourceType: string(resources.ResourceTypePortalEmailConfig),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -2291,7 +3470,7 @@ func (c *Client) UpdatePortalEmailConfig(
 	resp, err := c.portalEmailsAPI.UpdatePortalEmailConfig(ctx, portalID, body)
 	if err != nil {
 		return "", WrapAPIError(err, "update portal email config", &ErrorWrapperOptions{
-			ResourceType: "portal_email_config",
+			ResourceType: string(resources.ResourceTypePortalEmailConfig),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -2310,7 +3489,101 @@ func (c *Client) DeletePortalEmailConfig(ctx context.Context, portalID string) e
 
 	if _, err := c.portalEmailsAPI.DeletePortalEmailConfig(ctx, portalID); err != nil {
 		return WrapAPIError(err, "delete portal email config", &ErrorWrapperOptions{
-			ResourceType: "portal_email_config",
+			ResourceType: string(resources.ResourceTypePortalEmailConfig),
+			ResourceName: portalID,
+		})
+	}
+	return nil
+}
+
+// ListAuditLogWebhookDestinations returns organization audit-log webhook destinations.
+func (c *Client) ListAuditLogWebhookDestinations(ctx context.Context) ([]AuditLogWebhookDestination, error) {
+	if err := ValidateAPIClient(c.auditLogDestinationsAPI, "audit log destinations API"); err != nil {
+		return nil, err
+	}
+
+	destinations, err := c.auditLogDestinationsAPI.ListAuditLogDestinations(ctx)
+	if err != nil {
+		return nil, WrapAPIError(err, "list audit-log webhook destinations", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAuditLogWebhookDestination),
+			UseEnhanced:  true,
+		})
+	}
+
+	result := make([]AuditLogWebhookDestination, len(destinations))
+	for i, destination := range destinations {
+		result[i] = AuditLogWebhookDestination{
+			ID:                  destination.ID,
+			Name:                destination.Name,
+			Endpoint:            destination.Endpoint,
+			LogFormat:           destination.LogFormat,
+			SkipSSLVerification: destination.SkipSSLVerification,
+			CreatedAt:           destination.CreatedAt,
+			UpdatedAt:           destination.UpdatedAt,
+		}
+	}
+	return result, nil
+}
+
+// GetPortalAuditLogWebhook fetches the current audit-log webhook configuration
+// for a portal.
+func (c *Client) GetPortalAuditLogWebhook(
+	ctx context.Context,
+	portalID string,
+) (*kkComps.PortalAuditLogWebhook, error) {
+	if err := ValidateAPIClient(c.portalAuditLogsAPI, "portal audit logs API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalAuditLogsAPI.GetPortalAuditLogWebhook(ctx, portalID)
+	if err != nil {
+		var notFound *kkErrors.NotFoundError
+		if errors.As(err, &notFound) {
+			return nil, nil
+		}
+		return nil, WrapAPIError(err, "get portal audit-log webhook", nil)
+	}
+
+	if resp == nil {
+		return nil, NewResponseValidationError("get portal audit-log webhook", "PortalAuditLogWebhook")
+	}
+
+	return resp.PortalAuditLogWebhook, nil
+}
+
+// UpdatePortalAuditLogWebhook updates the audit-log webhook configuration for a portal.
+func (c *Client) UpdatePortalAuditLogWebhook(
+	ctx context.Context,
+	portalID string,
+	body *kkComps.UpdatePortalAuditLogWebhook,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalAuditLogsAPI, "portal audit logs API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalAuditLogsAPI.UpdatePortalAuditLogWebhook(ctx, portalID, body)
+	if err != nil {
+		return "", WrapAPIError(err, "update portal audit-log webhook", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalAuditLogWebhook),
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.PortalAuditLogWebhook == nil {
+		return "", NewResponseValidationError("update portal audit-log webhook", "PortalAuditLogWebhook")
+	}
+	return portalID, nil
+}
+
+// DeletePortalAuditLogWebhook deletes the audit-log webhook configuration for a portal.
+func (c *Client) DeletePortalAuditLogWebhook(ctx context.Context, portalID string) error {
+	if err := ValidateAPIClient(c.portalAuditLogsAPI, "portal audit logs API"); err != nil {
+		return err
+	}
+
+	if _, err := c.portalAuditLogsAPI.DeletePortalAuditLogWebhook(ctx, portalID); err != nil {
+		return WrapAPIError(err, "delete portal audit-log webhook", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypePortalAuditLogWebhook),
 			ResourceName: portalID,
 		})
 	}
@@ -2326,7 +3599,7 @@ func (c *Client) ListPortalCustomEmailTemplates(ctx context.Context, portalID st
 	resp, err := c.portalEmailsAPI.ListPortalCustomEmailTemplates(ctx, portalID)
 	if err != nil {
 		return nil, WrapAPIError(err, "list portal email templates", &ErrorWrapperOptions{
-			ResourceType: "portal_email_template",
+			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
 			ResourceName: portalID,
 		})
 	}
@@ -2359,7 +3632,7 @@ func (c *Client) GetPortalCustomEmailTemplate(
 			return nil, nil
 		}
 		return nil, WrapAPIError(err, "get portal email template", &ErrorWrapperOptions{
-			ResourceType: "portal_email_template",
+			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
 			ResourceName: string(name),
 			UseEnhanced:  true,
 		})
@@ -2393,7 +3666,7 @@ func (c *Client) UpdatePortalEmailTemplate(
 	resp, err := c.portalEmailsAPI.UpdatePortalCustomEmailTemplate(ctx, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update portal email template", &ErrorWrapperOptions{
-			ResourceType: "portal_email_template",
+			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
 			ResourceName: string(name),
 			UseEnhanced:  true,
 		})
@@ -2418,7 +3691,7 @@ func (c *Client) DeletePortalEmailTemplate(
 
 	if _, err := c.portalEmailsAPI.DeletePortalCustomEmailTemplate(ctx, portalID, name); err != nil {
 		return WrapAPIError(err, "delete portal email template", &ErrorWrapperOptions{
-			ResourceType: "portal_email_template",
+			ResourceType: string(resources.ResourceTypePortalEmailTemplate),
 			ResourceName: string(name),
 		})
 	}
@@ -2493,7 +3766,7 @@ func (c *Client) GetPortalAssetLogo(ctx context.Context, portalID string) (strin
 	resp, err := c.assetsAPI.GetPortalAssetLogo(ctx, portalID)
 	if err != nil {
 		return "", WrapAPIError(err, "get portal logo", &ErrorWrapperOptions{
-			ResourceType: "portal_asset_logo",
+			ResourceType: string(resources.ResourceTypePortalAssetLogo),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -2519,7 +3792,7 @@ func (c *Client) ReplacePortalAssetLogo(ctx context.Context, portalID, dataURL s
 	_, err := c.assetsAPI.ReplacePortalAssetLogo(ctx, portalID, req)
 	if err != nil {
 		return WrapAPIError(err, "replace portal logo", &ErrorWrapperOptions{
-			ResourceType: "portal_asset_logo",
+			ResourceType: string(resources.ResourceTypePortalAssetLogo),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -2537,7 +3810,7 @@ func (c *Client) GetPortalAssetFavicon(ctx context.Context, portalID string) (st
 	resp, err := c.assetsAPI.GetPortalAssetFavicon(ctx, portalID)
 	if err != nil {
 		return "", WrapAPIError(err, "get portal favicon", &ErrorWrapperOptions{
-			ResourceType: "portal_asset_favicon",
+			ResourceType: string(resources.ResourceTypePortalAssetFavicon),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -2563,7 +3836,7 @@ func (c *Client) ReplacePortalAssetFavicon(ctx context.Context, portalID, dataUR
 	_, err := c.assetsAPI.ReplacePortalAssetFavicon(ctx, portalID, req)
 	if err != nil {
 		return WrapAPIError(err, "replace portal favicon", &ErrorWrapperOptions{
-			ResourceType: "portal_asset_favicon",
+			ResourceType: string(resources.ResourceTypePortalAssetFavicon),
 			ResourceName: portalID,
 			UseEnhanced:  true,
 		})
@@ -2884,12 +4157,12 @@ func (c *Client) ListPortalSnippets(ctx context.Context, portalID string) ([]Por
 			allSnippets = append(allSnippets, snippet)
 		}
 
-		pageNumber++
-
 		// Check if we've fetched all pages
 		if resp.ListPortalSnippetsResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
+
+		pageNumber++
 	}
 
 	return allSnippets, nil
@@ -3014,7 +4287,7 @@ func (c *Client) ListPortalTeams(ctx context.Context, portalID string) ([]Portal
 		resp, err := c.portalTeamAPI.ListPortalTeams(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list portal teams", &ErrorWrapperOptions{
-				ResourceType: "portal_team",
+				ResourceType: string(resources.ResourceTypePortalTeam),
 				UseEnhanced:  true,
 			})
 		}
@@ -3040,16 +4313,17 @@ func (c *Client) ListPortalTeams(ctx context.Context, portalID string) ([]Portal
 			if t.Description != nil {
 				team.Description = *t.Description
 			}
+			team.CanOwnApplications = t.CanOwnApplications
 
 			allTeams = append(allTeams, team)
 		}
-
-		pageNumber++
 
 		// Check if we've fetched all pages
 		if resp.ListPortalTeamsResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
+
+		pageNumber++
 	}
 
 	return allTeams, nil
@@ -3069,7 +4343,7 @@ func (c *Client) CreatePortalTeam(
 	resp, err := c.portalTeamAPI.CreatePortalTeam(ctx, portalID, &req)
 	if err != nil {
 		return "", WrapAPIError(err, "create portal team", &ErrorWrapperOptions{
-			ResourceType: "portal_team",
+			ResourceType: string(resources.ResourceTypePortalTeam),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3113,7 +4387,7 @@ func (c *Client) UpdatePortalTeam(
 			teamName = *req.Name
 		}
 		return WrapAPIError(err, "update portal team", &ErrorWrapperOptions{
-			ResourceType: "portal_team",
+			ResourceType: string(resources.ResourceTypePortalTeam),
 			ResourceName: teamName,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3132,7 +4406,7 @@ func (c *Client) DeletePortalTeam(ctx context.Context, portalID string, teamID s
 	_, err := c.portalTeamAPI.DeletePortalTeam(ctx, teamID, portalID)
 	if err != nil {
 		return WrapAPIError(err, "delete portal team", &ErrorWrapperOptions{
-			ResourceType: "portal_team",
+			ResourceType: string(resources.ResourceTypePortalTeam),
 			UseEnhanced:  true,
 		})
 	}
@@ -3145,13 +4419,7 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 		return nil, fmt.Errorf("portal team roles API not configured")
 	}
 
-	var (
-		allRoles   []PortalTeamRole
-		pageNumber int64 = 1
-		pageSize   int64 = 100
-	)
-
-	for {
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]PortalTeamRole, *PageMeta, error) {
 		req := kkOps.ListPortalTeamRolesRequest{
 			PortalID:   portalID,
 			TeamID:     teamID,
@@ -3161,37 +4429,36 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 
 		resp, err := c.portalTeamRolesAPI.ListPortalTeamRoles(ctx, req)
 		if err != nil {
-			return nil, WrapAPIError(err, "list portal team roles", &ErrorWrapperOptions{
-				ResourceType: "portal_team_role",
+			return nil, nil, WrapAPIError(err, "list portal team roles", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypePortalTeamRole),
 				UseEnhanced:  true,
 			})
 		}
 
-		if resp.AssignedPortalRoleCollectionResponse == nil ||
-			len(resp.AssignedPortalRoleCollectionResponse.Data) == 0 {
-			break
+		if resp.AssignedPortalRoleCollectionResponse == nil {
+			return []PortalTeamRole{}, &PageMeta{Total: 0}, nil
 		}
 
+		var allRoles []PortalTeamRole
 		for _, r := range resp.AssignedPortalRoleCollectionResponse.Data {
 			role := PortalTeamRole{
-				ID:             getString(r.ID),
-				RoleName:       getString(r.RoleName),
-				EntityID:       getString(r.EntityID),
-				EntityTypeName: getString(r.EntityTypeName),
-				EntityRegion:   string(getEntityRegion(r.EntityRegion)),
+				ID:             r.ID,
+				RoleName:       r.RoleName,
+				EntityID:       r.EntityID,
+				EntityTypeName: r.EntityTypeName,
+				EntityRegion:   string(r.EntityRegion),
 				TeamID:         teamID,
 				PortalID:       portalID,
 			}
 			allRoles = append(allRoles, role)
 		}
 
-		pageNumber++
-		if float64(pageSize*(pageNumber-1)) >= resp.AssignedPortalRoleCollectionResponse.Meta.Page.Total {
-			break
-		}
+		meta := &PageMeta{Total: resp.AssignedPortalRoleCollectionResponse.Meta.Page.Total}
+
+		return allRoles, meta, nil
 	}
 
-	return allRoles, nil
+	return PaginateAll(ctx, lister)
 }
 
 // AssignPortalTeamRole assigns a role to a portal team
@@ -3214,12 +4481,9 @@ func (c *Client) AssignPortalTeamRole(
 
 	resp, err := c.portalTeamRolesAPI.AssignRoleToPortalTeams(ctx, assignReq)
 	if err != nil {
-		roleName := ""
-		if req.RoleName != nil {
-			roleName = *req.RoleName
-		}
+		roleName := req.RoleName
 		return "", WrapAPIError(err, "assign portal team role", &ErrorWrapperOptions{
-			ResourceType: "portal_team_role",
+			ResourceType: string(resources.ResourceTypePortalTeamRole),
 			ResourceName: roleName,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3230,7 +4494,7 @@ func (c *Client) AssignPortalTeamRole(
 		return "", fmt.Errorf("no response data from assign portal team role")
 	}
 
-	return getString(resp.PortalAssignedRoleResponse.ID), nil
+	return resp.PortalAssignedRoleResponse.ID, nil
 }
 
 // RemovePortalTeamRole removes an assigned role from a portal team
@@ -3248,11 +4512,569 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 	_, err := c.portalTeamRolesAPI.RemoveRoleFromPortalTeam(ctx, removeReq)
 	if err != nil {
 		return WrapAPIError(err, "remove portal team role", &ErrorWrapperOptions{
-			ResourceType: "portal_team_role",
+			ResourceType: string(resources.ResourceTypePortalTeamRole),
 			UseEnhanced:  true,
 		})
 	}
 
+	return nil
+}
+
+// ListOrganizationTeamRoles returns all assigned roles for an organization team.
+func (c *Client) ListOrganizationTeamRoles(ctx context.Context, teamID string) ([]OrganizationTeamRole, error) {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.organizationTeamRolesAPI.ListTeamRoles(ctx, teamID, nil)
+	if err != nil {
+		return nil, WrapAPIError(err, "list organization team roles", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AssignedRoleCollection == nil {
+		return []OrganizationTeamRole{}, nil
+	}
+
+	roles := make([]OrganizationTeamRole, 0, len(resp.AssignedRoleCollection.Data))
+	for _, r := range resp.AssignedRoleCollection.Data {
+		role := OrganizationTeamRole{
+			ID:             getString(r.ID),
+			RoleName:       getString(r.RoleName),
+			EntityID:       getString(r.EntityID),
+			EntityTypeName: getString(r.EntityTypeName),
+			TeamID:         teamID,
+		}
+		if r.EntityRegion != nil {
+			role.EntityRegion = string(*r.EntityRegion)
+		}
+		roles = append(roles, role)
+	}
+
+	return roles, nil
+}
+
+// AssignOrganizationTeamRole assigns a role to an organization team.
+func (c *Client) AssignOrganizationTeamRole(
+	ctx context.Context,
+	teamID string,
+	req kkComps.AssignRole,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.organizationTeamRolesAPI.TeamsAssignRole(ctx, teamID, &req)
+	if err != nil {
+		return "", WrapAPIError(err, "assign organization team role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
+			ResourceName: getRoleName(req.RoleName),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AssignedRole == nil || resp.AssignedRole.ID == nil {
+		return "", fmt.Errorf("no response data from assign organization team role")
+	}
+
+	return *resp.AssignedRole.ID, nil
+}
+
+// RemoveOrganizationTeamRole removes an assigned role from an organization team.
+func (c *Client) RemoveOrganizationTeamRole(ctx context.Context, teamID string, roleID string) error {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return err
+	}
+
+	_, err := c.organizationTeamRolesAPI.TeamsRemoveRole(ctx, teamID, roleID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization team role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
+// GetOrganizationUser returns a user by ID.
+func (c *Client) GetOrganizationUser(ctx context.Context, userID string) (*OrganizationUser, error) {
+	if err := ValidateAPIClient(c.organizationUsersAPI, "organization users API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.organizationUsersAPI.GetUser(ctx, userID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get organization user", &ErrorWrapperOptions{
+			ResourceType: "organization_user",
+			ResourceName: userID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.User == nil || resp.User.ID == nil {
+		return nil, nil
+	}
+	return &OrganizationUser{
+		ID:    getString(resp.User.ID),
+		Email: getString(resp.User.Email),
+	}, nil
+}
+
+// ListOrganizationUsers returns all organization users.
+func (c *Client) ListOrganizationUsers(ctx context.Context) ([]OrganizationUser, error) {
+	if err := ValidateAPIClient(c.organizationUsersAPI, "organization users API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var users []OrganizationUser
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.organizationUsersAPI.ListUsers(ctx, kkOps.ListUsersRequest{
+			PageSize:   ptrInt64(pageSize),
+			PageNumber: ptrInt64(pageNumber),
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization users", &ErrorWrapperOptions{
+				ResourceType: "organization_user",
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.UserCollection == nil {
+			return users, nil
+		}
+		for _, user := range resp.UserCollection.Data {
+			users = append(users, OrganizationUser{
+				ID:    getString(user.ID),
+				Email: getString(user.Email),
+			})
+		}
+		total := resp.UserCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return users, nil
+		}
+	}
+	return nil, fmt.Errorf("organization users pagination exceeded safety limit")
+}
+
+// ListOrganizationUserTeams returns all teams for a user.
+func (c *Client) ListOrganizationUserTeams(
+	ctx context.Context,
+	userID string,
+) ([]OrganizationUserTeamMembership, error) {
+	if err := ValidateAPIClient(c.organizationMembershipAPI, "organization team membership API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var memberships []OrganizationUserTeamMembership
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.organizationMembershipAPI.ListUserTeams(ctx, kkOps.ListUserTeamsRequest{
+			UserID:     userID,
+			PageSize:   ptrInt64(pageSize),
+			PageNumber: ptrInt64(pageNumber),
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization user teams", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypeOrganizationUserTeamMembership),
+				ResourceName: userID,
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.TeamCollection == nil {
+			return memberships, nil
+		}
+		for _, team := range resp.TeamCollection.Data {
+			memberships = append(memberships, OrganizationUserTeamMembership{
+				UserID:   userID,
+				TeamID:   getString(team.ID),
+				TeamName: getString(team.Name),
+			})
+		}
+		total := resp.TeamCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return memberships, nil
+		}
+	}
+	return nil, fmt.Errorf("organization user teams pagination exceeded safety limit")
+}
+
+// ListOrganizationTeamUsers returns all users for a team.
+func (c *Client) ListOrganizationTeamUsers(
+	ctx context.Context,
+	teamID string,
+) ([]OrganizationUserTeamMembership, error) {
+	if err := ValidateAPIClient(c.organizationMembershipAPI, "organization team membership API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var memberships []OrganizationUserTeamMembership
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.organizationMembershipAPI.ListTeamUsers(ctx, kkOps.ListTeamUsersRequest{
+			TeamID:     teamID,
+			PageSize:   ptrInt64(pageSize),
+			PageNumber: ptrInt64(pageNumber),
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization team users", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypeOrganizationUserTeamMembership),
+				ResourceName: teamID,
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.UserCollection == nil {
+			return memberships, nil
+		}
+		for _, user := range resp.UserCollection.Data {
+			memberships = append(memberships, OrganizationUserTeamMembership{
+				UserID:    getString(user.ID),
+				UserEmail: getString(user.Email),
+				TeamID:    teamID,
+			})
+		}
+		total := resp.UserCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return memberships, nil
+		}
+	}
+	return nil, fmt.Errorf("organization team users pagination exceeded safety limit")
+}
+
+// AddOrganizationUserToTeam adds a user to an organization team.
+func (c *Client) AddOrganizationUserToTeam(ctx context.Context, userID string, teamID string) error {
+	if err := ValidateAPIClient(c.organizationMembershipAPI, "organization team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.organizationMembershipAPI.AddUserToTeam(ctx, teamID, &kkComps.AddUserToTeam{UserID: userID})
+	if err != nil {
+		return WrapAPIError(err, "add organization user to team", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserTeamMembership),
+			ResourceName: userID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// RemoveOrganizationUserFromTeam removes a user from an organization team.
+func (c *Client) RemoveOrganizationUserFromTeam(ctx context.Context, userID string, teamID string) error {
+	if err := ValidateAPIClient(c.organizationMembershipAPI, "organization team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.organizationMembershipAPI.RemoveUserFromTeam(ctx, userID, teamID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization user from team", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserTeamMembership),
+			ResourceName: userID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// ListOrganizationUserRoles returns all assigned roles for an organization user.
+func (c *Client) ListOrganizationUserRoles(ctx context.Context, userID string) ([]OrganizationUserRole, error) {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.organizationTeamRolesAPI.ListUserRoles(ctx, userID, nil)
+	if err != nil {
+		return nil, WrapAPIError(err, "list organization user roles", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserRole),
+			ResourceName: userID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.AssignedRoleCollection == nil {
+		return []OrganizationUserRole{}, nil
+	}
+	roles := make([]OrganizationUserRole, 0, len(resp.AssignedRoleCollection.Data))
+	for _, r := range resp.AssignedRoleCollection.Data {
+		role := OrganizationUserRole{
+			ID:             getString(r.ID),
+			RoleName:       getString(r.RoleName),
+			EntityID:       getString(r.EntityID),
+			EntityTypeName: getString(r.EntityTypeName),
+			UserID:         userID,
+		}
+		if r.EntityRegion != nil {
+			role.EntityRegion = string(*r.EntityRegion)
+		}
+		roles = append(roles, role)
+	}
+	return roles, nil
+}
+
+// AssignOrganizationUserRole assigns a role to an organization user.
+func (c *Client) AssignOrganizationUserRole(
+	ctx context.Context,
+	userID string,
+	req kkComps.AssignRole,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.organizationTeamRolesAPI.UsersAssignRole(ctx, userID, &req)
+	if err != nil {
+		return "", WrapAPIError(err, "assign organization user role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserRole),
+			ResourceName: getRoleName(req.RoleName),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.AssignedRole == nil || resp.AssignedRole.ID == nil {
+		return "", fmt.Errorf("no response data from assign organization user role")
+	}
+	return *resp.AssignedRole.ID, nil
+}
+
+// RemoveOrganizationUserRole removes an assigned role from an organization user.
+func (c *Client) RemoveOrganizationUserRole(ctx context.Context, userID string, roleID string) error {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return err
+	}
+
+	_, err := c.organizationTeamRolesAPI.UsersRemoveRole(ctx, userID, roleID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization user role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationUserRole),
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// GetOrganizationSystemAccount returns a system account by ID.
+func (c *Client) GetOrganizationSystemAccount(
+	ctx context.Context,
+	accountID string,
+) (*OrganizationSystemAccount, error) {
+	if err := ValidateAPIClient(c.systemAccountAPI, "system account API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.systemAccountAPI.GetSystemAccount(ctx, accountID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get organization system account", &ErrorWrapperOptions{
+			ResourceType: "organization_system_account",
+			ResourceName: accountID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.SystemAccount == nil || resp.SystemAccount.ID == nil {
+		return nil, nil
+	}
+	return &OrganizationSystemAccount{
+		ID:   getString(resp.SystemAccount.ID),
+		Name: getString(resp.SystemAccount.Name),
+	}, nil
+}
+
+// ListOrganizationSystemAccounts returns all organization system accounts.
+func (c *Client) ListOrganizationSystemAccounts(ctx context.Context) ([]OrganizationSystemAccount, error) {
+	if err := ValidateAPIClient(c.systemAccountAPI, "system account API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var accounts []OrganizationSystemAccount
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.systemAccountAPI.ListSystemAccounts(ctx, kkOps.GetSystemAccountsRequest{
+			PageSize:   ptrInt64(pageSize),
+			PageNumber: ptrInt64(pageNumber),
+		})
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization system accounts", &ErrorWrapperOptions{
+				ResourceType: "organization_system_account",
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.SystemAccountCollection == nil {
+			return accounts, nil
+		}
+		for _, account := range resp.SystemAccountCollection.Data {
+			accounts = append(accounts, OrganizationSystemAccount{
+				ID:   getString(account.ID),
+				Name: getString(account.Name),
+			})
+		}
+		total := resp.SystemAccountCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return accounts, nil
+		}
+	}
+	return nil, fmt.Errorf("organization system accounts pagination exceeded safety limit")
+}
+
+// ListOrganizationSystemAccountTeams returns all teams for a system account.
+func (c *Client) ListOrganizationSystemAccountTeams(
+	ctx context.Context,
+	accountID string,
+) ([]OrganizationSystemAccountTeamMembership, error) {
+	if err := ValidateAPIClient(c.systemAccountMembershipAPI, "system account team membership API"); err != nil {
+		return nil, err
+	}
+
+	const pageSize int64 = 100
+	var memberships []OrganizationSystemAccountTeamMembership
+	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
+		resp, err := c.systemAccountMembershipAPI.ListSystemAccountTeams(
+			ctx,
+			kkOps.GetSystemAccountsAccountIDTeamsRequest{
+				AccountID:  accountID,
+				PageSize:   ptrInt64(pageSize),
+				PageNumber: ptrInt64(pageNumber),
+			},
+		)
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization system account teams", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypeOrganizationSystemAccountTeamMembership),
+				ResourceName: accountID,
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.TeamCollection == nil {
+			return memberships, nil
+		}
+		for _, team := range resp.TeamCollection.Data {
+			memberships = append(memberships, OrganizationSystemAccountTeamMembership{
+				SystemAccountID: accountID,
+				TeamID:          getString(team.ID),
+				TeamName:        getString(team.Name),
+			})
+		}
+		total := resp.TeamCollection.GetMeta().GetPage().Total
+		if total <= float64(pageSize*pageNumber) {
+			return memberships, nil
+		}
+	}
+	return nil, fmt.Errorf("organization system account teams pagination exceeded safety limit")
+}
+
+// AddOrganizationSystemAccountToTeam adds a system account to an organization team.
+func (c *Client) AddOrganizationSystemAccountToTeam(ctx context.Context, accountID string, teamID string) error {
+	if err := ValidateAPIClient(c.systemAccountMembershipAPI, "system account team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.systemAccountMembershipAPI.AddSystemAccountToTeam(
+		ctx,
+		teamID,
+		&kkComps.AddSystemAccountToTeam{AccountID: &accountID},
+	)
+	if err != nil {
+		return WrapAPIError(err, "add organization system account to team", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountTeamMembership),
+			ResourceName: accountID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// RemoveOrganizationSystemAccountFromTeam removes a system account from an organization team.
+func (c *Client) RemoveOrganizationSystemAccountFromTeam(ctx context.Context, accountID string, teamID string) error {
+	if err := ValidateAPIClient(c.systemAccountMembershipAPI, "system account team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.systemAccountMembershipAPI.RemoveSystemAccountFromTeam(ctx, teamID, accountID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization system account from team", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountTeamMembership),
+			ResourceName: accountID,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+// ListOrganizationSystemAccountRoles returns all assigned roles for an organization system account.
+func (c *Client) ListOrganizationSystemAccountRoles(
+	ctx context.Context,
+	accountID string,
+) ([]OrganizationSystemAccountRole, error) {
+	if err := ValidateAPIClient(c.systemAccountRolesAPI, "system account roles API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.systemAccountRolesAPI.ListSystemAccountRoles(ctx, accountID, nil)
+	if err != nil {
+		return nil, WrapAPIError(err, "list organization system account roles", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountRole),
+			ResourceName: accountID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.AssignedRoleCollection == nil {
+		return []OrganizationSystemAccountRole{}, nil
+	}
+	roles := make([]OrganizationSystemAccountRole, 0, len(resp.AssignedRoleCollection.Data))
+	for _, r := range resp.AssignedRoleCollection.Data {
+		role := OrganizationSystemAccountRole{
+			ID:              getString(r.ID),
+			RoleName:        getString(r.RoleName),
+			EntityID:        getString(r.EntityID),
+			EntityTypeName:  getString(r.EntityTypeName),
+			SystemAccountID: accountID,
+		}
+		if r.EntityRegion != nil {
+			role.EntityRegion = string(*r.EntityRegion)
+		}
+		roles = append(roles, role)
+	}
+	return roles, nil
+}
+
+// AssignOrganizationSystemAccountRole assigns a role to an organization system account.
+func (c *Client) AssignOrganizationSystemAccountRole(
+	ctx context.Context,
+	accountID string,
+	req kkComps.AssignRole,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.systemAccountRolesAPI, "system account roles API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.systemAccountRolesAPI.AssignSystemAccountRole(ctx, accountID, &req)
+	if err != nil {
+		return "", WrapAPIError(err, "assign organization system account role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountRole),
+			ResourceName: getRoleName(req.RoleName),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.AssignedRole == nil || resp.AssignedRole.ID == nil {
+		return "", fmt.Errorf("no response data from assign organization system account role")
+	}
+	return *resp.AssignedRole.ID, nil
+}
+
+// RemoveOrganizationSystemAccountRole removes an assigned role from an organization system account.
+func (c *Client) RemoveOrganizationSystemAccountRole(ctx context.Context, accountID string, roleID string) error {
+	if err := ValidateAPIClient(c.systemAccountRolesAPI, "system account roles API"); err != nil {
+		return err
+	}
+
+	_, err := c.systemAccountRolesAPI.RemoveSystemAccountRole(ctx, accountID, roleID)
+	if err != nil {
+		return WrapAPIError(err, "remove organization system account role", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeOrganizationSystemAccountRole),
+			UseEnhanced:  true,
+		})
+	}
 	return nil
 }
 
@@ -3287,17 +5109,11 @@ func (c *Client) ListManagedEventGatewayControlPlanes(
 
 		allData = append(allData, res.ListEventGatewaysResponse.Data...)
 
-		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewaysResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway control planes: invalid cursor", nil)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var filteredEGWControlPlanes []EventGatewayControlPlane
@@ -3324,7 +5140,7 @@ func (c *Client) CreateEventGatewayControlPlane(
 	resp, err := c.egwControlPlaneAPI.CreateEGWControlPlane(ctx, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway control plane", &ErrorWrapperOptions{
-			ResourceType: "event_gateway",
+			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 			ResourceName: "", // Adjust based on SDK
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3347,7 +5163,7 @@ func (c *Client) UpdateEventGatewayControlPlane(
 	resp, err := c.egwControlPlaneAPI.UpdateEGWControlPlane(ctx, id, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway control plane", &ErrorWrapperOptions{
-			ResourceType: "event_gateway",
+			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 			ResourceName: "", // Adjust based on SDK
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3361,7 +5177,7 @@ func (c *Client) GetEventGatewayControlPlaneByID(ctx context.Context, id string)
 	resp, err := c.egwControlPlaneAPI.FetchEGWControlPlane(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway control plane by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway",
+			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 			ResourceName: "", // Adjust based on SDK
 			UseEnhanced:  true,
 		})
@@ -3392,7 +5208,7 @@ func (c *Client) GetEventGatewayControlPlaneByName(
 	gateways, err := c.ListManagedEventGatewayControlPlanes(ctx, []string{"*"})
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateways to find by name", &ErrorWrapperOptions{
-			ResourceType: "event_gateway",
+			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 			ResourceName: name,
 			UseEnhanced:  true,
 		})
@@ -3449,17 +5265,11 @@ func (c *Client) ListEventGatewayBackendClusters(
 
 		allData = append(allData, res.ListBackendClustersResponse.Data...)
 
-		if res.ListBackendClustersResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListBackendClustersResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListBackendClustersResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway backend clusters: invalid cursor", nil)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var backendClusters []EventGatewayBackendCluster
@@ -3488,7 +5298,7 @@ func (c *Client) CreateEventGatewayBackendCluster(
 	resp, err := c.eventGatewayBackendClusterAPI.CreateEventGatewayBackendCluster(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway backend cluster", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_backend_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3510,7 +5320,7 @@ func (c *Client) GetEventGatewayBackendCluster(
 	resp, err := c.eventGatewayBackendClusterAPI.FetchEventGatewayBackendCluster(ctx, gatewayID, clusterID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway backend cluster by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_backend_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
 			UseEnhanced:  true,
 		})
 	}
@@ -3540,7 +5350,7 @@ func (c *Client) GetEventGatewayBackendClusterByName(
 	backendClusters, err := c.ListEventGatewayBackendClusters(ctx, gatewayID)
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateway backend clusters to find by name", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_backend_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
 			ResourceName: name,
 			UseEnhanced:  true,
 		})
@@ -3565,7 +5375,7 @@ func (c *Client) UpdateEventGatewayBackendCluster(
 	resp, err := c.eventGatewayBackendClusterAPI.UpdateEventGatewayBackendCluster(ctx, gatewayID, clusterID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway backend cluster", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_backend_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayBackendCluster),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3633,6 +5443,62 @@ func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []
 	return PaginateAll(ctx, lister)
 }
 
+// GetOrganizationTeamByNameUnfiltered finds an organization team by name without requiring kongctl-managed labels.
+func (c *Client) GetOrganizationTeamByNameUnfiltered(ctx context.Context, name string) (*OrganizationTeam, error) {
+	if err := ValidateAPIClient(c.organizationTeamAPI, "organization team API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]OrganizationTeam, *PageMeta, error) {
+		req := kkOps.ListTeamsRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.organizationTeamAPI.ListOrganizationTeams(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list teams", nil)
+		}
+
+		if resp.TeamCollection == nil {
+			return []OrganizationTeam{}, &PageMeta{Total: 0}, nil
+		}
+
+		teams := make([]OrganizationTeam, 0, len(resp.TeamCollection.Data))
+		for _, t := range resp.TeamCollection.Data {
+			normalized := t.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			teams = append(teams, OrganizationTeam{
+				Team:             t,
+				NormalizedLabels: normalized,
+			})
+		}
+
+		total := 0.0
+		if resp.TeamCollection.Meta != nil {
+			total = resp.TeamCollection.Meta.Page.Total
+		}
+
+		return teams, &PageMeta{Total: total}, nil
+	}
+
+	teams, err := PaginateAll(ctx, lister)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, t := range teams {
+		if t.Name != nil && *t.Name == name {
+			return &t, nil
+		}
+	}
+
+	return nil, nil
+}
+
 // GetOrganizationTeamByName finds a managed organization team by name
 func (c *Client) GetOrganizationTeamByName(ctx context.Context, name string) (*OrganizationTeam, error) {
 	// Search across all namespaces for backward compatibility
@@ -3654,7 +5520,7 @@ func (c *Client) GetOrganizationTeamByID(ctx context.Context, id string) (*Organ
 	resp, err := c.organizationTeamAPI.GetOrganizationTeam(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get team by ID", &ErrorWrapperOptions{
-			ResourceType: "team",
+			ResourceType: string(resources.ResourceTypeTeam),
 			ResourceName: "",
 			UseEnhanced:  true,
 		})
@@ -3683,7 +5549,7 @@ func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.Creat
 	resp, err := c.organizationTeamAPI.CreateOrganizationTeam(ctx, team)
 	if err != nil {
 		return "", WrapAPIError(err, "create organization team", &ErrorWrapperOptions{
-			ResourceType: "organization_team",
+			ResourceType: string(resources.ResourceTypeOrganizationTeam),
 			ResourceName: team.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3707,7 +5573,7 @@ func (c *Client) UpdateOrganizationTeam(ctx context.Context, teamID string,
 	resp, err := c.organizationTeamAPI.UpdateOrganizationTeam(ctx, teamID, team)
 	if err != nil {
 		return "", WrapAPIError(err, "update organization team", &ErrorWrapperOptions{
-			ResourceType: "organization_team",
+			ResourceType: string(resources.ResourceTypeOrganizationTeam),
 			ResourceName: getString(team.Name),
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3729,7 +5595,7 @@ func (c *Client) DeleteOrganizationTeam(ctx context.Context, teamID string) erro
 	_, err := c.organizationTeamAPI.DeleteOrganizationTeam(ctx, teamID)
 	if err != nil {
 		return WrapAPIError(err, "delete organization team", &ErrorWrapperOptions{
-			ResourceType: "organization_team",
+			ResourceType: string(resources.ResourceTypeOrganizationTeam),
 			ResourceName: teamID,
 			UseEnhanced:  true,
 		})
@@ -3745,11 +5611,15 @@ func getString(value *string) string {
 	return *value
 }
 
-func getEntityRegion(value *kkComps.EntityRegion) kkComps.EntityRegion {
+func getRoleName(value *kkComps.RoleName) string {
 	if value == nil {
 		return ""
 	}
-	return *value
+	return string(*value)
+}
+
+func ptrInt64(value int64) *int64 {
+	return &value
 }
 
 // shouldIncludeNamespace checks if a resource's namespace should be included based on filter
@@ -3803,17 +5673,11 @@ func (c *Client) ListEventGatewayVirtualClusters(
 
 		allData = append(allData, res.ListVirtualClustersResponse.Data...)
 
-		if res.ListVirtualClustersResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListVirtualClustersResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListVirtualClustersResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway virtual clusters: invalid cursor", nil)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var virtualClusters []EventGatewayVirtualCluster
@@ -3842,7 +5706,7 @@ func (c *Client) CreateEventGatewayVirtualCluster(
 	resp, err := c.eventGatewayVirtualClusterAPI.CreateEventGatewayVirtualCluster(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway virtual cluster", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3864,7 +5728,7 @@ func (c *Client) GetEventGatewayVirtualCluster(
 	resp, err := c.eventGatewayVirtualClusterAPI.FetchEventGatewayVirtualCluster(ctx, gatewayID, clusterID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway virtual cluster by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
 			UseEnhanced:  true,
 		})
 	}
@@ -3917,7 +5781,7 @@ func (c *Client) UpdateEventGatewayVirtualCluster(
 	resp, err := c.eventGatewayVirtualClusterAPI.UpdateEventGatewayVirtualCluster(ctx, gatewayID, clusterID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway virtual cluster", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_virtual_cluster",
+			ResourceType: string(resources.ResourceTypeEventGatewayVirtualCluster),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3974,17 +5838,11 @@ func (c *Client) ListEventGatewayListeners(
 
 		allData = append(allData, res.ListEventGatewayListenersResponse.Data...)
 
-		if res.ListEventGatewayListenersResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewayListenersResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListEventGatewayListenersResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway listeners: invalid cursor", nil)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var listeners []EventGatewayListener
@@ -4013,7 +5871,7 @@ func (c *Client) CreateEventGatewayListener(
 	resp, err := c.eventGatewayListenerAPI.CreateEventGatewayListener(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway listener", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener",
+			ResourceType: string(resources.ResourceTypeEventGatewayListener),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4035,7 +5893,7 @@ func (c *Client) GetEventGatewayListener(
 	resp, err := c.eventGatewayListenerAPI.FetchEventGatewayListener(ctx, gatewayID, listenerID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway listener by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener",
+			ResourceType: string(resources.ResourceTypeEventGatewayListener),
 			UseEnhanced:  true,
 		})
 	}
@@ -4068,7 +5926,7 @@ func (c *Client) UpdateEventGatewayListener(
 	resp, err := c.eventGatewayListenerAPI.UpdateEventGatewayListener(ctx, gatewayID, listenerID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway listener", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener",
+			ResourceType: string(resources.ResourceTypeEventGatewayListener),
 			ResourceName: req.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4125,8 +5983,8 @@ func (c *Client) ListEventGatewayListenerPolicies(
 	}
 
 	req := kkOps.ListEventGatewayListenerPoliciesRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
 	}
 
 	res, err := c.eventGatewayListenerPolicyAPI.ListEventGatewayListenerPolicies(ctx, req)
@@ -4179,14 +6037,14 @@ func (c *Client) CreateEventGatewayListenerPolicy(
 ) (string, error) {
 	createReq := kkOps.CreateEventGatewayListenerPolicyRequest{
 		GatewayID:                        gatewayID,
-		EventGatewayListenerID:           listenerID,
+		ListenerID:                       listenerID,
 		EventGatewayListenerPolicyCreate: req,
 	}
 
 	resp, err := c.eventGatewayListenerPolicyAPI.CreateEventGatewayListenerPolicy(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway listener policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayListenerPolicy),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -4209,7 +6067,7 @@ func (c *Client) UpdateEventGatewayListenerPolicy(
 ) (string, error) {
 	updateReq := kkOps.UpdateEventGatewayListenerPolicyRequest{
 		GatewayID:                        gatewayID,
-		EventGatewayListenerID:           listenerID,
+		ListenerID:                       listenerID,
 		PolicyID:                         policyID,
 		EventGatewayListenerPolicyUpdate: req,
 	}
@@ -4217,7 +6075,7 @@ func (c *Client) UpdateEventGatewayListenerPolicy(
 	resp, err := c.eventGatewayListenerPolicyAPI.UpdateEventGatewayListenerPolicy(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway listener policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_listener_policy",
+			ResourceType: string(resources.ResourceTypeEventGatewayListenerPolicy),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -4233,9 +6091,9 @@ func (c *Client) DeleteEventGatewayListenerPolicy(
 	policyID string,
 ) error {
 	deleteReq := kkOps.DeleteEventGatewayListenerPolicyRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
-		PolicyID:               policyID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
+		PolicyID:   policyID,
 	}
 
 	_, err := c.eventGatewayListenerPolicyAPI.DeleteEventGatewayListenerPolicy(ctx, deleteReq)
@@ -4252,9 +6110,9 @@ func (c *Client) GetEventGatewayListenerPolicy(
 	policyID string,
 ) (*EventGatewayListenerPolicyInfo, error) {
 	req := kkOps.GetEventGatewayListenerPolicyRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
-		PolicyID:               policyID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
+		PolicyID:   policyID,
 	}
 
 	resp, err := c.eventGatewayListenerPolicyAPI.GetEventGatewayListenerPolicy(ctx, req)
@@ -4274,6 +6132,583 @@ func (c *Client) GetEventGatewayListenerPolicy(
 	return &EventGatewayListenerPolicyInfo{
 		EventGatewayListenerPolicy: *resp.EventGatewayListenerPolicy,
 		NormalizedLabels:           normalized,
+	}, nil
+}
+
+// ---- Event Gateway Cluster Policy operations ----
+
+// EventGatewayClusterPolicyInfo wraps an Event Gateway Cluster Policy for internal use.
+type EventGatewayClusterPolicyInfo struct {
+	kkComps.EventGatewayPolicy
+	NormalizedLabels map[string]string
+	RawConfig        map[string]any
+}
+
+// clusterPolicyRawResponse is used to parse the raw API response to get full config.
+type clusterPolicyRawResponse struct {
+	Type        string            `json:"type"`
+	Name        *string           `json:"name,omitempty"`
+	Description *string           `json:"description,omitempty"`
+	Enabled     *bool             `json:"enabled,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	ID          string            `json:"id"`
+	Config      map[string]any    `json:"config"`
+	CreatedAt   string            `json:"created_at"`
+	UpdatedAt   string            `json:"updated_at"`
+	Condition   *string           `json:"condition,omitempty"`
+}
+
+func (c *Client) ListEventGatewayClusterPolicies(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+) ([]EventGatewayClusterPolicyInfo, error) {
+	if err := ValidateAPIClient(c.eventGatewayClusterPolicyAPI, "event gateway cluster policy API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.ListEventGatewayVirtualClusterClusterLevelPoliciesRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+	}
+
+	res, err := c.eventGatewayClusterPolicyAPI.ListEventGatewayVirtualClusterClusterLevelPolicies(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway cluster policies", nil)
+	}
+
+	if res.ListClusterPoliciesResponse == nil {
+		return []EventGatewayClusterPolicyInfo{}, nil
+	}
+
+	// Try to parse raw response to get full config data
+	rawConfigByID := make(map[string]map[string]any)
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var rawPolicies []clusterPolicyRawResponse
+			if jsonErr := json.Unmarshal(bodyBytes, &rawPolicies); jsonErr == nil {
+				for _, rp := range rawPolicies {
+					if rp.ID != "" && rp.Config != nil {
+						rawConfigByID[rp.ID] = rp.Config
+					}
+				}
+			}
+		}
+	}
+
+	var policies []EventGatewayClusterPolicyInfo
+	for _, p := range res.ListClusterPoliciesResponse {
+		normalized := p.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+		policies = append(policies, EventGatewayClusterPolicyInfo{
+			EventGatewayPolicy: p,
+			NormalizedLabels:   normalized,
+			RawConfig:          rawConfigByID[p.ID],
+		})
+	}
+
+	return policies, nil
+}
+
+func (c *Client) CreateEventGatewayClusterPolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	req kkComps.EventGatewayClusterPolicyModify,
+	namespace string,
+) (string, error) {
+	createReq := kkOps.CreateEventGatewayVirtualClusterClusterLevelPolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		EventGatewayClusterPolicyModify: &req,
+	}
+
+	resp, err := c.eventGatewayClusterPolicyAPI.CreateEventGatewayVirtualClusterClusterLevelPolicy(ctx, createReq)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway cluster policy", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayClusterPolicy),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayPolicy, "create event gateway cluster policy"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) UpdateEventGatewayClusterPolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+	req kkComps.EventGatewayClusterPolicyModify,
+	namespace string,
+) (string, error) {
+	updateReq := kkOps.UpdateEventGatewayVirtualClusterClusterLevelPolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		PolicyID:                        policyID,
+		EventGatewayClusterPolicyModify: &req,
+	}
+
+	resp, err := c.eventGatewayClusterPolicyAPI.UpdateEventGatewayVirtualClusterClusterLevelPolicy(ctx, updateReq)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway cluster policy", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayClusterPolicy),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayClusterPolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) error {
+	deleteReq := kkOps.DeleteEventGatewayVirtualClusterClusterLevelPolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	_, err := c.eventGatewayClusterPolicyAPI.DeleteEventGatewayVirtualClusterClusterLevelPolicy(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway cluster policy", nil)
+	}
+	return nil
+}
+
+func (c *Client) GetEventGatewayClusterPolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) (*EventGatewayClusterPolicyInfo, error) {
+	req := kkOps.GetEventGatewayVirtualClusterClusterLevelPolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	resp, err := c.eventGatewayClusterPolicyAPI.GetEventGatewayVirtualClusterClusterLevelPolicy(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway cluster policy", nil)
+	}
+
+	if resp.EventGatewayPolicy == nil {
+		return nil, nil
+	}
+
+	normalized := resp.EventGatewayPolicy.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &EventGatewayClusterPolicyInfo{
+		EventGatewayPolicy: *resp.EventGatewayPolicy,
+		NormalizedLabels:   normalized,
+	}, nil
+}
+
+// ---- Event Gateway Virtual Cluster Produce Policy operations ----
+
+// EventGatewayVirtualClusterProducePolicyInfo wraps a Produce Policy for internal use.
+type EventGatewayVirtualClusterProducePolicyInfo struct {
+	kkComps.EventGatewayPolicy
+	RawConfig map[string]any
+}
+
+// producePolicyRawResponse is used to parse the raw API response to get full config.
+type producePolicyRawResponse struct {
+	Type   string         `json:"type"`
+	Name   *string        `json:"name,omitempty"`
+	ID     string         `json:"id"`
+	Config map[string]any `json:"config"`
+}
+
+func (c *Client) ListEventGatewayVirtualClusterProducePolicies(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+) ([]EventGatewayVirtualClusterProducePolicyInfo, error) {
+	if err := ValidateAPIClient(c.eventGatewayProducePolicyAPI, "event gateway produce policy API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.ListEventGatewayVirtualClusterProducePoliciesRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+	}
+
+	res, err := c.eventGatewayProducePolicyAPI.ListEventGatewayVirtualClusterProducePolicies(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway virtual cluster produce policies", nil)
+	}
+
+	if res.ListProducePoliciesResponse == nil {
+		return []EventGatewayVirtualClusterProducePolicyInfo{}, nil
+	}
+
+	// Try to parse raw response to get full config data
+	rawConfigByID := make(map[string]map[string]any)
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var rawPolicies []producePolicyRawResponse
+			if jsonErr := json.Unmarshal(bodyBytes, &rawPolicies); jsonErr == nil {
+				for _, rp := range rawPolicies {
+					if rp.ID != "" && rp.Config != nil {
+						rawConfigByID[rp.ID] = rp.Config
+					}
+				}
+			}
+		}
+	}
+
+	var policies []EventGatewayVirtualClusterProducePolicyInfo
+	for _, p := range res.ListProducePoliciesResponse {
+		policies = append(policies, EventGatewayVirtualClusterProducePolicyInfo{
+			EventGatewayPolicy: p,
+			RawConfig:          rawConfigByID[p.ID],
+		})
+	}
+
+	return policies, nil
+}
+
+func (c *Client) CreateEventGatewayVirtualClusterProducePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	req kkComps.EventGatewayProducePolicyCreate,
+	namespace string,
+) (string, error) {
+	createReq := kkOps.CreateEventGatewayVirtualClusterProducePolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		EventGatewayProducePolicyCreate: &req,
+	}
+
+	resp, err := c.eventGatewayProducePolicyAPI.CreateEventGatewayVirtualClusterProducePolicy(ctx, createReq)
+	if err != nil {
+		name := extractProducePolicyCreateName(req)
+		return "", WrapAPIError(err, "create event gateway virtual cluster produce policy", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayProducePolicy),
+			ResourceName: name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(
+		resp.EventGatewayPolicy, "create event gateway virtual cluster produce policy",
+	); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) UpdateEventGatewayVirtualClusterProducePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+	req kkComps.EventGatewayProducePolicyUpdate,
+	namespace string,
+) (string, error) {
+	updateReq := kkOps.UpdateEventGatewayVirtualClusterProducePolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		PolicyID:                        policyID,
+		EventGatewayProducePolicyUpdate: &req,
+	}
+
+	resp, err := c.eventGatewayProducePolicyAPI.UpdateEventGatewayVirtualClusterProducePolicy(ctx, updateReq)
+	if err != nil {
+		name := extractProducePolicyUpdateName(req)
+		return "", WrapAPIError(err, "update event gateway virtual cluster produce policy", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayProducePolicy),
+			ResourceName: name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayVirtualClusterProducePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) error {
+	deleteReq := kkOps.DeleteEventGatewayVirtualClusterProducePolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	_, err := c.eventGatewayProducePolicyAPI.DeleteEventGatewayVirtualClusterProducePolicy(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway virtual cluster produce policy", nil)
+	}
+	return nil
+}
+
+// extractProducePolicyCreateName extracts the policy name from the union create type.
+func extractProducePolicyCreateName(req kkComps.EventGatewayProducePolicyCreate) string {
+	if req.EventGatewayModifyHeadersPolicyCreate != nil && req.EventGatewayModifyHeadersPolicyCreate.Name != nil {
+		return *req.EventGatewayModifyHeadersPolicyCreate.Name
+	}
+	if req.EventGatewayProduceSchemaValidationPolicy != nil &&
+		req.EventGatewayProduceSchemaValidationPolicy.Name != nil {
+		return *req.EventGatewayProduceSchemaValidationPolicy.Name
+	}
+	if req.EventGatewayEncryptPolicy != nil && req.EventGatewayEncryptPolicy.Name != nil {
+		return *req.EventGatewayEncryptPolicy.Name
+	}
+	return ""
+}
+
+// extractProducePolicyUpdateName extracts the policy name from the union update type.
+func extractProducePolicyUpdateName(req kkComps.EventGatewayProducePolicyUpdate) string {
+	if req.EventGatewayModifyHeadersPolicy != nil && req.EventGatewayModifyHeadersPolicy.Name != nil {
+		return *req.EventGatewayModifyHeadersPolicy.Name
+	}
+	if req.EventGatewayProduceSchemaValidationPolicy != nil &&
+		req.EventGatewayProduceSchemaValidationPolicy.Name != nil {
+		return *req.EventGatewayProduceSchemaValidationPolicy.Name
+	}
+	if req.EventGatewayEncryptPolicy != nil && req.EventGatewayEncryptPolicy.Name != nil {
+		return *req.EventGatewayEncryptPolicy.Name
+	}
+	return ""
+}
+
+func (c *Client) GetEventGatewayVirtualClusterProducePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) (*EventGatewayVirtualClusterProducePolicyInfo, error) {
+	req := kkOps.GetEventGatewayVirtualClusterProducePolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	resp, err := c.eventGatewayProducePolicyAPI.GetEventGatewayVirtualClusterProducePolicy(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway virtual cluster produce policy", nil)
+	}
+
+	if resp.EventGatewayPolicy == nil {
+		return nil, nil
+	}
+
+	return &EventGatewayVirtualClusterProducePolicyInfo{
+		EventGatewayPolicy: *resp.EventGatewayPolicy,
+		RawConfig:          nil,
+	}, nil
+}
+
+// ---- Event Gateway Consume Policy operations ----
+
+// EventGatewayConsumePolicyInfo wraps an Event Gateway Consume Policy for internal use.
+// RawConfig contains the full config from the raw API response since the SDK's
+// EventGatewayPolicyConfig struct is empty and doesn't capture actual config data.
+type EventGatewayConsumePolicyInfo struct {
+	kkComps.EventGatewayPolicy
+	NormalizedLabels map[string]string
+	RawConfig        map[string]any
+}
+
+// consumePolicyRawResponse is used to parse the raw API response to get full config.
+type consumePolicyRawResponse struct {
+	Type           string            `json:"type"`
+	Name           *string           `json:"name,omitempty"`
+	Description    *string           `json:"description,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"`
+	ID             string            `json:"id"`
+	Config         map[string]any    `json:"config"`
+	CreatedAt      string            `json:"created_at"`
+	UpdatedAt      string            `json:"updated_at"`
+	ParentPolicyID *string           `json:"parent_policy_id,omitempty"`
+	Condition      *string           `json:"condition,omitempty"`
+}
+
+func (c *Client) ListEventGatewayConsumePolicies(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+) ([]EventGatewayConsumePolicyInfo, error) {
+	if err := ValidateAPIClient(c.eventGatewayConsumePolicyAPI, "event gateway consume policy API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.ListEventGatewayVirtualClusterConsumePoliciesRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+	}
+
+	res, err := c.eventGatewayConsumePolicyAPI.ListEventGatewayVirtualClusterConsumePolicies(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway consume policies", nil)
+	}
+
+	if res.ListConsumePoliciesResponse == nil {
+		return []EventGatewayConsumePolicyInfo{}, nil
+	}
+
+	// Try to parse raw response to get full config data
+	rawConfigByID := make(map[string]map[string]any)
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var rawPolicies []consumePolicyRawResponse
+			if jsonErr := json.Unmarshal(bodyBytes, &rawPolicies); jsonErr == nil {
+				for _, rp := range rawPolicies {
+					if rp.ID != "" && rp.Config != nil {
+						rawConfigByID[rp.ID] = rp.Config
+					}
+				}
+			}
+		}
+	}
+
+	var policies []EventGatewayConsumePolicyInfo
+	for _, p := range res.ListConsumePoliciesResponse {
+		normalized := p.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+		policies = append(policies, EventGatewayConsumePolicyInfo{
+			EventGatewayPolicy: p,
+			NormalizedLabels:   normalized,
+			RawConfig:          rawConfigByID[p.ID],
+		})
+	}
+
+	return policies, nil
+}
+
+func (c *Client) CreateEventGatewayConsumePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	req kkComps.EventGatewayConsumePolicyCreate,
+	namespace string,
+) (string, error) {
+	createReq := kkOps.CreateEventGatewayVirtualClusterConsumePolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		EventGatewayConsumePolicyCreate: &req,
+	}
+
+	resp, err := c.eventGatewayConsumePolicyAPI.CreateEventGatewayVirtualClusterConsumePolicy(ctx, createReq)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway consume policy", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayPolicy, "create event gateway consume policy"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) UpdateEventGatewayConsumePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+	req kkComps.EventGatewayConsumePolicyUpdate,
+	namespace string,
+) (string, error) {
+	updateReq := kkOps.UpdateEventGatewayVirtualClusterConsumePolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		PolicyID:                        policyID,
+		EventGatewayConsumePolicyUpdate: &req,
+	}
+
+	resp, err := c.eventGatewayConsumePolicyAPI.UpdateEventGatewayVirtualClusterConsumePolicy(ctx, updateReq)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway consume policy", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayConsumePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) error {
+	deleteReq := kkOps.DeleteEventGatewayVirtualClusterConsumePolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	_, err := c.eventGatewayConsumePolicyAPI.DeleteEventGatewayVirtualClusterConsumePolicy(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway consume policy", nil)
+	}
+	return nil
+}
+
+func (c *Client) GetEventGatewayConsumePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) (*EventGatewayConsumePolicyInfo, error) {
+	req := kkOps.GetEventGatewayVirtualClusterConsumePolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	resp, err := c.eventGatewayConsumePolicyAPI.GetEventGatewayVirtualClusterConsumePolicy(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway consume policy", nil)
+	}
+
+	if resp.EventGatewayPolicy == nil {
+		return nil, nil
+	}
+
+	normalized := resp.EventGatewayPolicy.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &EventGatewayConsumePolicyInfo{
+		EventGatewayPolicy: *resp.EventGatewayPolicy,
+		NormalizedLabels:   normalized,
 	}, nil
 }
 
@@ -4318,13 +6753,13 @@ func (c *Client) ListEventGatewayDataPlaneCertificates(
 			break
 		}
 
-		u, err := url.Parse(*res.ListEventGatewayDataPlaneCertificatesResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, WrapAPIError(err, "list event gateway data plane certificates: invalid cursor", nil)
+		nextCursor := pagination.ExtractPageAfterCursor(
+			res.ListEventGatewayDataPlaneCertificatesResponse.Meta.Page.Next,
+		)
+		if nextCursor == "" {
+			break
 		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	var certs []EventGatewayDataPlaneCertificate
@@ -4350,7 +6785,7 @@ func (c *Client) CreateEventGatewayDataPlaneCertificate(
 			name = *req.Name
 		}
 		return "", WrapAPIError(err, "create event gateway data plane certificate", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_data_plane_certificate",
+			ResourceType: string(resources.ResourceTypeEventGatewayDataPlaneCertificate),
 			ResourceName: name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4374,7 +6809,7 @@ func (c *Client) GetEventGatewayDataPlaneCertificate(
 		ctx, gatewayID, certificateID)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway data plane certificate by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_data_plane_certificate",
+			ResourceType: string(resources.ResourceTypeEventGatewayDataPlaneCertificate),
 			UseEnhanced:  true,
 		})
 	}
@@ -4403,7 +6838,7 @@ func (c *Client) UpdateEventGatewayDataPlaneCertificate(
 			name = *req.Name
 		}
 		return "", WrapAPIError(err, "update event gateway data plane certificate", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_data_plane_certificate",
+			ResourceType: string(resources.ResourceTypeEventGatewayDataPlaneCertificate),
 			ResourceName: name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -4423,5 +6858,517 @@ func (c *Client) DeleteEventGatewayDataPlaneCertificate(
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway data plane certificate", nil)
 	}
+	return nil
+}
+
+// ListEventGatewaySchemaRegistries returns all schema registries for a given event gateway.
+// It uses cursor-based pagination to retrieve all pages.
+func (c *Client) ListEventGatewaySchemaRegistries(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewaySchemaRegistry, error) {
+	if err := ValidateAPIClient(c.eventGatewaySchemaRegistryAPI, "event gateway schema registry API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.SchemaRegistry
+	var rawConfigByID map[string]map[string]any
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewaySchemaRegistriesRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewaySchemaRegistryAPI.ListEventGatewaySchemaRegistries(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway schema registries", nil)
+		}
+
+		if res.ListSchemaRegistriesResponse == nil {
+			return []EventGatewaySchemaRegistry{}, nil
+		}
+
+		// Try to parse raw response to get full config data (SDK config struct is opaque)
+		if rawConfigByID == nil {
+			rawConfigByID = make(map[string]map[string]any)
+		}
+		if res.RawResponse != nil && res.RawResponse.Body != nil {
+			bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+			if readErr == nil && len(bodyBytes) > 0 {
+				var rawResp struct {
+					Data []struct {
+						ID     string         `json:"id"`
+						Config map[string]any `json:"config"`
+					} `json:"data"`
+				}
+				if jsonErr := json.Unmarshal(bodyBytes, &rawResp); jsonErr == nil {
+					for _, item := range rawResp.Data {
+						if item.ID != "" && item.Config != nil {
+							rawConfigByID[item.ID] = item.Config
+						}
+					}
+				}
+			}
+		}
+
+		allData = append(allData, res.ListSchemaRegistriesResponse.Data...)
+
+		if res.ListSchemaRegistriesResponse.Meta == nil ||
+			res.ListSchemaRegistriesResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListSchemaRegistriesResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	registries := make([]EventGatewaySchemaRegistry, 0, len(allData))
+	for _, sr := range allData {
+		normalized := sr.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+		registries = append(registries, EventGatewaySchemaRegistry{
+			SchemaRegistry:   sr,
+			NormalizedLabels: normalized,
+			RawConfig:        rawConfigByID[sr.ID],
+		})
+	}
+
+	return registries, nil
+}
+
+// GetEventGatewaySchemaRegistryByID retrieves a single schema registry by ID.
+func (c *Client) GetEventGatewaySchemaRegistryByID(
+	ctx context.Context,
+	gatewayID string,
+	schemaRegistryID string,
+) (*EventGatewaySchemaRegistry, error) {
+	if err := ValidateAPIClient(c.eventGatewaySchemaRegistryAPI, "event gateway schema registry API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.eventGatewaySchemaRegistryAPI.GetEventGatewaySchemaRegistry(ctx, gatewayID, schemaRegistryID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway schema registry", nil)
+	}
+
+	if resp.SchemaRegistry == nil {
+		return nil, nil
+	}
+
+	normalized := resp.SchemaRegistry.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &EventGatewaySchemaRegistry{
+		SchemaRegistry:   *resp.SchemaRegistry,
+		NormalizedLabels: normalized,
+	}, nil
+}
+
+// GetEventGatewaySchemaRegistryByName looks up a schema registry by name.
+func (c *Client) GetEventGatewaySchemaRegistryByName(
+	ctx context.Context,
+	gatewayID string,
+	name string,
+) (*EventGatewaySchemaRegistry, error) {
+	registries, err := c.ListEventGatewaySchemaRegistries(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range registries {
+		if registries[i].Name == name {
+			return &registries[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// CreateEventGatewaySchemaRegistry creates a new schema registry for an event gateway.
+func (c *Client) CreateEventGatewaySchemaRegistry(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.SchemaRegistryCreate,
+	_ string, // namespace (not applicable to schema registry, which has no management labels)
+) (string, error) {
+	resp, err := c.eventGatewaySchemaRegistryAPI.CreateEventGatewaySchemaRegistry(ctx, gatewayID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway schema registry", nil)
+	}
+
+	if err := ValidateResponse(resp.SchemaRegistry, "create event gateway schema registry"); err != nil {
+		return "", err
+	}
+
+	return resp.SchemaRegistry.ID, nil
+}
+
+// UpdateEventGatewaySchemaRegistry updates an existing schema registry.
+func (c *Client) UpdateEventGatewaySchemaRegistry(
+	ctx context.Context,
+	gatewayID string,
+	schemaRegistryID string,
+	req kkComps.SchemaRegistryUpdate,
+	_ string, // namespace
+) (string, error) {
+	resp, err := c.eventGatewaySchemaRegistryAPI.UpdateEventGatewaySchemaRegistry(
+		ctx, gatewayID, schemaRegistryID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway schema registry", nil)
+	}
+
+	if err := ValidateResponse(resp.SchemaRegistry, "update event gateway schema registry"); err != nil {
+		return "", err
+	}
+
+	return resp.SchemaRegistry.ID, nil
+}
+
+// DeleteEventGatewaySchemaRegistry deletes a schema registry by ID.
+func (c *Client) DeleteEventGatewaySchemaRegistry(
+	ctx context.Context,
+	gatewayID string,
+	schemaRegistryID string,
+) error {
+	_, err := c.eventGatewaySchemaRegistryAPI.DeleteEventGatewaySchemaRegistry(ctx, gatewayID, schemaRegistryID)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway schema registry", nil)
+	}
+	return nil
+}
+
+// EventGatewayStaticKey represents an event gateway static key for internal use.
+type EventGatewayStaticKey struct {
+	kkComps.EventGatewayStaticKey
+}
+
+// ListEventGatewayStaticKeys lists all static keys for a gateway using cursor-based pagination.
+func (c *Client) ListEventGatewayStaticKeys(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewayStaticKey, error) {
+	if err := ValidateAPIClient(c.eventGatewayStaticKeyAPI, "event gateway static key API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.EventGatewayStaticKey
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewayStaticKeysRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewayStaticKeyAPI.ListEventGatewayStaticKeys(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway static keys", nil)
+		}
+
+		if res.ListEventGatewayStaticKeysResponse == nil {
+			return []EventGatewayStaticKey{}, nil
+		}
+
+		allData = append(allData, res.ListEventGatewayStaticKeysResponse.Data...)
+
+		if res.ListEventGatewayStaticKeysResponse.Meta == nil ||
+			res.ListEventGatewayStaticKeysResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewayStaticKeysResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	result := make([]EventGatewayStaticKey, 0, len(allData))
+	for _, sk := range allData {
+		result = append(result, EventGatewayStaticKey{EventGatewayStaticKey: sk})
+	}
+
+	return result, nil
+}
+
+// CreateEventGatewayStaticKey creates a new static key for an event gateway.
+func (c *Client) CreateEventGatewayStaticKey(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.EventGatewayStaticKeyCreate,
+	_ string, // namespace
+) (string, error) {
+	if err := ValidateAPIClient(c.eventGatewayStaticKeyAPI, "event gateway static key API"); err != nil {
+		return "", err
+	}
+
+	createReq := kkOps.CreateEventGatewayStaticKeyRequest{
+		GatewayID:                   gatewayID,
+		EventGatewayStaticKeyCreate: &req,
+	}
+
+	resp, err := c.eventGatewayStaticKeyAPI.CreateEventGatewayStaticKey(ctx, createReq)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway static key", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayStaticKey),
+			ResourceName: req.Name,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayStaticKey, "create event gateway static key"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayStaticKey.ID, nil
+}
+
+// GetEventGatewayStaticKey retrieves a static key by ID.
+func (c *Client) GetEventGatewayStaticKey(
+	ctx context.Context,
+	gatewayID string,
+	staticKeyID string,
+) (*EventGatewayStaticKey, error) {
+	if err := ValidateAPIClient(c.eventGatewayStaticKeyAPI, "event gateway static key API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.GetEventGatewayStaticKeyRequest{
+		GatewayID:   gatewayID,
+		StaticKeyID: staticKeyID,
+	}
+
+	resp, err := c.eventGatewayStaticKeyAPI.GetEventGatewayStaticKey(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway static key", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayStaticKey),
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.EventGatewayStaticKey == nil {
+		return nil, nil
+	}
+
+	return &EventGatewayStaticKey{EventGatewayStaticKey: *resp.EventGatewayStaticKey}, nil
+}
+
+// DeleteEventGatewayStaticKey deletes a static key by ID.
+func (c *Client) DeleteEventGatewayStaticKey(
+	ctx context.Context,
+	gatewayID string,
+	staticKeyID string,
+) error {
+	if err := ValidateAPIClient(c.eventGatewayStaticKeyAPI, "event gateway static key API"); err != nil {
+		return err
+	}
+
+	deleteReq := kkOps.DeleteEventGatewayStaticKeyRequest{
+		GatewayID:   gatewayID,
+		StaticKeyID: staticKeyID,
+	}
+
+	_, err := c.eventGatewayStaticKeyAPI.DeleteEventGatewayStaticKey(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway static key", nil)
+	}
+
+	return nil
+}
+
+// EventGatewayTLSTrustBundle represents an event gateway TLS trust bundle for internal use.
+type EventGatewayTLSTrustBundle struct {
+	kkComps.TLSTrustBundle
+	NormalizedLabels map[string]string
+}
+
+// ListEventGatewayTLSTrustBundles lists all TLS trust bundles for a gateway using cursor-based pagination.
+func (c *Client) ListEventGatewayTLSTrustBundles(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewayTLSTrustBundle, error) {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.TLSTrustBundle
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewayTLSTrustBundlesRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewayTLSTrustBundleAPI.ListEventGatewayTLSTrustBundles(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway TLS trust bundles", nil)
+		}
+
+		if res.ListTLSTrustBundlesResponse == nil {
+			return []EventGatewayTLSTrustBundle{}, nil
+		}
+
+		allData = append(allData, res.ListTLSTrustBundlesResponse.Data...)
+
+		if res.ListTLSTrustBundlesResponse.Meta == nil ||
+			res.ListTLSTrustBundlesResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListTLSTrustBundlesResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	result := make([]EventGatewayTLSTrustBundle, 0, len(allData))
+	for _, tb := range allData {
+		result = append(result, EventGatewayTLSTrustBundle{
+			TLSTrustBundle:   tb,
+			NormalizedLabels: tb.Labels,
+		})
+	}
+
+	return result, nil
+}
+
+// CreateEventGatewayTLSTrustBundle creates a new TLS trust bundle for an event gateway.
+func (c *Client) CreateEventGatewayTLSTrustBundle(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.CreateTLSTrustBundleRequest,
+	_ string, // namespace
+) (string, error) {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return "", err
+	}
+
+	createReq := kkOps.CreateEventGatewayTLSTrustBundleRequest{
+		GatewayID:                   gatewayID,
+		CreateTLSTrustBundleRequest: req,
+	}
+
+	resp, err := c.eventGatewayTLSTrustBundleAPI.CreateEventGatewayTLSTrustBundle(ctx, createReq)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway TLS trust bundle", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayTLSTrustBundle),
+			ResourceName: req.Name,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.TLSTrustBundle, "create event gateway TLS trust bundle"); err != nil {
+		return "", err
+	}
+
+	return resp.TLSTrustBundle.ID, nil
+}
+
+// GetEventGatewayTLSTrustBundle retrieves a TLS trust bundle by ID.
+func (c *Client) GetEventGatewayTLSTrustBundle(
+	ctx context.Context,
+	gatewayID string,
+	bundleID string,
+) (*EventGatewayTLSTrustBundle, error) {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.GetEventGatewayTLSTrustBundleRequest{
+		GatewayID:        gatewayID,
+		TLSTrustBundleID: bundleID,
+	}
+
+	resp, err := c.eventGatewayTLSTrustBundleAPI.GetEventGatewayTLSTrustBundle(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway TLS trust bundle", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayTLSTrustBundle),
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.TLSTrustBundle == nil {
+		return nil, nil
+	}
+
+	return &EventGatewayTLSTrustBundle{
+		TLSTrustBundle:   *resp.TLSTrustBundle,
+		NormalizedLabels: resp.TLSTrustBundle.Labels,
+	}, nil
+}
+
+// UpdateEventGatewayTLSTrustBundle updates a TLS trust bundle.
+func (c *Client) UpdateEventGatewayTLSTrustBundle(
+	ctx context.Context,
+	gatewayID string,
+	bundleID string,
+	req kkComps.UpdateTLSTrustBundleRequest,
+	_ string, // namespace
+) (string, error) {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return "", err
+	}
+
+	updateReq := kkOps.UpdateEventGatewayTLSTrustBundleRequest{
+		GatewayID:                   gatewayID,
+		TLSTrustBundleID:            bundleID,
+		UpdateTLSTrustBundleRequest: req,
+	}
+
+	resp, err := c.eventGatewayTLSTrustBundleAPI.UpdateEventGatewayTLSTrustBundle(ctx, updateReq)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway TLS trust bundle", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeEventGatewayTLSTrustBundle),
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.TLSTrustBundle, "update event gateway TLS trust bundle"); err != nil {
+		return "", err
+	}
+
+	return resp.TLSTrustBundle.ID, nil
+}
+
+// DeleteEventGatewayTLSTrustBundle deletes a TLS trust bundle by ID.
+func (c *Client) DeleteEventGatewayTLSTrustBundle(
+	ctx context.Context,
+	gatewayID string,
+	bundleID string,
+) error {
+	if err := ValidateAPIClient(c.eventGatewayTLSTrustBundleAPI, "event gateway TLS trust bundle API"); err != nil {
+		return err
+	}
+
+	deleteReq := kkOps.DeleteEventGatewayTLSTrustBundleRequest{
+		GatewayID:        gatewayID,
+		TLSTrustBundleID: bundleID,
+	}
+
+	_, err := c.eventGatewayTLSTrustBundleAPI.DeleteEventGatewayTLSTrustBundle(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway TLS trust bundle", nil)
+	}
+
 	return nil
 }

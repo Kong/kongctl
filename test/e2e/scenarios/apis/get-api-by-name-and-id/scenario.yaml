@@ -1,0 +1,103 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+defaults:
+  mask:
+    dropKeys:
+      - change_id
+      - resource_id
+      - created_at
+      - updated_at
+      - api_spec_ids
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-create
+    commands:
+      - name: 000-apply-create
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-to-record-id
+        run: ["get", "apis", "-o", "json"]
+        recordVar:
+          name: api_id
+          responsePath: "[?name=='API Get By Name Test'] | [0].id"
+
+  - name: 002-get-by-name
+    skipInputs: true
+    commands:
+      - name: 000-get-by-name
+        run: ["get", "apis", "API Get By Name Test", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "API Get By Name Test"
+                slug: "api-get-by-name-test"
+                version: "1.0.0"
+                "length(id) > `0`": true
+
+  - name: 003-get-by-id
+    skipInputs: true
+    commands:
+      - name: 000-get-by-id
+        run: ["get", "apis", "{{ .vars.api_id }}", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                id: "{{ .vars.api_id }}"
+                name: "API Get By Name Test"
+
+  - name: 004-not-found
+    skipInputs: true
+    commands:
+      - name: 000-not-found
+        run: ["get", "apis", "nonexistent-api-xyz", "-o", "json"]
+        expectFailure:
+          exitCode: 1
+          contains: "not found"
+
+  - name: 005-sync-delete
+    inputOverlayDirs:
+      - overlays/005-sync-delete
+    commands:
+      - name: 000-sync-delete
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success

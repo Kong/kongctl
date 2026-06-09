@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/control-plane/groups
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset-org
@@ -62,11 +62,26 @@ steps:
               fields:
                 action: UPDATE
 
-  - name: 003-plan-idempotent
+  - name: 003-verify-group-type-and-name
+    skipInputs: true
+    commands:
+      - name: 000-get-group
+        run: ["get", "konnect", "gateway", "control-plane", "groups-shared-group", "-o", "json"]
+        assertions:
+          - select: config.cluster_type
+            expect:
+              fields:
+                "@": "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+          - select: name
+            expect:
+              fields:
+                "@": "groups-shared-group"
+
+  - name: 004-plan-idempotent
     inputOverlayDirs:
       - overlays/002-update-members
     commands:
-      - name: 003-plan
+      - name: 004-plan
         outputFormat: disable
         run:
           - plan
@@ -79,3 +94,30 @@ steps:
             expect:
               fields:
                 total_changes: 0
+
+  - name: 005-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-update-members
+    commands:
+      - name: 000-delete
+        maxConcurrency: 1
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: delete
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success

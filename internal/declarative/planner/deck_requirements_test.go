@@ -206,6 +206,34 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	require.Contains(t, apiChange.DependsOn, deckChange.ID)
 }
 
+func TestDeckDiffHasChangesNormalizesBareMaskedDeckEnvValues(t *testing.T) {
+	runner := &stubDeckRunner{
+		result: &deck.RunResult{
+			Stdout: `{
+				"summary":{"creating":1,"updating":0,"deleting":0,"total":1},
+				"changes":[{"kind":"plugin","config":{"minute":[masked]}}],
+				"errors":[]
+			}`,
+		},
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	p := NewPlanner(nil, logger)
+
+	changes, err := p.deckDiffHasChanges(context.Background(), "cp", "cp-name", t.TempDir(),
+		[]string{"gateway-service.yaml"},
+		nil,
+		Options{
+			Mode: PlanModeApply,
+			Deck: DeckOptions{
+				Runner:         runner,
+				KonnectToken:   "token-123",
+				KonnectAddress: "https://api.konghq.com",
+			},
+		})
+	require.NoError(t, err)
+	require.True(t, changes)
+}
+
 func TestResolveGatewayServiceIdentitiesDeckConfigNoMatch(t *testing.T) {
 	cpID := "11111111-1111-1111-1111-111111111111"
 

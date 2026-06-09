@@ -12,6 +12,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPIPublication,
 		func(rs *ResourceSet) *[]APIPublicationResource { return &rs.APIPublications },
+		AutoExplain[APIPublicationResource](),
 	)
 }
 
@@ -48,7 +49,7 @@ func (p APIPublicationResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if p.API != "" {
 		// Dependency on parent API when defined at root level
-		deps = append(deps, ResourceRef{Kind: "api", Ref: p.API})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeAPI, Ref: p.API})
 	}
 	// Note: Portal dependency is handled through reference field mappings
 	return deps
@@ -57,7 +58,7 @@ func (p APIPublicationResource) GetDependencies() []ResourceRef {
 // GetReferenceFieldMappings returns the field mappings for reference validation
 func (p APIPublicationResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{
-		"portal_id":         "portal",
+		"portal_id":         string(ResourceTypePortal),
 		"auth_strategy_ids": "application_auth_strategy",
 	}
 }
@@ -110,7 +111,7 @@ func (p *APIPublicationResource) TryMatchKonnectResource(konnectResource any) bo
 // GetParentRef returns the parent API reference for ResourceWithParent interface
 func (p APIPublicationResource) GetParentRef() *ResourceRef {
 	if p.API != "" {
-		return &ResourceRef{Kind: "api", Ref: p.API}
+		return &ResourceRef{Kind: ResourceTypeAPI, Ref: p.API}
 	}
 	return nil
 }
@@ -118,22 +119,24 @@ func (p APIPublicationResource) GetParentRef() *ResourceRef {
 // MarshalJSON ensures publication metadata (ref, portal_id, api) are included.
 // Without this, the embedded APIPublication's MarshalJSON is promoted and drops metadata fields.
 func (p APIPublicationResource) MarshalJSON() ([]byte, error) {
-	type alias struct {
-		Ref                      string                            `json:"ref"`
-		API                      string                            `json:"api,omitempty"`
-		PortalID                 string                            `json:"portal_id"`
-		AuthStrategyIDs          []string                          `json:"auth_strategy_ids,omitempty"`
-		AutoApproveRegistrations *bool                             `json:"auto_approve_registrations,omitempty"`
-		Visibility               *kkComps.APIPublicationVisibility `json:"visibility,omitempty"`
+	payload := map[string]any{
+		SchemaFieldRef: p.Ref,
+		"portal_id":    p.PortalID,
 	}
 
-	payload := alias{
-		Ref:                      p.Ref,
-		API:                      p.API,
-		PortalID:                 p.PortalID,
-		AuthStrategyIDs:          p.AuthStrategyIds,
-		AutoApproveRegistrations: p.AutoApproveRegistrations,
-		Visibility:               p.Visibility,
+	if p.API != "" {
+		payload["api"] = p.API
+	}
+	if p.AuthStrategyIds != nil {
+		authStrategyIDs := make([]string, len(p.AuthStrategyIds))
+		copy(authStrategyIDs, p.AuthStrategyIds)
+		payload["auth_strategy_ids"] = authStrategyIDs
+	}
+	if p.AutoApproveRegistrations != nil {
+		payload["auto_approve_registrations"] = p.AutoApproveRegistrations
+	}
+	if p.Visibility != nil {
+		payload["visibility"] = p.Visibility
 	}
 
 	return json.Marshal(payload)

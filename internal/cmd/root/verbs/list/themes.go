@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/table"
+	"charm.land/lipgloss/v2"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -322,8 +322,8 @@ func renderThemePreviewPanel(p theme.Palette) string {
 	styles.Cell = styles.Cell.
 		Foreground(p.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(p.Adaptive(theme.ColorAccentText)).
-		Background(p.Adaptive(theme.ColorAccent))
+		Foreground(p.Adaptive(theme.ColorSelectionText)).
+		Background(p.Adaptive(theme.ColorSelection))
 
 	tbl := table.New(
 		table.WithColumns(columns),

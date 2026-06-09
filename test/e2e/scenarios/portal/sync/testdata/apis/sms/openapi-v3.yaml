@@ -1,0 +1,516 @@
+openapi: "3.0.0"
+info:
+  version: 2.0.0
+  title: SMS API
+  description: Enhanced SMS API v2 with improved messaging capabilities, bulk operations, and better error handling. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>
+  contact:
+    name: Vonage DevRel
+    email: devrel@vonage.com
+    url: "https://developer.nexmo.com/"
+servers:
+  - url: https://rest.nexmo.com/sms/v2
+paths:
+  /{format}:
+    post:
+      operationId: send-an-sms
+      summary: Send an SMS (Deprecated - Use /messages instead)
+      description: Send an outbound SMS from your Vonage account. This endpoint is deprecated in v2, use /messages instead.
+      deprecated: true
+      parameters:
+        - name: format
+          description: The format of the response
+          in: path
+          required: true
+          schema:
+            example: json
+            type: string
+            enum:
+              - json
+              - xml
+            default: json
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/NewMessage"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SMS"
+                  - $ref: "#/components/schemas/Error"
+            text/xml:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SMSXml"
+                  - $ref: "#/components/schemas/ErrorXml"
+
+  /messages:
+    post:
+      operationId: send-message-v2
+      summary: Send SMS Message (v2)
+      description: Send an outbound SMS message using the enhanced v2 API with improved error handling and response format
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageRequestV2"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponseV2"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseV2"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseV2"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseV2"
+
+  /messages/bulk:
+    post:
+      operationId: send-bulk-messages
+      summary: Send Bulk SMS Messages
+      description: Send multiple SMS messages in a single request for improved efficiency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkMessageRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkMessageResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseV2"
+
+  /messages/{messageId}/status:
+    get:
+      operationId: get-message-status
+      summary: Get Message Status
+      description: Retrieve the current delivery status of a sent message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0A0000000123ABCD1"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageStatusResponse"
+        "404":
+          description: Message not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseV2"
+
+components:
+  schemas:
+    NewMessage:
+      required:
+        - api_key
+        - from
+        - to
+      properties:
+        api_key:
+          description: Your API key
+          type: string
+          minLength: 8
+          maxLength: 8
+          example: abcd1234
+        api_secret:
+          description: Your API secret. Required unless `sig` is provided
+          example: abcdef0123456789
+          type: string
+          minLength: 6
+          maxLength: 32
+        sig:
+          description: The hash of the request parameters in alphabetical order, a timestamp and the signature secret. See [Signing Requests](/concepts/guides/signing-messages) for more details.
+          type: string
+          minLength: 16
+          maxLength: 60
+        from:
+          description: The name or number the message should be sent from. Alphanumeric senderID's are not supported in all countries, see [Global Messaging](/messaging/sms/guides/global-messaging#country-specific-features) for more details. If alphanumeric, spaces will be ignored. Numbers are specified in E.164 format.
+          type: string
+          example: "AcmeInc"
+        to:
+          description: The number that the message should be sent to. Numbers are specified in E.164 format.
+          type: string
+          minLength: 7
+          maxLength: 15
+          pattern: '\d{7,15}'
+          example: "447700900000"
+        text:
+          description: The body of the message being sent. If your message contains characters that can be encoded according to the GSM Standard and Extended tables then you can set the `type` to `text`. If your message contains characters outside this range, then you will need to set the `type` to `unicode`.
+          type: string
+          example: Hello World!
+
+    MessageRequestV2:
+      type: object
+      required:
+        - sender_id
+        - recipient
+        - message
+      properties:
+        sender_id:
+          description: The sender identifier (phone number or alphanumeric ID)
+          type: string
+          example: "AcmeInc"
+        recipient:
+          description: The recipient phone number in E.164 format
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          example: "+447700900000"
+        message:
+          description: The message content to send
+          type: string
+          maxLength: 1600
+          example: "Hello World!"
+        message_type:
+          description: The type of message content
+          type: string
+          enum:
+            - text
+            - unicode
+            - binary
+          default: text
+        priority:
+          description: Message delivery priority
+          type: string
+          enum:
+            - low
+            - normal
+            - high
+          default: normal
+        delivery_options:
+          $ref: "#/components/schemas/DeliveryOptions"
+        metadata:
+          description: Custom metadata for tracking purposes
+          type: object
+          additionalProperties: true
+
+    MessageResponseV2:
+      type: object
+      properties:
+        message_id:
+          type: string
+          description: Unique identifier for the sent message
+          example: "msg_123456789"
+        status:
+          type: string
+          enum:
+            - accepted
+            - queued
+            - sent
+            - failed
+          example: "accepted"
+        recipient:
+          type: string
+          example: "+447700900000"
+        estimated_cost:
+          type: number
+          format: decimal
+          example: 0.033
+        remaining_balance:
+          type: number
+          format: decimal
+          example: 15.67
+        parts_count:
+          type: integer
+          description: Number of SMS parts for this message
+          example: 1
+
+    BulkMessageRequest:
+      type: object
+      required:
+        - sender_id
+        - messages
+      properties:
+        sender_id:
+          description: The sender identifier for all messages
+          type: string
+          example: "AcmeInc"
+        messages:
+          description: Array of messages to send
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required:
+              - recipient
+              - message
+            properties:
+              recipient:
+                type: string
+                pattern: '^\+?[1-9]\d{1,14}$'
+                example: "+447700900000"
+              message:
+                type: string
+                maxLength: 1600
+                example: "Hello World!"
+              message_id:
+                type: string
+                description: Optional client-provided message ID
+                example: "client-msg-001"
+
+    BulkMessageResponse:
+      type: object
+      properties:
+        batch_id:
+          type: string
+          description: Unique identifier for this batch
+          example: "batch_123456"
+        total_messages:
+          type: integer
+          example: 50
+        accepted_messages:
+          type: integer
+          example: 48
+        rejected_messages:
+          type: integer
+          example: 2
+        total_cost:
+          type: number
+          format: decimal
+          example: 1.65
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageResponseV2"
+
+    MessageStatusResponse:
+      type: object
+      properties:
+        message_id:
+          type: string
+          example: "msg_123456789"
+        status:
+          type: string
+          enum:
+            - queued
+            - sent
+            - delivered
+            - failed
+            - expired
+            - rejected
+          example: "delivered"
+        recipient:
+          type: string
+          example: "+447700900000"
+        sent_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        delivered_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:15Z"
+        error_code:
+          type: string
+          description: Error code if status is failed
+          example: null
+        error_message:
+          type: string
+          description: Human readable error message
+          example: null
+
+    DeliveryOptions:
+      type: object
+      properties:
+        delivery_receipt_url:
+          description: Webhook URL for delivery receipts
+          type: string
+          format: uri
+          example: "https://example.com/webhooks/sms-receipt"
+        ttl_seconds:
+          description: Time to live in seconds
+          type: integer
+          minimum: 300
+          maximum: 259200
+          default: 72000
+        retry_policy:
+          description: Retry policy for failed deliveries
+          type: string
+          enum:
+            - none
+            - standard
+            - aggressive
+          default: standard
+
+    ErrorResponseV2:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "INVALID_RECIPIENT"
+            message:
+              type: string
+              example: "The recipient phone number is invalid"
+            details:
+              type: object
+              additionalProperties: true
+        request_id:
+          type: string
+          description: Unique identifier for this request
+          example: "req_123456789"
+
+    # Legacy schemas for backward compatibility
+    Error:
+      description: Error
+      type: object
+      properties:
+        message-count:
+          type: string
+          description: The amount of messages in the request
+          example: "1"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorMessage"
+
+    ErrorXml:
+      type: object
+      description: Error
+      xml:
+        name: mt-submission-response
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorMessage"
+
+    ErrorMessage:
+      type: object
+      xml:
+        name: message
+      properties:
+        status:
+          type: string
+          description: The error status of the message
+          example: "2"
+        error-text:
+          type: string
+          description: The description of the error
+          example: "Missing to param"
+
+    SMS:
+      description: Message sent
+      type: object
+      properties:
+        message-count:
+          type: string
+          description: The amount of messages in the request
+          example: "1"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+
+    SMSXml:
+      type: object
+      description: Message sent
+      xml:
+        name: mt-submission-response
+      properties:
+        messages:
+          x-skip-response-description: true
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+          properties:
+            count:
+              type: integer
+              example: 1
+              xml:
+                attribute: true
+
+    Message:
+      type: object
+      properties:
+        to:
+          type: string
+          description: The number the message was sent to. Numbers are specified in E.164 format.
+          example: "447700900000"
+        message-id:
+          type: string
+          description: The ID of the message
+          example: 0A0000000123ABCD1
+          xml:
+            name: messageId
+        status:
+          type: string
+          description: The status of the message. See [Troubleshooting Failed SMS](/messaging/sms/guides/troubleshooting-sms).
+          example: "0"
+        remaining-balance:
+          type: string
+          description: Your estimated remaining balance
+          example: "3.14159265"
+          xml:
+            name: remainingBalance
+        message-price:
+          type: string
+          description: The estimated cost of the message
+          example: "0.03330000"
+          xml:
+            name: messagePrice
+        network:
+          type: string
+          description: The estimated ID of the network of the recipient
+          example: "12345"
+
+x-errors:
+  "INVALID_RECIPIENT":
+    description: The recipient phone number is invalid or not in E.164 format.
+    resolution: Check the phone number format and try again.
+
+  "INVALID_SENDER":
+    description: The sender ID is invalid or not authorized for your account.
+    resolution: Use a valid sender ID or contact support for authorization.
+
+  "MESSAGE_TOO_LONG":
+    description: The message content exceeds the maximum allowed length.
+    resolution: Shorten your message or split it into multiple messages.
+
+  "INSUFFICIENT_CREDITS":
+    description: Your account does not have enough credits to send this message.
+    resolution: Top up your account balance and try again.
+
+  "RATE_LIMIT_EXCEEDED":
+    description: You have exceeded the rate limit for your account.
+    resolution: Reduce your sending rate or contact support to increase limits.

@@ -3,6 +3,8 @@ package state
 import (
 	"strings"
 	"time"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // Cache represents cached Konnect state with hierarchical structure
@@ -157,6 +159,13 @@ type PortalCustomDomain struct {
 	UpdatedAt                time.Time
 }
 
+// PortalIPAllowList represents a portal IP allow list entry.
+type PortalIPAllowList struct {
+	ID         string
+	PortalID   string
+	AllowedIPs []string
+}
+
 // PortalSnippet represents portal snippet
 type PortalSnippet struct {
 	ID               string
@@ -169,11 +178,27 @@ type PortalSnippet struct {
 	NormalizedLabels map[string]string
 }
 
+// PortalIdentityProvider represents a portal identity provider.
+type PortalIdentityProvider struct {
+	ID        string
+	Type      kkComps.IdentityProviderType
+	Enabled   *bool
+	LoginPath *string
+	Config    *kkComps.IdentityProviderConfig
+}
+
 // PortalTeam represents a portal team (developer team)
 type PortalTeam struct {
-	ID          string
-	Name        string
-	Description string
+	ID                 string
+	Name               string
+	Description        string
+	CanOwnApplications *bool
+}
+
+// PortalTeamGroupMapping represents portal team IdP group mappings.
+type PortalTeamGroupMapping struct {
+	TeamID string
+	Groups []string
 }
 
 // PortalTeamRole represents an assigned role for a portal team
@@ -185,4 +210,62 @@ type PortalTeamRole struct {
 	EntityRegion   string
 	TeamID         string
 	PortalID       string
+}
+
+// OrganizationTeamRole represents an assigned role for an organization team.
+type OrganizationTeamRole struct {
+	ID             string
+	RoleName       string
+	EntityID       string
+	EntityTypeName string
+	EntityRegion   string
+	TeamID         string
+}
+
+// OrganizationUser represents a Konnect organization user.
+type OrganizationUser struct {
+	ID    string
+	Email string
+}
+
+// OrganizationUserTeamMembership represents a user membership in an organization team.
+type OrganizationUserTeamMembership struct {
+	UserID    string
+	UserEmail string
+	TeamID    string
+	TeamName  string
+}
+
+// OrganizationUserRole represents an assigned role for an organization user.
+type OrganizationUserRole struct {
+	ID             string
+	RoleName       string
+	EntityID       string
+	EntityTypeName string
+	EntityRegion   string
+	UserID         string
+}
+
+// OrganizationSystemAccount represents a Konnect system account selector target.
+type OrganizationSystemAccount struct {
+	ID   string
+	Name string
+}
+
+// OrganizationSystemAccountTeamMembership represents a system account membership in an organization team.
+type OrganizationSystemAccountTeamMembership struct {
+	SystemAccountID   string
+	SystemAccountName string
+	TeamID            string
+	TeamName          string
+}
+
+// OrganizationSystemAccountRole represents an assigned role for an organization system account.
+type OrganizationSystemAccountRole struct {
+	ID              string
+	RoleName        string
+	EntityID        string
+	EntityTypeName  string
+	EntityRegion    string
+	SystemAccountID string
 }

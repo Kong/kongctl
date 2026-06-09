@@ -1,0 +1,9 @@
+event_gateways:
+  - ref: my-event-gateway
+    name: my-event-gateway
+    description: "My Event Gateway Control Plane"
+    static_keys:
+      - ref: default-static-key
+        name: default-static-key
+        description: "Default Static Key"
+        value: !env "ENV_STATIC_KEY_VALUE" # Loaded from the environment - expected to be a 256-bit (32-byte) base64-encoded string

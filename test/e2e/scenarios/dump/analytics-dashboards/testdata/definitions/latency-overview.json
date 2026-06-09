@@ -1,0 +1,32 @@
+{
+  "tiles": [
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Latency p99 over time",
+          "type": "timeseries_line"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "time"
+          ],
+          "metrics": [
+            "response_latency_p99"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 0,
+          "row": 0
+        },
+        "size": {
+          "cols": 6,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    }
+  ]
+}

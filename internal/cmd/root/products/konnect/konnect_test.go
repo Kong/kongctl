@@ -32,6 +32,109 @@ func TestNewKonnectCmdGetExposesAuditLogs(t *testing.T) {
 	require.True(t, hasSubcommandNamed(cmd, "audit-logs"))
 }
 
+func TestNewKonnectCmdDeclarativeVerbsUseVerbSpecificExamples(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name             string
+		verb             verbs.VerbValue
+		wantShorthand    string
+		wantExplicitForm string
+	}{
+		{
+			name:             "plan",
+			verb:             verbs.Plan,
+			wantShorthand:    "kongctl plan -f api.yaml",
+			wantExplicitForm: "kongctl plan konnect -f api.yaml",
+		},
+		{
+			name:             "sync",
+			verb:             verbs.Sync,
+			wantShorthand:    "kongctl sync -f api.yaml",
+			wantExplicitForm: "kongctl sync konnect -f api.yaml",
+		},
+		{
+			name:             "diff",
+			verb:             verbs.Diff,
+			wantShorthand:    "kongctl diff -f api.yaml",
+			wantExplicitForm: "kongctl diff konnect -f api.yaml",
+		},
+		{
+			name:             "export",
+			verb:             verbs.Export,
+			wantShorthand:    "kongctl export -o ./exported-config",
+			wantExplicitForm: "kongctl export konnect -o ./exported-config",
+		},
+		{
+			name:             "apply",
+			verb:             verbs.Apply,
+			wantShorthand:    "kongctl apply -f api.yaml",
+			wantExplicitForm: "kongctl apply konnect -f api.yaml",
+		},
+		{
+			name:             "delete",
+			verb:             verbs.Delete,
+			wantShorthand:    "kongctl delete -f config.yaml",
+			wantExplicitForm: "kongctl delete --plan delete-plan.json",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cmd, err := NewKonnectCmd(tt.verb)
+			require.NoError(t, err)
+			require.Contains(t, cmd.Example, tt.wantShorthand)
+			require.Contains(t, cmd.Example, tt.wantExplicitForm)
+			require.NotContains(t, cmd.Example, "kongctl get konnect gateway control-planes")
+		})
+	}
+}
+
+func TestNewKonnectCmdGetExposesAnalytics(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Get)
+	require.NoError(t, err)
+	require.True(t, hasSubcommandNamed(cmd, "analytics"))
+}
+
+func TestNewKonnectCmdAdoptExposesAnalytics(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Adopt)
+	require.NoError(t, err)
+	require.True(t, hasSubcommandNamed(cmd, "analytics"))
+	require.False(t, hasSubcommandNamed(cmd, "dashboard"))
+}
+
+func TestNewKonnectCmdDeclarativeVerbsExposeRetryFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Plan)
+	require.NoError(t, err)
+
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-max-attempts"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-initial-interval"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-max-interval"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-backoff-factor"))
+	require.NotNil(t, cmd.Flags().Lookup("http-retry-on-connection-errors"))
+}
+
+func TestNewKonnectCmdNonDeclarativeVerbsHideRetryFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Get)
+	require.NoError(t, err)
+
+	require.Nil(t, cmd.Flags().Lookup("http-retry-max-attempts"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-initial-interval"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-max-interval"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-backoff-factor"))
+	require.Nil(t, cmd.Flags().Lookup("http-retry-on-connection-errors"))
+}
+
 func hasSubcommandNamed(cmd *cobra.Command, name string) bool {
 	if cmd == nil {
 		return false

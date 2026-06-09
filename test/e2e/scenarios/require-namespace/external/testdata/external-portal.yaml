@@ -1,0 +1,6 @@
+portals:
+  - ref: shared-portal
+    _external:
+      selector:
+        matchFields:
+          name: "shared-portal"

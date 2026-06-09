@@ -1,0 +1,4 @@
+apis:
+  - ref: simple-api
+    name: "Simple API"
+    description: "A minimal API"

@@ -2,6 +2,8 @@ vars:
   portal_name: adopt-e2e-portal
   api_name: adopt-e2e-api
   cp_name: adopt-e2e-cp
+  namespace: team-e2e
+  overwrite_namespace: team-e2e-overwrite
 
 steps:
   - name: 000-reset
@@ -53,11 +55,11 @@ steps:
           - control-plane
           - "{{ .vars.cp_id }}"
           - --namespace
-          - team-e2e
+          - "{{ .vars.namespace }}"
         assertions:
           - expect:
               fields:
-                namespace: team-e2e
+                namespace: "{{ .vars.namespace }}"
                 id: "{{ .vars.cp_id }}"
                 resource_type: control_plane
       - name: adopt-portal
@@ -66,11 +68,11 @@ steps:
           - portal
           - "{{ .vars.portal_id }}"
           - --namespace
-          - team-e2e
+          - "{{ .vars.namespace }}"
         assertions:
           - expect:
               fields:
-                namespace: team-e2e
+                namespace: "{{ .vars.namespace }}"
                 id: "{{ .vars.portal_id }}"
                 resource_type: portal
       - name: adopt-api
@@ -79,15 +81,61 @@ steps:
           - api
           - "{{ .vars.api_id }}"
           - --namespace
-          - team-e2e
+          - "{{ .vars.namespace }}"
         assertions:
           - expect:
               fields:
-                namespace: team-e2e
+                namespace: "{{ .vars.namespace }}"
                 id: "{{ .vars.api_id }}"
                 resource_type: api
 
-  - name: 003-dump-and-plan
+  - name: 003-overwrite-namespace
+    skipInputs: true
+    commands:
+      - name: overwrite-cp-namespace
+        run:
+          - adopt
+          - control-plane
+          - "{{ .vars.cp_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.cp_id }}"
+                resource_type: control_plane
+      - name: overwrite-portal-namespace
+        run:
+          - adopt
+          - portal
+          - "{{ .vars.portal_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.portal_id }}"
+                resource_type: portal
+      - name: overwrite-api-namespace
+        run:
+          - adopt
+          - api
+          - "{{ .vars.api_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.api_id }}"
+                resource_type: api
+
+  - name: 004-dump-and-plan
     skipInputs: true
     commands:
       - name: dump
@@ -96,7 +144,7 @@ steps:
           - declarative
           - "--resources=portals,control_planes,apis"
           - --default-namespace
-          - team-e2e
+          - "{{ .vars.overwrite_namespace }}"
         outputFormat: none
         parseAs: yaml
         stdoutFile: "{{ .workdir }}/dump.yaml"
@@ -116,7 +164,7 @@ steps:
           - select: "_defaults.kongctl"
             expect:
               fields:
-                namespace: team-e2e
+                namespace: "{{ .vars.overwrite_namespace }}"
       - name: plan-from-dump
         outputFormat: disable
         run:
@@ -130,3 +178,28 @@ steps:
             expect:
               fields:
                 total_changes: 0
+
+  - name: 005-delete-cleanup
+    skipInputs: true
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .scenario_dir }}/cleanup.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

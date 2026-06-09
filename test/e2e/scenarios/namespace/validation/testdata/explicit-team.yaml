@@ -1,0 +1,6 @@
+organization:
+  teams:
+    - ref: repro-team
+      name: repro-team
+      kongctl:
+        namespace: ns-a

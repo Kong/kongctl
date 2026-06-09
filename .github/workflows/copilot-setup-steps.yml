@@ -4,15 +4,20 @@ name: Copilot Setup Steps
     paths:
     - .github/workflows/copilot-setup-steps.yml
   workflow_dispatch: null
+permissions: {}
 jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-    - name: Install gh-aw extension
-      uses: github/gh-aw/actions/setup-cli@a86e657586e4ac5f549a790628971ec02f6a4a8f # v0.52.1
-      with:
-        version: v0.52.1
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Install gh-aw extension
+        uses: github/gh-aw-actions/setup-cli@46d564922b082d0db93244972e8005ea6904ee5f # v0.76.1
+        with:
+          version: v0.74.4

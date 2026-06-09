@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -201,7 +201,7 @@ func (h apiImplementationsHandler) run(args []string) error {
 		tableview.WithCustomTable([]string{"IMPLEMENTATION", "SERVICE"}, tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
-		tableview.WithDetailContext("api-implementation", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIImplementation, func(index int) any {
 			if index < 0 || index >= len(implementations) {
 				return nil
 			}
@@ -218,10 +218,7 @@ func fetchImplementations(
 	cfg config.Hook,
 ) ([]kkComps.APIImplementationListItem, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.APIImplementationListItem
 
@@ -250,7 +247,7 @@ func fetchImplementations(
 		all = append(all, data...)
 
 		total := int(res.GetListAPIImplementationsResponse().GetMeta().Page.Total)
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 

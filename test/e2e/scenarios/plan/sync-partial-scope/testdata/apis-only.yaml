@@ -1,0 +1,10 @@
+_defaults:
+  kongctl:
+    namespace: sync-partial-scope
+
+apis:
+  - ref: sync-partial-api
+    name: sync-partial-api
+    description: "API for sync partial scope test (updated)"
+    labels:
+      test: sync-partial-scope

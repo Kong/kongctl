@@ -1,0 +1,34 @@
+_defaults:
+  kongctl:
+    namespace: yaml-env-tags
+
+dcr_providers:
+  - ref: env-dcr-http
+    name: env-dcr-http
+    provider_type: http
+    issuer: https://env-dcr-issuer.example.com
+    dcr_config:
+      dcr_base_url: !env KONGCTL_E2E_ENV_DCR_BASE_URL
+      api_key: !env KONGCTL_E2E_ENV_DCR_API_KEY
+    labels:
+      suite: yaml-env-tags
+      provider: http
+
+portals:
+  - ref: env-portal
+    name: env-portal
+    display_name: !env KONGCTL_E2E_ENV_PORTAL_META#display_name
+    description: !env KONGCTL_E2E_ENV_PORTAL_DESC
+    authentication_enabled: false
+    default_api_visibility: public
+    default_page_visibility: private
+
+apis:
+  - ref: env-orders
+    name: env-orders
+    description: !env KONGCTL_E2E_ENV_API_DESC
+    labels:
+      domain: commerce
+      owner: !env
+        var: KONGCTL_E2E_ENV_API_META
+        extract: owner

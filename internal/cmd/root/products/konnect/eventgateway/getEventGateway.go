@@ -2,12 +2,11 @@ package eventgateway
 
 import (
 	"fmt"
-	"net/url"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
+	"charm.land/bubbles/v2/table"
 
 	// kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -23,8 +22,14 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
+)
+
+const (
+	tableHeaderName = "NAME"
+	tableHeaderType = "TYPE"
 )
 
 var (
@@ -114,7 +119,7 @@ func runListByName(name string, kkClient helpers.EGWControlPlaneAPI, helper cmd.
 func runList(kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 	cfg config.Hook,
 ) ([]kkComps.EventGatewayInfo, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allData []kkComps.EventGatewayInfo
 	var pageAfter *string
@@ -136,17 +141,11 @@ func runList(kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 
 		allData = append(allData, res.ListEventGatewaysResponse.Data...)
 
-		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewaysResponse.Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
-		if err != nil {
-			return nil, cmd.PrepareExecutionError("Failed to list Event Gateways: invalid cursor", err, helper.GetCmd())
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	return allData, nil
@@ -248,7 +247,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 				"",
 				tableview.WithRootLabel(helper.GetCmd().Name()),
 				tableview.WithDetailHelper(helper),
-				tableview.WithDetailContext("eventGatewayControlPlane", func(index int) any {
+				tableview.WithDetailContext(common.ViewParentEventGateway, func(index int) any {
 					if index != 0 {
 						return nil
 					}
@@ -272,7 +271,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
 			tableview.WithDetailHelper(helper),
-			tableview.WithDetailContext("eventGatewayControlPlane", func(index int) any {
+			tableview.WithDetailContext(common.ViewParentEventGateway, func(index int) any {
 				if index != 0 {
 					return nil
 				}
@@ -341,11 +340,11 @@ func buildEventGatewayChildView(eventGatewayControlPlanes []kkComps.EventGateway
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        []string{"ID", tableHeaderName},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Event Gateways",
-		ParentType:     "event-gateway",
+		ParentType:     common.ViewParentEventGateway,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(eventGatewayControlPlanes) {
 				return nil
@@ -518,6 +517,21 @@ func newGetEventGatewayControlPlaneCmd(verb verbs.VerbValue,
 	dataPlaneCertsCmd := newGetEventGatewayDataPlaneCertificatesCmd(verb, addParentFlags, parentPreRun)
 	if dataPlaneCertsCmd != nil {
 		rv.AddCommand(dataPlaneCertsCmd)
+	}
+
+	schemaRegistriesCmd := newGetEventGatewaySchemaRegistriesCmd(verb, addParentFlags, parentPreRun)
+	if schemaRegistriesCmd != nil {
+		rv.AddCommand(schemaRegistriesCmd)
+	}
+
+	staticKeysCmd := newGetEventGatewayStaticKeysCmd(verb, addParentFlags, parentPreRun)
+	if staticKeysCmd != nil {
+		rv.AddCommand(staticKeysCmd)
+	}
+
+	tlsTrustBundlesCmd := newGetEventGatewayTLSTrustBundlesCmd(verb, addParentFlags, parentPreRun)
+	if tlsTrustBundlesCmd != nil {
+		rv.AddCommand(tlsTrustBundlesCmd)
 	}
 
 	listenerPoliciesCmd := newGetEventGatewayListenerPoliciesCmd(verb, addParentFlags, parentPreRun)

@@ -10,6 +10,7 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalCustomization,
 		func(rs *ResourceSet) *[]PortalCustomizationResource { return &rs.PortalCustomizations },
+		AutoExplain[PortalCustomizationResource](),
 	)
 }
 

@@ -1,0 +1,7 @@
+portal:
+  display_name: "Portal 1 Display"
+  labels:
+    team: "docs"
+  tagline: "YAML file tag scenario portal"
+api:
+  description: "API 1 description loaded from YAML metadata"

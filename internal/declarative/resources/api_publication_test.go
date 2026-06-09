@@ -47,3 +47,36 @@ func TestAPIPublicationResourceMarshalJSONIncludesMetadata(t *testing.T) {
 		t.Fatalf("unexpected auth_strategy_ids payload: %v", payload["auth_strategy_ids"])
 	}
 }
+
+func TestAPIPublicationResourceMarshalJSONIncludesEmptyAuthStrategyIDs(t *testing.T) {
+	t.Parallel()
+
+	vis := kkComps.APIPublicationVisibilityPrivate
+
+	pub := APIPublicationResource{
+		APIPublication: kkComps.APIPublication{
+			AuthStrategyIds: []string{},
+			Visibility:      &vis,
+		},
+		Ref:      "pub-ref",
+		PortalID: "portal-ref",
+	}
+
+	raw, err := json.Marshal(pub)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("unexpected unmarshal error: %v", err)
+	}
+
+	auth, ok := payload["auth_strategy_ids"].([]any)
+	if !ok {
+		t.Fatalf("expected auth_strategy_ids to be present, got %v", payload["auth_strategy_ids"])
+	}
+	if len(auth) != 0 {
+		t.Fatalf("expected empty auth_strategy_ids, got %v", auth)
+	}
+}

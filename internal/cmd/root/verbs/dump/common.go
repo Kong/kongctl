@@ -4,17 +4,34 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/spf13/pflag"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/config"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/util"
 )
 
 type paginationHandler func(pageNumber int64) (bool, error)
+
+func bindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
+	if f := flags.Lookup(flagName); f != nil {
+		return cfg.BindFlag(configPath, f)
+	}
+	return nil
+}
+
+const (
+	maxPaginationPages          int64 = 10000
+	filterOpContains                  = "contains"
+	resourceAPIs                      = "apis"
+	resourceAnalyticsDashboards       = "analytics.dashboards"
+)
 
 type paginationParams struct {
 	pageSize   int64
@@ -30,6 +47,10 @@ func processPaginatedRequests(handler paginationHandler) error {
 	pageNumber := int64(1)
 
 	for {
+		if pageNumber > maxPaginationPages {
+			return fmt.Errorf("pagination exceeded safety limit of %d pages", maxPaginationPages)
+		}
+
 		hasMore, err := handler(pageNumber)
 		if err != nil {
 			return err
@@ -51,8 +72,14 @@ func Int64(v int64) *int64 {
 }
 
 func getDumpWriter(helper cmdpkg.Helper, outputFile string) (io.Writer, func() error, error) {
-	if strings.TrimSpace(outputFile) != "" {
-		file, err := os.Create(outputFile)
+	outputFile = strings.TrimSpace(outputFile)
+	if outputFile != "" {
+		outputPath, err := expandUserPath(outputFile)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		file, err := os.Create(outputPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create output file: %w", err)
 		}
@@ -60,6 +87,25 @@ func getDumpWriter(helper cmdpkg.Helper, outputFile string) (io.Writer, func() e
 	}
 
 	return helper.GetStreams().Out, func() error { return nil }, nil
+}
+
+func expandUserPath(path string) (string, error) {
+	switch {
+	case path == "~":
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve home directory: %w", err)
+		}
+		return home, nil
+	case strings.HasPrefix(path, "~/"):
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve home directory: %w", err)
+		}
+		return filepath.Join(home, strings.TrimPrefix(path, "~/")), nil
+	default:
+		return path, nil
+	}
 }
 
 func parseResourceList(resources string) []string {
@@ -103,11 +149,15 @@ func mapResourceName(name string) string {
 	case "portal", "portals":
 		return "portals"
 	case "api", "apis":
-		return "apis"
+		return resourceAPIs
 	case "app-auth-strategies", "application_auth_strategies", "application-auth-strategies", "app_auth_strategies":
 		return "application_auth_strategies"
+	case "dcr-provider", "dcr-providers", "dcr_provider", "dcr_providers", "dcrprovider", "dcrproviders":
+		return "dcr_providers"
 	case "control-plane", "controlplane", "controlplanes", "control_planes":
 		return "control_planes"
+	case "dashboard", "dashboards", "analytics.dashboard", resourceAnalyticsDashboards:
+		return resourceAnalyticsDashboards
 	case "org.team", "org.teams", "organization.team", "organization.teams":
 		return "organization.teams"
 	default:
@@ -121,29 +171,12 @@ func normalizeResourceList(resources string, allowed map[string]struct{}) ([]str
 		normalized[i] = mapResourceName(normalized[i])
 	}
 
-	// Filter out event gateway resources if preview is not enabled
-	if !util.IsEventGatewayEnabled() {
-		filtered := make([]string, 0, len(normalized))
-		for _, resource := range normalized {
-			if !isEventGatewayResource(resource) {
-				filtered = append(filtered, resource)
-			}
-		}
-		normalized = filtered
-	}
-
 	joined := strings.Join(normalized, ",")
 	if err := validateResourceList(joined, allowed); err != nil {
 		return nil, err
 	}
 
 	return normalized, nil
-}
-
-func isEventGatewayResource(resource string) bool {
-	r := strings.TrimSpace(strings.ToLower(resource))
-	return strings.Contains(r, "event_gateway") ||
-		strings.Contains(r, "event-gateway")
 }
 
 const (
@@ -174,7 +207,7 @@ func validateFilterOptions(f filterOptions) error {
 // is returned; otherwise the "eq" operator is used for exact matching.
 func parseFilterName(value string) (op, val string) {
 	if strings.HasPrefix(value, "*") || strings.HasSuffix(value, "*") {
-		return "contains", strings.Trim(value, "*")
+		return filterOpContains, strings.Trim(value, "*")
 	}
 	return "eq", value
 }
@@ -196,7 +229,7 @@ func filterByNameOrID[T any](items []T, filter filterOptions, nameAndID func(T) 
 			}
 		} else if filter.name != "" {
 			op, val := parseFilterName(filter.name)
-			if op == "contains" {
+			if op == filterOpContains {
 				if strings.Contains(name, val) {
 					result = append(result, item)
 				}
@@ -213,7 +246,7 @@ func filterByNameOrID[T any](items []T, filter filterOptions, nameAndID func(T) 
 func buildStringFieldFilter(name string) *kkComps.StringFieldFilter {
 	op, val := parseFilterName(name)
 	f := &kkComps.StringFieldFilter{}
-	if op == "contains" {
+	if op == filterOpContains {
 		f.Contains = &val
 	} else {
 		f.Eq = &val

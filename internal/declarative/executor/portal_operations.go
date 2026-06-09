@@ -25,35 +25,35 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	var portal kkComps.CreatePortal
 
 	// Map required fields
-	if err := common.ValidateRequiredFields(change.Fields, []string{"name"}); err != nil {
-		return "", common.WrapWithResourceContext(err, "portal", "")
+	if err := common.ValidateRequiredFields(change.Fields, []string{planner.FieldName}); err != nil {
+		return "", common.WrapWithResourceContext(err, planner.ResourceTypePortal, "")
 	}
 	portal.Name = common.ExtractResourceName(change.Fields)
 
 	// Map optional fields using utilities (SDK uses double pointers)
-	common.MapOptionalStringFieldToPtr(&portal.Description, change.Fields, "description")
-	common.MapOptionalStringFieldToPtr(&portal.DisplayName, change.Fields, "display_name")
-	common.MapOptionalBoolFieldToPtr(&portal.AuthenticationEnabled, change.Fields, "authentication_enabled")
-	common.MapOptionalBoolFieldToPtr(&portal.RbacEnabled, change.Fields, "rbac_enabled")
-	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveDevelopers, change.Fields, "auto_approve_developers")
-	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveApplications, change.Fields, "auto_approve_applications")
+	common.MapOptionalStringFieldToPtr(&portal.Description, change.Fields, planner.FieldDescription)
+	common.MapOptionalStringFieldToPtr(&portal.DisplayName, change.Fields, planner.FieldDisplayName)
+	common.MapOptionalBoolFieldToPtr(&portal.AuthenticationEnabled, change.Fields, planner.FieldAuthenticationEnabled)
+	common.MapOptionalBoolFieldToPtr(&portal.RbacEnabled, change.Fields, planner.FieldRBACEnabled)
+	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveDevelopers, change.Fields, planner.FieldAutoApproveDevelopers)
+	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveApplications, change.Fields, planner.FieldAutoApproveApplications)
 
-	if defaultAPIVisibility, ok := change.Fields["default_api_visibility"].(string); ok {
+	if defaultAPIVisibility, ok := change.Fields[planner.FieldDefaultAPIVisibility].(string); ok {
 		visibility := kkComps.DefaultAPIVisibility(defaultAPIVisibility)
 		portal.DefaultAPIVisibility = &visibility
 	}
 
-	if defaultPageVisibility, ok := change.Fields["default_page_visibility"].(string); ok {
+	if defaultPageVisibility, ok := change.Fields[planner.FieldDefaultPageVisibility].(string); ok {
 		visibility := kkComps.DefaultPageVisibility(defaultPageVisibility)
 		portal.DefaultPageVisibility = &visibility
 	}
 
-	if defaultAppAuthStrategyID, ok := change.Fields["default_application_auth_strategy_id"].(string); ok {
+	if defaultAppAuthStrategyID, ok := change.Fields[planner.FieldDefaultApplicationStrategyID].(string); ok {
 		portal.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
 	}
 
 	// Handle labels using centralized helper
-	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldLabels])
 	portalLabels := labels.BuildCreateLabels(userLabels, change.Namespace, change.Protection)
 
 	// Convert to pointer map since portals use map[string]*string
@@ -68,7 +68,7 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 		slog.Any("labels", portal.Labels))
 	resp, err := e.client.CreatePortal(ctx, portal, change.Namespace)
 	if err != nil {
-		return "", common.FormatAPIError("portal", portal.Name, "create", err)
+		return "", common.FormatAPIError(planner.ResourceTypePortal, portal.Name, "create", err)
 	}
 
 	return resp.ID, nil
@@ -83,10 +83,10 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	portalName := getResourceName(change.Fields)
 	portal, err := e.client.GetPortalByName(ctx, portalName)
 	if err != nil {
-		return "", decerrors.FormatResourceError("fetch", "portal", portalName, change.Namespace, err)
+		return "", decerrors.FormatResourceError("fetch", planner.ResourceTypePortal, portalName, change.Namespace, err)
 	}
 	if portal == nil {
-		return "", decerrors.FormatValidationError("portal", portalName, "resource",
+		return "", decerrors.FormatValidationError(planner.ResourceTypePortal, portalName, "resource",
 			"no longer exists - it may have been deleted by another process")
 	}
 
@@ -112,7 +112,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 
 	if isProtected && !isProtectionChange {
 		// Regular update to a protected resource is not allowed
-		return "", decerrors.FormatProtectionError("portal", portalName, "update")
+		return "", decerrors.FormatProtectionError(planner.ResourceTypePortal, portalName, "update")
 	}
 
 	// Build sparse update request - only include fields that changed
@@ -122,44 +122,44 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	// These represent actual changes detected by the planner
 	for field, value := range change.Fields {
 		switch field {
-		case "name":
+		case planner.FieldName:
 			if name, ok := value.(string); ok {
 				updatePortal.Name = &name
 			}
-		case "description":
+		case planner.FieldDescription:
 			if desc, ok := value.(string); ok {
 				updatePortal.Description = &desc
 			}
-		case "display_name":
+		case planner.FieldDisplayName:
 			if displayName, ok := value.(string); ok {
 				updatePortal.DisplayName = &displayName
 			}
-		case "authentication_enabled":
+		case planner.FieldAuthenticationEnabled:
 			if authEnabled, ok := value.(bool); ok {
 				updatePortal.AuthenticationEnabled = &authEnabled
 			}
-		case "rbac_enabled":
+		case planner.FieldRBACEnabled:
 			if rbacEnabled, ok := value.(bool); ok {
 				updatePortal.RbacEnabled = &rbacEnabled
 			}
-		case "auto_approve_developers":
+		case planner.FieldAutoApproveDevelopers:
 			if autoApproveDevelopers, ok := value.(bool); ok {
 				updatePortal.AutoApproveDevelopers = &autoApproveDevelopers
 			}
-		case "auto_approve_applications":
+		case planner.FieldAutoApproveApplications:
 			if autoApproveApplications, ok := value.(bool); ok {
 				updatePortal.AutoApproveApplications = &autoApproveApplications
 			}
-		case "default_application_auth_strategy_id":
+		case planner.FieldDefaultApplicationStrategyID:
 			if authID, ok := value.(string); ok {
 				updatePortal.DefaultApplicationAuthStrategyID = &authID
 			}
-		case "default_api_visibility":
+		case planner.FieldDefaultAPIVisibility:
 			if visibility, ok := value.(string); ok {
 				vis := kkComps.UpdatePortalDefaultAPIVisibility(visibility)
 				updatePortal.DefaultAPIVisibility = &vis
 			}
-		case "default_page_visibility":
+		case planner.FieldDefaultPageVisibility:
 			if visibility, ok := value.(string); ok {
 				vis := kkComps.UpdatePortalDefaultPageVisibility(visibility)
 				updatePortal.DefaultPageVisibility = &vis
@@ -169,7 +169,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	}
 
 	// Handle labels using centralized helper
-	desiredLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
+	desiredLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldLabels])
 	if desiredLabels != nil {
 		// Get current labels if passed from planner
 		currentLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldCurrentLabels])

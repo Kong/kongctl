@@ -20,6 +20,28 @@
         "github.com/charmbracelet/lipgloss"
       ],
       "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Allow the example Go extension SDK dependency to update immediately",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchFileNames": [
+        "docs/examples/extensions/go/go.mod"
+      ],
+      "matchPackageNames": [
+        "github.com/kong/kongctl"
+      ],
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "Batch gh-aw updates weekly after a short aging period to reduce daily churn",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["github/gh-aw"],
+      "internalChecksFilter": "strict",
+      "minimumReleaseAge": "3 days",
+      "schedule": ["every weekend"],
+      "updateNotScheduled": false
     }
   ]
 }

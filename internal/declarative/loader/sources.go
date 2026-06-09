@@ -1,10 +1,15 @@
 package loader
 
 import (
+	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 )
+
+// ErrNoSources is returned when no configuration sources are provided.
+var ErrNoSources = errors.New("no configuration sources specified; use -f to specify files, directories, or URLs")
 
 // SourceType represents the type of configuration source
 type SourceType int
@@ -16,6 +21,8 @@ const (
 	SourceTypeDirectory
 	// SourceTypeSTDIN represents stdin source
 	SourceTypeSTDIN
+	// SourceTypeURL represents an HTTP(S) URL source
+	SourceTypeURL
 )
 
 // Source represents a configuration source with its type
@@ -49,12 +56,8 @@ func ParseSources(filenames []string) ([]Source, error) {
 		}
 	}
 
-	// If no sources provided, default to current directory
 	if len(sources) == 0 {
-		sources = append(sources, Source{
-			Path: ".",
-			Type: SourceTypeDirectory,
-		})
+		return nil, ErrNoSources
 	}
 
 	return sources, nil
@@ -65,6 +68,10 @@ func detectSourceType(source string) (SourceType, error) {
 	// Check for stdin
 	if source == "-" {
 		return SourceTypeSTDIN, nil
+	}
+
+	if sourceType, ok, err := detectURLSourceType(source); ok || err != nil {
+		return sourceType, err
 	}
 
 	// Check if file/directory exists
@@ -81,6 +88,32 @@ func detectSourceType(source string) (SourceType, error) {
 	}
 
 	return SourceTypeFile, nil
+}
+
+func detectURLSourceType(source string) (SourceType, bool, error) {
+	if !strings.Contains(source, "://") {
+		return 0, false, nil
+	}
+
+	parsed, err := url.Parse(source)
+	if err != nil {
+		return 0, true, fmt.Errorf("invalid URL: %w", err)
+	}
+
+	switch parsed.Scheme {
+	case "http", "https":
+		if parsed.Host == "" {
+			return 0, true, fmt.Errorf("URL must include a host")
+		}
+		return SourceTypeURL, true, nil
+	default:
+		return 0, true, fmt.Errorf("unsupported URL scheme %q", parsed.Scheme)
+	}
+}
+
+func isURLSourcePath(source string) bool {
+	sourceType, ok, err := detectURLSourceType(source)
+	return err == nil && ok && sourceType == SourceTypeURL
 }
 
 // ValidateYAMLFile checks if a file has a valid YAML extension

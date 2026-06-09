@@ -1,12 +1,10 @@
 package gateway
 
 import (
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumer"
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumergroup" // register consumer-group child loaders
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/controlplane"
-	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin" // register plugin child loaders
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/route"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/service"
+	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin"   // register plugin child loaders
 	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/upstream" // register upstream child loaders
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -31,26 +29,9 @@ func NewGatewayCmd(verb verbs.VerbValue,
 		Long:    gatewayLong,
 		Aliases: []string{"gw", "GW"},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(cmd)
 
 	c, e := controlplane.NewControlPlaneCmd(verb, addParentFlags, parentPreRun)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
-
-	c, e = service.NewServiceCmd(verb, addParentFlags, parentPreRun)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
-
-	c, e = route.NewRouteCmd(verb, addParentFlags, parentPreRun)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
-
-	c, e = consumer.NewConsumerCmd(verb, addParentFlags, parentPreRun)
 	if e != nil {
 		return nil, e
 	}

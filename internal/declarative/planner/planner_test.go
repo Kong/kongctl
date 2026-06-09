@@ -38,7 +38,7 @@ func (m *MockStateClient) GetPortalByName(ctx context.Context, name string) (*st
 	return args.Get(0).(*state.Portal), args.Error(1)
 }
 
-// mockEmptyAPIsList adds a mock for empty APIs list, needed in sync mode
+// mockEmptyAPIsList adds an optional mock for tests that still exercise API sync paths.
 func mockEmptyAPIsList(_ context.Context, mockAPIAPI *MockAPIAPI) {
 	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
 		StatusCode: 200,
@@ -50,7 +50,7 @@ func mockEmptyAPIsList(_ context.Context, mockAPIAPI *MockAPIAPI) {
 				},
 			},
 		},
-	}, nil)
+	}, nil).Maybe()
 }
 
 func newListPortal(id, name string, labels map[string]string) kkComps.ListPortalsResponsePortal {
@@ -283,7 +283,7 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
@@ -371,7 +371,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 				},
 			},
 		},
-	}, nil)
+	}, nil).Maybe()
 
 	// Mock empty auth strategies list
 	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
@@ -384,7 +384,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
@@ -466,7 +466,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 				},
 			},
 		},
-	}, nil)
+	}, nil).Maybe()
 
 	// Mock empty auth strategies list
 	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
@@ -479,7 +479,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
@@ -555,7 +555,7 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 				},
 			},
 		},
-	}, nil)
+	}, nil).Maybe()
 
 	// Mock empty auth strategies list
 	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
@@ -568,7 +568,7 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
@@ -686,7 +686,7 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 				},
 			},
 		},
-	}, nil)
+	}, nil).Maybe()
 
 	// Mock empty auth strategies list
 	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
@@ -699,7 +699,7 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
@@ -854,7 +854,7 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 				},
 			},
 		},
-	}, nil)
+	}, nil).Maybe()
 
 	// Create resource set with only one portal (missing the existing one)
 	displayName := "New Portal"
@@ -935,14 +935,17 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 
 	// Create empty resource set (all managed resources should be deleted)
+	scope := resources.NewSyncScope()
+	scope.AddRoot(resources.ResourceTypePortal)
 	rs := &resources.ResourceSet{
-		Portals: []resources.PortalResource{},
+		Portals:   []resources.PortalResource{},
+		SyncScope: scope,
 	}
 
 	// Generate plan in sync mode
@@ -997,7 +1000,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 				},
 			},
 		},
-	}, nil)
+	}, nil).Maybe()
 
 	// Mock empty auth strategies list
 	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
@@ -1010,7 +1013,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
@@ -1081,7 +1084,7 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 				},
 			},
 		},
-	}, nil)
+	}, nil).Maybe()
 
 	// Mock empty auth strategies list
 	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
@@ -1094,11 +1097,14 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	// Empty resource set (would delete all)
+	scope := resources.NewSyncScope()
+	scope.AddRoot(resources.ResourceTypePortal)
 	rs := &resources.ResourceSet{
-		Portals: []resources.PortalResource{},
+		Portals:   []resources.PortalResource{},
+		SyncScope: scope,
 	}
 
 	// Generate plan in sync mode should fail
@@ -1159,7 +1165,7 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
@@ -1220,7 +1226,7 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 				Page: kkComps.PageMeta{Total: 0},
 			},
 		},
-	}, nil)
+	}, nil).Maybe()
 
 	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
 		ListAPIResponse: &kkComps.ListAPIResponse{
@@ -1272,7 +1278,7 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 					Page: kkComps.PageMeta{Total: 1},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
 
 	publicationResponse := &kkOps.ListAPIPublicationsResponse{
 		ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
@@ -1305,8 +1311,12 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 
 	planner := NewPlanner(client, slog.Default())
 
+	scope := resources.NewSyncScope()
+	scope.AddRoot(resources.ResourceTypeAPI)
+	scope.AddRoot(resources.ResourceTypeApplicationAuthStrategy)
+
 	opts := Options{Mode: PlanModeSync}
-	plan, err := planner.GeneratePlan(ctx, &resources.ResourceSet{}, opts)
+	plan, err := planner.GeneratePlan(ctx, &resources.ResourceSet{SyncScope: scope}, opts)
 	require.NoError(t, err)
 
 	var (

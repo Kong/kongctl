@@ -1,0 +1,13 @@
+_defaults:
+  kongctl:
+    namespace: org-system-account-assignments-e2e
+
+apis:
+  - ref: org-system-account-assignments-api
+    name: org-system-account-assignments-api
+    description: API used by the organization system account assignments E2E scenario
+
+organization:
+  system-accounts:
+    - ref: e2e-system-account
+      id: "{{ .vars.system_account_id }}"

@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
 // ConfirmExecution prompts for confirmation.
@@ -32,7 +33,7 @@ func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) 
 			if change.Action == planner.ActionDelete {
 				namespace := change.Namespace
 				if namespace == "" {
-					namespace = "default"
+					namespace = planner.DefaultNamespace
 				}
 				deletesByNamespace[namespace] = append(deletesByNamespace[namespace], change)
 			}
@@ -119,7 +120,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 	for _, change := range plan.Changes {
 		namespace := change.Namespace
 		if namespace == "" {
-			namespace = "default"
+			namespace = planner.DefaultNamespace
 		}
 
 		if !namespaceSeen[namespace] {
@@ -132,7 +133,8 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		}
 
 		changesByNamespace[namespace][change.ResourceType] = append(
-			changesByNamespace[namespace][change.ResourceType], change)
+			changesByNamespace[namespace][change.ResourceType], change,
+		)
 
 		// Count protected resource changes by type
 		if change.Action == planner.ActionCreate && willBeProtected(change) {
@@ -339,10 +341,19 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 // getParentResourceType returns the parent resource type for a given child type
 func getParentResourceType(childType string) string {
 	switch childType {
-	case "api_version", "api_publication", "api_implementation", "api_document":
-		return "api"
-	case "portal_page", "portal_snippet", "portal_customization", "portal_custom_domain":
-		return "portal"
+	case planner.ResourceTypeAPIVersion,
+		planner.ResourceTypeAPIPublication,
+		planner.ResourceTypeAPIImplementation,
+		planner.ResourceTypeAPIDocument:
+		return planner.ResourceTypeAPI
+	case planner.ResourceTypePortalPage,
+		planner.ResourceTypePortalSnippet,
+		planner.ResourceTypePortalCustomization,
+		planner.ResourceTypePortalIntegration,
+		planner.ResourceTypePortalCustomDomain:
+		return planner.ResourceTypePortal
+	case planner.ResourceTypeControlPlaneDataPlaneCertificate:
+		return planner.ResourceTypeControlPlane
 	default:
 		return ""
 	}
@@ -440,30 +451,30 @@ func formatResourceName(change planner.PlannedChange) string {
 	resourceName := change.ResourceRef
 
 	// If resource ref is unknown, try to build a meaningful name from monikers
-	if resourceName == "[unknown]" && len(change.ResourceMonikers) > 0 {
+	if resourceName == resources.UnknownReferenceID && len(change.ResourceMonikers) > 0 {
 		switch change.ResourceType {
-		case "portal_page":
+		case planner.ResourceTypePortalPage:
 			if slug, ok := change.ResourceMonikers["slug"]; ok {
 				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
 					return fmt.Sprintf("page '%s' in portal:%s", slug, parent)
 				}
 				return fmt.Sprintf("page '%s'", slug)
 			}
-		case "portal_snippet":
+		case planner.ResourceTypePortalSnippet:
 			if name, ok := change.ResourceMonikers["name"]; ok {
 				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
 					return fmt.Sprintf("snippet '%s' in portal:%s", name, parent)
 				}
 				return fmt.Sprintf("snippet '%s'", name)
 			}
-		case "api_document":
+		case planner.ResourceTypeAPIDocument:
 			if slug, ok := change.ResourceMonikers["slug"]; ok {
 				if parent, ok := change.ResourceMonikers["parent_api"]; ok {
 					return fmt.Sprintf("document '%s' in api:%s", slug, parent)
 				}
 				return fmt.Sprintf("document '%s'", slug)
 			}
-		case "api_publication":
+		case planner.ResourceTypeAPIPublication:
 			if portal, ok := change.ResourceMonikers["portal_name"]; ok {
 				if api, ok := change.ResourceMonikers["api_ref"]; ok {
 					return fmt.Sprintf("api:%s published to portal:%s", api, portal)
@@ -485,7 +496,7 @@ func formatResourceName(change planner.PlannedChange) string {
 	// Fallback to normal behavior
 	if resourceName == "" {
 		// Try to get name from fields
-		if name, ok := change.Fields["name"].(string); ok {
+		if name, ok := change.Fields[planner.FieldName].(string); ok {
 			resourceName = name
 		}
 	}
@@ -511,7 +522,7 @@ func displaySummary(plan *planner.Plan, out io.Writer) {
 	for _, change := range plan.Changes {
 		namespace := change.Namespace
 		if namespace == "" {
-			namespace = "default"
+			namespace = planner.DefaultNamespace
 		}
 		namespaces[namespace] = true
 	}
@@ -705,6 +716,8 @@ func displayDependencies(out io.Writer, change planner.PlannedChange,
 
 // formatFieldValue formats a field value for display, truncating long strings
 func formatFieldValue(value any) string {
+	value = SanitizeDeferredEnvValue(value)
+
 	switch v := value.(type) {
 	case string:
 		if len(v) > 50 {

@@ -216,6 +216,26 @@ func TestAppendAll(t *testing.T) {
 	})
 }
 
+func TestAppendAllInitializesAuditLogsOnlyWhenDestinationsExist(t *testing.T) {
+	dest := &ResourceSet{}
+	dest.AppendAll(&ResourceSet{})
+	require.Nil(t, dest.AuditLogs)
+
+	src := &ResourceSet{
+		AuditLogs: &AuditLogsResource{
+			Destinations: []AuditLogWebhookDestinationResource{
+				{BaseResource: BaseResource{Ref: "destination"}},
+			},
+		},
+	}
+
+	dest.AppendAll(src)
+
+	require.NotNil(t, dest.AuditLogs)
+	require.Len(t, dest.AuditLogs.Destinations, 1)
+	require.Equal(t, "destination", dest.AuditLogs.Destinations[0].Ref)
+}
+
 func TestIsRegistered(t *testing.T) {
 	t.Run("known types", func(t *testing.T) {
 		knownTypes := []ResourceType{

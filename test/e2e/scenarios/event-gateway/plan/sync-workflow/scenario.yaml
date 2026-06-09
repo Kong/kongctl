@@ -1,10 +1,8 @@
-baseInputsPath: ../../../../testdata/declarative/event-gateways/plan/sync
+baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
 
-test:
-  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
 
 vars:
   egwRef: plan-sync-egw
@@ -26,6 +24,23 @@ vars:
   dataplaneCertRef: plan-sync-dataplane-certificate-ref
   dataplaneCertName: plan-sync-dataplane-certificate-name
   dataplaneCertDesc: "Plan Sync Dataplane Certificate description"
+  clusterPolicyRef: plan-sync-cluster-policy
+  clusterPolicyName: plan-sync-cluster-policy-name-for-test
+  clusterPolicyDesc: "Plan Sync Cluster Policy description"
+  producePolicyRef: plan-sync-produce-policy
+  producePolicyName: plan-sync-produce-policy-name-for-test
+  producePolicyDesc: "Plan Sync Produce Policy description"
+  consumePolicyRef: plan-sync-consume-policy
+  consumePolicyName: plan-sync-consume-policy-name-for-test
+  schemaRegistryRef: plan-sync-schema-registry
+  schemaRegistryName: plan-sync-schema-registry-name
+  schemaRegistryDesc: "Plan Sync Schema Registry description"
+  staticKeyRef: plan-sync-static-key
+  staticKeyName: plan-sync-static-key-name
+  staticKeyDesc: "Plan Sync Static Key description"
+  trustBundleRef: default-tls-trust-bundle-ref
+  trustBundleName: default-tls-trust-bundle-name
+  trustBundleDesc: "Default TLS Trust Bundle description"
 
 defaults:
   mask:
@@ -325,7 +340,7 @@ steps:
                 name: "{{ .vars.vcName }}"
                 description: "{{ .vars.vcDesc }}"
                 destination.name: "{{ .vars.bcName }}"
-                acl_mode: "passthrough"
+                acl_mode: "enforce_on_gateway"
                 "length(authentication)": 1
                 authentication[0].type: "anonymous"
       - name: 004-diff-no-changes
@@ -609,3 +624,561 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 008-plan-sync-cluster-policy
+    inputOverlayDirs:
+      - overlays/007-cluster-policy
+    commands:
+      - name: 000-plan-create-cluster-policy
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-cluster-policy.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.clusterPolicyRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-cluster-policy.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_virtual_cluster_cluster_policy \"plan-sync-cluster-policy\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-cluster-policy.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-cluster-policy
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.vcName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.clusterPolicyName }}"
+                description: "{{ .vars.clusterPolicyDesc }}"
+                type: acls
+                enabled: true
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 009-plan-sync-produce-policy
+    inputOverlayDirs:
+      - overlays/008-produce-policy
+    commands:
+      - name: 000-plan-create-produce-policy
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-produce-policy.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.producePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.producePolicyRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-produce-policy.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_virtual_cluster_produce_policy \"plan-sync-produce-policy\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-produce-policy.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-produce-policy
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.vcName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.producePolicyName }}"
+                description: "{{ .vars.producePolicyDesc }}"
+                type: modify_headers
+                enabled: true
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+  - name: 010-plan-sync-consume-policy
+    inputOverlayDirs:
+      - overlays/009-consume-policy
+    commands:
+      - name: 000-plan-create-consume-policy
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-consume-policy.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='{{ .vars.consumePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.consumePolicyRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-consume-policy.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_virtual_cluster_consume_policy \"plan-sync-consume-policy\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-consume-policy.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-consume-policy
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.vcName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: schema_validation
+                enabled: true
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+  - name: 011-plan-sync-schema-registry
+    inputOverlayDirs:
+      - overlays/010-schema-registry
+    commands:
+      - name: 000-plan-create-schema-registry
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-schema-registry.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_schema_registry' && resource_ref=='{{ .vars.schemaRegistryRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.schemaRegistryRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-schema-registry.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_schema_registry \"plan-sync-schema-registry\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-schema-registry.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-schema-registry
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.schemaRegistryName }}"
+                description: "{{ .vars.schemaRegistryDesc }}"
+                type: confluent
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+  - name: 012-plan-sync-static-key
+    inputOverlayDirs:
+      - overlays/011-static-key
+    commands:
+      - name: 000-plan-create-static-key
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-static-key.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='{{ .vars.staticKeyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.staticKeyRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-static-key.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_static_key \"plan-sync-static-key\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-static-key.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-static-key
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "{{ .vars.staticKeyDesc }}"
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+  - name: 013-plan-sync-trust-bundle
+    inputOverlayDirs:
+      - overlays/012-trust-bundles
+    commands:
+      - name: 000-plan-create-trust-bundle
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-trust-bundle.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_tls_trust_bundle' && resource_ref=='{{ .vars.trustBundleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.trustBundleRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-trust-bundle.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_tls_trust_bundle \"default-tls-trust-bundle-ref\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-trust-bundle.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-trust-bundle
+        run:
+          - get
+          - event-gateway
+          - tls-trust-bundles
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.trustBundleName }}"
+                description: "{{ .vars.trustBundleDesc }}"
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 014-delete-cleanup
+    inputOverlayDirs:
+      - overlays/012-trust-bundles
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                "total_changes > `0`": true
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

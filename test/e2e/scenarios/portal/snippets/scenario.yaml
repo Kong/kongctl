@@ -1,0 +1,260 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+vars:
+  namespace: portal-snippets
+  portalRef: portal-snippets
+  bannerRef: snippet-banner
+  navRef: snippet-nav
+  tocRef: snippet-toc
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-snippets
+    commands:
+      - name: 000-plan-snippets
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-snippets.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          # Verify banner snippet change fields
+          - select: >-
+              changes[?resource_type=='portal_snippet' &&
+              resource_ref=='{{ .vars.bannerRef }}'] | [0].fields
+            expect:
+              fields:
+                name: snippet-banner
+                title: "Welcome Banner"
+                visibility: public
+                status: published
+          # Verify nav snippet change fields
+          - select: >-
+              changes[?resource_type=='portal_snippet' &&
+              resource_ref=='{{ .vars.navRef }}'] | [0].fields
+            expect:
+              fields:
+                name: snippet-nav
+                title: "Navigation"
+                visibility: public
+                status: published
+          # Verify toc snippet change fields (private/unpublished)
+          - select: >-
+              changes[?resource_type=='portal_snippet' &&
+              resource_ref=='{{ .vars.tocRef }}'] | [0].fields
+            expect:
+              fields:
+                name: snippet-toc
+                title: "On This Page"
+                visibility: private
+                status: unpublished
+
+      - name: 001-apply-snippets
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-snippets.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+
+      - name: 002-get-snippets
+        run:
+          - get
+          - portal
+          - snippets
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          # Verify banner snippet exists with correct fields
+          - select: "[?name=='snippet-banner'] | [0]"
+            expect:
+              fields:
+                name: snippet-banner
+                title: "Welcome Banner"
+                visibility: public
+                status: published
+          # Verify nav snippet exists with correct fields
+          - select: "[?name=='snippet-nav'] | [0]"
+            expect:
+              fields:
+                name: snippet-nav
+                title: "Navigation"
+                visibility: public
+                status: published
+          # Verify toc snippet exists with correct fields
+          - select: "[?name=='snippet-toc'] | [0]"
+            expect:
+              fields:
+                name: snippet-toc
+                title: "On This Page"
+                visibility: private
+                status: unpublished
+
+  - name: 002-plan-apply-snippet-update
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-plan-snippet-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-snippet-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          # Verify updated banner snippet fields
+          - select: >-
+              changes[?resource_type=='portal_snippet' &&
+              resource_ref=='{{ .vars.bannerRef }}'] | [0].fields
+            expect:
+              fields:
+                title: "Updated Welcome Banner"
+                visibility: private
+                status: unpublished
+
+      - name: 001-apply-snippet-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-snippet-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-get-snippets-after-update
+        run:
+          - get
+          - portal
+          - snippets
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          # Verify banner snippet was updated
+          - select: "[?name=='snippet-banner'] | [0]"
+            expect:
+              fields:
+                name: snippet-banner
+                title: "Updated Welcome Banner"
+                visibility: private
+                status: unpublished
+
+  - name: 003-sync-delete-snippet
+    inputOverlayDirs:
+      - overlays/003-sync-delete
+    commands:
+      - name: 000-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          # Verify the toc snippet is planned for deletion
+          - select: >-
+              changes[?resource_type=='portal_snippet' &&
+              resource_ref=='{{ .vars.tocRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-sync-delete-snippet
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-get-snippets-after-sync-delete
+        run:
+          - get
+          - portal
+          - snippets
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          # Verify only 2 snippets remain
+          - expect:
+              fields:
+                "length(@)": 2
+          # Verify toc snippet no longer exists
+          - select: "[?name=='snippet-toc']"
+            expect:
+              fields:
+                "length(@)": 0
+          # Verify remaining snippets are present
+          - select: "[?name=='snippet-banner'] | [0]"
+            expect:
+              fields:
+                name: snippet-banner
+          - select: "[?name=='snippet-nav'] | [0]"
+            expect:
+              fields:
+                name: snippet-nav

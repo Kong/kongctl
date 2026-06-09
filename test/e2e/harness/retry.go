@@ -7,6 +7,8 @@ import (
 	"errors"
 	"math/rand"
 	"net"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,6 +20,11 @@ const (
 	DefaultRetryMaxInterval   = 10 * time.Second
 	DefaultRetryBackoffFactor = 2.0
 	DefaultRetryJitter        = 500 * time.Millisecond
+	// DefaultTimeoutRetryThreshold is the ratio of actual duration to configured
+	// timeout above which a timed-out command will not be retried. A value of 0.9
+	// means that if a command consumed >=90% of the timeout before being killed,
+	// retrying is unlikely to help and the attempt is skipped.
+	DefaultTimeoutRetryThreshold = 0.9
 )
 
 var defaultRetryablePatterns = []string{
@@ -105,7 +112,10 @@ func BackoffDelay(schedule []time.Duration, attempt int) time.Duration {
 }
 
 // ShouldRetry determines whether an error/detail warrants another attempt under the given policy.
-func ShouldRetry(err error, detail string, only, never []string) bool {
+// result and timeout are used to suppress retries when a subprocess consumed nearly the entire
+// timeout (indicating a hang rather than a transient failure). Pass a zero Result and 0 timeout
+// for non-subprocess callers (e.g. HTTP helpers in reset.go).
+func ShouldRetry(err error, detail string, only, never []string, result Result, timeout time.Duration) bool {
 	if err == nil {
 		return false
 	}
@@ -135,6 +145,15 @@ func ShouldRetry(err error, detail string, only, never []string) bool {
 		return false
 	}
 
+	// If the command timed out and consumed nearly the full timeout, retrying is
+	// unlikely to help — skip rather than waste another full timeout period.
+	if result.TimedOut && timeout > 0 {
+		ratio := float64(result.Duration) / float64(timeout)
+		if ratio >= DefaultTimeoutRetryThreshold {
+			return false
+		}
+	}
+
 	var cmdErr *CommandError
 	if errors.As(err, &cmdErr) && cmdErr != nil && cmdErr.Result.ExitCode == -1 {
 		return true
@@ -147,6 +166,149 @@ func ShouldRetry(err error, detail string, only, never []string) bool {
 	}
 
 	return false
+}
+
+type RetryClass string
+
+const (
+	RetryClassNone      RetryClass = "none"
+	RetryClassThrottle  RetryClass = "throttle"
+	RetryClassTimeout   RetryClass = "timeout"
+	RetryClassNetwork   RetryClass = "network"
+	RetryClassTransient RetryClass = "transient"
+)
+
+func ClassifyRetry(err error, detail string) RetryClass {
+	if err == nil {
+		return RetryClassNone
+	}
+	if _, ok := RetryAfterDelay(err); ok {
+		return RetryClassThrottle
+	}
+
+	var httpErr *httpError
+	if errors.As(err, &httpErr) && httpErr != nil {
+		switch httpErr.status {
+		case http.StatusTooManyRequests, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			return RetryClassThrottle
+		case http.StatusBadGateway:
+			return RetryClassTransient
+		}
+	}
+
+	detailLower := strings.ToLower(detail)
+	switch {
+	case strings.Contains(detailLower, "too many requests"),
+		strings.Contains(detailLower, "rate limit"),
+		strings.Contains(detailLower, "status=429"),
+		strings.Contains(detailLower, "503 service unavailable"),
+		strings.Contains(detailLower, "504 gateway timeout"),
+		strings.Contains(detailLower, "retry-after"):
+		return RetryClassThrottle
+	case IsTimeoutRetry(err, detailLower):
+		return RetryClassTimeout
+	case strings.Contains(detailLower, "dial tcp"),
+		strings.Contains(detailLower, "connection reset"),
+		strings.Contains(detailLower, "connection refused"),
+		strings.Contains(detailLower, "temporary failure in name resolution"),
+		strings.Contains(detailLower, "no such host"),
+		strings.Contains(detailLower, "eof"):
+		return RetryClassNetwork
+	}
+
+	if ShouldRetry(err, detail, nil, nil, Result{}, 0) {
+		return RetryClassTransient
+	}
+	return RetryClassNone
+}
+
+func IsTimeoutRetry(err error, detail string) bool {
+	if err == nil {
+		return false
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr != nil && netErr.Timeout() {
+		return true
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	detailLower := strings.ToLower(detail)
+	return strings.Contains(detailLower, "client.timeout exceeded") ||
+		strings.Contains(detailLower, "context deadline exceeded") ||
+		strings.Contains(detailLower, "tls handshake timeout") ||
+		strings.Contains(detailLower, "i/o timeout")
+}
+
+func RetryAfterDelay(err error) (time.Duration, bool) {
+	var httpErr *httpError
+	if !errors.As(err, &httpErr) || httpErr == nil || httpErr.header == nil {
+		return 0, false
+	}
+	value := strings.TrimSpace(httpErr.header.Get("Retry-After"))
+	if value == "" {
+		return 0, false
+	}
+	if seconds, parseErr := strconv.Atoi(value); parseErr == nil {
+		if seconds < 0 {
+			return 0, false
+		}
+		return time.Duration(seconds) * time.Second, true
+	}
+	when, parseErr := http.ParseTime(value)
+	if parseErr != nil {
+		return 0, false
+	}
+	delay := time.Until(when)
+	if delay < 0 {
+		delay = 0
+	}
+	return delay, true
+}
+
+func RetryDelayForError(err error, schedule []time.Duration, attempt int) time.Duration {
+	delay := BackoffDelay(schedule, attempt)
+	retryAfter, ok := RetryAfterDelay(err)
+	if ok && retryAfter > delay {
+		return retryAfter
+	}
+	return delay
+}
+
+// ShouldRetryHTTPAttempt applies the generic retry patterns, but treats repeated
+// full request timeouts differently from CLI subprocess timeouts. A single
+// near-full request timeout is allowed to retry once; after that, the harness
+// fails fast instead of spending several more full timeout windows retrying.
+func ShouldRetryHTTPAttempt(
+	err error,
+	detail string,
+	timeout time.Duration,
+	duration time.Duration,
+	only []string,
+	never []string,
+	priorFullTimeouts int,
+) bool {
+	if !ShouldRetry(err, detail, only, never, Result{}, 0) {
+		return false
+	}
+	if !IsTimeoutRetry(err, detail) || timeout <= 0 {
+		return true
+	}
+	if priorFullTimeouts < 1 {
+		return true
+	}
+	ratio := float64(duration) / float64(timeout)
+	return ratio < DefaultTimeoutRetryThreshold
+}
+
+// ShouldRetryResetHTTPAttempt applies the generic retry patterns for reset HTTP
+// operations without the near-full-timeout suppression used by scenario command
+// retries. Reset has its own total timeout budget, so it should use the full
+// configured attempt count before giving up on a flaky endpoint.
+func ShouldRetryResetHTTPAttempt(err error, detail string) bool {
+	return ShouldRetry(err, detail, nil, nil, Result{}, 0)
 }
 
 func jitterDuration(max time.Duration) time.Duration {

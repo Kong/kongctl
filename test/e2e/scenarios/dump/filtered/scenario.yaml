@@ -3,7 +3,7 @@
 # 1 auth strategy) and verifies that filters restrict the output to
 # only matching resources.
 
-baseInputsPath: ../portal-owned/testdata
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset-org
@@ -28,6 +28,11 @@ steps:
             expect:
               fields:
                 mode: apply
+        recordVars:
+          - name: portalID
+            responsePath: "execution.applied_changes[?resource_ref=='getting-started-portal'] | [0].resource_id"
+          - name: keyAuthID
+            responsePath: "execution.applied_changes[?resource_ref=='key-auth'] | [0].resource_id"
 
   # ── filter-name: exact match on APIs ──────────────────────────
   - name: 002-dump-filter-name-exact
@@ -101,7 +106,7 @@ steps:
                 name: "SMS API"
           # SMS API has 2 versions defined in testdata
           - name: api-has-first-version
-            select: "apis[0].versions[0]"
+            select: "apis[0].versions[?version=='1.0.11'] | [0]"
             expect:
               fields:
                 version: "1.0.11"
@@ -111,6 +116,20 @@ steps:
             expect:
               fields:
                 slug: "sms-getting-started"
+          # SMS API has 1 publication; assert portal_id matches the applied portal
+          - name: api-has-publication
+            select: "apis[0].publications[0]"
+            expect:
+              fields:
+                portal_id: "{{ .vars.portalID }}"
+                visibility: "public"
+          # Exactly one auth strategy ID on the publication, matching the applied key-auth strategy
+          - name: api-publication-has-auth-strategy
+            select: "apis[0].publications[0].auth_strategy_ids"
+            expect:
+              fields:
+                "length(@)": 1
+                "[0]": "{{ .vars.keyAuthID }}"
 
   # ── filter-name on portals ────────────────────────────────────
   - name: 005-dump-filter-portal-name
@@ -206,3 +225,92 @@ steps:
         outputFormat: none
         expectFailure:
           contains: "mutually exclusive"
+
+  # ── filter-id: portal by UUID ────────────────────────────────
+  - name: 010-dump-filter-id-portal
+    skipInputs: true
+    commands:
+      - name: 000-dump-portal-by-id
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - "--filter-id={{ .vars.portalID }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: exactly-one-portal
+            select: portals
+            expect:
+              fields:
+                "length(@)": 1
+          - name: correct-portal-name
+            select: "portals[0]"
+            expect:
+              fields:
+                name: "My First Portal"
+          - name: no-extra-portals
+            select: "portals[?name!='My First Portal'] | [0]"
+            expect:
+              fields:
+                name: null
+
+  # ── filter-id: auth strategy by UUID ─────────────────────────
+  - name: 011-dump-filter-id-auth-strategy
+    skipInputs: true
+    commands:
+      - name: 000-dump-auth-strategy-by-id
+        run:
+          - dump
+          - declarative
+          - "--resources=application_auth_strategies"
+          - "--filter-id={{ .vars.keyAuthID }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: exactly-one-strategy
+            select: application_auth_strategies
+            expect:
+              fields:
+                "length(@)": 1
+          - name: correct-strategy-name
+            select: "application_auth_strategies[0]"
+            expect:
+              fields:
+                name: "key-auth"
+
+  # ── tf-import filter-id smoke test ───────────────────────────
+  - name: 012-tf-import-filter-id
+    skipInputs: true
+    commands:
+      - name: 000-tf-import-portal-by-id
+        run:
+          - dump
+          - tf-import
+          - "--resources=portals"
+          - "--filter-id={{ .vars.portalID }}"
+        outputFormat: none
+        parseAs: raw
+
+  - name: 013-delete-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

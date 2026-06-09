@@ -20,22 +20,22 @@ import (
 )
 
 type auditLogDestinationRecord struct {
-	ID                  string `json:"id,omitempty" yaml:"id,omitempty"`
-	Name                string `json:"name,omitempty" yaml:"name,omitempty"`
-	Endpoint            string `json:"endpoint,omitempty" yaml:"endpoint,omitempty"`
-	LogFormat           string `json:"log_format,omitempty" yaml:"log_format,omitempty"`
+	ID                  string `json:"id,omitempty"                    yaml:"id,omitempty"`
+	Name                string `json:"name,omitempty"                  yaml:"name,omitempty"`
+	Endpoint            string `json:"endpoint,omitempty"              yaml:"endpoint,omitempty"`
+	LogFormat           string `json:"log_format,omitempty"            yaml:"log_format,omitempty"`
 	SkipSSLVerification *bool  `json:"skip_ssl_verification,omitempty" yaml:"skip_ssl_verification,omitempty"`
-	CreatedAt           string `json:"created_at,omitempty" yaml:"created_at,omitempty"`
-	UpdatedAt           string `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
+	CreatedAt           string `json:"created_at,omitempty"            yaml:"created_at,omitempty"`
+	UpdatedAt           string `json:"updated_at,omitempty"            yaml:"updated_at,omitempty"`
 }
 
 type auditLogWebhookConfig struct {
-	Enabled             *bool  `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	Endpoint            string `json:"endpoint,omitempty" yaml:"endpoint,omitempty"`
-	LogFormat           string `json:"log_format,omitempty" yaml:"log_format,omitempty"`
-	SkipSSLVerification *bool  `json:"skip_ssl_verification,omitempty" yaml:"skip_ssl_verification,omitempty"`
+	Enabled             *bool  `json:"enabled,omitempty"                  yaml:"enabled,omitempty"`
+	Endpoint            string `json:"endpoint,omitempty"                 yaml:"endpoint,omitempty"`
+	LogFormat           string `json:"log_format,omitempty"               yaml:"log_format,omitempty"`
+	SkipSSLVerification *bool  `json:"skip_ssl_verification,omitempty"    yaml:"skip_ssl_verification,omitempty"`
 	DestinationID       string `json:"audit_log_destination_id,omitempty" yaml:"audit_log_destination_id,omitempty"`
-	UpdatedAt           string `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
+	UpdatedAt           string `json:"updated_at,omitempty"               yaml:"updated_at,omitempty"`
 }
 
 type getAuditLogsDestinationsCmd struct {
@@ -80,8 +80,9 @@ regional webhook configuration.`
 		if _, err := helper.GetOutputFormat(); err != nil {
 			return err
 		}
-		return cmdObj.Help()
+		return cmd.RequireSubcommand(cmdObj, args)
 	}
+	cmd.MarkRequiresSubcommand(baseCmd)
 
 	baseCmd.AddCommand(newGetAuditLogsDestinationsCmd(verb, addParentFlags, parentPreRun))
 	baseCmd.AddCommand(newGetAuditLogDestinationCmd(verb, addParentFlags, parentPreRun))
@@ -185,7 +186,9 @@ func (c *getAuditLogsDestinationsCmd) runE(cobraCmd *cobra.Command, args []strin
 func (c *getAuditLogDestinationCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(cobraCmd, args)
 	if len(helper.GetArgs()) != 1 {
-		return &cmd.ConfigurationError{Err: fmt.Errorf("the destination command requires exactly one argument: <id|name>")}
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("the destination command requires exactly one argument: <id|name>"),
+		}
 	}
 
 	records, err := fetchAuditLogDestinations(helper)
@@ -209,7 +212,11 @@ func (c *getAuditLogWebhookCmd) runE(cobraCmd *cobra.Command, args []string) err
 
 	webhookCfg, err := fetchRegionalWebhookConfig(helper)
 	if err != nil {
-		return cmd.PrepareExecutionError("failed to retrieve regional audit-log webhook configuration", err, helper.GetCmd())
+		return cmd.PrepareExecutionError(
+			"failed to retrieve regional audit-log webhook configuration",
+			err,
+			helper.GetCmd(),
+		)
 	}
 
 	return renderAuditLogWebhookOutput(helper, webhookCfg)
@@ -226,7 +233,7 @@ func fetchAuditLogDestinations(helper cmd.Helper) ([]auditLogDestinationRecord, 
 		return nil, err
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Konnect access token: %w", err)
 	}
@@ -235,15 +242,18 @@ func fetchAuditLogDestinations(helper cmd.Helper) ([]auditLogDestinationRecord, 
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return nil, fmt.Errorf("resolve Konnect access token: %w", err)
+	}
 
 	client := httpclient.NewLoggingHTTPClient(logger)
-	result, err := apiutil.Request(
+	result, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodGet,
 		konnectcommon.GlobalBaseURL,
 		listDestinationPath,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)
@@ -275,7 +285,7 @@ func fetchRegionalWebhookConfig(helper cmd.Helper) (auditLogWebhookConfig, error
 		return auditLogWebhookConfig{}, err
 	}
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return auditLogWebhookConfig{}, fmt.Errorf("resolve Konnect access token: %w", err)
 	}
@@ -289,15 +299,18 @@ func fetchRegionalWebhookConfig(helper cmd.Helper) (auditLogWebhookConfig, error
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return auditLogWebhookConfig{}, fmt.Errorf("resolve Konnect access token: %w", err)
+	}
 
 	client := httpclient.NewLoggingHTTPClient(logger)
-	result, err := apiutil.Request(
+	result, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodGet,
 		baseURL,
 		webhookPathV2,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)

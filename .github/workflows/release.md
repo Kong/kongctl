@@ -53,6 +53,10 @@ jobs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
       release_version: ${{ steps.compute_config.outputs.release_version }}
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -189,21 +193,17 @@ jobs:
     env:
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: true
-
-      - name: Export release variables
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        run: |
-          set -euo pipefail
-          echo "RELEASE_TAG=${{ needs.config.outputs.release_tag }}" >> "$GITHUB_ENV"
-          echo "RELEASE_VERSION=${{ needs.config.outputs.release_version }}" >> "$GITHUB_ENV"
-          echo "DOCKER_USERNAME=${DOCKER_USERNAME}" >> "$GITHUB_ENV"
 
       - name: Determine build mode
         env:
@@ -287,7 +287,7 @@ jobs:
 
       - name: Run GoReleaser (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: goreleaser/goreleaser-action@605f2f8fe33b6daa57290d335d127dada4284d40 # v6.4.0
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           distribution: goreleaser
           version: v2.13.3
@@ -400,13 +400,14 @@ steps:
       RELEASE_ID: ${{ needs.release.outputs.release_id }}
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
     run: |
       set -euo pipefail
 
       mkdir -p /tmp/gh-aw/release-data
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
 
-      gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
+      gh api "/repos/$EXPR_GITHUB_REPOSITORY/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
 
       PREV_RELEASE_TAG=$(gh release list \
         --exclude-drafts \
@@ -431,7 +432,7 @@ steps:
           --jq "[.[] | select(.mergedAt >= \"$PREV_PUBLISHED_AT\" and .mergedAt <= \"$CURR_PUBLISHED_AT\")]" \
           > /tmp/gh-aw/release-data/pull_requests.json
 
-        gh api "/repos/${{ github.repository }}/compare/${PREV_RELEASE_TAG}...${RELEASE_TAG}" \
+        gh api "/repos/$EXPR_GITHUB_REPOSITORY/compare/${PREV_RELEASE_TAG}...${RELEASE_TAG}" \
           > /tmp/gh-aw/release-data/compare.json
       fi
 
@@ -472,6 +473,15 @@ All data is pre-fetched in `/tmp/gh-aw/release-data/`:
 
 Generate complete release notes that replace the existing release content,
 so users can quickly understand what changed and why it matters.
+
+**Important tool usage notes:**
+- All required GitHub release, PR, issue, and compare data has already been
+  pre-fetched into `/tmp/gh-aw/release-data/`.
+- Use local shell commands only to inspect those pre-fetched files and relevant
+  repository files.
+- Do NOT use `gh` CLI commands or make additional GitHub API calls from the
+  agent. The agent should operate only on the pre-fetched local data.
+- Use the `update_release` safe-output tool exactly once for the final write.
 
 The highlights should be:
 - User-impact focused, not a raw changelog dump
@@ -566,15 +576,12 @@ You MUST call the `safeoutputs/update_release` MCP tool exactly once:
 The body should begin with:
 
 ```markdown
-## <img src="https://raw.githubusercontent.com/Kong/kongctl/main/brand/logo/dark/Kong-Logomark.svg" alt="Kong logo" width="20" /> kongctl Release Highlights
+## <img src="https://raw.githubusercontent.com/Kong/kongctl/main/brand/logo/light/Kong-Logomark.svg#gh-light-mode-only" alt="Kong logo" width="20" /> <img src="https://raw.githubusercontent.com/Kong/kongctl/main/brand/logo/dark/Kong-Logomark.svg#gh-dark-mode-only" alt="Kong logo" width="20" /> kongctl Release Highlights
 ```
 
-If HTML image rendering is unavailable in the release markdown renderer, fall
-back to:
-
-```markdown
-## kongctl Release Highlights
-```
+The `<img>` tags in the opening heading are intentional and must be preserved so
+the theme-aware Kong logo renders in the GitHub release body. Avoid other raw
+HTML unless it is required for GitHub-flavored Markdown rendering.
 
 When commits are available, include this section near the end:
 

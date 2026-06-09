@@ -7,34 +7,58 @@ type ResourceType string
 
 // Resource type constants
 const (
-	ResourceTypePortal                           ResourceType = "portal"
-	ResourceTypeApplicationAuthStrategy          ResourceType = "application_auth_strategy"
-	ResourceTypeControlPlane                     ResourceType = "control_plane"
-	ResourceTypeAPI                              ResourceType = "api"
-	ResourceTypeAPIVersion                       ResourceType = "api_version"
-	ResourceTypeAPIPublication                   ResourceType = "api_publication"
-	ResourceTypeAPIImplementation                ResourceType = "api_implementation"
-	ResourceTypeAPIDocument                      ResourceType = "api_document"
-	ResourceTypeGatewayService                   ResourceType = "gateway_service"
-	ResourceTypePortalCustomization              ResourceType = "portal_customization"
-	ResourceTypePortalCustomDomain               ResourceType = "portal_custom_domain"
-	ResourceTypePortalAuthSettings               ResourceType = "portal_auth_settings"
-	ResourceTypePortalPage                       ResourceType = "portal_page"
-	ResourceTypePortalSnippet                    ResourceType = "portal_snippet"
-	ResourceTypePortalTeam                       ResourceType = "portal_team"
-	ResourceTypePortalTeamRole                   ResourceType = "portal_team_role"
-	ResourceTypePortalAssetLogo                  ResourceType = "portal_asset_logo"
-	ResourceTypePortalAssetFavicon               ResourceType = "portal_asset_favicon"
-	ResourceTypePortalEmailConfig                ResourceType = "portal_email_config"
-	ResourceTypePortalEmailTemplate              ResourceType = "portal_email_template"
-	ResourceTypeCatalogService                   ResourceType = "catalog_service"
-	ResourceTypeEventGatewayControlPlane         ResourceType = "event_gateway"
-	ResourceTypeEventGatewayBackendCluster       ResourceType = "event_gateway_backend_cluster"
-	ResourceTypeEventGatewayVirtualCluster       ResourceType = "event_gateway_virtual_cluster"
-	ResourceTypeOrganizationTeam                 ResourceType = "organization_team"
-	ResourceTypeEventGatewayListener             ResourceType = "event_gateway_listener"
-	ResourceTypeEventGatewayListenerPolicy       ResourceType = "event_gateway_listener_policy"
-	ResourceTypeEventGatewayDataPlaneCertificate ResourceType = "event_gateway_data_plane_certificate"
+	ResourceTypePortal                                  ResourceType = "portal"
+	ResourceTypeApplicationAuthStrategy                 ResourceType = "application_auth_strategy"
+	ResourceTypeDCRProvider                             ResourceType = "dcr_provider"
+	ResourceTypeControlPlane                            ResourceType = "control_plane"
+	ResourceTypeControlPlaneGroup                       ResourceType = "control_plane_group"
+	ResourceTypeAPI                                     ResourceType = "api"
+	ResourceTypeDashboard                               ResourceType = "dashboard"
+	ResourceTypeAPIVersion                              ResourceType = "api_version"
+	ResourceTypeAPIPublication                          ResourceType = "api_publication"
+	ResourceTypeAPIImplementation                       ResourceType = "api_implementation"
+	ResourceTypeAPIDocument                             ResourceType = "api_document"
+	ResourceTypeGatewayService                          ResourceType = "gateway_service"
+	ResourceTypeControlPlaneDataPlaneCertificate        ResourceType = "control_plane_data_plane_certificate"
+	ResourceTypePortalCustomization                     ResourceType = "portal_customization"
+	ResourceTypePortalCustomDomain                      ResourceType = "portal_custom_domain"
+	ResourceTypePortalAuthSettings                      ResourceType = "portal_auth_settings"
+	ResourceTypePortalIPAllowList                       ResourceType = "portal_ip_allow_list"
+	ResourceTypePortalIntegration                       ResourceType = "portal_integration"
+	ResourceTypePortalIdentityProvider                  ResourceType = "portal_identity_provider"
+	ResourceTypePortalTeamGroupMapping                  ResourceType = "portal_team_group_mapping"
+	ResourceTypePortalPage                              ResourceType = "portal_page"
+	ResourceTypePortalSnippet                           ResourceType = "portal_snippet"
+	ResourceTypePortalTeam                              ResourceType = "portal_team"
+	ResourceTypePortalTeamRole                          ResourceType = "portal_team_role"
+	ResourceTypePortalAssetLogo                         ResourceType = "portal_asset_logo"
+	ResourceTypePortalAssetFavicon                      ResourceType = "portal_asset_favicon"
+	ResourceTypePortalEmailConfig                       ResourceType = "portal_email_config"
+	ResourceTypePortalEmailTemplate                     ResourceType = "portal_email_template"
+	ResourceTypePortalAuditLogWebhook                   ResourceType = "portal_audit_log_webhook"
+	ResourceTypeAuditLogWebhookDestination              ResourceType = "audit_log_webhook_destination"
+	ResourceTypeCatalogService                          ResourceType = "catalog_service"
+	ResourceTypeEventGatewayControlPlane                ResourceType = "event_gateway"
+	ResourceTypeEventGatewayBackendCluster              ResourceType = "event_gateway_backend_cluster"
+	ResourceTypeEventGatewayVirtualCluster              ResourceType = "event_gateway_virtual_cluster"
+	ResourceTypeOrganizationTeam                        ResourceType = "organization_team"
+	ResourceTypeOrganizationTeamRole                    ResourceType = "organization_team_role"
+	ResourceTypeOrganizationUser                        ResourceType = "organization_user"
+	ResourceTypeOrganizationUserTeamMembership          ResourceType = "organization_user_team_membership"
+	ResourceTypeOrganizationUserRole                    ResourceType = "organization_user_role"
+	ResourceTypeOrganizationSystemAccount               ResourceType = "organization_system_account"
+	ResourceTypeOrganizationSystemAccountTeamMembership ResourceType = "organization_system_account_team_membership"
+	ResourceTypeOrganizationSystemAccountRole           ResourceType = "organization_system_account_role"
+	ResourceTypeTeam                                    ResourceType = "team"
+	ResourceTypeEventGatewayListener                    ResourceType = "event_gateway_listener"
+	ResourceTypeEventGatewayListenerPolicy              ResourceType = "event_gateway_listener_policy"
+	ResourceTypeEventGatewayDataPlaneCertificate        ResourceType = "event_gateway_data_plane_certificate"
+	ResourceTypeEventGatewayClusterPolicy               ResourceType = "event_gateway_virtual_cluster_cluster_policy"
+	ResourceTypeEventGatewayProducePolicy               ResourceType = "event_gateway_virtual_cluster_produce_policy"
+	ResourceTypeEventGatewayConsumePolicy               ResourceType = "event_gateway_virtual_cluster_consume_policy"
+	ResourceTypeEventGatewaySchemaRegistry              ResourceType = "event_gateway_schema_registry"
+	ResourceTypeEventGatewayStaticKey                   ResourceType = "event_gateway_static_key"
+	ResourceTypeEventGatewayTLSTrustBundle              ResourceType = "event_gateway_tls_trust_bundle"
 )
 
 const (
@@ -42,54 +66,89 @@ const (
 	NamespaceExternal = ""
 )
 
+const (
+	SchemaFieldRef    = "ref"
+	SchemaFieldPortal = "portal"
+	SchemaFieldTeams  = "teams"
+)
+
 // ResourceRef represents a reference to another resource
 type ResourceRef struct {
-	Kind string `json:"kind" yaml:"kind"`
-	Ref  string `json:"ref"  yaml:"ref"`
+	Kind ResourceType `json:"kind" yaml:"kind"`
+	Ref  string       `json:"ref"  yaml:"ref"`
 }
 
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
-	Portals []PortalResource `yaml:"portals,omitempty"                        json:"portals,omitempty"`
+	Portals []PortalResource `yaml:"portals,omitempty"                                        json:"portals,omitempty"`
+	// AuditLogs contains organization-scoped audit-log resources.
+	AuditLogs *AuditLogsResource `yaml:"audit-logs,omitempty"                                    json:"audit-logs,omitempty"` //nolint:lll
 	// ApplicationAuthStrategies contains auth strategy configurations
-	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"    json:"application_auth_strategies,omitempty"` //nolint:lll
+	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"                    json:"application_auth_strategies,omitempty"` //nolint:lll
+	DCRProviders              []DCRProviderResource             `yaml:"dcr_providers,omitempty"                                  json:"dcr_providers,omitempty"`               //nolint:lll
 	// ControlPlanes contains control plane configurations
-	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty"                 json:"control_planes,omitempty"`   //nolint:lll
-	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty"               json:"catalog_services,omitempty"` //nolint:lll
-	APIs            []APIResource            `yaml:"apis,omitempty"                           json:"apis,omitempty"`
-	GatewayServices []GatewayServiceResource `yaml:"gateway_services,omitempty"               json:"gateway_services,omitempty"` //nolint:lll
+	ControlPlanes                     []ControlPlaneResource                     `yaml:"control_planes,omitempty"                                 json:"control_planes,omitempty"`                        //nolint:lll
+	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
+	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
+	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
+	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
 	// API child resources can be defined at root level (with parent reference) or nested under APIs
-	APIVersions        []APIVersionResource        `yaml:"api_versions,omitempty"                   json:"api_versions,omitempty"`        //nolint:lll
-	APIPublications    []APIPublicationResource    `yaml:"api_publications,omitempty"               json:"api_publications,omitempty"`    //nolint:lll
-	APIImplementations []APIImplementationResource `yaml:"api_implementations,omitempty"            json:"api_implementations,omitempty"` //nolint:lll
-	APIDocuments       []APIDocumentResource       `yaml:"api_documents,omitempty"                  json:"api_documents,omitempty"`       //nolint:lll
+	APIVersions        []APIVersionResource        `yaml:"api_versions,omitempty"                                   json:"api_versions,omitempty"`        //nolint:lll
+	APIPublications    []APIPublicationResource    `yaml:"api_publications,omitempty"                               json:"api_publications,omitempty"`    //nolint:lll
+	APIImplementations []APIImplementationResource `yaml:"api_implementations,omitempty"                            json:"api_implementations,omitempty"` //nolint:lll
+	APIDocuments       []APIDocumentResource       `yaml:"api_documents,omitempty"                                  json:"api_documents,omitempty"`       //nolint:lll
 	// Portal child resources can be defined at root level (with parent reference) or nested under Portals
-	PortalCustomizations        []PortalCustomizationResource        `yaml:"portal_customizations,omitempty"          json:"portal_customizations,omitempty"`          //nolint:lll
-	PortalAuthSettings          []PortalAuthSettingsResource         `yaml:"portal_auth_settings,omitempty"           json:"portal_auth_settings,omitempty"`           //nolint:lll
-	PortalCustomDomains         []PortalCustomDomainResource         `yaml:"portal_custom_domains,omitempty"          json:"portal_custom_domains,omitempty"`          //nolint:lll
-	PortalPages                 []PortalPageResource                 `yaml:"portal_pages,omitempty"                   json:"portal_pages,omitempty"`                   //nolint:lll
-	PortalSnippets              []PortalSnippetResource              `yaml:"portal_snippets,omitempty"                json:"portal_snippets,omitempty"`                //nolint:lll
-	PortalTeams                 []PortalTeamResource                 `yaml:"portal_teams,omitempty"                   json:"portal_teams,omitempty"`                   //nolint:lll
-	PortalTeamRoles             []PortalTeamRoleResource             `yaml:"portal_team_roles,omitempty"              json:"portal_team_roles,omitempty"`              //nolint:lll
-	PortalAssetLogos            []PortalAssetLogoResource            `yaml:"portal_asset_logos,omitempty"             json:"portal_asset_logos,omitempty"`             //nolint:lll
-	PortalAssetFavicons         []PortalAssetFaviconResource         `yaml:"portal_asset_favicons,omitempty"          json:"portal_asset_favicons,omitempty"`          //nolint:lll
-	PortalEmailConfigs          []PortalEmailConfigResource          `yaml:"portal_email_configs,omitempty"           json:"portal_email_configs,omitempty"`           //nolint:lll
-	PortalEmailTemplates        []PortalEmailTemplateResource        `yaml:"portal_email_templates,omitempty"         json:"portal_email_templates,omitempty"`         //nolint:lll
-	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty"                 json:"event_gateways,omitempty"`                 //nolint:lll
-	EventGatewayBackendClusters []EventGatewayBackendClusterResource `yaml:"event_gateway_backend_clusters,omitempty" json:"event_gateway_backend_clusters,omitempty"` //nolint:lll
-	EventGatewayVirtualClusters []EventGatewayVirtualClusterResource `yaml:"event_gateway_virtual_clusters,omitempty" json:"event_gateway_virtual_clusters,omitempty"` //nolint:lll
+	PortalCustomizations        []PortalCustomizationResource        `yaml:"portal_customizations,omitempty"                          json:"portal_customizations,omitempty"`          //nolint:lll
+	PortalAuthSettings          []PortalAuthSettingsResource         `yaml:"portal_auth_settings,omitempty"                           json:"portal_auth_settings,omitempty"`           //nolint:lll
+	PortalIPAllowLists          []PortalIPAllowListResource          `yaml:"portal_ip_allow_lists,omitempty"                          json:"portal_ip_allow_lists,omitempty"`          //nolint:lll
+	PortalIntegrations          []PortalIntegrationResource          `yaml:"portal_integrations,omitempty"                            json:"portal_integrations,omitempty"`            //nolint:lll
+	PortalIdentityProviders     []PortalIdentityProviderResource     `yaml:"portal_identity_providers,omitempty"                      json:"portal_identity_providers,omitempty"`      //nolint:lll
+	PortalTeamGroupMappings     []PortalTeamGroupMappingResource     `yaml:"portal_team_group_mappings,omitempty"                    json:"portal_team_group_mappings,omitempty"`      //nolint:lll
+	PortalCustomDomains         []PortalCustomDomainResource         `yaml:"portal_custom_domains,omitempty"                          json:"portal_custom_domains,omitempty"`          //nolint:lll
+	PortalPages                 []PortalPageResource                 `yaml:"portal_pages,omitempty"                                   json:"portal_pages,omitempty"`                   //nolint:lll
+	PortalSnippets              []PortalSnippetResource              `yaml:"portal_snippets,omitempty"                                json:"portal_snippets,omitempty"`                //nolint:lll
+	PortalTeams                 []PortalTeamResource                 `yaml:"portal_teams,omitempty"                                   json:"portal_teams,omitempty"`                   //nolint:lll
+	PortalTeamRoles             []PortalTeamRoleResource             `yaml:"portal_team_roles,omitempty"                              json:"portal_team_roles,omitempty"`              //nolint:lll
+	PortalAssetLogos            []PortalAssetLogoResource            `yaml:"portal_asset_logos,omitempty"                             json:"portal_asset_logos,omitempty"`             //nolint:lll
+	PortalAssetFavicons         []PortalAssetFaviconResource         `yaml:"portal_asset_favicons,omitempty"                          json:"portal_asset_favicons,omitempty"`          //nolint:lll
+	PortalEmailConfigs          []PortalEmailConfigResource          `yaml:"portal_email_configs,omitempty"                           json:"portal_email_configs,omitempty"`           //nolint:lll
+	PortalEmailTemplates        []PortalEmailTemplateResource        `yaml:"portal_email_templates,omitempty"                         json:"portal_email_templates,omitempty"`         //nolint:lll
+	PortalAuditLogWebhooks      []PortalAuditLogWebhookResource      `yaml:"portal_audit_log_webhooks,omitempty"                      json:"portal_audit_log_webhooks,omitempty"`      //nolint:lll
+	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty"                                 json:"event_gateways,omitempty"`                 //nolint:lll
+	EventGatewayBackendClusters []EventGatewayBackendClusterResource `yaml:"event_gateway_backend_clusters,omitempty"                 json:"event_gateway_backend_clusters,omitempty"` //nolint:lll
+	EventGatewayVirtualClusters []EventGatewayVirtualClusterResource `yaml:"event_gateway_virtual_clusters,omitempty"                 json:"event_gateway_virtual_clusters,omitempty"` //nolint:lll
 	// Organization grouping - contains nested resources like teams
-	Organization *OrganizationResource `yaml:"organization,omitempty"                   json:"organization,omitempty"`
+	Organization *OrganizationResource `yaml:"organization,omitempty"                                   json:"organization,omitempty"` //nolint:lll
+	// Analytics grouping - contains nested resources like dashboards
+	Analytics *AnalyticsResource `yaml:"analytics,omitempty" json:"analytics,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
-	OrganizationTeams                 []OrganizationTeamResource                 `yaml:"-" json:"-"`
-	EventGatewayListeners             []EventGatewayListenerResource             `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                             //nolint:lll
-	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`             //nolint:lll
-	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"` //nolint:lll
+	OrganizationTeams                        []OrganizationTeamResource                        `yaml:"-" json:"-"`
+	OrganizationTeamRoles                    []OrganizationTeamRoleResource                    `yaml:"organization_team_roles,omitempty" json:"organization_team_roles,omitempty"` //nolint:lll
+	OrganizationUserTeamMemberships          []OrganizationUserTeamMembershipResource          `yaml:"-" json:"-"`
+	OrganizationUserRoles                    []OrganizationUserRoleResource                    `yaml:"-" json:"-"`
+	OrganizationSystemAccountTeamMemberships []OrganizationSystemAccountTeamMembershipResource `yaml:"-" json:"-"`
+	OrganizationSystemAccountRoles           []OrganizationSystemAccountRoleResource           `yaml:"-" json:"-"`
+	EventGatewayListeners                    []EventGatewayListenerResource                    `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                                               //nolint:lll
+	EventGatewayListenerPolicies             []EventGatewayListenerPolicyResource              `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`                               //nolint:lll
+	EventGatewayClusterPolicies              []EventGatewayClusterPolicyResource               `yaml:"event_gateway_virtual_cluster_cluster_policies,omitempty" json:"event_gateway_virtual_cluster_cluster_policies,omitempty"` //nolint:lll
+	EventGatewayProducePolicies              []EventGatewayProducePolicyResource               `yaml:"event_gateway_virtual_cluster_produce_policies,omitempty" json:"event_gateway_virtual_cluster_produce_policies,omitempty"` //nolint:lll
+	EventGatewayConsumePolicies              []EventGatewayConsumePolicyResource               `yaml:"event_gateway_virtual_cluster_consume_policies,omitempty" json:"event_gateway_virtual_cluster_consume_policies,omitempty"` //nolint:lll
+	EventGatewayDataPlaneCertificates        []EventGatewayDataPlaneCertificateResource        `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"`                   //nolint:lll
+	EventGatewaySchemaRegistries             []EventGatewaySchemaRegistryResource              `yaml:"event_gateway_schema_registries,omitempty"       json:"event_gateway_schema_registries,omitempty"`                         //nolint:lll
+	EventGatewayStaticKeys                   []EventGatewayStaticKeyResource                   `yaml:"event_gateway_static_keys,omitempty"              json:"event_gateway_static_keys,omitempty"`                              //nolint:lll
+	EventGatewayTLSTrustBundles              []EventGatewayTLSTrustBundleResource              `yaml:"event_gateway_tls_trust_bundles,omitempty"        json:"event_gateway_tls_trust_bundles,omitempty"`                        //nolint:lll
+	// Dashboards is populated internally from Analytics.Dashboards during loading.
+	// It is not exposed in YAML/JSON to enforce the analytics grouping format.
+	Dashboards []DashboardResource `yaml:"-" json:"-"`
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
-	DefaultNamespace  string   `yaml:"-"                                        json:"-"`
-	DefaultNamespaces []string `yaml:"-"                                        json:"-"`
+	DefaultNamespace  string   `yaml:"-"                                                        json:"-"`
+	DefaultNamespaces []string `yaml:"-"                                                        json:"-"`
+	// EnvSources tracks deferred !env placeholders by resource ref and field path.
+	EnvSources map[string]map[string]string `yaml:"-"                                                        json:"-"`
+	// SyncScope tracks resource collection keys explicitly present in the input.
+	SyncScope *SyncScope `yaml:"-"                                                        json:"-"`
 }
 
 // NamespaceOrigin describes how a namespace value was supplied for a resource
@@ -146,6 +205,45 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	return found, found != nil
 }
 
+// AddEnvSource records a deferred !env placeholder for a resource field path.
+func (rs *ResourceSet) AddEnvSource(resourceRef, fieldPath, placeholder string) {
+	if resourceRef == "" || fieldPath == "" || placeholder == "" {
+		return
+	}
+	if rs.EnvSources == nil {
+		rs.EnvSources = make(map[string]map[string]string)
+	}
+	if rs.EnvSources[resourceRef] == nil {
+		rs.EnvSources[resourceRef] = make(map[string]string)
+	}
+	rs.EnvSources[resourceRef][fieldPath] = placeholder
+}
+
+// GetEnvSources returns deferred !env placeholders for a resource ref.
+func (rs *ResourceSet) GetEnvSources(resourceRef string) map[string]string {
+	if rs == nil || rs.EnvSources == nil {
+		return nil
+	}
+	return rs.EnvSources[resourceRef]
+}
+
+// MergeEnvSources copies deferred !env placeholders from another ResourceSet.
+func (rs *ResourceSet) MergeEnvSources(other *ResourceSet) {
+	if rs == nil || other == nil || len(other.EnvSources) == 0 {
+		return
+	}
+	for resourceRef, paths := range other.EnvSources {
+		for path, placeholder := range paths {
+			rs.AddEnvSource(resourceRef, path, placeholder)
+		}
+	}
+}
+
+// HasEnvSources returns true when any deferred !env placeholders were recorded.
+func (rs *ResourceSet) HasEnvSources() bool {
+	return rs != nil && len(rs.EnvSources) > 0
+}
+
 // GetResourceTypeByRef returns the resource type for a given ref
 func (rs *ResourceSet) GetResourceTypeByRef(ref string) (ResourceType, bool) {
 	res, ok := rs.GetResourceByRef(ref)
@@ -177,6 +275,16 @@ func (rs *ResourceSet) GetAPIByRef(ref string) *APIResource {
 	return nil
 }
 
+// GetDashboardByRef returns a dashboard resource by its ref from any namespace.
+func (rs *ResourceSet) GetDashboardByRef(ref string) *DashboardResource {
+	for i := range rs.Dashboards {
+		if rs.Dashboards[i].GetRef() == ref {
+			return &rs.Dashboards[i]
+		}
+	}
+	return nil
+}
+
 // GetControlPlaneByRef returns a control plane resource by its ref from any namespace
 func (rs *ResourceSet) GetControlPlaneByRef(ref string) *ControlPlaneResource {
 	for i := range rs.ControlPlanes {
@@ -202,6 +310,16 @@ func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategy
 	for i := range rs.ApplicationAuthStrategies {
 		if rs.ApplicationAuthStrategies[i].GetRef() == ref {
 			return &rs.ApplicationAuthStrategies[i]
+		}
+	}
+	return nil
+}
+
+// GetDCRProviderByRef returns a DCR provider resource by its ref from any namespace
+func (rs *ResourceSet) GetDCRProviderByRef(ref string) *DCRProviderResource {
+	for i := range rs.DCRProviders {
+		if rs.DCRProviders[i].GetRef() == ref {
+			return &rs.DCRProviders[i]
 		}
 	}
 	return nil
@@ -259,12 +377,34 @@ func (rs *ResourceSet) GetAPIsByNamespace(namespace string) []APIResource {
 	return filtered
 }
 
+// GetDashboardsByNamespace returns all dashboard resources from the specified namespace.
+func (rs *ResourceSet) GetDashboardsByNamespace(namespace string) []DashboardResource {
+	var filtered []DashboardResource
+	for _, dashboard := range rs.Dashboards {
+		if GetNamespace(dashboard.Kongctl) == namespace {
+			filtered = append(filtered, dashboard)
+		}
+	}
+	return filtered
+}
+
 // GetAuthStrategiesByNamespace returns all auth strategy resources from the specified namespace
 func (rs *ResourceSet) GetAuthStrategiesByNamespace(namespace string) []ApplicationAuthStrategyResource {
 	var filtered []ApplicationAuthStrategyResource
 	for _, strategy := range rs.ApplicationAuthStrategies {
 		if GetNamespace(strategy.Kongctl) == namespace {
 			filtered = append(filtered, strategy)
+		}
+	}
+	return filtered
+}
+
+// GetDCRProvidersByNamespace returns all DCR provider resources from the specified namespace
+func (rs *ResourceSet) GetDCRProvidersByNamespace(namespace string) []DCRProviderResource {
+	var filtered []DCRProviderResource
+	for _, provider := range rs.DCRProviders {
+		if GetNamespace(provider.Kongctl) == namespace {
+			filtered = append(filtered, provider)
 		}
 	}
 	return filtered
@@ -357,6 +497,82 @@ func (rs *ResourceSet) GetPortalAuthSettingsByNamespace(namespace string) []Port
 	return filtered
 }
 
+// GetPortalIPAllowListsByNamespace returns all portal IP allow-list resources from the specified namespace.
+func (rs *ResourceSet) GetPortalIPAllowListsByNamespace(namespace string) []PortalIPAllowListResource {
+	var filtered []PortalIPAllowListResource
+	for _, allowList := range rs.PortalIPAllowLists {
+		if portal := rs.GetPortalByRef(allowList.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, allowList)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, allowList)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalIntegrationsByNamespace returns all portal integration resources from the specified namespace
+func (rs *ResourceSet) GetPortalIntegrationsByNamespace(namespace string) []PortalIntegrationResource {
+	var filtered []PortalIntegrationResource
+	for _, integration := range rs.PortalIntegrations {
+		if portal := rs.GetPortalByRef(integration.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, integration)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, integration)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalIdentityProvidersByNamespace returns all portal identity provider resources from the specified namespace
+func (rs *ResourceSet) GetPortalIdentityProvidersByNamespace(namespace string) []PortalIdentityProviderResource {
+	var filtered []PortalIdentityProviderResource
+	for _, provider := range rs.PortalIdentityProviders {
+		if portal := rs.GetPortalByRef(provider.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, provider)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, provider)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalTeamGroupMappingsByNamespace returns portal team group mappings from the specified namespace.
+func (rs *ResourceSet) GetPortalTeamGroupMappingsByNamespace(namespace string) []PortalTeamGroupMappingResource {
+	var filtered []PortalTeamGroupMappingResource
+	for _, mapping := range rs.PortalTeamGroupMappings {
+		if portal := rs.GetPortalByRef(mapping.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, mapping)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, mapping)
+			}
+		}
+	}
+	return filtered
+}
+
 // GetPortalCustomDomainsByNamespace returns all portal custom domain resources from the specified namespace
 func (rs *ResourceSet) GetPortalCustomDomainsByNamespace(namespace string) []PortalCustomDomainResource {
 	var filtered []PortalCustomDomainResource
@@ -430,6 +646,25 @@ func (rs *ResourceSet) GetPortalEmailConfigsByNamespace(namespace string) []Port
 			}
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, cfg)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalAuditLogWebhooksByNamespace returns all portal audit-log webhook resources from the specified namespace
+func (rs *ResourceSet) GetPortalAuditLogWebhooksByNamespace(namespace string) []PortalAuditLogWebhookResource {
+	var filtered []PortalAuditLogWebhookResource
+	for _, webhook := range rs.PortalAuditLogWebhooks {
+		if portal := rs.GetPortalByRef(webhook.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, webhook)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, webhook)
 			}
 		}
 	}
@@ -540,6 +775,115 @@ func (rs *ResourceSet) GetOrganizationTeamsByNamespace(namespace string) []Organ
 		}
 	}
 	return filtered
+}
+
+// GetOrganizationTeamRolesByNamespace returns all organization_team_role resources from the specified namespace.
+func (rs *ResourceSet) GetOrganizationTeamRolesByNamespace(namespace string) []OrganizationTeamRoleResource {
+	teamByRef := make(map[string]OrganizationTeamResource)
+	for _, team := range rs.OrganizationTeams {
+		teamByRef[team.Ref] = team
+	}
+
+	var filtered []OrganizationTeamRoleResource
+	for _, role := range rs.OrganizationTeamRoles {
+		if team, ok := teamByRef[role.Team]; ok {
+			if team.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, role)
+				}
+				continue
+			}
+			if GetNamespace(team.Kongctl) == namespace {
+				filtered = append(filtered, role)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetOrganizationUserTeamMembershipsByNamespace returns all user team membership resources in a namespace.
+func (rs *ResourceSet) GetOrganizationUserTeamMembershipsByNamespace(
+	namespace string,
+) []OrganizationUserTeamMembershipResource {
+	teamByRef := make(map[string]OrganizationTeamResource)
+	for _, team := range rs.GetOrganizationTeamsByNamespace(namespace) {
+		teamByRef[team.Ref] = team
+	}
+
+	var filtered []OrganizationUserTeamMembershipResource
+	for _, membership := range rs.OrganizationUserTeamMemberships {
+		if _, ok := teamByRef[membership.Team]; ok {
+			filtered = append(filtered, membership)
+		}
+	}
+	return filtered
+}
+
+// GetOrganizationUserRolesByNamespace returns all user role resources in a namespace.
+func (rs *ResourceSet) GetOrganizationUserRolesByNamespace(namespace string) []OrganizationUserRoleResource {
+	userByRef := make(map[string]OrganizationUserResource)
+	for _, user := range rs.organizationUsers() {
+		userByRef[user.Ref] = user
+	}
+
+	var filtered []OrganizationUserRoleResource
+	for _, role := range rs.OrganizationUserRoles {
+		if user, ok := userByRef[role.User]; ok && GetNamespace(user.Kongctl) == namespace {
+			filtered = append(filtered, role)
+		}
+	}
+	return filtered
+}
+
+// GetOrganizationSystemAccountTeamMembershipsByNamespace returns all system account team memberships in a namespace.
+func (rs *ResourceSet) GetOrganizationSystemAccountTeamMembershipsByNamespace(
+	namespace string,
+) []OrganizationSystemAccountTeamMembershipResource {
+	teamByRef := make(map[string]OrganizationTeamResource)
+	for _, team := range rs.GetOrganizationTeamsByNamespace(namespace) {
+		teamByRef[team.Ref] = team
+	}
+
+	var filtered []OrganizationSystemAccountTeamMembershipResource
+	for _, membership := range rs.OrganizationSystemAccountTeamMemberships {
+		if _, ok := teamByRef[membership.Team]; ok {
+			filtered = append(filtered, membership)
+		}
+	}
+	return filtered
+}
+
+// GetOrganizationSystemAccountRolesByNamespace returns all system account role resources in a namespace.
+func (rs *ResourceSet) GetOrganizationSystemAccountRolesByNamespace(
+	namespace string,
+) []OrganizationSystemAccountRoleResource {
+	systemAccountByRef := make(map[string]OrganizationSystemAccountResource)
+	for _, systemAccount := range rs.organizationSystemAccounts() {
+		systemAccountByRef[systemAccount.Ref] = systemAccount
+	}
+
+	var filtered []OrganizationSystemAccountRoleResource
+	for _, role := range rs.OrganizationSystemAccountRoles {
+		if systemAccount, ok := systemAccountByRef[role.SystemAccount]; ok &&
+			GetNamespace(systemAccount.Kongctl) == namespace {
+			filtered = append(filtered, role)
+		}
+	}
+	return filtered
+}
+
+func (rs *ResourceSet) organizationUsers() []OrganizationUserResource {
+	if rs == nil || rs.Organization == nil {
+		return nil
+	}
+	return rs.Organization.Users
+}
+
+func (rs *ResourceSet) organizationSystemAccounts() []OrganizationSystemAccountResource {
+	if rs == nil || rs.Organization == nil {
+		return nil
+	}
+	return rs.Organization.SystemAccounts
 }
 
 // GetNamespace safely extracts namespace from kongctl metadata
@@ -713,4 +1057,242 @@ func (rs *ResourceSet) GetDataPlaneCertificatesForGateway(
 	}
 
 	return certs
+}
+
+// GetDataPlaneCertificatesForControlPlane returns all data plane certificates
+// (nested + root-level) for a specific control plane.
+func (rs *ResourceSet) GetDataPlaneCertificatesForControlPlane(
+	controlPlaneRef string,
+) []ControlPlaneDataPlaneCertificateResource {
+	var certs []ControlPlaneDataPlaneCertificateResource
+
+	for _, controlPlane := range rs.ControlPlanes {
+		if controlPlane.Ref == controlPlaneRef {
+			for _, cert := range controlPlane.DataPlaneCertificates {
+				certCopy := cert
+				certCopy.ControlPlane = controlPlaneRef
+				certs = append(certs, certCopy)
+			}
+			break
+		}
+	}
+
+	for _, cert := range rs.ControlPlaneDataPlaneCertificates {
+		if cert.ControlPlane == controlPlaneRef {
+			certs = append(certs, cert)
+		}
+	}
+
+	return certs
+}
+
+// GetSchemaRegistriesForGateway returns all schema registries (nested + root-level)
+// for a specific event gateway
+func (rs *ResourceSet) GetSchemaRegistriesForGateway(
+	gatewayRef string,
+) []EventGatewaySchemaRegistryResource {
+	var regs []EventGatewaySchemaRegistryResource
+
+	// Add nested schema registries from the event gateway
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			for _, reg := range gateway.SchemaRegistries {
+				regCopy := reg
+				regCopy.EventGateway = gatewayRef
+				regs = append(regs, regCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level schema registries for this gateway
+	for _, reg := range rs.EventGatewaySchemaRegistries {
+		if reg.EventGateway == gatewayRef {
+			regs = append(regs, reg)
+		}
+	}
+
+	return regs
+}
+
+// GetClusterPoliciesForVirtualCluster returns all cluster policies (nested + root-level)
+// for a specific virtual cluster
+func (rs *ResourceSet) GetClusterPoliciesForVirtualCluster(
+	virtualClusterRef string,
+) []EventGatewayClusterPolicyResource {
+	var policies []EventGatewayClusterPolicyResource
+
+	// Add nested policies from the virtual cluster
+	// Virtual clusters can be nested inside event gateways or at root level
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		for _, vc := range gateway.VirtualClusters {
+			if vc.Ref == virtualClusterRef {
+				for _, policy := range vc.ClusterPolicies {
+					policyCopy := policy
+					policyCopy.VirtualCluster = virtualClusterRef
+					policies = append(policies, policyCopy)
+				}
+			}
+		}
+	}
+
+	// Check root-level virtual clusters
+	for _, vc := range rs.EventGatewayVirtualClusters {
+		if vc.Ref == virtualClusterRef {
+			for _, policy := range vc.ClusterPolicies {
+				policyCopy := policy
+				policyCopy.VirtualCluster = virtualClusterRef
+				policies = append(policies, policyCopy)
+			}
+		}
+	}
+
+	// Add root-level cluster policies for this virtual cluster
+	for _, policy := range rs.EventGatewayClusterPolicies {
+		if policy.VirtualCluster == virtualClusterRef {
+			policies = append(policies, policy)
+		}
+	}
+
+	return policies
+}
+
+// GetProducePoliciesForVirtualCluster returns all produce policies (nested + root-level)
+// for a specific virtual cluster
+func (rs *ResourceSet) GetProducePoliciesForVirtualCluster(
+	virtualClusterRef string,
+) []EventGatewayProducePolicyResource {
+	var policies []EventGatewayProducePolicyResource
+
+	// Add nested policies from the virtual cluster
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		for _, vc := range gateway.VirtualClusters {
+			if vc.Ref == virtualClusterRef {
+				for _, policy := range vc.ProducePolicies {
+					policyCopy := policy
+					policyCopy.VirtualCluster = virtualClusterRef
+					policies = append(policies, policyCopy)
+				}
+			}
+		}
+	}
+
+	// Check root-level virtual clusters
+	for _, vc := range rs.EventGatewayVirtualClusters {
+		if vc.Ref == virtualClusterRef {
+			for _, policy := range vc.ProducePolicies {
+				policyCopy := policy
+				policyCopy.VirtualCluster = virtualClusterRef
+				policies = append(policies, policyCopy)
+			}
+		}
+	}
+
+	// Add root-level produce policies for this virtual cluster
+	for _, policy := range rs.EventGatewayProducePolicies {
+		if policy.VirtualCluster == virtualClusterRef {
+			policies = append(policies, policy)
+		}
+	}
+
+	return policies
+}
+
+// GetConsumePoliciesForVirtualCluster returns all consume policies (nested + root-level)
+// for a specific virtual cluster.
+func (rs *ResourceSet) GetConsumePoliciesForVirtualCluster(
+	virtualClusterRef string,
+) []EventGatewayConsumePolicyResource {
+	var policies []EventGatewayConsumePolicyResource
+
+	// Add nested consume policies from virtual clusters inside event gateways
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		for _, vc := range gateway.VirtualClusters {
+			if vc.Ref == virtualClusterRef {
+				for _, policy := range vc.ConsumePolicies {
+					policyCopy := policy
+					policyCopy.VirtualCluster = virtualClusterRef
+					policies = append(policies, policyCopy)
+				}
+			}
+		}
+	}
+
+	// Check root-level virtual clusters
+	for _, vc := range rs.EventGatewayVirtualClusters {
+		if vc.Ref == virtualClusterRef {
+			for _, policy := range vc.ConsumePolicies {
+				policyCopy := policy
+				policyCopy.VirtualCluster = virtualClusterRef
+				policies = append(policies, policyCopy)
+			}
+		}
+	}
+
+	// Add root-level consume policies for this virtual cluster
+	for _, policy := range rs.EventGatewayConsumePolicies {
+		if policy.VirtualCluster == virtualClusterRef {
+			policies = append(policies, policy)
+		}
+	}
+
+	return policies
+}
+
+// GetStaticKeysForGateway returns all static keys (nested + root-level)
+// for a specific event gateway
+func (rs *ResourceSet) GetStaticKeysForGateway(
+	gatewayRef string,
+) []EventGatewayStaticKeyResource {
+	var keys []EventGatewayStaticKeyResource
+
+	// Add nested static keys from the event gateway
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			for _, sk := range gateway.StaticKeys {
+				skCopy := sk
+				skCopy.EventGateway = gatewayRef
+				keys = append(keys, skCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level static keys for this gateway
+	for _, sk := range rs.EventGatewayStaticKeys {
+		if sk.EventGateway == gatewayRef {
+			keys = append(keys, sk)
+		}
+	}
+
+	return keys
+}
+
+// GetTrustBundlesForGateway returns all TLS trust bundles (nested + root-level)
+// for a specific event gateway
+func (rs *ResourceSet) GetTrustBundlesForGateway(
+	gatewayRef string,
+) []EventGatewayTLSTrustBundleResource {
+	var bundles []EventGatewayTLSTrustBundleResource
+
+	// Add nested trust bundles from the event gateway
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			for _, tb := range gateway.TrustBundles {
+				tbCopy := tb
+				tbCopy.EventGateway = gatewayRef
+				bundles = append(bundles, tbCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level trust bundles for this gateway
+	for _, tb := range rs.EventGatewayTLSTrustBundles {
+		if tb.EventGateway == gatewayRef {
+			bundles = append(bundles, tb)
+		}
+	}
+
+	return bundles
 }

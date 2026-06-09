@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: "egw-adopt-e2e"
+
+event_gateways: []

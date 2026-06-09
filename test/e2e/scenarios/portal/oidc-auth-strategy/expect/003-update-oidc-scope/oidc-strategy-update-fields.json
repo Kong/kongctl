@@ -1,0 +1,12 @@
+{
+  "_strategy_type": "openid_connect",
+  "configs": {
+    "openid-connect": {
+      "scopes": [
+        "openid",
+        "profile",
+        "email"
+      ]
+    }
+  }
+}

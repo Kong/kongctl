@@ -1,0 +1,17 @@
+_defaults:
+  kongctl:
+    namespace: portal-custom-domain
+
+portals:
+  - ref: portal-1
+    name: "portal-1"
+    display_name: "Portal 1"
+    description: "Portal using HTTP verification for its custom domain"
+    kongctl:
+      namespace: portal-custom-domain
+    custom_domain:
+      ref: portal-1-custom-domain
+      hostname: "portal1-http.kongctl-e2e.io"
+      enabled: true
+      ssl:
+        domain_verification_method: http

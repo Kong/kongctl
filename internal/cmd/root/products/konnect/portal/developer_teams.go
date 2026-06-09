@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -257,10 +257,7 @@ func fetchPortalTeamDevelopers(
 	cfg config.Hook,
 ) ([]kkComps.BasicDeveloper, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.BasicDeveloper
 
@@ -295,7 +292,7 @@ func fetchPortalTeamDevelopers(
 			total = int(meta.GetPage().Total)
 		}
 
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 
@@ -327,12 +324,12 @@ func portalTeamDeveloperDetailView(dev kkComps.BasicDeveloper) string {
 	if dev.GetID() != nil && *dev.GetID() != "" {
 		id = util.AbbreviateUUID(*dev.GetID())
 	}
-	fmt.Fprintf(&b, "Email: %s\n", optionalPtr(dev.GetEmail()))
-	fmt.Fprintf(&b, "ID: %s\n", id)
-	fmt.Fprintf(&b, "Full Name: %s\n", optionalPtr(dev.GetFullName()))
-	fmt.Fprintf(&b, "Active: %s\n", optionalBool(dev.GetActive()))
-	fmt.Fprintf(&b, "Created: %s\n", formatTimePtr(dev.GetCreatedAt()))
-	fmt.Fprintf(&b, "Updated: %s\n", formatTimePtr(dev.GetUpdatedAt()))
+	fmt.Fprintf(&b, "email: %s\n", optionalPtr(dev.GetEmail()))
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "full_name: %s\n", optionalPtr(dev.GetFullName()))
+	fmt.Fprintf(&b, "active: %s\n", optionalBool(dev.GetActive()))
+	fmt.Fprintf(&b, "created_at: %s\n", formatTimePtr(dev.GetCreatedAt()))
+	fmt.Fprintf(&b, "updated_at: %s\n", formatTimePtr(dev.GetUpdatedAt()))
 
 	return b.String()
 }

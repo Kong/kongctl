@@ -2,6 +2,10 @@ package resources
 
 import "fmt"
 
+// UnknownReferenceID is the sentinel value used when a resource reference or
+// name cannot be resolved.
+const UnknownReferenceID = "[unknown]"
+
 // matchOptions configures how TryMatchByName performs matching.
 type matchOptions struct {
 	// sdkType is the embedded struct name for SDK responses (e.g., "Portal", "APIResponseSchema").
@@ -12,9 +16,9 @@ type matchOptions struct {
 // BaseResource provides the minimal common fields for declarative resources.
 // Use this for resources that don't support external resource references.
 type BaseResource struct {
-	Ref       string       `yaml:"ref" json:"ref"`
+	Ref       string       `yaml:"ref"               json:"ref"`
 	Kongctl   *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
-	konnectID string       `yaml:"-" json:"-"`
+	konnectID string       `yaml:"-"                 json:"-"`
 }
 
 // GetRef returns the reference identifier used for cross-resource references.

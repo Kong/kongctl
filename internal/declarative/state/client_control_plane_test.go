@@ -212,7 +212,7 @@ func TestListControlPlaneGroupMemberships(t *testing.T) {
 		"GetControlPlanesIDGroupMemberships",
 		mock.Anything,
 		mock.MatchedBy(func(req kkOps.GetControlPlanesIDGroupMembershipsRequest) bool {
-			if req.ID != groupID {
+			if req.ControlPlaneID != groupID {
 				return false
 			}
 			return req.PageAfter == nil || (req.PageAfter != nil && *req.PageAfter == "")
@@ -223,7 +223,7 @@ func TestListControlPlaneGroupMemberships(t *testing.T) {
 		"GetControlPlanesIDGroupMemberships",
 		mock.Anything,
 		mock.MatchedBy(func(req kkOps.GetControlPlanesIDGroupMembershipsRequest) bool {
-			if req.ID != groupID {
+			if req.ControlPlaneID != groupID {
 				return false
 			}
 			return req.PageAfter != nil && *req.PageAfter == "cursor-1"
@@ -262,6 +262,32 @@ func TestUpsertControlPlaneGroupMemberships(t *testing.T) {
 	})
 
 	err := client.UpsertControlPlaneGroupMemberships(ctx, "group-1", []string{"cp-1", "cp-2"})
+	require.NoError(t, err)
+	mockGroups.AssertExpectations(t)
+}
+
+func TestRemoveControlPlaneGroupMemberships(t *testing.T) {
+	ctx := testContextWithLogger()
+	mockGroups := &helpers.MockControlPlaneGroupsAPI{}
+
+	mockGroups.On(
+		"PostControlPlanesIDGroupMembershipsRemove",
+		mock.Anything,
+		"group-1",
+		mock.MatchedBy(func(req *kkComps.GroupMembership) bool {
+			require.NotNil(t, req)
+			require.Len(t, req.Members, 2)
+			assert.Equal(t, "cp-1", req.Members[0].ID)
+			assert.Equal(t, "cp-2", req.Members[1].ID)
+			return true
+		}),
+	).Return(&kkOps.PostControlPlanesIDGroupMembershipsRemoveResponse{}, nil).Once()
+
+	client := NewClient(ClientConfig{
+		ControlPlaneGroupsAPI: mockGroups,
+	})
+
+	err := client.RemoveControlPlaneGroupMemberships(ctx, "group-1", []string{"cp-1", "", "cp-2"})
 	require.NoError(t, err)
 	mockGroups.AssertExpectations(t)
 }

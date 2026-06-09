@@ -22,9 +22,13 @@ jobs:
     name: Stage prerelease
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Resolve latest prerelease
         id: release
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const sdkOwner = 'Kong';
@@ -129,7 +133,7 @@ jobs:
 
       - name: Set up Go
         if: steps.decision.outputs.run == 'true'
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
           cache: true
@@ -186,18 +190,18 @@ jobs:
       - name: Create or update PR
         if: steps.diff.outputs.changed == 'true'
         id: cpr
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           branch: sdk-konnect-go/${{ steps.release.outputs.tag }}
-          commit-message: 'pre-release: sdk-konnect-go ${{ steps.release.outputs.tag }}'
-          title: 'pre-release: sdk-konnect-go: ${{ steps.release.outputs.tag }}'
+          commit-message: 'task(sdk): update sdk-konnect-go prerelease to ${{ steps.release.outputs.tag }}'
+          title: 'task(sdk): update sdk-konnect-go prerelease to ${{ steps.release.outputs.tag }}'
           body-path: ${{ steps.summary.outputs.body_path }}
           delete-branch: false
           token: ${{ secrets.PAT }}
 
       - name: Apply default prerelease label
         if: steps.diff.outputs.changed == 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         with:

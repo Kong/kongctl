@@ -1,0 +1,259 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalRef: e2e-portal-audit-log-webhook
+  webhookRef: e2e-portal-audit-log-webhook-config
+  destinationRef: e2e-audit-log-destination
+  destinationName: e2e-portal-audit-log-destination
+  destinationEndpoint: https://example.com/kongctl-e2e-audit-logs
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-audit-log-destination
+    skipInputs: true
+    commands:
+      - name: 000-create-audit-log-destination
+        create:
+          resource: audit-log-destination
+          payload:
+            inline:
+              name: "{{ .vars.destinationName }}"
+              endpoint: "{{ .vars.destinationEndpoint }}"
+              log_format: json
+              skip_ssl_verification: true
+              authorization: Bearer kongctl-e2e-audit-log-webhook
+          recordVar:
+            name: destinationID
+            responsePath: id
+
+  - name: 002-apply-portal-audit-log-webhook
+    commands:
+      - name: 000-plan-webhook
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-webhook.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='portal_audit_log_webhook' &&
+                      resource_ref=='{{ .vars.webhookRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.enabled: true
+                fields.audit_log_destination_id: "{{ .vars.destinationID }}"
+                references.audit_log_destination_id.ref: "{{ .vars.destinationRef }}"
+      - name: 001-apply-webhook
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-webhook.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+  - name: 003-plan-idempotent
+    commands:
+      - name: 000-plan-noop
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-disable-webhook
+    inputOverlayDirs:
+      - overlays/003-disable-webhook
+    commands:
+      - name: 000-plan-disable-webhook
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-disable-webhook.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_audit_log_webhook' &&
+                      resource_ref=='{{ .vars.webhookRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.enabled: false
+      - name: 001-apply-disable-webhook
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-disable-webhook.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-plan-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-dump-and-plan-round-trip
+    inputOverlayDirs:
+      - overlays/003-disable-webhook
+    commands:
+      - name: 000-dump-portal-with-webhook
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--filter-name={{ .vars.portalRef }}"
+        assertions:
+          - select: >-
+              portals[?name=='{{ .vars.portalRef }}'] | [0].audit_log_webhook
+            expect:
+              fields:
+                enabled: false
+                audit_log_destination_id: "{{ .vars.destinationID }}"
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-sync-remove-webhook
+    inputOverlayDirs:
+      - overlays/002-remove-webhook
+    commands:
+      - name: 000-plan-remove-webhook
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-remove-webhook.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='portal_audit_log_webhook' &&
+                      resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: 001-sync-remove-webhook
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-remove-webhook.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 007-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-remove-webhook
+    commands:
+      - name: 000-delete-portal
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 001-delete-audit-log-destination
+        delete:
+          resource: audit-log-destination
+          expectStatus: 204
+          endpointParams:
+            destinationId: "{{ .vars.destinationID }}"

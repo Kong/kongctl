@@ -1,0 +1,23 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-schema-registry-test
+
+event_gateways:
+  - ref: egw-cp-for-schema-registry-test-ref
+    name: egw-cp-for-schema-registry-test-name
+    description: "EGW CP for Schema Registry Test"
+
+event_gateway_schema_registries:
+  - ref: default-schema-registry-ref
+    event_gateway: egw-cp-for-schema-registry-test-ref
+    name: default-schema-registry-name
+    description: "Default root level Schema Registry description"
+    type: confluent
+    config:
+      schema_type: json
+      endpoint: https://schema-registry.example.com
+      timeout_seconds: 30
+      authentication:
+        type: basic
+        username: rootuser
+        password: rootpassword

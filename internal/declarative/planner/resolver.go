@@ -40,6 +40,11 @@ type ResolveResult struct {
 	Errors []error
 }
 
+type extractedReference struct {
+	Field string
+	Ref   string
+}
+
 // ResolveReferences resolves all references in planned changes
 func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []PlannedChange) (*ResolveResult, error) {
 	result := &ResolveResult{
@@ -63,30 +68,30 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 		changeRefs := make(map[string]ResolvedReference)
 
 		// Check fields that might contain references
-		for fieldName, fieldValue := range change.Fields {
-			if ref, isRef := r.extractReference(fieldName, fieldValue); isRef {
-				// Determine resource type from field name
-				resourceType := r.getResourceTypeForField(fieldName)
+		for _, fieldRef := range r.extractReferencesFromFields(change.Fields) {
+			// Determine resource type from field name and role entity metadata.
+			resourceType := r.getResourceTypeForChangeField(change, fieldRef.Field)
+			targetRef := referenceTargetRef(fieldRef.Ref)
 
-				// Check if this references something being created
-				if _, inPlan := createdResources[resourceType][ref]; inPlan {
-					changeRefs[fieldName] = ResolvedReference{
-						Ref: ref,
-						ID:  "[unknown]", // Will be resolved at execution
-					}
-				} else {
-					// Resolve from existing resources
-					id, err := r.resolveReference(ctx, resourceType, ref)
-					if err != nil {
-						result.Errors = append(result.Errors, fmt.Errorf(
-							"change %s: failed to resolve %s reference %q: %w",
-							change.ID, resourceType, ref, err))
-						continue
-					}
-					changeRefs[fieldName] = ResolvedReference{
-						Ref: ref,
-						ID:  id,
-					}
+			// Check if this references something being created
+			if referenceCreatedInPlan(createdResources, resourceType, targetRef) {
+				changeRefs[fieldRef.Field] = ResolvedReference{
+					Ref: fieldRef.Ref,
+					ID:  resources.UnknownReferenceID, // Will be resolved at execution
+				}
+			} else {
+				// Resolve from existing resources
+				id, err := r.resolveReference(ctx, resourceType, fieldRef.Ref)
+				if err != nil {
+					result.Errors = append(result.Errors, fmt.Errorf(
+						"change %s: failed to resolve %s reference %q: %w",
+						change.ID, resourceType, fieldRef.Ref, err,
+					))
+					continue
+				}
+				changeRefs[fieldRef.Field] = ResolvedReference{
+					Ref: fieldRef.Ref,
+					ID:  id,
 				}
 			}
 		}
@@ -97,6 +102,47 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 	}
 
 	return result, nil
+}
+
+func referenceCreatedInPlan(createdResources map[string]map[string]string, resourceType, targetRef string) bool {
+	if resourceType == "" || targetRef == "" {
+		return false
+	}
+	_, ok := createdResources[resourceType][targetRef]
+	return ok
+}
+
+func (r *ReferenceResolver) extractReferencesFromFields(fields map[string]any) []extractedReference {
+	references := []extractedReference{}
+	for fieldName, fieldValue := range fields {
+		references = append(references, r.extractReferences(fieldName, fieldValue)...)
+	}
+	return references
+}
+
+func (r *ReferenceResolver) extractReferences(fieldName string, value any) []extractedReference {
+	if ref, isRef := r.extractReference(fieldName, value); isRef {
+		return []extractedReference{{Field: fieldName, Ref: ref}}
+	}
+
+	switch v := value.(type) {
+	case FieldChange:
+		return r.extractReferences(fieldName, v.New)
+	case map[string]any:
+		references := []extractedReference{}
+		for childField, childValue := range v {
+			references = append(references, r.extractReferences(fieldName+"."+childField, childValue)...)
+		}
+		return references
+	case []any:
+		references := []extractedReference{}
+		for i, childValue := range v {
+			references = append(references, r.extractReferences(fmt.Sprintf("%s.%d", fieldName, i), childValue)...)
+		}
+		return references
+	default:
+		return nil
+	}
 }
 
 // extractReference checks if a field value is a reference
@@ -131,6 +177,8 @@ func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 	// Fields that contain references to other resources
 	referenceFields := []string{
 		"default_application_auth_strategy_id",
+		FieldAuditLogDestinationID,
+		FieldDCRProviderID,
 		"control_plane_id",
 		"portal_id",
 		"auth_strategy_ids",
@@ -152,23 +200,51 @@ func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 // getResourceTypeForField maps field names to resource types
 func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 	switch fieldName {
-	case "default_application_auth_strategy_id", "auth_strategy_ids":
-		return "application_auth_strategy"
+	case FieldDefaultApplicationStrategyID, FieldAuthStrategyIDs:
+		return ResourceTypeApplicationAuthStrategy
+	case FieldAuditLogDestinationID:
+		return ResourceTypeAuditLogWebhookDestination
+	case FieldDCRProviderID:
+		return ResourceTypeDCRProvider
 	case "control_plane_id", "gateway_service.control_plane_id", "service.control_plane_id":
-		return "control_plane"
-	case "portal_id":
+		return ResourceTypeControlPlane
+	case FieldPortalID:
 		return ResourceTypePortal
-	case "entity_id":
-		return "api"
+	case FieldEntityID:
+		return ResourceTypeAPI
 	default:
+		if strings.HasSuffix(fieldName, ".schema_registry.id") {
+			return ResourceTypeEventGatewaySchemaRegistry
+		}
+		if strings.HasSuffix(fieldName, ".encryption_key.key.id") {
+			return ResourceTypeEventGatewayStaticKey
+		}
 		return ""
 	}
+}
+
+func (r *ReferenceResolver) getResourceTypeForChangeField(change PlannedChange, fieldName string) string {
+	if fieldName == FieldEntityID {
+		entityTypeName, _ := change.Fields[FieldEntityTypeName].(string)
+		if resourceType, ok := resources.RoleEntityResourceType(entityTypeName); ok {
+			return string(resourceType)
+		}
+	}
+	return r.getResourceTypeForField(fieldName)
+}
+
+func referenceTargetRef(ref string) string {
+	targetRef, _, ok := tags.ParseRefPlaceholder(ref)
+	if ok {
+		return targetRef
+	}
+	return ref
 }
 
 // resolveReference looks up a reference in existing resources
 func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, ref string) (string, error) {
 	var targetRef string
-	fieldName := "id" // Default field
+	fieldName := FieldID // Default field
 
 	// Parse __REF__ placeholder format
 	if strings.HasPrefix(ref, "__REF__:") {
@@ -185,14 +261,18 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 
 	// Find resource in ResourceSet by ref
 	if r.resources != nil {
-		resource, exists := r.resources.GetResourceByRef(targetRef)
-		if exists {
+		if resource, exists := r.getResourceByTypeAndRef(resourceType, targetRef); exists {
 			// Special handling for "id" field - return konnectID
-			if fieldName == "id" || fieldName == "ID" {
+			if fieldName == FieldID || fieldName == "ID" {
 				konnectID := resource.GetKonnectID()
 				if konnectID == "" {
+					if id, resolved, err := r.resolveEventGatewayChildResource(ctx, resource); err != nil {
+						return "", err
+					} else if resolved {
+						return id, nil
+					}
 					// Resource exists but no Konnect ID (will be created)
-					return "[unknown]", nil // Trigger forward reference
+					return resources.UnknownReferenceID, nil // Trigger forward reference
 				}
 				return konnectID, nil
 			}
@@ -204,15 +284,135 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 
 	// Fallback to original resolution for backward compatibility
 	switch resourceType {
-	case "application_auth_strategy":
+	case ResourceTypeApplicationAuthStrategy:
 		return r.resolveAuthStrategyRef(ctx, targetRef)
-	case "control_plane":
+	case ResourceTypeDCRProvider:
+		return r.resolveDCRProviderRef(ctx, targetRef)
+	case ResourceTypeControlPlane:
 		return r.resolveControlPlaneRef(ctx, targetRef)
 	case ResourceTypePortal:
 		return r.resolvePortalRef(ctx, targetRef)
 	default:
 		return "", fmt.Errorf("unknown resource type: %s", resourceType)
 	}
+}
+
+func (r *ReferenceResolver) getResourceByTypeAndRef(resourceType string, ref string) (resources.Resource, bool) {
+	if r.resources == nil || resourceType == "" {
+		return nil, false
+	}
+	for _, resource := range r.resources.AllResourcesByType(resources.ResourceType(resourceType)) {
+		if resource.GetRef() == ref {
+			return resource, true
+		}
+	}
+	if resource, exists := r.getEventGatewayChildResourceByTypeAndRef(resourceType, ref); exists {
+		return resource, true
+	}
+	if resource, exists := r.resources.GetResourceByRef(ref); exists && string(resource.GetType()) == resourceType {
+		return resource, true
+	}
+	return nil, false
+}
+
+func (r *ReferenceResolver) getEventGatewayChildResourceByTypeAndRef(
+	resourceType string,
+	ref string,
+) (resources.Resource, bool) {
+	for _, gateway := range r.resources.EventGatewayControlPlanes {
+		switch resourceType {
+		case ResourceTypeEventGatewaySchemaRegistry:
+			for _, registry := range gateway.SchemaRegistries {
+				if registry.Ref == ref {
+					registryCopy := registry
+					registryCopy.EventGateway = gateway.Ref
+					return &registryCopy, true
+				}
+			}
+		case ResourceTypeEventGatewayStaticKey:
+			for _, staticKey := range gateway.StaticKeys {
+				if staticKey.Ref == ref {
+					staticKeyCopy := staticKey
+					staticKeyCopy.EventGateway = gateway.Ref
+					return &staticKeyCopy, true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
+func (r *ReferenceResolver) resolveEventGatewayChildResource(
+	ctx context.Context,
+	resource resources.Resource,
+) (string, bool, error) {
+	switch typed := resource.(type) {
+	case *resources.EventGatewaySchemaRegistryResource:
+		if r.client == nil || typed == nil {
+			return "", false, nil
+		}
+		gatewayID, err := r.resolveEventGatewayParentRef(ctx, typed.EventGateway)
+		if err != nil {
+			return "", true, err
+		}
+		registry, err := r.client.GetEventGatewaySchemaRegistryByName(ctx, gatewayID, typed.GetMoniker())
+		if err != nil {
+			return "", true, fmt.Errorf("failed to resolve event gateway schema registry ref %q: %w", typed.Ref, err)
+		}
+		if registry == nil {
+			return "", true, fmt.Errorf("event gateway schema registry not found: ref=%s", typed.Ref)
+		}
+		return registry.ID, true, nil
+	case *resources.EventGatewayStaticKeyResource:
+		if r.client == nil || typed == nil {
+			return "", false, nil
+		}
+		gatewayID, err := r.resolveEventGatewayParentRef(ctx, typed.EventGateway)
+		if err != nil {
+			return "", true, err
+		}
+		keys, err := r.client.ListEventGatewayStaticKeys(ctx, gatewayID)
+		if err != nil {
+			return "", true, fmt.Errorf("failed to resolve event gateway static key ref %q: %w", typed.Ref, err)
+		}
+		for _, key := range keys {
+			if key.Name == typed.GetMoniker() {
+				return key.ID, true, nil
+			}
+		}
+		return "", true, fmt.Errorf("event gateway static key not found: ref=%s", typed.Ref)
+	default:
+		return "", false, nil
+	}
+}
+
+func (r *ReferenceResolver) resolveEventGatewayParentRef(ctx context.Context, eventGatewayRef string) (string, error) {
+	if eventGatewayRef == "" {
+		return "", fmt.Errorf("event gateway parent reference is required")
+	}
+	if util.IsValidUUID(eventGatewayRef) {
+		return eventGatewayRef, nil
+	}
+	if resource, exists := r.getResourceByTypeAndRef(ResourceTypeEventGatewayControlPlane, eventGatewayRef); exists {
+		if id := resource.GetKonnectID(); id != "" {
+			return id, nil
+		}
+		if moniker := resource.GetMoniker(); moniker != "" {
+			return r.resolveControlPlaneRef(ctx, moniker)
+		}
+	}
+	return r.resolveControlPlaneRef(ctx, eventGatewayRef)
+}
+
+func (r *ReferenceResolver) resolveDCRProviderRef(ctx context.Context, ref string) (string, error) {
+	provider, err := r.client.GetDCRProviderByName(ctx, ref)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve DCR provider ref '%s': %w", ref, err)
+	}
+	if provider == nil {
+		return "", fmt.Errorf("dcr provider with ref '%s' not found", ref)
+	}
+	return provider.ID, nil
 }
 
 // resolveAuthStrategyRef resolves auth strategy ref to ID

@@ -74,7 +74,7 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			}
 
 			currentProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection("control_plane", desiredCP.Name, currentProtected, ActionDelete)
+			err := p.ValidateProtection(ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionDelete)
 			protectionErrors.Add(err)
 			if err == nil {
 				p.planControlPlaneDelete(current, plan)
@@ -94,39 +94,62 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 		}
 		current, exists := currentByName[desiredCP.Name]
 		desiredProtected := isProtected(desiredCP)
+		var controlPlaneChangeID string
 
 		if !exists {
-			p.planControlPlaneCreate(desiredCP, desiredProtected, plan)
-			continue
-		}
+			controlPlaneChangeID = p.planControlPlaneCreate(desiredCP, desiredProtected, plan)
+		} else {
+			currentProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			needsUpdate, updateFields, changedFields := p.shouldUpdateControlPlane(current, desiredCP)
 
-		currentProtected := labels.IsProtectedResource(current.NormalizedLabels)
-		needsUpdate, updateFields, changedFields := p.shouldUpdateControlPlane(current, desiredCP)
-
-		if currentProtected != desiredProtected {
-			protectionChange := &ProtectionChange{Old: currentProtected, New: desiredProtected}
-			err := p.ValidateProtectionWithChange(
-				"control_plane", desiredCP.Name, currentProtected, ActionUpdate, protectionChange, needsUpdate,
-			)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planControlPlaneProtectionChangeWithFields(
-					current,
-					desiredCP,
-					protectionChange,
-					updateFields,
-					changedFields,
-					plan,
+			if currentProtected != desiredProtected {
+				protectionChange := &ProtectionChange{Old: currentProtected, New: desiredProtected}
+				err := p.ValidateProtectionWithChange(
+					ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionUpdate, protectionChange, needsUpdate,
 				)
+				protectionErrors.Add(err)
+				if err == nil {
+					p.planControlPlaneProtectionChangeWithFields(
+						current,
+						desiredCP,
+						protectionChange,
+						updateFields,
+						changedFields,
+						plan,
+					)
+				}
+			} else if needsUpdate {
+				err := p.ValidateProtection(ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionUpdate)
+				protectionErrors.Add(err)
+				if err == nil {
+					p.planControlPlaneUpdate(current, desiredCP, updateFields, changedFields, plan)
+				}
 			}
-			continue
 		}
 
-		if needsUpdate {
-			err := p.ValidateProtection("control_plane", desiredCP.Name, currentProtected, ActionUpdate)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planControlPlaneUpdate(current, desiredCP, updateFields, changedFields, plan)
+		dataPlaneCerts := p.planner.resources.GetDataPlaneCertificatesForControlPlane(desiredCP.Ref)
+		controlPlaneID := ""
+		if exists {
+			controlPlaneID = current.ID
+		}
+
+		if p.planner.shouldPlanChild(
+			plan,
+			resources.ResourceTypeControlPlane,
+			desiredCP.Ref,
+			resources.ResourceTypeControlPlaneDataPlaneCertificate,
+		) && (len(dataPlaneCerts) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planner.planControlPlaneDataPlaneCertificateChanges(
+				ctx,
+				namespace,
+				desiredCP.Name,
+				controlPlaneID,
+				desiredCP.Ref,
+				controlPlaneChangeID,
+				dataPlaneCerts,
+				plan,
+			); err != nil {
+				return err
 			}
 		}
 	}
@@ -146,7 +169,7 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection("control_plane", name, isProtected, ActionDelete)
+			err := p.ValidateProtection(ResourceTypeControlPlane, name, isProtected, ActionDelete)
 			protectionErrors.Add(err)
 			if err == nil {
 				p.planControlPlaneDelete(current, plan)
@@ -165,16 +188,16 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 	desired resources.ControlPlaneResource,
 	protected bool,
 	plan *Plan,
-) {
+) string {
 	fields := extractControlPlaneFields(desired)
 	memberIDs := normalizers.NormalizeMemberIDs(desired.MemberIDs())
 
 	namespace := resources.GetNamespace(desired.Kongctl)
 	config := CreateConfig{
-		ResourceType:   "control_plane",
+		ResourceType:   ResourceTypeControlPlane,
 		ResourceName:   desired.Name,
 		ResourceRef:    desired.GetRef(),
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{FieldName},
 		FieldExtractor: func(_ any) map[string]any { return fields },
 		Namespace:      namespace,
 	}
@@ -188,19 +211,19 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 				if change.References == nil {
 					change.References = make(map[string]ReferenceInfo)
 				}
-				change.References["members"] = p.buildMemberReferenceInfo(memberIDs)
+				change.References[FieldMembers] = p.buildMemberReferenceInfo(memberIDs)
 			}
 			plan.AddChange(change)
-			return
+			return change.ID
 		}
 
 		p.planner.logger.Error("Failed to plan control plane create", "error", err.Error())
 	}
 
-	changeID := p.NextChangeID(ActionCreate, "control_plane", desired.GetRef())
+	changeID := p.NextChangeID(ActionCreate, ResourceTypeControlPlane, desired.GetRef())
 	change := PlannedChange{
 		ID:           changeID,
-		ResourceType: "control_plane",
+		ResourceType: ResourceTypeControlPlane,
 		ResourceRef:  desired.GetRef(),
 		Action:       ActionCreate,
 		Fields:       fields,
@@ -210,11 +233,12 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 
 	if desired.IsGroup() && len(memberIDs) > 0 {
 		change.References = map[string]ReferenceInfo{
-			"members": p.buildMemberReferenceInfo(memberIDs),
+			FieldMembers: p.buildMemberReferenceInfo(memberIDs),
 		}
 	}
 
 	plan.AddChange(change)
+	return changeID
 }
 
 func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
@@ -225,29 +249,29 @@ func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
 	plan *Plan,
 ) {
 	var memberIDs []string
-	if rawMembers, ok := updateFields["members"]; ok {
+	if rawMembers, ok := updateFields[FieldMembers]; ok {
 		if ids, ok := rawMembers.([]string); ok {
 			memberIDs = ids
-			updateFields["members"] = formatMemberField(ids)
+			updateFields[FieldMembers] = formatMemberField(ids)
 		}
 	}
 
 	// Always include name for identification
-	updateFields["name"] = current.Name
+	updateFields[FieldName] = current.Name
 
-	if _, hasLabels := updateFields["labels"]; hasLabels {
+	if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
 
 	namespace := resources.GetNamespace(desired.Kongctl)
 	config := UpdateConfig{
-		ResourceType:   "control_plane",
+		ResourceType:   ResourceTypeControlPlane,
 		ResourceName:   desired.Name,
 		ResourceRef:    desired.GetRef(),
 		ResourceID:     current.ID,
 		DesiredFields:  updateFields,
 		ChangedFields:  changedFields,
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{FieldName},
 		Namespace:      namespace,
 	}
 
@@ -262,7 +286,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
 				if change.References == nil {
 					change.References = make(map[string]ReferenceInfo)
 				}
-				change.References["members"] = p.buildMemberReferenceInfo(memberIDs)
+				change.References[FieldMembers] = p.buildMemberReferenceInfo(memberIDs)
 			}
 			plan.AddChange(change)
 			return
@@ -273,10 +297,10 @@ func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
 	fields := make(map[string]any)
 	maps.Copy(fields, updateFields)
 
-	changeID := p.NextChangeID(ActionUpdate, "control_plane", desired.GetRef())
+	changeID := p.NextChangeID(ActionUpdate, ResourceTypeControlPlane, desired.GetRef())
 	change := PlannedChange{
 		ID:            changeID,
-		ResourceType:  "control_plane",
+		ResourceType:  ResourceTypeControlPlane,
 		ResourceRef:   desired.GetRef(),
 		ResourceID:    current.ID,
 		Action:        ActionUpdate,
@@ -291,7 +315,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
 
 	if len(memberIDs) > 0 {
 		change.References = map[string]ReferenceInfo{
-			"members": p.buildMemberReferenceInfo(memberIDs),
+			FieldMembers: p.buildMemberReferenceInfo(memberIDs),
 		}
 	}
 
@@ -307,16 +331,16 @@ func (p *controlPlanePlannerImpl) planControlPlaneProtectionChangeWithFields(
 	plan *Plan,
 ) {
 	var memberIDs []string
-	if rawMembers, ok := updateFields["members"]; ok {
+	if rawMembers, ok := updateFields[FieldMembers]; ok {
 		if ids, ok := rawMembers.([]string); ok {
 			memberIDs = ids
-			updateFields["members"] = formatMemberField(ids)
+			updateFields[FieldMembers] = formatMemberField(ids)
 		}
 	}
 
 	namespace := resources.GetNamespace(desired.Kongctl)
 	config := ProtectionChangeConfig{
-		ResourceType: "control_plane",
+		ResourceType: ResourceTypeControlPlane,
 		ResourceName: desired.Name,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -330,10 +354,10 @@ func (p *controlPlanePlannerImpl) planControlPlaneProtectionChangeWithFields(
 	if generic != nil {
 		change = generic.PlanProtectionChange(context.Background(), config)
 	} else {
-		changeID := p.NextChangeID(ActionUpdate, "control_plane", desired.GetRef())
+		changeID := p.NextChangeID(ActionUpdate, ResourceTypeControlPlane, desired.GetRef())
 		change = PlannedChange{
 			ID:           changeID,
-			ResourceType: "control_plane",
+			ResourceType: ResourceTypeControlPlane,
 			ResourceRef:  desired.GetRef(),
 			ResourceID:   current.ID,
 			Action:       ActionUpdate,
@@ -342,11 +366,11 @@ func (p *controlPlanePlannerImpl) planControlPlaneProtectionChangeWithFields(
 		}
 	}
 
-	fields := map[string]any{"name": current.Name}
+	fields := map[string]any{FieldName: current.Name}
 
 	if protectionChange.Old && !protectionChange.New && len(updateFields) > 0 {
 		maps.Copy(fields, updateFields)
-		if _, hasLabels := updateFields["labels"]; hasLabels {
+		if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 			fields[FieldCurrentLabels] = current.NormalizedLabels
 		}
 	}
@@ -359,7 +383,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneProtectionChangeWithFields(
 		if change.References == nil {
 			change.References = make(map[string]ReferenceInfo)
 		}
-		change.References["members"] = p.buildMemberReferenceInfo(memberIDs)
+		change.References[FieldMembers] = p.buildMemberReferenceInfo(memberIDs)
 	}
 	plan.AddChange(change)
 }
@@ -371,30 +395,37 @@ func (p *controlPlanePlannerImpl) planControlPlaneDelete(current state.ControlPl
 	}
 
 	generic := p.GetGenericPlanner()
+	var change PlannedChange
 	if generic != nil {
 		config := DeleteConfig{
-			ResourceType: "control_plane",
+			ResourceType: ResourceTypeControlPlane,
 			ResourceName: current.Name,
 			ResourceRef:  current.Name,
 			ResourceID:   current.ID,
 			Namespace:    namespace,
 		}
-		change := generic.PlanDelete(context.Background(), config)
-		change.Fields = map[string]any{"name": current.Name}
-		plan.AddChange(change)
-		return
+		change = generic.PlanDelete(context.Background(), config)
+	} else {
+		changeID := p.NextChangeID(ActionDelete, ResourceTypeControlPlane, current.Name)
+		change = PlannedChange{
+			ID:           changeID,
+			ResourceType: ResourceTypeControlPlane,
+			ResourceRef:  current.Name,
+			ResourceID:   current.ID,
+			Action:       ActionDelete,
+			Namespace:    namespace,
+		}
 	}
 
-	changeID := p.NextChangeID(ActionDelete, "control_plane", current.Name)
-	plan.AddChange(PlannedChange{
-		ID:           changeID,
-		ResourceType: "control_plane",
-		ResourceRef:  current.Name,
-		ResourceID:   current.ID,
-		Action:       ActionDelete,
-		Fields:       map[string]any{"name": current.Name},
-		Namespace:    namespace,
-	})
+	change.Fields = map[string]any{FieldName: current.Name}
+	memberIDs := normalizers.NormalizeMemberIDs(current.GroupMembers)
+	if len(memberIDs) > 0 {
+		change.Fields[FieldMembers] = formatMemberField(memberIDs)
+		change.References = map[string]ReferenceInfo{
+			FieldMembers: p.buildMemberReferenceInfo(memberIDs),
+		}
+	}
+	plan.AddChange(change)
 }
 
 func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
@@ -405,13 +436,10 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 	changedFields := make(map[string]FieldChange)
 
 	if desired.Description != nil {
-		currentDesc := ""
-		if current.Description != nil {
-			currentDesc = *current.Description
-		}
+		currentDesc := current.Description
 		if currentDesc != *desired.Description {
-			updates["description"] = *desired.Description
-			changedFields["description"] = FieldChange{
+			updates[FieldDescription] = *desired.Description
+			changedFields[FieldDescription] = FieldChange{
 				Old: currentDesc,
 				New: *desired.Description,
 			}
@@ -421,8 +449,8 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 	if desired.AuthType != nil {
 		desiredAuth := string(*desired.AuthType)
 		if desiredAuth != "" && desiredAuth != string(current.Config.AuthType) {
-			updates["auth_type"] = desiredAuth
-			changedFields["auth_type"] = FieldChange{
+			updates[FieldAuthType] = desiredAuth
+			changedFields[FieldAuthType] = FieldChange{
 				Old: string(current.Config.AuthType),
 				New: desiredAuth,
 			}
@@ -431,8 +459,8 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 
 	if desired.ProxyUrls != nil {
 		if !proxyURLsEqual(current.Config.ProxyUrls, desired.ProxyUrls) {
-			updates["proxy_urls"] = desired.ProxyUrls
-			changedFields["proxy_urls"] = FieldChange{
+			updates[FieldProxyURLs] = desired.ProxyUrls
+			changedFields[FieldProxyURLs] = FieldChange{
 				Old: current.Config.ProxyUrls,
 				New: desired.ProxyUrls,
 			}
@@ -441,8 +469,8 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 
 	if desired.Labels != nil {
 		if labels.CompareUserLabels(current.NormalizedLabels, desired.Labels) {
-			updates["labels"] = desired.Labels
-			changedFields["labels"] = FieldChange{
+			updates[FieldLabels] = desired.Labels
+			changedFields[FieldLabels] = FieldChange{
 				Old: labels.GetUserLabels(current.NormalizedLabels),
 				New: labels.GetUserLabels(desired.Labels),
 			}
@@ -453,8 +481,8 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 		desiredMembers := p.resolveDesiredGroupMemberIDs(desired)
 		currentMembers := normalizers.NormalizeMemberIDs(current.GroupMembers)
 		if !equalStringSlices(currentMembers, desiredMembers) {
-			updates["members"] = desiredMembers
-			changedFields["members"] = FieldChange{
+			updates[FieldMembers] = desiredMembers
+			changedFields[FieldMembers] = FieldChange{
 				Old: currentMembers,
 				New: desiredMembers,
 			}
@@ -466,35 +494,35 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 
 func extractControlPlaneFields(cp resources.ControlPlaneResource) map[string]any {
 	fields := make(map[string]any)
-	fields["name"] = cp.Name
+	fields[FieldName] = cp.Name
 
 	if cp.Description != nil {
-		fields["description"] = *cp.Description
+		fields[FieldDescription] = *cp.Description
 	}
 
 	if cp.ClusterType != nil {
-		fields["cluster_type"] = string(*cp.ClusterType)
+		fields[FieldClusterType] = string(*cp.ClusterType)
 	}
 
 	if cp.AuthType != nil {
-		fields["auth_type"] = string(*cp.AuthType)
+		fields[FieldAuthType] = string(*cp.AuthType)
 	}
 
 	if cp.CloudGateway != nil {
-		fields["cloud_gateway"] = *cp.CloudGateway
+		fields[FieldCloudGateway] = *cp.CloudGateway
 	}
 
 	if cp.ProxyUrls != nil {
-		fields["proxy_urls"] = cp.ProxyUrls
+		fields[FieldProxyURLs] = cp.ProxyUrls
 	}
 
 	if cp.Labels != nil {
-		fields["labels"] = cp.Labels
+		fields[FieldLabels] = cp.Labels
 	}
 
 	if cp.IsGroup() {
 		members := normalizers.NormalizeMemberIDs(cp.MemberIDs())
-		fields["members"] = formatMemberField(members)
+		fields[FieldMembers] = formatMemberField(members)
 	}
 
 	return fields
@@ -526,7 +554,7 @@ func isProtected(cp resources.ControlPlaneResource) bool {
 func formatMemberField(ids []string) []map[string]string {
 	formatted := make([]map[string]string, 0, len(ids))
 	for _, id := range ids {
-		formatted = append(formatted, map[string]string{"id": id})
+		formatted = append(formatted, map[string]string{FieldID: id})
 	}
 	return formatted
 }
@@ -555,7 +583,7 @@ func (p *controlPlanePlannerImpl) buildMemberReferenceInfo(ids []string) Referen
 
 		if tags.IsRefPlaceholder(id) {
 			ref, field, ok := tags.ParseRefPlaceholder(id)
-			if ok && field == "id" && ref != "" && p.planner != nil && p.planner.resources != nil {
+			if ok && field == FieldID && ref != "" && p.planner != nil && p.planner.resources != nil {
 				if cp := p.planner.resources.GetControlPlaneByRef(ref); cp != nil {
 					if names == nil {
 						names = make([]string, len(ids))
@@ -589,7 +617,7 @@ func (p *controlPlanePlannerImpl) resolveDesiredGroupMemberIDs(desired resources
 		}
 
 		ref, field, ok := tags.ParseRefPlaceholder(memberID)
-		if !ok || field != "id" || ref == "" || p.planner == nil || p.planner.resources == nil {
+		if !ok || field != FieldID || ref == "" || p.planner == nil || p.planner.resources == nil {
 			resolved = append(resolved, memberID)
 			continue
 		}

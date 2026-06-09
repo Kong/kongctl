@@ -3,6 +3,7 @@ package systemaccount
 import (
 	"fmt"
 
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -47,7 +48,31 @@ func NewSystemAccountCmd(
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+		cmd := newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun)
+		cmd.AddCommand(newGetSystemAccountRolesCmd(verb, addParentFlags, parentPreRun))
+		cmd.AddCommand(newGetSystemAccountTeamsCmd(verb, addParentFlags, parentPreRun))
+		spatCmd, err := token.NewSPATCmd(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		if spatCmd != nil {
+			cmd.AddCommand(spatCmd)
+		}
+		return cmd.Command, nil
+	}
+	if verb == verbs.Create || verb == verbs.Delete {
+		if parentPreRun != nil {
+			baseCmd.PreRunE = parentPreRun
+		}
+		if addParentFlags != nil {
+			addParentFlags(verb, &baseCmd)
+		}
+		spatCmd, err := token.NewSPATCmd(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		baseCmd.AddCommand(spatCmd)
+		return &baseCmd, nil
 	}
 
 	// Return base command for unsupported verbs

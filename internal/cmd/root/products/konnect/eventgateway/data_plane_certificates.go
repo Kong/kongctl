@@ -2,14 +2,12 @@ package eventgateway
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go"
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -21,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -42,8 +41,12 @@ var (
 
 	dataPlaneCertificatesShort = i18n.T("root.products.konnect.eventgateway.dataPlaneCertificatesShort",
 		"Manage data plane certificates for an Event Gateway")
-	dataPlaneCertificatesLong = normalizers.LongDesc(i18n.T("root.products.konnect.eventgateway.dataPlaneCertificatesLong",
-		`Use the data-plane-certificates command to list or retrieve data plane certificates for a specific Event Gateway.`))
+	dataPlaneCertificatesLong = normalizers.LongDesc(
+		i18n.T(
+			"root.products.konnect.eventgateway.dataPlaneCertificatesLong",
+			`Use the data-plane-certificates command to list or retrieve data plane certificates for a specific Event Gateway.`,
+		),
+	)
 	dataPlaneCertificatesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.eventgateway.dataPlaneCertificatesExamples",
 			fmt.Sprintf(`
@@ -255,7 +258,7 @@ func (h dataPlaneCertificatesHandler) listDataPlaneCerts(
 		records,
 		certs,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -324,10 +327,7 @@ func fetchDataPlaneCertificates(
 	cfg config.Hook,
 	nameFilter string,
 ) ([]kkComps.EventGatewayDataPlaneCertificate, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
-	}
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allData []kkComps.EventGatewayDataPlaneCertificate
 	var pageAfter *string
@@ -335,7 +335,7 @@ func fetchDataPlaneCertificates(
 	for {
 		req := kkOps.ListEventGatewayDataPlaneCertificatesRequest{
 			GatewayID: gatewayID,
-			PageSize:  kk.Int64(requestPageSize),
+			PageSize:  new(requestPageSize),
 		}
 
 		// Apply name filter if provided
@@ -365,21 +365,13 @@ func fetchDataPlaneCertificates(
 		data := res.GetListEventGatewayDataPlaneCertificatesResponse().Data
 		allData = append(allData, data...)
 
-		if res.GetListEventGatewayDataPlaneCertificatesResponse().Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(
+			res.GetListEventGatewayDataPlaneCertificatesResponse().Meta.Page.Next,
+		)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.GetListEventGatewayDataPlaneCertificatesResponse().Meta.Page.Next)
-		if err != nil {
-			return nil, cmd.PrepareExecutionError(
-				"Failed to list data plane certificates: invalid cursor",
-				err,
-				helper.GetCmd(),
-			)
-		}
-
-		values := u.Query()
-		pageAfter = kk.String(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	return allData, nil
@@ -392,8 +384,7 @@ func findDataPlaneCertByName(
 	lowered := strings.ToLower(name)
 	for _, cert := range certs {
 		if cert.Name != nil && strings.ToLower(*cert.Name) == lowered {
-			certCopy := cert
-			return &certCopy
+			return &cert
 		}
 	}
 	return nil
@@ -543,11 +534,11 @@ func buildDataPlaneCertChildView(certs []kkComps.EventGatewayDataPlaneCertificat
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        []string{"ID", tableHeaderName},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Data Plane Certificates",
-		ParentType:     "data-plane-certificate",
+		ParentType:     common.ViewParentDataPlaneCertificate,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(certs) {
 				return nil

@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: team-alpha
+
+apis:
+  - ref: shared-api
+    name: "Shared API"
+    versions:
+      - ref: shared-api-v1
+        version: "1.0.0"
+    publications:
+      - ref: shared-api-pub
+        portal_id: !ref shared-portal#id
+        visibility: public

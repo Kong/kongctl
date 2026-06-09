@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -45,9 +45,9 @@ type apiVersionDetailRecord struct {
 	RawID            string
 	Version          string
 	SpecType         string
-	SpecContent      string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+	specContent      string
 }
 
 type apiVersionContentContext struct {
@@ -269,7 +269,7 @@ func (h apiVersionsHandler) listVersions(
 		tableview.WithCustomTable([]string{"VERSION", "ID"}, rows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
-		tableview.WithDetailContext("api-version", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIVersion, func(index int) any {
 			if index < 0 || index >= len(summaries) {
 				return nil
 			}
@@ -349,7 +349,7 @@ func (h apiVersionsHandler) getSingleVersion(
 		}),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("api-version", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIVersion, func(index int) any {
 			if index != 0 {
 				return nil
 			}
@@ -369,10 +369,7 @@ func fetchVersionSummaries(
 	cfg config.Hook,
 ) ([]kkComps.ListAPIVersionResponseAPIVersionSummary, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.ListAPIVersionResponseAPIVersionSummary
 
@@ -397,7 +394,7 @@ func fetchVersionSummaries(
 		all = append(all, data...)
 
 		total := int(res.GetListAPIVersionResponse().GetMeta().Page.Total)
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 
@@ -446,7 +443,7 @@ func versionDetailToRecord(version *kkComps.APIVersionResponse) apiVersionDetail
 		RawID:    strings.TrimSpace(version.GetID()),
 		Version:  version.GetVersion(),
 		SpecType: specType,
-		SpecContent: func() string {
+		specContent: func() string {
 			if version.GetSpec() != nil && version.GetSpec().GetContent() != nil {
 				return normalizeAPIVersionContent(*version.GetSpec().GetContent())
 			}
@@ -491,7 +488,7 @@ func versionSummaryDetailView(
 
 	fmt.Fprintf(&b, "spec: %s (press enter to view)", apiVersionSpecIndicator)
 	if detail != nil {
-		if preview := previewAPIVersionContent(detail.SpecContent, apiVersionSpecPreviewLimit); preview != "" {
+		if preview := previewAPIVersionContent(detail.specContent, apiVersionSpecPreviewLimit); preview != "" {
 			fmt.Fprintf(&b, " %s", preview)
 		}
 	}
@@ -521,7 +518,7 @@ func apiVersionDetailView(record apiVersionDetailRecord) string {
 	}
 
 	fmt.Fprintf(&b, "spec: %s (press enter to view)", apiVersionSpecIndicator)
-	if preview := previewAPIVersionContent(record.SpecContent, apiVersionSpecPreviewLimit); preview != "" {
+	if preview := previewAPIVersionContent(record.specContent, apiVersionSpecPreviewLimit); preview != "" {
 		fmt.Fprintf(&b, " %s", preview)
 	}
 	fmt.Fprintln(&b)
@@ -651,7 +648,7 @@ func loadAPIVersionSpec(_ context.Context, helper cmd.Helper, parent any) (table
 }
 
 func renderAPIVersionSpecMarkdown(record apiVersionDetailRecord) string {
-	content, language := formatAPIVersionSpecContent(record.SpecContent)
+	content, language := formatAPIVersionSpecContent(record.specContent)
 	specType := strings.TrimSpace(record.SpecType)
 	if specType == "" {
 		specType = valueNA

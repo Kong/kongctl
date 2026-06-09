@@ -5,9 +5,14 @@ import (
 	"fmt"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/output/jq"
+	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -24,18 +29,20 @@ var (
 	createShort = i18n.T("root.verbs.create.createShort", "Create objects")
 
 	createLong = normalizers.LongDesc(i18n.T("root.verbs.create.createLong",
-		`Use create to create a new object.
+		`Use create to create Konnect access tokens.
 
 Further sub-commands are required to determine which remote system is contacted (if necessary).
-The command will create an object and report a result depending on further arguments.
+The command will create a token and report a result depending on further arguments.
 Output can be formatted in multiple ways to aid in further processing.`))
 
 	createExamples = normalizers.Examples(i18n.T("root.verbs.create.createExamples",
 		fmt.Sprintf(`
-		# Create a new Konnect Kong Gateway control plane (Konnect-first)
-		%[1]s create gateway control-plane <name>
-		# Create a new Konnect Kong Gateway control plane (explicit)
-		%[1]s create konnect gateway control-plane <name>
+		# Create a Konnect personal access token and print only the token value
+		%[1]s create pat --name ci --expires-in 30d -o token
+		# Create a Konnect personal access token and extract the token with jq
+		%[1]s create pat --name ci --expires-in 7d --jq -r '.token'
+		# Create a Konnect system account access token as an environment export
+		%[1]s create spat --system-account-name ci-bot --name ci --expires-in 30d -o env
 		`, meta.CLIName)))
 )
 
@@ -47,7 +54,14 @@ func NewCreateCmd() (*cobra.Command, error) {
 		Example: createExamples,
 		Aliases: []string{"c", "C"},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
+			ctx := c.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			ctx = context.WithValue(ctx, verbs.Verb, Verb)
+			ctx = context.WithValue(ctx, products.Product, konnect.Product)
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(Verb))
+			c.SetContext(ctx)
 			return bindKonnectFlags(c, args)
 		},
 	}
@@ -71,8 +85,17 @@ Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 			common.PATConfigPath))
 
-	// TODO: Determine if creating profiles for the command make sense and how to implement
-	// cmd.AddCommand(profileCmd.NewProfileCmd())
+	jq.AddFlags(cmd.PersistentFlags())
+
+	cmd.RunE = func(c *cobra.Command, args []string) error {
+		helper := cmdpkg.BuildHelper(c, args)
+		if _, err := helper.GetOutputFormat(); err != nil {
+			return err
+		}
+		return cmdpkg.RequireSubcommand(c, args)
+	}
+	cmdpkg.MarkRequiresSubcommand(cmd)
+
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
 		return nil, e
@@ -80,12 +103,23 @@ Setting this value overrides tokens obtained from the login command.
 
 	cmd.AddCommand(c)
 
-	// Add gateway command directly for Konnect-first pattern
-	gatewayCmd, err := NewDirectGatewayCmd()
+	patCmd, err := token.NewPATCmd(Verb, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	cmd.AddCommand(gatewayCmd)
+	cmd.AddCommand(patCmd)
+
+	spatCmd, err := token.NewSPATCmd(Verb, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(spatCmd)
+
+	orgCmd, err := organization.NewOrganizationCmd(Verb, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(orgCmd)
 
 	return cmd, nil
 }
@@ -98,23 +132,18 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if f := c.Flags().Lookup(common.BaseURLFlagName); f != nil {
-		if err := cfg.BindFlag(common.BaseURLConfigPath, f); err != nil {
-			return err
+	bindings := []struct{ flag, path string }{
+		{common.BaseURLFlagName, common.BaseURLConfigPath},
+		{common.RegionFlagName, common.RegionConfigPath},
+		{common.PATFlagName, common.PATConfigPath},
+	}
+	for _, b := range bindings {
+		if f := c.Flags().Lookup(b.flag); f != nil {
+			if err := cfg.BindFlag(b.path, f); err != nil {
+				return err
+			}
 		}
 	}
 
-	if f := c.Flags().Lookup(common.RegionFlagName); f != nil {
-		if err := cfg.BindFlag(common.RegionConfigPath, f); err != nil {
-			return err
-		}
-	}
-
-	if f := c.Flags().Lookup(common.PATFlagName); f != nil {
-		if err := cfg.BindFlag(common.PATConfigPath, f); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return jq.BindFlags(cfg, c.Flags())
 }

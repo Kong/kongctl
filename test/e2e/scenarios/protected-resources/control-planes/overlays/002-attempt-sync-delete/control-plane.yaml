@@ -1,0 +1,9 @@
+# Overlay: Remove all control planes from config
+# This should trigger DELETE plans in sync mode
+# Protected control planes should cause plan generation to fail
+
+_defaults:
+  kongctl:
+    namespace: "cp-protection"
+
+control_planes: []

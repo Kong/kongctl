@@ -12,6 +12,7 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalEmailConfig,
 		func(rs *ResourceSet) *[]PortalEmailConfigResource { return &rs.PortalEmailConfigs },
+		AutoExplain[PortalEmailConfigResource](),
 	)
 }
 
@@ -57,7 +58,7 @@ func (c PortalEmailConfigResource) GetDependencies() []ResourceRef {
 // GetReferenceFieldMappings returns cross-resource reference mappings for validation.
 func (c PortalEmailConfigResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{
-		"portal": "portal",
+		SchemaFieldPortal: string(ResourceTypePortal),
 	}
 }
 
@@ -92,7 +93,7 @@ func (c PortalEmailConfigResource) GetParentRef() *ResourceRef {
 	if c.Portal == "" {
 		return nil
 	}
-	return &ResourceRef{Kind: string(ResourceTypePortal), Ref: c.Portal}
+	return &ResourceRef{Kind: ResourceTypePortal, Ref: c.Portal}
 }
 
 // UnmarshalJSON rejects kongctl metadata on child resources.

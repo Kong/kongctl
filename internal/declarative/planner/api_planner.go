@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
@@ -118,12 +119,13 @@ func (p *Planner) planAPIChanges(
 			current, exists := currentByName[desiredAPI.Name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
-					"api %q not found in Konnect, skipping delete", desiredAPI.Name))
+					"api %q not found in Konnect, skipping delete", desiredAPI.Name,
+				))
 				continue
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection("api", desiredAPI.Name, isProtected, ActionDelete); err != nil {
+			if err := p.validateProtection(ResourceTypeAPI, desiredAPI.Name, isProtected, ActionDelete); err != nil {
 				protectionErrors = append(protectionErrors, err)
 			} else {
 				p.planAPIDelete(current, plan)
@@ -181,7 +183,7 @@ func (p *Planner) planAPIChanges(
 				}
 
 				// Validate protection change
-				err := p.validateProtectionWithChange("api", desiredAPI.Name, isProtected, ActionUpdate,
+				err := p.validateProtectionWithChange(ResourceTypeAPI, desiredAPI.Name, isProtected, ActionUpdate,
 					protectionChange, needsUpdate)
 				if err != nil {
 					protectionErrors = append(protectionErrors, err)
@@ -201,7 +203,7 @@ func (p *Planner) planAPIChanges(
 				needsUpdate, updateFields, changedFields := p.shouldUpdateAPI(current, desiredAPI)
 				if needsUpdate {
 					// Regular update - check protection
-					if err := p.validateProtection("api", desiredAPI.Name, isProtected, ActionUpdate); err != nil {
+					if err := p.validateProtection(ResourceTypeAPI, desiredAPI.Name, isProtected, ActionUpdate); err != nil {
 						protectionErrors = append(protectionErrors, err)
 					} else {
 						p.planAPIUpdateWithFields(current, desiredAPI, updateFields, changedFields, plan)
@@ -229,7 +231,7 @@ func (p *Planner) planAPIChanges(
 			if !desiredNames[name] {
 				// Validate protection before adding DELETE
 				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				if err := p.validateProtection("api", name, isProtected, ActionDelete); err != nil {
+				if err := p.validateProtection(ResourceTypeAPI, name, isProtected, ActionDelete); err != nil {
 					protectionErrors = append(protectionErrors, err)
 				} else {
 					p.planAPIDelete(current, plan)
@@ -261,15 +263,15 @@ func extractAPIFields(resource any) map[string]any {
 		return fields
 	}
 
-	fields["name"] = api.Name
+	fields[FieldName] = api.Name
 	if api.Description != nil {
-		fields["description"] = *api.Description
+		fields[FieldDescription] = *api.Description
 	}
 	if api.Version != nil {
-		fields["version"] = *api.Version
+		fields[FieldVersion] = *api.Version
 	}
 	if api.Slug != nil {
-		fields["slug"] = *api.Slug
+		fields[FieldSlug] = *api.Slug
 	}
 
 	// Copy user-defined labels only (protection label will be added during execution)
@@ -278,14 +280,14 @@ func extractAPIFields(resource any) map[string]any {
 		for k, v := range api.Labels {
 			labelsMap[k] = v
 		}
-		fields["labels"] = labelsMap
+		fields[FieldLabels] = labelsMap
 	}
 
 	if api.Attributes != nil {
 		if normalized, ok := attributes.NormalizeAPIAttributes(api.Attributes); ok {
-			fields["attributes"] = normalized
+			fields[FieldAttributes] = normalized
 		} else {
-			fields["attributes"] = api.Attributes
+			fields[FieldAttributes] = api.Attributes
 		}
 	}
 
@@ -309,10 +311,10 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 	}
 
 	config := CreateConfig{
-		ResourceType:   "api",
+		ResourceType:   ResourceTypeAPI,
 		ResourceName:   api.Name,
 		ResourceRef:    api.GetRef(),
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{FieldName},
 		FieldExtractor: func(_ any) map[string]any {
 			return extractAPIFields(api)
 		},
@@ -346,8 +348,8 @@ func (p *Planner) shouldUpdateAPI(
 	if desired.Description != nil {
 		currentDesc := getString(current.Description)
 		if currentDesc != *desired.Description {
-			updates["description"] = *desired.Description
-			changedFields["description"] = FieldChange{
+			updates[FieldDescription] = *desired.Description
+			changedFields[FieldDescription] = FieldChange{
 				Old: currentDesc,
 				New: *desired.Description,
 			}
@@ -358,8 +360,8 @@ func (p *Planner) shouldUpdateAPI(
 	if desired.Version != nil {
 		currentVersion := getString(current.Version)
 		if currentVersion != *desired.Version {
-			updates["version"] = *desired.Version
-			changedFields["version"] = FieldChange{
+			updates[FieldVersion] = *desired.Version
+			changedFields[FieldVersion] = FieldChange{
 				Old: currentVersion,
 				New: *desired.Version,
 			}
@@ -375,8 +377,8 @@ func (p *Planner) shouldUpdateAPI(
 			for k, v := range desired.Labels {
 				labelsMap[k] = v
 			}
-			updates["labels"] = labelsMap
-			changedFields["labels"] = FieldChange{
+			updates[FieldLabels] = labelsMap
+			changedFields[FieldLabels] = FieldChange{
 				Old: labels.GetUserLabels(current.NormalizedLabels),
 				New: labels.GetUserLabels(desired.Labels),
 			}
@@ -387,8 +389,8 @@ func (p *Planner) shouldUpdateAPI(
 	if desired.Slug != nil {
 		currentSlug := getString(current.Slug)
 		if currentSlug != *desired.Slug {
-			updates["slug"] = *desired.Slug
-			changedFields["slug"] = FieldChange{
+			updates[FieldSlug] = *desired.Slug
+			changedFields[FieldSlug] = FieldChange{
 				Old: currentSlug,
 				New: *desired.Slug,
 			}
@@ -406,8 +408,8 @@ func (p *Planner) shouldUpdateAPI(
 			currentAttrs = normalized
 		}
 		if !attributesEqual(currentAttrs, desiredAttrs) {
-			updates["attributes"] = desiredAttrs
-			changedFields["attributes"] = FieldChange{
+			updates[FieldAttributes] = desiredAttrs
+			changedFields[FieldAttributes] = FieldChange{
 				Old: currentAttrs,
 				New: desiredAttrs,
 			}
@@ -426,7 +428,7 @@ func (p *Planner) planAPIUpdateWithFields(
 	plan *Plan,
 ) {
 	// Pass current labels so executor can properly handle removals
-	if _, hasLabels := updateFields["labels"]; hasLabels {
+	if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
 
@@ -437,7 +439,7 @@ func (p *Planner) planAPIUpdateWithFields(
 	}
 
 	config := UpdateConfig{
-		ResourceType:   "api",
+		ResourceType:   ResourceTypeAPI,
 		ResourceName:   desired.Name,
 		ResourceRef:    desired.GetRef(),
 		ResourceID:     current.ID,
@@ -465,10 +467,10 @@ func (p *Planner) planAPIUpdateWithFields(
 
 func attributesEqual(current, desired any) bool {
 	if normalized, ok := attributes.NormalizeAPIAttributes(current); ok {
-		current = normalized
+		current = canonicalizeAttributesForCompare(normalized)
 	}
 	if normalized, ok := attributes.NormalizeAPIAttributes(desired); ok {
-		desired = normalized
+		desired = canonicalizeAttributesForCompare(normalized)
 	}
 
 	if current == nil && desired == nil {
@@ -488,6 +490,22 @@ func attributesEqual(current, desired any) bool {
 	return currentJSON == desiredJSON
 }
 
+func canonicalizeAttributesForCompare(attrs map[string]any) any {
+	canonical := make(map[string]any, len(attrs))
+	for key, value := range attrs {
+		if value == nil {
+			continue
+		}
+		canonical[key] = value
+	}
+
+	if len(canonical) == 0 {
+		return nil
+	}
+
+	return canonical
+}
+
 // planAPIProtectionChangeWithFields creates an UPDATE for protection status with optional field updates
 func (p *Planner) planAPIProtectionChangeWithFields(
 	current state.API,
@@ -505,7 +523,7 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 
 	// Use generic protection change planner
 	config := ProtectionChangeConfig{
-		ResourceType: "api",
+		ResourceType: ResourceTypeAPI,
 		ResourceName: desired.Name,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -523,13 +541,13 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	maps.Copy(fields, updateFields)
 
 	// ALWAYS include essential identification fields for protection changes
-	fields["name"] = current.Name
-	fields["id"] = current.ID
+	fields[FieldName] = current.Name
+	fields[FieldID] = current.ID
 
 	// Preserve namespace context for execution phase
 	if current.Labels != nil {
 		if namespace, exists := current.Labels[labels.NamespaceKey]; exists {
-			fields["namespace"] = namespace
+			fields[FieldNamespace] = namespace
 		}
 	}
 
@@ -543,7 +561,7 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 			}
 		}
 		if len(preservedLabels) > 0 {
-			fields["preserved_labels"] = preservedLabels
+			fields[FieldPreservedLabels] = preservedLabels
 		}
 	}
 
@@ -564,7 +582,7 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 	}
 
 	config := DeleteConfig{
-		ResourceType: "api",
+		ResourceType: ResourceTypeAPI,
 		ResourceName: api.Name,
 		ResourceRef:  api.Name,
 		ResourceID:   api.ID,
@@ -573,7 +591,7 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 
 	change := p.genericPlanner.PlanDelete(context.Background(), config)
 	// Add the name field for backward compatibility
-	change.Fields = map[string]any{"name": api.Name}
+	change.Fields = map[string]any{FieldName: api.Name}
 
 	plan.AddChange(change)
 }
@@ -584,7 +602,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 ) {
 	// Plan version creation - API ID is not yet known
 	for _, version := range p.getAPIVersionsForAPI(api) {
-		if plan.HasChange("api_version", version.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIVersion, version.GetRef()) {
 			continue
 		}
 		p.planAPIVersionCreate(parentNamespace, api.GetRef(), "", version, []string{apiChangeID}, plan)
@@ -592,7 +610,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 	// Plan publication creation - API ID is not yet known
 	for _, publication := range p.getAPIPublicationsForAPI(api) {
-		if plan.HasChange("api_publication", publication.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIPublication, publication.GetRef()) {
 			continue
 		}
 		p.planAPIPublicationCreate(parentNamespace, api.GetRef(), "", publication, []string{apiChangeID}, plan)
@@ -600,7 +618,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 	// Plan implementation creation - API ID is not yet known
 	for _, implementation := range p.getAPIImplementationsForAPI(api) {
-		if plan.HasChange("api_implementation", implementation.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIImplementation, implementation.GetRef()) {
 			continue
 		}
 		p.planAPIImplementationCreate(parentNamespace, api.GetRef(), "", implementation, []string{apiChangeID}, plan)
@@ -608,7 +626,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 	// Plan document creation - API ID is not yet known
 	for _, document := range p.getAPIDocumentsForAPI(api) {
-		if plan.HasChange("api_document", document.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIDocument, document.GetRef()) {
 			continue
 		}
 		p.planAPIDocumentCreate(
@@ -713,31 +731,36 @@ func (p *Planner) planAPIChildResourceChanges(
 		parentNamespace = *desired.Kongctl.Namespace
 	}
 
-	// Plan version changes
-	if err := p.planAPIVersionChanges(
-		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan API version changes: %w", err)
+	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIVersion) {
+		if err := p.planAPIVersionChanges(
+			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan API version changes: %w", err)
+		}
 	}
 
-	// Plan publication changes
-	if err := p.planAPIPublicationChanges(
-		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan API publication changes: %w", err)
+	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIPublication) {
+		if err := p.planAPIPublicationChanges(
+			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan API publication changes: %w", err)
+		}
 	}
 
-	// Plan implementation changes
-	if err := p.planAPIImplementationChanges(
-		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
-		return fmt.Errorf("failed to plan API implementation changes: %w", err)
+	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIImplementation) {
+		if err := p.planAPIImplementationChanges(
+			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan API implementation changes: %w", err)
+		}
 	}
 
-	// Plan document changes
-	if err := p.planAPIDocumentChanges(
-		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan API document changes: %w", err)
+	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIDocument) {
+		if err := p.planAPIDocumentChanges(
+			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan API document changes: %w", err)
+		}
 	}
 
 	return nil
@@ -767,7 +790,7 @@ func (p *Planner) planAPIVersionChanges(
 
 	// Compare desired versions
 	for _, desiredVersion := range desired {
-		if plan.HasChange("api_version", desiredVersion.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIVersion, desiredVersion.GetRef()) {
 			continue
 		}
 		versionStr := ""
@@ -809,7 +832,8 @@ func (p *Planner) planAPIVersionChanges(
 
 		// If there are extracted versions, skip deletion during child resource planning
 		if hasExtractedVersions && len(desired) == 0 {
-			p.logger.Debug("Skipping version deletion - extracted versions exist",
+			p.logger.Debug(
+				"Skipping version deletion - extracted versions exist",
 				slog.String("api", apiRef),
 				slog.Int("current_count", len(currentByVersion)),
 			)
@@ -823,7 +847,8 @@ func (p *Planner) planAPIVersionChanges(
 			}
 		}
 
-		p.logger.Debug("Sync mode: checking for versions to delete",
+		p.logger.Debug(
+			"Sync mode: checking for versions to delete",
 			slog.String("api", apiRef),
 			slog.Int("current_count", len(currentByVersion)),
 			slog.Int("desired_count", len(desiredVersions)),
@@ -831,7 +856,8 @@ func (p *Planner) planAPIVersionChanges(
 
 		for versionStr, current := range currentByVersion {
 			if !desiredVersions[versionStr] {
-				p.logger.Debug("Marking version for deletion",
+				p.logger.Debug(
+					"Marking version for deletion",
 					slog.String("api", apiRef),
 					slog.String("version", versionStr),
 					slog.String("version_id", current.ID),
@@ -850,12 +876,12 @@ func (p *Planner) planAPIVersionCreate(
 ) {
 	fields := make(map[string]any)
 	if version.Version != nil {
-		fields["version"] = *version.Version
+		fields[FieldVersion] = *version.Version
 	}
 	if version.Spec.Content != nil {
 		// Store spec as a map with content field for proper JSON serialization
-		fields["spec"] = map[string]any{
-			"content": *version.Spec.Content,
+		fields[FieldSpec] = map[string]any{
+			FieldContent: *version.Spec.Content,
 		}
 	}
 	// Note: PublishStatus, Deprecated, SunsetDate are not supported by the SDK create operation
@@ -866,8 +892,8 @@ func (p *Planner) planAPIVersionCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, "api_version", version.GetRef()),
-		ResourceType: "api_version",
+		ID:           p.nextChangeID(ActionCreate, ResourceTypeAPIVersion, version.GetRef()),
+		ResourceType: ResourceTypeAPIVersion,
 		ResourceRef:  version.GetRef(),
 		Parent:       parentInfo,
 		Action:       ActionCreate,
@@ -884,11 +910,11 @@ func (p *Planner) planAPIVersionCreate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"api_id": {
+			FieldAPIID: {
 				Ref: apiRef,
 				ID:  apiID, // May be empty if API doesn't exist yet
 				LookupFields: map[string]string{
-					"name": apiName,
+					FieldName: apiName,
 				},
 			},
 		}
@@ -899,17 +925,17 @@ func (p *Planner) planAPIVersionCreate(
 
 func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID string, versionStr string, plan *Plan) {
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, "api_version", versionID),
-		ResourceType: "api_version",
-		ResourceRef:  "[unknown]",
+		ID:           p.nextChangeID(ActionDelete, ResourceTypeAPIVersion, versionID),
+		ResourceType: ResourceTypeAPIVersion,
+		ResourceRef:  resources.UnknownReferenceID,
 		ResourceID:   versionID,
 		ResourceMonikers: map[string]string{
-			"version":    versionStr,
+			FieldVersion: versionStr,
 			"parent_api": apiRef,
 		},
 		Parent:    &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:    ActionDelete,
-		Fields:    map[string]any{"version": versionStr},
+		Fields:    map[string]any{FieldVersion: versionStr},
 		DependsOn: []string{},
 	}
 
@@ -946,7 +972,8 @@ func (p *Planner) planAPIPublicationChanges(
 	portalRefToID := make(map[string]string)
 	portalIDToRef := make(map[string]string) // Reverse mapping for deletion display
 
-	p.logger.Debug("Building portal reference mapping",
+	p.logger.Debug(
+		"Building portal reference mapping",
 		slog.Int("desired_portals", len(p.resources.Portals)),
 	)
 
@@ -955,7 +982,8 @@ func (p *Planner) planAPIPublicationChanges(
 		if resolvedID := portal.GetKonnectID(); resolvedID != "" {
 			portalRefToID[portal.Ref] = resolvedID
 			portalIDToRef[resolvedID] = portal.Ref
-			p.logger.Debug("Added desired portal to mapping",
+			p.logger.Debug(
+				"Added desired portal to mapping",
 				slog.String("ref", portal.Ref),
 				slog.String("id", resolvedID),
 			)
@@ -966,7 +994,8 @@ func (p *Planner) planAPIPublicationChanges(
 	// This handles cases where publications exist for portals not in current desired state
 	allPortals, err := p.listManagedPortals(ctx, namespaceFilter)
 	if err == nil {
-		p.logger.Debug("Fetched all managed portals",
+		p.logger.Debug(
+			"Fetched all managed portals",
 			slog.Int("count", len(allPortals)),
 		)
 		// Add any portals not already in the mapping
@@ -986,7 +1015,8 @@ func (p *Planner) planAPIPublicationChanges(
 				if _, exists := portalRefToID[portalRef]; !exists {
 					portalRefToID[portalRef] = portal.ID
 				}
-				p.logger.Debug("Added existing portal to mapping",
+				p.logger.Debug(
+					"Added existing portal to mapping",
 					slog.String("name", portal.Name),
 					slog.String("ref", portalRef),
 					slog.String("id", portal.ID),
@@ -994,14 +1024,15 @@ func (p *Planner) planAPIPublicationChanges(
 			}
 		}
 	} else {
-		p.logger.Debug("Failed to fetch managed portals",
+		p.logger.Debug(
+			"Failed to fetch managed portals",
 			slog.String("error", err.Error()),
 		)
 	}
 
 	// Compare desired publications
 	for _, desiredPub := range desired {
-		if plan.HasChange("api_publication", desiredPub.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIPublication, desiredPub.GetRef()) {
 			continue
 		}
 		// Resolve portal reference to ID before comparing
@@ -1019,7 +1050,8 @@ func (p *Planner) planAPIPublicationChanges(
 
 		current, exists := currentByPortal[resolvedPortalID]
 
-		p.logger.Debug("Checking publication existence",
+		p.logger.Debug(
+			"Checking publication existence",
 			slog.String("api", apiRef),
 			slog.String("portal_ref", desiredPub.PortalID),
 			slog.String("resolved_portal_id", resolvedPortalID),
@@ -1033,7 +1065,8 @@ func (p *Planner) planAPIPublicationChanges(
 			// Check if update needed - publications use PUT which supports both create/update
 			needsUpdate, updateFields, changedFields := p.shouldUpdateAPIPublication(current, desiredPub)
 			if needsUpdate {
-				p.logger.Debug("API publication needs update",
+				p.logger.Debug(
+					"API publication needs update",
 					slog.String("api", apiRef),
 					slog.String("portal", desiredPub.PortalID),
 					slog.Any("fields", updateFields),
@@ -1067,7 +1100,8 @@ func (p *Planner) planAPIPublicationChanges(
 		// If there are extracted publications, skip deletion during child resource planning
 		// The extracted publications will handle deletion properly when they are processed
 		if hasExtractedPublications && len(desired) == 0 {
-			p.logger.Debug("Skipping publication deletion - extracted publications exist",
+			p.logger.Debug(
+				"Skipping publication deletion - extracted publications exist",
 				slog.String("api", apiRef),
 				slog.Int("current_count", len(currentByPortal)),
 			)
@@ -1089,14 +1123,16 @@ func (p *Planner) planAPIPublicationChanges(
 				resolvedPortalID = id
 			}
 			desiredPortals[resolvedPortalID] = true
-			p.logger.Debug("Added to desired portals for sync",
+			p.logger.Debug(
+				"Added to desired portals for sync",
 				slog.String("api", apiRef),
 				slog.String("portal_ref", pub.PortalID),
 				slog.String("resolved_portal_id", resolvedPortalID),
 			)
 		}
 
-		p.logger.Debug("Sync mode: checking for publications to delete",
+		p.logger.Debug(
+			"Sync mode: checking for publications to delete",
 			slog.String("api", apiRef),
 			slog.Int("current_count", len(currentByPortal)),
 			slog.Int("desired_count", len(desiredPortals)),
@@ -1104,7 +1140,8 @@ func (p *Planner) planAPIPublicationChanges(
 
 		for portalID := range currentByPortal {
 			if !desiredPortals[portalID] {
-				p.logger.Debug("Marking publication for deletion",
+				p.logger.Debug(
+					"Marking publication for deletion",
 					slog.String("api", apiRef),
 					slog.String("portal_id", portalID),
 					slog.Bool("in_desired", desiredPortals[portalID]),
@@ -1128,15 +1165,15 @@ func (p *Planner) planAPIPublicationCreate(
 	dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]any)
-	fields["portal_id"] = publication.PortalID
+	fields[FieldPortalID] = publication.PortalID
 	if publication.AuthStrategyIds != nil {
-		fields["auth_strategy_ids"] = publication.AuthStrategyIds
+		fields[FieldAuthStrategyIDs] = publication.AuthStrategyIds
 	}
 	if publication.AutoApproveRegistrations != nil {
-		fields["auto_approve_registrations"] = *publication.AutoApproveRegistrations
+		fields[FieldAutoApproveRegistrations] = *publication.AutoApproveRegistrations
 	}
 	if publication.Visibility != nil {
-		fields["visibility"] = string(*publication.Visibility)
+		fields[FieldVisibility] = string(*publication.Visibility)
 	}
 
 	parentInfo := &ParentInfo{Ref: apiRef}
@@ -1145,8 +1182,8 @@ func (p *Planner) planAPIPublicationCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, "api_publication", publication.GetRef()),
-		ResourceType: "api_publication",
+		ID:           p.nextChangeID(ActionCreate, ResourceTypeAPIPublication, publication.GetRef()),
+		ResourceType: ResourceTypeAPIPublication,
 		ResourceRef:  publication.GetRef(),
 		Parent:       parentInfo,
 		Action:       ActionCreate,
@@ -1171,21 +1208,26 @@ func (p *Planner) planAPIPublicationCreate(
 			apiName = api.Name
 		}
 
-		change.References["api_id"] = ReferenceInfo{
+		change.References[FieldAPIID] = ReferenceInfo{
 			Ref: apiRef,
 			ID:  apiID, // May be empty if API doesn't exist yet
 			LookupFields: map[string]string{
-				"name": apiName,
+				FieldName: apiName,
 			},
 		}
 	}
 
 	// Set portal reference
 	if publication.PortalID != "" {
-		change.References["portal_id"] = ReferenceInfo{
+		portalID := ""
+		if util.IsValidUUID(publication.PortalID) {
+			portalID = publication.PortalID
+		}
+		change.References[FieldPortalID] = ReferenceInfo{
 			Ref: publication.PortalID,
+			ID:  portalID,
 			LookupFields: map[string]string{
-				"name": portalName,
+				FieldName: portalName,
 			},
 		}
 	}
@@ -1204,7 +1246,7 @@ func (p *Planner) planAPIPublicationCreate(
 		}
 
 		// Set up array reference with lookup names
-		change.References["auth_strategy_ids"] = ReferenceInfo{
+		change.References[FieldAuthStrategyIDs] = ReferenceInfo{
 			Refs:    publication.AuthStrategyIds,
 			IsArray: true,
 			LookupArrays: map[string][]string{
@@ -1248,22 +1290,22 @@ func (p *Planner) planAPIPublicationDelete(
 	compositeRef := fmt.Sprintf("%s-to-%s", apiRef, cleanPortalRef)
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, "api_publication", compositeRef),
-		ResourceType: "api_publication",
+		ID:           p.nextChangeID(ActionDelete, ResourceTypeAPIPublication, compositeRef),
+		ResourceType: ResourceTypeAPIPublication,
 		ResourceRef:  compositeRef,
 		ResourceID:   fmt.Sprintf("%s:%s", apiID, portalID), // Composite ID for API publication
 		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:       ActionDelete,
 		Fields: map[string]any{
-			"api_id":    apiID,
-			"portal_id": portalID,
+			FieldAPIID:    apiID,
+			FieldPortalID: portalID,
 		},
 		DependsOn: []string{},
 	}
 
 	if len(current.AuthStrategyIDs) > 0 {
 		snapshot := append([]string(nil), current.AuthStrategyIDs...)
-		change.Fields["auth_strategy_ids"] = snapshot
+		change.Fields[FieldAuthStrategyIDs] = snapshot
 	}
 
 	plan.AddChange(change)
@@ -1276,11 +1318,11 @@ func (p *Planner) planAPIPublicationUpdate(
 	updateFields map[string]any, changedFields map[string]FieldChange, plan *Plan,
 ) {
 	// Update fields with resolved portal ID
-	updateFields["portal_id"] = current.PortalID
+	updateFields[FieldPortalID] = current.PortalID
 
 	change := PlannedChange{
-		ID:            p.nextChangeID(ActionUpdate, "api_publication", desired.GetRef()),
-		ResourceType:  "api_publication",
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypeAPIPublication, desired.GetRef()),
+		ResourceType:  ResourceTypeAPIPublication,
 		ResourceRef:   desired.GetRef(),
 		ResourceID:    fmt.Sprintf("%s:%s", apiID, current.PortalID), // Composite ID
 		Parent:        &ParentInfo{Ref: apiRef, ID: apiID},
@@ -1307,28 +1349,28 @@ func (p *Planner) planAPIPublicationUpdate(
 			apiName = api.Name
 		}
 
-		change.References["api_id"] = ReferenceInfo{
+		change.References[FieldAPIID] = ReferenceInfo{
 			Ref: apiRef,
 			ID:  apiID,
 			LookupFields: map[string]string{
-				"name": apiName,
+				FieldName: apiName,
 			},
 		}
 	}
 
 	// Set portal reference
 	if desired.PortalID != "" {
-		change.References["portal_id"] = ReferenceInfo{
+		change.References[FieldPortalID] = ReferenceInfo{
 			Ref: desired.PortalID,
 			ID:  current.PortalID, // Use the resolved ID
 			LookupFields: map[string]string{
-				"name": portalName,
+				FieldName: portalName,
 			},
 		}
 	}
 
 	// Handle auth strategy references if they are being updated
-	if authStrategyIDs, ok := updateFields["auth_strategy_ids"].([]string); ok && len(authStrategyIDs) > 0 {
+	if authStrategyIDs, ok := updateFields[FieldAuthStrategyIDs].([]string); ok && len(authStrategyIDs) > 0 {
 		// Extract auth strategy names for lookup
 		authStrategyNames := make([]string, 0, len(authStrategyIDs))
 		for _, strategyRef := range authStrategyIDs {
@@ -1339,7 +1381,7 @@ func (p *Planner) planAPIPublicationUpdate(
 		}
 
 		// Set auth strategy array reference
-		change.References["auth_strategy_ids"] = ReferenceInfo{
+		change.References[FieldAuthStrategyIDs] = ReferenceInfo{
 			Refs:    authStrategyIDs,
 			IsArray: true,
 			LookupArrays: map[string][]string{
@@ -1363,8 +1405,8 @@ func (p *Planner) shouldUpdateAPIPublication(
 	if desired.AuthStrategyIds != nil {
 		resolvedDesired := p.resolveAuthStrategyIDsForComparison(desired.AuthStrategyIds)
 		if !p.compareStringSlices(current.AuthStrategyIDs, resolvedDesired) {
-			updates["auth_strategy_ids"] = desired.AuthStrategyIds
-			changedFields["auth_strategy_ids"] = FieldChange{
+			updates[FieldAuthStrategyIDs] = desired.AuthStrategyIds
+			changedFields[FieldAuthStrategyIDs] = FieldChange{
 				Old: current.AuthStrategyIDs,
 				New: desired.AuthStrategyIds,
 			}
@@ -1377,8 +1419,8 @@ func (p *Planner) shouldUpdateAPIPublication(
 		desiredAutoApprove = *desired.AutoApproveRegistrations
 	}
 	if current.AutoApproveRegistrations != desiredAutoApprove {
-		updates["auto_approve_registrations"] = desiredAutoApprove
-		changedFields["auto_approve_registrations"] = FieldChange{
+		updates[FieldAutoApproveRegistrations] = desiredAutoApprove
+		changedFields[FieldAutoApproveRegistrations] = FieldChange{
 			Old: current.AutoApproveRegistrations,
 			New: desiredAutoApprove,
 		}
@@ -1388,8 +1430,8 @@ func (p *Planner) shouldUpdateAPIPublication(
 	if desired.Visibility != nil {
 		desiredVisibility := string(*desired.Visibility)
 		if current.Visibility != desiredVisibility {
-			updates["visibility"] = desiredVisibility
-			changedFields["visibility"] = FieldChange{
+			updates[FieldVisibility] = desiredVisibility
+			changedFields[FieldVisibility] = FieldChange{
 				Old: current.Visibility,
 				New: desiredVisibility,
 			}
@@ -1464,7 +1506,8 @@ func (p *Planner) planAPIImplementationChanges(
 		return fmt.Errorf("failed to list current API implementations: %w", err)
 	}
 
-	p.logger.Debug("Planning api_implementation changes",
+	p.logger.Debug(
+		"Planning api_implementation changes",
 		slog.String("api_ref", apiRef),
 		slog.String("api_id", apiID),
 		slog.Int("desired_count", len(desired)),
@@ -1484,7 +1527,8 @@ func (p *Planner) planAPIImplementationChanges(
 			currentMissingService++
 		}
 	}
-	p.logger.Debug("Indexed current api_implementations by service",
+	p.logger.Debug(
+		"Indexed current api_implementations by service",
 		slog.String("api_ref", apiRef),
 		slog.Int("current_with_service", currentWithService),
 		slog.Int("current_missing_service", currentMissingService),
@@ -1492,13 +1536,14 @@ func (p *Planner) planAPIImplementationChanges(
 
 	// Compare desired implementations
 	for _, desiredImpl := range desired {
-		if plan.HasChange("api_implementation", desiredImpl.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIImplementation, desiredImpl.GetRef()) {
 			continue
 		}
 		if service := desiredImpl.ServiceReference.GetService(); service != nil {
 			key := fmt.Sprintf("%s:%s", service.ID, service.ControlPlaneID)
 			if _, exists := currentByService[key]; !exists {
-				p.logger.Debug("Planning api_implementation CREATE (service not found)",
+				p.logger.Debug(
+					"Planning api_implementation CREATE (service not found)",
 					slog.String("api_ref", apiRef),
 					slog.String("api_implementation_ref", desiredImpl.GetRef()),
 					slog.String("service_key", key),
@@ -1507,7 +1552,8 @@ func (p *Planner) planAPIImplementationChanges(
 			}
 			// Note: Implementation IDs are managed by the SDK
 		} else {
-			p.logger.Debug("Desired api_implementation missing service reference; skipping match",
+			p.logger.Debug(
+				"Desired api_implementation missing service reference; skipping match",
 				slog.String("api_ref", apiRef),
 				slog.String("api_implementation_ref", desiredImpl.GetRef()),
 			)
@@ -1527,7 +1573,8 @@ func (p *Planner) planAPIImplementationChanges(
 
 		// If there are extracted implementations, skip deletion during child resource planning
 		if hasExtractedImplementations && len(desired) == 0 {
-			p.logger.Debug("Skipping implementation deletion - extracted implementations exist",
+			p.logger.Debug(
+				"Skipping implementation deletion - extracted implementations exist",
 				slog.String("api", apiRef),
 				slog.Int("current_count", len(currentByService)),
 			)
@@ -1542,7 +1589,8 @@ func (p *Planner) planAPIImplementationChanges(
 			}
 		}
 
-		p.logger.Debug("Sync mode api_implementation pruning",
+		p.logger.Debug(
+			"Sync mode api_implementation pruning",
 			slog.String("api_ref", apiRef),
 			slog.Int("desired_services", len(desiredServices)),
 			slog.Int("current_services", len(currentByService)),
@@ -1550,7 +1598,8 @@ func (p *Planner) planAPIImplementationChanges(
 
 		for serviceKey, current := range currentByService {
 			if !desiredServices[serviceKey] {
-				p.logger.Debug("Planning api_implementation DELETE (service not desired)",
+				p.logger.Debug(
+					"Planning api_implementation DELETE (service not desired)",
 					slog.String("api_ref", apiRef),
 					slog.String("service_key", serviceKey),
 					slog.String("implementation_id", current.ID),
@@ -1570,9 +1619,9 @@ func (p *Planner) planAPIImplementationCreate(
 	fields := make(map[string]any)
 	// APIImplementation only has Service field in the SDK
 	if service := implementation.ServiceReference.GetService(); service != nil {
-		fields["service"] = map[string]any{
-			"id":               service.ID,
-			"control_plane_id": service.ControlPlaneID,
+		fields[FieldService] = map[string]any{
+			FieldID:             service.ID,
+			FieldControlPlaneID: service.ControlPlaneID,
 		}
 	}
 
@@ -1582,8 +1631,8 @@ func (p *Planner) planAPIImplementationCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, "api_implementation", implementation.GetRef()),
-		ResourceType: "api_implementation",
+		ID:           p.nextChangeID(ActionCreate, ResourceTypeAPIImplementation, implementation.GetRef()),
+		ResourceType: ResourceTypeAPIImplementation,
 		ResourceRef:  implementation.GetRef(),
 		Parent:       parentInfo,
 		Action:       ActionCreate,
@@ -1600,11 +1649,11 @@ func (p *Planner) planAPIImplementationCreate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"api_id": {
+			FieldAPIID: {
 				Ref: apiRef,
 				ID:  apiID, // May be empty if API doesn't exist yet
 				LookupFields: map[string]string{
-					"name": apiName,
+					FieldName: apiName,
 				},
 			},
 		}
@@ -1623,18 +1672,18 @@ func (p *Planner) planAPIImplementationDelete(
 	}
 
 	fields := map[string]any{
-		"api_id": apiID,
+		FieldAPIID: apiID,
 	}
 	if implementation.Service != nil {
-		fields["service"] = map[string]any{
-			"id":               implementation.Service.ID,
-			"control_plane_id": implementation.Service.ControlPlaneID,
+		fields[FieldService] = map[string]any{
+			FieldID:             implementation.Service.ID,
+			FieldControlPlaneID: implementation.Service.ControlPlaneID,
 		}
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, "api_implementation", fmt.Sprintf("%s:%s", apiRef, ref)),
-		ResourceType: "api_implementation",
+		ID:           p.nextChangeID(ActionDelete, ResourceTypeAPIImplementation, fmt.Sprintf("%s:%s", apiRef, ref)),
+		ResourceType: ResourceTypeAPIImplementation,
 		ResourceRef:  fmt.Sprintf("%s:%s", apiRef, ref),
 		ResourceID:   implementation.ID,
 		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
@@ -1673,7 +1722,7 @@ func (p *Planner) planAPIDocumentChanges(
 
 	// Compare desired documents
 	for _, desiredDoc := range desired {
-		if plan.HasChange("api_document", desiredDoc.GetRef()) {
+		if plan.HasChange(ResourceTypeAPIDocument, desiredDoc.GetRef()) {
 			continue
 		}
 		desiredPath := desiredPaths[desiredDoc.Ref]
@@ -1777,9 +1826,9 @@ func (p *Planner) planAPIVersionUpdate(
 
 	// Add fields that can be updated
 	if version.Version != nil {
-		fields["version"] = *version.Version
+		fields[FieldVersion] = *version.Version
 		if current.Version != *version.Version {
-			changedFields["version"] = FieldChange{
+			changedFields[FieldVersion] = FieldChange{
 				Old: current.Version,
 				New: *version.Version,
 			}
@@ -1787,8 +1836,8 @@ func (p *Planner) planAPIVersionUpdate(
 	}
 	if version.Spec.Content != nil {
 		// Store spec as a map with content field for proper JSON serialization
-		fields["spec"] = map[string]any{
-			"content": *version.Spec.Content,
+		fields[FieldSpec] = map[string]any{
+			FieldContent: *version.Spec.Content,
 		}
 
 		currentSpec := strings.TrimSpace(current.Spec)
@@ -1802,7 +1851,7 @@ func (p *Planner) planAPIVersionUpdate(
 			normalizedDesired = desiredSpec
 		}
 		if normalizedCurrent != normalizedDesired {
-			changedFields["spec"] = FieldChange{
+			changedFields[FieldSpec] = FieldChange{
 				Old: current.Spec,
 				New: *version.Spec.Content,
 			}
@@ -1810,8 +1859,8 @@ func (p *Planner) planAPIVersionUpdate(
 	}
 
 	change := PlannedChange{
-		ID:            p.nextChangeID(ActionUpdate, "api_version", version.GetRef()),
-		ResourceType:  "api_version",
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypeAPIVersion, version.GetRef()),
+		ResourceType:  ResourceTypeAPIVersion,
 		ResourceRef:   version.GetRef(),
 		ResourceID:    current.ID,
 		Parent:        &ParentInfo{Ref: apiRef, ID: apiID},
@@ -1831,11 +1880,11 @@ func (p *Planner) planAPIVersionUpdate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"api_id": {
+			FieldAPIID: {
 				Ref: apiRef,
 				ID:  apiID,
 				LookupFields: map[string]string{
-					"name": apiName,
+					FieldName: apiName,
 				},
 			},
 		}
@@ -1849,18 +1898,18 @@ func (p *Planner) planAPIDocumentCreate(
 	dependsOn []string, lookup apiDocumentLookup, plan *Plan,
 ) {
 	fields := make(map[string]any)
-	fields["content"] = document.Content
+	fields[FieldContent] = document.Content
 	if document.Title != nil {
-		fields["title"] = *document.Title
+		fields[FieldTitle] = *document.Title
 	}
 	if document.Slug != nil {
-		fields["slug"] = *document.Slug
+		fields[FieldSlug] = *document.Slug
 	}
 	if document.Status != nil {
-		fields["status"] = string(*document.Status)
+		fields[FieldStatus] = string(*document.Status)
 	}
 	if document.ParentDocumentID != "" {
-		fields["parent_document_id"] = document.ParentDocumentID
+		fields[FieldParentDocumentID] = document.ParentDocumentID
 	}
 
 	parentInfo := &ParentInfo{Ref: apiRef}
@@ -1869,8 +1918,8 @@ func (p *Planner) planAPIDocumentCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, "api_document", document.GetRef()),
-		ResourceType: "api_document",
+		ID:           p.nextChangeID(ActionCreate, ResourceTypeAPIDocument, document.GetRef()),
+		ResourceType: ResourceTypeAPIDocument,
 		ResourceRef:  document.GetRef(),
 		Parent:       parentInfo,
 		Action:       ActionCreate,
@@ -1888,11 +1937,11 @@ func (p *Planner) planAPIDocumentCreate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"api_id": {
+			FieldAPIID: {
 				Ref: apiRef,
 				ID:  apiID, // May be empty if API doesn't exist yet
 				LookupFields: map[string]string{
-					"name": apiName,
+					FieldName: apiName,
 				},
 			},
 		}
@@ -1903,26 +1952,27 @@ func (p *Planner) planAPIDocumentCreate(
 		lookupFields := make(map[string]string)
 		if lookup.paths != nil {
 			if parentPath := lookup.paths[document.ParentDocumentRef]; parentPath != "" {
-				lookupFields["slug_path"] = parentPath
+				lookupFields[FieldSlugPath] = parentPath
 			}
 		}
 		if lookup.slugs != nil {
 			if parentSlug := lookup.slugs[document.ParentDocumentRef]; parentSlug != "" {
-				lookupFields["slug"] = parentSlug
+				lookupFields[FieldSlug] = parentSlug
 			}
 		}
 
 		if change.References == nil {
 			change.References = make(map[string]ReferenceInfo)
 		}
-		change.References["parent_document_id"] = ReferenceInfo{
+		change.References[FieldParentDocumentID] = ReferenceInfo{
 			Ref:          document.ParentDocumentRef,
 			LookupFields: lookupFields,
 		}
 
 		// Ensure the parent document change executes first if present in the plan
 		for _, depChange := range plan.Changes {
-			if depChange.ResourceType == "api_document" && depChange.ResourceRef == document.ParentDocumentRef {
+			if depChange.ResourceType == ResourceTypeAPIDocument &&
+				depChange.ResourceRef == document.ParentDocumentRef {
 				change.DependsOn = append(change.DependsOn, depChange.ID)
 				break
 			}
@@ -1939,38 +1989,38 @@ func (p *Planner) planAPIDocumentUpdate(
 	fields := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
-	fields["content"] = document.Content
+	fields[FieldContent] = document.Content
 	if strings.TrimSpace(current.Content) != strings.TrimSpace(document.Content) {
-		changedFields["content"] = FieldChange{
+		changedFields[FieldContent] = FieldChange{
 			Old: current.Content,
 			New: document.Content,
 		}
 	}
 	if document.Title != nil {
-		fields["title"] = *document.Title
+		fields[FieldTitle] = *document.Title
 		if current.Title != *document.Title {
-			changedFields["title"] = FieldChange{
+			changedFields[FieldTitle] = FieldChange{
 				Old: current.Title,
 				New: *document.Title,
 			}
 		}
 	}
 	if document.Slug != nil {
-		fields["slug"] = *document.Slug
+		fields[FieldSlug] = *document.Slug
 	}
 	if document.Status != nil {
-		fields["status"] = string(*document.Status)
+		fields[FieldStatus] = string(*document.Status)
 		if current.Status != string(*document.Status) {
-			changedFields["status"] = FieldChange{
+			changedFields[FieldStatus] = FieldChange{
 				Old: current.Status,
 				New: string(*document.Status),
 			}
 		}
 	}
 	if document.ParentDocumentID != "" {
-		fields["parent_document_id"] = document.ParentDocumentID
+		fields[FieldParentDocumentID] = document.ParentDocumentID
 		if current.ParentDocumentID != document.ParentDocumentID {
-			changedFields["parent_document_id"] = FieldChange{
+			changedFields[FieldParentDocumentID] = FieldChange{
 				Old: current.ParentDocumentID,
 				New: document.ParentDocumentID,
 			}
@@ -1978,8 +2028,8 @@ func (p *Planner) planAPIDocumentUpdate(
 	}
 
 	change := PlannedChange{
-		ID:            p.nextChangeID(ActionUpdate, "api_document", document.GetRef()),
-		ResourceType:  "api_document",
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypeAPIDocument, document.GetRef()),
+		ResourceType:  ResourceTypeAPIDocument,
 		ResourceRef:   document.GetRef(),
 		ResourceID:    current.ID,
 		Parent:        &ParentInfo{Ref: apiRef, ID: apiID},
@@ -1999,11 +2049,11 @@ func (p *Planner) planAPIDocumentUpdate(
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"api_id": {
+			FieldAPIID: {
 				Ref: apiRef,
 				ID:  apiID,
 				LookupFields: map[string]string{
-					"name": apiName,
+					FieldName: apiName,
 				},
 			},
 		}
@@ -2013,26 +2063,27 @@ func (p *Planner) planAPIDocumentUpdate(
 		lookupFields := make(map[string]string)
 		if lookup.paths != nil {
 			if parentPath := lookup.paths[document.ParentDocumentRef]; parentPath != "" {
-				lookupFields["slug_path"] = parentPath
+				lookupFields[FieldSlugPath] = parentPath
 			}
 		}
 		if lookup.slugs != nil {
 			if parentSlug := lookup.slugs[document.ParentDocumentRef]; parentSlug != "" {
-				lookupFields["slug"] = parentSlug
+				lookupFields[FieldSlug] = parentSlug
 			}
 		}
 
 		if change.References == nil {
 			change.References = make(map[string]ReferenceInfo)
 		}
-		change.References["parent_document_id"] = ReferenceInfo{
+		change.References[FieldParentDocumentID] = ReferenceInfo{
 			Ref:          document.ParentDocumentRef,
 			LookupFields: lookupFields,
 		}
 
 		// If parent document change exists, ensure it runs before this update
 		for _, depChange := range plan.Changes {
-			if depChange.ResourceType == "api_document" && depChange.ResourceRef == document.ParentDocumentRef {
+			if depChange.ResourceType == ResourceTypeAPIDocument &&
+				depChange.ResourceRef == document.ParentDocumentRef {
 				change.DependsOn = append(change.DependsOn, depChange.ID)
 				break
 			}
@@ -2044,17 +2095,17 @@ func (p *Planner) planAPIDocumentUpdate(
 
 func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID string, path string, plan *Plan) {
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, "api_document", documentID),
-		ResourceType: "api_document",
-		ResourceRef:  "[unknown]",
+		ID:           p.nextChangeID(ActionDelete, ResourceTypeAPIDocument, documentID),
+		ResourceType: ResourceTypeAPIDocument,
+		ResourceRef:  resources.UnknownReferenceID,
 		ResourceID:   documentID,
 		ResourceMonikers: map[string]string{
-			"slug":       path,
+			FieldSlug:    path,
 			"parent_api": apiRef,
 		},
 		Parent:    &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:    ActionDelete,
-		Fields:    map[string]any{"slug": path},
+		Fields:    map[string]any{FieldSlug: path},
 		DependsOn: []string{},
 	}
 
@@ -2067,11 +2118,11 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID 
 		}
 
 		change.References = map[string]ReferenceInfo{
-			"api_id": {
+			FieldAPIID: {
 				Ref: apiRef,
 				ID:  apiID,
 				LookupFields: map[string]string{
-					"name": apiName,
+					FieldName: apiName,
 				},
 			},
 		}
@@ -2095,7 +2146,7 @@ func (p *Planner) planAPIVersionsChanges(
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
-			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
 					// Get parent namespace from the API change
@@ -2104,7 +2155,7 @@ func (p *Planner) planAPIVersionsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, v := range versions {
-						if plan.HasChange("api_version", v.GetRef()) {
+						if plan.HasChange(ResourceTypeAPIVersion, v.GetRef()) {
 							continue
 						}
 						p.planAPIVersionCreate(parentNamespace, apiRef, "", v, []string{change.ID}, plan)
@@ -2166,7 +2217,7 @@ func (p *Planner) planAPIPublicationsChanges(
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
-			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
 					// Get parent namespace from the API change
@@ -2175,7 +2226,7 @@ func (p *Planner) planAPIPublicationsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, pub := range publications {
-						if plan.HasChange("api_publication", pub.GetRef()) {
+						if plan.HasChange(ResourceTypeAPIPublication, pub.GetRef()) {
 							continue
 						}
 						p.planAPIPublicationCreate(parentNamespace, apiRef, "", pub, []string{change.ID}, plan)
@@ -2239,14 +2290,14 @@ func (p *Planner) planAPIImplementationsChanges(
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
-			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					parentNamespace := change.Namespace
 					if parentNamespace == "" {
 						parentNamespace = DefaultNamespace
 					}
 					for _, impl := range implementations {
-						if plan.HasChange("api_implementation", impl.GetRef()) {
+						if plan.HasChange(ResourceTypeAPIImplementation, impl.GetRef()) {
 							continue
 						}
 						p.planAPIImplementationCreate(parentNamespace, apiRef, "", impl, []string{change.ID}, plan)
@@ -2311,7 +2362,7 @@ func (p *Planner) planAPIDocumentsChanges(
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
-			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
 					// Get parent namespace from the API change
@@ -2320,7 +2371,7 @@ func (p *Planner) planAPIDocumentsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, doc := range documents {
-						if plan.HasChange("api_document", doc.GetRef()) {
+						if plan.HasChange(ResourceTypeAPIDocument, doc.GetRef()) {
 							continue
 						}
 						p.planAPIDocumentCreate(parentNamespace, apiRef, "", doc, []string{change.ID}, lookup, plan)

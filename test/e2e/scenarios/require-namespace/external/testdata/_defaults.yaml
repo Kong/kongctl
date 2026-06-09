@@ -1,0 +1,3 @@
+_defaults:
+  kongctl:
+    namespace: team-beta

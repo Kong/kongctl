@@ -8,6 +8,7 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalAssetFavicon,
 		func(rs *ResourceSet) *[]PortalAssetFaviconResource { return &rs.PortalAssetFavicons },
+		AutoExplain[PortalAssetFaviconResource](),
 	)
 }
 
@@ -42,7 +43,7 @@ func (r PortalAssetFaviconResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if r.Portal != "" {
 		deps = append(deps, ResourceRef{
-			Kind: "portal",
+			Kind: ResourceTypePortal,
 			Ref:  r.Portal,
 		})
 	}
@@ -98,7 +99,7 @@ func (r *PortalAssetFaviconResource) TryMatchKonnectResource(_ any) bool {
 func (r PortalAssetFaviconResource) GetParentRef() *ResourceRef {
 	if r.Portal != "" {
 		return &ResourceRef{
-			Kind: "portal",
+			Kind: ResourceTypePortal,
 			Ref:  r.Portal,
 		}
 	}

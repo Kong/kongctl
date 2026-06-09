@@ -2,13 +2,12 @@ package eventgateway
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -20,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -101,6 +101,21 @@ func newGetEventGatewayVirtualClustersCmd(
 
 	if addParentFlags != nil {
 		addParentFlags(verb, cmd)
+	}
+
+	// Add child commands
+	clusterPoliciesCmd := newGetEventGatewayClusterPoliciesCmd(verb, addParentFlags, parentPreRun)
+	if clusterPoliciesCmd != nil {
+		cmd.AddCommand(clusterPoliciesCmd)
+	}
+
+	producePoliciesCmd := newGetEventGatewayProducePoliciesCmd(verb, addParentFlags, parentPreRun)
+	if producePoliciesCmd != nil {
+		cmd.AddCommand(producePoliciesCmd)
+	}
+	consumePoliciesCmd := newGetEventGatewayConsumePoliciesCmd(verb, addParentFlags, parentPreRun)
+	if consumePoliciesCmd != nil {
+		cmd.AddCommand(consumePoliciesCmd)
 	}
 
 	return cmd
@@ -265,7 +280,7 @@ func (h virtualClustersHandler) listClusters(
 		records,
 		clusters,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "DNS LABEL"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName, "DNS LABEL"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -310,7 +325,7 @@ func (h virtualClustersHandler) listClustersByBackendCluster(
 		records,
 		filtered,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "DNS LABEL"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName, "DNS LABEL"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -377,10 +392,7 @@ func fetchVirtualClusters(
 	gatewayID string,
 	cfg config.Hook,
 ) ([]kkComps.VirtualCluster, error) {
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
-	}
+	requestPageSize := common.ResolveRequestPageSize(cfg)
 
 	var allData []kkComps.VirtualCluster
 	var pageAfter *string
@@ -408,21 +420,11 @@ func fetchVirtualClusters(
 		data := res.GetListVirtualClustersResponse().Data
 		allData = append(allData, data...)
 
-		if res.GetListVirtualClustersResponse().Meta.Page.Next == nil {
+		nextCursor := pagination.ExtractPageAfterCursor(res.GetListVirtualClustersResponse().Meta.Page.Next)
+		if nextCursor == "" {
 			break
 		}
-
-		u, err := url.Parse(*res.GetListVirtualClustersResponse().Meta.Page.Next)
-		if err != nil {
-			return nil, cmd.PrepareExecutionError(
-				"Failed to list virtual clusters: invalid cursor",
-				err,
-				helper.GetCmd(),
-			)
-		}
-
-		values := u.Query()
-		pageAfter = new(values.Get("page[after]"))
+		pageAfter = &nextCursor
 	}
 
 	return allData, nil
@@ -432,12 +434,10 @@ func findVirtualClusterByName(clusters []kkComps.VirtualCluster, identifier stri
 	lowered := strings.ToLower(identifier)
 	for _, cluster := range clusters {
 		if cluster.ID != "" && strings.ToLower(cluster.ID) == lowered {
-			clusterCopy := cluster
-			return &clusterCopy
+			return &cluster
 		}
 		if cluster.Name != "" && strings.ToLower(cluster.Name) == lowered {
-			clusterCopy := cluster
-			return &clusterCopy
+			return &cluster
 		}
 	}
 	return nil
@@ -480,7 +480,14 @@ func virtualClusterToRecord(cluster kkComps.VirtualCluster) virtualClusterSummar
 	}
 }
 
-func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster) tableview.ChildView {
+// VirtualClusterWithGateway wraps a virtual cluster with its parent event gateway ID
+// for navigation to child resources like cluster-policies.
+type VirtualClusterWithGateway struct {
+	*kkComps.VirtualCluster
+	EventGatewayID string
+}
+
+func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster, gatewayID string) tableview.ChildView {
 	rows := make([]table.Row, 0, len(clusters))
 	for i := range clusters {
 		record := virtualClusterToRecord(clusters[i])
@@ -495,16 +502,19 @@ func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster) tableview.C
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME", "DNS LABEL"},
+		Headers:        []string{"ID", tableHeaderName, "DNS LABEL"},
 		Rows:           rows,
 		DetailRenderer: detailFn,
 		Title:          "Virtual Clusters",
-		ParentType:     "virtual-cluster",
+		ParentType:     common.ViewParentVirtualCluster,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(clusters) {
 				return nil
 			}
-			return &clusters[index]
+			return &VirtualClusterWithGateway{
+				VirtualCluster: &clusters[index],
+				EventGatewayID: gatewayID,
+			}
 		},
 	}
 }

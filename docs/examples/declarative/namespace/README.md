@@ -27,17 +27,17 @@ Investigate the resources created and observe the namespace labels applied:
 kongctl get apis -o json
 ```
 
-Because we are using `sync`, resources can be deleted. One way to simulate the removing of resources for a 
-namespace is to pass an empty configuration file with a `_default` namespace value:
+Because we are using `sync`, resources can be deleted. To remove all managed
+APIs in a namespace, pass an explicit empty API list with the namespace default:
 
-⚠️ Warning: This removes all resources in the namespace, so use with caution! ⚠️
+⚠️ Warning: This removes all managed APIs in the namespace. Use caution! ⚠️
 
 ```bash
-echo "_defaults: {kongctl: {namespace: team-beta}}" | kongctl sync -f -
+printf '_defaults: {kongctl: {namespace: team-beta}}\napis: []\n' | kongctl sync -f -
 ```
 
-Notice that only resources in the `team-beta` namespace will be removed. Check the list of apis again to 
-verify that `team-alpha` apis remains intact:
+Notice that only APIs in the `team-beta` namespace will be removed. Check the
+list of APIs again to verify that `team-alpha` APIs remain intact:
 
 ```bash
 kongctl get apis -o json

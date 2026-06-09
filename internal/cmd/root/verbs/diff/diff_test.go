@@ -30,7 +30,7 @@ func TestNewDiffCmd(t *testing.T) {
 
 	// Test basic command properties
 	assert.Equal(t, "diff", cmd.Use, "Command use should be 'diff'")
-	assert.Contains(t, cmd.Short, "Show configuration differences",
+	assert.Contains(t, cmd.Short, "Show declarative configuration differences",
 		"Short description should mention showing differences")
 	assert.Contains(t, cmd.Long, "differences between current and desired state",
 		"Long description should mention differences")
@@ -56,11 +56,12 @@ func TestDiffCmdHelpText(t *testing.T) {
 	}
 
 	// Test that help text contains expected content
-	assert.Contains(t, cmd.Short, "Show configuration", "Short should mention showing configuration")
+	assert.Contains(t, cmd.Short, "Show declarative configuration", "Short should mention showing configuration")
 	assert.Contains(t, cmd.Long, "differences", "Long should mention differences")
 	assert.Contains(t, cmd.Example, "--plan", "Examples should show --plan flag usage")
-	assert.Contains(t, cmd.Example, "--output json", "Examples should show output format option")
-	assert.Contains(t, cmd.Example, "help diff", "Examples should mention extended help")
+	assert.Contains(t, cmd.Example, "diff konnect -f api.yaml", "Examples should show explicit Konnect usage")
+	assert.NotContains(t, cmd.Example, "--output json", "Examples should not use stale output example")
+	assert.NotContains(t, cmd.Example, "help diff", "Examples should come from Konnect declarative command")
 }
 
 func TestDiffCmd_Flags(t *testing.T) {

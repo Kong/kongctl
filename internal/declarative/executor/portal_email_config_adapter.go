@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -21,23 +22,23 @@ func NewPortalEmailConfigAdapter(client *state.Client) *PortalEmailConfigAdapter
 func (a *PortalEmailConfigAdapter) MapCreateFields(
 	_ context.Context, _ *ExecutionContext, fields map[string]any, create *kkComps.PostPortalEmailConfig,
 ) error {
-	if domain, ok := fields["domain_name"].(string); ok {
+	if domain, ok := fields[planner.FieldDomainName].(string); ok {
 		create.DomainName = &domain
 	}
 
-	fromName, ok := fields["from_name"].(string)
+	fromName, ok := fields[planner.FieldFromName].(string)
 	if !ok || fromName == "" {
 		return fmt.Errorf("from_name is required")
 	}
 	create.FromName = &fromName
 
-	fromEmail, ok := fields["from_email"].(string)
+	fromEmail, ok := fields[planner.FieldFromEmail].(string)
 	if !ok || fromEmail == "" {
 		return fmt.Errorf("from_email is required")
 	}
 	create.FromEmail = &fromEmail
 
-	replyTo, ok := fields["reply_to_email"].(string)
+	replyTo, ok := fields[planner.FieldReplyToEmail].(string)
 	if !ok || replyTo == "" {
 		return fmt.Errorf("reply_to_email is required")
 	}
@@ -50,28 +51,28 @@ func (a *PortalEmailConfigAdapter) MapUpdateFields(
 	_ context.Context, _ *ExecutionContext, fields map[string]any, update *kkComps.PatchPortalEmailConfig,
 	_ map[string]string,
 ) error {
-	if v, ok := fields["domain_name"]; ok {
+	if v, ok := fields[planner.FieldDomainName]; ok {
 		if v == nil {
 			update.DomainName = nil
 		} else if domain, ok := v.(string); ok {
 			update.DomainName = &domain
 		}
 	}
-	if v, ok := fields["from_name"]; ok {
+	if v, ok := fields[planner.FieldFromName]; ok {
 		if v == nil {
 			update.FromName = nil
 		} else if fromName, ok := v.(string); ok {
 			update.FromName = &fromName
 		}
 	}
-	if v, ok := fields["from_email"]; ok {
+	if v, ok := fields[planner.FieldFromEmail]; ok {
 		if v == nil {
 			update.FromEmail = nil
 		} else if fromEmail, ok := v.(string); ok {
 			update.FromEmail = &fromEmail
 		}
 	}
-	if v, ok := fields["reply_to_email"]; ok {
+	if v, ok := fields[planner.FieldReplyToEmail]; ok {
 		if v == nil {
 			update.ReplyToEmail = nil
 		} else if replyTo, ok := v.(string); ok {
@@ -118,7 +119,7 @@ func (a *PortalEmailConfigAdapter) GetByID(
 ) (ResourceInfo, error) {
 	portalID := id
 	if execCtx != nil {
-		if ref, ok := execCtx.PlannedChange.References["portal_id"]; ok && ref.ID != "" {
+		if ref, ok := execCtx.PlannedChange.References[planner.FieldPortalID]; ok && ref.ID != "" {
 			portalID = ref.ID
 		} else if execCtx.PlannedChange.Parent != nil && execCtx.PlannedChange.Parent.ID != "" {
 			portalID = execCtx.PlannedChange.Parent.ID
@@ -138,11 +139,11 @@ func (a *PortalEmailConfigAdapter) GetByID(
 }
 
 func (a *PortalEmailConfigAdapter) ResourceType() string {
-	return "portal_email_config"
+	return planner.ResourceTypePortalEmailConfig
 }
 
 func (a *PortalEmailConfigAdapter) RequiredFields() []string {
-	return []string{"from_name", "from_email", "reply_to_email"}
+	return []string{planner.FieldFromName, planner.FieldFromEmail, planner.FieldReplyToEmail}
 }
 
 func (a *PortalEmailConfigAdapter) SupportsUpdate() bool {
@@ -156,7 +157,7 @@ func (a *PortalEmailConfigAdapter) portalID(execCtx *ExecutionContext) (string, 
 
 	change := *execCtx.PlannedChange
 
-	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
 

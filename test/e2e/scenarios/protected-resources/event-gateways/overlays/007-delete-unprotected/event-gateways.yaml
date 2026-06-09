@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: "egw-protection"
+
+event_gateways: []

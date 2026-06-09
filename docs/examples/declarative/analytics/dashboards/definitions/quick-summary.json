@@ -1,0 +1,301 @@
+{
+  "tiles": [
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Total traffic over time",
+          "type": "timeseries_line"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "time"
+          ],
+          "metrics": [
+            "request_count"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 0,
+          "row": 0
+        },
+        "size": {
+          "cols": 6,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    },
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Top 5 gateway services by requests",
+          "stacked": true,
+          "type": "horizontal_bar"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "gateway_service"
+          ],
+          "filters": [
+            {
+              "field": "gateway_service",
+              "operator": "not_empty"
+            }
+          ],
+          "metrics": [
+            "request_count"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 0,
+          "row": 2
+        },
+        "size": {
+          "cols": 2,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    },
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Top 5 routes by requests",
+          "stacked": true,
+          "type": "horizontal_bar"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "route"
+          ],
+          "filters": [
+            {
+              "field": "route",
+              "operator": "not_empty"
+            }
+          ],
+          "metrics": [
+            "request_count"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 2,
+          "row": 2
+        },
+        "size": {
+          "cols": 2,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    },
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Top 5 consumers by requests",
+          "stacked": true,
+          "type": "horizontal_bar"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "consumer"
+          ],
+          "filters": [
+            {
+              "field": "consumer",
+              "operator": "not_empty"
+            }
+          ],
+          "metrics": [
+            "request_count"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 4,
+          "row": 2
+        },
+        "size": {
+          "cols": 2,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    },
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Latency breakdown over time",
+          "type": "timeseries_line"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "time"
+          ],
+          "metrics": [
+            "response_latency_p99",
+            "response_latency_p95",
+            "response_latency_p50"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 0,
+          "row": 4
+        },
+        "size": {
+          "cols": 3,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    },
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Kong vs upstream latency over time",
+          "type": "timeseries_line"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "time"
+          ],
+          "metrics": [
+            "upstream_latency_p99",
+            "kong_latency_p99"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 3,
+          "row": 4
+        },
+        "size": {
+          "cols": 3,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    },
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Slowest gateway services (average)",
+          "stacked": true,
+          "type": "horizontal_bar"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "gateway_service"
+          ],
+          "filters": [
+            {
+              "field": "gateway_service",
+              "operator": "not_empty"
+            }
+          ],
+          "metrics": [
+            "response_latency_average"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 0,
+          "row": 6
+        },
+        "size": {
+          "cols": 2,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    },
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Slowest routes (average)",
+          "stacked": true,
+          "type": "horizontal_bar"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "route"
+          ],
+          "filters": [
+            {
+              "field": "route",
+              "operator": "not_empty"
+            }
+          ],
+          "metrics": [
+            "response_latency_average"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 2,
+          "row": 6
+        },
+        "size": {
+          "cols": 2,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    },
+    {
+      "definition": {
+        "chart": {
+          "chart_title": "Slowest consumers (average)",
+          "stacked": true,
+          "type": "horizontal_bar"
+        },
+        "query": {
+          "datasource": "api_usage",
+          "dimensions": [
+            "consumer"
+          ],
+          "filters": [
+            {
+              "field": "consumer",
+              "operator": "not_empty"
+            }
+          ],
+          "metrics": [
+            "response_latency_average"
+          ]
+        }
+      },
+      "layout": {
+        "position": {
+          "col": 4,
+          "row": 6
+        },
+        "size": {
+          "cols": 2,
+          "rows": 2
+        }
+      },
+      "type": "chart"
+    }
+  ]
+}

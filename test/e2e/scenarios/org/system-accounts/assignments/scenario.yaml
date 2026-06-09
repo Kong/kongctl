@@ -1,0 +1,344 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  assignedEnvironment: kongctl-acceptance
+  info: >-
+    Organization system account assignment E2E creates a temporary Konnect
+    system account through the harness, then manages its team and role
+    assignments declaratively.
+
+vars:
+  namespace: org-system-account-assignments-e2e
+  systemAccountName: e2e-system-account-assignments
+  systemAccountDescription: E2E system account used for assignment tests
+  apiRef: org-system-account-assignments-api
+  teamRef: org-system-account-assignments-team
+  teamName: Organization System Account Assignments Team
+  apiRoleRef: org-system-account-assignments-api-viewer
+  portalRoleNamespace: org-system-account-assignments-portal-e2e
+  portalRef: org-system-account-assignments-portal
+  portalName: org-system-account-assignments-portal
+  portalSystemAccountRoleRef: org-system-account-assignments-portal-viewer
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+      - system_account_id
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-system-account
+    skipInputs: true
+    commands:
+      - name: 000-create-system-account
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.systemAccountName }}"
+              description: "{{ .vars.systemAccountDescription }}"
+          recordVar:
+            name: system_account_id
+            responsePath: id
+
+  - name: 002-apply-system-account-assignments
+    inputOverlayDirs:
+      - overlays/001-config
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='organization_system_account_team_membership'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_system_account_role' &&
+                            resource_ref=='{{ .vars.apiRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+          - select: plan.changes[?resource_type=='organization_system_account_team_membership']
+            expect:
+              fields:
+                "length(@)": 1
+          - select: plan.changes[?resource_type=='organization_system_account_role']
+            expect:
+              fields:
+                "length(@)": 1
+
+      - name: 001-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 002-get-system-accounts-alias
+        run:
+          - get
+          - organization
+          - system_accounts
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.systemAccountName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.systemAccountName }}"
+                description: "{{ .vars.systemAccountDescription }}"
+
+      - name: 003-get-system-account-roles-by-name
+        run:
+          - get
+          - org
+          - system-account
+          - roles
+          - --system-account-name
+          - "{{ .vars.systemAccountName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+
+      - name: 004-get-system-account-roles-by-id
+        run:
+          - get
+          - organization
+          - systemaccount
+          - roles
+          - --system-account-id
+          - "{{ .vars.system_account_id }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+
+      - name: 005-get-system-account-teams-by-name
+        run:
+          - get
+          - org
+          - system_account
+          - teams
+          - --system-account-name
+          - "{{ .vars.systemAccountName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamName }}"
+
+      - name: 006-get-system-account-teams-by-id
+        run:
+          - get
+          - organization
+          - system-accounts
+          - teams
+          - --system-account-id
+          - "{{ .vars.system_account_id }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamName }}"
+
+  - name: 003-cleanup
+    inputOverlayDirs:
+      - overlays/002-cleanup
+    commands:
+      - name: 000-sync-remove-assignments-and-team
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: plan.changes[?resource_type=='organization_system_account_team_membership']
+            expect:
+              fields:
+                "length(@)": 1
+          - select: plan.changes[?resource_type=='organization_system_account_role']
+            expect:
+              fields:
+                "length(@)": 1
+
+      - name: 001-delete-cleanup-api
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 004-portal-entity-ref
+    inputOverlayDirs:
+      - overlays/003-portal-entity-ref
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='portal' &&
+                            resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.portalRoleNamespace }}"
+                fields.name: "{{ .vars.portalName }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_system_account_role' &&
+                            resource_ref=='{{ .vars.portalSystemAccountRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.portalRoleNamespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: Portals
+                fields.entity_region: us
+                references.entity_id.ref: "__REF__:{{ .vars.portalRef }}#id"
+
+      - name: 001-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 002-get-system-account-roles-by-name
+        run:
+          - get
+          - org
+          - system-account
+          - roles
+          - --system-account-name
+          - "{{ .vars.systemAccountName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?role_name=='Viewer' && entity_type_name=='Portals'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: Portals
+                entity_region: us
+
+  - name: 005-portal-entity-ref-cleanup
+    inputOverlayDirs:
+      - overlays/004-portal-entity-ref-cleanup
+    commands:
+      - name: 000-sync-remove-portal-role
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 001-delete-portal
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

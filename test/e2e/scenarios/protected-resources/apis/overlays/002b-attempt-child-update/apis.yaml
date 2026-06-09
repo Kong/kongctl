@@ -1,0 +1,35 @@
+# Overlay: Update api_version child while parent API is protected
+# Change the spec title so the planner sees a real UPDATE for the version
+# This should fail because the parent API has the protected label
+
+_defaults:
+  kongctl:
+    namespace: default
+
+apis:
+  - ref: customer-api
+    name: "Customer API"
+    description: "Production API for customer data"
+    version: "1.0.0"
+    kongctl:
+      protected: true
+      namespace: default
+    versions:
+      - ref: customer-api-v1
+        version: "1.0.0"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: Customer API (updated while protected)
+              version: 1.0.0
+            paths: {}
+
+  - ref: test-api
+    name: "Test API"
+    description: "Non-critical test API"
+    version: "1.0.0"
+    kongctl:
+      protected: false
+      namespace: default

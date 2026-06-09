@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -291,10 +291,7 @@ func fetchPortalApplications(
 	cfg config.Hook,
 ) ([]kkComps.Application, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.Application
 
@@ -319,7 +316,7 @@ func fetchPortalApplications(
 		all = append(all, data...)
 
 		total := int(res.GetListApplicationsResponse().GetMeta().Page.Total)
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 

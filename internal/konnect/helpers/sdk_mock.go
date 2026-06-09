@@ -4,25 +4,38 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token                     string
-	T                         *testing.T
-	CPAPIFactory              func() ControlPlaneAPI
-	ControlPlaneGroupsFactory func() ControlPlaneGroupsAPI
-	PortalFactory             func() PortalAPI
-	APIFactory                func() APIFullAPI
-	CatalogServicesFactory    func() CatalogServicesAPI
-	APIDocumentFactory        func() APIDocumentAPI
-	APIVersionFactory         func() APIVersionAPI
-	APIPublicationFactory     func() APIPublicationAPI
-	APIImplementationFactory  func() APIImplementationAPI
-	AppAuthStrategiesFactory  func() AppAuthStrategiesAPI
-	MeFactory                 func() MeAPI
-	GatewayServiceFactory     func() GatewayServiceAPI
-	SystemAccountFactory      func() SystemAccountAPI
-	OrganizationTeamFactory   func() OrganizationTeamAPI
+	Token                              string
+	T                                  *testing.T
+	CPAPIFactory                       func() ControlPlaneAPI
+	ControlPlaneGroupsFactory          func() ControlPlaneGroupsAPI
+	PortalFactory                      func() PortalAPI
+	APIFactory                         func() APIFullAPI
+	CatalogServicesFactory             func() CatalogServicesAPI
+	DashboardsFactory                  func() DashboardsAPI
+	APIDocumentFactory                 func() APIDocumentAPI
+	APIVersionFactory                  func() APIVersionAPI
+	APIPublicationFactory              func() APIPublicationAPI
+	APIImplementationFactory           func() APIImplementationAPI
+	AppAuthStrategiesFactory           func() AppAuthStrategiesAPI
+	DCRProvidersFactory                func() DCRProvidersAPI
+	MeFactory                          func() MeAPI
+	PersonalAccessTokenFactory         func() PersonalAccessTokenAPI
+	SystemAccountAccessTokenFactory    func() SystemAccountAccessTokenAPI
+	GatewayServiceFactory              func() GatewayServiceAPI
+	DataPlaneCertificateFactory        func() DataPlaneCertificateAPI
+	SystemAccountFactory               func() SystemAccountAPI
+	SystemAccountRolesFactory          func() SystemAccountRolesAPI
+	SystemAccountTeamMembershipFactory func() SystemAccountTeamMembershipAPI
+	OrganizationTeamFactory            func() OrganizationTeamAPI
+	OrganizationTeamRolesFactory       func() OrganizationTeamRolesAPI
+	OrganizationUsersFactory           func() OrganizationUsersAPI
+	OrganizationMembershipFactory      func() OrganizationTeamMembershipAPI
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
+	PortalIPAllowListFactory             func() PortalIPAllowListAPI
+	PortalIntegrationsFactory            func() PortalIntegrationsAPI
+	PortalIdentityProviderFactory        func() PortalIdentityProviderAPI
 	PortalCustomizationFactory           func() PortalCustomizationAPI
 	PortalCustomDomainFactory            func() PortalCustomDomainAPI
 	PortalSnippetFactory                 func() PortalSnippetAPI
@@ -34,6 +47,8 @@ type MockKonnectSDK struct {
 	PortalTeamMembershipFactory          func() PortalTeamMembershipAPI
 	AssetsFactory                        func() AssetsAPI
 	PortalEmailsFactory                  func() PortalEmailsAPI
+	PortalAuditLogsFactory               func() PortalAuditLogsAPI
+	AuditLogDestinationsFactory          func() AuditLogDestinationsAPI
 
 	// Event Gateway Control Plane factory
 	EventGatewayControlPlaneFactory         func() EGWControlPlaneAPI
@@ -41,7 +56,13 @@ type MockKonnectSDK struct {
 	EventGatewayVirtualClusterFactory       func() EventGatewayVirtualClusterAPI
 	EventGatewayListenerFactory             func() EventGatewayListenerAPI
 	EventGatewayListenerPolicyFactory       func() EventGatewayListenerPolicyAPI
+	EventGatewayClusterPolicyFactory        func() EventGatewayClusterPolicyAPI
+	EventGatewayProducePolicyFactory        func() EventGatewayProducePolicyAPI
+	EventGatewayConsumePolicyFactory        func() EventGatewayConsumePolicyAPI
 	EventGatewayDataPlaneCertificateFactory func() EventGatewayDataPlaneCertificateAPI
+	EventGatewaySchemaRegistryFactory       func() EventGatewaySchemaRegistryAPI
+	EventGatewayStaticKeyFactory            func() EventGatewayStaticKeyAPI
+	EventGatewayTLSTrustBundleFactory       func() EventGatewayTLSTrustBundleAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -77,6 +98,14 @@ func (m *MockKonnectSDK) GetAPIAPI() APIFullAPI {
 func (m *MockKonnectSDK) GetCatalogServicesAPI() CatalogServicesAPI {
 	if m.CatalogServicesFactory != nil {
 		return m.CatalogServicesFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the DashboardsAPI.
+func (m *MockKonnectSDK) GetDashboardsAPI() DashboardsAPI {
+	if m.DashboardsFactory != nil {
+		return m.DashboardsFactory()
 	}
 	return nil
 }
@@ -121,10 +150,25 @@ func (m *MockKonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	return nil
 }
 
+// Returns a mock instance of the DCRProvidersAPI
+func (m *MockKonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
+	if m.DCRProvidersFactory != nil {
+		return m.DCRProvidersFactory()
+	}
+	return nil
+}
+
 // Returns a mock instance of the GatewayServiceAPI
 func (m *MockKonnectSDK) GetGatewayServiceAPI() GatewayServiceAPI {
 	if m.GatewayServiceFactory != nil {
 		return m.GatewayServiceFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetDataPlaneCertificateAPI() DataPlaneCertificateAPI {
+	if m.DataPlaneCertificateFactory != nil {
+		return m.DataPlaneCertificateFactory()
 	}
 	return nil
 }
@@ -141,6 +185,30 @@ func (m *MockKonnectSDK) GetPortalPageAPI() PortalPageAPI {
 func (m *MockKonnectSDK) GetPortalAuthSettingsAPI() PortalAuthSettingsAPI {
 	if m.PortalAuthSettingsFactory != nil {
 		return m.PortalAuthSettingsFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalIPAllowListAPI
+func (m *MockKonnectSDK) GetPortalIPAllowListAPI() PortalIPAllowListAPI {
+	if m.PortalIPAllowListFactory != nil {
+		return m.PortalIPAllowListFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalIntegrationsAPI
+func (m *MockKonnectSDK) GetPortalIntegrationsAPI() PortalIntegrationsAPI {
+	if m.PortalIntegrationsFactory != nil {
+		return m.PortalIntegrationsFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalIdentityProviderAPI
+func (m *MockKonnectSDK) GetPortalIdentityProviderAPI() PortalIdentityProviderAPI {
+	if m.PortalIdentityProviderFactory != nil {
+		return m.PortalIdentityProviderFactory()
 	}
 	return nil
 }
@@ -225,6 +293,20 @@ func (m *MockKonnectSDK) GetMeAPI() MeAPI {
 	return nil
 }
 
+func (m *MockKonnectSDK) GetPersonalAccessTokenAPI() PersonalAccessTokenAPI {
+	if m.PersonalAccessTokenFactory != nil {
+		return m.PersonalAccessTokenFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetSystemAccountAccessTokenAPI() SystemAccountAccessTokenAPI {
+	if m.SystemAccountAccessTokenFactory != nil {
+		return m.SystemAccountAccessTokenFactory()
+	}
+	return nil
+}
+
 // Returns a mock instance of the AssetsAPI
 func (m *MockKonnectSDK) GetAssetsAPI() AssetsAPI {
 	if m.AssetsFactory != nil {
@@ -237,6 +319,22 @@ func (m *MockKonnectSDK) GetAssetsAPI() AssetsAPI {
 func (m *MockKonnectSDK) GetPortalEmailsAPI() PortalEmailsAPI {
 	if m.PortalEmailsFactory != nil {
 		return m.PortalEmailsFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalAuditLogsAPI
+func (m *MockKonnectSDK) GetPortalAuditLogsAPI() PortalAuditLogsAPI {
+	if m.PortalAuditLogsFactory != nil {
+		return m.PortalAuditLogsFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AuditLogDestinationsAPI
+func (m *MockKonnectSDK) GetAuditLogDestinationsAPI() AuditLogDestinationsAPI {
+	if m.AuditLogDestinationsFactory != nil {
+		return m.AuditLogDestinationsFactory()
 	}
 	return nil
 }
@@ -257,6 +355,20 @@ func (m *MockKonnectSDK) GetSystemAccountAPI() SystemAccountAPI {
 	return nil
 }
 
+func (m *MockKonnectSDK) GetSystemAccountRolesAPI() SystemAccountRolesAPI {
+	if m.SystemAccountRolesFactory != nil {
+		return m.SystemAccountRolesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetSystemAccountTeamMembershipAPI() SystemAccountTeamMembershipAPI {
+	if m.SystemAccountTeamMembershipFactory != nil {
+		return m.SystemAccountTeamMembershipFactory()
+	}
+	return nil
+}
+
 // Returns a mock instance of the EventGatewayBackendClusterAPI
 func (m *MockKonnectSDK) GetEventGatewayBackendClusterAPI() EventGatewayBackendClusterAPI {
 	if m.EventGatewayBackendClusterFactory != nil {
@@ -269,6 +381,28 @@ func (m *MockKonnectSDK) GetEventGatewayBackendClusterAPI() EventGatewayBackendC
 func (m *MockKonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {
 	if m.OrganizationTeamFactory != nil {
 		return m.OrganizationTeamFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the OrganizationTeamRolesAPI.
+func (m *MockKonnectSDK) GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI {
+	if m.OrganizationTeamRolesFactory != nil {
+		return m.OrganizationTeamRolesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetOrganizationUsersAPI() OrganizationUsersAPI {
+	if m.OrganizationUsersFactory != nil {
+		return m.OrganizationUsersFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetOrganizationTeamMembershipAPI() OrganizationTeamMembershipAPI {
+	if m.OrganizationMembershipFactory != nil {
+		return m.OrganizationMembershipFactory()
 	}
 	return nil
 }
@@ -297,10 +431,58 @@ func (m *MockKonnectSDK) GetEventGatewayListenerPolicyAPI() EventGatewayListener
 	return nil
 }
 
+// Returns a mock instance of the EventGatewayClusterPolicyAPI
+func (m *MockKonnectSDK) GetEventGatewayClusterPolicyAPI() EventGatewayClusterPolicyAPI {
+	if m.EventGatewayClusterPolicyFactory != nil {
+		return m.EventGatewayClusterPolicyFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EventGatewayProducePolicyAPI
+func (m *MockKonnectSDK) GetEventGatewayProducePolicyAPI() EventGatewayProducePolicyAPI {
+	if m.EventGatewayProducePolicyFactory != nil {
+		return m.EventGatewayProducePolicyFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EventGatewayConsumePolicyAPI
+func (m *MockKonnectSDK) GetEventGatewayConsumePolicyAPI() EventGatewayConsumePolicyAPI {
+	if m.EventGatewayConsumePolicyFactory != nil {
+		return m.EventGatewayConsumePolicyFactory()
+	}
+	return nil
+}
+
 // Returns a mock instance of the EventGatewayDataPlaneCertificateAPI
 func (m *MockKonnectSDK) GetEventGatewayDataPlaneCertificateAPI() EventGatewayDataPlaneCertificateAPI {
 	if m.EventGatewayDataPlaneCertificateFactory != nil {
 		return m.EventGatewayDataPlaneCertificateFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EventGatewaySchemaRegistryAPI
+func (m *MockKonnectSDK) GetEventGatewaySchemaRegistryAPI() EventGatewaySchemaRegistryAPI {
+	if m.EventGatewaySchemaRegistryFactory != nil {
+		return m.EventGatewaySchemaRegistryFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EventGatewayStaticKeyAPI
+func (m *MockKonnectSDK) GetEventGatewayStaticKeyAPI() EventGatewayStaticKeyAPI {
+	if m.EventGatewayStaticKeyFactory != nil {
+		return m.EventGatewayStaticKeyFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EventGatewayTLSTrustBundleAPI
+func (m *MockKonnectSDK) GetEventGatewayTLSTrustBundleAPI() EventGatewayTLSTrustBundleAPI {
+	if m.EventGatewayTLSTrustBundleFactory != nil {
+		return m.EventGatewayTLSTrustBundleFactory()
 	}
 	return nil
 }

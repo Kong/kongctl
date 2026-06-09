@@ -8,12 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -48,15 +49,15 @@ type listenerPolicySummaryRecord struct {
 // listenerPolicyWithConfig is a wrapper that includes the full config from raw API response.
 // The SDK's EventGatewayListenerPolicyConfig struct is empty, so we use map[string]any to capture actual config.
 type listenerPolicyWithConfig struct {
-	Type           string            `json:"type" yaml:"type"`
-	Name           *string           `json:"name,omitempty" yaml:"name,omitempty"`
-	Description    *string           `json:"description,omitempty" yaml:"description,omitempty"`
-	Enabled        *bool             `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	Labels         map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
-	ID             string            `json:"id" yaml:"id"`
-	Config         map[string]any    `json:"config" yaml:"config"`
-	CreatedAt      time.Time         `json:"created_at" yaml:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at" yaml:"updated_at"`
+	Type           string            `json:"type"                       yaml:"type"`
+	Name           *string           `json:"name,omitempty"             yaml:"name,omitempty"`
+	Description    *string           `json:"description,omitempty"      yaml:"description,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty"          yaml:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"           yaml:"labels,omitempty"`
+	ID             string            `json:"id"                         yaml:"id"`
+	Config         map[string]any    `json:"config"                     yaml:"config"`
+	CreatedAt      time.Time         `json:"created_at"                 yaml:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"                 yaml:"updated_at"`
 	ParentPolicyID *string           `json:"parent_policy_id,omitempty" yaml:"parent_policy_id,omitempty"`
 }
 
@@ -104,8 +105,10 @@ var (
 
 	listenerPoliciesShort = i18n.T("root.products.konnect.eventgateway.listenerPoliciesShort",
 		"Manage listener policies for an Event Gateway Listener")
-	listenerPoliciesLong = normalizers.LongDesc(i18n.T("root.products.konnect.eventgateway.listenerPoliciesLong",
-		`Use the listener-policies command to list or retrieve listener policies for a specific Event Gateway Listener.`))
+	listenerPoliciesLong = normalizers.LongDesc(i18n.T(
+		"root.products.konnect.eventgateway.listenerPoliciesLong",
+		`Use the listener-policies command to list or retrieve listener policies for a specific Event Gateway Listener.`,
+	))
 	listenerPoliciesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.eventgateway.listenerPoliciesExamples",
 			fmt.Sprintf(`
@@ -388,7 +391,7 @@ func (h listenerPoliciesHandler) listPolicies(
 		records,
 		outputData,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "TYPE"}, tableRows),
+		tableview.WithCustomTable([]string{"ID", tableHeaderName, tableHeaderType}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
@@ -426,9 +429,9 @@ func (h listenerPoliciesHandler) getSinglePolicy(
 	}
 
 	req := kkOps.GetEventGatewayListenerPolicyRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
-		PolicyID:               policyID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
+		PolicyID:   policyID,
 	}
 
 	res, err := policyAPI.GetEventGatewayListenerPolicy(helper.GetContext(), req)
@@ -489,8 +492,8 @@ func fetchListenerPolicies(
 	nameFilter string,
 ) ([]kkComps.EventGatewayListenerPolicy, []listenerPolicyWithConfig, error) {
 	req := kkOps.ListEventGatewayListenerPoliciesRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
 	}
 
 	// Apply name filter if provided
@@ -533,50 +536,52 @@ func findListenerPolicyByName(
 	return nil
 }
 
-func listenerPolicyToRecord(policy kkComps.EventGatewayListenerPolicy) listenerPolicySummaryRecord {
-	id := policy.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
+func makeListenerPolicySummaryRecord(
+	id string,
+	name *string,
+	policyType string,
+	description *string,
+	enabled *bool,
+	createdAt, updatedAt time.Time,
+) listenerPolicySummaryRecord {
+	recordID := id
+	if recordID != "" {
+		recordID = util.AbbreviateUUID(recordID)
 	} else {
-		id = valueNA
+		recordID = valueNA
 	}
 
-	name := valueNA
-	if policy.Name != nil && *policy.Name != "" {
-		name = *policy.Name
+	recordName := valueNA
+	if name != nil && *name != "" {
+		recordName = *name
 	}
 
-	policyType := policy.Type
-	if policyType == "" {
-		policyType = valueNA
+	recordType := policyType
+	if recordType == "" {
+		recordType = valueNA
 	}
 
-	description := valueNA
-	if policy.Description != nil && *policy.Description != "" {
-		description = *policy.Description
+	recordDesc := valueNA
+	if description != nil && *description != "" {
+		recordDesc = *description
 	}
-
-	enabled := valueNA
-	if policy.Enabled != nil {
-		if *policy.Enabled {
-			enabled = "true"
-		} else {
-			enabled = "false"
-		}
-	}
-
-	createdAt := policy.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-	updatedAt := policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 
 	return listenerPolicySummaryRecord{
-		ID:               id,
-		Name:             name,
-		Type:             policyType,
-		Description:      description,
-		Enabled:          enabled,
-		LocalCreatedTime: createdAt,
-		LocalUpdatedTime: updatedAt,
+		ID:               recordID,
+		Name:             recordName,
+		Type:             recordType,
+		Description:      recordDesc,
+		Enabled:          formatEnabledBool(enabled),
+		LocalCreatedTime: createdAt.In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalUpdatedTime: updatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
+}
+
+func listenerPolicyToRecord(policy kkComps.EventGatewayListenerPolicy) listenerPolicySummaryRecord {
+	return makeListenerPolicySummaryRecord(
+		policy.ID, policy.Name, policy.Type, policy.Description, policy.Enabled,
+		policy.CreatedAt, policy.UpdatedAt,
+	)
 }
 
 func listenerPolicyWithConfigDetailView(policy *listenerPolicyWithConfig) string {
@@ -604,14 +609,7 @@ func listenerPolicyWithConfigDetailView(policy *listenerPolicyWithConfig) string
 		description = strings.TrimSpace(*policy.Description)
 	}
 
-	enabled := valueNA
-	if policy.Enabled != nil {
-		if *policy.Enabled {
-			enabled = "true"
-		} else {
-			enabled = "false"
-		}
-	}
+	enabled := formatEnabledBool(policy.Enabled)
 
 	labels := formatLabelPairs(policy.Labels)
 
@@ -656,11 +654,11 @@ func buildListenerPolicyChildView(policies []listenerPolicyWithConfig) tableview
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME", "TYPE"},
+		Headers:        []string{"ID", tableHeaderName, tableHeaderType},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Listener Policies",
-		ParentType:     "listener-policy",
+		ParentType:     common.ViewParentListenerPolicy,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(policies) {
 				return nil
@@ -671,49 +669,10 @@ func buildListenerPolicyChildView(policies []listenerPolicyWithConfig) tableview
 }
 
 func listenerPolicyWithConfigToRecord(policy listenerPolicyWithConfig) listenerPolicySummaryRecord {
-	id := policy.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
-		id = valueNA
-	}
-
-	name := valueNA
-	if policy.Name != nil && *policy.Name != "" {
-		name = *policy.Name
-	}
-
-	policyType := policy.Type
-	if policyType == "" {
-		policyType = valueNA
-	}
-
-	description := valueNA
-	if policy.Description != nil && *policy.Description != "" {
-		description = *policy.Description
-	}
-
-	enabled := valueNA
-	if policy.Enabled != nil {
-		if *policy.Enabled {
-			enabled = "true"
-		} else {
-			enabled = "false"
-		}
-	}
-
-	createdAt := policy.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-	updatedAt := policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-
-	return listenerPolicySummaryRecord{
-		ID:               id,
-		Name:             name,
-		Type:             policyType,
-		Description:      description,
-		Enabled:          enabled,
-		LocalCreatedTime: createdAt,
-		LocalUpdatedTime: updatedAt,
-	}
+	return makeListenerPolicySummaryRecord(
+		policy.ID, policy.Name, policy.Type, policy.Description, policy.Enabled,
+		policy.CreatedAt, policy.UpdatedAt,
+	)
 }
 
 func resolveListenerIDByName(

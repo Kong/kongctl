@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -47,9 +47,9 @@ type portalSnippetDetailRecord struct {
 	Visibility       string
 	Status           string
 	Description      string
-	Content          string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+	content          string
 	rawID            string
 }
 
@@ -272,7 +272,7 @@ func (h portalSnippetsHandler) listSnippets(
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("portal-snippet", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentPortalSnippet, func(index int) any {
 			if index < 0 || index >= len(snippets) {
 				return nil
 			}
@@ -345,7 +345,7 @@ func (h portalSnippetsHandler) getSingleSnippet(
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailRenderer(detailRenderer),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("portal-snippet", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentPortalSnippet, func(index int) any {
 			if index != 0 {
 				return nil
 			}
@@ -365,10 +365,7 @@ func fetchPortalSnippetSummaries(
 	cfg config.Hook,
 ) ([]kkComps.PortalSnippetInfo, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.PortalSnippetInfo
 
@@ -393,7 +390,7 @@ func fetchPortalSnippetSummaries(
 		all = append(all, data...)
 
 		total := int(res.GetListPortalSnippetsResponse().GetMeta().Page.Total)
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 
@@ -436,9 +433,9 @@ func portalSnippetDetailToRecord(snippet *kkComps.PortalSnippetResponse) portalS
 		Visibility:       string(snippet.GetVisibility()),
 		Status:           string(snippet.GetStatus()),
 		Description:      formatOptionalString(snippet.GetDescription()),
-		Content:          content,
 		LocalCreatedTime: formatTime(snippet.GetCreatedAt()),
 		LocalUpdatedTime: formatTime(snippet.GetUpdatedAt()),
+		content:          content,
 		rawID:            strings.TrimSpace(snippet.GetID()),
 	}
 	return record
@@ -508,7 +505,7 @@ func portalSnippetInfoDetail(snippet kkComps.PortalSnippetInfo, detail *portalSn
 
 	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
 	if detail != nil {
-		if preview := previewPortalPageContent(detail.Content); preview != "" {
+		if preview := previewPortalPageContent(detail.content); preview != "" {
 			fmt.Fprintf(&b, " %s", preview)
 		}
 	}
@@ -555,7 +552,7 @@ func portalSnippetDetailView(record portalSnippetDetailRecord) string {
 	}
 
 	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
-	if preview := previewPortalPageContent(record.Content); preview != "" {
+	if preview := previewPortalPageContent(record.content); preview != "" {
 		fmt.Fprintf(&b, " %s", preview)
 	}
 	fmt.Fprintln(&b)
@@ -583,7 +580,7 @@ func loadPortalSnippetContent(ctx context.Context, helper cmd.Helper, parent any
 		record = detail
 	}
 
-	raw := normalizePortalPageContent(record.Content)
+	raw := normalizePortalPageContent(record.content)
 	if strings.TrimSpace(raw) == "" {
 		raw = "(content is empty)"
 	}

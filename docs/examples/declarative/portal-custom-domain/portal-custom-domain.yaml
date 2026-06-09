@@ -1,0 +1,18 @@
+_defaults:
+  kongctl:
+    namespace: portal-custom-domain-example
+
+portals:
+  - ref: portal-custom-domain-example
+    name: portal-custom-domain-example
+    display_name: Portal Custom Domain Example
+    description: Portal custom domain certificate material loaded from !env
+    custom_domain:
+      ref: portal-custom-domain
+      hostname: portal-dev.your-domain.com
+      enabled: true
+      ssl:
+        domain_verification_method: custom_certificate
+        custom_certificate: !env PORTAL_CUSTOM_CERT
+        custom_private_key: !env PORTAL_CUSTOM_KEY
+        skip_ca_check: true

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
 // APIErrorContext provides context for API-related errors
@@ -93,11 +95,11 @@ func generateHint(err error, ctx APIErrorContext) string {
 	// Handle conflict errors (name already exists)
 	if IsConflictError(err, ctx.StatusCode) {
 		switch ctx.ResourceType {
-		case "portal":
+		case string(resources.ResourceTypePortal):
 			return fmt.Sprintf("Portal names must be unique across the entire Konnect organization "+
 				"(including portals not managed by kongctl). Try using a different name like \"%s-v2\" "+
 				"or check existing portals with 'kongctl get portals'", ctx.ResourceName)
-		case "api":
+		case string(resources.ResourceTypeAPI):
 			return fmt.Sprintf("API names must be unique within your organization. "+
 				"Try using a different name like \"%s-v2\" or check existing APIs with 'kongctl get apis'", ctx.ResourceName)
 		case "auth-strategy":
@@ -112,10 +114,10 @@ func generateHint(err error, ctx APIErrorContext) string {
 	// Handle validation errors
 	if IsValidationError(err, ctx.StatusCode) {
 		switch ctx.ResourceType {
-		case "portal":
+		case string(resources.ResourceTypePortal):
 			return "Check your portal configuration for required fields (name) and valid values " +
 				"for optional fields (authentication_enabled, rbac_enabled, etc.)"
-		case "api":
+		case string(resources.ResourceTypeAPI):
 			return "Check your API configuration for required fields (name, version) and ensure version format is valid"
 		case "auth-strategy":
 			return "Check your auth strategy configuration for required fields and ensure the strategy type is valid"

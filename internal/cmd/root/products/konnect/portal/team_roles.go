@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -284,19 +284,26 @@ func roleResponsesToRecords(
 ) []portalTeamRoleRecord {
 	records := make([]portalTeamRoleRecord, 0, len(roles))
 	for _, role := range roles {
-		entityID := optionalPtr(role.GetEntityID())
+		entityID := optionalStringValue(role.GetEntityID())
 		if util.IsValidUUID(entityID) {
 			entityID = util.AbbreviateUUID(entityID)
 		}
 		records = append(records, portalTeamRoleRecord{
 			Team:           teamName,
 			TeamID:         teamID,
-			RoleName:       optionalPtr(role.GetRoleName()),
-			EntityTypeName: optionalPtr(role.GetEntityTypeName()),
+			RoleName:       optionalStringValue(role.GetRoleName()),
+			EntityTypeName: optionalStringValue(role.GetEntityTypeName()),
 			EntityID:       entityID,
 		})
 	}
 	return records
+}
+
+func optionalStringValue(value string) string {
+	if value == "" {
+		return valueNA
+	}
+	return value
 }
 
 func buildPortalTeamRolesChildView(records []portalTeamRoleRecord) tableview.ChildView {
@@ -312,7 +319,7 @@ func buildPortalTeamRolesChildView(records []portalTeamRoleRecord) tableview.Chi
 		Rows:           portalTeamRoleTableRows(records),
 		DetailRenderer: detailFn,
 		Title:          "Team Roles",
-		ParentType:     "portal-team-role",
+		ParentType:     common.ViewParentPortalTeamRole,
 	}
 }
 
@@ -347,10 +354,7 @@ func fetchPortalTeamRoles(
 	cfg config.Hook,
 ) ([]kkComps.PortalAssignedRoleResponse, error) {
 	var pageNumber int64 = 1
-	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if pageSize < 1 {
-		pageSize = int64(common.DefaultRequestPageSize)
-	}
+	pageSize := common.ResolveRequestPageSize(cfg)
 
 	var all []kkComps.PortalAssignedRoleResponse
 
@@ -377,7 +381,7 @@ func fetchPortalTeamRoles(
 		all = append(all, data...)
 
 		total := int(res.GetAssignedPortalRoleCollectionResponse().GetMeta().Page.Total)
-		if total == 0 || len(all) >= total || len(data) == 0 {
+		if !common.HasMorePageNumberResults(total, len(all), len(data)) {
 			break
 		}
 

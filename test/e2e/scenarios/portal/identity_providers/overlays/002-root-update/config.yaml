@@ -1,0 +1,28 @@
+_defaults:
+  kongctl:
+    namespace: portal-identity-providers
+
+portals:
+  - ref: portal-idp
+    name: portal-idp
+    display_name: Portal Identity Providers
+    description: Portal with root-level identity providers
+    kongctl:
+      namespace: portal-identity-providers
+
+portal_identity_providers:
+  - ref: portal-oidc
+    portal: portal-idp
+    type: oidc
+    enabled: false
+    config:
+      issuer_url: !env KONGCTL_E2E_PORTAL_IDP_UPDATE_ISSUER_URL
+      client_id: !env KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_ID
+      client_secret: !env KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_SECRET
+      scopes:
+        - openid
+        - email
+      claim_mappings:
+        name: full_name
+        email: email_address
+        groups: teams

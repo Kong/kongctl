@@ -1,0 +1,11 @@
+application_auth_strategies:
+  - ref: aaa-distractor-app-auth-strategy
+    name: aaa-distractor-app-auth-strategy
+    display_name: Distractor API Key Authentication
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-Distractor-Key
+
+portals: []

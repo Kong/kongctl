@@ -35,6 +35,11 @@ type AuthStrategyPlanner interface {
 	// Additional auth strategy-specific methods if needed
 }
 
+// DCRProviderPlanner handles planning for DCR provider resources.
+type DCRProviderPlanner interface {
+	ResourcePlanner
+}
+
 // APIPlanner handles planning for API resources and their child resources
 type APIPlanner interface {
 	ResourcePlanner
@@ -44,6 +49,11 @@ type APIPlanner interface {
 
 // CatalogServicePlanner handles planning for catalog service resources
 type CatalogServicePlanner interface {
+	ResourcePlanner
+}
+
+// DashboardPlanner handles planning for dashboard resources.
+type DashboardPlanner interface {
 	ResourcePlanner
 }
 

@@ -1,0 +1,43 @@
+_defaults:
+  kongctl:
+    namespace: organization-system-account-assignments
+
+apis:
+  - ref: products-api
+    name: products-api
+    description: Product catalog API managed by the platform team.
+
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+      description: Engineers who operate shared API platform services.
+      labels:
+        department: engineering
+        focus: platform
+
+  system-accounts:
+    # This system account must already exist in the Konnect organization. This
+    # example selects it by name and manages only its team and role assignments.
+    - ref: ci-bot
+      name: ci-bot
+      teams:
+        - ref: ci-bot-platform-team
+          team: platform-team
+      roles:
+        - ref: ci-bot-products-viewer
+          role_name: Viewer
+          entity_id: !ref products-api#id
+          entity_type_name: APIs
+          entity_region: us
+
+    # System accounts can also be selected by Konnect system account ID. This
+    # is useful for automation, but name selectors are easier for examples.
+    # - ref: ci-bot-by-id
+    #   id: 00000000-0000-0000-0000-000000000000
+    #   roles:
+    #     - ref: ci-bot-global-api-viewer
+    #       role_name: Viewer
+    #       entity_id: "*"
+    #       entity_type_name: APIs
+    #       entity_region: "*"

@@ -9,12 +9,11 @@ import (
 func resolveStringField(v reflect.Value, fieldName string) string {
 	// Try direct field access first
 	field := v.FieldByName(fieldName)
-	//nolint: exhaustive
 	if field.IsValid() {
-		switch field.Kind() {
-		case reflect.String:
+		if field.Kind() == reflect.String {
 			return field.String()
-		case reflect.Pointer:
+		}
+		if field.Kind() == reflect.Pointer {
 			if !field.IsNil() && field.Elem().Kind() == reflect.String {
 				return field.Elem().String()
 			}
@@ -24,7 +23,7 @@ func resolveStringField(v reflect.Value, fieldName string) string {
 	// Field wasn't found directly, searching embedded structs
 	// including anonymous fields - structs embedded without a name
 	if v.Kind() == reflect.Struct {
-		for i := 0; i < v.NumField(); i++ {
+		for i := range v.NumField() {
 			fieldValue := v.Field(i)
 			fieldType := v.Type().Field(i)
 

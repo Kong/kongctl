@@ -12,15 +12,15 @@ func TestNormalizeAPIAttributes(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    any
-		expected map[string][]string
+		expected map[string]any
 	}{
 		{
 			name: "string values become single-element slices",
 			input: map[string]any{
 				"owner": "team-a",
 			},
-			expected: map[string][]string{
-				"owner": {"team-a"},
+			expected: map[string]any{
+				"owner": []string{"team-a"},
 			},
 		},
 		{
@@ -28,8 +28,8 @@ func TestNormalizeAPIAttributes(t *testing.T) {
 			input: map[string]any{
 				"domains": []any{"web", "mobile"},
 			},
-			expected: map[string][]string{
-				"domains": {"web", "mobile"},
+			expected: map[string]any{
+				"domains": []string{"web", "mobile"},
 			},
 		},
 		{
@@ -37,8 +37,8 @@ func TestNormalizeAPIAttributes(t *testing.T) {
 			input: map[string][]string{
 				"env": {"prod"},
 			},
-			expected: map[string][]string{
-				"env": {"prod"},
+			expected: map[string]any{
+				"env": []string{"prod"},
 			},
 		},
 		{
@@ -46,8 +46,26 @@ func TestNormalizeAPIAttributes(t *testing.T) {
 			input: map[string]any{
 				"priority": 1,
 			},
-			expected: map[string][]string{
-				"priority": {"1"},
+			expected: map[string]any{
+				"priority": []string{"1"},
+			},
+		},
+		{
+			name: "null values are preserved for per-key clears",
+			input: map[string]any{
+				"owner": nil,
+			},
+			expected: map[string]any{
+				"owner": nil,
+			},
+		},
+		{
+			name: "empty slices stay empty instead of becoming null",
+			input: map[string][]string{
+				"owner": {},
+			},
+			expected: map[string]any{
+				"owner": []string{},
 			},
 		},
 	}

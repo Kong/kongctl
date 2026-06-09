@@ -141,7 +141,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 				}
 
 				// Validate protection change
-				err := p.ValidateProtectionWithChange("portal", desiredPortal.Name, isProtected, ActionUpdate,
+				err := p.ValidateProtectionWithChange(ResourceTypePortal, desiredPortal.Name, isProtected, ActionUpdate,
 					protectionChange, needsUpdate)
 				protectionErrors.Add(err)
 				if err == nil {
@@ -160,7 +160,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 				needsUpdate, updateFields, changedFields := p.shouldUpdatePortal(current, desiredPortal)
 				if needsUpdate {
 					// Regular update - check protection
-					err := p.ValidateProtection("portal", desiredPortal.Name, isProtected, ActionUpdate)
+					err := p.ValidateProtection(ResourceTypePortal, desiredPortal.Name, isProtected, ActionUpdate)
 					protectionErrors.Add(err)
 					if err == nil {
 						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, changedFields, plan)
@@ -188,7 +188,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 			if !desiredNames[name] {
 				// Validate protection before adding DELETE
 				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				err := p.ValidateProtection("portal", name, isProtected, ActionDelete)
+				err := p.ValidateProtection(ResourceTypePortal, name, isProtected, ActionDelete)
 				protectionErrors.Add(err)
 				if err == nil {
 					p.planPortalDelete(current, plan)
@@ -248,7 +248,7 @@ func (p *portalPlannerImpl) planPortalDeletes(
 		}
 
 		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-		err := p.ValidateProtection("portal", desiredPortal.Name, isProtected, ActionDelete)
+		err := p.ValidateProtection(ResourceTypePortal, desiredPortal.Name, isProtected, ActionDelete)
 		protectionErrors.Add(err)
 		if err == nil {
 			p.planPortalDelete(current, plan)
@@ -271,33 +271,33 @@ func extractPortalFields(resource any) map[string]any {
 		return fields
 	}
 
-	fields["name"] = portal.Name
+	fields[FieldName] = portal.Name
 	if portal.DisplayName != nil {
-		fields["display_name"] = *portal.DisplayName
+		fields[FieldDisplayName] = *portal.DisplayName
 	}
 	if portal.Description != nil {
-		fields["description"] = *portal.Description
+		fields[FieldDescription] = *portal.Description
 	}
 	if portal.AuthenticationEnabled != nil {
-		fields["authentication_enabled"] = *portal.AuthenticationEnabled
+		fields[FieldAuthenticationEnabled] = *portal.AuthenticationEnabled
 	}
 	if portal.RbacEnabled != nil {
-		fields["rbac_enabled"] = *portal.RbacEnabled
+		fields[FieldRBACEnabled] = *portal.RbacEnabled
 	}
 	if portal.DefaultAPIVisibility != nil {
-		fields["default_api_visibility"] = string(*portal.DefaultAPIVisibility)
+		fields[FieldDefaultAPIVisibility] = string(*portal.DefaultAPIVisibility)
 	}
 	if portal.DefaultPageVisibility != nil {
-		fields["default_page_visibility"] = string(*portal.DefaultPageVisibility)
+		fields[FieldDefaultPageVisibility] = string(*portal.DefaultPageVisibility)
 	}
 	if portal.DefaultApplicationAuthStrategyID != nil {
-		fields["default_application_auth_strategy_id"] = *portal.DefaultApplicationAuthStrategyID
+		fields[FieldDefaultApplicationStrategyID] = *portal.DefaultApplicationAuthStrategyID
 	}
 	if portal.AutoApproveDevelopers != nil {
-		fields["auto_approve_developers"] = *portal.AutoApproveDevelopers
+		fields[FieldAutoApproveDevelopers] = *portal.AutoApproveDevelopers
 	}
 	if portal.AutoApproveApplications != nil {
-		fields["auto_approve_applications"] = *portal.AutoApproveApplications
+		fields[FieldAutoApproveApplications] = *portal.AutoApproveApplications
 	}
 
 	// Copy user-defined labels only (protection label will be added during execution)
@@ -308,7 +308,7 @@ func extractPortalFields(resource any) map[string]any {
 				labelsMap[k] = *v
 			}
 		}
-		fields["labels"] = labelsMap
+		fields[FieldLabels] = labelsMap
 	}
 
 	return fields
@@ -320,10 +320,10 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 	if generic == nil {
 		// During tests, generic planner might not be initialized
 		// Fall back to inline implementation
-		changeID := p.NextChangeID(ActionCreate, "portal", portal.GetRef())
+		changeID := p.NextChangeID(ActionCreate, ResourceTypePortal, portal.GetRef())
 		change := PlannedChange{
 			ID:           changeID,
-			ResourceType: "portal",
+			ResourceType: ResourceTypePortal,
 			ResourceRef:  portal.GetRef(),
 			Action:       ActionCreate,
 			Fields:       extractPortalFields(portal),
@@ -357,10 +357,10 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 	}
 
 	config := CreateConfig{
-		ResourceType:   "portal",
+		ResourceType:   ResourceTypePortal,
 		ResourceName:   portal.Name,
 		ResourceRef:    portal.GetRef(),
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{FieldName},
 		FieldExtractor: func(_ any) map[string]any {
 			return extractPortalFields(portal)
 		},
@@ -410,11 +410,11 @@ func (p *portalPlannerImpl) addAuthStrategyReference(change *PlannedChange, port
 		}
 
 		// Add the reference with lookup fields for resolution
-		change.References["default_application_auth_strategy_id"] = ReferenceInfo{
+		change.References[FieldDefaultApplicationStrategyID] = ReferenceInfo{
 			Ref: authStrategyValue, // Keep full placeholder for later parsing
 			ID:  "",                // Will be resolved during execution
 			LookupFields: map[string]string{
-				"name": parsedRef, // Use ref as name for lookup
+				FieldName: parsedRef, // Use ref as name for lookup
 			},
 		}
 
@@ -436,8 +436,8 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	// Only compare fields present in desired configuration
 	if desired.DisplayName != nil {
 		if current.DisplayName != *desired.DisplayName {
-			updates["display_name"] = *desired.DisplayName
-			changedFields["display_name"] = FieldChange{
+			updates[FieldDisplayName] = *desired.DisplayName
+			changedFields[FieldDisplayName] = FieldChange{
 				Old: current.DisplayName,
 				New: *desired.DisplayName,
 			}
@@ -446,8 +446,8 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	if desired.Description != nil {
 		currentDesc := p.GetString(current.Description)
 		if currentDesc != *desired.Description {
-			updates["description"] = *desired.Description
-			changedFields["description"] = FieldChange{
+			updates[FieldDescription] = *desired.Description
+			changedFields[FieldDescription] = FieldChange{
 				Old: currentDesc,
 				New: *desired.Description,
 			}
@@ -462,8 +462,8 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 		if !strings.HasPrefix(desiredValue, tags.RefPlaceholderPrefix) {
 			currentAuthID := p.GetString(current.DefaultApplicationAuthStrategyID)
 			if currentAuthID != desiredValue {
-				updates["default_application_auth_strategy_id"] = desiredValue
-				changedFields["default_application_auth_strategy_id"] = FieldChange{
+				updates[FieldDefaultApplicationStrategyID] = desiredValue
+				changedFields[FieldDefaultApplicationStrategyID] = FieldChange{
 					Old: currentAuthID,
 					New: desiredValue,
 				}
@@ -473,12 +473,12 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 
 	if desired.AuthenticationEnabled != nil {
 		if curr := current.GetAuthenticationEnabled(); curr == nil || *curr != *desired.AuthenticationEnabled {
-			updates["authentication_enabled"] = *desired.AuthenticationEnabled
+			updates[FieldAuthenticationEnabled] = *desired.AuthenticationEnabled
 			var oldValue any
 			if curr != nil {
 				oldValue = *curr
 			}
-			changedFields["authentication_enabled"] = FieldChange{
+			changedFields[FieldAuthenticationEnabled] = FieldChange{
 				Old: oldValue,
 				New: *desired.AuthenticationEnabled,
 			}
@@ -487,12 +487,12 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 
 	if desired.RbacEnabled != nil {
 		if curr := current.GetRbacEnabled(); curr == nil || *curr != *desired.RbacEnabled {
-			updates["rbac_enabled"] = *desired.RbacEnabled
+			updates[FieldRBACEnabled] = *desired.RbacEnabled
 			var oldValue any
 			if curr != nil {
 				oldValue = *curr
 			}
-			changedFields["rbac_enabled"] = FieldChange{
+			changedFields[FieldRBACEnabled] = FieldChange{
 				Old: oldValue,
 				New: *desired.RbacEnabled,
 			}
@@ -501,12 +501,12 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 
 	if desired.AutoApproveDevelopers != nil {
 		if curr := current.GetAutoApproveDevelopers(); curr == nil || *curr != *desired.AutoApproveDevelopers {
-			updates["auto_approve_developers"] = *desired.AutoApproveDevelopers
+			updates[FieldAutoApproveDevelopers] = *desired.AutoApproveDevelopers
 			var oldValue any
 			if curr != nil {
 				oldValue = *curr
 			}
-			changedFields["auto_approve_developers"] = FieldChange{
+			changedFields[FieldAutoApproveDevelopers] = FieldChange{
 				Old: oldValue,
 				New: *desired.AutoApproveDevelopers,
 			}
@@ -515,12 +515,12 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 
 	if desired.AutoApproveApplications != nil {
 		if curr := current.GetAutoApproveApplications(); curr == nil || *curr != *desired.AutoApproveApplications {
-			updates["auto_approve_applications"] = *desired.AutoApproveApplications
+			updates[FieldAutoApproveApplications] = *desired.AutoApproveApplications
 			var oldValue any
 			if curr != nil {
 				oldValue = *curr
 			}
-			changedFields["auto_approve_applications"] = FieldChange{
+			changedFields[FieldAutoApproveApplications] = FieldChange{
 				Old: oldValue,
 				New: *desired.AutoApproveApplications,
 			}
@@ -531,8 +531,8 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 		currentVisibility := string(current.DefaultAPIVisibility)
 		desiredVisibility := string(*desired.DefaultAPIVisibility)
 		if currentVisibility != desiredVisibility {
-			updates["default_api_visibility"] = desiredVisibility
-			changedFields["default_api_visibility"] = FieldChange{
+			updates[FieldDefaultAPIVisibility] = desiredVisibility
+			changedFields[FieldDefaultAPIVisibility] = FieldChange{
 				Old: currentVisibility,
 				New: desiredVisibility,
 			}
@@ -543,8 +543,8 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 		currentVisibility := string(current.DefaultPageVisibility)
 		desiredVisibility := string(*desired.DefaultPageVisibility)
 		if currentVisibility != desiredVisibility {
-			updates["default_page_visibility"] = desiredVisibility
-			changedFields["default_page_visibility"] = FieldChange{
+			updates[FieldDefaultPageVisibility] = desiredVisibility
+			changedFields[FieldDefaultPageVisibility] = FieldChange{
 				Old: currentVisibility,
 				New: desiredVisibility,
 			}
@@ -571,8 +571,8 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 					labelsMap[k] = *v
 				}
 			}
-			updates["labels"] = labelsMap
-			changedFields["labels"] = FieldChange{
+			updates[FieldLabels] = labelsMap
+			changedFields[FieldLabels] = FieldChange{
 				Old: labels.GetUserLabels(current.NormalizedLabels),
 				New: desiredLabels,
 			}
@@ -591,10 +591,10 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	plan *Plan,
 ) {
 	// Always include name for identification
-	updateFields["name"] = current.Name
+	updateFields[FieldName] = current.Name
 
 	// Pass current labels so executor can properly handle removals
-	if _, hasLabels := updateFields["labels"]; hasLabels {
+	if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
 
@@ -605,14 +605,14 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	}
 
 	config := UpdateConfig{
-		ResourceType:   "portal",
+		ResourceType:   ResourceTypePortal,
 		ResourceName:   desired.Name,
 		ResourceRef:    desired.GetRef(),
 		ResourceID:     current.ID,
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
 		ChangedFields:  changedFields,
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{FieldName},
 		Namespace:      namespace,
 	}
 
@@ -621,16 +621,16 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 		// During tests, generic planner might not be initialized
 		// Fall back to inline implementation
 		fields := make(map[string]any)
-		fields["name"] = current.Name
+		fields[FieldName] = current.Name
 		maps.Copy(fields, updateFields)
-		if _, hasLabels := updateFields["labels"]; hasLabels {
+		if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 			fields[FieldCurrentLabels] = current.NormalizedLabels
 		}
 
-		changeID := p.NextChangeID(ActionUpdate, "portal", desired.GetRef())
+		changeID := p.NextChangeID(ActionUpdate, ResourceTypePortal, desired.GetRef())
 		change := PlannedChange{
 			ID:            changeID,
-			ResourceType:  "portal",
+			ResourceType:  ResourceTypePortal,
 			ResourceRef:   desired.GetRef(),
 			ResourceID:    current.ID,
 			Action:        ActionUpdate,
@@ -681,7 +681,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 
 	// Use generic protection change planner
 	config := ProtectionChangeConfig{
-		ResourceType: "portal",
+		ResourceType: ResourceTypePortal,
 		ResourceName: desired.Name,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -696,10 +696,10 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 		change = generic.PlanProtectionChange(context.Background(), config)
 	} else {
 		// Fallback for tests
-		changeID := p.NextChangeID(ActionUpdate, "portal", desired.GetRef())
+		changeID := p.NextChangeID(ActionUpdate, ResourceTypePortal, desired.GetRef())
 		change = PlannedChange{
 			ID:           changeID,
-			ResourceType: "portal",
+			ResourceType: ResourceTypePortal,
 			ResourceRef:  desired.GetRef(),
 			ResourceID:   current.ID,
 			Action:       ActionUpdate,
@@ -713,7 +713,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 
 	// Always include name field for identification
 	fields := make(map[string]any)
-	fields["name"] = current.Name
+	fields[FieldName] = current.Name
 
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
@@ -740,7 +740,7 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 
 	if generic != nil {
 		config := DeleteConfig{
-			ResourceType: "portal",
+			ResourceType: ResourceTypePortal,
 			ResourceName: portal.Name,
 			ResourceRef:  portal.Name,
 			ResourceID:   portal.ID,
@@ -749,10 +749,10 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 		change = generic.PlanDelete(context.Background(), config)
 	} else {
 		// Fallback for tests
-		changeID := p.NextChangeID(ActionDelete, "portal", portal.Name)
+		changeID := p.NextChangeID(ActionDelete, ResourceTypePortal, portal.Name)
 		change = PlannedChange{
 			ID:           changeID,
-			ResourceType: "portal",
+			ResourceType: ResourceTypePortal,
 			ResourceRef:  portal.Name,
 			ResourceID:   portal.ID,
 			Action:       ActionDelete,
@@ -761,7 +761,7 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 	}
 
 	// Add the name field for backward compatibility
-	change.Fields = map[string]any{"name": portal.Name}
+	change.Fields = map[string]any{FieldName: portal.Name}
 
 	plan.AddChange(change)
 }
@@ -775,6 +775,9 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 
 	// Get the main planner instance to access child resource planning methods
 	planner := p.planner
+	childInScope := func(rt resources.ResourceType) bool {
+		return planner.shouldPlanChild(plan, resources.ResourceTypePortal, desired.Ref, rt)
+	}
 
 	// Extract parent namespace for child resources
 	parentNamespace := DefaultNamespace
@@ -793,11 +796,13 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 		}
 	}
 	// Note: Passing empty portalID for new portal
-	if err := planner.planPortalPagesChanges(ctx, parentNamespace, "", desired.Ref, pages, plan); err != nil {
-		// Log error but don't fail - portal creation should still proceed
-		planner.logger.Debug("Failed to plan portal pages for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalPage) {
+		if err := planner.planPortalPagesChanges(ctx, parentNamespace, "", desired.Ref, pages, plan); err != nil {
+			// Log error but don't fail - portal creation should still proceed
+			planner.logger.Debug("Failed to plan portal pages for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan snippets
@@ -807,23 +812,81 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			snippets = append(snippets, snippet)
 		}
 	}
-	if err := planner.planPortalSnippetsChanges(ctx, parentNamespace, "", desired.Ref, snippets, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal snippets for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalSnippet) {
+		if err := planner.planPortalSnippetsChanges(ctx, parentNamespace, "", desired.Ref, snippets, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal snippets for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
-	// Plan auth settings
+	// Plan IP allow list
+	allowLists := make([]resources.PortalIPAllowListResource, 0)
+	for _, allowList := range planner.desiredPortalIPAllowLists {
+		if allowList.Portal == desired.Ref {
+			allowLists = append(allowLists, allowList)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalIPAllowList) {
+		if err := planner.planPortalIPAllowListsChanges(ctx, parentNamespace, "", desired.Ref, allowLists, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal IP allow list for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
+	}
+
+	// Plan integrations
+	integrations := make([]resources.PortalIntegrationResource, 0)
+	for _, integration := range planner.desiredPortalIntegrations {
+		if integration.Portal == desired.Ref {
+			integrations = append(integrations, integration)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalIntegration) {
+		if err := planner.planPortalIntegrationsChanges(
+			ctx, parentNamespace, "", desired.Ref, integrations, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal integrations for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
+	}
+
+	// Plan identity providers
+	identityProviders := make([]resources.PortalIdentityProviderResource, 0)
+	for _, provider := range planner.desiredPortalIdentityProviders {
+		if provider.Portal == desired.Ref {
+			identityProviders = append(identityProviders, provider)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalIdentityProvider) {
+		if err := planner.planPortalIdentityProvidersChanges(
+			ctx,
+			parentNamespace,
+			"",
+			desired.Ref,
+			identityProviders,
+			plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal identity providers for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
+	}
+
+	// Plan auth settings after identity providers so idp_mapping_enabled can depend on provider enablement.
 	settings := make([]resources.PortalAuthSettingsResource, 0)
 	for _, auth := range planner.desiredPortalAuthSettings {
 		if auth.Portal == desired.Ref {
 			settings = append(settings, auth)
 		}
 	}
-	if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, settings, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal auth settings for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalAuthSettings) {
+		if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, settings, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal auth settings for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan email config
@@ -833,12 +896,31 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			emailConfigs = append(emailConfigs, cfg)
 		}
 	}
-	if err := planner.planPortalEmailConfigsChanges(
-		ctx, parentNamespace, "", desired.Ref, emailConfigs, plan,
-	); err != nil {
-		planner.logger.Debug("Failed to plan portal email config for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalEmailConfig) {
+		if err := planner.planPortalEmailConfigsChanges(
+			ctx, parentNamespace, "", desired.Ref, emailConfigs, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal email config for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
+	}
+
+	// Plan audit-log webhook
+	auditLogWebhooks := make([]resources.PortalAuditLogWebhookResource, 0)
+	for _, webhook := range planner.desiredPortalAuditLogWebhooks {
+		if webhook.Portal == desired.Ref {
+			auditLogWebhooks = append(auditLogWebhooks, webhook)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalAuditLogWebhook) {
+		if err := planner.planPortalAuditLogWebhooksChanges(
+			ctx, parentNamespace, "", desired.Ref, auditLogWebhooks, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal audit-log webhook for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan email templates
@@ -848,12 +930,14 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			templates = append(templates, tpl)
 		}
 	}
-	if err := planner.planPortalEmailTemplatesChanges(
-		ctx, parentNamespace, "", desired.Ref, desired.Name, templates, plan,
-	); err != nil {
-		planner.logger.Debug("Failed to plan portal email templates for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalEmailTemplate) {
+		if err := planner.planPortalEmailTemplatesChanges(
+			ctx, parentNamespace, "", desired.Ref, desired.Name, templates, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal email templates for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan customization
@@ -863,10 +947,14 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			customizations = append(customizations, customization)
 		}
 	}
-	if err := planner.planPortalCustomizationsChanges(ctx, plannerCtx, parentNamespace, customizations, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal customizations for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalCustomization) {
+		if err := planner.planPortalCustomizationsChanges(
+			ctx, plannerCtx, parentNamespace, customizations, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal customizations for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan teams
@@ -876,18 +964,38 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			teams = append(teams, team)
 		}
 	}
-	if err := planner.planPortalTeamsChanges(ctx, parentNamespace, "", desired.Ref, teams, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal teams for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalTeam) {
+		if err := planner.planPortalTeamsChanges(ctx, parentNamespace, "", desired.Ref, teams, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal teams for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
-	if err := planner.planPortalTeamRolesChanges(
-		ctx, parentNamespace, "", desired.Ref, desired.Name, plan,
-	); err != nil {
-		planner.logger.Debug("Failed to plan portal team roles for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	mappings := make([]resources.PortalTeamGroupMappingResource, 0)
+	for _, mapping := range planner.desiredPortalTeamGroupMappings {
+		if mapping.Portal == desired.Ref {
+			mappings = append(mappings, mapping)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalTeamGroupMapping) {
+		if err := planner.planPortalTeamGroupMappingsChanges(
+			ctx, parentNamespace, "", desired.Ref, mappings, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal team group mappings for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
+	}
+
+	if childInScope(resources.ResourceTypePortalTeamRole) {
+		if err := planner.planPortalTeamRolesChanges(
+			ctx, parentNamespace, "", desired.Ref, desired.Name, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal team roles for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan custom domain
@@ -897,10 +1005,12 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			domains = append(domains, domain)
 		}
 	}
-	if err := planner.planPortalCustomDomainsChanges(ctx, parentNamespace, "", desired.Ref, domains, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal custom domains for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalCustomDomain) {
+		if err := planner.planPortalCustomDomainsChanges(ctx, parentNamespace, "", desired.Ref, domains, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal custom domains for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan asset logo
@@ -910,10 +1020,12 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			logos = append(logos, logo)
 		}
 	}
-	if err := planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal asset logos for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalAssetLogo) {
+		if err := planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal asset logos for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan asset favicon
@@ -923,16 +1035,19 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			favicons = append(favicons, favicon)
 		}
 	}
-	if err := planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal asset favicons for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if childInScope(resources.ResourceTypePortalAssetFavicon) {
+		if err := planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal asset favicons for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)
 	if !desired.IsExternal() && desired.Assets != nil {
 		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
-			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
+			if childInScope(resources.ResourceTypePortalAssetLogo) &&
+				!plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
 				planner.planPortalAssetLogoUpdate(
 					parentNamespace,
 					desired.Ref,
@@ -945,7 +1060,8 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			}
 		}
 		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
-			if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
+			if childInScope(resources.ResourceTypePortalAssetFavicon) &&
+				!plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
 				planner.planPortalAssetFaviconUpdate(
 					parentNamespace,
 					desired.Ref,
@@ -966,6 +1082,9 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 ) error {
 	// Get the main planner instance to access child resource planning methods
 	planner := p.planner
+	childInScope := func(rt resources.ResourceType) bool {
+		return planner.shouldPlanChild(plan, resources.ResourceTypePortal, desired.Ref, rt)
+	}
 
 	// Extract parent namespace for child resources
 	parentNamespace := DefaultNamespace
@@ -982,8 +1101,10 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			pages = append(pages, page)
 		}
 	}
-	if err := planner.planPortalPagesChanges(ctx, parentNamespace, current.ID, desired.Ref, pages, plan); err != nil {
-		return fmt.Errorf("failed to plan portal page changes: %w", err)
+	if childInScope(resources.ResourceTypePortalPage) {
+		if err := planner.planPortalPagesChanges(ctx, parentNamespace, current.ID, desired.Ref, pages, plan); err != nil {
+			return fmt.Errorf("failed to plan portal page changes: %w", err)
+		}
 	}
 
 	// Plan snippets - pass empty array if no snippets defined
@@ -995,21 +1116,75 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			snippets = append(snippets, snippet)
 		}
 	}
-	if err := planner.planPortalSnippetsChanges(
-		ctx, parentNamespace, current.ID, desired.Ref, snippets, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan portal snippet changes: %w", err)
+	if childInScope(resources.ResourceTypePortalSnippet) {
+		if err := planner.planPortalSnippetsChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, snippets, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal snippet changes: %w", err)
+		}
 	}
 
-	// Plan auth settings (singleton)
+	// Plan IP allow list (singleton)
+	allowLists := make([]resources.PortalIPAllowListResource, 0)
+	for _, allowList := range planner.desiredPortalIPAllowLists {
+		if allowList.Portal == desired.Ref {
+			allowLists = append(allowLists, allowList)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalIPAllowList) {
+		if err := planner.planPortalIPAllowListsChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, allowLists, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal IP allow list changes: %w", err)
+		}
+	}
+
+	// Plan integrations (singleton)
+	integrations := make([]resources.PortalIntegrationResource, 0)
+	for _, integration := range planner.desiredPortalIntegrations {
+		if integration.Portal == desired.Ref {
+			integrations = append(integrations, integration)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalIntegration) {
+		if err := planner.planPortalIntegrationsChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, integrations, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal integration changes: %w", err)
+		}
+	}
+
+	// Plan identity providers
+	identityProviders := make([]resources.PortalIdentityProviderResource, 0)
+	for _, provider := range planner.desiredPortalIdentityProviders {
+		if provider.Portal == desired.Ref {
+			identityProviders = append(identityProviders, provider)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalIdentityProvider) {
+		if err := planner.planPortalIdentityProvidersChanges(
+			ctx,
+			parentNamespace,
+			current.ID,
+			desired.Ref,
+			identityProviders,
+			plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal identity provider changes: %w", err)
+		}
+	}
+
+	// Plan auth settings after identity providers so idp_mapping_enabled can depend on provider enablement.
 	authSettings := make([]resources.PortalAuthSettingsResource, 0)
 	for _, auth := range planner.desiredPortalAuthSettings {
 		if auth.Portal == desired.Ref {
 			authSettings = append(authSettings, auth)
 		}
 	}
-	if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, authSettings, plan); err != nil {
-		return fmt.Errorf("failed to plan portal auth settings changes: %w", err)
+	if childInScope(resources.ResourceTypePortalAuthSettings) {
+		if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, authSettings, plan); err != nil {
+			return fmt.Errorf("failed to plan portal auth settings changes: %w", err)
+		}
 	}
 
 	// Plan email config (singleton resource)
@@ -1019,10 +1194,27 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			emailConfigs = append(emailConfigs, cfg)
 		}
 	}
-	if err := planner.planPortalEmailConfigsChanges(
-		ctx, parentNamespace, current.ID, desired.Ref, emailConfigs, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan portal email config changes: %w", err)
+	if childInScope(resources.ResourceTypePortalEmailConfig) {
+		if err := planner.planPortalEmailConfigsChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, emailConfigs, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal email config changes: %w", err)
+		}
+	}
+
+	// Plan audit-log webhook (singleton resource)
+	auditLogWebhooks := make([]resources.PortalAuditLogWebhookResource, 0)
+	for _, webhook := range planner.desiredPortalAuditLogWebhooks {
+		if webhook.Portal == desired.Ref {
+			auditLogWebhooks = append(auditLogWebhooks, webhook)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalAuditLogWebhook) {
+		if err := planner.planPortalAuditLogWebhooksChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, auditLogWebhooks, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal audit-log webhook changes: %w", err)
+		}
 	}
 
 	// Plan email templates (set applies create/update only in apply mode)
@@ -1032,10 +1224,12 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			templates = append(templates, tpl)
 		}
 	}
-	if err := planner.planPortalEmailTemplatesChanges(
-		ctx, parentNamespace, current.ID, desired.Ref, desired.Name, templates, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan portal email template changes: %w", err)
+	if childInScope(resources.ResourceTypePortalEmailTemplate) {
+		if err := planner.planPortalEmailTemplatesChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, desired.Name, templates, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal email template changes: %w", err)
+		}
 	}
 
 	// Plan customization (singleton resource)
@@ -1045,8 +1239,12 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			customizations = append(customizations, customization)
 		}
 	}
-	if err := planner.planPortalCustomizationsChanges(ctx, plannerCtx, parentNamespace, customizations, plan); err != nil {
-		return fmt.Errorf("failed to plan portal customization changes: %w", err)
+	if childInScope(resources.ResourceTypePortalCustomization) {
+		if err := planner.planPortalCustomizationsChanges(
+			ctx, plannerCtx, parentNamespace, customizations, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal customization changes: %w", err)
+		}
 	}
 
 	// Plan teams
@@ -1056,16 +1254,34 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			teams = append(teams, team)
 		}
 	}
-	if err := planner.planPortalTeamsChanges(
-		ctx, parentNamespace, current.ID, desired.Ref, teams, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan portal team changes: %w", err)
+	if childInScope(resources.ResourceTypePortalTeam) {
+		if err := planner.planPortalTeamsChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, teams, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal team changes: %w", err)
+		}
 	}
 
-	if err := planner.planPortalTeamRolesChanges(
-		ctx, parentNamespace, current.ID, desired.Ref, desired.Name, plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan portal team role changes: %w", err)
+	mappings := make([]resources.PortalTeamGroupMappingResource, 0)
+	for _, mapping := range planner.desiredPortalTeamGroupMappings {
+		if mapping.Portal == desired.Ref {
+			mappings = append(mappings, mapping)
+		}
+	}
+	if childInScope(resources.ResourceTypePortalTeamGroupMapping) {
+		if err := planner.planPortalTeamGroupMappingsChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, mappings, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal team group mapping changes: %w", err)
+		}
+	}
+
+	if childInScope(resources.ResourceTypePortalTeamRole) {
+		if err := planner.planPortalTeamRolesChanges(
+			ctx, parentNamespace, current.ID, desired.Ref, desired.Name, plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal team role changes: %w", err)
+		}
 	}
 
 	// Plan custom domain (singleton resource)
@@ -1075,15 +1291,17 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			domains = append(domains, domain)
 		}
 	}
-	if err := planner.planPortalCustomDomainsChanges(
-		ctx,
-		parentNamespace,
-		current.ID,
-		desired.Ref,
-		domains,
-		plan,
-	); err != nil {
-		return fmt.Errorf("failed to plan portal custom domain changes: %w", err)
+	if childInScope(resources.ResourceTypePortalCustomDomain) {
+		if err := planner.planPortalCustomDomainsChanges(
+			ctx,
+			parentNamespace,
+			current.ID,
+			desired.Ref,
+			domains,
+			plan,
+		); err != nil {
+			return fmt.Errorf("failed to plan portal custom domain changes: %w", err)
+		}
 	}
 
 	// Plan asset logo (singleton resource)
@@ -1093,8 +1311,10 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			logos = append(logos, logo)
 		}
 	}
-	if err := planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan); err != nil {
-		return fmt.Errorf("failed to plan portal asset logo changes: %w", err)
+	if childInScope(resources.ResourceTypePortalAssetLogo) {
+		if err := planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan); err != nil {
+			return fmt.Errorf("failed to plan portal asset logo changes: %w", err)
+		}
 	}
 
 	// Plan asset favicon (singleton resource)
@@ -1104,14 +1324,17 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			favicons = append(favicons, favicon)
 		}
 	}
-	if err := planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan); err != nil {
-		return fmt.Errorf("failed to plan portal asset favicon changes: %w", err)
+	if childInScope(resources.ResourceTypePortalAssetFavicon) {
+		if err := planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan); err != nil {
+			return fmt.Errorf("failed to plan portal asset favicon changes: %w", err)
+		}
 	}
 
 	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)
 	if !desired.IsExternal() && desired.Assets != nil {
 		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
-			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
+			if childInScope(resources.ResourceTypePortalAssetLogo) &&
+				!plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
 				needsUpdate, currentDataURL, err := planner.portalAssetNeedsUpdate(
 					ctx,
 					current.ID,
@@ -1139,7 +1362,8 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			}
 		}
 		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
-			if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
+			if childInScope(resources.ResourceTypePortalAssetFavicon) &&
+				!plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
 				needsUpdate, currentDataURL, err := planner.portalAssetNeedsUpdate(
 					ctx,
 					current.ID,

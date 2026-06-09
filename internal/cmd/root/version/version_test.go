@@ -69,7 +69,6 @@ func Test_VersionCmd(t *testing.T) {
 //	//		return ""
 //	//	},
 //	//	GetBoolMock:  func(_ string) bool { return false },
-//	//	SaveMock:     nil,
 //	//	BindFlagMock: nil,
 //	//}
 //
@@ -109,7 +108,6 @@ func Test_VersionCmd(t *testing.T) {
 //	//		return ""
 //	//	},
 //	//	GetBoolMock:  nil,
-//	//	SaveMock:     nil,
 //	//	BindFlagMock: nil,
 //	//}
 //

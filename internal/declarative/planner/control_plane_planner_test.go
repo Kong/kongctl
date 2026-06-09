@@ -41,7 +41,8 @@ func TestControlPlanePlanner_PlanCreate(t *testing.T) {
 					Ref: "cp-create",
 					Kongctl: &resources.KongctlMeta{
 						Namespace: new("default"),
-					}},
+					},
+				},
 			},
 		},
 	}
@@ -136,7 +137,7 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 	current := kkComps.ControlPlane{
 		ID:          "cp-1",
 		Name:        "cp-update",
-		Description: new("old"),
+		Description: "old",
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
@@ -171,7 +172,8 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 					Ref: "cp-update",
 					Kongctl: &resources.KongctlMeta{
 						Namespace: new("default"),
-					}},
+					},
+				},
 			},
 		},
 	}
@@ -230,7 +232,7 @@ func TestControlPlanePlanner_PlanUpdateGroupMembers(t *testing.T) {
 		"GetControlPlanesIDGroupMemberships",
 		mock.Anything,
 		mock.MatchedBy(func(req kkOps.GetControlPlanesIDGroupMembershipsRequest) bool {
-			return req.ID == "group-id"
+			return req.ControlPlaneID == "group-id"
 		}),
 	).Return(&kkOps.GetControlPlanesIDGroupMembershipsResponse{
 		ListGroupMemberships: &kkComps.ListGroupMemberships{
@@ -337,6 +339,59 @@ func TestControlPlanePlanner_PlanDeleteSync(t *testing.T) {
 	assert.Equal(t, "cp-delete", plan.Changes[0].ResourceRef)
 }
 
+func TestControlPlanePlanner_PlanDeleteMembersDependOnGroupDelete(t *testing.T) {
+	planner := &Planner{
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	planner.genericPlanner = NewGenericPlanner(planner)
+
+	cpPlanner := &controlPlanePlannerImpl{BasePlanner: NewBasePlanner(planner)}
+	plan := NewPlan("1.0", "test", PlanModeDelete)
+
+	cpPlanner.planControlPlaneDelete(state.ControlPlane{
+		ControlPlane: kkComps.ControlPlane{
+			ID:   "member-a-id",
+			Name: "member-a",
+		},
+		NormalizedLabels: map[string]string{labels.NamespaceKey: "default"},
+	}, plan)
+	cpPlanner.planControlPlaneDelete(state.ControlPlane{
+		ControlPlane: kkComps.ControlPlane{
+			ID:   "member-b-id",
+			Name: "member-b",
+		},
+		NormalizedLabels: map[string]string{labels.NamespaceKey: "default"},
+	}, plan)
+	cpPlanner.planControlPlaneDelete(state.ControlPlane{
+		ControlPlane: kkComps.ControlPlane{
+			ID:   "group-id",
+			Name: "group-cp",
+			Config: kkComps.ControlPlaneConfig{
+				ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup,
+			},
+		},
+		NormalizedLabels: map[string]string{labels.NamespaceKey: "default"},
+		GroupMembers:     []string{"member-a-id", "member-b-id"},
+	}, plan)
+
+	adjustControlPlaneGroupDeleteDependencies(plan.Changes)
+
+	require.Len(t, plan.Changes, 3)
+	memberAChange := plan.Changes[0]
+	assert.Equal(t, "member-a", memberAChange.ResourceRef)
+	assert.Equal(t, []string{"temp-3:d:control_plane:group-cp"}, memberAChange.DependsOn)
+
+	memberBChange := plan.Changes[1]
+	assert.Equal(t, "member-b", memberBChange.ResourceRef)
+	assert.Equal(t, []string{"temp-3:d:control_plane:group-cp"}, memberBChange.DependsOn)
+
+	groupChange := plan.Changes[2]
+	assert.Equal(t, "group-cp", groupChange.ResourceRef)
+	assert.Empty(t, groupChange.DependsOn)
+	require.NotNil(t, groupChange.References)
+	assert.Equal(t, []string{"member-a-id", "member-b-id"}, groupChange.References[FieldMembers].Refs)
+}
+
 func TestControlPlanePlanner_ProtectionChange(t *testing.T) {
 	mockAPI := helpers.NewMockControlPlaneAPI(t)
 	current := kkComps.ControlPlane{
@@ -370,7 +425,8 @@ func TestControlPlanePlanner_ProtectionChange(t *testing.T) {
 					Kongctl: &resources.KongctlMeta{
 						Namespace: new("default"),
 						Protected: new(true),
-					}},
+					},
+				},
 			},
 		},
 	}

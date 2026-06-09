@@ -80,7 +80,8 @@ func AddListenAuditLogsFlags(cmdObj *cobra.Command, options *ListenAuditLogsOpti
 		"Skip TLS certificate verification for destination delivery.")
 	cmdObj.Flags().StringVar(&options.Authorization, "authorization", options.Authorization,
 		"Value for the Authorization header Konnect includes when sending audit logs. "+
-			"The local listener validates this same value when provided.")
+			"The local listener validates this value on every incoming request.")
+	_ = cmdObj.MarkFlagRequired("authorization")
 	cmdObj.Flags().BoolVar(&options.ConfigureWebhook, "configure-webhook", options.ConfigureWebhook,
 		"Automatically bind and enable the organization webhook with the created destination.")
 	cmdObj.Flags().BoolVar(&options.Tail, "tail", options.Tail,
@@ -110,13 +111,13 @@ func newListenAuditLogsCmd(
 	baseCmd.Long = `Create a Konnect audit-log destination and webhook configuration first,
 then start a local listener to accept incoming audit-log events.`
 	baseCmd.Example = `  # Build destination endpoint from public base URL and listener path
-  kongctl listen audit-logs --public-url https://example.ngrok.app
+  kongctl listen audit-logs --public-url https://example.ngrok.app --authorization "Bearer <token>"
 
   # Provide an explicit destination endpoint
-  kongctl listen audit-logs --endpoint https://example.ngrok.app/audit-logs
+  kongctl listen audit-logs --endpoint https://example.ngrok.app/audit-logs --authorization "Bearer <token>"
 
   # Explicit product form
-  kongctl listen konnect audit-logs --public-url https://example.ngrok.app`
+  kongctl listen konnect audit-logs --public-url https://example.ngrok.app --authorization "Bearer <token>"`
 	baseCmd.RunE = c.runE
 
 	c.Command = baseCmd
@@ -306,6 +307,10 @@ func ExecuteListenAuditLogs(cmdObj *cobra.Command, args []string, options Listen
 }
 
 func validateListenAuditLogsOptions(options ListenAuditLogsOptions) error {
+	if strings.TrimSpace(options.Authorization) == "" {
+		return fmt.Errorf("--authorization must not be empty")
+	}
+
 	if options.Detach && options.Tail {
 		return fmt.Errorf("--detach is not supported with --tail")
 	}

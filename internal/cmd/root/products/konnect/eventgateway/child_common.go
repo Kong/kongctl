@@ -41,8 +41,37 @@ const (
 	dataPlaneCertIDConfigPath   = "konnect.event-gateway.data-plane-certificate.id"
 	dataPlaneCertNameConfigPath = "konnect.event-gateway.data-plane-certificate.name"
 
+	schemaRegistryIDFlagName   = "schema-registry-id"
+	schemaRegistryNameFlagName = "schema-registry-name"
+
+	schemaRegistryIDConfigPath   = "konnect.event-gateway.schema-registry.id"
+	schemaRegistryNameConfigPath = "konnect.event-gateway.schema-registry.name"
+
+	staticKeyIDFlagName   = "static-key-id"
+	staticKeyNameFlagName = "static-key-name"
+
+	staticKeyIDConfigPath   = "konnect.event-gateway.static-key.id"
+	staticKeyNameConfigPath = "konnect.event-gateway.static-key.name"
+
+	tlsTrustBundleIDFlagName   = "tls-trust-bundle-id"
+	tlsTrustBundleNameFlagName = "tls-trust-bundle-name"
+
+	tlsTrustBundleIDConfigPath   = "konnect.event-gateway.tls-trust-bundle.id"
+	tlsTrustBundleNameConfigPath = "konnect.event-gateway.tls-trust-bundle.name"
+
 	valueNA = "n/a"
 )
+
+// formatEnabledBool converts an optional bool pointer to a display string.
+func formatEnabledBool(enabled *bool) string {
+	if enabled == nil {
+		return valueNA
+	}
+	if *enabled {
+		return "true"
+	}
+	return "false"
+}
 
 func addEventGatewayChildFlags(cmd *cobra.Command) {
 	cmd.Flags().String(gatewayIDFlagName, "",
@@ -222,6 +251,114 @@ func bindDataPlaneCertChildFlags(c *cobra.Command, args []string) error {
 
 func getDataPlaneCertIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(dataPlaneCertIDConfigPath), cfg.GetString(dataPlaneCertNameConfigPath)
+}
+
+func addSchemaRegistryChildFlags(cmd *cobra.Command) {
+	cmd.Flags().String(schemaRegistryIDFlagName, "",
+		fmt.Sprintf(`The ID of the schema registry to retrieve.
+- Config path: [ %s ]`, schemaRegistryIDConfigPath))
+	cmd.Flags().String(schemaRegistryNameFlagName, "",
+		fmt.Sprintf(`The name of the schema registry to retrieve.
+- Config path: [ %s ]`, schemaRegistryNameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(schemaRegistryIDFlagName, schemaRegistryNameFlagName)
+}
+
+func bindSchemaRegistryChildFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(schemaRegistryIDFlagName); flag != nil {
+		if err := cfg.BindFlag(schemaRegistryIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := c.Flags().Lookup(schemaRegistryNameFlagName); flag != nil {
+		if err := cfg.BindFlag(schemaRegistryNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getSchemaRegistryIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(schemaRegistryIDConfigPath), cfg.GetString(schemaRegistryNameConfigPath)
+}
+
+func addStaticKeyChildFlags(cmd *cobra.Command) {
+	cmd.Flags().String(staticKeyIDFlagName, "",
+		fmt.Sprintf(`The ID of the static key to retrieve.
+- Config path: [ %s ]`, staticKeyIDConfigPath))
+	cmd.Flags().String(staticKeyNameFlagName, "",
+		fmt.Sprintf(`The name of the static key to retrieve.
+- Config path: [ %s ]`, staticKeyNameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(staticKeyIDFlagName, staticKeyNameFlagName)
+}
+
+func bindStaticKeyChildFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(staticKeyIDFlagName); flag != nil {
+		if err := cfg.BindFlag(staticKeyIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := c.Flags().Lookup(staticKeyNameFlagName); flag != nil {
+		if err := cfg.BindFlag(staticKeyNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getStaticKeyIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(staticKeyIDConfigPath), cfg.GetString(staticKeyNameConfigPath)
+}
+
+func addTLSTrustBundleChildFlags(cmd *cobra.Command) {
+	cmd.Flags().String(tlsTrustBundleIDFlagName, "",
+		fmt.Sprintf(`The ID of the TLS trust bundle to retrieve.
+- Config path: [ %s ]`, tlsTrustBundleIDConfigPath))
+	cmd.Flags().String(tlsTrustBundleNameFlagName, "",
+		fmt.Sprintf(`The name of the TLS trust bundle to retrieve.
+- Config path: [ %s ]`, tlsTrustBundleNameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(tlsTrustBundleIDFlagName, tlsTrustBundleNameFlagName)
+}
+
+func bindTLSTrustBundleChildFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(tlsTrustBundleIDFlagName); flag != nil {
+		if err := cfg.BindFlag(tlsTrustBundleIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := c.Flags().Lookup(tlsTrustBundleNameFlagName); flag != nil {
+		if err := cfg.BindFlag(tlsTrustBundleNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getTLSTrustBundleIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(tlsTrustBundleIDConfigPath), cfg.GetString(tlsTrustBundleNameConfigPath)
 }
 
 func resolveEventGatewayIDByName(

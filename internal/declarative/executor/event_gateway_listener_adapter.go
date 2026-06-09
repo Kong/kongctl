@@ -30,14 +30,14 @@ func (a *EventGatewayListenerAdapter) MapCreateFields(
 	create *kkComps.CreateEventGatewayListenerRequest,
 ) error {
 	// Required fields
-	name, ok := fields["name"].(string)
+	name, ok := fields[planner.FieldName].(string)
 	if !ok {
 		return fmt.Errorf("name is required")
 	}
 	create.Name = name
 
 	// Addresses (required)
-	addressesField, ok := fields["addresses"]
+	addressesField, ok := fields[planner.FieldAddresses]
 	if !ok {
 		return fmt.Errorf("addresses is required")
 	}
@@ -51,7 +51,7 @@ func (a *EventGatewayListenerAdapter) MapCreateFields(
 	create.Addresses = addresses
 
 	// Ports (required)
-	portsField, ok := fields["ports"]
+	portsField, ok := fields[planner.FieldPorts]
 	if !ok {
 		return fmt.Errorf("ports is required")
 	}
@@ -65,7 +65,7 @@ func (a *EventGatewayListenerAdapter) MapCreateFields(
 	create.Ports = ports
 
 	// Optional fields
-	if desc, ok := fields["description"].(string); ok {
+	if desc, ok := fields[planner.FieldDescription].(string); ok {
 		create.Description = &desc
 	}
 
@@ -85,10 +85,10 @@ func (a *EventGatewayListenerAdapter) MapUpdateFields(
 	_ map[string]string,
 ) error {
 	// Required fields - always sent even if not changed
-	if name, ok := fieldsToUpdate["name"].(string); ok {
+	if name, ok := fieldsToUpdate[planner.FieldName].(string); ok {
 		update.Name = name
 	}
-	if addressesField, ok := fieldsToUpdate["addresses"]; ok {
+	if addressesField, ok := fieldsToUpdate[planner.FieldAddresses]; ok {
 		addresses, err := buildAddresses(addressesField)
 		if err != nil {
 			return fmt.Errorf("failed to build addresses: %w", err)
@@ -97,7 +97,7 @@ func (a *EventGatewayListenerAdapter) MapUpdateFields(
 		}
 		update.Addresses = addresses
 	}
-	if portsField, ok := fieldsToUpdate["ports"]; ok {
+	if portsField, ok := fieldsToUpdate[planner.FieldPorts]; ok {
 		ports, err := buildPorts(portsField)
 		if err != nil {
 			return fmt.Errorf("failed to build ports: %w", err)
@@ -108,7 +108,7 @@ func (a *EventGatewayListenerAdapter) MapUpdateFields(
 	}
 
 	// Optional fields
-	if description, ok := fieldsToUpdate["description"]; ok {
+	if description, ok := fieldsToUpdate[planner.FieldDescription]; ok {
 		if desc, ok := description.(string); ok {
 			update.Description = &desc
 		} else if description == nil {
@@ -211,7 +211,7 @@ func (a *EventGatewayListenerAdapter) ResourceType() string {
 
 // RequiredFields returns the list of required fields for this resource
 func (a *EventGatewayListenerAdapter) RequiredFields() []string {
-	return []string{"name", "addresses", "ports"}
+	return []string{planner.FieldName, planner.FieldAddresses, planner.FieldPorts}
 }
 
 // SupportsUpdate indicates whether this resource supports update operations
@@ -230,7 +230,7 @@ func (a *EventGatewayListenerAdapter) getEventGatewayIDFromExecutionContext(
 	change := *execCtx.PlannedChange
 
 	// Priority 1: Check References (for new parent)
-	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+	if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID != "" {
 		return gatewayRef.ID, nil
 	}
 

@@ -1,0 +1,7 @@
+# E2E Scenario: Portal Edit - Initial State
+
+portals:
+  - ref: e2e-portal-edit
+    name: "E2E Portal Edit"
+    display_name: "E2E Portal Edit"
+    description: "v1"

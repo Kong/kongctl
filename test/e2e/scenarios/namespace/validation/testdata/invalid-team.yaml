@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: "Invalid_Namespace!"
+
+organization:
+  teams:
+    - ref: repro-team
+      name: repro-team

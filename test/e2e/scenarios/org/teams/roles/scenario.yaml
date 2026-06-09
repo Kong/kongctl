@@ -1,0 +1,546 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: org-team-roles-e2e
+  apiRef: org-team-roles-api
+  apiName: org-team-roles-api
+  teamRef: platform-role-team
+  teamName: Platform Role Team
+  viewerRoleRef: platform-api-viewer
+  adminRoleRef: platform-api-admin
+  portalRoleNamespace: org-team-roles-portal-ref-e2e
+  portalRef: org-team-roles-portal-ref
+  portalName: org-team-roles-portal-ref
+  portalRoleTeamRef: portal-role-team
+  portalRoleTeamName: Portal Role Team
+  portalViewerRoleRef: portal-viewer
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-from-config
+    commands:
+      - name: 000-apply-initial
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+          - select: >-
+              plan.changes[?resource_type=='api' && resource_ref=='{{ .vars.apiRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_team' &&
+                            resource_ref=='{{ .vars.teamRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.name: "{{ .vars.teamName }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' &&
+                            resource_ref=='{{ .vars.viewerRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Viewer
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+          - expect:
+              fields:
+                "length(plan.changes[?resource_type=='organization_team' && namespace=='default'])": 0
+                "length(plan.changes[?resource_type=='organization_team_role' && namespace=='default'])": 0
+
+      - name: 001-get-team-roles
+        run:
+          - get
+          - org
+          - team
+          - roles
+          - --team-name
+          - "{{ .vars.teamName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+
+  - name: 002-noop-diff-from-config
+    commands:
+      - name: 000-diff-noop
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: changes
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-plan-and-apply-root-role
+    inputOverlayDirs:
+      - overlays/002-add-root-role
+    commands:
+      - name: 000-plan-add-role
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-add-role.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                      resource_ref=='{{ .vars.adminRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+                fields.role_name: Admin
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+
+      - name: 001-diff-from-plan
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-add-role.json"
+          - -o
+          - json
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                      resource_ref=='{{ .vars.adminRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 002-apply-from-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-add-role.json"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 003-get-team-roles
+        run:
+          - get
+          - org
+          - team
+          - roles
+          - --team-name
+          - "{{ .vars.teamName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+          - select: "[?role_name=='Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+          - select: "[?role_name=='Admin'] | [0]"
+            expect:
+              fields:
+                role_name: Admin
+                entity_type_name: APIs
+
+  - name: 004-dump-with-children
+    skipInputs: true
+    commands:
+      - name: 000-dump-org-team-roles
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=organization.teams,apis"
+          - --include-child-resources
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - select: _defaults.kongctl
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - select: "apis[?name=='{{ .vars.apiName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiName }}"
+          - select: "organization.teams[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamName }}"
+          - select: >-
+              organization.teams[?name=='{{ .vars.teamName }}'] |
+              [0].roles[?role_name=='Viewer'] | [0]
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+          - select: >-
+              organization.teams[?name=='{{ .vars.teamName }}'] |
+              [0].roles[?role_name=='Admin'] | [0]
+            expect:
+              fields:
+                role_name: Admin
+                entity_type_name: APIs
+                entity_region: us
+
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-sync-from-config
+    inputOverlayDirs:
+      - overlays/003-remove-root-role
+    commands:
+      - name: 000-sync-remove-root-role
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' &&
+                           action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_type: organization_team_role
+                action: DELETE
+                namespace: "{{ .vars.namespace }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 001-get-team-roles
+        run:
+          - get
+          - org
+          - team
+          - roles
+          - --team-name
+          - "{{ .vars.teamName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?role_name=='Admin']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 006-diff-and-sync-from-plan
+    inputOverlayDirs:
+      - overlays/002-add-root-role
+    commands:
+      - name: 000-diff-from-config
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - -o
+          - json
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                      resource_ref=='{{ .vars.adminRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 001-plan-sync-readd-role
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-readd-role.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                      resource_ref=='{{ .vars.adminRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 002-diff-sync-plan
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-sync-readd-role.json"
+          - -o
+          - json
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                      resource_ref=='{{ .vars.adminRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 003-sync-from-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-readd-role.json"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 004-plan-sync-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 007-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-add-root-role
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.DELETE: 4
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 008-plan-portal-entity-ref
+    inputOverlayDirs:
+      - overlays/004-portal-entity-ref
+    commands:
+      - name: 000-plan-portal-entity-ref
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='portal' &&
+                      resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.portalRoleNamespace }}"
+                fields.name: "{{ .vars.portalName }}"
+          - select: >-
+              changes[?resource_type=='organization_team' &&
+                      resource_ref=='{{ .vars.portalRoleTeamRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.portalRoleNamespace }}"
+                fields.name: "{{ .vars.portalRoleTeamName }}"
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                      resource_ref=='{{ .vars.portalViewerRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.portalRoleNamespace }}"
+                fields.role_name: Viewer
+                fields.entity_id: "__REF__:{{ .vars.portalRef }}#id"
+                fields.entity_type_name: Portals
+                fields.entity_region: us
+                references.entity_id.ref: "__REF__:{{ .vars.portalRef }}#id"
+                "contains(depends_on, '1:c:portal:org-team-roles-portal-ref')": true
+                "contains(depends_on, '2:c:organization_team:portal-role-team')": true

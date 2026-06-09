@@ -1,0 +1,32 @@
+application_auth_strategies:
+  - ref: aaa-distractor-app-auth-strategy
+    name: aaa-distractor-app-auth-strategy
+    display_name: Distractor API Key Authentication
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-Distractor-Key
+  - ref: mmm-target-app-auth-strategy
+    name: mmm-target-app-auth-strategy
+    display_name: Target API Key Authentication
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-Target-Key
+  - ref: zzz-distractor-app-auth-strategy
+    name: zzz-distractor-app-auth-strategy
+    display_name: Later Distractor API Key Authentication
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-Later-Distractor-Key
+
+portals:
+  - ref: ref-selection-portal
+    name: Ref Selection Portal
+    display_name: Ref Selection Portal
+    description: Verifies default_application_auth_strategy_id follows the referenced strategy.
+    default_application_auth_strategy_id: !ref mmm-target-app-auth-strategy#id

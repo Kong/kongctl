@@ -1,0 +1,11 @@
+portals:
+  - ref: e2e-portal
+    name: "E2E Publication Portal"
+    display_name: "E2E Publication Portal"
+    description: "Portal used by the E2E publication auth strategy scenario"
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"

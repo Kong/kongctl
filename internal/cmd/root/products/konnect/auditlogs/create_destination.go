@@ -17,13 +17,9 @@ import (
 
 	"github.com/kong/kongctl/internal/auditlogs"
 	"github.com/kong/kongctl/internal/cmd"
-	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/apiutil"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
-	"github.com/segmentio/cli"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -54,104 +50,36 @@ var allowedLogFormatsSet = map[string]struct{}{
 }
 
 type createDestinationRequest struct {
-	Name                string `json:"name,omitempty" yaml:"name,omitempty"`
-	Endpoint            string `json:"endpoint" yaml:"endpoint"`
-	LogFormat           string `json:"log_format,omitempty" yaml:"log_format,omitempty"`
-	SkipSSLVerification bool   `json:"skip_ssl_verification" yaml:"skip_ssl_verification"`
+	Name                string `json:"name,omitempty"          yaml:"name,omitempty"`
+	Endpoint            string `json:"endpoint"                yaml:"endpoint"`
+	LogFormat           string `json:"log_format,omitempty"    yaml:"log_format,omitempty"`
+	SkipSSLVerification bool   `json:"skip_ssl_verification"   yaml:"skip_ssl_verification"`
 	Authorization       string `json:"authorization,omitempty" yaml:"authorization,omitempty"`
 }
 
 type createDestinationOutput struct {
-	CreatedAt               time.Time `json:"created_at" yaml:"created_at"`
-	Profile                 string    `json:"profile" yaml:"profile"`
-	DestinationID           string    `json:"destination_id,omitempty" yaml:"destination_id,omitempty"`
-	DestinationName         string    `json:"destination_name" yaml:"destination_name"`
-	DestinationEndpoint     string    `json:"destination_endpoint" yaml:"destination_endpoint"`
-	LogFormat               string    `json:"log_format,omitempty" yaml:"log_format,omitempty"`
-	SkipSSLVerification     bool      `json:"skip_ssl_verification" yaml:"skip_ssl_verification"`
-	AuthorizationConfigured bool      `json:"authorization_configured" yaml:"authorization_configured"`
-	WebhookConfigured       bool      `json:"webhook_configured" yaml:"webhook_configured"`
-	EventsFile              string    `json:"events_file" yaml:"events_file"`
-	DestinationStateFile    string    `json:"destination_state_file" yaml:"destination_state_file"`
+	CreatedAt               time.Time `json:"created_at"                     yaml:"created_at"`
+	Profile                 string    `json:"profile"                        yaml:"profile"`
+	DestinationID           string    `json:"destination_id,omitempty"       yaml:"destination_id,omitempty"`
+	DestinationName         string    `json:"destination_name"               yaml:"destination_name"`
+	DestinationEndpoint     string    `json:"destination_endpoint"           yaml:"destination_endpoint"`
+	LogFormat               string    `json:"log_format,omitempty"           yaml:"log_format,omitempty"`
+	SkipSSLVerification     bool      `json:"skip_ssl_verification"          yaml:"skip_ssl_verification"`
+	AuthorizationConfigured bool      `json:"authorization_configured"       yaml:"authorization_configured"`
+	WebhookConfigured       bool      `json:"webhook_configured"             yaml:"webhook_configured"`
+	EventsFile              string    `json:"events_file"                    yaml:"events_file"`
+	DestinationStateFile    string    `json:"destination_state_file"         yaml:"destination_state_file"`
 	RawDestination          any       `json:"destination_response,omitempty" yaml:"destination_response,omitempty"`
-	RawWebhook              any       `json:"webhook_response,omitempty" yaml:"webhook_response,omitempty"`
+	RawWebhook              any       `json:"webhook_response,omitempty"     yaml:"webhook_response,omitempty"`
 }
 
 type createDestinationCmd struct {
-	*cobra.Command
-
 	endpoint            string
 	name                string
 	logFormat           string
 	skipSSLVerification bool
 	authorization       string
 	configureWebhook    bool
-}
-
-func newCreateDestinationCmd(
-	verb verbs.VerbValue,
-	addParentFlags func(verbs.VerbValue, *cobra.Command),
-	parentPreRun func(*cobra.Command, []string) error,
-) *cobra.Command {
-	c := &createDestinationCmd{
-		logFormat:        defaultLogFormatValue,
-		configureWebhook: true,
-	}
-	cmdObj := &cobra.Command{
-		Use:   "destination",
-		Short: "Create a Konnect audit-log destination",
-		Long: `Create a Konnect audit-log destination that points to an externally reachable
-HTTP endpoint (for example, a tunnel URL that fronts your local listener).`,
-		Example: `  # Create a destination for your exposed listener
-  kongctl create audit-logs destination --endpoint https://example.ngrok.app/audit-logs
-
-  # Include delivery options
-  kongctl create audit-logs destination \
-    --endpoint https://example.ngrok.app/audit-logs \
-    --log-format cef \
-    --skip-ssl-verification \
-    --authorization "Bearer my-secret-token"`,
-		RunE: c.runE,
-	}
-
-	c.Command = cmdObj
-	c.Flags().StringVar(&c.endpoint, "endpoint", "", "Destination webhook URL.")
-	c.Flags().StringVar(&c.name, "name", "", "Destination name. Default: kongctl-<hostname>-<pid>.")
-	c.Flags().StringVar(&c.logFormat, "log-format", defaultLogFormatValue,
-		fmt.Sprintf("Audit-log payload format. Allowed: %s.", strings.Join(allowedLogFormats, "|")))
-	c.Flags().BoolVar(&c.skipSSLVerification, "skip-ssl-verification", false,
-		"Skip TLS certificate verification for destination delivery.")
-	c.Flags().StringVar(&c.authorization, "authorization", "",
-		"Value for the Authorization header Konnect includes when sending audit logs.")
-	c.Flags().BoolVar(&c.configureWebhook, "configure-webhook", true,
-		"Automatically bind and enable the organization webhook with the created destination.")
-
-	_ = c.MarkFlagRequired("endpoint")
-
-	if parentPreRun != nil {
-		c.PreRunE = parentPreRun
-	}
-	if addParentFlags != nil {
-		addParentFlags(verb, c.Command)
-	}
-
-	return c.Command
-}
-
-func (c *createDestinationCmd) runE(cmdObj *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(cmdObj, args)
-	if len(helper.GetArgs()) > 0 {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("the destination command does not accept arguments"),
-		}
-	}
-
-	output, err := c.execute(helper)
-	if err != nil {
-		return err
-	}
-
-	return renderCreateDestinationOutput(helper, output)
 }
 
 func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutput, error) {
@@ -190,7 +118,7 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 		"configure_webhook", c.configureWebhook,
 	)
 
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return createDestinationOutput{}, cmd.PrepareExecutionError(
 			"failed to resolve Konnect access token",
@@ -202,6 +130,13 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 	ctx := helper.GetContext()
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return createDestinationOutput{}, cmd.PrepareExecutionError(
+			"failed to resolve Konnect access token",
+			err,
+			helper.GetCmd(),
+		)
 	}
 	client := httpclient.NewLoggingHTTPClient(logger)
 	regionalBaseURL := ""
@@ -218,7 +153,7 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 			"resolved regional Konnect base URL for webhook operations",
 			"base_url", regionalBaseURL,
 		)
-		if err := ensureNoActiveRegionalWebhook(ctx, client, regionalBaseURL, token, logger); err != nil {
+		if err := ensureNoActiveRegionalWebhook(ctx, client, regionalBaseURL, tokenSource, logger); err != nil {
 			return createDestinationOutput{}, cmd.PrepareExecutionError(
 				"active audit-log webhook already configured for this region",
 				err,
@@ -239,7 +174,7 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 		logger.Debug("generated default audit-log destination name", "name", requestBody.Name)
 	}
 
-	nameTaken, err := destinationNameExists(ctx, client, token, requestBody.Name, logger)
+	nameTaken, err := destinationNameExists(ctx, client, tokenSource, requestBody.Name, logger)
 	if err != nil {
 		return createDestinationOutput{}, cmd.PrepareExecutionError(
 			"failed to verify destination name uniqueness",
@@ -265,13 +200,13 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 		)
 	}
 
-	destinationResult, err := apiutil.Request(
+	destinationResult, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodPost,
 		konnectcommon.GlobalBaseURL,
 		createDestinationPath,
-		token,
+		tokenSource,
 		map[string]string{
 			"Content-Type": "application/json",
 		},
@@ -343,13 +278,13 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 			)
 		}
 
-		webhookResult, err := apiutil.Request(
+		webhookResult, err := apiutil.RequestWithTokenSource(
 			ctx,
 			client,
 			http.MethodPatch,
 			regionalBaseURL,
 			updateWebhookPath,
-			token,
+			tokenSource,
 			map[string]string{
 				"Content-Type": "application/json",
 			},
@@ -404,61 +339,6 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 	return output, nil
 }
 
-func renderCreateDestinationOutput(helper cmd.Helper, output createDestinationOutput) error {
-	outType, err := helper.GetOutputFormat()
-	if err != nil {
-		return err
-	}
-	streams := helper.GetStreams()
-
-	if outType == cmdcommon.TEXT {
-		if _, err := fmt.Fprintln(streams.Out, "Audit-log destination created"); err != nil {
-			return err
-		}
-		if output.DestinationID != "" {
-			if _, err := fmt.Fprintf(streams.Out, "  destination id: %s\n", output.DestinationID); err != nil {
-				return err
-			}
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  name: %s\n", output.DestinationName); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  endpoint: %s\n", output.DestinationEndpoint); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  log format: %s\n", output.LogFormat); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  skip ssl verification: %t\n", output.SkipSSLVerification); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(
-			streams.Out,
-			"  authorization configured: %t\n",
-			output.AuthorizationConfigured,
-		); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  webhook configured: %t\n", output.WebhookConfigured); err != nil {
-			return err
-		}
-		if output.DestinationStateFile != "" {
-			if _, err := fmt.Fprintf(streams.Out, "  state file: %s\n", output.DestinationStateFile); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	printer, err := cli.Format(outType.String(), streams.Out)
-	if err != nil {
-		return err
-	}
-	defer printer.Flush()
-	printer.Print(output)
-	return nil
-}
-
 func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disableWebhook bool) error {
 	destinationID = strings.TrimSpace(destinationID)
 	if destinationID == "" {
@@ -473,7 +353,7 @@ func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disable
 	if err != nil {
 		return err
 	}
-	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("resolve Konnect access token: %w", err)
 	}
@@ -483,6 +363,9 @@ func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disable
 	// so destination cleanup still runs on Ctrl+C.
 	ctx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
 	defer cancel()
+	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+		return fmt.Errorf("resolve Konnect access token: %w", err)
+	}
 
 	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
 	if err != nil {
@@ -491,7 +374,7 @@ func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disable
 	client := httpclient.NewLoggingHTTPClient(logger)
 
 	if disableWebhook {
-		if err := releaseRegionalWebhook(ctx, client, baseURL, token, logger); err != nil {
+		if err := releaseRegionalWebhook(ctx, client, baseURL, tokenSource, logger); err != nil {
 			logger.Debug(
 				"regional audit-log webhook release had non-fatal errors",
 				"error", err,
@@ -500,14 +383,14 @@ func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disable
 	}
 
 	path := fmt.Sprintf("%s/%s", deleteDestinationV2, url.PathEscape(destinationID))
-	return deleteDestinationWithRetry(ctx, client, baseURL, path, token, destinationID, logger)
+	return deleteDestinationWithRetry(ctx, client, baseURL, path, tokenSource, destinationID, logger)
 }
 
 func releaseRegionalWebhook(
 	ctx context.Context,
 	client apiutil.Doer,
-	baseURL,
-	token string,
+	baseURL string,
+	tokenSource apiutil.TokenSource,
 	logger *slog.Logger,
 ) error {
 	var webhookErr error
@@ -528,13 +411,13 @@ func releaseRegionalWebhook(
 		return fmt.Errorf("encode disable webhook request: %w", err)
 	}
 
-	disableResult, err := apiutil.Request(
+	disableResult, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodPatch,
 		baseURL,
 		webhookPathV2,
-		token,
+		tokenSource,
 		map[string]string{
 			"Content-Type": "application/json",
 		},
@@ -570,13 +453,13 @@ func releaseRegionalWebhook(
 			"base_url", baseURL,
 		)
 	}
-	deleteResult, err := apiutil.Request(
+	deleteResult, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodDelete,
 		baseURL,
 		deleteWebhookPathV3,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)
@@ -609,7 +492,7 @@ func releaseRegionalWebhook(
 func destinationNameExists(
 	ctx context.Context,
 	client apiutil.Doer,
-	token,
+	tokenSource apiutil.TokenSource,
 	name string,
 	logger *slog.Logger,
 ) (bool, error) {
@@ -620,13 +503,13 @@ func destinationNameExists(
 		logger.Debug("checking audit-log destination name uniqueness", "name", name)
 	}
 
-	result, err := apiutil.Request(
+	result, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodGet,
 		konnectcommon.GlobalBaseURL,
 		listDestinationPath,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)
@@ -655,17 +538,17 @@ func destinationNameExists(
 func ensureNoActiveRegionalWebhook(
 	ctx context.Context,
 	client apiutil.Doer,
-	baseURL,
-	token string,
+	baseURL string,
+	tokenSource apiutil.TokenSource,
 	logger *slog.Logger,
 ) error {
-	configResult, err := apiutil.Request(
+	configResult, err := apiutil.RequestWithTokenSource(
 		ctx,
 		client,
 		http.MethodGet,
 		baseURL,
 		webhookPathV2,
-		token,
+		tokenSource,
 		nil,
 		nil,
 	)
@@ -717,9 +600,9 @@ func isRegionalWebhookUnconfigured(enabled bool, endpoint string) bool {
 func deleteDestinationWithRetry(
 	ctx context.Context,
 	client apiutil.Doer,
-	baseURL,
-	path,
-	token,
+	baseURL string,
+	path string,
+	tokenSource apiutil.TokenSource,
 	destinationID string,
 	logger *slog.Logger,
 ) error {
@@ -730,13 +613,13 @@ func deleteDestinationWithRetry(
 
 	attempt := 1
 	for {
-		result, err := apiutil.Request(
+		result, err := apiutil.RequestWithTokenSource(
 			ctx,
 			client,
 			http.MethodDelete,
 			baseURL,
 			path,
-			token,
+			tokenSource,
 			nil,
 			nil,
 		)
@@ -856,7 +739,11 @@ func normalizeLogFormat(raw string) (string, error) {
 	}
 
 	if _, ok := allowedLogFormatsSet[normalized]; !ok {
-		return "", fmt.Errorf("invalid log-format %q, allowed values are: %s", raw, strings.Join(allowedLogFormats, ", "))
+		return "", fmt.Errorf(
+			"invalid log-format %q, allowed values are: %s",
+			raw,
+			strings.Join(allowedLogFormats, ", "),
+		)
 	}
 
 	return normalized, nil

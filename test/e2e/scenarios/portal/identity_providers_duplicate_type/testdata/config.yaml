@@ -1,0 +1,22 @@
+_defaults:
+  kongctl:
+    namespace: portal-identity-providers
+
+portals:
+  - ref: portal-idp
+    name: portal-idp
+    display_name: Portal Identity Providers
+    description: Portal with duplicate identity provider types
+    kongctl:
+      namespace: portal-identity-providers
+    identity_providers:
+      - ref: portal-oidc-a
+        type: oidc
+        config:
+          issuer_url: https://issuer-a.example.test
+          client_id: client-id-a
+      - ref: portal-oidc-b
+        type: oidc
+        config:
+          issuer_url: https://issuer-b.example.test
+          client_id: client-id-b

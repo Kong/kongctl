@@ -1,0 +1,34 @@
+_defaults:
+  kongctl:
+    namespace: portal-idp-example
+
+portals:
+  - ref: portal-idp-example
+    name: portal-idp-example
+    display_name: Portal Identity Provider Example
+    description: Portal OIDC identity provider values loaded from !env
+    auth_settings:
+      ref: portal-idp-auth-settings
+      idp_mapping_enabled: true
+    identity_providers:
+      - ref: portal-oidc
+        type: oidc
+        enabled: true
+        config:
+          issuer_url: !env PORTAL_IDP_ISSUER_URL
+          client_id: !env PORTAL_IDP_CLIENT_ID
+          client_secret: !env PORTAL_IDP_CLIENT_SECRET
+          scopes:
+            - openid
+            - profile
+          claim_mappings:
+            name: name
+            email: email
+            groups: groups
+    teams:
+      - ref: service-developers
+        name: Service Developers
+        group_mappings:
+          - ref: service-developers-idp-groups
+            groups:
+              - Service Developer

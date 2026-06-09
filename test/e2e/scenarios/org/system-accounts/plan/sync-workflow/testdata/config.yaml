@@ -1,0 +1,25 @@
+_defaults:
+  kongctl:
+    namespace: sa-plan-sync
+
+apis:
+  - ref: sa-plan-sync-api
+    name: sa-plan-sync-api
+    description: API used by the system account plan sync workflow E2E scenario
+
+organization:
+  teams:
+    - ref: sa-plan-sync-team
+      name: SA Plan Sync Team
+      description: Team used by the system account plan sync workflow E2E scenario
+      labels:
+        scenario: sa-plan-sync
+      roles:
+        - ref: sa-plan-sync-team-role
+          role_name: Viewer
+          entity_id: !ref sa-plan-sync-api#id
+          entity_type_name: APIs
+          entity_region: us
+      kongctl:
+        namespace: sa-plan-sync
+        protected: false

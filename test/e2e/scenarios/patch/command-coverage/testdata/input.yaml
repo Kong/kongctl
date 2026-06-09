@@ -1,0 +1,11 @@
+_format_version: "3.0"
+services:
+  - name: my-service
+    host: example.com
+    port: 80
+    routes:
+      - name: my-route
+        paths:
+          - /api
+        methods:
+          - GET

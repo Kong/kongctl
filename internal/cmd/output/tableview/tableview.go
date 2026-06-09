@@ -14,24 +14,27 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-isatty"
 	"github.com/mattn/go-runewidth"
 	"golang.org/x/term"
 
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/glamour"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/iostreams"
-	kairender "github.com/kong/kongctl/internal/kai/render"
 	"github.com/kong/kongctl/internal/theme"
+	"github.com/muesli/termenv"
 	"github.com/segmentio/cli"
 )
 
@@ -44,6 +47,47 @@ type DetailRenderer func(index int) string
 type DetailContextProvider func(index int) any
 
 type RowLoader func(index int) (ChildView, error)
+
+// SelectionContext describes the currently highlighted row for selection actions.
+type SelectionContext struct {
+	ParentType string
+	Parent     any
+	Headers    []string
+	Row        table.Row
+	Label      string
+	Index      int
+}
+
+// SelectionActionResolver converts a highlighted row into an executable action.
+type SelectionActionResolver func(SelectionContext) (SelectionActionCommand, error)
+
+// SelectionActionRun executes a confirmed selection action.
+type SelectionActionRun func(SelectionActionValues) error
+
+// SelectionActionValues contains user-entered options collected by the action dialog.
+type SelectionActionValues struct {
+	OutputFile       string
+	DefaultNamespace string
+	IncludeChildren  bool
+}
+
+// SelectionActionCommand configures the modal prompt and execution callback for an action.
+type SelectionActionCommand struct {
+	Title               string
+	Label               string
+	DefaultOutputFile   string
+	DefaultNamespace    string
+	IncludeChildren     bool
+	IncludeChildrenText string
+	Run                 SelectionActionRun
+}
+
+// SelectionAction registers a keyboard action for the current row selection.
+type SelectionAction struct {
+	Key     string
+	Help    string
+	Resolve SelectionActionResolver
+}
 
 type config struct {
 	title         string
@@ -71,6 +115,8 @@ type config struct {
 	childParentType string
 	detailContext   DetailContextProvider
 	childHelper     cmdpkg.Helper
+
+	selectionActions []SelectionAction
 }
 
 // PreviewRenderer allows injecting a synthetic preview above the table that
@@ -88,6 +134,7 @@ type requestKind int
 const (
 	requestKindRow requestKind = iota
 	requestKindDetail
+	requestKindAction
 )
 
 type pendingRequest struct {
@@ -117,11 +164,41 @@ type detailChildLoadedMsg struct {
 	label     string
 }
 
+type selectionActionCompletedMsg struct {
+	requestID  string
+	label      string
+	outputFile string
+	err        error
+}
+
+type selectionActionFocus int
+
+const (
+	selectionActionFocusOutput selectionActionFocus = iota
+	selectionActionFocusNamespace
+	selectionActionFocusIncludeChildren
+)
+
+const (
+	selectionActionOutputLabel    = "Output file:"
+	selectionActionNamespaceLabel = "Default namespace:"
+)
+
+type selectionActionDialog struct {
+	action          SelectionAction
+	command         SelectionActionCommand
+	outputInput     textinput.Model
+	namespaceInput  textinput.Model
+	includeChildren bool
+	focus           selectionActionFocus
+	status          string
+}
+
 func newSpinnerModel(p theme.Palette) spinner.Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = p.ForegroundStyle(theme.ColorAccent)
-	return s
+	return spinner.New(
+		spinner.WithSpinner(spinner.Dot),
+		spinner.WithStyle(p.ForegroundStyle(theme.ColorAccent)),
+	)
 }
 
 func formatElapsed(d time.Duration) string {
@@ -161,9 +238,14 @@ func (pr pendingRequest) inflightMessage() string {
 			label = "selection"
 		case requestKindDetail:
 			label = "detail"
+		case requestKindAction:
+			label = "action"
 		default:
 			label = "request"
 		}
+	}
+	if pr.kind == requestKindAction {
+		return fmt.Sprintf("Running %s...", label)
 	}
 	return fmt.Sprintf("Loading %s...", label)
 }
@@ -199,9 +281,7 @@ func newStatusBoxStyle(p theme.Palette) lipgloss.Style {
 // NormalizeSelectedRow ensures that selected rows emitted by the table component
 // keep the highlight active across all columns when wrapped by another style.
 func NormalizeSelectedRow(content string, selected lipgloss.Style) string {
-	const reset = "\x1b[0m"
-
-	prefix := selectionPrefix(selected, reset)
+	prefix, _ := selectionPrefix(selected)
 	if prefix == "" || !strings.Contains(content, prefix) {
 		return content
 	}
@@ -212,30 +292,27 @@ func NormalizeSelectedRow(content string, selected lipgloss.Style) string {
 			continue
 		}
 
-		count := strings.Count(line, reset)
-		if count <= 1 {
-			continue
-		}
-
-		line = strings.ReplaceAll(line, reset+prefix, reset)
-		lines[i] = strings.Replace(line, reset, reset+prefix, count-1)
+		lines[i] = selected.Render(ansi.Strip(line))
 	}
 
 	return strings.Join(lines, "\n")
 }
 
-func selectionPrefix(style lipgloss.Style, reset string) string {
+func selectionPrefix(style lipgloss.Style) (string, string) {
 	rendered := style.Render("")
 	if rendered == "" {
-		return ""
+		return "", ""
 	}
 
-	idx := strings.LastIndex(rendered, reset)
-	if idx == -1 {
-		return ""
+	for _, reset := range []string{ansi.ResetStyle, "\x1b[0m"} {
+		idx := strings.LastIndex(rendered, reset)
+		if idx == -1 {
+			continue
+		}
+		return rendered[:idx], reset
 	}
 
-	return rendered[:idx]
+	return "", ""
 }
 
 func stylizeDetailContent(content string, palette theme.Palette) string {
@@ -284,10 +361,8 @@ func stylizeDetailContent(content string, palette theme.Palette) string {
 }
 
 func shouldAccentDetail(label, value string) bool {
-	switch strings.ToLower(strings.TrimSpace(label)) {
-	case "id":
+	if strings.ToLower(strings.TrimSpace(label)) == "id" {
 		return true
-	default:
 	}
 	low := strings.ToLower(strings.TrimSpace(value))
 	if strings.Contains(low, "error") || strings.Contains(low, "failed") {
@@ -392,6 +467,16 @@ func WithProfileName(name string) Option {
 	}
 }
 
+// WithSelectionAction registers an action that can be invoked for the highlighted row.
+func WithSelectionAction(action SelectionAction) Option {
+	return func(cfg *config) {
+		if strings.TrimSpace(action.Key) == "" || action.Resolve == nil {
+			return
+		}
+		cfg.selectionActions = append(cfg.selectionActions, action)
+	}
+}
+
 // Render displays structured data using the Bubble Tea table component when
 // the output stream is a TTY. For non-interactive streams it falls back to a
 // static table rendering with truncated columns.
@@ -464,8 +549,8 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 	styles.Cell = styles.Cell.
 		Foreground(palette.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(palette.Adaptive(theme.ColorAccentText)).
-		Background(palette.Adaptive(theme.ColorAccent))
+		Foreground(palette.Adaptive(theme.ColorSelectionText)).
+		Background(palette.Adaptive(theme.ColorSelection))
 	paddingWidth := max(
 		lipgloss.Width(styles.Header.Render("")),
 		lipgloss.Width(styles.Cell.Render("")),
@@ -573,9 +658,10 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 		if targetHeight < 1 {
 			targetHeight = 1
 		}
-		dv := viewport.New(detailWidth, targetHeight)
-		dv.Width = detailWidth
-		dv.Height = targetHeight
+		dv := viewport.New(
+			viewport.WithWidth(detailWidth),
+			viewport.WithHeight(targetHeight),
+		)
 		dv.SetContent(content)
 		cfg.detailViewport = &dv
 	}
@@ -628,11 +714,14 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 		len(tableRows),
 		headers,
 	)
-	program := tea.NewProgram(model,
+	programOpts := []tea.ProgramOption{
 		tea.WithInput(streams.In),
 		tea.WithOutput(streams.Out),
-		tea.WithAltScreen(),
-	)
+	}
+	if iostreams.HasTrueColorEnv() {
+		programOpts = append(programOpts, tea.WithColorProfile(colorprofile.TrueColor))
+	}
+	program := tea.NewProgram(model, programOpts...)
 
 	_, err = program.Run()
 	return err
@@ -683,6 +772,24 @@ func getFD(w io.Writer) (uintptr, bool) {
 
 func isTerminal(fd uintptr) bool {
 	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+}
+
+// isEmptyCollection reports whether v is a zero-length slice or array.
+// A typed nil slice (e.g. var s []string) is considered empty because its
+// length is zero. An untyped nil interface value returns false.
+// Pointers are dereferenced before the check; a nil pointer also returns false.
+func isEmptyCollection(v any) bool {
+	if v == nil {
+		return false
+	}
+	rv := reflect.ValueOf(v)
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return false
+		}
+		rv = rv.Elem()
+	}
+	return (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) && rv.Len() == 0
 }
 
 func buildRows(data any) ([]string, [][]string, error) {
@@ -781,7 +888,7 @@ func extractStructMeta(t reflect.Type) structMeta {
 		headers: make([]string, 0, t.NumField()),
 		indices: make([]int, 0, t.NumField()),
 	}
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		if field.PkgPath != "" {
 			continue
@@ -1058,7 +1165,34 @@ func renderMarkdownContent(raw string, width int) string {
 	if width <= 0 {
 		width = 80
 	}
-	return kairender.Markdown(raw, kairender.Options{Width: width})
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithColorProfile(termenv.TrueColor),
+		glamour.WithWordWrap(width),
+	)
+	if err != nil {
+		return raw
+	}
+	rendered, err := renderer.Render(raw)
+	if err != nil {
+		return raw
+	}
+	return normalizeMarkdownSpacing(rendered)
+}
+
+func normalizeMarkdownSpacing(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return trimmed
+	}
+	lines := strings.Split(trimmed, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " ")
+		if i == 0 {
+			lines[i] = strings.TrimLeft(lines[i], " ")
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func defaultRootLabel(_ []string) string {
@@ -1125,9 +1259,9 @@ func newDetailTableDecorator(
 	labelStyle := palette.ForegroundStyle(theme.ColorTextSecondary)
 	valueStyle := palette.ForegroundStyle(theme.ColorTextPrimary)
 	accentStyle := palette.ForegroundStyle(theme.ColorAccent)
-	selectedText := palette.ForegroundStyle(theme.ColorAccentText)
+	selectedText := palette.ForegroundStyle(theme.ColorSelectionText)
+	selectedPrefix, _ := selectionPrefix(selected)
 
-	const reset = "\x1b[0m"
 	return detailTableDecorator{
 		columns:        append([]table.Column(nil), columns...),
 		cellStyles:     cellStyles,
@@ -1138,7 +1272,7 @@ func newDetailTableDecorator(
 		selectedValue:  selectedText,
 		selectedAccent: selectedText,
 		selectedStyle:  selected,
-		selectedPrefix: selectionPrefix(selected, reset),
+		selectedPrefix: selectedPrefix,
 		highlight:      highlight,
 	}
 }
@@ -1930,8 +2064,8 @@ func buildDetailTable(
 		PaddingRight(0)
 	if highlight {
 		styles.Selected = styles.Selected.
-			Foreground(palette.Adaptive(theme.ColorAccentText)).
-			Background(palette.Adaptive(theme.ColorAccent))
+			Foreground(palette.Adaptive(theme.ColorSelectionText)).
+			Background(palette.Adaptive(theme.ColorSelection))
 	} else {
 		styles.Selected = lipgloss.NewStyle()
 	}
@@ -1986,8 +2120,8 @@ func buildChildTable(state *childViewState, width, height int, palette theme.Pal
 	styles.Cell = styles.Cell.
 		Foreground(palette.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(palette.Adaptive(theme.ColorAccentText)).
-		Background(palette.Adaptive(theme.ColorAccent))
+		Foreground(palette.Adaptive(theme.ColorSelectionText)).
+		Background(palette.Adaptive(theme.ColorSelection))
 
 	tbl := table.New(
 		table.WithColumns(columns),
@@ -2180,8 +2314,16 @@ func RenderForFormat(
 		return Render(streams, display, opts...)
 	}
 
+	//exhaustive:ignore // HELM is intentionally not supported here; handled at the call site.
 	switch outType {
 	case cmdCommon.TEXT:
+		if isEmptyCollection(display) {
+			var out io.Writer
+			if streams != nil {
+				out = streams.Out
+			}
+			return writeStaticMessage(out, "", "No resources found.")
+		}
 		if printer != nil {
 			printer.Print(display)
 		}
@@ -2330,47 +2472,49 @@ func (c *childViewState) labelForIndex(index int) string {
 }
 
 type bubbleModel struct {
-	table           table.Model
-	title           string
-	footer          string
-	detailFooter    string
-	showHelp        bool
-	toggleKey       string
-	quitKeys        []string
-	tableStyle      lipgloss.Style
-	detailStyle     lipgloss.Style
-	statusStyle     lipgloss.Style
-	selectedStyle   lipgloss.Style
-	profileName     string
-	useAltScreen    bool
-	hasDetail       bool
-	detail          *viewport.Model
-	detailRenderer  DetailRenderer
-	previewRenderer PreviewRenderer
-	palette         theme.Palette
-	windowWidth     int
-	windowHeight    int
-	detailStack     []detailView
-	rowCount        int
-	headers         []string
-	headerLookup    map[string]int
-	breadcrumbs     []string
-	parentType      string
-	detailContext   DetailContextProvider
-	helper          cmdpkg.Helper
-	statusMessage   string
-	rowLoader       RowLoader
-	searchActive    bool
-	searchBuffer    []rune
-	searchPrompt    string
-	searchDeadline  time.Time
-	spinner         spinner.Model
-	pendingRequest  pendingRequest
-	nextRequestID   int
-	nextDetailID    int
-	initCmd         tea.Cmd
-	availableThemes []string
-	themeIndex      int
+	table            table.Model
+	title            string
+	footer           string
+	detailFooter     string
+	showHelp         bool
+	toggleKey        string
+	quitKeys         []string
+	tableStyle       lipgloss.Style
+	detailStyle      lipgloss.Style
+	statusStyle      lipgloss.Style
+	selectedStyle    lipgloss.Style
+	profileName      string
+	useAltScreen     bool
+	hasDetail        bool
+	detail           *viewport.Model
+	detailRenderer   DetailRenderer
+	previewRenderer  PreviewRenderer
+	palette          theme.Palette
+	windowWidth      int
+	windowHeight     int
+	detailStack      []detailView
+	rowCount         int
+	headers          []string
+	headerLookup     map[string]int
+	breadcrumbs      []string
+	parentType       string
+	detailContext    DetailContextProvider
+	helper           cmdpkg.Helper
+	statusMessage    string
+	rowLoader        RowLoader
+	searchActive     bool
+	searchBuffer     []rune
+	searchPrompt     string
+	searchDeadline   time.Time
+	spinner          spinner.Model
+	pendingRequest   pendingRequest
+	nextRequestID    int
+	nextDetailID     int
+	initCmd          tea.Cmd
+	availableThemes  []string
+	themeIndex       int
+	selectionActions []SelectionAction
+	actionDialog     *selectionActionDialog
 }
 
 func newBubbleModel(
@@ -2401,37 +2545,38 @@ func newBubbleModel(
 	availableThemeNames := theme.Available()
 
 	m := &bubbleModel{
-		table:           tbl,
-		title:           cfg.title,
-		footer:          cfg.footer,
-		detailFooter:    "Press enter to select or copy · esc/backspace to go back · arrows/j/k navigate",
-		toggleKey:       cfg.toggleHelpKey,
-		quitKeys:        cfg.quitKeys,
-		tableStyle:      tableStyle,
-		detailStyle:     detailStyle,
-		statusStyle:     statusStyle,
-		selectedStyle:   selectedStyle,
-		profileName:     strings.TrimSpace(cfg.profileName),
-		useAltScreen:    true,
-		hasDetail:       cfg.hasDetail,
-		detailRenderer:  cfg.detailRenderer,
-		previewRenderer: previewRenderer,
-		palette:         palette,
-		windowWidth:     initialWidth,
-		windowHeight:    initialHeight,
-		rowCount:        rowCount,
-		headers:         append([]string(nil), headers...),
-		headerLookup:    buildHeaderLookup(headers),
-		breadcrumbs:     []string{rootLabel},
-		parentType:      parentType,
-		detailContext:   cfg.detailContext,
-		helper:          cfg.childHelper,
-		rowLoader:       cfg.rowLoader,
-		spinner:         newSpinnerModel(palette),
-		nextRequestID:   1,
-		nextDetailID:    1,
-		availableThemes: availableThemeNames,
-		themeIndex:      themeIndexOf(availableThemeNames, palette.Name),
+		table:            tbl,
+		title:            cfg.title,
+		footer:           cfg.footer,
+		detailFooter:     "Press enter to select or copy · esc/backspace to go back · arrows/j/k navigate",
+		toggleKey:        cfg.toggleHelpKey,
+		quitKeys:         cfg.quitKeys,
+		tableStyle:       tableStyle,
+		detailStyle:      detailStyle,
+		statusStyle:      statusStyle,
+		selectedStyle:    selectedStyle,
+		profileName:      strings.TrimSpace(cfg.profileName),
+		useAltScreen:     true,
+		hasDetail:        cfg.hasDetail,
+		detailRenderer:   cfg.detailRenderer,
+		previewRenderer:  previewRenderer,
+		palette:          palette,
+		windowWidth:      initialWidth,
+		windowHeight:     initialHeight,
+		rowCount:         rowCount,
+		headers:          append([]string(nil), headers...),
+		headerLookup:     buildHeaderLookup(headers),
+		breadcrumbs:      []string{rootLabel},
+		parentType:       parentType,
+		detailContext:    cfg.detailContext,
+		helper:           cfg.childHelper,
+		rowLoader:        cfg.rowLoader,
+		spinner:          newSpinnerModel(palette),
+		nextRequestID:    1,
+		nextDetailID:     1,
+		availableThemes:  availableThemeNames,
+		themeIndex:       themeIndexOf(availableThemeNames, palette.Name),
+		selectionActions: append([]SelectionAction(nil), cfg.selectionActions...),
 	}
 
 	if cfg.hasDetail && cfg.detailViewport != nil {
@@ -2483,8 +2628,8 @@ func (m *bubbleModel) applyPalette(p theme.Palette) {
 	styles.Cell = styles.Cell.
 		Foreground(p.Adaptive(theme.ColorTextPrimary))
 	styles.Selected = styles.Selected.
-		Foreground(p.Adaptive(theme.ColorAccentText)).
-		Background(p.Adaptive(theme.ColorAccent))
+		Foreground(p.Adaptive(theme.ColorSelectionText)).
+		Background(p.Adaptive(theme.ColorSelection))
 	m.selectedStyle = styles.Selected
 	m.table.SetStyles(styles)
 
@@ -2630,6 +2775,247 @@ func (m *bubbleModel) inDetailMode() bool {
 	return len(m.detailStack) > 0
 }
 
+func (m *bubbleModel) currentSelection() (SelectionContext, bool) {
+	if m.inDetailMode() {
+		detail := &m.detailStack[len(m.detailStack)-1]
+		if detail.child != nil && detail.table != nil {
+			index := detail.table.Cursor()
+			if index < 0 || index >= len(detail.child.rows) {
+				return SelectionContext{}, false
+			}
+			parent := detail.parent
+			if detail.child.context != nil {
+				parent = detail.child.context(index)
+			}
+			return SelectionContext{
+				ParentType: detail.child.parentType,
+				Parent:     parent,
+				Headers:    append([]string(nil), detail.child.headers...),
+				Row:        append(table.Row(nil), detail.child.rows[index]...),
+				Label:      detail.child.labelForIndex(index),
+				Index:      index,
+			}, true
+		}
+
+		return SelectionContext{
+			ParentType: detail.parentType,
+			Parent:     detail.parent,
+			Label:      detail.label,
+			Index:      -1,
+		}, true
+	}
+
+	rows := m.table.Rows()
+	index := m.table.Cursor()
+	if index < 0 || index >= len(rows) {
+		return SelectionContext{}, false
+	}
+
+	var parent any
+	if m.detailContext != nil {
+		parent = m.detailContext(index)
+	}
+
+	return SelectionContext{
+		ParentType: m.parentType,
+		Parent:     parent,
+		Headers:    append([]string(nil), m.headers...),
+		Row:        append(table.Row(nil), rows[index]...),
+		Label:      m.labelForIndex(index),
+		Index:      index,
+	}, true
+}
+
+func (m *bubbleModel) openSelectionAction(action SelectionAction) {
+	if m.pendingRequest.active {
+		m.setStatus("Wait for the current request to finish.")
+		return
+	}
+
+	selection, ok := m.currentSelection()
+	if !ok {
+		m.setStatus("No selection available.")
+		return
+	}
+
+	command, err := action.Resolve(selection)
+	if err != nil {
+		m.setStatus(err.Error())
+		return
+	}
+	if command.Run == nil {
+		m.setStatus("Selection action is not available.")
+		return
+	}
+
+	outputInput := textinput.New()
+	outputInput.Prompt = ""
+	outputInput.Placeholder = "path/to/file.yaml"
+	outputInput.SetValue(strings.TrimSpace(command.DefaultOutputFile))
+	outputInput.SetWidth(m.selectionActionInputWidth())
+	_ = outputInput.Focus()
+
+	namespaceInput := textinput.New()
+	namespaceInput.Prompt = ""
+	namespaceInput.Placeholder = "optional namespace"
+	namespaceInput.SetValue(strings.TrimSpace(command.DefaultNamespace))
+	namespaceInput.SetWidth(m.selectionActionInputWidth())
+
+	m.actionDialog = &selectionActionDialog{
+		action:          action,
+		command:         command,
+		outputInput:     outputInput,
+		namespaceInput:  namespaceInput,
+		includeChildren: command.IncludeChildren,
+		focus:           selectionActionFocusOutput,
+	}
+	m.clearStatus()
+}
+
+func (m *bubbleModel) selectionActionInputWidth() int {
+	return max(m.selectionActionBoxWidth()-len(selectionActionNamespaceLabel)-1, 16)
+}
+
+func (m *bubbleModel) selectionActionBoxWidth() int {
+	width := m.windowWidth
+	if width <= 0 {
+		width = 80
+	}
+	return min(max(width-4, 40), 88)
+}
+
+func (m *bubbleModel) resizeActionDialogInput() {
+	if m.actionDialog == nil {
+		return
+	}
+	width := m.selectionActionInputWidth()
+	m.actionDialog.outputInput.SetWidth(width)
+	m.actionDialog.namespaceInput.SetWidth(width)
+}
+
+func (m *bubbleModel) handleSelectionActionDialogKey(key tea.KeyPressMsg) tea.Cmd {
+	if m.actionDialog == nil {
+		return nil
+	}
+
+	switch key.String() {
+	case "ctrl+c":
+		m.useAltScreen = false
+		return tea.Quit
+	case "esc":
+		m.actionDialog = nil
+		m.setStatus("Action canceled.")
+		return nil
+	case "shift+tab", "up":
+		m.moveSelectionActionFocus(-1)
+		return nil
+	case "tab", "down":
+		m.moveSelectionActionFocus(1)
+		return nil
+	case " ", "space":
+		if m.actionDialog.focus == selectionActionFocusIncludeChildren {
+			m.actionDialog.includeChildren = !m.actionDialog.includeChildren
+			return nil
+		}
+	case "enter":
+		return m.submitSelectionAction()
+	}
+
+	var cmd tea.Cmd
+	switch m.actionDialog.focus {
+	case selectionActionFocusOutput:
+		m.actionDialog.outputInput, cmd = m.actionDialog.outputInput.Update(key)
+	case selectionActionFocusNamespace:
+		m.actionDialog.namespaceInput, cmd = m.actionDialog.namespaceInput.Update(key)
+	case selectionActionFocusIncludeChildren:
+		return nil
+	default:
+		return nil
+	}
+	return cmd
+}
+
+func (m *bubbleModel) moveSelectionActionFocus(delta int) {
+	if m.actionDialog == nil {
+		return
+	}
+
+	const focusCount = int(selectionActionFocusIncludeChildren) + 1
+	next := (int(m.actionDialog.focus) + delta) % focusCount
+	if next < 0 {
+		next += focusCount
+	}
+	m.setSelectionActionFocus(selectionActionFocus(next))
+}
+
+func (m *bubbleModel) setSelectionActionFocus(focus selectionActionFocus) {
+	if m.actionDialog == nil {
+		return
+	}
+
+	m.actionDialog.focus = focus
+	m.actionDialog.outputInput.Blur()
+	m.actionDialog.namespaceInput.Blur()
+
+	switch focus {
+	case selectionActionFocusOutput:
+		_ = m.actionDialog.outputInput.Focus()
+	case selectionActionFocusNamespace:
+		_ = m.actionDialog.namespaceInput.Focus()
+	case selectionActionFocusIncludeChildren:
+	}
+}
+
+func (m *bubbleModel) submitSelectionAction() tea.Cmd {
+	if m.actionDialog == nil {
+		return nil
+	}
+
+	outputFile := strings.TrimSpace(m.actionDialog.outputInput.Value())
+	if outputFile == "" {
+		m.actionDialog.status = "Output file is required."
+		return nil
+	}
+	defaultNamespace := strings.TrimSpace(m.actionDialog.namespaceInput.Value())
+
+	command := m.actionDialog.command
+	label := strings.TrimSpace(command.Label)
+	if label == "" {
+		label = strings.TrimSpace(command.Title)
+	}
+	if label == "" {
+		label = "selection action"
+	}
+
+	requestID, tickCmd := m.beginRequest(requestKindAction, label, -1, 0, 0)
+	if requestID == "" {
+		return nil
+	}
+
+	includeChildren := m.actionDialog.includeChildren
+	run := command.Run
+	m.actionDialog = nil
+
+	runCmd := func() tea.Msg {
+		err := run(SelectionActionValues{
+			OutputFile:       outputFile,
+			DefaultNamespace: defaultNamespace,
+			IncludeChildren:  includeChildren,
+		})
+		return selectionActionCompletedMsg{
+			requestID:  requestID,
+			label:      label,
+			outputFile: outputFile,
+			err:        err,
+		}
+	}
+
+	if tickCmd != nil {
+		return tea.Batch(tickCmd, runCmd)
+	}
+	return runCmd
+}
+
 func (m *bubbleModel) presentRowChild(index int, childView ChildView) string {
 	state := newChildViewState(childView)
 	label := strings.TrimSpace(childView.Title)
@@ -2770,7 +3156,7 @@ func (m *bubbleModel) resizeDetailViews() {
 		if detail.contentViewport != nil {
 			width := m.detailViewportWidth()
 			maxHeight := m.detailViewportHeight()
-			offset := detail.contentViewport.YOffset
+			offset := detail.contentViewport.YOffset()
 			rendered := renderMarkdownContent(detail.rawContent, width)
 			targetHeight := maxHeight
 			contentHeight := lipgloss.Height(rendered)
@@ -2780,8 +3166,8 @@ func (m *bubbleModel) resizeDetailViews() {
 			if targetHeight < 1 {
 				targetHeight = 1
 			}
-			detail.contentViewport.Width = width
-			detail.contentViewport.Height = targetHeight
+			detail.contentViewport.SetWidth(width)
+			detail.contentViewport.SetHeight(targetHeight)
 			detail.contentViewport.SetContent(rendered)
 			detail.contentViewport.SetYOffset(offset)
 			continue
@@ -2990,9 +3376,10 @@ func (m *bubbleModel) presentDetailChild(detail *detailView, row int, childView 
 		if targetHeight < 1 {
 			targetHeight = 1
 		}
-		vp := viewport.New(width, targetHeight)
-		vp.Width = width
-		vp.Height = targetHeight
+		vp := viewport.New(
+			viewport.WithWidth(width),
+			viewport.WithHeight(targetHeight),
+		)
 		vp.SetContent(rendered)
 
 		return m.pushDetailView(detailView{
@@ -3354,12 +3741,90 @@ func (m *bubbleModel) renderHelpContent(innerWidth int) string {
 		"?               : toggle this help",
 		"q               : quit",
 	}
+	for _, action := range m.selectionActions {
+		keyName := strings.TrimSpace(action.Key)
+		helpText := strings.TrimSpace(action.Help)
+		if keyName == "" || helpText == "" {
+			continue
+		}
+		helpLines = append(helpLines, fmt.Sprintf("%-15s : %s", keyName, helpText))
+	}
 	helpStyle := lipgloss.NewStyle().Faint(true)
 	rendered := make([]string, len(helpLines))
 	for i, line := range helpLines {
 		rendered[i] = padStatusLine(helpStyle.Render(line), innerWidth)
 	}
 	return strings.Join(rendered, "\n")
+}
+
+func (m *bubbleModel) renderSelectionActionDialog() string {
+	if m.actionDialog == nil {
+		return ""
+	}
+
+	dialog := m.actionDialog
+	title := strings.TrimSpace(dialog.command.Title)
+	if title == "" {
+		title = "Selection Action"
+	}
+
+	labelStyle := lipgloss.NewStyle().Faint(true)
+	activeStyle := m.palette.ForegroundStyle(theme.ColorAccent)
+	titleStyle := m.palette.ForegroundStyle(theme.ColorTextPrimary).Bold(true)
+	statusStyle := lipgloss.NewStyle().Faint(true)
+
+	includeLabel := strings.TrimSpace(dialog.command.IncludeChildrenText)
+	if includeLabel == "" {
+		includeLabel = "include child resources"
+	}
+	checkbox := "[ ]"
+	if dialog.includeChildren {
+		checkbox = "[x]"
+	}
+	includeLine := fmt.Sprintf("%s %s", checkbox, includeLabel)
+	if dialog.focus == selectionActionFocusIncludeChildren {
+		includeLine = activeStyle.Render(includeLine)
+	}
+
+	lines := []string{
+		titleStyle.Render(title),
+		renderSelectionActionInputRow(
+			selectionActionOutputLabel,
+			dialog.outputInput.View(),
+			dialog.focus == selectionActionFocusOutput,
+			labelStyle,
+			activeStyle,
+		),
+		renderSelectionActionInputRow(
+			selectionActionNamespaceLabel,
+			dialog.namespaceInput.View(),
+			dialog.focus == selectionActionFocusNamespace,
+			labelStyle,
+			activeStyle,
+		),
+		includeLine,
+	}
+
+	if status := strings.TrimSpace(dialog.status); status != "" {
+		lines = append(lines, statusStyle.Render(status))
+	}
+	lines = append(lines, statusStyle.Render("Enter confirms · Esc cancels · Tab switches fields"))
+
+	return m.detailStyle.Width(m.selectionActionBoxWidth()).Render(strings.Join(lines, "\n"))
+}
+
+func renderSelectionActionInputRow(
+	label, input string,
+	active bool,
+	labelStyle, activeStyle lipgloss.Style,
+) string {
+	paddedLabel := fmt.Sprintf("%-*s", len(selectionActionNamespaceLabel), label)
+	if active {
+		paddedLabel = activeStyle.Render(paddedLabel)
+	} else {
+		paddedLabel = labelStyle.Render(paddedLabel)
+	}
+	return fmt.Sprintf("%s %s", paddedLabel, input)
 }
 
 func renderStatusRow(left, right string, width int) string {
@@ -3504,11 +3969,11 @@ func (m *bubbleModel) scheduleSearchTimeout() tea.Cmd {
 	})
 }
 
-func (m *bubbleModel) handleSearchKey(key tea.KeyMsg) (handled bool, propagate bool, cmd tea.Cmd) {
+func (m *bubbleModel) handleSearchKey(key tea.KeyPressMsg) (handled bool, propagate bool, cmd tea.Cmd) {
 	keyStr := key.String()
 
 	if !m.searchActive {
-		if keyStr == "/" && !key.Alt && len(key.Runes) == 1 && key.Runes[0] == '/' {
+		if keyStr == "/" && !key.Mod.Contains(tea.ModAlt) && key.Text == "/" {
 			if m.activeSearchTable() == nil {
 				m.setStatus("Search is not available for this view.")
 				return true, false, nil
@@ -3539,9 +4004,9 @@ func (m *bubbleModel) handleSearchKey(key tea.KeyMsg) (handled bool, propagate b
 		return true, true, nil
 	}
 
-	if key.Type == tea.KeyRunes && len(key.Runes) > 0 && !key.Alt {
+	if key.Text != "" && !key.Mod.Contains(tea.ModAlt) {
 		appended := false
-		for _, r := range key.Runes {
+		for _, r := range key.Text {
 			if unicode.IsControl(r) {
 				continue
 			}
@@ -3556,7 +4021,7 @@ func (m *bubbleModel) handleSearchKey(key tea.KeyMsg) (handled bool, propagate b
 		return true, false, nil
 	}
 
-	if key.Type != tea.KeyRunes {
+	if key.Text == "" {
 		m.exitSearch(false)
 		return false, true, nil
 	}
@@ -3749,7 +4214,14 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 	skipKeyProcessing := false
 	searchConsumed := false
 
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && m.actionDialog != nil {
+		if cmd := m.handleSelectionActionDialogKey(keyMsg); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		return m, tea.Batch(cmds...)
+	}
+
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		handled, propagate, searchCmd := m.handleSearchKey(keyMsg)
 		if handled {
 			if searchCmd != nil {
@@ -3810,6 +4282,23 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 			}
 		}
 		return m, tea.Batch(cmds...)
+	case selectionActionCompletedMsg:
+		if pr, duration, ok := m.completeRequest(key.requestID); ok {
+			label := formatRequestLabel(key.label)
+			if strings.TrimSpace(label) == "" {
+				label = formatRequestLabel(pr.label)
+			}
+			if key.err != nil {
+				message := fmt.Sprintf("Unable to run %s: %v", label, key.err)
+				if duration > 0 {
+					message = fmt.Sprintf("%s (after %s)", message, formatElapsed(duration))
+				}
+				m.setStatus(message)
+			} else {
+				m.setStatus(fmt.Sprintf("%s written to %s in %s", label, key.outputFile, formatElapsed(duration)))
+			}
+		}
+		return m, tea.Batch(cmds...)
 	case spinner.TickMsg:
 		if m.pendingRequest.active {
 			var tickCmd tea.Cmd
@@ -3819,39 +4308,40 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 			}
 		}
 		return m, tea.Batch(cmds...)
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if skipKeyProcessing {
 			break
 		}
 		if key.String() == "ctrl+w" {
 			m.useAltScreen = !m.useAltScreen
-			if m.useAltScreen {
-				cmds = append(cmds, tea.EnterAltScreen)
-			} else {
-				cmds = append(cmds, tea.ExitAltScreen)
-			}
 			tableHandled = true
 			break
 		}
 		if slices.Contains(m.quitKeys, key.String()) {
-			if m.useAltScreen {
-				cmds = append(cmds, tea.ExitAltScreen)
-				m.useAltScreen = false
-			}
+			m.useAltScreen = false
 			cmds = append(cmds, tea.Quit)
 			return m, tea.Batch(cmds...)
 		}
 		if key.String() == "esc" && !m.inDetailMode() {
-			if m.useAltScreen {
-				cmds = append(cmds, tea.ExitAltScreen)
-				m.useAltScreen = false
-			}
+			m.useAltScreen = false
 			cmds = append(cmds, tea.Quit)
 			return m, tea.Batch(cmds...)
 		}
 		if key.String() == m.toggleKey {
 			m.showHelp = !m.showHelp
 			return m, nil
+		}
+		if !m.searchActive {
+			for _, action := range m.selectionActions {
+				if key.String() == strings.TrimSpace(action.Key) {
+					m.openSelectionAction(action)
+					tableHandled = true
+					break
+				}
+			}
+			if tableHandled {
+				break
+			}
 		}
 		if (key.String() == "t" || key.String() == "T") && !m.searchActive && len(m.availableThemes) > 0 {
 			n := len(m.availableThemes)
@@ -3904,6 +4394,7 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 	case tea.WindowSizeMsg:
 		m.windowWidth = key.Width
 		m.windowHeight = key.Height
+		m.resizeActionDialogInput()
 		m.resizeDetailViews()
 
 		newTable, cmd := m.table.Update(msg)
@@ -3958,15 +4449,15 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 		content := m.previewDetailContent(index)
 		m.detail.SetContent(content)
 		contentHeight := lipgloss.Height(content)
-		if contentHeight > 0 && (m.detail.Height <= 0 || contentHeight < m.detail.Height) {
-			m.detail.Height = max(contentHeight, 1)
+		if contentHeight > 0 && (m.detail.Height() <= 0 || contentHeight < m.detail.Height()) {
+			m.detail.SetHeight(max(contentHeight, 1))
 		}
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
-func (m *bubbleModel) View() string {
+func (m *bubbleModel) View() tea.View {
 	var sections []string
 
 	if m.previewRenderer != nil && !m.inDetailMode() {
@@ -4062,6 +4553,10 @@ func (m *bubbleModel) View() string {
 		sections = append(sections, main)
 	}
 
+	if dialog := strings.TrimSpace(m.renderSelectionActionDialog()); dialog != "" {
+		sections = append(sections, dialog)
+	}
+
 	widthHint := 0
 	for _, section := range sections {
 		if w := lipgloss.Width(section); w > widthHint {
@@ -4071,5 +4566,7 @@ func (m *bubbleModel) View() string {
 
 	sections = append(sections, m.renderStatusArea(widthHint))
 
-	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, sections...))
+	v.AltScreen = m.useAltScreen
+	return v
 }

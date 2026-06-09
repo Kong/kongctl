@@ -1,0 +1,174 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  assignedEnvironment: kongctl-acceptance
+  info: >-
+    Creates a temporary system account, grants limited API catalog roles through
+    declarative config, then applies API child resources with the generated
+    system-account token to surface RBAC propagation behavior.
+
+vars:
+  namespace: apis-eventual-consistency-polp
+  systemAccountName: e2e-api-polp-system-account
+  systemAccountDescription: E2E system account for API child RBAC propagation
+  systemAccountTokenName: e2e-api-polp-token
+  portalRef: polp-portal
+  portalName: E2E API POLP Portal
+  apiNamePrefix: E2E API POLP Catalog
+
+defaults:
+  retry:
+    attempts: 1
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+      - system_account_id
+      - token
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-system-account-and-token
+    skipInputs: true
+    commands:
+      - name: 000-create-system-account
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.systemAccountName }}"
+              description: "{{ .vars.systemAccountDescription }}"
+          recordVar:
+            name: system_account_id
+            responsePath: id
+
+      - name: 001-create-system-account-access-token
+        create:
+          resource: system-account-access-token
+          endpointParams:
+            systemAccountId: "{{ .vars.system_account_id }}"
+          payload:
+            inline:
+              name: "{{ .vars.systemAccountTokenName }}"
+              expires_at: '{{ now | date_modify "+720h" | date "2006-01-02T15:04:05Z07:00" }}'
+          recordVar:
+            name: systemAccountToken
+            responsePath: token
+
+  - name: 002-apply-prerequisites
+    inputOverlayDirs:
+      - overlays/001-prerequisites
+    commands:
+      - name: 000-apply-prerequisites
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/prerequisites.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 5
+                by_action.CREATE: 5
+          - select: summary
+            expect:
+              fields:
+                applied: 5
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+          - select: plan.changes[?resource_type=='organization_system_account_role']
+            expect:
+              fields:
+                "length(@)": 4
+        recordVar:
+          name: portalID
+          responsePath: >-
+            execution.applied_changes[?resource_ref=='polp-portal'] | [0].resource_id
+
+  - name: 003-apply-catalog-with-limited-token
+    inputOverlayDirs:
+      - overlays/002-catalog
+    commands:
+      - name: 000-plan-catalog-limited-token
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/catalog-plan.json"
+        env:
+          KONGCTL_E2E_KONNECT_PAT: "{{ .vars.systemAccountToken }}"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/catalog.yaml"
+          - --mode
+          - apply
+          - --log-level
+          - trace
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 15
+                by_action.CREATE: 15
+          - select: changes[?resource_type=='api']
+            expect:
+              fields:
+                "length(@)": 3
+          - select: changes[?resource_type=='api_version']
+            expect:
+              fields:
+                "length(@)": 6
+          - select: changes[?resource_type=='api_document']
+            expect:
+              fields:
+                "length(@)": 6
+          - source:
+              artifact:
+                path: kongctl.log
+            select: text
+            expect:
+              fields:
+                "contains(@, '/v3/teams')": false
+                "contains(@, 'workflow_component=organization_team')": false
+      - name: 001-apply-catalog-limited-token
+        timeout: 2m
+        outputFormat: json
+        env:
+          KONGCTL_E2E_KONNECT_PAT: "{{ .vars.systemAccountToken }}"
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/catalog-plan.json"
+          - --auto-approve
+          - --log-level
+          - trace
+          - --http-retry-max-attempts
+          - "8"
+          - --http-retry-initial-interval
+          - "2000"
+          - --http-retry-max-interval
+          - "8000"
+          - --http-retry-backoff-factor
+          - "2"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 15
+                failed: 0
+                status: success

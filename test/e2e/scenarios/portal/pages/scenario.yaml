@@ -1,0 +1,321 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: portal-pages-lifecycle
+  portalRef: pages-portal
+  portalName: pages-portal
+  guidesPageRef: guides-page
+  gettingStartedPageRef: getting-started-page
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create-pages
+    commands:
+      - name: 000-plan-create-pages
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create-pages.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.guidesPageRef }}'] | [0].fields
+            expect:
+              fields:
+                title: "Guides"
+                slug: "guides"
+                visibility: "public"
+                status: "published"
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.gettingStartedPageRef }}'] | [0].fields
+            expect:
+              fields:
+                title: "Getting Started"
+                slug: "getting-started"
+                visibility: "public"
+                status: "published"
+      - name: 001-apply-create-pages
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create-pages.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+      - name: 002-get-portal-pages
+        run:
+          - get
+          - portal
+          - pages
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - -o
+          - json
+        recordVar:
+          name: guidesPageId
+          responsePath: "[?slug=='guides'] | [0].id"
+        assertions:
+          # Parent page (top-level in the response tree)
+          - select: "[?slug=='guides'] | [0]"
+            expect:
+              fields:
+                title: "Guides"
+                slug: "guides"
+                visibility: "public"
+                status: "published"
+          # Child page nested inside the parent's children list
+          - select: "[?slug=='guides'] | [0].children[?slug=='getting-started'] | [0]"
+            expect:
+              fields:
+                title: "Getting Started"
+                slug: "getting-started"
+                visibility: "public"
+                status: "published"
+                # Child page must reference its actual parent (hierarchy validation)
+                parent_page_id: "{{ .vars.guidesPageId }}"
+
+  - name: 002-plan-apply-update-page
+    inputOverlayDirs:
+      - overlays/002-update-page
+    commands:
+      - name: 000-plan-update-page
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update-page.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.gettingStartedPageRef }}'] | [0].fields
+            expect:
+              fields:
+                title: "Getting Started (Updated)"
+                visibility: "private"
+                status: "unpublished"
+      - name: 001-apply-update-page
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update-page.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-portal-pages-updated
+        run:
+          - get
+          - portal
+          - pages
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - -o
+          - json
+        assertions:
+          # Child page should show updated fields
+          - select: "[?slug=='guides'] | [0].children[?slug=='getting-started'] | [0]"
+            expect:
+              fields:
+                title: "Getting Started (Updated)"
+                visibility: "private"
+                status: "unpublished"
+          # Parent page should remain unchanged
+          - select: "[?slug=='guides'] | [0]"
+            expect:
+              fields:
+                title: "Guides"
+                visibility: "public"
+                status: "published"
+
+  - name: 003-plan-apply-update-page-content
+    inputOverlayDirs:
+      - overlays/003-update-page-content
+    commands:
+      - name: 000-plan-update-page-content
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update-page-content.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                by_resource.portal_page: 1
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.gettingStartedPageRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "fields.slug": "/getting-started"
+                "contains(fields.content, 'Issue 1210 content-only update')": true
+                "contains(changed_fields.content.new, 'Issue 1210 content-only update')": true
+      - name: 001-apply-update-page-content
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update-page-content.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-plan-after-page-content-update-is-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: changes
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 004-plan-update-page-content-missing-frontmatter-start
+    inputOverlayDirs:
+      - overlays/004-update-page-content-missing-frontmatter-start
+    commands:
+      - name: 000-plan-update-page-content
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update-page-content-missing-frontmatter-start.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                by_resource.portal_page: 1
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.gettingStartedPageRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "contains(fields.content, 'Issue 1210 content-only update')": true
+                "starts_with(fields.content, 'title:')": true
+
+  - name: 005-sync-delete-leaf-page
+    inputOverlayDirs:
+      - overlays/003-delete-leaf-page
+    commands:
+      - name: 000-plan-delete-leaf-page
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-delete-leaf-page.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+                by_resource.portal_page: 1
+          - select: >-
+              changes[?resource_type=='portal_page'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: 001-sync-delete-leaf-page
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-delete-leaf-page.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-portal-pages-post-delete
+        run:
+          - get
+          - portal
+          - pages
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - -o
+          - json
+        assertions:
+          # Deleted child page should no longer appear in parent's children
+          - select: "[?slug=='guides'] | [0].children[?slug=='getting-started']"
+            expect:
+              fields:
+                "length(@)": 0
+          # Parent page must still exist and be unaffected
+          - select: "[?slug=='guides'] | [0]"
+            expect:
+              fields:
+                title: "Guides"
+                visibility: "public"
+                status: "published"

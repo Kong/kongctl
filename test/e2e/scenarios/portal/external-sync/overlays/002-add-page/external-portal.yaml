@@ -1,0 +1,13 @@
+portals:
+  - ref: external-sync-portal
+    _external:
+      selector:
+        matchFields:
+          name: "external-sync-portal"
+    pages:
+      - ref: declarative-page
+        slug: declarative-page
+        title: "Declarative Page"
+        visibility: "public"
+        status: "published"
+        content: "# Declarative Page\n\nThis page is managed declaratively."

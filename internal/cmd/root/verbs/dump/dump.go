@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -23,7 +24,7 @@ const (
 var (
 	dumpUse = Verb.String()
 
-	dumpShort = i18n.T("root.verbs.dump.dumpShort", "Dump objects")
+	dumpShort = i18n.T("root.verbs.dump.dumpShort", "Dump existing resources into local declarative configuration")
 
 	dumpLong = normalizers.LongDesc(i18n.T("root.verbs.dump.dumpLong",
 		`Use dump to export an object or list of objects.`))
@@ -44,6 +45,9 @@ var (
 
         # Export declarative configuration with a default namespace
         %[1]s dump declarative --resources=portal,api --default-namespace=team-alpha
+
+        # Export adopted dashboards as declarative configuration
+        %[1]s dump declarative --resources=analytics.dashboards --default-namespace=analytics
 
         # Export all organization teams
         %[1]s dump declarative --resources=organization.teams
@@ -66,10 +70,8 @@ func NewDumpCmd() (*cobra.Command, error) {
 		Long:    dumpLong,
 		Example: dumpExamples,
 		Aliases: []string{"d", "D"},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
 	}
+	cmdpkg.ConfigureRequiresSubcommand(dumpCommand)
 
 	dumpCommand.PersistentPreRun = func(cmd *cobra.Command, _ []string) {
 		cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))

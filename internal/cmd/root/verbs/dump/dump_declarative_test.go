@@ -1,15 +1,50 @@
 package dump
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 
 	decllabels "github.com/kong/kongctl/internal/declarative/labels"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	"sigs.k8s.io/yaml"
 )
+
+func requireKongctlMeta(
+	t *testing.T,
+	meta *declresources.KongctlMeta,
+	wantNamespace string,
+	wantProtected bool,
+) {
+	t.Helper()
+
+	if meta == nil {
+		t.Fatalf("expected kongctl metadata")
+	}
+
+	if wantNamespace == "" {
+		if meta.Namespace != nil {
+			t.Fatalf("expected namespace to be omitted, got %q", *meta.Namespace)
+		}
+	} else if meta.Namespace == nil || *meta.Namespace != wantNamespace {
+		got := "<nil>"
+		if meta.Namespace != nil {
+			got = *meta.Namespace
+		}
+		t.Fatalf("expected namespace %q, got %q", wantNamespace, got)
+	}
+
+	if wantProtected {
+		if meta.Protected == nil || !*meta.Protected {
+			t.Fatalf("expected protected metadata to be true")
+		}
+	} else if meta.Protected != nil && *meta.Protected {
+		t.Fatalf("expected protected metadata to be omitted or false")
+	}
+}
 
 func TestMapPortalToDeclarativeResource(t *testing.T) {
 	description := "Portal description"
@@ -54,16 +89,22 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected description pointer with %q", description)
 	}
 
-	if resource.Kongctl != nil {
-		t.Fatalf("expected kongctl metadata to be omitted when namespace flag not provided")
-	}
+	requireKongctlMeta(t, resource.Kongctl, "team-alpha", true)
 
 	if resource.Labels == nil {
 		t.Fatalf("expected user labels to be preserved")
 	}
 
+	if len(resource.Labels) != 1 {
+		t.Fatalf("expected only user labels to remain, got %v", resource.Labels)
+	}
+
 	if _, exists := resource.Labels[decllabels.NamespaceKey]; exists {
 		t.Fatalf("expected namespace label to be stripped from user labels")
+	}
+
+	if _, exists := resource.Labels[decllabels.ProtectedKey]; exists {
+		t.Fatalf("expected protected label to be stripped from user labels")
 	}
 
 	if val, exists := resource.Labels["custom"]; !exists || val == nil || *val != "value" {
@@ -88,6 +129,75 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 
 	if *resource.AutoApproveApplications != *portal.AutoApproveApplications {
 		t.Fatalf("expected auto approve applications to match input")
+	}
+}
+
+func TestCollectDeclarativePortalsUsesPortalDetails(t *testing.T) {
+	listAuthEnabled := false
+	detailAuthEnabled := true
+	var getPortalIDs []string
+
+	api := &portalPaginationStub{
+		t: t,
+		listPortalsFunc: func(
+			_ context.Context,
+			req kkOps.ListPortalsRequest,
+		) (*kkOps.ListPortalsResponse, error) {
+			pageNumber := int64(1)
+			if req.PageNumber != nil {
+				pageNumber = *req.PageNumber
+			}
+
+			switch pageNumber {
+			case 1:
+				return &kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.ListPortalsResponsePortal{
+							{
+								ID:                    "portal-id",
+								Name:                  "portal-name",
+								AuthenticationEnabled: &listAuthEnabled,
+							},
+						},
+					},
+				}, nil
+			case 2:
+				return &kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{},
+				}, nil
+			default:
+				t.Fatalf("unexpected page request: %d", pageNumber)
+				return nil, nil
+			}
+		},
+		getPortalFunc: func(_ context.Context, id string) (*kkOps.GetPortalResponse, error) {
+			getPortalIDs = append(getPortalIDs, id)
+			return &kkOps.GetPortalResponse{
+				PortalResponse: &kkComps.PortalResponse{
+					ID:                    id,
+					Name:                  "portal-name",
+					AuthenticationEnabled: &detailAuthEnabled,
+				},
+			}, nil
+		},
+	}
+
+	resources, err := collectDeclarativePortals(t.Context(), api, 100, filterOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error collecting portals: %v", err)
+	}
+
+	if len(resources) != 1 {
+		t.Fatalf("expected one portal resource, got %d", len(resources))
+	}
+
+	if resources[0].AuthenticationEnabled == nil || !*resources[0].AuthenticationEnabled {
+		t.Fatalf("expected authentication_enabled to come from portal detail, got %+v",
+			resources[0].AuthenticationEnabled)
+	}
+
+	if len(getPortalIDs) != 1 || getPortalIDs[0] != "portal-id" {
+		t.Fatalf("expected GetPortal to be called once for portal-id, got %v", getPortalIDs)
 	}
 }
 
@@ -131,11 +241,45 @@ func TestMapAPIToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected slug pointer with %q", slug)
 	}
 
-	if resource.Kongctl != nil {
-		t.Fatalf("expected kongctl metadata to be omitted when namespace flag not provided")
-	}
+	requireKongctlMeta(t, resource.Kongctl, "team-beta", true)
 
 	if len(resource.Labels) != 1 || resource.Labels["feature"] != "payments" {
+		t.Fatalf("expected only user labels to remain, got %v", resource.Labels)
+	}
+}
+
+func TestMapDashboardToDeclarativeResource(t *testing.T) {
+	id := "dashboard-id"
+	dashboard := kkComps.DashboardResponse{
+		ID:   &id,
+		Name: "API Summary",
+		Definition: kkComps.Dashboard{
+			Tiles: []kkComps.Tile{},
+		},
+		Labels: map[string]string{
+			decllabels.NamespaceKey: "team-alpha",
+			decllabels.ProtectedKey: decllabels.TrueValue,
+			"team":                  "platform",
+		},
+	}
+
+	resource := mapDashboardToDeclarativeResource(dashboard)
+
+	if resource.Ref != id {
+		t.Fatalf("expected ref %q, got %q", id, resource.Ref)
+	}
+
+	if resource.Name != dashboard.Name {
+		t.Fatalf("expected name %q, got %q", dashboard.Name, resource.Name)
+	}
+
+	if resource.Definition.Tiles == nil || len(resource.Definition.Tiles) != 0 {
+		t.Fatalf("expected definition tiles to be preserved, got %v", resource.Definition.Tiles)
+	}
+
+	requireKongctlMeta(t, resource.Kongctl, "team-alpha", true)
+
+	if len(resource.Labels) != 1 || resource.Labels["team"] != "platform" {
 		t.Fatalf("expected only user labels to remain, got %v", resource.Labels)
 	}
 }
@@ -198,9 +342,7 @@ func TestMapAuthStrategyToDeclarativeResource_KeyAuth(t *testing.T) {
 		t.Fatalf("expected key names to be preserved, got %v", configs)
 	}
 
-	if resource.Kongctl != nil {
-		t.Fatalf("expected kongctl metadata to be omitted for key auth strategy")
-	}
+	requireKongctlMeta(t, resource.Kongctl, "default", false)
 
 	labels := resource.AppAuthStrategyKeyAuthRequest.Labels
 	if len(labels) != 1 || labels["tier"] != "gold" {
@@ -273,9 +415,7 @@ func TestMapAuthStrategyToDeclarativeResource_OIDC(t *testing.T) {
 		t.Fatalf("expected only user labels to remain, got %v", labels)
 	}
 
-	if resource.Kongctl != nil {
-		t.Fatalf("expected kongctl metadata to be omitted for oidc strategy")
-	}
+	requireKongctlMeta(t, resource.Kongctl, "default", false)
 
 	yamlBytes, err := yaml.Marshal(resource)
 	if err != nil {
@@ -342,6 +482,31 @@ func TestFilterOptionsHasFilter(t *testing.T) {
 	}
 	if !(filterOptions{id: "x"}).hasFilter() {
 		t.Fatal("filter with id should return true")
+	}
+}
+
+func TestNormalizeResourceListMapsDashboardAliasesToAnalyticsDashboards(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{input: "dashboard", want: []string{"analytics.dashboards"}},
+		{input: "dashboards", want: []string{"analytics.dashboards"}},
+		{input: "analytics.dashboard", want: []string{"analytics.dashboards"}},
+		{input: "analytics.dashboards", want: []string{"analytics.dashboards"}},
+		{input: "organization.teams,dashboards", want: []string{"organization.teams", "analytics.dashboards"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := normalizeResourceList(tt.input, declarativeAllowedResources)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
+				t.Fatalf("expected %v, got %v", tt.want, got)
+			}
+		})
 	}
 }
 

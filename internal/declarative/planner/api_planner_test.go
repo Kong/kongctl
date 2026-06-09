@@ -36,9 +36,9 @@ func TestExtractAPIFieldsIncludesSlugAndAttributes(t *testing.T) {
 		"env":     "production",
 		"domains": []any{"web", "mobile"},
 	}
-	expectedAttrs := map[string][]string{
-		"env":     {"production"},
-		"domains": {"web", "mobile"},
+	expectedAttrs := map[string]any{
+		"env":     []string{"production"},
+		"domains": []string{"web", "mobile"},
 	}
 
 	resource := resources.APIResource{
@@ -81,9 +81,9 @@ func TestShouldUpdateAPIConsidersSlugAndAttributes(t *testing.T) {
 		"env":     "production",
 		"domains": []string{"web"},
 	}
-	expectedUpdatedAttrs := map[string][]string{
-		"env":     {"production"},
-		"domains": {"web"},
+	expectedUpdatedAttrs := map[string]any{
+		"env":     []string{"production"},
+		"domains": []string{"web"},
 	}
 
 	desired := resources.APIResource{
@@ -103,6 +103,75 @@ func TestShouldUpdateAPIConsidersSlugAndAttributes(t *testing.T) {
 	assert.Equal(t, expectedUpdatedAttrs, updateFields["attributes"])
 	assert.Equal(t, updatedSlug, changedFields["slug"].New)
 	assert.Equal(t, currentSlug, changedFields["slug"].Old)
+}
+
+func TestShouldUpdateAPIPreservesNullAttributeValues(t *testing.T) {
+	t.Parallel()
+
+	p := &Planner{}
+
+	current := state.API{
+		APIResponseSchema: kkComps.APIResponseSchema{
+			Attributes: map[string][]string{
+				"owner":     {"Platform Team"},
+				"lifecycle": {"deprecated"},
+			},
+		},
+	}
+
+	desired := resources.APIResource{
+		CreateAPIRequest: kkComps.CreateAPIRequest{
+			Name: "Simple API",
+			Attributes: map[string]any{
+				"owner":     nil,
+				"lifecycle": nil,
+			},
+		},
+		BaseResource: resources.BaseResource{
+			Ref: "simple-api",
+		},
+	}
+
+	needsUpdate, updateFields, changedFields := p.shouldUpdateAPI(current, desired)
+	require.True(t, needsUpdate)
+	assert.Equal(t, map[string]any{
+		"owner":     nil,
+		"lifecycle": nil,
+	}, updateFields["attributes"])
+	assert.Equal(t, map[string]any{
+		"owner":     nil,
+		"lifecycle": nil,
+	}, changedFields["attributes"].New)
+}
+
+func TestShouldUpdateAPITreatsNulledAttributesAsEqualToAbsentKeys(t *testing.T) {
+	t.Parallel()
+
+	p := &Planner{}
+
+	current := state.API{
+		APIResponseSchema: kkComps.APIResponseSchema{
+			Attributes: map[string]any{},
+		},
+	}
+
+	desired := resources.APIResource{
+		CreateAPIRequest: kkComps.CreateAPIRequest{
+			Name: "Simple API",
+			Attributes: map[string]any{
+				"owner":     nil,
+				"lifecycle": nil,
+			},
+		},
+		BaseResource: resources.BaseResource{
+			Ref: "simple-api",
+		},
+	}
+
+	needsUpdate, updateFields, changedFields := p.shouldUpdateAPI(current, desired)
+	require.False(t, needsUpdate)
+	assert.Empty(t, updateFields)
+	assert.Empty(t, changedFields)
 }
 
 func TestShouldUpdateAPIPublicationResolvesAuthStrategyRefs(t *testing.T) {

@@ -3,7 +3,6 @@
 ## Repository Overview
 
 kongctl is a command-line interface (CLI) tool for managing Kong Konnect and (eventually) Kong Gateway on-prem. 
-This tool is currently under heavy development and is released as Beta software.
 
 Main documentation is published at:
 https://developer.konghq.com/kongctl/
@@ -12,12 +11,13 @@ This file provides repository-specific guidance for AI coding agents working
 with the kongctl codebase.
 
 For declarative resource type implementation work, use
-`planning/DECLARATIVE_RESOURCE_IMPLEMENTATION_GUIDE.md` as the primary guide.
+`docs/contributor/declarative-resource-implementation-guide.md` as the
+primary guide.
 
 ## Repository Overview
 
 **kongctl** is a command-line interface (CLI) tool for operating Kong Konnect
-and (eventually) Kong Gateway on-prem. The tool is currently in beta.
+and (eventually) Kong Gateway on-prem.
 
 - **Language**: Go 1.26
 - **CLI Framework**: Cobra for command-line processing
@@ -298,6 +298,28 @@ after making changes to catch regressions.
 - **Comments**: Only add if they match existing style or explain complexity
 - **Documentation markdown**: Wrap at 80 characters
 
+### Identifier Constants
+
+- Declarative resource type identifiers live in
+  `internal/declarative/resources`. Planner and executor compatibility aliases
+  live in `internal/declarative/planner`.
+- Plan field identifiers live in `internal/declarative/planner`. Use `Field*`
+  constants for plan `Fields`, `References`, required fields, and executor field
+  access.
+- Konnect view/tableview identifiers live in
+  `internal/cmd/root/products/konnect/common`. Use `ViewParent*`,
+  `ViewField*`, and `ViewResource*` constants for tableview parent types, child
+  loader fields, detail contexts, and navigator resource selectors.
+- For `kongctl view` detail panels, label direct API response fields with the
+  API JSON field name, such as `created_at` or `display_name`. Use `snake_case`
+  for kongctl-derived fields, such as `value_count`. Avoid title-cased friendly
+  labels in detail renderers.
+- Do not introduce new string literals for resource types, plan fields,
+  tableview parent types, child loader keys, or navigator resource selectors.
+- Keep user-facing help text, table headers, command aliases, API payload keys,
+  JSON/YAML tags, and external schema field names as literals unless they are
+  also used as an internal contract identifier.
+
 ## Testing Guidelines
 
 - Place tests in `*_test.go` with `TestXxx` functions.
@@ -319,6 +341,44 @@ after making changes to catch regressions.
 - **Skip**: Documentation-only changes (unless doc has specific tests)
 
 ## Commit & Pull Request Guidelines
+
+### Pull Request Titles
+
+All pull requests, including AI-agent-authored and automation-authored PRs,
+must use this title format:
+
+```text
+type(category): title
+```
+
+`type` must be one of:
+
+- `feat`: Adds or expands user-visible behavior.
+- `fix`: Corrects broken, incomplete, or misleading behavior.
+- `task`: Handles maintenance, docs, CI, dependencies, releases, or other work
+  that is neither a feature nor a bug fix.
+- `refactor`: Restructures code without changing behavior.
+- `test`: Adds or changes tests without changing product behavior.
+
+`category` is a short, lowercase area of the codebase or workflow. Prefer the
+smallest useful area, such as `declarative`, `tui`, `logging`, `cmd`,
+`konnect`, `auth`, `config`, `e2e`, `integration`, `docs`, `ci`, `deps`,
+`sdk`, `release`, `skills`, or `simplify`. Use a subjective but recognizable
+area; do not invent agent names as categories.
+
+`title` should be a concise, present-tense summary with no trailing period.
+Do not prefix PR titles with agent or tool labels such as `[codex]:`,
+`[copilot]:`, `Copilot:`, or `[agent]`.
+
+Examples:
+
+- `fix(declarative): add force flag for remote file save`
+- `test(e2e): expand dump coverage for event gateways`
+- `refactor(simplify): reduce kongctl view command boilerplate`
+- `task(ci): redact UUIDs in feature-user artifacts`
+- `task(deps): update sdk-konnect-go prerelease`
+
+When creating PRs programmatically, set the PR title explicitly to this format.
 
 - Commits: concise subject, imperative mood; prefix scope when helpful
   - Scopes: `cmd:`, `declarative:`, `konnect:`, `docs:`, `test:`, `ci:`
@@ -453,5 +513,6 @@ KONGCTL_LOG_LEVEL=trace kongctl apply --plan plan.json
 
 - **README.md**: User-facing documentation and getting started guide
 - **docs/declarative.md**: Declarative configuration guide
-- **docs/e2e.md**: E2E test harness documentation
+- **test/e2e/README.md**: E2E test harness documentation
+- **test/e2e/scenarios/README.md**: E2E scenario documentation
 - **docs/troubleshooting.md**: Common issues and solutions

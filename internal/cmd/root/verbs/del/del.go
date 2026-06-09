@@ -5,13 +5,15 @@ import (
 	"fmt"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
@@ -24,7 +26,7 @@ const (
 var (
 	deleteuse = Verb.String()
 
-	deleteShort = i18n.T("root.verbs.delete.deleteShort", "Delete objects")
+	deleteShort = i18n.T("root.verbs.delete.deleteShort", "Delete resources or local objects")
 
 	deleteLong = normalizers.LongDesc(i18n.T("root.verbs.delete.deleteLong",
 		`Use delete to delete objects.
@@ -32,14 +34,6 @@ var (
 Deletes all resources defined in the declarative configuration files from Konnect.
 This is equivalent to running:
   kongctl plan --mode delete -f <files> | kongctl sync --plan -`))
-
-	deleteExamples = normalizers.Examples(i18n.T("root.verbs.delete.deleteExamples",
-		fmt.Sprintf(`
-		# Delete resources defined in declarative configuration
-		%[1]s delete -f config.yaml
-		%[1]s delete -f ./configs/ --recursive
-		%[1]s delete -f config.yaml --dry-run
-		`, meta.CLIName)))
 )
 
 func NewDeleteCmd() (*cobra.Command, error) {
@@ -55,7 +49,7 @@ func NewDeleteCmd() (*cobra.Command, error) {
 		Use:     deleteuse,
 		Short:   deleteShort,
 		Long:    deleteLong,
-		Example: deleteExamples,
+		Example: declDeleteCmd.Example,
 		Aliases: []string{"d", "D", "del", "rm", "DEL", "RM"},
 		// When -f is provided, run declarative delete; otherwise show help
 		RunE: func(c *cobra.Command, args []string) error {
@@ -64,7 +58,9 @@ func NewDeleteCmd() (*cobra.Command, error) {
 			if len(filenames) > 0 || planFile != "" {
 				return declDeleteCmd.RunE(c, args)
 			}
-			return c.Help()
+			return &cmdpkg.UsageError{
+				Err: fmt.Errorf("command %q requires -f/--filename or --plan", c.CommandPath()),
+			}
 		},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
@@ -73,7 +69,7 @@ func NewDeleteCmd() (*cobra.Command, error) {
 			}
 			ctx = context.WithValue(ctx, verbs.Verb, Verb)
 			ctx = context.WithValue(ctx, products.Product, konnect.Product)
-			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(Verb))
 			c.SetContext(ctx)
 
 			if err := bindKonnectFlags(c, args); err != nil {
@@ -112,7 +108,72 @@ Setting this value overrides tokens obtained from the login command.
 	// Add declarative flags from the declarative delete command
 	cmd.Flags().AddFlagSet(declDeleteCmd.Flags())
 
+	// Add retry flags
+	cmd.Flags().Int(cmdcommon.HTTPRetryMaxAttemptsFlagName, 0,
+		fmt.Sprintf(`Maximum total attempts for retryable HTTP requests (0 = use default, 1 disables retries).
+- Config path: [ %s ]`, common.HTTPRetryMaxAttemptsConfigPath))
+	cmd.Flags().Int(cmdcommon.HTTPRetryInitialIntervalFlagName, 0,
+		fmt.Sprintf(`Initial retry backoff interval in milliseconds (0 = use default).
+- Config path: [ %s ]`, common.HTTPRetryInitialIntervalConfigPath))
+	cmd.Flags().Int(cmdcommon.HTTPRetryMaxIntervalFlagName, 0,
+		fmt.Sprintf(`Maximum retry backoff interval in milliseconds (0 = use default).
+- Config path: [ %s ]`, common.HTTPRetryMaxIntervalConfigPath))
+	cmd.Flags().Float64(cmdcommon.HTTPRetryBackoffFactorFlagName, 0,
+		fmt.Sprintf(`Exponential backoff growth factor for retries (for example: 2.0).
+- Config path: [ %s ]`, common.HTTPRetryBackoffFactorConfigPath))
+	cmd.Flags().Bool(cmdcommon.HTTPRetryOnConnectionErrorsFlagName, false,
+		fmt.Sprintf(`Retry selected retryable connection-level errors.
+- Config path: [ %s ]`, common.HTTPRetryOnConnectionErrorsConfigPath))
+
+	if err := addDeleteTokenCommands(cmd); err != nil {
+		return nil, err
+	}
+
 	return cmd, nil
+}
+
+func addDeleteTokenCommands(cmd *cobra.Command) error {
+	patCmd, err := token.NewPATCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(patCmd)
+
+	spatCmd, err := token.NewSPATCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(spatCmd)
+
+	orgCmd, err := organization.NewOrganizationCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(orgCmd)
+
+	konnectCmd := &cobra.Command{
+		Use:     konnect.Product.String(),
+		Short:   "Delete Konnect tokens",
+		Aliases: []string{"k", "K"},
+	}
+	konnectPATCmd, err := token.NewPATCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	konnectCmd.AddCommand(konnectPATCmd)
+	konnectSPATCmd, err := token.NewSPATCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	konnectCmd.AddCommand(konnectSPATCmd)
+	konnectOrgCmd, err := organization.NewOrganizationCmd(Verb, nil, nil)
+	if err != nil {
+		return err
+	}
+	konnectCmd.AddCommand(konnectOrgCmd)
+	cmd.AddCommand(konnectCmd)
+
+	return nil
 }
 
 // bindKonnectFlags binds Konnect-specific flags to configuration
@@ -123,21 +184,31 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if f := c.Flags().Lookup(common.BaseURLFlagName); f != nil {
-		if err := cfg.BindFlag(common.BaseURLConfigPath, f); err != nil {
-			return err
+	bindings := []struct{ flag, config string }{
+		{common.BaseURLFlagName, common.BaseURLConfigPath},
+		{common.RegionFlagName, common.RegionConfigPath},
+		{common.PATFlagName, common.PATConfigPath},
+	}
+	for _, b := range bindings {
+		if f := c.Flags().Lookup(b.flag); f != nil {
+			if err := cfg.BindFlag(b.config, f); err != nil {
+				return err
+			}
 		}
 	}
 
-	if f := c.Flags().Lookup(common.RegionFlagName); f != nil {
-		if err := cfg.BindFlag(common.RegionConfigPath, f); err != nil {
-			return err
-		}
+	retryBindings := []struct{ flag, config string }{
+		{cmdcommon.HTTPRetryMaxAttemptsFlagName, common.HTTPRetryMaxAttemptsConfigPath},
+		{cmdcommon.HTTPRetryInitialIntervalFlagName, common.HTTPRetryInitialIntervalConfigPath},
+		{cmdcommon.HTTPRetryMaxIntervalFlagName, common.HTTPRetryMaxIntervalConfigPath},
+		{cmdcommon.HTTPRetryBackoffFactorFlagName, common.HTTPRetryBackoffFactorConfigPath},
+		{cmdcommon.HTTPRetryOnConnectionErrorsFlagName, common.HTTPRetryOnConnectionErrorsConfigPath},
 	}
-
-	if f := c.Flags().Lookup(common.PATFlagName); f != nil {
-		if err := cfg.BindFlag(common.PATConfigPath, f); err != nil {
-			return err
+	for _, b := range retryBindings {
+		if f := c.Flags().Lookup(b.flag); f != nil {
+			if err := cfg.BindFlag(b.config, f); err != nil {
+				return err
+			}
 		}
 	}
 

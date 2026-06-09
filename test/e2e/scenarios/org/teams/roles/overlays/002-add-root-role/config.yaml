@@ -1,0 +1,31 @@
+_defaults:
+  kongctl:
+    namespace: org-team-roles-e2e
+
+apis:
+  - ref: org-team-roles-api
+    name: org-team-roles-api
+    description: API used by the organization team roles E2E scenario
+
+organization:
+  teams:
+    - ref: platform-role-team
+      name: Platform Role Team
+      description: Team used by the organization team roles E2E scenario
+      labels:
+        department: engineering
+        focus: platform
+      roles:
+        - ref: platform-api-viewer
+          role_name: Viewer
+          entity_id: !ref org-team-roles-api#id
+          entity_type_name: APIs
+          entity_region: us
+
+organization_team_roles:
+  - ref: platform-api-admin
+    team: platform-role-team
+    role_name: Admin
+    entity_id: !ref org-team-roles-api#id
+    entity_type_name: APIs
+    entity_region: us

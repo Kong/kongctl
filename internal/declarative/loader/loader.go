@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -15,7 +16,6 @@ import (
 	decerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/util"
 	"sigs.k8s.io/yaml"
 )
 
@@ -32,6 +32,8 @@ type Loader struct {
 	baseDir string
 	// tagRootDir is the boundary directory for !file tag resolution
 	tagRootDir string
+	// urlFetchOptions controls remote URL source fetching
+	urlFetchOptions URLFetchOptions
 	// tagRegistry is the registry of tag resolvers (created on demand)
 	tagRegistry *tags.ResolverRegistry
 }
@@ -59,6 +61,15 @@ func NewWithBaseDir(baseDir string) *Loader {
 	}
 }
 
+// WithURLFetchOptions configures remote URL source fetching.
+func (l *Loader) WithURLFetchOptions(options URLFetchOptions) *Loader {
+	if l == nil {
+		return nil
+	}
+	l.urlFetchOptions = options
+	return l
+}
+
 // getTagRegistry returns the tag registry, creating it if needed
 func (l *Loader) getTagRegistry() *tags.ResolverRegistry {
 	if l.tagRegistry == nil {
@@ -78,6 +89,8 @@ func (l *Loader) resolveSourceRoot(source Source) string {
 	case SourceTypeDirectory:
 		return source.Path
 	case SourceTypeSTDIN:
+		return l.baseDir
+	case SourceTypeURL:
 		return l.baseDir
 	default:
 		return ""
@@ -108,6 +121,8 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 			err = l.loadDirectorySourceWithContext(ctx, source.Path, rootDir, recursive, &allResources, refIndex)
 		case SourceTypeSTDIN:
 			err = l.loadSTDINWithContext(ctx, rootDir, &allResources, refIndex)
+		case SourceTypeURL:
+			err = l.loadURLWithContext(ctx, source.Path, rootDir, &allResources, refIndex)
 		default:
 			return nil, decerrors.FormatConfigurationError(
 				source.Path,
@@ -121,8 +136,12 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 		}
 	}
 
-	// Apply SDK defaults to merged resources
-	// Note: Only namespace defaults are applied per-file in parseYAML
+	if err := l.normalizeContentMetadata(&allResources); err != nil {
+		return nil, err
+	}
+
+	// Apply SDK defaults to merged resources.
+	// Note: Only namespace defaults are applied per-file in parseYAML.
 	l.applyDefaults(&allResources)
 
 	// Reference resolution must happen after all files are loaded but before validation.
@@ -150,6 +169,10 @@ func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
 	var rs resources.ResourceSet
 	refIndex := make(map[string]resources.ResourceType)
 	if err := l.loadSingleFile(path, filepath.Dir(path), &rs, refIndex); err != nil {
+		return nil, err
+	}
+
+	if err := l.normalizeContentMetadata(&rs); err != nil {
 		return nil, err
 	}
 
@@ -191,13 +214,41 @@ func (l *Loader) loadSingleFile(
 	return l.appendResourcesWithDuplicateCheck(accumulated, rs, path, refIndex)
 }
 
+func (l *Loader) loadURLWithContext(
+	ctx context.Context,
+	rawURL string,
+	rootDir string,
+	accumulated *resources.ResourceSet,
+	refIndex map[string]resources.ResourceType,
+) error {
+	content, err := FetchURLWithOptions(ctx, rawURL, l.urlFetchOptions)
+	if err != nil {
+		return err
+	}
+
+	rs, err := l.parseYAML(bytes.NewReader(content), rawURL, rootDir)
+	if err != nil {
+		return err
+	}
+
+	return l.appendResourcesWithDuplicateCheck(accumulated, rs, rawURL, refIndex)
+}
+
 // parseYAML parses YAML content into ResourceSet
 func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*resources.ResourceSet, error) {
 	var temp temporaryParseResult
+	var placeholderTemp temporaryParseResult
 
 	content, err := io.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read content from %s: %w", sourcePath, err)
+	}
+	rawContent := content
+	hasEnvTags := strings.Contains(string(rawContent), "!env")
+	if hasEnvTags {
+		if err := validateEnvTagStringFields(rawContent); err != nil {
+			return nil, fmt.Errorf("failed to parse deferred !env tags in %s: %w", sourcePath, err)
+		}
 	}
 
 	// Process custom tags if needed
@@ -206,7 +257,13 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	// Update base directory based on source file location
 	baseDir := l.baseDir
 	if sourcePath != "stdin" && sourcePath != "" {
-		baseDir = filepath.Dir(sourcePath)
+		if isURLSourcePath(sourcePath) {
+			if strings.TrimSpace(rootDir) != "" {
+				baseDir = rootDir
+			}
+		} else {
+			baseDir = filepath.Dir(sourcePath)
+		}
 	}
 
 	tagRootDir := strings.TrimSpace(l.tagRootDir)
@@ -215,51 +272,81 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	}
 
 	// Always register/update resolvers with correct base directory
-	// This ensures each file gets the correct base directory for relative paths
-	registry.Register(tags.NewFileTagResolver(baseDir, tagRootDir))
-	registry.Register(tags.NewRefTagResolver(baseDir))
+	// This ensures each file gets the correct base directory for relative paths.
+	fileResolver := tags.NewFileTagResolver(baseDir, tagRootDir)
+	refResolver := tags.NewRefTagResolver(baseDir)
+	registry.Register(fileResolver)
+	registry.Register(refResolver)
+	registry.Register(tags.NewEnvTagResolver(tags.EnvTagModeResolve))
 
 	if registry.HasResolvers() {
-		processedContent, err := registry.Process(content)
+		processedContent, err := registry.Process(rawContent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process tags in %s: %w", sourcePath, err)
 		}
 		content = processedContent
 	}
 
-	if err := yaml.UnmarshalStrict(content, &temp); err != nil {
-		// Try to provide a more helpful error message for unknown fields
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "unknown field") {
-			// Extract field name from error
-			// Error format: "error unmarshaling JSON: while decoding JSON: json: unknown field \"fieldname\""
-			if match := regexp.MustCompile(`unknown field "(\w+)"`).FindStringSubmatch(errMsg); len(match) > 1 {
-				fieldName := match[1]
-				suggestion := l.suggestFieldName(fieldName)
-				if suggestion != "" {
-					return nil, fmt.Errorf("unknown field '%s' in %s. Did you mean '%s'?",
-						fieldName, sourcePath, suggestion)
-				}
-				return nil, fmt.Errorf("unknown field '%s' in %s. Please check the field name against the schema",
-					fieldName, sourcePath)
-			}
+	placeholderRegistry := tags.NewResolverRegistry()
+	placeholderRegistry.Register(fileResolver)
+	placeholderRegistry.Register(refResolver)
+	placeholderRegistry.Register(tags.NewEnvTagResolver(tags.EnvTagModePlaceholder))
+
+	placeholderContent, err := placeholderRegistry.Process(rawContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to preserve !env tags in %s: %w", sourcePath, err)
+	}
+
+	parseErr := yaml.UnmarshalStrict(content, &temp)
+	placeholderErr := yaml.UnmarshalStrict(placeholderContent, &placeholderTemp)
+
+	if parseErr != nil {
+		if hasEnvTags && isDeferredEnvStringOnlyError(placeholderErr) {
+			return nil, fmt.Errorf(
+				"failed to parse deferred !env tags in %s: !env currently supports string-typed fields only: %w",
+				sourcePath,
+				placeholderErr,
+			)
 		}
-		return nil, fmt.Errorf("failed to parse YAML in %s: %w", sourcePath, err)
+		return nil, formatYAMLParseError(l, sourcePath, parseErr)
+	}
+
+	if placeholderErr != nil {
+		if hasEnvTags && isDeferredEnvStringOnlyError(placeholderErr) {
+			return nil, fmt.Errorf(
+				"failed to parse deferred !env tags in %s: !env currently supports string-typed fields only: %w",
+				sourcePath,
+				placeholderErr,
+			)
+		}
+		return nil, fmt.Errorf("failed to parse deferred !env tags in %s: %w", sourcePath, placeholderErr)
 	}
 
 	// Extract the clean ResourceSet
 	rs := temp.ResourceSet
+	placeholderRS := placeholderTemp.ResourceSet
+	if err := captureSyncScope(content, &rs); err != nil {
+		return nil, fmt.Errorf("failed to inspect sync scope in %s: %w", sourcePath, err)
+	}
 
 	// Apply file-level namespace and protected defaults
 	if err := l.applyNamespaceDefaults(&rs, temp.Defaults); err != nil {
 		return nil, fmt.Errorf("failed to apply namespace defaults: %w", err)
 	}
+	if err := l.applyNamespaceDefaults(&placeholderRS, placeholderTemp.Defaults); err != nil {
+		return nil, fmt.Errorf("failed to apply namespace defaults: %w", err)
+	}
 
 	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)
+	l.extractNestedResources(&placeholderRS)
 	// Resolve deck config paths relative to the source file.
 	if err := l.resolveDeckConfigPaths(&rs, baseDir, tagRootDir); err != nil {
 		return nil, fmt.Errorf("failed to resolve deck config paths in %s: %w", sourcePath, err)
+	}
+
+	if err := l.collectDeferredEnvSources(&rs, &placeholderRS); err != nil {
+		return nil, fmt.Errorf("failed to process deferred !env tags in %s: %w", sourcePath, err)
 	}
 
 	// Note: We don't validate here when called from loadDirectory
@@ -267,6 +354,68 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	// loadDirectory will validate the merged result.
 
 	return &rs, nil
+}
+
+func isDeferredEnvStringOnlyError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := err.Error()
+	return strings.Contains(msg, tags.EnvPlaceholderPrefix) && strings.Contains(msg, "cannot unmarshal")
+}
+
+func formatYAMLParseError(l *Loader, sourcePath string, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Try to provide a more helpful error message for unknown fields.
+	errMsg := err.Error()
+	if msg := dashboardUnionParseError(sourcePath, errMsg); msg != "" {
+		return fmt.Errorf("%s: %w", msg, err)
+	}
+	if strings.Contains(errMsg, "unknown field") {
+		// Error format: "error unmarshaling JSON: while decoding JSON: json: unknown field \"fieldname\""
+		if match := regexp.MustCompile(`unknown field "(\w+)"`).FindStringSubmatch(errMsg); len(match) > 1 {
+			fieldName := match[1]
+			suggestion := l.suggestFieldName(fieldName)
+			if suggestion != "" {
+				return fmt.Errorf("unknown field '%s' in %s. Did you mean '%s'?",
+					fieldName, sourcePath, suggestion)
+			}
+			return fmt.Errorf("unknown field '%s' in %s. Please check the field name against the schema",
+				fieldName, sourcePath)
+		}
+	}
+
+	return fmt.Errorf("failed to parse YAML in %s: %w", sourcePath, err)
+}
+
+func dashboardUnionParseError(sourcePath string, errMsg string) string {
+	switch {
+	case strings.Contains(errMsg, "into any supported union types for Query"):
+		return fmt.Sprintf(
+			"failed to parse YAML in %s: invalid analytics dashboard tile query.datasource; "+
+				"expected one of api_usage, llm_usage, agentic_usage",
+			sourcePath,
+		)
+	case strings.Contains(errMsg, "into any supported union types for Chart"):
+		return fmt.Sprintf(
+			"failed to parse YAML in %s: invalid analytics dashboard tile chart.type; "+
+				"expected one of donut, timeseries_line, timeseries_bar, horizontal_bar, vertical_bar, "+
+				"single_value, choropleth_map",
+			sourcePath,
+		)
+	case strings.Contains(errMsg, "into any supported union types for TimeRange"):
+		return fmt.Sprintf(
+			"failed to parse YAML in %s: invalid analytics dashboard tile query.time_range.type; "+
+				"expected one of relative, absolute",
+			sourcePath,
+		)
+	default:
+		return ""
+	}
 }
 
 // loadSTDIN loads configuration from stdin
@@ -407,6 +556,9 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 
 	// Append all resources from source to accumulated using the registry
 	accumulated.AppendAll(source)
+	appendOrganizationUsers(accumulated, source)
+	appendOrganizationSystemAccounts(accumulated, source)
+	accumulated.MergeSyncScope(source)
 
 	// Update the running index with newly added refs
 	maps.Copy(refIndex, seenRefs)
@@ -416,16 +568,49 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	if source.DefaultNamespace != "" {
 		parentCount := len(source.Portals) +
 			len(source.ApplicationAuthStrategies) +
+			len(source.DCRProviders) +
 			len(source.ControlPlanes) +
+			len(source.CatalogServices) +
 			len(source.APIs) +
+			len(source.EventGatewayControlPlanes) +
+			len(source.Dashboards) +
 			len(source.OrganizationTeams)
+		if source.Organization != nil {
+			parentCount += len(source.Organization.Users)
+			parentCount += len(source.Organization.SystemAccounts)
+		}
 
 		if parentCount == 0 {
 			accumulated.AddDefaultNamespace(source.DefaultNamespace)
 		}
 	}
 
+	accumulated.MergeEnvSources(source)
+
 	return nil
+}
+
+func appendOrganizationUsers(accumulated, source *resources.ResourceSet) {
+	if source == nil || source.Organization == nil || len(source.Organization.Users) == 0 {
+		return
+	}
+	if accumulated.Organization == nil {
+		accumulated.Organization = &resources.OrganizationResource{}
+	}
+	accumulated.Organization.Users = append(accumulated.Organization.Users, source.Organization.Users...)
+}
+
+func appendOrganizationSystemAccounts(accumulated, source *resources.ResourceSet) {
+	if source == nil || source.Organization == nil || len(source.Organization.SystemAccounts) == 0 {
+		return
+	}
+	if accumulated.Organization == nil {
+		accumulated.Organization = &resources.OrganizationResource{}
+	}
+	accumulated.Organization.SystemAccounts = append(
+		accumulated.Organization.SystemAccounts,
+		source.Organization.SystemAccounts...,
+	)
 }
 
 // applyNamespaceDefaults applies file-level namespace and protected defaults to parent resources
@@ -530,6 +715,34 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
+	assignDashboardDefaults := func(dashboard *resources.DashboardResource) error {
+		if err := assignNamespace(&dashboard.Kongctl, "dashboard", dashboard.Ref); err != nil {
+			return err
+		}
+		if dashboard.Kongctl.Protected == nil && protectedDefault != nil {
+			dashboard.Kongctl.Protected = protectedDefault
+		}
+		if dashboard.Kongctl.Protected == nil {
+			falseVal := false
+			dashboard.Kongctl.Protected = &falseVal
+		}
+		return nil
+	}
+
+	// Apply defaults to Dashboards (parent resources)
+	for i := range rs.Dashboards {
+		if err := assignDashboardDefaults(&rs.Dashboards[i]); err != nil {
+			return err
+		}
+	}
+	if rs.Analytics != nil {
+		for i := range rs.Analytics.Dashboards {
+			if err := assignDashboardDefaults(&rs.Analytics.Dashboards[i]); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Apply defaults to ApplicationAuthStrategies (parent resources)
 	for i := range rs.ApplicationAuthStrategies {
 		if err := assignNamespace(&rs.ApplicationAuthStrategies[i].Kongctl,
@@ -544,6 +757,22 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		if rs.ApplicationAuthStrategies[i].Kongctl.Protected == nil {
 			falseVal := false
 			rs.ApplicationAuthStrategies[i].Kongctl.Protected = &falseVal
+		}
+	}
+
+	// Apply defaults to DCRProviders (parent resources)
+	for i := range rs.DCRProviders {
+		if err := assignNamespace(&rs.DCRProviders[i].Kongctl, "dcr_provider", rs.DCRProviders[i].Ref); err != nil {
+			return err
+		}
+		// Apply protected default if not set
+		if rs.DCRProviders[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.DCRProviders[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.DCRProviders[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.DCRProviders[i].Kongctl.Protected = &falseVal
 		}
 	}
 
@@ -570,50 +799,79 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
-	// Apply defaults to ControlPlanes (parent resources)
-	if util.IsEventGatewayEnabled() {
-		for i := range rs.EventGatewayControlPlanes {
-			if err := assignNamespace(
-				&rs.EventGatewayControlPlanes[i].Kongctl,
-				"control_plane",
-				rs.EventGatewayControlPlanes[i].Ref,
-			); err != nil {
-				return err
-			}
-			// Apply protected default if not set
-			if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
-				rs.EventGatewayControlPlanes[i].Kongctl.Protected = protectedDefault
-			}
-			// Ensure protected has a value (false if still nil)
-			if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil {
-				falseVal := false
-				rs.EventGatewayControlPlanes[i].Kongctl.Protected = &falseVal
-			}
+	for i := range rs.EventGatewayControlPlanes {
+		if err := assignNamespace(
+			&rs.EventGatewayControlPlanes[i].Kongctl,
+			"control_plane",
+			rs.EventGatewayControlPlanes[i].Ref,
+		); err != nil {
+			return err
 		}
+		// Apply protected default if not set
+		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.EventGatewayControlPlanes[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.EventGatewayControlPlanes[i].Kongctl.Protected = &falseVal
+		}
+	}
+
+	assignOrganizationTeamDefaults := func(team *resources.OrganizationTeamResource) error {
+		if team.IsExternal() {
+			if team.Kongctl != nil {
+				return fmt.Errorf(
+					"team '%s' is marked as external and cannot use kongctl metadata",
+					team.Ref,
+				)
+			}
+			return nil
+		}
+		if err := assignNamespace(&team.Kongctl, "team", team.Ref); err != nil {
+			return err
+		}
+		// Apply protected default if not set
+		if team.Kongctl.Protected == nil && protectedDefault != nil {
+			team.Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if team.Kongctl.Protected == nil {
+			falseVal := false
+			team.Kongctl.Protected = &falseVal
+		}
+		return nil
 	}
 
 	// Apply namespace defaults to teams
 	for i := range rs.OrganizationTeams {
-		if rs.OrganizationTeams[i].IsExternal() {
-			if rs.OrganizationTeams[i].Kongctl != nil {
-				return fmt.Errorf(
-					"team '%s' is marked as external and cannot use kongctl metadata",
-					rs.OrganizationTeams[i].Ref,
-				)
-			}
-			continue
-		}
-		if err := assignNamespace(&rs.OrganizationTeams[i].Kongctl, "team", rs.OrganizationTeams[i].Ref); err != nil {
+		if err := assignOrganizationTeamDefaults(&rs.OrganizationTeams[i]); err != nil {
 			return err
 		}
-		// Apply protected default if not set
-		if rs.OrganizationTeams[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.OrganizationTeams[i].Kongctl.Protected = protectedDefault
+	}
+	if rs.Organization != nil {
+		for i := range rs.Organization.Teams {
+			if err := assignOrganizationTeamDefaults(&rs.Organization.Teams[i]); err != nil {
+				return err
+			}
 		}
-		// Ensure protected has a value (false if still nil)
-		if rs.OrganizationTeams[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.OrganizationTeams[i].Kongctl.Protected = &falseVal
+		for i := range rs.Organization.Users {
+			if err := assignNamespace(
+				&rs.Organization.Users[i].Kongctl,
+				"organization user",
+				rs.Organization.Users[i].Ref,
+			); err != nil {
+				return err
+			}
+		}
+		for i := range rs.Organization.SystemAccounts {
+			if err := assignNamespace(
+				&rs.Organization.SystemAccounts[i].Kongctl,
+				"organization system account",
+				rs.Organization.SystemAccounts[i].Ref,
+			); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -666,13 +924,65 @@ func (l *Loader) extractPortalPages(
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	// Extract analytics nested resources.
+	if rs.Analytics != nil {
+		rs.Dashboards = append(rs.Dashboards, rs.Analytics.Dashboards...)
+		rs.Analytics.Dashboards = nil
+	}
+
 	// Extract organization nested resources
 	if rs.Organization != nil {
 		org := rs.Organization
 		// Extract organization teams from organization
-		rs.OrganizationTeams = append(rs.OrganizationTeams, org.Teams...)
+		for i := range org.Teams {
+			team := org.Teams[i]
+			for j := range team.Roles {
+				role := team.Roles[j]
+				role.Team = team.Ref
+				rs.OrganizationTeamRoles = append(rs.OrganizationTeamRoles, role)
+			}
+			team.Roles = nil
+			rs.OrganizationTeams = append(rs.OrganizationTeams, team)
+		}
 
 		org.Teams = nil
+
+		for i := range org.Users {
+			user := &org.Users[i]
+			userRef := user.Ref
+			for _, teamMembership := range user.Teams {
+				teamMembership.User = userRef
+				rs.OrganizationUserTeamMemberships = append(
+					rs.OrganizationUserTeamMemberships,
+					teamMembership,
+				)
+			}
+			for j := range user.Roles {
+				role := user.Roles[j]
+				role.User = userRef
+				rs.OrganizationUserRoles = append(rs.OrganizationUserRoles, role)
+			}
+			user.Teams = nil
+			user.Roles = nil
+		}
+		for i := range org.SystemAccounts {
+			systemAccount := &org.SystemAccounts[i]
+			systemAccountRef := systemAccount.Ref
+			for _, teamMembership := range systemAccount.Teams {
+				teamMembership.SystemAccount = systemAccountRef
+				rs.OrganizationSystemAccountTeamMemberships = append(
+					rs.OrganizationSystemAccountTeamMemberships,
+					teamMembership,
+				)
+			}
+			for j := range systemAccount.Roles {
+				role := systemAccount.Roles[j]
+				role.SystemAccount = systemAccountRef
+				rs.OrganizationSystemAccountRoles = append(rs.OrganizationSystemAccountRoles, role)
+			}
+			systemAccount.Teams = nil
+			systemAccount.Roles = nil
+		}
 	}
 
 	for i := range rs.ControlPlanes {
@@ -685,6 +995,14 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		}
 
 		cp.GatewayServices = nil
+
+		for j := range cp.DataPlaneCertificates {
+			cert := cp.DataPlaneCertificates[j]
+			cert.ControlPlane = cp.Ref
+			rs.ControlPlaneDataPlaneCertificates = append(rs.ControlPlaneDataPlaneCertificates, cert)
+		}
+
+		cp.DataPlaneCertificates = nil
 	}
 
 	for i := range rs.APIs {
@@ -750,6 +1068,27 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalAuthSettings = append(rs.PortalAuthSettings, authSettings)
 		}
 
+		// Extract IP allow list (single resource)
+		if portal.IPAllowList != nil {
+			allowList := *portal.IPAllowList
+			allowList.Portal = portal.Ref
+			rs.PortalIPAllowLists = append(rs.PortalIPAllowLists, allowList)
+		}
+
+		// Extract integrations configuration (single resource)
+		if portal.Integrations != nil {
+			integration := *portal.Integrations
+			integration.Portal = portal.Ref
+			rs.PortalIntegrations = append(rs.PortalIntegrations, integration)
+		}
+
+		// Extract identity providers
+		for j := range portal.IdentityProviders {
+			provider := portal.IdentityProviders[j]
+			provider.Portal = portal.Ref
+			rs.PortalIdentityProviders = append(rs.PortalIdentityProviders, provider)
+		}
+
 		// Extract custom domain (single resource)
 		if portal.CustomDomain != nil {
 			customDomain := *portal.CustomDomain
@@ -782,7 +1121,14 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 				role.Team = team.Ref
 				rs.PortalTeamRoles = append(rs.PortalTeamRoles, role)
 			}
+			for k := range team.GroupMappings {
+				mapping := team.GroupMappings[k]
+				mapping.Portal = portal.Ref
+				mapping.Team = team.Ref
+				rs.PortalTeamGroupMappings = append(rs.PortalTeamGroupMappings, mapping)
+			}
 			team.Roles = nil
+			team.GroupMappings = nil
 			rs.PortalTeams = append(rs.PortalTeams, team)
 		}
 
@@ -791,6 +1137,13 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			cfg := *portal.EmailConfig
 			cfg.Portal = portal.Ref
 			rs.PortalEmailConfigs = append(rs.PortalEmailConfigs, cfg)
+		}
+
+		// Extract audit-log webhook (singleton)
+		if portal.AuditLogWebhook != nil {
+			webhook := *portal.AuditLogWebhook
+			webhook.Portal = portal.Ref
+			rs.PortalAuditLogWebhooks = append(rs.PortalAuditLogWebhooks, webhook)
 		}
 
 		// Extract email templates (map keyed by template name)
@@ -808,12 +1161,60 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		// Clear nested resources from Portal
 		portal.Customization = nil
 		portal.AuthSettings = nil
+		portal.IPAllowList = nil
+		portal.Integrations = nil
+		portal.IdentityProviders = nil
 		portal.CustomDomain = nil
 		portal.Pages = nil
 		portal.Snippets = nil
 		portal.Teams = nil
 		portal.EmailConfig = nil
+		portal.AuditLogWebhook = nil
 		portal.EmailTemplates = nil
+	}
+
+	// Extract nested Event Gateway child resources so that deferred !env
+	// placeholders on their fields are tracked per child resource ref (not
+	// per gateway ref).  Each nested type already has a root-level slice in
+	// ResourceSet and a GetXxxForGateway helper that reads from both.
+	for i := range rs.EventGatewayControlPlanes {
+		egw := &rs.EventGatewayControlPlanes[i]
+
+		for _, sk := range egw.StaticKeys {
+			sk.EventGateway = egw.Ref
+			rs.EventGatewayStaticKeys = append(rs.EventGatewayStaticKeys, sk)
+		}
+		egw.StaticKeys = nil
+
+		for _, tb := range egw.TrustBundles {
+			tb.EventGateway = egw.Ref
+			rs.EventGatewayTLSTrustBundles = append(rs.EventGatewayTLSTrustBundles, tb)
+		}
+		egw.TrustBundles = nil
+
+		for _, sr := range egw.SchemaRegistries {
+			sr.EventGateway = egw.Ref
+			rs.EventGatewaySchemaRegistries = append(rs.EventGatewaySchemaRegistries, sr)
+		}
+		egw.SchemaRegistries = nil
+
+		for _, bc := range egw.BackendClusters {
+			bc.EventGateway = egw.Ref
+			rs.EventGatewayBackendClusters = append(rs.EventGatewayBackendClusters, bc)
+		}
+		egw.BackendClusters = nil
+
+		for _, l := range egw.Listeners {
+			l.EventGateway = egw.Ref
+			rs.EventGatewayListeners = append(rs.EventGatewayListeners, l)
+		}
+		egw.Listeners = nil
+
+		for _, dp := range egw.DataPlaneCertificates {
+			dp.EventGateway = egw.Ref
+			rs.EventGatewayDataPlaneCertificates = append(rs.EventGatewayDataPlaneCertificates, dp)
+		}
+		egw.DataPlaneCertificates = nil
 	}
 }
 
@@ -860,6 +1261,7 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 		"is_public":     {"public", "ispublic", "is-public"},
 		"custom_domain": {"domain", "customdomain", "custom-domain"},
 		"customization": {"customize", "custom", "theme"},
+		"integrations":  {"integration"},
 		"pages":         {"page", "content"},
 		"snippets":      {"snippet", "code"},
 		"email_config":  {"email_configs", "email-config", "email"},

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 )
 
 // InitDir initializes a directory with the given mode
@@ -32,7 +31,6 @@ func GetStringFromReflectValue(v reflect.Value) (string, error) {
 		return "", fmt.Errorf("invalid reflect value")
 	}
 
-	//nolint: exhaustive
 	switch v.Kind() {
 	case reflect.String:
 		return v.String(), nil
@@ -45,24 +43,33 @@ func GetStringFromReflectValue(v reflect.Value) (string, error) {
 			return "", fmt.Errorf("reflect value is not a string or *string")
 		}
 		return elem.String(), nil
+	case reflect.Invalid,
+		reflect.Bool,
+		reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64,
+		reflect.Uintptr,
+		reflect.Float32,
+		reflect.Float64,
+		reflect.Complex64,
+		reflect.Complex128,
+		reflect.Array,
+		reflect.Chan,
+		reflect.Func,
+		reflect.Interface,
+		reflect.Map,
+		reflect.Slice,
+		reflect.Struct,
+		reflect.UnsafePointer:
+		return "", fmt.Errorf("reflect value is not a string or *string")
 	default:
 		return "", fmt.Errorf("reflect value is not a string or *string")
 	}
-}
-
-// IsEventGatewayEnabled returns true if Event Gateway features are enabled
-// via the KONGCTL_ENABLE_EVENT_GATEWAY environment variable.
-// Accepts standard boolean string values: "1", "t", "T", "TRUE", "true", "True" for true;
-// "0", "f", "F", "FALSE", "false", "False" for false. Empty string is treated as false.
-func IsEventGatewayEnabled() bool {
-	enabled := os.Getenv("KONGCTL_ENABLE_EVENT_GATEWAY")
-	if enabled == "" {
-		return false
-	}
-	val, err := strconv.ParseBool(enabled)
-	if err != nil {
-		// If parsing fails, treat as enabled (any non-empty, non-parseable value)
-		return true
-	}
-	return val
 }

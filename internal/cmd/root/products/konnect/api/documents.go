@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -46,9 +47,9 @@ type apiDocumentDetailRecord struct {
 	Slug             string
 	Status           string
 	ParentDocumentID string
-	Content          string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+	content          string
 }
 
 type apiDocumentContentContext struct {
@@ -257,7 +258,7 @@ func (h apiDocumentsHandler) listDocuments(
 		tableview.WithCustomTable([]string{"DOCUMENT", "TITLE"}, rows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
-		tableview.WithDetailContext("api-document", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIDocument, func(index int) any {
 			if index < 0 || index >= len(flattened) {
 				return nil
 			}
@@ -354,7 +355,7 @@ func (h apiDocumentsHandler) getSingleDocument(
 		}),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext("api-document", func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAPIDocument, func(index int) any {
 			if index != 0 {
 				return nil
 			}
@@ -479,7 +480,7 @@ func documentSummaryDetailView(doc *kkComps.APIDocumentSummaryWithChildren, deta
 
 	fmt.Fprintf(&b, "content: %s (press enter to view)", apiDocumentContentIndicator)
 	if detail != nil {
-		if preview := previewAPIDocumentContent(detail.Content, apiDocumentContentPreviewLimit); preview != "" {
+		if preview := previewAPIDocumentContent(detail.content, apiDocumentContentPreviewLimit); preview != "" {
 			fmt.Fprintf(&b, " %s", preview)
 		}
 	}
@@ -518,7 +519,7 @@ func apiDocumentDetailView(record apiDocumentDetailRecord) string {
 	}
 
 	fmt.Fprintf(&b, "content: %s (press enter to view)", apiDocumentContentIndicator)
-	if preview := previewAPIDocumentContent(record.Content, apiDocumentContentPreviewLimit); preview != "" {
+	if preview := previewAPIDocumentContent(record.content, apiDocumentContentPreviewLimit); preview != "" {
 		fmt.Fprintf(&b, " %s", preview)
 	}
 	fmt.Fprintln(&b)
@@ -550,9 +551,9 @@ func apiDocumentDetailToRecord(doc *kkComps.APIDocumentResponse) apiDocumentDeta
 			return valueNA
 		}(),
 		ParentDocumentID: parentID,
-		Content:          content,
 		LocalCreatedTime: doc.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 		LocalUpdatedTime: doc.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		content:          content,
 	}
 }
 
@@ -627,7 +628,7 @@ func loadAPIDocumentContent(_ context.Context, helper cmd.Helper, parent any) (t
 		record = detail
 	}
 
-	raw := normalizeAPIDocumentContent(record.Content)
+	raw := normalizeAPIDocumentContent(record.content)
 	if strings.TrimSpace(raw) == "" {
 		raw = "(content is empty)"
 	}

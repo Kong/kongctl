@@ -31,11 +31,11 @@ func GetAllGatewayUpstreams(ctx context.Context, requestPageSize int64, cpID str
 
 		allData = append(allData, res.Object.Data...)
 
-		if res.Object.Offset != nil {
-			offset = *res.Object.Offset
-		} else {
+		nextOffset, ok := nextOffsetToken(res.Object.Offset)
+		if !ok {
 			break
 		}
+		offset = nextOffset
 	}
 
 	return allData, nil
@@ -72,11 +72,11 @@ func GetAllGatewayTargetsForUpstream(
 
 		allData = append(allData, res.Object.Data...)
 
-		if res.Object.Offset != nil {
-			offset = *res.Object.Offset
-		} else {
+		nextOffset, ok := nextOffsetToken(res.Object.Offset)
+		if !ok {
 			break
 		}
+		offset = nextOffset
 	}
 
 	return allData, nil

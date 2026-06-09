@@ -25,9 +25,9 @@ const (
 var (
 	use = "ps"
 
-	short = i18n.T("root.verbs.ps.short", "Manage detached kongctl processes")
+	short = i18n.T("root.verbs.ps.short", "Manage detached processes")
 	long  = normalizers.LongDesc(i18n.T("root.verbs.ps.long",
-		`List and manage detached kongctl background processes tracked by the local process registry.`))
+		`List and manage detached background processes tracked by the local process registry.`))
 	example = normalizers.Examples(i18n.T("root.verbs.ps.examples",
 		fmt.Sprintf(`
   # List detached kongctl processes
@@ -42,20 +42,20 @@ var (
 )
 
 type processListItem struct {
-	PID       int              `json:"pid" yaml:"pid"`
-	Status    processes.Status `json:"status" yaml:"status"`
-	Kind      string           `json:"kind" yaml:"kind"`
-	Profile   string           `json:"profile,omitempty" yaml:"profile,omitempty"`
-	CreatedAt time.Time        `json:"created_at" yaml:"created_at"`
+	PID       int              `json:"pid"                yaml:"pid"`
+	Status    processes.Status `json:"status"             yaml:"status"`
+	Kind      string           `json:"kind"               yaml:"kind"`
+	Profile   string           `json:"profile,omitempty"  yaml:"profile,omitempty"`
+	CreatedAt time.Time        `json:"created_at"         yaml:"created_at"`
 	LogFile   string           `json:"log_file,omitempty" yaml:"log_file,omitempty"`
-	Record    string           `json:"record_file" yaml:"record_file"`
+	Record    string           `json:"record_file"        yaml:"record_file"`
 }
 
 type processStopResult struct {
-	PID     int    `json:"pid" yaml:"pid"`
-	Kind    string `json:"kind" yaml:"kind"`
-	Action  string `json:"action" yaml:"action"`
-	Success bool   `json:"success" yaml:"success"`
+	PID     int    `json:"pid"              yaml:"pid"`
+	Kind    string `json:"kind"             yaml:"kind"`
+	Action  string `json:"action"           yaml:"action"`
+	Success bool   `json:"success"          yaml:"success"`
 	Detail  string `json:"detail,omitempty" yaml:"detail,omitempty"`
 }
 

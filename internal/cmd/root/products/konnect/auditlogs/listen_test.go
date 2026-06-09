@@ -55,12 +55,29 @@ func TestBuildEndpointFromPublicURL(t *testing.T) {
 func TestValidateListenAuditLogsOptions(t *testing.T) {
 	t.Parallel()
 
+	t.Run("empty authorization is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{Authorization: ""})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "--authorization must not be empty")
+	})
+
+	t.Run("whitespace-only authorization is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{Authorization: "   "})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "--authorization must not be empty")
+	})
+
 	t.Run("jq requires tail", func(t *testing.T) {
 		t.Parallel()
 
 		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{
-			Tail: false,
-			JQ:   ".request",
+			Authorization: "Bearer token",
+			Tail:          false,
+			JQ:            ".request",
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "--jq requires --tail")
@@ -70,8 +87,9 @@ func TestValidateListenAuditLogsOptions(t *testing.T) {
 		t.Parallel()
 
 		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{
-			Tail: true,
-			JQ:   ".request",
+			Authorization: "Bearer token",
+			Tail:          true,
+			JQ:            ".request",
 		})
 		require.NoError(t, err)
 	})
@@ -80,8 +98,9 @@ func TestValidateListenAuditLogsOptions(t *testing.T) {
 		t.Parallel()
 
 		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{
-			Tail:   true,
-			Detach: true,
+			Authorization: "Bearer token",
+			Tail:          true,
+			Detach:        true,
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "--detach is not supported with --tail")
@@ -90,7 +109,10 @@ func TestValidateListenAuditLogsOptions(t *testing.T) {
 	t.Run("empty jq without tail is valid", func(t *testing.T) {
 		t.Parallel()
 
-		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{Tail: false})
+		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{
+			Authorization: "Bearer token",
+			Tail:          false,
+		})
 		require.NoError(t, err)
 	})
 }

@@ -1,0 +1,218 @@
+# Tests dump declarative --resources=event_gateways including child resource
+# population, round-trip idempotency, and --filter-name filtering.
+# Reuses the EGW + backend cluster + virtual cluster config pattern from
+# event-gateway/virtual-cluster/testdata/config.yaml.
+
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+
+vars:
+  egwName: egw-cp-for-dump-test
+  bcRef: default-backend-cluster
+  vcRef: default-virtual-cluster
+  producePolicyName: default-produce-policy-name-for-dump-test
+  consumePolicyName: default-consume-policy-name-for-dump-test
+  schemaRegistryRef: default-schema-registry
+  schemaRegistryName: default-schema-registry-name-for-dump-test
+  staticKeyRef: default-static-key
+  staticKeyName: default-static-key-name-for-dump-test
+  trustBundleRef: default-tls-trust-bundle-ref-dump
+  trustBundleName: default-tls-trust-bundle-name-dump
+  listenerRef: default-listener-for-dump-test-ref
+  listenerName: default-listener-for-dump-test-name
+  listenerPolicyRef: default-listener-policy-for-dump-test-ref
+  listenerPolicyRefTlsServer: default-listener-policy-for-dump-test-ref-2
+  listenerPolicyName: default-listener-policy-for-dump-test-name
+  listenerPolicyNameTlsServer: default-listener-policy-for-dump-test-name-2
+  clusterPolicyRef: default-cluster-policy-for-dump-test-ref
+  clusterPolicyName: default-cluster-policy-for-dump-test-name
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-create
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 12
+                failed: 0
+
+  # Dump event_gateways with child resources and validate the output structure.
+  # The dumped YAML is written to dump.yaml for the round-trip plan command.
+  - name: 002-dump-event-gateways
+    skipInputs: true
+    commands:
+      - name: 000-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--default-namespace=event-gateways-dump-test"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - name: egw-present
+            select: "event_gateways[?name=='{{ .vars.egwName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+          - name: backend-cluster-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].backend_clusters[?name=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+          - name: virtual-cluster-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.vcRef }}"
+          - name: produce-policy-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0].produce_policies[?name=='{{ .vars.producePolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.producePolicyName }}"
+                type: modify_headers
+                enabled: true
+          - name: consume-policy-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0].consume_policies[?name=='{{ .vars.consumePolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: schema_validation
+                enabled: true
+          - name: schema-registry-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].schema_registries[?name=='{{ .vars.schemaRegistryName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.schemaRegistryName }}"
+          - name: static-key-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].static_keys[?name=='{{ .vars.staticKeyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+          - name: trust-bundle-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].tls_trust_bundles[?name=='{{ .vars.trustBundleName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.trustBundleName }}"
+          - name: listener-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].listeners[?name=='{{ .vars.listenerName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.listenerName }}"
+          - name: listener-policy-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].listeners[?name=='{{ .vars.listenerName }}'] | [0].policies[?name=='{{ .vars.listenerPolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyName }}"
+                type: forward_to_virtual_cluster
+                enabled: true
+          - name: listener-policy-tls-server-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].listeners[?name=='{{ .vars.listenerName }}'] | [0].policies[?name=='{{ .vars.listenerPolicyNameTlsServer }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyNameTlsServer }}"
+                type: tls_server
+                enabled: true
+          - name: cluster-policy-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0].cluster_policies[?name=='{{ .vars.clusterPolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.clusterPolicyName }}"
+                type: acls
+                enabled: true
+          - name: namespace-label-preserved
+            select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: event-gateways-dump-test
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  # Verify that --filter-name restricts dump output to the matching EGW only.
+  - name: 003-dump-with-filter
+    skipInputs: true
+    commands:
+      - name: 000-dump-filtered
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - "--filter-name={{ .vars.egwName }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: matching-egw-present
+            select: "event_gateways[?name=='{{ .vars.egwName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+          - name: only-one-egw-returned
+            select: "length(event_gateways)"
+            expect:
+              fields:
+                "@": 1
+
+  # Sync with an empty event_gateways list to delete all created resources.
+  - name: 004-sync-delete
+    inputOverlayDirs:
+      - overlays/005-sync-delete
+    commands:
+      - name: 000-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0

@@ -1,0 +1,28 @@
+schema_version: 1
+
+publisher: kong
+name: debug
+version: 0.1.0
+summary: Debug kongctl extension runtime context
+
+runtime:
+  command: kongctl-ext-debug
+
+command_paths:
+  - id: get_debug_info
+    path:
+      - name: get
+      - name: debug-info
+    summary: Get extension debug information
+    description: Prints the extension context path, context JSON, remaining arguments, and a reentrant kongctl call.
+    usage: kongctl get debug-info [args] [flags]
+    examples:
+      - kongctl get debug-info --example
+  - id: print_debug_info
+    path:
+      - name: print-debug-info
+    summary: Print extension debug information
+    description: Prints the extension context path, context JSON, remaining arguments, and a reentrant kongctl call.
+    usage: kongctl print-debug-info [args] [flags]
+    examples:
+      - kongctl print-debug-info --example

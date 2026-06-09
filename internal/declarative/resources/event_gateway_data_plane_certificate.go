@@ -14,12 +14,13 @@ func init() {
 		func(rs *ResourceSet) *[]EventGatewayDataPlaneCertificateResource {
 			return &rs.EventGatewayDataPlaneCertificates
 		},
+		AutoExplain[EventGatewayDataPlaneCertificateResource](),
 	)
 }
 
 type EventGatewayDataPlaneCertificateResource struct {
-	kkComps.CreateEventGatewayDataPlaneCertificateRequest `yaml:",inline" json:",inline"`
-	Ref                                                   string `yaml:"ref" json:"ref"`
+	kkComps.CreateEventGatewayDataPlaneCertificateRequest `       yaml:",inline"                 json:",inline"`
+	Ref                                                   string `yaml:"ref"                     json:"ref"`
 	// Parent Event Gateway reference (for root-level definitions)
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 
@@ -46,7 +47,7 @@ func (e EventGatewayDataPlaneCertificateResource) GetDependencies() []ResourceRe
 	deps := []ResourceRef{}
 	if e.EventGateway != "" {
 		// Dependency on parent Event Gateway when defined at root level
-		deps = append(deps, ResourceRef{Kind: "event_gateway", Ref: e.EventGateway})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeEventGatewayControlPlane, Ref: e.EventGateway})
 	}
 	return deps
 }
@@ -86,7 +87,7 @@ func (e EventGatewayDataPlaneCertificateResource) GetKonnectMonikerFilter() stri
 
 func (e *EventGatewayDataPlaneCertificateResource) TryMatchKonnectResource(konnectResource any) bool {
 	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {
@@ -99,7 +100,7 @@ func (e *EventGatewayDataPlaneCertificateResource) TryMatchKonnectResource(konne
 	if nameField.IsValid() && idField.IsValid() &&
 		idField.Kind() == reflect.String {
 		// Name field is a *string, so need to handle pointer
-		if nameField.Kind() == reflect.Ptr && !nameField.IsNil() {
+		if nameField.Kind() == reflect.Pointer && !nameField.IsNil() {
 			nameVal := nameField.Elem()
 			if nameVal.Kind() == reflect.String && e.Name != nil && nameVal.String() == *e.Name {
 				e.konnectID = idField.String()
@@ -119,7 +120,7 @@ func (e *EventGatewayDataPlaneCertificateResource) TryMatchKonnectResource(konne
 // REQUIRED: Implement ResourceWithParent
 func (e EventGatewayDataPlaneCertificateResource) GetParentRef() *ResourceRef {
 	if e.EventGateway != "" {
-		return &ResourceRef{Kind: "event_gateway", Ref: e.EventGateway}
+		return &ResourceRef{Kind: ResourceTypeEventGatewayControlPlane, Ref: e.EventGateway}
 	}
 	return nil
 }

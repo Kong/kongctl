@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
 // FormatExecutionError creates a standardized error message for execution failures
@@ -65,7 +66,7 @@ func ExtractResourceInfoFromChange(change planner.PlannedChange) (resourceType, 
 	resourceName = change.ResourceRef
 
 	// Try to get a better name from fields if ref is generic
-	if resourceName == "" || resourceName == "[unknown]" {
+	if resourceName == "" || resourceName == resources.UnknownReferenceID {
 		if change.Fields != nil {
 			resourceName = ExtractResourceName(change.Fields)
 		}

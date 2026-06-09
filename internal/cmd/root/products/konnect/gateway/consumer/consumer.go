@@ -20,9 +20,9 @@ var (
 	routeExamples = normalizers.Examples(i18n.T("root.products.konnect.gateway.consumer.consumerExamples",
 		fmt.Sprintf(`
 	# List the Konnect consumers
-	%[1]s get konnect gateway consumers --control-plane-id <id>
-	# Get a specific Konnect route
-	%[1]s get konnect gateway route --control-plane-id <id> <id|name>
+	%[1]s get konnect gateway control-plane consumers --control-plane-id <id>
+	# Get a specific Konnect consumer
+	%[1]s get konnect gateway control-plane consumer --control-plane-id <id> <id|name>
 	`, meta.CLIName)))
 )
 
@@ -35,7 +35,7 @@ func NewConsumerCmd(verb verbs.VerbValue,
 		Short:   routeShort,
 		Long:    routeLong,
 		Example: routeExamples,
-		Aliases: []string{"consumer", "consumers"},
+		Aliases: []string{"consumers"},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return common.BindControlPlaneFlags(cmd, args)
 		},

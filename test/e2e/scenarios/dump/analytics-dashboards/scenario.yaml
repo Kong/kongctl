@@ -1,0 +1,131 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: dump-analytics-dashboards-e2e
+  dashboardAlphaName: E2E Dump Traffic Overview Dashboard
+  dashboardBetaName: E2E Dump Latency Overview Dashboard
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-sync-bootstrap
+    commands:
+      - name: 000-sync-bootstrap
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+
+  - name: 002-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-analytics-dashboards
+        run:
+          - dump
+          - declarative
+          - "--resources=analytics.dashboards"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - name: analytics-dashboards-key-present
+            select: analytics.dashboards
+            expect:
+              fields:
+                "length(@)": 2
+          - name: traffic-dashboard-present
+            select: "analytics.dashboards[?name=='{{ .vars.dashboardAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.dashboardAlphaName }}"
+          - name: latency-dashboard-present
+            select: "analytics.dashboards[?name=='{{ .vars.dashboardBetaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.dashboardBetaName }}"
+          - name: default-namespace-present
+            select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 002-reset-before-round-trip
+        resetOrg: true
+
+      - name: 003-sync-dumped-config
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+
+  - name: 003-reset-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

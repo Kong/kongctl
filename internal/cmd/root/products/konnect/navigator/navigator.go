@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/charmbracelet/bubbles/table"
+	"charm.land/bubbles/v2/table"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -78,7 +78,7 @@ func Run(helper cmd.Helper, opts Options) error {
 			ctx = context.Background()
 		}
 		if ctx.Value(products.Product) == nil {
-			ctx = context.WithValue(ctx, products.Product, products.ProductValue("konnect"))
+			ctx = context.WithValue(ctx, products.Product, products.ProductKonnect)
 		}
 		if ctx.Value(helpers.SDKAPIFactoryKey) == nil {
 			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
@@ -145,6 +145,7 @@ func Run(helper cmd.Helper, opts Options) error {
 		tableview.WithDetailHelper(helper),
 		tableview.WithTitle("Konnect Resources"),
 		tableview.WithTableStretch(),
+		tableview.WithSelectionAction(newDumpSelectionAction(helper)),
 	}
 	if initialIndex >= 0 {
 		options = append(options, tableview.WithInitialRowSelection(initialIndex, needle != ""))

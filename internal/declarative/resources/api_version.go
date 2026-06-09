@@ -13,6 +13,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPIVersion,
 		func(rs *ResourceSet) *[]APIVersionResource { return &rs.APIVersions },
+		AutoExplain[APIVersionResource](),
 	)
 }
 
@@ -51,7 +52,7 @@ func (v APIVersionResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 	if v.API != "" {
 		// Dependency on parent API when defined at root level
-		deps = append(deps, ResourceRef{Kind: "api", Ref: v.API})
+		deps = append(deps, ResourceRef{Kind: ResourceTypeAPI, Ref: v.API})
 	}
 	return deps
 }
@@ -102,7 +103,7 @@ func (v *APIVersionResource) TryMatchKonnectResource(konnectResource any) bool {
 // GetParentRef returns the parent API reference for ResourceWithParent interface
 func (v APIVersionResource) GetParentRef() *ResourceRef {
 	if v.API != "" {
-		return &ResourceRef{Kind: "api", Ref: v.API}
+		return &ResourceRef{Kind: ResourceTypeAPI, Ref: v.API}
 	}
 	return nil
 }

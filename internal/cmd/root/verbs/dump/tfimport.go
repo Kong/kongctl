@@ -32,7 +32,7 @@ type tfImportOptions struct {
 
 var tfImportAllowedResources = map[string]struct{}{
 	"portals":                     {},
-	"apis":                        {},
+	resourceAPIs:                  {},
 	"application_auth_strategies": {},
 	"control_planes":              {},
 }
@@ -88,7 +88,8 @@ func newTFImportCmd() *cobra.Command {
 - Default   : [ %s ]`,
 			konnectCommon.BaseURLConfigPath, konnectCommon.BaseURLDefault))
 
-	cmd.Flags().String(konnectCommon.RegionFlagName, "",
+	cmd.Flags().String(
+		konnectCommon.RegionFlagName, "",
 		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 			konnectCommon.BaseURLFlagName, konnectCommon.RegionConfigPath),
@@ -104,7 +105,8 @@ Setting this value overrides tokens obtained from the login command.
 		konnectCommon.RequestPageSizeFlagName,
 		konnectCommon.DefaultRequestPageSize,
 		fmt.Sprintf(`Max number of results to include per response page.
-- Config path: [ %s ]`, konnectCommon.RequestPageSizeConfigPath))
+- Config path: [ %s ]`, konnectCommon.RequestPageSizeConfigPath),
+	)
 
 	cmd.PreRunE = func(c *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(c, args)
@@ -113,26 +115,18 @@ Setting this value overrides tokens obtained from the login command.
 			return err
 		}
 
-		if f := c.Flags().Lookup(konnectCommon.BaseURLFlagName); f != nil {
-			if err := cfg.BindFlag(konnectCommon.BaseURLConfigPath, f); err != nil {
+		bindings := []struct{ flag, configPath string }{
+			{konnectCommon.BaseURLFlagName, konnectCommon.BaseURLConfigPath},
+			{konnectCommon.RegionFlagName, konnectCommon.RegionConfigPath},
+			{konnectCommon.PATFlagName, konnectCommon.PATConfigPath},
+			{konnectCommon.RequestPageSizeFlagName, konnectCommon.RequestPageSizeConfigPath},
+		}
+		for _, b := range bindings {
+			if err := bindFlag(cfg, c.Flags(), b.flag, b.configPath); err != nil {
 				return err
 			}
 		}
-
-		if f := c.Flags().Lookup(konnectCommon.RegionFlagName); f != nil {
-			if err := cfg.BindFlag(konnectCommon.RegionConfigPath, f); err != nil {
-				return err
-			}
-		}
-
-		if f := c.Flags().Lookup(konnectCommon.PATFlagName); f != nil {
-			if err := cfg.BindFlag(konnectCommon.PATConfigPath, f); err != nil {
-				return err
-			}
-		}
-
-		return cfg.BindFlag(konnectCommon.RequestPageSizeConfigPath,
-			c.Flags().Lookup(konnectCommon.RequestPageSizeFlagName))
+		return nil
 	}
 
 	return cmd
@@ -165,7 +159,8 @@ func runTerraformDump(helper cmdpkg.Helper, opts tfImportOptions) error {
 	for _, resource := range opts.resources {
 		requestPageSize := int64(cfg.GetIntOrElse(
 			konnectCommon.RequestPageSizeConfigPath,
-			konnectCommon.DefaultRequestPageSize))
+			konnectCommon.DefaultRequestPageSize,
+		))
 
 		switch resource {
 		case "portals":
@@ -179,7 +174,7 @@ func runTerraformDump(helper cmdpkg.Helper, opts tfImportOptions) error {
 			); err != nil {
 				return err
 			}
-		case "apis":
+		case resourceAPIs:
 			if err := dumpAPIs(
 				helper.GetContext(),
 				writer,
@@ -358,7 +353,12 @@ func dumpPortals(
 			}
 		}
 
-		return true, nil
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: res.ListPortalsResponse.Meta.Page.Total,
+		}
+		return params.hasMorePages(), nil
 	})
 }
 
@@ -913,7 +913,7 @@ func dumpControlPlanes(
 		if filter.name != "" {
 			op, val := parseFilterName(filter.name)
 			nameFilter := &kkComps.ControlPlaneFilterParametersName{}
-			if op == "contains" {
+			if op == filterOpContains {
 				nameFilter.Contains = &val
 			} else {
 				nameFilter.Eq = &val

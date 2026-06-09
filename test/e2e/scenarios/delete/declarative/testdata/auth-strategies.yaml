@@ -1,0 +1,11 @@
+application_auth_strategies:
+  - ref: delete-test-key-auth
+    name: "delete-test-key-auth"
+    display_name: "Delete Test Key Auth"
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-API-Key
+    kongctl:
+      namespace: delete-declarative-e2e

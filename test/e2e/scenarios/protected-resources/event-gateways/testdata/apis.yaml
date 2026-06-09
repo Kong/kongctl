@@ -1,0 +1,27 @@
+# Protected Resources Test Data
+# Tests the protected metadata flag for preventing accidental deletions
+
+_defaults:
+  kongctl:
+    # Note: NOT setting protected in defaults
+    # We want explicit control per-resource for testing
+    namespace: default
+
+apis:
+  # Protected API - cannot be deleted/modified until unprotected
+  - ref: customer-api
+    name: "Customer API"
+    description: "Production API for customer data"
+    version: "1.0.0"
+    kongctl:
+      protected: true
+      namespace: default
+
+  # Unprotected API - can be deleted without protection flag removal
+  - ref: test-api
+    name: "Test API"
+    description: "Non-critical test API"
+    version: "1.0.0"
+    kongctl:
+      protected: false
+      namespace: default

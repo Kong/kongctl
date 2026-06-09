@@ -1,0 +1,7 @@
+organization:
+  teams:
+    - ref: delete-test-team-alpha
+      name: "delete-test-team-alpha"
+      description: "Alpha team for declarative delete e2e"
+      kongctl:
+        namespace: delete-declarative-e2e

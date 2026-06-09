@@ -1,0 +1,116 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: dump-dcr-provider-e2e
+  dcrProviderName: e2e-dump-dcr-http
+  dcrProviderIssuer: https://e2e-dump-dcr.example.com/oauth2/default
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-sync-bootstrap
+    commands:
+      - name: 000-sync-bootstrap
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+  - name: 002-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-dcr-providers
+        run:
+          - dump
+          - declarative
+          - "--resources=dcr_providers"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - name: namespace-in-defaults
+            select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - name: dcr-providers-length
+            select: dcr_providers
+            expect:
+              fields:
+                "length(@)": 1
+          - name: dcr-provider-fields
+            select: "dcr_providers[?name=='{{ .vars.dcrProviderName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.dcrProviderName }}"
+                provider_type: http
+                issuer: "{{ .vars.dcrProviderIssuer }}"
+                dcr_config.api_key: null
+
+      - name: 001-round-trip-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-delete-cleanup
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

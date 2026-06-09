@@ -8,6 +8,8 @@ vars:
   apiAlphaName: "delete-test-api-alpha"
   apiBetaName: "delete-test-api-beta"
   controlPlaneName: "delete-test-cp"
+  teamName: "delete-test-team-alpha"
+  authStrategyName: "delete-test-key-auth"
 
 defaults:
   mask:
@@ -36,6 +38,10 @@ steps:
           - "{{ .workdir }}/apis.yaml"
           - -f
           - "{{ .workdir }}/control-plane.yaml"
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
           - --auto-approve
         assertions:
           - select: plan.metadata
@@ -121,6 +127,26 @@ steps:
               fields:
                 name: "{{ .vars.controlPlaneName }}"
 
+      # Verify team exists
+      - name: 006-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamName }}"
+                description: "Alpha team for declarative delete e2e"
+
+      # Verify auth strategy exists
+      - name: 007-get-auth-strategies
+        run: ["get", "auth-strategies", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.authStrategyName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.authStrategyName }}"
+                display_name: "Delete Test Key Auth"
+
   # Step 2: Delete all resources using delete -f
   - name: 002-delete-resources
     commands:
@@ -133,6 +159,10 @@ steps:
           - "{{ .workdir }}/apis.yaml"
           - -f
           - "{{ .workdir }}/control-plane.yaml"
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
           - --auto-approve
         assertions:
           - select: plan.metadata
@@ -142,8 +172,12 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 4
-                by_action.DELETE: 4
+                total_changes: 6
+                by_action.DELETE: 6
+          - select: "plan.changes[?resource_type=='application_auth_strategy'] | [0]"
+            expect:
+              fields:
+                action: DELETE
           - select: summary
             expect:
               fields:
@@ -178,6 +212,22 @@ steps:
         run: ["get", "gateway", "control-planes", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.controlPlaneName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 003-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 004-get-auth-strategies
+        run: ["get", "auth-strategies", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.authStrategyName }}']"
             expect:
               fields:
                 "length(@)": 0

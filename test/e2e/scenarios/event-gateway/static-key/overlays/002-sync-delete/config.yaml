@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-static-key-test
+
+event_gateways:
+  - ref: egw-cp-for-static-key-test-ref
+    name: egw-cp-for-static-key-test-name
+    description: "EGW CP for Static Key Test"
+    static_keys: []

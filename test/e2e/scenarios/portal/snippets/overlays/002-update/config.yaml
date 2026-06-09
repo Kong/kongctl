@@ -1,0 +1,35 @@
+_defaults:
+  kongctl:
+    namespace: portal-snippets
+
+portals:
+  - ref: portal-snippets
+    name: portal-snippets
+    display_name: Portal Snippets E2E
+    description: Portal for testing snippet declarative lifecycle
+    kongctl:
+      namespace: portal-snippets
+    snippets:
+      - ref: snippet-banner
+        name: snippet-banner
+        title: "Updated Welcome Banner"
+        description: "An updated welcome banner with new styling."
+        visibility: "private"
+        status: "unpublished"
+        content: !file ./snippets/banner-updated.md
+
+      - ref: snippet-nav
+        name: snippet-nav
+        title: "Navigation"
+        description: "A navigation snippet for the guides section."
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/nav.md
+
+      - ref: snippet-toc
+        name: snippet-toc
+        title: "On This Page"
+        description: "Table of contents snippet for sidebar display."
+        visibility: "private"
+        status: "unpublished"
+        content: !file ./snippets/toc.md

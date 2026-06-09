@@ -24,7 +24,7 @@ func TestNewSyncCmd(t *testing.T) {
 
 	// Test basic command properties
 	assert.Equal(t, "sync", cmd.Use, "Command use should be 'sync'")
-	assert.Contains(t, cmd.Short, "Full state synchronization",
+	assert.Contains(t, cmd.Short, "Synchronize declarative configuration",
 		"Short description should mention synchronization")
 	assert.Contains(t, cmd.Long, "Synchronize configuration with Kong Konnect",
 		"Long description should mention synchronize")
@@ -50,11 +50,13 @@ func TestSyncCmdHelpText(t *testing.T) {
 	}
 
 	// Test that help text contains expected content
-	assert.Contains(t, cmd.Short, "Full state synchronization", "Short should mention synchronization")
+	assert.Contains(t, cmd.Short, "Synchronize declarative configuration", "Short should mention synchronization")
 	assert.Contains(t, cmd.Long, "Synchronize configuration", "Long should mention configuration")
 	assert.Contains(t, cmd.Example, "-f", "Examples should show -f flag usage")
-	assert.Contains(t, cmd.Example, "--dry-run", "Examples should show dry-run option")
-	assert.Contains(t, cmd.Example, "help sync", "Examples should mention extended help")
+	assert.Contains(t, cmd.Example, "sync konnect -f api.yaml", "Examples should show explicit Konnect usage")
+	assert.Contains(t, cmd.Example, "--plan plan.json --auto-approve", "Examples should show plan execution")
+	assert.NotContains(t, cmd.Example, "sync -f ./configs/ --dry-run", "Examples should not use stale dry-run example")
+	assert.NotContains(t, cmd.Example, "help sync", "Examples should come from Konnect declarative command")
 }
 
 func TestSyncCmd_Flags(t *testing.T) {
@@ -75,7 +77,7 @@ func TestSyncCmd_Flags(t *testing.T) {
 	fileFlag := konnectCmd.Flags().Lookup("filename")
 	assert.NotNil(t, fileFlag, "Should have --filename flag")
 	assert.Equal(t, "f", fileFlag.Shorthand, "Should have -f shorthand")
-	assert.Contains(t, fileFlag.Usage, "Filename", "Usage should mention filename")
+	assert.Contains(t, fileFlag.Usage, "URL", "Usage should mention URL sources")
 
 	autoApproveFlag := konnectCmd.Flags().Lookup("auto-approve")
 	assert.NotNil(t, autoApproveFlag, "Should have --auto-approve flag")

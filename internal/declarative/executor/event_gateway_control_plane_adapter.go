@@ -32,10 +32,10 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) MapCreateFields(_ context.
 	create.Name = common.ExtractResourceName(fields)
 
 	// Map optional fields
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
+	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
 
 	// Handle labels
-	userLabels := labels.ExtractLabelsFromField(fields["labels"])
+	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	labelsMap := labels.BuildCreateLabels(userLabels, namespace, protection)
 
 	// Convert to SDK format
@@ -57,11 +57,11 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) MapUpdateFields(
 	// Only include changed fields
 	for field, value := range fields {
 		switch field {
-		case "name":
+		case planner.FieldName:
 			if name, ok := value.(string); ok {
 				update.Name = &name
 			}
-		case "description":
+		case planner.FieldDescription:
 			if desc, ok := value.(string); ok {
 				update.Description = &desc
 			}
@@ -69,7 +69,7 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) MapUpdateFields(
 	}
 
 	// Handle labels
-	desiredLabels := labels.ExtractLabelsFromField(fields["labels"])
+	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	if desiredLabels != nil {
 		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
 		if plannerCurrentLabels != nil {
@@ -145,7 +145,7 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) ResourceType() string {
 }
 
 func (a *EventGatewayControlPlaneControlPlaneAdapter) RequiredFields() []string {
-	return []string{"name"}
+	return []string{planner.FieldName}
 }
 
 func (a *EventGatewayControlPlaneControlPlaneAdapter) SupportsUpdate() bool {
