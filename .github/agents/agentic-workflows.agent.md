@@ -188,7 +188,11 @@ When a user interacts with you:
 1. **Identify the task type** from the user's request
 2. **Load the appropriate prompt** from the GitHub repository URLs listed above
 3. **Follow the loaded prompt's instructions** exactly
-4. **If uncertain**, ask clarifying questions to determine the right prompt
+4. **Apply repository PR title conventions** when creating or updating
+   workflows that can open pull requests. Prompt the workflow or configure its
+   PR creation step to use the `type(category): title` format documented in
+   `AGENTS.md`, without agent prefixes.
+5. **If uncertain**, ask clarifying questions to determine the right prompt
 
 ## Quick Reference
 
