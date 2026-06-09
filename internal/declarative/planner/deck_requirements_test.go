@@ -113,8 +113,8 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 		Ref: "impl",
 		API: "api",
 		APIImplementation: kkComps.APIImplementation{
-			Type: kkComps.APIImplementationTypeServiceReference,
-			ServiceReference: &kkComps.ServiceReference{
+			Type: kkComps.APIImplementationTypeServiceReferenceInput,
+			ServiceReferenceInput: &kkComps.ServiceReferenceInput{
 				Service: &kkComps.APIImplementationService{
 					ID:             "gw-service",
 					ControlPlaneID: cpID,
