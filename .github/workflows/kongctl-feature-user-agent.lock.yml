@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"91eac2be1397310c1026ca9a42ed13a2afcb62c62457db76e6e5225e0ce8a8d5","compiler_version":"v0.74.4","strict":true,"agent_id":"copilot","agent_model":"claude-opus-4.6"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b661747f620ba54ae008d1544b3166ad98a494e205d4ce29e5c407a10f89614a","compiler_version":"v0.74.4","strict":true,"agent_id":"copilot","agent_model":"claude-opus-4.6"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","KONGCTL_FEATURE_USER_AGENT_KONNECT_PAT"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"d3abfe96a194bce3a523ed2093ddedd5704cdf62","version":"v0.74.4"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.46","digest":"sha256:11c8c313d8ac37746223800ecf70962230feb12564692681e1dd57c234ee4ac1","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.46@sha256:11c8c313d8ac37746223800ecf70962230feb12564692681e1dd57c234ee4ac1"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.46","digest":"sha256:d62d7d60883f748bd2ec6349829c3662c2533eb896328962735ee7f87cce2175","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.46@sha256:d62d7d60883f748bd2ec6349829c3662c2533eb896328962735ee7f87cce2175"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.46","digest":"sha256:70c5b1ae3e73c0d689ca7bd4f4f8aee9e1b332206a5240629d21669824f93089","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.46@sha256:70c5b1ae3e73c0d689ca7bd4f4f8aee9e1b332206a5240629d21669824f93089"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.9","digest":"sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4","digest":"sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.4@sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -185,21 +185,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_db51affa71cd7b56_EOF'
+          cat << 'GH_AW_PROMPT_9862a3e397dae1aa_EOF'
           <system>
-          GH_AW_PROMPT_db51affa71cd7b56_EOF
+          GH_AW_PROMPT_9862a3e397dae1aa_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_db51affa71cd7b56_EOF'
+          cat << 'GH_AW_PROMPT_9862a3e397dae1aa_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_db51affa71cd7b56_EOF
+          GH_AW_PROMPT_9862a3e397dae1aa_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_db51affa71cd7b56_EOF'
+          cat << 'GH_AW_PROMPT_9862a3e397dae1aa_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -231,12 +231,12 @@ jobs:
             - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
           </github-context>
           
-          GH_AW_PROMPT_db51affa71cd7b56_EOF
+          GH_AW_PROMPT_9862a3e397dae1aa_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_db51affa71cd7b56_EOF'
+          cat << 'GH_AW_PROMPT_9862a3e397dae1aa_EOF'
           </system>
           {{#runtime-import .github/workflows/kongctl-feature-user-agent.md}}
-          GH_AW_PROMPT_db51affa71cd7b56_EOF
+          GH_AW_PROMPT_9862a3e397dae1aa_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -475,9 +475,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_798de429809846d0_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_063308e207c1c4ba_EOF'
           {"create_issue":{"expires":720,"labels":["automation","agentic-workflows","konnect"],"max":1,"title_prefix":"[agent-eval] "},"create_report_incomplete_issue":{},"mentions":{"enabled":false},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"false"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_798de429809846d0_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_063308e207c1c4ba_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -685,7 +685,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_bcf1055975ddc379_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_c4769004299c5a7b_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -726,7 +726,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_bcf1055975ddc379_EOF
+          GH_AW_MCP_CONFIG_c4769004299c5a7b_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -952,6 +952,9 @@ jobs:
           name: cache-memory
           include-hidden-files: true
           path: /tmp/gh-aw/cache-memory
+      - if: always()
+        name: Redact UUIDs in sanitized feature-user artifacts
+        run: "set -euo pipefail\n\nevidence_dir=\"/tmp/gh-aw/kongctl-feature-user-agent/sanitized\"\nif [ ! -d \"${evidence_dir}\" ]; then\n  exit 0\nfi\n\nuuid_pattern='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-'\nuuid_pattern=\"${uuid_pattern}\"'[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'\nuuid_pattern=\"${uuid_pattern}\"'[0-9a-fA-F]{12}'\n\nfind \"${evidence_dir}\" -type f \\\n  \\( -name '*.md' -o -name '*.json' -o -name '*.jsonl' -o \\\n    -name '*.txt' \\) \\\n  -print0 |\nwhile IFS= read -r -d '' file; do\n  perl -0pi -e \"s/${uuid_pattern}/[REDACTED_ID]/g\" \"${file}\"\ndone\n"
       - if: always()
         name: Append feature-user evaluation summary
         run: "set -euo pipefail\n\nevidence_dir=\"/tmp/gh-aw/kongctl-feature-user-agent/sanitized\"\nsummary_file=\"${evidence_dir}/evaluation-summary.md\"\n\n{\n  echo \"## User Agent Eval\"\n  echo\n  echo \"- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"\n  echo \"- Sanitized artifacts: \\`kongctl-feature-user-agent-sanitized\\`\"\n  echo\n} >> \"${GITHUB_STEP_SUMMARY}\"\n\nif [ ! -f \"${summary_file}\" ]; then\n  {\n    echo \"No sanitized evaluation summary was produced.\"\n    echo\n    echo \"Check the agent logs and sanitized artifact upload for details.\"\n  } >> \"${GITHUB_STEP_SUMMARY}\"\n  exit 0\nfi\n\nunsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'\nif grep -E -q \"${unsafe_pattern}\" \"${summary_file}\"; then\n  echo \"::error::Evaluation summary contains values that look unsafe. Redact or omit them before upload.\"\n  exit 1\nfi\n\ncat \"${summary_file}\" >> \"${GITHUB_STEP_SUMMARY}\"\n"
