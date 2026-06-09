@@ -226,7 +226,73 @@ steps:
         expectFailure:
           contains: "mutually exclusive"
 
-  - name: 010-delete-cleanup
+  # ── filter-id: portal by UUID ────────────────────────────────
+  - name: 010-dump-filter-id-portal
+    skipInputs: true
+    commands:
+      - name: 000-dump-portal-by-id
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - "--filter-id={{ .vars.portalID }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: exactly-one-portal
+            select: portals
+            expect:
+              fields:
+                "length(@)": 1
+          - name: correct-portal-name
+            select: "portals[0]"
+            expect:
+              fields:
+                name: "My First Portal"
+          - name: no-extra-portals
+            select: "portals[?name!='My First Portal'] | [0]"
+            expect:
+              fields:
+                name: null
+
+  # ── filter-id: auth strategy by UUID ─────────────────────────
+  - name: 011-dump-filter-id-auth-strategy
+    skipInputs: true
+    commands:
+      - name: 000-dump-auth-strategy-by-id
+        run:
+          - dump
+          - declarative
+          - "--resources=application_auth_strategies"
+          - "--filter-id={{ .vars.keyAuthID }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: exactly-one-strategy
+            select: application_auth_strategies
+            expect:
+              fields:
+                "length(@)": 1
+          - name: correct-strategy-name
+            select: "application_auth_strategies[0]"
+            expect:
+              fields:
+                name: "key-auth"
+
+  # ── tf-import filter-id smoke test ───────────────────────────
+  - name: 012-tf-import-filter-id
+    skipInputs: true
+    commands:
+      - name: 000-tf-import-portal-by-id
+        run:
+          - dump
+          - tf-import
+          - "--resources=portals"
+          - "--filter-id={{ .vars.portalID }}"
+        outputFormat: none
+        parseAs: raw
+
+  - name: 013-delete-cleanup
     commands:
       - name: 000-delete
         run:
