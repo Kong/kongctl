@@ -155,6 +155,7 @@ func sourcesForCommand(
 		saveDirSet,
 		saveForce,
 		fetchOptions,
+		logger,
 	)
 	if err != nil {
 		return nil, loader.URLFetchOptions{}, err
@@ -224,6 +225,7 @@ func prepareSavedRemoteDeclarativeSources(
 	saveDirSet bool,
 	saveForce bool,
 	fetchOptions loader.URLFetchOptions,
+	logger *slog.Logger,
 ) ([]loader.Source, error) {
 	if !saveDirSet {
 		return sources, nil
@@ -247,7 +249,9 @@ func prepareSavedRemoteDeclarativeSources(
 			return nil, fmt.Errorf("failed to save remote source to %q: %w", target.path, err)
 		}
 
-		fmt.Fprintf(command.ErrOrStderr(), "Saved remote source to: %s\n", target.path)
+		if logger != nil {
+			logger.Info("saved remote source", "path", target.path)
+		}
 		savedSources[target.sourceIndex] = loader.Source{Path: target.path, Type: loader.SourceTypeFile}
 	}
 

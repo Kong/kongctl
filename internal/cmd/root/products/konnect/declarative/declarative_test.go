@@ -32,6 +32,10 @@ func testDeclarativeLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+func testDeclarativeLoggerTo(w io.Writer) *slog.Logger {
+	return slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{Level: slog.LevelInfo}))
+}
+
 func TestMaxConcurrencyFromCmd(t *testing.T) {
 	t.Run("uses default value when flag is not set", func(t *testing.T) {
 		cmd := &cobra.Command{}
@@ -288,6 +292,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		cmd := newDeclarativeApplyCmd()
 		var stderr bytes.Buffer
 		cmd.SetErr(&stderr)
+		var logs bytes.Buffer
 
 		saveDir := t.TempDir()
 		savePath := filepath.Join(saveDir, "config.yaml")
@@ -298,7 +303,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 			"",
 			[]string{server.URL + "/config.yaml"},
 			testDeclarativeConfig(),
-			testDeclarativeLogger(),
+			testDeclarativeLoggerTo(&logs),
 		)
 		require.NoError(t, err)
 		require.Len(t, sources, 1)
@@ -308,7 +313,9 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		content, err := os.ReadFile(savePath)
 		require.NoError(t, err)
 		assert.Equal(t, "portals: []\n", string(content))
-		assert.Contains(t, stderr.String(), "Saved remote source to: "+savePath)
+		assert.Empty(t, stderr.String())
+		assert.Contains(t, logs.String(), "saved remote source")
+		assert.Contains(t, logs.String(), "path="+savePath)
 	})
 
 	t.Run("saves multiple URL sources and returns saved file sources", func(t *testing.T) {
@@ -353,8 +360,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		content, err = os.ReadFile(apiPath)
 		require.NoError(t, err)
 		assert.Equal(t, "apis: []\n", string(content))
-		assert.Contains(t, stderr.String(), "Saved remote source to: "+portalPath)
-		assert.Contains(t, stderr.String(), "Saved remote source to: "+apiPath)
+		assert.Empty(t, stderr.String())
 	})
 
 	t.Run("saves URL sources and preserves local sources", func(t *testing.T) {
