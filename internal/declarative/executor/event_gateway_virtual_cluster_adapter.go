@@ -516,7 +516,7 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 				return nil, fmt.Errorf("authentication[%d].algorithm is required for sasl_scram", i)
 			}
 			saslScram := kkComps.VirtualClusterAuthenticationSaslScram{
-				Algorithm: kkComps.VirtualClusterAuthenticationSaslScramAlgorithm(algorithm),
+				Algorithm: kkComps.Algorithm(algorithm),
 			}
 
 			if fetchField, ok := authMap["fetch_kong_identity_principal"]; ok {

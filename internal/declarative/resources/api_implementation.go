@@ -49,10 +49,10 @@ func (i APIImplementationResource) GetMoniker() string {
 }
 
 func (i APIImplementationResource) getService() *kkComps.APIImplementationService {
-	if i.ServiceReference == nil {
+	if i.ServiceReferenceInput == nil {
 		return nil
 	}
-	return i.ServiceReference.GetService()
+	return i.ServiceReferenceInput.GetService()
 }
 
 // GetDependencies returns references to other resources this API implementation depends on
