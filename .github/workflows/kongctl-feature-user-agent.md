@@ -2,7 +2,8 @@
 name: User Agent Eval
 description: |
   Runs a scheduled or manual feature-user evaluation of one advertised kongctl
-  workflow against a disposable Konnect org and files actionable friction only.
+  workflow against a disposable Konnect org, filing actionable friction or
+  publishing successful evaluations as expiring discussions.
 on:
   schedule:
     # GitHub schedules are UTC-only. 01:00 UTC Tuesday-Saturday maps to
@@ -57,6 +58,16 @@ safe-outputs:
       - konnect
     expires: 30d
     max: 1
+  create-discussion:
+    title-prefix: "[agent-eval] "
+    category: "General"
+    labels:
+      - automation
+      - agentic-workflows
+      - konnect
+    expires: 30d
+    max: 1
+    fallback-to-issue: false
 pre-agent-steps:
   - name: Build kongctl and reset feature-user org
     env:
@@ -168,7 +179,7 @@ post-steps:
         echo "::error::Sanitized artifacts contain values that look unsafe. Redact or omit them before upload."
         exit 1
       fi
-  - name: Hydrate replay prompt into created issue safe output
+  - name: Hydrate replay prompt into final report safe output
     if: always()
     run: |
       set -euo pipefail
@@ -182,7 +193,7 @@ post-steps:
 
       unsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'
       if grep -E -q "${unsafe_pattern}" "${replay_prompt}"; then
-        echo "::error::Replay prompt contains values that look unsafe. Redact or omit them before issue creation."
+        echo "::error::Replay prompt contains values that look unsafe. Redact or omit them before safe output creation."
         exit 1
       fi
 
@@ -193,7 +204,7 @@ post-steps:
       const replayPromptPath = "/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md";
       const artifactPath = replayPromptPath;
       const maxInlinePromptLength = 30000;
-      const maxIssueBodyLength = 64000;
+      const maxBodyLength = 64000;
 
       const data = JSON.parse(fs.readFileSync(agentOutputPath, "utf8"));
       const rawReplayPrompt = fs.readFileSync(replayPromptPath, "utf8").trim();
@@ -208,7 +219,7 @@ post-steps:
 
         return `${rawReplayPrompt.slice(0, maxLength).trimEnd()}
 
-      [Replay prompt truncated in issue; full sanitized prompt is available at ${artifactPath}.]`;
+      [Replay prompt truncated in safe output; full sanitized prompt is available at ${artifactPath}.]`;
       }
 
       function markdownFenceFor(content) {
@@ -265,17 +276,17 @@ post-steps:
         }
 
         const hydrated = buildHydratedBody(maxInlinePromptLength);
-        if (hydrated.length <= maxIssueBodyLength) {
+        if (hydrated.length <= maxBodyLength) {
           return hydrated;
         }
 
-        const overflow = hydrated.length - maxIssueBodyLength;
+        const overflow = hydrated.length - maxBodyLength;
         const smallerPromptLength = Math.max(1000, maxInlinePromptLength - overflow - 500);
 
         return buildHydratedBody(smallerPromptLength);
       }
 
-      function createIssueArgs(value) {
+      function finalReportArgs(value) {
         if (!value || typeof value !== "object" || Array.isArray(value)) {
           return undefined;
         }
@@ -284,9 +295,16 @@ post-steps:
           return value.create_issue;
         }
 
+        if (value.create_discussion && typeof value.create_discussion === "object") {
+          return value.create_discussion;
+        }
+
         const toolName = String(value.name || value.tool || value.tool_name || value.type || "").toLowerCase();
-        const isCreateIssue = toolName === "create_issue" || toolName.endsWith(".create_issue");
-        if (!isCreateIssue) {
+        const isFinalReport = toolName === "create_issue" ||
+          toolName.endsWith(".create_issue") ||
+          toolName === "create_discussion" ||
+          toolName.endsWith(".create_discussion");
+        if (!isFinalReport) {
           return undefined;
         }
 
@@ -309,7 +327,7 @@ post-steps:
           return;
         }
 
-        const args = createIssueArgs(value);
+        const args = finalReportArgs(value);
         if (args && typeof args.body === "string") {
           const nextBody = hydrateBody(args.body);
           if (nextBody !== args.body) {
@@ -327,7 +345,7 @@ post-steps:
 
       if (hydrated > 0) {
         fs.writeFileSync(agentOutputPath, `${JSON.stringify(data, null, 2)}\n`);
-        console.log(`Hydrated replay prompt into ${hydrated} create_issue safe output item(s).`);
+        console.log(`Hydrated replay prompt into ${hydrated} final report safe output item(s).`);
       }
       NODE
   - name: Upload sanitized feature-user artifacts
@@ -347,19 +365,23 @@ You are a feature user evaluating `kongctl` as a command-line product.
 
 Your job is to choose one advertised `kongctl` feature workflow, exercise it
 against the disposable Konnect org prepared for this run, capture sanitized
-evidence, and file feedback only when the friction is concrete and
-reproducible.
+evidence, and either file concrete reproducible friction or publish a
+successful evaluation report.
 
 Emit exactly one completion safe output:
 
 - Use `create_issue` when you found actionable friction.
-- Use `noop` when no actionable friction is found.
+- Use `create_discussion` when the evaluated workflow succeeds and you have a
+  useful sanitized success report.
+- Use `noop` only when no meaningful report can be produced, the result is
+  incomplete or ambiguous, or the workflow should intentionally stay silent.
 
-Do not emit more than one `create_issue` or `noop`. Do not use GitHub write
-APIs directly.
+Do not emit more than one `create_issue`, `create_discussion`, or `noop`. Do
+not use GitHub write APIs directly.
 
-Non-issue observations are allowed, but they are not safe outputs. Write them
-only to the sanitized observation artifact described below, then emit `noop`.
+Non-issue observations are allowed, but they are supporting evidence, not a
+separate safe output. Write them only to the sanitized observation artifact
+described below, then include them in the final report decision.
 
 ## Runtime Context
 
@@ -410,7 +432,10 @@ dedicated Konnect org with the existing e2e reset helper.
   feedback.
 - Attempt cleanup when created resources are easy to identify.
 - File an issue only for concrete, reproducible friction.
-- Emit `noop` when no actionable friction is found.
+- Publish a discussion when the evaluated workflow succeeds and the evidence is
+  meaningful.
+- Emit `noop` only when no meaningful report can be produced, the result is
+  incomplete or ambiguous, or the workflow should intentionally stay silent.
 
 ## Persistent State
 
@@ -430,7 +455,7 @@ Use this schema:
   "recent_exercises": [
     {
       "title": "stable workflow title",
-      "result": "create_issue|noop",
+      "result": "create_issue|create_discussion|noop",
       "run_id": "github run id",
       "selected_at": "ISO-8601 UTC timestamp"
     }
@@ -544,6 +569,15 @@ enough for a product issue. Use these sections:
 - `Suggested Follow-Up`
 - `Safe Output`
 
+In `evaluation-summary.md` and any successful evaluation discussion, include a
+`Model Adaptation / Recovery` section that answers:
+
+- Did the first attempted command work?
+- Did you inspect help output and change commands?
+- Did you retry with a different resource, namespace, flag, or output format?
+- Did you encounter expected friction but recover successfully?
+- Were failed commands user-facing product friction or normal exploration?
+
 ## Evaluation Process
 
 1. Initialize and read the persistent state file.
@@ -574,7 +608,7 @@ enough for a product issue. Use these sections:
    with these sections:
    - `Agent Runtime`: the engine, model, `GH_AW_VERSION` value when available,
      run URL, and note that gh-aw appends exact workflow engine/version metadata
-     to created issues.
+     to created issues or discussions.
    - `Recent Code Signal`: changed paths considered and mapped workflow, or
      why seeded fallback was used.
    - `Run Seed`: the seed value and candidate count.
@@ -584,6 +618,10 @@ enough for a product issue. Use these sections:
    - `Why This Workflow`: which input assets advertised it, and how the
      run-seeded selection chose it.
    - `Commands Attempted`: command shapes and exit codes.
+   - `Model Adaptation / Recovery`: whether the first command worked, what
+     changed after help output or failed attempts, whether alternate resources,
+     namespaces, flags, or formats were used, and whether failures represented
+     product friction or normal exploration.
    - `Depth Probe`: which probe ran, or why none fit.
    - `Observed Result`: what happened, including short sanitized excerpts.
    - `Success Criteria`: how you decided the workflow succeeded or failed.
@@ -593,12 +631,15 @@ enough for a product issue. Use these sections:
    - `Observation`: whether `observation-summary.md` was written, and why.
    - `Selected Use-Case Prompt`: the path to the replay prompt artifact and a
      compact excerpt that is useful for a future rerun.
-   - `Safe Output`: whether you emitted `create_issue` or `noop`, and why.
+   - `Safe Output`: whether you emitted `create_issue`, `create_discussion`,
+     or `noop`, and why.
 13. Update the persistent state file with the selected title, result, run ID,
    timestamp, and recent SHAs considered.
-14. Before final output, run a sanitization check over the issue body and every
-   file in the sanitized artifact directory. Rewrite or omit unsafe content.
-15. Emit exactly one safe output.
+14. Before final output, run a sanitization check over the safe output body and
+   every file in the sanitized artifact directory. Rewrite or omit unsafe
+   content.
+15. Emit exactly one safe output using the decision tree at the top of this
+    prompt.
 
 ## Selected Use-Case Replay Prompt
 
@@ -630,8 +671,8 @@ Exclude:
 
 ## Redaction Rules
 
-Do not include any of the following in GitHub issues, summaries, or uploaded
-artifacts:
+Do not include any of the following in GitHub issues, discussions, summaries,
+or uploaded artifacts:
 
 - Konnect PATs, bearer tokens, refresh tokens, API keys, cookies, auth headers,
   private keys, certificates, or signed URLs.
@@ -650,12 +691,12 @@ Use these masking conventions:
 - Replace org/account names or domains with `[REDACTED_ORG]`.
 - Keep generic command shapes and non-identifying error text.
 
-Immediately before any `create_issue`, `noop`, or artifact-producing file is
-finalized, review the issue body and sanitized artifact files for secrets,
-identity data, stable IDs, raw traces, and unsafe URLs. Rewrite or omit unsafe
-content rather than trying to preserve it.
+Immediately before any `create_issue`, `create_discussion`, `noop`, or
+artifact-producing file is finalized, review the safe output body and sanitized
+artifact files for secrets, identity data, stable IDs, raw traces, and unsafe
+URLs. Rewrite or omit unsafe content rather than trying to preserve it.
 
-## Issue Requirements
+## Final Output Requirements
 
 Only call `create_issue` for concrete, reproducible friction. The issue must
 include:
@@ -677,9 +718,37 @@ include:
 - Cleanup attempted and result.
 - Why this is actionable for maintainers.
 
-If the workflow is successful, the result is ambiguous, or the only observations
-are subjective preferences, call `noop` with a concise summary instead.
+Call `create_discussion` when the evaluated workflow succeeds and you have a
+meaningful sanitized success report. The discussion must include:
+
+- `Summary`: short outcome statement.
+- `Agent Runtime`: engine, model, `GH_AW_VERSION` when available, and run URL.
+- `Selected Use Case`: workflow title, why it was selected, and advertised
+  source from docs, help, or code signal.
+- `Replay Prompt`: compact sanitized excerpt from
+  `/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md`.
+- `Commands Attempted`: table with command shape, purpose, exit code, and
+  assessment.
+- `Model Adaptation / Recovery`: whether and how the model changed commands,
+  resources, namespace, flags, or output format after initial attempts.
+- `Depth Probe`: which probe ran and why.
+- `Observed Result`: what happened, including short sanitized excerpts when
+  useful.
+- `Success Criteria`: how success was determined.
+- `Cleanup`: resources created, cleanup command shape, and cleanup result.
+- `Artifacts`: references to `evaluation-summary.md`, `command-ledger.json`,
+  `selected-use-case-prompt.md`, and `observation-summary.md` when written.
+- `Safe Output Decision`: why this is a successful evaluation discussion rather
+  than an issue.
+
+The discussion body must be useful without downloading artifacts. Artifact
+references are supporting links, not a substitute for the required sections.
+
+If the workflow result is ambiguous, the evaluation is incomplete, no
+meaningful sanitized report can be produced, or the run should intentionally
+stay silent, call `noop` with a concise summary instead.
 
 If the workflow succeeds but reveals useful non-issue product feedback, write
 `observation-summary.md`, mention it in `evaluation-summary.md`, update the
-state file with result `noop`, and call `noop`.
+state file with result `create_discussion`, and include the observation in the
+discussion.
