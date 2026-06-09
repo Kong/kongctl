@@ -17,6 +17,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -47,6 +48,47 @@ type DetailContextProvider func(index int) any
 
 type RowLoader func(index int) (ChildView, error)
 
+// SelectionContext describes the currently highlighted row for selection actions.
+type SelectionContext struct {
+	ParentType string
+	Parent     any
+	Headers    []string
+	Row        table.Row
+	Label      string
+	Index      int
+}
+
+// SelectionActionResolver converts a highlighted row into an executable action.
+type SelectionActionResolver func(SelectionContext) (SelectionActionCommand, error)
+
+// SelectionActionRun executes a confirmed selection action.
+type SelectionActionRun func(SelectionActionValues) error
+
+// SelectionActionValues contains user-entered options collected by the action dialog.
+type SelectionActionValues struct {
+	OutputFile       string
+	DefaultNamespace string
+	IncludeChildren  bool
+}
+
+// SelectionActionCommand configures the modal prompt and execution callback for an action.
+type SelectionActionCommand struct {
+	Title               string
+	Label               string
+	DefaultOutputFile   string
+	DefaultNamespace    string
+	IncludeChildren     bool
+	IncludeChildrenText string
+	Run                 SelectionActionRun
+}
+
+// SelectionAction registers a keyboard action for the current row selection.
+type SelectionAction struct {
+	Key     string
+	Help    string
+	Resolve SelectionActionResolver
+}
+
 type config struct {
 	title         string
 	footer        string
@@ -73,6 +115,8 @@ type config struct {
 	childParentType string
 	detailContext   DetailContextProvider
 	childHelper     cmdpkg.Helper
+
+	selectionActions []SelectionAction
 }
 
 // PreviewRenderer allows injecting a synthetic preview above the table that
@@ -90,6 +134,7 @@ type requestKind int
 const (
 	requestKindRow requestKind = iota
 	requestKindDetail
+	requestKindAction
 )
 
 type pendingRequest struct {
@@ -117,6 +162,36 @@ type detailChildLoadedMsg struct {
 	child     ChildView
 	err       error
 	label     string
+}
+
+type selectionActionCompletedMsg struct {
+	requestID  string
+	label      string
+	outputFile string
+	err        error
+}
+
+type selectionActionFocus int
+
+const (
+	selectionActionFocusOutput selectionActionFocus = iota
+	selectionActionFocusNamespace
+	selectionActionFocusIncludeChildren
+)
+
+const (
+	selectionActionOutputLabel    = "Output file:"
+	selectionActionNamespaceLabel = "Default namespace:"
+)
+
+type selectionActionDialog struct {
+	action          SelectionAction
+	command         SelectionActionCommand
+	outputInput     textinput.Model
+	namespaceInput  textinput.Model
+	includeChildren bool
+	focus           selectionActionFocus
+	status          string
 }
 
 func newSpinnerModel(p theme.Palette) spinner.Model {
@@ -163,9 +238,14 @@ func (pr pendingRequest) inflightMessage() string {
 			label = "selection"
 		case requestKindDetail:
 			label = "detail"
+		case requestKindAction:
+			label = "action"
 		default:
 			label = "request"
 		}
+	}
+	if pr.kind == requestKindAction {
+		return fmt.Sprintf("Running %s...", label)
 	}
 	return fmt.Sprintf("Loading %s...", label)
 }
@@ -384,6 +464,16 @@ func WithTableStretch() Option {
 func WithProfileName(name string) Option {
 	return func(cfg *config) {
 		cfg.profileName = strings.TrimSpace(name)
+	}
+}
+
+// WithSelectionAction registers an action that can be invoked for the highlighted row.
+func WithSelectionAction(action SelectionAction) Option {
+	return func(cfg *config) {
+		if strings.TrimSpace(action.Key) == "" || action.Resolve == nil {
+			return
+		}
+		cfg.selectionActions = append(cfg.selectionActions, action)
 	}
 }
 
@@ -2382,47 +2472,49 @@ func (c *childViewState) labelForIndex(index int) string {
 }
 
 type bubbleModel struct {
-	table           table.Model
-	title           string
-	footer          string
-	detailFooter    string
-	showHelp        bool
-	toggleKey       string
-	quitKeys        []string
-	tableStyle      lipgloss.Style
-	detailStyle     lipgloss.Style
-	statusStyle     lipgloss.Style
-	selectedStyle   lipgloss.Style
-	profileName     string
-	useAltScreen    bool
-	hasDetail       bool
-	detail          *viewport.Model
-	detailRenderer  DetailRenderer
-	previewRenderer PreviewRenderer
-	palette         theme.Palette
-	windowWidth     int
-	windowHeight    int
-	detailStack     []detailView
-	rowCount        int
-	headers         []string
-	headerLookup    map[string]int
-	breadcrumbs     []string
-	parentType      string
-	detailContext   DetailContextProvider
-	helper          cmdpkg.Helper
-	statusMessage   string
-	rowLoader       RowLoader
-	searchActive    bool
-	searchBuffer    []rune
-	searchPrompt    string
-	searchDeadline  time.Time
-	spinner         spinner.Model
-	pendingRequest  pendingRequest
-	nextRequestID   int
-	nextDetailID    int
-	initCmd         tea.Cmd
-	availableThemes []string
-	themeIndex      int
+	table            table.Model
+	title            string
+	footer           string
+	detailFooter     string
+	showHelp         bool
+	toggleKey        string
+	quitKeys         []string
+	tableStyle       lipgloss.Style
+	detailStyle      lipgloss.Style
+	statusStyle      lipgloss.Style
+	selectedStyle    lipgloss.Style
+	profileName      string
+	useAltScreen     bool
+	hasDetail        bool
+	detail           *viewport.Model
+	detailRenderer   DetailRenderer
+	previewRenderer  PreviewRenderer
+	palette          theme.Palette
+	windowWidth      int
+	windowHeight     int
+	detailStack      []detailView
+	rowCount         int
+	headers          []string
+	headerLookup     map[string]int
+	breadcrumbs      []string
+	parentType       string
+	detailContext    DetailContextProvider
+	helper           cmdpkg.Helper
+	statusMessage    string
+	rowLoader        RowLoader
+	searchActive     bool
+	searchBuffer     []rune
+	searchPrompt     string
+	searchDeadline   time.Time
+	spinner          spinner.Model
+	pendingRequest   pendingRequest
+	nextRequestID    int
+	nextDetailID     int
+	initCmd          tea.Cmd
+	availableThemes  []string
+	themeIndex       int
+	selectionActions []SelectionAction
+	actionDialog     *selectionActionDialog
 }
 
 func newBubbleModel(
@@ -2453,37 +2545,38 @@ func newBubbleModel(
 	availableThemeNames := theme.Available()
 
 	m := &bubbleModel{
-		table:           tbl,
-		title:           cfg.title,
-		footer:          cfg.footer,
-		detailFooter:    "Press enter to select or copy · esc/backspace to go back · arrows/j/k navigate",
-		toggleKey:       cfg.toggleHelpKey,
-		quitKeys:        cfg.quitKeys,
-		tableStyle:      tableStyle,
-		detailStyle:     detailStyle,
-		statusStyle:     statusStyle,
-		selectedStyle:   selectedStyle,
-		profileName:     strings.TrimSpace(cfg.profileName),
-		useAltScreen:    true,
-		hasDetail:       cfg.hasDetail,
-		detailRenderer:  cfg.detailRenderer,
-		previewRenderer: previewRenderer,
-		palette:         palette,
-		windowWidth:     initialWidth,
-		windowHeight:    initialHeight,
-		rowCount:        rowCount,
-		headers:         append([]string(nil), headers...),
-		headerLookup:    buildHeaderLookup(headers),
-		breadcrumbs:     []string{rootLabel},
-		parentType:      parentType,
-		detailContext:   cfg.detailContext,
-		helper:          cfg.childHelper,
-		rowLoader:       cfg.rowLoader,
-		spinner:         newSpinnerModel(palette),
-		nextRequestID:   1,
-		nextDetailID:    1,
-		availableThemes: availableThemeNames,
-		themeIndex:      themeIndexOf(availableThemeNames, palette.Name),
+		table:            tbl,
+		title:            cfg.title,
+		footer:           cfg.footer,
+		detailFooter:     "Press enter to select or copy · esc/backspace to go back · arrows/j/k navigate",
+		toggleKey:        cfg.toggleHelpKey,
+		quitKeys:         cfg.quitKeys,
+		tableStyle:       tableStyle,
+		detailStyle:      detailStyle,
+		statusStyle:      statusStyle,
+		selectedStyle:    selectedStyle,
+		profileName:      strings.TrimSpace(cfg.profileName),
+		useAltScreen:     true,
+		hasDetail:        cfg.hasDetail,
+		detailRenderer:   cfg.detailRenderer,
+		previewRenderer:  previewRenderer,
+		palette:          palette,
+		windowWidth:      initialWidth,
+		windowHeight:     initialHeight,
+		rowCount:         rowCount,
+		headers:          append([]string(nil), headers...),
+		headerLookup:     buildHeaderLookup(headers),
+		breadcrumbs:      []string{rootLabel},
+		parentType:       parentType,
+		detailContext:    cfg.detailContext,
+		helper:           cfg.childHelper,
+		rowLoader:        cfg.rowLoader,
+		spinner:          newSpinnerModel(palette),
+		nextRequestID:    1,
+		nextDetailID:     1,
+		availableThemes:  availableThemeNames,
+		themeIndex:       themeIndexOf(availableThemeNames, palette.Name),
+		selectionActions: append([]SelectionAction(nil), cfg.selectionActions...),
 	}
 
 	if cfg.hasDetail && cfg.detailViewport != nil {
@@ -2680,6 +2773,248 @@ func (m *bubbleModel) previewDetailContent(index int) string {
 
 func (m *bubbleModel) inDetailMode() bool {
 	return len(m.detailStack) > 0
+}
+
+func (m *bubbleModel) currentSelection() (SelectionContext, bool) {
+	if m.inDetailMode() {
+		detail := &m.detailStack[len(m.detailStack)-1]
+		if detail.child != nil && detail.table != nil {
+			index := detail.table.Cursor()
+			if index < 0 || index >= len(detail.child.rows) {
+				return SelectionContext{}, false
+			}
+			parent := detail.parent
+			if detail.child.context != nil {
+				parent = detail.child.context(index)
+			}
+			return SelectionContext{
+				ParentType: detail.child.parentType,
+				Parent:     parent,
+				Headers:    append([]string(nil), detail.child.headers...),
+				Row:        append(table.Row(nil), detail.child.rows[index]...),
+				Label:      detail.child.labelForIndex(index),
+				Index:      index,
+			}, true
+		}
+
+		return SelectionContext{
+			ParentType: detail.parentType,
+			Parent:     detail.parent,
+			Label:      detail.label,
+			Index:      -1,
+		}, true
+	}
+
+	rows := m.table.Rows()
+	index := m.table.Cursor()
+	if index < 0 || index >= len(rows) {
+		return SelectionContext{}, false
+	}
+
+	var parent any
+	if m.detailContext != nil {
+		parent = m.detailContext(index)
+	}
+
+	return SelectionContext{
+		ParentType: m.parentType,
+		Parent:     parent,
+		Headers:    append([]string(nil), m.headers...),
+		Row:        append(table.Row(nil), rows[index]...),
+		Label:      m.labelForIndex(index),
+		Index:      index,
+	}, true
+}
+
+func (m *bubbleModel) openSelectionAction(action SelectionAction) {
+	if m.pendingRequest.active {
+		m.setStatus("Wait for the current request to finish.")
+		return
+	}
+
+	selection, ok := m.currentSelection()
+	if !ok {
+		m.setStatus("No selection available.")
+		return
+	}
+
+	command, err := action.Resolve(selection)
+	if err != nil {
+		m.setStatus(err.Error())
+		return
+	}
+	if command.Run == nil {
+		m.setStatus("Selection action is not available.")
+		return
+	}
+
+	outputInput := textinput.New()
+	outputInput.Prompt = ""
+	outputInput.Placeholder = "path/to/file.yaml"
+	outputInput.SetValue(strings.TrimSpace(command.DefaultOutputFile))
+	outputInput.SetWidth(m.selectionActionInputWidth())
+	_ = outputInput.Focus()
+
+	namespaceInput := textinput.New()
+	namespaceInput.Prompt = ""
+	namespaceInput.Placeholder = "optional namespace"
+	namespaceInput.SetValue(strings.TrimSpace(command.DefaultNamespace))
+	namespaceInput.SetWidth(m.selectionActionInputWidth())
+
+	m.actionDialog = &selectionActionDialog{
+		action:          action,
+		command:         command,
+		outputInput:     outputInput,
+		namespaceInput:  namespaceInput,
+		includeChildren: command.IncludeChildren,
+		focus:           selectionActionFocusOutput,
+	}
+	m.clearStatus()
+}
+
+func (m *bubbleModel) selectionActionInputWidth() int {
+	return max(m.selectionActionBoxWidth()-len(selectionActionNamespaceLabel)-1, 16)
+}
+
+func (m *bubbleModel) selectionActionBoxWidth() int {
+	width := m.windowWidth
+	if width <= 0 {
+		width = 80
+	}
+	return min(max(width-4, 40), 88)
+}
+
+func (m *bubbleModel) resizeActionDialogInput() {
+	if m.actionDialog == nil {
+		return
+	}
+	width := m.selectionActionInputWidth()
+	m.actionDialog.outputInput.SetWidth(width)
+	m.actionDialog.namespaceInput.SetWidth(width)
+}
+
+func (m *bubbleModel) handleSelectionActionDialogKey(key tea.KeyPressMsg) tea.Cmd {
+	if m.actionDialog == nil {
+		return nil
+	}
+
+	switch key.String() {
+	case "ctrl+c":
+		m.useAltScreen = false
+		return tea.Quit
+	case "esc":
+		m.actionDialog = nil
+		m.setStatus("Action canceled.")
+		return nil
+	case "shift+tab", "up":
+		m.moveSelectionActionFocus(-1)
+		return nil
+	case "tab", "down":
+		m.moveSelectionActionFocus(1)
+		return nil
+	case " ", "space":
+		if m.actionDialog.focus == selectionActionFocusIncludeChildren {
+			m.actionDialog.includeChildren = !m.actionDialog.includeChildren
+			return nil
+		}
+	case "enter":
+		return m.submitSelectionAction()
+	}
+
+	if m.actionDialog.focus != selectionActionFocusOutput {
+		if m.actionDialog.focus != selectionActionFocusNamespace {
+			return nil
+		}
+
+		var cmd tea.Cmd
+		m.actionDialog.namespaceInput, cmd = m.actionDialog.namespaceInput.Update(key)
+		return cmd
+	}
+
+	var cmd tea.Cmd
+	m.actionDialog.outputInput, cmd = m.actionDialog.outputInput.Update(key)
+	return cmd
+}
+
+func (m *bubbleModel) moveSelectionActionFocus(delta int) {
+	if m.actionDialog == nil {
+		return
+	}
+
+	const focusCount = int(selectionActionFocusIncludeChildren) + 1
+	next := (int(m.actionDialog.focus) + delta) % focusCount
+	if next < 0 {
+		next += focusCount
+	}
+	m.setSelectionActionFocus(selectionActionFocus(next))
+}
+
+func (m *bubbleModel) setSelectionActionFocus(focus selectionActionFocus) {
+	if m.actionDialog == nil {
+		return
+	}
+
+	m.actionDialog.focus = focus
+	m.actionDialog.outputInput.Blur()
+	m.actionDialog.namespaceInput.Blur()
+
+	switch focus {
+	case selectionActionFocusOutput:
+		_ = m.actionDialog.outputInput.Focus()
+	case selectionActionFocusNamespace:
+		_ = m.actionDialog.namespaceInput.Focus()
+	case selectionActionFocusIncludeChildren:
+	}
+}
+
+func (m *bubbleModel) submitSelectionAction() tea.Cmd {
+	if m.actionDialog == nil {
+		return nil
+	}
+
+	outputFile := strings.TrimSpace(m.actionDialog.outputInput.Value())
+	if outputFile == "" {
+		m.actionDialog.status = "Output file is required."
+		return nil
+	}
+	defaultNamespace := strings.TrimSpace(m.actionDialog.namespaceInput.Value())
+
+	command := m.actionDialog.command
+	label := strings.TrimSpace(command.Label)
+	if label == "" {
+		label = strings.TrimSpace(command.Title)
+	}
+	if label == "" {
+		label = "selection action"
+	}
+
+	requestID, tickCmd := m.beginRequest(requestKindAction, label, -1, 0, 0)
+	if requestID == "" {
+		return nil
+	}
+
+	includeChildren := m.actionDialog.includeChildren
+	run := command.Run
+	m.actionDialog = nil
+
+	runCmd := func() tea.Msg {
+		err := run(SelectionActionValues{
+			OutputFile:       outputFile,
+			DefaultNamespace: defaultNamespace,
+			IncludeChildren:  includeChildren,
+		})
+		return selectionActionCompletedMsg{
+			requestID:  requestID,
+			label:      label,
+			outputFile: outputFile,
+			err:        err,
+		}
+	}
+
+	if tickCmd != nil {
+		return tea.Batch(tickCmd, runCmd)
+	}
+	return runCmd
 }
 
 func (m *bubbleModel) presentRowChild(index int, childView ChildView) string {
@@ -3407,12 +3742,90 @@ func (m *bubbleModel) renderHelpContent(innerWidth int) string {
 		"?               : toggle this help",
 		"q               : quit",
 	}
+	for _, action := range m.selectionActions {
+		keyName := strings.TrimSpace(action.Key)
+		helpText := strings.TrimSpace(action.Help)
+		if keyName == "" || helpText == "" {
+			continue
+		}
+		helpLines = append(helpLines, fmt.Sprintf("%-15s : %s", keyName, helpText))
+	}
 	helpStyle := lipgloss.NewStyle().Faint(true)
 	rendered := make([]string, len(helpLines))
 	for i, line := range helpLines {
 		rendered[i] = padStatusLine(helpStyle.Render(line), innerWidth)
 	}
 	return strings.Join(rendered, "\n")
+}
+
+func (m *bubbleModel) renderSelectionActionDialog() string {
+	if m.actionDialog == nil {
+		return ""
+	}
+
+	dialog := m.actionDialog
+	title := strings.TrimSpace(dialog.command.Title)
+	if title == "" {
+		title = "Selection Action"
+	}
+
+	labelStyle := lipgloss.NewStyle().Faint(true)
+	activeStyle := m.palette.ForegroundStyle(theme.ColorAccent)
+	titleStyle := m.palette.ForegroundStyle(theme.ColorTextPrimary).Bold(true)
+	statusStyle := lipgloss.NewStyle().Faint(true)
+
+	includeLabel := strings.TrimSpace(dialog.command.IncludeChildrenText)
+	if includeLabel == "" {
+		includeLabel = "include child resources"
+	}
+	checkbox := "[ ]"
+	if dialog.includeChildren {
+		checkbox = "[x]"
+	}
+	includeLine := fmt.Sprintf("%s %s", checkbox, includeLabel)
+	if dialog.focus == selectionActionFocusIncludeChildren {
+		includeLine = activeStyle.Render(includeLine)
+	}
+
+	lines := []string{
+		titleStyle.Render(title),
+		renderSelectionActionInputRow(
+			selectionActionOutputLabel,
+			dialog.outputInput.View(),
+			dialog.focus == selectionActionFocusOutput,
+			labelStyle,
+			activeStyle,
+		),
+		renderSelectionActionInputRow(
+			selectionActionNamespaceLabel,
+			dialog.namespaceInput.View(),
+			dialog.focus == selectionActionFocusNamespace,
+			labelStyle,
+			activeStyle,
+		),
+		includeLine,
+	}
+
+	if status := strings.TrimSpace(dialog.status); status != "" {
+		lines = append(lines, statusStyle.Render(status))
+	}
+	lines = append(lines, statusStyle.Render("Enter confirms · Esc cancels · Tab switches fields"))
+
+	return m.detailStyle.Width(m.selectionActionBoxWidth()).Render(strings.Join(lines, "\n"))
+}
+
+func renderSelectionActionInputRow(
+	label, input string,
+	active bool,
+	labelStyle, activeStyle lipgloss.Style,
+) string {
+	paddedLabel := fmt.Sprintf("%-*s", len(selectionActionNamespaceLabel), label)
+	if active {
+		paddedLabel = activeStyle.Render(paddedLabel)
+	} else {
+		paddedLabel = labelStyle.Render(paddedLabel)
+	}
+	return fmt.Sprintf("%s %s", paddedLabel, input)
 }
 
 func renderStatusRow(left, right string, width int) string {
@@ -3802,6 +4215,13 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 	skipKeyProcessing := false
 	searchConsumed := false
 
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && m.actionDialog != nil {
+		if cmd := m.handleSelectionActionDialogKey(keyMsg); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		return m, tea.Batch(cmds...)
+	}
+
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		handled, propagate, searchCmd := m.handleSearchKey(keyMsg)
 		if handled {
@@ -3863,6 +4283,23 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 			}
 		}
 		return m, tea.Batch(cmds...)
+	case selectionActionCompletedMsg:
+		if pr, duration, ok := m.completeRequest(key.requestID); ok {
+			label := formatRequestLabel(key.label)
+			if strings.TrimSpace(label) == "" {
+				label = formatRequestLabel(pr.label)
+			}
+			if key.err != nil {
+				message := fmt.Sprintf("Unable to run %s: %v", label, key.err)
+				if duration > 0 {
+					message = fmt.Sprintf("%s (after %s)", message, formatElapsed(duration))
+				}
+				m.setStatus(message)
+			} else {
+				m.setStatus(fmt.Sprintf("%s written to %s in %s", label, key.outputFile, formatElapsed(duration)))
+			}
+		}
+		return m, tea.Batch(cmds...)
 	case spinner.TickMsg:
 		if m.pendingRequest.active {
 			var tickCmd tea.Cmd
@@ -3894,6 +4331,18 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 		if key.String() == m.toggleKey {
 			m.showHelp = !m.showHelp
 			return m, nil
+		}
+		if !m.searchActive {
+			for _, action := range m.selectionActions {
+				if key.String() == strings.TrimSpace(action.Key) {
+					m.openSelectionAction(action)
+					tableHandled = true
+					break
+				}
+			}
+			if tableHandled {
+				break
+			}
 		}
 		if (key.String() == "t" || key.String() == "T") && !m.searchActive && len(m.availableThemes) > 0 {
 			n := len(m.availableThemes)
@@ -3946,6 +4395,7 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 	case tea.WindowSizeMsg:
 		m.windowWidth = key.Width
 		m.windowHeight = key.Height
+		m.resizeActionDialogInput()
 		m.resizeDetailViews()
 
 		newTable, cmd := m.table.Update(msg)
@@ -4102,6 +4552,10 @@ func (m *bubbleModel) View() tea.View {
 			main = lipgloss.JoinHorizontal(lipgloss.Top, tableBox, detailBox)
 		}
 		sections = append(sections, main)
+	}
+
+	if dialog := strings.TrimSpace(m.renderSelectionActionDialog()); dialog != "" {
+		sections = append(sections, dialog)
 	}
 
 	widthHint := 0

@@ -557,6 +557,71 @@ func sendKey(t *testing.T, model *bubbleModel, key string) *bubbleModel {
 	return bm
 }
 
+func sendSpecialKey(t *testing.T, model *bubbleModel, code rune, text string) (*bubbleModel, tea.Cmd) {
+	t.Helper()
+	msg := tea.KeyPressMsg{Text: text, Code: code}
+	updated, cmd := model.Update(msg)
+	bm, ok := updated.(*bubbleModel)
+	require.True(t, ok)
+	return bm, cmd
+}
+
+func TestSelectionActionDialogRunsWithCollectedValues(t *testing.T) {
+	model := newMinimalBubbleModel(t)
+
+	var captured SelectionContext
+	var ranWith SelectionActionValues
+	model.selectionActions = []SelectionAction{
+		{
+			Key:  "d",
+			Help: "dump selected resource",
+			Resolve: func(selection SelectionContext) (SelectionActionCommand, error) {
+				captured = selection
+				return SelectionActionCommand{
+					Title:               "Dump alpha",
+					Label:               "Dump alpha",
+					DefaultOutputFile:   "alpha.yaml",
+					DefaultNamespace:    "team-alpha",
+					IncludeChildrenText: "include child resources",
+					Run: func(values SelectionActionValues) error {
+						ranWith = values
+						return nil
+					},
+				}, nil
+			},
+		},
+	}
+
+	model = sendKey(t, model, "d")
+	require.NotNil(t, model.actionDialog)
+	require.Equal(t, "alpha", captured.Label)
+	require.Equal(t, table.Row{"alpha"}, captured.Row)
+	dialogView := ansi.Strip(model.renderSelectionActionDialog())
+	require.Regexp(t, `Output file:[ \t]+alpha.yaml`, dialogView)
+	require.Regexp(t, `Default namespace:[ \t]+team-alpha`, dialogView)
+
+	model, _ = sendSpecialKey(t, model, tea.KeyTab, "")
+	require.Equal(t, selectionActionFocusNamespace, model.actionDialog.focus)
+
+	model, _ = sendSpecialKey(t, model, tea.KeyTab, "")
+	require.Equal(t, selectionActionFocusIncludeChildren, model.actionDialog.focus)
+
+	model, _ = sendSpecialKey(t, model, tea.KeySpace, " ")
+	require.True(t, model.actionDialog.includeChildren)
+
+	var cmd tea.Cmd
+	model, cmd = sendSpecialKey(t, model, tea.KeyEnter, "")
+	require.NotNil(t, cmd)
+	model = executeCmd(t, model, cmd)
+
+	require.Nil(t, model.actionDialog)
+	require.Equal(t, "alpha.yaml", ranWith.OutputFile)
+	require.Equal(t, "team-alpha", ranWith.DefaultNamespace)
+	require.True(t, ranWith.IncludeChildren)
+	require.Contains(t, model.statusMessage, "Dump alpha")
+	require.Contains(t, model.statusMessage, "alpha.yaml")
+}
+
 func TestThemeCycling_AdvancesPaletteAndSetsStatus(t *testing.T) {
 	model := newMinimalBubbleModel(t)
 

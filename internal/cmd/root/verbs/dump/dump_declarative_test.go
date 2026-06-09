@@ -13,6 +13,39 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+func requireKongctlMeta(
+	t *testing.T,
+	meta *declresources.KongctlMeta,
+	wantNamespace string,
+	wantProtected bool,
+) {
+	t.Helper()
+
+	if meta == nil {
+		t.Fatalf("expected kongctl metadata")
+	}
+
+	if wantNamespace == "" {
+		if meta.Namespace != nil {
+			t.Fatalf("expected namespace to be omitted, got %q", *meta.Namespace)
+		}
+	} else if meta.Namespace == nil || *meta.Namespace != wantNamespace {
+		got := "<nil>"
+		if meta.Namespace != nil {
+			got = *meta.Namespace
+		}
+		t.Fatalf("expected namespace %q, got %q", wantNamespace, got)
+	}
+
+	if wantProtected {
+		if meta.Protected == nil || !*meta.Protected {
+			t.Fatalf("expected protected metadata to be true")
+		}
+	} else if meta.Protected != nil && *meta.Protected {
+		t.Fatalf("expected protected metadata to be omitted or false")
+	}
+}
+
 func TestMapPortalToDeclarativeResource(t *testing.T) {
 	description := "Portal description"
 	authID := "auth-strategy"
@@ -56,16 +89,22 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected description pointer with %q", description)
 	}
 
-	if resource.Kongctl != nil {
-		t.Fatalf("expected kongctl metadata to be omitted when namespace flag not provided")
-	}
+	requireKongctlMeta(t, resource.Kongctl, "team-alpha", true)
 
 	if resource.Labels == nil {
 		t.Fatalf("expected user labels to be preserved")
 	}
 
+	if len(resource.Labels) != 1 {
+		t.Fatalf("expected only user labels to remain, got %v", resource.Labels)
+	}
+
 	if _, exists := resource.Labels[decllabels.NamespaceKey]; exists {
 		t.Fatalf("expected namespace label to be stripped from user labels")
+	}
+
+	if _, exists := resource.Labels[decllabels.ProtectedKey]; exists {
+		t.Fatalf("expected protected label to be stripped from user labels")
 	}
 
 	if val, exists := resource.Labels["custom"]; !exists || val == nil || *val != "value" {
@@ -202,9 +241,7 @@ func TestMapAPIToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected slug pointer with %q", slug)
 	}
 
-	if resource.Kongctl != nil {
-		t.Fatalf("expected kongctl metadata to be omitted when namespace flag not provided")
-	}
+	requireKongctlMeta(t, resource.Kongctl, "team-beta", true)
 
 	if len(resource.Labels) != 1 || resource.Labels["feature"] != "payments" {
 		t.Fatalf("expected only user labels to remain, got %v", resource.Labels)
@@ -239,6 +276,8 @@ func TestMapDashboardToDeclarativeResource(t *testing.T) {
 	if resource.Definition.Tiles == nil || len(resource.Definition.Tiles) != 0 {
 		t.Fatalf("expected definition tiles to be preserved, got %v", resource.Definition.Tiles)
 	}
+
+	requireKongctlMeta(t, resource.Kongctl, "team-alpha", true)
 
 	if len(resource.Labels) != 1 || resource.Labels["team"] != "platform" {
 		t.Fatalf("expected only user labels to remain, got %v", resource.Labels)
@@ -303,9 +342,7 @@ func TestMapAuthStrategyToDeclarativeResource_KeyAuth(t *testing.T) {
 		t.Fatalf("expected key names to be preserved, got %v", configs)
 	}
 
-	if resource.Kongctl != nil {
-		t.Fatalf("expected kongctl metadata to be omitted for key auth strategy")
-	}
+	requireKongctlMeta(t, resource.Kongctl, "default", false)
 
 	labels := resource.AppAuthStrategyKeyAuthRequest.Labels
 	if len(labels) != 1 || labels["tier"] != "gold" {
@@ -378,9 +415,7 @@ func TestMapAuthStrategyToDeclarativeResource_OIDC(t *testing.T) {
 		t.Fatalf("expected only user labels to remain, got %v", labels)
 	}
 
-	if resource.Kongctl != nil {
-		t.Fatalf("expected kongctl metadata to be omitted for oidc strategy")
-	}
+	requireKongctlMeta(t, resource.Kongctl, "default", false)
 
 	yamlBytes, err := yaml.Marshal(resource)
 	if err != nil {

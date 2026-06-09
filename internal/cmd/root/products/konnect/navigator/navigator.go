@@ -145,6 +145,7 @@ func Run(helper cmd.Helper, opts Options) error {
 		tableview.WithDetailHelper(helper),
 		tableview.WithTitle("Konnect Resources"),
 		tableview.WithTableStretch(),
+		tableview.WithSelectionAction(newDumpSelectionAction(helper)),
 	}
 	if initialIndex >= 0 {
 		options = append(options, tableview.WithInitialRowSelection(initialIndex, needle != ""))

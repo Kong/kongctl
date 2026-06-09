@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -61,8 +62,14 @@ func Int64(v int64) *int64 {
 }
 
 func getDumpWriter(helper cmdpkg.Helper, outputFile string) (io.Writer, func() error, error) {
-	if strings.TrimSpace(outputFile) != "" {
-		file, err := os.Create(outputFile)
+	outputFile = strings.TrimSpace(outputFile)
+	if outputFile != "" {
+		outputPath, err := expandUserPath(outputFile)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		file, err := os.Create(outputPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create output file: %w", err)
 		}
@@ -70,6 +77,25 @@ func getDumpWriter(helper cmdpkg.Helper, outputFile string) (io.Writer, func() e
 	}
 
 	return helper.GetStreams().Out, func() error { return nil }, nil
+}
+
+func expandUserPath(path string) (string, error) {
+	switch {
+	case path == "~":
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve home directory: %w", err)
+		}
+		return home, nil
+	case strings.HasPrefix(path, "~/"):
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve home directory: %w", err)
+		}
+		return filepath.Join(home, strings.TrimPrefix(path, "~/")), nil
+	default:
+		return path, nil
+	}
 }
 
 func parseResourceList(resources string) []string {

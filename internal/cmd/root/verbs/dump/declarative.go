@@ -33,6 +33,16 @@ type declarativeOptions struct {
 	filter                filterOptions
 }
 
+// DeclarativeDumpOptions configures a declarative resource dump outside Cobra flag parsing.
+type DeclarativeDumpOptions struct {
+	Resources             []string
+	OutputFile            string
+	DefaultNamespace      string
+	IncludeChildResources bool
+	FilterName            string
+	FilterID              string
+}
+
 var declarativeAllowedResources = map[string]struct{}{
 	"portals":                     {},
 	resourceAPIs:                  {},
@@ -149,6 +159,33 @@ Setting this value overrides tokens obtained from the login command.
 	}
 
 	return cmd
+}
+
+// RunDeclarativeDump exports Konnect resources as kongctl declarative configuration.
+func RunDeclarativeDump(helper cmdpkg.Helper, opts DeclarativeDumpOptions) error {
+	resources, err := normalizeResourceList(strings.Join(opts.Resources, ","), declarativeAllowedResources)
+	if err != nil {
+		return err
+	}
+
+	declarativeOpts := declarativeOptions{
+		resources:             resources,
+		outputFile:            strings.TrimSpace(opts.OutputFile),
+		defaultNamespace:      strings.TrimSpace(opts.DefaultNamespace),
+		includeChildResources: opts.IncludeChildResources,
+		filter: filterOptions{
+			name: strings.TrimSpace(opts.FilterName),
+			id:   strings.TrimSpace(opts.FilterID),
+		},
+	}
+	if err := validateFilterOptions(declarativeOpts.filter); err != nil {
+		return err
+	}
+	if err := ensureNonNegativePageSize(helper); err != nil {
+		return err
+	}
+
+	return runDeclarativeDump(helper, declarativeOpts)
 }
 
 func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
@@ -745,6 +782,7 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 	if userLabels := decllabels.GetUserLabels(portal.GetLabels()); len(userLabels) > 0 {
 		result.Labels = decllabels.DenormalizeLabels(userLabels)
 	}
+	result.Kongctl = kongctlMetaFromLabels(portal.GetLabels())
 
 	return result
 }
@@ -789,6 +827,7 @@ func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.AP
 	if labels := decllabels.GetUserLabels(api.Labels); len(labels) > 0 {
 		result.Labels = labels
 	}
+	result.Kongctl = kongctlMetaFromLabels(api.Labels)
 
 	normalizeAPIResource(&result)
 
@@ -809,6 +848,7 @@ func mapDashboardToDeclarativeResource(dashboard kkComps.DashboardResponse) decl
 	if labels := decllabels.GetUserLabels(dashboard.Labels); len(labels) > 0 {
 		result.Labels = labels
 	}
+	result.Kongctl = kongctlMetaFromLabels(dashboard.Labels)
 
 	return result
 }
@@ -825,6 +865,7 @@ func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declreso
 	if labels := decllabels.GetUserLabels(egw.Labels); len(labels) > 0 {
 		result.Labels = labels
 	}
+	result.Kongctl = kongctlMetaFromLabels(egw.Labels)
 
 	return result
 }
@@ -842,18 +883,27 @@ func mapOrganizationTeamToDeclarativeResource(team kkComps.Team) declresources.O
 		result.Labels = labels
 	}
 
-	if ns := strings.TrimSpace(team.Labels[decllabels.NamespaceKey]); ns != "" {
-		result.Kongctl = &declresources.KongctlMeta{Namespace: stringPointer(ns)}
-	}
-	if team.Labels[decllabels.ProtectedKey] == decllabels.TrueValue {
-		if result.Kongctl == nil {
-			result.Kongctl = &declresources.KongctlMeta{}
-		}
-		protected := true
-		result.Kongctl.Protected = &protected
-	}
+	result.Kongctl = kongctlMetaFromLabels(team.Labels)
 
 	return result
+}
+
+func kongctlMetaFromLabels(labels map[string]string) *declresources.KongctlMeta {
+	namespace := strings.TrimSpace(labels[decllabels.NamespaceKey])
+	protected := labels[decllabels.ProtectedKey] == decllabels.TrueValue
+	if namespace == "" && !protected {
+		return nil
+	}
+
+	meta := &declresources.KongctlMeta{}
+	if namespace != "" {
+		meta.Namespace = stringPointer(namespace)
+	}
+	if protected {
+		value := true
+		meta.Protected = &value
+	}
+	return meta
 }
 
 func normalizeAPIResource(api *declresources.APIResource) {
@@ -1011,7 +1061,10 @@ func mapKeyAuthStrategyToDeclarativeResource(
 	}
 
 	resource := declresources.ApplicationAuthStrategyResource{
-		BaseResource:                 declresources.BaseResource{Ref: buildAuthStrategyRef(resp.ID, resp.Name)},
+		BaseResource: declresources.BaseResource{
+			Ref:     buildAuthStrategyRef(resp.ID, resp.Name),
+			Kongctl: kongctlMetaFromLabels(resp.Labels),
+		},
 		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestKeyAuth(req),
 	}
 
@@ -1044,7 +1097,10 @@ func mapOIDCStrategyToDeclarativeResource(
 	}
 
 	resource := declresources.ApplicationAuthStrategyResource{
-		BaseResource:                 declresources.BaseResource{Ref: buildAuthStrategyRef(resp.ID, resp.Name)},
+		BaseResource: declresources.BaseResource{
+			Ref:     buildAuthStrategyRef(resp.ID, resp.Name),
+			Kongctl: kongctlMetaFromLabels(resp.Labels),
+		},
 		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestOpenidConnect(req),
 	}
 
@@ -1129,7 +1185,10 @@ func mapDCRProviderToDeclarativeResource(data any) (declresources.DCRProviderRes
 	}
 
 	resource := declresources.DCRProviderResource{
-		BaseResource: declresources.BaseResource{Ref: buildDCRProviderRef(provider.ID, provider.Name)},
+		BaseResource: declresources.BaseResource{
+			Ref:     buildDCRProviderRef(provider.ID, provider.Name),
+			Kongctl: kongctlMetaFromLabels(provider.Labels),
+		},
 		Name:         provider.Name,
 		ProviderType: provider.ProviderType,
 		Issuer:       provider.Issuer,
@@ -1261,16 +1320,7 @@ func mapControlPlaneToDeclarativeResource(
 		mapped.Labels = userLabels
 	}
 
-	if ns := strings.TrimSpace(cp.Labels[decllabels.NamespaceKey]); ns != "" {
-		mapped.Kongctl = &declresources.KongctlMeta{Namespace: stringPointer(ns)}
-	}
-	if cp.Labels[decllabels.ProtectedKey] == decllabels.TrueValue {
-		if mapped.Kongctl == nil {
-			mapped.Kongctl = &declresources.KongctlMeta{}
-		}
-		protected := true
-		mapped.Kongctl.Protected = &protected
-	}
+	mapped.Kongctl = kongctlMetaFromLabels(cp.Labels)
 
 	if len(memberIDs) > 0 && cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
 		mapped.Members = make([]declresources.ControlPlaneGroupMember, 0, len(memberIDs))
