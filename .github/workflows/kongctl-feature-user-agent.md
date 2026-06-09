@@ -60,7 +60,7 @@ safe-outputs:
     max: 1
   create-discussion:
     title-prefix: "[agent-eval] "
-    category: "General"
+    category: "general"
     labels:
       - automation
       - agentic-workflows
@@ -202,9 +202,18 @@ post-steps:
 
       const agentOutputPath = "/tmp/gh-aw/agent_output.json";
       const replayPromptPath = "/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md";
-      const artifactPath = replayPromptPath;
+      const artifactName = "kongctl-feature-user-agent-sanitized";
+      const replayPromptArtifactPath = "selected-use-case-prompt.md";
       const maxInlinePromptLength = 30000;
       const maxBodyLength = 64000;
+      const runURL = process.env.GITHUB_SERVER_URL &&
+        process.env.GITHUB_REPOSITORY &&
+        process.env.GITHUB_RUN_ID
+        ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+        : "";
+      const artifactLocation = runURL
+        ? `the \`${artifactName}\` artifact from ${runURL}`
+        : `the \`${artifactName}\` workflow run artifact`;
 
       const data = JSON.parse(fs.readFileSync(agentOutputPath, "utf8"));
       const rawReplayPrompt = fs.readFileSync(replayPromptPath, "utf8").trim();
@@ -219,7 +228,7 @@ post-steps:
 
         return `${rawReplayPrompt.slice(0, maxLength).trimEnd()}
 
-      [Replay prompt truncated in safe output; full sanitized prompt is available at ${artifactPath}.]`;
+      [Replay prompt truncated in safe output; full sanitized prompt is available in ${artifactLocation} as \`${replayPromptArtifactPath}\`.]`;
       }
 
       function markdownFenceFor(content) {
@@ -236,7 +245,7 @@ post-steps:
 
         return `## Replay Prompt
 
-      Sanitized replay prompt from \`${artifactPath}\`:
+      Sanitized replay prompt excerpt from \`${replayPromptArtifactPath}\` in the \`${artifactName}\` artifact:
 
       ${fence}markdown
       ${replayPrompt}
