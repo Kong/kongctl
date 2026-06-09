@@ -59,8 +59,8 @@ Recommended when sharing data externally.
 
 	f.StringVar(&flags.LogsSince, "logs-since", "",
 		fmt.Sprintf(`Collect logs since this time.
-For Docker: duration string (e.g., "1h", "30m")
-For Kubernetes: seconds (converted internally)
+Use a duration string (e.g., "1h", "30m", "600s").
+For Kubernetes, the duration is converted internally to seconds.
 - Config path: [ %s ]`, configLogsSince))
 
 	f.StringSliceVar(&flags.RedactTerms, "redact", nil,
