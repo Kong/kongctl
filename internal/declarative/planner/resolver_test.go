@@ -573,6 +573,69 @@ func TestResolveReferences_RoleEntityPortalReferenceUsesEntityTypeName(t *testin
 	assert.Equal(t, "portal-id", entityRef.ID)
 }
 
+func TestResolveReferences_UnknownTypePlaceholderDoesNotMatchCreatedRefInPlan(t *testing.T) {
+	ctx := context.Background()
+	client := state.NewClient(state.ClientConfig{})
+	resolver := NewReferenceResolver(client, nil)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-portal",
+			ResourceType: ResourceTypePortal,
+			ResourceRef:  "shared-ref",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldName: "Dev Portal",
+			},
+		},
+		{
+			ID:           "2-c-resource",
+			ResourceType: ResourceTypeAPI,
+			ResourceRef:  "api-ref",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldConfig: "__REF__:shared-ref#id",
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Len(t, result.Errors, 1)
+	assert.Contains(t, result.Errors[0].Error(), `unknown resource type`)
+	assert.Empty(t, result.ChangeReferences)
+}
+
+func TestResolveReferences_UnknownTypePlaceholderDoesNotUseGlobalResourceSetLookup(t *testing.T) {
+	ctx := context.Background()
+	client := state.NewClient(state.ClientConfig{})
+
+	api := declresources.APIResource{BaseResource: declresources.BaseResource{Ref: "shared-ref"}}
+	api.SetKonnectID("api-id")
+	resourceSet := &declresources.ResourceSet{
+		APIs: []declresources.APIResource{api},
+	}
+	resolver := NewReferenceResolver(client, resourceSet)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-resource",
+			ResourceType: ResourceTypeEventGatewayProducePolicy,
+			ResourceRef:  "produce-policy",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldConfig: "__REF__:shared-ref#id",
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Len(t, result.Errors, 1)
+	assert.Contains(t, result.Errors[0].Error(), `unknown resource type`)
+	assert.Empty(t, result.ChangeReferences)
+}
+
 func TestResolveReferences_EventGatewayProducePolicyNestedReferencesCreatedInPlan(t *testing.T) {
 	ctx := context.Background()
 	client := state.NewClient(state.ClientConfig{})

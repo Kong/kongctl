@@ -105,19 +105,11 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 }
 
 func referenceCreatedInPlan(createdResources map[string]map[string]string, resourceType, targetRef string) bool {
-	if targetRef == "" {
+	if resourceType == "" || targetRef == "" {
 		return false
 	}
-	if resourceType != "" {
-		_, ok := createdResources[resourceType][targetRef]
-		return ok
-	}
-	for _, refs := range createdResources {
-		if _, ok := refs[targetRef]; ok {
-			return true
-		}
-	}
-	return false
+	_, ok := createdResources[resourceType][targetRef]
+	return ok
 }
 
 func (r *ReferenceResolver) extractReferencesFromFields(fields map[string]any) []extractedReference {
@@ -306,11 +298,8 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 }
 
 func (r *ReferenceResolver) getResourceByTypeAndRef(resourceType string, ref string) (resources.Resource, bool) {
-	if r.resources == nil {
+	if r.resources == nil || resourceType == "" {
 		return nil, false
-	}
-	if resourceType == "" {
-		return r.resources.GetResourceByRef(ref)
 	}
 	for _, resource := range r.resources.AllResourcesByType(resources.ResourceType(resourceType)) {
 		if resource.GetRef() == ref {
