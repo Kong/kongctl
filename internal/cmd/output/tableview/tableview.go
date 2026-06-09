@@ -2927,6 +2927,8 @@ func (m *bubbleModel) handleSelectionActionDialogKey(key tea.KeyPressMsg) tea.Cm
 		m.actionDialog.outputInput, cmd = m.actionDialog.outputInput.Update(key)
 	case selectionActionFocusNamespace:
 		m.actionDialog.namespaceInput, cmd = m.actionDialog.namespaceInput.Update(key)
+	case selectionActionFocusIncludeChildren:
+		return nil
 	default:
 		return nil
 	}
