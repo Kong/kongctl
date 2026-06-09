@@ -59,6 +59,8 @@ const (
 	remoteFileSaveDirFlagShort = "s"
 	// remoteFileSaveForceFlagName is the CLI flag for overwriting existing files in remote-file-save-dir
 	remoteFileSaveForceFlagName = "remote-file-save-force"
+	// remoteFileSaveForceFlagShort is the CLI shorthand flag for overwriting saved remote files
+	remoteFileSaveForceFlagShort = "F"
 	// remoteFileAuthFlagName is the CLI flag for remote URL source authentication
 	remoteFileAuthFlagName = "remote-file-auth"
 	// baseDirConfigPath is the config path backing the base-dir flag
@@ -383,7 +385,7 @@ Defaults to each -f source root (file: its parent dir, dir: the directory itself
 func addSaveDirFlag(cmd *cobra.Command) {
 	cmd.Flags().StringP(remoteFileSaveDirFlagName, remoteFileSaveDirFlagShort, "",
 		"Save remote -f URL sources into this local directory before loading")
-	cmd.Flags().Bool(remoteFileSaveForceFlagName, false,
+	cmd.Flags().BoolP(remoteFileSaveForceFlagName, remoteFileSaveForceFlagShort, false,
 		"Overwrite existing files when saving remote -f URL sources with --remote-file-save-dir")
 }
 

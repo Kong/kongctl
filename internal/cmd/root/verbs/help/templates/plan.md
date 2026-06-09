@@ -18,7 +18,7 @@ kongctl plan [flags]
   - Can be specified multiple times to load multiple files
   - Directories are processed non-recursively by default
 - `-s, --remote-file-save-dir` (string): Save remote URL sources into a local directory before loading
-- `--remote-file-save-force`: Overwrite existing files when saving with `--remote-file-save-dir`
+- `-F, --remote-file-save-force`: Overwrite existing files when saving with `--remote-file-save-dir`
 - `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
 
 ### Optional Flags

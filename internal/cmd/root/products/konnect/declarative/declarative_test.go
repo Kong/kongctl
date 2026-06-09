@@ -268,6 +268,7 @@ func TestDeclarativeCommandsExposeRemoteSourceFlags(t *testing.T) {
 			saveForceFlag := tt.cmd.Flags().Lookup(remoteFileSaveForceFlagName)
 			require.NotNil(t, saveForceFlag)
 			assert.Contains(t, saveForceFlag.Usage, "Overwrite")
+			assert.Equal(t, remoteFileSaveForceFlagShort, saveForceFlag.Shorthand)
 
 			remoteAuthFlag := tt.cmd.Flags().Lookup(remoteFileAuthFlagName)
 			require.NotNil(t, remoteAuthFlag)
