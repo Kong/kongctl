@@ -3,16 +3,29 @@ package resources
 import "fmt"
 
 func init() {
-	registerResourceType(
+	registerResourceTypeWithSliceAccessors(
 		ResourceTypeAuditLogWebhookDestination,
-		func(rs *ResourceSet) *[]AuditLogWebhookDestinationResource {
-			return &rs.AuditLogs.Destinations
-		},
+		auditLogWebhookDestinationSlice,
+		ensureAuditLogWebhookDestinationSlice,
 		AutoExplain[AuditLogWebhookDestinationResource](
 			WithExplainAliases("audit-logs.destinations"),
 			WithExplainRecommendedFields("ref", "_external"),
 		),
 	)
+}
+
+func auditLogWebhookDestinationSlice(rs *ResourceSet) *[]AuditLogWebhookDestinationResource {
+	if rs == nil || rs.AuditLogs == nil {
+		return nil
+	}
+	return &rs.AuditLogs.Destinations
+}
+
+func ensureAuditLogWebhookDestinationSlice(rs *ResourceSet) *[]AuditLogWebhookDestinationResource {
+	if rs.AuditLogs == nil {
+		rs.AuditLogs = &AuditLogsResource{}
+	}
+	return &rs.AuditLogs.Destinations
 }
 
 // AuditLogsResource groups organization-scoped audit-log declarative resources.

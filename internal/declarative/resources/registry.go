@@ -43,16 +43,39 @@ func registerResourceType[R any, RPtr interface {
 	getSlicePtr func(*ResourceSet) *[]R,
 	explain ExplainRegistration,
 ) {
+	registerResourceTypeWithSliceAccessors[R, RPtr](rt, getSlicePtr, getSlicePtr, explain)
+}
+
+func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
+	*R
+	Resource
+}](rt ResourceType,
+	getSlicePtr func(*ResourceSet) *[]R,
+	ensureSlicePtr func(*ResourceSet) *[]R,
+	explain ExplainRegistration,
+) {
 	registry[rt] = resourceOps{
 		get: func(rs *ResourceSet) []Resource {
-			return sliceToResources[R, RPtr](*getSlicePtr(rs))
+			slicePtr := getSlicePtr(rs)
+			if slicePtr == nil {
+				return nil
+			}
+			return sliceToResources[R, RPtr](*slicePtr)
 		},
 		append: func(dest, src *ResourceSet) {
-			destPtr := getSlicePtr(dest)
-			*destPtr = append(*destPtr, *getSlicePtr(src)...)
+			srcPtr := getSlicePtr(src)
+			if srcPtr == nil || len(*srcPtr) == 0 {
+				return
+			}
+			destPtr := ensureSlicePtr(dest)
+			*destPtr = append(*destPtr, *srcPtr...)
 		},
 		forEach: func(rs *ResourceSet, fn func(Resource) bool) bool {
-			slice := *getSlicePtr(rs) // e.g., rs.Portals (the actual slice, not pointer)
+			slicePtr := getSlicePtr(rs)
+			if slicePtr == nil {
+				return true
+			}
+			slice := *slicePtr // e.g., rs.Portals (the actual slice, not pointer)
 			for i := range slice {
 				// Get pointer to element and convert to Resource interface
 				// This avoids allocating a new slice of Resource and allows direct iteration.
@@ -70,7 +93,11 @@ func registerResourceType[R any, RPtr interface {
 			return true
 		},
 		count: func(rs *ResourceSet) int {
-			return len(*getSlicePtr(rs))
+			slicePtr := getSlicePtr(rs)
+			if slicePtr == nil {
+				return 0
+			}
+			return len(*slicePtr)
 		},
 		explain: explain,
 	}

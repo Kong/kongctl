@@ -889,8 +889,10 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve gateway service identities: %w", err)
 	}
 
-	if err := p.resolveAuditLogWebhookDestinationIdentities(ctx, rs.AuditLogs.Destinations); err != nil {
-		return fmt.Errorf("failed to resolve audit log webhook destination identities: %w", err)
+	if rs.AuditLogs != nil {
+		if err := p.resolveAuditLogWebhookDestinationIdentities(ctx, rs.AuditLogs.Destinations); err != nil {
+			return fmt.Errorf("failed to resolve audit log webhook destination identities: %w", err)
+		}
 	}
 
 	if err := p.resolveAPIImplementationServiceReferences(rs); err != nil {
