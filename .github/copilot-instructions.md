@@ -23,8 +23,10 @@ The `AGENTS.md` file contains detailed information about:
 5. **Follow verb-noun command pattern**: `kongctl <verb> <resource>`
 6. **Respect line length**: Max 120 characters (golines enforces)
 7. **Document markdown at 80 chars**: When writing docs, wrap at 80 chars
+8. **Use standard PR titles**: When opening or updating a pull request, use
+   `type(category): title` from [AGENTS.md](/AGENTS.md), and do not add agent
+   prefixes such as `[copilot]:` or `[codex]:`
 
 ## Quick Reference
 
 See [AGENTS.md](/AGENTS.md) for detailed commands and examples.
-

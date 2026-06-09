@@ -342,6 +342,44 @@ after making changes to catch regressions.
 
 ## Commit & Pull Request Guidelines
 
+### Pull Request Titles
+
+All pull requests, including AI-agent-authored and automation-authored PRs,
+must use this title format:
+
+```text
+type(category): title
+```
+
+`type` must be one of:
+
+- `feat`: Adds or expands user-visible behavior.
+- `fix`: Corrects broken, incomplete, or misleading behavior.
+- `task`: Handles maintenance, docs, CI, dependencies, releases, or other work
+  that is neither a feature nor a bug fix.
+- `refactor`: Restructures code without changing behavior.
+- `test`: Adds or changes tests without changing product behavior.
+
+`category` is a short, lowercase area of the codebase or workflow. Prefer the
+smallest useful area, such as `declarative`, `tui`, `logging`, `cmd`,
+`konnect`, `auth`, `config`, `e2e`, `integration`, `docs`, `ci`, `deps`,
+`sdk`, `release`, `skills`, or `simplify`. Use a subjective but recognizable
+area; do not invent agent names as categories.
+
+`title` should be a concise, present-tense summary with no trailing period.
+Do not prefix PR titles with agent or tool labels such as `[codex]:`,
+`[copilot]:`, `Copilot:`, or `[agent]`.
+
+Examples:
+
+- `fix(declarative): add force flag for remote file save`
+- `test(e2e): expand dump coverage for event gateways`
+- `refactor(simplify): reduce kongctl view command boilerplate`
+- `task(ci): redact UUIDs in feature-user artifacts`
+- `task(deps): update sdk-konnect-go prerelease`
+
+When creating PRs programmatically, set the PR title explicitly to this format.
+
 - Commits: concise subject, imperative mood; prefix scope when helpful
   - Scopes: `cmd:`, `declarative:`, `konnect:`, `docs:`, `test:`, `ci:`
   - Examples: `cmd: add support for API product filtering`, `docs: update getting started guide`
