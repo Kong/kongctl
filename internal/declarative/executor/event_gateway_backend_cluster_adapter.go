@@ -372,7 +372,7 @@ func convertToSensitiveDataAwareAuth(
 		}
 		return kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
 			kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAware{
-				Algorithm: kkComps.Algorithm(
+				Algorithm: kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAwareAlgorithm(
 					auth.BackendClusterAuthenticationSaslScram.Algorithm,
 				),
 				Username: auth.BackendClusterAuthenticationSaslScram.Username,

@@ -311,7 +311,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	implCount := len(rs.APIImplementations)
 	implMissingService := 0
 	for i := range rs.APIImplementations {
-		if rs.APIImplementations[i].ServiceReference.GetService() == nil {
+		if rs.APIImplementations[i].ServiceReferenceInput == nil ||
+			rs.APIImplementations[i].ServiceReferenceInput.GetService() == nil {
 			implMissingService++
 		}
 	}

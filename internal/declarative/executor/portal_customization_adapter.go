@@ -145,7 +145,7 @@ func mapPortalMenuItems(raw []any) []kkComps.PortalMenuItem {
 			Title: itemMap[planner.FieldTitle].(string),
 		}
 		if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
-			menuItem.Visibility = kkComps.PortalMenuItemVisibility(visibility)
+			menuItem.Visibility = kkComps.Visibility(visibility)
 		}
 		if external, ok := itemMap["external"].(bool); ok {
 			menuItem.External = external
