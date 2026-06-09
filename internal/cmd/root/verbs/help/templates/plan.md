@@ -17,7 +17,7 @@ kongctl plan [flags]
 - `-f, --filename` (string): File, directory, URL, or `-` for stdin
   - Can be specified multiple times to load multiple files
   - Directories are processed non-recursively by default
-- `--save-as` (string): Save a single remote URL source locally before loading
+- `--save-dir` (string): Save remote URL sources into a local directory before loading
 - `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
 
 ### Optional Flags

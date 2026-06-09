@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -52,8 +53,8 @@ const (
 	requireNamespaceConfigPath = "konnect.declarative." + requireNamespaceFlagName
 	// baseDirFlagName is the CLI flag for the !file base directory boundary
 	baseDirFlagName = "base-dir"
-	// saveAsFlagName is the CLI flag for saving a remote declarative source locally before loading
-	saveAsFlagName = "save-as"
+	// saveDirFlagName is the CLI flag for saving remote declarative sources locally before loading
+	saveDirFlagName = "save-dir"
 	// remoteFileAuthFlagName is the CLI flag for remote URL source authentication
 	remoteFileAuthFlagName = "remote-file-auth"
 	// baseDirConfigPath is the config path backing the base-dir flag
@@ -88,13 +89,13 @@ func parseDeclarativeSources(filenames []string) ([]loader.Source, error) {
 }
 
 func validateSourcesForCommand(command *cobra.Command, planFile string, filenames []string) error {
-	_, saveAsSet, err := saveAsPathFromCommand(command)
+	saveDir, saveDirSet, err := saveDirPathFromCommand(command)
 	if err != nil {
 		return err
 	}
 	if planFile != "" {
-		if saveAsSet {
-			return fmt.Errorf("--%s cannot be used with --plan", saveAsFlagName)
+		if saveDirSet {
+			return fmt.Errorf("--%s cannot be used with --plan", saveDirFlagName)
 		}
 		return nil
 	}
@@ -103,8 +104,10 @@ func validateSourcesForCommand(command *cobra.Command, planFile string, filename
 	if err != nil {
 		return err
 	}
-	if saveAsSet && (len(sources) != 1 || sources[0].Type != loader.SourceTypeURL) {
-		return fmt.Errorf("--%s requires exactly one URL source from -f/--filename", saveAsFlagName)
+	if saveDirSet {
+		if _, err := remoteSourceSaveTargets(sources, saveDir); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -118,13 +121,13 @@ func sourcesForCommand(
 	cfg config.Hook,
 	logger *slog.Logger,
 ) ([]loader.Source, loader.URLFetchOptions, error) {
-	saveAsPath, saveAsSet, err := saveAsPathFromCommand(command)
+	saveDir, saveDirSet, err := saveDirPathFromCommand(command)
 	if err != nil {
 		return nil, loader.URLFetchOptions{}, err
 	}
 	if planFile != "" {
-		if saveAsSet {
-			return nil, loader.URLFetchOptions{}, fmt.Errorf("--%s cannot be used with --plan", saveAsFlagName)
+		if saveDirSet {
+			return nil, loader.URLFetchOptions{}, fmt.Errorf("--%s cannot be used with --plan", saveDirFlagName)
 		}
 		return nil, loader.URLFetchOptions{}, nil
 	}
@@ -136,56 +139,141 @@ func sourcesForCommand(
 	if err != nil {
 		return nil, loader.URLFetchOptions{}, err
 	}
-	sources, err = prepareRemoteDeclarativeSources(command, sources, saveAsPath, saveAsSet, fetchOptions)
+	sources, err = prepareSavedRemoteDeclarativeSources(command, sources, saveDir, saveDirSet, fetchOptions)
 	if err != nil {
 		return nil, loader.URLFetchOptions{}, err
 	}
 	return sources, fetchOptions, nil
 }
 
-func saveAsPathFromCommand(command *cobra.Command) (string, bool, error) {
-	if command == nil || command.Flags().Lookup(saveAsFlagName) == nil {
+func saveDirPathFromCommand(command *cobra.Command) (string, bool, error) {
+	if command == nil || command.Flags().Lookup(saveDirFlagName) == nil {
 		return "", false, nil
 	}
-	flag := command.Flags().Lookup(saveAsFlagName)
-	value, err := command.Flags().GetString(saveAsFlagName)
+	flag := command.Flags().Lookup(saveDirFlagName)
+	value, err := command.Flags().GetString(saveDirFlagName)
 	if err != nil {
-		return "", flag.Changed, fmt.Errorf("failed to parse --%s flag: %w", saveAsFlagName, err)
+		return "", flag.Changed, fmt.Errorf("failed to parse --%s flag: %w", saveDirFlagName, err)
 	}
 	if !flag.Changed {
 		return "", false, nil
 	}
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		return "", true, fmt.Errorf("--%s cannot be empty", saveAsFlagName)
+		return "", true, fmt.Errorf("--%s cannot be empty", saveDirFlagName)
 	}
 	return trimmed, true, nil
 }
 
-func prepareRemoteDeclarativeSources(
+type remoteSourceSaveTarget struct {
+	sourceIndex int
+	path        string
+}
+
+func prepareSavedRemoteDeclarativeSources(
 	command *cobra.Command,
 	sources []loader.Source,
-	saveAsPath string,
-	saveAsSet bool,
+	saveDir string,
+	saveDirSet bool,
 	fetchOptions loader.URLFetchOptions,
 ) ([]loader.Source, error) {
-	if !saveAsSet {
+	if !saveDirSet {
 		return sources, nil
 	}
-	if len(sources) != 1 || sources[0].Type != loader.SourceTypeURL {
-		return nil, fmt.Errorf("--%s requires exactly one URL source from -f/--filename", saveAsFlagName)
-	}
-
-	content, err := loader.FetchURLWithOptions(command.Context(), sources[0].Path, fetchOptions)
+	targets, err := remoteSourceSaveTargets(sources, saveDir)
 	if err != nil {
 		return nil, err
 	}
-	if err := writeRemoteSourceFile(saveAsPath, content); err != nil {
-		return nil, fmt.Errorf("failed to save remote source to %q: %w", saveAsPath, err)
+	if err := prepareSaveDir(saveDir, targets); err != nil {
+		return nil, err
 	}
 
-	fmt.Fprintf(command.ErrOrStderr(), "Saved remote source to: %s\n", saveAsPath)
-	return []loader.Source{{Path: saveAsPath, Type: loader.SourceTypeFile}}, nil
+	savedSources := slices.Clone(sources)
+	for _, target := range targets {
+		source := sources[target.sourceIndex]
+		content, err := loader.FetchURLWithOptions(command.Context(), source.Path, fetchOptions)
+		if err != nil {
+			return nil, err
+		}
+		if err := writeRemoteSourceFile(target.path, content); err != nil {
+			return nil, fmt.Errorf("failed to save remote source to %q: %w", target.path, err)
+		}
+
+		fmt.Fprintf(command.ErrOrStderr(), "Saved remote source to: %s\n", target.path)
+		savedSources[target.sourceIndex] = loader.Source{Path: target.path, Type: loader.SourceTypeFile}
+	}
+
+	return savedSources, nil
+}
+
+func remoteSourceSaveTargets(sources []loader.Source, saveDir string) ([]remoteSourceSaveTarget, error) {
+	targets := make([]remoteSourceSaveTarget, 0)
+	filenames := make(map[string]string)
+	for idx, source := range sources {
+		if source.Type != loader.SourceTypeURL {
+			continue
+		}
+		filename, err := remoteSourceFilename(source.Path)
+		if err != nil {
+			return nil, err
+		}
+		if previousURL, ok := filenames[filename]; ok {
+			return nil, fmt.Errorf(
+				"cannot save remote sources: both %s and %s would save as %q",
+				previousURL,
+				source.Path,
+				filename,
+			)
+		}
+		filenames[filename] = source.Path
+		targets = append(targets, remoteSourceSaveTarget{
+			sourceIndex: idx,
+			path:        filepath.Join(saveDir, filename),
+		})
+	}
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("--%s requires at least one URL source from -f/--filename", saveDirFlagName)
+	}
+	return targets, nil
+}
+
+func remoteSourceFilename(rawURL string) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL %q: %w", rawURL, err)
+	}
+	if parsed.Path == "" || strings.HasSuffix(parsed.Path, "/") {
+		return "", fmt.Errorf("cannot save remote source %s: URL path must include a filename", rawURL)
+	}
+	filename := pathpkg.Base(parsed.Path)
+	if filename == "." || filename == ".." || filename == "" ||
+		strings.ContainsAny(filename, `/\`) || filepath.Base(filename) != filename {
+		return "", fmt.Errorf("cannot save remote source %s: URL path must include a valid filename", rawURL)
+	}
+	return filename, nil
+}
+
+func prepareSaveDir(saveDir string, targets []remoteSourceSaveTarget) error {
+	info, err := os.Stat(saveDir)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("failed to inspect save dir %q: %w", saveDir, err)
+		}
+		if err := os.MkdirAll(saveDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create save dir %q: %w", saveDir, err)
+		}
+	} else if !info.IsDir() {
+		return fmt.Errorf("save dir %q is not a directory", saveDir)
+	}
+
+	for _, target := range targets {
+		if _, err := os.Stat(target.path); err == nil {
+			return fmt.Errorf("cannot save remote source to %q: file already exists", target.path)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("failed to inspect save target %q: %w", target.path, err)
+		}
+	}
+	return nil
 }
 
 func writeRemoteSourceFile(path string, content []byte) error {
@@ -240,9 +328,9 @@ Defaults to each -f source root (file: its parent dir, dir: the directory itself
 - Config path: [ %s ]`, baseDirConfigPath))
 }
 
-func addSaveAsFlag(cmd *cobra.Command) {
-	cmd.Flags().String(saveAsFlagName, "",
-		"Save a single remote -f URL source to this local file before loading")
+func addSaveDirFlag(cmd *cobra.Command) {
+	cmd.Flags().String(saveDirFlagName, "",
+		"Save remote -f URL sources into this local directory before loading")
 }
 
 func addRemoteFileAuthFlag(cmd *cobra.Command) {
@@ -663,8 +751,11 @@ func declarativeApplyExamples() string {
   # Apply using the explicit Konnect target form
   %[1]s apply konnect -f api.yaml
 
-  # Apply a remote example and save it locally for future edits
-  %[1]s apply -f https://get.konghq.com/example-kongctl.yaml --save-as ./example-kongctl.yaml
+  # Apply remote examples and save them locally for future edits
+  %[1]s apply \
+    -f https://get.konghq.com/portal.yaml \
+    -f https://get.konghq.com/api.yaml \
+    --save-dir ./kongctl-example
 
   # Apply from a pre-generated plan
   %[1]s apply --plan plan.json`, meta.CLIName))
@@ -701,7 +792,7 @@ Konnect is the default target for this command, so "kongctl plan" and
 		"File, directory, URL, or '-' to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
-	addSaveAsFlag(cmd)
+	addSaveDirFlag(cmd)
 	addRemoteFileAuthFlag(cmd)
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
@@ -1612,7 +1703,7 @@ Konnect is the default target for this command, so "kongctl sync" and
 		"File, directory, URL, or '-' to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
-	addSaveAsFlag(cmd)
+	addSaveDirFlag(cmd)
 	addRemoteFileAuthFlag(cmd)
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file")
@@ -1647,7 +1738,7 @@ Konnect is the default target for this command, so "kongctl diff" and
 		"File, directory, URL, or '-' to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
-	addSaveAsFlag(cmd)
+	addSaveDirFlag(cmd)
 	addRemoteFileAuthFlag(cmd)
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
@@ -2128,7 +2219,7 @@ Konnect is the default target for this command, so "kongctl apply" and
 		"File, directory, URL, or '-' to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
-	addSaveAsFlag(cmd)
+	addSaveDirFlag(cmd)
 	addRemoteFileAuthFlag(cmd)
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file")
@@ -2164,7 +2255,7 @@ This is equivalent to running:
 		"File, directory, URL, or '-' to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
-	addSaveAsFlag(cmd)
+	addSaveDirFlag(cmd)
 	addRemoteFileAuthFlag(cmd)
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing delete plan file")

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -259,9 +260,9 @@ func TestDeclarativeCommandsExposeRemoteSourceFlags(t *testing.T) {
 			require.NotNil(t, filenameFlag)
 			assert.Contains(t, filenameFlag.Usage, "URL")
 
-			saveAsFlag := tt.cmd.Flags().Lookup(saveAsFlagName)
-			require.NotNil(t, saveAsFlag)
-			assert.Contains(t, saveAsFlag.Usage, "remote")
+			saveDirFlag := tt.cmd.Flags().Lookup(saveDirFlagName)
+			require.NotNil(t, saveDirFlag)
+			assert.Contains(t, saveDirFlag.Usage, "remote")
 
 			remoteAuthFlag := tt.cmd.Flags().Lookup(remoteFileAuthFlagName)
 			require.NotNil(t, remoteAuthFlag)
@@ -270,7 +271,7 @@ func TestDeclarativeCommandsExposeRemoteSourceFlags(t *testing.T) {
 	}
 }
 
-func TestSourcesForCommand_SaveAs(t *testing.T) {
+func TestSourcesForCommand_SaveDir(t *testing.T) {
 	t.Run("saves URL source and returns saved file source", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, err := w.Write([]byte("portals: []\n"))
@@ -282,8 +283,9 @@ func TestSourcesForCommand_SaveAs(t *testing.T) {
 		var stderr bytes.Buffer
 		cmd.SetErr(&stderr)
 
-		savePath := filepath.Join(t.TempDir(), "remote.yaml")
-		require.NoError(t, cmd.Flags().Set(saveAsFlagName, savePath))
+		saveDir := t.TempDir()
+		savePath := filepath.Join(saveDir, "config.yaml")
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
 
 		sources, _, err := sourcesForCommand(
 			cmd,
@@ -303,31 +305,55 @@ func TestSourcesForCommand_SaveAs(t *testing.T) {
 		assert.Contains(t, stderr.String(), "Saved remote source to: "+savePath)
 	})
 
-	t.Run("rejects plan input", func(t *testing.T) {
-		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveAsFlagName, filepath.Join(t.TempDir(), "remote.yaml")))
+	t.Run("saves multiple URL sources and returns saved file sources", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/portal.yaml":
+				_, err := w.Write([]byte("portals: []\n"))
+				require.NoError(t, err)
+			case "/api.yaml":
+				_, err := w.Write([]byte("apis: []\n"))
+				require.NoError(t, err)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer server.Close()
 
-		_, _, err := sourcesForCommand(cmd, "plan.json", nil, testDeclarativeConfig(), testDeclarativeLogger())
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--save-as cannot be used with --plan")
+		cmd := newDeclarativeApplyCmd()
+		var stderr bytes.Buffer
+		cmd.SetErr(&stderr)
+
+		saveDir := t.TempDir()
+		portalPath := filepath.Join(saveDir, "portal.yaml")
+		apiPath := filepath.Join(saveDir, "api.yaml")
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
+
+		sources, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{server.URL + "/portal.yaml", server.URL + "/api.yaml"},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.NoError(t, err)
+		require.Len(t, sources, 2)
+		assert.Equal(t, loader.Source{Path: portalPath, Type: loader.SourceTypeFile}, sources[0])
+		assert.Equal(t, loader.Source{Path: apiPath, Type: loader.SourceTypeFile}, sources[1])
+
+		content, err := os.ReadFile(portalPath)
+		require.NoError(t, err)
+		assert.Equal(t, "portals: []\n", string(content))
+		content, err = os.ReadFile(apiPath)
+		require.NoError(t, err)
+		assert.Equal(t, "apis: []\n", string(content))
+		assert.Contains(t, stderr.String(), "Saved remote source to: "+portalPath)
+		assert.Contains(t, stderr.String(), "Saved remote source to: "+apiPath)
 	})
 
-	t.Run("rejects non URL input", func(t *testing.T) {
-		dir := t.TempDir()
-		configPath := filepath.Join(dir, "config.yaml")
-		require.NoError(t, os.WriteFile(configPath, []byte("portals: []\n"), 0o600))
-
-		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveAsFlagName, filepath.Join(dir, "remote.yaml")))
-
-		_, _, err := sourcesForCommand(cmd, "", []string{configPath}, testDeclarativeConfig(), testDeclarativeLogger())
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--save-as requires exactly one URL source")
-	})
-
-	t.Run("rejects multiple sources", func(t *testing.T) {
+	t.Run("saves URL sources and preserves local sources", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			_, err := w.Write([]byte("portals: []\n"))
+			_, err := w.Write([]byte("apis: []\n"))
 			require.NoError(t, err)
 		}))
 		defer server.Close()
@@ -335,24 +361,113 @@ func TestSourcesForCommand_SaveAs(t *testing.T) {
 		dir := t.TempDir()
 		configPath := filepath.Join(dir, "config.yaml")
 		require.NoError(t, os.WriteFile(configPath, []byte("portals: []\n"), 0o600))
+		saveDir := filepath.Join(dir, "saved")
+		savePath := filepath.Join(saveDir, "api.yaml")
 
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveAsFlagName, filepath.Join(dir, "remote.yaml")))
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
+
+		sources, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{configPath, server.URL + "/api.yaml"},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.NoError(t, err)
+		require.Len(t, sources, 2)
+		assert.Equal(t, loader.Source{Path: configPath, Type: loader.SourceTypeFile}, sources[0])
+		assert.Equal(t, loader.Source{Path: savePath, Type: loader.SourceTypeFile}, sources[1])
+	})
+
+	t.Run("rejects plan input", func(t *testing.T) {
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, t.TempDir()))
+
+		_, _, err := sourcesForCommand(cmd, "plan.json", nil, testDeclarativeConfig(), testDeclarativeLogger())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--save-dir cannot be used with --plan")
+	})
+
+	t.Run("rejects input without URL sources", func(t *testing.T) {
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "config.yaml")
+		require.NoError(t, os.WriteFile(configPath, []byte("portals: []\n"), 0o600))
+
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, filepath.Join(dir, "saved")))
+
+		_, _, err := sourcesForCommand(cmd, "", []string{configPath}, testDeclarativeConfig(), testDeclarativeLogger())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--save-dir requires at least one URL source")
+	})
+
+	t.Run("rejects duplicate remote filenames before fetching", func(t *testing.T) {
+		var requests atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			_, err := w.Write([]byte("portals: []\n"))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		dir := t.TempDir()
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, dir))
 
 		_, _, err := sourcesForCommand(
 			cmd,
 			"",
-			[]string{server.URL, configPath},
+			[]string{server.URL + "/one/config.yaml", server.URL + "/two/config.yaml"},
 			testDeclarativeConfig(),
 			testDeclarativeLogger(),
 		)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--save-as requires exactly one URL source")
+		assert.Contains(t, err.Error(), `would save as "config.yaml"`)
+		assert.Zero(t, requests.Load())
 	})
 
-	t.Run("rejects empty save path", func(t *testing.T) {
+	t.Run("rejects URL without filename", func(t *testing.T) {
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveAsFlagName, ""))
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, t.TempDir()))
+
+		_, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{"https://example.com/config/"},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "URL path must include a filename")
+	})
+
+	t.Run("rejects existing save target", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte("portals: []\n"))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		saveDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(saveDir, "config.yaml"), []byte("existing"), 0o600))
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
+
+		_, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{server.URL + "/config.yaml"},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "file already exists")
+	})
+
+	t.Run("rejects empty save dir", func(t *testing.T) {
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, ""))
 
 		_, _, err := sourcesForCommand(
 			cmd,
@@ -362,7 +477,7 @@ func TestSourcesForCommand_SaveAs(t *testing.T) {
 			testDeclarativeLogger(),
 		)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--save-as cannot be empty")
+		assert.Contains(t, err.Error(), "--save-dir cannot be empty")
 	})
 }
 

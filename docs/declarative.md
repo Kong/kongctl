@@ -120,14 +120,19 @@ You can also load a single configuration file from an HTTP or HTTPS URL:
 kongctl apply -f https://get.konghq.com/example-kongctl.yaml
 ```
 
-To save that remote file locally and run the command from the saved copy in one
-operation, use `--save-as`:
+To save remote files locally and run the command from the saved copies in one
+operation, use `--save-dir`:
 
 ```shell
 kongctl apply \
-  -f https://get.konghq.com/example-kongctl.yaml \
-  --save-as ./example-kongctl.yaml
+  -f https://get.konghq.com/portal.yaml \
+  -f https://get.konghq.com/api.yaml \
+  --save-dir ./kongctl-example
 ```
+
+Remote files are saved into the directory using the filename from each URL path.
+If multiple remote URLs would save to the same filename, the command fails
+before fetching them.
 
 When `--remote-file-auth=auto` is enabled, which is the default, `kongctl`
 sends the current profile's Konnect bearer token only to HTTPS remote sources
@@ -570,9 +575,9 @@ directory itself). For stdin and URL sources, the boundary defaults to the
 current working directory. Set the base directory with `--base-dir` or
 `konnect.declarative.base-dir`
 (`KONGCTL_<PROFILE>_KONNECT_DECLARATIVE_BASE_DIR`, for example
-`KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`). When a URL source is loaded
-with `--save-as`, subsequent relative paths are resolved like a normal file
-source from the saved file's directory.
+`KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`). When URL sources are loaded
+with `--save-dir`, subsequent relative paths are resolved like normal file
+sources from the save directory.
 
 ```yaml
 # ❌ These will fail with security errors

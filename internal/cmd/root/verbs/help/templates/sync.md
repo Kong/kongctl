@@ -20,7 +20,7 @@ kongctl sync [flags]
 
 - `-f, --filename` (string): File, directory, URL, or `-` for stdin
   - Can be specified multiple times
-- `--save-as` (string): Save a single remote URL source locally before loading
+- `--save-dir` (string): Save remote URL sources into a local directory before loading
 - `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
 - `--plan` (string): Path to a pre-generated plan file
 - `-r, --recursive`: Process directories recursively
