@@ -8,13 +8,23 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spf13/pflag"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/config"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 )
 
 type paginationHandler func(pageNumber int64) (bool, error)
+
+func bindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
+	if f := flags.Lookup(flagName); f != nil {
+		return cfg.BindFlag(configPath, f)
+	}
+	return nil
+}
 
 const (
 	maxPaginationPages          int64 = 10000

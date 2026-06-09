@@ -136,26 +136,18 @@ Setting this value overrides tokens obtained from the login command.
 			return err
 		}
 
-		if f := c.Flags().Lookup(konnectCommon.BaseURLFlagName); f != nil {
-			if err := cfg.BindFlag(konnectCommon.BaseURLConfigPath, f); err != nil {
+		bindings := []struct{ flag, configPath string }{
+			{konnectCommon.BaseURLFlagName, konnectCommon.BaseURLConfigPath},
+			{konnectCommon.RegionFlagName, konnectCommon.RegionConfigPath},
+			{konnectCommon.PATFlagName, konnectCommon.PATConfigPath},
+			{konnectCommon.RequestPageSizeFlagName, konnectCommon.RequestPageSizeConfigPath},
+		}
+		for _, b := range bindings {
+			if err := bindFlag(cfg, c.Flags(), b.flag, b.configPath); err != nil {
 				return err
 			}
 		}
-
-		if f := c.Flags().Lookup(konnectCommon.RegionFlagName); f != nil {
-			if err := cfg.BindFlag(konnectCommon.RegionConfigPath, f); err != nil {
-				return err
-			}
-		}
-
-		if f := c.Flags().Lookup(konnectCommon.PATFlagName); f != nil {
-			if err := cfg.BindFlag(konnectCommon.PATConfigPath, f); err != nil {
-				return err
-			}
-		}
-
-		return cfg.BindFlag(konnectCommon.RequestPageSizeConfigPath,
-			c.Flags().Lookup(konnectCommon.RequestPageSizeFlagName))
+		return nil
 	}
 
 	return cmd

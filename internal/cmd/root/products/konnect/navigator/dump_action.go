@@ -128,11 +128,6 @@ func filenameSlug(value string) string {
 		case unicode.IsLetter(r) || unicode.IsDigit(r):
 			b.WriteRune(r)
 			lastDash = false
-		case r == '.', r == '-', r == '_':
-			if !lastDash && b.Len() > 0 {
-				b.WriteRune('-')
-				lastDash = true
-			}
 		default:
 			if !lastDash && b.Len() > 0 {
 				b.WriteRune('-')

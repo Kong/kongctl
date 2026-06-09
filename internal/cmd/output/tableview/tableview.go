@@ -2921,18 +2921,15 @@ func (m *bubbleModel) handleSelectionActionDialogKey(key tea.KeyPressMsg) tea.Cm
 		return m.submitSelectionAction()
 	}
 
-	if m.actionDialog.focus != selectionActionFocusOutput {
-		if m.actionDialog.focus != selectionActionFocusNamespace {
-			return nil
-		}
-
-		var cmd tea.Cmd
-		m.actionDialog.namespaceInput, cmd = m.actionDialog.namespaceInput.Update(key)
-		return cmd
-	}
-
 	var cmd tea.Cmd
-	m.actionDialog.outputInput, cmd = m.actionDialog.outputInput.Update(key)
+	switch m.actionDialog.focus {
+	case selectionActionFocusOutput:
+		m.actionDialog.outputInput, cmd = m.actionDialog.outputInput.Update(key)
+	case selectionActionFocusNamespace:
+		m.actionDialog.namespaceInput, cmd = m.actionDialog.namespaceInput.Update(key)
+	default:
+		return nil
+	}
 	return cmd
 }
 
