@@ -121,19 +121,20 @@ kongctl apply -f https://get.konghq.com/example-kongctl.yaml
 ```
 
 To save remote files locally and run the command from the saved copies in one
-operation, use `--save-dir`:
+operation, use `--remote-file-save-dir` or its shorthand, `-s`:
 
 ```shell
 kongctl apply \
   -f https://get.konghq.com/portal.yaml \
   -f https://get.konghq.com/api.yaml \
-  --save-dir ./kongctl-example
+  --remote-file-save-dir ./kongctl-example
 ```
 
 Remote files are saved into the directory using the filename from each URL path.
 If multiple remote URLs would save to the same filename, the command fails
 before fetching them. Existing files are left intact by default. Use
-`--save-dir-overwrite` with `--save-dir` to replace existing saved files.
+`--remote-file-save-force` with `--remote-file-save-dir` to replace existing
+saved files.
 
 When `--remote-file-auth=auto` is enabled, which is the default, `kongctl`
 sends the current profile's Konnect bearer token only to HTTPS remote sources
@@ -577,8 +578,8 @@ current working directory. Set the base directory with `--base-dir` or
 `konnect.declarative.base-dir`
 (`KONGCTL_<PROFILE>_KONNECT_DECLARATIVE_BASE_DIR`, for example
 `KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`). When URL sources are loaded
-with `--save-dir`, subsequent relative paths are resolved like normal file
-sources from the save directory.
+with `--remote-file-save-dir`, subsequent relative paths are resolved like
+normal file sources from the save directory.
 
 ```yaml
 # ❌ These will fail with security errors

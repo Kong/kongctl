@@ -260,13 +260,14 @@ func TestDeclarativeCommandsExposeRemoteSourceFlags(t *testing.T) {
 			require.NotNil(t, filenameFlag)
 			assert.Contains(t, filenameFlag.Usage, "URL")
 
-			saveDirFlag := tt.cmd.Flags().Lookup(saveDirFlagName)
+			saveDirFlag := tt.cmd.Flags().Lookup(remoteFileSaveDirFlagName)
 			require.NotNil(t, saveDirFlag)
 			assert.Contains(t, saveDirFlag.Usage, "remote")
+			assert.Equal(t, remoteFileSaveDirFlagShort, saveDirFlag.Shorthand)
 
-			saveDirOverwriteFlag := tt.cmd.Flags().Lookup(saveDirOverwriteFlagName)
-			require.NotNil(t, saveDirOverwriteFlag)
-			assert.Contains(t, saveDirOverwriteFlag.Usage, "Overwrite")
+			saveForceFlag := tt.cmd.Flags().Lookup(remoteFileSaveForceFlagName)
+			require.NotNil(t, saveForceFlag)
+			assert.Contains(t, saveForceFlag.Usage, "Overwrite")
 
 			remoteAuthFlag := tt.cmd.Flags().Lookup(remoteFileAuthFlagName)
 			require.NotNil(t, remoteAuthFlag)
@@ -289,7 +290,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 
 		saveDir := t.TempDir()
 		savePath := filepath.Join(saveDir, "config.yaml")
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, saveDir))
 
 		sources, _, err := sourcesForCommand(
 			cmd,
@@ -331,7 +332,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		saveDir := t.TempDir()
 		portalPath := filepath.Join(saveDir, "portal.yaml")
 		apiPath := filepath.Join(saveDir, "api.yaml")
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, saveDir))
 
 		sources, _, err := sourcesForCommand(
 			cmd,
@@ -369,7 +370,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		savePath := filepath.Join(saveDir, "api.yaml")
 
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, saveDir))
 
 		sources, _, err := sourcesForCommand(
 			cmd,
@@ -386,11 +387,11 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 
 	t.Run("rejects plan input", func(t *testing.T) {
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, t.TempDir()))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, t.TempDir()))
 
 		_, _, err := sourcesForCommand(cmd, "plan.json", nil, testDeclarativeConfig(), testDeclarativeLogger())
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--save-dir cannot be used with --plan")
+		assert.Contains(t, err.Error(), "--remote-file-save-dir cannot be used with --plan")
 	})
 
 	t.Run("rejects input without URL sources", func(t *testing.T) {
@@ -399,11 +400,11 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		require.NoError(t, os.WriteFile(configPath, []byte("portals: []\n"), 0o600))
 
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, filepath.Join(dir, "saved")))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, filepath.Join(dir, "saved")))
 
 		_, _, err := sourcesForCommand(cmd, "", []string{configPath}, testDeclarativeConfig(), testDeclarativeLogger())
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--save-dir requires at least one URL source")
+		assert.Contains(t, err.Error(), "--remote-file-save-dir requires at least one URL source")
 	})
 
 	t.Run("rejects duplicate remote filenames before fetching", func(t *testing.T) {
@@ -417,7 +418,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 
 		dir := t.TempDir()
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, dir))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, dir))
 
 		_, _, err := sourcesForCommand(
 			cmd,
@@ -433,7 +434,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 
 	t.Run("rejects URL without filename", func(t *testing.T) {
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, t.TempDir()))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, t.TempDir()))
 
 		_, _, err := sourcesForCommand(
 			cmd,
@@ -456,7 +457,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		saveDir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(saveDir, "config.yaml"), []byte("existing"), 0o600))
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, saveDir))
 
 		_, _, err := sourcesForCommand(
 			cmd,
@@ -480,8 +481,8 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		savePath := filepath.Join(saveDir, "config.yaml")
 		require.NoError(t, os.WriteFile(savePath, []byte("old content"), 0o600))
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
-		require.NoError(t, cmd.Flags().Set(saveDirOverwriteFlagName, "true"))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, saveDir))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveForceFlagName, "true"))
 
 		sources, _, err := sourcesForCommand(
 			cmd,
@@ -501,7 +502,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 
 	t.Run("rejects overwrite without save dir", func(t *testing.T) {
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirOverwriteFlagName, "true"))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveForceFlagName, "true"))
 
 		_, _, err := sourcesForCommand(
 			cmd,
@@ -511,7 +512,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 			testDeclarativeLogger(),
 		)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--save-dir-overwrite requires --save-dir")
+		assert.Contains(t, err.Error(), "--remote-file-save-force requires --remote-file-save-dir")
 	})
 
 	t.Run("rejects non regular save target before fetching", func(t *testing.T) {
@@ -526,8 +527,8 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		saveDir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(saveDir, "config.yaml"), 0o755))
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
-		require.NoError(t, cmd.Flags().Set(saveDirOverwriteFlagName, "true"))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, saveDir))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveForceFlagName, "true"))
 
 		_, _, err := sourcesForCommand(
 			cmd,
@@ -543,7 +544,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 
 	t.Run("rejects empty save dir", func(t *testing.T) {
 		cmd := newDeclarativeApplyCmd()
-		require.NoError(t, cmd.Flags().Set(saveDirFlagName, ""))
+		require.NoError(t, cmd.Flags().Set(remoteFileSaveDirFlagName, ""))
 
 		_, _, err := sourcesForCommand(
 			cmd,
@@ -553,7 +554,7 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 			testDeclarativeLogger(),
 		)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--save-dir cannot be empty")
+		assert.Contains(t, err.Error(), "--remote-file-save-dir cannot be empty")
 	})
 }
 

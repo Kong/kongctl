@@ -16,8 +16,8 @@ kongctl apply [flags]
 
 - `-f, --filename` (string): File, directory, URL, or `-` for stdin
   - Can be specified multiple times
-- `--save-dir` (string): Save remote URL sources into a local directory before loading
-- `--save-dir-overwrite`: Overwrite existing files when saving with `--save-dir`
+- `-s, --remote-file-save-dir` (string): Save remote URL sources into a local directory before loading
+- `--remote-file-save-force`: Overwrite existing files when saving with `--remote-file-save-dir`
 - `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
 - `--plan` (string): Path to a pre-generated plan file
 - `-r, --recursive`: Process directories recursively
@@ -66,7 +66,7 @@ kongctl apply -f ./configs/
 kongctl apply \
   -f https://get.konghq.com/portal.yaml \
   -f https://get.konghq.com/api.yaml \
-  --save-dir ./kongctl-example
+  -s ./kongctl-example
 
 # Apply with auto-approval (no prompts)
 kongctl apply -f config.yaml --auto-approve

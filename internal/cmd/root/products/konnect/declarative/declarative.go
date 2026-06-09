@@ -53,10 +53,12 @@ const (
 	requireNamespaceConfigPath = "konnect.declarative." + requireNamespaceFlagName
 	// baseDirFlagName is the CLI flag for the !file base directory boundary
 	baseDirFlagName = "base-dir"
-	// saveDirFlagName is the CLI flag for saving remote declarative sources locally before loading
-	saveDirFlagName = "save-dir"
-	// saveDirOverwriteFlagName is the CLI flag for overwriting existing files in save-dir
-	saveDirOverwriteFlagName = "save-dir-overwrite"
+	// remoteFileSaveDirFlagName is the CLI flag for saving remote declarative sources locally before loading
+	remoteFileSaveDirFlagName = "remote-file-save-dir"
+	// remoteFileSaveDirFlagShort is the CLI shorthand flag for saving remote declarative sources locally
+	remoteFileSaveDirFlagShort = "s"
+	// remoteFileSaveForceFlagName is the CLI flag for overwriting existing files in remote-file-save-dir
+	remoteFileSaveForceFlagName = "remote-file-save-force"
 	// remoteFileAuthFlagName is the CLI flag for remote URL source authentication
 	remoteFileAuthFlagName = "remote-file-auth"
 	// baseDirConfigPath is the config path backing the base-dir flag
@@ -97,7 +99,7 @@ func validateSourcesForCommand(command *cobra.Command, planFile string, filename
 	}
 	if planFile != "" {
 		if saveDirSet {
-			return fmt.Errorf("--%s cannot be used with --plan", saveDirFlagName)
+			return fmt.Errorf("--%s cannot be used with --plan", remoteFileSaveDirFlagName)
 		}
 		return nil
 	}
@@ -123,13 +125,16 @@ func sourcesForCommand(
 	cfg config.Hook,
 	logger *slog.Logger,
 ) ([]loader.Source, loader.URLFetchOptions, error) {
-	saveDir, saveDirSet, saveDirOverwrite, err := saveDirOptionsFromCommand(command)
+	saveDir, saveDirSet, saveForce, err := saveDirOptionsFromCommand(command)
 	if err != nil {
 		return nil, loader.URLFetchOptions{}, err
 	}
 	if planFile != "" {
 		if saveDirSet {
-			return nil, loader.URLFetchOptions{}, fmt.Errorf("--%s cannot be used with --plan", saveDirFlagName)
+			return nil, loader.URLFetchOptions{}, fmt.Errorf(
+				"--%s cannot be used with --plan",
+				remoteFileSaveDirFlagName,
+			)
 		}
 		return nil, loader.URLFetchOptions{}, nil
 	}
@@ -146,7 +151,7 @@ func sourcesForCommand(
 		sources,
 		saveDir,
 		saveDirSet,
-		saveDirOverwrite,
+		saveForce,
 		fetchOptions,
 	)
 	if err != nil {
@@ -160,43 +165,47 @@ func saveDirOptionsFromCommand(command *cobra.Command) (string, bool, bool, erro
 	if err != nil {
 		return "", saveDirSet, false, err
 	}
-	overwrite, _, err := saveDirOverwriteFromCommand(command)
+	force, _, err := remoteFileSaveForceFromCommand(command)
 	if err != nil {
 		return "", saveDirSet, false, err
 	}
-	if overwrite && !saveDirSet {
-		return "", saveDirSet, overwrite, fmt.Errorf("--%s requires --%s", saveDirOverwriteFlagName, saveDirFlagName)
+	if force && !saveDirSet {
+		return "", saveDirSet, force, fmt.Errorf(
+			"--%s requires --%s",
+			remoteFileSaveForceFlagName,
+			remoteFileSaveDirFlagName,
+		)
 	}
-	return saveDir, saveDirSet, overwrite, nil
+	return saveDir, saveDirSet, force, nil
 }
 
 func saveDirPathFromCommand(command *cobra.Command) (string, bool, error) {
-	if command == nil || command.Flags().Lookup(saveDirFlagName) == nil {
+	if command == nil || command.Flags().Lookup(remoteFileSaveDirFlagName) == nil {
 		return "", false, nil
 	}
-	flag := command.Flags().Lookup(saveDirFlagName)
-	value, err := command.Flags().GetString(saveDirFlagName)
+	flag := command.Flags().Lookup(remoteFileSaveDirFlagName)
+	value, err := command.Flags().GetString(remoteFileSaveDirFlagName)
 	if err != nil {
-		return "", flag.Changed, fmt.Errorf("failed to parse --%s flag: %w", saveDirFlagName, err)
+		return "", flag.Changed, fmt.Errorf("failed to parse --%s flag: %w", remoteFileSaveDirFlagName, err)
 	}
 	if !flag.Changed {
 		return "", false, nil
 	}
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		return "", true, fmt.Errorf("--%s cannot be empty", saveDirFlagName)
+		return "", true, fmt.Errorf("--%s cannot be empty", remoteFileSaveDirFlagName)
 	}
 	return trimmed, true, nil
 }
 
-func saveDirOverwriteFromCommand(command *cobra.Command) (bool, bool, error) {
-	if command == nil || command.Flags().Lookup(saveDirOverwriteFlagName) == nil {
+func remoteFileSaveForceFromCommand(command *cobra.Command) (bool, bool, error) {
+	if command == nil || command.Flags().Lookup(remoteFileSaveForceFlagName) == nil {
 		return false, false, nil
 	}
-	flag := command.Flags().Lookup(saveDirOverwriteFlagName)
-	value, err := command.Flags().GetBool(saveDirOverwriteFlagName)
+	flag := command.Flags().Lookup(remoteFileSaveForceFlagName)
+	value, err := command.Flags().GetBool(remoteFileSaveForceFlagName)
 	if err != nil {
-		return false, flag.Changed, fmt.Errorf("failed to parse --%s flag: %w", saveDirOverwriteFlagName, err)
+		return false, flag.Changed, fmt.Errorf("failed to parse --%s flag: %w", remoteFileSaveForceFlagName, err)
 	}
 	return value, flag.Changed, nil
 }
@@ -211,7 +220,7 @@ func prepareSavedRemoteDeclarativeSources(
 	sources []loader.Source,
 	saveDir string,
 	saveDirSet bool,
-	saveDirOverwrite bool,
+	saveForce bool,
 	fetchOptions loader.URLFetchOptions,
 ) ([]loader.Source, error) {
 	if !saveDirSet {
@@ -221,7 +230,7 @@ func prepareSavedRemoteDeclarativeSources(
 	if err != nil {
 		return nil, err
 	}
-	if err := prepareSaveDir(saveDir, targets, saveDirOverwrite); err != nil {
+	if err := prepareSaveDir(saveDir, targets, saveForce); err != nil {
 		return nil, err
 	}
 
@@ -269,7 +278,7 @@ func remoteSourceSaveTargets(sources []loader.Source, saveDir string) ([]remoteS
 		})
 	}
 	if len(targets) == 0 {
-		return nil, fmt.Errorf("--%s requires at least one URL source from -f/--filename", saveDirFlagName)
+		return nil, fmt.Errorf("--%s requires at least one URL source from -f/--filename", remoteFileSaveDirFlagName)
 	}
 	return targets, nil
 }
@@ -372,10 +381,10 @@ Defaults to each -f source root (file: its parent dir, dir: the directory itself
 }
 
 func addSaveDirFlag(cmd *cobra.Command) {
-	cmd.Flags().String(saveDirFlagName, "",
+	cmd.Flags().StringP(remoteFileSaveDirFlagName, remoteFileSaveDirFlagShort, "",
 		"Save remote -f URL sources into this local directory before loading")
-	cmd.Flags().Bool(saveDirOverwriteFlagName, false,
-		"Overwrite existing files when saving remote -f URL sources with --save-dir")
+	cmd.Flags().Bool(remoteFileSaveForceFlagName, false,
+		"Overwrite existing files when saving remote -f URL sources with --remote-file-save-dir")
 }
 
 func addRemoteFileAuthFlag(cmd *cobra.Command) {
@@ -800,7 +809,7 @@ func declarativeApplyExamples() string {
   %[1]s apply \
     -f https://get.konghq.com/portal.yaml \
     -f https://get.konghq.com/api.yaml \
-    --save-dir ./kongctl-example
+    -s ./kongctl-example
 
   # Apply from a pre-generated plan
   %[1]s apply --plan plan.json`, meta.CLIName))

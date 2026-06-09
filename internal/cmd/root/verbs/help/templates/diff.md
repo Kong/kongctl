@@ -16,8 +16,8 @@ kongctl diff [flags]
 
 - `-f, --filename` (string): File, directory, URL, or `-` for stdin
   - Can be specified multiple times
-- `--save-dir` (string): Save remote URL sources into a local directory before loading
-- `--save-dir-overwrite`: Overwrite existing files when saving with `--save-dir`
+- `-s, --remote-file-save-dir` (string): Save remote URL sources into a local directory before loading
+- `--remote-file-save-force`: Overwrite existing files when saving with `--remote-file-save-dir`
 - `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
 - `--plan` (string): Use a pre-generated plan file
 - `--mode` (string): Diff mode: `sync`, `apply`, or `delete` (default: `sync`)
