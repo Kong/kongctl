@@ -858,7 +858,17 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 // hydrateKnownReferenceIDs fills unresolved parent/reference IDs in-place using
 // IDs from already executed dependency CREATE changes.
 func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan *planner.Plan) {
-	if change == nil || plan == nil || len(change.DependsOn) == 0 {
+	if change == nil || plan == nil {
+		return
+	}
+
+	for field, refInfo := range change.References {
+		if change.Fields != nil && !unresolvedReferenceID(refInfo.ID) {
+			setResolvedFieldValue(change.Fields, field, refInfo.ID)
+		}
+	}
+
+	if len(change.DependsOn) == 0 {
 		return
 	}
 
@@ -895,9 +905,7 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 				refInfo.ID = id
 				updated = true
 				if change.Fields != nil {
-					if _, exists := change.Fields[field]; exists {
-						change.Fields[field] = id
-					}
+					setResolvedFieldValue(change.Fields, field, id)
 				}
 			}
 		}
@@ -1141,9 +1149,121 @@ func (e *Executor) syncResolvedRef(
 		change.References[fieldName] = ref
 	}
 
-	change.Fields[fieldName] = ref.ID
+	if change.Fields != nil && !setResolvedFieldValue(change.Fields, fieldName, ref.ID) {
+		change.Fields[fieldName] = ref.ID
+	}
 
 	return nil
+}
+
+func (e *Executor) syncResolvedEventGatewayProducePolicyConfigRefs(
+	ctx context.Context,
+	change *planner.PlannedChange,
+) error {
+	if err := e.syncResolvedEventGatewaySchemaRegistryConfigRef(ctx, change); err != nil {
+		return err
+	}
+	if err := e.syncResolvedEventGatewayStaticKeyConfigRef(ctx, change); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *Executor) syncResolvedEventGatewaySchemaRegistryConfigRef(
+	ctx context.Context,
+	change *planner.PlannedChange,
+) error {
+	const fieldName = planner.FieldConfig + ".schema_registry." + planner.FieldID
+	ref, ok := change.References[fieldName]
+	if !ok {
+		return nil
+	}
+
+	if unresolvedReferenceID(ref.ID) {
+		if e.client == nil {
+			return fmt.Errorf("state client not configured")
+		}
+		gatewayID, err := eventGatewayIDFromChange(change)
+		if err != nil {
+			return err
+		}
+		name := referenceLookupName(ref)
+		registry, err := e.client.GetEventGatewaySchemaRegistryByName(ctx, gatewayID, name)
+		if err != nil {
+			return fmt.Errorf("failed to resolve event gateway schema registry reference: %w", err)
+		}
+		if registry == nil {
+			return fmt.Errorf("event gateway schema registry not found: ref=%s", ref.Ref)
+		}
+		ref.ID = registry.ID
+		change.References[fieldName] = ref
+	}
+
+	if change.Fields != nil {
+		setResolvedFieldValue(change.Fields, fieldName, ref.ID)
+	}
+	return nil
+}
+
+func (e *Executor) syncResolvedEventGatewayStaticKeyConfigRef(
+	ctx context.Context,
+	change *planner.PlannedChange,
+) error {
+	const fieldName = planner.FieldConfig + ".encryption_key.key." + planner.FieldID
+	ref, ok := change.References[fieldName]
+	if !ok {
+		return nil
+	}
+
+	if unresolvedReferenceID(ref.ID) {
+		if e.client == nil {
+			return fmt.Errorf("state client not configured")
+		}
+		gatewayID, err := eventGatewayIDFromChange(change)
+		if err != nil {
+			return err
+		}
+		name := referenceLookupName(ref)
+		keys, err := e.client.ListEventGatewayStaticKeys(ctx, gatewayID)
+		if err != nil {
+			return fmt.Errorf("failed to resolve event gateway static key reference: %w", err)
+		}
+		for _, key := range keys {
+			if key.Name == name {
+				ref.ID = key.ID
+				change.References[fieldName] = ref
+				break
+			}
+		}
+		if unresolvedReferenceID(ref.ID) {
+			return fmt.Errorf("event gateway static key not found: ref=%s", ref.Ref)
+		}
+	}
+
+	if change.Fields != nil {
+		setResolvedFieldValue(change.Fields, fieldName, ref.ID)
+	}
+	return nil
+}
+
+func eventGatewayIDFromChange(change *planner.PlannedChange) (string, error) {
+	if change == nil {
+		return "", fmt.Errorf("event gateway reference is required")
+	}
+	ref, ok := change.References[planner.FieldEventGatewayID]
+	if !ok || unresolvedReferenceID(ref.ID) {
+		return "", fmt.Errorf("event gateway reference is required")
+	}
+	return ref.ID, nil
+}
+
+func referenceLookupName(ref planner.ReferenceInfo) string {
+	if ref.LookupFields != nil {
+		if name := strings.TrimSpace(ref.LookupFields[planner.FieldName]); name != "" {
+			return name
+		}
+	}
+	return normalizedRefValue(ref.Ref)
 }
 
 func (e *Executor) syncResolvedDCRProviderID(
@@ -2644,6 +2764,9 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			virtualClusterRef.ID = virtualClusterID
 			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
 		}
+		if err := e.syncResolvedEventGatewayProducePolicyConfigRefs(ctx, change); err != nil {
+			return "", err
+		}
 		return e.eventGatewayProducePolicyExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayConsumePolicy:
 		// Resolve event gateway reference if needed
@@ -3105,6 +3228,9 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			}
 			virtualClusterRef.ID = virtualClusterID
 			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
+		}
+		if err := e.syncResolvedEventGatewayProducePolicyConfigRefs(ctx, change); err != nil {
+			return "", err
 		}
 		return e.eventGatewayProducePolicyExecutor.Update(ctx, *change)
 	case planner.ResourceTypeEventGatewayConsumePolicy:

@@ -43,7 +43,7 @@ event_gateways:
             config:
               key_validation_action: mark
               value_validation_action: mark
-              type: json
+              type: confluent_schema_registry
               schema_registry:
                 id: !ref schema-registry-for-produce-policy#id
     schema_registries:

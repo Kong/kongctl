@@ -477,7 +477,7 @@ steps:
                   team: payments
                 config.key_validation_action: mark
                 config.value_validation_action: reject
-                config.type: json
+                config.type: confluent_schema_registry
 
   - name: 007-schema-validation-update
     inputOverlayDirs:
@@ -550,7 +550,7 @@ steps:
                   version: v2
                 config.key_validation_action: mark
                 config.value_validation_action: mark
-                config.type: json
+                config.type: confluent_schema_registry
 
   - name: 008-schema-validation-sync-delete
     inputOverlayDirs:
