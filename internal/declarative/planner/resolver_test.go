@@ -23,6 +23,63 @@ type MockPortalAPI struct {
 	mock.Mock
 }
 
+type schemaRegistryAPIForResolver struct {
+	gatewayID  string
+	registries []kkComps.SchemaRegistry
+}
+
+func (m schemaRegistryAPIForResolver) ListEventGatewaySchemaRegistries(
+	_ context.Context,
+	req kkOps.ListEventGatewaySchemaRegistriesRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListEventGatewaySchemaRegistriesResponse, error) {
+	if req.GatewayID != m.gatewayID {
+		return nil, errors.New("unexpected gateway ID")
+	}
+	return &kkOps.ListEventGatewaySchemaRegistriesResponse{
+		ListSchemaRegistriesResponse: &kkComps.ListSchemaRegistriesResponse{
+			Data: m.registries,
+		},
+	}, nil
+}
+
+func (m schemaRegistryAPIForResolver) GetEventGatewaySchemaRegistry(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.GetEventGatewaySchemaRegistryResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m schemaRegistryAPIForResolver) CreateEventGatewaySchemaRegistry(
+	context.Context,
+	string,
+	kkComps.SchemaRegistryCreate,
+	...kkOps.Option,
+) (*kkOps.CreateEventGatewaySchemaRegistryResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m schemaRegistryAPIForResolver) UpdateEventGatewaySchemaRegistry(
+	context.Context,
+	string,
+	string,
+	kkComps.SchemaRegistryUpdate,
+	...kkOps.Option,
+) (*kkOps.UpdateEventGatewaySchemaRegistryResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m schemaRegistryAPIForResolver) DeleteEventGatewaySchemaRegistry(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.DeleteEventGatewaySchemaRegistryResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *MockPortalAPI) ListPortals(
 	ctx context.Context,
 	req kkOps.ListPortalsRequest,
@@ -514,6 +571,216 @@ func TestResolveReferences_RoleEntityPortalReferenceUsesEntityTypeName(t *testin
 	require.True(t, ok, "expected entity_id reference")
 	assert.Equal(t, "__REF__:shared-ref#id", entityRef.Ref)
 	assert.Equal(t, "portal-id", entityRef.ID)
+}
+
+func TestResolveReferences_UnknownTypePlaceholderDoesNotMatchCreatedRefInPlan(t *testing.T) {
+	ctx := context.Background()
+	client := state.NewClient(state.ClientConfig{})
+	resolver := NewReferenceResolver(client, nil)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-portal",
+			ResourceType: ResourceTypePortal,
+			ResourceRef:  "shared-ref",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldName: "Dev Portal",
+			},
+		},
+		{
+			ID:           "2-c-resource",
+			ResourceType: ResourceTypeAPI,
+			ResourceRef:  "api-ref",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldConfig: "__REF__:shared-ref#id",
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Len(t, result.Errors, 1)
+	assert.Contains(t, result.Errors[0].Error(), `unknown resource type`)
+	assert.Empty(t, result.ChangeReferences)
+}
+
+func TestResolveReferences_UnknownTypePlaceholderDoesNotUseGlobalResourceSetLookup(t *testing.T) {
+	ctx := context.Background()
+	client := state.NewClient(state.ClientConfig{})
+
+	api := declresources.APIResource{BaseResource: declresources.BaseResource{Ref: "shared-ref"}}
+	api.SetKonnectID("api-id")
+	resourceSet := &declresources.ResourceSet{
+		APIs: []declresources.APIResource{api},
+	}
+	resolver := NewReferenceResolver(client, resourceSet)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-resource",
+			ResourceType: ResourceTypeEventGatewayProducePolicy,
+			ResourceRef:  "produce-policy",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldConfig: "__REF__:shared-ref#id",
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Len(t, result.Errors, 1)
+	assert.Contains(t, result.Errors[0].Error(), `unknown resource type`)
+	assert.Empty(t, result.ChangeReferences)
+}
+
+func TestResolveReferences_EventGatewayProducePolicyNestedReferencesCreatedInPlan(t *testing.T) {
+	ctx := context.Background()
+	client := state.NewClient(state.ClientConfig{})
+	resolver := NewReferenceResolver(client, nil)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-schema-registry",
+			ResourceType: ResourceTypeEventGatewaySchemaRegistry,
+			ResourceRef:  "schema-registry",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldName: "Schema Registry",
+			},
+		},
+		{
+			ID:           "2-c-static-key",
+			ResourceType: ResourceTypeEventGatewayStaticKey,
+			ResourceRef:  "static-key",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldName: "Static Key",
+			},
+		},
+		{
+			ID:           "3-c-produce-policy",
+			ResourceType: ResourceTypeEventGatewayProducePolicy,
+			ResourceRef:  "produce-policy",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldConfig: map[string]any{
+					"schema_registry": map[string]any{
+						FieldID: "__REF__:schema-registry#id",
+					},
+					"encryption_key": map[string]any{
+						"key": map[string]any{
+							FieldID: "__REF__:static-key#id",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Empty(t, result.Errors)
+
+	policyRefs, ok := result.ChangeReferences["3-c-produce-policy"]
+	require.True(t, ok, "expected produce policy references")
+
+	schemaRegistryRef, ok := policyRefs["config.schema_registry.id"]
+	require.True(t, ok, "expected schema registry reference")
+	assert.Equal(t, "__REF__:schema-registry#id", schemaRegistryRef.Ref)
+	assert.Equal(t, "[unknown]", schemaRegistryRef.ID)
+
+	staticKeyRef, ok := policyRefs["config.encryption_key.key.id"]
+	require.True(t, ok, "expected static key reference")
+	assert.Equal(t, "__REF__:static-key#id", staticKeyRef.Ref)
+	assert.Equal(t, "[unknown]", staticKeyRef.ID)
+}
+
+func TestResolveReferences_EventGatewayProducePolicyNestedSchemaRegistryReferenceExistingNestedResource(t *testing.T) {
+	ctx := context.Background()
+	mockCPAPI := helpers.NewMockControlPlaneAPI(t)
+	mockCPAPI.EXPECT().
+		ListControlPlanes(mock.Anything, mock.Anything).
+		Return(&kkOps.ListControlPlanesResponse{
+			ListControlPlanesResponse: &kkComps.ListControlPlanesResponse{
+				Data: []kkComps.ControlPlane{
+					{
+						ID:   "gateway-id",
+						Name: "gateway-name",
+						Labels: map[string]string{
+							labels.NamespaceKey: "default",
+						},
+					},
+				},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{Total: 1},
+				},
+			},
+		}, nil).
+		Once()
+
+	client := state.NewClient(state.ClientConfig{
+		ControlPlaneAPI: mockCPAPI,
+		EventGatewaySchemaRegistryAPI: &schemaRegistryAPIForResolver{
+			gatewayID: "gateway-id",
+			registries: []kkComps.SchemaRegistry{
+				{
+					ID:   "schema-registry-id",
+					Name: "schema-registry-name",
+				},
+			},
+		},
+	})
+	resourceSet := &declresources.ResourceSet{
+		EventGatewayControlPlanes: []declresources.EventGatewayControlPlaneResource{
+			{
+				BaseResource: declresources.BaseResource{Ref: "gateway-ref"},
+				CreateGatewayRequest: kkComps.CreateGatewayRequest{
+					Name: "gateway-name",
+				},
+				SchemaRegistries: []declresources.EventGatewaySchemaRegistryResource{
+					{
+						Ref: "schema-registry-ref",
+						SchemaRegistryCreate: kkComps.CreateSchemaRegistryCreateConfluent(
+							kkComps.SchemaRegistryConfluent{
+								Name: "schema-registry-name",
+							},
+						),
+					},
+				},
+			},
+		},
+	}
+	resolver := NewReferenceResolver(client, resourceSet)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-u-produce-policy",
+			ResourceType: ResourceTypeEventGatewayProducePolicy,
+			ResourceRef:  "produce-policy",
+			Action:       ActionUpdate,
+			Fields: map[string]any{
+				FieldConfig: map[string]any{
+					"schema_registry": map[string]any{
+						FieldID: "__REF__:schema-registry-ref#id",
+					},
+				},
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Empty(t, result.Errors)
+
+	policyRefs, ok := result.ChangeReferences["1-u-produce-policy"]
+	require.True(t, ok, "expected produce policy references")
+	schemaRegistryRef, ok := policyRefs["config.schema_registry.id"]
+	require.True(t, ok, "expected schema registry reference")
+	assert.Equal(t, "__REF__:schema-registry-ref#id", schemaRegistryRef.Ref)
+	assert.Equal(t, "schema-registry-id", schemaRegistryRef.ID)
 }
 
 func TestResolveReferences_ExistingPortal(t *testing.T) {

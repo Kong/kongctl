@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // planEventGatewayVirtualClusterProducePolicyChanges plans changes for Event Gateway Produce Policies
@@ -211,6 +213,7 @@ func (p *Planner) planProducePolicyCreate(
 			},
 		},
 	}
+	p.addProducePolicyConfigReferences(&change)
 
 	p.logger.Debug("Enqueuing produce policy CREATE",
 		"policy_ref", policy.Ref,
@@ -259,6 +262,7 @@ func (p *Planner) planProducePolicyUpdate(
 			},
 		},
 	}
+	p.addProducePolicyConfigReferences(&change)
 
 	p.logger.Debug("Enqueuing produce policy UPDATE",
 		"policy_ref", policy.Ref,
@@ -266,6 +270,75 @@ func (p *Planner) planProducePolicyUpdate(
 		"policy_id", policyID,
 	)
 	plan.AddChange(change)
+}
+
+func (p *Planner) addProducePolicyConfigReferences(change *PlannedChange) {
+	if change == nil {
+		return
+	}
+	p.addProducePolicyConfigReference(
+		change,
+		FieldConfig+".schema_registry."+FieldID,
+		ResourceTypeEventGatewaySchemaRegistry,
+	)
+	p.addProducePolicyConfigReference(
+		change,
+		FieldConfig+".encryption_key.key."+FieldID,
+		ResourceTypeEventGatewayStaticKey,
+	)
+}
+
+func (p *Planner) addProducePolicyConfigReference(
+	change *PlannedChange,
+	fieldPath string,
+	resourceType string,
+) {
+	ref, ok := stringValueAtFieldPath(change.Fields, fieldPath)
+	if !ok || !tags.IsRefPlaceholder(ref) {
+		return
+	}
+
+	refInfo := ReferenceInfo{
+		Ref: ref,
+		ID:  resources.UnknownReferenceID,
+	}
+	targetRef := referenceTargetRef(ref)
+	if p.resolver != nil {
+		if resource, exists := p.resolver.getResourceByTypeAndRef(resourceType, targetRef); exists {
+			if moniker := resource.GetMoniker(); moniker != "" {
+				refInfo.LookupFields = map[string]string{FieldName: moniker}
+			}
+		}
+	}
+
+	if change.References == nil {
+		change.References = make(map[string]ReferenceInfo)
+	}
+	change.References[fieldPath] = refInfo
+}
+
+func stringValueAtFieldPath(fields map[string]any, fieldPath string) (string, bool) {
+	if fields == nil || fieldPath == "" {
+		return "", false
+	}
+	if value, ok := fields[fieldPath].(string); ok {
+		return value, true
+	}
+
+	var current any = fields
+	for _, segment := range strings.Split(fieldPath, ".") {
+		currentMap, ok := current.(map[string]any)
+		if !ok {
+			return "", false
+		}
+		current, ok = currentMap[segment]
+		if !ok {
+			return "", false
+		}
+	}
+
+	value, ok := current.(string)
+	return value, ok
 }
 
 func (p *Planner) planProducePolicyDelete(

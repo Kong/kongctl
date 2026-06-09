@@ -43,4 +43,19 @@ event_gateways:
             config:
               key_validation_action: mark
               value_validation_action: reject
-              type: json
+              type: confluent_schema_registry
+              schema_registry:
+                id: !ref schema-registry-for-produce-policy#id
+    schema_registries:
+      - ref: schema-registry-for-produce-policy
+        name: schema-registry-for-produce-policy-name
+        description: "Schema Registry for Produce Policy Test"
+        type: confluent
+        config:
+          schema_type: json
+          endpoint: https://schema-registry.example.com
+          timeout_seconds: 30
+          authentication:
+            type: basic
+            username: testuser
+            password: testpassword

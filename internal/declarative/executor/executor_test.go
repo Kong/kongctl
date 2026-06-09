@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -110,6 +111,84 @@ func TestValidateChangePreExecutionAllowsPortalTeamGroupMappingWithoutResourceID
 	err := exec.validateChangePreExecution(context.Background(), change)
 
 	require.NoError(t, err)
+}
+
+func TestHydrateKnownReferenceIDsUpdatesNestedField(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1-c-static-key"] = "static-key-id"
+
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "1-c-static-key",
+		ResourceType: planner.ResourceTypeEventGatewayStaticKey,
+		ResourceRef:  "static-key",
+		Action:       planner.ActionCreate,
+	})
+
+	change := planner.PlannedChange{
+		ID:           "2-c-produce-policy",
+		ResourceType: planner.ResourceTypeEventGatewayProducePolicy,
+		ResourceRef:  "produce-policy",
+		Action:       planner.ActionCreate,
+		DependsOn:    []string{"1-c-static-key"},
+		Fields: map[string]any{
+			planner.FieldConfig: map[string]any{
+				"encryption_key": map[string]any{
+					"key": map[string]any{
+						planner.FieldID: "__REF__:static-key#id",
+					},
+				},
+			},
+		},
+		References: map[string]planner.ReferenceInfo{
+			"config.encryption_key.key.id": {
+				Ref: "__REF__:static-key#id",
+				ID:  resources.UnknownReferenceID,
+			},
+		},
+	}
+	plan.AddChange(change)
+
+	exec.hydrateKnownReferenceIDs(&change, plan)
+
+	ref := change.References["config.encryption_key.key.id"]
+	assert.Equal(t, "static-key-id", ref.ID)
+	config := change.Fields[planner.FieldConfig].(map[string]any)
+	encryptionKey := config["encryption_key"].(map[string]any)
+	key := encryptionKey["key"].(map[string]any)
+	assert.Equal(t, "static-key-id", key[planner.FieldID])
+	assert.NotContains(t, change.Fields, "config.encryption_key.key.id")
+}
+
+func TestHydrateKnownReferenceIDsAppliesResolvedNestedField(t *testing.T) {
+	exec := New(nil, nil, false)
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	change := planner.PlannedChange{
+		ID:           "1-c-produce-policy",
+		ResourceType: planner.ResourceTypeEventGatewayProducePolicy,
+		ResourceRef:  "produce-policy",
+		Action:       planner.ActionCreate,
+		Fields: map[string]any{
+			planner.FieldConfig: map[string]any{
+				"schema_registry": map[string]any{
+					planner.FieldID: "__REF__:schema-registry#id",
+				},
+			},
+		},
+		References: map[string]planner.ReferenceInfo{
+			"config.schema_registry.id": {
+				Ref: "__REF__:schema-registry#id",
+				ID:  "schema-registry-id",
+			},
+		},
+	}
+
+	exec.hydrateKnownReferenceIDs(&change, plan)
+
+	config := change.Fields[planner.FieldConfig].(map[string]any)
+	schemaRegistry := config["schema_registry"].(map[string]any)
+	assert.Equal(t, "schema-registry-id", schemaRegistry[planner.FieldID])
+	assert.NotContains(t, change.Fields, "config.schema_registry.id")
 }
 
 func TestExecutor_Execute_EmptyPlan(t *testing.T) {

@@ -422,10 +422,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 					basePlan.Changes[i].References = make(map[string]ReferenceInfo)
 				}
 				for field, ref := range refs {
-					basePlan.Changes[i].References[field] = ReferenceInfo{
-						Ref: ref.Ref,
-						ID:  ref.ID,
-					}
+					refInfo := basePlan.Changes[i].References[field]
+					refInfo.Ref = ref.Ref
+					refInfo.ID = ref.ID
+					basePlan.Changes[i].References[field] = refInfo
 				}
 				break
 			}

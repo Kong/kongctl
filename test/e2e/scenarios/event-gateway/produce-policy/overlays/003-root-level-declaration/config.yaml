@@ -32,6 +32,11 @@ event_gateways:
         acl_mode: enforce_on_gateway
         dns_label: vc-default
         # produce_policies declared at root level
+    static_keys:
+      - ref: static-key-for-produce-policy
+        name: static-key-for-produce-policy-name
+        description: "Static Key for Produce Policy Test"
+        value: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
 
 event_gateway_virtual_cluster_produce_policies:
   - ref: root-level-produce-policy
@@ -49,5 +54,6 @@ event_gateway_virtual_cluster_produce_policies:
       part_of_record:
       - value
       encryption_key:
-        type: aws
-        arn: arn:aws:kms:us-east-1:123456789012:key/abcd-1234-efgh-5678
+        type: static
+        key:
+          id: !ref static-key-for-produce-policy#id
