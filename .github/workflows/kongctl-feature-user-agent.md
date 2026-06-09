@@ -95,6 +95,27 @@ pre-agent-steps:
       test -x ./kongctl
       make reset-org
 post-steps:
+  - name: Redact UUIDs in sanitized feature-user artifacts
+    if: always()
+    run: |
+      set -euo pipefail
+
+      evidence_dir="/tmp/gh-aw/kongctl-feature-user-agent/sanitized"
+      if [ ! -d "${evidence_dir}" ]; then
+        exit 0
+      fi
+
+      uuid_pattern='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-'
+      uuid_pattern="${uuid_pattern}"'[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+      uuid_pattern="${uuid_pattern}"'[0-9a-fA-F]{12}'
+
+      find "${evidence_dir}" -type f \
+        \( -name '*.md' -o -name '*.json' -o -name '*.jsonl' -o \
+          -name '*.txt' \) \
+        -print0 |
+      while IFS= read -r -d '' file; do
+        perl -0pi -e "s/${uuid_pattern}/[REDACTED_ID]/g" "${file}"
+      done
   - name: Append feature-user evaluation summary
     if: always()
     run: |
@@ -507,6 +528,12 @@ Write `command-ledger.json` as a JSON array. Each entry must use this shape:
 
 Use command shapes, not raw commands containing secrets, stable IDs, or account
 identity data. Keep excerpts short and sanitized.
+
+Before writing any evidence file, replace every UUID-shaped value with
+`[REDACTED_ID]`. This includes real resource IDs, stable Konnect IDs, and
+synthetic or deliberately non-existent IDs used for not-found tests. In
+`command-ledger.json`, command shapes must use placeholders rather than raw
+resource IDs.
 
 Write `observation-summary.md` only for useful feedback that is not concrete
 enough for a product issue. Use these sections:
