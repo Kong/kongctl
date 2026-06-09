@@ -16,6 +16,10 @@ vars:
   producePolicyDescription: Default Produce Policy description
   svPolicyRef: schema-validation-produce-policy
   svPolicyName: schema-validation-produce-policy-name-for-test
+  staticKeyRef: static-key-for-produce-policy
+  staticKeyName: static-key-for-produce-policy-name
+  schemaRegistryRef: schema-registry-for-produce-policy
+  schemaRegistryName: schema-registry-for-produce-policy-name
 
 defaults:
   mask:
@@ -271,8 +275,14 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 1
-                by_action.CREATE: 1
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='{{ .vars.staticKeyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.staticKeyRef }}"
           - select: >-
               changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='root-level-produce-policy'] | [0]
             expect:
@@ -290,7 +300,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
       - name: 003-verify-root-level-create
         run:
@@ -319,13 +329,10 @@ steps:
                 labels:
                   env: production
                   team: platform
-                config:
-                  failure_mode: passthrough
-                  part_of_record:
+                config.failure_mode: passthrough
+                config.part_of_record:
                   - value
-                  encryption_key:
-                    type: aws
-                    arn: arn:aws:kms:us-east-1:123456789012:key/abcd-1234-efgh-5678
+                config.encryption_key.type: static
 
   - name: 005-root-level-sync-delete
     inputOverlayDirs:
@@ -348,14 +355,20 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 1
-                by_action.DELETE: 1
+                total_changes: 2
+                by_action.DELETE: 2
           - select: >-
               changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='root-level-produce-policy-name'] | [0]
             expect:
               fields:
                 action: DELETE
                 resource_ref: "root-level-produce-policy-name"
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='{{ .vars.staticKeyName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.staticKeyName }}"
       - name: 002-sync-delete
         outputFormat: json
         run:
@@ -367,7 +380,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
       - name: 003-verify-root-level-sync-delete
         run:
@@ -408,8 +421,14 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 1
-                by_action.CREATE: 1
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway_schema_registry' && resource_ref=='{{ .vars.schemaRegistryRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.schemaRegistryRef }}"
           - select: >-
               changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.svPolicyRef }}'] | [0]
             expect:
@@ -427,7 +446,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
       - name: 003-verify-schema-validation-create
         run:
@@ -456,10 +475,9 @@ steps:
                 labels:
                   env: staging
                   team: payments
-                config:
-                  key_validation_action: mark
-                  value_validation_action: reject
-                  type: json
+                config.key_validation_action: mark
+                config.value_validation_action: reject
+                config.type: json
 
   - name: 007-schema-validation-update
     inputOverlayDirs:
@@ -530,10 +548,9 @@ steps:
                 labels:
                   env: production
                   version: v2
-                config:
-                  key_validation_action: mark
-                  value_validation_action: mark
-                  type: json
+                config.key_validation_action: mark
+                config.value_validation_action: mark
+                config.type: json
 
   - name: 008-schema-validation-sync-delete
     inputOverlayDirs:
@@ -556,14 +573,20 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 1
-                by_action.DELETE: 1
+                total_changes: 2
+                by_action.DELETE: 2
           - select: >-
               changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.svPolicyName }}'] | [0]
             expect:
               fields:
                 action: DELETE
                 resource_ref: "{{ .vars.svPolicyName }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_schema_registry' && resource_ref=='{{ .vars.schemaRegistryName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.schemaRegistryName }}"
       - name: 002-sync-delete-schema-validation
         outputFormat: json
         run:
@@ -575,7 +598,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
       - name: 003-verify-schema-validation-sync-delete
         run:

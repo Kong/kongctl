@@ -32,3 +32,4 @@ event_gateways:
         acl_mode: enforce_on_gateway
         dns_label: vc-default
         produce_policies: []
+    schema_registries: []
