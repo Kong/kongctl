@@ -93,8 +93,12 @@ func (p *PortalIdentityProviderAPIImpl) CreatePortalIdentityProvider(
 	if p.SDK == nil {
 		return nil, fmt.Errorf("SDK is nil")
 	}
+	portalRequest, err := toPortalCreateIdentityProvider(request)
+	if err != nil {
+		return nil, err
+	}
 	if p.BaseURL == "" || p.HTTPClient == nil {
-		return p.SDK.PortalAuthSettings.CreatePortalIdentityProvider(ctx, portalID, request, opts...)
+		return p.SDK.PortalAuthSettings.CreatePortalIdentityProvider(ctx, portalID, portalRequest, opts...)
 	}
 
 	sdkOpts := []kkSDK.SDKOption{
@@ -119,7 +123,43 @@ func (p *PortalIdentityProviderAPIImpl) CreatePortalIdentityProvider(
 	if sdk == nil || sdk.PortalAuthSettings == nil {
 		return nil, fmt.Errorf("failed to initialize SDK for portal identity provider create")
 	}
-	return sdk.PortalAuthSettings.CreatePortalIdentityProvider(ctx, portalID, request, opts...)
+	return sdk.PortalAuthSettings.CreatePortalIdentityProvider(ctx, portalID, portalRequest, opts...)
+}
+
+func toPortalCreateIdentityProvider(
+	request kkComps.CreateIdentityProvider,
+) (kkComps.PortalCreateIdentityProvider, error) {
+	portalRequest := kkComps.PortalCreateIdentityProvider{
+		Enabled: request.Enabled,
+		Type:    request.Type,
+	}
+
+	if request.Config == nil {
+		return portalRequest, nil
+	}
+
+	switch request.Config.Type {
+	case kkComps.CreateIdentityProviderConfigTypeOIDCIdentityProviderConfig:
+		if request.Config.OIDCIdentityProviderConfig != nil {
+			config := kkComps.CreatePortalCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+				*request.Config.OIDCIdentityProviderConfig,
+			)
+			portalRequest.Config = &config
+		}
+	case kkComps.CreateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:
+		if request.Config.SAMLIdentityProviderConfigInput != nil {
+			saml := kkComps.PortalSAMLIdentityProviderConfigInput{
+				IdpMetadataURL: request.Config.SAMLIdentityProviderConfigInput.IdpMetadataURL,
+				IdpMetadataXML: request.Config.SAMLIdentityProviderConfigInput.IdpMetadataXML,
+			}
+			config := kkComps.CreatePortalCreateIdentityProviderConfigPortalSAMLIdentityProviderConfigInput(saml)
+			portalRequest.Config = &config
+		}
+	default:
+		return portalRequest, fmt.Errorf("unsupported identity provider config type: %s", request.Config.Type)
+	}
+
+	return portalRequest, nil
 }
 
 // UpdatePortalIdentityProvider updates an identity provider for a portal.

@@ -150,7 +150,7 @@ func runGetPortalIdentityProviders(c *cobra.Command, args []string) error {
 		return cmd.PrepareExecutionError("Failed to get portal identity providers", err, helper.GetCmd(), attrs...)
 	}
 
-	providers := resp.IdentityProviders
+	providers := resp.PortalIdentityProviders
 	records := make([]portalIdentityProviderRecord, 0, len(providers))
 	for _, provider := range providers {
 		records = append(records, portalIdentityProviderToRecord(provider))
@@ -168,7 +168,7 @@ func runGetPortalIdentityProviders(c *cobra.Command, args []string) error {
 	)
 }
 
-func portalIdentityProviderToRecord(provider kkComps.IdentityProvider) portalIdentityProviderRecord {
+func portalIdentityProviderToRecord(provider kkComps.PortalIdentityProvider) portalIdentityProviderRecord {
 	return portalIdentityProviderRecord{
 		ID:        optionalPtr(provider.GetID()),
 		Type:      portalIdentityProviderType(provider),
@@ -178,21 +178,21 @@ func portalIdentityProviderToRecord(provider kkComps.IdentityProvider) portalIde
 	}
 }
 
-func portalIdentityProviderType(provider kkComps.IdentityProvider) string {
+func portalIdentityProviderType(provider kkComps.PortalIdentityProvider) string {
 	if provider.Type == nil {
 		return valueNA
 	}
 	return string(*provider.Type)
 }
 
-func portalIdentityProviderEnabled(provider kkComps.IdentityProvider) string {
+func portalIdentityProviderEnabled(provider kkComps.PortalIdentityProvider) string {
 	if provider.Enabled == nil {
 		return valueNA
 	}
 	return fmt.Sprintf("%v", *provider.Enabled)
 }
 
-func portalIdentityProviderDetailView(provider kkComps.IdentityProvider) string {
+func portalIdentityProviderDetailView(provider kkComps.PortalIdentityProvider) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "id: %s\n", optionalPtr(provider.GetID()))
 	fmt.Fprintf(&b, "type: %s\n", portalIdentityProviderType(provider))
@@ -204,13 +204,13 @@ func portalIdentityProviderDetailView(provider kkComps.IdentityProvider) string 
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func appendPortalIdentityProviderConfigDetail(b *strings.Builder, config *kkComps.IdentityProviderConfig) {
+func appendPortalIdentityProviderConfigDetail(b *strings.Builder, config *kkComps.PortalIdentityProviderConfig) {
 	if b == nil || config == nil {
 		return
 	}
 
 	switch config.Type {
-	case kkComps.IdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
+	case kkComps.PortalIdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
 		if config.OIDCIdentityProviderConfigOutput == nil {
 			return
 		}
@@ -237,25 +237,25 @@ func appendPortalIdentityProviderConfigDetail(b *strings.Builder, config *kkComp
 				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Groups),
 			)
 		}
-	case kkComps.IdentityProviderConfigTypeSAMLIdentityProviderConfig:
-		if config.SAMLIdentityProviderConfig == nil {
+	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:
+		if config.PortalSAMLIdentityProviderConfig == nil {
 			return
 		}
 		fmt.Fprintf(b, "config.type: saml\n")
 		fmt.Fprintf(
 			b,
 			"config.idp_metadata_url: %s\n",
-			optionalPtr(config.SAMLIdentityProviderConfig.IdpMetadataURL),
+			optionalPtr(config.PortalSAMLIdentityProviderConfig.IdpMetadataURL),
 		)
 		fmt.Fprintf(
 			b,
 			"config.idp_metadata_xml: %s\n",
-			optionalPtr(config.SAMLIdentityProviderConfig.IdpMetadataXML),
+			optionalPtr(config.PortalSAMLIdentityProviderConfig.IdpMetadataXML),
 		)
 	}
 }
 
-func buildPortalIdentityProvidersChildView(providers []kkComps.IdentityProvider) tableview.ChildView {
+func buildPortalIdentityProvidersChildView(providers []kkComps.PortalIdentityProvider) tableview.ChildView {
 	rows := make([]table.Row, 0, len(providers))
 	for _, provider := range providers {
 		record := portalIdentityProviderToRecord(provider)

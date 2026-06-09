@@ -16,10 +16,10 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_MapSlice(t *testing.T
 		planner.FieldMenu: map[string]any{
 			"main": []map[string]any{
 				{
-					"path":                    "/docs",
-					planner.FieldTitle:        "Docs",
-					planner.FieldVisibility:   "public",
-					"external":                false,
+					"path":                  "/docs",
+					planner.FieldTitle:      "Docs",
+					planner.FieldVisibility: "public",
+					"external":              false,
 				},
 			},
 		},
@@ -33,7 +33,7 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_MapSlice(t *testing.T
 	require.Len(t, update.Menu.Main, 1)
 	assert.Equal(t, "/docs", update.Menu.Main[0].Path)
 	assert.Equal(t, "Docs", update.Menu.Main[0].Title)
-	assert.Equal(t, kkComps.PortalMenuItemVisibility("public"), update.Menu.Main[0].Visibility)
+	assert.Equal(t, kkComps.Visibility("public"), update.Menu.Main[0].Visibility)
 	assert.False(t, update.Menu.Main[0].External)
 }
 
@@ -60,7 +60,7 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_AnySlice(t *testing.T
 	require.Len(t, update.Menu.Main, 1)
 	assert.Equal(t, "/blog", update.Menu.Main[0].Path)
 	assert.Equal(t, "Blog", update.Menu.Main[0].Title)
-	assert.Equal(t, kkComps.PortalMenuItemVisibility("private"), update.Menu.Main[0].Visibility)
+	assert.Equal(t, kkComps.Visibility("private"), update.Menu.Main[0].Visibility)
 	assert.True(t, update.Menu.Main[0].External)
 }
 
@@ -74,9 +74,9 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuFooterSections_MapSlice(t 
 					"items": []map[string]any{
 						{
 							"path":                  "/about",
-							planner.FieldTitle:       "About",
+							planner.FieldTitle:      "About",
 							planner.FieldVisibility: "public",
-							"external":               false,
+							"external":              false,
 						},
 					},
 				},
@@ -106,9 +106,9 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuFooterSections_AnySlice(t 
 					"items": []any{
 						map[string]any{
 							"path":                  "/privacy",
-							planner.FieldTitle:       "Privacy",
+							planner.FieldTitle:      "Privacy",
 							planner.FieldVisibility: "public",
-							"external":               false,
+							"external":              false,
 						},
 					},
 				},

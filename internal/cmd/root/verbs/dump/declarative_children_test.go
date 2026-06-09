@@ -395,13 +395,13 @@ func TestBuildPortalIdentityProviders_MapsOIDCAndSAMLChildren(t *testing.T) {
 	client := declstate.NewClient(declstate.ClientConfig{
 		PortalIdentityProviderAPI: &stubDumpPortalIdentityProviderAPI{
 			listResponse: &kkOps.GetPortalIdentityProvidersResponse{
-				IdentityProviders: []kkComps.IdentityProvider{
+				PortalIdentityProviders: []kkComps.PortalIdentityProvider{
 					{
 						ID:      &oidcID,
 						Type:    &oidcType,
 						Enabled: &oidcEnabled,
-						Config: &kkComps.IdentityProviderConfig{
-							Type: kkComps.IdentityProviderConfigTypeOIDCIdentityProviderConfigOutput,
+						Config: &kkComps.PortalIdentityProviderConfig{
+							Type: kkComps.PortalIdentityProviderConfigTypeOIDCIdentityProviderConfigOutput,
 							OIDCIdentityProviderConfigOutput: &kkComps.OIDCIdentityProviderConfigOutput{
 								IssuerURL: "https://issuer.example.test",
 								ClientID:  "client-id",
@@ -416,9 +416,9 @@ func TestBuildPortalIdentityProviders_MapsOIDCAndSAMLChildren(t *testing.T) {
 						ID:      &samlID,
 						Type:    &samlType,
 						Enabled: &samlEnabled,
-						Config: &kkComps.IdentityProviderConfig{
-							Type: kkComps.IdentityProviderConfigTypeSAMLIdentityProviderConfig,
-							SAMLIdentityProviderConfig: &kkComps.SAMLIdentityProviderConfig{
+						Config: &kkComps.PortalIdentityProviderConfig{
+							Type: kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig,
+							PortalSAMLIdentityProviderConfig: &kkComps.PortalSAMLIdentityProviderConfig{
 								IdpMetadataURL: new("https://issuer.example.test/saml.xml"),
 							},
 						},

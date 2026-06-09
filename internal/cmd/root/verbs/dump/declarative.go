@@ -970,7 +970,7 @@ func collectDeclarativeAuthStrategies(
 		}
 
 		if filter.name != "" {
-			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
+			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		resp, err := api.ListAppAuthStrategies(ctx, req)
@@ -1219,7 +1219,7 @@ func collectDeclarativeControlPlanes(
 
 		if filter.name != "" {
 			op, val := parseFilterName(filter.name)
-			nameFilter := &kkComps.ControlPlaneFilterParametersName{}
+			nameFilter := &kkComps.Name{}
 			if op == filterOpContains {
 				nameFilter.Contains = &val
 			} else {

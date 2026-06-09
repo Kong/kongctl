@@ -105,7 +105,7 @@ func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderStripsEnabledF
 		t.Fatalf("unexpected client_id: %v", got)
 	}
 
-	if resp == nil || resp.IdentityProvider == nil || resp.IdentityProvider.ID == nil {
+	if resp == nil || resp.PortalIdentityProvider == nil || resp.PortalIdentityProvider.ID == nil {
 		t.Fatalf("expected identity provider response, got %#v", resp)
 	}
 }

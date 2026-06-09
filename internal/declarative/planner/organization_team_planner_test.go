@@ -287,7 +287,7 @@ func assignedRoleCollection(roles ...kkComps.AssignedRole) *kkComps.AssignedRole
 }
 
 func assignedRole(id, roleName, entityID, entityTypeName, entityRegion string) kkComps.AssignedRole {
-	region := kkComps.AssignedRoleEntityRegion(entityRegion)
+	region := kkComps.EntityRegion(entityRegion)
 	return kkComps.AssignedRole{
 		ID:             &id,
 		RoleName:       &roleName,
