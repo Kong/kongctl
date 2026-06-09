@@ -114,6 +114,38 @@ Apply configuration:
 kongctl apply -f portal.yaml
 ```
 
+You can also load a single configuration file from an HTTP or HTTPS URL:
+
+```shell
+kongctl apply -f https://get.konghq.com/example-kongctl.yaml
+```
+
+To save remote files locally and run the command from the saved copies in one
+operation, use `--remote-file-save-dir` or its shorthand, `-s`:
+
+```shell
+kongctl apply \
+  -f https://get.konghq.com/portal.yaml \
+  -f https://get.konghq.com/api.yaml \
+  --remote-file-save-dir ./kongctl-example
+```
+
+Remote files are saved into the directory using the filename from each URL path.
+If multiple remote URLs would save to the same filename, the command fails
+before fetching them. Existing files are left intact by default. Use
+`--remote-file-save-force` or `-F` with `--remote-file-save-dir` to replace
+existing saved files.
+
+When `--remote-file-auth=auto` is enabled, which is the default, `kongctl`
+sends the current profile's Konnect bearer token only to HTTPS remote sources
+on Konnect hosts, such as `*.cloud.konghq.com` or the configured Konnect API
+host. Authentication is never sent to arbitrary hosts. Use
+`--remote-file-auth=none` to fetch a remote file without adding Konnect
+authentication headers.
+
+Review remote configuration before running mutating commands in production.
+Prefer HTTPS URLs and pin examples to immutable versions when using them in CI.
+
 Verify resources with `kongctl get` commands:
 
 ```shell
@@ -540,10 +572,14 @@ Supported file types: Any text file (`.txt`, `.md`, `.yaml`, `.json`, etc.)
 
 **Path Traversal Prevention**: Absolute paths are blocked. Relative paths may include
 `..`, but the resolved path must stay within the base directory boundary. By default,
-the boundary is the root of each `-f` source (file: its parent dir, dir: the directory itself).
-For stdin, the boundary defaults to the current working directory. Set the base directory with
-`--base-dir` or `konnect.declarative.base-dir` (`KONGCTL_<PROFILE>_KONNECT_DECLARATIVE_BASE_DIR`,
-for example `KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`).
+the boundary is the root of each `-f` source (file: its parent dir, dir: the
+directory itself). For stdin and URL sources, the boundary defaults to the
+current working directory. Set the base directory with `--base-dir` or
+`konnect.declarative.base-dir`
+(`KONGCTL_<PROFILE>_KONNECT_DECLARATIVE_BASE_DIR`, for example
+`KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`). When URL sources are loaded
+with `--remote-file-save-dir`, subsequent relative paths are resolved like
+normal file sources from the save directory.
 
 ```yaml
 # ❌ These will fail with security errors

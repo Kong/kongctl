@@ -77,7 +77,7 @@ func TestSyncCmd_Flags(t *testing.T) {
 	fileFlag := konnectCmd.Flags().Lookup("filename")
 	assert.NotNil(t, fileFlag, "Should have --filename flag")
 	assert.Equal(t, "f", fileFlag.Shorthand, "Should have -f shorthand")
-	assert.Contains(t, fileFlag.Usage, "Filename", "Usage should mention filename")
+	assert.Contains(t, fileFlag.Usage, "URL", "Usage should mention URL sources")
 
 	autoApproveFlag := konnectCmd.Flags().Lookup("auto-approve")
 	assert.NotNil(t, autoApproveFlag, "Should have --auto-approve flag")

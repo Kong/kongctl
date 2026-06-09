@@ -18,9 +18,11 @@ kongctl sync [flags]
 
 ### Input Flags
 
-- `-f, --file` (string): Path to configuration file or directory
+- `-f, --filename` (string): File, directory, URL, or `-` for stdin
   - Can be specified multiple times
-  - Use `-` to read from stdin
+- `-s, --remote-file-save-dir` (string): Save remote URL sources into a local directory before loading
+- `-F, --remote-file-save-force`: Overwrite existing files when saving with `--remote-file-save-dir`
+- `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
 - `--plan` (string): Path to a pre-generated plan file
 - `-r, --recursive`: Process directories recursively
 
