@@ -485,7 +485,7 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 			}
 			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeSaslScram(
 				kkComps.VirtualClusterAuthenticationSaslScram{
-					Algorithm: kkComps.VirtualClusterAuthenticationSaslScramAlgorithm(algorithm),
+					Algorithm: kkComps.Algorithm(algorithm),
 				},
 			))
 

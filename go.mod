@@ -123,3 +123,5 @@ require (
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
 )
+
+replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go-internal v0.2.1-0.20260609150835-6d3a79ec3230

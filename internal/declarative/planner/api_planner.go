@@ -1539,7 +1539,7 @@ func (p *Planner) planAPIImplementationChanges(
 		if plan.HasChange(ResourceTypeAPIImplementation, desiredImpl.GetRef()) {
 			continue
 		}
-		if service := desiredImpl.ServiceReference.GetService(); service != nil {
+		if service := desiredImpl.ServiceReferenceInput.GetService(); service != nil {
 			key := fmt.Sprintf("%s:%s", service.ID, service.ControlPlaneID)
 			if _, exists := currentByService[key]; !exists {
 				p.logger.Debug(
@@ -1583,7 +1583,7 @@ func (p *Planner) planAPIImplementationChanges(
 
 		desiredServices := make(map[string]bool)
 		for _, impl := range desired {
-			if service := impl.ServiceReference.GetService(); service != nil {
+			if service := impl.ServiceReferenceInput.GetService(); service != nil {
 				key := fmt.Sprintf("%s:%s", service.ID, service.ControlPlaneID)
 				desiredServices[key] = true
 			}
@@ -1618,7 +1618,7 @@ func (p *Planner) planAPIImplementationCreate(
 ) {
 	fields := make(map[string]any)
 	// APIImplementation only has Service field in the SDK
-	if service := implementation.ServiceReference.GetService(); service != nil {
+	if service := implementation.ServiceReferenceInput.GetService(); service != nil {
 		fields[FieldService] = map[string]any{
 			FieldID:             service.ID,
 			FieldControlPlaneID: service.ControlPlaneID,

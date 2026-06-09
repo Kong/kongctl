@@ -3265,8 +3265,8 @@ func (c *Client) ListPortalIdentityProviders(ctx context.Context, portalID strin
 		)
 	}
 
-	providers := make([]PortalIdentityProvider, 0, len(resp.IdentityProviders))
-	for _, provider := range resp.IdentityProviders {
+	providers := make([]PortalIdentityProvider, 0, len(resp.PortalIdentityProviders))
+	for _, provider := range resp.PortalIdentityProviders {
 		providers = append(providers, normalizePortalIdentityProvider(provider))
 	}
 
@@ -3299,11 +3299,11 @@ func (c *Client) GetPortalIdentityProvider(
 			},
 		)
 	}
-	if resp == nil || resp.IdentityProvider == nil {
+	if resp == nil || resp.PortalIdentityProvider == nil {
 		return nil, nil
 	}
 
-	provider := normalizePortalIdentityProvider(*resp.IdentityProvider)
+	provider := normalizePortalIdentityProvider(*resp.PortalIdentityProvider)
 	return &provider, nil
 }
 
@@ -3332,11 +3332,11 @@ func (c *Client) CreatePortalIdentityProvider(
 			},
 		)
 	}
-	if resp == nil || resp.IdentityProvider == nil || resp.IdentityProvider.ID == nil {
+	if resp == nil || resp.PortalIdentityProvider == nil || resp.PortalIdentityProvider.ID == nil {
 		return "", NewResponseValidationError("create portal identity provider", "IdentityProvider")
 	}
 
-	return *resp.IdentityProvider.ID, nil
+	return *resp.PortalIdentityProvider.ID, nil
 }
 
 // UpdatePortalIdentityProvider updates an identity provider for a portal.
@@ -3353,7 +3353,11 @@ func (c *Client) UpdatePortalIdentityProvider(
 
 	_, err := c.portalIdentityProviderAPI.UpdatePortalIdentityProvider(
 		ctx,
-		kkOps.UpdatePortalIdentityProviderRequest{PortalID: portalID, ID: id, UpdateIdentityProvider: body},
+		kkOps.UpdatePortalIdentityProviderRequest{
+			PortalID:                     portalID,
+			ID:                           id,
+			PortalUpdateIdentityProvider: toPortalUpdateIdentityProvider(body),
+		},
 	)
 	if err != nil {
 		return WrapAPIError(
@@ -3391,8 +3395,8 @@ func (c *Client) DeletePortalIdentityProvider(ctx context.Context, portalID stri
 	return nil
 }
 
-func normalizePortalIdentityProvider(provider kkComps.IdentityProvider) PortalIdentityProvider {
-	normalized := PortalIdentityProvider{Config: provider.Config}
+func normalizePortalIdentityProvider(provider kkComps.PortalIdentityProvider) PortalIdentityProvider {
+	normalized := PortalIdentityProvider{Config: identityProviderConfigFromPortal(provider.Config)}
 	if provider.ID != nil {
 		normalized.ID = *provider.ID
 	}
@@ -3400,8 +3404,68 @@ func normalizePortalIdentityProvider(provider kkComps.IdentityProvider) PortalId
 		normalized.Type = *provider.Type
 	}
 	normalized.Enabled = provider.Enabled
-	normalized.LoginPath = provider.LoginPath
 	return normalized
+}
+
+func identityProviderConfigFromPortal(config *kkComps.PortalIdentityProviderConfig) *kkComps.IdentityProviderConfig {
+	if config == nil {
+		return nil
+	}
+	switch config.Type {
+	case kkComps.PortalIdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
+		if config.OIDCIdentityProviderConfigOutput == nil {
+			return nil
+		}
+		converted := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
+			*config.OIDCIdentityProviderConfigOutput,
+		)
+		return &converted
+	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:
+		if config.PortalSAMLIdentityProviderConfig == nil {
+			return nil
+		}
+		saml := kkComps.SAMLIdentityProviderConfig{
+			IdpMetadataURL: config.PortalSAMLIdentityProviderConfig.IdpMetadataURL,
+			IdpMetadataXML: config.PortalSAMLIdentityProviderConfig.IdpMetadataXML,
+			SpMetadataURL:  config.PortalSAMLIdentityProviderConfig.SpMetadataURL,
+			SpEntityID:     config.PortalSAMLIdentityProviderConfig.SpEntityID,
+			CallbackURL:    config.PortalSAMLIdentityProviderConfig.CallbackURL,
+		}
+		converted := kkComps.CreateIdentityProviderConfigSAMLIdentityProviderConfig(saml)
+		return &converted
+	default:
+		return nil
+	}
+}
+
+func toPortalUpdateIdentityProvider(update kkComps.UpdateIdentityProvider) kkComps.PortalUpdateIdentityProvider {
+	portalUpdate := kkComps.PortalUpdateIdentityProvider{
+		Enabled: update.Enabled,
+	}
+
+	if update.Config == nil {
+		return portalUpdate
+	}
+	switch update.Config.Type {
+	case kkComps.UpdateIdentityProviderConfigTypeOIDCIdentityProviderConfig:
+		if update.Config.OIDCIdentityProviderConfig != nil {
+			config := kkComps.CreatePortalUpdateIdentityProviderConfigOIDCIdentityProviderConfig(
+				*update.Config.OIDCIdentityProviderConfig,
+			)
+			portalUpdate.Config = &config
+		}
+	case kkComps.UpdateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:
+		if update.Config.SAMLIdentityProviderConfigInput != nil {
+			saml := kkComps.PortalSAMLIdentityProviderConfigInput{
+				IdpMetadataURL: update.Config.SAMLIdentityProviderConfigInput.IdpMetadataURL,
+				IdpMetadataXML: update.Config.SAMLIdentityProviderConfigInput.IdpMetadataXML,
+			}
+			config := kkComps.CreatePortalUpdateIdentityProviderConfigPortalSAMLIdentityProviderConfigInput(saml)
+			portalUpdate.Config = &config
+		}
+	}
+
+	return portalUpdate
 }
 
 func portalIdentityProviderName(body kkComps.CreateIdentityProvider) string {
