@@ -2,11 +2,19 @@ package declarative
 
 import (
 	"bytes"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/executor"
+	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	utilviper "github.com/kong/kongctl/internal/util/viper"
@@ -14,6 +22,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func testDeclarativeConfig() *config.ProfiledConfig {
+	return config.BuildProfiledConfig("default", "nonexistent.yaml", utilviper.NewViper("nonexistent.yaml"))
+}
+
+func testDeclarativeLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
 
 func TestMaxConcurrencyFromCmd(t *testing.T) {
 	t.Run("uses default value when flag is not set", func(t *testing.T) {
@@ -216,9 +232,242 @@ func TestDeclarativeCommandsRequireExplicitFilename(t *testing.T) {
 			err := tt.cmd.RunE(tt.cmd, nil)
 			require.Error(t, err)
 			assert.True(t, cmdpkg.IsUsageError(err))
-			assert.Equal(t, "no configuration sources specified; use -f to specify files or directories", err.Error())
+			assert.Equal(
+				t,
+				"no configuration sources specified; use -f to specify files, directories, or URLs",
+				err.Error(),
+			)
 		})
 	}
+}
+
+func TestDeclarativeCommandsExposeRemoteSourceFlags(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  *cobra.Command
+	}{
+		{name: "plan", cmd: newDeclarativePlanCmd()},
+		{name: "apply", cmd: newDeclarativeApplyCmd()},
+		{name: "sync", cmd: newDeclarativeSyncCmd()},
+		{name: "diff", cmd: newDeclarativeDiffCmd()},
+		{name: "delete", cmd: newDeclarativeDeleteCmd()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filenameFlag := tt.cmd.Flags().Lookup("filename")
+			require.NotNil(t, filenameFlag)
+			assert.Contains(t, filenameFlag.Usage, "URL")
+
+			saveAsFlag := tt.cmd.Flags().Lookup(saveAsFlagName)
+			require.NotNil(t, saveAsFlag)
+			assert.Contains(t, saveAsFlag.Usage, "remote")
+
+			remoteAuthFlag := tt.cmd.Flags().Lookup(remoteFileAuthFlagName)
+			require.NotNil(t, remoteAuthFlag)
+			assert.Contains(t, remoteAuthFlag.Usage, "auto|none")
+		})
+	}
+}
+
+func TestSourcesForCommand_SaveAs(t *testing.T) {
+	t.Run("saves URL source and returns saved file source", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte("portals: []\n"))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		cmd := newDeclarativeApplyCmd()
+		var stderr bytes.Buffer
+		cmd.SetErr(&stderr)
+
+		savePath := filepath.Join(t.TempDir(), "remote.yaml")
+		require.NoError(t, cmd.Flags().Set(saveAsFlagName, savePath))
+
+		sources, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{server.URL + "/config.yaml"},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.NoError(t, err)
+		require.Len(t, sources, 1)
+		assert.Equal(t, savePath, sources[0].Path)
+		assert.Equal(t, loader.SourceTypeFile, sources[0].Type)
+
+		content, err := os.ReadFile(savePath)
+		require.NoError(t, err)
+		assert.Equal(t, "portals: []\n", string(content))
+		assert.Contains(t, stderr.String(), "Saved remote source to: "+savePath)
+	})
+
+	t.Run("rejects plan input", func(t *testing.T) {
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveAsFlagName, filepath.Join(t.TempDir(), "remote.yaml")))
+
+		_, _, err := sourcesForCommand(cmd, "plan.json", nil, testDeclarativeConfig(), testDeclarativeLogger())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--save-as cannot be used with --plan")
+	})
+
+	t.Run("rejects non URL input", func(t *testing.T) {
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "config.yaml")
+		require.NoError(t, os.WriteFile(configPath, []byte("portals: []\n"), 0o600))
+
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveAsFlagName, filepath.Join(dir, "remote.yaml")))
+
+		_, _, err := sourcesForCommand(cmd, "", []string{configPath}, testDeclarativeConfig(), testDeclarativeLogger())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--save-as requires exactly one URL source")
+	})
+
+	t.Run("rejects multiple sources", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte("portals: []\n"))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "config.yaml")
+		require.NoError(t, os.WriteFile(configPath, []byte("portals: []\n"), 0o600))
+
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveAsFlagName, filepath.Join(dir, "remote.yaml")))
+
+		_, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{server.URL, configPath},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--save-as requires exactly one URL source")
+	})
+
+	t.Run("rejects empty save path", func(t *testing.T) {
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveAsFlagName, ""))
+
+		_, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{"https://example.com/config.yaml"},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--save-as cannot be empty")
+	})
+}
+
+func TestResolveRemoteFileAuthPolicy(t *testing.T) {
+	t.Run("defaults to auto", func(t *testing.T) {
+		got, err := resolveRemoteFileAuthPolicy(newDeclarativeApplyCmd(), testDeclarativeConfig())
+		require.NoError(t, err)
+		assert.Equal(t, loader.URLFetchAuthAuto, got)
+	})
+
+	t.Run("uses config value", func(t *testing.T) {
+		cfg := testDeclarativeConfig()
+		cfg.Set(remoteFileAuthConfigPath, "none")
+
+		got, err := resolveRemoteFileAuthPolicy(newDeclarativeApplyCmd(), cfg)
+		require.NoError(t, err)
+		assert.Equal(t, loader.URLFetchAuthNone, got)
+	})
+
+	t.Run("flag overrides config value", func(t *testing.T) {
+		cfg := testDeclarativeConfig()
+		cfg.Set(remoteFileAuthConfigPath, "none")
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(remoteFileAuthFlagName, "auto"))
+
+		got, err := resolveRemoteFileAuthPolicy(cmd, cfg)
+		require.NoError(t, err)
+		assert.Equal(t, loader.URLFetchAuthAuto, got)
+	})
+
+	t.Run("rejects invalid value", func(t *testing.T) {
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(remoteFileAuthFlagName, "always"))
+
+		_, err := resolveRemoteFileAuthPolicy(cmd, testDeclarativeConfig())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--remote-file-auth must be one of")
+	})
+}
+
+func TestRemoteFileFetchOptionsForSources(t *testing.T) {
+	t.Run("enables token source for default Konnect cloud host", func(t *testing.T) {
+		cfg := testDeclarativeConfig()
+		cfg.Set(konnectcommon.PATConfigPath, "test-token")
+
+		options, err := remoteFileFetchOptionsForSources(
+			newDeclarativeApplyCmd(),
+			cfg,
+			testDeclarativeLogger(),
+			[]loader.Source{{Path: "https://us.cloud.konghq.com/remote-file.yaml", Type: loader.SourceTypeURL}},
+		)
+		require.NoError(t, err)
+		assert.Equal(t, loader.URLFetchAuthAuto, options.AuthPolicy)
+		assert.True(t, options.AllowsAuthenticationForURL("https://us.cloud.konghq.com/remote-file.yaml"))
+		assert.NotNil(t, options.TokenSource)
+	})
+
+	t.Run("does not enable token source for arbitrary host", func(t *testing.T) {
+		cfg := testDeclarativeConfig()
+		cfg.Set(konnectcommon.PATConfigPath, "test-token")
+
+		options, err := remoteFileFetchOptionsForSources(
+			newDeclarativeApplyCmd(),
+			cfg,
+			testDeclarativeLogger(),
+			[]loader.Source{{Path: "https://example.com/config.yaml", Type: loader.SourceTypeURL}},
+		)
+		require.NoError(t, err)
+		assert.False(t, options.AllowsAuthenticationForURL("https://example.com/config.yaml"))
+		assert.Nil(t, options.TokenSource)
+	})
+
+	t.Run("honors remote-file-auth none", func(t *testing.T) {
+		cfg := testDeclarativeConfig()
+		cfg.Set(konnectcommon.PATConfigPath, "test-token")
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(remoteFileAuthFlagName, "none"))
+
+		options, err := remoteFileFetchOptionsForSources(
+			cmd,
+			cfg,
+			testDeclarativeLogger(),
+			[]loader.Source{{Path: "https://us.cloud.konghq.com/remote-file.yaml", Type: loader.SourceTypeURL}},
+		)
+		require.NoError(t, err)
+		assert.Equal(t, loader.URLFetchAuthNone, options.AuthPolicy)
+		assert.False(t, options.AllowsAuthenticationForURL("https://us.cloud.konghq.com/remote-file.yaml"))
+		assert.Nil(t, options.TokenSource)
+	})
+
+	t.Run("supports additional configured hosts", func(t *testing.T) {
+		cfg := testDeclarativeConfig()
+		cfg.Set(konnectcommon.PATConfigPath, "test-token")
+		cfg.Set(remoteFileAuthHostsConfigPath, []string{"example.com"})
+
+		options, err := remoteFileFetchOptionsForSources(
+			newDeclarativeApplyCmd(),
+			cfg,
+			testDeclarativeLogger(),
+			[]loader.Source{{Path: "https://example.com/config.yaml", Type: loader.SourceTypeURL}},
+		)
+		require.NoError(t, err)
+		assert.True(t, options.AllowsAuthenticationForURL("https://example.com/config.yaml"))
+		assert.NotNil(t, options.TokenSource)
+	})
 }
 
 func TestDisplayTextDiff_UsesChangedFieldsForUpdateOutput(t *testing.T) {

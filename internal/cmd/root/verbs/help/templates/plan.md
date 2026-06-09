@@ -14,9 +14,11 @@ kongctl plan [flags]
 
 ### Required Flags
 
-- `-f, --file` (string): Path to configuration file or directory containing YAML configurations
+- `-f, --filename` (string): File, directory, URL, or `-` for stdin
   - Can be specified multiple times to load multiple files
   - Directories are processed non-recursively by default
+- `--save-as` (string): Save a single remote URL source locally before loading
+- `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
 
 ### Optional Flags
 

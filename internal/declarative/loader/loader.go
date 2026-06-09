@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -31,6 +32,8 @@ type Loader struct {
 	baseDir string
 	// tagRootDir is the boundary directory for !file tag resolution
 	tagRootDir string
+	// urlFetchOptions controls remote URL source fetching
+	urlFetchOptions URLFetchOptions
 	// tagRegistry is the registry of tag resolvers (created on demand)
 	tagRegistry *tags.ResolverRegistry
 }
@@ -58,6 +61,15 @@ func NewWithBaseDir(baseDir string) *Loader {
 	}
 }
 
+// WithURLFetchOptions configures remote URL source fetching.
+func (l *Loader) WithURLFetchOptions(options URLFetchOptions) *Loader {
+	if l == nil {
+		return nil
+	}
+	l.urlFetchOptions = options
+	return l
+}
+
 // getTagRegistry returns the tag registry, creating it if needed
 func (l *Loader) getTagRegistry() *tags.ResolverRegistry {
 	if l.tagRegistry == nil {
@@ -77,6 +89,8 @@ func (l *Loader) resolveSourceRoot(source Source) string {
 	case SourceTypeDirectory:
 		return source.Path
 	case SourceTypeSTDIN:
+		return l.baseDir
+	case SourceTypeURL:
 		return l.baseDir
 	default:
 		return ""
@@ -107,6 +121,8 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 			err = l.loadDirectorySourceWithContext(ctx, source.Path, rootDir, recursive, &allResources, refIndex)
 		case SourceTypeSTDIN:
 			err = l.loadSTDINWithContext(ctx, rootDir, &allResources, refIndex)
+		case SourceTypeURL:
+			err = l.loadURLWithContext(ctx, source.Path, rootDir, &allResources, refIndex)
 		default:
 			return nil, decerrors.FormatConfigurationError(
 				source.Path,
@@ -198,6 +214,26 @@ func (l *Loader) loadSingleFile(
 	return l.appendResourcesWithDuplicateCheck(accumulated, rs, path, refIndex)
 }
 
+func (l *Loader) loadURLWithContext(
+	ctx context.Context,
+	rawURL string,
+	rootDir string,
+	accumulated *resources.ResourceSet,
+	refIndex map[string]resources.ResourceType,
+) error {
+	content, err := FetchURLWithOptions(ctx, rawURL, l.urlFetchOptions)
+	if err != nil {
+		return err
+	}
+
+	rs, err := l.parseYAML(bytes.NewReader(content), rawURL, rootDir)
+	if err != nil {
+		return err
+	}
+
+	return l.appendResourcesWithDuplicateCheck(accumulated, rs, rawURL, refIndex)
+}
+
 // parseYAML parses YAML content into ResourceSet
 func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*resources.ResourceSet, error) {
 	var temp temporaryParseResult
@@ -221,7 +257,13 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	// Update base directory based on source file location
 	baseDir := l.baseDir
 	if sourcePath != "stdin" && sourcePath != "" {
-		baseDir = filepath.Dir(sourcePath)
+		if isURLSourcePath(sourcePath) {
+			if strings.TrimSpace(rootDir) != "" {
+				baseDir = rootDir
+			}
+		} else {
+			baseDir = filepath.Dir(sourcePath)
+		}
 	}
 
 	tagRootDir := strings.TrimSpace(l.tagRootDir)

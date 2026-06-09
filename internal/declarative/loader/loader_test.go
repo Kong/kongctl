@@ -1087,6 +1087,20 @@ func TestLoader_ParseSources(t *testing.T) {
 			},
 		},
 		{
+			name:  "https url",
+			input: []string{"https://example.com/config.yaml"},
+			expected: []Source{
+				{Path: "https://example.com/config.yaml", Type: SourceTypeURL},
+			},
+		},
+		{
+			name:  "http url",
+			input: []string{"http://example.com/config"},
+			expected: []Source{
+				{Path: "http://example.com/config", Type: SourceTypeURL},
+			},
+		},
+		{
 			name:  "empty rejects missing configuration source",
 			input: []string{},
 			err:   ErrNoSources,
@@ -1096,6 +1110,11 @@ func TestLoader_ParseSources(t *testing.T) {
 			input: []string{","},
 			err:   ErrNoSources,
 		},
+		{
+			name:  "unsupported url scheme",
+			input: []string{"ftp://example.com/config.yaml"},
+			err:   errors.New("unsupported URL scheme"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -1103,11 +1122,15 @@ func TestLoader_ParseSources(t *testing.T) {
 			// For testing, we need to mock file existence checks
 			// Since ParseSources checks if files exist, we'll test with stdin
 			// which doesn't require file existence
-			if tt.name == "stdin" || tt.err != nil {
+			if tt.name == "stdin" || strings.Contains(tt.name, "url") || tt.err != nil {
 				sources, err := ParseSources(tt.input)
 				if tt.err != nil {
 					require.Error(t, err)
-					assert.True(t, errors.Is(err, tt.err))
+					if errors.Is(tt.err, ErrNoSources) {
+						assert.True(t, errors.Is(err, tt.err))
+					} else {
+						assert.Contains(t, err.Error(), tt.err.Error())
+					}
 					assert.Nil(t, sources)
 					return
 				}

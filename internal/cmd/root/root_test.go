@@ -938,7 +938,7 @@ func TestRootErrorUX(t *testing.T) {
 				`Error: unknown shorthand flag: 'g' in -g`,
 				"Did you mean one of these flags?",
 				"-f, --filename",
-				"Filename or directory to files to use to create the resource",
+				"File, directory, URL, or '-' to use to create the resource",
 				"-R, --recursive",
 				"Process the directory used in -f, --filename recursively",
 				`Run 'kongctl diff --help' for usage`,
@@ -973,8 +973,8 @@ func TestRootErrorUX(t *testing.T) {
 			name: "bare declarative plan requires filename with concise help hint",
 			args: []string{"plan"},
 			wantErr: []string{
-				`Error: no configuration sources specified; use -f to specify files or directories`,
-				"Error: no configuration sources specified; use -f to specify files or directories\n\n" +
+				`Error: no configuration sources specified; use -f to specify files, directories, or URLs`,
+				"Error: no configuration sources specified; use -f to specify files, directories, or URLs\n\n" +
 					`Run 'kongctl plan --help' for usage`,
 			},
 			wantExit:     1,

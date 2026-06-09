@@ -14,9 +14,10 @@ kongctl apply [flags]
 
 ### Input Flags
 
-- `-f, --file` (string): Path to configuration file or directory
+- `-f, --filename` (string): File, directory, URL, or `-` for stdin
   - Can be specified multiple times
-  - Use `-` to read from stdin
+- `--save-as` (string): Save a single remote URL source locally before loading
+- `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
 - `--plan` (string): Path to a pre-generated plan file
 - `-r, --recursive`: Process directories recursively
 
@@ -59,6 +60,11 @@ kongctl apply -f portals.yaml -f apis.yaml
 
 # Apply from directory
 kongctl apply -f ./configs/
+
+# Apply from a remote URL and save the file for later edits
+kongctl apply \
+  -f https://get.konghq.com/example-kongctl.yaml \
+  --save-as ./example-kongctl.yaml
 
 # Apply with auto-approval (no prompts)
 kongctl apply -f config.yaml --auto-approve

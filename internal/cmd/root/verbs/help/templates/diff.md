@@ -14,9 +14,10 @@ kongctl diff [flags]
 
 ### Input Flags
 
-- `-f, --filename` (string): Path to configuration file or directory
+- `-f, --filename` (string): File, directory, URL, or `-` for stdin
   - Can be specified multiple times
-  - Use `-` to read from stdin
+- `--save-as` (string): Save a single remote URL source locally before loading
+- `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
 - `--plan` (string): Use a pre-generated plan file
 - `--mode` (string): Diff mode: `sync`, `apply`, or `delete` (default: `sync`)
 - `-R, --recursive`: Process directories recursively
