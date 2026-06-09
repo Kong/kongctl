@@ -132,7 +132,8 @@ kongctl apply \
 
 Remote files are saved into the directory using the filename from each URL path.
 If multiple remote URLs would save to the same filename, the command fails
-before fetching them.
+before fetching them. Existing files are left intact by default. Use
+`--save-dir-overwrite` with `--save-dir` to replace existing saved files.
 
 When `--remote-file-auth=auto` is enabled, which is the default, `kongctl`
 sends the current profile's Konnect bearer token only to HTTPS remote sources

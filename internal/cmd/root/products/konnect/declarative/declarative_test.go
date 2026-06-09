@@ -264,6 +264,10 @@ func TestDeclarativeCommandsExposeRemoteSourceFlags(t *testing.T) {
 			require.NotNil(t, saveDirFlag)
 			assert.Contains(t, saveDirFlag.Usage, "remote")
 
+			saveDirOverwriteFlag := tt.cmd.Flags().Lookup(saveDirOverwriteFlagName)
+			require.NotNil(t, saveDirOverwriteFlag)
+			assert.Contains(t, saveDirOverwriteFlag.Usage, "Overwrite")
+
 			remoteAuthFlag := tt.cmd.Flags().Lookup(remoteFileAuthFlagName)
 			require.NotNil(t, remoteAuthFlag)
 			assert.Contains(t, remoteAuthFlag.Usage, "auto|none")
@@ -463,6 +467,78 @@ func TestSourcesForCommand_SaveDir(t *testing.T) {
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "file already exists")
+	})
+
+	t.Run("overwrites existing save target when requested", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte("portals: []\n"))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		saveDir := t.TempDir()
+		savePath := filepath.Join(saveDir, "config.yaml")
+		require.NoError(t, os.WriteFile(savePath, []byte("old content"), 0o600))
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
+		require.NoError(t, cmd.Flags().Set(saveDirOverwriteFlagName, "true"))
+
+		sources, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{server.URL + "/config.yaml"},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.NoError(t, err)
+		require.Len(t, sources, 1)
+		assert.Equal(t, loader.Source{Path: savePath, Type: loader.SourceTypeFile}, sources[0])
+
+		content, err := os.ReadFile(savePath)
+		require.NoError(t, err)
+		assert.Equal(t, "portals: []\n", string(content))
+	})
+
+	t.Run("rejects overwrite without save dir", func(t *testing.T) {
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveDirOverwriteFlagName, "true"))
+
+		_, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{"https://example.com/config.yaml"},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--save-dir-overwrite requires --save-dir")
+	})
+
+	t.Run("rejects non regular save target before fetching", func(t *testing.T) {
+		var requests atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			_, err := w.Write([]byte("portals: []\n"))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		saveDir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(saveDir, "config.yaml"), 0o755))
+		cmd := newDeclarativeApplyCmd()
+		require.NoError(t, cmd.Flags().Set(saveDirFlagName, saveDir))
+		require.NoError(t, cmd.Flags().Set(saveDirOverwriteFlagName, "true"))
+
+		_, _, err := sourcesForCommand(
+			cmd,
+			"",
+			[]string{server.URL + "/config.yaml"},
+			testDeclarativeConfig(),
+			testDeclarativeLogger(),
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "target is not a regular file")
+		assert.Zero(t, requests.Load())
 	})
 
 	t.Run("rejects empty save dir", func(t *testing.T) {
