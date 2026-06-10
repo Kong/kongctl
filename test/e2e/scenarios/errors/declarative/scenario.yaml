@@ -173,3 +173,54 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "--require-namespace cannot be used together with --plan"
+
+  - name: 012-dump-output-flag-rejected
+    skipInputs: true
+    commands:
+      - name: 000-dump-declarative-output-short
+        run:
+          - dump
+          - declarative
+          - -o
+          - json
+        expectFailure:
+          exitCode: 1
+          contains: "flags -o/--output are not supported for the dump command"
+
+      - name: 001-dump-tf-import-output-long
+        run:
+          - dump
+          - tf-import
+          - --output
+          - json
+        expectFailure:
+          exitCode: 1
+          contains: "flags -o/--output are not supported for the dump command"
+
+  - name: 013-remote-file-save-dir-plan-conflict
+    skipInputs: true
+    commands:
+      - name: 000-apply-save-dir-and-plan
+        outputFormat: disable
+        run:
+          - apply
+          - --remote-file-save-dir
+          - "{{ .scenario_dir }}"
+          - --plan
+          - "{{ .scenario_dir }}/testdata/empty.plan"
+        expectFailure:
+          exitCode: 1
+          contains: "--remote-file-save-dir cannot be used with --plan"
+
+  - name: 014-unsupported-url-scheme
+    skipInputs: true
+    commands:
+      - name: 000-apply-ftp-url
+        run:
+          - apply
+          - -f
+          - "ftp://example.com/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "unsupported URL scheme"
