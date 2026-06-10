@@ -1,0 +1,117 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  remoteConfigURL: "https://raw.githubusercontent.com/Kong/kongctl/main/test/e2e/scenarios/plan/remote-url-workflow/testdata/remote-config.yaml"
+  portalRef: remote-url-portal
+  portalName: "Remote URL Portal"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-from-url
+    skipInputs: true
+    commands:
+      - name: 000-plan-remote-url
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan.json"
+        run:
+          - plan
+          - -f
+          - "{{ .vars.remoteConfigURL }}"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                by_action.CREATE: 1
+
+  - name: 002-diff-from-url
+    skipInputs: true
+    commands:
+      - name: 000-diff-remote-url
+        run:
+          - diff
+          - -f
+          - "{{ .vars.remoteConfigURL }}"
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                by_action.CREATE: 1
+
+  - name: 003-sync-from-url
+    skipInputs: true
+    commands:
+      - name: 000-sync-remote-url
+        run:
+          - sync
+          - -f
+          - "{{ .vars.remoteConfigURL }}"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 001-verify-portal
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalName }}"
+
+  - name: 004-save-dir-workflow
+    skipInputs: true
+    commands:
+      - name: 000-plan-with-save-dir
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .vars.remoteConfigURL }}"
+          - --remote-file-save-dir
+          - "{{ .workdir }}/saved"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-delete-cleanup
+    skipInputs: true
+    commands:
+      - name: 000-delete-remote-url
+        run:
+          - delete
+          - -f
+          - "{{ .vars.remoteConfigURL }}"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
