@@ -94,6 +94,30 @@ func TestOutputFlagHelpVisibility(t *testing.T) {
 			},
 		},
 		{
+			name: "dump hides unsupported inherited output flag",
+			args: []string{"dump", "--help"},
+			forbidOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+		{
+			name: "dump declarative hides unsupported inherited output flag",
+			args: []string{"dump", "declarative", "--help"},
+			forbidOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+		{
+			name: "dump tf-import hides unsupported inherited output flag",
+			args: []string{"dump", "tf-import", "--help"},
+			forbidOut: []string{
+				"-o, --output string",
+				"Allowed    : [ json|yaml|text ]",
+			},
+		},
+		{
 			name: "explain keeps supported output flag",
 			args: []string{"explain", "--help"},
 			wantOut: []string{
@@ -123,6 +147,85 @@ func TestOutputFlagHelpVisibility(t *testing.T) {
 		})
 	}
 }
+
+func TestDumpRejectsOutputFlag(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "long output flag on declarative dump",
+			args: []string{"dump", "declarative", "--resources=apis", "--output", "json"},
+		},
+		{
+			name: "missing long output flag value on declarative dump",
+			args: []string{"dump", "declarative", "--resources=apis", "--output"},
+		},
+		{
+			name: "short output flag on declarative dump",
+			args: []string{"dump", "declarative", "--resources=apis", "-o", "json"},
+		},
+		{
+			name: "long output flag on terraform import dump",
+			args: []string{"dump", "tf-import", "--resources=portal", "--output", "json"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executeRootForTest(t, tt.args...)
+			if result.exitCode == 0 {
+				t.Fatalf("expected command to fail\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+			}
+			want := "flags -o/--output are not supported for the dump command; " +
+				"use --output-file to save dump output to a file"
+			if !strings.Contains(result.stderr, want) {
+				t.Fatalf("expected stderr to contain %q\nstderr:\n%s", want, result.stderr)
+			}
+		})
+	}
+}
+
+func TestDumpPreservesNonOutputFlagParseErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "declarative output-file missing value",
+			args: []string{"dump", "declarative", "--resources=apis", "--output-file"},
+			want: "flag needs an argument: --output-file",
+		},
+		{
+			name: "tf-import output-file missing value",
+			args: []string{"dump", "tf-import", "--resources=portal", "--output-file"},
+			want: "flag needs an argument: --output-file",
+		},
+		{
+			name: "unknown output-prefixed flag",
+			args: []string{"dump", "declarative", "--resources=apis", "--output-format=json"},
+			want: "unknown flag: --output-format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executeRootForTest(t, tt.args...)
+			if result.exitCode == 0 {
+				t.Fatalf("expected command to fail\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+			}
+			if !strings.Contains(result.stderr, tt.want) {
+				t.Fatalf("expected stderr to contain %q\nstderr:\n%s", tt.want, result.stderr)
+			}
+			if strings.Contains(result.stderr, outputFlagUnsupportedMsgForTest) {
+				t.Fatalf("expected stderr not to contain output flag unsupported message\nstderr:\n%s", result.stderr)
+			}
+		})
+	}
+}
+
+const outputFlagUnsupportedMsgForTest = "flags -o/--output are not supported for the dump command"
 
 func TestKonnectFirstHelpExamplesMatchExplicitTarget(t *testing.T) {
 	tests := []struct {
