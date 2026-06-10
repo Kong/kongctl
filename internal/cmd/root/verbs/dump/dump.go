@@ -31,7 +31,7 @@ var (
 
 	errOutputFlagUnsupported = errors.New(outputFlagUnsupportedMsg)
 
-	// Use word-boundary anchors rather than strings.Contains to avoid falsely
+	// Use explicit delimiter anchors rather than strings.Contains to avoid falsely
 	// matching --output-file error messages; the dump subcommands define that flag.
 	outputFlagParseErrorPattern = regexp.MustCompile(`(^|[\s"',:])(?:--` +
 		cmdcommon.OutputFlagName + `|-` + cmdcommon.OutputFlagShort + `)($|[\s"',:=])`)
