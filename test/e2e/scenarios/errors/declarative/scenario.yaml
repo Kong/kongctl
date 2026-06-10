@@ -201,6 +201,7 @@ steps:
     skipInputs: true
     commands:
       - name: 000-apply-save-dir-and-plan
+        outputFormat: disable
         run:
           - apply
           - --remote-file-save-dir
