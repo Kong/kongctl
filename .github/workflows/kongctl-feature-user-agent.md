@@ -6,9 +6,11 @@ description: |
   publishing successful evaluations as expiring discussions.
 on:
   schedule:
-    # GitHub schedules are UTC-only. 01:00 UTC Tuesday-Saturday maps to
-    # Monday-Friday evenings in US/Central: 8 PM during daylight time and
-    # 7 PM during standard time.
+    # GitHub schedules are UTC-only. Together these run twice on each
+    # Monday-Friday US/Central day: 13:00 UTC maps to 8 AM during daylight
+    # time and 7 AM during standard time; 01:00 UTC Tuesday-Saturday maps to
+    # the prior Monday-Friday evening at 8 PM/7 PM.
+    - cron: "0 13 * * 1-5"
     - cron: "0 1 * * 2-6"
   workflow_dispatch:
 permissions:

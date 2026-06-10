@@ -55,6 +55,7 @@
 name: "User Agent Eval"
 on:
   schedule:
+  - cron: "0 13 * * 1-5"
   - cron: "0 1 * * 2-6"
   workflow_dispatch:
     inputs:
