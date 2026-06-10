@@ -14,8 +14,9 @@ The CLI ships with:
 
 - [Documentation](#documentation)
 - [Installation](#installation)
-  - [macOS](#macos)
-  - [Linux](#linux)
+  - [Shell installer](#shell-installer)
+  - [macOS Homebrew](#macos-homebrew)
+  - [Manual download](#manual-download)
   - [Verify](#verify)
 - [Getting Started](#getting-started)
   - [1. Create a Kong Konnect Account](#1-create-a-kong-konnect-account)
@@ -41,7 +42,37 @@ For complete documentation and guides, see the documentation on the Kong Develop
 
 ## Installation
 
-### macOS
+### Shell installer
+
+Install the latest stable release on Linux or macOS with:
+
+```shell
+curl -fsSL https://get.konghq.com/kongctl | sh
+```
+
+The installer downloads the matching release archive, verifies it with the
+published SHA256 checksum, and installs `kongctl` into `$HOME/.local/bin` by
+default. It runs without prompting, and it does not use `sudo` or edit shell
+profile files.
+
+Inspect the installer before running it:
+
+```shell
+curl -fsSL https://get.konghq.com/kongctl -o kongctl-install.sh
+sh kongctl-install.sh --help
+sh kongctl-install.sh
+```
+
+Pin a specific version or install directory:
+
+```shell
+sh kongctl-install.sh --version v1.3.0 --install-dir "$HOME/bin"
+```
+
+Windows is not supported by the shell installer. Download Windows binaries from
+the [release page](https://github.com/kong/kongctl/releases).
+
+### macOS Homebrew
 
 Install using Homebrew (distributed as a cask):
 
@@ -51,7 +82,7 @@ brew install --cask kong/kongctl/kongctl
 
 *Note: If you previously installed the old formula, you may have to remove it first with `brew uninstall kongctl`.*
 
-### Linux
+### Manual download
 
 Download from the [release page](https://github.com/kong/kongctl/releases):
 
@@ -203,6 +234,8 @@ backend.
 - **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide
   covering quick start, concepts, YAML tags, CI/CD integration, and best
   practices
+- **[Installer Contributor Notes](docs/contributor/installer.md)** - Maintainer
+  notes for the shell installer and hosted-script sync workflow
 - **[AI Agent Skills](skills/README.md)** - Agent skills for declarative
   configuration and extension development
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions

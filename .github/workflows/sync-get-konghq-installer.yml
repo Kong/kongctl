@@ -1,0 +1,87 @@
+name: Sync get.konghq.com installer
+
+on:
+  push:
+    branches:
+    - main
+    paths:
+    - scripts/install.sh
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout kongctl
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: kongctl
+          persist-credentials: false
+
+      - name: Checkout get.konghq.com
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: Kong/get.konghq.com
+          path: get-konghq-com
+          token: ${{ secrets.GET_KONGHQ_COM_TOKEN }}
+
+      - name: Stage installer
+        id: stage
+        run: |
+          set -euo pipefail
+
+          cp kongctl/scripts/install.sh get-konghq-com/kongctl
+          chmod 0755 get-konghq-com/kongctl
+
+          if [ -n "$(git -C get-konghq-com status --porcelain -- kongctl)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write PR body
+        if: steps.stage.outputs.changed == 'true'
+        id: summary
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          body_path="${RUNNER_TEMP}/get-konghq-installer-pr.md"
+          {
+            echo "## kongctl installer sync"
+            echo
+            echo "- Source repository: \`${SOURCE_REPOSITORY}\`"
+            echo "- Source path: \`scripts/install.sh\`"
+            echo "- Source commit: \`${SOURCE_SHA}\`"
+            echo "- Hosted destination: \`kongctl\`"
+            echo "- Workflow run: ${RUN_URL}"
+            echo
+            echo "This PR updates the hosted copy of the reviewed kongctl installer."
+          } > "$body_path"
+
+          echo "body_path=$body_path" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update PR
+        if: steps.stage.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          path: get-konghq-com
+          token: ${{ secrets.GET_KONGHQ_COM_TOKEN }}
+          base: main
+          branch: kongctl/update-installer
+          delete-branch: true
+          add-paths: kongctl
+          commit-message: 'task(kongctl): update installer script'
+          title: 'task(kongctl): update installer script'
+          body-path: ${{ steps.summary.outputs.body_path }}

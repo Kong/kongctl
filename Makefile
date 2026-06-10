@@ -1,5 +1,5 @@
 .PHONY: test-all
-test-all: lint test test-integration
+test-all: lint test-installer test test-integration
 
 VERSION ?= $(shell (git describe --tags --exact-match 2>/dev/null || echo dev) | sed 's/^v//')
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -12,6 +12,18 @@ LATEST_BENCHMARK_LINK ?= .latest-benchmark
 .PHONY: lint
 lint:
 	golangci-lint run -v
+
+.PHONY: test-installer
+test-installer:
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		shellcheck scripts/install.sh test/installer/install_test.sh; \
+	elif [ "$$CI" = "true" ]; then \
+		echo "shellcheck is required to run installer linting in CI" >&2; \
+		exit 1; \
+	else \
+		echo "shellcheck not found; skipping installer shell lint" >&2; \
+	fi
+	bash test/installer/install_test.sh
 
 .PHONY: format fmt
 format:
