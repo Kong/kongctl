@@ -185,7 +185,7 @@ steps:
           - json
         expectFailure:
           exitCode: 1
-          contains: "flags -o/--output are not supported"
+          contains: "flags -o/--output are not supported for the dump command"
 
       - name: 001-dump-tf-import-output-long
         run:
@@ -195,7 +195,7 @@ steps:
           - json
         expectFailure:
           exitCode: 1
-          contains: "flags -o/--output are not supported"
+          contains: "flags -o/--output are not supported for the dump command"
 
   - name: 013-remote-file-save-dir-plan-conflict
     skipInputs: true
@@ -204,7 +204,7 @@ steps:
         run:
           - apply
           - --remote-file-save-dir
-          - /tmp
+          - "{{ .scenario_dir }}"
           - --plan
           - "{{ .scenario_dir }}/testdata/empty.plan"
         expectFailure:
