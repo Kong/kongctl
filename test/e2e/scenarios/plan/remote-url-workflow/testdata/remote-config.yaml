@@ -1,0 +1,5 @@
+portals:
+  - ref: remote-url-portal
+    name: remote-url-portal
+    display_name: "Remote URL Portal"
+    authentication_enabled: false
