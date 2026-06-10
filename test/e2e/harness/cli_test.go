@@ -87,9 +87,17 @@ func TestWithEnvReplacesExistingKeys(t *testing.T) {
 	}
 }
 
-func TestSupportsHarnessOutputArgSkipsPlan(t *testing.T) {
-	if supportsHarnessOutputArg([]string{"plan", "-f", "config.yaml"}) {
-		t.Fatalf("plan command must not receive harness-managed output flags")
+func TestSupportsHarnessOutputArgSkipsFixedOutputCommands(t *testing.T) {
+	tests := [][]string{
+		{"dump", "declarative", "--resources=apis"},
+		{"plan", "-f", "config.yaml"},
+		{"scaffold", "api"},
+	}
+
+	for _, args := range tests {
+		if supportsHarnessOutputArg(args) {
+			t.Fatalf("%s command must not receive harness-managed output flags", args[0])
+		}
 	}
 }
 

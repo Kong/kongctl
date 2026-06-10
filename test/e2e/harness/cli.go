@@ -699,7 +699,12 @@ func supportsHarnessOutputArg(args []string) bool {
 	if len(args) == 0 {
 		return true
 	}
-	return args[0] != "plan"
+	switch args[0] {
+	case "dump", "plan", "scaffold":
+		return false
+	default:
+		return true
+	}
 }
 
 func hasLogFileArg(args []string) bool {

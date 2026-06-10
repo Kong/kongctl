@@ -2,11 +2,14 @@ package dump
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/spf13/cobra"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -16,13 +19,18 @@ import (
 )
 
 const (
-	Verb              = verbs.Dump
-	formatTFImport    = "tf-import"
-	formatDeclarative = "declarative"
+	Verb                     = verbs.Dump
+	formatTFImport           = "tf-import"
+	formatDeclarative        = "declarative"
+	outputFlagUnsupportedMsg = "flags -o/--" + cmdcommon.OutputFlagName +
+		" are not supported for the dump command; use --output-file to save dump output to a file"
 )
 
 var (
 	dumpUse = Verb.String()
+
+	outputFlagParseErrorPattern = regexp.MustCompile(`(^|[\s"',:])(?:--` +
+		cmdcommon.OutputFlagName + `|-` + cmdcommon.OutputFlagShort + `)($|[\s"',:=])`)
 
 	dumpShort = i18n.T("root.verbs.dump.dumpShort", "Dump existing resources into local declarative configuration")
 
@@ -73,14 +81,35 @@ func NewDumpCmd() (*cobra.Command, error) {
 	}
 	cmdpkg.ConfigureRequiresSubcommand(dumpCommand)
 
-	dumpCommand.PersistentPreRun = func(cmd *cobra.Command, _ []string) {
+	dumpCommand.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		if isOutputFlagParseError(err) {
+			return &cmdpkg.UsageError{Err: errors.New(outputFlagUnsupportedMsg)}
+		}
+		return err
+	})
+
+	cmdcommon.SkipOutputFormatValidation(dumpCommand)
+
+	dumpCommand.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		if outputFlag := cmd.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Changed {
+			return &cmdpkg.UsageError{Err: errors.New(outputFlagUnsupportedMsg)}
+		}
+
 		cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
 		cmd.SetContext(context.WithValue(cmd.Context(),
 			helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(konnectCommon.KonnectSDKFactory)))
+		return nil
 	}
 
 	dumpCommand.AddCommand(newTFImportCmd())
 	dumpCommand.AddCommand(newDeclarativeCmd())
 
 	return dumpCommand, nil
+}
+
+func isOutputFlagParseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return outputFlagParseErrorPattern.MatchString(err.Error())
 }
