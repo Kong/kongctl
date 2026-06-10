@@ -70,12 +70,52 @@ EOF
   chmod 755 "$path"
 }
 
+fixture_sha256() {
+  local file="$1"
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{print $1}'
+    return
+  fi
+
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$file" | awk '{print $1}'
+    return
+  fi
+
+  if command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$file" | awk '{print $NF}'
+    return
+  fi
+
+  fail "sha256sum, shasum, or openssl is required for installer tests"
+}
+
+available_checksum_tool() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf '%s\n' "sha256sum"
+    return
+  fi
+
+  if command -v shasum >/dev/null 2>&1; then
+    printf '%s\n' "shasum"
+    return
+  fi
+
+  if command -v openssl >/dev/null 2>&1; then
+    printf '%s\n' "openssl"
+    return
+  fi
+
+  fail "sha256sum, shasum, or openssl is required for installer tests"
+}
+
 append_checksum() {
   local release_dir="$1"
   local asset="$2"
   local checksum
 
-  checksum="$(sha256sum "${release_dir}/${asset}" | awk '{print $1}')"
+  checksum="$(fixture_sha256 "${release_dir}/${asset}")"
   printf '%s  %s\n' "$checksum" "$asset" >> "${release_dir}/checksums.txt"
 }
 
@@ -84,7 +124,7 @@ write_release_metadata() {
   local version="$2"
   local checksum_digest
 
-  checksum_digest="$(sha256sum "${release_dir}/checksums.txt" | awk '{print $1}')"
+  checksum_digest="$(fixture_sha256 "${release_dir}/checksums.txt")"
   cat > "${release_dir}/release.json" <<EOF
 {
   "tag_name": "${version}",
@@ -315,6 +355,7 @@ test_missing_dependencies() {
   local release_dir="${TMP_ROOT}/release-deps"
   local empty_path="${TMP_ROOT}/empty-path"
   local tool_path="${TMP_ROOT}/tool-path"
+  local checksum_tool
 
   make_release "$release_dir"
   mkdir -p "$empty_path" "$tool_path"
@@ -336,7 +377,8 @@ test_missing_dependencies() {
   pass "fails when downloader is missing"
 
   ln -s "$(command -v curl)" "${tool_path}/curl"
-  ln -s "$(command -v sha256sum)" "${tool_path}/sha256sum"
+  checksum_tool="$(available_checksum_tool)"
+  ln -s "$(command -v "$checksum_tool")" "${tool_path}/${checksum_tool}"
   set +e
   env \
     HOME="${TMP_ROOT}/missing-extractor-home" \
