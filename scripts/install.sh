@@ -807,7 +807,7 @@ print_completion() {
 
   if ! install_dir_on_path; then
     printf '  Tip: Add %s to PATH:\n' "$INSTALL_DIR_ABS"
-    printf '       export PATH="%s:$PATH"\n' "$INSTALL_DIR_ABS"
+    printf "       export PATH=\"%s:\$PATH\"\n" "$INSTALL_DIR_ABS"
     printf '\n'
   fi
 
