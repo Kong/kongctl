@@ -29,6 +29,10 @@ const (
 var (
 	dumpUse = Verb.String()
 
+	errOutputFlagUnsupported = errors.New(outputFlagUnsupportedMsg)
+
+	// Use explicit delimiter anchors rather than strings.Contains to avoid falsely
+	// matching --output-file error messages; the dump subcommands define that flag.
 	outputFlagParseErrorPattern = regexp.MustCompile(`(^|[\s"',:])(?:--` +
 		cmdcommon.OutputFlagName + `|-` + cmdcommon.OutputFlagShort + `)($|[\s"',:=])`)
 
@@ -83,7 +87,7 @@ func NewDumpCmd() (*cobra.Command, error) {
 
 	dumpCommand.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		if isOutputFlagParseError(err) {
-			return &cmdpkg.UsageError{Err: errors.New(outputFlagUnsupportedMsg)}
+			return &cmdpkg.UsageError{Err: errOutputFlagUnsupported}
 		}
 		return err
 	})
@@ -92,7 +96,7 @@ func NewDumpCmd() (*cobra.Command, error) {
 
 	dumpCommand.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		if outputFlag := cmd.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Changed {
-			return &cmdpkg.UsageError{Err: errors.New(outputFlagUnsupportedMsg)}
+			return &cmdpkg.UsageError{Err: errOutputFlagUnsupported}
 		}
 
 		cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
