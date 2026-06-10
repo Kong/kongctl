@@ -3,8 +3,13 @@ baseInputsPath: testdata
 env:
   KONGCTL_LOG_LEVEL: info
 
+test:
+  requiredEnvVars:
+    - GITHUB_REPOSITORY
+    - GITHUB_SHA
+
 vars:
-  remoteConfigURL: "https://raw.githubusercontent.com/Kong/kongctl/main/test/e2e/scenarios/plan/remote-url-workflow/testdata/remote-config.yaml"
+  remoteConfigURL: "https://raw.githubusercontent.com/{{ .env.GITHUB_REPOSITORY }}/{{ .env.GITHUB_SHA }}/test/e2e/scenarios/plan/remote-url-workflow/testdata/remote-config.yaml"
   portalRef: remote-url-portal
   portalName: "Remote URL Portal"
 
@@ -99,6 +104,11 @@ steps:
             expect:
               fields:
                 total_changes: 0
+      - name: 001-verify-saved-file
+        exec:
+          - bash
+          - -c
+          - test -f "{{ .workdir }}/saved/remote-config.yaml"
 
   - name: 005-delete-cleanup
     skipInputs: true
