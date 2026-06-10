@@ -2,14 +2,14 @@ module github.com/kong/kongctl/docs/examples/extensions/go
 
 go 1.26.0
 
-require github.com/kong/kongctl v1.2.1
+require github.com/kong/kongctl v1.3.0
 
 require (
 	github.com/Kong/sdk-konnect-go v0.36.0 // indirect
 	github.com/ajg/form v1.7.1 // indirect
-	github.com/alecthomas/chroma/v2 v2.25.0 // indirect
+	github.com/alecthomas/chroma/v2 v2.26.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dlclark/regexp2/v2 v2.1.0 // indirect
+	github.com/dlclark/regexp2/v2 v2.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
