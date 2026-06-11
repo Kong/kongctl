@@ -22,6 +22,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/profile"
+	"github.com/mattn/go-runewidth"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -316,6 +317,114 @@ func TestCreateCommandIsTokenOnly(t *testing.T) {
 	}
 	if !strings.Contains(result.stderr, `unknown command "gateway"`) {
 		t.Fatalf("expected unknown gateway command under konnect\nstderr:\n%s", result.stderr)
+	}
+}
+
+func TestRoarPrintsBanner(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+
+	result := executeRootForTest(t, "roar")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if !containsBraillePatternForTest(result.stdout) {
+		t.Fatalf("expected roar to print braille banner\nstdout:\n%s", result.stdout)
+	}
+	if result.stderr != "" {
+		t.Fatalf("expected no stderr output, got:\n%s", result.stderr)
+	}
+}
+
+func TestRoarPrintsASCIIBanner(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--art", "ascii")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --art ascii to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if containsBraillePatternForTest(result.stdout) {
+		t.Fatalf("expected roar --art ascii not to print braille glyphs\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stdout, "@") {
+		t.Fatalf("expected roar --art ascii to print ASCII art\nstdout:\n%s", result.stdout)
+	}
+	if result.stderr != "" {
+		t.Fatalf("expected no stderr output, got:\n%s", result.stderr)
+	}
+}
+
+func TestRoarAutoArtUsesASCIIForDumbTerminal(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+
+	result := executeRootForTest(t, "roar")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if containsBraillePatternForTest(result.stdout) {
+		t.Fatalf("expected TERM=dumb auto art not to print braille glyphs\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stdout, "@") {
+		t.Fatalf("expected TERM=dumb auto art to print ASCII art\nstdout:\n%s", result.stdout)
+	}
+}
+
+func TestRoarPrintsRequestedWidth(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--width", "88")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --width 88 to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if got := maxLineWidthForTest(result.stdout); got != 88 {
+		t.Fatalf("expected 88-column banner, got width %d\nstdout:\n%s", got, result.stdout)
+	}
+}
+
+func TestRoarRejectsUnsupportedWidth(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--width", "72")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --width 72 to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, "unsupported kong banner width 72") {
+		t.Fatalf("expected unsupported width error\nstderr:\n%s", result.stderr)
+	}
+}
+
+func TestRoarColorAlwaysAddsANSI(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--color", "always")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --color always to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if !strings.Contains(result.stdout, "\x1b[") {
+		t.Fatalf("expected colorized roar output to include ANSI escapes\nstdout:\n%q", result.stdout)
+	}
+}
+
+func TestRoarRejectsInvalidColorMode(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--color", "sparkle")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --color sparkle to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, `invalid color mode "sparkle"`) {
+		t.Fatalf("expected invalid color mode error\nstderr:\n%s", result.stderr)
+	}
+}
+
+func TestRoarRejectsInvalidArtType(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--art", "sixel")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --art sixel to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, `--art must be "auto"`) {
+		t.Fatalf("expected invalid art type error\nstderr:\n%s", result.stderr)
+	}
+}
+
+func TestRoarRejectsOutputFlag(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--output", "json")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --output to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, "flags -o/--output are not supported for the roar command") {
+		t.Fatalf("expected roar output flag error\nstderr:\n%s", result.stderr)
 	}
 }
 
@@ -1966,6 +2075,23 @@ func commandPathForTest(path []string) string {
 		return "kongctl"
 	}
 	return "kongctl " + strings.Join(path, " ")
+}
+
+func containsBraillePatternForTest(s string) bool {
+	for _, r := range s {
+		if r >= '\u2800' && r <= '\u28ff' {
+			return true
+		}
+	}
+	return false
+}
+
+func maxLineWidthForTest(value string) int {
+	maxWidth := 0
+	for line := range strings.Lines(value) {
+		maxWidth = max(maxWidth, runewidth.StringWidth(strings.TrimSuffix(line, "\n")))
+	}
+	return maxWidth
 }
 
 func assertAvailableSubcommands(t *testing.T, stderr string, command *cobra.Command) {

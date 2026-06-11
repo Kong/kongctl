@@ -36,6 +36,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/patch"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/ps"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/roar"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/scaffold"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/sync"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/view"
@@ -400,6 +401,8 @@ func addCommands() error {
 		return err
 	}
 	rootCmd.AddCommand(command)
+
+	rootCmd.AddCommand(roar.NewRoarCmd())
 
 	command, err = lint.NewLintCmd()
 	if err != nil {

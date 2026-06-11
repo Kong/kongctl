@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/telemetry"
 	"github.com/spf13/pflag"
 )
@@ -123,6 +124,139 @@ func TestHandleTelemetryPreference_NonInteractiveWritesDisclosureOnly(t *testing
 	}
 }
 
+func TestDisplayLoginBannerInteractiveWritesOutput(t *testing.T) {
+	streams, _, out, _ := iostreams.NewTestIOStreams()
+	stubLoginTerminals(t, true, true)
+
+	if err := displayLoginBanner(streams); err != nil {
+		t.Fatalf("displayLoginBanner: %v", err)
+	}
+
+	output := out.String()
+	if !containsBraillePattern(output) {
+		t.Fatalf("expected banner output to contain braille glyphs, got:\n%s", output)
+	}
+}
+
+func TestDisplayLoginBannerSkipsNonInteractive(t *testing.T) {
+	tests := []struct {
+		name      string
+		inputTTY  bool
+		outputTTY bool
+	}{
+		{
+			name:      "stdin is not terminal",
+			inputTTY:  false,
+			outputTTY: true,
+		},
+		{
+			name:      "stdout is not terminal",
+			inputTTY:  true,
+			outputTTY: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			streams, _, out, _ := iostreams.NewTestIOStreams()
+			stubLoginTerminals(t, tt.inputTTY, tt.outputTTY)
+
+			if err := displayLoginBanner(streams); err != nil {
+				t.Fatalf("displayLoginBanner: %v", err)
+			}
+			if out.Len() != 0 {
+				t.Fatalf("expected no banner output, got:\n%s", out.String())
+			}
+		})
+	}
+}
+
+func TestDisplayUserInstructionsPlain(t *testing.T) {
+	var out bytes.Buffer
+	displayUserInstructions(&out, testDeviceCodeResponse(), false)
+
+	output := out.String()
+	for _, want := range []string{
+		"Logging your CLI into Kong Konnect with the browser...",
+		"To login, go to the following URL in your browser:",
+		"https://global.api.konghq.com/device/complete",
+		"Or copy this one-time code: ABCD-EFGH",
+		"And open your browser to https://global.api.konghq.com/device",
+		"(Code expires in 900 seconds)",
+		"Waiting for user to Login...",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected plain instructions to contain %q\noutput:\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, "\x1b[") {
+		t.Fatalf("plain instructions included ANSI escape sequences:\n%q", output)
+	}
+}
+
+func TestDisplayUserInstructionsStyled(t *testing.T) {
+	var out bytes.Buffer
+	displayUserInstructions(&out, testDeviceCodeResponse(), true)
+
+	output := out.String()
+	for _, want := range []string{
+		"\u203a",
+		"Kong Konnect browser login",
+		"Open this URL in your browser:",
+		"https://global.api.konghq.com/device/complete",
+		"Or copy this one-time code:",
+		"ABCD-EFGH",
+		"Then open:",
+		"https://global.api.konghq.com/device",
+		"Code expires in 900 seconds",
+		"Waiting for authorization...",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected styled instructions to contain %q\noutput:\n%s", want, output)
+		}
+	}
+	if !strings.Contains(output, "\x1b[") {
+		t.Fatalf("styled instructions did not include ANSI escape sequences:\n%q", output)
+	}
+}
+
+func TestDisplayLoginSuccessStyled(t *testing.T) {
+	var out bytes.Buffer
+	displayLoginSuccess(&out, true)
+
+	output := out.String()
+	for _, want := range []string{"\u2713", "User successfully authorized", "\x1b["} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected styled success to contain %q\noutput:\n%q", want, output)
+		}
+	}
+}
+
+func TestShouldStyleLoginOutputRequiresTTYAndHonorsNoColor(t *testing.T) {
+	streams, _, _, _ := iostreams.NewTestIOStreams()
+
+	unsetEnvForTest(t, "NO_COLOR")
+	stubLoginTerminals(t, true, true)
+	if !shouldStyleLoginOutput(streams) {
+		t.Fatal("expected terminal output without NO_COLOR to use styled login output")
+	}
+
+	t.Setenv("NO_COLOR", "1")
+	if shouldStyleLoginOutput(streams) {
+		t.Fatal("expected NO_COLOR to disable styled login output")
+	}
+}
+
+func TestShouldStyleLoginOutputSkipsNonTerminalStdout(t *testing.T) {
+	streams, _, _, _ := iostreams.NewTestIOStreams()
+	unsetEnvForTest(t, "NO_COLOR")
+	stubLoginTerminals(t, true, false)
+
+	if shouldStyleLoginOutput(streams) {
+		t.Fatal("expected non-terminal stdout to disable styled login output")
+	}
+}
+
 func TestReadTelemetryPreferenceAnswerInvalidTwiceSkipsWrite(t *testing.T) {
 	var out bytes.Buffer
 	_, ok, err := readTelemetryPreferenceAnswer(t.Context(), strings.NewReader("maybe\nstill maybe\n"), &out, nil)
@@ -186,4 +320,53 @@ func newTelemetryPreferencePromptTest(
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	rec := telemetry.NewRecorder(context.Background(), cfg, nil, streams, logger, false)
 	return rec, streams, cfg, out
+}
+
+func stubLoginTerminals(t *testing.T, inputTTY, outputTTY bool) {
+	t.Helper()
+	originalInput := loginInputIsTerminal
+	originalOutput := loginOutputIsTerminal
+	t.Cleanup(func() {
+		loginInputIsTerminal = originalInput
+		loginOutputIsTerminal = originalOutput
+	})
+	loginInputIsTerminal = func(io.Reader) bool { return inputTTY }
+	loginOutputIsTerminal = func(io.Writer) bool { return outputTTY }
+}
+
+func containsBraillePattern(s string) bool {
+	for _, r := range s {
+		if r >= '\u2800' && r <= '\u28ff' {
+			return true
+		}
+	}
+	return false
+}
+
+func testDeviceCodeResponse() auth.DeviceCodeResponse {
+	return auth.DeviceCodeResponse{
+		UserCode:                "ABCD-EFGH",
+		VerificationURI:         "https://global.api.konghq.com/device",
+		VerificationURIComplete: "https://global.api.konghq.com/device/complete",
+		ExpiresIn:               900,
+	}
+}
+
+func unsetEnvForTest(t *testing.T, key string) {
+	t.Helper()
+	original, ok := os.LookupEnv(key)
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatalf("unset %s: %v", key, err)
+	}
+	t.Cleanup(func() {
+		if ok {
+			if err := os.Setenv(key, original); err != nil {
+				t.Fatalf("restore %s: %v", key, err)
+			}
+			return
+		}
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatalf("restore unset %s: %v", key, err)
+		}
+	})
 }
