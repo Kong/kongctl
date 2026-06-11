@@ -333,6 +333,7 @@ steps:
                 config.part_of_record:
                   - value
                 config.encryption_key.type: static
+                "length(config.encryption_key.key.id) > `0`": true
 
   - name: 005-root-level-sync-delete
     inputOverlayDirs:
@@ -478,6 +479,7 @@ steps:
                 config.key_validation_action: mark
                 config.value_validation_action: reject
                 config.type: confluent_schema_registry
+                "length(config.schema_registry.id) > `0`": true
 
   - name: 007-schema-validation-update
     inputOverlayDirs:
@@ -551,6 +553,7 @@ steps:
                 config.key_validation_action: mark
                 config.value_validation_action: mark
                 config.type: confluent_schema_registry
+                "length(config.schema_registry.id) > `0`": true
 
   - name: 008-schema-validation-sync-delete
     inputOverlayDirs:
