@@ -20,6 +20,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/profile"
+	"github.com/mattn/go-runewidth"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -317,6 +318,114 @@ func TestCreateCommandIsTokenOnly(t *testing.T) {
 	}
 }
 
+func TestRoarPrintsBanner(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+
+	result := executeRootForTest(t, "roar")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if !containsBraillePatternForTest(result.stdout) {
+		t.Fatalf("expected roar to print braille banner\nstdout:\n%s", result.stdout)
+	}
+	if result.stderr != "" {
+		t.Fatalf("expected no stderr output, got:\n%s", result.stderr)
+	}
+}
+
+func TestRoarPrintsASCIIBanner(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--art", "ascii")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --art ascii to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if containsBraillePatternForTest(result.stdout) {
+		t.Fatalf("expected roar --art ascii not to print braille glyphs\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stdout, "@") {
+		t.Fatalf("expected roar --art ascii to print ASCII art\nstdout:\n%s", result.stdout)
+	}
+	if result.stderr != "" {
+		t.Fatalf("expected no stderr output, got:\n%s", result.stderr)
+	}
+}
+
+func TestRoarAutoArtUsesASCIIForDumbTerminal(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+
+	result := executeRootForTest(t, "roar")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if containsBraillePatternForTest(result.stdout) {
+		t.Fatalf("expected TERM=dumb auto art not to print braille glyphs\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stdout, "@") {
+		t.Fatalf("expected TERM=dumb auto art to print ASCII art\nstdout:\n%s", result.stdout)
+	}
+}
+
+func TestRoarPrintsRequestedWidth(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--width", "88")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --width 88 to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if got := maxLineWidthForTest(result.stdout); got != 88 {
+		t.Fatalf("expected 88-column banner, got width %d\nstdout:\n%s", got, result.stdout)
+	}
+}
+
+func TestRoarRejectsUnsupportedWidth(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--width", "72")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --width 72 to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, "unsupported kong banner width 72") {
+		t.Fatalf("expected unsupported width error\nstderr:\n%s", result.stderr)
+	}
+}
+
+func TestRoarColorAlwaysAddsANSI(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--color", "always")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --color always to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if !strings.Contains(result.stdout, "\x1b[") {
+		t.Fatalf("expected colorized roar output to include ANSI escapes\nstdout:\n%q", result.stdout)
+	}
+}
+
+func TestRoarRejectsInvalidColorMode(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--color", "sparkle")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --color sparkle to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, `invalid color mode "sparkle"`) {
+		t.Fatalf("expected invalid color mode error\nstderr:\n%s", result.stderr)
+	}
+}
+
+func TestRoarRejectsInvalidArtType(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--art", "sixel")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --art sixel to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, `--art must be "auto"`) {
+		t.Fatalf("expected invalid art type error\nstderr:\n%s", result.stderr)
+	}
+}
+
+func TestRoarRejectsOutputFlag(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--output", "json")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --output to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, "flags -o/--output are not supported for the roar command") {
+		t.Fatalf("expected roar output flag error\nstderr:\n%s", result.stderr)
+	}
+}
+
 func TestCreatePATHelpIncludesTokenExamplesAndFormats(t *testing.T) {
 	result := executeRootForTest(t, "create", "pat", "--help")
 	if result.exitCode != 0 {
@@ -420,7 +529,8 @@ func TestCreatePATTokenOutputAndJQ(t *testing.T) {
 		},
 	})
 
-	result := executeRootForTest(t,
+	result := executeRootForTest(
+		t,
 		"create", "pat",
 		"--name", "ci",
 		"--expires-in", "24h",
@@ -439,7 +549,8 @@ func TestCreatePATTokenOutputAndJQ(t *testing.T) {
 		t.Fatalf("expected 24h ttl to be 86400 seconds, got %d", got)
 	}
 
-	result = executeRootForTest(t,
+	result = executeRootForTest(
+		t,
 		"create", "pat",
 		"--name", "ci",
 		"--expires-in", "7d",
@@ -469,7 +580,8 @@ func TestCreateSPATEnvOutputResolvesSystemAccountName(t *testing.T) {
 		},
 	})
 
-	result := executeRootForTest(t,
+	result := executeRootForTest(
+		t,
 		"--profile", "team-a",
 		"create", "spat",
 		"--system-account-name", "ci-bot",
@@ -486,7 +598,8 @@ func TestCreateSPATEnvOutputResolvesSystemAccountName(t *testing.T) {
 }
 
 func TestCreateSPATRejectsBelowMinDuration(t *testing.T) {
-	result := executeRootForTest(t,
+	result := executeRootForTest(
+		t,
 		"create", "spat",
 		"--system-account-id", "system-account-id",
 		"--name", "ci",
@@ -506,7 +619,8 @@ func TestCreateSPATRejectsBelowMinDuration(t *testing.T) {
 }
 
 func TestCreateSPATRejectsOverMaxDuration(t *testing.T) {
-	result := executeRootForTest(t,
+	result := executeRootForTest(
+		t,
 		"create", "spat",
 		"--system-account-id", "system-account-id",
 		"--name", "ci",
@@ -551,7 +665,8 @@ func TestCreateSPATRejectsExpiresAtOutsideBounds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := executeRootForTest(t,
+			result := executeRootForTest(
+				t,
 				"create", "spat",
 				"--system-account-id", "system-account-id",
 				"--name", "ci",
@@ -678,7 +793,8 @@ func TestSPATGetAndDeleteCommands(t *testing.T) {
 		t.Fatalf("expected SPAT by name output to include resolved system account name\nstdout:\n%s", result.stdout)
 	}
 
-	result = executeRootForTest(t,
+	result = executeRootForTest(
+		t,
 		"delete", "spat", "ci",
 		"--system-account-name", "ci-bot",
 		"--auto-approve",
@@ -697,7 +813,8 @@ func TestSPATGetAndDeleteCommands(t *testing.T) {
 
 	unnamedID := "55555555-5555-5555-5555-555555555555"
 	spatAPI.tokens = append(spatAPI.tokens, kkComps.SystemAccountAccessToken{ID: &unnamedID})
-	result = executeRootForTest(t,
+	result = executeRootForTest(
+		t,
 		"delete", "spat", unnamedID,
 		"--system-account-id", accountID,
 		"--auto-approve",
@@ -1636,6 +1753,23 @@ func commandPathForTest(path []string) string {
 		return "kongctl"
 	}
 	return "kongctl " + strings.Join(path, " ")
+}
+
+func containsBraillePatternForTest(s string) bool {
+	for _, r := range s {
+		if r >= '\u2800' && r <= '\u28ff' {
+			return true
+		}
+	}
+	return false
+}
+
+func maxLineWidthForTest(value string) int {
+	maxWidth := 0
+	for line := range strings.Lines(value) {
+		maxWidth = max(maxWidth, runewidth.StringWidth(strings.TrimSuffix(line, "\n")))
+	}
+	return maxWidth
 }
 
 func assertAvailableSubcommands(t *testing.T, stderr string, command *cobra.Command) {

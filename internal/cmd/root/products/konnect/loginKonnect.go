@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/lipgloss/v2"
+	"github.com/kong/kongctl/internal/art"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -21,6 +23,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/telemetry"
+	"github.com/kong/kongctl/internal/theme"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -36,12 +39,23 @@ var (
 		i18n.T("root.products.konnect.loginKonnectExample",
 			fmt.Sprintf(`
 # Login to Konnect
-%[1]s login konnect`, meta.CLIName)))
+%[1]s login konnect`, meta.CLIName)),
+	)
 
 	httpClient *http.Client
 
-	loginInputIsTerminal = isTerminalReader
+	loginInputIsTerminal  = isTerminalReader
+	loginOutputIsTerminal = isTerminalWriter
 )
+
+type loginUIStyles struct {
+	heading lipgloss.Style
+	label   lipgloss.Style
+	value   lipgloss.Style
+	code    lipgloss.Style
+	muted   lipgloss.Style
+	success lipgloss.Style
+}
 
 type loginKonnectCmd struct {
 	*cobra.Command
@@ -74,7 +88,15 @@ func (c *loginKonnectCmd) validate(helper cmd.Helper) error {
 	return nil
 }
 
-func displayUserInstructions(w io.Writer, resp auth.DeviceCodeResponse) {
+func displayUserInstructions(w io.Writer, resp auth.DeviceCodeResponse, styled bool) {
+	if styled {
+		displayStyledUserInstructions(w, resp)
+		return
+	}
+	displayPlainUserInstructions(w, resp)
+}
+
+func displayPlainUserInstructions(w io.Writer, resp auth.DeviceCodeResponse) {
 	userResp := fmt.Sprintf("Logging your CLI into Kong Konnect with the browser...\n\n"+
 		" To login, go to the following URL in your browser:\n\n"+
 		"   %s\n\n"+
@@ -85,6 +107,48 @@ func displayUserInstructions(w io.Writer, resp auth.DeviceCodeResponse) {
 		resp.VerificationURIComplete, resp.UserCode, resp.VerificationURI, resp.ExpiresIn)
 
 	fmt.Fprintln(w, userResp)
+}
+
+func displayStyledUserInstructions(w io.Writer, resp auth.DeviceCodeResponse) {
+	styles := loginUI()
+	fmt.Fprintf(w, "%s %s\n\n",
+		styles.value.Render("\u203a"),
+		styles.heading.Render("Kong Konnect browser login"))
+	fmt.Fprintf(w, "%s\n  %s\n\n",
+		styles.label.Render("Open this URL in your browser:"),
+		styles.value.Render(resp.VerificationURIComplete))
+	fmt.Fprintf(w, "%s %s\n\n",
+		styles.label.Render("Or copy this one-time code:"),
+		styles.code.Render(resp.UserCode))
+	fmt.Fprintf(w, "%s\n  %s\n\n",
+		styles.label.Render("Then open:"),
+		styles.value.Render(resp.VerificationURI))
+	fmt.Fprintf(w, "%s\n\n",
+		styles.muted.Render(fmt.Sprintf("Code expires in %d seconds", resp.ExpiresIn)))
+	fmt.Fprintf(w, "%s\n", styles.muted.Render("Waiting for authorization..."))
+}
+
+func displayLoginSuccess(w io.Writer, styled bool) {
+	if styled {
+		styles := loginUI()
+		fmt.Fprintf(w, "\n%s %s\n",
+			styles.success.Render("\u2713"),
+			styles.success.Render("User successfully authorized"))
+		return
+	}
+	fmt.Fprintln(w, "\nUser successfully authorized")
+}
+
+func loginUI() loginUIStyles {
+	palette := theme.Current()
+	return loginUIStyles{
+		heading: palette.ForegroundStyle(theme.ColorPrimary).Bold(true),
+		label:   palette.ForegroundStyle(theme.ColorTextSecondary).Bold(true),
+		value:   palette.ForegroundStyle(theme.ColorAccent),
+		code:    palette.ForegroundStyle(theme.ColorSuccess).Bold(true),
+		muted:   palette.ForegroundStyle(theme.ColorTextMuted),
+		success: palette.ForegroundStyle(theme.ColorSuccess).Bold(true),
+	}
 }
 
 func handleTelemetryPreference(
@@ -212,6 +276,35 @@ func isTerminalReader(in io.Reader) bool {
 	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
+func isTerminalWriter(out io.Writer) bool {
+	file, ok := out.(*os.File)
+	if !ok {
+		return false
+	}
+	fd := file.Fd()
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+}
+
+func displayLoginBanner(streams *iostreams.IOStreams) error {
+	if streams == nil || streams.In == nil || streams.Out == nil {
+		return nil
+	}
+	if !loginInputIsTerminal(streams.In) || !loginOutputIsTerminal(streams.Out) {
+		return nil
+	}
+	return art.RenderLoginBanner(streams.Out)
+}
+
+func shouldStyleLoginOutput(streams *iostreams.IOStreams) bool {
+	if streams == nil || streams.Out == nil {
+		return false
+	}
+	if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
+		return false
+	}
+	return loginOutputIsTerminal(streams.Out)
+}
+
 func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 	logger, err := helper.GetLogger()
 	if err != nil {
@@ -225,9 +318,15 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		return err
 	}
 
+	streams := helper.GetStreams()
+	styledLoginOutput := shouldStyleLoginOutput(streams)
+	if err := displayLoginBanner(streams); err != nil {
+		return cmd.PrepareExecutionErrorWithHelper(helper, "failed to render login banner", err)
+	}
+
 	if err := handleTelemetryPreference(
 		helper.GetContext(),
-		helper.GetStreams(),
+		streams,
 		cfg,
 		telemetry.FromContext(helper.GetContext()),
 	); err != nil {
@@ -252,7 +351,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 			fmt.Sprintf("invalid device code request response from Konnect: %v", resp))
 	}
 
-	displayUserInstructions(helper.GetStreams().Out, resp)
+	displayUserInstructions(streams.Out, resp, styledLoginOutput)
 
 	expiresAt := time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second)
 	// poll for token while the user completes authorizing the request
@@ -266,7 +365,8 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 			return helper.GetContext().Err()
 		case <-time.After(time.Duration(resp.Interval) * time.Second):
 			pollResp, err = auth.PollForToken(
-				helper.GetContext(), httpClient, pollURL, clientID, resp.DeviceCode, logger)
+				helper.GetContext(), httpClient, pollURL, clientID, resp.DeviceCode, logger,
+			)
 		}
 		var dagError *auth.DAGError
 		if errors.As(err, &dagError) && dagError.ErrorCode == auth.AuthorizationPendingErrorCode {
@@ -281,7 +381,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		}
 
 		if pollResp != nil && pollResp.Token.AuthToken != "" {
-			fmt.Fprintln(helper.GetStreams().Out, "\nUser successfully authorized")
+			displayLoginSuccess(streams.Out, styledLoginOutput)
 			if err := auth.SaveAccessToken(cfg, pollResp); err != nil {
 				return cmd.PrepareExecutionErrorWithHelper(helper, "failed to save tokens", err)
 			}
