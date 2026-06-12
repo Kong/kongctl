@@ -329,6 +329,9 @@ func TestRoarPrintsBanner(t *testing.T) {
 	if !containsBraillePatternForTest(result.stdout) {
 		t.Fatalf("expected roar to print braille banner\nstdout:\n%s", result.stdout)
 	}
+	if strings.Contains(result.stdout, "\x1b[") {
+		t.Fatalf("expected default roar output not to include ANSI escapes\nstdout:\n%q", result.stdout)
+	}
 	if result.stderr != "" {
 		t.Fatalf("expected no stderr output, got:\n%s", result.stderr)
 	}
@@ -386,23 +389,33 @@ func TestRoarRejectsUnsupportedWidth(t *testing.T) {
 	}
 }
 
-func TestRoarColorAlwaysAddsANSI(t *testing.T) {
-	result := executeRootForTest(t, "roar", "--color", "always")
+func TestRoarColorAutoAddsANSI(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--color", "auto")
 	if result.exitCode != 0 {
-		t.Fatalf("expected roar --color always to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+		t.Fatalf("expected roar --color auto to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
 	}
 	if !strings.Contains(result.stdout, "\x1b[") {
 		t.Fatalf("expected colorized roar output to include ANSI escapes\nstdout:\n%q", result.stdout)
 	}
 }
 
-func TestRoarRejectsInvalidColorMode(t *testing.T) {
-	result := executeRootForTest(t, "roar", "--color", "sparkle")
-	if result.exitCode == 0 {
-		t.Fatalf("expected roar --color sparkle to fail\nstdout:\n%s", result.stdout)
+func TestRoarColorCodeAddsANSI(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--color", "#CCFF00")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --color #CCFF00 to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
 	}
-	if !strings.Contains(result.stderr, `invalid color mode "sparkle"`) {
-		t.Fatalf("expected invalid color mode error\nstderr:\n%s", result.stderr)
+	if !strings.Contains(result.stdout, "\x1b[") {
+		t.Fatalf("expected colorized roar output to include ANSI escapes\nstdout:\n%q", result.stdout)
+	}
+}
+
+func TestRoarRejectsInvalidColorValue(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--color", "always")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --color always to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, `--color must be "auto", "off"`) {
+		t.Fatalf("expected invalid color value error\nstderr:\n%s", result.stderr)
 	}
 }
 

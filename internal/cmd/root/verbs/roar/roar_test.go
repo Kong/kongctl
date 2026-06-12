@@ -3,12 +3,10 @@ package roar
 import (
 	"bytes"
 	"io"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/kong/kongctl/internal/art"
-	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 )
 
 func TestResolveBannerWidthAutoSelectsLargestWidthThatFits(t *testing.T) {
@@ -178,10 +176,56 @@ func TestResolveBannerTypeRejectsInvalidValue(t *testing.T) {
 	}
 }
 
-func TestRenderRoarBannerColorAlwaysAddsANSI(t *testing.T) {
-	var out bytes.Buffer
+func TestResolveBannerColorOffDisablesColor(t *testing.T) {
+	for _, value := range []string{"", "off", "OFF"} {
+		t.Run(value, func(t *testing.T) {
+			got, err := resolveBannerColor(value)
+			if err != nil {
+				t.Fatalf("resolveBannerColor: %v", err)
+			}
+			if got != nil {
+				t.Fatalf("expected %q to disable color, got %#v", value, got)
+			}
+		})
+	}
+}
 
-	if err := renderRoarBanner(&out, 48, art.KongBannerBraille, cmdcommon.ColorModeAlways); err != nil {
+func TestResolveBannerColorAcceptsAutoAndExplicitCodes(t *testing.T) {
+	for _, value := range []string{"auto", "AUTO", "#CCFF00", "#cf0", "42"} {
+		t.Run(value, func(t *testing.T) {
+			got, err := resolveBannerColor(value)
+			if err != nil {
+				t.Fatalf("resolveBannerColor: %v", err)
+			}
+			if got == nil {
+				t.Fatalf("expected %q to resolve to a color", value)
+			}
+		})
+	}
+}
+
+func TestResolveBannerColorRejectsInvalidValues(t *testing.T) {
+	for _, value := range []string{"sparkle", "always", "never", "#xyz", "256", "-1"} {
+		t.Run(value, func(t *testing.T) {
+			_, err := resolveBannerColor(value)
+			if err == nil {
+				t.Fatal("expected invalid color error")
+			}
+			if !strings.Contains(err.Error(), `--color must be "auto", "off"`) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestRenderRoarBannerAutoColorAddsANSI(t *testing.T) {
+	var out bytes.Buffer
+	bannerColor, err := resolveBannerColor("auto")
+	if err != nil {
+		t.Fatalf("resolveBannerColor: %v", err)
+	}
+
+	if err := renderRoarBanner(&out, 48, art.KongBannerBraille, bannerColor); err != nil {
 		t.Fatalf("renderRoarBanner: %v", err)
 	}
 
@@ -194,10 +238,30 @@ func TestRenderRoarBannerColorAlwaysAddsANSI(t *testing.T) {
 	}
 }
 
-func TestRenderRoarBannerColorNeverWritesPlainBanner(t *testing.T) {
+func TestRenderRoarBannerExplicitColorAddsANSI(t *testing.T) {
+	var out bytes.Buffer
+	bannerColor, err := resolveBannerColor("#CCFF00")
+	if err != nil {
+		t.Fatalf("resolveBannerColor: %v", err)
+	}
+
+	if err := renderRoarBanner(&out, 48, art.KongBannerBraille, bannerColor); err != nil {
+		t.Fatalf("renderRoarBanner: %v", err)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "\x1b[") {
+		t.Fatalf("expected ANSI escape sequences in colored output:\n%q", output)
+	}
+	if !containsBraillePattern(output) {
+		t.Fatalf("expected colored output to include braille banner:\n%s", output)
+	}
+}
+
+func TestRenderRoarBannerColorOffWritesPlainBanner(t *testing.T) {
 	var out bytes.Buffer
 
-	if err := renderRoarBanner(&out, 48, art.KongBannerBraille, cmdcommon.ColorModeNever); err != nil {
+	if err := renderRoarBanner(&out, 48, art.KongBannerBraille, nil); err != nil {
 		t.Fatalf("renderRoarBanner: %v", err)
 	}
 
@@ -213,7 +277,7 @@ func TestRenderRoarBannerColorNeverWritesPlainBanner(t *testing.T) {
 func TestRenderRoarBannerWritesASCIIBanner(t *testing.T) {
 	var out bytes.Buffer
 
-	if err := renderRoarBanner(&out, 48, art.KongBannerASCII, cmdcommon.ColorModeNever); err != nil {
+	if err := renderRoarBanner(&out, 48, art.KongBannerASCII, nil); err != nil {
 		t.Fatalf("renderRoarBanner: %v", err)
 	}
 
@@ -223,34 +287,6 @@ func TestRenderRoarBannerWritesASCIIBanner(t *testing.T) {
 	}
 	if !strings.Contains(output, "@") {
 		t.Fatalf("expected ASCII output to include ASCII art:\n%s", output)
-	}
-}
-
-func TestShouldColorizeBannerAutoRequiresTerminalAndHonorsNoColor(t *testing.T) {
-	unsetEnvForTest(t, "NO_COLOR")
-	stubTerminalWidth(t, 80, true)
-	if !shouldColorizeBanner(cmdcommon.ColorModeAuto, io.Discard) {
-		t.Fatal("expected auto color to be enabled for terminal output")
-	}
-
-	t.Setenv("NO_COLOR", "1")
-	if shouldColorizeBanner(cmdcommon.ColorModeAuto, io.Discard) {
-		t.Fatal("expected NO_COLOR to disable auto color")
-	}
-}
-
-func TestShouldColorizeBannerAutoSkipsNonTerminal(t *testing.T) {
-	unsetEnvForTest(t, "NO_COLOR")
-	stubTerminalWidth(t, 0, false)
-	if shouldColorizeBanner(cmdcommon.ColorModeAuto, io.Discard) {
-		t.Fatal("expected auto color to be disabled when terminal width is unavailable")
-	}
-}
-
-func TestShouldColorizeBannerAlwaysIgnoresNoColor(t *testing.T) {
-	t.Setenv("NO_COLOR", "1")
-	if !shouldColorizeBanner(cmdcommon.ColorModeAlways, io.Discard) {
-		t.Fatal("expected always color mode to force color")
 	}
 }
 
@@ -272,23 +308,4 @@ func containsBraillePattern(s string) bool {
 		}
 	}
 	return false
-}
-
-func unsetEnvForTest(t *testing.T, key string) {
-	t.Helper()
-	original, ok := os.LookupEnv(key)
-	if err := os.Unsetenv(key); err != nil {
-		t.Fatalf("unset %s: %v", key, err)
-	}
-	t.Cleanup(func() {
-		if ok {
-			if err := os.Setenv(key, original); err != nil {
-				t.Fatalf("restore %s: %v", key, err)
-			}
-			return
-		}
-		if err := os.Unsetenv(key); err != nil {
-			t.Fatalf("restore unset %s: %v", key, err)
-		}
-	})
 }
