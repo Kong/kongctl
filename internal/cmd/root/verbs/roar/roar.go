@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image/color"
 	"io"
 	"os"
 	"slices"
@@ -30,6 +31,8 @@ const (
 	autoWidthValue           = "auto"
 	fallbackWidth            = 48
 	colorFlagName            = "color"
+	autoColorValue           = "auto"
+	offColorValue            = "off"
 	artFlagName              = "art"
 	autoArtValue             = "auto"
 )
@@ -50,7 +53,7 @@ type roarCmd struct {
 func NewRoarCmd() *cobra.Command {
 	roar := roarCmd{
 		width:      autoWidthValue,
-		colorMode:  cmdcommon.DefaultColorMode,
+		colorMode:  offColorValue,
 		bannerType: autoArtValue,
 	}
 	cmd := &cobra.Command{
@@ -68,8 +71,8 @@ func NewRoarCmd() *cobra.Command {
 		fmt.Sprintf("Banner width. Use %q or one of: %s.", autoWidthValue, supportedWidthValues()))
 	cmd.Flags().StringVar(&roar.bannerType, artFlagName, autoArtValue,
 		fmt.Sprintf("Banner art type. Use %q or one of: %s.", autoArtValue, supportedArtValues()))
-	cmd.Flags().StringVar(&roar.colorMode, colorFlagName, cmdcommon.DefaultColorMode,
-		"Colorize banner output. One of: auto, always, never.")
+	cmd.Flags().StringVar(&roar.colorMode, colorFlagName, offColorValue,
+		`Banner color. Use "off", "auto", a hex color (#RGB or #RRGGBB), or an ANSI color code (0-255).`)
 
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		if strings.Contains(err.Error(), "--"+cmdcommon.OutputFlagName) ||
@@ -101,12 +104,12 @@ func (c *roarCmd) run(command *cobra.Command, _ []string) error {
 	if err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
-	colorMode, err := cmdcommon.ColorModeStringToIota(strings.TrimSpace(strings.ToLower(c.colorMode)))
+	bannerColor, err := resolveBannerColor(c.colorMode)
 	if err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
 
-	if err := renderRoarBanner(streams.Out, width, bannerType, colorMode); err != nil {
+	if err := renderRoarBanner(streams.Out, width, bannerType, bannerColor); err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
 	return nil
@@ -130,7 +133,7 @@ func supportedArtValues() string {
 	return strings.Join(values, ", ")
 }
 
-func renderRoarBanner(out io.Writer, width int, bannerType art.KongBannerType, colorMode cmdcommon.ColorMode) error {
+func renderRoarBanner(out io.Writer, width int, bannerType art.KongBannerType, bannerColor color.Color) error {
 	if out == nil {
 		return nil
 	}
@@ -141,9 +144,9 @@ func renderRoarBanner(out io.Writer, width int, bannerType art.KongBannerType, c
 	}
 
 	output := banner.String()
-	if shouldColorizeBanner(colorMode, out) {
+	if bannerColor != nil {
 		style := lipgloss.NewStyle().
-			Foreground(theme.Current().Adaptive(theme.ColorAccent)).
+			Foreground(bannerColor).
 			Inline(true)
 		output = colorizeBannerLines(output, style)
 	}
@@ -160,25 +163,6 @@ func colorizeBannerLines(output string, style lipgloss.Style) string {
 		b.WriteString("\n")
 	}
 	return b.String()
-}
-
-func shouldColorizeBanner(mode cmdcommon.ColorMode, out io.Writer) bool {
-	switch mode {
-	case cmdcommon.ColorModeAlways:
-		return true
-	case cmdcommon.ColorModeNever:
-		return false
-	case cmdcommon.ColorModeAuto:
-		// Continue with auto detection below.
-	default:
-		return false
-	}
-
-	if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
-		return false
-	}
-	_, ok := detectTerminalWidth(out)
-	return ok
 }
 
 func resolveBannerWidth(value string, out io.Writer) (int, error) {
@@ -210,6 +194,48 @@ func resolveBannerType(value string) (art.KongBannerType, error) {
 	default:
 		return "", fmt.Errorf("--%s must be %q or one of: %s", artFlagName, autoArtValue, supportedArtValues())
 	}
+}
+
+func resolveBannerColor(value string) (color.Color, error) {
+	value = strings.TrimSpace(value)
+	switch {
+	case value == "" || strings.EqualFold(value, offColorValue):
+		return nil, nil
+	case strings.EqualFold(value, autoColorValue):
+		return theme.Current().Adaptive(theme.ColorAccent), nil
+	case isExplicitColorCode(value):
+		return lipgloss.Color(value), nil
+	default:
+		return nil, fmt.Errorf(
+			"--%s must be %q, %q, a hex color (#RGB or #RRGGBB), or an ANSI color code (0-255)",
+			colorFlagName, autoColorValue, offColorValue,
+		)
+	}
+}
+
+func isExplicitColorCode(value string) bool {
+	if strings.HasPrefix(value, "#") {
+		return isHexColorCode(value)
+	}
+
+	code, err := strconv.Atoi(value)
+	return err == nil && code >= 0 && code <= 255
+}
+
+func isHexColorCode(value string) bool {
+	if len(value) != 4 && len(value) != 7 {
+		return false
+	}
+	for _, r := range value[1:] {
+		switch {
+		case r >= '0' && r <= '9':
+		case r >= 'a' && r <= 'f':
+		case r >= 'A' && r <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func autoBannerType() art.KongBannerType {

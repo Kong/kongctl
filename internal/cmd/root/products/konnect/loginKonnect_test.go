@@ -233,7 +233,7 @@ func TestDisplayLoginSuccessStyled(t *testing.T) {
 }
 
 func TestShouldStyleLoginOutputRequiresTTYAndHonorsNoColor(t *testing.T) {
-	streams, _, _, _ := iostreams.NewTestIOStreams()
+	streams := iostreams.NewTestIOStreamsOnly()
 
 	unsetEnvForTest(t, "NO_COLOR")
 	stubLoginTerminals(t, true, true)
@@ -248,7 +248,7 @@ func TestShouldStyleLoginOutputRequiresTTYAndHonorsNoColor(t *testing.T) {
 }
 
 func TestShouldStyleLoginOutputSkipsNonTerminalStdout(t *testing.T) {
-	streams, _, _, _ := iostreams.NewTestIOStreams()
+	streams := iostreams.NewTestIOStreamsOnly()
 	unsetEnvForTest(t, "NO_COLOR")
 	stubLoginTerminals(t, true, false)
 
