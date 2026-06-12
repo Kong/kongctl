@@ -19,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/api"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/collect"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/create"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
@@ -449,6 +450,12 @@ func addCommands() error {
 	rootCmd.AddCommand(command)
 
 	command, err = adopt.NewAdoptCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = collect.NewCollectCmd()
 	if err != nil {
 		return err
 	}
