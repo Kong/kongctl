@@ -14,7 +14,7 @@ including detached process management with `kongctl ps`.
 - Optionally stream events to STDOUT.
 - Optionally run the listener detached in the background.
 
-The feature is exposed through `listen` and `tail`.
+The feature is exposed through `listen`, `tail`, and `get audit-logs`.
 
 ## Command Forms
 
@@ -26,12 +26,36 @@ Supported forms (Konnect-first):
 - `kongctl tail`
 - `kongctl tail audit-logs`
 - `kongctl tail konnect audit-logs`
+- `kongctl get audit-logs destinations`
+- `kongctl get audit-logs destination <id|name>`
+- `kongctl get audit-logs webhook`
 
 Important:
 
 - Provide the endpoint from either `--endpoint` or `--public-url` + `--path`.
+- `--endpoint` is the full public listener URL, including the listener path.
+- `--public-url` is a public base URL; `kongctl` appends `--path` to build
+  the destination endpoint.
 - `--jq` requires `--tail`.
 - `--detach` is not compatible with `--tail`.
+
+## Choosing a Command
+
+Use `listen audit-logs` for a local listener session. It creates a new Konnect
+audit-log destination, optionally binds the regional webhook to that
+destination, starts the local listener, stores events, and cleans up its
+destination when the listener stops.
+
+Use `tail audit-logs` when you want the same listener setup and also want
+received records streamed to STDOUT. `tail` enables the same flow as `listen`
+with `--tail` set.
+
+Use `get audit-logs destinations` to inspect existing audit-log destinations.
+Use `get audit-logs destination <id|name>` when you already know the
+destination ID or exact name.
+
+Use `get audit-logs webhook` to inspect the regional webhook configuration,
+including whether it is enabled and which destination it currently references.
 
 ## End-to-End Flow
 
@@ -40,11 +64,32 @@ When you run `kongctl listen`:
 1. Determines endpoint from `--endpoint` or `--public-url` + `--path`.
 1. Checks a webhook does not already exist for the region (due to one
    webhook per region limitation).
-1. Create audit-log destination in Konnect.
-1. Configure and enable regional webhook to use that destination.
-1. Start local listener on `--listen-address` and `--path`.
-1. Persist events to local storage.
+1. Creates an audit-log destination in Konnect.
+1. Configures and enables the regional webhook to use that destination.
+1. Starts a local listener on `--listen-address` and `--path`.
+1. Persists events to local storage.
 1. On shutdown, attempt webhook/destination cleanup.
+
+### Destination and Webhook Behavior
+
+`listen` creates a new audit-log destination for each listener session. It
+does not attach or reuse an existing destination. On normal shutdown, it
+deletes the destination it created.
+
+By default, `--configure-webhook=true`, so `listen` also binds the regional
+webhook to the destination it just created. To create the destination and
+listener without changing regional webhook configuration, pass:
+
+```shell
+kongctl listen \
+  --endpoint https://example.tld/audit-logs \
+  --authorization "Bearer <token>" \
+  --configure-webhook=false
+```
+
+That mode does not point Konnect at the listener. Use it only when the webhook
+is managed separately or when you need to test the local listener behavior
+without changing regional configuration.
 
 ### Startup Guard
 
