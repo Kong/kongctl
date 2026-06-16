@@ -44,12 +44,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 3
-                by_action.CREATE: 3
+                total_changes: 4
+                by_action.CREATE: 4
           - select: "summary"
             expect:
               fields:
-                applied: 3
+                applied: 4
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='event_gateway' &&
@@ -66,6 +66,12 @@ steps:
           - select: >-
               plan.changes[?resource_type=='event_gateway_virtual_cluster' &&
                             resource_ref=='{{ .vars.vcRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' &&
+                            resource_ref=='diff-produce-policy'] | [0]
             expect:
               fields:
                 action: CREATE
@@ -110,8 +116,8 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 2
-                by_action.UPDATE: 1
+                total_changes: 3
+                by_action.UPDATE: 2
                 by_action.CREATE: 1
           - expect:
               fields:
@@ -129,6 +135,12 @@ steps:
             expect:
               fields:
                 action: CREATE
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' &&
+                       resource_ref=='diff-produce-policy'] | [0]
+            expect:
+              fields:
+                action: UPDATE
 
       # Verify Konnect state was NOT modified (diff is read-only)
       - name: 001-verify-state-unchanged
