@@ -158,7 +158,43 @@ steps:
                 attributes.owner: null
                 attributes.lifecycle: null
 
-  - name: 004-reapply-null-attributes
+  - name: 004-dump-and-plan-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-apis
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "apis[?name=='Simple API'] | [0]"
+            expect:
+              fields:
+                slug: "simple-api-deprecated"
+          - select: "apis[?name=='Simple API'] | [0].attributes"
+            expect:
+              fields:
+                owner: null
+                lifecycle: null
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-reapply-null-attributes
     inputOverlayDirs:
       - overlays/003-sync-null-attributes
     commands:
@@ -195,7 +231,7 @@ steps:
                 failed: 0
                 total_changes: 0
 
-  - name: 005-delete-cleanup
+  - name: 006-delete-cleanup
     inputOverlayDirs:
       - overlays/003-sync-null-attributes
     commands:
