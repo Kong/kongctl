@@ -136,6 +136,8 @@ steps:
               fields:
                 action: CREATE
           - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' &&
+                       resource_ref=='diff-produce-policy'] | [0]
             expect:
               fields:
                 action: UPDATE
