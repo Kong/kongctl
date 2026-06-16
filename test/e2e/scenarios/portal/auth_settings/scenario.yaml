@@ -82,7 +82,74 @@ steps:
                 idp_mapping_enabled: false
                 konnect_mapping_enabled: true
 
-  - name: 002-dump-and-plan-round-trip
+  - name: 002-update-and-verify-auth-settings
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_auth_settings' &&
+                        resource_ref=='{{ .vars.authSettingsRef }}'] | [0].fields
+            expect:
+              fields:
+                basic_auth_enabled: false
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-auth-settings-after-update
+        run:
+          - get
+          - portal
+          - auth-settings
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                basic_auth_enabled: false
+                konnect_mapping_enabled: true
+                idp_mapping_enabled: false
+      - name: 003-plan-update-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-dump-and-plan-round-trip
     skipInputs: true
     commands:
       - name: 000-dump-portal-with-auth-settings
@@ -101,7 +168,7 @@ steps:
               portals[?name=='{{ .vars.portalRef }}'] | [0].auth_settings
             expect:
               fields:
-                basic_auth_enabled: true
+                basic_auth_enabled: false
                 idp_mapping_enabled: false
                 konnect_mapping_enabled: true
       - name: 001-plan-from-dump
@@ -118,7 +185,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003-delete-cleanup
+  - name: 004-delete-cleanup
     commands:
       - name: 000-delete
         outputFormat: json
