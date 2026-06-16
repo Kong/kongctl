@@ -11,6 +11,6 @@ portals:
       namespace: portal-auth-settings
     auth_settings:
       ref: portal-auth-settings
-      basic_auth_enabled: false
-      konnect_mapping_enabled: true
+      basic_auth_enabled: true
+      konnect_mapping_enabled: false
       idp_mapping_enabled: false

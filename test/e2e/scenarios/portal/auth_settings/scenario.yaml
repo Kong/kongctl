@@ -106,7 +106,7 @@ steps:
                         resource_ref=='{{ .vars.authSettingsRef }}'] | [0].fields
             expect:
               fields:
-                basic_auth_enabled: false
+                konnect_mapping_enabled: false
       - name: 001-apply-update
         outputFormat: json
         run:
@@ -132,8 +132,8 @@ steps:
         assertions:
           - expect:
               fields:
-                basic_auth_enabled: false
-                konnect_mapping_enabled: true
+                basic_auth_enabled: true
+                konnect_mapping_enabled: false
                 idp_mapping_enabled: false
       - name: 003-plan-update-no-op
         outputFormat: disable
@@ -168,9 +168,9 @@ steps:
               portals[?name=='{{ .vars.portalRef }}'] | [0].auth_settings
             expect:
               fields:
-                basic_auth_enabled: false
+                basic_auth_enabled: true
                 idp_mapping_enabled: false
-                konnect_mapping_enabled: true
+                konnect_mapping_enabled: false
       - name: 001-plan-from-dump
         outputFormat: disable
         run:
