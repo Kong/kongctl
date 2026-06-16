@@ -14,7 +14,7 @@ including detached process management with `kongctl ps`.
 - Optionally stream events to STDOUT.
 - Optionally run the listener detached in the background.
 
-The feature is exposed through `listen`, `tail`, and `get audit-logs`.
+The feature is exposed through `listen`, `tail`, `get audit-logs`, and `ps`.
 
 ## Command Forms
 
@@ -29,6 +29,9 @@ Supported forms (Konnect-first):
 - `kongctl get audit-logs destinations`
 - `kongctl get audit-logs destination <id|name>`
 - `kongctl get audit-logs webhook`
+- `kongctl ps`
+- `kongctl ps stop <pid>`
+- `kongctl ps stop --all`
 
 Important:
 
@@ -56,6 +59,9 @@ destination ID or exact name.
 
 Use `get audit-logs webhook` to inspect the regional webhook configuration,
 including whether it is enabled and which destination it currently references.
+
+Use `ps` to inspect and stop detached listener processes created with
+`listen --detach`.
 
 ## End-to-End Flow
 
