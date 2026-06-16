@@ -1,7 +1,8 @@
 # Getting Started Portal Example
 
-This example demonstrates a complete Kong Developer Portal setup using declarative configuration. 
-It includes a fully configured portal with APIs, pages, customizations, and reusable snippets.
+This example demonstrates a complete Kong Developer Portal setup using
+declarative configuration. It includes a fully configured portal with APIs,
+pages, customizations, and reusable snippets.
 
 ## Overview
 
@@ -21,8 +22,8 @@ This example creates:
 portal.yaml         # Portal definition
 apis.yaml           # API definitions
 assets/             # Portal asset files
-├── logo.svg        # Portal logo
-└── favicon.svg     # Portal favicon
+├── logo.png        # Portal logo
+└── favicon.png     # Portal favicon
 pages/              # Page content files
 ├── home.md
 ├── apis.md
@@ -51,21 +52,34 @@ snippets/           # Reusable content snippets
 - **Default visibility**: All APIs and pages are public by default
 
 ### Portal Assets
-Portal assets (logo and favicon) are managed using the `!file` tag to load image
-files:
+Portal logo and favicon images are declared under the portal `assets` block.
+Use relative paths with the `!file` tag; paths are resolved from the YAML file
+that contains the tag. For this example, the image files live in `assets/`
+next to `portal.yaml`:
+
 ```yaml
 assets:
-  logo: !file ./assets/logo.svg
-  favicon: !file ./assets/favicon.svg
+  logo: !file ./assets/logo.png
+  favicon: !file ./assets/favicon.png
 ```
 
 The `!file` tag automatically:
-- Detects image files by extension (.png, .jpg, .svg, .ico)
-- Converts binary images to base64-encoded data URLs
-- Handles the proper MIME type for each format
+- Loads files from inside the configuration base directory
+- Converts image files to base64-encoded data URLs
+- Handles the MIME type for each supported image format
 - Supports up to 10MB per file
 
-Supported formats: PNG, JPEG, SVG, ICO
+Supported portal asset formats include PNG, JPEG, SVG, ICO, and GIF.
+
+After syncing the example, verify or export the assets with:
+
+```bash
+kongctl get portal assets logo --portal-name "My First Portal"
+kongctl get portal assets logo --portal-name "My First Portal" \
+  --output-file my-logo.png
+kongctl get portal assets favicon --portal-name "My First Portal" \
+  --output-file my-favicon.ico
+```
 
 ### Portal IP Allow List
 Portal IP allow lists can be configured as a singleton child of a portal. The
@@ -109,7 +123,8 @@ integrations:
 - **Navigation menus**: Main menu and footer sections configured
 
 ### Page Hierarchy
-The example demonstrates parent-child page relationships using nested `children`:
+The example demonstrates parent-child page relationships using nested
+`children`:
 ```yaml
 pages:
   - ref: guides
@@ -133,9 +148,11 @@ To sync this configuration:
 kongctl sync -f portal.yaml -f apis.yaml
 ```
 
-If all changes are applied, you have successfully created a developer portal with APIs and pages.
-Assuming you have the `jq` command-line tool installed, you can obtain the portal URL with:
+If all changes are applied, you have successfully created a developer portal
+with APIs and pages. Assuming you have the `jq` command-line tool installed,
+you can obtain the portal URL with:
 
 ```bash
-kongctl get portals "My First Portal" -o json | jq -r '"https://\(.default_domain)"'
+kongctl get portals "My First Portal" -o json \
+  | jq -r '"https://\(.default_domain)"'
 ```
