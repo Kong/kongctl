@@ -99,8 +99,8 @@ func NewDumpCmd() (*cobra.Command, error) {
 			return &cmdpkg.UsageError{Err: errOutputFlagUnsupported}
 		}
 
-		cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
-		cmd.SetContext(context.WithValue(cmd.Context(),
+		ctx := context.WithValue(cmd.Context(), verbs.Verb, Verb)
+		cmd.SetContext(context.WithValue(ctx,
 			helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(konnectCommon.KonnectSDKFactory)))
 		return nil
 	}
