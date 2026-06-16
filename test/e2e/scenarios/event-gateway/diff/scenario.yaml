@@ -136,11 +136,11 @@ steps:
               fields:
                 action: CREATE
           - select: >-
-              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' &&
-                       resource_ref=='diff-produce-policy'] | [0]
             expect:
               fields:
                 action: UPDATE
+                "not_null(changed_fields.enabled.new, fields.enabled)": false
+                "not_null(changed_fields.config.new.actions[0].value, fields.config.actions[0].value)": "modified"
 
       # Verify Konnect state was NOT modified (diff is read-only)
       - name: 001-verify-state-unchanged
