@@ -43,3 +43,13 @@ event_gateways:
           - type: anonymous
         acl_mode: passthrough
         dns_label: vc-diff
+        produce_policies:
+          - ref: diff-produce-policy
+            name: diff-produce-policy
+            type: modify_headers
+            enabled: false
+            config:
+              actions:
+                - op: set
+                  key: x-diff-test
+                  value: modified
