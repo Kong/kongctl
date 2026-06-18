@@ -212,7 +212,45 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 005-delete-cleanup
+  - name: 005-dump-and-plan-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-api-with-publications
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - --include-child-resources
+          - "--filter-name={{ .vars.smsAPIName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - name: api-present
+            select: "apis[?name=='{{ .vars.smsAPIName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.smsAPIName }}"
+          - name: publication-visibility-public
+            select: "apis[0].publications[0]"
+            expect:
+              fields:
+                visibility: "public"
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-delete-cleanup
     commands:
       - name: 000-delete
         run:
