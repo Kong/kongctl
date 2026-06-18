@@ -104,6 +104,9 @@ steps:
           - "{{ .vars.virtualClusterName }}"
           - -o
           - json
+        recordVar:
+          name: producePolicyID
+          responsePath: "[0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -114,6 +117,50 @@ steps:
               fields:
                 name: "{{ .vars.producePolicyName }}"
                 description: "Default Produce Policy description"
+      - name: 004-get-produce-policy-by-name
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - "{{ .vars.producePolicyName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.producePolicyName }}"
+          - select: type
+            expect:
+              fields:
+                "@": modify_headers
+      - name: 005-get-produce-policy-by-id
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - "{{ .vars.producePolicyID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.producePolicyName }}"
+          - select: type
+            expect:
+              fields:
+                "@": modify_headers
   - name: 002-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update-fields
