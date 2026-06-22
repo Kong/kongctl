@@ -219,5 +219,5 @@ diagnose-e2e-ci:
 
 .PHONY: reset-org
 reset-org:
-	@echo "Resetting Konnect org (requires KONGCTL_E2E_KONNECT_PAT, optional KONGCTL_E2E_KONNECT_BASE_URL, KONGCTL_E2E_RESET)"
+	@echo "Resetting Konnect org (requires KONGCTL_E2E_KONNECT_PAT, optional KONGCTL_E2E_KONNECT_ENV, KONGCTL_E2E_KONNECT_BASE_URL, KONGCTL_E2E_RESET)"
 	go run -tags e2e ./test/e2e/harness/cmd/reset-org --stage make-reset

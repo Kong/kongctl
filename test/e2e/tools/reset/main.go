@@ -14,7 +14,8 @@ import (
 //
 //	go run -tags e2e ./test/e2e/tools/reset
 //
-// Respects KONGCTL_E2E_{KONNECT_PAT,KONNECT_BASE_URL,RESET,ARTIFACTS_DIR} like the harness.
+// Respects KONGCTL_E2E_{KONNECT_PAT,KONNECT_ENV,KONNECT_BASE_URL,RESET,ARTIFACTS_DIR}
+// like the harness.
 func main() {
 	stage := flag.String("stage", "manual-reset", "label used in log output")
 	flag.Parse()

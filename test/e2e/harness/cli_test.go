@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 )
 
 func TestWriteProfileConfigIncludesHTTPSettings(t *testing.T) {
@@ -38,6 +40,16 @@ func TestWriteProfileConfigIncludesHTTPSettings(t *testing.T) {
 	if !strings.Contains(content, "http-recycle-connections-on-error: true") {
 		t.Fatalf("config missing http-recycle-connections-on-error: %s", content)
 	}
+	for _, want := range []string{
+		"konnect:",
+		"base-url: " + konnectcommon.BaseURLDefault,
+		"base-auth-url: " + konnectcommon.AuthBaseURLDefault,
+		"machine-client-id: " + konnectcommon.MachineClientIDDefault,
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("config missing %q: %s", want, content)
+		}
+	}
 }
 
 func TestWriteProfileConfigOmitsDisabledHTTPTimeouts(t *testing.T) {
@@ -60,6 +72,31 @@ func TestWriteProfileConfigOmitsDisabledHTTPTimeouts(t *testing.T) {
 	}
 	if strings.Contains(content, "http-tcp-user-timeout:") {
 		t.Fatalf("config unexpectedly contains http-tcp-user-timeout: %s", content)
+	}
+}
+
+func TestWriteProfileConfigIncludesTechKonnectSettings(t *testing.T) {
+	t.Setenv(KonnectEnvironmentEnvName, konnectcommon.EnvironmentTech)
+
+	cfgDir := t.TempDir()
+	if err := writeProfileConfig(cfgDir, "e2e", "json", "debug"); err != nil {
+		t.Fatalf("writeProfileConfig() error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(cfgDir, "kongctl", "config.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+
+	content := string(data)
+	for _, want := range []string{
+		"base-url: " + konnectcommon.TechBaseURLDefault,
+		"base-auth-url: " + konnectcommon.TechGlobalBaseURL,
+		"machine-client-id: " + konnectcommon.TechMachineClientID,
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("config missing %q: %s", want, content)
+		}
 	}
 }
 

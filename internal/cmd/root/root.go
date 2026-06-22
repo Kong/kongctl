@@ -105,6 +105,10 @@ Find more information at:
 	// highest-priority disable signal in telemetry.resolveEnabled; see the
 	// precedence note there.
 	noTelemetry bool
+
+	// kongTech switches Konnect defaults for this invocation to Kong's .tech
+	// environment. It is intentionally hidden for Kong-internal use.
+	kongTech bool
 )
 
 // NoTelemetryFlagName is the persistent root flag that disables telemetry
@@ -280,6 +284,10 @@ func newRootCmd() *cobra.Command {
 - Env var    : [ %s ]
 - Default    : [ false ]`,
 			telemetry.ConfigKeyEnabled, telemetry.EnvNoTelemetry))
+
+	rootCmd.PersistentFlags().BoolVar(&kongTech, konnectcommon.KongTechFlagName, false,
+		"Use Kong's Konnect .tech environment for this command invocation.")
+	util.CheckError(rootCmd.PersistentFlags().MarkHidden(konnectcommon.KongTechFlagName))
 
 	themeFlag := theme.NewFlag(common.DefaultColorTheme)
 	rootCmd.PersistentFlags().Var(themeFlag, common.ColorThemeFlagName,
@@ -632,9 +640,53 @@ func applyExtensionRuntimeDefaults(runtimeCtx *extensioncore.RuntimeContext, cfg
 	}
 }
 
+func applyKongTechDefaults(command *cobra.Command, cfg config.Hook) error {
+	if !kongTech || command == nil || cfg == nil {
+		return nil
+	}
+
+	defaults := konnectcommon.TechEnvironmentDefaults()
+	if !commandTreeFlagChanged(command, konnectcommon.BaseURLFlagName) {
+		baseURL := defaults.BaseURL
+		if region, ok := commandTreeChangedFlagString(command, konnectcommon.RegionFlagName); ok {
+			resolved, err := konnectcommon.BuildBaseURLFromRegionForEnvironment(region, defaults.Name)
+			if err != nil {
+				return err
+			}
+			baseURL = resolved
+		} else if region := strings.TrimSpace(cfg.GetString(konnectcommon.RegionConfigPath)); region != "" {
+			resolved, err := konnectcommon.BuildBaseURLFromRegionForEnvironment(region, defaults.Name)
+			if err != nil {
+				return err
+			}
+			baseURL = resolved
+		}
+		cfg.SetString(konnectcommon.BaseURLConfigPath, baseURL)
+	}
+	if !commandTreeFlagChanged(command, konnectcommon.AuthBaseURLFlagName) {
+		cfg.SetString(konnectcommon.AuthBaseURLConfigPath, defaults.AuthBaseURL)
+	}
+	if !commandTreeFlagChanged(command, konnectcommon.MachineClientIDFlagName) {
+		cfg.SetString(konnectcommon.MachineClientIDConfigPath, defaults.MachineClientID)
+	}
+	return nil
+}
+
 func commandTreeFlagChanged(command *cobra.Command, name string) bool {
+	return commandTreeChangedFlag(command, name) != nil
+}
+
+func commandTreeChangedFlagString(command *cobra.Command, name string) (string, bool) {
+	flag := commandTreeChangedFlag(command, name)
+	if flag == nil {
+		return "", false
+	}
+	return flag.Value.String(), true
+}
+
+func commandTreeChangedFlag(command *cobra.Command, name string) *pflag.Flag {
 	if command == nil {
-		return false
+		return nil
 	}
 	for _, flags := range []*pflag.FlagSet{
 		command.Flags(),
@@ -646,15 +698,15 @@ func commandTreeFlagChanged(command *cobra.Command, name string) bool {
 			continue
 		}
 		if flag := flags.Lookup(name); flag != nil && flag.Changed {
-			return true
+			return flag
 		}
 	}
 	for _, child := range command.Commands() {
-		if commandTreeFlagChanged(child, name) {
-			return true
+		if flag := commandTreeChangedFlag(child, name); flag != nil {
+			return flag
 		}
 	}
-	return false
+	return nil
 }
 
 func initConfig() {
@@ -673,6 +725,7 @@ func initConfig() {
 
 	bindFlags(currConfig)
 	applyExtensionRuntimeDefaults(runtimeCtx, currConfig)
+	util.CheckError(applyKongTechDefaults(rootCmd, currConfig))
 
 	themeName := strings.TrimSpace(currConfig.GetString(common.ColorThemeConfigPath))
 	if themeName == "" {

@@ -15,6 +15,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	configpkg "github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -1147,6 +1148,105 @@ func TestRootErrorUX(t *testing.T) {
 	}
 }
 
+func TestKongTechFlagIsHiddenFromHelp(t *testing.T) {
+	result := executeRootForTest(t, "--help")
+	if result.exitCode != 0 {
+		t.Fatalf("expected help to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if strings.Contains(result.stdout, "--"+konnectcommon.KongTechFlagName) {
+		t.Fatalf("expected hidden kong tech flag not to appear in help\nstdout:\n%s", result.stdout)
+	}
+}
+
+func TestApplyKongTechDefaults(t *testing.T) {
+	oldKongTech := kongTech
+	t.Cleanup(func() {
+		kongTech = oldKongTech
+	})
+
+	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	command := &cobra.Command{Use: "root"}
+	kongTech = true
+
+	requireNoError(t, applyKongTechDefaults(command, cfg))
+
+	if got := cfg.GetString(konnectcommon.BaseURLConfigPath); got != konnectcommon.TechBaseURLDefault {
+		t.Fatalf("base URL = %q, want %q", got, konnectcommon.TechBaseURLDefault)
+	}
+	if got := cfg.GetString(konnectcommon.AuthBaseURLConfigPath); got != konnectcommon.TechGlobalBaseURL {
+		t.Fatalf("auth base URL = %q, want %q", got, konnectcommon.TechGlobalBaseURL)
+	}
+	if got := cfg.GetString(konnectcommon.MachineClientIDConfigPath); got != konnectcommon.TechMachineClientID {
+		t.Fatalf("machine client ID = %q, want %q", got, konnectcommon.TechMachineClientID)
+	}
+}
+
+func TestApplyKongTechDefaultsRespectsExplicitEndpointFlags(t *testing.T) {
+	oldKongTech := kongTech
+	t.Cleanup(func() {
+		kongTech = oldKongTech
+	})
+
+	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	command := &cobra.Command{Use: "root"}
+	command.Flags().String(konnectcommon.BaseURLFlagName, "", "")
+	command.Flags().String(konnectcommon.AuthBaseURLFlagName, "", "")
+	command.Flags().String(konnectcommon.MachineClientIDFlagName, "", "")
+	requireNoError(t, command.Flags().Set(konnectcommon.BaseURLFlagName, "https://custom.example.test"))
+	requireNoError(t, command.Flags().Set(konnectcommon.AuthBaseURLFlagName, "https://auth.example.test"))
+	requireNoError(t, command.Flags().Set(konnectcommon.MachineClientIDFlagName, "client-id"))
+	kongTech = true
+
+	requireNoError(t, applyKongTechDefaults(command, cfg))
+
+	if got := cfg.GetString(konnectcommon.BaseURLConfigPath); got != "" {
+		t.Fatalf("base URL = %q, want explicit flag to remain unset in config override", got)
+	}
+	if got := cfg.GetString(konnectcommon.AuthBaseURLConfigPath); got != "" {
+		t.Fatalf("auth base URL = %q, want explicit flag to remain unset in config override", got)
+	}
+	if got := cfg.GetString(konnectcommon.MachineClientIDConfigPath); got != "" {
+		t.Fatalf("machine client ID = %q, want explicit flag to remain unset in config override", got)
+	}
+}
+
+func TestApplyKongTechDefaultsUsesExplicitRegion(t *testing.T) {
+	oldKongTech := kongTech
+	t.Cleanup(func() {
+		kongTech = oldKongTech
+	})
+
+	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	command := &cobra.Command{Use: "root"}
+	command.Flags().String(konnectcommon.RegionFlagName, "", "")
+	requireNoError(t, command.Flags().Set(konnectcommon.RegionFlagName, "eu"))
+	kongTech = true
+
+	requireNoError(t, applyKongTechDefaults(command, cfg))
+
+	if got := cfg.GetString(konnectcommon.BaseURLConfigPath); got != "https://eu.api.konghq.tech" {
+		t.Fatalf("base URL = %q, want https://eu.api.konghq.tech", got)
+	}
+}
+
+func TestApplyKongTechDefaultsUsesConfiguredRegion(t *testing.T) {
+	oldKongTech := kongTech
+	t.Cleanup(func() {
+		kongTech = oldKongTech
+	})
+
+	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	cfg.SetString(konnectcommon.RegionConfigPath, "eu")
+	command := &cobra.Command{Use: "root"}
+	kongTech = true
+
+	requireNoError(t, applyKongTechDefaults(command, cfg))
+
+	if got := cfg.GetString(konnectcommon.BaseURLConfigPath); got != "https://eu.api.konghq.tech" {
+		t.Fatalf("base URL = %q, want https://eu.api.konghq.tech", got)
+	}
+}
+
 func TestPlainCommandErrorDoesNotShowUsageHint(t *testing.T) {
 	var stderr bytes.Buffer
 	command := &cobra.Command{Use: "runtime"}
@@ -1247,6 +1347,7 @@ func executeRootForTest(t *testing.T, args ...string) rootCommandResult {
 	oldOutputFormat := outputFormat
 	oldLogLevel := logLevel
 	oldLogFile := logFile
+	oldKongTech := kongTech
 	oldEnableTraverseRunHooks := cobra.EnableTraverseRunHooks
 	t.Cleanup(func() {
 		rootCmd = oldRootCmd
@@ -1259,6 +1360,7 @@ func executeRootForTest(t *testing.T, args ...string) rootCommandResult {
 		buildInfo = oldBuildInfo
 		outputFormat = oldOutputFormat
 		logLevel = oldLogLevel
+		kongTech = oldKongTech
 		if logFile != nil && logFile != oldLogFile {
 			_ = logFile.Close()
 		}
@@ -1276,6 +1378,7 @@ func executeRootForTest(t *testing.T, args ...string) rootCommandResult {
 	configFilePath = ""
 	currProfile = profile.DefaultProfile
 	currConfig = nil
+	kongTech = false
 	buildInfo = nil
 	outputFormat = cmdpkg.NewDeferredEnum([]string{
 		common.JSON.String(),

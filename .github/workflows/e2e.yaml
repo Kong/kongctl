@@ -24,6 +24,13 @@ on:
         description: Main branch SHA selected by the debounce workflow
         type: string
         default: ""
+      konnect_environment:
+        description: Konnect environment to target
+        type: choice
+        options:
+          - production
+          - tech
+        default: production
       run_portal_applications:
         description: Run Gmail-backed portal applications scenario
         type: boolean
@@ -222,7 +229,10 @@ jobs:
       KONGCTL_E2E_TEST_BIN: ${{ github.workspace }}/e2e.test
       KONGCTL_E2E_TEST_TIMEOUT: ${{ vars.KONGCTL_E2E_TEST_TIMEOUT || '55m' }}
       KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
-      KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || 'https://us.api.konghq.com' }}
+      KONGCTL_E2E_KONNECT_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.konnect_environment || vars.KONGCTL_E2E_KONNECT_ENV || 'production' }}
+      KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || '' }}
+      KONGCTL_E2E_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_AUTH_URL || '' }}
+      KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID || '' }}
       # Reset is enabled by default in the harness; set explicitly for clarity
       KONGCTL_E2E_RESET: "1"
       # Set HTTP timeout vars to 0s/default/off to disable kongctl/harness application-level timeouts
@@ -313,20 +323,44 @@ jobs:
           CAP_DIR="${KONGCTL_E2E_ARTIFACTS_DIR}/tcpdump"
           mkdir -p "${CAP_DIR}"
 
-          regional_host="${KONGCTL_E2E_KONNECT_BASE_URL#http://}"
+          regional_url="${KONGCTL_E2E_KONNECT_BASE_URL:-}"
+          global_url="${KONGCTL_E2E_KONNECT_BASE_AUTH_URL:-}"
+          konnect_env="${KONGCTL_E2E_KONNECT_ENV:-production}"
+
+          if [ -z "${regional_url}" ]; then
+            if [ "${konnect_env}" = "tech" ]; then
+              regional_url="https://us.api.konghq.tech"
+            else
+              regional_url="https://us.api.konghq.com"
+            fi
+          fi
+          if [ -z "${global_url}" ]; then
+            if [ "${konnect_env}" = "tech" ]; then
+              global_url="https://global.api.konghq.tech"
+            else
+              global_url="https://global.api.konghq.com"
+            fi
+          fi
+
+          regional_host="${regional_url#http://}"
           regional_host="${regional_host#https://}"
           regional_host="${regional_host%%/*}"
-          filter="(tcp port 443) and (host ${regional_host} or host global.api.konghq.com)"
+          global_host="${global_url#http://}"
+          global_host="${global_host#https://}"
+          global_host="${global_host%%/*}"
+          filter="(tcp port 443) and (host ${regional_host} or host ${global_host})"
 
           {
             printf 'started_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf 'konnect_env=%s\n' "${konnect_env}"
             printf 'regional_host=%s\n' "${regional_host}"
+            printf 'global_host=%s\n' "${global_host}"
             printf 'filter=%s\n' "${filter}"
             echo
             uname -a
             echo
             getent hosts "${regional_host}" || true
-            getent hosts global.api.konghq.com || true
+            getent hosts "${global_host}" || true
             echo
             ip addr || true
             echo

@@ -101,7 +101,9 @@ func NewCLI() (*CLI, error) {
 		AutoOutput:   getHarnessDefaultOutput(),
 	}
 	// Pre-write a minimal profile config to align artifacts with e2e defaults.
-	_ = writeProfileConfig(cli.ConfigDir, cli.Profile, cli.AutoOutput, cli.AutoLogLevel)
+	if err := writeProfileConfig(cli.ConfigDir, cli.Profile, cli.AutoOutput, cli.AutoLogLevel); err != nil {
+		return nil, err
+	}
 	Infof(
 		"TestConfig: bin=%s configDir=%s profile=%s timeout=%s log-level=%s output=%s",
 		bin,
@@ -159,7 +161,9 @@ func NewCLIForArtifacts(name, group string) (*CLI, error) {
 		AutoOutput:   getHarnessDefaultOutput(),
 	}
 	// Pre-write a minimal profile config to align artifacts with e2e defaults.
-	_ = writeProfileConfig(cli.ConfigDir, cli.Profile, cli.AutoOutput, cli.AutoLogLevel)
+	if err := writeProfileConfig(cli.ConfigDir, cli.Profile, cli.AutoOutput, cli.AutoLogLevel); err != nil {
+		return nil, err
+	}
 	Infof(
 		"TestConfig: test=%s dir=%s bin=%s configDir=%s log-level=%s output=%s",
 		name,
@@ -755,6 +759,10 @@ func writeProfileConfig(cfgDir, profile, output, logLevel string) error {
 		return err
 	}
 	options := HTTPTransportOptionsFromEnv()
+	konnectTarget, err := ResolveKonnectTargetFromEnv()
+	if err != nil {
+		return err
+	}
 
 	var y strings.Builder
 	fmt.Fprintf(&y, "%s:\n", profile)
@@ -768,6 +776,10 @@ func writeProfileConfig(cfgDir, profile, output, logLevel string) error {
 	}
 	fmt.Fprintf(&y, "  http-disable-keepalives: %t\n", options.DisableKeepAlives)
 	fmt.Fprintf(&y, "  http-recycle-connections-on-error: %t\n", options.RecycleConnectionsOnError)
+	fmt.Fprintf(&y, "  konnect:\n")
+	fmt.Fprintf(&y, "    base-url: %s\n", konnectTarget.BaseURL)
+	fmt.Fprintf(&y, "    base-auth-url: %s\n", konnectTarget.BaseAuthURL)
+	fmt.Fprintf(&y, "    machine-client-id: %s\n", konnectTarget.MachineClientID)
 
 	path := filepath.Join(appDir, "config.yaml")
 	// Best-effort write; if file exists, do not overwrite.

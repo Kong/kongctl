@@ -554,12 +554,15 @@ func (s *Step) requestResource(
 	if err != nil {
 		return result, err
 	}
-	baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://us.api.konghq.com"
+	baseURL, err := KonnectBaseURL()
+	if err != nil {
+		return result, err
 	}
 	if endpoint.UseGlobal {
-		baseURL = "https://global.api.konghq.com"
+		baseURL, err = KonnectBaseAuthURL()
+		if err != nil {
+			return result, err
+		}
 	}
 	fullURL := strings.TrimRight(baseURL, "/") + path
 	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
@@ -696,9 +699,9 @@ func (s *Step) GetKonnectJSON(name string, path string, out any, selector any) e
 		return err
 	}
 
-	baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://us.api.konghq.com"
+	baseURL, err := KonnectBaseURL()
+	if err != nil {
+		return err
 	}
 	fullURL := strings.TrimRight(baseURL, "/") + path
 	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
@@ -1134,9 +1137,9 @@ func (s *Step) ResetOrgForRegions(stage string, regions []string) error {
 
 func resolveResetBaseURLs(regions []string) ([]string, error) {
 	if len(regions) == 0 {
-		baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
-		if baseURL == "" {
-			baseURL = "https://us.api.konghq.com"
+		baseURL, err := KonnectBaseURL()
+		if err != nil {
+			return nil, err
 		}
 		return []string{baseURL}, nil
 	}
@@ -1148,9 +1151,9 @@ func resolveResetBaseURLs(regions []string) ([]string, error) {
 		if r == "" {
 			continue
 		}
-		baseURL := r
-		if !strings.HasPrefix(r, "http://") && !strings.HasPrefix(r, "https://") {
-			baseURL = fmt.Sprintf("https://%s.api.konghq.com", r)
+		baseURL, err := KonnectBaseURLFromRegion(r)
+		if err != nil {
+			return nil, err
 		}
 		if _, ok := seen[baseURL]; ok {
 			continue

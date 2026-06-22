@@ -54,9 +54,9 @@ func resetOrg(stage string, capture bool) error {
 			return nil
 		}
 	}
-	baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://us.api.konghq.com"
+	baseURL, err := KonnectBaseURL()
+	if err != nil {
+		return err
 	}
 	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
 	if token == "" {
@@ -347,7 +347,7 @@ func (s *resetHTTPSession) Close() {
 type resetResourceSpec struct {
 	Version  string
 	Endpoint string
-	// Use global.api.konghq.com instead of regional URL
+	// Use the global Konnect URL instead of the regional URL.
 	UseGlobal bool
 	// Optional delete override for resources whose list and delete APIs differ.
 	DeleteVersion     string
@@ -428,6 +428,10 @@ func tryDeletePortalCustomDomain(
 
 func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, error) {
 	transportOptions := HTTPTransportOptionsFromEnv()
+	globalBaseURL, envErr := KonnectBaseAuthURL()
+	if envErr != nil {
+		return resetResult{}, envErr
+	}
 	ctx := context.Background()
 	cancel := func() {}
 	if policy.TotalTimeout > 0 {
@@ -438,7 +442,7 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 	var result resetResult
 	var firstErr error
 
-	tot, del, err := resetConfiguredE2EUserAssignments(ctx, token, policy, transportOptions)
+	tot, del, err := resetConfiguredE2EUserAssignments(ctx, globalBaseURL, token, policy, transportOptions)
 	if err != nil && firstErr == nil {
 		firstErr = err
 	}
@@ -464,7 +468,7 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 		}
 		targetURL := baseURL
 		if step.UseGlobal {
-			targetURL = "https://global.api.konghq.com"
+			targetURL = globalBaseURL
 		}
 		deleteTargetURL := targetURL
 		if step.DeleteUseRegional {
@@ -506,6 +510,7 @@ type resetUser struct {
 
 func resetConfiguredE2EUserAssignments(
 	ctx context.Context,
+	globalBaseURL string,
 	token string,
 	policy HTTPRetryPolicy,
 	transportOptions HTTPTransportOptions,
@@ -519,7 +524,7 @@ func resetConfiguredE2EUserAssignments(
 	session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
 	defer session.Close()
 
-	usersByEmail, err := listUsersByEmail(ctx, session, token, policy)
+	usersByEmail, err := listUsersByEmail(ctx, session, globalBaseURL, token, policy)
 	if err != nil {
 		return len(emails), 0, err
 	}
@@ -532,7 +537,7 @@ func resetConfiguredE2EUserAssignments(
 			Warnf("reset: configured E2E user was not found; skipping assignment reset")
 			continue
 		}
-		userTotal, userDeleted, err := resetUserAssignments(ctx, session, token, policy, user)
+		userTotal, userDeleted, err := resetUserAssignments(ctx, session, globalBaseURL, token, policy, user)
 		total += userTotal
 		deleted += userDeleted
 		if err != nil {
@@ -566,6 +571,7 @@ func configuredE2EUserEmails() []string {
 func listUsersByEmail(
 	ctx context.Context,
 	session *resetHTTPSession,
+	globalBaseURL string,
 	token string,
 	policy HTTPRetryPolicy,
 ) (map[string]resetUser, error) {
@@ -575,7 +581,7 @@ func listUsersByEmail(
 		items, err := retryListItems(
 			ctx,
 			session,
-			pagedURL("https://global.api.konghq.com/v3/users", pageSize, pageNumber),
+			pagedURL(strings.TrimRight(globalBaseURL, "/")+"/v3/users", pageSize, pageNumber),
 			token,
 			"users",
 			policy,
@@ -601,6 +607,7 @@ func listUsersByEmail(
 func resetUserAssignments(
 	ctx context.Context,
 	session *resetHTTPSession,
+	globalBaseURL string,
 	token string,
 	policy HTTPRetryPolicy,
 	user resetUser,
@@ -611,7 +618,7 @@ func resetUserAssignments(
 	teamItems, err := retryListItems(
 		ctx,
 		session,
-		pagedURL(fmt.Sprintf("https://global.api.konghq.com/v3/users/%s/teams", url.PathEscape(user.ID)), 100, 1),
+		pagedURL(fmt.Sprintf("%s/v3/users/%s/teams", strings.TrimRight(globalBaseURL, "/"), url.PathEscape(user.ID)), 100, 1),
 		token,
 		"user teams",
 		policy,
@@ -625,7 +632,7 @@ func resetUserAssignments(
 		if teamID == "" {
 			continue
 		}
-		deleteURL := fmt.Sprintf("https://global.api.konghq.com/v3/teams/%s/users", url.PathEscape(teamID))
+		deleteURL := fmt.Sprintf("%s/v3/teams/%s/users", strings.TrimRight(globalBaseURL, "/"), url.PathEscape(teamID))
 		if err := retryDeleteOne(ctx, session, deleteURL, token, "user team assignment", user.ID, policy); err != nil {
 			if he, ok := err.(*httpError); ok && he.status == http.StatusNotFound {
 				continue
@@ -638,7 +645,7 @@ func resetUserAssignments(
 	roleItems, err := retryListItems(
 		ctx,
 		session,
-		fmt.Sprintf("https://global.api.konghq.com/v3/users/%s/assigned-roles", url.PathEscape(user.ID)),
+		fmt.Sprintf("%s/v3/users/%s/assigned-roles", strings.TrimRight(globalBaseURL, "/"), url.PathEscape(user.ID)),
 		token,
 		"user roles",
 		policy,
@@ -652,7 +659,7 @@ func resetUserAssignments(
 		if roleID == "" {
 			continue
 		}
-		deleteURL := fmt.Sprintf("https://global.api.konghq.com/v3/users/%s/assigned-roles", url.PathEscape(user.ID))
+		deleteURL := fmt.Sprintf("%s/v3/users/%s/assigned-roles", strings.TrimRight(globalBaseURL, "/"), url.PathEscape(user.ID))
 		if err := retryDeleteOne(ctx, session, deleteURL, token, "user role assignment", roleID, policy); err != nil {
 			if he, ok := err.(*httpError); ok && he.status == http.StatusNotFound {
 				continue

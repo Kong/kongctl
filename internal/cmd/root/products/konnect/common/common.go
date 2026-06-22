@@ -44,6 +44,16 @@ const (
 
 	RegionFlagName = "region"
 
+	EnvironmentProduction = "production"
+	EnvironmentTech       = "tech"
+
+	TechGlobalBaseURL       = "https://global.api.konghq.tech"
+	TechBaseURLDefault      = "https://us.api.konghq.tech"
+	TechMachineClientID     = "35b065db-8eaf-4584-9cb6-05b1daea0750"
+	KongTechFlagName        = "kong-tech"
+	konnectProductionDomain = "konghq.com"
+	konnectTechDomain       = "konghq.tech"
+
 	RequestPageSizeFlagName = "page-size"
 	DefaultRequestPageSize  = 10
 )
@@ -74,6 +84,54 @@ var (
 
 var regionPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 
+type EnvironmentDefaults struct {
+	Name            string
+	BaseURL         string
+	AuthBaseURL     string
+	MachineClientID string
+}
+
+func ProductionEnvironmentDefaults() EnvironmentDefaults {
+	return EnvironmentDefaults{
+		Name:            EnvironmentProduction,
+		BaseURL:         BaseURLDefault,
+		AuthBaseURL:     AuthBaseURLDefault,
+		MachineClientID: MachineClientIDDefault,
+	}
+}
+
+func TechEnvironmentDefaults() EnvironmentDefaults {
+	return EnvironmentDefaults{
+		Name:            EnvironmentTech,
+		BaseURL:         TechBaseURLDefault,
+		AuthBaseURL:     TechGlobalBaseURL,
+		MachineClientID: TechMachineClientID,
+	}
+}
+
+func EnvironmentDefaultsFor(name string) (EnvironmentDefaults, error) {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "", EnvironmentProduction, "prod", "com":
+		return ProductionEnvironmentDefaults(), nil
+	case EnvironmentTech:
+		return TechEnvironmentDefaults(), nil
+	default:
+		return EnvironmentDefaults{}, fmt.Errorf("unsupported konnect environment %q", name)
+	}
+}
+
+func InferEnvironmentDefaultsFromURL(rawURL string) (EnvironmentDefaults, bool) {
+	value := strings.ToLower(strings.TrimSpace(rawURL))
+	switch {
+	case strings.Contains(value, konnectTechDomain):
+		return TechEnvironmentDefaults(), true
+	case strings.Contains(value, konnectProductionDomain):
+		return ProductionEnvironmentDefaults(), true
+	default:
+		return EnvironmentDefaults{}, false
+	}
+}
+
 // BuildBaseURLFromRegion converts a region identifier into the corresponding Konnect API host.
 func BuildBaseURLFromRegion(region string) (string, error) {
 	trimmed := strings.ToLower(strings.TrimSpace(region))
@@ -90,6 +148,22 @@ func BuildBaseURLFromRegion(region string) (string, error) {
 	}
 
 	return fmt.Sprintf("https://%s.api.konghq.com", trimmed), nil
+}
+
+func BuildBaseURLFromRegionForEnvironment(region string, environment string) (string, error) {
+	defaults, err := EnvironmentDefaultsFor(environment)
+	if err != nil {
+		return "", err
+	}
+
+	baseURL, err := BuildBaseURLFromRegion(region)
+	if err != nil {
+		return "", err
+	}
+	if defaults.Name == EnvironmentTech {
+		return strings.Replace(baseURL, konnectProductionDomain, konnectTechDomain, 1), nil
+	}
+	return baseURL, nil
 }
 
 // ResolveBaseURL determines the effective Konnect base URL, honoring the precedence rules:
