@@ -1,6 +1,7 @@
 name: E2E
 run-name: >-
   E2E ${{
+    github.event_name == 'workflow_dispatch' &&
     inputs.dispatch_source == 'main-debounce' &&
     format('main debounce {0}', inputs.main_sha) ||
     github.ref_name
