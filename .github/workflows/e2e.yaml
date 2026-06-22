@@ -1,4 +1,10 @@
 name: E2E
+run-name: >-
+  E2E ${{
+    inputs.dispatch_source == 'main-debounce' &&
+    format('main debounce {0}', inputs.main_sha) ||
+    github.ref_name
+  }}
 permissions:
   contents: read
 
@@ -7,20 +13,16 @@ on:
     branches: ['**']
   merge_group:
     types: [checks_requested]
-  push:
-    branches: ['main']
-    paths:
-      - go.mod
-      - go.sum
-      - main.go
-      - '*.go'
-      - internal/**
-      - test/e2e/**
-      - Makefile
-      - .goreleaser.yml
-      - .github/workflows/e2e.yaml
   workflow_dispatch:
     inputs:
+      dispatch_source:
+        description: Internal dispatch source
+        type: string
+        default: ""
+      main_sha:
+        description: Main branch SHA selected by the debounce workflow
+        type: string
+        default: ""
       run_portal_applications:
         description: Run Gmail-backed portal applications scenario
         type: boolean
@@ -34,7 +36,7 @@ env:
   DO_NOT_TRACK: "1"
 
 # The E2E target orgs are shared stateful environments. Queue full workflow
-# runs so one run completes all shards before the next run starts.
+# runs so PR, merge queue, manual, and debounced main runs never overlap.
 concurrency:
   group: kongctl-e2e-global
   queue: max
@@ -62,10 +64,33 @@ jobs:
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           BASE_REF: ${{ github.base_ref || '' }}
+          DISPATCH_SOURCE: ${{ inputs.dispatch_source || '' }}
+          MAIN_SHA: ${{ inputs.main_sha || '' }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${DISPATCH_SOURCE}" = "main-debounce" ]; then
+            if [ -z "${MAIN_SHA}" ]; then
+              echo "::error::Debounced E2E dispatch is missing main_sha."
+              exit 1
+            fi
+
+            current_main_sha="$(
+              gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${DEFAULT_BRANCH}" --jq '.object.sha'
+            )"
+            if [ "${MAIN_SHA}" != "${current_main_sha}" ]; then
+              echo "required=false" >> "${GITHUB_OUTPUT}"
+              echo "Skipping stale debounced E2E for ${MAIN_SHA}; current ${DEFAULT_BRANCH} is ${current_main_sha}."
+              exit 0
+            fi
+
+            echo "required=true" >> "${GITHUB_OUTPUT}"
+            echo "E2E required for debounced ${DEFAULT_BRANCH} dispatch at ${MAIN_SHA}."
+            exit 0
+          fi
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             echo "required=true" >> "${GITHUB_OUTPUT}"
             echo "E2E required for ${GITHUB_EVENT_NAME}."
             exit 0
@@ -94,9 +119,14 @@ jobs:
           changed_files="$(mktemp)"
           git diff --name-only "${merge_base}" HEAD | tee "${changed_files}"
 
-          if grep -Eq \
-            '^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal/.*|test/e2e/.*|Makefile|\.goreleaser\.yml|\.github/workflows/e2e\.yaml)$' \
-            "${changed_files}"; then
+          e2e_pattern="$(
+            printf '%s' \
+              '^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal/.*|test/e2e/.*' \
+              '|Makefile|\.goreleaser\.yml|\.github/workflows/e2e\.yaml' \
+              '|\.github/workflows/e2e-main-debounce\.yaml)$'
+          )"
+
+          if grep -Eq "${e2e_pattern}" "${changed_files}"; then
             echo "required=true" >> "${GITHUB_OUTPUT}"
             echo "E2E required for this change set."
             exit 0

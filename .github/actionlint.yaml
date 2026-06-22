@@ -1,0 +1,5 @@
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    ignore:
+      # actionlint v1.7.12 does not recognize GitHub's concurrency.queue key.
+      - 'unexpected key "queue" for "concurrency" section'

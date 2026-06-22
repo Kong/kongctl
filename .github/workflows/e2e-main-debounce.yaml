@@ -1,0 +1,78 @@
+name: E2E Main Debounce
+run-name: E2E Main Debounce, sha:${{ github.sha }}
+
+on:
+  push:
+    branches: ['main']
+    paths:
+      - go.mod
+      - go.sum
+      - main.go
+      - '*.go'
+      - internal/**
+      - test/e2e/**
+      - Makefile
+      - .goreleaser.yml
+      - .github/workflows/e2e.yaml
+      - .github/workflows/e2e-main-debounce.yaml
+
+permissions:
+  actions: write
+  contents: read
+
+env:
+  DO_NOT_TRACK: "1"
+
+# Restart the timer on every matching main push. Only a quiet period dispatches
+# the real E2E workflow.
+concurrency:
+  group: kongctl-e2e-main-debounce
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    name: Dispatch E2E After Quiet Period
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Wait for quiet period
+        run: sleep 900
+
+      - name: Dispatch E2E for latest main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          latest_main_sha="$(
+            gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq '.object.sha'
+          )"
+          echo "Latest ${GITHUB_REF_NAME} SHA: ${latest_main_sha}"
+
+          gh api \
+            --method GET \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/e2e.yaml/runs" \
+            -f event=workflow_dispatch \
+            -f status=queued \
+            -f branch="${GITHUB_REF_NAME}" \
+            -f per_page=100 \
+            --jq '.workflow_runs[] | select(.display_title | startswith("E2E main debounce ")) | .id' |
+            while IFS= read -r run_id; do
+              if [ -n "${run_id}" ]; then
+                echo "Canceling older queued debounced E2E run ${run_id}."
+                gh api \
+                  --method POST \
+                  "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel" \
+                  >/dev/null
+              fi
+            done
+
+          gh workflow run e2e.yaml \
+            --ref "${GITHUB_REF_NAME}" \
+            -f dispatch_source=main-debounce \
+            -f main_sha="${latest_main_sha}"
