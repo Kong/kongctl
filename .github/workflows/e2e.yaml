@@ -65,8 +65,8 @@ jobs:
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           BASE_REF: ${{ github.base_ref || '' }}
-          DISPATCH_SOURCE: ${{ inputs.dispatch_source || '' }}
-          MAIN_SHA: ${{ inputs.main_sha || '' }}
+          DISPATCH_SOURCE: ${{ github.event_name == 'workflow_dispatch' && inputs.dispatch_source || '' }}
+          MAIN_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || '' }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
