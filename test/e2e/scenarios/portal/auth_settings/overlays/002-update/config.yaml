@@ -13,4 +13,4 @@ portals:
       ref: portal-auth-settings
       basic_auth_enabled: true
       konnect_mapping_enabled: false
-      idp_mapping_enabled: false
+      idp_mapping_enabled: true

@@ -82,11 +82,11 @@ steps:
                 idp_mapping_enabled: false
                 konnect_mapping_enabled: true
 
-  - name: 002-update-and-verify-auth-settings
+  - name: 002-reject-invalid-auth-settings-update
     inputOverlayDirs:
       - overlays/002-update
     commands:
-      - name: 000-plan-update
+      - name: 000-plan-invalid-update
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-update.json"
         run:
@@ -107,20 +107,18 @@ steps:
             expect:
               fields:
                 konnect_mapping_enabled: false
-      - name: 001-apply-update
+                idp_mapping_enabled: true
+      - name: 001-apply-invalid-update
         outputFormat: json
         run:
           - apply
           - --plan
           - "{{ .workdir }}/plan-update.json"
           - --auto-approve
-        assertions:
-          - select: summary
-            expect:
-              fields:
-                applied: 1
-                failed: 0
-      - name: 002-get-auth-settings-after-update
+        expectFailure:
+          exitCode: 1
+          contains: "cannot be enabled when no IdP is enabled"
+      - name: 002-get-auth-settings-after-rejected-update
         run:
           - get
           - portal
@@ -133,9 +131,12 @@ steps:
           - expect:
               fields:
                 basic_auth_enabled: true
-                konnect_mapping_enabled: false
+                konnect_mapping_enabled: true
                 idp_mapping_enabled: false
-      - name: 003-plan-update-no-op
+
+  - name: 003-plan-original-auth-settings-no-op
+    commands:
+      - name: 000-plan-original-no-op
         outputFormat: disable
         run:
           - plan
@@ -149,7 +150,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003-dump-and-plan-round-trip
+  - name: 004-dump-and-plan-round-trip
     skipInputs: true
     commands:
       - name: 000-dump-portal-with-auth-settings
@@ -170,7 +171,7 @@ steps:
               fields:
                 basic_auth_enabled: true
                 idp_mapping_enabled: false
-                konnect_mapping_enabled: false
+                konnect_mapping_enabled: true
       - name: 001-plan-from-dump
         outputFormat: disable
         run:
@@ -185,7 +186,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 004-delete-cleanup
+  - name: 005-delete-cleanup
     commands:
       - name: 000-delete
         outputFormat: json
