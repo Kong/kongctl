@@ -5,6 +5,7 @@ import (
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -34,7 +35,8 @@ authentication token.`)
 			fmt.Sprintf(`
 	# Get current organization information
 	%[1]s get organization
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 type textDisplayRecord struct {
@@ -188,8 +190,12 @@ type getOrganizationCmd struct {
 	*cobra.Command
 }
 
-func runGetOrganization(meAPI helpers.MeAPI, helper cmd.Helper) (*kkComps.MeOrganization, error) {
-	res, err := meAPI.GetOrganizationsMe(helper.GetContext())
+func runGetOrganization(meAPI helpers.MeAPI, helper cmd.Helper, baseURL string) (*kkComps.MeOrganization, error) {
+	opts := []kkOps.Option{}
+	if baseURL != "" {
+		opts = append(opts, kkOps.WithServerURL(baseURL))
+	}
+	res, err := meAPI.GetOrganizationsMe(helper.GetContext(), opts...)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
 		return nil, cmd.PrepareExecutionError("Failed to get current organization", err, helper.GetCmd(), attrs...)
@@ -239,12 +245,18 @@ func (c *getOrganizationCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	org, err := runGetOrganization(sdk.GetMeAPI(), helper)
+	baseURL, err := common.ResolveBaseURL(cfg)
 	if err != nil {
 		return err
 	}
 
-	return tableview.RenderForFormat(helper,
+	org, err := runGetOrganization(sdk.GetMeAPI(), helper, baseURL)
+	if err != nil {
+		return err
+	}
+
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,

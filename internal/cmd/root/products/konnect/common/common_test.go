@@ -124,6 +124,215 @@ func TestResolveBaseURL(t *testing.T) {
 	})
 }
 
+func TestEnvironmentDefaultsFor(t *testing.T) {
+	tests := []struct {
+		name        string
+		env         string
+		wantBaseURL string
+		wantAuthURL string
+		wantClient  string
+		wantErr     bool
+	}{
+		{
+			name:        "default production",
+			env:         "",
+			wantBaseURL: BaseURLDefault,
+			wantAuthURL: AuthBaseURLDefault,
+			wantClient:  MachineClientIDDefault,
+		},
+		{
+			name:        "com",
+			env:         "com",
+			wantBaseURL: BaseURLDefault,
+			wantAuthURL: AuthBaseURLDefault,
+			wantClient:  MachineClientIDDefault,
+		},
+		{
+			name:        "production alias",
+			env:         "production",
+			wantBaseURL: BaseURLDefault,
+			wantAuthURL: AuthBaseURLDefault,
+			wantClient:  MachineClientIDDefault,
+		},
+		{
+			name:        "tech",
+			env:         "tech",
+			wantBaseURL: TechBaseURLDefault,
+			wantAuthURL: TechGlobalBaseURL,
+			wantClient:  TechMachineClientID,
+		},
+		{name: "unknown", env: "stage", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := EnvironmentDefaultsFor(tt.env)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantBaseURL, got.BaseURL)
+			require.Equal(t, tt.wantAuthURL, got.AuthBaseURL)
+			require.Equal(t, tt.wantClient, got.MachineClientID)
+		})
+	}
+}
+
+func TestSelectedEnvironmentFromArgs(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		wantValue    string
+		wantSelected bool
+	}{
+		{
+			name:         "space separated",
+			args:         []string{"get", "org", "--konnect-env", "tech"},
+			wantValue:    "tech",
+			wantSelected: true,
+		},
+		{
+			name:         "equals separated",
+			args:         []string{"get", "org", "--konnect-env=tech"},
+			wantValue:    "tech",
+			wantSelected: true,
+		},
+		{
+			name:         "last value wins",
+			args:         []string{"--konnect-env", "com", "get", "org", "--konnect-env=tech"},
+			wantValue:    "tech",
+			wantSelected: true,
+		},
+		{
+			name:         "missing value is selected",
+			args:         []string{"get", "org", "--konnect-env"},
+			wantValue:    "",
+			wantSelected: true,
+		},
+		{
+			name:         "after double dash ignored",
+			args:         []string{"get", "org", "--", "--konnect-env", "tech"},
+			wantSelected: false,
+		},
+		{
+			name:         "not selected",
+			args:         []string{"get", "org"},
+			wantSelected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotValue, gotSelected := selectedEnvironmentFromArgs(tt.args)
+			require.Equal(t, tt.wantSelected, gotSelected)
+			require.Equal(t, tt.wantValue, gotValue)
+		})
+	}
+}
+
+func TestBuildBaseURLFromRegionForEnvironment(t *testing.T) {
+	tests := []struct {
+		name        string
+		region      string
+		environment string
+		want        string
+		wantErr     bool
+	}{
+		{
+			name:        "production regional",
+			region:      "eu",
+			environment: EnvironmentProduction,
+			want:        "https://eu.api.konghq.com",
+		},
+		{
+			name:        "tech regional",
+			region:      "eu",
+			environment: EnvironmentTech,
+			want:        "https://eu.api.konghq.tech",
+		},
+		{
+			name:        "tech global",
+			region:      "global",
+			environment: EnvironmentTech,
+			want:        TechGlobalBaseURL,
+		},
+		{
+			name:        "invalid environment",
+			region:      "eu",
+			environment: "stage",
+			wantErr:     true,
+		},
+		{
+			name:        "invalid region",
+			region:      "bad/region",
+			environment: EnvironmentTech,
+			wantErr:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := BuildBaseURLFromRegionForEnvironment(tt.region, tt.environment)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestInferEnvironmentDefaultsFromURL(t *testing.T) {
+	tests := []struct {
+		name        string
+		url         string
+		wantOK      bool
+		wantBaseURL string
+	}{
+		{
+			name:        "tech regional URL",
+			url:         "https://us.api.konghq.tech",
+			wantOK:      true,
+			wantBaseURL: TechBaseURLDefault,
+		},
+		{
+			name:        "production global URL",
+			url:         "https://global.api.konghq.com",
+			wantOK:      true,
+			wantBaseURL: BaseURLDefault,
+		},
+		{
+			name:        "tech URL with query",
+			url:         "https://global.api.konghq.tech/v3?redirect=https://example.test",
+			wantOK:      true,
+			wantBaseURL: TechBaseURLDefault,
+		},
+		{
+			name:   "tech string in path does not infer",
+			url:    "https://example.test/konghq.tech",
+			wantOK: false,
+		},
+		{
+			name:   "tech string in query does not infer",
+			url:    "https://example.test?target=global.api.konghq.tech",
+			wantOK: false,
+		},
+		{name: "custom URL", url: "https://example.test", wantOK: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := InferEnvironmentDefaultsFromURL(tt.url)
+			require.Equal(t, tt.wantOK, ok)
+			if tt.wantOK {
+				require.Equal(t, tt.wantBaseURL, got.BaseURL)
+			}
+		})
+	}
+}
+
 func TestResolveHTTPTimeout(t *testing.T) {
 	t.Run("default fallback", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{})

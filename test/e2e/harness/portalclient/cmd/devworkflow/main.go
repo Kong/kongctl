@@ -14,6 +14,7 @@ import (
 	kkcomponents "github.com/Kong/sdk-konnect-go/models/components"
 	kkoperations "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/google/uuid"
+	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/test/e2e/harness/portalclient"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
@@ -301,12 +302,9 @@ func approveDeveloper(ctx context.Context, portalID, email, baseURLFlag string) 
 		return fmt.Errorf("KONGCTL_E2E_KONNECT_PAT is required when --portal-id is provided")
 	}
 
-	baseURL := strings.TrimSpace(baseURLFlag)
-	if baseURL == "" {
-		baseURL = strings.TrimSpace(os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL"))
-	}
-	if baseURL == "" {
-		baseURL = "https://us.api.konghq.com"
+	baseURL, err := resolveKonnectBaseURL(baseURLFlag)
+	if err != nil {
+		return err
 	}
 
 	log.Printf("approving developer via Konnect API (portal=%s)", portalID)
@@ -397,6 +395,21 @@ func approveDeveloper(ctx context.Context, portalID, email, baseURLFlag string) 
 	time.Sleep(5 * time.Second)
 
 	return nil
+}
+
+func resolveKonnectBaseURL(baseURLFlag string) (string, error) {
+	if baseURL := strings.TrimSpace(baseURLFlag); baseURL != "" {
+		return baseURL, nil
+	}
+	if baseURL := strings.TrimSpace(os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")); baseURL != "" {
+		return baseURL, nil
+	}
+
+	defaults, err := konnectcommon.EnvironmentDefaultsFor(os.Getenv("KONGCTL_E2E_KONNECT_ENV"))
+	if err != nil {
+		return "", err
+	}
+	return defaults.BaseURL, nil
 }
 
 func retryCreateApplication(

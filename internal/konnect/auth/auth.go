@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -456,7 +457,8 @@ func GetAuthenticatedClient(
 		}),
 		logger,
 	)
-	refreshingClient := NewRefreshingHTTPClient(loggingClient, tokenSource)
+	rewriteClient := NewKonnectHostRewriteClient(loggingClient, baseURL)
+	refreshingClient := NewRefreshingHTTPClient(rewriteClient, tokenSource)
 
 	var sdkHTTPClient kk.HTTPClient = refreshingClient
 	if retryConfig != nil && retryConfig.Strategy == httpclient.RetryStrategyBackoff {
@@ -465,4 +467,53 @@ func GetAuthenticatedClient(
 	opts = append(opts, kk.WithClient(sdkHTTPClient))
 
 	return kk.New(opts...), sdkHTTPClient, nil
+}
+
+type KonnectHostRewriteClient struct {
+	wrapped kk.HTTPClient
+	baseURL string
+}
+
+func NewKonnectHostRewriteClient(wrapped kk.HTTPClient, baseURL string) kk.HTTPClient {
+	return &KonnectHostRewriteClient{
+		wrapped: wrapped,
+		baseURL: baseURL,
+	}
+}
+
+func (c *KonnectHostRewriteClient) Do(req *http.Request) (*http.Response, error) {
+	if c == nil || c.wrapped == nil {
+		return nil, fmt.Errorf("http client is not configured")
+	}
+	return c.wrapped.Do(rewriteKonnectHostForBaseURL(req, c.baseURL))
+}
+
+func rewriteKonnectHostForBaseURL(req *http.Request, baseURL string) *http.Request {
+	if req == nil || req.URL == nil || !isKonnectTechBaseURL(baseURL) {
+		return req
+	}
+
+	hostname := req.URL.Hostname()
+	if !strings.HasSuffix(hostname, ".konghq.com") {
+		return req
+	}
+
+	rewritten := req.Clone(req.Context())
+	rewrittenHost := strings.TrimSuffix(hostname, ".konghq.com") + ".konghq.tech"
+	if port := req.URL.Port(); port != "" {
+		rewrittenHost = net.JoinHostPort(rewrittenHost, port)
+	}
+	rewritten.URL.Host = rewrittenHost
+	if rewritten.Host != "" {
+		rewritten.Host = rewrittenHost
+	}
+	return rewritten
+}
+
+func isKonnectTechBaseURL(rawURL string) bool {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return strings.HasSuffix(parsed.Hostname(), ".konghq.tech")
 }

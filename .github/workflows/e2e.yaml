@@ -24,6 +24,13 @@ on:
         description: Main branch SHA selected by the debounce workflow
         type: string
         default: ""
+      konnect_environment:
+        description: Konnect environment to target
+        type: choice
+        options:
+          - production
+          - tech
+        default: production
       run_portal_applications:
         description: Run Gmail-backed portal applications scenario
         type: boolean
@@ -48,6 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       required: ${{ steps.detect.outputs.required }}
+      konnect_environment: ${{ steps.target.outputs.konnect_environment }}
+      orgs_json: ${{ steps.target.outputs.orgs_json }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -58,6 +67,62 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
+
+      - name: Resolve Konnect target
+        id: target
+        shell: bash
+        env:
+          DISPATCH_KONNECT_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.konnect_environment || '' }}
+          CONFIGURED_KONNECT_ENVIRONMENT: ${{ vars.KONGCTL_E2E_KONNECT_ENV || '' }}
+          DEFAULT_ORGS_JSON: ${{ vars.KONGCTL_E2E_ORGS_JSON || '' }}
+          PRODUCTION_ORGS_JSON: ${{ vars.KONGCTL_E2E_PRODUCTION_ORGS_JSON || '' }}
+          TECH_ORGS_JSON: ${{ vars.KONGCTL_E2E_TECH_ORGS_JSON || '' }}
+        run: |
+          set -euo pipefail
+
+          konnect_environment="${DISPATCH_KONNECT_ENVIRONMENT:-}"
+          if [ -z "${konnect_environment}" ]; then
+            konnect_environment="${CONFIGURED_KONNECT_ENVIRONMENT:-production}"
+          fi
+
+          case "${konnect_environment}" in
+            production|tech)
+              ;;
+            *)
+              echo "::error::Unsupported Konnect environment: ${konnect_environment}"
+              exit 1
+              ;;
+          esac
+
+          orgs_json=""
+          if [ "${konnect_environment}" = "tech" ]; then
+            orgs_json="${TECH_ORGS_JSON:-}"
+          else
+            orgs_json="${PRODUCTION_ORGS_JSON:-}"
+          fi
+          if [ -z "${orgs_json}" ]; then
+            orgs_json="${DEFAULT_ORGS_JSON:-}"
+          fi
+          if [ -z "${orgs_json}" ]; then
+            orgs_json='[{"org_name":"default"}]'
+          fi
+
+          orgs_json="$(ORGS_JSON="${orgs_json}" python3 - <<'PY'
+          import json
+          import os
+
+          orgs = json.loads(os.environ["ORGS_JSON"])
+          if not isinstance(orgs, list):
+              raise SystemExit("org matrix must be a JSON array")
+          for index, org in enumerate(orgs):
+              if not isinstance(org, dict) or not org.get("org_name"):
+                  raise SystemExit(f"org matrix entry {index} must include org_name")
+          print(json.dumps(orgs, separators=(",", ":")))
+          PY
+          )"
+
+          echo "konnect_environment=${konnect_environment}" >> "${GITHUB_OUTPUT}"
+          echo "orgs_json=${orgs_json}" >> "${GITHUB_OUTPUT}"
 
       - name: Detect whether E2E is required
         id: detect
@@ -215,14 +280,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(vars.KONGCTL_E2E_ORGS_JSON || '[{"org_name":"default"}]') }}
+        include: ${{ fromJSON(needs.e2e-needed.outputs.orgs_json) }}
     env:
       KONGCTL_E2E_MATRIX_ORG: ${{ matrix.org_name }}
       KONGCTL_E2E_BIN: ${{ github.workspace }}/kongctl
       KONGCTL_E2E_TEST_BIN: ${{ github.workspace }}/e2e.test
       KONGCTL_E2E_TEST_TIMEOUT: ${{ vars.KONGCTL_E2E_TEST_TIMEOUT || '55m' }}
       KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
-      KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || 'https://us.api.konghq.com' }}
+      KONGCTL_E2E_KONNECT_ENV: ${{ needs.e2e-needed.outputs.konnect_environment }}
+      KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || '' }}
+      KONGCTL_E2E_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_AUTH_URL || '' }}
+      KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID || '' }}
       # Reset is enabled by default in the harness; set explicitly for clarity
       KONGCTL_E2E_RESET: "1"
       # Set HTTP timeout vars to 0s/default/off to disable kongctl/harness application-level timeouts
@@ -250,7 +318,7 @@ jobs:
       KONGCTL_E2E_ARTIFACTS_DIR: ${{ github.workspace }}/.e2e-artifacts/${{ github.run_id }}-${{ matrix.org_name }}
       KONGCTL_E2E_SHARD_INDEX: ${{ strategy.job-index }}
       KONGCTL_E2E_SHARD_TOTAL: ${{ strategy.job-total }}
-      KONGCTL_E2E_ORGS_JSON: ${{ vars.KONGCTL_E2E_ORGS_JSON || '[{"org_name":"default"}]' }}
+      KONGCTL_E2E_ORGS_JSON: ${{ needs.e2e-needed.outputs.orgs_json }}
       KONGCTL_E2E_RUN_PORTAL_APPLICATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_portal_applications && '1' || '' }}
       KONGCTL_E2E_RUN_PORTAL_IDENTITY_PROVIDERS: ${{ vars.KONGCTL_E2E_RUN_PORTAL_IDENTITY_PROVIDERS || '' }}
       KONGCTL_E2E_CAPTURE_TCPDUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.capture_tcpdump && '1' || vars.KONGCTL_E2E_CAPTURE_TCPDUMP || '' }}
@@ -313,20 +381,44 @@ jobs:
           CAP_DIR="${KONGCTL_E2E_ARTIFACTS_DIR}/tcpdump"
           mkdir -p "${CAP_DIR}"
 
-          regional_host="${KONGCTL_E2E_KONNECT_BASE_URL#http://}"
+          regional_url="${KONGCTL_E2E_KONNECT_BASE_URL:-}"
+          global_url="${KONGCTL_E2E_KONNECT_BASE_AUTH_URL:-}"
+          konnect_env="${KONGCTL_E2E_KONNECT_ENV:-production}"
+
+          if [ -z "${regional_url}" ]; then
+            if [ "${konnect_env}" = "tech" ]; then
+              regional_url="https://us.api.konghq.tech"
+            else
+              regional_url="https://us.api.konghq.com"
+            fi
+          fi
+          if [ -z "${global_url}" ]; then
+            if [ "${konnect_env}" = "tech" ]; then
+              global_url="https://global.api.konghq.tech"
+            else
+              global_url="https://global.api.konghq.com"
+            fi
+          fi
+
+          regional_host="${regional_url#http://}"
           regional_host="${regional_host#https://}"
           regional_host="${regional_host%%/*}"
-          filter="(tcp port 443) and (host ${regional_host} or host global.api.konghq.com)"
+          global_host="${global_url#http://}"
+          global_host="${global_host#https://}"
+          global_host="${global_host%%/*}"
+          filter="(tcp port 443) and (host ${regional_host} or host ${global_host})"
 
           {
             printf 'started_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf 'konnect_env=%s\n' "${konnect_env}"
             printf 'regional_host=%s\n' "${regional_host}"
+            printf 'global_host=%s\n' "${global_host}"
             printf 'filter=%s\n' "${filter}"
             echo
             uname -a
             echo
             getent hosts "${regional_host}" || true
-            getent hosts global.api.konghq.com || true
+            getent hosts "${global_host}" || true
             echo
             ip addr || true
             echo

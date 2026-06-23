@@ -39,6 +39,14 @@ KONGCTL_E2E_SHARD_INDEX=1 \
 make test-e2e-scenarios
 ```
 
+Run against the Kong Konnect `.tech` environment:
+
+```bash
+KONGCTL_E2E_KONNECT_ENV=tech \
+KONGCTL_E2E_KONNECT_PAT=$(cat ~/.konnect/your-tech-pat) \
+make test-e2e-scenarios
+```
+
 Include the opt-in user profile smoke scenario:
 
 ```bash
@@ -86,8 +94,19 @@ Core harness settings:
 - `KONGCTL_E2E_BIN`: Path to an existing `kongctl` binary to skip building.
 - `KONGCTL_E2E_RESET`: Reset the Konnect org before tests. Destructive.
   Defaults to enabled; set to `0` or `false` to disable.
-- `KONGCTL_E2E_KONNECT_BASE_URL`: Base URL for Konnect API. Default:
-  `https://us.api.konghq.com`.
+- `KONGCTL_E2E_KONNECT_ENV`: Konnect environment selector. Supported values
+  are `production` (default) and `tech`. The `tech` value selects
+  `https://us.api.konghq.tech`, `https://global.api.konghq.tech`, and the
+  `.tech` machine client ID for generated CLI profile config.
+- `KONGCTL_E2E_KONNECT_BASE_URL`: Optional regional Konnect API override.
+  When unset, the harness uses the selected `KONGCTL_E2E_KONNECT_ENV`
+  default. If this points at `konghq.tech`, the harness also infers the
+  `.tech` global URL and machine client ID unless explicitly overridden.
+- `KONGCTL_E2E_KONNECT_BASE_AUTH_URL`: Optional global/auth Konnect API
+  override. The harness uses this for global Identity APIs, org reset, and
+  generated CLI profile `konnect.base-auth-url`.
+- `KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID`: Optional machine client ID
+  override for generated CLI profile `konnect.machine-client-id`.
 - `KONGCTL_E2E_HTTP_TIMEOUT`: Per-request timeout for raw Konnect HTTP helpers
   used by scenario create/delete flows. The harness also writes the same
   value into the generated `e2e.http-timeout` profile setting so
@@ -142,7 +161,12 @@ Scenario selection and sharding:
 - `KONGCTL_E2E_MATRIX_ORG`: Optional diagnostic label for the current CI job.
 - `KONGCTL_E2E_ORGS_JSON`: JSON array of matrix org entries. Used in CI to
   validate scenario environment assignments. Each entry must include
-  `org_name`.
+  `org_name`. In GitHub Actions, this is also the default org matrix when an
+  environment-specific org matrix is not configured.
+- `KONGCTL_E2E_PRODUCTION_ORGS_JSON`: Optional GitHub Actions org matrix for
+  production Konnect runs.
+- `KONGCTL_E2E_TECH_ORGS_JSON`: Optional GitHub Actions org matrix for
+  `.tech` Konnect runs.
 
 Authentication and opt-in scenarios:
 
@@ -340,7 +364,9 @@ The E2E GitHub Actions workflow scales wall-clock time by running one matrix
 job per Konnect org. Each job gets:
 
 - one environment-scoped PAT
-- the shared Konnect base URL from the repository variable
+- the Konnect environment selector from workflow dispatch or repository
+  variables
+- optional shared Konnect URL overrides from repository variables
 - one shard index
 - the common shard total from the matrix size
 
@@ -349,11 +375,12 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 - `KONGCTL_E2E_SHARD_INDEX=${{ strategy.job-index }}`
 - `KONGCTL_E2E_SHARD_TOTAL=${{ strategy.job-total }}`
 - `KONGCTL_E2E_MATRIX_ORG=${{ matrix.org_name }}`
-- `KONGCTL_E2E_ORGS_JSON=${{ vars.KONGCTL_E2E_ORGS_JSON }}`
+- `KONGCTL_E2E_ORGS_JSON` set to the selected org matrix
 
-The workflow also exposes the test timeout, HTTP timeout, and retry
-knobs above as repository or organization variables of the same names,
-so CI can tune runtime behavior without changing Go code.
+The workflow also exposes the Konnect target, test timeout, HTTP timeout, and
+retry knobs above as repository or organization variables of the same names,
+so CI can tune runtime behavior without changing Go code. Manual dispatch
+runs can choose `production` or `tech` with the `konnect_environment` input.
 
 For transport debugging, the workflow currently defaults to:
 
@@ -387,12 +414,12 @@ When enabled, each matrix job records a `tcpdump/` directory in the normal E2E
 artifact bundle containing:
 
 - `konnect.pcap`: packet capture filtered to the regional Konnect host and
-  `global.api.konghq.com` on port `443`
+  selected global Konnect host on port `443`
 - `tcpdump.log`: tcpdump startup and shutdown output
 - `context.txt`: runner host, DNS resolution, interfaces, and routes
 
-The org pool is defined as JSON in the repository or organization variable
-`KONGCTL_E2E_ORGS_JSON`. Example:
+The default org pool is defined as JSON in the repository or organization
+variable `KONGCTL_E2E_ORGS_JSON`. Example:
 
 ```json
 [
@@ -404,8 +431,24 @@ The org pool is defined as JSON in the repository or organization variable
 Each `org_name` must match a GitHub Actions environment that defines the
 secret `KONGCTL_E2E_KONNECT_PAT`.
 
-Set the shared Konnect API endpoint as the repository or organization variable
-`KONGCTL_E2E_KONNECT_BASE_URL`.
+Set `KONGCTL_E2E_KONNECT_ENV=tech` as a repository or organization variable
+to run scheduled or PR-triggered E2E against `.tech`. Manual dispatch can
+override this with the `konnect_environment` input.
+
+If production and `.tech` need separate org pools, set
+`KONGCTL_E2E_PRODUCTION_ORGS_JSON` and `KONGCTL_E2E_TECH_ORGS_JSON` to
+environment names backed by matching PATs. The workflow selects an org matrix
+with this fallback order:
+
+1. `KONGCTL_E2E_TECH_ORGS_JSON` for `.tech`, or
+   `KONGCTL_E2E_PRODUCTION_ORGS_JSON` for production.
+2. `KONGCTL_E2E_ORGS_JSON`.
+3. A single `default` matrix entry.
+
+Use `KONGCTL_E2E_KONNECT_BASE_URL`,
+`KONGCTL_E2E_KONNECT_BASE_AUTH_URL`, and
+`KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID` only when the standard production or
+tech defaults are not sufficient.
 
 If the org-pool variable is unset, the workflow falls back to a single-org
 matrix entry named `default`, which is useful during migration if you still

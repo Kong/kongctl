@@ -27,6 +27,54 @@ func buildTestJWT(exp int64) string {
 	return strings.Join([]string{header, payloadEnc, "signature"}, ".")
 }
 
+func TestRewriteKonnectHostForBaseURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		baseURL string
+		reqURL  string
+		wantURL string
+	}{
+		{
+			name:    "tech rewrites konghq com host",
+			baseURL: "https://us.api.konghq.tech",
+			reqURL:  "https://global.api.konghq.com/v3/organizations/me",
+			wantURL: "https://global.api.konghq.tech/v3/organizations/me",
+		},
+		{
+			name:    "tech preserves port",
+			baseURL: "https://us.api.konghq.tech",
+			reqURL:  "https://global.api.konghq.com:8443/v3/organizations/me",
+			wantURL: "https://global.api.konghq.tech:8443/v3/organizations/me",
+		},
+		{
+			name:    "com leaves host unchanged",
+			baseURL: "https://us.api.konghq.com",
+			reqURL:  "https://global.api.konghq.com/v3/organizations/me",
+			wantURL: "https://global.api.konghq.com/v3/organizations/me",
+		},
+		{
+			name:    "tech leaves non kong host unchanged",
+			baseURL: "https://us.api.konghq.tech",
+			reqURL:  "https://example.test/v3/organizations/me",
+			wantURL: "https://example.test/v3/organizations/me",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, tt.reqURL, nil)
+			require.NoError(t, err)
+
+			got := rewriteKonnectHostForBaseURL(req, tt.baseURL)
+			require.Equal(t, tt.wantURL, got.URL.String())
+		})
+	}
+}
+
+func TestRewriteKonnectHostForBaseURLHandlesNilRequest(t *testing.T) {
+	require.Nil(t, rewriteKonnectHostForBaseURL(nil, "https://us.api.konghq.tech"))
+}
+
 type stubConfig struct {
 	profile string
 	path    string

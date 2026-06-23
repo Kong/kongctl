@@ -105,6 +105,10 @@ Find more information at:
 	// highest-priority disable signal in telemetry.resolveEnabled; see the
 	// precedence note there.
 	noTelemetry bool
+
+	// konnectEnv switches Konnect target defaults for this invocation. It is
+	// intentionally hidden for Kong-internal use.
+	konnectEnv string
 )
 
 // NoTelemetryFlagName is the persistent root flag that disables telemetry
@@ -211,6 +215,9 @@ func newRootCmd() *cobra.Command {
 			return nil
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			if err := konnectcommon.ApplyEnvironmentDefaults(cmd.Root(), currConfig); err != nil {
+				return &cmdpkg.ConfigurationError{Err: err}
+			}
 			if err := validateOutputFormat(cmd); err != nil {
 				return &cmdpkg.ConfigurationError{Err: err}
 			}
@@ -280,6 +287,12 @@ func newRootCmd() *cobra.Command {
 - Env var    : [ %s ]
 - Default    : [ false ]`,
 			telemetry.ConfigKeyEnabled, telemetry.EnvNoTelemetry))
+
+	rootCmd.PersistentFlags().StringVar(&konnectEnv, konnectcommon.KonnectEnvFlagName,
+		"",
+		fmt.Sprintf("Konnect environment for this command invocation. Allowed values: %s, %s.",
+			konnectcommon.EnvironmentCom, konnectcommon.EnvironmentTech))
+	util.CheckError(rootCmd.PersistentFlags().MarkHidden(konnectcommon.KonnectEnvFlagName))
 
 	themeFlag := theme.NewFlag(common.DefaultColorTheme)
 	rootCmd.PersistentFlags().Var(themeFlag, common.ColorThemeFlagName,
@@ -594,11 +607,11 @@ func applyExtensionRuntimeDefaultsBeforeConfig(runtimeCtx *extensioncore.Runtime
 		return
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.ConfigFile); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.ConfigFilePathFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.ConfigFilePathFlagName) {
 		configFilePath = value
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.Profile); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.ProfileFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.ProfileFlagName) {
 		currProfile = value
 	}
 }
@@ -608,53 +621,28 @@ func applyExtensionRuntimeDefaults(runtimeCtx *extensioncore.RuntimeContext, cfg
 		return
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.Output); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.OutputFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.OutputFlagName) {
 		util.CheckError(outputFormat.Set(value))
 		cfg.SetString(common.OutputConfigPath, value)
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.LogLevel); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.LogLevelFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.LogLevelFlagName) {
 		util.CheckError(logLevel.Set(value))
 		cfg.SetString(common.LogLevelConfigPath, value)
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.ColorTheme); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.ColorThemeFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.ColorThemeFlagName) {
 		cfg.SetString(common.ColorThemeConfigPath, value)
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.BaseURL); value != "" &&
-		!commandTreeFlagChanged(rootCmd, konnectcommon.BaseURLFlagName) &&
-		!commandTreeFlagChanged(rootCmd, konnectcommon.RegionFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, konnectcommon.BaseURLFlagName) &&
+		!common.CommandTreeFlagChanged(rootCmd, konnectcommon.RegionFlagName) {
 		cfg.SetString(konnectcommon.BaseURLConfigPath, value)
 	}
 	if value := strings.TrimSpace(os.Getenv(extensioncore.KonnectPATEnvName)); value != "" &&
-		!commandTreeFlagChanged(rootCmd, konnectcommon.PATFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, konnectcommon.PATFlagName) {
 		cfg.SetString(konnectcommon.PATConfigPath, value)
 	}
-}
-
-func commandTreeFlagChanged(command *cobra.Command, name string) bool {
-	if command == nil {
-		return false
-	}
-	for _, flags := range []*pflag.FlagSet{
-		command.Flags(),
-		command.PersistentFlags(),
-		command.LocalNonPersistentFlags(),
-		command.InheritedFlags(),
-	} {
-		if flags == nil {
-			continue
-		}
-		if flag := flags.Lookup(name); flag != nil && flag.Changed {
-			return true
-		}
-	}
-	for _, child := range command.Commands() {
-		if commandTreeFlagChanged(child, name) {
-			return true
-		}
-	}
-	return false
 }
 
 func initConfig() {

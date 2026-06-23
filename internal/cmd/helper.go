@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products"
+	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
@@ -134,6 +135,9 @@ func (r *CommandHelper) GetContext() context.Context {
 }
 
 func (r *CommandHelper) GetKonnectSDK(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	if err := konnectcommon.ApplyEnvironmentDefaults(r.Cmd.Root(), cfg); err != nil {
+		return nil, PrepareExecutionErrorFromErr(r, &ConfigurationError{Err: err})
+	}
 	factory := r.Cmd.Context().Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	sdk, err := factory(cfg, logger)
 	if err != nil {
