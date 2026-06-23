@@ -52,6 +52,11 @@ type CatalogServicePlanner interface {
 	ResourcePlanner
 }
 
+// AIGatewayPlanner handles planning for AI Gateway resources.
+type AIGatewayPlanner interface {
+	ResourcePlanner
+}
+
 // DashboardPlanner handles planning for dashboard resources.
 type DashboardPlanner interface {
 	ResourcePlanner

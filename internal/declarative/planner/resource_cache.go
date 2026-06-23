@@ -37,6 +37,10 @@ type planningResourceCache struct {
 	managedCatalogServicesAll    []state.CatalogService
 	managedCatalogServicesLoaded bool
 
+	managedAIGatewaysByKey  map[string][]state.AIGateway
+	managedAIGatewaysAll    []state.AIGateway
+	managedAIGatewaysLoaded bool
+
 	managedDashboardsByKey  map[string][]state.Dashboard
 	managedDashboardsAll    []state.Dashboard
 	managedDashboardsLoaded bool
@@ -59,6 +63,7 @@ func newPlanningResourceCache() *planningResourceCache {
 		managedDCRProvidersByKey:              make(map[string][]state.DCRProvider),
 		managedAPIsByKey:                      make(map[string][]state.API),
 		managedCatalogServicesByKey:           make(map[string][]state.CatalogService),
+		managedAIGatewaysByKey:                make(map[string][]state.AIGateway),
 		managedDashboardsByKey:                make(map[string][]state.Dashboard),
 		managedOrganizationTeamsByKey:         make(map[string][]state.OrganizationTeam),
 		portalTeamsByPortalID:                 make(map[string][]state.PortalTeam),
@@ -374,6 +379,59 @@ func (p *Planner) listManagedCatalogServices(
 	}
 
 	return services, nil
+}
+
+func (p *Planner) listManagedAIGateways(
+	ctx context.Context,
+	namespaces []string,
+) ([]state.AIGateway, error) {
+	normalizedNamespaces := normalizeNamespaces(namespaces)
+	if len(normalizedNamespaces) == 0 {
+		return []state.AIGateway{}, nil
+	}
+
+	cache := p.resourceCache
+	cacheKey := namespaceCacheKey(normalizedNamespaces)
+	if cache != nil {
+		if cached, ok := cache.managedAIGatewaysByKey[cacheKey]; ok {
+			return cached, nil
+		}
+
+		if cacheKey != "*" && cache.managedAIGatewaysLoaded {
+			filtered := filterAIGatewaysByNamespaces(cache.managedAIGatewaysAll, normalizedNamespaces)
+			cache.managedAIGatewaysByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+	}
+
+	requestNamespaces := normalizedNamespaces
+	useAllNamespaces := p.namespaceFanout && cacheKey != "*"
+	if useAllNamespaces {
+		requestNamespaces = []string{"*"}
+	}
+
+	gateways, err := p.client.ListManagedAIGateways(ctx, requestNamespaces)
+	if err != nil {
+		return nil, err
+	}
+
+	if cache != nil {
+		if useAllNamespaces {
+			cache.managedAIGatewaysAll = gateways
+			cache.managedAIGatewaysLoaded = true
+			filtered := filterAIGatewaysByNamespaces(gateways, normalizedNamespaces)
+			cache.managedAIGatewaysByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+
+		cache.managedAIGatewaysByKey[cacheKey] = gateways
+		if cacheKey == "*" {
+			cache.managedAIGatewaysAll = gateways
+			cache.managedAIGatewaysLoaded = true
+		}
+	}
+
+	return gateways, nil
 }
 
 func (p *Planner) listManagedDashboards(
@@ -791,6 +849,30 @@ func filterCatalogServicesByNamespaces(services []state.CatalogService, namespac
 		namespace := service.NormalizedLabels[labels.NamespaceKey]
 		if _, ok := allowed[namespace]; ok {
 			filtered = append(filtered, service)
+		}
+	}
+
+	return filtered
+}
+
+func filterAIGatewaysByNamespaces(gateways []state.AIGateway, namespaces []string) []state.AIGateway {
+	if len(namespaces) == 0 {
+		return []state.AIGateway{}
+	}
+	if len(namespaces) == 1 && namespaces[0] == "*" {
+		return gateways
+	}
+
+	allowed := make(map[string]struct{}, len(namespaces))
+	for _, ns := range namespaces {
+		allowed[ns] = struct{}{}
+	}
+
+	filtered := make([]state.AIGateway, 0, len(gateways))
+	for _, gateway := range gateways {
+		namespace := gateway.NormalizedLabels[labels.NamespaceKey]
+		if _, ok := allowed[namespace]; ok {
+			filtered = append(filtered, gateway)
 		}
 	}
 

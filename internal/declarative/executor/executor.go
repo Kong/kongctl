@@ -51,6 +51,7 @@ type Executor struct {
 		kkComps.UpdateDcrProviderRequest,
 	]
 	catalogServiceExecutor                 *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
+	aiGatewayExecutor                      *BaseExecutor[kkComps.CreateAIGatewayRequest, kkComps.UpdateAIGatewayRequest]
 	dashboardExecutor                      *BaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest]
 	eventGatewayControlPlaneExecutor       *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 	organizationTeamExecutor               *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
@@ -221,6 +222,11 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 	e.catalogServiceExecutor = NewBaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService](
 		NewCatalogServiceAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayExecutor = NewBaseExecutor[kkComps.CreateAIGatewayRequest, kkComps.UpdateAIGatewayRequest](
+		NewAIGatewayAdapter(client),
 		client,
 		dryRun,
 	)
@@ -2250,6 +2256,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		return e.apiExecutor.Create(ctx, *change)
 	case planner.ResourceTypeCatalogService:
 		return e.catalogServiceExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGateway:
+		return e.aiGatewayExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDCRProvider:
@@ -2830,6 +2838,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		return e.apiExecutor.Update(ctx, *change)
 	case planner.ResourceTypeCatalogService:
 		return e.catalogServiceExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGateway:
+		return e.aiGatewayExecutor.Update(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Update(ctx, *change)
 	case planner.ResourceTypeAPIDocument:
@@ -3292,6 +3302,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		return e.apiExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeCatalogService:
 		return e.catalogServiceExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGateway:
+		return e.aiGatewayExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAPIVersion:

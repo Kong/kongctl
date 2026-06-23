@@ -22,6 +22,7 @@ type SDKAPI interface {
 	GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI
 	GetPortalAPI() PortalAPI
 	GetAPIAPI() APIFullAPI // TODO: Change to APIAPI once refactoring is complete
+	GetAIGatewayAPI() AIGatewayAPI
 	GetCatalogServicesAPI() CatalogServicesAPI
 	GetDashboardsAPI() DashboardsAPI
 	GetAPIDocumentAPI() APIDocumentAPI
@@ -118,6 +119,15 @@ func (k *KonnectSDK) GetAPIAPI() APIFullAPI {
 	}
 
 	return &APIAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the AIGatewayAPI interface.
+func (k *KonnectSDK) GetAIGatewayAPI() AIGatewayAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &AIGatewayAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the CatalogServicesAPI interface

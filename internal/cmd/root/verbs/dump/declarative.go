@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -51,6 +52,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"control_planes":              {},
 	resourceAnalyticsDashboards:   {},
 	"event_gateways":              {},
+	"ai_gateways":                 {},
 	"organization.teams":          {},
 }
 
@@ -83,7 +85,7 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
-			resourceAnalyticsDashboards+", event_gateways, organization.teams).")
+			resourceAnalyticsDashboards+", event_gateways, ai_gateways, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -208,6 +210,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			DataPlaneCertificateAPI:             sdk.GetDataPlaneCertificateAPI(),
 			ControlPlaneGroupsAPI:               sdk.GetControlPlaneGroupsAPI(),
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
+			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
@@ -338,6 +341,17 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				populateEventGatewayChildren(ctx, logger, stateClient, eventGateways)
 			}
 			resourceSet.EventGatewayControlPlanes = append(resourceSet.EventGatewayControlPlanes, eventGateways...)
+		case "ai_gateways":
+			aiGateways, err := collectDeclarativeAIGateways(
+				ctx,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGateways = append(resourceSet.AIGateways, aiGateways...)
 		case "organization.teams":
 			teams, err := collectDeclarativeOrganizationTeams(
 				ctx,
@@ -656,6 +670,57 @@ func collectDeclarativeEventGateways(
 	return allData, nil
 }
 
+func collectDeclarativeAIGateways(
+	ctx context.Context,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayResource, error) {
+	if aiGatewayClient == nil {
+		return nil, fmt.Errorf("AI Gateway API client is not configured")
+	}
+
+	var results []declresources.AIGatewayResource
+
+	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
+		resp, err := aiGatewayClient.ListAiGateways(ctx, &requestPageSize, &pageNumber)
+		if err != nil {
+			return false, fmt.Errorf("failed to list AI Gateways: %w", err)
+		}
+
+		if resp == nil || resp.ListAIGatewaysResponse == nil || len(resp.ListAIGatewaysResponse.Data) == 0 {
+			return false, nil
+		}
+
+		for _, gateway := range resp.ListAIGatewaysResponse.Data {
+			results = append(results, mapAIGatewayToDeclarativeResource(gateway))
+		}
+
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: resp.ListAIGatewaysResponse.Meta.Page.Total,
+		}
+		return params.hasMorePages(), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	results = filterByNameOrID(results, filter, func(r declresources.AIGatewayResource) (string, string) {
+		return r.DisplayName, r.Ref
+	})
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].DisplayName == results[j].DisplayName {
+			return results[i].Ref < results[j].Ref
+		}
+		return results[i].DisplayName < results[j].DisplayName
+	})
+
+	return results, nil
+}
+
 func collectDeclarativeOrganizationTeams(
 	ctx context.Context,
 	teamClient helpers.OrganizationTeamAPI,
@@ -864,6 +929,38 @@ func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declreso
 		result.Labels = labels
 	}
 	result.Kongctl = kongctlMetaFromLabels(egw.Labels)
+
+	return result
+}
+
+func mapAIGatewayToDeclarativeResource(gateway kkComps.AIGateway) declresources.AIGatewayResource {
+	result := declresources.AIGatewayResource{
+		BaseResource: declresources.BaseResource{Ref: gateway.ID},
+		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+			DisplayName: gateway.DisplayName,
+			Description: gateway.Description,
+			ProxyUrls:   gateway.ProxyUrls,
+		},
+	}
+
+	if result.Ref == "" {
+		result.Ref = gateway.DisplayName
+	}
+
+	if labels := decllabels.GetUserLabels(gateway.Labels); len(labels) > 0 {
+		result.Labels = labels
+	}
+
+	if ns := strings.TrimSpace(gateway.Labels[decllabels.NamespaceKey]); ns != "" {
+		result.Kongctl = &declresources.KongctlMeta{Namespace: stringPointer(ns)}
+	}
+	if gateway.Labels[decllabels.ProtectedKey] == decllabels.TrueValue {
+		if result.Kongctl == nil {
+			result.Kongctl = &declresources.KongctlMeta{}
+		}
+		protected := true
+		result.Kongctl.Protected = &protected
+	}
 
 	return result
 }
