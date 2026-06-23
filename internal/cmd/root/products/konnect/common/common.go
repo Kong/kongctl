@@ -195,7 +195,8 @@ func environmentDefaultsForSelector(value string) (EnvironmentDefaults, error) {
 		return EnvironmentDefaultsFor(normalized)
 	default:
 		return EnvironmentDefaults{},
-			fmt.Errorf("unsupported konnect environment %q", value)
+			fmt.Errorf("unsupported konnect environment %q (allowed: %s, %s; aliases: %s, prod)",
+				value, EnvironmentProduction, EnvironmentTech, EnvironmentCom)
 	}
 }
 

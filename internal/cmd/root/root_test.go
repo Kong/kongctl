@@ -1448,6 +1448,9 @@ func TestApplyKonnectEnvironmentDefaultsRejectsInvalidEnv(t *testing.T) {
 	if !strings.Contains(err.Error(), "unsupported konnect environment") {
 		t.Fatalf("expected unsupported environment error, got %v", err)
 	}
+	if !strings.Contains(err.Error(), "allowed: production, tech; aliases: com, prod") {
+		t.Fatalf("expected allowed values in error, got %v", err)
+	}
 }
 
 func TestApplyKonnectEnvironmentDefaultsAcceptsProductionEnvironment(t *testing.T) {
