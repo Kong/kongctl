@@ -7,7 +7,7 @@ import (
 	"slices"
 )
 
-//go:embed assets/kong-*-ascii.txt assets/kong-*-braille.txt
+//go:embed assets/kong-*-ascii.txt assets/kong-*-braille.txt assets/roar/frames_ansi/*.txt
 var assets embed.FS
 
 type KongBannerType string
@@ -15,10 +15,17 @@ type KongBannerType string
 const (
 	KongBannerASCII   KongBannerType = "ascii"
 	KongBannerBraille KongBannerType = "braille"
+
+	KongRoarAnimationWidth      = 80
+	KongRoarAnimationHeight     = 22
+	KongRoarAnimationFrameCount = 87
+	KongRoarAnimationDurationMS = 80
 )
 
-var supportedKongBannerWidths = []int{48, 88, 104, 120}
-var supportedKongBannerTypes = []KongBannerType{KongBannerASCII, KongBannerBraille}
+var (
+	supportedKongBannerWidths = []int{48, 88, 104, 120}
+	supportedKongBannerTypes  = []KongBannerType{KongBannerASCII, KongBannerBraille}
+)
 
 func (t KongBannerType) String() string {
 	return string(t)
@@ -52,6 +59,31 @@ func RenderKongBannerType(w io.Writer, width int, bannerType KongBannerType) err
 	}
 
 	return renderAsset(w, fmt.Sprintf("assets/kong-%d-%s.txt", width, bannerType))
+}
+
+func KongRoarAnimationFrames() ([]string, error) {
+	entries, err := assets.ReadDir("assets/roar/frames_ansi")
+	if err != nil {
+		return nil, fmt.Errorf("read roar animation assets: %w", err)
+	}
+
+	frames := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := fmt.Sprintf("assets/roar/frames_ansi/%s", entry.Name())
+		content, err := assets.ReadFile(name)
+		if err != nil {
+			return nil, fmt.Errorf("read roar animation asset %q: %w", name, err)
+		}
+		frames = append(frames, string(content))
+	}
+	if len(frames) == 0 {
+		return nil, fmt.Errorf("no roar animation assets found")
+	}
+	return frames, nil
 }
 
 func renderAsset(w io.Writer, name string) error {

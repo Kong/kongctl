@@ -12,11 +12,13 @@ import (
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/kong/kongctl/internal/art"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	roarcmd "github.com/kong/kongctl/internal/cmd/root/verbs/roar"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/konnect/auth"
@@ -46,7 +48,16 @@ var (
 
 	loginInputIsTerminal  = isTerminalReader
 	loginOutputIsTerminal = isTerminalWriter
+	loginTerminalData     = roarcmd.DetectTerminalData
 )
+
+const (
+	loginNoAnimateFlagName = "no-animate"
+	loginNoImageFlagName   = "no-image"
+	loginAnimationLoops    = 2
+)
+
+var errDeviceAuthorizationExpired = errors.New("device authorization request has expired")
 
 type loginUIStyles struct {
 	heading lipgloss.Style
@@ -59,6 +70,30 @@ type loginUIStyles struct {
 
 type loginKonnectCmd struct {
 	*cobra.Command
+	noAnimate bool
+	noImage   bool
+}
+
+type loginPollTokenFunc func(context.Context) (*auth.AccessToken, error)
+
+type loginAnimationTickMsg time.Time
+
+type loginPollMsg struct {
+	token *auth.AccessToken
+	err   error
+}
+
+type loginAnimationModel struct {
+	ctx          context.Context
+	frames       []string
+	frame        int
+	maxFrames    int
+	instructions string
+	pollInterval time.Duration
+	expiresAt    time.Time
+	poll         loginPollTokenFunc
+	token        *auth.AccessToken
+	err          error
 }
 
 // resolveAuthURLs returns the fully constructed auth and token poll URLs from cfg.
@@ -285,14 +320,43 @@ func isTerminalWriter(out io.Writer) bool {
 	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
-func displayLoginBanner(streams *iostreams.IOStreams) error {
+func displayStaticLoginBanner(streams *iostreams.IOStreams) error {
 	if streams == nil || streams.In == nil || streams.Out == nil {
 		return nil
 	}
 	if !loginInputIsTerminal(streams.In) || !loginOutputIsTerminal(streams.Out) {
 		return nil
 	}
-	return art.RenderLoginBanner(streams.Out)
+
+	terminal := loginTerminalData(streams.Out)
+	if roarcmd.CanRenderFrameWidth(terminal) {
+		useNativeColor := roarcmd.ShouldUseNativeAnimationColor(roarcmd.NativeColorValue, terminal)
+		return roarcmd.RenderStaticFrame(streams.Out, nil, useNativeColor)
+	}
+
+	_, err := roarcmd.RenderFallbackClimber(streams.Out, terminal, nil)
+	return err
+}
+
+func displayLoginBanner(streams *iostreams.IOStreams, noImage bool) error {
+	if noImage {
+		return nil
+	}
+	return displayStaticLoginBanner(streams)
+}
+
+func shouldAnimateLoginBanner(streams *iostreams.IOStreams, noAnimate, noImage bool) bool {
+	if noImage {
+		return false
+	}
+	if streams == nil || streams.In == nil || streams.Out == nil {
+		return false
+	}
+	if !loginInputIsTerminal(streams.In) || !loginOutputIsTerminal(streams.Out) {
+		return false
+	}
+
+	return roarcmd.ShouldRenderAnimation(noAnimate, loginTerminalData(streams.Out))
 }
 
 func shouldStyleLoginOutput(streams *iostreams.IOStreams) bool {
@@ -303,6 +367,205 @@ func shouldStyleLoginOutput(streams *iostreams.IOStreams) bool {
 		return false
 	}
 	return loginOutputIsTerminal(streams.Out)
+}
+
+func loginInstructions(resp auth.DeviceCodeResponse, styled bool) string {
+	var b strings.Builder
+	displayUserInstructions(&b, resp, styled)
+	return strings.TrimSuffix(b.String(), "\n")
+}
+
+func runAnimatedLogin(
+	ctx context.Context,
+	streams *iostreams.IOStreams,
+	resp auth.DeviceCodeResponse,
+	styled bool,
+	poll loginPollTokenFunc,
+) (*auth.AccessToken, error) {
+	if streams == nil || streams.In == nil || streams.Out == nil {
+		return waitForDeviceAuthorization(ctx, resp, poll)
+	}
+
+	terminal := loginTerminalData(streams.Out)
+	useNativeColor := roarcmd.ShouldUseNativeAnimationColor(roarcmd.NativeColorValue, terminal)
+	frames, err := roarcmd.AnimationFrames(nil, useNativeColor)
+	if err != nil {
+		return nil, err
+	}
+
+	model := newLoginAnimationModel(
+		ctx,
+		frames,
+		loginInstructions(resp, styled),
+		time.Duration(resp.Interval)*time.Second,
+		time.Now().Add(time.Duration(resp.ExpiresIn)*time.Second),
+		poll,
+	)
+	programOpts := []tea.ProgramOption{
+		tea.WithContext(ctx),
+		tea.WithInput(streams.In),
+		tea.WithOutput(streams.Out),
+	}
+	if iostreams.HasTrueColorEnv() {
+		programOpts = append(programOpts, tea.WithColorProfile(colorprofile.TrueColor))
+	}
+
+	finalModel, err := tea.NewProgram(model, programOpts...).Run()
+	if errors.Is(err, tea.ErrInterrupted) || errors.Is(err, context.Canceled) {
+		return nil, context.Canceled
+	}
+	if err != nil {
+		return nil, err
+	}
+	model, ok := finalModel.(loginAnimationModel)
+	if !ok {
+		return nil, fmt.Errorf("unexpected login animation model type %T", finalModel)
+	}
+	if model.err != nil {
+		return nil, model.err
+	}
+	return model.token, nil
+}
+
+func newLoginAnimationModel(
+	ctx context.Context,
+	frames []string,
+	instructions string,
+	pollInterval time.Duration,
+	expiresAt time.Time,
+	poll loginPollTokenFunc,
+) loginAnimationModel {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return loginAnimationModel{
+		ctx:          ctx,
+		frames:       frames,
+		maxFrames:    loginAnimationLoops * len(frames),
+		instructions: instructions,
+		pollInterval: pollInterval,
+		expiresAt:    expiresAt,
+		poll:         poll,
+	}
+}
+
+func (m loginAnimationModel) Init() tea.Cmd {
+	return tea.Batch(tickLoginAnimation(), pollLoginAfter(m.ctx, m.pollInterval, m.poll))
+}
+
+func (m loginAnimationModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		switch msg.String() {
+		case "ctrl+c", "q", "esc":
+			m.err = context.Canceled
+			return m, tea.Quit
+		default:
+			return m, nil
+		}
+	case loginAnimationTickMsg:
+		if m.frame+1 < m.maxFrames {
+			m.frame++
+			return m, tickLoginAnimation()
+		}
+		return m, nil
+	case loginPollMsg:
+		return m.handlePoll(msg)
+	default:
+		return m, nil
+	}
+}
+
+func (m loginAnimationModel) View() tea.View {
+	frame := ""
+	if len(m.frames) > 0 {
+		frame = strings.TrimSuffix(m.frames[m.frame%len(m.frames)], "\n")
+	}
+
+	content := frame
+	if m.instructions != "" {
+		if content != "" {
+			content += "\n\n"
+		}
+		content += m.instructions
+	}
+	return tea.NewView(content)
+}
+
+func (m loginAnimationModel) handlePoll(msg loginPollMsg) (tea.Model, tea.Cmd) {
+	var dagError *auth.DAGError
+	if errors.As(msg.err, &dagError) && dagError.ErrorCode == auth.AuthorizationPendingErrorCode {
+		if time.Now().After(m.expiresAt) {
+			m.err = errDeviceAuthorizationExpired
+			return m, tea.Quit
+		}
+		return m, pollLoginAfter(m.ctx, m.pollInterval, m.poll)
+	}
+	if msg.err != nil {
+		m.err = msg.err
+		return m, tea.Quit
+	}
+	if msg.token != nil && msg.token.Token != nil && msg.token.Token.AuthToken != "" {
+		m.token = msg.token
+		return m, tea.Quit
+	}
+	if time.Now().After(m.expiresAt) {
+		m.err = errDeviceAuthorizationExpired
+		return m, tea.Quit
+	}
+	return m, pollLoginAfter(m.ctx, m.pollInterval, m.poll)
+}
+
+func tickLoginAnimation() tea.Cmd {
+	return tea.Tick(time.Duration(roarcmd.AnimationFrameDelayMS())*time.Millisecond, func(t time.Time) tea.Msg {
+		return loginAnimationTickMsg(t)
+	})
+}
+
+func pollLoginAfter(ctx context.Context, interval time.Duration, poll loginPollTokenFunc) tea.Cmd {
+	return tea.Tick(interval, func(time.Time) tea.Msg {
+		if poll == nil {
+			return loginPollMsg{err: fmt.Errorf("no login token poller configured")}
+		}
+		token, err := poll(ctx)
+		return loginPollMsg{token: token, err: err}
+	})
+}
+
+func waitForDeviceAuthorization(
+	ctx context.Context,
+	resp auth.DeviceCodeResponse,
+	poll loginPollTokenFunc,
+) (*auth.AccessToken, error) {
+	expiresAt := time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second)
+	for {
+		var err error
+		var pollResp *auth.AccessToken
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(resp.Interval) * time.Second):
+			pollResp, err = poll(ctx)
+		}
+		var dagError *auth.DAGError
+		if errors.As(err, &dagError) && dagError.ErrorCode == auth.AuthorizationPendingErrorCode {
+			if time.Now().After(expiresAt) {
+				return nil, errDeviceAuthorizationExpired
+			}
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if time.Now().After(expiresAt) {
+			return nil, errDeviceAuthorizationExpired
+		}
+
+		if pollResp != nil && pollResp.Token != nil && pollResp.Token.AuthToken != "" {
+			return pollResp, nil
+		}
+	}
 }
 
 func (c *loginKonnectCmd) run(helper cmd.Helper) error {
@@ -320,9 +583,6 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 
 	streams := helper.GetStreams()
 	styledLoginOutput := shouldStyleLoginOutput(streams)
-	if err := displayLoginBanner(streams); err != nil {
-		return cmd.PrepareExecutionErrorWithHelper(helper, "failed to render login banner", err)
-	}
 
 	if err := handleTelemetryPreference(
 		helper.GetContext(),
@@ -351,42 +611,34 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 			fmt.Sprintf("invalid device code request response from Konnect: %v", resp))
 	}
 
-	displayUserInstructions(streams.Out, resp, styledLoginOutput)
+	poll := func(ctx context.Context) (*auth.AccessToken, error) {
+		return auth.PollForToken(ctx, httpClient, pollURL, clientID, resp.DeviceCode, logger)
+	}
 
-	expiresAt := time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second)
-	// poll for token while the user completes authorizing the request
-	for {
-		var err error
-		var pollResp *auth.AccessToken
-		select {
-		case <-helper.GetContext().Done():
-			c.SilenceUsage = true
-			c.SilenceErrors = true
-			return helper.GetContext().Err()
-		case <-time.After(time.Duration(resp.Interval) * time.Second):
-			pollResp, err = auth.PollForToken(
-				helper.GetContext(), httpClient, pollURL, clientID, resp.DeviceCode, logger,
-			)
+	var pollResp *auth.AccessToken
+	if shouldAnimateLoginBanner(streams, c.noAnimate, c.noImage) {
+		pollResp, err = runAnimatedLogin(helper.GetContext(), streams, resp, styledLoginOutput, poll)
+	} else {
+		if err := displayLoginBanner(streams, c.noImage); err != nil {
+			return cmd.PrepareExecutionErrorWithHelper(helper, "failed to render login banner", err)
 		}
-		var dagError *auth.DAGError
-		if errors.As(err, &dagError) && dagError.ErrorCode == auth.AuthorizationPendingErrorCode {
-			continue
-		}
-		if err != nil {
-			return cmd.PrepareExecutionErrorWithHelper(helper, "failed to poll for token", err)
-		}
-
-		if time.Now().After(expiresAt) {
-			return cmd.PrepareExecutionErrorMsg(helper, "device authorization request has expired")
-		}
-
-		if pollResp != nil && pollResp.Token.AuthToken != "" {
-			displayLoginSuccess(streams.Out, styledLoginOutput)
-			if err := auth.SaveAccessToken(cfg, pollResp); err != nil {
-				return cmd.PrepareExecutionErrorWithHelper(helper, "failed to save tokens", err)
-			}
-			break
-		}
+		displayUserInstructions(streams.Out, resp, styledLoginOutput)
+		pollResp, err = waitForDeviceAuthorization(helper.GetContext(), resp, poll)
+	}
+	if errors.Is(err, context.Canceled) {
+		c.SilenceUsage = true
+		c.SilenceErrors = true
+		return err
+	}
+	if errors.Is(err, errDeviceAuthorizationExpired) {
+		return cmd.PrepareExecutionErrorMsg(helper, errDeviceAuthorizationExpired.Error())
+	}
+	if err != nil {
+		return cmd.PrepareExecutionErrorWithHelper(helper, "failed to poll for token", err)
+	}
+	displayLoginSuccess(streams.Out, styledLoginOutput)
+	if err := auth.SaveAccessToken(cfg, pollResp); err != nil {
+		return cmd.PrepareExecutionErrorWithHelper(helper, "failed to save tokens", err)
 	}
 
 	return nil
@@ -490,6 +742,11 @@ func newLoginKonnectCmd(verb verbs.VerbValue,
 - Config path: [ %s ]
 -`, // (default ...)
 			common.TokenURLPathConfigPath))
+
+	rv.Flags().BoolVar(&rv.noAnimate, loginNoAnimateFlagName, false,
+		"Print a static login banner instead of animating when the terminal supports animation.")
+	rv.Flags().BoolVar(&rv.noImage, loginNoImageFlagName, false,
+		"Show only login text without animation or static image output.")
 
 	rv.PersistentPreRunE = func(c *cobra.Command, args []string) error {
 		e := parentPreRun(c, args)

@@ -74,6 +74,62 @@ func IsOutputFormatValidationSkipped(cmd *cobra.Command) bool {
 	return false
 }
 
+// HideInheritedFlags marks inherited flag names that should not appear in
+// cmd's help text.
+func HideInheritedFlags(cmd *cobra.Command, names ...string) {
+	if cmd == nil || len(names) == 0 {
+		return
+	}
+	if cmd.Annotations == nil {
+		cmd.Annotations = map[string]string{}
+	}
+
+	seen := map[string]struct{}{}
+	merged := []string{}
+	if existing := cmd.Annotations[HiddenInheritedFlagsAnnotation]; existing != "" {
+		for name := range strings.SplitSeq(existing, ",") {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			if _, ok := seen[name]; !ok {
+				seen[name] = struct{}{}
+				merged = append(merged, name)
+			}
+		}
+	}
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; !ok {
+			seen[name] = struct{}{}
+			merged = append(merged, name)
+		}
+	}
+	cmd.Annotations[HiddenInheritedFlagsAnnotation] = strings.Join(merged, ",")
+}
+
+// HiddenInheritedFlags returns inherited flag names hidden by cmd or any of
+// its ancestors.
+func HiddenInheritedFlags(cmd *cobra.Command) map[string]struct{} {
+	hidden := map[string]struct{}{}
+	for c := cmd; c != nil; c = c.Parent() {
+		names := strings.TrimSpace(c.Annotations[HiddenInheritedFlagsAnnotation])
+		if names == "" {
+			continue
+		}
+		for name := range strings.SplitSeq(names, ",") {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				hidden[name] = struct{}{}
+			}
+		}
+	}
+	return hidden
+}
+
 // AllowedOutputFormats returns the full list of --output values accepted by
 // cmd: the base set plus any extras declared via AllowExtraOutputFormats on
 // cmd itself or any of its ancestors.

@@ -2,6 +2,7 @@ package art
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -144,6 +145,32 @@ func TestKongBannerASCIIAssetsUseASCII(t *testing.T) {
 	}
 }
 
+func TestKongRoarAnimationFrames(t *testing.T) {
+	frames, err := KongRoarAnimationFrames()
+	if err != nil {
+		t.Fatalf("KongRoarAnimationFrames: %v", err)
+	}
+	if len(frames) != KongRoarAnimationFrameCount {
+		t.Fatalf("frame count = %d, want %d", len(frames), KongRoarAnimationFrameCount)
+	}
+
+	for i, frame := range frames {
+		name := fmt.Sprintf("roar animation frame %04d", i+1)
+		assertASCIIAsset(t, name, frame)
+		if !strings.Contains(frame, "\x1b[38;2;") {
+			t.Fatalf("%s does not contain truecolor foreground sequences", name)
+		}
+
+		visible := stripANSI(frame)
+		if got := maxLineWidth(visible); got != KongRoarAnimationWidth {
+			t.Fatalf("%s width = %d, want %d", name, got, KongRoarAnimationWidth)
+		}
+		if got := lineCount(visible); got != KongRoarAnimationHeight {
+			t.Fatalf("%s height = %d, want %d", name, got, KongRoarAnimationHeight)
+		}
+	}
+}
+
 func TestRenderLoginBannerAssetsUseBraillePatterns(t *testing.T) {
 	var out strings.Builder
 	if err := RenderLoginBanner(&out); err != nil {
@@ -208,3 +235,17 @@ func maxLineWidth(value string) int {
 	}
 	return maxWidth
 }
+
+func lineCount(value string) int {
+	count := 0
+	for range strings.Lines(value) {
+		count++
+	}
+	return count
+}
+
+func stripANSI(value string) string {
+	return ansiEscapePattern.ReplaceAllString(value, "")
+}
+
+var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-9;?]*[[:alpha:]]`)

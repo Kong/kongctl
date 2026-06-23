@@ -14,6 +14,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/art"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -320,6 +321,112 @@ func TestCreateCommandIsTokenOnly(t *testing.T) {
 	}
 }
 
+func TestRootHelpShowsRoarCommand(t *testing.T) {
+	result := executeRootForTest(t, "--help")
+	if result.exitCode != 0 {
+		t.Fatalf("expected root help to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+
+	if !strings.Contains(result.stdout, "roar") || !strings.Contains(result.stdout, "Feel the Kong power!") {
+		t.Fatalf("expected root help to show roar command\nstdout:\n%s", result.stdout)
+	}
+}
+
+func TestRoarHelpUsesPublicFlagNames(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--help")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar help to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+
+	for _, want := range []string{"--climber-art", "--location"} {
+		if !strings.Contains(result.stdout, want) {
+			t.Fatalf("expected roar help to contain %q\nstdout:\n%s", want, result.stdout)
+		}
+	}
+	for _, forbidden := range []string{
+		"--art",
+		"--placement",
+		"--config-file",
+		"--profile",
+		"--color-theme",
+		"--log-level",
+		"--log-file",
+	} {
+		if strings.Contains(result.stdout, forbidden) {
+			t.Fatalf("expected roar help not to contain hidden flag %q\nstdout:\n%s",
+				forbidden, result.stdout)
+		}
+	}
+}
+
+func TestRoarRejectsUnsupportedGlobalFlags(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "config.yaml")
+	requireNoError(t, os.WriteFile(configFile, []byte("{}\n"), 0o600))
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "profile",
+			args: []string{"roar", "--profile", "dev"},
+			want: "flag --profile is not supported for the roar command",
+		},
+		{
+			name: "config file",
+			args: []string{"roar", "--config-file", configFile},
+			want: "flag --config-file is not supported for the roar command",
+		},
+		{
+			name: "color theme",
+			args: []string{"roar", "--color-theme", "auto"},
+			want: "flag --color-theme is not supported for the roar command",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executeRootForTest(t, tt.args...)
+			if result.exitCode == 0 {
+				t.Fatalf("expected roar with unsupported global flag to fail\nstdout:\n%s", result.stdout)
+			}
+			if !strings.Contains(result.stderr, tt.want) {
+				t.Fatalf("expected unsupported global flag error %q\nstderr:\n%s", tt.want, result.stderr)
+			}
+		})
+	}
+}
+
+func TestRoarAllowsHiddenLogFlags(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "log level",
+			args: []string{"roar", "--log-level", "debug"},
+		},
+		{
+			name: "log file",
+			args: []string{"roar", "--log-file", filepath.Join(t.TempDir(), "kongctl.log")},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executeRootForTest(t, tt.args...)
+			if result.exitCode != 0 {
+				t.Fatalf("expected roar with hidden log flag to succeed\nstdout:\n%s\nstderr:\n%s",
+					result.stdout, result.stderr)
+			}
+			if strings.TrimSpace(result.stdout) == "" {
+				t.Fatal("expected roar with hidden log flag to print art")
+			}
+		})
+	}
+}
+
 func TestRoarPrintsBanner(t *testing.T) {
 	t.Setenv("TERM", "xterm-256color")
 	t.Setenv("LC_ALL", "en_US.UTF-8")
@@ -328,27 +435,76 @@ func TestRoarPrintsBanner(t *testing.T) {
 	if result.exitCode != 0 {
 		t.Fatalf("expected roar to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
 	}
-	if !containsBraillePatternForTest(result.stdout) {
-		t.Fatalf("expected roar to print braille banner\nstdout:\n%s", result.stdout)
+	if strings.TrimSpace(result.stdout) == "" {
+		t.Fatal("expected roar to print a static animation frame")
+	}
+	if containsBraillePatternForTest(result.stdout) {
+		t.Fatalf("expected default non-terminal roar output not to print climber braille banner\nstdout:\n%s",
+			result.stdout)
 	}
 	if strings.Contains(result.stdout, "\x1b[") {
 		t.Fatalf("expected default roar output not to include ANSI escapes\nstdout:\n%q", result.stdout)
+	}
+	if got := maxLineWidthForTest(result.stdout); got != art.KongRoarAnimationWidth {
+		t.Fatalf("expected static animation frame width %d, got %d\nstdout:\n%s",
+			art.KongRoarAnimationWidth, got, result.stdout)
+	}
+	if got := lineCountForTest(result.stdout); got != art.KongRoarAnimationHeight {
+		t.Fatalf("expected static animation frame height %d, got %d\nstdout:\n%s",
+			art.KongRoarAnimationHeight, got, result.stdout)
 	}
 	if result.stderr != "" {
 		t.Fatalf("expected no stderr output, got:\n%s", result.stderr)
 	}
 }
 
-func TestRoarPrintsASCIIBanner(t *testing.T) {
-	result := executeRootForTest(t, "roar", "--art", "ascii")
+func TestRoarNoAnimatePrintsStaticAnimationFrame(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+
+	result := executeRootForTest(t, "roar", "--no-animate")
 	if result.exitCode != 0 {
-		t.Fatalf("expected roar --art ascii to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+		t.Fatalf("expected roar --no-animate to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if strings.TrimSpace(result.stdout) == "" {
+		t.Fatal("expected roar --no-animate to print a static animation frame")
 	}
 	if containsBraillePatternForTest(result.stdout) {
-		t.Fatalf("expected roar --art ascii not to print braille glyphs\nstdout:\n%s", result.stdout)
+		t.Fatalf("expected roar --no-animate not to print climber braille banner\nstdout:\n%s", result.stdout)
+	}
+	if got := maxLineWidthForTest(result.stdout); got != art.KongRoarAnimationWidth {
+		t.Fatalf("expected static animation frame width %d, got %d\nstdout:\n%s",
+			art.KongRoarAnimationWidth, got, result.stdout)
+	}
+}
+
+func TestRoarClimberPrintsBanner(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+
+	result := executeRootForTest(t, "roar", "--climber")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --climber to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if !containsBraillePatternForTest(result.stdout) {
+		t.Fatalf("expected roar --climber to print braille climber banner\nstdout:\n%s", result.stdout)
+	}
+	if strings.Contains(result.stdout, "\x1b[") {
+		t.Fatalf("expected roar --climber default output not to include ANSI escapes\nstdout:\n%q", result.stdout)
+	}
+}
+
+func TestRoarPrintsASCIIBanner(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--climber-art", "ascii")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --climber-art ascii to succeed\nstdout:\n%s\nstderr:\n%s",
+			result.stdout, result.stderr)
+	}
+	if containsBraillePatternForTest(result.stdout) {
+		t.Fatalf("expected roar --climber-art ascii not to print braille glyphs\nstdout:\n%s", result.stdout)
 	}
 	if !strings.Contains(result.stdout, "@") {
-		t.Fatalf("expected roar --art ascii to print ASCII art\nstdout:\n%s", result.stdout)
+		t.Fatalf("expected roar --climber-art ascii to print ASCII art\nstdout:\n%s", result.stdout)
 	}
 	if result.stderr != "" {
 		t.Fatalf("expected no stderr output, got:\n%s", result.stderr)
@@ -366,12 +522,26 @@ func TestRoarAutoArtUsesASCIIForDumbTerminal(t *testing.T) {
 	if containsBraillePatternForTest(result.stdout) {
 		t.Fatalf("expected TERM=dumb auto art not to print braille glyphs\nstdout:\n%s", result.stdout)
 	}
-	if !strings.Contains(result.stdout, "@") {
-		t.Fatalf("expected TERM=dumb auto art to print ASCII art\nstdout:\n%s", result.stdout)
+	if strings.Contains(result.stdout, "\x1b[") {
+		t.Fatalf("expected TERM=dumb static frame without ANSI escapes\nstdout:\n%q", result.stdout)
+	}
+	if got := maxLineWidthForTest(result.stdout); got != art.KongRoarAnimationWidth {
+		t.Fatalf("expected TERM=dumb static frame width %d, got %d\nstdout:\n%s",
+			art.KongRoarAnimationWidth, got, result.stdout)
 	}
 }
 
 func TestRoarPrintsRequestedWidth(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--climber-width", "88")
+	if result.exitCode != 0 {
+		t.Fatalf("expected roar --climber-width 88 to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if got := maxLineWidthForTest(result.stdout); got != 88 {
+		t.Fatalf("expected 88-column banner, got width %d\nstdout:\n%s", got, result.stdout)
+	}
+}
+
+func TestRoarLegacyWidthAliasPrintsRequestedWidth(t *testing.T) {
 	result := executeRootForTest(t, "roar", "--width", "88")
 	if result.exitCode != 0 {
 		t.Fatalf("expected roar --width 88 to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
@@ -382,22 +552,22 @@ func TestRoarPrintsRequestedWidth(t *testing.T) {
 }
 
 func TestRoarRejectsUnsupportedWidth(t *testing.T) {
-	result := executeRootForTest(t, "roar", "--width", "72")
+	result := executeRootForTest(t, "roar", "--climber-width", "72")
 	if result.exitCode == 0 {
-		t.Fatalf("expected roar --width 72 to fail\nstdout:\n%s", result.stdout)
+		t.Fatalf("expected roar --climber-width 72 to fail\nstdout:\n%s", result.stdout)
 	}
 	if !strings.Contains(result.stderr, "unsupported kong banner width 72") {
 		t.Fatalf("expected unsupported width error\nstderr:\n%s", result.stderr)
 	}
 }
 
-func TestRoarColorAutoAddsANSI(t *testing.T) {
+func TestRoarColorAutoSkipsANSIForNonTerminalOutput(t *testing.T) {
 	result := executeRootForTest(t, "roar", "--color", "auto")
 	if result.exitCode != 0 {
 		t.Fatalf("expected roar --color auto to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
 	}
-	if !strings.Contains(result.stdout, "\x1b[") {
-		t.Fatalf("expected colorized roar output to include ANSI escapes\nstdout:\n%q", result.stdout)
+	if strings.Contains(result.stdout, "\x1b[") {
+		t.Fatalf("expected non-terminal auto color output without ANSI escapes\nstdout:\n%q", result.stdout)
 	}
 }
 
@@ -416,17 +586,37 @@ func TestRoarRejectsInvalidColorValue(t *testing.T) {
 	if result.exitCode == 0 {
 		t.Fatalf("expected roar --color always to fail\nstdout:\n%s", result.stdout)
 	}
-	if !strings.Contains(result.stderr, `--color must be "auto", "off"`) {
+	if !strings.Contains(result.stderr, `--color must be "native", "auto", "off"`) {
 		t.Fatalf("expected invalid color value error\nstderr:\n%s", result.stderr)
 	}
 }
 
-func TestRoarRejectsInvalidArtType(t *testing.T) {
-	result := executeRootForTest(t, "roar", "--art", "sixel")
+func TestRoarRejectsInvalidLoops(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--loops", "0")
 	if result.exitCode == 0 {
-		t.Fatalf("expected roar --art sixel to fail\nstdout:\n%s", result.stdout)
+		t.Fatalf("expected roar --loops 0 to fail\nstdout:\n%s", result.stdout)
 	}
-	if !strings.Contains(result.stderr, `--art must be "auto"`) {
+	if !strings.Contains(result.stderr, "--loops must be greater than 0") {
+		t.Fatalf("expected invalid loops error\nstderr:\n%s", result.stderr)
+	}
+}
+
+func TestRoarRejectsInvalidLocation(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--location", "diagonal")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --location diagonal to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, "--location must be one of") {
+		t.Fatalf("expected invalid location error\nstderr:\n%s", result.stderr)
+	}
+}
+
+func TestRoarRejectsInvalidClimberArtType(t *testing.T) {
+	result := executeRootForTest(t, "roar", "--climber-art", "sixel")
+	if result.exitCode == 0 {
+		t.Fatalf("expected roar --climber-art sixel to fail\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, `--climber-art must be "auto"`) {
 		t.Fatalf("expected invalid art type error\nstderr:\n%s", result.stderr)
 	}
 }
@@ -836,7 +1026,11 @@ func TestSPATGetAndDeleteCommands(t *testing.T) {
 		"-o", "text",
 	)
 	if result.exitCode != 0 {
-		t.Fatalf("expected delete unnamed spat by id to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+		t.Fatalf(
+			"expected delete unnamed spat by id to succeed\nstdout:\n%s\nstderr:\n%s",
+			result.stdout,
+			result.stderr,
+		)
 	}
 	if result.stdout != fmt.Sprintf("Deleted spat %q\n", unnamedID) {
 		t.Fatalf("expected unnamed SPAT delete text to use token id, got %q", result.stdout)
@@ -2105,6 +2299,14 @@ func maxLineWidthForTest(value string) int {
 		maxWidth = max(maxWidth, runewidth.StringWidth(strings.TrimSuffix(line, "\n")))
 	}
 	return maxWidth
+}
+
+func lineCountForTest(value string) int {
+	count := 0
+	for range strings.Lines(value) {
+		count++
+	}
+	return count
 }
 
 func assertAvailableSubcommands(t *testing.T, stderr string, command *cobra.Command) {
