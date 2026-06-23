@@ -12,6 +12,13 @@ permissions:
 on:
   pull_request:
     branches: ['**']
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+      - unlabeled
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
@@ -28,9 +35,10 @@ on:
         description: Konnect environment to target
         type: choice
         options:
-          - production
+          - auto
+          - com
           - tech
-        default: production
+        default: auto
       run_portal_applications:
         description: Run Gmail-backed portal applications scenario
         type: boolean
@@ -74,31 +82,54 @@ jobs:
         env:
           DISPATCH_KONNECT_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.konnect_environment || '' }}
           CONFIGURED_KONNECT_ENVIRONMENT: ${{ vars.KONGCTL_E2E_KONNECT_ENV || '' }}
+          PR_HAS_TECH_LABEL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'konnect-env:tech') && 'true' || 'false' }}
           DEFAULT_ORGS_JSON: ${{ vars.KONGCTL_E2E_ORGS_JSON || '' }}
+          COM_ORGS_JSON: ${{ vars.KONGCTL_E2E_COM_ORGS_JSON || '' }}
           PRODUCTION_ORGS_JSON: ${{ vars.KONGCTL_E2E_PRODUCTION_ORGS_JSON || '' }}
           TECH_ORGS_JSON: ${{ vars.KONGCTL_E2E_TECH_ORGS_JSON || '' }}
         run: |
           set -euo pipefail
 
-          konnect_environment="${DISPATCH_KONNECT_ENVIRONMENT:-}"
-          if [ -z "${konnect_environment}" ]; then
-            konnect_environment="${CONFIGURED_KONNECT_ENVIRONMENT:-production}"
-          fi
+          normalize_environment() {
+            local value="${1:-}"
+            case "${value}" in
+              ""|auto)
+                printf '%s' ""
+                ;;
+              com|production|prod)
+                printf '%s' "com"
+                ;;
+              tech)
+                printf '%s' "tech"
+                ;;
+              *)
+                echo "::error::Unsupported Konnect environment: ${value}"
+                exit 1
+                ;;
+            esac
+          }
 
-          case "${konnect_environment}" in
-            production|tech)
-              ;;
-            *)
-              echo "::error::Unsupported Konnect environment: ${konnect_environment}"
-              exit 1
-              ;;
-          esac
+          konnect_environment="$(normalize_environment "${DISPATCH_KONNECT_ENVIRONMENT:-auto}")"
+          if [ -z "${konnect_environment}" ]; then
+            if [ "${PR_HAS_TECH_LABEL:-false}" = "true" ]; then
+              konnect_environment="tech"
+            fi
+          fi
+          if [ -z "${konnect_environment}" ]; then
+            konnect_environment="$(normalize_environment "${CONFIGURED_KONNECT_ENVIRONMENT:-}")"
+          fi
+          if [ -z "${konnect_environment}" ]; then
+            konnect_environment="com"
+          fi
 
           orgs_json=""
           if [ "${konnect_environment}" = "tech" ]; then
             orgs_json="${TECH_ORGS_JSON:-}"
           else
-            orgs_json="${PRODUCTION_ORGS_JSON:-}"
+            orgs_json="${COM_ORGS_JSON:-}"
+            if [ -z "${orgs_json}" ]; then
+              orgs_json="${PRODUCTION_ORGS_JSON:-}"
+            fi
           fi
           if [ -z "${orgs_json}" ]; then
             orgs_json="${DEFAULT_ORGS_JSON:-}"
@@ -383,7 +414,7 @@ jobs:
 
           regional_url="${KONGCTL_E2E_KONNECT_BASE_URL:-}"
           global_url="${KONGCTL_E2E_KONNECT_BASE_AUTH_URL:-}"
-          konnect_env="${KONGCTL_E2E_KONNECT_ENV:-production}"
+          konnect_env="${KONGCTL_E2E_KONNECT_ENV:-com}"
 
           if [ -z "${regional_url}" ]; then
             if [ "${konnect_env}" = "tech" ]; then
