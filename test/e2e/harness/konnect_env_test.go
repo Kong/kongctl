@@ -8,7 +8,21 @@ import (
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 )
 
+func clearKonnectTargetEnv(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{
+		KonnectEnvironmentEnvName,
+		KonnectBaseURLEnvName,
+		KonnectBaseAuthURLEnvName,
+		KonnectMachineClientIDEnvName,
+	} {
+		t.Setenv(name, "")
+	}
+}
+
 func TestResolveKonnectTargetFromEnvDefaultsToProduction(t *testing.T) {
+	clearKonnectTargetEnv(t)
+
 	target, err := ResolveKonnectTargetFromEnv()
 	if err != nil {
 		t.Fatalf("ResolveKonnectTargetFromEnv() error = %v", err)
@@ -26,6 +40,7 @@ func TestResolveKonnectTargetFromEnvDefaultsToProduction(t *testing.T) {
 }
 
 func TestResolveKonnectTargetFromEnvSupportsTech(t *testing.T) {
+	clearKonnectTargetEnv(t)
 	t.Setenv(KonnectEnvironmentEnvName, konnectcommon.EnvironmentTech)
 
 	target, err := ResolveKonnectTargetFromEnv()
@@ -45,6 +60,7 @@ func TestResolveKonnectTargetFromEnvSupportsTech(t *testing.T) {
 }
 
 func TestResolveKonnectTargetFromEnvInfersTechFromBaseURL(t *testing.T) {
+	clearKonnectTargetEnv(t)
 	t.Setenv(KonnectBaseURLEnvName, "https://eu.api.konghq.tech")
 
 	target, err := ResolveKonnectTargetFromEnv()
@@ -64,6 +80,7 @@ func TestResolveKonnectTargetFromEnvInfersTechFromBaseURL(t *testing.T) {
 }
 
 func TestResolveKonnectTargetFromEnvInfersMachineClientWithExplicitAuthURL(t *testing.T) {
+	clearKonnectTargetEnv(t)
 	t.Setenv(KonnectBaseURLEnvName, "https://eu.api.konghq.tech")
 	t.Setenv(KonnectBaseAuthURLEnvName, "https://global.example.test")
 
@@ -81,6 +98,7 @@ func TestResolveKonnectTargetFromEnvInfersMachineClientWithExplicitAuthURL(t *te
 }
 
 func TestResolveKonnectTargetFromEnvAllowsExplicitOverrides(t *testing.T) {
+	clearKonnectTargetEnv(t)
 	t.Setenv(KonnectEnvironmentEnvName, konnectcommon.EnvironmentTech)
 	t.Setenv(KonnectBaseURLEnvName, "https://regional.example.test")
 	t.Setenv(KonnectBaseAuthURLEnvName, "https://global.example.test")
@@ -103,6 +121,7 @@ func TestResolveKonnectTargetFromEnvAllowsExplicitOverrides(t *testing.T) {
 }
 
 func TestKonnectBaseURLFromRegionUsesSelectedEnvironment(t *testing.T) {
+	clearKonnectTargetEnv(t)
 	t.Setenv(KonnectEnvironmentEnvName, konnectcommon.EnvironmentTech)
 
 	got, err := KonnectBaseURLFromRegion("global")

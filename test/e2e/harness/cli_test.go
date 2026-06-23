@@ -12,6 +12,7 @@ import (
 )
 
 func TestWriteProfileConfigIncludesHTTPSettings(t *testing.T) {
+	clearKonnectTargetEnv(t)
 	t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "13s")
 	t.Setenv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", "45s")
 	t.Setenv("KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES", "true")
@@ -53,6 +54,7 @@ func TestWriteProfileConfigIncludesHTTPSettings(t *testing.T) {
 }
 
 func TestWriteProfileConfigOmitsDisabledHTTPTimeouts(t *testing.T) {
+	clearKonnectTargetEnv(t)
 	t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "0s")
 	t.Setenv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", "default")
 
@@ -76,6 +78,7 @@ func TestWriteProfileConfigOmitsDisabledHTTPTimeouts(t *testing.T) {
 }
 
 func TestWriteProfileConfigIncludesTechKonnectSettings(t *testing.T) {
+	clearKonnectTargetEnv(t)
 	t.Setenv(KonnectEnvironmentEnvName, konnectcommon.EnvironmentTech)
 
 	cfgDir := t.TempDir()

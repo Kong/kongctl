@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -20,7 +21,6 @@ import (
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 const (
@@ -135,9 +135,9 @@ func ApplyEnvironmentDefaults(command *cobra.Command, cfg config.Hook) error {
 		return err
 	}
 
-	if !commandTreeFlagChanged(command, BaseURLFlagName) {
+	if !cmdcommon.CommandTreeFlagChanged(command, BaseURLFlagName) {
 		baseURL := defaults.BaseURL
-		if region, ok := commandTreeChangedFlagString(command, RegionFlagName); ok {
+		if region, ok := cmdcommon.CommandTreeChangedFlagString(command, RegionFlagName); ok {
 			resolved, err := BuildBaseURLFromRegionForEnvironment(region, defaults.Name)
 			if err != nil {
 				return err
@@ -151,19 +151,19 @@ func ApplyEnvironmentDefaults(command *cobra.Command, cfg config.Hook) error {
 			baseURL = resolved
 		}
 		cfg.SetString(BaseURLConfigPath, baseURL)
-		if err := setCommandTreeFlagValue(command, BaseURLFlagName, baseURL); err != nil {
+		if err := cmdcommon.SetCommandTreeFlagValue(command, BaseURLFlagName, baseURL); err != nil {
 			return err
 		}
 	}
-	if !commandTreeFlagChanged(command, AuthBaseURLFlagName) {
+	if !cmdcommon.CommandTreeFlagChanged(command, AuthBaseURLFlagName) {
 		cfg.SetString(AuthBaseURLConfigPath, defaults.AuthBaseURL)
-		if err := setCommandTreeFlagValue(command, AuthBaseURLFlagName, defaults.AuthBaseURL); err != nil {
+		if err := cmdcommon.SetCommandTreeFlagValue(command, AuthBaseURLFlagName, defaults.AuthBaseURL); err != nil {
 			return err
 		}
 	}
-	if !commandTreeFlagChanged(command, MachineClientIDFlagName) {
+	if !cmdcommon.CommandTreeFlagChanged(command, MachineClientIDFlagName) {
 		cfg.SetString(MachineClientIDConfigPath, defaults.MachineClientID)
-		if err := setCommandTreeFlagValue(command, MachineClientIDFlagName, defaults.MachineClientID); err != nil {
+		if err := cmdcommon.SetCommandTreeFlagValue(command, MachineClientIDFlagName, defaults.MachineClientID); err != nil {
 			return err
 		}
 	}
@@ -171,7 +171,7 @@ func ApplyEnvironmentDefaults(command *cobra.Command, cfg config.Hook) error {
 }
 
 func SelectedEnvironmentDefaults(command *cobra.Command) (EnvironmentDefaults, bool, error) {
-	if value, ok := commandTreeChangedFlagString(command, KonnectEnvFlagName); ok {
+	if value, ok := cmdcommon.CommandTreeChangedFlagString(command, KonnectEnvFlagName); ok {
 		defaults, err := environmentDefaultsForSelector(value)
 		return defaults, true, err
 	}
@@ -227,77 +227,16 @@ func environmentDefaultsForSelector(value string) (EnvironmentDefaults, error) {
 	}
 }
 
-func setCommandTreeFlagValue(command *cobra.Command, name, value string) error {
-	if command == nil {
-		return nil
-	}
-	for _, flags := range []*pflag.FlagSet{
-		command.Flags(),
-		command.PersistentFlags(),
-		command.LocalNonPersistentFlags(),
-		command.InheritedFlags(),
-	} {
-		if flags == nil {
-			continue
-		}
-		if flag := flags.Lookup(name); flag != nil && !flag.Changed {
-			if err := flag.Value.Set(value); err != nil {
-				return fmt.Errorf("set --%s default: %w", name, err)
-			}
-			flag.DefValue = value
-		}
-	}
-	for _, child := range command.Commands() {
-		if err := setCommandTreeFlagValue(child, name, value); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func commandTreeFlagChanged(command *cobra.Command, name string) bool {
-	return commandTreeChangedFlag(command, name) != nil
-}
-
-func commandTreeChangedFlagString(command *cobra.Command, name string) (string, bool) {
-	flag := commandTreeChangedFlag(command, name)
-	if flag == nil {
-		return "", false
-	}
-	return flag.Value.String(), true
-}
-
-func commandTreeChangedFlag(command *cobra.Command, name string) *pflag.Flag {
-	if command == nil {
-		return nil
-	}
-	for _, flags := range []*pflag.FlagSet{
-		command.Flags(),
-		command.PersistentFlags(),
-		command.LocalNonPersistentFlags(),
-		command.InheritedFlags(),
-	} {
-		if flags == nil {
-			continue
-		}
-		if flag := flags.Lookup(name); flag != nil && flag.Changed {
-			return flag
-		}
-	}
-	for _, child := range command.Commands() {
-		if flag := commandTreeChangedFlag(child, name); flag != nil {
-			return flag
-		}
-	}
-	return nil
-}
-
 func InferEnvironmentDefaultsFromURL(rawURL string) (EnvironmentDefaults, bool) {
-	value := strings.ToLower(strings.TrimSpace(rawURL))
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return EnvironmentDefaults{}, false
+	}
+	host := strings.ToLower(parsed.Hostname())
 	switch {
-	case strings.Contains(value, konnectTechDomain):
+	case host == konnectTechDomain || strings.HasSuffix(host, "."+konnectTechDomain):
 		return TechEnvironmentDefaults(), true
-	case strings.Contains(value, konnectProductionDomain):
+	case host == konnectProductionDomain || strings.HasSuffix(host, "."+konnectProductionDomain):
 		return ProductionEnvironmentDefaults(), true
 	default:
 		return EnvironmentDefaults{}, false

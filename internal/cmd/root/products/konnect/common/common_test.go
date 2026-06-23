@@ -303,6 +303,22 @@ func TestInferEnvironmentDefaultsFromURL(t *testing.T) {
 			wantOK:      true,
 			wantBaseURL: BaseURLDefault,
 		},
+		{
+			name:        "tech URL with query",
+			url:         "https://global.api.konghq.tech/v3?redirect=https://example.test",
+			wantOK:      true,
+			wantBaseURL: TechBaseURLDefault,
+		},
+		{
+			name:   "tech string in path does not infer",
+			url:    "https://example.test/konghq.tech",
+			wantOK: false,
+		},
+		{
+			name:   "tech string in query does not infer",
+			url:    "https://example.test?target=global.api.konghq.tech",
+			wantOK: false,
+		},
 		{name: "custom URL", url: "https://example.test", wantOK: false},
 	}
 

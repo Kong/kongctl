@@ -215,7 +215,7 @@ func newRootCmd() *cobra.Command {
 			return nil
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			if err := applyKonnectEnvironmentDefaults(cmd.Root(), currConfig); err != nil {
+			if err := konnectcommon.ApplyEnvironmentDefaults(cmd.Root(), currConfig); err != nil {
 				return &cmdpkg.ConfigurationError{Err: err}
 			}
 			if err := validateOutputFormat(cmd); err != nil {
@@ -607,11 +607,11 @@ func applyExtensionRuntimeDefaultsBeforeConfig(runtimeCtx *extensioncore.Runtime
 		return
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.ConfigFile); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.ConfigFilePathFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.ConfigFilePathFlagName) {
 		configFilePath = value
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.Profile); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.ProfileFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.ProfileFlagName) {
 		currProfile = value
 	}
 }
@@ -621,170 +621,28 @@ func applyExtensionRuntimeDefaults(runtimeCtx *extensioncore.RuntimeContext, cfg
 		return
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.Output); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.OutputFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.OutputFlagName) {
 		util.CheckError(outputFormat.Set(value))
 		cfg.SetString(common.OutputConfigPath, value)
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.LogLevel); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.LogLevelFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.LogLevelFlagName) {
 		util.CheckError(logLevel.Set(value))
 		cfg.SetString(common.LogLevelConfigPath, value)
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.ColorTheme); value != "" &&
-		!commandTreeFlagChanged(rootCmd, common.ColorThemeFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, common.ColorThemeFlagName) {
 		cfg.SetString(common.ColorThemeConfigPath, value)
 	}
 	if value := strings.TrimSpace(runtimeCtx.Resolved.BaseURL); value != "" &&
-		!commandTreeFlagChanged(rootCmd, konnectcommon.BaseURLFlagName) &&
-		!commandTreeFlagChanged(rootCmd, konnectcommon.RegionFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, konnectcommon.BaseURLFlagName) &&
+		!common.CommandTreeFlagChanged(rootCmd, konnectcommon.RegionFlagName) {
 		cfg.SetString(konnectcommon.BaseURLConfigPath, value)
 	}
 	if value := strings.TrimSpace(os.Getenv(extensioncore.KonnectPATEnvName)); value != "" &&
-		!commandTreeFlagChanged(rootCmd, konnectcommon.PATFlagName) {
+		!common.CommandTreeFlagChanged(rootCmd, konnectcommon.PATFlagName) {
 		cfg.SetString(konnectcommon.PATConfigPath, value)
 	}
-}
-
-func applyKonnectEnvironmentDefaults(command *cobra.Command, cfg config.Hook) error {
-	if command == nil || cfg == nil {
-		return nil
-	}
-
-	defaults, selected, err := selectedKonnectEnvironmentDefaults(command)
-	if err != nil || !selected {
-		return err
-	}
-
-	if !commandTreeFlagChanged(command, konnectcommon.BaseURLFlagName) {
-		baseURL := defaults.BaseURL
-		if region, ok := commandTreeChangedFlagString(command, konnectcommon.RegionFlagName); ok {
-			resolved, err := konnectcommon.BuildBaseURLFromRegionForEnvironment(region, defaults.Name)
-			if err != nil {
-				return err
-			}
-			baseURL = resolved
-		} else if region := strings.TrimSpace(cfg.GetString(konnectcommon.RegionConfigPath)); region != "" {
-			resolved, err := konnectcommon.BuildBaseURLFromRegionForEnvironment(region, defaults.Name)
-			if err != nil {
-				return err
-			}
-			baseURL = resolved
-		}
-		cfg.SetString(konnectcommon.BaseURLConfigPath, baseURL)
-		if err := setCommandTreeFlagValue(command, konnectcommon.BaseURLFlagName, baseURL); err != nil {
-			return err
-		}
-	}
-	if !commandTreeFlagChanged(command, konnectcommon.AuthBaseURLFlagName) {
-		cfg.SetString(konnectcommon.AuthBaseURLConfigPath, defaults.AuthBaseURL)
-		if err := setCommandTreeFlagValue(command, konnectcommon.AuthBaseURLFlagName, defaults.AuthBaseURL); err != nil {
-			return err
-		}
-	}
-	if !commandTreeFlagChanged(command, konnectcommon.MachineClientIDFlagName) {
-		cfg.SetString(konnectcommon.MachineClientIDConfigPath, defaults.MachineClientID)
-		if err := setCommandTreeFlagValue(command, konnectcommon.MachineClientIDFlagName, defaults.MachineClientID); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func selectedKonnectEnvironmentDefaults(command *cobra.Command) (konnectcommon.EnvironmentDefaults, bool, error) {
-	if value, ok := commandTreeChangedFlagString(command, konnectcommon.KonnectEnvFlagName); ok {
-		defaults, err := konnectEnvironmentDefaultsForSelector(value)
-		return defaults, true, err
-	}
-
-	if value := strings.TrimSpace(konnectEnv); value != "" {
-		defaults, err := konnectEnvironmentDefaultsForSelector(value)
-		return defaults, true, err
-	}
-
-	value, ok := os.LookupEnv(konnectcommon.KonnectEnvEnvName)
-	if !ok || strings.TrimSpace(value) == "" {
-		return konnectcommon.EnvironmentDefaults{}, false, nil
-	}
-
-	defaults, err := konnectEnvironmentDefaultsForSelector(value)
-	return defaults, true, err
-}
-
-func konnectEnvironmentDefaultsForSelector(value string) (konnectcommon.EnvironmentDefaults, error) {
-	normalized := strings.ToLower(strings.TrimSpace(value))
-	switch normalized {
-	case konnectcommon.EnvironmentCom, konnectcommon.EnvironmentTech:
-		return konnectcommon.EnvironmentDefaultsFor(normalized)
-	default:
-		return konnectcommon.EnvironmentDefaults{},
-			fmt.Errorf("unsupported konnect environment %q (allowed: %s, %s)",
-				value, konnectcommon.EnvironmentCom, konnectcommon.EnvironmentTech)
-	}
-}
-
-func setCommandTreeFlagValue(command *cobra.Command, name, value string) error {
-	if command == nil {
-		return nil
-	}
-	for _, flags := range []*pflag.FlagSet{
-		command.Flags(),
-		command.PersistentFlags(),
-		command.LocalNonPersistentFlags(),
-		command.InheritedFlags(),
-	} {
-		if flags == nil {
-			continue
-		}
-		if flag := flags.Lookup(name); flag != nil && !flag.Changed {
-			if err := flag.Value.Set(value); err != nil {
-				return fmt.Errorf("set --%s default: %w", name, err)
-			}
-			flag.DefValue = value
-		}
-	}
-	for _, child := range command.Commands() {
-		if err := setCommandTreeFlagValue(child, name, value); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func commandTreeFlagChanged(command *cobra.Command, name string) bool {
-	return commandTreeChangedFlag(command, name) != nil
-}
-
-func commandTreeChangedFlagString(command *cobra.Command, name string) (string, bool) {
-	flag := commandTreeChangedFlag(command, name)
-	if flag == nil {
-		return "", false
-	}
-	return flag.Value.String(), true
-}
-
-func commandTreeChangedFlag(command *cobra.Command, name string) *pflag.Flag {
-	if command == nil {
-		return nil
-	}
-	for _, flags := range []*pflag.FlagSet{
-		command.Flags(),
-		command.PersistentFlags(),
-		command.LocalNonPersistentFlags(),
-		command.InheritedFlags(),
-	} {
-		if flags == nil {
-			continue
-		}
-		if flag := flags.Lookup(name); flag != nil && flag.Changed {
-			return flag
-		}
-	}
-	for _, child := range command.Commands() {
-		if flag := commandTreeChangedFlag(child, name); flag != nil {
-			return flag
-		}
-	}
-	return nil
 }
 
 func initConfig() {
