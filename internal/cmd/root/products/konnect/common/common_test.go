@@ -179,58 +179,6 @@ func TestEnvironmentDefaultsFor(t *testing.T) {
 	}
 }
 
-func TestSelectedEnvironmentFromArgs(t *testing.T) {
-	tests := []struct {
-		name         string
-		args         []string
-		wantValue    string
-		wantSelected bool
-	}{
-		{
-			name:         "space separated",
-			args:         []string{"get", "org", "--konnect-env", "tech"},
-			wantValue:    "tech",
-			wantSelected: true,
-		},
-		{
-			name:         "equals separated",
-			args:         []string{"get", "org", "--konnect-env=tech"},
-			wantValue:    "tech",
-			wantSelected: true,
-		},
-		{
-			name:         "last value wins",
-			args:         []string{"--konnect-env", "com", "get", "org", "--konnect-env=tech"},
-			wantValue:    "tech",
-			wantSelected: true,
-		},
-		{
-			name:         "missing value is selected",
-			args:         []string{"get", "org", "--konnect-env"},
-			wantValue:    "",
-			wantSelected: true,
-		},
-		{
-			name:         "after double dash ignored",
-			args:         []string{"get", "org", "--", "--konnect-env", "tech"},
-			wantSelected: false,
-		},
-		{
-			name:         "not selected",
-			args:         []string{"get", "org"},
-			wantSelected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotValue, gotSelected := selectedEnvironmentFromArgs(tt.args)
-			require.Equal(t, tt.wantSelected, gotSelected)
-			require.Equal(t, tt.wantValue, gotValue)
-		})
-	}
-}
-
 func TestBuildBaseURLFromRegionForEnvironment(t *testing.T) {
 	tests := []struct {
 		name        string

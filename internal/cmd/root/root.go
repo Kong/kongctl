@@ -600,6 +600,9 @@ func bindFlags(config config.Hook) {
 
 	f = rootCmd.Flags().Lookup(common.ColorThemeFlagName)
 	util.CheckError(config.BindFlag(common.ColorThemeConfigPath, f))
+
+	f = rootCmd.Flags().Lookup(konnectcommon.KonnectEnvFlagName)
+	util.CheckError(config.BindFlag(konnectcommon.EnvironmentConfigPath, f))
 }
 
 func applyExtensionRuntimeDefaultsBeforeConfig(runtimeCtx *extensioncore.RuntimeContext) {

@@ -43,12 +43,19 @@ func TestWriteProfileConfigIncludesHTTPSettings(t *testing.T) {
 	}
 	for _, want := range []string{
 		"konnect:",
-		"base-url: " + konnectcommon.BaseURLDefault,
-		"base-auth-url: " + konnectcommon.AuthBaseURLDefault,
-		"machine-client-id: " + konnectcommon.MachineClientIDDefault,
+		"environment: " + konnectcommon.EnvironmentProduction,
 	} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("config missing %q: %s", want, content)
+		}
+	}
+	for _, forbidden := range []string{
+		"base-url:",
+		"base-auth-url:",
+		"machine-client-id:",
+	} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("config unexpectedly contains %q: %s", forbidden, content)
 		}
 	}
 }
@@ -93,9 +100,46 @@ func TestWriteProfileConfigIncludesTechKonnectSettings(t *testing.T) {
 
 	content := string(data)
 	for _, want := range []string{
-		"base-url: " + konnectcommon.TechBaseURLDefault,
-		"base-auth-url: " + konnectcommon.TechGlobalBaseURL,
-		"machine-client-id: " + konnectcommon.TechMachineClientID,
+		"environment: " + konnectcommon.EnvironmentTech,
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("config missing %q: %s", want, content)
+		}
+	}
+	for _, forbidden := range []string{
+		"base-url:",
+		"base-auth-url:",
+		"machine-client-id:",
+	} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("config unexpectedly contains %q: %s", forbidden, content)
+		}
+	}
+}
+
+func TestWriteProfileConfigIncludesExplicitKonnectEndpointOverrides(t *testing.T) {
+	clearKonnectTargetEnv(t)
+	t.Setenv(KonnectEnvironmentEnvName, konnectcommon.EnvironmentTech)
+	t.Setenv(KonnectBaseURLEnvName, "https://regional.example.test")
+	t.Setenv(KonnectBaseAuthURLEnvName, "https://global.example.test")
+	t.Setenv(KonnectMachineClientIDEnvName, "client-id")
+
+	cfgDir := t.TempDir()
+	if err := writeProfileConfig(cfgDir, "e2e", "json", "debug"); err != nil {
+		t.Fatalf("writeProfileConfig() error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(cfgDir, "kongctl", "config.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+
+	content := string(data)
+	for _, want := range []string{
+		"environment: " + konnectcommon.EnvironmentTech,
+		"base-url: https://regional.example.test",
+		"base-auth-url: https://global.example.test",
+		"machine-client-id: client-id",
 	} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("config missing %q: %s", want, content)
