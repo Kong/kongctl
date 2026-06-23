@@ -95,9 +95,10 @@ Core harness settings:
 - `KONGCTL_E2E_RESET`: Reset the Konnect org before tests. Destructive.
   Defaults to enabled; set to `0` or `false` to disable.
 - `KONGCTL_E2E_KONNECT_ENV`: Konnect environment selector. Supported values
-  are `production` (default) and `tech`. The harness writes this into the
-  generated CLI profile, and raw harness HTTP helpers use it to select the
-  matching regional and global Konnect defaults.
+  are `com` (default) and `tech`; `production` remains accepted as a legacy
+  alias for `com`. The harness writes this into the generated CLI profile,
+  and raw harness HTTP helpers use it to select the matching regional and
+  global Konnect defaults.
 - `KONGCTL_E2E_KONNECT_BASE_URL`: Optional regional Konnect API override.
   When unset, the harness uses the selected `KONGCTL_E2E_KONNECT_ENV`
   default. If this points at `konghq.tech`, the harness also infers the
@@ -165,8 +166,10 @@ Scenario selection and sharding:
   validate scenario environment assignments. Each entry must include
   `org_name`. In GitHub Actions, this is also the default org matrix when an
   environment-specific org matrix is not configured.
-- `KONGCTL_E2E_PRODUCTION_ORGS_JSON`: Optional GitHub Actions org matrix for
-  production Konnect runs.
+- `KONGCTL_E2E_COM_ORGS_JSON`: Optional GitHub Actions org matrix for `.com`
+  Konnect runs.
+- `KONGCTL_E2E_PRODUCTION_ORGS_JSON`: Legacy optional GitHub Actions org
+  matrix for `.com` Konnect runs.
 - `KONGCTL_E2E_TECH_ORGS_JSON`: Optional GitHub Actions org matrix for
   `.tech` Konnect runs.
 
@@ -397,7 +400,9 @@ For the maintainer runbook, see
 The workflow also exposes the Konnect target, test timeout, HTTP timeout, and
 retry knobs above as repository or organization variables of the same names,
 so CI can tune runtime behavior without changing Go code. Manual dispatch
-runs can choose `production` or `tech` with the `konnect_environment` input.
+runs can choose `auto`, `com`, or `tech` with the `konnect_environment`
+input. In `auto`, PRs labeled `konnect-env:tech` target `.tech`; other runs
+use `KONGCTL_E2E_KONNECT_ENV` when configured, then default to `.com`.
 
 For transport debugging, the workflow currently defaults to:
 
@@ -452,20 +457,22 @@ Set `KONGCTL_E2E_KONNECT_ENV=tech` as a repository or organization variable
 to run scheduled or PR-triggered E2E against `.tech`. Manual dispatch can
 override this with the `konnect_environment` input.
 
-If production and `.tech` need separate org pools, set
-`KONGCTL_E2E_PRODUCTION_ORGS_JSON` and `KONGCTL_E2E_TECH_ORGS_JSON` to
-environment names backed by matching PATs. The workflow selects an org matrix
-with this fallback order for non-fork runs:
+If `.com` and `.tech` need separate org pools, set
+`KONGCTL_E2E_COM_ORGS_JSON` and `KONGCTL_E2E_TECH_ORGS_JSON` to environment
+names backed by matching PATs. `KONGCTL_E2E_PRODUCTION_ORGS_JSON` remains a
+fallback for existing `.com` configuration. The workflow selects an org
+matrix with this fallback order for non-fork runs:
 
 1. `KONGCTL_E2E_TECH_ORGS_JSON` for `.tech`, or
-   `KONGCTL_E2E_PRODUCTION_ORGS_JSON` for production.
+   `KONGCTL_E2E_COM_ORGS_JSON` for `.com`, falling back to
+   `KONGCTL_E2E_PRODUCTION_ORGS_JSON` for legacy `.com` setups.
 2. `KONGCTL_E2E_ORGS_JSON`.
 3. A single `default` matrix entry.
 
 Use `KONGCTL_E2E_KONNECT_BASE_URL`,
 `KONGCTL_E2E_KONNECT_BASE_AUTH_URL`, and
-`KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID` only when the standard production or
-tech defaults are not sufficient.
+`KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID` only when the standard `.com` or
+`.tech` defaults are not sufficient.
 
 If the org-pool variable is unset, the workflow falls back to a single-org
 matrix entry named `default` for non-fork runs, which is useful during
