@@ -70,6 +70,11 @@ func (b *BasePlanner) GetDesiredCatalogServices(namespace string) []resources.Ca
 	return b.planner.resources.GetCatalogServicesByNamespace(namespace)
 }
 
+// GetDesiredAIGateways returns desired AI Gateway resources from the specified namespace.
+func (b *BasePlanner) GetDesiredAIGateways(namespace string) []resources.AIGatewayResource {
+	return b.planner.resources.GetAIGatewaysByNamespace(namespace)
+}
+
 // GetDesiredDashboards returns desired dashboard resources from the specified namespace.
 func (b *BasePlanner) GetDesiredDashboards(namespace string) []resources.DashboardResource {
 	return b.planner.resources.GetDashboardsByNamespace(namespace)

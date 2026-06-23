@@ -296,6 +296,51 @@ func TestMapDashboardToDeclarativeResource(t *testing.T) {
 	}
 }
 
+func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
+	description := "AI Gateway description"
+	gateway := kkComps.AIGateway{
+		ID:          "ai-gateway-id",
+		DisplayName: "AI Gateway",
+		Name:        "sdk-name",
+		Description: &description,
+		ProxyUrls: []kkComps.AIGatewayProxyURL{
+			{Host: "proxy.example.com", Port: 443, Protocol: "https"},
+		},
+		Labels: map[string]string{
+			decllabels.NamespaceKey: "team-ai",
+			decllabels.ProtectedKey: decllabels.TrueValue,
+			"owner":                 "platform",
+		},
+	}
+
+	resource := mapAIGatewayToDeclarativeResource(gateway)
+
+	if resource.Ref != gateway.ID {
+		t.Fatalf("expected ref %q, got %q", gateway.ID, resource.Ref)
+	}
+	if resource.DisplayName != gateway.DisplayName {
+		t.Fatalf("expected display name %q, got %q", gateway.DisplayName, resource.DisplayName)
+	}
+	if resource.Name != "" {
+		t.Fatalf("expected SDK name to be omitted from declarative resource, got %q", resource.Name)
+	}
+	if resource.Description == nil || *resource.Description != description {
+		t.Fatalf("expected description pointer with %q", description)
+	}
+	if len(resource.ProxyUrls) != 1 || resource.ProxyUrls[0].Host != "proxy.example.com" {
+		t.Fatalf("expected proxy URL to be preserved, got %v", resource.ProxyUrls)
+	}
+	if len(resource.Labels) != 1 || resource.Labels["owner"] != "platform" {
+		t.Fatalf("expected only user labels to remain, got %v", resource.Labels)
+	}
+	if resource.Kongctl == nil || resource.Kongctl.Namespace == nil || *resource.Kongctl.Namespace != "team-ai" {
+		t.Fatalf("expected namespace metadata to be preserved, got %#v", resource.Kongctl)
+	}
+	if resource.Kongctl.Protected == nil || !*resource.Kongctl.Protected {
+		t.Fatalf("expected protected metadata to be preserved, got %#v", resource.Kongctl)
+	}
+}
+
 func TestBuildDeclarativeDefaults(t *testing.T) {
 	if buildDeclarativeDefaults("") != nil {
 		t.Fatalf("expected nil defaults when namespace is empty")
@@ -507,6 +552,10 @@ func TestNormalizeResourceListMapsDashboardAliasesToAnalyticsDashboards(t *testi
 		{input: "analytics.dashboard", want: []string{"analytics.dashboards"}},
 		{input: "analytics.dashboards", want: []string{"analytics.dashboards"}},
 		{input: "organization.teams,dashboards", want: []string{"organization.teams", "analytics.dashboards"}},
+		{input: "ai-gateway", want: []string{"ai_gateways"}},
+		{input: "ai-gateways", want: []string{"ai_gateways"}},
+		{input: "aigw", want: []string{"ai_gateways"}},
+		{input: "ai_gateways,analytics.dashboards", want: []string{"ai_gateways", "analytics.dashboards"}},
 	}
 
 	for _, tt := range tests {

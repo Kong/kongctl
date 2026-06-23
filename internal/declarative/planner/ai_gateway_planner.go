@@ -1,0 +1,364 @@
+package planner
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"maps"
+	"reflect"
+	"strings"
+
+	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/util"
+)
+
+type aiGatewayPlannerImpl struct {
+	*BasePlanner
+}
+
+// NewAIGatewayPlanner creates a new AI Gateway planner.
+func NewAIGatewayPlanner(base *BasePlanner) AIGatewayPlanner {
+	return &aiGatewayPlannerImpl{BasePlanner: base}
+}
+
+func (p *aiGatewayPlannerImpl) PlannerComponent() string {
+	return string(resources.ResourceTypeAIGateway)
+}
+
+// PlanChanges generates changes for AI Gateway resources.
+func (p *aiGatewayPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
+	namespace := plannerCtx.Namespace
+	desired := p.GetDesiredAIGateways(namespace)
+
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
+	return p.planner.planAIGatewayChanges(ctx, plannerCtx, desired, plan)
+}
+
+func (p *Planner) planAIGatewayChanges(
+	ctx context.Context,
+	plannerCtx *Config,
+	desired []resources.AIGatewayResource,
+	plan *Plan,
+) error {
+	p.logger.Debug("planAIGatewayChanges called",
+		slog.Int("desiredCount", len(desired)),
+		slog.String("namespace", plannerCtx.Namespace))
+
+	currentGateways, err := p.listManagedAIGateways(ctx, []string{plannerCtx.Namespace})
+	if err != nil {
+		if state.IsAPIClientError(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to list AI Gateways: %w", err)
+	}
+
+	currentByID, currentByDisplayName := indexAIGateways(currentGateways)
+
+	if plan.Metadata.Mode == PlanModeDelete {
+		var protectionErrors []error
+		for _, desiredGateway := range desired {
+			current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByDisplayName)
+			if err != nil {
+				return err
+			}
+			if !exists {
+				plan.AddWarning("", fmt.Sprintf(
+					"ai_gateway %q not found in Konnect, skipping delete", desiredGateway.DisplayName,
+				))
+				continue
+			}
+
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection(
+				ResourceTypeAIGateway, desiredGateway.DisplayName, isProtected, ActionDelete,
+			); err != nil {
+				protectionErrors = append(protectionErrors, err)
+			} else {
+				p.planAIGatewayDelete(current, plan)
+			}
+		}
+
+		if len(protectionErrors) > 0 {
+			return aiGatewayProtectionError(protectionErrors)
+		}
+		return nil
+	}
+
+	var protectionErrors []error
+	matchedCurrent := make(map[string]bool)
+
+	for _, desiredGateway := range desired {
+		current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByDisplayName)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			p.planAIGatewayCreate(desiredGateway, plan)
+			continue
+		}
+		matchedCurrent[aiGatewayIdentity(current)] = true
+
+		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+		shouldProtect := desiredGateway.Kongctl != nil &&
+			desiredGateway.Kongctl.Protected != nil &&
+			*desiredGateway.Kongctl.Protected
+
+		needsUpdate, updateFields, changedFields := p.shouldUpdateAIGateway(current, desiredGateway)
+		if isProtected != shouldProtect {
+			protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
+			if err := p.validateProtectionWithChange(
+				ResourceTypeAIGateway,
+				desiredGateway.DisplayName,
+				isProtected,
+				ActionUpdate,
+				protectionChange,
+				needsUpdate,
+			); err != nil {
+				protectionErrors = append(protectionErrors, err)
+			} else {
+				p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
+			}
+			continue
+		}
+
+		if needsUpdate {
+			if err := p.validateProtection(
+				ResourceTypeAIGateway,
+				desiredGateway.DisplayName,
+				isProtected,
+				ActionUpdate,
+			); err != nil {
+				protectionErrors = append(protectionErrors, err)
+			} else {
+				p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
+			}
+		}
+	}
+
+	if plan.Metadata.Mode == PlanModeSync {
+		for _, current := range currentGateways {
+			if matchedCurrent[aiGatewayIdentity(current)] {
+				continue
+			}
+
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection(ResourceTypeAIGateway, current.DisplayName, isProtected, ActionDelete); err != nil {
+				protectionErrors = append(protectionErrors, err)
+			} else {
+				p.planAIGatewayDelete(current, plan)
+			}
+		}
+	}
+
+	if len(protectionErrors) > 0 {
+		return aiGatewayProtectionError(protectionErrors)
+	}
+
+	return nil
+}
+
+func (p *Planner) shouldUpdateAIGateway(
+	current state.AIGateway,
+	desired resources.AIGatewayResource,
+) (bool, map[string]any, map[string]FieldChange) {
+	updates := make(map[string]any)
+	changedFields := make(map[string]FieldChange)
+
+	if current.DisplayName != desired.DisplayName {
+		updates[FieldDisplayName] = desired.DisplayName
+		changedFields[FieldDisplayName] = FieldChange{Old: current.DisplayName, New: desired.DisplayName}
+	}
+
+	if desired.Description != nil {
+		currentDescription := getString(current.Description)
+		if currentDescription != *desired.Description {
+			updates[FieldDescription] = *desired.Description
+			changedFields[FieldDescription] = FieldChange{Old: currentDescription, New: *desired.Description}
+		}
+	}
+
+	if desired.ProxyUrls != nil && !reflect.DeepEqual(current.ProxyUrls, desired.ProxyUrls) {
+		updates[FieldProxyURLs] = desired.ProxyUrls
+		changedFields[FieldProxyURLs] = FieldChange{Old: current.ProxyUrls, New: desired.ProxyUrls}
+	}
+
+	if desired.Labels != nil && labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
+		updates[FieldLabels] = desired.GetLabels()
+		changedFields[FieldLabels] = FieldChange{
+			Old: labels.GetUserLabels(current.NormalizedLabels),
+			New: labels.GetUserLabels(desired.GetLabels()),
+		}
+	}
+
+	return len(updates) > 0, updates, changedFields
+}
+
+func indexAIGateways(gateways []state.AIGateway) (map[string]state.AIGateway, map[string][]state.AIGateway) {
+	byID := make(map[string]state.AIGateway)
+	byDisplayName := make(map[string][]state.AIGateway)
+	for _, gateway := range gateways {
+		if gateway.ID != "" {
+			byID[gateway.ID] = gateway
+		}
+		byDisplayName[gateway.DisplayName] = append(byDisplayName[gateway.DisplayName], gateway)
+	}
+	return byID, byDisplayName
+}
+
+func matchCurrentAIGateway(
+	desired resources.AIGatewayResource,
+	currentByID map[string]state.AIGateway,
+	currentByDisplayName map[string][]state.AIGateway,
+) (state.AIGateway, bool, error) {
+	if id := aiGatewayDesiredID(desired); id != "" {
+		current, exists := currentByID[id]
+		return current, exists, nil
+	}
+
+	matches := currentByDisplayName[desired.DisplayName]
+	switch len(matches) {
+	case 0:
+		return state.AIGateway{}, false, nil
+	case 1:
+		return matches[0], true, nil
+	default:
+		return state.AIGateway{}, false, fmt.Errorf(
+			"multiple managed AI Gateways with display_name %q found in namespace; use a UUID ref or remove duplicates",
+			desired.DisplayName,
+		)
+	}
+}
+
+func aiGatewayDesiredID(desired resources.AIGatewayResource) string {
+	if id := desired.GetKonnectID(); id != "" {
+		return id
+	}
+	if util.IsValidUUID(desired.Ref) {
+		return desired.Ref
+	}
+	return ""
+}
+
+func aiGatewayIdentity(gateway state.AIGateway) string {
+	if gateway.ID != "" {
+		return "id:" + gateway.ID
+	}
+	return "display_name:" + gateway.DisplayName
+}
+
+func (p *Planner) planAIGatewayCreate(resource resources.AIGatewayResource, plan *Plan) {
+	namespace, protection := aiGatewayNamespaceAndProtection(resource)
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGateway, resource.GetRef()),
+		Action:       ActionCreate,
+		ResourceType: ResourceTypeAIGateway,
+		ResourceRef:  resource.GetRef(),
+		Fields:       extractAIGatewayFields(resource),
+		Namespace:    namespace,
+		Protection:   protection,
+	}
+	plan.AddChange(change)
+}
+
+func (p *Planner) planAIGatewayUpdate(
+	current state.AIGateway,
+	desired resources.AIGatewayResource,
+	updateFields map[string]any,
+	changedFields map[string]FieldChange,
+	plan *Plan,
+) {
+	namespace, _ := aiGatewayNamespaceAndProtection(desired)
+	fields := make(map[string]any)
+	maps.Copy(fields, updateFields)
+	fields[FieldName] = current.Name
+	if fields[FieldName] == "" {
+		fields[FieldName] = desired.GetRef()
+	}
+	fields[FieldDisplayName] = desired.DisplayName
+	if _, hasLabels := fields[FieldLabels]; hasLabels {
+		fields[FieldCurrentLabels] = current.NormalizedLabels
+	}
+
+	protection := ProtectionChange{
+		Old: labels.IsProtectedResource(current.NormalizedLabels),
+		New: desired.Kongctl != nil && desired.Kongctl.Protected != nil && *desired.Kongctl.Protected,
+	}
+
+	change := PlannedChange{
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypeAIGateway, desired.GetRef()),
+		Action:        ActionUpdate,
+		ResourceType:  ResourceTypeAIGateway,
+		ResourceRef:   desired.GetRef(),
+		ResourceID:    current.ID,
+		Fields:        fields,
+		ChangedFields: changedFields,
+		Namespace:     namespace,
+		Protection:    protection,
+	}
+	plan.AddChange(change)
+}
+
+func (p *Planner) planAIGatewayDelete(current state.AIGateway, plan *Plan) {
+	namespace := DefaultNamespace
+	if ns, ok := current.NormalizedLabels[labels.NamespaceKey]; ok && ns != "" {
+		namespace = ns
+	}
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypeAIGateway, current.DisplayName),
+		Action:       ActionDelete,
+		ResourceType: ResourceTypeAIGateway,
+		ResourceRef:  current.DisplayName,
+		ResourceID:   current.ID,
+		Fields: map[string]any{
+			FieldDisplayName: current.DisplayName,
+		},
+		Namespace: namespace,
+	}
+	plan.AddChange(change)
+}
+
+func extractAIGatewayFields(resource resources.AIGatewayResource) map[string]any {
+	fields := map[string]any{
+		FieldName:        resource.GetRef(),
+		FieldDisplayName: resource.DisplayName,
+	}
+	if resource.Description != nil {
+		fields[FieldDescription] = *resource.Description
+	}
+	if resource.ProxyUrls != nil {
+		fields[FieldProxyURLs] = resource.ProxyUrls
+	}
+	if resource.Labels != nil {
+		fields[FieldLabels] = resource.GetLabels()
+	}
+	return fields
+}
+
+func aiGatewayNamespaceAndProtection(resource resources.AIGatewayResource) (string, any) {
+	namespace := DefaultNamespace
+	if resource.Kongctl != nil && resource.Kongctl.Namespace != nil {
+		namespace = *resource.Kongctl.Namespace
+	}
+
+	var protection any
+	if resource.Kongctl != nil && resource.Kongctl.Protected != nil {
+		protection = *resource.Kongctl.Protected
+	}
+	return namespace, protection
+}
+
+func aiGatewayProtectionError(protectionErrors []error) error {
+	var errMsg strings.Builder
+	errMsg.WriteString("Cannot generate plan due to protected resources:\n")
+	for _, err := range protectionErrors {
+		fmt.Fprintf(&errMsg, "- %s\n", err.Error())
+	}
+	errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
+	return fmt.Errorf("%s", errMsg.String())
+}

@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-example
+
+ai_gateways:
+  - ref: customer-support-ai-gateway
+    display_name: "Customer Support AI Gateway"
+    description: "AI Gateway for customer support traffic"
+    proxy_urls:
+      - host: support-ai.example.com
+        port: 443
+        protocol: https
+    labels:
+      team: support
+      environment: staging

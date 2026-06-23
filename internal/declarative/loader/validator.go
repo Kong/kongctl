@@ -39,6 +39,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate AI Gateways
+	if err := l.validateAIGateways(rs.AIGateways, rs); err != nil {
+		return err
+	}
+
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
 		return err
@@ -665,6 +670,44 @@ func (l *Loader) validateCatalogServices(
 		}
 
 		names[service.GetMoniker()] = service.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGateways validates AI Gateway resources.
+func (l *Loader) validateAIGateways(
+	gateways []resources.AIGatewayResource,
+	rs *resources.ResourceSet,
+) error {
+	displayNamesByNamespace := make(map[string]string)
+
+	for i := range gateways {
+		gateway := &gateways[i]
+
+		if err := gateway.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway %q: %w", gateway.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(gateway.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGateway {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					gateway.GetRef(), existing.GetType())
+			}
+		}
+
+		namespace := resources.GetNamespace(gateway.Kongctl)
+		nameKey := namespace + "\x00" + gateway.DisplayName
+		if existingRef, exists := displayNamesByNamespace[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway display_name '%s' in namespace '%s' (ref: %s conflicts with ref: %s)",
+				gateway.DisplayName,
+				namespace,
+				gateway.GetRef(),
+				existingRef,
+			)
+		}
+		displayNamesByNamespace[nameKey] = gateway.GetRef()
 	}
 
 	return nil
@@ -1440,6 +1483,11 @@ func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
 	// Catalog Services
 	for _, service := range rs.CatalogServices {
 		addNamespace(service.Kongctl)
+	}
+
+	// AI Gateways
+	for _, gateway := range rs.AIGateways {
+		addNamespace(gateway.Kongctl)
 	}
 
 	// Dashboards

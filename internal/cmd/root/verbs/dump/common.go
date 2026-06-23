@@ -158,6 +158,8 @@ func mapResourceName(name string) string {
 		return "control_planes"
 	case "dashboard", "dashboards", "analytics.dashboard", resourceAnalyticsDashboards:
 		return resourceAnalyticsDashboards
+	case "ai-gateway", "ai-gateways", "ai_gateway", "ai_gateways", "aigw":
+		return "ai_gateways"
 	case "org.team", "org.teams", "organization.team", "organization.teams":
 		return "organization.teams"
 	default:
