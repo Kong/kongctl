@@ -366,6 +366,9 @@ func shouldStyleLoginOutput(streams *iostreams.IOStreams) bool {
 	if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
 		return false
 	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("TERM")), "dumb") {
+		return false
+	}
 	return loginOutputIsTerminal(streams.Out)
 }
 

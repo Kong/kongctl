@@ -7,7 +7,7 @@ import (
 	"slices"
 )
 
-//go:embed assets/kong-*-ascii.txt assets/kong-*-braille.txt assets/roar/frames_ansi/*.txt
+//go:embed assets/kong-*-ascii.txt assets/kong-*-braille.txt assets/kong-logo-*.txt assets/kongctl-*.txt assets/roar/frames_ansi/*.txt
 var assets embed.FS
 
 type KongBannerType string

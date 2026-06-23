@@ -479,6 +479,7 @@ func TestDisplayLoginSuccessStyled(t *testing.T) {
 func TestShouldStyleLoginOutputRequiresTTYAndHonorsNoColor(t *testing.T) {
 	streams := iostreams.NewTestIOStreamsOnly()
 
+	t.Setenv("TERM", "xterm-256color")
 	unsetEnvForTest(t, "NO_COLOR")
 	stubLoginTerminals(t, true, true)
 	if !shouldStyleLoginOutput(streams) {
@@ -491,9 +492,21 @@ func TestShouldStyleLoginOutputRequiresTTYAndHonorsNoColor(t *testing.T) {
 	}
 }
 
+func TestShouldStyleLoginOutputSkipsDumbTerminal(t *testing.T) {
+	streams := iostreams.NewTestIOStreamsOnly()
+	unsetEnvForTest(t, "NO_COLOR")
+	t.Setenv("TERM", "dumb")
+	stubLoginTerminals(t, true, true)
+
+	if shouldStyleLoginOutput(streams) {
+		t.Fatal("expected TERM=dumb to disable styled login output")
+	}
+}
+
 func TestShouldStyleLoginOutputSkipsNonTerminalStdout(t *testing.T) {
 	streams := iostreams.NewTestIOStreamsOnly()
 	unsetEnvForTest(t, "NO_COLOR")
+	t.Setenv("TERM", "xterm-256color")
 	stubLoginTerminals(t, true, false)
 
 	if shouldStyleLoginOutput(streams) {

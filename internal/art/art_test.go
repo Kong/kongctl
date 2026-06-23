@@ -171,6 +171,23 @@ func TestKongRoarAnimationFrames(t *testing.T) {
 	}
 }
 
+func TestAdditionalCharacterArtAssetsAreEmbedded(t *testing.T) {
+	for _, name := range []string{
+		"assets/kong-logo-30.txt",
+		"assets/kongctl-roman.txt",
+	} {
+		t.Run(name, func(t *testing.T) {
+			content, err := assets.ReadFile(name)
+			if err != nil {
+				t.Fatalf("read embedded asset %q: %v", name, err)
+			}
+			if strings.TrimSpace(string(content)) == "" {
+				t.Fatalf("embedded asset %q is empty", name)
+			}
+		})
+	}
+}
+
 func TestRenderLoginBannerAssetsUseBraillePatterns(t *testing.T) {
 	var out strings.Builder
 	if err := RenderLoginBanner(&out); err != nil {
