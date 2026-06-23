@@ -55,7 +55,6 @@ const (
 	TechBaseURLDefault      = "https://us.api.konghq.tech"
 	TechMachineClientID     = "35b065db-8eaf-4584-9cb6-05b1daea0750"
 	KonnectEnvFlagName      = "konnect-env"
-	KonnectEnvEnvName       = "KONGCTL_KONNECT_ENV"
 	konnectProductionDomain = "konghq.com"
 	konnectTechDomain       = "konghq.tech"
 
@@ -78,7 +77,8 @@ var (
 	MachineClientIDConfigPath = "konnect." + MachineClientIDFlagName
 	RequestPageSizeConfigPath = "konnect." + RequestPageSizeFlagName
 
-	RegionConfigPath = "konnect." + RegionFlagName
+	RegionConfigPath      = "konnect." + RegionFlagName
+	EnvironmentConfigPath = "konnect.environment"
 
 	HTTPRetryMaxAttemptsConfigPath        = "konnect." + cmdcommon.HTTPRetryMaxAttemptsConfigPath
 	HTTPRetryInitialIntervalConfigPath    = "konnect." + cmdcommon.HTTPRetryInitialIntervalConfigPath
@@ -130,12 +130,12 @@ func ApplyEnvironmentDefaults(command *cobra.Command, cfg config.Hook) error {
 		return nil
 	}
 
-	defaults, selected, err := SelectedEnvironmentDefaults(command)
+	defaults, selected, err := SelectedEnvironmentDefaults(command, cfg)
 	if err != nil || !selected {
 		return err
 	}
 
-	if !cmdcommon.CommandTreeFlagChanged(command, BaseURLFlagName) {
+	if shouldApplyEnvironmentEndpointDefault(command, cfg, BaseURLFlagName, BaseURLConfigPath) {
 		baseURL := defaults.BaseURL
 		if region, ok := cmdcommon.CommandTreeChangedFlagString(command, RegionFlagName); ok {
 			resolved, err := BuildBaseURLFromRegionForEnvironment(region, defaults.Name)
@@ -155,13 +155,13 @@ func ApplyEnvironmentDefaults(command *cobra.Command, cfg config.Hook) error {
 			return err
 		}
 	}
-	if !cmdcommon.CommandTreeFlagChanged(command, AuthBaseURLFlagName) {
+	if shouldApplyEnvironmentEndpointDefault(command, cfg, AuthBaseURLFlagName, AuthBaseURLConfigPath) {
 		cfg.SetString(AuthBaseURLConfigPath, defaults.AuthBaseURL)
 		if err := cmdcommon.SetCommandTreeFlagValue(command, AuthBaseURLFlagName, defaults.AuthBaseURL); err != nil {
 			return err
 		}
 	}
-	if !cmdcommon.CommandTreeFlagChanged(command, MachineClientIDFlagName) {
+	if shouldApplyEnvironmentEndpointDefault(command, cfg, MachineClientIDFlagName, MachineClientIDConfigPath) {
 		cfg.SetString(MachineClientIDConfigPath, defaults.MachineClientID)
 		if err := cmdcommon.SetCommandTreeFlagValue(command, MachineClientIDFlagName, defaults.MachineClientID); err != nil {
 			return err
@@ -170,60 +170,77 @@ func ApplyEnvironmentDefaults(command *cobra.Command, cfg config.Hook) error {
 	return nil
 }
 
-func SelectedEnvironmentDefaults(command *cobra.Command) (EnvironmentDefaults, bool, error) {
+func SelectedEnvironmentDefaults(command *cobra.Command, cfg config.Hook) (EnvironmentDefaults, bool, error) {
 	if value, ok := cmdcommon.CommandTreeChangedFlagString(command, KonnectEnvFlagName); ok {
 		defaults, err := environmentDefaultsForSelector(value)
 		return defaults, true, err
 	}
 
-	if value, ok := selectedEnvironmentFromArgs(os.Args[1:]); ok {
-		defaults, err := environmentDefaultsForSelector(value)
-		return defaults, true, err
-	}
-
-	value, ok := os.LookupEnv(KonnectEnvEnvName)
-	if !ok || strings.TrimSpace(value) == "" {
+	if cfg == nil {
 		return EnvironmentDefaults{}, false, nil
 	}
 
+	value := cfg.GetString(EnvironmentConfigPath)
+	if strings.TrimSpace(value) == "" {
+		return EnvironmentDefaults{}, false, nil
+	}
 	defaults, err := environmentDefaultsForSelector(value)
 	return defaults, true, err
-}
-
-func selectedEnvironmentFromArgs(args []string) (string, bool) {
-	value := ""
-	selected := false
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		if arg == "--" {
-			break
-		}
-		if arg == "--"+KonnectEnvFlagName {
-			selected = true
-			value = ""
-			if i+1 < len(args) {
-				value = args[i+1]
-				i++
-			}
-			continue
-		}
-		if stripped, ok := strings.CutPrefix(arg, "--"+KonnectEnvFlagName+"="); ok {
-			selected = true
-			value = stripped
-		}
-	}
-	return value, selected
 }
 
 func environmentDefaultsForSelector(value string) (EnvironmentDefaults, error) {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	switch normalized {
-	case EnvironmentCom, EnvironmentTech:
+	case EnvironmentCom, EnvironmentProduction, "prod", EnvironmentTech:
 		return EnvironmentDefaultsFor(normalized)
 	default:
 		return EnvironmentDefaults{},
-			fmt.Errorf("unsupported konnect environment %q (allowed: %s, %s)",
-				value, EnvironmentCom, EnvironmentTech)
+			fmt.Errorf("unsupported konnect environment %q (allowed: %s, %s; aliases: %s, prod)",
+				value, EnvironmentProduction, EnvironmentTech, EnvironmentCom)
+	}
+}
+
+func shouldApplyEnvironmentEndpointDefault(command *cobra.Command, cfg config.Hook, flagName, configPath string) bool {
+	if cmdcommon.CommandTreeFlagChanged(command, flagName) {
+		return false
+	}
+	value := strings.TrimSpace(cfg.GetString(configPath))
+	if value == "" {
+		return true
+	}
+	return !isExplicitEndpointConfig(cfg, configPath, value)
+}
+
+func isExplicitEndpointConfig(cfg config.Hook, configPath, value string) bool {
+	if cfg.InConfig(configPath) || profileConfigEnvSet(cfg.GetProfile(), configPath) {
+		return true
+	}
+	return !isKnownEnvironmentDefault(configPath, value)
+}
+
+func profileConfigEnvSet(profile, configPath string) bool {
+	profile = strings.TrimSpace(profile)
+	configPath = strings.TrimSpace(configPath)
+	if profile == "" || configPath == "" {
+		return false
+	}
+	name := "KONGCTL_" + strings.ToUpper(strings.ReplaceAll(profile, "-", "_")) + "_" +
+		strings.ToUpper(strings.NewReplacer(".", "_", "-", "_").Replace(configPath))
+	value, ok := os.LookupEnv(name)
+	return ok && strings.TrimSpace(value) != ""
+}
+
+func isKnownEnvironmentDefault(configPath, value string) bool {
+	switch configPath {
+	case BaseURLConfigPath:
+		return value == BaseURLDefault || value == TechBaseURLDefault ||
+			value == GlobalBaseURL || value == TechGlobalBaseURL
+	case AuthBaseURLConfigPath:
+		return value == AuthBaseURLDefault || value == TechGlobalBaseURL
+	case MachineClientIDConfigPath:
+		return value == MachineClientIDDefault || value == TechMachineClientID
+	default:
+		return false
 	}
 }
 

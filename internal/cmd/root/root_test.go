@@ -1178,11 +1178,32 @@ func TestKonnectEnvFlagAppliesDuringRootExecution(t *testing.T) {
 	if got := currConfig.GetString(konnectcommon.BaseURLConfigPath); got != konnectcommon.TechBaseURLDefault {
 		t.Fatalf("base URL = %q, want %q", got, konnectcommon.TechBaseURLDefault)
 	}
+	if got := currConfig.GetString(konnectcommon.EnvironmentConfigPath); got != konnectcommon.EnvironmentTech {
+		t.Fatalf("environment = %q, want %q", got, konnectcommon.EnvironmentTech)
+	}
 	if got := currConfig.GetString(konnectcommon.AuthBaseURLConfigPath); got != konnectcommon.TechGlobalBaseURL {
 		t.Fatalf("auth base URL = %q, want %q", got, konnectcommon.TechGlobalBaseURL)
 	}
 	if got := currConfig.GetString(konnectcommon.MachineClientIDConfigPath); got != konnectcommon.TechMachineClientID {
 		t.Fatalf("machine client ID = %q, want %q", got, konnectcommon.TechMachineClientID)
+	}
+}
+
+func TestKonnectEnvironmentProfileEnvAppliesDuringRootExecution(t *testing.T) {
+	t.Setenv("KONGCTL_DEFAULT_KONNECT_ENVIRONMENT", konnectcommon.EnvironmentTech)
+
+	result := executeRootForTest(t)
+	if result.exitCode != 0 {
+		t.Fatalf("expected command to succeed\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	}
+	if currConfig == nil {
+		t.Fatal("expected config to be initialized")
+	}
+	if got := currConfig.GetString(konnectcommon.BaseURLConfigPath); got != konnectcommon.TechBaseURLDefault {
+		t.Fatalf("base URL = %q, want %q", got, konnectcommon.TechBaseURLDefault)
+	}
+	if got := currConfig.GetString(konnectcommon.EnvironmentConfigPath); got != konnectcommon.EnvironmentTech {
+		t.Fatalf("environment = %q, want %q", got, konnectcommon.EnvironmentTech)
 	}
 }
 
@@ -1272,10 +1293,9 @@ func TestApplyKonnectEnvironmentDefaultsFromFlagTech(t *testing.T) {
 	}
 }
 
-func TestApplyKonnectEnvironmentDefaultsFromEnvTech(t *testing.T) {
-	t.Setenv(konnectcommon.KonnectEnvEnvName, konnectcommon.EnvironmentTech)
-
+func TestApplyKonnectEnvironmentDefaultsFromProfileConfigTech(t *testing.T) {
 	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	cfg.SetString(konnectcommon.EnvironmentConfigPath, konnectcommon.EnvironmentTech)
 	command := newKonnectEnvCommandForTest()
 
 	requireNoError(t, konnectcommon.ApplyEnvironmentDefaults(command, cfg))
@@ -1291,10 +1311,9 @@ func TestApplyKonnectEnvironmentDefaultsFromEnvTech(t *testing.T) {
 	}
 }
 
-func TestApplyKonnectEnvironmentDefaultsFlagOverridesEnv(t *testing.T) {
-	t.Setenv(konnectcommon.KonnectEnvEnvName, konnectcommon.EnvironmentTech)
-
+func TestApplyKonnectEnvironmentDefaultsFlagOverridesProfileConfig(t *testing.T) {
 	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	cfg.SetString(konnectcommon.EnvironmentConfigPath, konnectcommon.EnvironmentTech)
 	cfg.SetString(konnectcommon.BaseURLConfigPath, konnectcommon.TechBaseURLDefault)
 	cfg.SetString(konnectcommon.AuthBaseURLConfigPath, konnectcommon.TechGlobalBaseURL)
 	cfg.SetString(konnectcommon.MachineClientIDConfigPath, konnectcommon.TechMachineClientID)
@@ -1316,8 +1335,8 @@ func TestApplyKonnectEnvironmentDefaultsFlagOverridesEnv(t *testing.T) {
 
 func TestApplyKonnectEnvironmentDefaultsRespectsExplicitEndpointFlags(t *testing.T) {
 	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	cfg.SetString(konnectcommon.EnvironmentConfigPath, konnectcommon.EnvironmentTech)
 	command := newKonnectEnvCommandForTest()
-	requireNoError(t, command.Flags().Set(konnectcommon.KonnectEnvFlagName, konnectcommon.EnvironmentTech))
 	command.Flags().String(konnectcommon.BaseURLFlagName, "", "")
 	command.Flags().String(konnectcommon.AuthBaseURLFlagName, "", "")
 	command.Flags().String(konnectcommon.MachineClientIDFlagName, "", "")
@@ -1338,11 +1357,32 @@ func TestApplyKonnectEnvironmentDefaultsRespectsExplicitEndpointFlags(t *testing
 	}
 }
 
+func TestApplyKonnectEnvironmentDefaultsRespectsExplicitEndpointConfig(t *testing.T) {
+	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	cfg.SetString(konnectcommon.EnvironmentConfigPath, konnectcommon.EnvironmentTech)
+	cfg.SetString(konnectcommon.BaseURLConfigPath, "https://regional.example.test")
+	cfg.SetString(konnectcommon.AuthBaseURLConfigPath, "https://global.example.test")
+	cfg.SetString(konnectcommon.MachineClientIDConfigPath, "client-id")
+	command := newKonnectEnvCommandForTest()
+
+	requireNoError(t, konnectcommon.ApplyEnvironmentDefaults(command, cfg))
+
+	if got := cfg.GetString(konnectcommon.BaseURLConfigPath); got != "https://regional.example.test" {
+		t.Fatalf("base URL = %q, want explicit config to remain unchanged", got)
+	}
+	if got := cfg.GetString(konnectcommon.AuthBaseURLConfigPath); got != "https://global.example.test" {
+		t.Fatalf("auth base URL = %q, want explicit config to remain unchanged", got)
+	}
+	if got := cfg.GetString(konnectcommon.MachineClientIDConfigPath); got != "client-id" {
+		t.Fatalf("machine client ID = %q, want explicit config to remain unchanged", got)
+	}
+}
+
 func TestApplyKonnectEnvironmentDefaultsSurvivesLaterFlagBinding(t *testing.T) {
 	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
 	cfg.SetString(konnectcommon.RegionConfigPath, "global")
+	cfg.SetString(konnectcommon.EnvironmentConfigPath, konnectcommon.EnvironmentTech)
 	command := newKonnectEnvCommandForTest()
-	requireNoError(t, command.Flags().Set(konnectcommon.KonnectEnvFlagName, konnectcommon.EnvironmentTech))
 	command.Flags().String(konnectcommon.BaseURLFlagName, "", "")
 	command.Flags().String(konnectcommon.AuthBaseURLFlagName, "", "")
 	command.Flags().String(konnectcommon.MachineClientIDFlagName, "", "")
@@ -1371,8 +1411,8 @@ func TestApplyKonnectEnvironmentDefaultsSurvivesLaterFlagBinding(t *testing.T) {
 
 func TestApplyKonnectEnvironmentDefaultsUsesExplicitRegion(t *testing.T) {
 	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	cfg.SetString(konnectcommon.EnvironmentConfigPath, konnectcommon.EnvironmentTech)
 	command := newKonnectEnvCommandForTest()
-	requireNoError(t, command.Flags().Set(konnectcommon.KonnectEnvFlagName, konnectcommon.EnvironmentTech))
 	command.Flags().String(konnectcommon.RegionFlagName, "", "")
 	requireNoError(t, command.Flags().Set(konnectcommon.RegionFlagName, "eu"))
 
@@ -1385,9 +1425,9 @@ func TestApplyKonnectEnvironmentDefaultsUsesExplicitRegion(t *testing.T) {
 
 func TestApplyKonnectEnvironmentDefaultsUsesConfiguredRegion(t *testing.T) {
 	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	cfg.SetString(konnectcommon.EnvironmentConfigPath, konnectcommon.EnvironmentTech)
 	cfg.SetString(konnectcommon.RegionConfigPath, "eu")
 	command := newKonnectEnvCommandForTest()
-	requireNoError(t, command.Flags().Set(konnectcommon.KonnectEnvFlagName, konnectcommon.EnvironmentTech))
 
 	requireNoError(t, konnectcommon.ApplyEnvironmentDefaults(command, cfg))
 
@@ -1397,9 +1437,8 @@ func TestApplyKonnectEnvironmentDefaultsUsesConfiguredRegion(t *testing.T) {
 }
 
 func TestApplyKonnectEnvironmentDefaultsRejectsInvalidEnv(t *testing.T) {
-	t.Setenv(konnectcommon.KonnectEnvEnvName, "stage")
-
 	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	cfg.SetString(konnectcommon.EnvironmentConfigPath, "stage")
 	command := newKonnectEnvCommandForTest()
 
 	err := konnectcommon.ApplyEnvironmentDefaults(command, cfg)
@@ -1409,20 +1448,23 @@ func TestApplyKonnectEnvironmentDefaultsRejectsInvalidEnv(t *testing.T) {
 	if !strings.Contains(err.Error(), "unsupported konnect environment") {
 		t.Fatalf("expected unsupported environment error, got %v", err)
 	}
+	if !strings.Contains(err.Error(), "allowed: production, tech; aliases: com, prod") {
+		t.Fatalf("expected allowed values in error, got %v", err)
+	}
 }
 
-func TestApplyKonnectEnvironmentDefaultsRejectsProductionAlias(t *testing.T) {
-	t.Setenv(konnectcommon.KonnectEnvEnvName, konnectcommon.EnvironmentProduction)
-
+func TestApplyKonnectEnvironmentDefaultsAcceptsProductionEnvironment(t *testing.T) {
 	cfg := configpkg.BuildProfiledConfig("default", "", viper.New())
+	cfg.SetString(konnectcommon.EnvironmentConfigPath, konnectcommon.EnvironmentProduction)
 	command := newKonnectEnvCommandForTest()
 
-	err := konnectcommon.ApplyEnvironmentDefaults(command, cfg)
-	if err == nil {
-		t.Fatal("expected invalid konnect environment error")
+	requireNoError(t, konnectcommon.ApplyEnvironmentDefaults(command, cfg))
+
+	if got := cfg.GetString(konnectcommon.BaseURLConfigPath); got != konnectcommon.BaseURLDefault {
+		t.Fatalf("base URL = %q, want %q", got, konnectcommon.BaseURLDefault)
 	}
-	if !strings.Contains(err.Error(), "allowed: com, tech") {
-		t.Fatalf("expected allowed values error, got %v", err)
+	if got := cfg.GetString(konnectcommon.AuthBaseURLConfigPath); got != konnectcommon.AuthBaseURLDefault {
+		t.Fatalf("auth base URL = %q, want %q", got, konnectcommon.AuthBaseURLDefault)
 	}
 }
 

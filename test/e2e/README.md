@@ -95,18 +95,20 @@ Core harness settings:
 - `KONGCTL_E2E_RESET`: Reset the Konnect org before tests. Destructive.
   Defaults to enabled; set to `0` or `false` to disable.
 - `KONGCTL_E2E_KONNECT_ENV`: Konnect environment selector. Supported values
-  are `production` (default) and `tech`. The `tech` value selects
-  `https://us.api.konghq.tech`, `https://global.api.konghq.tech`, and the
-  `.tech` machine client ID for generated CLI profile config.
+  are `production` (default) and `tech`. The harness writes this into the
+  generated CLI profile, and raw harness HTTP helpers use it to select the
+  matching regional and global Konnect defaults.
 - `KONGCTL_E2E_KONNECT_BASE_URL`: Optional regional Konnect API override.
   When unset, the harness uses the selected `KONGCTL_E2E_KONNECT_ENV`
   default. If this points at `konghq.tech`, the harness also infers the
-  `.tech` global URL and machine client ID unless explicitly overridden.
+  `.tech` global URL and machine client ID for raw harness calls unless
+  explicitly overridden. The generated CLI profile includes
+  `konnect.base-url` only when this variable is set.
 - `KONGCTL_E2E_KONNECT_BASE_AUTH_URL`: Optional global/auth Konnect API
   override. The harness uses this for global Identity APIs, org reset, and
-  generated CLI profile `konnect.base-auth-url`.
+  generated CLI profile `konnect.base-auth-url` when set.
 - `KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID`: Optional machine client ID
-  override for generated CLI profile `konnect.machine-client-id`.
+  override for generated CLI profile `konnect.machine-client-id` when set.
 - `KONGCTL_E2E_HTTP_TIMEOUT`: Per-request timeout for raw Konnect HTTP helpers
   used by scenario create/delete flows. The harness also writes the same
   value into the generated `e2e.http-timeout` profile setting so

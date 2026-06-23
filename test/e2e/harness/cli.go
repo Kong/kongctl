@@ -777,9 +777,16 @@ func writeProfileConfig(cfgDir, profile, output, logLevel string) error {
 	fmt.Fprintf(&y, "  http-disable-keepalives: %t\n", options.DisableKeepAlives)
 	fmt.Fprintf(&y, "  http-recycle-connections-on-error: %t\n", options.RecycleConnectionsOnError)
 	fmt.Fprintf(&y, "  konnect:\n")
-	fmt.Fprintf(&y, "    base-url: %s\n", konnectTarget.BaseURL)
-	fmt.Fprintf(&y, "    base-auth-url: %s\n", konnectTarget.BaseAuthURL)
-	fmt.Fprintf(&y, "    machine-client-id: %s\n", konnectTarget.MachineClientID)
+	fmt.Fprintf(&y, "    environment: %s\n", konnectTarget.Name)
+	if strings.TrimSpace(os.Getenv(KonnectBaseURLEnvName)) != "" {
+		fmt.Fprintf(&y, "    base-url: %s\n", konnectTarget.BaseURL)
+	}
+	if strings.TrimSpace(os.Getenv(KonnectBaseAuthURLEnvName)) != "" {
+		fmt.Fprintf(&y, "    base-auth-url: %s\n", konnectTarget.BaseAuthURL)
+	}
+	if strings.TrimSpace(os.Getenv(KonnectMachineClientIDEnvName)) != "" {
+		fmt.Fprintf(&y, "    machine-client-id: %s\n", konnectTarget.MachineClientID)
+	}
 
 	path := filepath.Join(appDir, "config.yaml")
 	// Best-effort write; if file exists, do not overwrite.
