@@ -384,6 +384,7 @@ var resetSequence = []resetResourceSpec{
 	{Version: "v2", Endpoint: "dashboards"},
 	{Version: "v1", Endpoint: "catalog-services"},
 	{Version: "v1", Endpoint: "event-gateways"},
+	{Version: "v1", Endpoint: "ai-gateways"},
 }
 
 func onlyE2EEmailDomains(resource map[string]any) bool {

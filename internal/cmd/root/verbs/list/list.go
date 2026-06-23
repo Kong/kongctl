@@ -144,6 +144,12 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(organizationCmd)
 
+	aiGatewayCmd, err := NewDirectAIGatewayCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(aiGatewayCmd)
+
 	return cmd, nil
 }
 

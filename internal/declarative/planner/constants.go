@@ -193,6 +193,7 @@ const (
 	ResourceTypeDCRProvider                      = string(resources.ResourceTypeDCRProvider)
 	ResourceTypeControlPlane                     = string(resources.ResourceTypeControlPlane)
 	ResourceTypeAPI                              = string(resources.ResourceTypeAPI)
+	ResourceTypeAIGateway                        = string(resources.ResourceTypeAIGateway)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)
@@ -237,7 +238,8 @@ const (
 	ResourceTypeOrganizationUserTeamMembership          = string(resources.ResourceTypeOrganizationUserTeamMembership)
 	ResourceTypeOrganizationUserRole                    = string(resources.ResourceTypeOrganizationUserRole)
 	ResourceTypeOrganizationSystemAccountTeamMembership = string(
-		resources.ResourceTypeOrganizationSystemAccountTeamMembership)
+		resources.ResourceTypeOrganizationSystemAccountTeamMembership,
+	)
 	ResourceTypeOrganizationSystemAccountRole = string(resources.ResourceTypeOrganizationSystemAccountRole)
 
 	// ResourceTypeDeck represents an internal deck execution step.

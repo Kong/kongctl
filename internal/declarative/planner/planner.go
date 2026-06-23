@@ -73,6 +73,7 @@ type Planner struct {
 	dcrProviderPlanner              DCRProviderPlanner
 	apiPlanner                      APIPlanner
 	catalogServicePlanner           CatalogServicePlanner
+	aiGatewayPlanner                AIGatewayPlanner
 	dashboardPlanner                DashboardPlanner
 	eventGatewayControlPlanePlanner EGWControlPlanePlanner
 	organizationTeamPlanner         OrganizationTeamPlanner
@@ -123,6 +124,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
 	p.dcrProviderPlanner = NewDCRProviderPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
+	p.aiGatewayPlanner = NewAIGatewayPlanner(base)
 	p.dashboardPlanner = NewDashboardPlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
 	p.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
@@ -230,6 +232,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.dcrProviderPlanner = NewDCRProviderPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
+		namespacePlanner.aiGatewayPlanner = NewAIGatewayPlanner(base)
 		namespacePlanner.dashboardPlanner = NewDashboardPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
@@ -319,6 +322,16 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 				namespacePlan,
 			); err != nil {
 				return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
+			}
+		}
+
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeAIGateway) {
+			if err := namespacePlanner.aiGatewayPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.aiGatewayPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan AI Gateway changes for namespace %s: %w", namespace, err)
 			}
 		}
 
@@ -2180,6 +2193,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, svc := range rs.CatalogServices {
 		ns := resources.GetNamespace(svc.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, gateway := range rs.AIGateways {
+		ns := resources.GetNamespace(gateway.Kongctl)
 		namespaceSet[ns] = true
 	}
 

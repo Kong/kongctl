@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: "ai-gateway-adopt-e2e-overwrite"
+
+ai_gateways: []

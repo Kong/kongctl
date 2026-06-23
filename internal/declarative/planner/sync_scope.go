@@ -53,6 +53,7 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	addRootIfPresent(scope, resources.ResourceTypeDCRProvider, len(rs.DCRProviders))
 	addRootIfPresent(scope, resources.ResourceTypeControlPlane, len(rs.ControlPlanes))
 	addRootIfPresent(scope, resources.ResourceTypeCatalogService, len(rs.CatalogServices))
+	addRootIfPresent(scope, resources.ResourceTypeAIGateway, len(rs.AIGateways))
 	addRootIfPresent(scope, resources.ResourceTypeDashboard, len(rs.Dashboards))
 	addRootIfPresent(scope, resources.ResourceTypeAPI, len(rs.APIs))
 	addRootIfPresent(scope, resources.ResourceTypeEventGatewayControlPlane, len(rs.EventGatewayControlPlanes))
@@ -292,6 +293,7 @@ func syncRootParentType(rt resources.ResourceType) bool {
 	case resources.ResourceTypeAPI,
 		resources.ResourceTypePortal,
 		resources.ResourceTypeControlPlane,
+		resources.ResourceTypeAIGateway,
 		resources.ResourceTypeEventGatewayControlPlane,
 		resources.ResourceTypeOrganizationTeam:
 		return true

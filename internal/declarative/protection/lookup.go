@@ -70,6 +70,14 @@ func IsManagedResourceProtected(
 			}
 			return r.NormalizedLabels, err
 		})
+	case resources.ResourceTypeAIGateway:
+		return fetchProtection(resourceName, "AI Gateway", func() (map[string]string, error) {
+			r, err := client.GetAIGatewayByDisplayName(ctx, resourceName)
+			if r == nil {
+				return nil, err
+			}
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeApplicationAuthStrategy:
 		return fetchProtection(resourceName, "auth strategy", func() (map[string]string, error) {
 			r, err := client.GetAuthStrategyByName(ctx, resourceName)
