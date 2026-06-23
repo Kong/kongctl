@@ -81,6 +81,9 @@ jobs:
       trusted_e2e_required: ${{ steps.detect.outputs.trusted_e2e_required }}
       run_shards: ${{ steps.detect.outputs.run_shards }}
       konnect_environment: ${{ steps.target.outputs.konnect_environment }}
+      konnect_base_url: ${{ steps.target.outputs.konnect_base_url }}
+      konnect_base_auth_url: ${{ steps.target.outputs.konnect_base_auth_url }}
+      konnect_machine_client_id: ${{ steps.target.outputs.konnect_machine_client_id }}
       orgs_json: ${{ steps.target.outputs.orgs_json }}
       status_sha: ${{ steps.detect.outputs.status_sha }}
       checkout_repository: ${{ steps.detect.outputs.checkout_repository }}
@@ -117,6 +120,15 @@ jobs:
               'true' ||
               'false'
             }}
+          DEFAULT_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || '' }}
+          DEFAULT_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_AUTH_URL || '' }}
+          DEFAULT_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID || '' }}
+          COM_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_COM_KONNECT_BASE_URL || '' }}
+          COM_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_COM_KONNECT_BASE_AUTH_URL || '' }}
+          COM_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_COM_KONNECT_MACHINE_CLIENT_ID || '' }}
+          TECH_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_TECH_KONNECT_BASE_URL || '' }}
+          TECH_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_TECH_KONNECT_BASE_AUTH_URL || '' }}
+          TECH_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_TECH_KONNECT_MACHINE_CLIENT_ID || '' }}
         run: |
           set -euo pipefail
 
@@ -172,6 +184,28 @@ jobs:
             fi
           fi
 
+          konnect_base_url=""
+          konnect_base_auth_url=""
+          konnect_machine_client_id=""
+          if [ "${konnect_environment}" = "tech" ]; then
+            konnect_base_url="${TECH_KONNECT_BASE_URL:-}"
+            konnect_base_auth_url="${TECH_KONNECT_BASE_AUTH_URL:-}"
+            konnect_machine_client_id="${TECH_KONNECT_MACHINE_CLIENT_ID:-}"
+          else
+            konnect_base_url="${COM_KONNECT_BASE_URL:-}"
+            konnect_base_auth_url="${COM_KONNECT_BASE_AUTH_URL:-}"
+            konnect_machine_client_id="${COM_KONNECT_MACHINE_CLIENT_ID:-}"
+            if [ -z "${konnect_base_url}" ]; then
+              konnect_base_url="${DEFAULT_KONNECT_BASE_URL:-}"
+            fi
+            if [ -z "${konnect_base_auth_url}" ]; then
+              konnect_base_auth_url="${DEFAULT_KONNECT_BASE_AUTH_URL:-}"
+            fi
+            if [ -z "${konnect_machine_client_id}" ]; then
+              konnect_machine_client_id="${DEFAULT_KONNECT_MACHINE_CLIENT_ID:-}"
+            fi
+          fi
+
           orgs_json="$(ORGS_JSON="${orgs_json}" python3 - <<'PY'
           import json
           import os
@@ -187,6 +221,9 @@ jobs:
           )"
 
           echo "konnect_environment=${konnect_environment}" >> "${GITHUB_OUTPUT}"
+          echo "konnect_base_url=${konnect_base_url}" >> "${GITHUB_OUTPUT}"
+          echo "konnect_base_auth_url=${konnect_base_auth_url}" >> "${GITHUB_OUTPUT}"
+          echo "konnect_machine_client_id=${konnect_machine_client_id}" >> "${GITHUB_OUTPUT}"
           echo "orgs_json=${orgs_json}" >> "${GITHUB_OUTPUT}"
 
       - name: Detect whether E2E is required
@@ -531,9 +568,9 @@ jobs:
       KONGCTL_E2E_TEST_TIMEOUT: ${{ vars.KONGCTL_E2E_TEST_TIMEOUT || '55m' }}
       KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
       KONGCTL_E2E_KONNECT_ENV: ${{ needs.e2e-needed.outputs.konnect_environment }}
-      KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || '' }}
-      KONGCTL_E2E_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_AUTH_URL || '' }}
-      KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID || '' }}
+      KONGCTL_E2E_KONNECT_BASE_URL: ${{ needs.e2e-needed.outputs.konnect_base_url }}
+      KONGCTL_E2E_KONNECT_BASE_AUTH_URL: ${{ needs.e2e-needed.outputs.konnect_base_auth_url }}
+      KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID: ${{ needs.e2e-needed.outputs.konnect_machine_client_id }}
       # Reset is enabled by default in the harness; set explicitly for clarity
       KONGCTL_E2E_RESET: "1"
       # Set HTTP timeout vars to 0s/default/off to disable kongctl/harness application-level timeouts
@@ -808,6 +845,7 @@ jobs:
           nonzero_exit_rows="$(mktemp)"
           expected="$(mktemp)"
           actual="$(mktemp)"
+          excluded="$(mktemp)"
           indices="$(mktemp)"
           records="$(mktemp)"
           selected_records="$(mktemp)"
@@ -843,6 +881,7 @@ jobs:
           fi
 
           : > "${actual}"
+          : > "${excluded}"
           : > "${indices}"
           : > "${records}"
           : > "${selected_records}"
@@ -865,6 +904,11 @@ jobs:
             fi
 
             scenario_rows="$(tail -n +4 "${manifest}" | sed '/^$/d' | wc -l | tr -d ' ')"
+            excluded_file="$(dirname "${manifest}")/excluded-scenarios.txt"
+            if [ -f "${excluded_file}" ]; then
+              cat "${excluded_file}" >> "${excluded}"
+            fi
+
             org_name="$(sed -n 's/^org_name=//p' "${results}")"
             if [ -z "${org_name}" ]; then
               artifact_name="$(basename "$(dirname "$(dirname "${manifest}")")")"
@@ -956,6 +1000,12 @@ jobs:
               printf '%s\t%s\n' "${org_name}" "${scenario_name}" >> "${failed_rows}"
             done
           done < "${selected_records}"
+
+          sort -u "${excluded}" -o "${excluded}"
+          if [ -s "${excluded}" ]; then
+            comm -23 "${expected}" "${excluded}" > "${expected}.filtered"
+            mv "${expected}.filtered" "${expected}"
+          fi
 
           manifest_count="$(wc -l < "${indices}" | tr -d ' ')"
           if [ "${manifest_count}" -ne "${total}" ]; then

@@ -239,7 +239,10 @@ matches that value. They are excluded from normal modulo sharding so they do
 not run in any other org. Unpinned scenarios continue to be sharded by sorted
 position. In CI, the harness validates pinned environments against
 `KONGCTL_E2E_ORGS_JSON` and fails if a scenario names an environment that is
-not present in the org pool.
+not present in the `.com` org pool. Non-`.com` runs, such as `.tech`, exclude
+scenarios pinned to missing org names and upload an `excluded-scenarios.txt`
+artifact so coverage verification still checks the scenarios expected to run
+for that target.
 
 For local full-suite runs without sharding, assignments are not enforced by
 default because the run targets a single developer-selected org. To emulate a
@@ -371,7 +374,8 @@ job per Konnect org. Each job gets:
 - one environment-scoped PAT
 - the Konnect environment selector from workflow dispatch or repository
   variables
-- optional shared Konnect URL overrides from repository variables
+- optional environment-specific Konnect URL overrides from repository
+  variables
 - one shard index
 - the common shard total from the matrix size
 
@@ -417,7 +421,8 @@ directory. A final `E2E Verify` job downloads those manifests and fails unless:
 
 - every shard index from `0` through `KONGCTL_E2E_SHARD_TOTAL-1` appears once
 - no scenario appears in more than one shard manifest
-- the combined manifest set matches the full discovered scenario list
+- the combined manifest set matches the discovered scenario list after any
+  target-specific `excluded-scenarios.txt` entries are removed
 
 That verification step is the guardrail that keeps sharding regressions from
 silently dropping or duplicating scenario coverage.
@@ -469,10 +474,17 @@ matrix with this fallback order for non-fork runs:
 2. `KONGCTL_E2E_ORGS_JSON`.
 3. A single `default` matrix entry.
 
-Use `KONGCTL_E2E_KONNECT_BASE_URL`,
+Use `KONGCTL_E2E_COM_KONNECT_BASE_URL`,
+`KONGCTL_E2E_COM_KONNECT_BASE_AUTH_URL`, and
+`KONGCTL_E2E_COM_KONNECT_MACHINE_CLIENT_ID` for `.com`-specific endpoint
+overrides. The legacy `KONGCTL_E2E_KONNECT_BASE_URL`,
 `KONGCTL_E2E_KONNECT_BASE_AUTH_URL`, and
-`KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID` only when the standard `.com` or
-`.tech` defaults are not sufficient.
+`KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID` variables remain `.com` fallbacks.
+
+Use `KONGCTL_E2E_TECH_KONNECT_BASE_URL`,
+`KONGCTL_E2E_TECH_KONNECT_BASE_AUTH_URL`, and
+`KONGCTL_E2E_TECH_KONNECT_MACHINE_CLIENT_ID` for `.tech`-specific endpoint
+overrides. Leave them unset when the standard `.tech` defaults are sufficient.
 
 If the org-pool variable is unset, the workflow falls back to a single-org
 matrix entry named `default` for non-fork runs, which is useful during
