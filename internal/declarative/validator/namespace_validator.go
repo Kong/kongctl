@@ -227,6 +227,7 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		len(rs.DCRProviders) +
 		len(managedControlPlanes) +
 		len(rs.CatalogServices) +
+		len(rs.AIGateways) +
 		len(rs.APIs) +
 		len(managedEventGateways) +
 		len(rs.Dashboards) +
@@ -314,6 +315,9 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 	}
 	for i := range rs.CatalogServices {
 		check(string(resources.ResourceTypeCatalogService), rs.CatalogServices[i].Ref, rs.CatalogServices[i].Kongctl)
+	}
+	for i := range rs.AIGateways {
+		check(string(resources.ResourceTypeAIGateway), rs.AIGateways[i].Ref, rs.AIGateways[i].Kongctl)
 	}
 	for i := range rs.Dashboards {
 		check(string(resources.ResourceTypeDashboard), rs.Dashboards[i].Ref, rs.Dashboards[i].Kongctl)

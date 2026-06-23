@@ -60,6 +60,9 @@ func ExtractResourceName(fields map[string]any) string {
 	if name, ok := fields[planner.FieldName].(string); ok {
 		return name
 	}
+	if displayName, ok := fields[planner.FieldDisplayName].(string); ok {
+		return displayName
+	}
 	return resources.UnknownReferenceID
 }
 

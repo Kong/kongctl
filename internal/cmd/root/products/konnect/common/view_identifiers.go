@@ -5,6 +5,7 @@ package common
 const (
 	ViewParentAPI                           = "api"
 	ViewParentAnalyticsDashboard            = "analytics-dashboard"
+	ViewParentAIGateway                     = "ai-gateway"
 	ViewParentAPIDocument                   = "api-document"
 	ViewParentAPIImplementation             = "api-implementation"
 	ViewParentAPIPublication                = "api-publication"
@@ -90,6 +91,7 @@ const (
 // View resource selectors used by the Konnect navigator.
 const (
 	ViewResourceAPIs            = "apis"
+	ViewResourceAIGateways      = "ai-gateways"
 	ViewResourceAuthStrategies  = "auth-strategies"
 	ViewResourceCatalogServices = "catalog-services"
 	ViewResourceControlPlanes   = "control-planes"
@@ -99,6 +101,8 @@ const (
 	ViewResourcePortals         = "portals"
 
 	ViewAliasAPIs                      = "apis"
+	ViewAliasAIGateways                = "ai-gateways"
+	ViewAliasAIGatewayShort            = "aigw"
 	ViewAliasApplicationAuthStrategies = "application-auth-strategies"
 	ViewAliasAuthStrategies            = "auth-strategies"
 	ViewAliasCatalog                   = "catalog"

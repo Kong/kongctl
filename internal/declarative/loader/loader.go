@@ -571,6 +571,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			len(source.DCRProviders) +
 			len(source.ControlPlanes) +
 			len(source.CatalogServices) +
+			len(source.AIGateways) +
 			len(source.APIs) +
 			len(source.EventGatewayControlPlanes) +
 			len(source.Dashboards) +
@@ -712,6 +713,20 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		if rs.CatalogServices[i].Kongctl.Protected == nil {
 			falseVal := false
 			rs.CatalogServices[i].Kongctl.Protected = &falseVal
+		}
+	}
+
+	// Apply defaults to AI Gateways (parent resources)
+	for i := range rs.AIGateways {
+		if err := assignNamespace(&rs.AIGateways[i].Kongctl, "ai_gateway", rs.AIGateways[i].Ref); err != nil {
+			return err
+		}
+		if rs.AIGateways[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.AIGateways[i].Kongctl.Protected = protectedDefault
+		}
+		if rs.AIGateways[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.AIGateways[i].Kongctl.Protected = &falseVal
 		}
 	}
 
