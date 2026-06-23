@@ -61,13 +61,46 @@ steps:
           - "{{ .vars.apiName }}"
           - -o
           - json
+        recordVar:
+          name: portalID
+          responsePath: "[0].portal_id"
         assertions:
           - select: "[0]"
             expect:
               fields:
                 visibility: "private"
                 "length(portal_id)": 36
-      - name: 002-plan-no-op
+      - name: 002-get-publication-by-portal-id
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+          - "{{ .vars.portalID }}"
+          - -o
+          - json
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                portal_id: "{{ .vars.portalID }}"
+                visibility: "private"
+                "length(portal_id)": 36
+      - name: 003-get-publication-nonexistent-portal
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+          - "00000000-0000-0000-0000-000000000000"
+          - -o
+          - json
+        expectFailure:
+          exitCode: 1
+          contains: "not found"
+      - name: 004-plan-no-op
         outputFormat: disable
         run:
           - plan
