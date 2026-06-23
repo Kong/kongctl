@@ -399,13 +399,25 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - name: Download private SDK module
+      - name: Use local private SDK module
         shell: bash
         run: |
           set -euo pipefail
 
           if grep -q 'sdk-konnect-go-internal' go.mod; then
-            go mod download github.com/Kong/sdk-konnect-go
+            sdk_ref="$(
+              sed -nE 's#^replace github\.com/Kong/sdk-konnect-go => github\.com/Kong/sdk-konnect-go-internal v[^[:space:]]*-([0-9a-f]+)$#\1#p' go.mod
+            )"
+            if [ -z "${sdk_ref}" ]; then
+              echo "::error::Unable to determine sdk-konnect-go-internal ref from go.mod"
+              exit 1
+            fi
+
+            git clone --filter=blob:none \
+              https://github.com/Kong/sdk-konnect-go-internal \
+              .private/sdk-konnect-go-internal
+            git -C .private/sdk-konnect-go-internal checkout --detach "${sdk_ref}"
+            go mod edit -replace=github.com/Kong/sdk-konnect-go=./.private/sdk-konnect-go-internal
           fi
 
       - name: Run E2E harness tests
@@ -457,13 +469,25 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - name: Download private SDK module
+      - name: Use local private SDK module
         shell: bash
         run: |
           set -euo pipefail
 
           if grep -q 'sdk-konnect-go-internal' go.mod; then
-            go mod download github.com/Kong/sdk-konnect-go
+            sdk_ref="$(
+              sed -nE 's#^replace github\.com/Kong/sdk-konnect-go => github\.com/Kong/sdk-konnect-go-internal v[^[:space:]]*-([0-9a-f]+)$#\1#p' go.mod
+            )"
+            if [ -z "${sdk_ref}" ]; then
+              echo "::error::Unable to determine sdk-konnect-go-internal ref from go.mod"
+              exit 1
+            fi
+
+            git clone --filter=blob:none \
+              https://github.com/Kong/sdk-konnect-go-internal \
+              .private/sdk-konnect-go-internal
+            git -C .private/sdk-konnect-go-internal checkout --detach "${sdk_ref}"
+            go mod edit -replace=github.com/Kong/sdk-konnect-go=./.private/sdk-konnect-go-internal
           fi
 
       - name: Build kongctl
