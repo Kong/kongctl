@@ -372,6 +372,27 @@ jobs:
           repository: ${{ needs.e2e-needed.outputs.checkout_repository }}
           ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
 
+      - name: Configure private module access
+        shell: bash
+        env:
+          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+        run: |
+          set -euo pipefail
+
+          if ! grep -q 'sdk-konnect-go-internal' go.mod; then
+            exit 0
+          fi
+
+          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
+            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
+            exit 1
+          fi
+
+          git config --global \
+            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
+            "https://github.com/"
+          echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
+
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
@@ -399,6 +420,27 @@ jobs:
         with:
           repository: ${{ needs.e2e-needed.outputs.checkout_repository }}
           ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
+
+      - name: Configure private module access
+        shell: bash
+        env:
+          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+        run: |
+          set -euo pipefail
+
+          if ! grep -q 'sdk-konnect-go-internal' go.mod; then
+            exit 0
+          fi
+
+          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
+            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
+            exit 1
+          fi
+
+          git config --global \
+            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
+            "https://github.com/"
+          echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
 
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
@@ -505,12 +547,6 @@ jobs:
         with:
           repository: ${{ needs.e2e-needed.outputs.checkout_repository }}
           ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
-
-      # Optional: Un-comment if you need private module access
-      # - name: Configure private module access
-      #   run: git config --global url.https://$GITHUB_TOKEN@github.com/.insteadOf https://github.com/
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
 
       - name: Setup deck
         uses: kong/setup-deck@6ea0a466ee5826ddb531cbe851ba8e5a77a0e041 # v1.7.1
