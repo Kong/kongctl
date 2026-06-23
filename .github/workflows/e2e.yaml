@@ -399,6 +399,15 @@ jobs:
           go-version-file: go.mod
           cache: false
 
+      - name: Download private SDK module
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            go mod download github.com/Kong/sdk-konnect-go
+          fi
+
       - name: Run E2E harness tests
         run: |
           go test -count=1 -tags=e2e ./test/e2e/harness/...
@@ -447,6 +456,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+
+      - name: Download private SDK module
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            go mod download github.com/Kong/sdk-konnect-go
+          fi
 
       - name: Build kongctl
         run: make build-ci

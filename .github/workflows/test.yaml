@@ -56,6 +56,16 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: go.mod
+
+      - name: Download private SDK module
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            go mod download github.com/Kong/sdk-konnect-go
+          fi
+
       - name: Install installer test tools
         run: |
           sudo apt-get update
