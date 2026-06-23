@@ -35,6 +35,7 @@ type ClientConfig struct {
 	DataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
 	ControlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
 	CatalogServiceAPI       helpers.CatalogServicesAPI
+	AIGatewayAPI            helpers.AIGatewayAPI
 	DashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -97,6 +98,7 @@ type Client struct {
 	dataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
 	controlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
 	catalogServiceAPI       helpers.CatalogServicesAPI
+	aiGatewayAPI            helpers.AIGatewayAPI
 	dashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -160,6 +162,7 @@ func NewClient(config ClientConfig) *Client {
 		dataPlaneCertificateAPI: config.DataPlaneCertificateAPI,
 		controlPlaneGroupsAPI:   config.ControlPlaneGroupsAPI,
 		catalogServiceAPI:       config.CatalogServiceAPI,
+		aiGatewayAPI:            config.AIGatewayAPI,
 		dashboardsAPI:           config.DashboardsAPI,
 
 		// Portal child resource APIs
@@ -239,6 +242,12 @@ type GatewayService struct {
 // CatalogService represents a catalog service for internal use.
 type CatalogService struct {
 	kkComps.CatalogService
+	NormalizedLabels map[string]string
+}
+
+// AIGateway represents a Konnect AI Gateway for internal use.
+type AIGateway struct {
+	kkComps.AIGateway
 	NormalizedLabels map[string]string
 }
 
@@ -1607,6 +1616,167 @@ func (c *Client) DeleteCatalogService(ctx context.Context, id string) error {
 	_, err := c.catalogServiceAPI.DeleteCatalogService(ctx, id)
 	if err != nil {
 		return WrapAPIError(err, "delete catalog service", nil)
+	}
+
+	return nil
+}
+
+// ListManagedAIGateways returns all KONGCTL-managed AI Gateways in the specified namespaces.
+// If namespaces is empty, no resources are returned. To get all managed resources, pass []string{"*"}.
+func (c *Client) ListManagedAIGateways(ctx context.Context, namespaces []string) ([]AIGateway, error) {
+	if err := ValidateAPIClient(c.aiGatewayAPI, "AI Gateway API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]AIGateway, *PageMeta, error) {
+		resp, err := c.aiGatewayAPI.ListAiGateways(ctx, &pageSize, &pageNumber)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list AI Gateways", nil)
+		}
+
+		if resp == nil || resp.ListAIGatewaysResponse == nil {
+			return []AIGateway{}, &PageMeta{Total: 0}, nil
+		}
+
+		var filtered []AIGateway
+		for _, gateway := range resp.ListAIGatewaysResponse.Data {
+			normalized := gateway.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			if labels.IsManagedResource(normalized) &&
+				shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+				filtered = append(filtered, AIGateway{
+					AIGateway:        gateway,
+					NormalizedLabels: normalized,
+				})
+			}
+		}
+
+		meta := &PageMeta{Total: resp.ListAIGatewaysResponse.Meta.Page.Total}
+		return filtered, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+// GetAIGatewayByDisplayName finds a managed AI Gateway by display name.
+func (c *Client) GetAIGatewayByDisplayName(ctx context.Context, displayName string) (*AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+
+	gateways, err := c.ListManagedAIGateways(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range gateways {
+		if gateways[i].DisplayName == displayName {
+			return &gateways[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// GetAIGatewayByID fetches an AI Gateway by ID.
+func (c *Client) GetAIGatewayByID(ctx context.Context, id string) (*AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+
+	resp, err := c.aiGatewayAPI.GetAiGateway(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "fetch AI Gateway", nil)
+	}
+
+	if resp.AIGateway == nil {
+		return nil, nil
+	}
+
+	normalized := resp.AIGateway.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &AIGateway{
+		AIGateway:        *resp.AIGateway,
+		NormalizedLabels: normalized,
+	}, nil
+}
+
+// CreateAIGateway creates a new AI Gateway with management labels.
+func (c *Client) CreateAIGateway(
+	ctx context.Context,
+	req kkComps.CreateAIGatewayRequest,
+	namespace string,
+) (*kkComps.AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		return nil, fmt.Errorf("AI Gateway name is required")
+	}
+
+	resp, err := c.aiGatewayAPI.CreateAiGateway(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "create AI Gateway", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGateway),
+			ResourceName: req.DisplayName,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.AIGateway == nil {
+		return nil, fmt.Errorf("create AI Gateway response missing data")
+	}
+
+	return resp.AIGateway, nil
+}
+
+// UpdateAIGateway updates an existing AI Gateway.
+func (c *Client) UpdateAIGateway(
+	ctx context.Context,
+	id string,
+	req kkComps.UpdateAIGatewayRequest,
+	namespace string,
+) (*kkComps.AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		return nil, fmt.Errorf("AI Gateway name is required")
+	}
+
+	resp, err := c.aiGatewayAPI.UpdateAiGateway(ctx, id, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "update AI Gateway", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGateway),
+			ResourceName: req.DisplayName,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.AIGateway == nil {
+		return nil, fmt.Errorf("update AI Gateway response missing data")
+	}
+
+	return resp.AIGateway, nil
+}
+
+// DeleteAIGateway deletes an AI Gateway by ID.
+func (c *Client) DeleteAIGateway(ctx context.Context, id string) error {
+	if c.aiGatewayAPI == nil {
+		return fmt.Errorf("AI Gateway API not configured")
+	}
+
+	_, err := c.aiGatewayAPI.DeleteAiGateway(ctx, id)
+	if err != nil {
+		return WrapAPIError(err, "delete AI Gateway", nil)
 	}
 
 	return nil

@@ -13,6 +13,7 @@ const (
 	ResourceTypeControlPlane                            ResourceType = "control_plane"
 	ResourceTypeControlPlaneGroup                       ResourceType = "control_plane_group"
 	ResourceTypeAPI                                     ResourceType = "api"
+	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
@@ -89,6 +90,7 @@ type ResourceSet struct {
 	// ControlPlanes contains control plane configurations
 	ControlPlanes                     []ControlPlaneResource                     `yaml:"control_planes,omitempty"                                 json:"control_planes,omitempty"`                        //nolint:lll
 	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
+	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
@@ -305,6 +307,16 @@ func (rs *ResourceSet) GetCatalogServiceByRef(ref string) *CatalogServiceResourc
 	return nil
 }
 
+// GetAIGatewayByRef returns an AI Gateway resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayByRef(ref string) *AIGatewayResource {
+	for i := range rs.AIGateways {
+		if rs.AIGateways[i].GetRef() == ref {
+			return &rs.AIGateways[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {
@@ -361,6 +373,17 @@ func (rs *ResourceSet) GetCatalogServicesByNamespace(namespace string) []Catalog
 	for _, svc := range rs.CatalogServices {
 		if GetNamespace(svc.Kongctl) == namespace {
 			filtered = append(filtered, svc)
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewaysByNamespace returns all AI Gateway resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewaysByNamespace(namespace string) []AIGatewayResource {
+	var filtered []AIGatewayResource
+	for _, gateway := range rs.AIGateways {
+		if GetNamespace(gateway.Kongctl) == namespace {
+			filtered = append(filtered, gateway)
 		}
 	}
 	return filtered

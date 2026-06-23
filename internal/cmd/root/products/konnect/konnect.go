@@ -8,6 +8,7 @@ import (
 	commoncmd "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/aigateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/analytics"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/auditlogs"
@@ -306,6 +307,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 		cmd.AddCommand(eventGatewayCmd)
 
+		aiGatewayCmd, err := adopt.NewAIGatewayCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(aiGatewayCmd)
+
 		orgCmd, err := organization.NewOrganizationCmd(verb, addFlags, preRunE)
 		if err != nil {
 			return nil, err
@@ -350,6 +357,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(analyticsCmd)
+
+	// Add AI Gateway command
+	aigwCmd, e := aigateway.NewAIGatewayCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(aigwCmd)
 
 	// Add auth strategy command
 	asc, e := authstrategy.NewAuthStrategyCmd(verb, addFlags, preRunE)

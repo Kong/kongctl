@@ -47,6 +47,17 @@ func TestAdoptPersistentFlagsAreInheritedByLeafCommands(t *testing.T) {
 			args: []string{"--namespace", "team-alpha", "analytics", "dashboard", "dashboard-id"},
 		},
 		{
+			name: "direct AI Gateway",
+			path: []string{"ai-gateway"},
+			args: []string{"--namespace", "team-alpha", "ai-gateway", "ai-gateway-id"},
+		},
+		{
+			name:      "explicit konnect AI Gateway overwrite",
+			path:      []string{"konnect", "ai-gateway"},
+			args:      []string{"konnect", "ai-gateway", "ai-gateway-id", "--namespace", "team-alpha", "--overwrite-namespace"},
+			overwrite: true,
+		},
+		{
 			name: "nested organization team",
 			path: []string{"organization", "team"},
 			args: []string{"--namespace", "team-alpha", "org", "team", "22cd8a0b-72e7-4212-9099-0764f8e9c5ac"},

@@ -310,6 +310,33 @@ control_plane_data_plane_certificates:
    cert: string required # prefer: !file ./certs/data-plane.pem
 ```
 
+## AI Gateways
+
+This section covers the root AI Gateway resource backed by the Konnect
+`/v1/ai-gateways` API. Child resources under an AI Gateway are intentionally
+not included here yet. Use `kongctl explain ai_gateway --output yaml` as the
+authoritative schema and `kongctl scaffold ai_gateway` to generate starter
+YAML.
+
+The `ref` value is used as the stable Konnect API `name` when creating an AI
+Gateway. Use `display_name` for the human-readable name shown in Konnect.
+
+```yaml
+ai_gateways:
+ - ref: string
+   display_name: string required
+   description: string
+   proxy_urls: array[object]
+     - host: string required
+       port: integer required
+       protocol: string required
+   labels: object [string]string
+     key: value
+   kongctl:
+     namespace: string
+     protected: boolean
+```
+
 ## Event Gateways
 
 [API Specification](https://developer.konghq.com/api/konnect/event-gateway/v1/#/operations/create-event-gateway)
