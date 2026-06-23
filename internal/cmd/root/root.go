@@ -106,9 +106,9 @@ Find more information at:
 	// precedence note there.
 	noTelemetry bool
 
-	// kongTech switches Konnect defaults for this invocation to Kong's .tech
-	// environment. It is intentionally hidden for Kong-internal use.
-	kongTech bool
+	// konnectEnv switches Konnect target defaults for this invocation. It is
+	// intentionally hidden for Kong-internal use.
+	konnectEnv string
 )
 
 // NoTelemetryFlagName is the persistent root flag that disables telemetry
@@ -215,6 +215,9 @@ func newRootCmd() *cobra.Command {
 			return nil
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			if err := applyKonnectEnvironmentDefaults(cmd.Root(), currConfig); err != nil {
+				return &cmdpkg.ConfigurationError{Err: err}
+			}
 			if err := validateOutputFormat(cmd); err != nil {
 				return &cmdpkg.ConfigurationError{Err: err}
 			}
@@ -285,9 +288,11 @@ func newRootCmd() *cobra.Command {
 - Default    : [ false ]`,
 			telemetry.ConfigKeyEnabled, telemetry.EnvNoTelemetry))
 
-	rootCmd.PersistentFlags().BoolVar(&kongTech, konnectcommon.KongTechFlagName, false,
-		"Use Kong's Konnect .tech environment for this command invocation.")
-	util.CheckError(rootCmd.PersistentFlags().MarkHidden(konnectcommon.KongTechFlagName))
+	rootCmd.PersistentFlags().StringVar(&konnectEnv, konnectcommon.KonnectEnvFlagName,
+		"",
+		fmt.Sprintf("Konnect environment for this command invocation. Allowed values: %s, %s.",
+			konnectcommon.EnvironmentCom, konnectcommon.EnvironmentTech))
+	util.CheckError(rootCmd.PersistentFlags().MarkHidden(konnectcommon.KonnectEnvFlagName))
 
 	themeFlag := theme.NewFlag(common.DefaultColorTheme)
 	rootCmd.PersistentFlags().Var(themeFlag, common.ColorThemeFlagName,
@@ -640,12 +645,16 @@ func applyExtensionRuntimeDefaults(runtimeCtx *extensioncore.RuntimeContext, cfg
 	}
 }
 
-func applyKongTechDefaults(command *cobra.Command, cfg config.Hook) error {
-	if !kongTech || command == nil || cfg == nil {
+func applyKonnectEnvironmentDefaults(command *cobra.Command, cfg config.Hook) error {
+	if command == nil || cfg == nil {
 		return nil
 	}
 
-	defaults := konnectcommon.TechEnvironmentDefaults()
+	defaults, selected, err := selectedKonnectEnvironmentDefaults(command)
+	if err != nil || !selected {
+		return err
+	}
+
 	if !commandTreeFlagChanged(command, konnectcommon.BaseURLFlagName) {
 		baseURL := defaults.BaseURL
 		if region, ok := commandTreeChangedFlagString(command, konnectcommon.RegionFlagName); ok {
@@ -662,12 +671,81 @@ func applyKongTechDefaults(command *cobra.Command, cfg config.Hook) error {
 			baseURL = resolved
 		}
 		cfg.SetString(konnectcommon.BaseURLConfigPath, baseURL)
+		if err := setCommandTreeFlagValue(command, konnectcommon.BaseURLFlagName, baseURL); err != nil {
+			return err
+		}
 	}
 	if !commandTreeFlagChanged(command, konnectcommon.AuthBaseURLFlagName) {
 		cfg.SetString(konnectcommon.AuthBaseURLConfigPath, defaults.AuthBaseURL)
+		if err := setCommandTreeFlagValue(command, konnectcommon.AuthBaseURLFlagName, defaults.AuthBaseURL); err != nil {
+			return err
+		}
 	}
 	if !commandTreeFlagChanged(command, konnectcommon.MachineClientIDFlagName) {
 		cfg.SetString(konnectcommon.MachineClientIDConfigPath, defaults.MachineClientID)
+		if err := setCommandTreeFlagValue(command, konnectcommon.MachineClientIDFlagName, defaults.MachineClientID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func selectedKonnectEnvironmentDefaults(command *cobra.Command) (konnectcommon.EnvironmentDefaults, bool, error) {
+	if value, ok := commandTreeChangedFlagString(command, konnectcommon.KonnectEnvFlagName); ok {
+		defaults, err := konnectEnvironmentDefaultsForSelector(value)
+		return defaults, true, err
+	}
+
+	if value := strings.TrimSpace(konnectEnv); value != "" {
+		defaults, err := konnectEnvironmentDefaultsForSelector(value)
+		return defaults, true, err
+	}
+
+	value, ok := os.LookupEnv(konnectcommon.KonnectEnvEnvName)
+	if !ok || strings.TrimSpace(value) == "" {
+		return konnectcommon.EnvironmentDefaults{}, false, nil
+	}
+
+	defaults, err := konnectEnvironmentDefaultsForSelector(value)
+	return defaults, true, err
+}
+
+func konnectEnvironmentDefaultsForSelector(value string) (konnectcommon.EnvironmentDefaults, error) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	switch normalized {
+	case konnectcommon.EnvironmentCom, konnectcommon.EnvironmentTech:
+		return konnectcommon.EnvironmentDefaultsFor(normalized)
+	default:
+		return konnectcommon.EnvironmentDefaults{},
+			fmt.Errorf("unsupported konnect environment %q (allowed: %s, %s)",
+				value, konnectcommon.EnvironmentCom, konnectcommon.EnvironmentTech)
+	}
+}
+
+func setCommandTreeFlagValue(command *cobra.Command, name, value string) error {
+	if command == nil {
+		return nil
+	}
+	for _, flags := range []*pflag.FlagSet{
+		command.Flags(),
+		command.PersistentFlags(),
+		command.LocalNonPersistentFlags(),
+		command.InheritedFlags(),
+	} {
+		if flags == nil {
+			continue
+		}
+		if flag := flags.Lookup(name); flag != nil && !flag.Changed {
+			if err := flag.Value.Set(value); err != nil {
+				return fmt.Errorf("set --%s default: %w", name, err)
+			}
+			flag.DefValue = value
+		}
+	}
+	for _, child := range command.Commands() {
+		if err := setCommandTreeFlagValue(child, name, value); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -725,7 +803,6 @@ func initConfig() {
 
 	bindFlags(currConfig)
 	applyExtensionRuntimeDefaults(runtimeCtx, currConfig)
-	util.CheckError(applyKongTechDefaults(rootCmd, currConfig))
 
 	themeName := strings.TrimSpace(currConfig.GetString(common.ColorThemeConfigPath))
 	if themeName == "" {

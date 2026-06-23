@@ -101,8 +101,14 @@ func TestRunGetOrganization(t *testing.T) {
 		api := &stubMeAPI{
 			getOrganizationsMe: func(
 				_ context.Context,
-				_ ...kkOps.Option,
+				opts ...kkOps.Option,
 			) (*kkOps.GetOrganizationsMeResponse, error) {
+				options := kkOps.Options{}
+				for _, opt := range opts {
+					require.NoError(t, opt(&options))
+				}
+				require.NotNil(t, options.ServerURL)
+				assert.Equal(t, "https://global.api.konghq.tech", *options.ServerURL)
 				return &kkOps.GetOrganizationsMeResponse{
 					MeOrganization: expected,
 				}, nil
@@ -112,7 +118,7 @@ func TestRunGetOrganization(t *testing.T) {
 		helper := cmd.NewMockHelper(t)
 		helper.EXPECT().GetContext().Return(context.Background())
 
-		org, err := runGetOrganization(api, helper)
+		org, err := runGetOrganization(api, helper, "https://global.api.konghq.tech")
 		require.NoError(t, err)
 		assert.Equal(t, expected, org)
 	})
@@ -131,7 +137,7 @@ func TestRunGetOrganization(t *testing.T) {
 		helper.EXPECT().GetContext().Return(context.Background())
 		helper.EXPECT().GetCmd().Return(&cobra.Command{Use: "organization"})
 
-		org, err := runGetOrganization(api, helper)
+		org, err := runGetOrganization(api, helper, "https://global.api.konghq.tech")
 		assert.Nil(t, org)
 		var execErr *cmd.ExecutionError
 		require.ErrorAs(t, err, &execErr)

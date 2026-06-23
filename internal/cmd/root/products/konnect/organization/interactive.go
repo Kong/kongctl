@@ -27,7 +27,12 @@ func BuildListView(helper cmd.Helper) (tableview.ChildView, error) {
 		return tableview.ChildView{}, err
 	}
 
-	org, err := runGetOrganization(sdk.GetMeAPI(), helper)
+	baseURL, err := common.ResolveBaseURL(cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	org, err := runGetOrganization(sdk.GetMeAPI(), helper, baseURL)
 	if err != nil {
 		return tableview.ChildView{}, err
 	}

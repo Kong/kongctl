@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,6 +19,8 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -44,13 +47,15 @@ const (
 
 	RegionFlagName = "region"
 
+	EnvironmentCom        = "com"
 	EnvironmentProduction = "production"
 	EnvironmentTech       = "tech"
 
 	TechGlobalBaseURL       = "https://global.api.konghq.tech"
 	TechBaseURLDefault      = "https://us.api.konghq.tech"
 	TechMachineClientID     = "35b065db-8eaf-4584-9cb6-05b1daea0750"
-	KongTechFlagName        = "kong-tech"
+	KonnectEnvFlagName      = "konnect-env"
+	KonnectEnvEnvName       = "KONGCTL_KONNECT_ENV"
 	konnectProductionDomain = "konghq.com"
 	konnectTechDomain       = "konghq.tech"
 
@@ -111,13 +116,180 @@ func TechEnvironmentDefaults() EnvironmentDefaults {
 
 func EnvironmentDefaultsFor(name string) (EnvironmentDefaults, error) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "", EnvironmentProduction, "prod", "com":
+	case "", EnvironmentCom, EnvironmentProduction, "prod":
 		return ProductionEnvironmentDefaults(), nil
 	case EnvironmentTech:
 		return TechEnvironmentDefaults(), nil
 	default:
 		return EnvironmentDefaults{}, fmt.Errorf("unsupported konnect environment %q", name)
 	}
+}
+
+func ApplyEnvironmentDefaults(command *cobra.Command, cfg config.Hook) error {
+	if command == nil || cfg == nil {
+		return nil
+	}
+
+	defaults, selected, err := SelectedEnvironmentDefaults(command)
+	if err != nil || !selected {
+		return err
+	}
+
+	if !commandTreeFlagChanged(command, BaseURLFlagName) {
+		baseURL := defaults.BaseURL
+		if region, ok := commandTreeChangedFlagString(command, RegionFlagName); ok {
+			resolved, err := BuildBaseURLFromRegionForEnvironment(region, defaults.Name)
+			if err != nil {
+				return err
+			}
+			baseURL = resolved
+		} else if region := strings.TrimSpace(cfg.GetString(RegionConfigPath)); region != "" {
+			resolved, err := BuildBaseURLFromRegionForEnvironment(region, defaults.Name)
+			if err != nil {
+				return err
+			}
+			baseURL = resolved
+		}
+		cfg.SetString(BaseURLConfigPath, baseURL)
+		if err := setCommandTreeFlagValue(command, BaseURLFlagName, baseURL); err != nil {
+			return err
+		}
+	}
+	if !commandTreeFlagChanged(command, AuthBaseURLFlagName) {
+		cfg.SetString(AuthBaseURLConfigPath, defaults.AuthBaseURL)
+		if err := setCommandTreeFlagValue(command, AuthBaseURLFlagName, defaults.AuthBaseURL); err != nil {
+			return err
+		}
+	}
+	if !commandTreeFlagChanged(command, MachineClientIDFlagName) {
+		cfg.SetString(MachineClientIDConfigPath, defaults.MachineClientID)
+		if err := setCommandTreeFlagValue(command, MachineClientIDFlagName, defaults.MachineClientID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func SelectedEnvironmentDefaults(command *cobra.Command) (EnvironmentDefaults, bool, error) {
+	if value, ok := commandTreeChangedFlagString(command, KonnectEnvFlagName); ok {
+		defaults, err := environmentDefaultsForSelector(value)
+		return defaults, true, err
+	}
+
+	if value, ok := selectedEnvironmentFromArgs(os.Args[1:]); ok {
+		defaults, err := environmentDefaultsForSelector(value)
+		return defaults, true, err
+	}
+
+	value, ok := os.LookupEnv(KonnectEnvEnvName)
+	if !ok || strings.TrimSpace(value) == "" {
+		return EnvironmentDefaults{}, false, nil
+	}
+
+	defaults, err := environmentDefaultsForSelector(value)
+	return defaults, true, err
+}
+
+func selectedEnvironmentFromArgs(args []string) (string, bool) {
+	value := ""
+	selected := false
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			break
+		}
+		if arg == "--"+KonnectEnvFlagName {
+			selected = true
+			value = ""
+			if i+1 < len(args) {
+				value = args[i+1]
+				i++
+			}
+			continue
+		}
+		if stripped, ok := strings.CutPrefix(arg, "--"+KonnectEnvFlagName+"="); ok {
+			selected = true
+			value = stripped
+		}
+	}
+	return value, selected
+}
+
+func environmentDefaultsForSelector(value string) (EnvironmentDefaults, error) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	switch normalized {
+	case EnvironmentCom, EnvironmentTech:
+		return EnvironmentDefaultsFor(normalized)
+	default:
+		return EnvironmentDefaults{},
+			fmt.Errorf("unsupported konnect environment %q (allowed: %s, %s)",
+				value, EnvironmentCom, EnvironmentTech)
+	}
+}
+
+func setCommandTreeFlagValue(command *cobra.Command, name, value string) error {
+	if command == nil {
+		return nil
+	}
+	for _, flags := range []*pflag.FlagSet{
+		command.Flags(),
+		command.PersistentFlags(),
+		command.LocalNonPersistentFlags(),
+		command.InheritedFlags(),
+	} {
+		if flags == nil {
+			continue
+		}
+		if flag := flags.Lookup(name); flag != nil && !flag.Changed {
+			if err := flag.Value.Set(value); err != nil {
+				return fmt.Errorf("set --%s default: %w", name, err)
+			}
+			flag.DefValue = value
+		}
+	}
+	for _, child := range command.Commands() {
+		if err := setCommandTreeFlagValue(child, name, value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func commandTreeFlagChanged(command *cobra.Command, name string) bool {
+	return commandTreeChangedFlag(command, name) != nil
+}
+
+func commandTreeChangedFlagString(command *cobra.Command, name string) (string, bool) {
+	flag := commandTreeChangedFlag(command, name)
+	if flag == nil {
+		return "", false
+	}
+	return flag.Value.String(), true
+}
+
+func commandTreeChangedFlag(command *cobra.Command, name string) *pflag.Flag {
+	if command == nil {
+		return nil
+	}
+	for _, flags := range []*pflag.FlagSet{
+		command.Flags(),
+		command.PersistentFlags(),
+		command.LocalNonPersistentFlags(),
+		command.InheritedFlags(),
+	} {
+		if flags == nil {
+			continue
+		}
+		if flag := flags.Lookup(name); flag != nil && flag.Changed {
+			return flag
+		}
+	}
+	for _, child := range command.Commands() {
+		if flag := commandTreeChangedFlag(child, name); flag != nil {
+			return flag
+		}
+	}
+	return nil
 }
 
 func InferEnvironmentDefaultsFromURL(rawURL string) (EnvironmentDefaults, bool) {
@@ -240,7 +412,8 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	if maxAttempts > httpclient.MaxRetryMaxAttempts {
 		return httpclient.RetryConfig{}, fmt.Errorf(
 			"invalid %s value %d: must be <= %d",
-			HTTPRetryMaxAttemptsConfigPath, maxAttempts, httpclient.MaxRetryMaxAttempts)
+			HTTPRetryMaxAttemptsConfigPath, maxAttempts, httpclient.MaxRetryMaxAttempts,
+		)
 	}
 	if maxAttempts == 0 {
 		maxAttempts = httpclient.DefaultRetryMaxAttempts
@@ -261,12 +434,14 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	if initialIntervalMS < httpclient.MinRetryInitialIntervalMS {
 		return httpclient.RetryConfig{}, fmt.Errorf(
 			"invalid %s value %d: must be >= %d ms",
-			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MinRetryInitialIntervalMS)
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MinRetryInitialIntervalMS,
+		)
 	}
 	if initialIntervalMS > httpclient.MaxRetryInitialIntervalMS {
 		return httpclient.RetryConfig{}, fmt.Errorf(
 			"invalid %s value %d: must be <= %d ms",
-			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MaxRetryInitialIntervalMS)
+			HTTPRetryInitialIntervalConfigPath, initialIntervalMS, httpclient.MaxRetryInitialIntervalMS,
+		)
 	}
 
 	maxIntervalMS, err := resolveOptionalInt(cfg, HTTPRetryMaxIntervalConfigPath)
@@ -279,18 +454,21 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	if maxIntervalMS < httpclient.MinRetryMaxIntervalMS {
 		return httpclient.RetryConfig{}, fmt.Errorf(
 			"invalid %s value %d: must be >= %d ms",
-			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MinRetryMaxIntervalMS)
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MinRetryMaxIntervalMS,
+		)
 	}
 	if maxIntervalMS > httpclient.MaxRetryMaxIntervalMS {
 		return httpclient.RetryConfig{}, fmt.Errorf(
 			"invalid %s value %d: must be <= %d ms",
-			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MaxRetryMaxIntervalMS)
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS, httpclient.MaxRetryMaxIntervalMS,
+		)
 	}
 	if initialIntervalMS > maxIntervalMS {
 		return httpclient.RetryConfig{}, fmt.Errorf(
 			"invalid configuration: %s (%d ms) must be <= %s (%d ms)",
 			HTTPRetryInitialIntervalConfigPath, initialIntervalMS,
-			HTTPRetryMaxIntervalConfigPath, maxIntervalMS)
+			HTTPRetryMaxIntervalConfigPath, maxIntervalMS,
+		)
 	}
 
 	factor, err := resolveOptionalFloat64(cfg, HTTPRetryBackoffFactorConfigPath)
@@ -330,7 +508,8 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 	if totalBackoffMS > httpclient.MaxRetryTotalBackoffMS {
 		return httpclient.RetryConfig{}, fmt.Errorf(
 			"invalid retry configuration: cumulative backoff budget %d ms must be <= %d ms",
-			totalBackoffMS, httpclient.MaxRetryTotalBackoffMS)
+			totalBackoffMS, httpclient.MaxRetryTotalBackoffMS,
+		)
 	}
 
 	return retryConfig, nil

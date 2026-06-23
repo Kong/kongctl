@@ -161,7 +161,12 @@ Scenario selection and sharding:
 - `KONGCTL_E2E_MATRIX_ORG`: Optional diagnostic label for the current CI job.
 - `KONGCTL_E2E_ORGS_JSON`: JSON array of matrix org entries. Used in CI to
   validate scenario environment assignments. Each entry must include
-  `org_name`.
+  `org_name`. In GitHub Actions, this is also the default org matrix when an
+  environment-specific org matrix is not configured.
+- `KONGCTL_E2E_PRODUCTION_ORGS_JSON`: Optional GitHub Actions org matrix for
+  production Konnect runs.
+- `KONGCTL_E2E_TECH_ORGS_JSON`: Optional GitHub Actions org matrix for
+  `.tech` Konnect runs.
 
 Authentication and opt-in scenarios:
 
@@ -370,7 +375,7 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 - `KONGCTL_E2E_SHARD_INDEX=${{ strategy.job-index }}`
 - `KONGCTL_E2E_SHARD_TOTAL=${{ strategy.job-total }}`
 - `KONGCTL_E2E_MATRIX_ORG=${{ matrix.org_name }}`
-- `KONGCTL_E2E_ORGS_JSON=${{ vars.KONGCTL_E2E_ORGS_JSON }}`
+- `KONGCTL_E2E_ORGS_JSON` set to the selected org matrix
 
 The workflow also exposes the Konnect target, test timeout, HTTP timeout, and
 retry knobs above as repository or organization variables of the same names,
@@ -413,8 +418,8 @@ artifact bundle containing:
 - `tcpdump.log`: tcpdump startup and shutdown output
 - `context.txt`: runner host, DNS resolution, interfaces, and routes
 
-The org pool is defined as JSON in the repository or organization variable
-`KONGCTL_E2E_ORGS_JSON`. Example:
+The default org pool is defined as JSON in the repository or organization
+variable `KONGCTL_E2E_ORGS_JSON`. Example:
 
 ```json
 [
@@ -427,8 +432,19 @@ Each `org_name` must match a GitHub Actions environment that defines the
 secret `KONGCTL_E2E_KONNECT_PAT`.
 
 Set `KONGCTL_E2E_KONNECT_ENV=tech` as a repository or organization variable
-to run the shared matrix against `.tech`. If the `.tech` run needs a different
-org pool, set `KONGCTL_E2E_ORGS_JSON` to environments backed by `.tech` PATs.
+to run scheduled or PR-triggered E2E against `.tech`. Manual dispatch can
+override this with the `konnect_environment` input.
+
+If production and `.tech` need separate org pools, set
+`KONGCTL_E2E_PRODUCTION_ORGS_JSON` and `KONGCTL_E2E_TECH_ORGS_JSON` to
+environment names backed by matching PATs. The workflow selects an org matrix
+with this fallback order:
+
+1. `KONGCTL_E2E_TECH_ORGS_JSON` for `.tech`, or
+   `KONGCTL_E2E_PRODUCTION_ORGS_JSON` for production.
+2. `KONGCTL_E2E_ORGS_JSON`.
+3. A single `default` matrix entry.
+
 Use `KONGCTL_E2E_KONNECT_BASE_URL`,
 `KONGCTL_E2E_KONNECT_BASE_AUTH_URL`, and
 `KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID` only when the standard production or

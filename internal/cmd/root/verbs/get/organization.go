@@ -23,7 +23,8 @@ func NewDirectOrganizationCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmd.Flags().String(common.RegionFlagName, "",
+		cmd.Flags().String(
+			common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),
@@ -42,7 +43,7 @@ Setting this value overrides tokens obtained from the login command.
 			ctx = context.Background()
 		}
 		ctx = context.WithValue(ctx, products.Product, konnect.Product)
-		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
+		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(Verb))
 		c.SetContext(ctx)
 
 		return bindOrganizationFlags(c, args)

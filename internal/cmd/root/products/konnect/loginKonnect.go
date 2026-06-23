@@ -36,7 +36,8 @@ var (
 		i18n.T("root.products.konnect.loginKonnectExample",
 			fmt.Sprintf(`
 # Login to Konnect
-%[1]s login konnect`, meta.CLIName)))
+%[1]s login konnect`, meta.CLIName)),
+	)
 
 	httpClient *http.Client
 
@@ -266,7 +267,8 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 			return helper.GetContext().Err()
 		case <-time.After(time.Duration(resp.Interval) * time.Second):
 			pollResp, err = auth.PollForToken(
-				helper.GetContext(), httpClient, pollURL, clientID, resp.DeviceCode, logger)
+				helper.GetContext(), httpClient, pollURL, clientID, resp.DeviceCode, logger,
+			)
 		}
 		var dagError *auth.DAGError
 		if errors.As(err, &dagError) && dagError.ErrorCode == auth.AuthorizationPendingErrorCode {
@@ -326,6 +328,10 @@ func (c *loginKonnectCmd) preRunE(cobraCmd *cobra.Command, args []string) error 
 	f = c.Flags().Lookup(common.MachineClientIDFlagName)
 	err = cfg.BindFlag(common.MachineClientIDConfigPath, f)
 	if err != nil {
+		return err
+	}
+
+	if err := common.ApplyEnvironmentDefaults(cobraCmd.Root(), cfg); err != nil {
 		return err
 	}
 
