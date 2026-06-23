@@ -247,6 +247,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
+      - name: Configure private module access
+        shell: bash
+        env:
+          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+        run: |
+          set -euo pipefail
+
+          if ! grep -q 'sdk-konnect-go-internal' go.mod; then
+            exit 0
+          fi
+
+          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
+            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
+            exit 1
+          fi
+
+          git config --global \
+            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
+            "https://github.com/"
+          echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
+
       - name: Setup Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
@@ -271,6 +292,27 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Configure private module access
+        shell: bash
+        env:
+          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+        run: |
+          set -euo pipefail
+
+          if ! grep -q 'sdk-konnect-go-internal' go.mod; then
+            exit 0
+          fi
+
+          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
+            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
+            exit 1
+          fi
+
+          git config --global \
+            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
+            "https://github.com/"
+          echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
 
       - name: Setup Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
@@ -374,12 +416,6 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
-      # Optional: Un-comment if you need private module access
-      # - name: Configure private module access
-      #   run: git config --global url.https://$GITHUB_TOKEN@github.com/.insteadOf https://github.com/
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
 
       - name: Setup deck
         uses: kong/setup-deck@6ea0a466ee5826ddb531cbe851ba8e5a77a0e041 # v1.7.1
