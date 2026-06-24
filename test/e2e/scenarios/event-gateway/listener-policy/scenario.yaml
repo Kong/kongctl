@@ -92,6 +92,9 @@ steps:
           - "{{ .vars.listenerName }}"
           - -o
           - json
+        recordVar:
+          name: listenerPolicyID
+          responsePath: "[0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -110,6 +113,48 @@ steps:
                   versions:
                     min: TLSv1.2
                     max: TLSv1.3
+      - name: 004-get-listener-policy-by-name
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --listener-name
+          - "{{ .vars.listenerName }}"
+          - "{{ .vars.listenerPolicyName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.listenerPolicyName }}"
+          - select: type
+            expect:
+              fields:
+                "@": tls_server
+      - name: 005-get-listener-policy-by-id
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --listener-name
+          - "{{ .vars.listenerName }}"
+          - "{{ .vars.listenerPolicyID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.listenerPolicyName }}"
+          - select: type
+            expect:
+              fields:
+                "@": tls_server
   - name: 002-plan-update
     inputOverlayDirs:
       - overlays/001-update-fields

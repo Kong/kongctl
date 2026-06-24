@@ -98,6 +98,9 @@ steps:
           - "{{ .vars.virtualClusterName }}"
           - -o
           - json
+        recordVar:
+          name: clusterPolicyID
+          responsePath: "[0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -108,6 +111,50 @@ steps:
               fields:
                 name: "{{ .vars.clusterPolicyName }}"
                 description: "Default Cluster Policy description"
+      - name: 004-get-cluster-policy-by-name
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - "{{ .vars.clusterPolicyName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.clusterPolicyName }}"
+          - select: type
+            expect:
+              fields:
+                "@": acls
+      - name: 005-get-cluster-policy-by-id
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - "{{ .vars.clusterPolicyID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.clusterPolicyName }}"
+          - select: type
+            expect:
+              fields:
+                "@": acls
   - name: 002-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update-fields

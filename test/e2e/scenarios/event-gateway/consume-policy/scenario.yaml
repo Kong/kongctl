@@ -98,6 +98,9 @@ steps:
           - "{{ .vars.virtualClusterName }}"
           - -o
           - json
+        recordVar:
+          name: consumePolicyID
+          responsePath: "[0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -108,6 +111,50 @@ steps:
               fields:
                 name: "{{ .vars.consumePolicyName }}"
                 description: "Default Consume Policy description"
+      - name: 004-get-consume-policy-by-name
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - "{{ .vars.consumePolicyName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.consumePolicyName }}"
+          - select: type
+            expect:
+              fields:
+                "@": modify_headers
+      - name: 005-get-consume-policy-by-id
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - "{{ .vars.consumePolicyID }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.consumePolicyName }}"
+          - select: type
+            expect:
+              fields:
+                "@": modify_headers
   - name: 002-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update-fields
