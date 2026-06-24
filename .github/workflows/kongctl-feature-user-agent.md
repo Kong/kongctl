@@ -390,6 +390,12 @@ Emit exactly one completion safe output:
 Do not emit more than one `create_issue`, `create_discussion`, or `noop`. Do
 not use GitHub write APIs directly.
 
+When the final result is known, submit the safe output immediately. Do not
+write a separate issue or discussion payload file and then wait for another
+model turn to submit it. The final action should be a direct safe-output tool
+submission, preferably using the `safeoutputs` CLI in the same shell action
+that prepares the final JSON.
+
 Non-issue observations are allowed, but they are supporting evidence, not a
 separate safe output. Write them only to the sanitized observation artifact
 described below, then include them in the final report decision.
@@ -447,12 +453,22 @@ dedicated Konnect org with the existing e2e reset helper.
   meaningful.
 - Emit `noop` only when no meaningful report can be produced, the result is
   incomplete or ambiguous, or the workflow should intentionally stay silent.
+- Once `evaluation-summary.md`, `command-ledger.json`, and the safe output
+  decision are complete, stop all discretionary work and submit the safe output.
+  Do not reread artifacts, polish prose, inspect more docs, or run extra
+  commands beyond the required sanitization check.
+- Keep the final issue, discussion, or noop body compact. Put full evidence in
+  sanitized artifacts and include only the sections needed for the final output
+  to stand on its own.
 
 ## Persistent State
 
 Use cache-memory exactly as lightweight workflow state.
 
-- Read and write only JSON files under `/tmp/gh-aw/cache-memory/`.
+- For persistent state, read and write only JSON files under
+  `/tmp/gh-aw/cache-memory/`. The temporary staging file
+  `/tmp/gh-aw/agent/next-state.json` is the only explicit exception; use it
+  only before final safe-output submission succeeds.
 - Use this state file:
   `/tmp/gh-aw/cache-memory/kongctl-feature-user-agent-state.json`.
 - If the file does not exist, initialize it.
@@ -477,6 +493,11 @@ Use this schema:
 
 Trim `recent_exercises` to the 20 most recent entries and
 `processed_recent_shas` to the 50 most recent SHAs before finishing.
+
+Do not update the persistent state file until the final safe output has been
+submitted successfully. If you need to prepare the next state before final
+submission, write it to `/tmp/gh-aw/agent/next-state.json`; move it into the
+cache-memory state path only after the safe-output command exits successfully.
 
 ## Canonical Feature Matrix
 
@@ -644,13 +665,40 @@ In `evaluation-summary.md` and any successful evaluation discussion, include a
      compact excerpt that is useful for a future rerun.
    - `Safe Output`: whether you emitted `create_issue`, `create_discussion`,
      or `noop`, and why.
-13. Update the persistent state file with the selected title, result, run ID,
-   timestamp, and recent SHAs considered.
-14. Before final output, run a sanitization check over the safe output body and
+13. Before final output, run a sanitization check over the safe output body and
    every file in the sanitized artifact directory. Rewrite or omit unsafe
    content.
-15. Emit exactly one safe output using the decision tree at the top of this
-    prompt.
+14. Emit exactly one safe output using the decision tree at the top of this
+    prompt. Submit it directly with `safeoutputs create_issue .`,
+    `safeoutputs create_discussion .`, or `safeoutputs noop .`; do not write a
+    payload file for a later step.
+15. In the same shell action, after the safe-output command succeeds, update
+    the persistent state file with the selected title, result, run ID,
+    timestamp, and recent SHAs considered. Then stop.
+
+Example final action shape:
+
+```sh
+set -euo pipefail
+cat > /tmp/gh-aw/agent/next-state.json <<'STATE'
+{
+  "version": 1,
+  "recent_exercises": [],
+  "processed_recent_shas": []
+}
+STATE
+
+cat <<'JSON' | safeoutputs create_discussion .
+{
+  "title": "Feature eval: short title",
+  "body": "## Summary\n\nCompact sanitized result...",
+  "category": "general"
+}
+JSON
+
+mv /tmp/gh-aw/agent/next-state.json \
+  /tmp/gh-aw/cache-memory/kongctl-feature-user-agent-state.json
+```
 
 ## Selected Use-Case Replay Prompt
 
@@ -729,6 +777,9 @@ include:
 - Cleanup attempted and result.
 - Why this is actionable for maintainers.
 
+Keep the issue concise, ideally under 12,000 characters. Do not duplicate the
+full `evaluation-summary.md`; summarize it and link the artifact paths.
+
 Call `create_discussion` when the evaluated workflow succeeds and you have a
 meaningful sanitized success report. The discussion must include:
 
@@ -754,12 +805,15 @@ meaningful sanitized success report. The discussion must include:
 
 The discussion body must be useful without downloading artifacts. Artifact
 references are supporting links, not a substitute for the required sections.
+Keep the discussion concise, ideally under 12,000 characters. Do not duplicate
+the full `evaluation-summary.md`; summarize it and link the artifact paths.
 
 If the workflow result is ambiguous, the evaluation is incomplete, no
 meaningful sanitized report can be produced, or the run should intentionally
 stay silent, call `noop` with a concise summary instead.
 
 If the workflow succeeds but reveals useful non-issue product feedback, write
-`observation-summary.md`, mention it in `evaluation-summary.md`, update the
-state file with result `create_discussion`, and include the observation in the
-discussion.
+`observation-summary.md`, mention it in `evaluation-summary.md`, stage the
+state file update with result `create_discussion`, and include the observation
+in the discussion. Move the staged state into cache-memory only after the
+safe-output command succeeds.
