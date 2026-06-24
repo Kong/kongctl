@@ -465,7 +465,10 @@ dedicated Konnect org with the existing e2e reset helper.
 
 Use cache-memory exactly as lightweight workflow state.
 
-- Read and write only JSON files under `/tmp/gh-aw/cache-memory/`.
+- For persistent state, read and write only JSON files under
+  `/tmp/gh-aw/cache-memory/`. The temporary staging file
+  `/tmp/gh-aw/agent/next-state.json` is the only explicit exception; use it
+  only before final safe-output submission succeeds.
 - Use this state file:
   `/tmp/gh-aw/cache-memory/kongctl-feature-user-agent-state.json`.
 - If the file does not exist, initialize it.
