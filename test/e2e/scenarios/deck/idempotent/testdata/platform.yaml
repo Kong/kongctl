@@ -1,0 +1,9 @@
+control_planes:
+  - ref: cp1
+    name: cp1
+    description: "Repro CP for kongctl _deck non-idempotency"
+    cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+    auth_type: pinned_client_certs
+    _deck:
+      files:
+        - cp1/deck

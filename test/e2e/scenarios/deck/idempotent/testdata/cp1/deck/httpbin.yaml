@@ -1,0 +1,8 @@
+services:
+  - name: httpbin
+    url: https://httpbin.konghq.com/anything
+    routes:
+      - name: httpbin
+        paths:
+          - /echo
+        strip_path: true

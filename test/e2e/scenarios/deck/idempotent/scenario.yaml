@@ -1,0 +1,71 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-initial-apply
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/platform.yaml"
+          - --auto-approve
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: "plan.changes[?resource_type=='_deck']"
+            expect:
+              fields:
+                "length(@)": 1
+
+  - name: 002-repeat-apply
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/platform.yaml"
+          - --auto-approve
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: "plan.changes"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-delete-cleanup
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/platform.yaml"
+          - --auto-approve
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success
