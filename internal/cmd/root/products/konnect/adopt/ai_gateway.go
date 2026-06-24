@@ -97,7 +97,7 @@ func adoptAIGateway(
 
 	updateReq := kkComps.UpdateAIGatewayRequest{
 		DisplayName: gateway.DisplayName,
-		Name:        gateway.DisplayName,
+		Name:        gateway.Name,
 		Description: gateway.Description,
 		ProxyUrls:   gateway.ProxyUrls,
 		Labels:      adoptCommon.StringLabelMap(gateway.Labels, namespace),

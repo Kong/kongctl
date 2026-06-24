@@ -387,8 +387,11 @@ steps:
               fields:
                 resource_type: ai_gateway
                 namespace: "{{ .vars.adopt_namespace }}"
-                id: "{{ .vars.adopt_gateway_1_id }}"
                 name: "{{ .vars.adopt_gateway_1 }}"
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.adopt_gateway_1_id }}"
       - name: 003-already-adopted-error
         run:
           - adopt
@@ -412,7 +415,10 @@ steps:
               fields:
                 resource_type: ai_gateway
                 namespace: "{{ .vars.adopt_overwrite_namespace }}"
-                id: "{{ .vars.adopt_gateway_1_id }}"
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.adopt_gateway_1_id }}"
       - name: 005-adopt-by-uuid
         run:
           - adopt
@@ -425,7 +431,10 @@ steps:
               fields:
                 resource_type: ai_gateway
                 namespace: "{{ .vars.adopt_overwrite_namespace }}"
-                id: "{{ .vars.adopt_gateway_2_id }}"
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.adopt_gateway_2_id }}"
       - name: 006-cleanup-adopted
         outputFormat: json
         run:
