@@ -9,7 +9,9 @@ vars:
   gateway_updated_description: "Updated AI Gateway root e2e description"
   namespace: "ai-gateway-root-e2e"
   adopt_gateway_1: "AI Gateway Adopt E2E 1"
+  adopt_gateway_1_slug: "ai-gateway-adopt-e2e-1"
   adopt_gateway_2: "AI Gateway Adopt E2E 2"
+  adopt_gateway_2_slug: "ai-gateway-adopt-e2e-2"
   adopt_namespace: "ai-gateway-adopt-e2e"
   adopt_overwrite_namespace: "ai-gateway-adopt-e2e-overwrite"
 
@@ -357,7 +359,7 @@ steps:
           payload:
             inline:
               display_name: "{{ .vars.adopt_gateway_1 }}"
-              name: "{{ .vars.adopt_gateway_1 }}"
+              name: "{{ .vars.adopt_gateway_1_slug }}"
               description: "Created unmanaged for adoption by display name"
           recordVar:
             name: adopt_gateway_1_id
@@ -368,7 +370,7 @@ steps:
           payload:
             inline:
               display_name: "{{ .vars.adopt_gateway_2 }}"
-              name: "{{ .vars.adopt_gateway_2 }}"
+              name: "{{ .vars.adopt_gateway_2_slug }}"
               description: "Created unmanaged for adoption by UUID"
           recordVar:
             name: adopt_gateway_2_id
