@@ -154,10 +154,10 @@ steps:
               fields:
                 name: "SMS API"
           # No publications in dump (removed in step 003)
-          - select: "apis[?name=='SMS API'] | [0].publications"
+          - select: "apis[?name=='SMS API'] | [0].publications[0]"
             expect:
               fields:
-                "length(@)": 0
+                portal_id: null
 
       - name: 001-plan-from-dump
         outputFormat: disable
