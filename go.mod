@@ -20,7 +20,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/itchyny/gojq v0.12.19
 	github.com/jmespath/go-jmespath v0.4.0
-	github.com/kong/go-apiops v0.4.3
+	github.com/kong/go-apiops v0.4.4
 	github.com/lrstanley/bubbletint/v2 v2.0.2
 	github.com/lucasb-eyer/go-colorful v1.4.0
 	github.com/mattn/go-isatty v0.0.22
