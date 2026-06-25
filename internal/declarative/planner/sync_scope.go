@@ -80,6 +80,7 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	}
 
 	addPortalChildScopes(scope, rs)
+	addAIGatewayChildScopes(scope, rs)
 	addEventGatewayChildScopes(scope, rs)
 	addOrganizationChildScopes(scope, rs)
 }
@@ -144,6 +145,12 @@ func addPortalChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet)
 	}
 	for _, child := range rs.PortalAuditLogWebhooks {
 		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAuditLogWebhook)
+	}
+}
+
+func addAIGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
+	for _, child := range rs.AIGatewayProviders {
+		scope.AddChild(resources.ResourceTypeAIGateway, child.AIGateway, resources.ResourceTypeAIGatewayProvider)
 	}
 }
 

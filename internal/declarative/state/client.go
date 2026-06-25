@@ -36,6 +36,7 @@ type ClientConfig struct {
 	ControlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
 	CatalogServiceAPI       helpers.CatalogServicesAPI
 	AIGatewayAPI            helpers.AIGatewayAPI
+	AIGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
 	DashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -99,6 +100,7 @@ type Client struct {
 	controlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
 	catalogServiceAPI       helpers.CatalogServicesAPI
 	aiGatewayAPI            helpers.AIGatewayAPI
+	aiGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
 	dashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -163,6 +165,7 @@ func NewClient(config ClientConfig) *Client {
 		controlPlaneGroupsAPI:   config.ControlPlaneGroupsAPI,
 		catalogServiceAPI:       config.CatalogServiceAPI,
 		aiGatewayAPI:            config.AIGatewayAPI,
+		aiGatewayProvidersAPI:   config.AIGatewayProvidersAPI,
 		dashboardsAPI:           config.DashboardsAPI,
 
 		// Portal child resource APIs
@@ -248,6 +251,21 @@ type CatalogService struct {
 // AIGateway represents a Konnect AI Gateway for internal use.
 type AIGateway struct {
 	kkComps.AIGateway
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayProvider represents a Konnect AI Gateway Provider for internal use.
+type AIGatewayProvider struct {
+	ID               string
+	Name             string
+	Type             string
+	DisplayName      string
+	Labels           map[string]string
+	ManagedBy        map[string]string
+	Config           map[string]any
+	CreatedAt        string
+	UpdatedAt        string
+	Raw              map[string]any
 	NormalizedLabels map[string]string
 }
 

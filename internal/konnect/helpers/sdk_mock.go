@@ -11,6 +11,7 @@ type MockKonnectSDK struct {
 	PortalFactory                      func() PortalAPI
 	APIFactory                         func() APIFullAPI
 	AIGatewayFactory                   func() AIGatewayAPI
+	AIGatewayProvidersFactory          func() AIGatewayProvidersAPI
 	CatalogServicesFactory             func() CatalogServicesAPI
 	DashboardsFactory                  func() DashboardsAPI
 	APIDocumentFactory                 func() APIDocumentAPI
@@ -99,6 +100,14 @@ func (m *MockKonnectSDK) GetAPIAPI() APIFullAPI {
 func (m *MockKonnectSDK) GetAIGatewayAPI() AIGatewayAPI {
 	if m.AIGatewayFactory != nil {
 		return m.AIGatewayFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayProvidersAPI.
+func (m *MockKonnectSDK) GetAIGatewayProvidersAPI() AIGatewayProvidersAPI {
+	if m.AIGatewayProvidersFactory != nil {
+		return m.AIGatewayProvidersFactory()
 	}
 	return nil
 }
