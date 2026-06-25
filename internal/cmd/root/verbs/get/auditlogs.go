@@ -22,7 +22,8 @@ func NewDirectAuditLogsCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmdObj.Flags().String(common.RegionFlagName, "",
+		cmdObj.Flags().String(
+			common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),
@@ -40,7 +41,8 @@ Setting this value overrides tokens obtained from the login command.
 				common.DefaultRequestPageSize,
 				fmt.Sprintf(`Max number of results to include per response page for get and list operations.
 - Config path: [ %s ]`,
-					common.RequestPageSizeConfigPath))
+					common.RequestPageSizeConfigPath),
+			)
 		}
 	}
 

@@ -39,7 +39,8 @@ var (
 	%[1]s get analytics dashboard "API Summary"
 	# List analytics dashboards using command aliases
 	%[1]s get analytic dashboards
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 type dashboardDisplayRecord struct {

@@ -47,7 +47,8 @@ var (
 %[1]s get portal email-domains
 # Show details for a specific domain
 %[1]s get portal email-domains example.com
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetPortalEmailDomainsCmd(
@@ -152,7 +153,8 @@ func (h portalEmailDomainsHandler) run(args []string) error {
 
 		record := portalEmailDomainToRecord(*res.EmailDomain)
 
-		return tableview.RenderForFormat(helper,
+		return tableview.RenderForFormat(
+			helper,
 			false,
 			outType,
 			printer,
@@ -174,7 +176,8 @@ func (h portalEmailDomainsHandler) run(args []string) error {
 		records = append(records, portalEmailDomainToRecord(domain))
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,

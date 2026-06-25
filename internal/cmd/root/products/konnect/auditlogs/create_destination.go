@@ -234,7 +234,8 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 	}
 
 	destinationPayload := decodeMaybeJSON(destinationResult.Body)
-	destinationID := findFirstString(destinationPayload,
+	destinationID := findFirstString(
+		destinationPayload,
 		"id",
 		"audit_log_destination_id",
 		"destination_id",

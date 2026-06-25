@@ -1151,7 +1151,8 @@ func (p *Planner) resolveControlPlaneIdentities(
 				cp.Name = match.Name
 			}
 
-			p.logger.Debug("Resolved external control plane",
+			p.logger.Debug(
+				"Resolved external control plane",
 				slog.String("ref", cp.GetRef()),
 				slog.String("id", cp.GetKonnectID()),
 			)
@@ -1230,7 +1231,8 @@ func (p *Planner) resolveGatewayServiceIdentities(
 
 		if controlPlaneHasDeck(service, deckControlPlanes) {
 			if cpID == "" {
-				p.logger.Debug("Skipping gateway service lookup; control plane ID not resolved",
+				p.logger.Debug(
+					"Skipping gateway service lookup; control plane ID not resolved",
 					slog.String("ref", service.GetRef()),
 				)
 				continue
@@ -1249,7 +1251,8 @@ func (p *Planner) resolveGatewayServiceIdentities(
 			match, err := p.matchGatewayService(service, available)
 			if err != nil {
 				if errors.Is(err, errGatewayServiceNotFound) {
-					p.logger.Debug("External gateway service not found; continuing due to control plane deck config",
+					p.logger.Debug(
+						"External gateway service not found; continuing due to control plane deck config",
 						slog.String("ref", service.GetRef()),
 						slog.String("control_plane_id", cpID),
 					)
@@ -1264,7 +1267,8 @@ func (p *Planner) resolveGatewayServiceIdentities(
 
 			service.SetResolvedControlPlaneID(match.ControlPlaneID)
 
-			p.logger.Debug("Resolved external gateway service",
+			p.logger.Debug(
+				"Resolved external gateway service",
 				slog.String("ref", service.GetRef()),
 				slog.String("service_id", service.GetKonnectID()),
 				slog.String("control_plane_id", match.ControlPlaneID),
@@ -1293,7 +1297,8 @@ func (p *Planner) resolveGatewayServiceIdentities(
 
 		service.SetResolvedControlPlaneID(match.ControlPlaneID)
 
-		p.logger.Debug("Resolved external gateway service",
+		p.logger.Debug(
+			"Resolved external gateway service",
 			slog.String("ref", service.GetRef()),
 			slog.String("service_id", service.GetKonnectID()),
 			slog.String("control_plane_id", match.ControlPlaneID),
@@ -1331,7 +1336,8 @@ func (p *Planner) resolveAuditLogWebhookDestinationIdentities(
 			return fmt.Errorf("audit_log_webhook_destination %s: failed to bind Konnect resource", destination.GetRef())
 		}
 
-		p.logger.Debug("Resolved external audit-log webhook destination",
+		p.logger.Debug(
+			"Resolved external audit-log webhook destination",
 			slog.String("ref", destination.GetRef()),
 			slog.String("destination_id", destination.GetKonnectID()),
 			slog.String("name", match.Name),
@@ -1533,12 +1539,14 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 		impl := &rs.APIImplementations[i]
 		service := impl.ServiceReference.GetService()
 		if service == nil {
-			p.logger.Debug("API implementation missing service reference before normalization",
+			p.logger.Debug(
+				"API implementation missing service reference before normalization",
 				slog.String("api_implementation_ref", impl.GetRef()),
 				slog.String("api_ref", impl.API),
 			)
 		} else {
-			p.logger.Debug("API implementation service before normalization",
+			p.logger.Debug(
+				"API implementation service before normalization",
 				slog.String("api_implementation_ref", impl.GetRef()),
 				slog.String("api_ref", impl.API),
 				slog.String("service_id", service.ID),
@@ -1550,12 +1558,14 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 		}
 		service = impl.ServiceReference.GetService()
 		if service == nil {
-			p.logger.Debug("API implementation missing service reference after normalization",
+			p.logger.Debug(
+				"API implementation missing service reference after normalization",
 				slog.String("api_implementation_ref", impl.GetRef()),
 				slog.String("api_ref", impl.API),
 			)
 		} else {
-			p.logger.Debug("API implementation service after normalization",
+			p.logger.Debug(
+				"API implementation service after normalization",
 				slog.String("api_implementation_ref", impl.GetRef()),
 				slog.String("api_ref", impl.API),
 				slog.String("service_id", service.ID),
@@ -1573,7 +1583,8 @@ func (p *Planner) normalizeAPIImplementationService(
 	controlPlaneByRef map[string]*resources.ControlPlaneResource,
 ) error {
 	if impl.ServiceReference == nil {
-		p.logger.Debug("API implementation has nil service reference; skipping normalization",
+		p.logger.Debug(
+			"API implementation has nil service reference; skipping normalization",
 			slog.String("api_implementation_ref", impl.GetRef()),
 			slog.String("api_ref", impl.API),
 		)
@@ -1582,7 +1593,8 @@ func (p *Planner) normalizeAPIImplementationService(
 
 	service := impl.ServiceReference.GetService()
 	if service == nil {
-		p.logger.Debug("API implementation has nil service; skipping normalization",
+		p.logger.Debug(
+			"API implementation has nil service; skipping normalization",
 			slog.String("api_implementation_ref", impl.GetRef()),
 			slog.String("api_ref", impl.API),
 		)
@@ -1826,7 +1838,8 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 				}
 			}
 
-			p.logger.Debug("Resolved external portal",
+			p.logger.Debug(
+				"Resolved external portal",
 				slog.String("ref", portal.GetRef()),
 				slog.String("id", portal.GetKonnectID()),
 				slog.String("name", konnectPortal.Name),

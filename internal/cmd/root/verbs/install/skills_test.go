@@ -210,7 +210,8 @@ func TestCreateToolSymlinksCreatesValidLinks(t *testing.T) {
 	skillDir := filepath.Join(canonicalDir, "sample-skill")
 	require.NoError(t, os.MkdirAll(skillDir, 0o755))
 	require.NoError(t, os.WriteFile(
-		filepath.Join(skillDir, "SKILL.md"), []byte("test"), 0o600))
+		filepath.Join(skillDir, "SKILL.md"), []byte("test"), 0o600,
+	))
 
 	planned := planSymlinks(cwd, canonicalDir, []string{"sample-skill"})
 	require.NoError(t, createToolSymlinks(planned, false))

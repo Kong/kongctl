@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
@@ -105,8 +106,26 @@ func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderStripsEnabledF
 		t.Fatalf("unexpected client_id: %v", got)
 	}
 
-	if resp == nil || resp.IdentityProvider == nil || resp.IdentityProvider.ID == nil {
+	if resp == nil || resp.PortalIdentityProvider == nil || resp.PortalIdentityProvider.ID == nil {
 		t.Fatalf("expected identity provider response, got %#v", resp)
+	}
+}
+
+func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderRejectsLoginPath(t *testing.T) {
+	t.Parallel()
+
+	api := &PortalIdentityProviderAPIImpl{SDK: kkSDK.New()}
+	loginPath := "oidc-login"
+
+	_, err := api.CreatePortalIdentityProvider(context.Background(), "portal-123", kkComps.CreateIdentityProvider{
+		Type:      kkComps.IdentityProviderTypeOidc.ToPointer(),
+		LoginPath: &loginPath,
+	})
+	if err == nil {
+		t.Fatal("expected login_path error")
+	}
+	if !strings.Contains(err.Error(), "login_path") {
+		t.Fatalf("expected login_path error, got %v", err)
 	}
 }
 

@@ -3,6 +3,7 @@ package analytics
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 
@@ -244,12 +245,7 @@ func TestDashboardDetailView(t *testing.T) {
 }
 
 func slicesContains(values []string, value string) bool {
-	for _, candidate := range values {
-		if candidate == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, value)
 }
 
 var (

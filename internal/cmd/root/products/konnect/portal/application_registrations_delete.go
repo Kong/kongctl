@@ -29,7 +29,8 @@ var (
 %[1]s delete portal application registration --portal-id <portal-id> <registration-id>
 # Delete a registration by ID with portal name
 %[1]s delete portal application registration --portal-name my-portal <registration-id>
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newDeletePortalApplicationRegistrationsCmd(

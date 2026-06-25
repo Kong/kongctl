@@ -27,7 +27,8 @@ var (
 	%[1]s adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace analytics
 	# Adopt a dashboard using explicit konnect product
 	%[1]s adopt konnect analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace analytics
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 func NewAnalyticsCmd(

@@ -79,7 +79,8 @@ var (
 %[1]s get event-gateway vc consume-policies --gateway-id <id> --virtual-cluster-id <id> --consume-policy-id <id>
 # Get a specific consume policy by name (flag)
 %[1]s get event-gateway vc consume-policies --gateway-name gw --virtual-cluster-name vc --consume-policy-name p
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetEventGatewayConsumePoliciesCmd(

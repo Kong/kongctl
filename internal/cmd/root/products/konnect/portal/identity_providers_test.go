@@ -15,16 +15,16 @@ func TestPortalIdentityProviderDetailView_OmitsLoginPath(t *testing.T) {
 	providerType := kkComps.IdentityProviderTypeOidc
 	now := time.Date(2026, time.April, 21, 12, 30, 0, 0, time.UTC)
 
-	provider := kkComps.IdentityProvider{
+	provider := kkComps.PortalIdentityProvider{
 		ID:      &providerID,
 		Type:    &providerType,
 		Enabled: &enabled,
-		Config: &kkComps.IdentityProviderConfig{
+		Config: &kkComps.PortalIdentityProviderConfig{
 			OIDCIdentityProviderConfigOutput: &kkComps.OIDCIdentityProviderConfigOutput{
 				IssuerURL: "https://issuer.example.test",
 				ClientID:  "client-id",
 			},
-			Type: kkComps.IdentityProviderConfigTypeOIDCIdentityProviderConfigOutput,
+			Type: kkComps.PortalIdentityProviderConfigTypeOIDCIdentityProviderConfigOutput,
 		},
 		CreatedAt: &now,
 		UpdatedAt: &now,
@@ -45,7 +45,7 @@ func TestBuildPortalIdentityProvidersChildView_UsesCompactCollectionColumns(t *t
 	enabled := true
 	providerType := kkComps.IdentityProviderTypeOidc
 
-	view := buildPortalIdentityProvidersChildView([]kkComps.IdentityProvider{
+	view := buildPortalIdentityProvidersChildView([]kkComps.PortalIdentityProvider{
 		{
 			ID:      &providerID,
 			Type:    &providerType,

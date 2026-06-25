@@ -26,7 +26,8 @@ func (p *Planner) planEventGatewayVirtualClusterProducePolicyChanges(
 	desired []resources.EventGatewayProducePolicyResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning Event Gateway Produce Policy changes",
+	p.logger.Debug(
+		"Planning Event Gateway Produce Policy changes",
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
 		"virtual_cluster_name", virtualClusterName,
@@ -62,7 +63,8 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 	desired []resources.EventGatewayProducePolicyResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning changes for existing virtual cluster produce policies",
+	p.logger.Debug(
+		"Planning changes for existing virtual cluster produce policies",
 		"gateway_id", gatewayID,
 		"virtual_cluster_id", virtualClusterID,
 		"virtual_cluster_ref", virtualClusterRef,
@@ -87,7 +89,8 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 		desiredNames[policyName] = true
 		current, exists := currentByName[policyName]
 		if !exists {
-			p.logger.Debug("Planning produce policy CREATE",
+			p.logger.Debug(
+				"Planning produce policy CREATE",
 				"policy_name", policyName,
 				"virtual_cluster_ref", virtualClusterRef,
 			)
@@ -100,7 +103,8 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 			if needsUpdate {
 				if _, typeChanged := changedFields[FieldType]; typeChanged {
 					// Type changes are not supported by the API; force DELETE + CREATE.
-					p.logger.Debug("Planning produce policy DELETE+CREATE due to type change",
+					p.logger.Debug(
+						"Planning produce policy DELETE+CREATE due to type change",
 						"policy_name", policyName,
 						"policy_id", current.ID,
 					)
@@ -113,7 +117,8 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 						desiredPolicy, []string{}, plan,
 					)
 				} else {
-					p.logger.Debug("Planning produce policy UPDATE",
+					p.logger.Debug(
+						"Planning produce policy UPDATE",
 						"policy_name", policyName,
 						"policy_id", current.ID,
 						"update_fields", updateFields,
@@ -130,7 +135,8 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				p.logger.Debug("Planning produce policy DELETE (sync mode)",
+				p.logger.Debug(
+					"Planning produce policy DELETE (sync mode)",
 					"policy_name", name,
 					"policy_id", current.ID,
 				)
@@ -154,7 +160,8 @@ func (p *Planner) planProducePolicyCreatesForNewVirtualCluster(
 	policies []resources.EventGatewayProducePolicyResource,
 	plan *Plan,
 ) {
-	p.logger.Debug("Planning produce policy creates for new virtual cluster",
+	p.logger.Debug(
+		"Planning produce policy creates for new virtual cluster",
 		"virtual_cluster_ref", virtualClusterRef,
 		"virtual_cluster_change_id", virtualClusterChangeID,
 		"policy_count", len(policies),
@@ -215,7 +222,8 @@ func (p *Planner) planProducePolicyCreate(
 	}
 	p.addProducePolicyConfigReferences(&change)
 
-	p.logger.Debug("Enqueuing produce policy CREATE",
+	p.logger.Debug(
+		"Enqueuing produce policy CREATE",
 		"policy_ref", policy.Ref,
 		"policy_name", policy.GetMoniker(),
 	)
@@ -264,7 +272,8 @@ func (p *Planner) planProducePolicyUpdate(
 	}
 	p.addProducePolicyConfigReferences(&change)
 
-	p.logger.Debug("Enqueuing produce policy UPDATE",
+	p.logger.Debug(
+		"Enqueuing produce policy UPDATE",
 		"policy_ref", policy.Ref,
 		"policy_name", policy.GetMoniker(),
 		"policy_id", policyID,
@@ -326,7 +335,7 @@ func stringValueAtFieldPath(fields map[string]any, fieldPath string) (string, bo
 	}
 
 	var current any = fields
-	for _, segment := range strings.Split(fieldPath, ".") {
+	for segment := range strings.SplitSeq(fieldPath, ".") {
 		currentMap, ok := current.(map[string]any)
 		if !ok {
 			return "", false
@@ -372,7 +381,8 @@ func (p *Planner) planProducePolicyDelete(
 		},
 	}
 
-	p.logger.Debug("Enqueuing produce policy DELETE",
+	p.logger.Debug(
+		"Enqueuing produce policy DELETE",
 		"policy_name", policyName,
 		"policy_id", policyID,
 	)

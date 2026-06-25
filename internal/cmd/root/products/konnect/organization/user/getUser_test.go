@@ -161,9 +161,9 @@ func TestRunListUsersPagesAllUsers(t *testing.T) {
 	helper := newUserTestHelper()
 	var seenPages []int64
 	users := []kkComps.User{
-		{ID: stringPtr("user-1"), Email: stringPtr("one@example.com")},
-		{ID: stringPtr("user-2"), Email: stringPtr("two@example.com")},
-		{ID: stringPtr("user-3"), Email: stringPtr("three@example.com")},
+		{ID: new("user-1"), Email: new("one@example.com")},
+		{ID: new("user-2"), Email: new("two@example.com")},
+		{ID: new("user-3"), Email: new("three@example.com")},
 	}
 
 	api := &stubOrganizationUsersAPI{
@@ -174,10 +174,7 @@ func TestRunListUsersPagesAllUsers(t *testing.T) {
 		) (*kkOps.ListUsersResponse, error) {
 			seenPages = append(seenPages, *request.PageNumber)
 			start := int((*request.PageNumber - 1) * *request.PageSize)
-			end := start + int(*request.PageSize)
-			if end > len(users) {
-				end = len(users)
-			}
+			end := min(start+int(*request.PageSize), len(users))
 			return usersResponse(users[start:end], len(users)), nil
 		},
 	}
@@ -199,21 +196,21 @@ func TestResolveOrganizationUserByEmail(t *testing.T) {
 		{
 			name:   "case insensitive exact match",
 			email:  "ONE@example.com",
-			users:  []kkComps.User{{ID: stringPtr("user-1"), Email: stringPtr("one@example.com")}},
+			users:  []kkComps.User{{ID: new("user-1"), Email: new("one@example.com")}},
 			wantID: "user-1",
 		},
 		{
 			name:    "missing",
 			email:   "missing@example.com",
-			users:   []kkComps.User{{ID: stringPtr("user-1"), Email: stringPtr("one@example.com")}},
+			users:   []kkComps.User{{ID: new("user-1"), Email: new("one@example.com")}},
 			wantErr: `organization user with email "missing@example.com" not found`,
 		},
 		{
 			name:  "duplicate",
 			email: "dupe@example.com",
 			users: []kkComps.User{
-				{ID: stringPtr("user-1"), Email: stringPtr("dupe@example.com")},
-				{ID: stringPtr("user-2"), Email: stringPtr("DUPE@example.com")},
+				{ID: new("user-1"), Email: new("dupe@example.com")},
+				{ID: new("user-2"), Email: new("DUPE@example.com")},
 			},
 			wantErr: `organization user email "dupe@example.com" matched 2 users; use user ID`,
 		},
@@ -251,8 +248,8 @@ func TestRenderUsersListAppliesJQToRecords(t *testing.T) {
 
 	printer := testPrinter{out: helper.streams.Out.(*bytes.Buffer)}
 	err := renderUsersList(helper, "users", cmdCommon.JSON, printer, []kkComps.User{
-		{ID: stringPtr("user-1"), Email: stringPtr("one@example.com")},
-		{ID: stringPtr("user-2"), Email: stringPtr("two@example.com")},
+		{ID: new("user-1"), Email: new("one@example.com")},
+		{ID: new("user-2"), Email: new("two@example.com")},
 	})
 	require.NoError(t, err)
 	assert.Contains(t, helper.streams.Out.(*bytes.Buffer).String(), "user-1")
@@ -261,9 +258,9 @@ func TestRenderUsersListAppliesJQToRecords(t *testing.T) {
 
 func TestBuildUserChildView(t *testing.T) {
 	view := buildUserChildView([]kkComps.User{{
-		ID:       stringPtr("4d9b3f3e-7b1b-4b6b-8b1b-4b6b7b1b4b6b"),
-		Email:    stringPtr("one@example.com"),
-		FullName: stringPtr("One User"),
+		ID:       new("4d9b3f3e-7b1b-4b6b-8b1b-4b6b7b1b4b6b"),
+		Email:    new("one@example.com"),
+		FullName: new("One User"),
 	}})
 
 	require.Len(t, view.Rows, 1)
@@ -292,8 +289,4 @@ func usersResponse(users []kkComps.User, total int) *kkOps.ListUsersResponse {
 			},
 		},
 	}
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

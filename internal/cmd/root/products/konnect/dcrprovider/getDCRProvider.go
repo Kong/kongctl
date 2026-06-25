@@ -41,7 +41,8 @@ var (
 	%[1]s get dcr-provider my-okta-dcr-provider
 	# Get all the DCR providers using command aliases
 	%[1]s get dcrps
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 type textDisplayRecord struct {
@@ -319,7 +320,8 @@ func (c *getDCRProviderCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return tableview.RenderForFormat(helper,
+		return tableview.RenderForFormat(
+			helper,
 			false,
 			outType,
 			printer,
@@ -364,7 +366,8 @@ func renderDCRProviderList(
 		options = append(options, tableview.WithDetailContext(childView.ParentType, childView.DetailContext))
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,

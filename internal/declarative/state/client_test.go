@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -17,6 +18,19 @@ import (
 func testContextWithLogger() context.Context {
 	logger := slog.Default()
 	return context.WithValue(context.Background(), log.LoggerKey, logger)
+}
+
+func TestPortalUpdateIdentityProviderFromUpdateRejectsLoginPath(t *testing.T) {
+	t.Parallel()
+
+	loginPath := "oidc-login"
+	_, err := portalUpdateIdentityProviderFromUpdate(kkComps.UpdateIdentityProvider{LoginPath: &loginPath})
+	if err == nil {
+		t.Fatal("expected login_path error")
+	}
+	if !strings.Contains(err.Error(), "login_path") {
+		t.Fatalf("expected login_path error, got %v", err)
+	}
 }
 
 // mockPortalAPI implements helpers.PortalAPI for testing
