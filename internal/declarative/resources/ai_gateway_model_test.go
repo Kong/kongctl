@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
 
@@ -100,4 +101,19 @@ func TestAIGatewayModelResourceMarshalPreservesParentAndPayload(t *testing.T) {
 	require.Equal(t, "model", payload["type"])
 	require.Equal(t, "support-gpt", payload["name"])
 	require.NotContains(t, payload, "id")
+}
+
+func TestAIGatewayModelResourceParentRefNormalizesDeferredRef(t *testing.T) {
+	var model AIGatewayModelResource
+	require.NoError(t, json.Unmarshal([]byte(aiGatewayModelJSON), &model))
+	model.AIGateway = tags.RefPlaceholderPrefix + "support-gateway#id"
+
+	parent := model.GetParentRef()
+	require.NotNil(t, parent)
+	require.Equal(t, ResourceTypeAIGateway, parent.Kind)
+	require.Equal(t, "support-gateway", parent.Ref)
+
+	deps := model.GetDependencies()
+	require.Len(t, deps, 1)
+	require.Equal(t, "support-gateway", deps[0].Ref)
 }

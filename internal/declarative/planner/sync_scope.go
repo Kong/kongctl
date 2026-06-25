@@ -149,10 +149,18 @@ func addPortalChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet)
 
 func addAIGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
 	for _, child := range rs.AIGatewayProviders {
-		scope.AddChild(resources.ResourceTypeAIGateway, child.AIGateway, resources.ResourceTypeAIGatewayProvider)
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayProvider,
+		)
 	}
 	for _, child := range rs.AIGatewayModels {
-		scope.AddChild(resources.ResourceTypeAIGateway, child.AIGateway, resources.ResourceTypeAIGatewayModel)
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayModel,
+		)
 	}
 }
 

@@ -60,3 +60,20 @@ func requireAIGatewaySerializedPayload(t *testing.T, payload map[string]any) {
 	require.EqualValues(t, 443, proxyURL["port"])
 	require.Equal(t, "https", proxyURL["protocol"])
 }
+
+func TestAIGatewayResourceAllowsExternalWithoutDisplayName(t *testing.T) {
+	t.Parallel()
+
+	resource := AIGatewayResource{
+		BaseResource: BaseResource{Ref: "external-ai-gateway"},
+		External: &ExternalBlock{
+			Selector: &ExternalSelector{
+				MatchFields: map[string]string{"display_name": "Shared AI Gateway"},
+			},
+		},
+	}
+
+	require.True(t, resource.IsExternal())
+	require.NoError(t, resource.Validate())
+	require.Empty(t, resource.GetKonnectMonikerFilter())
+}

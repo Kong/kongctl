@@ -3,6 +3,7 @@ package resources
 import (
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,6 +30,21 @@ func TestAIGatewayProviderResourceParentRef(t *testing.T) {
 	provider := AIGatewayProviderResource{
 		Ref:       "openai-provider",
 		AIGateway: "ai-gateway",
+		Name:      "openai-provider",
+	}
+
+	parent := provider.GetParentRef()
+	require.NotNil(t, parent)
+	require.Equal(t, ResourceTypeAIGateway, parent.Kind)
+	require.Equal(t, "ai-gateway", parent.Ref)
+}
+
+func TestAIGatewayProviderResourceParentRefNormalizesDeferredRef(t *testing.T) {
+	t.Parallel()
+
+	provider := AIGatewayProviderResource{
+		Ref:       "openai-provider",
+		AIGateway: tags.RefPlaceholderPrefix + "ai-gateway#id",
 		Name:      "openai-provider",
 	}
 

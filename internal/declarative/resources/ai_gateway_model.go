@@ -47,14 +47,14 @@ func (a AIGatewayModelResource) GetDependencies() []ResourceRef {
 	if a.AIGateway == "" {
 		return nil
 	}
-	return []ResourceRef{{Kind: ResourceTypeAIGateway, Ref: a.AIGateway}}
+	return []ResourceRef{{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}}
 }
 
 func (a AIGatewayModelResource) GetParentRef() *ResourceRef {
 	if a.AIGateway == "" {
 		return nil
 	}
-	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: a.AIGateway}
+	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}
 }
 
 func (a AIGatewayModelResource) Validate() error {

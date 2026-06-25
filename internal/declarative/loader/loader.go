@@ -718,6 +718,13 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 
 	// Apply defaults to AI Gateways (parent resources)
 	for i := range rs.AIGateways {
+		if rs.AIGateways[i].IsExternal() {
+			if rs.AIGateways[i].Kongctl != nil {
+				return fmt.Errorf("ai_gateway '%s' is marked as external and cannot use kongctl metadata",
+					rs.AIGateways[i].Ref)
+			}
+			continue
+		}
 		if err := assignNamespace(&rs.AIGateways[i].Kongctl, "ai_gateway", rs.AIGateways[i].Ref); err != nil {
 			return err
 		}

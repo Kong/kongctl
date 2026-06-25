@@ -52,7 +52,7 @@ func (a AIGatewayProviderResource) GetDependencies() []ResourceRef {
 	if a.AIGateway == "" {
 		return nil
 	}
-	return []ResourceRef{{Kind: ResourceTypeAIGateway, Ref: a.AIGateway}}
+	return []ResourceRef{{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}}
 }
 
 // Validate ensures the AI Gateway Provider resource is valid.
@@ -103,7 +103,7 @@ func (a AIGatewayProviderResource) GetParentRef() *ResourceRef {
 	if a.AIGateway == "" {
 		return nil
 	}
-	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: a.AIGateway}
+	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}
 }
 
 // UnmarshalJSON rejects kongctl metadata on child provider resources.

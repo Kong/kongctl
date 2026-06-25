@@ -703,6 +703,9 @@ func (l *Loader) validateAIGateways(
 			}
 		}
 
+		if gateway.IsExternal() {
+			continue
+		}
 		namespace := resources.GetNamespace(gateway.Kongctl)
 		nameKey := namespace + "\x00" + gateway.DisplayName
 		if existingRef, exists := displayNamesByNamespace[nameKey]; exists {
@@ -739,7 +742,8 @@ func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
 			return fmt.Errorf("ai_gateway_provider %q must specify ai_gateway", provider.GetRef())
 		}
 
-		gateway, found := rs.GetResourceByRef(provider.AIGateway)
+		gatewayRef := resources.NormalizeResourceRef(provider.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
 		if !found {
 			return fmt.Errorf(
 				"ai_gateway_provider %q references unknown ai_gateway %q",
@@ -756,12 +760,12 @@ func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
 			)
 		}
 
-		nameKey := provider.AIGateway + "\x00" + provider.Name
+		nameKey := gatewayRef + "\x00" + provider.Name
 		if existingRef, exists := namesByGateway[nameKey]; exists {
 			return fmt.Errorf(
 				"duplicate ai_gateway_provider name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
 				provider.Name,
-				provider.AIGateway,
+				gatewayRef,
 				provider.GetRef(),
 				existingRef,
 			)
@@ -790,7 +794,8 @@ func (l *Loader) validateAIGatewayModels(rs *resources.ResourceSet) error {
 			}
 		}
 
-		gateway, found := rs.GetResourceByRef(model.AIGateway)
+		gatewayRef := resources.NormalizeResourceRef(model.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
 		if !found {
 			return fmt.Errorf(
 				"ai_gateway_model %q references unknown ai_gateway %q",
@@ -807,12 +812,12 @@ func (l *Loader) validateAIGatewayModels(rs *resources.ResourceSet) error {
 			)
 		}
 
-		nameKey := model.AIGateway + "\x00" + model.Name()
+		nameKey := gatewayRef + "\x00" + model.Name()
 		if existingRef, exists := modelNamesByGateway[nameKey]; exists {
 			return fmt.Errorf(
 				"duplicate ai_gateway_model name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
 				model.Name(),
-				model.AIGateway,
+				gatewayRef,
 				model.GetRef(),
 				existingRef,
 			)
