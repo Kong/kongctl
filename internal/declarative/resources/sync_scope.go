@@ -70,6 +70,7 @@ func (s *SyncScope) RootInScope(rt ResourceType) bool {
 
 // AddChild marks a child resource collection as in scope for one parent ref.
 func (s *SyncScope) AddChild(parentType ResourceType, parentRef string, rt ResourceType) {
+	parentRef = NormalizeResourceRef(parentRef)
 	if s == nil || parentRef == "" {
 		return
 	}

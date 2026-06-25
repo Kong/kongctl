@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
 
@@ -104,6 +105,38 @@ func TestLoaderRejectsRootLevelEmptyAIGatewayModels(t *testing.T) {
 	_, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "ai_gateway_models cannot be empty")
+}
+
+func TestLoaderAcceptsAIGatewayModelDeferredExternalParentRef(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: external-shared-gateway
+    _external:
+      selector:
+        matchFields:
+          display_name: Shared Gateway
+ai_gateway_models:
+  - ref: support-gpt
+    ai_gateway: !ref external-shared-gateway#id
+    type: model
+    name: support-gpt
+    display_name: Support GPT
+    config: {route: {}, model: {}}
+    formats: [{type: openai}]
+    target_models: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
+    policies: []
+    capabilities: [generate]
+`
+
+	rs, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
+	require.NoError(t, err)
+	require.Len(t, rs.AIGatewayModels, 1)
+	require.Equal(t, tags.RefPlaceholderPrefix+"external-shared-gateway#id", rs.AIGatewayModels[0].AIGateway)
+	require.True(t, rs.SyncScope.ChildInScope(
+		resources.ResourceTypeAIGateway,
+		"external-shared-gateway",
+		resources.ResourceTypeAIGatewayModel,
+	))
 }
 
 func writeLoaderTestFile(t *testing.T, content string) string {

@@ -50,12 +50,16 @@ func (p *Planner) planAIGatewayChanges(
 		slog.Int("desiredCount", len(desired)),
 		slog.String("namespace", namespace))
 
-	currentGateways, err := p.listManagedAIGateways(ctx, []string{namespace})
-	if err != nil {
-		if state.IsAPIClientError(err) {
-			return nil
+	var currentGateways []state.AIGateway
+	if namespace != resources.NamespaceExternal {
+		var err error
+		currentGateways, err = p.listManagedAIGateways(ctx, []string{namespace})
+		if err != nil {
+			if state.IsAPIClientError(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to list AI Gateways: %w", err)
 		}
-		return fmt.Errorf("failed to list AI Gateways: %w", err)
 	}
 
 	currentByID, currentByDisplayName := indexAIGateways(currentGateways)
@@ -63,6 +67,9 @@ func (p *Planner) planAIGatewayChanges(
 	if plan.Metadata.Mode == PlanModeDelete {
 		var protectionErrors []error
 		for _, desiredGateway := range desired {
+			if desiredGateway.IsExternal() {
+				continue
+			}
 			current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByDisplayName)
 			if err != nil {
 				return err
@@ -94,6 +101,13 @@ func (p *Planner) planAIGatewayChanges(
 	matchedCurrent := make(map[string]bool)
 
 	for _, desiredGateway := range desired {
+		if desiredGateway.IsExternal() {
+			if err := p.planExternalAIGatewayChildren(ctx, plannerCtx, namespace, desiredGateway, plan); err != nil {
+				return err
+			}
+			continue
+		}
+
 		current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByDisplayName)
 		if err != nil {
 			return err
@@ -196,6 +210,62 @@ func (p *Planner) planAIGatewayChanges(
 
 	if len(protectionErrors) > 0 {
 		return aiGatewayProtectionError(protectionErrors)
+	}
+
+	return nil
+}
+
+func (p *Planner) planExternalAIGatewayChildren(
+	ctx context.Context,
+	plannerCtx *Config,
+	namespace string,
+	desiredGateway resources.AIGatewayResource,
+	plan *Plan,
+) error {
+	gatewayID := desiredGateway.GetKonnectID()
+	if gatewayID == "" {
+		plan.AddWarning("", fmt.Sprintf(
+			"external ai_gateway %q has no resolved ID; skipping AI Gateway child planning",
+			desiredGateway.GetRef(),
+		))
+		return nil
+	}
+
+	providers := p.resources.GetAIGatewayProvidersForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayProvider,
+	) && len(providers) > 0 {
+		if err := p.planAIGatewayProviderChanges(
+			ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref, "", providers, plan,
+		); err != nil {
+			return err
+		}
+	}
+	providerCreateDepsByName := aiGatewayProviderCreateDependencies(plan, namespace, desiredGateway.Ref)
+
+	models := p.resources.GetAIGatewayModelsForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayModel,
+	) && len(models) > 0 {
+		if err := p.planAIGatewayModelChanges(
+			ctx,
+			namespace,
+			desiredGateway.Ref,
+			desiredGateway.DisplayName,
+			gatewayID,
+			"",
+			providerCreateDepsByName,
+			models,
+			plan,
+		); err != nil {
+			return err
+		}
 	}
 
 	return nil

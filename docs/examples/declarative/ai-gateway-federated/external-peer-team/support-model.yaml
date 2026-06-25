@@ -2,16 +2,23 @@ _defaults:
   kongctl:
     namespace: federated-ai-gateway
 
+ai_gateways:
+  - ref: external-shared-ai-gateway
+    _external:
+      selector:
+        matchFields:
+          display_name: "Shared Federated AI Gateway"
+
 ai_gateway_models:
-  - ref: peer-support-assistant
-    ai_gateway: !ref shared-ai-gateway#id
+  - ref: external-peer-support-assistant
+    ai_gateway: !ref external-shared-ai-gateway#id
     type: model
-    name: peer-support-assistant
-    display_name: "Peer Support Assistant"
+    name: external-peer-support-assistant
+    display_name: "External Peer Support Assistant"
     enabled: true
     labels:
       team: support-experience
-      ownership: peer
+      ownership: external-peer
     config:
       route: {}
       model: {}

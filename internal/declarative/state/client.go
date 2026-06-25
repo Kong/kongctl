@@ -1688,6 +1688,41 @@ func (c *Client) ListManagedAIGateways(ctx context.Context, namespaces []string)
 	return PaginateAll(ctx, lister)
 }
 
+// ListAllAIGateways returns all AI Gateways, including non-managed ones.
+func (c *Client) ListAllAIGateways(ctx context.Context) ([]AIGateway, error) {
+	if err := ValidateAPIClient(c.aiGatewayAPI, "AI Gateway API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]AIGateway, *PageMeta, error) {
+		resp, err := c.aiGatewayAPI.ListAiGateways(ctx, &pageSize, &pageNumber)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list AI Gateways", nil)
+		}
+
+		if resp == nil || resp.ListAIGatewaysResponse == nil {
+			return []AIGateway{}, &PageMeta{Total: 0}, nil
+		}
+
+		gateways := make([]AIGateway, 0, len(resp.ListAIGatewaysResponse.Data))
+		for _, gateway := range resp.ListAIGatewaysResponse.Data {
+			normalized := gateway.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+			gateways = append(gateways, AIGateway{
+				AIGateway:        gateway,
+				NormalizedLabels: normalized,
+			})
+		}
+
+		meta := &PageMeta{Total: resp.ListAIGatewaysResponse.Meta.Page.Total}
+		return gateways, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
 // GetAIGatewayByDisplayName finds a managed AI Gateway by display name.
 func (c *Client) GetAIGatewayByDisplayName(ctx context.Context, displayName string) (*AIGateway, error) {
 	if c.aiGatewayAPI == nil {
