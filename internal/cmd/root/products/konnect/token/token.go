@@ -747,7 +747,8 @@ func listSPATs(
 		if err != nil {
 			attrs := cmdpkg.TryConvertErrorToAttrs(err)
 			return nil, cmdpkg.PrepareExecutionError(
-				"Failed to list system account access tokens", err, helper.GetCmd(), attrs...)
+				"Failed to list system account access tokens", err, helper.GetCmd(), attrs...,
+			)
 		}
 		collection := res.GetSystemAccountAccessTokenCollection()
 		if collection == nil {

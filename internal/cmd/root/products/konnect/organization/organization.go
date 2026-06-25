@@ -31,7 +31,8 @@ var (
 	%[1]s get organization
 	# Get current organization information using explicit product
 	%[1]s get konnect organization
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 func NewOrganizationCmd(verb verbs.VerbValue,

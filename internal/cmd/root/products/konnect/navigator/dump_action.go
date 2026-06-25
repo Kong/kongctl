@@ -15,6 +15,7 @@ import (
 var dumpResourceByViewParent = map[string]string{
 	common.ViewParentAPI:                "apis",
 	common.ViewParentAnalyticsDashboard: "analytics.dashboards",
+	common.ViewParentAIGateway:          "ai_gateways",
 	common.ViewParentAuthStrategy:       "application_auth_strategies",
 	common.ViewParentControlPlane:       "control_planes",
 	common.ViewParentDCRProvider:        "dcr_providers",
@@ -25,6 +26,7 @@ var dumpResourceByViewParent = map[string]string{
 
 var dumpResourceByNavigatorLabel = map[string]string{
 	common.ViewResourceAPIs:           "apis",
+	common.ViewResourceAIGateways:     "ai_gateways",
 	common.ViewResourceAuthStrategies: "application_auth_strategies",
 	common.ViewResourceControlPlanes:  "control_planes",
 	common.ViewResourceDCRProviders:   "dcr_providers",

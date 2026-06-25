@@ -21,7 +21,8 @@ func (p *Planner) planEventGatewayDataPlaneCertificateChanges(
 	desired []resources.EventGatewayDataPlaneCertificateResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning Event Gateway Data Plane Certificate changes",
+	p.logger.Debug(
+		"Planning Event Gateway Data Plane Certificate changes",
 		"gateway_name", gatewayName,
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
@@ -39,7 +40,8 @@ func (p *Planner) planEventGatewayDataPlaneCertificateChanges(
 
 	// Gateway doesn't exist: plan creates only with dependency on gateway creation
 	p.planDataPlaneCertificateCreatesForNewGateway(
-		namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan)
+		namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan,
+	)
 	return nil
 }
 
@@ -54,7 +56,8 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 	desired []resources.EventGatewayDataPlaneCertificateResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning changes for existing gateway data plane certificates",
+	p.logger.Debug(
+		"Planning changes for existing gateway data plane certificates",
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
 		"desired_count", len(desired),
@@ -66,7 +69,8 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 		return fmt.Errorf("failed to list data plane certificates for gateway %s: %w", gatewayID, err)
 	}
 
-	p.logger.Debug("Fetched current data plane certificates",
+	p.logger.Debug(
+		"Fetched current data plane certificates",
 		"gateway_id", gatewayID,
 		"current_count", len(currentCerts),
 	)
@@ -87,7 +91,8 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 		current, exists := currentByName[certName]
 		if !exists {
 			// CREATE
-			p.logger.Debug("Planning data plane certificate CREATE",
+			p.logger.Debug(
+				"Planning data plane certificate CREATE",
 				"cert_name", certName,
 				"gateway_ref", gatewayRef,
 			)
@@ -96,21 +101,24 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 			)
 		} else {
 			// CHECK UPDATE
-			p.logger.Debug("Checking if data plane certificate needs update",
+			p.logger.Debug(
+				"Checking if data plane certificate needs update",
 				"cert_name", certName,
 				"cert_id", current.ID,
 			)
 
 			needsUpdate, updateFields := p.shouldUpdateDataPlaneCertificate(current, desiredCert)
 			if needsUpdate {
-				p.logger.Debug("Planning data plane certificate UPDATE",
+				p.logger.Debug(
+					"Planning data plane certificate UPDATE",
 					"cert_name", certName,
 					"cert_id", current.ID,
 					"update_fields", updateFields,
 				)
 				p.planDataPlaneCertificateUpdate(
 					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredCert, updateFields, plan)
+					current.ID, desiredCert, updateFields, plan,
+				)
 			}
 		}
 	}
@@ -119,7 +127,8 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				p.logger.Debug("Planning data plane certificate DELETE (sync mode)",
+				p.logger.Debug(
+					"Planning data plane certificate DELETE (sync mode)",
 					"cert_name", name,
 					"cert_id", current.ID,
 				)
@@ -202,7 +211,8 @@ func (p *Planner) planDataPlaneCertificateCreate(
 		}
 	}
 
-	p.logger.Debug("Enqueuing data plane certificate CREATE",
+	p.logger.Debug(
+		"Enqueuing data plane certificate CREATE",
 		"cert_ref", cert.Ref,
 		"cert_name", cert.GetMoniker(),
 		"gateway_ref", gatewayRef,
@@ -239,7 +249,8 @@ func (p *Planner) planDataPlaneCertificateUpdate(
 		},
 	}
 
-	p.logger.Debug("Enqueuing data plane certificate UPDATE",
+	p.logger.Debug(
+		"Enqueuing data plane certificate UPDATE",
 		"cert_ref", cert.Ref,
 		"cert_name", cert.GetMoniker(),
 		"cert_id", certID,
@@ -269,7 +280,8 @@ func (p *Planner) planDataPlaneCertificateDelete(
 		},
 	}
 
-	p.logger.Debug("Enqueuing data plane certificate DELETE",
+	p.logger.Debug(
+		"Enqueuing data plane certificate DELETE",
 		"cert_name", certName,
 		"cert_id", certID,
 	)

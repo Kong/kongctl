@@ -19,7 +19,8 @@ func TestRedactArgs(t *testing.T) {
 	}
 
 	got := RedactArgs(args)
-	require.Equal(t,
+	require.Equal(
+		t,
 		[]string{
 			"listen",
 			"--authorization",

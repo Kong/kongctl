@@ -172,7 +172,8 @@ var (
 	%[1]s get konnect gateway control-plane services --control-plane-id <id>
 	# Get a specific Kong Gateway Service for a given control plane
 	%[1]s get konnect gateway control-plane service --control-plane-id <id> <service-name>
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 func (c *getServiceCmd) validate(helper cmd.Helper) error {
@@ -216,7 +217,8 @@ func (c *getServiceCmd) runListByName(
 
 	for _, service := range allData {
 		if *service.GetName() == name {
-			return tableview.RenderForFormat(helper,
+			return tableview.RenderForFormat(
+				helper,
 				false,
 				outputFormat,
 				printer,
@@ -246,7 +248,8 @@ func (c *getServiceCmd) runGet(
 		return cmd.PrepareExecutionError("Failed to get Gateway Service", err, helper.GetCmd(), attrs...)
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outputFormat,
 		printer,
@@ -293,7 +296,8 @@ func (c *getServiceCmd) runList(
 		return serviceDetailView(&allData[index])
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outputFormat,
 		printer,

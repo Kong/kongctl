@@ -31,7 +31,8 @@ var (
 	%[1]s get auth-strategies --type key_auth
 	# List auth strategies using explicit konnect product
 	%[1]s get konnect auth-strategies
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 func NewAuthStrategyCmd(verb verbs.VerbValue,

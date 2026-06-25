@@ -396,7 +396,8 @@ func TestRetryingHTTPClient_URLError_Temporary_IdempotentRetries(t *testing.T) {
 			cfg.RetryConnectionErrors = true
 
 			req, err := http.NewRequestWithContext(
-				context.Background(), method, "http://example.com/path", nil)
+				context.Background(), method, "http://example.com/path", nil,
+			)
 			require.NoError(t, err)
 
 			c := NewRetryingHTTPClient(inner, cfg, nil)
@@ -419,7 +420,8 @@ func TestRetryingHTTPClient_URLError_Temporary_NonIdempotentNoRetry(t *testing.T
 	cfg.RetryConnectionErrors = true
 
 	req, err := http.NewRequestWithContext(
-		context.Background(), http.MethodPost, "http://example.com/path", nil)
+		context.Background(), http.MethodPost, "http://example.com/path", nil,
+	)
 	require.NoError(t, err)
 
 	c := NewRetryingHTTPClient(inner, cfg, nil)
@@ -440,7 +442,8 @@ func TestRetryingHTTPClient_URLError_Timeout_IdempotentRetries(t *testing.T) {
 	cfg.RetryConnectionErrors = true
 
 	req, err := http.NewRequestWithContext(
-		context.Background(), http.MethodGet, "http://example.com/path", nil)
+		context.Background(), http.MethodGet, "http://example.com/path", nil,
+	)
 	require.NoError(t, err)
 
 	c := NewRetryingHTTPClient(inner, cfg, nil)
@@ -461,7 +464,8 @@ func TestRetryingHTTPClient_URLError_Timeout_NonIdempotentNoRetry(t *testing.T) 
 	cfg.RetryConnectionErrors = true
 
 	req, err := http.NewRequestWithContext(
-		context.Background(), http.MethodPost, "http://example.com/path", nil)
+		context.Background(), http.MethodPost, "http://example.com/path", nil,
+	)
 	require.NoError(t, err)
 
 	c := NewRetryingHTTPClient(inner, cfg, nil)
@@ -499,7 +503,8 @@ func TestRetryingHTTPClient_URLError_EOF_NonIdempotentNoRetry(t *testing.T) {
 	cfg.RetryConnectionErrors = true
 
 	req, err := http.NewRequestWithContext(
-		context.Background(), http.MethodPost, "http://example.com/path", nil)
+		context.Background(), http.MethodPost, "http://example.com/path", nil,
+	)
 	require.NoError(t, err)
 
 	c := NewRetryingHTTPClient(inner, cfg, nil)
@@ -555,7 +560,8 @@ func TestRetryingHTTPClient_ECONNRESET_NonIdempotentNoRetry(t *testing.T) {
 	cfg.RetryConnectionErrors = true
 
 	req, err := http.NewRequestWithContext(
-		context.Background(), http.MethodPost, "http://example.com/path", nil)
+		context.Background(), http.MethodPost, "http://example.com/path", nil,
+	)
 	require.NoError(t, err)
 
 	c := NewRetryingHTTPClient(inner, cfg, nil)

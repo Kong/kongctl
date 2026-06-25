@@ -22,7 +22,8 @@ func (p *Planner) planEventGatewayStaticKeyChanges(
 	desired []resources.EventGatewayStaticKeyResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning Event Gateway Static Key changes",
+	p.logger.Debug(
+		"Planning Event Gateway Static Key changes",
 		"gateway_name", gatewayName,
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
@@ -53,7 +54,8 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 	desired []resources.EventGatewayStaticKeyResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning changes for existing gateway static keys",
+	p.logger.Debug(
+		"Planning changes for existing gateway static keys",
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
 		"desired_count", len(desired),
@@ -65,7 +67,8 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 		return fmt.Errorf("failed to list static keys for gateway %s: %w", gatewayID, err)
 	}
 
-	p.logger.Debug("Fetched current static keys",
+	p.logger.Debug(
+		"Fetched current static keys",
 		"gateway_id", gatewayID,
 		"current_count", len(currentKeys),
 	)
@@ -86,7 +89,8 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 
 		if !exists {
 			// CREATE
-			p.logger.Debug("Planning static key CREATE",
+			p.logger.Debug(
+				"Planning static key CREATE",
 				"key_name", desiredKey.Name,
 				"gateway_ref", gatewayRef,
 			)
@@ -95,7 +99,8 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 			// Static keys do not support update – detect changes and plan DELETE + CREATE instead.
 			needsChange := p.doesStaticKeyNeedChange(current, desiredKey)
 			if needsChange {
-				p.logger.Debug("Planning static key DELETE+CREATE (no update supported)",
+				p.logger.Debug(
+					"Planning static key DELETE+CREATE (no update supported)",
 					"key_name", desiredKey.Name,
 					"key_id", current.ID,
 					"gateway_ref", gatewayRef,
@@ -112,7 +117,8 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				p.logger.Debug("Planning static key DELETE (sync mode)",
+				p.logger.Debug(
+					"Planning static key DELETE (sync mode)",
 					"key_name", name,
 					"key_id", current.ID,
 				)
@@ -133,7 +139,8 @@ func (p *Planner) planStaticKeyCreatesForNewGateway(
 	keys []resources.EventGatewayStaticKeyResource,
 	plan *Plan,
 ) {
-	p.logger.Debug("Planning static key creates for new gateway",
+	p.logger.Debug(
+		"Planning static key creates for new gateway",
 		"gateway_ref", gatewayRef,
 		"gateway_change_id", gatewayChangeID,
 		"key_count", len(keys),
@@ -199,7 +206,8 @@ func (p *Planner) planStaticKeyCreate(
 		}
 	}
 
-	p.logger.Debug("Enqueuing static key CREATE",
+	p.logger.Debug(
+		"Enqueuing static key CREATE",
 		"key_ref", key.Ref,
 		"key_name", key.Name,
 		"gateway_ref", gatewayRef,
@@ -232,7 +240,8 @@ func (p *Planner) planStaticKeyDelete(
 		},
 	}
 
-	p.logger.Debug("Enqueuing static key DELETE",
+	p.logger.Debug(
+		"Enqueuing static key DELETE",
 		"key_name", keyName,
 		"key_id", keyID,
 		"gateway_ref", gatewayRef,

@@ -33,7 +33,8 @@ var (
 %[1]s get portal applications --portal-id <portal-id>
 # List portals using explicit konnect product
 %[1]s get konnect portals
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func NewPortalCmd(verb verbs.VerbValue,

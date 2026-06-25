@@ -80,7 +80,8 @@ var (
 %[1]s get event-gateway vc cp --gateway-id <id> --virtual-cluster-id <id> --policy-id <id>
 # Get a specific cluster policy by name (flag)
 %[1]s get event-gateway vc cp --gateway-name gw --virtual-cluster-name vc --policy-name p
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetEventGatewayClusterPoliciesCmd(

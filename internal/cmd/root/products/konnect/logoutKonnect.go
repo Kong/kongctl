@@ -20,7 +20,8 @@ var (
 		i18n.T("root.products.konnect.logoutKonnectExample",
 			fmt.Sprintf(`
 # Logout from Konnect
-%[1]s logout konnect`, meta.CLIName)))
+%[1]s logout konnect`, meta.CLIName)),
+	)
 )
 
 type logoutKonnectCmd struct {

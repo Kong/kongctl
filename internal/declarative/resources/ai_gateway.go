@@ -23,6 +23,7 @@ func init() {
 type AIGatewayResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	kkComps.CreateAIGatewayRequest
+	Providers []AIGatewayProviderResource `yaml:"providers,omitempty" json:"providers,omitempty"`
 }
 
 func (a AIGatewayResource) MarshalJSON() ([]byte, error) {
@@ -41,6 +42,7 @@ type aiGatewayAlias struct {
 	Description *string                     `json:"description,omitempty" yaml:"description,omitempty"`
 	ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
 	Labels      map[string]string           `json:"labels,omitempty"      yaml:"labels,omitempty"`
+	Providers   []AIGatewayProviderResource `json:"providers,omitempty"   yaml:"providers,omitempty"`
 }
 
 func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
@@ -51,6 +53,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		Description: a.Description,
 		ProxyURLs:   a.ProxyUrls,
 		Labels:      a.Labels,
+		Providers:   a.Providers,
 	}
 }
 
@@ -64,6 +67,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Description *string                     `yaml:"description,omitempty"`
 		ProxyURLs   []kkComps.AIGatewayProxyURL `yaml:"proxy_urls,omitempty"`
 		Labels      map[string]string           `yaml:"labels,omitempty"`
+		Providers   []AIGatewayProviderResource `yaml:"providers,omitempty"`
 	}
 	if err := unmarshal(&raw); err != nil {
 		return err
@@ -79,6 +83,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		ProxyUrls:   raw.ProxyURLs,
 		Labels:      raw.Labels,
 	}
+	a.Providers = raw.Providers
 
 	return nil
 }
@@ -93,6 +98,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Description *string                     `json:"description,omitempty"`
 		ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"`
 		Labels      map[string]string           `json:"labels,omitempty"`
+		Providers   []AIGatewayProviderResource `json:"providers,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -108,6 +114,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		ProxyUrls:   raw.ProxyURLs,
 		Labels:      raw.Labels,
 	}
+	a.Providers = raw.Providers
 
 	return nil
 }
@@ -184,5 +191,14 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			Kind:       explainKindObject,
 			Additional: explainStringNode("value"),
 		}, false, false),
+		explainField("providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
 	), nil
+}
+
+func aiGatewayProviderInlineExplainNode() *ExplainNode {
+	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
+	if err != nil {
+		return explainObject()
+	}
+	return node
 }

@@ -72,7 +72,8 @@ func TestDeleteAllDeletesFilteredItemsAcrossPages(t *testing.T) {
 			systemTeam: true,
 		})
 	}
-	teams = append(teams,
+	teams = append(
+		teams,
 		team{id: "e2e-team-alpha"},
 		team{id: "e2e-team-beta"},
 	)

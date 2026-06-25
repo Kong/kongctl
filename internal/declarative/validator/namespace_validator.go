@@ -79,7 +79,8 @@ func (v *NamespaceValidator) ParseNamespaceRequirementSlice(namespaces []string)
 					"If you meant to require any namespace, use --require-any-namespace instead.\n"+
 					"If you meant to specify a namespace, use --require-namespace=<namespace> or "+
 					"place --require-namespace values before other flags",
-				ns)
+				ns,
+			)
 		}
 
 		// Validate the namespace
@@ -321,7 +322,8 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		)
 	}
 	for i := range rs.ApplicationAuthStrategies {
-		check(string(resources.ResourceTypeApplicationAuthStrategy),
+		check(
+			string(resources.ResourceTypeApplicationAuthStrategy),
 			rs.ApplicationAuthStrategies[i].Ref,
 			rs.ApplicationAuthStrategies[i].Kongctl,
 		)

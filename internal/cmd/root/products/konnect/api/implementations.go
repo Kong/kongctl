@@ -53,7 +53,8 @@ var (
 %[1]s get api implementations --api-id <api-id> <implementation-id>
 # Get an implementation by service ID
 %[1]s get api implementations --api-id <api-id> <service-id>
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetAPIImplementationsCmd(
@@ -189,7 +190,8 @@ func (h apiImplementationsHandler) run(args []string) error {
 		return implementationDetailView(&implementations[index])
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,
