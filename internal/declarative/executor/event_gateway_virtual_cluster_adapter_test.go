@@ -112,6 +112,54 @@ func TestBuildVirtualClusterTopicAliasesTyped(t *testing.T) {
 	require.Equal(t, typedAliases, aliases)
 }
 
+func TestBuildVirtualClusterTopicAliasesTreatsEmptyConflictAsUnset(t *testing.T) {
+	aliases, err := buildVirtualClusterTopicAliases([]any{
+		map[string]any{
+			"alias":    "public-orders",
+			"topic":    "tenant-a.orders",
+			"conflict": "",
+		},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, aliases, 1)
+	require.Nil(t, aliases[0].Conflict)
+}
+
+func TestBuildVirtualClusterTopicAliasesRejectsInvalidConflict(t *testing.T) {
+	_, err := buildVirtualClusterTopicAliases([]any{
+		map[string]any{
+			"alias":    "public-orders",
+			"topic":    "tenant-a.orders",
+			"conflict": "fail",
+		},
+	})
+
+	require.EqualError(t, err, "topic_aliases[0].conflict must be one of: warn, ignore")
+}
+
+func TestBuildVirtualClusterTopicAliasesValidatesTypedConflicts(t *testing.T) {
+	emptyConflict := kkComps.VirtualClusterTopicAliasConflict("")
+	aliases, err := buildVirtualClusterTopicAliases([]kkComps.VirtualClusterTopicAlias{{
+		Alias:    "public-orders",
+		Topic:    "tenant-a.orders",
+		Conflict: &emptyConflict,
+	}})
+
+	require.NoError(t, err)
+	require.Len(t, aliases, 1)
+	require.Nil(t, aliases[0].Conflict)
+
+	invalidConflict := kkComps.VirtualClusterTopicAliasConflict("fail")
+	_, err = buildVirtualClusterTopicAliases([]kkComps.VirtualClusterTopicAlias{{
+		Alias:    "public-orders",
+		Topic:    "tenant-a.orders",
+		Conflict: &invalidConflict,
+	}})
+
+	require.EqualError(t, err, "topic_aliases[0].conflict must be one of: warn, ignore")
+}
+
 func TestBuildVirtualClusterTopicAliasesRejectsInvalidOptionalFieldTypes(t *testing.T) {
 	_, err := buildVirtualClusterTopicAliases([]any{
 		map[string]any{
