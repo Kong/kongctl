@@ -58,7 +58,8 @@ var (
 %[1]s get event-gateway listeners --gateway-id <gateway-id> --listener-id <listener-id>
 # Get a specific listener by name (flag)
 %[1]s get event-gateway listeners --gateway-name my-gateway --listener-name my-listener
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetEventGatewayListenersCmd(

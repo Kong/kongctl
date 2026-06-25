@@ -66,7 +66,8 @@ func (a *EventGatewaySchemaRegistryAPIImpl) GetEventGatewaySchemaRegistry(
 	opts ...kkOps.Option,
 ) (*kkOps.GetEventGatewaySchemaRegistryResponse, error) {
 	return a.SDK.EventGatewaySchemaRegistries.GetEventGatewaySchemaRegistry(
-		ctx, gatewayID, schemaRegistryID, opts...)
+		ctx, gatewayID, schemaRegistryID, opts...,
+	)
 }
 
 func (a *EventGatewaySchemaRegistryAPIImpl) CreateEventGatewaySchemaRegistry(
@@ -76,7 +77,8 @@ func (a *EventGatewaySchemaRegistryAPIImpl) CreateEventGatewaySchemaRegistry(
 	opts ...kkOps.Option,
 ) (*kkOps.CreateEventGatewaySchemaRegistryResponse, error) {
 	return a.SDK.EventGatewaySchemaRegistries.CreateEventGatewaySchemaRegistry(
-		ctx, gatewayID, &request, opts...)
+		ctx, gatewayID, &request, opts...,
+	)
 }
 
 func (a *EventGatewaySchemaRegistryAPIImpl) UpdateEventGatewaySchemaRegistry(
@@ -101,5 +103,6 @@ func (a *EventGatewaySchemaRegistryAPIImpl) DeleteEventGatewaySchemaRegistry(
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteEventGatewaySchemaRegistryResponse, error) {
 	return a.SDK.EventGatewaySchemaRegistries.DeleteEventGatewaySchemaRegistry(
-		ctx, gatewayID, schemaRegistryID, opts...)
+		ctx, gatewayID, schemaRegistryID, opts...,
+	)
 }

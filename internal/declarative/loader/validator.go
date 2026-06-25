@@ -44,6 +44,10 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	if err := l.validateAIGatewayProviders(rs); err != nil {
+		return err
+	}
+
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
 		return err
@@ -708,6 +712,40 @@ func (l *Loader) validateAIGateways(
 			)
 		}
 		displayNamesByNamespace[nameKey] = gateway.GetRef()
+	}
+
+	return nil
+}
+
+func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+	for i := range rs.AIGatewayProviders {
+		provider := &rs.AIGatewayProviders[i]
+		if err := provider.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_provider %q: %w", provider.GetRef(), err)
+		}
+		if provider.AIGateway == "" {
+			return fmt.Errorf("ai_gateway_provider %q must specify ai_gateway", provider.GetRef())
+		}
+		if rs.GetAIGatewayByRef(provider.AIGateway) == nil {
+			return fmt.Errorf(
+				"ai_gateway_provider %q references unknown ai_gateway %q",
+				provider.GetRef(),
+				provider.AIGateway,
+			)
+		}
+
+		nameKey := provider.AIGateway + "\x00" + provider.Name
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_provider name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				provider.Name,
+				provider.AIGateway,
+				provider.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = provider.GetRef()
 	}
 
 	return nil

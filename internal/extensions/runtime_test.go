@@ -32,7 +32,8 @@ func TestHostEnvironmentPropagatesPATForProfile(t *testing.T) {
 }
 
 func TestProfileEnvNameNormalizesProfileAndConfigPath(t *testing.T) {
-	require.Equal(t,
+	require.Equal(
+		t,
 		"KONGCTL_TEAM_A_KONNECT_PAT",
 		profileEnvName("team-a", konnectcommon.PATConfigPath),
 	)

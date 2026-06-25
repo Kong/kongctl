@@ -36,6 +36,7 @@ type ClientConfig struct {
 	ControlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
 	CatalogServiceAPI       helpers.CatalogServicesAPI
 	AIGatewayAPI            helpers.AIGatewayAPI
+	AIGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
 	DashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -99,6 +100,7 @@ type Client struct {
 	controlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
 	catalogServiceAPI       helpers.CatalogServicesAPI
 	aiGatewayAPI            helpers.AIGatewayAPI
+	aiGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
 	dashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -163,6 +165,7 @@ func NewClient(config ClientConfig) *Client {
 		controlPlaneGroupsAPI:   config.ControlPlaneGroupsAPI,
 		catalogServiceAPI:       config.CatalogServiceAPI,
 		aiGatewayAPI:            config.AIGatewayAPI,
+		aiGatewayProvidersAPI:   config.AIGatewayProvidersAPI,
 		dashboardsAPI:           config.DashboardsAPI,
 
 		// Portal child resource APIs
@@ -248,6 +251,21 @@ type CatalogService struct {
 // AIGateway represents a Konnect AI Gateway for internal use.
 type AIGateway struct {
 	kkComps.AIGateway
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayProvider represents a Konnect AI Gateway Provider for internal use.
+type AIGatewayProvider struct {
+	ID               string
+	Name             string
+	Type             string
+	DisplayName      string
+	Labels           map[string]string
+	ManagedBy        map[string]string
+	Config           map[string]any
+	CreatedAt        string
+	UpdatedAt        string
+	Raw              map[string]any
 	NormalizedLabels map[string]string
 }
 
@@ -3077,7 +3095,8 @@ func (c *Client) UpdatePortalAuthSettings(
 	}
 
 	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
-		logger.Debug("updating portal auth settings",
+		logger.Debug(
+			"updating portal auth settings",
 			"portal_id", portalID,
 			"basic_auth_enabled", settings.BasicAuthEnabled,
 			"idp_mapping_enabled", settings.IdpMappingEnabled,
@@ -3396,7 +3415,8 @@ func (c *Client) UpsertPortalIntegrations(
 	}
 
 	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
-		logger.Debug("upserting portal integrations",
+		logger.Debug(
+			"upserting portal integrations",
 			"portal_id", portalID,
 			"has_google_tag_manager", integrations.GoogleTagManager != nil,
 			"has_google_analytics_4", integrations.GoogleAnalytics4 != nil,
@@ -7040,7 +7060,8 @@ func (c *Client) GetEventGatewayDataPlaneCertificate(
 	certificateID string,
 ) (*EventGatewayDataPlaneCertificate, error) {
 	resp, err := c.eventGatewayDataPlaneCertificateAPI.FetchEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID)
+		ctx, gatewayID, certificateID,
+	)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway data plane certificate by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayDataPlaneCertificate),
@@ -7065,7 +7086,8 @@ func (c *Client) UpdateEventGatewayDataPlaneCertificate(
 	namespace string,
 ) (string, error) {
 	resp, err := c.eventGatewayDataPlaneCertificateAPI.UpdateEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID, req)
+		ctx, gatewayID, certificateID, req,
+	)
 	if err != nil {
 		name := ""
 		if req.Name != nil {
@@ -7088,7 +7110,8 @@ func (c *Client) DeleteEventGatewayDataPlaneCertificate(
 	certificateID string,
 ) error {
 	_, err := c.eventGatewayDataPlaneCertificateAPI.DeleteEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID)
+		ctx, gatewayID, certificateID,
+	)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway data plane certificate", nil)
 	}
@@ -7258,7 +7281,8 @@ func (c *Client) UpdateEventGatewaySchemaRegistry(
 	_ string, // namespace
 ) (string, error) {
 	resp, err := c.eventGatewaySchemaRegistryAPI.UpdateEventGatewaySchemaRegistry(
-		ctx, gatewayID, schemaRegistryID, req)
+		ctx, gatewayID, schemaRegistryID, req,
+	)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway schema registry", nil)
 	}

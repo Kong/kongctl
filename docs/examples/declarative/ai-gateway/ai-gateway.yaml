@@ -13,3 +13,14 @@ ai_gateways:
     labels:
       team: support
       environment: staging
+    providers:
+      - ref: openai-provider
+        name: openai-provider
+        type: openai
+        display_name: "OpenAI Provider"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !env OPENAI_AUTH_HEADER

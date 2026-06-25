@@ -27,7 +27,8 @@ var (
 			fmt.Sprintf(`
 	# Get current user information
 	%[1]s get me
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 // Represents a text display record for current user
@@ -172,7 +173,8 @@ func (c *getMeCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,

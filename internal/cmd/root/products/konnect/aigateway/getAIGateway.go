@@ -288,6 +288,12 @@ func renderAIGatewayList(
 		"",
 		tableview.WithRootLabel(rootLabel),
 		tableview.WithDetailHelper(helper),
+		tableview.WithDetailContext(common.ViewParentAIGateway, func(index int) any {
+			if index < 0 || index >= len(gateways) {
+				return nil
+			}
+			return &gateways[index]
+		}),
 	)
 }
 
