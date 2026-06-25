@@ -1,0 +1,381 @@
+name: Ad-hoc prerelease
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Branch, tag, or SHA to build
+        required: true
+        type: string
+      release_tag:
+        description: Optional prerelease tag to create
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: adhoc-prerelease-${{ github.event.inputs.source_ref }}
+  cancel-in-progress: false
+
+run-name: Ad-hoc prerelease ${{ inputs.source_ref }}
+
+jobs:
+  prerelease:
+    name: Build prerelease
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh_host="${GITHUB_SERVER_URL#https://}"
+          gh_host="${gh_host#http://}"
+          echo "GH_HOST=${gh_host}" >> "$GITHUB_ENV"
+
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout source ref
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          ref: ${{ inputs.source_ref }}
+
+      - name: Resolve source and release tag
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          set -euo pipefail
+
+          sanitize_ref() {
+            local value="$1"
+
+            case "${value}" in
+              refs/pull/*/head | refs/pull/*/merge)
+                value="pr-${value#refs/pull/}"
+                value="${value%/head}"
+                value="${value%/merge}"
+                ;;
+              pull/*/head | pull/*/merge)
+                value="pr-${value#pull/}"
+                value="${value%/head}"
+                value="${value%/merge}"
+                ;;
+              refs/heads/*)
+                value="${value#refs/heads/}"
+                ;;
+              refs/tags/*)
+                value="${value#refs/tags/}"
+                ;;
+              origin/*)
+                value="${value#origin/}"
+                ;;
+            esac
+
+            value="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')"
+            value="$(printf '%s' "${value}" | sed -E 's/[^a-z0-9._-]+/-/g; s/-+/-/g')"
+            value="$(printf '%s' "${value}" | sed -E 's/[.]{2,}/-/g; s/\.lock($|[._-])/-lock\1/g')"
+            value="$(printf '%s' "${value}" | sed -E 's/^[._-]+//; s/[._-]+$//')"
+
+            if [ -z "${value}" ]; then
+              value="source"
+            fi
+
+            if [[ "${value}" =~ ^[0-9] ]]; then
+              value="ref-${value}"
+            fi
+
+            value="$(printf '%.80s' "${value}")"
+            value="$(printf '%s' "${value}" | sed -E 's/[._-]+$//; s/\.lock$/-lock/')"
+
+            if [ -z "${value}" ]; then
+              value="source"
+            fi
+
+            printf '%s\n' "${value}"
+          }
+
+          validate_tag() {
+            local tag="$1"
+
+            if [ -z "${tag}" ]; then
+              echo "::error::release_tag must not be empty"
+              exit 1
+            fi
+
+            if [ "${#tag}" -gt 128 ]; then
+              echo "::error::release tag is too long (${#tag} characters); maximum is 128"
+              exit 1
+            fi
+
+            if [[ "${tag}" == */* ]]; then
+              echo "::error::release tag must not contain '/': ${tag}"
+              exit 1
+            fi
+
+            if [[ "${tag}" =~ ^[0-9] ]]; then
+              echo "::error::release tag must not start with a digit: ${tag}"
+              exit 1
+            fi
+
+            if [[ "${tag}" == -* ]]; then
+              echo "::error::release tag must not start with '-': ${tag}"
+              exit 1
+            fi
+
+            if ! git check-ref-format --allow-onelevel "${tag}"; then
+              echo "::error::release tag is not a valid Git tag name: ${tag}"
+              exit 1
+            fi
+          }
+
+          source_sha="$(git rev-parse HEAD)"
+          short_sha="$(git rev-parse --short=7 HEAD)"
+          safe_ref="$(sanitize_ref "${SOURCE_REF}")"
+
+          if [ -n "${RELEASE_TAG_INPUT}" ]; then
+            release_tag="${RELEASE_TAG_INPUT}"
+          else
+            timestamp="$(date -u +%Y%m%d-%H%M)"
+            release_tag="prerelease-${safe_ref}-${timestamp}-g${short_sha}"
+          fi
+
+          validate_tag "${release_tag}"
+
+          git fetch origin --tags --force
+          if git rev-parse --verify --quiet "refs/tags/${release_tag}" >/dev/null; then
+            echo "::error::Git tag already exists locally: ${release_tag}"
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${release_tag}" >/dev/null 2>&1; then
+            echo "::error::Git tag already exists on origin: ${release_tag}"
+            exit 1
+          fi
+
+          if gh release view "${release_tag}" >/dev/null 2>&1; then
+            echo "::error::GitHub release already exists: ${release_tag}"
+            exit 1
+          fi
+
+          {
+            echo "release_tag=${release_tag}"
+            echo "safe_ref=${safe_ref}"
+            echo "short_sha=${short_sha}"
+            echo "source_sha=${source_sha}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          cache: false
+          go-version-file: go.mod
+
+      - name: Set up private SDK if needed
+        id: private_sdk
+        shell: bash
+        run: scripts/setup-private-sdk.sh
+        env:
+          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+
+      - name: Validate build
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=dev make build-ci
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -race -count=1 ./...
+
+      - name: Prepare GoReleaser config
+        id: goreleaser_config
+        shell: bash
+        run: |
+          set -euo pipefail
+          config="${RUNNER_TEMP}/goreleaser-adhoc.yml"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          src = Path(".goreleaser.yml")
+          dst = Path(os.environ["RUNNER_TEMP"]) / "goreleaser-adhoc.yml"
+          text = src.read_text()
+          needle = "- -X main.version={{.Version}}"
+          replacement = "- -X main.version=dev"
+          if needle not in text:
+              raise SystemExit("could not find GoReleaser main.version ldflag")
+          dst.write_text(text.replace(needle, replacement, 1))
+          PY
+          echo "config=${config}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release binaries
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        env:
+          CGO_ENABLED: "0"
+        with:
+          args: build --snapshot --clean --config ${{ steps.goreleaser_config.outputs.config }}
+          distribution: goreleaser
+          version: v2.13.3
+
+      - name: Package ZIP assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          command -v zip >/dev/null 2>&1 || {
+            echo "::error::zip is required to package prerelease assets"
+            exit 1
+          }
+
+          linux_amd64_bin="$(find dist -type f -path "*/kongctl_linux_amd64*" -name kongctl | sort | head -n 1)"
+          if [ -z "${linux_amd64_bin}" ]; then
+            echo "::error::GoReleaser did not produce a linux/amd64 kongctl binary"
+            exit 1
+          fi
+
+          version_output="$("${linux_amd64_bin}" version --full)"
+          if [[ "${version_output}" != dev\ * && "${version_output}" != "dev" ]]; then
+            echo "::error::ad-hoc prerelease binary version must be dev; got: ${version_output}"
+            exit 1
+          fi
+
+          rm -rf release-assets
+          mkdir -p release-assets
+
+          targets=(
+            "linux/amd64"
+            "linux/arm64"
+            "darwin/amd64"
+            "darwin/arm64"
+            "windows/amd64"
+            "windows/arm64"
+          )
+
+          for target in "${targets[@]}"; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            binary="kongctl"
+            if [ "${os}" = "windows" ]; then
+              binary="kongctl.exe"
+            fi
+
+            built_binary="$(find dist -type f -path "*/kongctl_${os}_${arch}*" -name "${binary}" | sort | head -n 1)"
+            if [ -z "${built_binary}" ]; then
+              echo "::error::GoReleaser did not produce ${target} binary"
+              exit 1
+            fi
+
+            stage="${RUNNER_TEMP}/kongctl-${os}-${arch}"
+            rm -rf "${stage}"
+            mkdir -p "${stage}"
+            cp "${built_binary}" "${stage}/${binary}"
+
+            files=("${binary}")
+            if [ -f LICENSE ]; then
+              cp LICENSE "${stage}/LICENSE"
+              files+=("LICENSE")
+            fi
+            if [ -f README.md ]; then
+              cp README.md "${stage}/README.md"
+              files+=("README.md")
+            fi
+
+            archive="${GITHUB_WORKSPACE}/release-assets/kongctl_${os}_${arch}.zip"
+            (cd "${stage}" && zip -q "${archive}" "${files[@]}")
+          done
+
+          (cd release-assets && sha256sum kongctl_*.zip > checksums.txt)
+
+      - name: Prepare release notes
+        id: notes
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+          SDK_COMMIT: ${{ steps.private_sdk.outputs.sdk_commit }}
+          SDK_MODE: ${{ steps.private_sdk.outputs.sdk_mode }}
+          SDK_VERSION: ${{ steps.private_sdk.outputs.sdk_version }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          notes="${RUNNER_TEMP}/release-notes.md"
+
+          {
+            echo "## Ad-hoc prerelease"
+            echo ""
+            echo "- Source ref: \`${SOURCE_REF}\`"
+            echo "- Source SHA: \`${SOURCE_SHA}\`"
+            echo "- Binary version: \`dev\`"
+            echo "- SDK mode: \`${SDK_MODE:-public}\`"
+            if [ -n "${SDK_VERSION}" ]; then
+              echo "- Internal SDK version: \`${SDK_VERSION}\`"
+            fi
+            if [ -n "${SDK_COMMIT}" ]; then
+              echo "- Internal SDK commit: \`${SDK_COMMIT}\`"
+            fi
+            echo ""
+            echo "### Validation"
+            echo ""
+            echo "- \`VERSION=dev make build-ci\`"
+            echo "- \`go test -race -count=1 ./...\`"
+            echo "- GoReleaser snapshot cross-compile completed"
+            echo "- ZIP assets and \`checksums.txt\` generated"
+            echo ""
+            echo "### Install"
+            echo ""
+            echo "\`\`\`sh"
+            echo "curl -fsSL https://raw.githubusercontent.com/Kong/kongctl/main/scripts/install.sh | sh -s -- --version ${RELEASE_TAG}"
+            echo "\`\`\`"
+          } > "${notes}"
+
+          echo "path=${notes}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${RELEASE_TAG}" "${SOURCE_SHA}" -m "Ad-hoc prerelease ${RELEASE_TAG}"
+          git push origin "refs/tags/${RELEASE_TAG}"
+
+      - name: Create GitHub prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          gh release create "${RELEASE_TAG}" release-assets/*.zip release-assets/checksums.txt \
+            --notes-file "${{ steps.notes.outputs.path }}" \
+            --prerelease \
+            --latest=false \
+            --target "${SOURCE_SHA}" \
+            --title "${RELEASE_TAG}" \
+            --verify-tag
+
+      - name: Cleanup private SDK workspace
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .private
+          if [ -d .git ]; then
+            git checkout -- go.mod go.sum || true
+          fi

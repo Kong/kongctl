@@ -17,7 +17,7 @@ Options:
                           $GITHUB_REPOSITORY, gh repo context, or origin.
   --head REF              Commit/ref to preview. Defaults to $HEAD_REF or HEAD.
   --base-tag TAG          Previous release/tag override. Defaults to
-                          $BASE_TAG, latest non-draft GitHub release tag,
+                          $BASE_TAG, latest stable non-draft GitHub release tag,
                           then latest local stable semver tag.
   --extended              Include commit-by-commit details and changed paths.
   -h, --help              Show this help.
@@ -491,12 +491,15 @@ if [ -n "${base_tag_override}" ]; then
   base_sha="$(git rev-parse --verify "${base_tag}^{commit}" 2>/dev/null)" \
     || die "base tag does not resolve to a local commit: ${base_tag}"
 elif [ "${github_release_data_available}" = "true" ]; then
-  github_latest_release_tag="$(jq -r '.[].tagName // empty' "${gh_releases_file}" | awk 'NF { print; exit }')"
-  if [ -n "${github_latest_release_tag}" ]; then
-    if base_sha="$(git rev-parse --verify "${github_latest_release_tag}^{commit}" 2>/dev/null)"; then
-      base_tag="${github_latest_release_tag}"
+  github_latest_stable_release_tag="$(
+    jq -r '.[].tagName // empty | select(test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))' "${gh_releases_file}" \
+      | awk 'NF { print; exit }'
+  )"
+  if [ -n "${github_latest_stable_release_tag}" ]; then
+    if base_sha="$(git rev-parse --verify "${github_latest_stable_release_tag}^{commit}" 2>/dev/null)"; then
+      base_tag="${github_latest_stable_release_tag}"
     else
-      warnings+=("Latest non-draft GitHub release tag ${github_latest_release_tag} is not available locally.")
+      warnings+=("Latest stable non-draft GitHub release tag ${github_latest_stable_release_tag} is not available locally.")
     fi
   fi
 fi
