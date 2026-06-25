@@ -103,7 +103,9 @@ clone_private_sdk() {
   git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
     clone "https://github.com/Kong/sdk-konnect-go-internal.git" "${PRIVATE_SDK_DIR}"
 
-  git -C "${PRIVATE_SDK_DIR}" fetch --tags --force origin
+  git -C "${PRIVATE_SDK_DIR}" \
+    -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
+    fetch --tags --force origin
   git -C "${PRIVATE_SDK_DIR}" checkout --detach "${checkout_ref}"
 }
 
