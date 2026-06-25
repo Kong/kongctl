@@ -83,6 +83,7 @@ jobs:
 
             value="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')"
             value="$(printf '%s' "${value}" | sed -E 's/[^a-z0-9._-]+/-/g; s/-+/-/g')"
+            value="$(printf '%s' "${value}" | sed -E 's/[.]{2,}/-/g; s/\.lock($|[._-])/-lock\1/g')"
             value="$(printf '%s' "${value}" | sed -E 's/^[._-]+//; s/[._-]+$//')"
 
             if [ -z "${value}" ]; then
@@ -93,7 +94,14 @@ jobs:
               value="ref-${value}"
             fi
 
-            printf '%.80s\n' "${value}"
+            value="$(printf '%.80s' "${value}")"
+            value="$(printf '%s' "${value}" | sed -E 's/[._-]+$//; s/\.lock$/-lock/')"
+
+            if [ -z "${value}" ]; then
+              value="source"
+            fi
+
+            printf '%s\n' "${value}"
           }
 
           validate_tag() {
