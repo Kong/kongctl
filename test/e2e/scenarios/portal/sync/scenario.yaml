@@ -129,7 +129,50 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 004-delete-api
+  - name: 004-dump-and-plan-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-portals-and-apis
+        run:
+          - dump
+          - declarative
+          - "--resources=portals,apis"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          # Portal is present in dump
+          - select: "portals[?name=='My First Portal'] | [0]"
+            expect:
+              fields:
+                name: "My First Portal"
+          # SMS API is present in dump (not yet deleted at this step)
+          - select: "apis[?name=='SMS API'] | [0]"
+            expect:
+              fields:
+                name: "SMS API"
+          # No publications in dump (removed in step 003)
+          - select: "apis[?name=='SMS API'] | [0].publications[0]"
+            expect:
+              fields:
+                portal_id: null
+
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-delete-api
     inputOverlayDirs:
       - overlays/002-delete-api
     commands:
@@ -176,7 +219,7 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 005-delete-cleanup
+  - name: 006-delete-cleanup
     inputOverlayDirs:
       - overlays/002-delete-api
     commands:
