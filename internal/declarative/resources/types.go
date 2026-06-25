@@ -1,6 +1,10 @@
 package resources
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/kong/kongctl/internal/declarative/tags"
+)
 
 // ResourceType represents the type of a declarative resource
 type ResourceType string
@@ -80,6 +84,16 @@ const (
 type ResourceRef struct {
 	Kind ResourceType `json:"kind" yaml:"kind"`
 	Ref  string       `json:"ref"  yaml:"ref"`
+}
+
+// NormalizeResourceRef returns the declarative ref for either a plain ref or a
+// deferred !ref placeholder.
+func NormalizeResourceRef(value string) string {
+	ref, _, ok := tags.ParseRefPlaceholder(value)
+	if ok {
+		return ref
+	}
+	return value
 }
 
 // ResourceSet contains all declarative resources from configuration files
@@ -314,6 +328,7 @@ func (rs *ResourceSet) GetCatalogServiceByRef(ref string) *CatalogServiceResourc
 
 // GetAIGatewayByRef returns an AI Gateway resource by its ref from any namespace.
 func (rs *ResourceSet) GetAIGatewayByRef(ref string) *AIGatewayResource {
+	ref = NormalizeResourceRef(ref)
 	for i := range rs.AIGateways {
 		if rs.AIGateways[i].GetRef() == ref {
 			return &rs.AIGateways[i]
@@ -407,6 +422,12 @@ func (rs *ResourceSet) GetCatalogServicesByNamespace(namespace string) []Catalog
 func (rs *ResourceSet) GetAIGatewaysByNamespace(namespace string) []AIGatewayResource {
 	var filtered []AIGatewayResource
 	for _, gateway := range rs.AIGateways {
+		if gateway.IsExternal() {
+			if namespace == NamespaceExternal {
+				filtered = append(filtered, gateway)
+			}
+			continue
+		}
 		if GetNamespace(gateway.Kongctl) == namespace {
 			filtered = append(filtered, gateway)
 		}
@@ -423,7 +444,7 @@ func (rs *ResourceSet) GetAIGatewayProvidersByNamespace(namespace string) []AIGa
 
 	var filtered []AIGatewayProviderResource
 	for _, provider := range rs.AIGatewayProviders {
-		if _, ok := gatewayByRef[provider.AIGateway]; ok {
+		if _, ok := gatewayByRef[NormalizeResourceRef(provider.AIGateway)]; ok {
 			filtered = append(filtered, provider)
 		}
 	}
@@ -434,9 +455,16 @@ func (rs *ResourceSet) GetAIGatewayProvidersByNamespace(namespace string) []AIGa
 func (rs *ResourceSet) GetAIGatewayModelsByNamespace(namespace string) []AIGatewayModelResource {
 	var filtered []AIGatewayModelResource
 	for _, model := range rs.AIGatewayModels {
-		if gateway := rs.GetAIGatewayByRef(model.AIGateway); gateway != nil &&
-			GetNamespace(gateway.Kongctl) == namespace {
-			filtered = append(filtered, model)
+		if gateway := rs.GetAIGatewayByRef(model.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, model)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, model)
+			}
 		}
 	}
 	return filtered
@@ -1016,7 +1044,7 @@ func (rs *ResourceSet) GetBackendClustersForGateway(gatewayRef string) []EventGa
 func (rs *ResourceSet) GetAIGatewayProvidersForGateway(gatewayRef string) []AIGatewayProviderResource {
 	var providers []AIGatewayProviderResource
 	for _, provider := range rs.AIGatewayProviders {
-		if provider.AIGateway == gatewayRef {
+		if NormalizeResourceRef(provider.AIGateway) == gatewayRef {
 			providers = append(providers, provider)
 		}
 	}
@@ -1388,7 +1416,7 @@ func (rs *ResourceSet) GetTrustBundlesForGateway(
 func (rs *ResourceSet) GetAIGatewayModelsForGateway(gatewayRef string) []AIGatewayModelResource {
 	var models []AIGatewayModelResource
 	for _, model := range rs.AIGatewayModels {
-		if model.AIGateway == gatewayRef {
+		if NormalizeResourceRef(model.AIGateway) == gatewayRef {
 			models = append(models, model)
 		}
 	}
