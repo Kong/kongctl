@@ -7,7 +7,7 @@ team owns a root-level model that targets those shared providers.
 ## Structure
 
 ```text
-ai-gateway-federated/
+ai-gateway/federated/
 |-- central-team/
 |   `-- ai-gateway.yaml
 |-- external-peer-team/
@@ -31,9 +31,9 @@ declaration in the same declarative load. Run the directory recursively so
 kongctl sees both the central gateway and the peer-owned model:
 
 ```sh
-kongctl plan -f docs/examples/declarative/ai-gateway-federated --recursive \
+kongctl plan -f docs/examples/declarative/ai-gateway/federated --recursive \
   --mode apply
-kongctl apply -f docs/examples/declarative/ai-gateway-federated --recursive
+kongctl apply -f docs/examples/declarative/ai-gateway/federated --recursive
 ```
 
 The external peer file is for a team that does not load the central team's
@@ -42,9 +42,9 @@ external peer file by itself:
 
 ```sh
 kongctl plan \
-  -f docs/examples/declarative/ai-gateway-federated/external-peer-team
+  -f docs/examples/declarative/ai-gateway/federated/external-peer-team
 kongctl apply \
-  -f docs/examples/declarative/ai-gateway-federated/external-peer-team
+  -f docs/examples/declarative/ai-gateway/federated/external-peer-team
 ```
 
 Set these environment variables before planning or applying:
