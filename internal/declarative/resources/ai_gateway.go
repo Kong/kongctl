@@ -24,6 +24,7 @@ type AIGatewayResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	kkComps.CreateAIGatewayRequest
 	Providers []AIGatewayProviderResource `yaml:"providers,omitempty" json:"providers,omitempty"`
+	Models    []AIGatewayModelResource    `yaml:"models,omitempty"    json:"models,omitempty"`
 }
 
 func (a AIGatewayResource) MarshalJSON() ([]byte, error) {
@@ -43,6 +44,7 @@ type aiGatewayAlias struct {
 	ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
 	Labels      map[string]string           `json:"labels,omitempty"      yaml:"labels,omitempty"`
 	Providers   []AIGatewayProviderResource `json:"providers,omitempty"   yaml:"providers,omitempty"`
+	Models      []AIGatewayModelResource    `json:"models,omitempty"      yaml:"models,omitempty"`
 }
 
 func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
@@ -54,6 +56,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		ProxyURLs:   a.ProxyUrls,
 		Labels:      a.Labels,
 		Providers:   a.Providers,
+		Models:      a.Models,
 	}
 }
 
@@ -68,6 +71,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		ProxyURLs   []kkComps.AIGatewayProxyURL `yaml:"proxy_urls,omitempty"`
 		Labels      map[string]string           `yaml:"labels,omitempty"`
 		Providers   []AIGatewayProviderResource `yaml:"providers,omitempty"`
+		Models      []AIGatewayModelResource    `yaml:"models,omitempty"`
 	}
 	if err := unmarshal(&raw); err != nil {
 		return err
@@ -84,6 +88,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Labels:      raw.Labels,
 	}
 	a.Providers = raw.Providers
+	a.Models = raw.Models
 
 	return nil
 }
@@ -99,6 +104,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"`
 		Labels      map[string]string           `json:"labels,omitempty"`
 		Providers   []AIGatewayProviderResource `json:"providers,omitempty"`
+		Models      []AIGatewayModelResource    `json:"models,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -115,6 +121,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Labels:      raw.Labels,
 	}
 	a.Providers = raw.Providers
+	a.Models = raw.Models
 
 	return nil
 }
@@ -160,6 +167,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	if a.DisplayName == "" {
 		a.DisplayName = a.Ref
 	}
+	for i := range a.Models {
+		a.Models[i].SetDefaults()
+	}
 }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup.
@@ -192,6 +202,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			Additional: explainStringNode("value"),
 		}, false, false),
 		explainField("providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
+		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 	), nil
 }
 

@@ -1020,6 +1020,16 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		cp.DataPlaneCertificates = nil
 	}
 
+	for i := range rs.AIGateways {
+		gateway := &rs.AIGateways[i]
+		for j := range gateway.Models {
+			model := gateway.Models[j]
+			model.AIGateway = gateway.Ref
+			rs.AIGatewayModels = append(rs.AIGatewayModels, model)
+		}
+		gateway.Models = nil
+	}
+
 	for i := range rs.APIs {
 		api := &rs.APIs[i]
 

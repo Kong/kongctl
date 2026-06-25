@@ -186,6 +186,11 @@ const (
 	FieldMinRuntimeVersion                          = "min_runtime_version"
 	FieldPorts                                      = "ports"
 	FieldProxyURLs                                  = "proxy_urls"
+	FieldFormats                                    = "formats"
+	FieldTargetModels                               = "target_models"
+	FieldPolicies                                   = "policies"
+	FieldCapabilities                               = "capabilities"
+	FieldACLS                                       = "acls"
 	FieldTLS                                        = "tls"
 	FieldTopicAliases                               = "topic_aliases"
 	FieldDefaultVirtualClusterTarget                = "default_virtual_cluster_target"
@@ -202,6 +207,7 @@ const (
 	ResourceTypeAPI                              = string(resources.ResourceTypeAPI)
 	ResourceTypeAIGateway                        = string(resources.ResourceTypeAIGateway)
 	ResourceTypeAIGatewayProvider                = string(resources.ResourceTypeAIGatewayProvider)
+	ResourceTypeAIGatewayModel                   = string(resources.ResourceTypeAIGatewayModel)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)

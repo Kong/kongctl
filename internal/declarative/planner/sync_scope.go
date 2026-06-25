@@ -78,7 +78,6 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	for _, document := range rs.APIDocuments {
 		scope.AddChild(resources.ResourceTypeAPI, document.API, resources.ResourceTypeAPIDocument)
 	}
-
 	addPortalChildScopes(scope, rs)
 	addAIGatewayChildScopes(scope, rs)
 	addEventGatewayChildScopes(scope, rs)
@@ -151,6 +150,9 @@ func addPortalChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet)
 func addAIGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
 	for _, child := range rs.AIGatewayProviders {
 		scope.AddChild(resources.ResourceTypeAIGateway, child.AIGateway, resources.ResourceTypeAIGatewayProvider)
+	}
+	for _, child := range rs.AIGatewayModels {
+		scope.AddChild(resources.ResourceTypeAIGateway, child.AIGateway, resources.ResourceTypeAIGatewayModel)
 	}
 }
 
