@@ -1121,7 +1121,12 @@ func matchExternalAIGateway(
 
 	matchFields := gateway.External.Selector.MatchFields
 	if displayName, ok := matchFields[FieldDisplayName]; ok {
-		return singleExternalAIGatewayMatch(gateway.GetRef(), FieldDisplayName, displayName, gatewayByDisplayName[displayName])
+		return singleExternalAIGatewayMatch(
+			gateway.GetRef(),
+			FieldDisplayName,
+			displayName,
+			gatewayByDisplayName[displayName],
+		)
 	}
 	if name, ok := matchFields[FieldName]; ok {
 		return singleExternalAIGatewayMatch(gateway.GetRef(), FieldName, name, gatewayByName[name])
