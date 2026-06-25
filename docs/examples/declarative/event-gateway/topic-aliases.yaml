@@ -1,0 +1,41 @@
+event_gateways:
+  - ref: my-event-gateway
+    name: my-event-gateway
+    description: "Event Gateway with topic aliases"
+    min_runtime_version: "1.2"
+    backend_clusters:
+      - ref: orders-backend-cluster
+        name: orders-backend-cluster
+        description: "Kafka backend for orders"
+        bootstrap_servers:
+          - "orders-kafka-1.example.com:9092"
+          - "orders-kafka-2.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: public-orders-virtual-cluster
+        name: public-orders-virtual-cluster
+        description: "Expose selected backend topics through aliases"
+        destination:
+          id: !ref orders-backend-cluster#id
+        authentication:
+          - type: anonymous
+        namespace:
+          mode: hide_prefix
+          prefix: tenant-a.
+        topic_aliases:
+          - alias: public-orders
+            topic: orders
+            condition: "context.auth.type == 'anonymous'"
+            conflict: warn
+          - alias: priority-orders
+            topic: priority.orders
+            conflict: ignore
+        acl_mode: passthrough
+        dns_label: vc-public-orders

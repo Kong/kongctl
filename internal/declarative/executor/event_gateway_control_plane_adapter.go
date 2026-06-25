@@ -33,6 +33,7 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) MapCreateFields(_ context.
 
 	// Map optional fields
 	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
+	common.MapOptionalStringFieldToPtr(&create.MinRuntimeVersion, fields, planner.FieldMinRuntimeVersion)
 
 	// Handle labels
 	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
@@ -64,6 +65,10 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) MapUpdateFields(
 		case planner.FieldDescription:
 			if desc, ok := value.(string); ok {
 				update.Description = &desc
+			}
+		case planner.FieldMinRuntimeVersion:
+			if minRuntimeVersion, ok := value.(string); ok {
+				update.MinRuntimeVersion = &minRuntimeVersion
 			}
 		}
 	}

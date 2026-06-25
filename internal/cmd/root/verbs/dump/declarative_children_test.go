@@ -184,6 +184,50 @@ title: Frontmatter title
 	require.Equal(t, "published", string(*resource.Status))
 }
 
+func TestBuildEventGatewayVirtualClustersPreservesTopicAliases(t *testing.T) {
+	t.Parallel()
+
+	condition := "context.auth.type == 'anonymous'"
+	conflict := kkComps.VirtualClusterTopicAliasConflictIgnore
+	description := "virtual cluster"
+	client := declstate.NewClient(declstate.ClientConfig{
+		EventGatewayVirtualClusterAPI: &stubDumpEventGatewayVirtualClusterAPI{
+			clusters: []kkComps.VirtualCluster{{
+				ID:          "virtual-cluster-id",
+				Name:        "virtual-cluster",
+				Description: &description,
+				Destination: kkComps.BackendClusterReference{
+					ID:   "backend-cluster-id",
+					Name: "backend-cluster",
+				},
+				Authentication: []kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{
+					kkComps.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeAnonymous(
+						kkComps.VirtualClusterAuthenticationAnonymous{},
+					),
+				},
+				TopicAliases: []kkComps.VirtualClusterTopicAlias{{
+					Alias:     "public-orders",
+					Topic:     "tenant-a.orders",
+					Condition: &condition,
+					Conflict:  &conflict,
+				}},
+				ACLMode:  kkComps.VirtualClusterACLModePassthrough,
+				DNSLabel: "vc-default",
+			}},
+		},
+	})
+
+	resources, err := buildEventGatewayVirtualClusters(context.Background(), nil, client, "gateway-id", "gateway")
+	require.NoError(t, err)
+	require.Len(t, resources, 1)
+	require.Equal(t, []kkComps.VirtualClusterTopicAlias{{
+		Alias:     "public-orders",
+		Topic:     "tenant-a.orders",
+		Condition: &condition,
+		Conflict:  &conflict,
+	}}, resources[0].TopicAliases)
+}
+
 func TestResolveAPIPublicationRef(t *testing.T) {
 	apiID := "api-123"
 	portalID := "portal-456"
@@ -214,6 +258,64 @@ func TestResolveAPIPublicationRef(t *testing.T) {
 			t.Fatalf("expected error, got nil")
 		}
 	})
+}
+
+type stubDumpEventGatewayVirtualClusterAPI struct {
+	clusters []kkComps.VirtualCluster
+}
+
+func (s *stubDumpEventGatewayVirtualClusterAPI) ListEventGatewayVirtualClusters(
+	context.Context,
+	kkOps.ListEventGatewayVirtualClustersRequest,
+	...kkOps.Option,
+) (*kkOps.ListEventGatewayVirtualClustersResponse, error) {
+	return &kkOps.ListEventGatewayVirtualClustersResponse{
+		ListVirtualClustersResponse: &kkComps.ListVirtualClustersResponse{
+			Meta: &kkComps.CursorMeta{
+				Page: kkComps.CursorMetaPage{
+					Size: float64(len(s.clusters)),
+				},
+			},
+			Data: s.clusters,
+		},
+	}, nil
+}
+
+func (s *stubDumpEventGatewayVirtualClusterAPI) FetchEventGatewayVirtualCluster(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.GetEventGatewayVirtualClusterResponse, error) {
+	return nil, nil
+}
+
+func (s *stubDumpEventGatewayVirtualClusterAPI) CreateEventGatewayVirtualCluster(
+	context.Context,
+	string,
+	kkComps.CreateVirtualClusterRequest,
+	...kkOps.Option,
+) (*kkOps.CreateEventGatewayVirtualClusterResponse, error) {
+	return nil, nil
+}
+
+func (s *stubDumpEventGatewayVirtualClusterAPI) UpdateEventGatewayVirtualCluster(
+	context.Context,
+	string,
+	string,
+	kkComps.UpdateVirtualClusterRequest,
+	...kkOps.Option,
+) (*kkOps.UpdateEventGatewayVirtualClusterResponse, error) {
+	return nil, nil
+}
+
+func (s *stubDumpEventGatewayVirtualClusterAPI) DeleteEventGatewayVirtualCluster(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.DeleteEventGatewayVirtualClusterResponse, error) {
+	return nil, nil
 }
 
 type stubDumpPortalAuthSettingsAPI struct {

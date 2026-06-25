@@ -2,6 +2,7 @@ event_gateways:
   - ref: my-event-gateway
     name: my-event-gateway
     description: "My Event Gateway Control Plane"
+    min_runtime_version: "1.2"
     listeners:
       - ref: default-listener-ref
         name: default-listener-name
@@ -47,6 +48,11 @@ event_gateways:
           id: !ref default-backend-cluster#id
         authentication:
           - type: anonymous
+        topic_aliases:
+          - alias: public-orders
+            topic: tenant-a.orders
+            condition: "context.auth.type == 'anonymous'"
+            conflict: warn
         acl_mode: enforce_on_gateway
         dns_label: vc-default
         cluster_policies:

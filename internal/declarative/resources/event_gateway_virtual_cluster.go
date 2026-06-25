@@ -154,6 +154,7 @@ func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
 		Destination    kkComps.BackendClusterReferenceModify        `json:"destination"`
 		Authentication []kkComps.VirtualClusterAuthenticationScheme `json:"authentication"`
 		Namespace      *kkComps.VirtualClusterNamespace             `json:"namespace,omitempty"`
+		TopicAliases   []kkComps.VirtualClusterTopicAlias           `json:"topic_aliases,omitempty"`
 		ACLMode        kkComps.VirtualClusterACLMode                `json:"acl_mode"`
 		DNSLabel       string                                       `json:"dns_label"`
 		Labels         map[string]string                            `json:"labels,omitempty"`
@@ -172,6 +173,7 @@ func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
 		Destination:     e.Destination,
 		Authentication:  e.Authentication,
 		Namespace:       e.Namespace,
+		TopicAliases:    e.TopicAliases,
 		ACLMode:         e.ACLMode,
 		DNSLabel:        e.DNSLabel,
 		Labels:          e.Labels,
@@ -198,6 +200,7 @@ func (e *EventGatewayVirtualClusterResource) UnmarshalJSON(data []byte) error {
 		Destination    kkComps.BackendClusterReferenceModify        `json:"destination"`
 		Authentication []kkComps.VirtualClusterAuthenticationScheme `json:"authentication"`
 		Namespace      *kkComps.VirtualClusterNamespace             `json:"namespace,omitempty"`
+		TopicAliases   []kkComps.VirtualClusterTopicAlias           `json:"topic_aliases,omitempty"`
 		ACLMode        kkComps.VirtualClusterACLMode                `json:"acl_mode"`
 		DNSLabel       string                                       `json:"dns_label"`
 		Labels         map[string]string                            `json:"labels,omitempty"`
@@ -226,6 +229,7 @@ func (e *EventGatewayVirtualClusterResource) UnmarshalJSON(data []byte) error {
 	e.Destination = temp.Destination
 	e.Authentication = temp.Authentication
 	e.Namespace = temp.Namespace
+	e.TopicAliases = temp.TopicAliases
 	e.ACLMode = temp.ACLMode
 	e.DNSLabel = temp.DNSLabel
 	e.Labels = temp.Labels

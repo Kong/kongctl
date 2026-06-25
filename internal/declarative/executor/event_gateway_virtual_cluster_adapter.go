@@ -90,6 +90,14 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 		create.Namespace = namespace
 	}
 
+	if aliasesField, ok := fields[planner.FieldTopicAliases]; ok {
+		aliases, err := buildVirtualClusterTopicAliases(aliasesField)
+		if err != nil {
+			return fmt.Errorf("failed to build topic_aliases: %w", err)
+		}
+		create.TopicAliases = aliases
+	}
+
 	if labelsMap := extractLabelsField(fields); labelsMap != nil {
 		create.Labels = labelsMap
 	}
@@ -162,6 +170,14 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 			return fmt.Errorf("failed to build namespace: %w", err)
 		}
 		update.Namespace = namespace
+	}
+
+	if aliasesField, ok := fieldsToUpdate[planner.FieldTopicAliases]; ok {
+		aliases, err := buildVirtualClusterTopicAliases(aliasesField)
+		if err != nil {
+			return fmt.Errorf("failed to build topic_aliases: %w", err)
+		}
+		update.TopicAliases = aliases
 	}
 
 	if labels, ok := fieldsToUpdate[planner.FieldLabels].(map[string]string); ok {
@@ -636,6 +652,73 @@ func buildVirtualClusterNamespace(field any) (*kkComps.VirtualClusterNamespace, 
 	}
 
 	return namespace, nil
+}
+
+func buildVirtualClusterTopicAliases(field any) ([]kkComps.VirtualClusterTopicAlias, error) {
+	if field == nil {
+		return nil, nil
+	}
+
+	if aliases, ok := field.([]kkComps.VirtualClusterTopicAlias); ok {
+		return aliases, nil
+	}
+
+	var aliasItems []any
+	switch items := field.(type) {
+	case []any:
+		aliasItems = items
+	case []map[string]any:
+		aliasItems = make([]any, len(items))
+		for i, item := range items {
+			aliasItems[i] = item
+		}
+	default:
+		return nil, fmt.Errorf("topic_aliases must be an array, got %T", field)
+	}
+
+	result := make([]kkComps.VirtualClusterTopicAlias, 0, len(aliasItems))
+	for i, aliasItem := range aliasItems {
+		aliasMap, ok := aliasItem.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("topic_aliases[%d] must be an object, got %T", i, aliasItem)
+		}
+
+		alias, ok := aliasMap["alias"].(string)
+		if !ok {
+			return nil, fmt.Errorf("topic_aliases[%d].alias is required and must be a string", i)
+		}
+
+		topic, ok := aliasMap["topic"].(string)
+		if !ok {
+			return nil, fmt.Errorf("topic_aliases[%d].topic is required and must be a string", i)
+		}
+
+		topicAlias := kkComps.VirtualClusterTopicAlias{
+			Alias: alias,
+			Topic: topic,
+		}
+
+		if conditionValue, ok := aliasMap["condition"]; ok && conditionValue != nil {
+			condition, ok := conditionValue.(string)
+			if !ok {
+				return nil, fmt.Errorf("topic_aliases[%d].condition must be a string", i)
+			}
+			topicAlias.Condition = &condition
+		}
+
+		if conflictValue, ok := aliasMap["conflict"]; ok && conflictValue != nil {
+			conflict, ok := conflictValue.(string)
+			if !ok {
+				return nil, fmt.Errorf("topic_aliases[%d].conflict must be a string", i)
+			}
+			conflictEnum := kkComps.VirtualClusterTopicAliasConflict(conflict)
+			topicAlias.Conflict = &conflictEnum
+		}
+
+		result = append(result, topicAlias)
+	}
+
+	return result, nil
 }
 
 // convertToVirtualClusterSensitiveDataAwareAuth converts VirtualClusterAuthenticationScheme

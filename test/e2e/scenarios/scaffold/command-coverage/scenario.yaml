@@ -94,3 +94,20 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "flags -o/--output are not supported for the scaffold command"
+
+  - name: 007-scaffold-event-gateway-virtual-cluster-topic-aliases
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-event-gateway-virtual-cluster
+        run:
+          - scaffold
+          - event_gateway_virtual_cluster
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'event_gateway_virtual_clusters:')": true
+                "contains(stdout, '# topic_aliases:')": true
+                "contains(stdout, '# - alias: value')": true
+                "contains(stdout, '# condition: value')": true

@@ -132,6 +132,18 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 	}
 }
 
+func TestMapEventGatewayToDeclarativeResourcePreservesMinRuntimeVersion(t *testing.T) {
+	resource := mapEventGatewayToDeclarativeResource(kkComps.EventGatewayInfo{
+		ID:                "event-gateway-id",
+		Name:              "event-gateway",
+		MinRuntimeVersion: "1.2",
+	})
+
+	if resource.MinRuntimeVersion == nil || *resource.MinRuntimeVersion != "1.2" {
+		t.Fatalf("expected min_runtime_version to be preserved, got %#v", resource.MinRuntimeVersion)
+	}
+}
+
 func TestCollectDeclarativePortalsUsesPortalDetails(t *testing.T) {
 	listAuthEnabled := false
 	detailAuthEnabled := true

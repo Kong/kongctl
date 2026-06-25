@@ -1583,6 +1583,7 @@ func buildEventGatewayVirtualClusters(
 				Destination:    destination,
 				Authentication: auth,
 				Namespace:      cluster.Namespace,
+				TopicAliases:   cluster.TopicAliases,
 				ACLMode:        cluster.ACLMode,
 				DNSLabel:       cluster.DNSLabel,
 				Labels:         cluster.Labels,

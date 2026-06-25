@@ -846,11 +846,17 @@ func mapDashboardToDeclarativeResource(dashboard kkComps.DashboardResponse) decl
 }
 
 func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declresources.EventGatewayControlPlaneResource {
+	var minRuntimeVersion *string
+	if egw.MinRuntimeVersion != "" {
+		minRuntimeVersion = &egw.MinRuntimeVersion
+	}
+
 	result := declresources.EventGatewayControlPlaneResource{
 		BaseResource: declresources.BaseResource{Ref: egw.ID},
 		CreateGatewayRequest: kkComps.CreateGatewayRequest{
-			Name:        egw.Name,
-			Description: egw.Description,
+			Name:              egw.Name,
+			Description:       egw.Description,
+			MinRuntimeVersion: minRuntimeVersion,
 		},
 	}
 
