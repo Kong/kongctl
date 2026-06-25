@@ -660,7 +660,7 @@ func buildVirtualClusterTopicAliases(field any) ([]kkComps.VirtualClusterTopicAl
 	}
 
 	if aliases, ok := field.([]kkComps.VirtualClusterTopicAlias); ok {
-		return aliases, nil
+		return normalizeVirtualClusterTopicAliases(aliases)
 	}
 
 	var aliasItems []any
@@ -711,11 +711,38 @@ func buildVirtualClusterTopicAliases(field any) ([]kkComps.VirtualClusterTopicAl
 			if !ok {
 				return nil, fmt.Errorf("topic_aliases[%d].conflict must be a string", i)
 			}
-			conflictEnum := kkComps.VirtualClusterTopicAliasConflict(conflict)
-			topicAlias.Conflict = &conflictEnum
+			if conflict != "" {
+				conflictEnum := kkComps.VirtualClusterTopicAliasConflict(conflict)
+				if !conflictEnum.ToPointer().IsExact() {
+					return nil, fmt.Errorf("topic_aliases[%d].conflict must be one of: warn, ignore", i)
+				}
+				topicAlias.Conflict = &conflictEnum
+			}
 		}
 
 		result = append(result, topicAlias)
+	}
+
+	return result, nil
+}
+
+func normalizeVirtualClusterTopicAliases(
+	aliases []kkComps.VirtualClusterTopicAlias,
+) ([]kkComps.VirtualClusterTopicAlias, error) {
+	result := make([]kkComps.VirtualClusterTopicAlias, len(aliases))
+	copy(result, aliases)
+
+	for i := range result {
+		if result[i].Conflict == nil {
+			continue
+		}
+		if *result[i].Conflict == "" {
+			result[i].Conflict = nil
+			continue
+		}
+		if !result[i].Conflict.IsExact() {
+			return nil, fmt.Errorf("topic_aliases[%d].conflict must be one of: warn, ignore", i)
+		}
 	}
 
 	return result, nil
