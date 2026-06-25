@@ -147,7 +147,13 @@ func (k *KonnectSDK) GetAIGatewayModelAPI() AIGatewayModelAPI {
 		return nil
 	}
 
-	return &AIGatewayModelAPIImpl{SDK: k.SDK}
+	return &AIGatewayModelAPIImpl{
+		SDK:         k.SDK,
+		BaseURL:     k.BaseURL,
+		Token:       k.Token,
+		TokenSource: k.TokenSource,
+		HTTPClient:  k.HTTPClient,
+	}
 }
 
 // Returns the implementation of the CatalogServicesAPI interface
