@@ -39,6 +39,24 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout workflow helper scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 1
+          path: .workflow-source
+          persist-credentials: false
+          ref: ${{ github.ref }}
+
+      - name: Stage workflow helper scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          helper_dir="${RUNNER_TEMP}/kongctl-adhoc-prerelease"
+          mkdir -p "${helper_dir}"
+          cp ".workflow-source/scripts/setup-private-sdk.sh" "${helper_dir}/setup-private-sdk.sh"
+          chmod +x "${helper_dir}/setup-private-sdk.sh"
+          echo "PRIVATE_SDK_HELPER=${helper_dir}/setup-private-sdk.sh" >> "$GITHUB_ENV"
+
       - name: Checkout source ref
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -183,7 +201,9 @@ jobs:
       - name: Set up private SDK if needed
         id: private_sdk
         shell: bash
-        run: scripts/setup-private-sdk.sh
+        run: |
+          set -euo pipefail
+          "${PRIVATE_SDK_HELPER}"
         env:
           GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
 
