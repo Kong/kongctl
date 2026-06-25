@@ -283,6 +283,17 @@ test_version_pin_and_install_dir() {
   assert_executable "${LAST_INSTALL_DIR}/kongctl" "install-dir override is honored"
 }
 
+test_prerelease_tag_version_pin() {
+  local release_dir="${TMP_ROOT}/release-prerelease"
+  local tag="prerelease-gh-1391-ad-hoc-20260625-1842-gabcdef1"
+
+  make_release "$release_dir" "$tag"
+  expect_success "supports non-semver prerelease version pinning" "$release_dir" \
+    --version "$tag" --os linux --arch amd64
+  assert_contains "$LAST_OUTPUT" "Resolved version: $tag" "prerelease tag is not normalized"
+  assert_executable "${LAST_INSTALL_DIR}/kongctl" "prerelease install succeeds"
+}
+
 test_completion_output() {
   local release_dir="${TMP_ROOT}/release-completion"
 
@@ -460,6 +471,7 @@ test_path_shadow_warning() {
 
 test_success_matrix
 test_version_pin_and_install_dir
+test_prerelease_tag_version_pin
 test_completion_output
 test_yes_flag_compatibility
 test_update_status
