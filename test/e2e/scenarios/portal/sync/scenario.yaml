@@ -138,7 +138,6 @@ steps:
           - declarative
           - "--resources=portals,apis"
           - --include-child-resources
-          - "--filter-name=My First Portal"
         outputFormat: none
         parseAs: yaml
         stdoutFile: "{{ .workdir }}/dump.yaml"
