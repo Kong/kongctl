@@ -48,6 +48,7 @@ CLAUDE.local.md
 .e2e-debug/
 .benchmark_artifacts/
 .cache/
+.local-logs/
 
 # Python cache folders
 __pycache__/
