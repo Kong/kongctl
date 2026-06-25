@@ -98,10 +98,12 @@ func (p *Planner) planAIGatewayChanges(
 		if err != nil {
 			return err
 		}
+		gatewayID := ""
 		gatewayChangeID := ""
 		if !exists {
 			gatewayChangeID = p.planAIGatewayCreate(desiredGateway, plan)
 		} else {
+			gatewayID = current.ID
 			matchedCurrent[aiGatewayIdentity(current)] = true
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -139,10 +141,6 @@ func (p *Planner) planAIGatewayChanges(
 		}
 
 		providers := p.resources.GetAIGatewayProvidersForGateway(desiredGateway.Ref)
-		gatewayID := ""
-		if exists {
-			gatewayID = current.ID
-		}
 		if p.shouldPlanChild(
 			plan,
 			resources.ResourceTypeAIGateway,
@@ -152,6 +150,29 @@ func (p *Planner) planAIGatewayChanges(
 			if err := p.planAIGatewayProviderChanges(
 				ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref,
 				gatewayChangeID, providers, plan,
+			); err != nil {
+				return err
+			}
+		}
+		providerCreateDepsByName := aiGatewayProviderCreateDependencies(plan, namespace, desiredGateway.Ref)
+
+		models := p.resources.GetAIGatewayModelsForGateway(desiredGateway.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeAIGateway,
+			desiredGateway.Ref,
+			resources.ResourceTypeAIGatewayModel,
+		) && (len(models) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayModelChanges(
+				ctx,
+				namespace,
+				desiredGateway.Ref,
+				desiredGateway.DisplayName,
+				gatewayID,
+				gatewayChangeID,
+				providerCreateDepsByName,
+				models,
+				plan,
 			); err != nil {
 				return err
 			}
