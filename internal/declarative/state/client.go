@@ -3267,6 +3267,10 @@ func (c *Client) ListPortalIdentityProviders(ctx context.Context, portalID strin
 		)
 	}
 
+	if resp == nil {
+		return nil, nil
+	}
+
 	providers := make([]PortalIdentityProvider, 0, len(resp.PortalIdentityProviders))
 	for _, provider := range resp.PortalIdentityProviders {
 		providers = append(providers, normalizePortalIdentityProvider(provider))
