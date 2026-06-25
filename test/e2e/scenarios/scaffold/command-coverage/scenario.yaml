@@ -1,3 +1,6 @@
+test:
+  requiresPAT: false
+
 steps:
   - name: 001-scaffold-api-root
     skipInputs: true
@@ -112,3 +115,28 @@ steps:
                 "contains(stdout, '# topic_aliases:')": true
                 "contains(stdout, '# - alias: value')": true
                 "contains(stdout, '# condition: value')": true
+
+  - name: 008-scaffold-ai-gateway-models-nested
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-ai-gateway-models
+        run:
+          - scaffold
+          - ai_gateway.models
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateways:')": true
+                "contains(stdout, 'models:')": true
+                "contains(stdout, 'route: {}')": true
+                "contains(stdout, 'model: {}')": true
+                "contains(stdout, '- type: openai')": true
+                "contains(stdout, 'target_models:')": true
+                "contains(stdout, 'provider: existing-provider-name')": true
+                "contains(stdout, 'type: model')": true
+                "contains(stdout, '# type: api')": true
+                "contains(stdout, 'provider: openai')": false
+                "contains(stdout, 'ai_gateway: value')": false
+                "contains(stdout, 'kongctl:')": false

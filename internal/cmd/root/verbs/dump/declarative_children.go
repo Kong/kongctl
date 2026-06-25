@@ -274,6 +274,15 @@ func populateAIGatewayChildren(
 		} else if len(providers) > 0 {
 			gateway.Providers = providers
 		}
+
+		models, err := buildAIGatewayModels(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway models", gatewayID, gateway.DisplayName, err)
+			continue
+		}
+		if len(models) > 0 {
+			gateway.Models = models
+		}
 	}
 }
 
@@ -335,6 +344,36 @@ func buildAIGatewayProviders(
 	})
 
 	return results, nil
+}
+
+func buildAIGatewayModels(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayModelResource, error) {
+	models, err := client.ListAIGatewayModels(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayModelResource, 0, len(models))
+	for _, model := range models {
+		resource, err := declresources.AIGatewayModelResourceFromResponse(gatewayRef, model.AIGatewayModel)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway model for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayModelResource) int {
+		if a.Name() == b.Name() {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name(), b.Name())
+	})
+
+	return result, nil
 }
 
 func buildEventGatewayDataPlaneCertificates(

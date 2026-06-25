@@ -301,6 +301,8 @@ func (d *DependencyResolver) getParentType(childType string) string {
 		return ResourceTypeAPI
 	case ResourceTypePortalPage:
 		return ResourceTypePortal
+	case ResourceTypeAIGatewayProvider, ResourceTypeAIGatewayModel:
+		return ResourceTypeAIGateway
 	default:
 		return ""
 	}

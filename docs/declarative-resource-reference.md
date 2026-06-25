@@ -313,15 +313,21 @@ control_plane_data_plane_certificates:
 ## AI Gateways
 
 This section covers the root AI Gateway resource backed by the Konnect
-`/v1/ai-gateways` API and AI Gateway Provider child resources backed by the
-AI Gateway Provider APIs. Use `kongctl explain ai_gateway --output yaml` and
-`kongctl explain ai_gateway_provider --output yaml` as the authoritative
+`/v1/ai-gateways` API, AI Gateway Providers, and AI Gateway Models. Use
+`kongctl explain ai_gateway --output yaml`,
+`kongctl explain ai_gateway_provider --output yaml`, and
+`kongctl explain ai_gateway.models --output yaml` as the authoritative
 schemas.
 
 The `ref` value is used as the stable Konnect API `name` when creating an AI
 Gateway. Use `display_name` for the human-readable name shown in Konnect.
 AI Gateway Providers use their own required `name` field as the stable
-Konnect provider name. Provider `ref` remains the declarative reference.
+Konnect provider name. Provider and model child entries inherit management
+scope from their parent AI Gateway and do not accept `kongctl` metadata.
+
+For AI Gateway Models, `target_models[].provider` must match an AI Gateway
+Provider `name` under the parent gateway. The provider can already exist or be
+declared in the same gateway configuration.
 
 ```yaml
 ai_gateways:
@@ -347,6 +353,28 @@ ai_gateways:
          key: value
        managed_by: object [string]string
          key: value
+   models:
+    - ref: string
+      type: model # or api
+      name: string required
+      display_name: string required
+      enabled: boolean
+      config:
+        route: object required
+        model: object required
+      formats:
+       - type: string required
+      target_models:
+       - name: string required
+         provider: string required # provider name in parent AI Gateway
+         config:
+           type: string required
+      policies: array[object]
+      capabilities: array[string]
+      labels: object [string]string
+        key: value
+      acls: object
+      managed_by: object
 ```
 
 AI Gateway Providers can also be declared as root resources. Root-level
@@ -364,6 +392,35 @@ ai_gateway_providers:
      key: value
    managed_by: object [string]string
      key: value
+```
+
+AI Gateway Models can also be declared as root resources. Include
+`ai_gateway` to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_models:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   type: model # or api
+   name: string required
+   display_name: string required
+   enabled: boolean
+   config:
+     route: object required
+     model: object required
+   formats:
+    - type: string required
+   target_models:
+    - name: string required
+      provider: string required # provider name in parent AI Gateway
+      config:
+        type: string required
+   policies: array[object]
+   capabilities: array[string]
+   labels: object [string]string
+     key: value
+   acls: object
+   managed_by: object
 ```
 
 ## Event Gateways

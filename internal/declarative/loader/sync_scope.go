@@ -32,6 +32,18 @@ var rootCollectionScopes = []rootCollectionScope{
 
 var rootChildCollectionScopes = []childCollectionScope{
 	{
+		key:          "ai_gateway_providers",
+		resourceType: resources.ResourceTypeAIGatewayProvider,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
+		key:          "ai_gateway_models",
+		resourceType: resources.ResourceTypeAIGatewayModel,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "control_plane_data_plane_certificates",
 		resourceType: resources.ResourceTypeControlPlaneDataPlaneCertificate,
 		parentKey:    "control_plane",
@@ -156,12 +168,6 @@ var rootChildCollectionScopes = []childCollectionScope{
 		resourceType: resources.ResourceTypePortalAuditLogWebhook,
 		parentKey:    resources.SchemaFieldPortal,
 		parentType:   resources.ResourceTypePortal,
-	},
-	{
-		key:          "ai_gateway_providers",
-		resourceType: resources.ResourceTypeAIGatewayProvider,
-		parentKey:    "ai_gateway",
-		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
 		key:          "event_gateway_backend_clusters",
@@ -320,6 +326,11 @@ var aiGatewayChildCollectionScopes = []childCollectionScope{
 		resourceType: resources.ResourceTypeAIGatewayProvider,
 		parentType:   resources.ResourceTypeAIGateway,
 	},
+	{
+		key:          "models",
+		resourceType: resources.ResourceTypeAIGatewayModel,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
 }
 
 var eventGatewayChildCollectionScopes = []childCollectionScope{
@@ -379,7 +390,9 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	}
 
 	for _, entry := range rootChildCollectionScopes {
-		captureRootChildScope(scope, raw, entry)
+		if err := captureRootChildScope(scope, raw, entry); err != nil {
+			return err
+		}
 	}
 
 	captureNestedCollectionScopes(scope, raw, "apis", resources.ResourceTypeAPI, apiChildCollectionScopes)
@@ -406,6 +419,13 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	captureNestedCollectionScopes(
 		scope,
 		raw,
+		"ai_gateways",
+		resources.ResourceTypeAIGateway,
+		aiGatewayChildCollectionScopes,
+	)
+	captureNestedCollectionScopes(
+		scope,
+		raw,
 		"event_gateways",
 		resources.ResourceTypeEventGatewayControlPlane,
 		eventGatewayChildCollectionScopes,
@@ -420,15 +440,18 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	return nil
 }
 
-func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry childCollectionScope) {
+func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry childCollectionScope) error {
 	value, ok := raw[entry.key]
 	if !ok {
-		return
+		return nil
 	}
 	items, ok := asSlice(value)
 	if !ok || len(items) == 0 {
+		if entry.resourceType == resources.ResourceTypeAIGatewayModel {
+			return fmt.Errorf("%s cannot be empty because each model must declare an ai_gateway parent", entry.key)
+		}
 		scope.AddRootChildCollection(entry.resourceType)
-		return
+		return nil
 	}
 	for _, item := range items {
 		m, ok := asMap(item)
@@ -439,6 +462,7 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 			scope.AddChild(entry.parentType, parentRef, entry.resourceType)
 		}
 	}
+	return nil
 }
 
 func captureNestedCollectionScopes(
