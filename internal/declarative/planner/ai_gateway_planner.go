@@ -45,11 +45,12 @@ func (p *Planner) planAIGatewayChanges(
 	desired []resources.AIGatewayResource,
 	plan *Plan,
 ) error {
+	namespace := plannerCtx.Namespace
 	p.logger.Debug("planAIGatewayChanges called",
 		slog.Int("desiredCount", len(desired)),
-		slog.String("namespace", plannerCtx.Namespace))
+		slog.String("namespace", namespace))
 
-	currentGateways, err := p.listManagedAIGateways(ctx, []string{plannerCtx.Namespace})
+	currentGateways, err := p.listManagedAIGateways(ctx, []string{namespace})
 	if err != nil {
 		if state.IsAPIClientError(err) {
 			return nil
@@ -97,45 +98,62 @@ func (p *Planner) planAIGatewayChanges(
 		if err != nil {
 			return err
 		}
+		gatewayChangeID := ""
 		if !exists {
-			p.planAIGatewayCreate(desiredGateway, plan)
-			continue
-		}
-		matchedCurrent[aiGatewayIdentity(current)] = true
+			gatewayChangeID = p.planAIGatewayCreate(desiredGateway, plan)
+		} else {
+			matchedCurrent[aiGatewayIdentity(current)] = true
 
-		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-		shouldProtect := desiredGateway.Kongctl != nil &&
-			desiredGateway.Kongctl.Protected != nil &&
-			*desiredGateway.Kongctl.Protected
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			shouldProtect := desiredGateway.Kongctl != nil &&
+				desiredGateway.Kongctl.Protected != nil &&
+				*desiredGateway.Kongctl.Protected
 
-		needsUpdate, updateFields, changedFields := p.shouldUpdateAIGateway(current, desiredGateway)
-		if isProtected != shouldProtect {
-			protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
-			if err := p.validateProtectionWithChange(
-				ResourceTypeAIGateway,
-				desiredGateway.DisplayName,
-				isProtected,
-				ActionUpdate,
-				protectionChange,
-				needsUpdate,
-			); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
+			needsUpdate, updateFields, changedFields := p.shouldUpdateAIGateway(current, desiredGateway)
+			if isProtected != shouldProtect {
+				protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
+				if err := p.validateProtectionWithChange(
+					ResourceTypeAIGateway,
+					desiredGateway.DisplayName,
+					isProtected,
+					ActionUpdate,
+					protectionChange,
+					needsUpdate,
+				); err != nil {
+					protectionErrors = append(protectionErrors, err)
+				} else {
+					p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
+				}
+			} else if needsUpdate {
+				if err := p.validateProtection(
+					ResourceTypeAIGateway,
+					desiredGateway.DisplayName,
+					isProtected,
+					ActionUpdate,
+				); err != nil {
+					protectionErrors = append(protectionErrors, err)
+				} else {
+					p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
+				}
 			}
-			continue
 		}
 
-		if needsUpdate {
-			if err := p.validateProtection(
-				ResourceTypeAIGateway,
-				desiredGateway.DisplayName,
-				isProtected,
-				ActionUpdate,
+		providers := p.resources.GetAIGatewayProvidersForGateway(desiredGateway.Ref)
+		gatewayID := ""
+		if exists {
+			gatewayID = current.ID
+		}
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeAIGateway,
+			desiredGateway.Ref,
+			resources.ResourceTypeAIGatewayProvider,
+		) && (len(providers) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayProviderChanges(
+				ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref,
+				gatewayChangeID, providers, plan,
 			); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
+				return err
 			}
 		}
 	}
@@ -251,11 +269,12 @@ func aiGatewayIdentity(gateway state.AIGateway) string {
 	return "display_name:" + gateway.DisplayName
 }
 
-func (p *Planner) planAIGatewayCreate(resource resources.AIGatewayResource, plan *Plan) {
+func (p *Planner) planAIGatewayCreate(resource resources.AIGatewayResource, plan *Plan) string {
 	namespace, protection := aiGatewayNamespaceAndProtection(resource)
+	changeID := p.nextChangeID(ActionCreate, ResourceTypeAIGateway, resource.GetRef())
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGateway, resource.GetRef()),
+		ID:           changeID,
 		Action:       ActionCreate,
 		ResourceType: ResourceTypeAIGateway,
 		ResourceRef:  resource.GetRef(),
@@ -264,6 +283,7 @@ func (p *Planner) planAIGatewayCreate(resource resources.AIGatewayResource, plan
 		Protection:   protection,
 	}
 	plan.AddChange(change)
+	return changeID
 }
 
 func (p *Planner) planAIGatewayUpdate(

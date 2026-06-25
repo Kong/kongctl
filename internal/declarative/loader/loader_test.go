@@ -56,6 +56,36 @@ portal_team_group_mappings:
 	assert.Empty(t, byRef["admins-idp-groups"].Groups)
 }
 
+func TestLoaderFlattensAIGatewayProviders(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+    providers:
+      - ref: openai-provider
+        name: openai-provider
+        type: openai
+        display_name: OpenAI Provider
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: Bearer ${OPENAI_API_KEY}
+`), 0o600)
+	require.NoError(t, err)
+
+	rs, err := New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, rs.AIGateways, 1)
+	require.Empty(t, rs.AIGateways[0].Providers)
+	require.Len(t, rs.AIGatewayProviders, 1)
+	require.Equal(t, "customer-support-gateway", rs.AIGatewayProviders[0].AIGateway)
+	require.Equal(t, "openai-provider", rs.AIGatewayProviders[0].Name)
+}
+
 func TestLoaderPortalTeamGroupMappingsPortalLevelNestedRejected(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
