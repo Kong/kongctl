@@ -236,6 +236,24 @@ steps:
                 id: "{{ .vars.implID }}"
                 service.control_plane_id: "{{ .vars.controlPlaneID }}"
                 service.id: "{{ .vars.gatewayServiceID }}"
+      - name: 013-get-implementation-by-service-id
+        run: ["get", "api", "implementations", "--api-name", "API Nested", "{{ .vars.gatewayServiceID }}", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                id: "{{ .vars.implID }}"
+                service.id: "{{ .vars.gatewayServiceID }}"
+                service.control_plane_id: "{{ .vars.controlPlaneID }}"
+      - name: 014-get-implementation-not-found
+        run: ["get", "api", "implementations", "--api-name", "API Nested", "nonexistent-impl-xyz", "-o", "json"]
+        expectFailure:
+          exitCode: 1
+          contains: "not found"
 
   - name: 003-apply-update
     inputOverlayDirs:
