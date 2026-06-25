@@ -184,6 +184,11 @@ const (
 	FieldMetadataUpdateIntervalSeconds              = "metadata_update_interval_seconds"
 	FieldPorts                                      = "ports"
 	FieldProxyURLs                                  = "proxy_urls"
+	FieldFormats                                    = "formats"
+	FieldTargetModels                               = "target_models"
+	FieldPolicies                                   = "policies"
+	FieldCapabilities                               = "capabilities"
+	FieldACLS                                       = "acls"
 	FieldTLS                                        = "tls"
 	FieldDefaultVirtualClusterTarget                = "default_virtual_cluster_target"
 	FieldGatewayControlPlaneMembershipControlPlanes = "control_planes"
@@ -199,6 +204,7 @@ const (
 	ResourceTypeAPI                              = string(resources.ResourceTypeAPI)
 	ResourceTypeAIGateway                        = string(resources.ResourceTypeAIGateway)
 	ResourceTypeAIGatewayProvider                = string(resources.ResourceTypeAIGatewayProvider)
+	ResourceTypeAIGatewayModel                   = string(resources.ResourceTypeAIGatewayModel)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)

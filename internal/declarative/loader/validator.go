@@ -47,6 +47,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayProviders(rs); err != nil {
 		return err
 	}
+	if err := l.validateAIGatewayModels(rs); err != nil {
+		return err
+	}
 
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
@@ -724,14 +727,32 @@ func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
 		if err := provider.Validate(); err != nil {
 			return fmt.Errorf("invalid ai_gateway_provider %q: %w", provider.GetRef(), err)
 		}
+
+		if existing, found := rs.GetResourceByRef(provider.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayProvider {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					provider.GetRef(), existing.GetType())
+			}
+		}
+
 		if provider.AIGateway == "" {
 			return fmt.Errorf("ai_gateway_provider %q must specify ai_gateway", provider.GetRef())
 		}
-		if rs.GetAIGatewayByRef(provider.AIGateway) == nil {
+
+		gateway, found := rs.GetResourceByRef(provider.AIGateway)
+		if !found {
 			return fmt.Errorf(
 				"ai_gateway_provider %q references unknown ai_gateway %q",
 				provider.GetRef(),
 				provider.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_provider %q references %q which is %s, not ai_gateway",
+				provider.GetRef(),
+				provider.AIGateway,
+				gateway.GetType(),
 			)
 		}
 
@@ -746,6 +767,57 @@ func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
 			)
 		}
 		namesByGateway[nameKey] = provider.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayModels validates AI Gateway child model resources.
+func (l *Loader) validateAIGatewayModels(rs *resources.ResourceSet) error {
+	modelNamesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayModels {
+		model := &rs.AIGatewayModels[i]
+
+		if err := model.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_model %q: %w", model.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(model.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayModel {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					model.GetRef(), existing.GetType())
+			}
+		}
+
+		gateway, found := rs.GetResourceByRef(model.AIGateway)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_model %q references unknown ai_gateway %q",
+				model.GetRef(),
+				model.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_model %q references %q which is %s, not ai_gateway",
+				model.GetRef(),
+				model.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := model.AIGateway + "\x00" + model.Name()
+		if existingRef, exists := modelNamesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_model name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				model.Name(),
+				model.AIGateway,
+				model.GetRef(),
+				existingRef,
+			)
+		}
+		modelNamesByGateway[nameKey] = model.GetRef()
 	}
 
 	return nil

@@ -335,7 +335,7 @@ func stringValueAtFieldPath(fields map[string]any, fieldPath string) (string, bo
 	}
 
 	var current any = fields
-	for _, segment := range strings.Split(fieldPath, ".") {
+	for segment := range strings.SplitSeq(fieldPath, ".") {
 		currentMap, ok := current.(map[string]any)
 		if !ok {
 			return "", false
