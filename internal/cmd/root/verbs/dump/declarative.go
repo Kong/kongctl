@@ -53,6 +53,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	resourceAnalyticsDashboards:   {},
 	"event_gateways":              {},
 	"ai_gateways":                 {},
+	"ai_gateway_models":           {},
 	"organization.teams":          {},
 }
 
@@ -85,7 +86,7 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
-			resourceAnalyticsDashboards+", event_gateways, ai_gateways, organization.teams).")
+			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_models, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -199,7 +200,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 	}
 
 	var stateClient *declstate.Client
-	if opts.includeChildResources {
+	if opts.includeChildResources || slices.Contains(opts.resources, "ai_gateway_models") {
 		stateClient = declstate.NewClient(declstate.ClientConfig{
 			PortalAPI:                           sdk.GetPortalAPI(),
 			APIAPI:                              sdk.GetAPIAPI(),
@@ -212,6 +213,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
 			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
 			AIGatewayProvidersAPI:               sdk.GetAIGatewayProvidersAPI(),
+			AIGatewayModelAPI:                   sdk.GetAIGatewayModelAPI(),
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
@@ -356,6 +358,18 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				populateAIGatewayChildren(ctx, logger, stateClient, aiGateways)
 			}
 			resourceSet.AIGateways = append(resourceSet.AIGateways, aiGateways...)
+		case "ai_gateway_models":
+			models, err := collectDeclarativeAIGatewayModels(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayModels = append(resourceSet.AIGatewayModels, models...)
 		case "organization.teams":
 			teams, err := collectDeclarativeOrganizationTeams(
 				ctx,
@@ -723,6 +737,44 @@ func collectDeclarativeAIGateways(
 	})
 
 	return results, nil
+}
+
+func collectDeclarativeAIGatewayModels(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayModelResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway model API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var models []declresources.AIGatewayModelResource
+	for _, gateway := range gateways {
+		gatewayModels, err := buildAIGatewayModels(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		models = append(models, gatewayModels...)
+	}
+
+	models = filterByNameOrID(models, filter, func(r declresources.AIGatewayModelResource) (string, string) {
+		return r.Name(), r.Ref
+	})
+	slices.SortFunc(models, func(a, b declresources.AIGatewayModelResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name(), b.Name())
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return models, nil
 }
 
 func collectDeclarativeOrganizationTeams(

@@ -24,3 +24,22 @@ ai_gateways:
             headers:
               - name: Authorization
                 value: !env OPENAI_AUTH_HEADER
+    models:
+      - ref: customer-support-gpt
+        type: model
+        name: customer-support-gpt
+        display_name: "Customer Support GPT"
+        enabled: true
+        config:
+          route: {}
+          model: {}
+        formats:
+          - type: openai
+        target_models:
+          - name: gpt-4o
+            provider: openai-provider
+            config:
+              type: openai
+        policies: []
+        capabilities:
+          - generate

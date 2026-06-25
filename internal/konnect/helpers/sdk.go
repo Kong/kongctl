@@ -24,6 +24,7 @@ type SDKAPI interface {
 	GetAPIAPI() APIFullAPI // TODO: Change to APIAPI once refactoring is complete
 	GetAIGatewayAPI() AIGatewayAPI
 	GetAIGatewayProvidersAPI() AIGatewayProvidersAPI
+	GetAIGatewayModelAPI() AIGatewayModelAPI
 	GetCatalogServicesAPI() CatalogServicesAPI
 	GetDashboardsAPI() DashboardsAPI
 	GetAPIDocumentAPI() APIDocumentAPI
@@ -138,6 +139,15 @@ func (k *KonnectSDK) GetAIGatewayProvidersAPI() AIGatewayProvidersAPI {
 	}
 
 	return &AIGatewayProvidersAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the AIGatewayModelAPI interface.
+func (k *KonnectSDK) GetAIGatewayModelAPI() AIGatewayModelAPI {
+	if k.SDK == nil || k.SDK.AIGatewayModels == nil {
+		return nil
+	}
+
+	return &AIGatewayModelAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the CatalogServicesAPI interface

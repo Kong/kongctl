@@ -28,10 +28,10 @@ func TestFetchOrganizationUserRoles(t *testing.T) {
 			return &kkOps.ListUserRolesResponse{
 				AssignedRoleCollection: &kkComps.AssignedRoleCollection{
 					Data: []kkComps.AssignedRole{{
-						ID:             stringPtr("role-1"),
-						RoleName:       stringPtr("Viewer"),
-						EntityID:       stringPtr("entity-1"),
-						EntityTypeName: stringPtr("API"),
+						ID:             new("role-1"),
+						RoleName:       new("Viewer"),
+						EntityID:       new("entity-1"),
+						EntityTypeName: new("API"),
 						EntityRegion:   &roleRegion,
 					}},
 				},
@@ -95,7 +95,7 @@ func TestRenderOrganizationUserRolesAppliesJQToRecords(t *testing.T) {
 
 	printer := testPrinter{out: helper.streams.Out.(*bytes.Buffer)}
 	err := renderOrganizationUserRoles(helper, cmdCommon.JSON, printer, "user-1", []kkComps.AssignedRole{
-		{ID: stringPtr("role-1"), RoleName: stringPtr("Viewer")},
+		{ID: new("role-1"), RoleName: new("Viewer")},
 	})
 	require.NoError(t, err)
 	assert.Contains(t, helper.streams.Out.(*bytes.Buffer).String(), "Viewer")
@@ -103,9 +103,9 @@ func TestRenderOrganizationUserRolesAppliesJQToRecords(t *testing.T) {
 
 func TestBuildOrganizationUserRolesChildView(t *testing.T) {
 	view := buildOrganizationUserRolesChildView("user-1", []kkComps.AssignedRole{{
-		ID:             stringPtr("role-1"),
-		RoleName:       stringPtr("Viewer"),
-		EntityTypeName: stringPtr("API"),
+		ID:             new("role-1"),
+		RoleName:       new("Viewer"),
+		EntityTypeName: new("API"),
 	}})
 
 	require.Len(t, view.Rows, 1)

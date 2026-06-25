@@ -15,6 +15,7 @@ const (
 	ResourceTypeAPI                                     ResourceType = "api"
 	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
 	ResourceTypeAIGatewayProvider                       ResourceType = "ai_gateway_provider"
+	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
@@ -69,9 +70,10 @@ const (
 )
 
 const (
-	SchemaFieldRef    = "ref"
-	SchemaFieldPortal = "portal"
-	SchemaFieldTeams  = "teams"
+	SchemaFieldRef       = "ref"
+	SchemaFieldPortal    = "portal"
+	SchemaFieldTeams     = "teams"
+	SchemaFieldAIGateway = "ai_gateway"
 )
 
 // ResourceRef represents a reference to another resource
@@ -93,6 +95,7 @@ type ResourceSet struct {
 	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
 	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
 	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_providers,omitempty"                          json:"ai_gateway_providers,omitempty"`                   //nolint:lll
+	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
@@ -329,6 +332,16 @@ func (rs *ResourceSet) GetAIGatewayProviderByRef(ref string) *AIGatewayProviderR
 	return nil
 }
 
+// GetAIGatewayModelByRef returns an AI Gateway Model resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayModelByRef(ref string) *AIGatewayModelResource {
+	for i := range rs.AIGatewayModels {
+		if rs.AIGatewayModels[i].GetRef() == ref {
+			return &rs.AIGatewayModels[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {
@@ -412,6 +425,18 @@ func (rs *ResourceSet) GetAIGatewayProvidersByNamespace(namespace string) []AIGa
 	for _, provider := range rs.AIGatewayProviders {
 		if _, ok := gatewayByRef[provider.AIGateway]; ok {
 			filtered = append(filtered, provider)
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayModelsByNamespace returns AI Gateway model resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayModelsByNamespace(namespace string) []AIGatewayModelResource {
+	var filtered []AIGatewayModelResource
+	for _, model := range rs.AIGatewayModels {
+		if gateway := rs.GetAIGatewayByRef(model.AIGateway); gateway != nil &&
+			GetNamespace(gateway.Kongctl) == namespace {
+			filtered = append(filtered, model)
 		}
 	}
 	return filtered
@@ -1357,4 +1382,15 @@ func (rs *ResourceSet) GetTrustBundlesForGateway(
 	}
 
 	return bundles
+}
+
+// GetAIGatewayModelsForGateway returns all AI Gateway Models for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayModelsForGateway(gatewayRef string) []AIGatewayModelResource {
+	var models []AIGatewayModelResource
+	for _, model := range rs.AIGatewayModels {
+		if model.AIGateway == gatewayRef {
+			models = append(models, model)
+		}
+	}
+	return models
 }

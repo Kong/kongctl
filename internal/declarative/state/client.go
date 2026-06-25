@@ -37,6 +37,7 @@ type ClientConfig struct {
 	CatalogServiceAPI       helpers.CatalogServicesAPI
 	AIGatewayAPI            helpers.AIGatewayAPI
 	AIGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
+	AIGatewayModelAPI       helpers.AIGatewayModelAPI
 	DashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -101,6 +102,7 @@ type Client struct {
 	catalogServiceAPI       helpers.CatalogServicesAPI
 	aiGatewayAPI            helpers.AIGatewayAPI
 	aiGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
+	aiGatewayModelAPI       helpers.AIGatewayModelAPI
 	dashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -166,6 +168,7 @@ func NewClient(config ClientConfig) *Client {
 		catalogServiceAPI:       config.CatalogServiceAPI,
 		aiGatewayAPI:            config.AIGatewayAPI,
 		aiGatewayProvidersAPI:   config.AIGatewayProvidersAPI,
+		aiGatewayModelAPI:       config.AIGatewayModelAPI,
 		dashboardsAPI:           config.DashboardsAPI,
 
 		// Portal child resource APIs
@@ -266,6 +269,12 @@ type AIGatewayProvider struct {
 	CreatedAt        string
 	UpdatedAt        string
 	Raw              map[string]any
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayModel represents a Konnect AI Gateway model for internal use.
+type AIGatewayModel struct {
+	kkComps.AIGatewayModel
 	NormalizedLabels map[string]string
 }
 
@@ -1798,6 +1807,202 @@ func (c *Client) DeleteAIGateway(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+// ListAIGatewayModels lists all models for an AI Gateway.
+func (c *Client) ListAIGatewayModels(ctx context.Context, gatewayID string) ([]AIGatewayModel, error) {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.AIGatewayModel
+	var pageAfter *string
+	pageSize := int64(100)
+
+	for {
+		req := kkOps.ListAiGatewayModelsRequest{
+			GatewayID: gatewayID,
+			PageSize:  &pageSize,
+			PageAfter: pageAfter,
+		}
+
+		resp, err := c.aiGatewayModelAPI.ListAiGatewayModels(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list AI Gateway models", nil)
+		}
+
+		if resp == nil || resp.ListAIGatewayModelsResponse == nil {
+			return []AIGatewayModel{}, nil
+		}
+
+		allData = append(allData, resp.ListAIGatewayModelsResponse.Data...)
+
+		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayModelsResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	models := make([]AIGatewayModel, 0, len(allData))
+	for _, model := range allData {
+		models = append(models, AIGatewayModel{
+			AIGatewayModel:   model,
+			NormalizedLabels: normalizedAIGatewayModelLabels(model),
+		})
+	}
+	return models, nil
+}
+
+// GetAIGatewayModel fetches an AI Gateway model by ID.
+func (c *Client) GetAIGatewayModel(ctx context.Context, gatewayID string, modelID string) (*AIGatewayModel, error) {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.aiGatewayModelAPI.GetAiGatewayModel(ctx, gatewayID, modelID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get AI Gateway model by ID", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGatewayModel),
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AIGatewayModel == nil {
+		return nil, nil
+	}
+
+	return &AIGatewayModel{
+		AIGatewayModel:   *resp.AIGatewayModel,
+		NormalizedLabels: normalizedAIGatewayModelLabels(*resp.AIGatewayModel),
+	}, nil
+}
+
+// GetAIGatewayModelByName finds an AI Gateway model by name within a gateway.
+func (c *Client) GetAIGatewayModelByName(
+	ctx context.Context,
+	gatewayID string,
+	name string,
+) (*AIGatewayModel, error) {
+	models, err := c.ListAIGatewayModels(ctx, gatewayID)
+	if err != nil {
+		return nil, WrapAPIError(err, "list AI Gateway models to find by name", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGatewayModel),
+			ResourceName: name,
+			UseEnhanced:  true,
+		})
+	}
+
+	for i := range models {
+		if resources.AIGatewayModelName(models[i].AIGatewayModel) == name {
+			return &models[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// CreateAIGatewayModel creates a new model under an AI Gateway.
+func (c *Client) CreateAIGatewayModel(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.CreateAIGatewayModelRequest,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.aiGatewayModelAPI.CreateAiGatewayModel(ctx, gatewayID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "create AI Gateway model", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGatewayModel),
+			ResourceName: aiGatewayModelCreateRequestName(req),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AIGatewayModel == nil {
+		return "", fmt.Errorf("create AI Gateway model response missing data")
+	}
+
+	return resources.AIGatewayModelID(*resp.AIGatewayModel), nil
+}
+
+// UpdateAIGatewayModel updates an existing model under an AI Gateway.
+func (c *Client) UpdateAIGatewayModel(
+	ctx context.Context,
+	gatewayID string,
+	modelID string,
+	req kkComps.UpdateAIGatewayModelRequest,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.aiGatewayModelAPI.UpdateAiGatewayModel(ctx, kkOps.UpdateAiGatewayModelRequest{
+		GatewayID:                   gatewayID,
+		ModelID:                     modelID,
+		UpdateAIGatewayModelRequest: req,
+	})
+	if err != nil {
+		return "", WrapAPIError(err, "update AI Gateway model", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGatewayModel),
+			ResourceName: aiGatewayModelUpdateRequestName(req),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AIGatewayModel == nil {
+		return "", fmt.Errorf("update AI Gateway model response missing data")
+	}
+
+	return resources.AIGatewayModelID(*resp.AIGatewayModel), nil
+}
+
+// DeleteAIGatewayModel deletes an AI Gateway model by ID.
+func (c *Client) DeleteAIGatewayModel(ctx context.Context, gatewayID string, modelID string) error {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return err
+	}
+
+	_, err := c.aiGatewayModelAPI.DeleteAiGatewayModel(ctx, gatewayID, modelID)
+	if err != nil {
+		return WrapAPIError(err, "delete AI Gateway model", nil)
+	}
+
+	return nil
+}
+
+func normalizedAIGatewayModelLabels(model kkComps.AIGatewayModel) map[string]string {
+	normalized := resources.AIGatewayModelLabels(model)
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+	return normalized
+}
+
+func aiGatewayModelCreateRequestName(req kkComps.CreateAIGatewayModelRequest) string {
+	if req.AIGatewayModelAPI != nil {
+		return req.AIGatewayModelAPI.Name
+	}
+	if req.AIGatewayModelModel != nil {
+		return req.AIGatewayModelModel.Name
+	}
+	return ""
+}
+
+func aiGatewayModelUpdateRequestName(req kkComps.UpdateAIGatewayModelRequest) string {
+	if req.AIGatewayModelAPI != nil {
+		return req.AIGatewayModelAPI.Name
+	}
+	if req.AIGatewayModelModel != nil {
+		return req.AIGatewayModelModel.Name
+	}
+	return ""
 }
 
 // ListManagedDashboards returns all KONGCTL-managed dashboards in the specified namespaces.
@@ -4884,12 +5089,12 @@ func (c *Client) ListOrganizationUsers(ctx context.Context) ([]OrganizationUser,
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var users []OrganizationUser
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.organizationUsersAPI.ListUsers(ctx, kkOps.ListUsersRequest{
-			PageSize:   ptrInt64(pageSize),
-			PageNumber: ptrInt64(pageNumber),
+			PageSize:   &pageSize,
+			PageNumber: new(pageNumber),
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization users", &ErrorWrapperOptions{
@@ -4923,13 +5128,13 @@ func (c *Client) ListOrganizationUserTeams(
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var memberships []OrganizationUserTeamMembership
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.organizationMembershipAPI.ListUserTeams(ctx, kkOps.ListUserTeamsRequest{
 			UserID:     userID,
-			PageSize:   ptrInt64(pageSize),
-			PageNumber: ptrInt64(pageNumber),
+			PageSize:   &pageSize,
+			PageNumber: new(pageNumber),
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization user teams", &ErrorWrapperOptions{
@@ -4965,13 +5170,13 @@ func (c *Client) ListOrganizationTeamUsers(
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var memberships []OrganizationUserTeamMembership
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.organizationMembershipAPI.ListTeamUsers(ctx, kkOps.ListTeamUsersRequest{
 			TeamID:     teamID,
-			PageSize:   ptrInt64(pageSize),
-			PageNumber: ptrInt64(pageNumber),
+			PageSize:   &pageSize,
+			PageNumber: new(pageNumber),
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization team users", &ErrorWrapperOptions{
@@ -5140,12 +5345,12 @@ func (c *Client) ListOrganizationSystemAccounts(ctx context.Context) ([]Organiza
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var accounts []OrganizationSystemAccount
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.systemAccountAPI.ListSystemAccounts(ctx, kkOps.GetSystemAccountsRequest{
-			PageSize:   ptrInt64(pageSize),
-			PageNumber: ptrInt64(pageNumber),
+			PageSize:   &pageSize,
+			PageNumber: new(pageNumber),
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization system accounts", &ErrorWrapperOptions{
@@ -5179,15 +5384,15 @@ func (c *Client) ListOrganizationSystemAccountTeams(
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var memberships []OrganizationSystemAccountTeamMembership
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.systemAccountMembershipAPI.ListSystemAccountTeams(
 			ctx,
 			kkOps.GetSystemAccountsAccountIDTeamsRequest{
 				AccountID:  accountID,
-				PageSize:   ptrInt64(pageSize),
-				PageNumber: ptrInt64(pageNumber),
+				PageSize:   &pageSize,
+				PageNumber: new(pageNumber),
 			},
 		)
 		if err != nil {
@@ -5870,10 +6075,6 @@ func getRoleName(value *kkComps.RoleName) string {
 		return ""
 	}
 	return string(*value)
-}
-
-func ptrInt64(value int64) *int64 {
-	return &value
 }
 
 // shouldIncludeNamespace checks if a resource's namespace should be included based on filter
