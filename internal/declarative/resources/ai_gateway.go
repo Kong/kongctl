@@ -23,6 +23,7 @@ func init() {
 type AIGatewayResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	kkComps.CreateAIGatewayRequest
+	External  *ExternalBlock              `yaml:"_external,omitempty" json:"_external,omitempty"`
 	Providers []AIGatewayProviderResource `yaml:"providers,omitempty" json:"providers,omitempty"`
 	Models    []AIGatewayModelResource    `yaml:"models,omitempty"    json:"models,omitempty"`
 }
@@ -39,6 +40,7 @@ func (a AIGatewayResource) MarshalYAML() (any, error) {
 type aiGatewayAlias struct {
 	Ref         string                      `json:"ref"                   yaml:"ref"`
 	Kongctl     *KongctlMeta                `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`
+	External    *ExternalBlock              `json:"_external,omitempty"   yaml:"_external,omitempty"`
 	DisplayName string                      `json:"display_name"          yaml:"display_name"`
 	Description *string                     `json:"description,omitempty" yaml:"description,omitempty"`
 	ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
@@ -51,6 +53,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 	return aiGatewayAlias{
 		Ref:         a.Ref,
 		Kongctl:     a.Kongctl,
+		External:    a.External,
 		DisplayName: a.DisplayName,
 		Description: a.Description,
 		ProxyURLs:   a.ProxyUrls,
@@ -66,6 +69,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	var raw struct {
 		Ref         string                      `yaml:"ref"`
 		Kongctl     *KongctlMeta                `yaml:"kongctl,omitempty"`
+		External    *ExternalBlock              `yaml:"_external,omitempty"`
 		DisplayName string                      `yaml:"display_name"`
 		Description *string                     `yaml:"description,omitempty"`
 		ProxyURLs   []kkComps.AIGatewayProxyURL `yaml:"proxy_urls,omitempty"`
@@ -81,6 +85,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Ref:     raw.Ref,
 		Kongctl: raw.Kongctl,
 	}
+	a.External = raw.External
 	a.CreateAIGatewayRequest = kkComps.CreateAIGatewayRequest{
 		DisplayName: raw.DisplayName,
 		Description: raw.Description,
@@ -99,6 +104,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Ref         string                      `json:"ref"`
 		Kongctl     *KongctlMeta                `json:"kongctl,omitempty"`
+		External    *ExternalBlock              `json:"_external,omitempty"`
 		DisplayName string                      `json:"display_name"`
 		Description *string                     `json:"description,omitempty"`
 		ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"`
@@ -114,6 +120,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Ref:     raw.Ref,
 		Kongctl: raw.Kongctl,
 	}
+	a.External = raw.External
 	a.CreateAIGatewayRequest = kkComps.CreateAIGatewayRequest{
 		DisplayName: raw.DisplayName,
 		Description: raw.Description,
@@ -141,6 +148,11 @@ func (a AIGatewayResource) GetDependencies() []ResourceRef {
 	return []ResourceRef{}
 }
 
+// IsExternal returns true if this AI Gateway is externally managed.
+func (a AIGatewayResource) IsExternal() bool {
+	return a.External != nil && a.External.IsExternal()
+}
+
 // GetLabels returns the labels for this resource.
 func (a AIGatewayResource) GetLabels() map[string]string {
 	return a.Labels
@@ -155,6 +167,12 @@ func (a *AIGatewayResource) SetLabels(labels map[string]string) {
 func (a AIGatewayResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway ref: %w", err)
+	}
+	if a.External != nil {
+		if err := a.External.Validate(); err != nil {
+			return fmt.Errorf("invalid _external block: %w", err)
+		}
+		return nil
 	}
 	if a.DisplayName == "" {
 		return fmt.Errorf("display_name is required for AI Gateway %s", a.Ref)
@@ -174,11 +192,20 @@ func (a *AIGatewayResource) SetDefaults() {
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup.
 func (a AIGatewayResource) GetKonnectMonikerFilter() string {
+	if a.IsExternal() {
+		return ""
+	}
 	return a.DisplayName
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource.
 func (a *AIGatewayResource) TryMatchKonnectResource(konnectResource any) bool {
+	if a.IsExternal() {
+		if id, ok := tryMatchByNameWithExternal(a.DisplayName, konnectResource, matchOptions{}, a.External); ok {
+			a.SetKonnectID(id)
+			return true
+		}
+	}
 	if id := tryMatchByField(konnectResource, "DisplayName", a.DisplayName); id != "" {
 		a.SetKonnectID(id)
 		return true

@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,6 +48,43 @@ func TestAIGatewayModelPlannerCreatesChildForExistingGateway(t *testing.T) {
 	require.Equal(t, "gateway-id", change.Parent.ID)
 	require.Equal(t, "support-gateway", change.Parent.Ref)
 	require.Equal(t, "model", change.Fields[FieldType])
+}
+
+func TestAIGatewayModelPlannerCreatesChildForExternalGatewayRef(t *testing.T) {
+	model := testAIGatewayModelResource(t)
+	model.AIGateway = tags.RefPlaceholderPrefix + "external-support-gateway#id"
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{{
+				ID:          "external-gateway-id",
+				Name:        "external-gateway",
+				DisplayName: "External Support Gateway",
+			}},
+		},
+		AIGatewayModelAPI: &testAIGatewayModelAPI{},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{Ref: "external-support-gateway"},
+			External: &resources.ExternalBlock{
+				Selector: &resources.ExternalSelector{
+					MatchFields: map[string]string{FieldDisplayName: "External Support Gateway"},
+				},
+			},
+		}},
+		AIGatewayModels: []resources.AIGatewayModelResource{model},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	change := plan.Changes[0]
+	require.Equal(t, ActionCreate, change.Action)
+	require.Equal(t, ResourceTypeAIGatewayModel, change.ResourceType)
+	require.Equal(t, "support-gpt", change.ResourceRef)
+	require.NotNil(t, change.Parent)
+	require.Equal(t, "external-gateway-id", change.Parent.ID)
+	require.Equal(t, "external-support-gateway", change.Parent.Ref)
 }
 
 func TestAIGatewayModelPlannerSyncDeletesScopedModels(t *testing.T) {
