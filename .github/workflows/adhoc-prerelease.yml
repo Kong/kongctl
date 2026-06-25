@@ -25,6 +25,8 @@ jobs:
   prerelease:
     name: Build prerelease
     runs-on: ubuntu-latest
+    env:
+      RELEASE_GITHUB_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         shell: bash
@@ -63,12 +65,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
           ref: ${{ inputs.source_ref }}
+          token: ${{ env.RELEASE_GITHUB_TOKEN }}
 
       - name: Resolve source and release tag
         id: release
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
           RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
           SOURCE_REF: ${{ inputs.source_ref }}
         run: |
@@ -365,10 +368,14 @@ jobs:
       - name: Create and push tag
         shell: bash
         env:
+          RELEASE_GITHUB_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
           SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
         run: |
           set -euo pipefail
+          server_url="${GITHUB_SERVER_URL#https://}"
+          server_url="${server_url#http://}"
+          git remote set-url origin "https://x-access-token:${RELEASE_GITHUB_TOKEN}@${server_url}/${GITHUB_REPOSITORY}.git"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "${RELEASE_TAG}" "${SOURCE_SHA}" -m "Ad-hoc prerelease ${RELEASE_TAG}"
@@ -377,7 +384,7 @@ jobs:
       - name: Create GitHub prerelease
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
           SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
         run: |
