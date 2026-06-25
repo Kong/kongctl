@@ -178,9 +178,11 @@ const (
 	FieldInsecureAllowAnonymousVirtualClusterAuth   = "insecure_allow_anonymous_virtual_cluster_auth"
 	FieldMembers                                    = "members"
 	FieldMetadataUpdateIntervalSeconds              = "metadata_update_interval_seconds"
+	FieldMinRuntimeVersion                          = "min_runtime_version"
 	FieldPorts                                      = "ports"
 	FieldProxyURLs                                  = "proxy_urls"
 	FieldTLS                                        = "tls"
+	FieldTopicAliases                               = "topic_aliases"
 	FieldDefaultVirtualClusterTarget                = "default_virtual_cluster_target"
 	FieldGatewayControlPlaneMembershipControlPlanes = "control_planes"
 )

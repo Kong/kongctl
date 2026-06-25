@@ -1,9 +1,11 @@
 package executor
 
 import (
+	"context"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,4 +56,86 @@ func TestConvertToVirtualClusterSensitiveDataAwareAuth_ClientCertificate_Missing
 	_, err := convertToVirtualClusterSensitiveDataAwareAuth(auth)
 	require.Error(t, err)
 	assert.Equal(t, "client certificate authentication data is missing", err.Error())
+}
+
+func TestEventGatewayVirtualClusterAdapterMapCreateFieldsTopicAliasesFromPlanJSON(t *testing.T) {
+	fields := baseVirtualClusterCreateFields()
+	fields[planner.FieldTopicAliases] = []any{
+		map[string]any{
+			"alias":     "public-orders",
+			"topic":     "tenant-a.orders",
+			"condition": "context.auth.type == 'anonymous'",
+			"conflict":  "warn",
+		},
+	}
+
+	var create kkComps.CreateVirtualClusterRequest
+	err := (&EventGatewayVirtualClusterAdapter{}).MapCreateFields(context.Background(), nil, fields, &create)
+	require.NoError(t, err)
+	require.Len(t, create.TopicAliases, 1)
+
+	alias := create.TopicAliases[0]
+	assert.Equal(t, "public-orders", alias.Alias)
+	assert.Equal(t, "tenant-a.orders", alias.Topic)
+	require.NotNil(t, alias.Condition)
+	assert.Equal(t, "context.auth.type == 'anonymous'", *alias.Condition)
+	require.NotNil(t, alias.Conflict)
+	assert.Equal(t, kkComps.VirtualClusterTopicAliasConflictWarn, *alias.Conflict)
+}
+
+func TestEventGatewayVirtualClusterAdapterMapUpdateFieldsTopicAliasesEmptyFromPlanJSON(t *testing.T) {
+	var update kkComps.UpdateVirtualClusterRequest
+	err := (&EventGatewayVirtualClusterAdapter{}).MapUpdateFields(
+		context.Background(),
+		nil,
+		map[string]any{
+			planner.FieldTopicAliases: []any{},
+		},
+		&update,
+		nil,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, update.TopicAliases)
+	require.Empty(t, update.TopicAliases)
+}
+
+func TestBuildVirtualClusterTopicAliasesTyped(t *testing.T) {
+	condition := "context.auth.type == 'anonymous'"
+	typedAliases := []kkComps.VirtualClusterTopicAlias{{
+		Alias:     "public-orders",
+		Topic:     "tenant-a.orders",
+		Condition: &condition,
+	}}
+
+	aliases, err := buildVirtualClusterTopicAliases(typedAliases)
+	require.NoError(t, err)
+	require.Equal(t, typedAliases, aliases)
+}
+
+func TestBuildVirtualClusterTopicAliasesRejectsInvalidOptionalFieldTypes(t *testing.T) {
+	_, err := buildVirtualClusterTopicAliases([]any{
+		map[string]any{
+			"alias":     "public-orders",
+			"topic":     "tenant-a.orders",
+			"condition": 1,
+		},
+	})
+
+	require.EqualError(t, err, "topic_aliases[0].condition must be a string")
+}
+
+func baseVirtualClusterCreateFields() map[string]any {
+	return map[string]any{
+		planner.FieldName: "virtual-cluster",
+		planner.FieldDestination: map[string]any{
+			"name": "backend-cluster",
+		},
+		planner.FieldAuthentication: []any{
+			map[string]any{
+				"type": "anonymous",
+			},
+		},
+		planner.FieldACLMode:  "passthrough",
+		planner.FieldDNSLabel: "vc-default",
+	}
 }

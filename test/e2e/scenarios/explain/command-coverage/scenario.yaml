@@ -177,3 +177,23 @@ steps:
                 "contains(stdout, 'PREFERRED TAG: !file')": true
                 "contains(stdout, 'ROOT YAML PATH: control_plane_data_plane_certificates[].cert')": true
                 "contains(stdout, 'NESTED YAML PATH: control_planes[].data_plane_certificates[].cert')": true
+
+  - name: 010-explain-event-gateway-virtual-cluster-topic-aliases-json
+    skipInputs: true
+    commands:
+      - name: 000-explain-event-gateway-virtual-cluster
+        run:
+          - explain
+          - event_gateway_virtual_cluster
+        outputFormat: json
+        assertions:
+          - select: properties.topic_aliases.items
+            expect:
+              fields:
+                type: object
+                "required[0]": alias
+                "required[1]": topic
+                "properties.alias.type": string
+                "properties.topic.type": string
+                "properties.condition.type[0]": string
+                "properties.conflict.type[0]": string
