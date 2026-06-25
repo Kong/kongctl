@@ -25,6 +25,8 @@ jobs:
   prerelease:
     name: Build prerelease
     runs-on: ubuntu-latest
+    env:
+      RELEASE_GITHUB_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         shell: bash
@@ -39,18 +41,37 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout workflow helper scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 1
+          path: .workflow-source
+          persist-credentials: false
+          ref: ${{ github.ref }}
+
+      - name: Stage workflow helper scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          helper_dir="${RUNNER_TEMP}/kongctl-adhoc-prerelease"
+          mkdir -p "${helper_dir}"
+          cp ".workflow-source/scripts/setup-private-sdk.sh" "${helper_dir}/setup-private-sdk.sh"
+          chmod +x "${helper_dir}/setup-private-sdk.sh"
+          echo "PRIVATE_SDK_HELPER=${helper_dir}/setup-private-sdk.sh" >> "$GITHUB_ENV"
+
       - name: Checkout source ref
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
           persist-credentials: true
           ref: ${{ inputs.source_ref }}
+          token: ${{ env.RELEASE_GITHUB_TOKEN }}
 
       - name: Resolve source and release tag
         id: release
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
           RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
           SOURCE_REF: ${{ inputs.source_ref }}
         run: |
@@ -152,7 +173,7 @@ jobs:
           validate_tag "${release_tag}"
 
           git fetch origin --tags --force
-          if git rev-parse --verify --quiet "refs/tags/${release_tag}" >/dev/null; then
+          if git show-ref --verify --quiet "refs/tags/${release_tag}"; then
             echo "::error::Git tag already exists locally: ${release_tag}"
             exit 1
           fi
@@ -183,7 +204,9 @@ jobs:
       - name: Set up private SDK if needed
         id: private_sdk
         shell: bash
-        run: scripts/setup-private-sdk.sh
+        run: |
+          set -euo pipefail
+          "${PRIVATE_SDK_HELPER}"
         env:
           GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
 
@@ -357,7 +380,7 @@ jobs:
       - name: Create GitHub prerelease
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
           SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
         run: |
@@ -369,6 +392,26 @@ jobs:
             --target "${SOURCE_SHA}" \
             --title "${RELEASE_TAG}" \
             --verify-tag
+
+      - name: Verify GitHub prerelease state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          is_prerelease="$(gh release view "${RELEASE_TAG}" --json isPrerelease --jq '.isPrerelease')"
+          if [ "${is_prerelease}" != "true" ]; then
+            echo "::error::GitHub release ${RELEASE_TAG} is not marked as a prerelease"
+            exit 1
+          fi
+
+          latest_tag="$(gh api "/repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name' 2>/dev/null || true)"
+          if [ "${latest_tag}" = "${RELEASE_TAG}" ]; then
+            echo "::error::GitHub release ${RELEASE_TAG} is marked as the repository latest release"
+            exit 1
+          fi
 
       - name: Cleanup private SDK workspace
         if: always()
