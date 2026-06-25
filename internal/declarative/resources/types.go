@@ -14,6 +14,7 @@ const (
 	ResourceTypeControlPlaneGroup                       ResourceType = "control_plane_group"
 	ResourceTypeAPI                                     ResourceType = "api"
 	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
+	ResourceTypeAIGatewayProvider                       ResourceType = "ai_gateway_provider"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
@@ -91,6 +92,7 @@ type ResourceSet struct {
 	ControlPlanes                     []ControlPlaneResource                     `yaml:"control_planes,omitempty"                                 json:"control_planes,omitempty"`                        //nolint:lll
 	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
 	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
+	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_providers,omitempty"                          json:"ai_gateway_providers,omitempty"`                   //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
@@ -317,6 +319,16 @@ func (rs *ResourceSet) GetAIGatewayByRef(ref string) *AIGatewayResource {
 	return nil
 }
 
+// GetAIGatewayProviderByRef returns an AI Gateway Provider resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayProviderByRef(ref string) *AIGatewayProviderResource {
+	for i := range rs.AIGatewayProviders {
+		if rs.AIGatewayProviders[i].GetRef() == ref {
+			return &rs.AIGatewayProviders[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {
@@ -384,6 +396,22 @@ func (rs *ResourceSet) GetAIGatewaysByNamespace(namespace string) []AIGatewayRes
 	for _, gateway := range rs.AIGateways {
 		if GetNamespace(gateway.Kongctl) == namespace {
 			filtered = append(filtered, gateway)
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayProvidersByNamespace returns all AI Gateway Provider resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayProvidersByNamespace(namespace string) []AIGatewayProviderResource {
+	gatewayByRef := make(map[string]AIGatewayResource)
+	for _, gateway := range rs.GetAIGatewaysByNamespace(namespace) {
+		gatewayByRef[gateway.Ref] = gateway
+	}
+
+	var filtered []AIGatewayProviderResource
+	for _, provider := range rs.AIGatewayProviders {
+		if _, ok := gatewayByRef[provider.AIGateway]; ok {
+			filtered = append(filtered, provider)
 		}
 	}
 	return filtered
@@ -957,6 +985,17 @@ func (rs *ResourceSet) GetBackendClustersForGateway(gatewayRef string) []EventGa
 	}
 
 	return clusters
+}
+
+// GetAIGatewayProvidersForGateway returns all providers for a given AI Gateway ref.
+func (rs *ResourceSet) GetAIGatewayProvidersForGateway(gatewayRef string) []AIGatewayProviderResource {
+	var providers []AIGatewayProviderResource
+	for _, provider := range rs.AIGatewayProviders {
+		if provider.AIGateway == gatewayRef {
+			providers = append(providers, provider)
+		}
+	}
+	return providers
 }
 
 // GetVirtualClustersForGateway returns all virtual clusters (nested + root-level) for a given gateway ref

@@ -158,6 +158,12 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
+		key:          "ai_gateway_providers",
+		resourceType: resources.ResourceTypeAIGatewayProvider,
+		parentKey:    "ai_gateway",
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "event_gateway_backend_clusters",
 		resourceType: resources.ResourceTypeEventGatewayBackendCluster,
 		parentKey:    "event_gateway",
@@ -308,6 +314,14 @@ var portalSingletonChildKeys = map[string]struct{}{
 	"audit_log_webhook": {},
 }
 
+var aiGatewayChildCollectionScopes = []childCollectionScope{
+	{
+		key:          "providers",
+		resourceType: resources.ResourceTypeAIGatewayProvider,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+}
+
 var eventGatewayChildCollectionScopes = []childCollectionScope{
 	{
 		key:          "backend_clusters",
@@ -369,6 +383,13 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	}
 
 	captureNestedCollectionScopes(scope, raw, "apis", resources.ResourceTypeAPI, apiChildCollectionScopes)
+	captureNestedCollectionScopes(
+		scope,
+		raw,
+		"ai_gateways",
+		resources.ResourceTypeAIGateway,
+		aiGatewayChildCollectionScopes,
+	)
 	captureNestedCollectionScopes(
 		scope,
 		raw,

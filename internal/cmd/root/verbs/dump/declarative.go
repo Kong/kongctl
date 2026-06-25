@@ -211,6 +211,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			ControlPlaneGroupsAPI:               sdk.GetControlPlaneGroupsAPI(),
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
 			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
+			AIGatewayProvidersAPI:               sdk.GetAIGatewayProvidersAPI(),
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
@@ -350,6 +351,9 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			)
 			if err != nil {
 				return err
+			}
+			if opts.includeChildResources {
+				populateAIGatewayChildren(ctx, logger, stateClient, aiGateways)
 			}
 			resourceSet.AIGateways = append(resourceSet.AIGateways, aiGateways...)
 		case "organization.teams":

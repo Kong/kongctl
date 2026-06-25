@@ -28,7 +28,9 @@ func NewAIGatewayCmd(
 	}
 
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetAIGatewayCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+		root := newGetAIGatewayCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command
+		root.AddCommand(newGetAIGatewayProvidersCmd(verb, addParentFlags, parentPreRun))
+		return root, nil
 	}
 
 	return &baseCmd, nil
