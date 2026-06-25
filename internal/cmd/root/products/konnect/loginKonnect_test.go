@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -144,7 +145,7 @@ func TestDisplayStaticLoginBannerInteractiveWritesOutput(t *testing.T) {
 		t.Fatalf("displayStaticLoginBanner: %v", err)
 	}
 
-	output := out.String()
+	output := stripANSI(out.String())
 	if strings.TrimSpace(output) == "" {
 		t.Fatal("expected banner output")
 	}
@@ -618,6 +619,12 @@ func maxLineWidth(value string) int {
 	}
 	return maxWidth
 }
+
+func stripANSI(value string) string {
+	return ansiEscapePattern.ReplaceAllString(value, "")
+}
+
+var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-9;?]*[[:alpha:]]`)
 
 func lineCount(value string) int {
 	count := 0
