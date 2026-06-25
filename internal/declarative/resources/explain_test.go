@@ -61,6 +61,20 @@ func TestResolveExplainSubject_NestedChildResource(t *testing.T) {
 	assert.Equal(t, []ResourceType{ResourceTypeAPI}, subject.AncestorTypes)
 }
 
+func TestResolveExplainSubject_AIGatewayModelsNestedChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway.models")
+	require.NoError(t, err)
+
+	assert.Equal(t, "ai_gateway.models", subject.DisplayPath)
+	assert.Equal(t, ResourceTypeAIGatewayModel, subject.Doc.ResourceType)
+	assert.Equal(t, explainResourceClassChild, subject.Doc.ResourceClass)
+	assert.True(t, subject.Doc.SupportsRoot)
+	assert.True(t, subject.Doc.SupportsNestedDeclaration)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []string{"models"}, subject.FieldPath)
+	assert.Equal(t, []ResourceType{ResourceTypeAIGateway}, subject.AncestorTypes)
+}
+
 func TestResolveExplainSubject_OrganizationTeamsGroupedResource(t *testing.T) {
 	subject, err := ResolveExplainSubject("organization.teams")
 	require.NoError(t, err)
@@ -552,6 +566,29 @@ func TestRenderScaffoldYAML_NestedChildResource(t *testing.T) {
 	assert.Contains(t, scaffold, "versions:")
 	assert.Contains(t, scaffold, "- ref: my-resource")
 	assert.NotContains(t, scaffold, "api: value")
+	assert.NotContains(t, scaffold, "kongctl:")
+}
+
+func TestRenderScaffoldYAML_AIGatewayModelsNestedChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway.models")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "ai_gateways:")
+	assert.Contains(t, scaffold, "models:")
+	assert.Contains(t, scaffold, "config:")
+	assert.Contains(t, scaffold, "route: {}")
+	assert.Contains(t, scaffold, "model: {}")
+	assert.Contains(t, scaffold, "formats:")
+	assert.Contains(t, scaffold, "- type: openai")
+	assert.Contains(t, scaffold, "target_models:")
+	assert.Contains(t, scaffold, "provider: existing-provider-name")
+	assert.Contains(t, scaffold, "type: model")
+	assert.Contains(t, scaffold, "# type: api")
+	assert.NotContains(t, scaffold, "provider: openai")
+	assert.NotContains(t, scaffold, "ai_gateway: value")
 	assert.NotContains(t, scaffold, "kongctl:")
 }
 
