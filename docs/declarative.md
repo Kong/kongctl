@@ -716,6 +716,9 @@ them from `get` or `list` responses. Common examples include:
 - Portal identity provider `config.client_secret`
 - DCR provider secrets such as `dcr_token`, `api_key`, and
   `initial_client_secret`
+- AI Gateway Provider authentication values such as
+  `config.auth.headers[].value`, `client_secret`, `secret_access_key`, and
+  `service_account_json`
 - Event Gateway schema registry authentication `password`
 
 For these fields, `kongctl` prefers idempotent planning over perpetual

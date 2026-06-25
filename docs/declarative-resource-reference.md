@@ -313,13 +313,15 @@ control_plane_data_plane_certificates:
 ## AI Gateways
 
 This section covers the root AI Gateway resource backed by the Konnect
-`/v1/ai-gateways` API. Child resources under an AI Gateway are intentionally
-not included here yet. Use `kongctl explain ai_gateway --output yaml` as the
-authoritative schema and `kongctl scaffold ai_gateway` to generate starter
-YAML.
+`/v1/ai-gateways` API and AI Gateway Provider child resources backed by the
+AI Gateway Provider APIs. Use `kongctl explain ai_gateway --output yaml` and
+`kongctl explain ai_gateway_provider --output yaml` as the authoritative
+schemas.
 
 The `ref` value is used as the stable Konnect API `name` when creating an AI
 Gateway. Use `display_name` for the human-readable name shown in Konnect.
+AI Gateway Providers use their own required `name` field as the stable
+Konnect provider name. Provider `ref` remains the declarative reference.
 
 ```yaml
 ai_gateways:
@@ -335,6 +337,33 @@ ai_gateways:
    kongctl:
      namespace: string
      protected: boolean
+   providers:
+     - ref: string
+       name: string required
+       type: string required
+       display_name: string required
+       config: object required
+       labels: object [string]string
+         key: value
+       managed_by: object [string]string
+         key: value
+```
+
+AI Gateway Providers can also be declared as root resources. Root-level
+provider declarations must identify the parent AI Gateway with `ai_gateway`.
+
+```yaml
+ai_gateway_providers:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   type: string required
+   display_name: string required
+   config: object required
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
 ```
 
 ## Event Gateways
