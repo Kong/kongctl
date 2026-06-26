@@ -33,6 +33,7 @@ const (
 	Patch     = VerbValue("patch")
 	Explain   = VerbValue("explain")
 	Scaffold  = VerbValue("scaffold")
+	Roar      = VerbValue("roar")
 	Uninstall = VerbValue("uninstall")
 	Upgrade   = VerbValue("upgrade")
 )

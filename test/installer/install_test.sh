@@ -44,6 +44,32 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local file="$1"
+  local pattern="$2"
+  local name="$3"
+
+  if grep -Fq "$pattern" "$file"; then
+    fail "$name" "$file"
+  fi
+}
+
+assert_before() {
+  local file="$1"
+  local first="$2"
+  local second="$3"
+  local name="$4"
+  local first_line
+  local second_line
+
+  first_line="$(grep -nF "$first" "$file" | head -n 1 | cut -d: -f1 || true)"
+  second_line="$(grep -nF "$second" "$file" | head -n 1 | cut -d: -f1 || true)"
+
+  if [[ -z "$first_line" || -z "$second_line" || "$first_line" -ge "$second_line" ]]; then
+    fail "$name" "$file"
+  fi
+}
+
 assert_executable() {
   local file="$1"
   local name="$2"
@@ -303,6 +329,46 @@ test_completion_output() {
   assert_contains "$LAST_OUTPUT" "Version: kongctl fake v2.0.0 linux/amd64" "completion version line"
   assert_contains "$LAST_OUTPUT" "Location: ${LAST_INSTALL_DIR}/kongctl" "completion location line"
   assert_contains "$LAST_OUTPUT" "Next: Run kongctl --help to get started" "completion next step"
+  assert_not_contains "$LAST_OUTPUT" "@@@@@@@@@@" "install art is hidden when stdout is not a terminal"
+  assert_not_contains "$LAST_OUTPUT" "| | _____" "install wordmark is hidden when stdout is not a terminal"
+}
+
+test_install_art_output() {
+  local release_dir="${TMP_ROOT}/release-art"
+  local case_dir="${TMP_ROOT}/install-art"
+  local install_dir="${case_dir}/bin"
+  local wordmark_tail
+
+  make_release "$release_dir" "v2.1.0"
+  mkdir -p "$case_dir"
+  wordmark_tail="$(printf '%24s|___/' '')"
+
+  set +e
+  env \
+    HOME="${case_dir}/home" \
+    KONGCTL_ALLOW_FILE_URLS=1 \
+    KONGCTL_INSTALL_ART=always \
+    KONGCTL_RELEASE_BASE_URL="file://${release_dir}" \
+    KONGCTL_RELEASE_METADATA_URL="file://${release_dir}/release.json" \
+    NO_COLOR=1 \
+    PATH="${PATH}" \
+    TERM=dumb \
+    /bin/sh "$INSTALLER" --install-dir "$install_dir" \
+      --os linux --arch amd64 > "${case_dir}.log" 2>&1
+  LAST_STATUS=$?
+  set -e
+  if [[ "$LAST_STATUS" -ne 0 ]]; then
+    fail "install art output should succeed" "${case_dir}.log"
+  fi
+  assert_contains "${case_dir}.log" "@@@@@@@@@@" "install art output"
+  assert_contains "${case_dir}.log" "       _                          _   _" "centered install wordmark output"
+  assert_contains "${case_dir}.log" "$wordmark_tail" "centered install wordmark descender"
+  assert_contains "${case_dir}.log" "================================================" "install art border"
+  assert_before "${case_dir}.log" "       _                          _   _" "================================================" \
+    "install wordmark is before border"
+  assert_before "${case_dir}.log" "================================================" "@@@@" "install border is before logo"
+  assert_contains "${case_dir}.log" "OK kongctl successfully installed!" "install art completion"
+  pass "prints install art when requested"
 }
 
 test_update_status() {
@@ -473,6 +539,7 @@ test_success_matrix
 test_version_pin_and_install_dir
 test_prerelease_tag_version_pin
 test_completion_output
+test_install_art_output
 test_yes_flag_compatibility
 test_update_status
 test_release_metadata_digest_failure

@@ -36,6 +36,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/patch"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/ps"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/roar"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/scaffold"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/sync"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/view"
@@ -149,9 +150,12 @@ const logFilePIDToken = "%PID%"
 func mergedFlagUsages(cmd *cobra.Command) string {
 	flags := pflag.NewFlagSet(cmd.DisplayName(), pflag.ContinueOnError)
 	flags.SortFlags = true
-	hideOutput := common.IsOutputFormatValidationSkipped(cmd)
-	addFlagSetCopies(flags, cmd.LocalFlags(), hideOutput)
-	addFlagSetCopies(flags, cmd.InheritedFlags(), hideOutput)
+	hiddenFlags := common.HiddenInheritedFlags(cmd)
+	if common.IsOutputFormatValidationSkipped(cmd) {
+		hiddenFlags[common.OutputFlagName] = struct{}{}
+	}
+	addFlagSetCopies(flags, cmd.LocalFlags(), hiddenFlags)
+	addFlagSetCopies(flags, cmd.InheritedFlags(), hiddenFlags)
 
 	if f := flags.Lookup(common.OutputFlagName); f != nil {
 		f.Usage = outputFlagUsage(common.AllowedOutputFormats(cmd))
@@ -160,12 +164,12 @@ func mergedFlagUsages(cmd *cobra.Command) string {
 	return strings.TrimRight(flags.FlagUsages(), "\n")
 }
 
-func addFlagSetCopies(dst, src *pflag.FlagSet, hideOutput bool) {
+func addFlagSetCopies(dst, src *pflag.FlagSet, hidden map[string]struct{}) {
 	if dst == nil || src == nil {
 		return
 	}
 	src.VisitAll(func(flag *pflag.Flag) {
-		if hideOutput && flag.Name == common.OutputFlagName {
+		if _, ok := hidden[flag.Name]; ok {
 			return
 		}
 		flagCopy := *flag
@@ -400,6 +404,8 @@ func addCommands() error {
 		return err
 	}
 	rootCmd.AddCommand(command)
+
+	rootCmd.AddCommand(roar.NewRoarCmd())
 
 	command, err = lint.NewLintCmd()
 	if err != nil {

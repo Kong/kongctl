@@ -12,6 +12,7 @@ INSTALL_ARCH="${KONGCTL_INSTALL_ARCH:-}"
 RELEASE_BASE_URL="${KONGCTL_RELEASE_BASE_URL:-}"
 RELEASE_METADATA_URL="${KONGCTL_RELEASE_METADATA_URL:-}"
 ALLOW_FILE_URLS="${KONGCTL_ALLOW_FILE_URLS:-}"
+INSTALL_ART="${KONGCTL_INSTALL_ART:-auto}"
 
 TMP_DIR=""
 DOWNLOADER=""
@@ -80,6 +81,7 @@ Environment:
   KONGCTL_INSTALL_DIR
   KONGCTL_INSTALL_OS
   KONGCTL_INSTALL_ARCH
+  KONGCTL_INSTALL_ART    auto, always, or never (default: auto)
 
 The installer verifies checksums before extraction and does not use sudo or
 modify shell profile files.
@@ -105,6 +107,160 @@ status() {
 success() {
   marker="$(color_text 32 "OK")"
   printf '%s %s\n' "$marker" "$*"
+}
+
+terminal_width() {
+  cols=""
+
+  if command -v tput >/dev/null 2>&1; then
+    cols="$(tput cols 2>/dev/null || true)"
+  fi
+
+  case "$cols" in
+    "" | *[!0-9]*)
+      printf '%s\n' 0
+      ;;
+    *)
+      printf '%s\n' "$cols"
+      ;;
+  esac
+}
+
+should_print_install_art() {
+  case "$INSTALL_ART" in
+    "" | auto | AUTO)
+      [ -t 1 ] || return 1
+      [ "${TERM:-}" != "dumb" ] || return 1
+      ;;
+    1 | true | TRUE | yes | YES | y | Y | always | ALWAYS)
+      ;;
+    0 | false | FALSE | no | NO | n | N | never | NEVER)
+      return 1
+      ;;
+    *)
+      die "KONGCTL_INSTALL_ART must be auto, always, or never"
+      ;;
+  esac
+}
+
+print_art_start() {
+  if [ "$USE_COLOR" = "1" ]; then
+    printf '\033[36m'
+  fi
+}
+
+print_art_end() {
+  if [ "$USE_COLOR" = "1" ]; then
+    printf '\033[0m'
+  fi
+}
+
+print_kong_logo_30() {
+  print_art_start
+  cat <<'EOF'
+                  @@
+               @@@@@@@@
+              @@@@@@@@@@@
+             @@@@@ @@@@@@@
+            @@@@@@@ @@@@@
+           @@@@@@@@@@ @
+        @@@@ @@@@@@@@@@
+    @@@@@@@@@@ @@@@@@@@@@
+   @@@@@@@@@@@@@ @@@@@@@@@
+ @@@@@@@@@@@@@@@  @@@@@@@@@@
+@@@@@@@@@           @@@@@@@@@@
+@@@@@@@@ @@@@@@@@     @@@@@@@@
+@@@@@@     @@@@@@@     @@@@@@
+EOF
+  print_art_end
+}
+
+print_kong_logo_48() {
+  print_art_start
+  cat <<'EOF'
+                             @@@
+                          @@@@@@@@@
+                        @@@@@@@@@@@@@
+                       @@@@@@@@@@@@@@@@@
+                            @@@@@@@@@@@
+                     @@@@@@@ @@@@@@@@@@@@
+                    @@@@@@@@@@ @@@@@@@@@@
+                   @@@@@@@@@@@@  @@@@@@@
+                  @@@@@@@@@@@@@@@  @@
+                @@ @@@@@@@@@@@@@@@@
+             @@@@@@@ @@@@@@@@@@@@@@@@
+           @@@@@@@@@@  @@@@@@@@@@@@@@@
+      @@@@@@@@@@@@@@@@@ @@@@@@@@@@@@@@@@
+     @@@@@@@@@@@@@@@@@@@@ @@@@@@@@@@@@@@@@
+   @@@@@@@@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@@@
+ @@@@@@@@@@@@@@@@@@@@@@@@     @@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@       @@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@ @@@@@@@@@@        @@@@@@@@@@@@@@@
+@@@@@@@@@@@@   @@@@@@@@@@@@        @@@@@@@@@@@@@
+@@@@@@@@@@      @@@@@@@@@@@@        @@@@@@@@@@@
+@@@@@@@@@        @@@@@@@@@@@@        @@@@@@@@@@
+EOF
+  print_art_end
+}
+
+print_padded_art_line() {
+  padding="$1"
+  line="$2"
+
+  printf '%*s%s\n' "$padding" "" "$line"
+}
+
+print_art_border() {
+  art_width="$1"
+  i=0
+
+  print_art_start
+  while [ "$i" -lt "$art_width" ]; do
+    printf '='
+    i=$((i + 1))
+  done
+  printf '\n'
+  print_art_end
+}
+
+print_kongctl_ogre_centered() {
+  art_width="$1"
+  wordmark_width=34
+  padding=$(((art_width - wordmark_width) / 2))
+
+  if [ "$padding" -lt 0 ]; then
+    padding=0
+  fi
+
+  print_art_start
+  while IFS= read -r line; do
+    print_padded_art_line "$padding" "$line"
+  done <<'EOF'
+ _                          _   _
+| | _____  _ __   __ _  ___| |_| |
+| |/ / _ \| '_ \ / _` |/ __| __| |
+|   < (_) | | | | (_| | (__| |_| |
+|_|\_\___/|_| |_|\__, |\___|\__|_|
+                 |___/
+EOF
+  print_art_end
+}
+
+print_install_art() {
+  if ! should_print_install_art; then
+    return 0
+  fi
+
+  cols="$(terminal_width)"
+  if [ "$cols" -ne 0 ] && [ "$cols" -lt 48 ]; then
+    return 0
+  fi
+
+  print_kongctl_ogre_centered 48
+  print_art_border 48
+  print_kong_logo_48
+
+  printf '\n\n'
 }
 
 is_truthy() {
@@ -840,6 +996,8 @@ main() {
   archive="$TMP_DIR/$archive_asset"
   checksums="$TMP_DIR/checksums.txt"
   extracted="$TMP_DIR/$binary_name"
+
+  print_install_art
 
   if [ -n "$CURRENT_VERSION" ] && [ "$RESOLVED_VERSION" != "latest stable" ] &&
     [ "$CURRENT_VERSION" != "$RESOLVED_VERSION" ]; then
