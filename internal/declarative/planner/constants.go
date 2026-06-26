@@ -209,6 +209,7 @@ const (
 	ResourceTypeAIGateway                        = string(resources.ResourceTypeAIGateway)
 	ResourceTypeAIGatewayProvider                = string(resources.ResourceTypeAIGatewayProvider)
 	ResourceTypeAIGatewayModel                   = string(resources.ResourceTypeAIGatewayModel)
+	ResourceTypeAIGatewayMCPServer               = string(resources.ResourceTypeAIGatewayMCPServer)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)

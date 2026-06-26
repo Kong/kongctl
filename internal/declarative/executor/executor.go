@@ -57,6 +57,8 @@ type Executor struct {
 		kkComps.UpdateAIGatewayProviderRequest]
 	aiGatewayModelExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayModelRequest, kkComps.UpdateAIGatewayModelRequest]
+	aiGatewayMCPServerExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayMCPServerRequest, kkComps.UpdateAIGatewayMCPServerRequest]
 	dashboardExecutor                      *BaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest]
 	eventGatewayControlPlaneExecutor       *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 	organizationTeamExecutor               *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
@@ -245,6 +247,12 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.aiGatewayModelExecutor = NewBaseExecutor[
 		kkComps.CreateAIGatewayModelRequest, kkComps.UpdateAIGatewayModelRequest](
 		NewAIGatewayModelAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayMCPServerExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayMCPServerRequest, kkComps.UpdateAIGatewayMCPServerRequest](
+		NewAIGatewayMCPServerAdapter(client),
 		client,
 		dryRun,
 	)
@@ -2340,6 +2348,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayModelExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayMCPServer:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayMCPServerExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDCRProvider:
@@ -2932,6 +2945,11 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayModelExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayMCPServer:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayMCPServerExecutor.Update(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Update(ctx, *change)
 	case planner.ResourceTypeAPIDocument:
@@ -3403,6 +3421,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		return e.aiGatewayProviderExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayModel:
 		return e.aiGatewayModelExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayMCPServer:
+		return e.aiGatewayMCPServerExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAPIVersion:

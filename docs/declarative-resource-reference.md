@@ -313,21 +313,29 @@ control_plane_data_plane_certificates:
 ## AI Gateways
 
 This section covers the root AI Gateway resource backed by the Konnect
-`/v1/ai-gateways` API, AI Gateway Providers, and AI Gateway Models. Use
-`kongctl explain ai_gateway --output yaml`,
-`kongctl explain ai_gateway_provider --output yaml`, and
-`kongctl explain ai_gateway.models --output yaml` as the authoritative
+`/v1/ai-gateways` API, AI Gateway Providers, AI Gateway Models, and AI Gateway
+MCP Servers. Use `kongctl explain ai_gateway --output yaml`,
+`kongctl explain ai_gateway_provider --output yaml`,
+`kongctl explain ai_gateway.models --output yaml`, and
+`kongctl explain ai_gateway.mcp_servers --output yaml` as the authoritative
 schemas.
 
 The `ref` value is used as the stable Konnect API `name` when creating an AI
 Gateway. Use `display_name` for the human-readable name shown in Konnect.
-AI Gateway Providers use their own required `name` field as the stable
-Konnect provider name. Provider and model child entries inherit management
-scope from their parent AI Gateway and do not accept `kongctl` metadata.
+AI Gateway Providers, Models, and MCP Servers use their own required `name`
+field as the stable Konnect child name. Child entries inherit management scope
+from their parent AI Gateway and do not accept `kongctl` metadata.
 
 For AI Gateway Models, `target_models[].provider` must match an AI Gateway
 Provider `name` under the parent gateway. The provider can already exist or be
 declared in the same gateway configuration.
+
+For AI Gateway MCP Servers, root-level declarations must include
+`ai_gateway`, while nested declarations inherit the parent gateway. Omit
+`mcp_servers` to leave existing MCP Servers unmanaged during sync. Use a nested
+`mcp_servers: []` under a specific AI Gateway to sync-delete MCP Servers for
+that gateway. Root-level `ai_gateway_mcp_servers: []` is rejected because it
+does not identify a parent gateway.
 
 ```yaml
 ai_gateways:
@@ -375,6 +383,25 @@ ai_gateways:
         key: value
       acls: object
       managed_by: object
+   mcp_servers:
+    - ref: string
+      type: conversion-only # or conversion-listener, listener,
+                            # passthrough-listener, upstream-server
+      name: string required
+      display_name: string required
+      enabled: boolean
+      config:
+        url: string required
+      tools:
+       - name: string required
+         description: string required
+         method: string required
+         path: string
+      policies: array[string]
+      labels: object [string]string
+        key: value
+      acls: object
+      managed_by: object
 ```
 
 AI Gateway Providers can also be declared as root resources. Root-level
@@ -417,6 +444,32 @@ ai_gateway_models:
         type: string required
    policies: array[object]
    capabilities: array[string]
+   labels: object [string]string
+     key: value
+   acls: object
+   managed_by: object
+```
+
+AI Gateway MCP Servers can also be declared as root resources. Include
+`ai_gateway` to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_mcp_servers:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   type: conversion-only # or conversion-listener, listener,
+                         # passthrough-listener, upstream-server
+   name: string required
+   display_name: string required
+   enabled: boolean
+   config:
+     url: string required
+   tools:
+    - name: string required
+      description: string required
+      method: string required
+      path: string
+   policies: array[string]
    labels: object [string]string
      key: value
    acls: object

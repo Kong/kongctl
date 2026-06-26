@@ -1,0 +1,22 @@
+_defaults:
+  kongctl:
+    namespace: federated-ai-gateway
+
+ai_gateway_mcp_servers:
+  - ref: peer-support-tools
+    ai_gateway: !ref shared-ai-gateway#id
+    type: conversion-only
+    name: peer-support-tools
+    display_name: "Peer Support Tools"
+    enabled: true
+    labels:
+      team: support-experience
+      ownership: peer
+    config:
+      url: https://support-tools.example.com
+    tools:
+      - name: lookup-customer
+        description: "Look up a customer profile"
+        method: GET
+        path: /customers/{customer_id}
+    policies: []

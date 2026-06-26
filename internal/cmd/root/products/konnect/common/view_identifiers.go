@@ -8,6 +8,7 @@ const (
 	ViewParentAIGateway                     = "ai-gateway"
 	ViewParentAIGatewayProvider             = "ai-gateway-provider"
 	ViewParentAIGatewayModel                = "ai-gateway-model"
+	ViewParentAIGatewayMCPServer            = "ai-gateway-mcp-server"
 	ViewParentAPIDocument                   = "api-document"
 	ViewParentAPIImplementation             = "api-implementation"
 	ViewParentAPIPublication                = "api-publication"
