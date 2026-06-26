@@ -17,7 +17,7 @@ func TestAIGatewayMCPServerPlannerCreatesChildForExistingGateway(t *testing.T) {
 	server := testAIGatewayMCPServerResource(t)
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
-			gateways: []kkComps.AIGateway{testAIGateway("gateway-id", "Support Gateway")},
+			gateways: []kkComps.AIGateway{testAIGateway()},
 		},
 		AIGatewayMCPServersAPI: &testAIGatewayMCPServerAPI{},
 	})
@@ -54,7 +54,7 @@ func TestAIGatewayMCPServerPlannerSyncDeletesScopedServers(t *testing.T) {
 	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayMCPServer)
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
-			gateways: []kkComps.AIGateway{testAIGateway("gateway-id", "Support Gateway")},
+			gateways: []kkComps.AIGateway{testAIGateway()},
 		},
 		AIGatewayMCPServersAPI: &testAIGatewayMCPServerAPI{
 			servers: []kkComps.AIGatewayMCPServer{testAIGatewayMCPServer(t, "server-id", "support-tools")},
