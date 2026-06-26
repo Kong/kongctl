@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -93,7 +94,8 @@ func (e EventGatewayConsumePolicyResource) Validate() error {
 		e.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil
 	if !hasVariant {
 		return fmt.Errorf(
-			"consume policy must specify 'type' field (one of: modify_headers, schema_validation, decrypt, skip_record, decrypt_fields)",
+			"consume policy must specify 'type' field (one of: %s)",
+			strings.Join(validConsumePolicyTypeStrings(), ", "),
 		)
 	}
 
@@ -219,18 +221,13 @@ func (e *EventGatewayConsumePolicyResource) UnmarshalJSON(data []byte) error {
 
 // validateConsumePolicyType ensures the required type discriminator is present and valid.
 func validateConsumePolicyType(raw map[string]any) error {
-	validTypes := []string{
-		string(kkComps.EventGatewayConsumePolicyCreateTypeModifyHeaders),
-		string(kkComps.EventGatewayConsumePolicyCreateTypeSchemaValidation),
-		string(kkComps.EventGatewayConsumePolicyCreateTypeDecrypt),
-		string(kkComps.EventGatewayConsumePolicyCreateTypeSkipRecord),
-		string(kkComps.EventGatewayConsumePolicyCreateTypeDecryptFields),
-	}
+	validTypes := validConsumePolicyTypeStrings()
 
 	policyType, hasType := raw["type"]
 	if !hasType {
 		return fmt.Errorf(
-			"consume policy requires 'type' field (one of: modify_headers, schema_validation, decrypt, skip_record, decrypt_fields)",
+			"consume policy requires 'type' field (one of: %s)",
+			strings.Join(validTypes, ", "),
 		)
 	}
 
@@ -244,7 +241,18 @@ func validateConsumePolicyType(raw map[string]any) error {
 	}
 
 	return fmt.Errorf(
-		"consume policy 'type' must be one of [modify_headers, schema_validation, decrypt, skip_record, decrypt_fields], got %q",
+		"consume policy 'type' must be one of [%s], got %q",
+		strings.Join(validTypes, ", "),
 		policyTypeStr,
 	)
+}
+
+func validConsumePolicyTypeStrings() []string {
+	return []string{
+		string(kkComps.EventGatewayConsumePolicyCreateTypeModifyHeaders),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeSchemaValidation),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeDecrypt),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeSkipRecord),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeDecryptFields),
+	}
 }
