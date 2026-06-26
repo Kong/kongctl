@@ -7,6 +7,9 @@ vars:
   namespace: "ai-gateway-mcp-server-e2e"
   gateway_name: "AI Gateway MCP Server E2E"
   gateway_ref: "ai-gateway-mcp-e2e"
+  policy_ref: "mask-sensitive-data"
+  policy_name: "mask-sensitive-data"
+  policy_display_name: "Mask Sensitive Data"
   server_ref: "support-tools"
   server_name: "support-tools"
   server_display_name: "Support Tools"
@@ -33,7 +36,36 @@ steps:
   - name: 001-explain-and-scaffold
     skipInputs: true
     commands:
-      - name: 000-explain-ai-gateway-mcp-server-json
+      - name: 000-explain-ai-gateway-policy-json
+        run:
+          - explain
+          - ai_gateway_policy
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway_policy"
+                '"x-kongctl-root-key"': ai_gateway_policies
+          - select: "contains(keys(properties), 'ai_gateway')"
+            expect:
+              fields:
+                "@": true
+      - name: 001-scaffold-ai-gateway-policy
+        run:
+          - scaffold
+          - ai_gateway_policy
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_policies:')": true
+                "contains(stdout, 'type: ai-sanitizer')": true
+                "contains(stdout, 'ai_gateway: !ref')": true
+      - name: 002-explain-ai-gateway-mcp-server-json
         run:
           - explain
           - ai_gateway_mcp_server
@@ -50,7 +82,7 @@ steps:
             expect:
               fields:
                 "@": true
-      - name: 001-scaffold-ai-gateway-mcp-server
+      - name: 003-scaffold-ai-gateway-mcp-server
         run:
           - scaffold
           - ai_gateway_mcp_server
@@ -82,8 +114,19 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 2
-                by_action.CREATE: 2
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='ai_gateway_policy' && resource_ref=='{{ .vars.policy_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.policy_name }}"
+                fields.type: ai-sanitizer
+                fields.display_name: "{{ .vars.policy_display_name }}"
+                fields.enabled: true
+                fields.global: false
+                fields.config.anonymize[0]: email
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.server_ref }}'] | [0]
             expect:
@@ -93,6 +136,7 @@ steps:
                 fields.type: conversion-only
                 fields.display_name: "{{ .vars.server_display_name }}"
                 fields.config.url: https://support-tools.example.com
+                fields.policies[0]: "{{ .vars.policy_name }}"
       - name: 001-apply-create
         outputFormat: json
         run:
@@ -104,10 +148,70 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 3
                 failed: 0
                 status: success
-      - name: 002-list-mcp-servers
+      - name: 002-list-policies
+        run:
+          - get
+          - ai-gateway
+          - policies
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        recordVar:
+          name: policy_id
+          responsePath: "[?name=='{{ .vars.policy_name }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.policy_name }}"
+                display_name: "{{ .vars.policy_display_name }}"
+                type: ai-sanitizer
+                enabled: true
+                global: false
+                config.anonymize[0]: email
+      - name: 003-get-policy-by-name
+        run:
+          - get
+          - ai-gateway
+          - policies
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.policy_name }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.policy_name }}"
+          - select: type
+            expect:
+              fields:
+                "@": ai-sanitizer
+      - name: 004-get-policy-by-id
+        run:
+          - get
+          - ai-gateway
+          - policies
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.policy_id }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.policy_name }}"
+          - select: type
+            expect:
+              fields:
+                "@": ai-sanitizer
+      - name: 005-list-mcp-servers
         run:
           - get
           - ai-gateway
@@ -129,7 +233,8 @@ steps:
                 enabled: true
                 config.url: https://support-tools.example.com
                 tools[0].name: lookup-customer
-      - name: 003-get-mcp-server-by-name
+                policies[0]: "{{ .vars.policy_name }}"
+      - name: 006-get-mcp-server-by-name
         run:
           - get
           - ai-gateway
@@ -144,7 +249,7 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.server_name }}"
-      - name: 004-get-mcp-server-by-id
+      - name: 007-get-mcp-server-by-id
         run:
           - get
           - ai-gateway
@@ -252,6 +357,15 @@ steps:
                 name: "{{ .vars.server_name }}"
                 display_name: "{{ .vars.server_updated_display_name }}"
                 type: conversion-only
+                policies[0]: "{{ .vars.policy_name }}"
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].policies[?name=='{{ .vars.policy_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.policy_name }}"
+                display_name: "{{ .vars.policy_display_name }}"
+                type: ai-sanitizer
+                config.anonymize[0]: email
       - name: 001-plan-from-ai-gateway-dump
         outputFormat: disable
         run:
@@ -280,6 +394,26 @@ steps:
               fields:
                 name: "{{ .vars.server_name }}"
           - select: "ai_gateway_mcp_servers[0].ai_gateway != ''"
+            expect:
+              fields:
+                "@": true
+      - name: 003-dump-root-policies
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_policies"
+          - "--filter-name={{ .vars.policy_name }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_policies[0]"
+            expect:
+              fields:
+                name: "{{ .vars.policy_name }}"
+                display_name: "{{ .vars.policy_display_name }}"
+                type: ai-sanitizer
+          - select: "ai_gateway_policies[0].ai_gateway != ''"
             expect:
               fields:
                 "@": true
@@ -327,9 +461,52 @@ steps:
               fields:
                 "@": 0
 
-  - name: 006-sync-delete-gateway
+  - name: 006-sync-delete-policy
     inputOverlayDirs:
-      - overlays/003-sync-delete-gateway
+      - overlays/003-sync-delete-policy
+    commands:
+      - name: 000-sync-delete-policy
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_policy' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.policy_name }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-policies-empty
+        run:
+          - get
+          - ai-gateway
+          - policies
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 007-sync-delete-gateway
+    inputOverlayDirs:
+      - overlays/004-sync-delete-gateway
     commands:
       - name: 000-sync-delete-gateway
         outputFormat: json

@@ -9,4 +9,17 @@ ai_gateways:
     labels:
       owner: platform
       lifecycle: dev
+    policies:
+      - ref: mask-sensitive-data
+        name: mask-sensitive-data
+        type: ai-sanitizer
+        display_name: "Mask Sensitive Data"
+        enabled: true
+        global: false
+        labels:
+          team: support
+          phase: create
+        config:
+          anonymize:
+            - email
     mcp_servers: []

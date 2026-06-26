@@ -327,20 +327,26 @@ schemas.
 
 The `ref` value is used as the stable Konnect API `name` when creating an AI
 Gateway. Use `display_name` for the human-readable name shown in Konnect.
-AI Gateway Providers, Models, and MCP Servers use their own required `name`
-field as the stable Konnect child name. Child entries inherit management scope
-from their parent AI Gateway and do not accept `kongctl` metadata.
+AI Gateway Providers, Policies, Models, and MCP Servers use their own required
+`name` field as the stable Konnect child name. Child entries inherit
+management scope from their parent AI Gateway and do not accept `kongctl`
+metadata.
 
 For AI Gateway Models, `target_models[].provider` must match an AI Gateway
 Provider `name` under the parent gateway. The provider can already exist or be
 declared in the same gateway configuration.
 
-For AI Gateway MCP Servers, root-level declarations must include
+For AI Gateway Models and MCP Servers, `policies` entries refer to AI Gateway
+Policy names under the same parent gateway. The policy can already exist or be
+declared in the same gateway configuration.
+
+For AI Gateway Policies and MCP Servers, root-level declarations must include
 `ai_gateway`, while nested declarations inherit the parent gateway. Omit
-`mcp_servers` to leave existing MCP Servers unmanaged during sync. Use a nested
-`mcp_servers: []` under a specific AI Gateway to sync-delete MCP Servers for
-that gateway. Root-level `ai_gateway_mcp_servers: []` is rejected because it
-does not identify a parent gateway.
+`policies` or `mcp_servers` to leave existing child resources unmanaged during
+sync. Use `policies: []` or `mcp_servers: []` under a specific AI Gateway to
+sync-delete that child type for that gateway. Root-level
+`ai_gateway_policies: []` and `ai_gateway_mcp_servers: []` are rejected because
+they do not identify a parent gateway.
 
 ```yaml
 ai_gateways:
@@ -361,6 +367,18 @@ ai_gateways:
        name: string required
        type: string required
        display_name: string required
+       config: object required
+       labels: object [string]string
+         key: value
+       managed_by: object [string]string
+         key: value
+   policies:
+     - ref: string
+       name: string required
+       type: string required
+       display_name: string required
+       enabled: boolean
+       global: boolean
        config: object required
        labels: object [string]string
          key: value
@@ -419,6 +437,25 @@ ai_gateway_providers:
    name: string required
    type: string required
    display_name: string required
+   config: object required
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Policies can also be declared as root resources. Root-level policy
+declarations must identify the parent AI Gateway with `ai_gateway`.
+
+```yaml
+ai_gateway_policies:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   type: string required
+   display_name: string required
+   enabled: boolean
+   global: boolean
    config: object required
    labels: object [string]string
      key: value

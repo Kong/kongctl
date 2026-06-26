@@ -170,6 +170,28 @@ func (p *Planner) planAIGatewayChanges(
 		}
 		providerCreateDepsByName := aiGatewayProviderCreateDependencies(plan, namespace, desiredGateway.Ref)
 
+		policies := p.resources.GetAIGatewayPoliciesForGateway(desiredGateway.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeAIGateway,
+			desiredGateway.Ref,
+			resources.ResourceTypeAIGatewayPolicy,
+		) && (len(policies) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayPolicyChanges(
+				ctx,
+				namespace,
+				desiredGateway.Ref,
+				desiredGateway.DisplayName,
+				gatewayID,
+				gatewayChangeID,
+				policies,
+				plan,
+			); err != nil {
+				return err
+			}
+		}
+		policyCreateDepsByName := aiGatewayPolicyCreateDependencies(plan, namespace, desiredGateway.Ref)
+
 		models := p.resources.GetAIGatewayModelsForGateway(desiredGateway.Ref)
 		if p.shouldPlanChild(
 			plan,
@@ -185,6 +207,7 @@ func (p *Planner) planAIGatewayChanges(
 				gatewayID,
 				gatewayChangeID,
 				providerCreateDepsByName,
+				policyCreateDepsByName,
 				models,
 				plan,
 			); err != nil {
@@ -206,6 +229,7 @@ func (p *Planner) planAIGatewayChanges(
 				desiredGateway.DisplayName,
 				gatewayID,
 				gatewayChangeID,
+				policyCreateDepsByName,
 				mcpServers,
 				plan,
 			); err != nil {
@@ -267,6 +291,28 @@ func (p *Planner) planExternalAIGatewayChildren(
 	}
 	providerCreateDepsByName := aiGatewayProviderCreateDependencies(plan, namespace, desiredGateway.Ref)
 
+	policies := p.resources.GetAIGatewayPoliciesForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayPolicy,
+	) && len(policies) > 0 {
+		if err := p.planAIGatewayPolicyChanges(
+			ctx,
+			namespace,
+			desiredGateway.Ref,
+			desiredGateway.DisplayName,
+			gatewayID,
+			"",
+			policies,
+			plan,
+		); err != nil {
+			return err
+		}
+	}
+	policyCreateDepsByName := aiGatewayPolicyCreateDependencies(plan, namespace, desiredGateway.Ref)
+
 	models := p.resources.GetAIGatewayModelsForGateway(desiredGateway.Ref)
 	if p.shouldPlanChild(
 		plan,
@@ -282,6 +328,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 			gatewayID,
 			"",
 			providerCreateDepsByName,
+			policyCreateDepsByName,
 			models,
 			plan,
 		); err != nil {
@@ -303,6 +350,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 			desiredGateway.DisplayName,
 			gatewayID,
 			"",
+			policyCreateDepsByName,
 			mcpServers,
 			plan,
 		); err != nil {

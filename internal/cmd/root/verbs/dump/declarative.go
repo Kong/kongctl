@@ -53,6 +53,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	resourceAnalyticsDashboards:   {},
 	"event_gateways":              {},
 	"ai_gateways":                 {},
+	"ai_gateway_policies":         {},
 	"ai_gateway_models":           {},
 	"ai_gateway_mcp_servers":      {},
 	"organization.teams":          {},
@@ -87,8 +88,8 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
-			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_models, "+
-			"ai_gateway_mcp_servers, organization.teams).")
+			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_policies, "+
+			"ai_gateway_models, ai_gateway_mcp_servers, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -203,6 +204,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 
 	var stateClient *declstate.Client
 	if opts.includeChildResources ||
+		slices.Contains(opts.resources, "ai_gateway_policies") ||
 		slices.Contains(opts.resources, "ai_gateway_models") ||
 		slices.Contains(opts.resources, "ai_gateway_mcp_servers") {
 		stateClient = declstate.NewClient(declstate.ClientConfig{
@@ -217,6 +219,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
 			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
 			AIGatewayProvidersAPI:               sdk.GetAIGatewayProvidersAPI(),
+			AIGatewayPoliciesAPI:                sdk.GetAIGatewayPoliciesAPI(),
 			AIGatewayModelAPI:                   sdk.GetAIGatewayModelAPI(),
 			AIGatewayMCPServersAPI:              sdk.GetAIGatewayMCPServersAPI(),
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
@@ -363,6 +366,18 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				populateAIGatewayChildren(ctx, logger, stateClient, aiGateways)
 			}
 			resourceSet.AIGateways = append(resourceSet.AIGateways, aiGateways...)
+		case "ai_gateway_policies":
+			policies, err := collectDeclarativeAIGatewayPolicies(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayPolicies = append(resourceSet.AIGatewayPolicies, policies...)
 		case "ai_gateway_models":
 			models, err := collectDeclarativeAIGatewayModels(
 				ctx,
@@ -754,6 +769,44 @@ func collectDeclarativeAIGateways(
 	})
 
 	return results, nil
+}
+
+func collectDeclarativeAIGatewayPolicies(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayPolicyResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Policies API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var policies []declresources.AIGatewayPolicyResource
+	for _, gateway := range gateways {
+		gatewayPolicies, err := buildAIGatewayPolicies(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		policies = append(policies, gatewayPolicies...)
+	}
+
+	policies = filterByNameOrID(policies, filter, func(r declresources.AIGatewayPolicyResource) (string, string) {
+		return r.Name, r.Ref
+	})
+	slices.SortFunc(policies, func(a, b declresources.AIGatewayPolicyResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name, b.Name)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return policies, nil
 }
 
 func collectDeclarativeAIGatewayModels(
