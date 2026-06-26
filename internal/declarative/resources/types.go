@@ -20,6 +20,7 @@ const (
 	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
 	ResourceTypeAIGatewayProvider                       ResourceType = "ai_gateway_provider"
 	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
+	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
@@ -110,6 +111,7 @@ type ResourceSet struct {
 	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
 	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_providers,omitempty"                          json:"ai_gateway_providers,omitempty"`                   //nolint:lll
 	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
+	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
@@ -357,6 +359,16 @@ func (rs *ResourceSet) GetAIGatewayModelByRef(ref string) *AIGatewayModelResourc
 	return nil
 }
 
+// GetAIGatewayMCPServerByRef returns an AI Gateway MCP Server resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayMCPServerByRef(ref string) *AIGatewayMCPServerResource {
+	for i := range rs.AIGatewayMCPServers {
+		if rs.AIGatewayMCPServers[i].GetRef() == ref {
+			return &rs.AIGatewayMCPServers[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {
@@ -464,6 +476,25 @@ func (rs *ResourceSet) GetAIGatewayModelsByNamespace(namespace string) []AIGatew
 			}
 			if GetNamespace(gateway.Kongctl) == namespace {
 				filtered = append(filtered, model)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayMCPServersByNamespace returns AI Gateway MCP Server resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayMCPServersByNamespace(namespace string) []AIGatewayMCPServerResource {
+	var filtered []AIGatewayMCPServerResource
+	for _, server := range rs.AIGatewayMCPServers {
+		if gateway := rs.GetAIGatewayByRef(server.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, server)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, server)
 			}
 		}
 	}
@@ -1444,4 +1475,15 @@ func (rs *ResourceSet) GetAIGatewayModelsForGateway(gatewayRef string) []AIGatew
 		}
 	}
 	return models
+}
+
+// GetAIGatewayMCPServersForGateway returns all AI Gateway MCP Servers for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayMCPServersForGateway(gatewayRef string) []AIGatewayMCPServerResource {
+	var servers []AIGatewayMCPServerResource
+	for _, server := range rs.AIGatewayMCPServers {
+		if NormalizeResourceRef(server.AIGateway) == gatewayRef {
+			servers = append(servers, server)
+		}
+	}
+	return servers
 }

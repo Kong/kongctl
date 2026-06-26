@@ -1,0 +1,363 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-mcp-server-e2e"
+  gateway_name: "AI Gateway MCP Server E2E"
+  gateway_ref: "ai-gateway-mcp-e2e"
+  server_ref: "support-tools"
+  server_name: "support-tools"
+  server_display_name: "Support Tools"
+  server_updated_display_name: "Support Tools Updated"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-mcp-server-json
+        run:
+          - explain
+          - ai_gateway_mcp_server
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway_mcp_server"
+                '"x-kongctl-root-key"': ai_gateway_mcp_servers
+          - select: "contains(keys(properties), 'ai_gateway')"
+            expect:
+              fields:
+                "@": true
+      - name: 001-scaffold-ai-gateway-mcp-server
+        run:
+          - scaffold
+          - ai_gateway_mcp_server
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_mcp_servers:')": true
+                "contains(stdout, 'type: conversion-only')": true
+                "contains(stdout, 'tools:')": true
+
+  - name: 002-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.server_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.server_name }}"
+                fields.type: conversion-only
+                fields.display_name: "{{ .vars.server_display_name }}"
+                fields.config.url: https://support-tools.example.com
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+      - name: 002-list-mcp-servers
+        run:
+          - get
+          - ai-gateway
+          - mcp-servers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        recordVar:
+          name: mcp_server_id
+          responsePath: "[?name=='{{ .vars.server_name }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.server_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.server_name }}"
+                display_name: "{{ .vars.server_display_name }}"
+                type: conversion-only
+                enabled: true
+                config.url: https://support-tools.example.com
+                tools[0].name: lookup-customer
+      - name: 003-get-mcp-server-by-name
+        run:
+          - get
+          - ai-gateway
+          - mcp-server
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.server_name }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.server_name }}"
+      - name: 004-get-mcp-server-by-id
+        run:
+          - get
+          - ai-gateway
+          - mcp-servers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.mcp_server_id }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.server_name }}"
+
+  - name: 003-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.server_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.display_name: "{{ .vars.server_updated_display_name }}"
+                fields.enabled: false
+                fields.labels.phase: update
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-verify-update
+        run:
+          - get
+          - ai-gateway
+          - mcp-servers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.server_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: "{{ .vars.server_updated_display_name }}"
+                enabled: false
+                labels.phase: update
+                config.url: https://support-tools-updated.example.com
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateway-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-ai-gateway.yaml"
+        assertions:
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.server_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.server_name }}"
+                display_name: "{{ .vars.server_updated_display_name }}"
+                type: conversion-only
+      - name: 001-plan-from-ai-gateway-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-ai-gateway.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 002-dump-root-mcp-servers
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_mcp_servers"
+          - "--filter-name={{ .vars.server_name }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_mcp_servers[0]"
+            expect:
+              fields:
+                name: "{{ .vars.server_name }}"
+          - select: "ai_gateway_mcp_servers[0].ai_gateway != ''"
+            expect:
+              fields:
+                "@": true
+
+  - name: 005-sync-delete-mcp-server
+    inputOverlayDirs:
+      - overlays/002-sync-delete-mcp
+    commands:
+      - name: 000-sync-delete-mcp-server
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_mcp_server' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.server_name }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-mcp-servers-empty
+        run:
+          - get
+          - ai-gateway
+          - mcp-servers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 006-sync-delete-gateway
+    inputOverlayDirs:
+      - overlays/003-sync-delete-gateway
+    commands:
+      - name: 000-sync-delete-gateway
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-get-ai-gateways
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?display_name=='{{ .vars.gateway_name }}']"
+            expect:
+              fields:
+                "length(@)": 0
