@@ -1,0 +1,28 @@
+ai_gateways:
+  - ref: ai-gateway-mcp-e2e
+    display_name: "AI Gateway MCP Server E2E"
+    description: "AI Gateway MCP Server e2e"
+    proxy_urls:
+      - host: ai-gateway-mcp-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    mcp_servers:
+      - ref: support-tools
+        type: conversion-only
+        name: support-tools
+        display_name: "Support Tools Updated"
+        enabled: false
+        labels:
+          team: support
+          phase: update
+        config:
+          url: https://support-tools-updated.example.com
+        tools:
+          - name: lookup-customer
+            description: "Look up an updated customer profile"
+            method: GET
+            path: /customers/{customer_id}
+        policies: []

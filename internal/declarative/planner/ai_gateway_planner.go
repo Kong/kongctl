@@ -191,6 +191,27 @@ func (p *Planner) planAIGatewayChanges(
 				return err
 			}
 		}
+
+		mcpServers := p.resources.GetAIGatewayMCPServersForGateway(desiredGateway.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeAIGateway,
+			desiredGateway.Ref,
+			resources.ResourceTypeAIGatewayMCPServer,
+		) && (len(mcpServers) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayMCPServerChanges(
+				ctx,
+				namespace,
+				desiredGateway.Ref,
+				desiredGateway.DisplayName,
+				gatewayID,
+				gatewayChangeID,
+				mcpServers,
+				plan,
+			); err != nil {
+				return err
+			}
+		}
 	}
 
 	if plan.Metadata.Mode == PlanModeSync {
@@ -262,6 +283,27 @@ func (p *Planner) planExternalAIGatewayChildren(
 			"",
 			providerCreateDepsByName,
 			models,
+			plan,
+		); err != nil {
+			return err
+		}
+	}
+
+	mcpServers := p.resources.GetAIGatewayMCPServersForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayMCPServer,
+	) && len(mcpServers) > 0 {
+		if err := p.planAIGatewayMCPServerChanges(
+			ctx,
+			namespace,
+			desiredGateway.Ref,
+			desiredGateway.DisplayName,
+			gatewayID,
+			"",
+			mcpServers,
 			plan,
 		); err != nil {
 			return err

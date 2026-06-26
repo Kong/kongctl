@@ -43,3 +43,20 @@ ai_gateways:
         policies: []
         capabilities:
           - generate
+    mcp_servers:
+      - ref: customer-support-tools
+        type: conversion-only
+        name: customer-support-tools
+        display_name: "Customer Support Tools"
+        enabled: true
+        labels:
+          team: support
+          toolset: customer-profile
+        config:
+          url: https://support-tools.example.com
+        tools:
+          - name: lookup-customer
+            description: "Look up a customer profile"
+            method: GET
+            path: /customers/{customer_id}
+        policies: []
