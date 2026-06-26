@@ -87,6 +87,7 @@ steps:
                 action: CREATE
                 fields.visibility: "private"
                 fields.auto_approve_registrations: false
+                "length(fields.auth_strategy_ids)": 1
           - select: "plan.changes[?resource_ref=='api-nested-impl1'] | [0]"
             expect:
               fields:
@@ -343,6 +344,8 @@ steps:
               fields:
                 visibility: "public"
                 auto_approve_registrations: true
+                "length(auth_strategy_ids)": 1
+                "auth_strategy_ids[0] != null": true
 
   - name: 004-sync-delete
     inputOverlayDirs:
