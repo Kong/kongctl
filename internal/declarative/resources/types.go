@@ -19,6 +19,7 @@ const (
 	ResourceTypeAPI                                     ResourceType = "api"
 	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
 	ResourceTypeAIGatewayProvider                       ResourceType = "ai_gateway_provider"
+	ResourceTypeAIGatewayPolicy                         ResourceType = "ai_gateway_policy"
 	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
 	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
@@ -110,6 +111,7 @@ type ResourceSet struct {
 	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
 	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
 	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_providers,omitempty"                          json:"ai_gateway_providers,omitempty"`                   //nolint:lll
+	AIGatewayPolicies                 []AIGatewayPolicyResource                  `yaml:"ai_gateway_policies,omitempty"                           json:"ai_gateway_policies,omitempty"`                    //nolint:lll
 	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
 	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
@@ -349,6 +351,16 @@ func (rs *ResourceSet) GetAIGatewayProviderByRef(ref string) *AIGatewayProviderR
 	return nil
 }
 
+// GetAIGatewayPolicyByRef returns an AI Gateway Policy resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayPolicyByRef(ref string) *AIGatewayPolicyResource {
+	for i := range rs.AIGatewayPolicies {
+		if rs.AIGatewayPolicies[i].GetRef() == ref {
+			return &rs.AIGatewayPolicies[i]
+		}
+	}
+	return nil
+}
+
 // GetAIGatewayModelByRef returns an AI Gateway Model resource by its ref from any namespace.
 func (rs *ResourceSet) GetAIGatewayModelByRef(ref string) *AIGatewayModelResource {
 	for i := range rs.AIGatewayModels {
@@ -458,6 +470,25 @@ func (rs *ResourceSet) GetAIGatewayProvidersByNamespace(namespace string) []AIGa
 	for _, provider := range rs.AIGatewayProviders {
 		if _, ok := gatewayByRef[NormalizeResourceRef(provider.AIGateway)]; ok {
 			filtered = append(filtered, provider)
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayPoliciesByNamespace returns AI Gateway policy resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayPoliciesByNamespace(namespace string) []AIGatewayPolicyResource {
+	var filtered []AIGatewayPolicyResource
+	for _, policy := range rs.AIGatewayPolicies {
+		if gateway := rs.GetAIGatewayByRef(policy.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, policy)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, policy)
+			}
 		}
 	}
 	return filtered
@@ -1103,6 +1134,17 @@ func (rs *ResourceSet) GetAIGatewayProvidersForGateway(gatewayRef string) []AIGa
 		}
 	}
 	return providers
+}
+
+// GetAIGatewayPoliciesForGateway returns all AI Gateway Policies for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayPoliciesForGateway(gatewayRef string) []AIGatewayPolicyResource {
+	var policies []AIGatewayPolicyResource
+	for _, policy := range rs.AIGatewayPolicies {
+		if NormalizeResourceRef(policy.AIGateway) == gatewayRef {
+			policies = append(policies, policy)
+		}
+	}
+	return policies
 }
 
 // GetVirtualClustersForGateway returns all virtual clusters (nested + root-level) for a given gateway ref

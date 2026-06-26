@@ -2843,6 +2843,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		CatalogServiceAPI:       kkClient.GetCatalogServicesAPI(),
 		AIGatewayAPI:            kkClient.GetAIGatewayAPI(),
 		AIGatewayProvidersAPI:   kkClient.GetAIGatewayProvidersAPI(),
+		AIGatewayPoliciesAPI:    kkClient.GetAIGatewayPoliciesAPI(),
 		AIGatewayModelAPI:       kkClient.GetAIGatewayModelAPI(),
 		AIGatewayMCPServersAPI:  kkClient.GetAIGatewayMCPServersAPI(),
 		DashboardsAPI:           kkClient.GetDashboardsAPI(),

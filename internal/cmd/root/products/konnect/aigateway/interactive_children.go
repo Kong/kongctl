@@ -13,6 +13,7 @@ import (
 
 func init() {
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldProviders, loadAIGatewayProviders)
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldPolicies, loadAIGatewayPolicies)
 }
 
 func loadAIGatewayProviders(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -44,6 +45,37 @@ func loadAIGatewayProviders(_ context.Context, helper cmd.Helper, parent any) (t
 		return tableview.ChildView{}, err
 	}
 	return buildAIGatewayProviderChildView(providers), nil
+}
+
+func loadAIGatewayPolicies(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	policyAPI := sdk.GetAIGatewayPoliciesAPI()
+	if policyAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Policies client is not available")
+	}
+
+	policies, err := fetchAIGatewayPolicies(helper, policyAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayPolicyChildView(policies), nil
 }
 
 func aiGatewayIDFromParent(parent any) (string, error) {

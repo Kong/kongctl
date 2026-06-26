@@ -37,6 +37,7 @@ type ClientConfig struct {
 	CatalogServiceAPI       helpers.CatalogServicesAPI
 	AIGatewayAPI            helpers.AIGatewayAPI
 	AIGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
+	AIGatewayPoliciesAPI    helpers.AIGatewayPoliciesAPI
 	AIGatewayModelAPI       helpers.AIGatewayModelAPI
 	AIGatewayMCPServersAPI  helpers.AIGatewayMCPServersAPI
 	DashboardsAPI           helpers.DashboardsAPI
@@ -103,6 +104,7 @@ type Client struct {
 	catalogServiceAPI       helpers.CatalogServicesAPI
 	aiGatewayAPI            helpers.AIGatewayAPI
 	aiGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
+	aiGatewayPoliciesAPI    helpers.AIGatewayPoliciesAPI
 	aiGatewayModelAPI       helpers.AIGatewayModelAPI
 	aiGatewayMCPServersAPI  helpers.AIGatewayMCPServersAPI
 	dashboardsAPI           helpers.DashboardsAPI
@@ -170,6 +172,7 @@ func NewClient(config ClientConfig) *Client {
 		catalogServiceAPI:       config.CatalogServiceAPI,
 		aiGatewayAPI:            config.AIGatewayAPI,
 		aiGatewayProvidersAPI:   config.AIGatewayProvidersAPI,
+		aiGatewayPoliciesAPI:    config.AIGatewayPoliciesAPI,
 		aiGatewayModelAPI:       config.AIGatewayModelAPI,
 		aiGatewayMCPServersAPI:  config.AIGatewayMCPServersAPI,
 		dashboardsAPI:           config.DashboardsAPI,
@@ -272,6 +275,12 @@ type AIGatewayProvider struct {
 	CreatedAt        string
 	UpdatedAt        string
 	Raw              map[string]any
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayPolicy represents a Konnect AI Gateway Policy for internal use.
+type AIGatewayPolicy struct {
+	kkComps.AIGatewayPolicy
 	NormalizedLabels map[string]string
 }
 

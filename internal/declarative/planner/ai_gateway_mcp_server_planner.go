@@ -19,6 +19,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 	gatewayName string,
 	gatewayID string,
 	gatewayChangeID string,
+	policyCreateDepsByName map[string]string,
 	desired []resources.AIGatewayMCPServerResource,
 	plan *Plan,
 ) error {
@@ -31,7 +32,15 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 	)
 
 	if gatewayID == "" {
-		p.planAIGatewayMCPServerCreatesForNewGateway(namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan)
+		p.planAIGatewayMCPServerCreatesForNewGateway(
+			namespace,
+			gatewayRef,
+			gatewayName,
+			gatewayChangeID,
+			policyCreateDepsByName,
+			desired,
+			plan,
+		)
 		return nil
 	}
 
@@ -51,7 +60,8 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 		}
 
 		if !exists {
-			p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredServer, nil, plan)
+			dependsOn := aiGatewayMCPServerPolicyCreateDependencies(desiredServer, policyCreateDepsByName)
+			p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredServer, dependsOn, plan)
 			continue
 		}
 
@@ -61,7 +71,8 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 			return fmt.Errorf("failed to get AI Gateway MCP Server %s: %w", serverID, err)
 		}
 		if fullServer == nil {
-			p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredServer, nil, plan)
+			dependsOn := aiGatewayMCPServerPolicyCreateDependencies(desiredServer, policyCreateDepsByName)
+			p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredServer, dependsOn, plan)
 			continue
 		}
 
@@ -78,6 +89,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 				desiredServer,
 				updateFields,
 				changedFields,
+				aiGatewayMCPServerPolicyCreateDependencies(desiredServer, policyCreateDepsByName),
 				plan,
 			)
 		}
@@ -102,6 +114,7 @@ func (p *Planner) planAIGatewayMCPServerCreatesForNewGateway(
 	gatewayRef string,
 	gatewayName string,
 	gatewayChangeID string,
+	policyCreateDepsByName map[string]string,
 	servers []resources.AIGatewayMCPServerResource,
 	plan *Plan,
 ) {
@@ -110,7 +123,11 @@ func (p *Planner) planAIGatewayMCPServerCreatesForNewGateway(
 		dependsOn = []string{gatewayChangeID}
 	}
 	for _, server := range servers {
-		p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, "", server, dependsOn, plan)
+		serverDependsOn := append([]string{}, dependsOn...)
+		for _, dep := range aiGatewayMCPServerPolicyCreateDependencies(server, policyCreateDepsByName) {
+			serverDependsOn = appendDependsOn(serverDependsOn, dep)
+		}
+		p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, "", server, serverDependsOn, plan)
 	}
 }
 
@@ -162,6 +179,7 @@ func (p *Planner) planAIGatewayMCPServerUpdate(
 	server resources.AIGatewayMCPServerResource,
 	updateFields map[string]any,
 	changedFields map[string]FieldChange,
+	dependsOn []string,
 	plan *Plan,
 ) {
 	change := PlannedChange{
@@ -173,6 +191,7 @@ func (p *Planner) planAIGatewayMCPServerUpdate(
 		Fields:        updateFields,
 		ChangedFields: changedFields,
 		Namespace:     namespace,
+		DependsOn:     dependsOn,
 		Parent:        &ParentInfo{Ref: gatewayRef, ID: gatewayID},
 	}
 	plan.AddChange(change)
@@ -271,4 +290,15 @@ func aiGatewayMCPServerDesiredID(desired resources.AIGatewayMCPServerResource) s
 		return desired.Ref
 	}
 	return ""
+}
+
+func aiGatewayMCPServerPolicyCreateDependencies(
+	server resources.AIGatewayMCPServerResource,
+	policyCreateDepsByName map[string]string,
+) []string {
+	payload, err := server.MutablePayloadMap()
+	if err != nil {
+		return nil
+	}
+	return aiGatewayPolicyReferenceDependencies(payload, policyCreateDepsByName)
 }
