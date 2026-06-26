@@ -38,6 +38,12 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
+		key:          "ai_gateway_policies",
+		resourceType: resources.ResourceTypeAIGatewayPolicy,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "ai_gateway_models",
 		resourceType: resources.ResourceTypeAIGatewayModel,
 		parentKey:    resources.SchemaFieldAIGateway,
@@ -333,6 +339,11 @@ var aiGatewayChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
+		key:          "policies",
+		resourceType: resources.ResourceTypeAIGatewayPolicy,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "models",
 		resourceType: resources.ResourceTypeAIGatewayModel,
 		parentType:   resources.ResourceTypeAIGateway,
@@ -458,6 +469,9 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 	}
 	items, ok := asSlice(value)
 	if !ok || len(items) == 0 {
+		if entry.resourceType == resources.ResourceTypeAIGatewayPolicy {
+			return fmt.Errorf("%s cannot be empty because each policy must declare an ai_gateway parent", entry.key)
+		}
 		if entry.resourceType == resources.ResourceTypeAIGatewayModel {
 			return fmt.Errorf("%s cannot be empty because each model must declare an ai_gateway parent", entry.key)
 		}

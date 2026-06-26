@@ -25,6 +25,7 @@ type AIGatewayResource struct {
 	kkComps.CreateAIGatewayRequest
 	External   *ExternalBlock               `yaml:"_external,omitempty" json:"_external,omitempty"`
 	Providers  []AIGatewayProviderResource  `yaml:"providers,omitempty" json:"providers,omitempty"`
+	Policies   []AIGatewayPolicyResource    `yaml:"policies,omitempty" json:"policies,omitempty"`
 	Models     []AIGatewayModelResource     `yaml:"models,omitempty"    json:"models,omitempty"`
 	MCPServers []AIGatewayMCPServerResource `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
 }
@@ -47,6 +48,7 @@ type aiGatewayAlias struct {
 	ProxyURLs   []kkComps.AIGatewayProxyURL  `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
 	Labels      map[string]string            `json:"labels,omitempty"      yaml:"labels,omitempty"`
 	Providers   []AIGatewayProviderResource  `json:"providers,omitempty"   yaml:"providers,omitempty"`
+	Policies    []AIGatewayPolicyResource    `json:"policies,omitempty"    yaml:"policies,omitempty"`
 	Models      []AIGatewayModelResource     `json:"models,omitempty"      yaml:"models,omitempty"`
 	MCPServers  []AIGatewayMCPServerResource `json:"mcp_servers,omitempty" yaml:"mcp_servers,omitempty"`
 }
@@ -61,6 +63,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		ProxyURLs:   a.ProxyUrls,
 		Labels:      a.Labels,
 		Providers:   a.Providers,
+		Policies:    a.Policies,
 		Models:      a.Models,
 		MCPServers:  a.MCPServers,
 	}
@@ -78,6 +81,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		ProxyURLs   []kkComps.AIGatewayProxyURL  `yaml:"proxy_urls,omitempty"`
 		Labels      map[string]string            `yaml:"labels,omitempty"`
 		Providers   []AIGatewayProviderResource  `yaml:"providers,omitempty"`
+		Policies    []AIGatewayPolicyResource    `yaml:"policies,omitempty"`
 		Models      []AIGatewayModelResource     `yaml:"models,omitempty"`
 		MCPServers  []AIGatewayMCPServerResource `yaml:"mcp_servers,omitempty"`
 	}
@@ -97,6 +101,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Labels:      raw.Labels,
 	}
 	a.Providers = raw.Providers
+	a.Policies = raw.Policies
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
 
@@ -115,6 +120,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		ProxyURLs   []kkComps.AIGatewayProxyURL  `json:"proxy_urls,omitempty"`
 		Labels      map[string]string            `json:"labels,omitempty"`
 		Providers   []AIGatewayProviderResource  `json:"providers,omitempty"`
+		Policies    []AIGatewayPolicyResource    `json:"policies,omitempty"`
 		Models      []AIGatewayModelResource     `json:"models,omitempty"`
 		MCPServers  []AIGatewayMCPServerResource `json:"mcp_servers,omitempty"`
 	}
@@ -134,6 +140,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Labels:      raw.Labels,
 	}
 	a.Providers = raw.Providers
+	a.Policies = raw.Policies
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
 
@@ -192,6 +199,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	if a.DisplayName == "" {
 		a.DisplayName = a.Ref
 	}
+	for i := range a.Policies {
+		a.Policies[i].SetDefaults()
+	}
 	for i := range a.Models {
 		a.Models[i].SetDefaults()
 	}
@@ -239,6 +249,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			Additional: explainStringNode("value"),
 		}, false, false),
 		explainField("providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
+		explainField("policies", explainArrayOf(aiGatewayPolicyInlineExplainNode()), false, false),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 		explainField("mcp_servers", explainArrayOf(aiGatewayMCPServerInlineExplainNode()), false, false),
 	), nil
@@ -246,6 +257,14 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 
 func aiGatewayProviderInlineExplainNode() *ExplainNode {
 	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
+	if err != nil {
+		return explainObject()
+	}
+	return node
+}
+
+func aiGatewayPolicyInlineExplainNode() *ExplainNode {
+	node, err := aiGatewayPolicyExplainNode(ExplainBuildContext{})
 	if err != nil {
 		return explainObject()
 	}
