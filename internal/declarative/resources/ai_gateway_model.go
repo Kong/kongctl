@@ -257,6 +257,9 @@ func (a *AIGatewayModelResource) UnmarshalJSON(data []byte) error {
 	delete(raw, SchemaFieldRef)
 	delete(raw, SchemaFieldAIGateway)
 	delete(raw, "kongctl")
+	if err := normalizeAIGatewayModelPayloadAliases(raw); err != nil {
+		return err
+	}
 
 	payload, err := json.Marshal(raw)
 	if err != nil {
@@ -271,6 +274,83 @@ func (a *AIGatewayModelResource) UnmarshalJSON(data []byte) error {
 	a.AIGateway = meta.AIGateway
 	a.CreateAIGatewayModelRequest = req
 	return nil
+}
+
+func normalizeAIGatewayModelPayloadAliases(raw map[string]json.RawMessage) error {
+	if _, ok := raw["targets"]; ok {
+		delete(raw, "target_models")
+	} else if targets, ok := raw["target_models"]; ok {
+		raw["targets"] = targets
+		delete(raw, "target_models")
+	}
+
+	if err := normalizeAIGatewayModelAlias(raw); err != nil {
+		return err
+	}
+	return nil
+}
+
+func normalizeAIGatewayModelAlias(raw map[string]json.RawMessage) error {
+	name, ok, err := rawStringField(raw, "name")
+	if err != nil || !ok || name == "" {
+		return err
+	}
+
+	configRaw, ok := raw["config"]
+	if !ok || isJSONNull(configRaw) {
+		return nil
+	}
+	var config map[string]json.RawMessage
+	if err := json.Unmarshal(configRaw, &config); err != nil {
+		return fmt.Errorf("failed to decode AI Gateway model config: %w", err)
+	}
+
+	modelRaw, ok := config["model"]
+	if !ok || isJSONNull(modelRaw) {
+		modelRaw = []byte(`{}`)
+	}
+	var model map[string]json.RawMessage
+	if err := json.Unmarshal(modelRaw, &model); err != nil {
+		return fmt.Errorf("failed to decode AI Gateway model config.model: %w", err)
+	}
+	if _, ok := model["alias"]; ok {
+		return nil
+	}
+
+	alias, err := json.Marshal(name)
+	if err != nil {
+		return err
+	}
+	model["alias"] = alias
+
+	encodedModel, err := json.Marshal(model)
+	if err != nil {
+		return err
+	}
+	config["model"] = encodedModel
+
+	encodedConfig, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	raw["config"] = encodedConfig
+	return nil
+}
+
+func rawStringField(raw map[string]json.RawMessage, field string) (string, bool, error) {
+	valueRaw, ok := raw[field]
+	if !ok || isJSONNull(valueRaw) {
+		return "", ok, nil
+	}
+	var value string
+	if err := json.Unmarshal(valueRaw, &value); err != nil {
+		return "", true, fmt.Errorf("failed to decode AI Gateway model %s: %w", field, err)
+	}
+	return value, true, nil
+}
+
+func isJSONNull(raw json.RawMessage) bool {
+	return string(raw) == "null"
 }
 
 func AIGatewayModelID(model any) string {

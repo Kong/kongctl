@@ -41,9 +41,9 @@ func (c *aiGatewayModelCapturingClient) Do(req *http.Request) (*http.Response, e
 			"name": "support-gpt",
 			"display_name": "Support GPT",
 			"enabled": true,
-			"config": {"route": {}, "model": {}},
+			"config": {"route": {}, "model": {"alias": "support-gpt"}},
 			"formats": [{"type": "openai"}],
-			"target_models": [{
+			"targets": [{
 				"name": "gpt-4o-mini",
 				"provider": "shared-openai",
 				"config": {"type": "openai"}
@@ -66,18 +66,18 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 	}
 
 	formatType := kkComps.AIGatewayModelFormatTypeOpenai
-	targetConfig := kkComps.CreateAIGatewayTargetModelConfigOpenai(kkComps.AIGatewayTargetModelOpenaiConfig{})
+	targetConfig := kkComps.CreateAIGatewayTargetConfigOpenai(kkComps.AIGatewayTargetOpenaiConfig{})
 	req := kkComps.CreateCreateAIGatewayModelRequestModel(kkComps.AIGatewayModelModel{
 		DisplayName: "Support GPT",
 		Name:        "support-gpt",
-		Config: kkComps.AIGatewayModelConfig{
+		Config: kkComps.AIGatewayModelModelConfig{
 			Route: kkComps.AIGatewayRouteConfig{},
-			Model: kkComps.AIGatewayModelConfigModel{},
+			Model: kkComps.AIGatewayModelModelConfigModel{Alias: "support-gpt"},
 		},
 		Formats: []kkComps.AIGatewayModelFormat{
 			{Type: &formatType},
 		},
-		TargetModels: []kkComps.AIGatewayTargetModel{
+		Targets: []kkComps.AIGatewayTarget{
 			{
 				Name:     "gpt-4o-mini",
 				Provider: "shared-openai",
@@ -98,9 +98,19 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 
 	var requestBody map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(client.requestBody, &requestBody))
-	require.Contains(t, requestBody, "target_models")
 	require.Contains(t, requestBody, "targets")
-	require.JSONEq(t, string(requestBody["target_models"]), string(requestBody["targets"]))
+	require.NotContains(t, requestBody, "target_models")
+	require.JSONEq(
+		t,
+		`[{
+			"name":"gpt-4o-mini",
+			"provider":"shared-openai",
+			"config":{"type":"openai"},
+			"weight":100,
+			"allow_auth_override":false
+		}]`,
+		string(requestBody["targets"]),
+	)
 }
 
 func TestAddTargetsToAIGatewayModelRequestCopiesTargetModels(t *testing.T) {
