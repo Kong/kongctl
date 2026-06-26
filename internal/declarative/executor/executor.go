@@ -1210,40 +1210,46 @@ func (e *Executor) syncResolvedEventGatewayStaticKeyConfigRef(
 	change *planner.PlannedChange,
 ) error {
 	const fieldName = planner.FieldConfig + ".encryption_key.key." + planner.FieldID
-	ref, ok := change.References[fieldName]
-	if !ok {
-		return nil
-	}
+	for currentFieldName, ref := range change.References {
+		if currentFieldName != fieldName && !isEventGatewayEncryptFieldsStaticKeyRef(currentFieldName) {
+			continue
+		}
 
-	if unresolvedReferenceID(ref.ID) {
-		if e.client == nil {
-			return fmt.Errorf("state client not configured")
-		}
-		gatewayID, err := eventGatewayIDFromChange(change)
-		if err != nil {
-			return err
-		}
-		name := referenceLookupName(ref)
-		keys, err := e.client.ListEventGatewayStaticKeys(ctx, gatewayID)
-		if err != nil {
-			return fmt.Errorf("failed to resolve event gateway static key reference: %w", err)
-		}
-		for _, key := range keys {
-			if key.Name == name {
-				ref.ID = key.ID
-				change.References[fieldName] = ref
-				break
+		if unresolvedReferenceID(ref.ID) {
+			if e.client == nil {
+				return fmt.Errorf("state client not configured")
+			}
+			gatewayID, err := eventGatewayIDFromChange(change)
+			if err != nil {
+				return err
+			}
+			name := referenceLookupName(ref)
+			keys, err := e.client.ListEventGatewayStaticKeys(ctx, gatewayID)
+			if err != nil {
+				return fmt.Errorf("failed to resolve event gateway static key reference: %w", err)
+			}
+			for _, key := range keys {
+				if key.Name == name {
+					ref.ID = key.ID
+					change.References[currentFieldName] = ref
+					break
+				}
+			}
+			if unresolvedReferenceID(ref.ID) {
+				return fmt.Errorf("event gateway static key not found: ref=%s", ref.Ref)
 			}
 		}
-		if unresolvedReferenceID(ref.ID) {
-			return fmt.Errorf("event gateway static key not found: ref=%s", ref.Ref)
+
+		if change.Fields != nil {
+			setResolvedFieldValue(change.Fields, currentFieldName, ref.ID)
 		}
 	}
-
-	if change.Fields != nil {
-		setResolvedFieldValue(change.Fields, fieldName, ref.ID)
-	}
 	return nil
+}
+
+func isEventGatewayEncryptFieldsStaticKeyRef(fieldName string) bool {
+	return strings.HasPrefix(fieldName, planner.FieldConfig+".encrypt_fields.") &&
+		strings.HasSuffix(fieldName, ".encryption_key.key."+planner.FieldID)
 }
 
 func eventGatewayIDFromChange(change *planner.PlannedChange) (string, error) {

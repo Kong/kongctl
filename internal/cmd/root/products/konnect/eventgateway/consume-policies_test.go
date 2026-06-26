@@ -134,3 +134,35 @@ func TestConsumePolicyToRecordNilFields(t *testing.T) {
 	assert.Equal(t, valueNA, record.Description)
 	assert.Equal(t, valueNA, record.Enabled)
 }
+
+func TestConsumePolicyDetailView(t *testing.T) {
+	assert.Empty(t, consumePolicyWithConfigDetailView(nil))
+
+	name := "Test Policy"
+	description := "Test Description"
+	enabled := true
+	condition := "true"
+	parentPolicyID := "parent-policy-id"
+	policy := &consumePolicyWithConfig{
+		ID:             "test-id",
+		Type:           "decrypt_fields",
+		Name:           &name,
+		Description:    &description,
+		Enabled:        &enabled,
+		Condition:      &condition,
+		ParentPolicyID: &parentPolicyID,
+		Config:         map[string]any{"key": "value"},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+
+	detail := consumePolicyWithConfigDetailView(policy)
+
+	assert.Contains(t, detail, "id: test-id")
+	assert.Contains(t, detail, "type: decrypt_fields")
+	assert.Contains(t, detail, "name: Test Policy")
+	assert.Contains(t, detail, "description: Test Description")
+	assert.Contains(t, detail, "enabled: true")
+	assert.Contains(t, detail, "condition: true")
+	assert.Contains(t, detail, "parent_policy_id: parent-policy-id")
+}

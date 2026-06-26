@@ -160,6 +160,95 @@ func TestHydrateKnownReferenceIDsUpdatesNestedField(t *testing.T) {
 	assert.NotContains(t, change.Fields, "config.encryption_key.key.id")
 }
 
+func TestHydrateKnownReferenceIDsUpdatesEncryptFieldsStaticKey(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1-c-static-key"] = "static-key-id"
+
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "1-c-static-key",
+		ResourceType: planner.ResourceTypeEventGatewayStaticKey,
+		ResourceRef:  "static-key",
+		Action:       planner.ActionCreate,
+	})
+
+	change := planner.PlannedChange{
+		ID:           "2-c-produce-policy",
+		ResourceType: planner.ResourceTypeEventGatewayProducePolicy,
+		ResourceRef:  "produce-policy",
+		Action:       planner.ActionCreate,
+		DependsOn:    []string{"1-c-static-key"},
+		Fields: map[string]any{
+			planner.FieldConfig: map[string]any{
+				"encrypt_fields": []any{
+					map[string]any{
+						"encryption_key": map[string]any{
+							"key": map[string]any{
+								planner.FieldID: "__REF__:static-key#id",
+							},
+						},
+					},
+				},
+			},
+		},
+		References: map[string]planner.ReferenceInfo{
+			"config.encrypt_fields.0.encryption_key.key.id": {
+				Ref: "__REF__:static-key#id",
+				ID:  resources.UnknownReferenceID,
+			},
+		},
+	}
+	plan.AddChange(change)
+
+	exec.hydrateKnownReferenceIDs(&change, plan)
+
+	ref := change.References["config.encrypt_fields.0.encryption_key.key.id"]
+	assert.Equal(t, "static-key-id", ref.ID)
+	config := change.Fields[planner.FieldConfig].(map[string]any)
+	encryptFields := config["encrypt_fields"].([]any)
+	firstField := encryptFields[0].(map[string]any)
+	encryptionKey := firstField["encryption_key"].(map[string]any)
+	key := encryptionKey["key"].(map[string]any)
+	assert.Equal(t, "static-key-id", key[planner.FieldID])
+}
+
+func TestHydrateKnownReferenceIDsUpdatesPolicyParentID(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1-c-schema-validation"] = "schema-validation-id"
+
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "1-c-schema-validation",
+		ResourceType: planner.ResourceTypeEventGatewayProducePolicy,
+		ResourceRef:  "schema-validation",
+		Action:       planner.ActionCreate,
+	})
+
+	change := planner.PlannedChange{
+		ID:           "2-c-encrypt-fields",
+		ResourceType: planner.ResourceTypeEventGatewayProducePolicy,
+		ResourceRef:  "encrypt-fields",
+		Action:       planner.ActionCreate,
+		DependsOn:    []string{"1-c-schema-validation"},
+		Fields: map[string]any{
+			planner.FieldParentPolicyID: "__REF__:schema-validation#id",
+		},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldParentPolicyID: {
+				Ref: "__REF__:schema-validation#id",
+				ID:  resources.UnknownReferenceID,
+			},
+		},
+	}
+	plan.AddChange(change)
+
+	exec.hydrateKnownReferenceIDs(&change, plan)
+
+	ref := change.References[planner.FieldParentPolicyID]
+	assert.Equal(t, "schema-validation-id", ref.ID)
+	assert.Equal(t, "schema-validation-id", change.Fields[planner.FieldParentPolicyID])
+}
+
 func TestHydrateKnownReferenceIDsAppliesResolvedNestedField(t *testing.T) {
 	exec := New(nil, nil, false)
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)

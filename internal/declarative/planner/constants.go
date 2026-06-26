@@ -98,6 +98,7 @@ const (
 	FieldParentDocumentID             = "parent_document_id"
 	FieldParentPageID                 = "parent_page_id"
 	FieldParentPath                   = "parent_path"
+	FieldParentPolicyID               = "parent_policy_id"
 	FieldPortalID                     = "portal_id"
 	FieldRoleName                     = "role_name"
 	FieldService                      = "service"
