@@ -9,6 +9,19 @@ ai_gateways:
     labels:
       owner: platform
       lifecycle: dev
+    policies:
+      - ref: mask-sensitive-data
+        name: mask-sensitive-data
+        type: ai-sanitizer
+        display_name: "Mask Sensitive Data"
+        enabled: true
+        global: false
+        labels:
+          team: support
+          phase: create
+        config:
+          anonymize:
+            - email
     mcp_servers:
       - ref: support-tools
         type: conversion-only
@@ -25,4 +38,5 @@ ai_gateways:
             description: "Look up an updated customer profile"
             method: GET
             path: /customers/{customer_id}
-        policies: []
+        policies:
+          - mask-sensitive-data
