@@ -698,6 +698,88 @@ func TestResolveReferences_EventGatewayProducePolicyNestedReferencesCreatedInPla
 	assert.Equal(t, "[unknown]", staticKeyRef.ID)
 }
 
+func TestResolveReferences_EventGatewayProducePolicyParentPolicyCreatedInPlan(t *testing.T) {
+	ctx := context.Background()
+	client := state.NewClient(state.ClientConfig{})
+	resolver := NewReferenceResolver(client, nil)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-produce-schema-validation",
+			ResourceType: ResourceTypeEventGatewayProducePolicy,
+			ResourceRef:  "produce-schema-validation",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldType: "schema_validation",
+				FieldName: "produce-schema-validation",
+			},
+		},
+		{
+			ID:           "2-c-produce-encrypt-fields",
+			ResourceType: ResourceTypeEventGatewayProducePolicy,
+			ResourceRef:  "produce-encrypt-fields",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldType:           "encrypt_fields",
+				FieldName:           "produce-encrypt-fields",
+				FieldParentPolicyID: "__REF__:produce-schema-validation#id",
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Empty(t, result.Errors)
+
+	policyRefs, ok := result.ChangeReferences["2-c-produce-encrypt-fields"]
+	require.True(t, ok, "expected produce policy references")
+	parentRef, ok := policyRefs[FieldParentPolicyID]
+	require.True(t, ok, "expected parent policy reference")
+	assert.Equal(t, "__REF__:produce-schema-validation#id", parentRef.Ref)
+	assert.Equal(t, declresources.UnknownReferenceID, parentRef.ID)
+}
+
+func TestResolveReferences_EventGatewayConsumePolicyParentPolicyCreatedInPlan(t *testing.T) {
+	ctx := context.Background()
+	client := state.NewClient(state.ClientConfig{})
+	resolver := NewReferenceResolver(client, nil)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-consume-schema-validation",
+			ResourceType: ResourceTypeEventGatewayConsumePolicy,
+			ResourceRef:  "consume-schema-validation",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldType: "schema_validation",
+				FieldName: "consume-schema-validation",
+			},
+		},
+		{
+			ID:           "2-c-consume-decrypt-fields",
+			ResourceType: ResourceTypeEventGatewayConsumePolicy,
+			ResourceRef:  "consume-decrypt-fields",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldType:           "decrypt_fields",
+				FieldName:           "consume-decrypt-fields",
+				FieldParentPolicyID: "__REF__:consume-schema-validation#id",
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Empty(t, result.Errors)
+
+	policyRefs, ok := result.ChangeReferences["2-c-consume-decrypt-fields"]
+	require.True(t, ok, "expected consume policy references")
+	parentRef, ok := policyRefs[FieldParentPolicyID]
+	require.True(t, ok, "expected parent policy reference")
+	assert.Equal(t, "__REF__:consume-schema-validation#id", parentRef.Ref)
+	assert.Equal(t, declresources.UnknownReferenceID, parentRef.ID)
+}
+
 func TestResolveReferences_EventGatewayProducePolicyNestedSchemaRegistryReferenceExistingNestedResource(t *testing.T) {
 	ctx := context.Background()
 	mockCPAPI := helpers.NewMockControlPlaneAPI(t)

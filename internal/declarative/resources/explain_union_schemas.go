@@ -615,7 +615,19 @@ func eventGatewayProducePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 	if err != nil {
 		return nil, err
 	}
-	return eventGatewayVirtualClusterPolicyUnion(modifyHeaders, schemaValidation, encrypt), nil
+	encryptFields, err := explainVariantNode[kkComps.EventGatewayParsedRecordEncryptFieldsPolicyCreate](
+		"type",
+		"encrypt_fields",
+	)
+	if err != nil {
+		return nil, err
+	}
+	explainReplacePath(
+		encryptFields,
+		[]string{"parent_policy_id"},
+		explainRefField("parent_policy_id", ResourceTypeEventGatewayProducePolicy, true).Node,
+	)
+	return eventGatewayVirtualClusterPolicyUnion(modifyHeaders, schemaValidation, encrypt, encryptFields), nil
 }
 
 func eventGatewayConsumePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
@@ -638,7 +650,19 @@ func eventGatewayConsumePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 	if err != nil {
 		return nil, err
 	}
-	return eventGatewayVirtualClusterPolicyUnion(modifyHeaders, schemaValidation, decrypt, skipRecord), nil
+	decryptFields, err := explainVariantNode[kkComps.EventGatewayParsedRecordDecryptFieldsPolicyCreate](
+		"type",
+		"decrypt_fields",
+	)
+	if err != nil {
+		return nil, err
+	}
+	explainReplacePath(
+		decryptFields,
+		[]string{"parent_policy_id"},
+		explainRefField("parent_policy_id", ResourceTypeEventGatewayConsumePolicy, true).Node,
+	)
+	return eventGatewayVirtualClusterPolicyUnion(modifyHeaders, schemaValidation, decrypt, skipRecord, decryptFields), nil
 }
 
 func eventGatewayVirtualClusterPolicyUnion(branches ...*ExplainNode) *ExplainNode {

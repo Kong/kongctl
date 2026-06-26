@@ -6571,6 +6571,10 @@ func extractProducePolicyCreateName(req kkComps.EventGatewayProducePolicyCreate)
 	if req.EventGatewayEncryptPolicy != nil && req.EventGatewayEncryptPolicy.Name != nil {
 		return *req.EventGatewayEncryptPolicy.Name
 	}
+	if req.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil &&
+		req.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Name != nil {
+		return *req.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Name
+	}
 	return ""
 }
 
@@ -6585,6 +6589,10 @@ func extractProducePolicyUpdateName(req kkComps.EventGatewayProducePolicyUpdate)
 	}
 	if req.EventGatewayEncryptPolicy != nil && req.EventGatewayEncryptPolicy.Name != nil {
 		return *req.EventGatewayEncryptPolicy.Name
+	}
+	if req.EventGatewayParsedRecordEncryptFieldsPolicy != nil &&
+		req.EventGatewayParsedRecordEncryptFieldsPolicy.Name != nil {
+		return *req.EventGatewayParsedRecordEncryptFieldsPolicy.Name
 	}
 	return ""
 }
@@ -6712,8 +6720,10 @@ func (c *Client) CreateEventGatewayConsumePolicy(
 
 	resp, err := c.eventGatewayConsumePolicyAPI.CreateEventGatewayVirtualClusterConsumePolicy(ctx, createReq)
 	if err != nil {
+		name := extractConsumePolicyCreateName(req)
 		return "", WrapAPIError(err, "create event gateway consume policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
+			ResourceName: name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -6743,8 +6753,10 @@ func (c *Client) UpdateEventGatewayConsumePolicy(
 
 	resp, err := c.eventGatewayConsumePolicyAPI.UpdateEventGatewayVirtualClusterConsumePolicy(ctx, updateReq)
 	if err != nil {
+		name := extractConsumePolicyUpdateName(req)
 		return "", WrapAPIError(err, "update event gateway consume policy", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayConsumePolicy),
+			ResourceName: name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -6770,6 +6782,50 @@ func (c *Client) DeleteEventGatewayConsumePolicy(
 		return WrapAPIError(err, "delete event gateway consume policy", nil)
 	}
 	return nil
+}
+
+// extractConsumePolicyCreateName extracts the policy name from the union create type.
+func extractConsumePolicyCreateName(req kkComps.EventGatewayConsumePolicyCreate) string {
+	if req.EventGatewayModifyHeadersPolicyCreate != nil && req.EventGatewayModifyHeadersPolicyCreate.Name != nil {
+		return *req.EventGatewayModifyHeadersPolicyCreate.Name
+	}
+	if req.EventGatewayConsumeSchemaValidationPolicy != nil &&
+		req.EventGatewayConsumeSchemaValidationPolicy.Name != nil {
+		return *req.EventGatewayConsumeSchemaValidationPolicy.Name
+	}
+	if req.EventGatewayDecryptPolicy != nil && req.EventGatewayDecryptPolicy.Name != nil {
+		return *req.EventGatewayDecryptPolicy.Name
+	}
+	if req.EventGatewaySkipRecordPolicyCreate != nil && req.EventGatewaySkipRecordPolicyCreate.Name != nil {
+		return *req.EventGatewaySkipRecordPolicyCreate.Name
+	}
+	if req.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil &&
+		req.EventGatewayParsedRecordDecryptFieldsPolicyCreate.Name != nil {
+		return *req.EventGatewayParsedRecordDecryptFieldsPolicyCreate.Name
+	}
+	return ""
+}
+
+// extractConsumePolicyUpdateName extracts the policy name from the union update type.
+func extractConsumePolicyUpdateName(req kkComps.EventGatewayConsumePolicyUpdate) string {
+	if req.EventGatewayModifyHeadersPolicy != nil && req.EventGatewayModifyHeadersPolicy.Name != nil {
+		return *req.EventGatewayModifyHeadersPolicy.Name
+	}
+	if req.EventGatewayConsumeSchemaValidationPolicy != nil &&
+		req.EventGatewayConsumeSchemaValidationPolicy.Name != nil {
+		return *req.EventGatewayConsumeSchemaValidationPolicy.Name
+	}
+	if req.EventGatewayDecryptPolicy != nil && req.EventGatewayDecryptPolicy.Name != nil {
+		return *req.EventGatewayDecryptPolicy.Name
+	}
+	if req.EventGatewaySkipRecordPolicy != nil && req.EventGatewaySkipRecordPolicy.Name != nil {
+		return *req.EventGatewaySkipRecordPolicy.Name
+	}
+	if req.EventGatewayParsedRecordDecryptFieldsPolicy != nil &&
+		req.EventGatewayParsedRecordDecryptFieldsPolicy.Name != nil {
+		return *req.EventGatewayParsedRecordDecryptFieldsPolicy.Name
+	}
+	return ""
 }
 
 func (c *Client) GetEventGatewayConsumePolicy(

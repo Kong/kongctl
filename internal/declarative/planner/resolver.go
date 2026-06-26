@@ -230,6 +230,14 @@ func (r *ReferenceResolver) getResourceTypeForChangeField(change PlannedChange, 
 			return string(resourceType)
 		}
 	}
+	if fieldName == FieldParentPolicyID {
+		switch change.ResourceType {
+		case ResourceTypeEventGatewayProducePolicy:
+			return ResourceTypeEventGatewayProducePolicy
+		case ResourceTypeEventGatewayConsumePolicy:
+			return ResourceTypeEventGatewayConsumePolicy
+		}
+	}
 	return r.getResourceTypeForField(fieldName)
 }
 
@@ -335,6 +343,48 @@ func (r *ReferenceResolver) getEventGatewayChildResourceByTypeAndRef(
 					staticKeyCopy := staticKey
 					staticKeyCopy.EventGateway = gateway.Ref
 					return &staticKeyCopy, true
+				}
+			}
+		case ResourceTypeEventGatewayProducePolicy:
+			for _, virtualCluster := range gateway.VirtualClusters {
+				for _, policy := range virtualCluster.ProducePolicies {
+					if policy.Ref == ref {
+						policyCopy := policy
+						policyCopy.EventGateway = gateway.Ref
+						policyCopy.VirtualCluster = virtualCluster.Ref
+						return &policyCopy, true
+					}
+				}
+			}
+		case ResourceTypeEventGatewayConsumePolicy:
+			for _, virtualCluster := range gateway.VirtualClusters {
+				for _, policy := range virtualCluster.ConsumePolicies {
+					if policy.Ref == ref {
+						policyCopy := policy
+						policyCopy.EventGateway = gateway.Ref
+						policyCopy.VirtualCluster = virtualCluster.Ref
+						return &policyCopy, true
+					}
+				}
+			}
+		}
+	}
+	for _, virtualCluster := range r.resources.EventGatewayVirtualClusters {
+		switch resourceType {
+		case ResourceTypeEventGatewayProducePolicy:
+			for _, policy := range virtualCluster.ProducePolicies {
+				if policy.Ref == ref {
+					policyCopy := policy
+					policyCopy.VirtualCluster = virtualCluster.Ref
+					return &policyCopy, true
+				}
+			}
+		case ResourceTypeEventGatewayConsumePolicy:
+			for _, policy := range virtualCluster.ConsumePolicies {
+				if policy.Ref == ref {
+					policyCopy := policy
+					policyCopy.VirtualCluster = virtualCluster.Ref
+					return &policyCopy, true
 				}
 			}
 		}

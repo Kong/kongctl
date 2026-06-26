@@ -418,6 +418,56 @@ Additional nested Event Gateway resources include `schema_registries`,
 `static_keys`, `tls_trust_bundles`, `data_plane_certificates`,
 `cluster_policies`, `produce_policies`, and `consume_policies`.
 
+Produce policies support `modify_headers`, `schema_validation`, `encrypt`, and
+`encrypt_fields`. Consume policies support `modify_headers`,
+`schema_validation`, `decrypt`, `skip_record`, and `decrypt_fields`.
+Field-level encryption policy types require Event Gateway runtime `1.2` or
+newer.
+
+`encrypt_fields` policies must be children of a produce `schema_validation`
+policy. `decrypt_fields` policies must be children of a consume
+`schema_validation` policy. Use the API field name `parent_policy_id` with a
+declarative `!ref` so the planner can order the schema validation parent before
+the field-level policy and inject the resolved ID during apply.
+
+```yaml
+produce_policies:
+  - ref: produce-schema-validation
+    name: produce-schema-validation
+    type: schema_validation
+    config:
+      type: json
+  - ref: produce-encrypt-fields
+    name: produce-encrypt-fields
+    type: encrypt_fields
+    parent_policy_id: !ref produce-schema-validation#id
+    config:
+      failure_mode: reject
+      encrypt_fields:
+        - paths: $.customer.ssn
+          encryption_key:
+            type: static
+            key:
+              id: !ref default-static-key#id
+
+consume_policies:
+  - ref: consume-schema-validation
+    name: consume-schema-validation
+    type: schema_validation
+    config:
+      type: json
+  - ref: consume-decrypt-fields
+    name: consume-decrypt-fields
+    type: decrypt_fields
+    parent_policy_id: !ref consume-schema-validation#id
+    config:
+      failure_mode: error
+      key_sources:
+        - type: static
+      decrypt_fields:
+        paths: $.customer.ssn
+```
+
 ## Organization
 
 [API Specification](https://developer.konghq.com/api/konnect/identity/v3/#/)

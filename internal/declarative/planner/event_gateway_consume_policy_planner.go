@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"reflect"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // planEventGatewayConsumePolicyChanges plans changes for Event Gateway Consume Policies
@@ -45,10 +47,9 @@ func (p *Planner) planEventGatewayConsumePolicyChanges(
 	}
 
 	// Virtual cluster doesn't exist yet: plan creates only, with dependency on virtual cluster creation
-	p.planConsumePolicyCreatesForNewVirtualCluster(
+	return p.planConsumePolicyCreatesForNewVirtualCluster(
 		namespace, gatewayRef, virtualClusterRef, virtualClusterName, virtualClusterChangeID, desired, plan,
 	)
-	return nil
 }
 
 // planConsumePolicyChangesForExistingVirtualCluster handles full diff for consume policies
@@ -92,6 +93,11 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 		}
 	}
 
+	desired, err = p.prepareConsumePolicyParentRefs(desired, currentByName)
+	if err != nil {
+		return err
+	}
+
 	// 3. Compare desired vs current
 	desiredNames := make(map[string]bool)
 	for _, desiredPolicy := range desired {
@@ -117,16 +123,33 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 
 			needsUpdate, updateFields, changedFields := p.shouldUpdateConsumePolicy(current, desiredPolicy)
 			if needsUpdate {
-				p.logger.Debug(
-					"Planning consume policy UPDATE",
-					"policy_name", policyName,
-					"policy_id", current.ID,
-					"changed_fields", changedFields,
-				)
-				p.planConsumePolicyUpdate(
-					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
-					current.ID, desiredPolicy, updateFields, changedFields, plan,
-				)
+				if consumePolicyRequiresRecreate(changedFields) {
+					p.logger.Debug(
+						"Planning consume policy DELETE+CREATE due to immutable field change",
+						"policy_name", policyName,
+						"policy_id", current.ID,
+						"changed_fields", changedFields,
+					)
+					deleteID := p.planConsumePolicyDelete(
+						gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+						current.ID, policyName, plan,
+					)
+					p.planConsumePolicyCreate(
+						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
+						desiredPolicy, []string{deleteID}, plan,
+					)
+				} else {
+					p.logger.Debug(
+						"Planning consume policy UPDATE",
+						"policy_name", policyName,
+						"policy_id", current.ID,
+						"changed_fields", changedFields,
+					)
+					p.planConsumePolicyUpdate(
+						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+						current.ID, desiredPolicy, updateFields, changedFields, plan,
+					)
+				}
 			}
 		}
 	}
@@ -161,13 +184,18 @@ func (p *Planner) planConsumePolicyCreatesForNewVirtualCluster(
 	virtualClusterChangeID string,
 	policies []resources.EventGatewayConsumePolicyResource,
 	plan *Plan,
-) {
+) error {
 	p.logger.Debug(
 		"Planning consume policy creates for new virtual cluster",
 		"virtual_cluster_ref", virtualClusterRef,
 		"virtual_cluster_change_id", virtualClusterChangeID,
 		"policy_count", len(policies),
 	)
+
+	policies, err := p.prepareConsumePolicyParentRefs(policies, nil)
+	if err != nil {
+		return err
+	}
 
 	var dependsOn []string
 	if virtualClusterChangeID != "" {
@@ -180,6 +208,65 @@ func (p *Planner) planConsumePolicyCreatesForNewVirtualCluster(
 			policy, dependsOn, plan,
 		)
 	}
+	return nil
+}
+
+func (p *Planner) prepareConsumePolicyParentRefs(
+	policies []resources.EventGatewayConsumePolicyResource,
+	currentByName map[string]state.EventGatewayConsumePolicyInfo,
+) ([]resources.EventGatewayConsumePolicyResource, error) {
+	if len(policies) == 0 {
+		return policies, nil
+	}
+
+	byRef := make(map[string]resources.EventGatewayConsumePolicyResource, len(policies))
+	for _, policy := range policies {
+		byRef[policy.Ref] = policy
+	}
+
+	prepared := make([]resources.EventGatewayConsumePolicyResource, len(policies))
+	copy(prepared, policies)
+
+	for i, policy := range prepared {
+		parentPolicyID := consumePolicyParentPolicyID(policy)
+		if parentPolicyID == "" || !tags.IsRefPlaceholder(parentPolicyID) {
+			continue
+		}
+
+		targetRef := referenceTargetRef(parentPolicyID)
+		parentPolicy, ok := byRef[targetRef]
+		if !ok {
+			return nil, fmt.Errorf(
+				"consume policy %q parent_policy_id references unknown policy ref %q",
+				policy.GetMoniker(),
+				targetRef,
+			)
+		}
+		if !consumePolicyIsSchemaValidation(parentPolicy) {
+			return nil, fmt.Errorf(
+				"consume policy %q parent_policy_id must reference a schema_validation consume policy, got %q",
+				policy.GetMoniker(),
+				consumePolicyType(parentPolicy),
+			)
+		}
+
+		if current, ok := currentByName[parentPolicy.GetMoniker()]; ok && current.ID != "" &&
+			current.Type == string(kkComps.EventGatewayConsumePolicyCreateTypeSchemaValidation) {
+			prepared[i] = consumePolicyWithParentPolicyID(policy, current.ID)
+		}
+	}
+
+	return prepared, nil
+}
+
+func consumePolicyRequiresRecreate(changedFields map[string]FieldChange) bool {
+	if _, typeChanged := changedFields[FieldType]; typeChanged {
+		return true
+	}
+	if _, parentPolicyChanged := changedFields[FieldParentPolicyID]; parentPolicyChanged {
+		return true
+	}
+	return false
 }
 
 // planConsumePolicyCreate plans a CREATE change for a consume policy.
@@ -226,6 +313,7 @@ func (p *Planner) planConsumePolicyCreate(
 			},
 		},
 	}
+	p.addConsumePolicyParentPolicyReference(&change)
 
 	p.logger.Debug(
 		"Enqueuing consume policy CREATE",
@@ -278,6 +366,7 @@ func (p *Planner) planConsumePolicyUpdate(
 			},
 		},
 	}
+	p.addConsumePolicyParentPolicyReference(&change)
 
 	p.logger.Debug(
 		"Enqueuing consume policy UPDATE",
@@ -286,6 +375,35 @@ func (p *Planner) planConsumePolicyUpdate(
 		"policy_id", policyID,
 	)
 	plan.AddChange(change)
+}
+
+func (p *Planner) addConsumePolicyParentPolicyReference(change *PlannedChange) {
+	if change == nil || change.Fields == nil {
+		return
+	}
+
+	parentPolicyID, ok := change.Fields[FieldParentPolicyID].(string)
+	if !ok || !tags.IsRefPlaceholder(parentPolicyID) {
+		return
+	}
+
+	refInfo := ReferenceInfo{
+		Ref: parentPolicyID,
+		ID:  resources.UnknownReferenceID,
+	}
+	targetRef := referenceTargetRef(parentPolicyID)
+	if p.resolver != nil {
+		if resource, exists := p.resolver.getResourceByTypeAndRef(ResourceTypeEventGatewayConsumePolicy, targetRef); exists {
+			if moniker := resource.GetMoniker(); moniker != "" {
+				refInfo.LookupFields = map[string]string{FieldName: moniker}
+			}
+		}
+	}
+
+	if change.References == nil {
+		change.References = make(map[string]ReferenceInfo)
+	}
+	change.References[FieldParentPolicyID] = refInfo
 }
 
 // planConsumePolicyDelete plans a DELETE change for a consume policy.
@@ -297,7 +415,7 @@ func (p *Planner) planConsumePolicyDelete(
 	policyID string,
 	policyName string,
 	plan *Plan,
-) {
+) string {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypeEventGatewayConsumePolicy, policyName),
 		ResourceType: ResourceTypeEventGatewayConsumePolicy,
@@ -326,6 +444,7 @@ func (p *Planner) planConsumePolicyDelete(
 		"policy_id", policyID,
 	)
 	plan.AddChange(change)
+	return change.ID
 }
 
 // consumePolicyToFields converts a consume policy resource to a fields map
@@ -430,6 +549,49 @@ func (p *Planner) extractConsumePolicyConfig(
 	return nil
 }
 
+func consumePolicyType(policy resources.EventGatewayConsumePolicyResource) string {
+	if policy.EventGatewayModifyHeadersPolicyCreate != nil {
+		return policy.EventGatewayModifyHeadersPolicyCreate.GetType()
+	}
+	if policy.EventGatewayConsumeSchemaValidationPolicy != nil {
+		return policy.EventGatewayConsumeSchemaValidationPolicy.GetType()
+	}
+	if policy.EventGatewayDecryptPolicy != nil {
+		return policy.EventGatewayDecryptPolicy.GetType()
+	}
+	if policy.EventGatewaySkipRecordPolicyCreate != nil {
+		return policy.EventGatewaySkipRecordPolicyCreate.GetType()
+	}
+	if policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil {
+		return policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate.GetType()
+	}
+	return ""
+}
+
+func consumePolicyIsSchemaValidation(policy resources.EventGatewayConsumePolicyResource) bool {
+	return policy.EventGatewayConsumeSchemaValidationPolicy != nil
+}
+
+func consumePolicyParentPolicyID(policy resources.EventGatewayConsumePolicyResource) string {
+	if policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate == nil {
+		return ""
+	}
+	return policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate.ParentPolicyID
+}
+
+func consumePolicyWithParentPolicyID(
+	policy resources.EventGatewayConsumePolicyResource,
+	parentPolicyID string,
+) resources.EventGatewayConsumePolicyResource {
+	if policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate == nil {
+		return policy
+	}
+	variant := *policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate
+	variant.ParentPolicyID = parentPolicyID
+	policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate = &variant
+	return policy
+}
+
 // shouldUpdateConsumePolicy compares current and desired consume policy state.
 func (p *Planner) shouldUpdateConsumePolicy(
 	current state.EventGatewayConsumePolicyInfo,
@@ -437,6 +599,26 @@ func (p *Planner) shouldUpdateConsumePolicy(
 ) (bool, map[string]any, map[string]FieldChange) {
 	var needsUpdate bool
 	changes := make(map[string]FieldChange)
+
+	// Type changes are not supported by the API and require a DELETE+CREATE.
+	currentType := current.Type
+	desiredType := consumePolicyType(desired)
+	if currentType != desiredType {
+		needsUpdate = true
+		changes[FieldType] = FieldChange{Old: currentType, New: desiredType}
+	}
+
+	desiredParentPolicyID := consumePolicyParentPolicyID(desired)
+	if desiredParentPolicyID != "" {
+		currentParentPolicyID := ""
+		if current.ParentPolicyID != nil {
+			currentParentPolicyID = *current.ParentPolicyID
+		}
+		if currentParentPolicyID != desiredParentPolicyID {
+			needsUpdate = true
+			changes[FieldParentPolicyID] = FieldChange{Old: currentParentPolicyID, New: desiredParentPolicyID}
+		}
+	}
 
 	// Compare name
 	desiredName := desired.GetMoniker()

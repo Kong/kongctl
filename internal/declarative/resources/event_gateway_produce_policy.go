@@ -22,7 +22,7 @@ func init() {
 
 // EventGatewayProducePolicyResource represents a produce policy in declarative configuration.
 // The SDK represents produce policies as a union type (EventGatewayProducePolicyCreate)
-// with variants: modify_headers, schema_validation, and encrypt.
+// with variants: modify_headers, schema_validation, encrypt, and encrypt_fields.
 type EventGatewayProducePolicyResource struct {
 	kkComps.EventGatewayProducePolicyCreate `yaml:",inline" json:",inline"`
 	Ref                                     string `yaml:"ref"                            json:"ref"`
@@ -52,6 +52,10 @@ func (e EventGatewayProducePolicyResource) GetMoniker() string {
 	}
 	if e.EventGatewayEncryptPolicy != nil && e.EventGatewayEncryptPolicy.Name != nil {
 		return *e.EventGatewayEncryptPolicy.Name
+	}
+	if e.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil &&
+		e.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Name != nil {
+		return *e.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Name
 	}
 	return e.Ref
 }
@@ -85,13 +89,17 @@ func (e EventGatewayProducePolicyResource) Validate() error {
 	if e.EventGatewayEncryptPolicy != nil {
 		variantCount++
 	}
+	if e.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil {
+		variantCount++
+	}
 
 	if variantCount == 0 {
 		return fmt.Errorf(
-			"produce policy must specify one of: '%s', '%s', or '%s' type",
+			"produce policy must specify one of: '%s', '%s', '%s', or '%s' type",
 			kkComps.EventGatewayProducePolicyCreateTypeModifyHeaders,
 			kkComps.EventGatewayProducePolicyCreateTypeSchemaValidation,
 			kkComps.EventGatewayProducePolicyCreateTypeEncrypt,
+			kkComps.EventGatewayProducePolicyCreateTypeEncryptFields,
 		)
 	}
 	if variantCount > 1 {
@@ -178,7 +186,7 @@ func (e EventGatewayProducePolicyResource) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON handles the union type correctly.
 // It rejects kongctl metadata and delegates to the SDK union type for the policy body.
 // The SDK union type requires a "type" discriminator field to determine which variant
-// to use. Supported types: modify_headers, schema_validation, encrypt.
+// to use. Supported types: modify_headers, schema_validation, encrypt, encrypt_fields.
 func (e *EventGatewayProducePolicyResource) UnmarshalJSON(data []byte) error {
 	// First extract our metadata fields
 	var meta struct {
@@ -231,6 +239,7 @@ func validateProducePolicyTypeField(raw map[string]any) error {
 		string(kkComps.EventGatewayProducePolicyCreateTypeModifyHeaders),
 		string(kkComps.EventGatewayProducePolicyCreateTypeSchemaValidation),
 		string(kkComps.EventGatewayProducePolicyCreateTypeEncrypt),
+		string(kkComps.EventGatewayProducePolicyCreateTypeEncryptFields),
 	}
 	validTypesFmt := "[" + strings.Join(validTypes, ", ") + "]"
 
