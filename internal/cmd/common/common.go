@@ -29,6 +29,10 @@ const ExtraOutputFormatsAnnotation = "kongctl.output.extra-formats"
 // error message can surface instead.
 const SkipOutputFormatValidationAnnotation = "kongctl.output.skip-validation"
 
+// HiddenInheritedFlagsAnnotation marks inherited flags that should be omitted
+// from a command's help text.
+const HiddenInheritedFlagsAnnotation = "kongctl.flags.hidden-inherited"
+
 const (
 	TRACE LogLevel = iota
 	DEBUG
