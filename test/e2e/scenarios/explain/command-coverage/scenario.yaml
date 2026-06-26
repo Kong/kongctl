@@ -207,3 +207,30 @@ steps:
                 type.const: model
                 formats.items.properties.type.type: string
                 target_models.items.properties.config.properties.type.type: string
+
+  - name: 011-explain-ai-gateway-mcp-servers-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-mcp-servers-yaml
+        run:
+          - explain
+          - ai_gateway.mcp_servers
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.mcp_servers"
+                '"x-kongctl-resource"': ai_gateway_mcp_server
+                '"x-kongctl-root-key"': ai_gateway_mcp_servers
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: oneOf[0].properties
+            expect:
+              fields:
+                type.const: conversion-only
+                config.properties.url.type: string
+                tools.items.properties.method.type: string

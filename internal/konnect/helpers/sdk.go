@@ -25,6 +25,7 @@ type SDKAPI interface {
 	GetAIGatewayAPI() AIGatewayAPI
 	GetAIGatewayProvidersAPI() AIGatewayProvidersAPI
 	GetAIGatewayModelAPI() AIGatewayModelAPI
+	GetAIGatewayMCPServersAPI() AIGatewayMCPServersAPI
 	GetCatalogServicesAPI() CatalogServicesAPI
 	GetDashboardsAPI() DashboardsAPI
 	GetAPIDocumentAPI() APIDocumentAPI
@@ -154,6 +155,15 @@ func (k *KonnectSDK) GetAIGatewayModelAPI() AIGatewayModelAPI {
 		TokenSource: k.TokenSource,
 		HTTPClient:  k.HTTPClient,
 	}
+}
+
+// Returns the implementation of the AIGatewayMCPServersAPI interface.
+func (k *KonnectSDK) GetAIGatewayMCPServersAPI() AIGatewayMCPServersAPI {
+	if k.SDK == nil || k.SDK.AIGatewayMCPServers == nil {
+		return nil
+	}
+
+	return &AIGatewayMCPServersAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the CatalogServicesAPI interface

@@ -162,6 +162,8 @@ func mapResourceName(name string) string {
 		return "ai_gateways"
 	case "ai-gateway-model", "ai-gateway-models", "ai_gateway_model", "ai_gateway_models":
 		return "ai_gateway_models"
+	case "ai-gateway-mcp-server", "ai-gateway-mcp-servers", "ai_gateway_mcp_server", "ai_gateway_mcp_servers":
+		return "ai_gateway_mcp_servers"
 	case "org.team", "org.teams", "organization.team", "organization.teams":
 		return "organization.teams"
 	default:

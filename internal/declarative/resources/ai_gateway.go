@@ -23,9 +23,10 @@ func init() {
 type AIGatewayResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	kkComps.CreateAIGatewayRequest
-	External  *ExternalBlock              `yaml:"_external,omitempty" json:"_external,omitempty"`
-	Providers []AIGatewayProviderResource `yaml:"providers,omitempty" json:"providers,omitempty"`
-	Models    []AIGatewayModelResource    `yaml:"models,omitempty"    json:"models,omitempty"`
+	External   *ExternalBlock               `yaml:"_external,omitempty" json:"_external,omitempty"`
+	Providers  []AIGatewayProviderResource  `yaml:"providers,omitempty" json:"providers,omitempty"`
+	Models     []AIGatewayModelResource     `yaml:"models,omitempty"    json:"models,omitempty"`
+	MCPServers []AIGatewayMCPServerResource `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
 }
 
 func (a AIGatewayResource) MarshalJSON() ([]byte, error) {
@@ -38,15 +39,16 @@ func (a AIGatewayResource) MarshalYAML() (any, error) {
 }
 
 type aiGatewayAlias struct {
-	Ref         string                      `json:"ref"                   yaml:"ref"`
-	Kongctl     *KongctlMeta                `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`
-	External    *ExternalBlock              `json:"_external,omitempty"   yaml:"_external,omitempty"`
-	DisplayName string                      `json:"display_name"          yaml:"display_name"`
-	Description *string                     `json:"description,omitempty" yaml:"description,omitempty"`
-	ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
-	Labels      map[string]string           `json:"labels,omitempty"      yaml:"labels,omitempty"`
-	Providers   []AIGatewayProviderResource `json:"providers,omitempty"   yaml:"providers,omitempty"`
-	Models      []AIGatewayModelResource    `json:"models,omitempty"      yaml:"models,omitempty"`
+	Ref         string                       `json:"ref"                   yaml:"ref"`
+	Kongctl     *KongctlMeta                 `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`
+	External    *ExternalBlock               `json:"_external,omitempty"   yaml:"_external,omitempty"`
+	DisplayName string                       `json:"display_name"          yaml:"display_name"`
+	Description *string                      `json:"description,omitempty" yaml:"description,omitempty"`
+	ProxyURLs   []kkComps.AIGatewayProxyURL  `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
+	Labels      map[string]string            `json:"labels,omitempty"      yaml:"labels,omitempty"`
+	Providers   []AIGatewayProviderResource  `json:"providers,omitempty"   yaml:"providers,omitempty"`
+	Models      []AIGatewayModelResource     `json:"models,omitempty"      yaml:"models,omitempty"`
+	MCPServers  []AIGatewayMCPServerResource `json:"mcp_servers,omitempty" yaml:"mcp_servers,omitempty"`
 }
 
 func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
@@ -60,6 +62,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		Labels:      a.Labels,
 		Providers:   a.Providers,
 		Models:      a.Models,
+		MCPServers:  a.MCPServers,
 	}
 }
 
@@ -67,15 +70,16 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 // type only carries JSON tags.
 func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	var raw struct {
-		Ref         string                      `yaml:"ref"`
-		Kongctl     *KongctlMeta                `yaml:"kongctl,omitempty"`
-		External    *ExternalBlock              `yaml:"_external,omitempty"`
-		DisplayName string                      `yaml:"display_name"`
-		Description *string                     `yaml:"description,omitempty"`
-		ProxyURLs   []kkComps.AIGatewayProxyURL `yaml:"proxy_urls,omitempty"`
-		Labels      map[string]string           `yaml:"labels,omitempty"`
-		Providers   []AIGatewayProviderResource `yaml:"providers,omitempty"`
-		Models      []AIGatewayModelResource    `yaml:"models,omitempty"`
+		Ref         string                       `yaml:"ref"`
+		Kongctl     *KongctlMeta                 `yaml:"kongctl,omitempty"`
+		External    *ExternalBlock               `yaml:"_external,omitempty"`
+		DisplayName string                       `yaml:"display_name"`
+		Description *string                      `yaml:"description,omitempty"`
+		ProxyURLs   []kkComps.AIGatewayProxyURL  `yaml:"proxy_urls,omitempty"`
+		Labels      map[string]string            `yaml:"labels,omitempty"`
+		Providers   []AIGatewayProviderResource  `yaml:"providers,omitempty"`
+		Models      []AIGatewayModelResource     `yaml:"models,omitempty"`
+		MCPServers  []AIGatewayMCPServerResource `yaml:"mcp_servers,omitempty"`
 	}
 	if err := unmarshal(&raw); err != nil {
 		return err
@@ -94,6 +98,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 	a.Providers = raw.Providers
 	a.Models = raw.Models
+	a.MCPServers = raw.MCPServers
 
 	return nil
 }
@@ -102,15 +107,16 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 // through JSON tags and the embedded SDK request type has a custom unmarshaler.
 func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		Ref         string                      `json:"ref"`
-		Kongctl     *KongctlMeta                `json:"kongctl,omitempty"`
-		External    *ExternalBlock              `json:"_external,omitempty"`
-		DisplayName string                      `json:"display_name"`
-		Description *string                     `json:"description,omitempty"`
-		ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"`
-		Labels      map[string]string           `json:"labels,omitempty"`
-		Providers   []AIGatewayProviderResource `json:"providers,omitempty"`
-		Models      []AIGatewayModelResource    `json:"models,omitempty"`
+		Ref         string                       `json:"ref"`
+		Kongctl     *KongctlMeta                 `json:"kongctl,omitempty"`
+		External    *ExternalBlock               `json:"_external,omitempty"`
+		DisplayName string                       `json:"display_name"`
+		Description *string                      `json:"description,omitempty"`
+		ProxyURLs   []kkComps.AIGatewayProxyURL  `json:"proxy_urls,omitempty"`
+		Labels      map[string]string            `json:"labels,omitempty"`
+		Providers   []AIGatewayProviderResource  `json:"providers,omitempty"`
+		Models      []AIGatewayModelResource     `json:"models,omitempty"`
+		MCPServers  []AIGatewayMCPServerResource `json:"mcp_servers,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -129,6 +135,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	}
 	a.Providers = raw.Providers
 	a.Models = raw.Models
+	a.MCPServers = raw.MCPServers
 
 	return nil
 }
@@ -188,6 +195,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	for i := range a.Models {
 		a.Models[i].SetDefaults()
 	}
+	for i := range a.MCPServers {
+		a.MCPServers[i].SetDefaults()
+	}
 }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup.
@@ -230,11 +240,20 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		}, false, false),
 		explainField("providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
+		explainField("mcp_servers", explainArrayOf(aiGatewayMCPServerInlineExplainNode()), false, false),
 	), nil
 }
 
 func aiGatewayProviderInlineExplainNode() *ExplainNode {
 	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
+	if err != nil {
+		return explainObject()
+	}
+	return node
+}
+
+func aiGatewayMCPServerInlineExplainNode() *ExplainNode {
+	node, err := aiGatewayMCPServerExplainNode(ExplainBuildContext{})
 	if err != nil {
 		return explainObject()
 	}
