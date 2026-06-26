@@ -19,7 +19,7 @@ func TestAIGatewayModelPlannerCreatesChildForExistingGateway(t *testing.T) {
 	model := testAIGatewayModelResource(t)
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
-			gateways: []kkComps.AIGateway{testAIGateway("gateway-id", "Support Gateway")},
+			gateways: []kkComps.AIGateway{testAIGateway()},
 		},
 		AIGatewayModelAPI: &testAIGatewayModelAPI{},
 	})
@@ -93,7 +93,7 @@ func TestAIGatewayModelPlannerSyncDeletesScopedModels(t *testing.T) {
 	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayModel)
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
-			gateways: []kkComps.AIGateway{testAIGateway("gateway-id", "Support Gateway")},
+			gateways: []kkComps.AIGateway{testAIGateway()},
 		},
 		AIGatewayModelAPI: &testAIGatewayModelAPI{
 			models: []kkComps.AIGatewayModel{testAIGatewayModel("model-id", "support-gpt")},
@@ -204,7 +204,11 @@ func testAIGatewayModelResource(t *testing.T) resources.AIGatewayModelResource {
 	return model
 }
 
-func testAIGateway(id string, displayName string) kkComps.AIGateway {
+func testAIGateway() kkComps.AIGateway {
+	const (
+		id          = "gateway-id"
+		displayName = "Support Gateway"
+	)
 	return kkComps.AIGateway{
 		ID:          id,
 		Name:        id,
