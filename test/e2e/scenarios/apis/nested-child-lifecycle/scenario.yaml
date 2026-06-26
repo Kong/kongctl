@@ -87,6 +87,7 @@ steps:
                 action: CREATE
                 fields.visibility: "private"
                 fields.auto_approve_registrations: false
+                "length(fields.auth_strategy_ids)": 1
           - select: "plan.changes[?resource_ref=='api-nested-impl1'] | [0]"
             expect:
               fields:
@@ -295,7 +296,6 @@ steps:
                 action: UPDATE
                 fields.visibility: "public"
                 fields.auto_approve_registrations: true
-                "length(fields.auth_strategy_ids)": 1
           - select: "plan.changes[?resource_ref=='api-nested-doc-root'] | [0]"
             expect:
               fields:
