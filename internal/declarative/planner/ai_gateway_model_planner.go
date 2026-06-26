@@ -20,6 +20,7 @@ func (p *Planner) planAIGatewayModelChanges(
 	gatewayID string,
 	gatewayChangeID string,
 	providerCreateDepsByName map[string]string,
+	policyCreateDepsByName map[string]string,
 	desired []resources.AIGatewayModelResource,
 	plan *Plan,
 ) error {
@@ -38,6 +39,7 @@ func (p *Planner) planAIGatewayModelChanges(
 			gatewayName,
 			gatewayChangeID,
 			providerCreateDepsByName,
+			policyCreateDepsByName,
 			desired,
 			plan,
 		)
@@ -60,7 +62,11 @@ func (p *Planner) planAIGatewayModelChanges(
 		}
 
 		if !exists {
-			dependsOn := aiGatewayModelProviderCreateDependencies(desiredModel, providerCreateDepsByName)
+			dependsOn := aiGatewayModelCreateDependencies(
+				desiredModel,
+				providerCreateDepsByName,
+				policyCreateDepsByName,
+			)
 			p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredModel, dependsOn, plan)
 			continue
 		}
@@ -71,7 +77,11 @@ func (p *Planner) planAIGatewayModelChanges(
 			return fmt.Errorf("failed to get AI Gateway model %s: %w", modelID, err)
 		}
 		if fullModel == nil {
-			dependsOn := aiGatewayModelProviderCreateDependencies(desiredModel, providerCreateDepsByName)
+			dependsOn := aiGatewayModelCreateDependencies(
+				desiredModel,
+				providerCreateDepsByName,
+				policyCreateDepsByName,
+			)
 			p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredModel, dependsOn, plan)
 			continue
 		}
@@ -89,7 +99,11 @@ func (p *Planner) planAIGatewayModelChanges(
 				desiredModel,
 				updateFields,
 				changedFields,
-				aiGatewayModelProviderCreateDependencies(desiredModel, providerCreateDepsByName),
+				aiGatewayModelCreateDependencies(
+					desiredModel,
+					providerCreateDepsByName,
+					policyCreateDepsByName,
+				),
 				plan,
 			)
 		}
@@ -115,6 +129,7 @@ func (p *Planner) planAIGatewayModelCreatesForNewGateway(
 	gatewayName string,
 	gatewayChangeID string,
 	providerCreateDepsByName map[string]string,
+	policyCreateDepsByName map[string]string,
 	models []resources.AIGatewayModelResource,
 	plan *Plan,
 ) {
@@ -124,7 +139,7 @@ func (p *Planner) planAIGatewayModelCreatesForNewGateway(
 	}
 	for _, model := range models {
 		modelDependsOn := append([]string{}, dependsOn...)
-		for _, dep := range aiGatewayModelProviderCreateDependencies(model, providerCreateDepsByName) {
+		for _, dep := range aiGatewayModelCreateDependencies(model, providerCreateDepsByName, policyCreateDepsByName) {
 			modelDependsOn = appendDependsOn(modelDependsOn, dep)
 		}
 		p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, "", model, modelDependsOn, plan)
@@ -325,6 +340,26 @@ func aiGatewayChildChangeMatchesParent(change PlannedChange, gatewayRef string) 
 		return true
 	}
 	return false
+}
+
+func aiGatewayModelCreateDependencies(
+	model resources.AIGatewayModelResource,
+	providerCreateDepsByName map[string]string,
+	policyCreateDepsByName map[string]string,
+) []string {
+	var deps []string
+	for _, dep := range aiGatewayModelProviderCreateDependencies(model, providerCreateDepsByName) {
+		deps = appendDependsOn(deps, dep)
+	}
+
+	payload, err := model.MutablePayloadMap()
+	if err != nil {
+		return deps
+	}
+	for _, dep := range aiGatewayPolicyReferenceDependencies(payload, policyCreateDepsByName) {
+		deps = appendDependsOn(deps, dep)
+	}
+	return deps
 }
 
 func aiGatewayModelProviderCreateDependencies(

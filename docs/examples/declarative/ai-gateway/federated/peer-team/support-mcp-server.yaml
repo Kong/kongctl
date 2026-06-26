@@ -19,4 +19,5 @@ ai_gateway_mcp_servers:
         description: "Look up a customer profile"
         method: GET
         path: /customers/{customer_id}
-    policies: []
+    policies:
+      - peer-mask-sensitive-data

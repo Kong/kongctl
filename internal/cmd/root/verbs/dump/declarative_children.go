@@ -275,6 +275,15 @@ func populateAIGatewayChildren(
 			gateway.Providers = providers
 		}
 
+		policies, err := buildAIGatewayPolicies(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Policies", gatewayID, gateway.DisplayName, err)
+			continue
+		}
+		if len(policies) > 0 {
+			gateway.Policies = policies
+		}
+
 		models, err := buildAIGatewayModels(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway models", gatewayID, gateway.DisplayName, err)
@@ -353,6 +362,36 @@ func buildAIGatewayProviders(
 	})
 
 	return results, nil
+}
+
+func buildAIGatewayPolicies(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayPolicyResource, error) {
+	policies, err := client.ListAIGatewayPolicies(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayPolicyResource, 0, len(policies))
+	for _, policy := range policies {
+		resource, err := declresources.AIGatewayPolicyResourceFromResponse(gatewayRef, policy.AIGatewayPolicy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Policy for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayPolicyResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return result, nil
 }
 
 func buildAIGatewayModels(

@@ -21,6 +21,12 @@ const (
 	aiGatewayProviderIDConfigPath   = "konnect.ai-gateway.provider.id"
 	aiGatewayProviderNameConfigPath = "konnect.ai-gateway.provider.name"
 
+	aiGatewayPolicyIDFlagName   = "policy-id"
+	aiGatewayPolicyNameFlagName = "policy-name"
+
+	aiGatewayPolicyIDConfigPath   = "konnect.ai-gateway.policy.id"
+	aiGatewayPolicyNameConfigPath = "konnect.ai-gateway.policy.name"
+
 	aiGatewayMCPServerIDFlagName   = "mcp-server-id"
 	aiGatewayMCPServerNameFlagName = "mcp-server-name"
 
@@ -96,6 +102,40 @@ func bindAIGatewayProviderFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayProviderIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(aiGatewayProviderIDConfigPath), cfg.GetString(aiGatewayProviderNameConfigPath)
+}
+
+func addAIGatewayPolicyFlags(c *cobra.Command) {
+	c.Flags().String(aiGatewayPolicyIDFlagName, "",
+		fmt.Sprintf(`The ID of the AI Gateway Policy to retrieve.
+- Config path: [ %s ]`, aiGatewayPolicyIDConfigPath))
+	c.Flags().String(aiGatewayPolicyNameFlagName, "",
+		fmt.Sprintf(`The name of the AI Gateway Policy to retrieve.
+- Config path: [ %s ]`, aiGatewayPolicyNameConfigPath))
+	c.MarkFlagsMutuallyExclusive(aiGatewayPolicyIDFlagName, aiGatewayPolicyNameFlagName)
+}
+
+func bindAIGatewayPolicyFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(aiGatewayPolicyIDFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayPolicyIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	if flag := c.Flags().Lookup(aiGatewayPolicyNameFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayPolicyNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getAIGatewayPolicyIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(aiGatewayPolicyIDConfigPath), cfg.GetString(aiGatewayPolicyNameConfigPath)
 }
 
 func addAIGatewayMCPServerFlags(c *cobra.Command) {
