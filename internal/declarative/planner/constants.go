@@ -185,6 +185,7 @@ const (
 	FieldPorts                                      = "ports"
 	FieldProxyURLs                                  = "proxy_urls"
 	FieldFormats                                    = "formats"
+	FieldTargets                                    = "targets"
 	FieldTargetModels                               = "target_models"
 	FieldPolicies                                   = "policies"
 	FieldCapabilities                               = "capabilities"
