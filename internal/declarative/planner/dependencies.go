@@ -233,7 +233,7 @@ func (d *DependencyResolver) ResolveDependenciesWithGroups(
 
 func aiGatewayChildSerializationParentKey(change PlannedChange) string {
 	switch change.ResourceType {
-	case ResourceTypeAIGatewayProvider, ResourceTypeAIGatewayModel:
+	case ResourceTypeAIGatewayProvider, ResourceTypeAIGatewayModel, ResourceTypeAIGatewayMCPServer:
 	default:
 		return ""
 	}
@@ -337,7 +337,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 		return ResourceTypeAPI
 	case ResourceTypePortalPage:
 		return ResourceTypePortal
-	case ResourceTypeAIGatewayProvider, ResourceTypeAIGatewayModel:
+	case ResourceTypeAIGatewayProvider, ResourceTypeAIGatewayModel, ResourceTypeAIGatewayMCPServer:
 		return ResourceTypeAIGateway
 	default:
 		return ""

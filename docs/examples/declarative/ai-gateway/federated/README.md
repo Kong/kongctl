@@ -2,7 +2,7 @@
 
 This example shows a federated layout for AI Gateway resources where a central
 AI platform team owns the shared AI Gateway and upstream providers, while a peer
-team owns a root-level model that targets those shared providers.
+team owns root-level models and MCP Servers that target the shared gateway.
 
 ## Structure
 
@@ -13,6 +13,7 @@ ai-gateway/federated/
 |-- external-peer-team/
 |   `-- support-model.yaml
 `-- peer-team/
+    |-- support-mcp-server.yaml
     `-- support-model.yaml
 ```
 
@@ -22,13 +23,16 @@ ai-gateway/federated/
   providers: OpenAI and Anthropic.
 - `peer-team/support-model.yaml` defines a standalone `ai_gateway_models`
   entry that references the central gateway with `!ref shared-ai-gateway#id`.
+- `peer-team/support-mcp-server.yaml` defines a standalone
+  `ai_gateway_mcp_servers` entry that references the central gateway with
+  `!ref shared-ai-gateway#id`.
 - `external-peer-team/support-model.yaml` defines an `_external` AI Gateway
   stub and points a standalone model at it with
   `!ref external-shared-ai-gateway#id`.
 
-The peer file is standalone in shape, but it still needs the parent gateway
+The peer files are standalone in shape, but they still need the parent gateway
 declaration in the same declarative load. Run the directory recursively so
-kongctl sees both the central gateway and the peer-owned model:
+kongctl sees both the central gateway and the peer-owned resources:
 
 ```sh
 kongctl plan -f docs/examples/declarative/ai-gateway/federated --recursive \

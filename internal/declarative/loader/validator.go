@@ -50,6 +50,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayModels(rs); err != nil {
 		return err
 	}
+	if err := l.validateAIGatewayMCPServers(rs); err != nil {
+		return err
+	}
 
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
@@ -823,6 +826,58 @@ func (l *Loader) validateAIGatewayModels(rs *resources.ResourceSet) error {
 			)
 		}
 		modelNamesByGateway[nameKey] = model.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayMCPServers validates AI Gateway child MCP Server resources.
+func (l *Loader) validateAIGatewayMCPServers(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayMCPServers {
+		server := &rs.AIGatewayMCPServers[i]
+
+		if err := server.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_mcp_server %q: %w", server.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(server.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayMCPServer {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					server.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(server.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_mcp_server %q references unknown ai_gateway %q",
+				server.GetRef(),
+				server.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_mcp_server %q references %q which is %s, not ai_gateway",
+				server.GetRef(),
+				server.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + server.Name()
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_mcp_server name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				server.Name(),
+				gatewayRef,
+				server.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = server.GetRef()
 	}
 
 	return nil
