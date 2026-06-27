@@ -28,6 +28,7 @@ type AIGatewayResource struct {
 	Policies   []AIGatewayPolicyResource    `yaml:"policies,omitempty" json:"policies,omitempty"`
 	Models     []AIGatewayModelResource     `yaml:"models,omitempty"    json:"models,omitempty"`
 	MCPServers []AIGatewayMCPServerResource `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
+	Vaults     []AIGatewayVaultResource     `yaml:"vaults,omitempty" json:"vaults,omitempty"`
 }
 
 func (a AIGatewayResource) MarshalJSON() ([]byte, error) {
@@ -51,6 +52,7 @@ type aiGatewayAlias struct {
 	Policies    []AIGatewayPolicyResource    `json:"policies,omitempty"    yaml:"policies,omitempty"`
 	Models      []AIGatewayModelResource     `json:"models,omitempty"      yaml:"models,omitempty"`
 	MCPServers  []AIGatewayMCPServerResource `json:"mcp_servers,omitempty" yaml:"mcp_servers,omitempty"`
+	Vaults      []AIGatewayVaultResource     `json:"vaults,omitempty"      yaml:"vaults,omitempty"`
 }
 
 func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
@@ -66,6 +68,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		Policies:    a.Policies,
 		Models:      a.Models,
 		MCPServers:  a.MCPServers,
+		Vaults:      a.Vaults,
 	}
 }
 
@@ -84,6 +87,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Policies    []AIGatewayPolicyResource    `yaml:"policies,omitempty"`
 		Models      []AIGatewayModelResource     `yaml:"models,omitempty"`
 		MCPServers  []AIGatewayMCPServerResource `yaml:"mcp_servers,omitempty"`
+		Vaults      []AIGatewayVaultResource     `yaml:"vaults,omitempty"`
 	}
 	if err := unmarshal(&raw); err != nil {
 		return err
@@ -104,6 +108,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	a.Policies = raw.Policies
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
+	a.Vaults = raw.Vaults
 
 	return nil
 }
@@ -123,6 +128,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Policies    []AIGatewayPolicyResource    `json:"policies,omitempty"`
 		Models      []AIGatewayModelResource     `json:"models,omitempty"`
 		MCPServers  []AIGatewayMCPServerResource `json:"mcp_servers,omitempty"`
+		Vaults      []AIGatewayVaultResource     `json:"vaults,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -143,6 +149,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	a.Policies = raw.Policies
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
+	a.Vaults = raw.Vaults
 
 	return nil
 }
@@ -208,6 +215,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	for i := range a.MCPServers {
 		a.MCPServers[i].SetDefaults()
 	}
+	for i := range a.Vaults {
+		a.Vaults[i].SetDefaults()
+	}
 }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup.
@@ -252,6 +262,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("policies", explainArrayOf(aiGatewayPolicyInlineExplainNode()), false, false),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 		explainField("mcp_servers", explainArrayOf(aiGatewayMCPServerInlineExplainNode()), false, false),
+		explainField("vaults", explainArrayOf(aiGatewayVaultInlineExplainNode()), false, false),
 	), nil
 }
 
@@ -273,6 +284,14 @@ func aiGatewayPolicyInlineExplainNode() *ExplainNode {
 
 func aiGatewayMCPServerInlineExplainNode() *ExplainNode {
 	node, err := aiGatewayMCPServerExplainNode(ExplainBuildContext{})
+	if err != nil {
+		return explainObject()
+	}
+	return node
+}
+
+func aiGatewayVaultInlineExplainNode() *ExplainNode {
+	node, err := aiGatewayVaultExplainNode(ExplainBuildContext{})
 	if err != nil {
 		return explainObject()
 	}
