@@ -654,34 +654,19 @@ func (c *loginKonnectCmd) preRunE(cobraCmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	f := c.Flags().Lookup(common.AuthPathFlagName)
-	err = cfg.BindFlag(common.AuthPathConfigPath, f)
-	if err != nil {
-		return err
+	bindings := []struct{ flag, config string }{
+		{common.AuthPathFlagName, common.AuthPathConfigPath},
+		{common.AuthBaseURLFlagName, common.AuthBaseURLConfigPath},
+		{common.RefreshPathFlagName, common.RefreshPathConfigPath},
+		{common.TokenPathFlagName, common.TokenURLPathConfigPath},
+		{common.MachineClientIDFlagName, common.MachineClientIDConfigPath},
 	}
-
-	f = c.Flags().Lookup(common.AuthBaseURLFlagName)
-	err = cfg.BindFlag(common.AuthBaseURLConfigPath, f)
-	if err != nil {
-		return err
-	}
-
-	f = c.Flags().Lookup(common.RefreshPathFlagName)
-	err = cfg.BindFlag(common.RefreshPathConfigPath, f)
-	if err != nil {
-		return err
-	}
-
-	f = c.Flags().Lookup(common.TokenPathFlagName)
-	err = cfg.BindFlag(common.TokenURLPathConfigPath, f)
-	if err != nil {
-		return err
-	}
-
-	f = c.Flags().Lookup(common.MachineClientIDFlagName)
-	err = cfg.BindFlag(common.MachineClientIDConfigPath, f)
-	if err != nil {
-		return err
+	for _, b := range bindings {
+		if f := c.Flags().Lookup(b.flag); f != nil {
+			if err := cfg.BindFlag(b.config, f); err != nil {
+				return err
+			}
+		}
 	}
 
 	if err := common.ApplyEnvironmentDefaults(cobraCmd.Root(), cfg); err != nil {
