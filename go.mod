@@ -135,3 +135,5 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.52.0 // indirect
 )
+
+replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go-internal v0.2.1-0.20260627144714-df193e016d41
