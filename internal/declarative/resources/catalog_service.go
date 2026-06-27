@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -16,8 +17,70 @@ func init() {
 
 // CatalogServiceResource represents a Service Catalog service in declarative configuration
 type CatalogServiceResource struct {
-	BaseResource
+	BaseResource                 `yaml:",inline" json:",inline"`
 	kkComps.CreateCatalogService `yaml:",inline" json:",inline"`
+}
+
+// UnmarshalYAML decodes catalog service fields explicitly because the SDK
+// request type only carries JSON tags.
+func (c *CatalogServiceResource) UnmarshalYAML(unmarshal func(any) error) error {
+	var raw struct {
+		Ref          string            `yaml:"ref"`
+		Kongctl      *KongctlMeta      `yaml:"kongctl,omitempty"`
+		Name         string            `yaml:"name"`
+		DisplayName  string            `yaml:"display_name"`
+		Description  *string           `yaml:"description,omitempty"`
+		Labels       map[string]string `yaml:"labels,omitempty"`
+		CustomFields any               `yaml:"custom_fields,omitempty"`
+	}
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	c.BaseResource = BaseResource{
+		Ref:     raw.Ref,
+		Kongctl: raw.Kongctl,
+	}
+	c.CreateCatalogService = kkComps.CreateCatalogService{
+		Name:         raw.Name,
+		DisplayName:  raw.DisplayName,
+		Description:  raw.Description,
+		Labels:       raw.Labels,
+		CustomFields: raw.CustomFields,
+	}
+
+	return nil
+}
+
+// UnmarshalJSON decodes catalog services explicitly because YAML loading goes
+// through JSON tags and the embedded SDK request type has a custom unmarshaler.
+func (c *CatalogServiceResource) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Ref          string            `json:"ref"`
+		Kongctl      *KongctlMeta      `json:"kongctl,omitempty"`
+		Name         string            `json:"name"`
+		DisplayName  string            `json:"display_name"`
+		Description  *string           `json:"description,omitempty"`
+		Labels       map[string]string `json:"labels,omitempty"`
+		CustomFields any               `json:"custom_fields,omitempty"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	c.BaseResource = BaseResource{
+		Ref:     raw.Ref,
+		Kongctl: raw.Kongctl,
+	}
+	c.CreateCatalogService = kkComps.CreateCatalogService{
+		Name:         raw.Name,
+		DisplayName:  raw.DisplayName,
+		Description:  raw.Description,
+		Labels:       raw.Labels,
+		CustomFields: raw.CustomFields,
+	}
+
+	return nil
 }
 
 // GetType returns the resource type

@@ -12,7 +12,7 @@ import (
 // PortalCustomizationAPI defines the interface for operations on Portal Customizations
 type PortalCustomizationAPI interface {
 	// Portal Customization operations (singleton resource - no create/delete)
-	UpdatePortalCustomization(ctx context.Context, portalID string, request *kkComponents.PortalCustomization,
+	UpdatePortalCustomization(ctx context.Context, portalID string, request *kkComponents.PortalCustomizationV3,
 		opts ...kkOps.Option) (*kkOps.UpdatePortalCustomizationResponse, error)
 	GetPortalCustomization(ctx context.Context, portalID string,
 		opts ...kkOps.Option) (*kkOps.GetPortalCustomizationResponse, error)
@@ -25,7 +25,7 @@ type PortalCustomizationAPIImpl struct {
 
 // UpdatePortalCustomization implements the PortalCustomizationAPI interface
 func (p *PortalCustomizationAPIImpl) UpdatePortalCustomization(
-	ctx context.Context, portalID string, request *kkComponents.PortalCustomization,
+	ctx context.Context, portalID string, request *kkComponents.PortalCustomizationV3,
 	opts ...kkOps.Option,
 ) (*kkOps.UpdatePortalCustomizationResponse, error) {
 	if p.SDK == nil {

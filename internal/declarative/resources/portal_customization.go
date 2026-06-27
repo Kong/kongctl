@@ -16,9 +16,9 @@ func init() {
 
 // PortalCustomizationResource represents portal customization settings
 type PortalCustomizationResource struct {
-	kkComps.PortalCustomization `       yaml:",inline"          json:",inline"`
-	Ref                         string `yaml:"ref,omitempty"    json:"ref,omitempty"`
-	Portal                      string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
+	kkComps.PortalCustomizationV3 `       yaml:",inline"          json:",inline"`
+	Ref                           string `yaml:"ref,omitempty"    json:"ref,omitempty"`
+	Portal                        string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
