@@ -56,6 +56,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayMCPServers(rs); err != nil {
 		return err
 	}
+	if err := l.validateAIGatewayVaults(rs); err != nil {
+		return err
+	}
 
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
@@ -933,6 +936,58 @@ func (l *Loader) validateAIGatewayMCPServers(rs *resources.ResourceSet) error {
 			)
 		}
 		namesByGateway[nameKey] = server.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayVaults validates AI Gateway child Vault resources.
+func (l *Loader) validateAIGatewayVaults(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayVaults {
+		vault := &rs.AIGatewayVaults[i]
+
+		if err := vault.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_vault %q: %w", vault.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(vault.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayVault {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					vault.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(vault.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_vault %q references unknown ai_gateway %q",
+				vault.GetRef(),
+				vault.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_vault %q references %q which is %s, not ai_gateway",
+				vault.GetRef(),
+				vault.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + vault.Name()
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_vault name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				vault.Name(),
+				gatewayRef,
+				vault.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = vault.GetRef()
 	}
 
 	return nil
