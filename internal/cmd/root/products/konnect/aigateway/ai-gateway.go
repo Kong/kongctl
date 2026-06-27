@@ -33,6 +33,7 @@ func NewAIGatewayCmd(
 		root.AddCommand(newGetAIGatewayPoliciesCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayModelsCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayMCPServersCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayVaultsCmd(verb, addParentFlags, parentPreRun))
 		return root, nil
 	}
 

@@ -318,17 +318,18 @@ control_plane_data_plane_certificates:
 ## AI Gateways
 
 This section covers the root AI Gateway resource backed by the Konnect
-`/v1/ai-gateways` API, AI Gateway Providers, AI Gateway Models, and AI Gateway
-MCP Servers. Use `kongctl explain ai_gateway --output yaml`,
+`/v1/ai-gateways` API, AI Gateway Providers, AI Gateway Models, AI Gateway
+MCP Servers, and AI Gateway Vaults. Use
+`kongctl explain ai_gateway --output yaml`,
 `kongctl explain ai_gateway_provider --output yaml`,
 `kongctl explain ai_gateway.models --output yaml`, and
-`kongctl explain ai_gateway.mcp_servers --output yaml` as the authoritative
-schemas.
+`kongctl explain ai_gateway.mcp_servers --output yaml`, and
+`kongctl explain ai_gateway.vaults --output yaml` as the authoritative schemas.
 
 The `ref` value is used as the stable Konnect API `name` when creating an AI
 Gateway. Use `display_name` for the human-readable name shown in Konnect.
-AI Gateway Providers, Policies, Models, and MCP Servers use their own required
-`name` field as the stable Konnect child name. Child entries inherit
+AI Gateway Providers, Policies, Models, MCP Servers, and Vaults use their own
+required `name` field as the stable Konnect child name. Child entries inherit
 management scope from their parent AI Gateway and do not accept `kongctl`
 metadata.
 
@@ -340,13 +341,14 @@ For AI Gateway Models and MCP Servers, `policies` entries refer to AI Gateway
 Policy names under the same parent gateway. The policy can already exist or be
 declared in the same gateway configuration.
 
-For AI Gateway Policies and MCP Servers, root-level declarations must include
-`ai_gateway`, while nested declarations inherit the parent gateway. Omit
-`policies` or `mcp_servers` to leave existing child resources unmanaged during
-sync. Use `policies: []` or `mcp_servers: []` under a specific AI Gateway to
-sync-delete that child type for that gateway. Root-level
-`ai_gateway_policies: []` and `ai_gateway_mcp_servers: []` are rejected because
-they do not identify a parent gateway.
+For AI Gateway Policies, MCP Servers, and Vaults, root-level declarations must
+include `ai_gateway`, while nested declarations inherit the parent gateway.
+Omit `policies`, `mcp_servers`, or `vaults` to leave existing child resources
+unmanaged during sync. Use `policies: []`, `mcp_servers: []`, or `vaults: []`
+under a specific AI Gateway to sync-delete that child type for that gateway.
+Root-level `ai_gateway_policies: []`, `ai_gateway_mcp_servers: []`, and
+`ai_gateway_vaults: []` are rejected because they do not identify a parent
+gateway.
 
 ```yaml
 ai_gateways:
@@ -425,6 +427,16 @@ ai_gateways:
         key: value
       acls: object
       managed_by: object
+   vaults:
+    - ref: string
+      type: env # or konnect, aws, gcp, azure, conjur, hcv
+      name: string required
+      description: string
+      config: object required
+      labels: object [string]string
+        key: value
+      managed_by: object [string]string
+        key: value
 ```
 
 AI Gateway Providers can also be declared as root resources. Root-level
@@ -516,6 +528,23 @@ ai_gateway_mcp_servers:
      key: value
    acls: object
    managed_by: object
+```
+
+AI Gateway Vaults can also be declared as root resources. Include `ai_gateway`
+to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_vaults:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   type: env # or konnect, aws, gcp, azure, conjur, hcv
+   name: string required
+   description: string
+   config: object required
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
 ```
 
 ## Event Gateways

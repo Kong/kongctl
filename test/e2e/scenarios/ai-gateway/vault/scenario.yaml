@@ -1,0 +1,386 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-vault-e2e"
+  gateway_name: "AI Gateway Vault E2E"
+  gateway_ref: "ai-gateway-vault-e2e"
+  vault_ref: "support-env"
+  vault_name: "support-env"
+  vault_description: "Support environment variables"
+  vault_updated_description: "Support environment variables updated"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-vault-json
+        run:
+          - explain
+          - ai_gateway_vault
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.vaults"
+                '"x-kongctl-root-key"': ai_gateway_vaults
+          - select: "contains(keys(properties), 'ai_gateway')"
+            expect:
+              fields:
+                "@": true
+      - name: 001-scaffold-ai-gateway-vault
+        run:
+          - scaffold
+          - ai_gateway_vault
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_vaults:')": true
+                "contains(stdout, 'type: env')": true
+                "contains(stdout, 'config:')": true
+                "contains(stdout, 'ai_gateway: !ref')": true
+      - name: 002-explain-ai-gateway-vault-nested-json
+        run:
+          - explain
+          - ai_gateway.vaults
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway_vault"
+                '"x-kongctl-root-key"': ai_gateway_vaults
+
+  - name: 002-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='ai_gateway_vault' && resource_ref=='{{ .vars.vault_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.vault_name }}"
+                fields.type: env
+                fields.description: "{{ .vars.vault_description }}"
+                fields.config.prefix: SUPPORT_
+                fields.config.base64_decode: false
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+      - name: 002-list-vaults
+        run:
+          - get
+          - ai-gateway
+          - vaults
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        recordVar:
+          name: vault_id
+          responsePath: "[?name=='{{ .vars.vault_name }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.vault_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.vault_name }}"
+                type: env
+                description: "{{ .vars.vault_description }}"
+                config.prefix: SUPPORT_
+                config.base64_decode: false
+      - name: 003-get-vault-by-name
+        run:
+          - get
+          - ai-gateway
+          - vault
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.vault_name }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.vault_name }}"
+          - select: type
+            expect:
+              fields:
+                "@": env
+      - name: 004-get-vault-by-id
+        run:
+          - get
+          - ai-gateway
+          - vaults
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.vault_id }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.vault_name }}"
+
+  - name: 003-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='ai_gateway_vault' && resource_ref=='{{ .vars.vault_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.description: "{{ .vars.vault_updated_description }}"
+                fields.config.prefix: SUPPORT_UPDATED_
+                fields.config.base64_decode: true
+                fields.labels.phase: update
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-verify-update
+        run:
+          - get
+          - ai-gateway
+          - vaults
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.vault_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                description: "{{ .vars.vault_updated_description }}"
+                labels.phase: update
+                config.prefix: SUPPORT_UPDATED_
+                config.base64_decode: true
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateway-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-ai-gateway.yaml"
+        assertions:
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].vaults[?name=='{{ .vars.vault_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.vault_name }}"
+                description: "{{ .vars.vault_updated_description }}"
+                type: env
+                config.prefix: SUPPORT_UPDATED_
+                config.base64_decode: true
+      - name: 001-plan-from-ai-gateway-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-ai-gateway.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 002-dump-root-vaults
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_vaults"
+          - "--filter-name={{ .vars.vault_name }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_vaults[0]"
+            expect:
+              fields:
+                name: "{{ .vars.vault_name }}"
+                type: env
+                config.prefix: SUPPORT_UPDATED_
+          - select: "ai_gateway_vaults[0].ai_gateway != ''"
+            expect:
+              fields:
+                "@": true
+
+  - name: 005-sync-delete-vault
+    inputOverlayDirs:
+      - overlays/002-sync-delete-vault
+    commands:
+      - name: 000-sync-delete-vault
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_vault' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.vault_name }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-vaults-empty
+        run:
+          - get
+          - ai-gateway
+          - vaults
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 006-sync-delete-gateway
+    inputOverlayDirs:
+      - overlays/003-sync-delete-gateway
+    commands:
+      - name: 000-sync-delete-gateway
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-get-ai-gateways
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?display_name=='{{ .vars.gateway_name }}']"
+            expect:
+              fields:
+                "length(@)": 0

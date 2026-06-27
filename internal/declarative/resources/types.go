@@ -22,6 +22,7 @@ const (
 	ResourceTypeAIGatewayPolicy                         ResourceType = "ai_gateway_policy"
 	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
 	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
+	ResourceTypeAIGatewayVault                          ResourceType = "ai_gateway_vault"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
@@ -114,6 +115,7 @@ type ResourceSet struct {
 	AIGatewayPolicies                 []AIGatewayPolicyResource                  `yaml:"ai_gateway_policies,omitempty"                           json:"ai_gateway_policies,omitempty"`                    //nolint:lll
 	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
 	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
+	AIGatewayVaults                   []AIGatewayVaultResource                   `yaml:"ai_gateway_vaults,omitempty"                              json:"ai_gateway_vaults,omitempty"`                     //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
@@ -381,6 +383,16 @@ func (rs *ResourceSet) GetAIGatewayMCPServerByRef(ref string) *AIGatewayMCPServe
 	return nil
 }
 
+// GetAIGatewayVaultByRef returns an AI Gateway Vault resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayVaultByRef(ref string) *AIGatewayVaultResource {
+	for i := range rs.AIGatewayVaults {
+		if rs.AIGatewayVaults[i].GetRef() == ref {
+			return &rs.AIGatewayVaults[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {
@@ -526,6 +538,25 @@ func (rs *ResourceSet) GetAIGatewayMCPServersByNamespace(namespace string) []AIG
 			}
 			if GetNamespace(gateway.Kongctl) == namespace {
 				filtered = append(filtered, server)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayVaultsByNamespace returns AI Gateway Vault resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayVaultsByNamespace(namespace string) []AIGatewayVaultResource {
+	var filtered []AIGatewayVaultResource
+	for _, vault := range rs.AIGatewayVaults {
+		if gateway := rs.GetAIGatewayByRef(vault.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, vault)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, vault)
 			}
 		}
 	}
@@ -1505,4 +1536,15 @@ func (rs *ResourceSet) GetAIGatewayMCPServersForGateway(gatewayRef string) []AIG
 		}
 	}
 	return servers
+}
+
+// GetAIGatewayVaultsForGateway returns all AI Gateway Vaults for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayVaultsForGateway(gatewayRef string) []AIGatewayVaultResource {
+	var vaults []AIGatewayVaultResource
+	for _, vault := range rs.AIGatewayVaults {
+		if NormalizeResourceRef(vault.AIGateway) == gatewayRef {
+			vaults = append(vaults, vault)
+		}
+	}
+	return vaults
 }

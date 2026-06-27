@@ -33,6 +33,12 @@ const (
 	aiGatewayMCPServerIDConfigPath   = "konnect.ai-gateway.mcp-server.id"
 	aiGatewayMCPServerNameConfigPath = "konnect.ai-gateway.mcp-server.name"
 
+	aiGatewayVaultIDFlagName   = "vault-id"
+	aiGatewayVaultNameFlagName = "vault-name"
+
+	aiGatewayVaultIDConfigPath   = "konnect.ai-gateway.vault.id"
+	aiGatewayVaultNameConfigPath = "konnect.ai-gateway.vault.name"
+
 	aiGatewayMissingValue = "n/a"
 )
 
@@ -170,4 +176,38 @@ func bindAIGatewayMCPServerFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayMCPServerIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(aiGatewayMCPServerIDConfigPath), cfg.GetString(aiGatewayMCPServerNameConfigPath)
+}
+
+func addAIGatewayVaultFlags(c *cobra.Command) {
+	c.Flags().String(aiGatewayVaultIDFlagName, "",
+		fmt.Sprintf(`The ID of the AI Gateway Vault to retrieve.
+- Config path: [ %s ]`, aiGatewayVaultIDConfigPath))
+	c.Flags().String(aiGatewayVaultNameFlagName, "",
+		fmt.Sprintf(`The name of the AI Gateway Vault to retrieve.
+- Config path: [ %s ]`, aiGatewayVaultNameConfigPath))
+	c.MarkFlagsMutuallyExclusive(aiGatewayVaultIDFlagName, aiGatewayVaultNameFlagName)
+}
+
+func bindAIGatewayVaultFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(aiGatewayVaultIDFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayVaultIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	if flag := c.Flags().Lookup(aiGatewayVaultNameFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayVaultNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getAIGatewayVaultIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(aiGatewayVaultIDConfigPath), cfg.GetString(aiGatewayVaultNameConfigPath)
 }

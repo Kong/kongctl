@@ -40,6 +40,7 @@ type ClientConfig struct {
 	AIGatewayPoliciesAPI    helpers.AIGatewayPoliciesAPI
 	AIGatewayModelAPI       helpers.AIGatewayModelAPI
 	AIGatewayMCPServersAPI  helpers.AIGatewayMCPServersAPI
+	AIGatewayVaultsAPI      helpers.AIGatewayVaultsAPI
 	DashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -107,6 +108,7 @@ type Client struct {
 	aiGatewayPoliciesAPI    helpers.AIGatewayPoliciesAPI
 	aiGatewayModelAPI       helpers.AIGatewayModelAPI
 	aiGatewayMCPServersAPI  helpers.AIGatewayMCPServersAPI
+	aiGatewayVaultsAPI      helpers.AIGatewayVaultsAPI
 	dashboardsAPI           helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -175,6 +177,7 @@ func NewClient(config ClientConfig) *Client {
 		aiGatewayPoliciesAPI:    config.AIGatewayPoliciesAPI,
 		aiGatewayModelAPI:       config.AIGatewayModelAPI,
 		aiGatewayMCPServersAPI:  config.AIGatewayMCPServersAPI,
+		aiGatewayVaultsAPI:      config.AIGatewayVaultsAPI,
 		dashboardsAPI:           config.DashboardsAPI,
 
 		// Portal child resource APIs
@@ -293,6 +296,12 @@ type AIGatewayModel struct {
 // AIGatewayMCPServer represents a Konnect AI Gateway MCP Server for internal use.
 type AIGatewayMCPServer struct {
 	kkComps.AIGatewayMCPServer
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayVault represents a Konnect AI Gateway Vault for internal use.
+type AIGatewayVault struct {
+	kkComps.AIGatewayVault
 	NormalizedLabels map[string]string
 }
 

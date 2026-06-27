@@ -301,6 +301,15 @@ func populateAIGatewayChildren(
 		if len(servers) > 0 {
 			gateway.MCPServers = servers
 		}
+
+		vaults, err := buildAIGatewayVaults(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Vaults", gatewayID, gateway.DisplayName, err)
+			continue
+		}
+		if len(vaults) > 0 {
+			gateway.Vaults = vaults
+		}
 	}
 }
 
@@ -445,6 +454,36 @@ func buildAIGatewayMCPServers(
 	}
 
 	slices.SortFunc(result, func(a, b declresources.AIGatewayMCPServerResource) int {
+		if a.Name() == b.Name() {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name(), b.Name())
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayVaults(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayVaultResource, error) {
+	vaults, err := client.ListAIGatewayVaults(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayVaultResource, 0, len(vaults))
+	for _, vault := range vaults {
+		resource, err := declresources.AIGatewayVaultResourceFromResponse(gatewayRef, vault.AIGatewayVault)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Vault for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayVaultResource) int {
 		if a.Name() == b.Name() {
 			return cmp.Compare(a.Ref, b.Ref)
 		}

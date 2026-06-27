@@ -24,6 +24,17 @@ ai_gateways:
             headers:
               - name: Authorization
                 value: !env OPENAI_AUTH_HEADER
+    vaults:
+      - ref: support-env
+        name: support-env
+        type: env
+        description: "Environment variables for support AI Gateway secrets"
+        labels:
+          team: support
+          purpose: runtime-secrets
+        config:
+          prefix: SUPPORT_AI_
+          base64_decode: false
     policies:
       - ref: mask-sensitive-data
         name: mask-sensitive-data
