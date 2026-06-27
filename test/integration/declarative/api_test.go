@@ -55,7 +55,7 @@ apis:
 			resourceSet.APIImplementations[0].GetRef(),
 			resourceSet.APIImplementations[0].API,
 			func() string {
-				serviceRef := resourceSet.APIImplementations[0].ServiceReference
+				serviceRef := resourceSet.APIImplementations[0].ServiceReferenceInput
 				if serviceRef != nil {
 					if service := serviceRef.GetService(); service != nil {
 						return service.ID
@@ -64,7 +64,7 @@ apis:
 				return "<nil>"
 			}(),
 			func() string {
-				serviceRef := resourceSet.APIImplementations[0].ServiceReference
+				serviceRef := resourceSet.APIImplementations[0].ServiceReferenceInput
 				if serviceRef != nil {
 					if service := serviceRef.GetService(); service != nil {
 						return service.ControlPlaneID
