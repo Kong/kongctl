@@ -446,6 +446,10 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 
 		switch authType {
 		case "anonymous":
+			if fetchField, ok := authMap["fetch_kong_identity_principal"]; ok && fetchField != nil {
+				return nil, fmt.Errorf("authentication[%d].fetch_kong_identity_principal is not supported for anonymous", i)
+			}
+
 			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeAnonymous(
 				kkComps.VirtualClusterAuthenticationAnonymous{},
 			))
@@ -492,6 +496,15 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 				saslPlain.Principals = principals
 			}
 
+			if fetchField, ok := authMap["fetch_kong_identity_principal"]; ok {
+				fetch, err := buildFetchKongIdentityPrincipal(fetchField,
+					fmt.Sprintf("authentication[%d].fetch_kong_identity_principal", i))
+				if err != nil {
+					return nil, err
+				}
+				saslPlain.FetchKongIdentityPrincipal = fetch
+			}
+
 			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeSaslPlain(saslPlain))
 
 		case "sasl_scram":
@@ -499,11 +512,20 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 			if !ok {
 				return nil, fmt.Errorf("authentication[%d].algorithm is required for sasl_scram", i)
 			}
-			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeSaslScram(
-				kkComps.VirtualClusterAuthenticationSaslScram{
-					Algorithm: kkComps.VirtualClusterAuthenticationSaslScramAlgorithm(algorithm),
-				},
-			))
+			saslScram := kkComps.VirtualClusterAuthenticationSaslScram{
+				Algorithm: kkComps.VirtualClusterAuthenticationSaslScramAlgorithm(algorithm),
+			}
+
+			if fetchField, ok := authMap["fetch_kong_identity_principal"]; ok {
+				fetch, err := buildFetchKongIdentityPrincipal(fetchField,
+					fmt.Sprintf("authentication[%d].fetch_kong_identity_principal", i))
+				if err != nil {
+					return nil, err
+				}
+				saslScram.FetchKongIdentityPrincipal = fetch
+			}
+
+			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeSaslScram(saslScram))
 
 		case "oauth_bearer":
 			mediation, ok := authMap["mediation"].(string)
@@ -587,11 +609,30 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 				oauthBearer.Validate = validate
 			}
 
+			if fetchField, ok := authMap["fetch_kong_identity_principal"]; ok {
+				fetch, err := buildFetchKongIdentityPrincipalOauthBearer(fetchField,
+					fmt.Sprintf("authentication[%d].fetch_kong_identity_principal", i))
+				if err != nil {
+					return nil, err
+				}
+				oauthBearer.FetchKongIdentityPrincipal = fetch
+			}
+
 			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeOauthBearer(oauthBearer))
 
 		case "client_certificate":
+			clientCertificate := kkComps.VirtualClusterAuthenticationClientCertificate{}
+			if fetchField, ok := authMap["fetch_kong_identity_principal"]; ok {
+				fetch, err := buildFetchKongIdentityPrincipal(fetchField,
+					fmt.Sprintf("authentication[%d].fetch_kong_identity_principal", i))
+				if err != nil {
+					return nil, err
+				}
+				clientCertificate.FetchKongIdentityPrincipal = fetch
+			}
+
 			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeClientCertificate(
-				kkComps.VirtualClusterAuthenticationClientCertificate{},
+				clientCertificate,
 			))
 
 		default:
@@ -600,6 +641,130 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 	}
 
 	return result, nil
+}
+
+func buildFetchKongIdentityPrincipal(
+	field any,
+	path string,
+) (*kkComps.FetchKongIdentityPrincipal, error) {
+	if field == nil {
+		return nil, nil
+	}
+	if fetch, ok := field.(*kkComps.FetchKongIdentityPrincipal); ok {
+		return fetch, nil
+	}
+	if fetch, ok := field.(kkComps.FetchKongIdentityPrincipal); ok {
+		return &fetch, nil
+	}
+
+	fetchMap, ok := field.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("%s must be an object, got %T", path, field)
+	}
+
+	directory, ok := fetchMap["directory"].(string)
+	if !ok {
+		return nil, fmt.Errorf("%s.directory is required and must be a string", path)
+	}
+
+	fetchByField, ok := fetchMap["fetch_by"]
+	if !ok {
+		return nil, fmt.Errorf("%s.fetch_by is required", path)
+	}
+	fetchBy, err := buildFetchKongIdentityPrincipalFetchBy(fetchByField, path+".fetch_by")
+	if err != nil {
+		return nil, err
+	}
+
+	failureMode, err := buildFetchKongIdentityPrincipalFailureMode(fetchMap["failure_mode"], path+".failure_mode")
+	if err != nil {
+		return nil, err
+	}
+
+	return &kkComps.FetchKongIdentityPrincipal{
+		Directory:   directory,
+		FetchBy:     fetchBy,
+		FailureMode: failureMode,
+	}, nil
+}
+
+func buildFetchKongIdentityPrincipalOauthBearer(
+	field any,
+	path string,
+) (*kkComps.FetchKongIdentityPrincipalOauthBearer, error) {
+	if field == nil {
+		return nil, nil
+	}
+	if fetch, ok := field.(*kkComps.FetchKongIdentityPrincipalOauthBearer); ok {
+		return fetch, nil
+	}
+	if fetch, ok := field.(kkComps.FetchKongIdentityPrincipalOauthBearer); ok {
+		return &fetch, nil
+	}
+
+	fetchMap, ok := field.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("%s must be an object, got %T", path, field)
+	}
+	if fetchByField, ok := fetchMap["fetch_by"]; ok && fetchByField != nil {
+		return nil, fmt.Errorf("%s.fetch_by is not supported for oauth_bearer", path)
+	}
+
+	directory, ok := fetchMap["directory"].(string)
+	if !ok {
+		return nil, fmt.Errorf("%s.directory is required and must be a string", path)
+	}
+
+	failureMode, err := buildFetchKongIdentityPrincipalFailureMode(fetchMap["failure_mode"], path+".failure_mode")
+	if err != nil {
+		return nil, err
+	}
+
+	return &kkComps.FetchKongIdentityPrincipalOauthBearer{
+		Directory:   directory,
+		FailureMode: failureMode,
+	}, nil
+}
+
+func buildFetchKongIdentityPrincipalFetchBy(
+	field any,
+	path string,
+) (kkComps.FetchKongIdentityPrincipalFetchBy, error) {
+	if fetchBy, ok := field.(kkComps.FetchKongIdentityPrincipalFetchBy); ok {
+		return fetchBy, nil
+	}
+
+	fetchByMap, ok := field.(map[string]any)
+	if !ok {
+		return kkComps.FetchKongIdentityPrincipalFetchBy{}, fmt.Errorf("%s must be an object, got %T", path, field)
+	}
+
+	key, ok := fetchByMap["key"].(string)
+	if !ok {
+		return kkComps.FetchKongIdentityPrincipalFetchBy{},
+			fmt.Errorf("%s.key is required and must be a string", path)
+	}
+
+	return kkComps.FetchKongIdentityPrincipalFetchBy{
+		Key: key,
+	}, nil
+}
+
+func buildFetchKongIdentityPrincipalFailureMode(
+	field any,
+	path string,
+) (kkComps.FetchKongIdentityPrincipalFailureMode, error) {
+	failureModeValue, ok := field.(string)
+	if !ok {
+		return "", fmt.Errorf("%s is required and must be a string", path)
+	}
+
+	failureMode := kkComps.FetchKongIdentityPrincipalFailureMode(failureModeValue)
+	if !failureMode.ToPointer().IsExact() {
+		return "", fmt.Errorf("%s must be one of: error, ignore", path)
+	}
+
+	return failureMode, nil
 }
 
 // buildACLMode constructs VirtualClusterACLMode from a string or SDK type
@@ -766,7 +931,8 @@ func convertToVirtualClusterSensitiveDataAwareAuth(
 		}
 
 		saslPlain := kkComps.VirtualClusterAuthenticationSaslPlainSensitiveDataAware{
-			Mediation: kkComps.Mediation(auth.VirtualClusterAuthenticationSaslPlain.Mediation),
+			Mediation:                  kkComps.Mediation(auth.VirtualClusterAuthenticationSaslPlain.Mediation),
+			FetchKongIdentityPrincipal: auth.VirtualClusterAuthenticationSaslPlain.FetchKongIdentityPrincipal,
 		}
 
 		// Convert principals if present
@@ -791,7 +957,8 @@ func convertToVirtualClusterSensitiveDataAwareAuth(
 		}
 		return kkComps.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
 			kkComps.VirtualClusterAuthenticationSaslScram{
-				Algorithm: auth.VirtualClusterAuthenticationSaslScram.Algorithm,
+				Algorithm:                  auth.VirtualClusterAuthenticationSaslScram.Algorithm,
+				FetchKongIdentityPrincipal: auth.VirtualClusterAuthenticationSaslScram.FetchKongIdentityPrincipal,
 			},
 		), nil
 
