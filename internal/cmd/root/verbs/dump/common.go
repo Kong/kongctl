@@ -162,6 +162,9 @@ func mapResourceName(name string) string {
 		return "ai_gateways"
 	case "ai-gateway-policy", "ai-gateway-policies", "ai_gateway_policy", "ai_gateway_policies":
 		return "ai_gateway_policies"
+	case "ai-gateway-consumer-group", "ai-gateway-consumer-groups",
+		"ai_gateway_consumer_group", "ai_gateway_consumer_groups":
+		return "ai_gateway_consumer_groups"
 	case "ai-gateway-model", "ai-gateway-models", "ai_gateway_model", "ai_gateway_models":
 		return "ai_gateway_models"
 	case "ai-gateway-mcp-server", "ai-gateway-mcp-servers", "ai_gateway_mcp_server", "ai_gateway_mcp_servers":

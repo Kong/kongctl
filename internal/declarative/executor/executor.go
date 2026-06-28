@@ -58,6 +58,9 @@ type Executor struct {
 	aiGatewayPolicyExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayPolicyRequest,
 		kkComps.UpdateAIGatewayPolicyRequest]
+	aiGatewayConsumerGroupExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayConsumerGroupRequest,
+		kkComps.UpdateAIGatewayConsumerGroupRequest]
 	aiGatewayModelExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayModelRequest, kkComps.UpdateAIGatewayModelRequest]
 	aiGatewayMCPServerExecutor *BaseExecutor[
@@ -253,6 +256,13 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		kkComps.CreateAIGatewayPolicyRequest,
 		kkComps.UpdateAIGatewayPolicyRequest](
 		NewAIGatewayPolicyAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayConsumerGroupExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayConsumerGroupRequest,
+		kkComps.UpdateAIGatewayConsumerGroupRequest](
+		NewAIGatewayConsumerGroupAdapter(client),
 		client,
 		dryRun,
 	)
@@ -2366,6 +2376,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayPolicyExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerGroup:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayConsumerGroupExecutor.Create(ctx, *change)
 	case planner.ResourceTypeAIGatewayModel:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
@@ -2973,6 +2988,11 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayPolicyExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerGroup:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayConsumerGroupExecutor.Update(ctx, *change)
 	case planner.ResourceTypeAIGatewayModel:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
@@ -3462,6 +3482,11 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			return err
 		}
 		return e.aiGatewayPolicyExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerGroup:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayConsumerGroupExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayModel:
 		return e.aiGatewayModelExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayMCPServer:

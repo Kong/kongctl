@@ -27,6 +27,12 @@ const (
 	aiGatewayPolicyIDConfigPath   = "konnect.ai-gateway.policy.id"
 	aiGatewayPolicyNameConfigPath = "konnect.ai-gateway.policy.name"
 
+	aiGatewayConsumerGroupIDFlagName   = "consumer-group-id"
+	aiGatewayConsumerGroupNameFlagName = "consumer-group-name"
+
+	aiGatewayConsumerGroupIDConfigPath   = "konnect.ai-gateway.consumer-group.id"
+	aiGatewayConsumerGroupNameConfigPath = "konnect.ai-gateway.consumer-group.name"
+
 	aiGatewayMCPServerIDFlagName   = "mcp-server-id"
 	aiGatewayMCPServerNameFlagName = "mcp-server-name"
 
@@ -142,6 +148,40 @@ func bindAIGatewayPolicyFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayPolicyIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(aiGatewayPolicyIDConfigPath), cfg.GetString(aiGatewayPolicyNameConfigPath)
+}
+
+func addAIGatewayConsumerGroupFlags(c *cobra.Command) {
+	c.Flags().String(aiGatewayConsumerGroupIDFlagName, "",
+		fmt.Sprintf(`The ID of the AI Gateway Consumer Group to retrieve.
+- Config path: [ %s ]`, aiGatewayConsumerGroupIDConfigPath))
+	c.Flags().String(aiGatewayConsumerGroupNameFlagName, "",
+		fmt.Sprintf(`The name of the AI Gateway Consumer Group to retrieve.
+- Config path: [ %s ]`, aiGatewayConsumerGroupNameConfigPath))
+	c.MarkFlagsMutuallyExclusive(aiGatewayConsumerGroupIDFlagName, aiGatewayConsumerGroupNameFlagName)
+}
+
+func bindAIGatewayConsumerGroupFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(aiGatewayConsumerGroupIDFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayConsumerGroupIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	if flag := c.Flags().Lookup(aiGatewayConsumerGroupNameFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayConsumerGroupNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getAIGatewayConsumerGroupIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(aiGatewayConsumerGroupIDConfigPath), cfg.GetString(aiGatewayConsumerGroupNameConfigPath)
 }
 
 func addAIGatewayMCPServerFlags(c *cobra.Command) {
