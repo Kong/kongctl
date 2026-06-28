@@ -48,6 +48,15 @@ ai_gateways:
         config:
           anonymize:
             - email
+    consumer_groups:
+      - ref: premium-support-users
+        name: premium-support-users
+        display_name: "Premium Support Users"
+        policies:
+          - !ref mask-sensitive-data
+        labels:
+          team: support
+          tier: premium
     models:
       - ref: customer-support-gpt
         type: model
@@ -65,7 +74,7 @@ ai_gateways:
             config:
               type: openai
         policies:
-          - mask-sensitive-data
+          - !ref mask-sensitive-data
         capabilities:
           - generate
     mcp_servers:
@@ -85,4 +94,4 @@ ai_gateways:
             method: GET
             path: /customers/{customer_id}
         policies:
-          - mask-sensitive-data
+          - !ref mask-sensitive-data

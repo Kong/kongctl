@@ -1036,6 +1036,13 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		}
 		gateway.Policies = nil
 
+		for j := range gateway.ConsumerGroups {
+			group := gateway.ConsumerGroups[j]
+			group.AIGateway = gateway.Ref
+			rs.AIGatewayConsumerGroups = append(rs.AIGatewayConsumerGroups, group)
+		}
+		gateway.ConsumerGroups = nil
+
 		for j := range gateway.Models {
 			model := gateway.Models[j]
 			model.AIGateway = gateway.Ref

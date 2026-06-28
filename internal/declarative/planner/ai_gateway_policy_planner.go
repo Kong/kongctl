@@ -9,6 +9,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -56,6 +57,9 @@ func (p *Planner) planAIGatewayPolicyChanges(
 		}
 
 		policyID := resources.AIGatewayPolicyID(current.AIGatewayPolicy)
+		if policy := p.resources.GetAIGatewayPolicyByRef(desiredPolicy.Ref); policy != nil {
+			policy.SetKonnectID(policyID)
+		}
 		fullPolicy, err := p.client.GetAIGatewayPolicy(ctx, gatewayID, policyID)
 		if err != nil {
 			return fmt.Errorf("failed to get AI Gateway Policy %s: %w", policyID, err)
@@ -278,7 +282,7 @@ func aiGatewayPolicyCreateDependencies(plan *Plan, namespace string, gatewayRef 
 		return nil
 	}
 
-	depsByName := make(map[string]string)
+	depsByRefOrName := make(map[string]string)
 	for _, change := range plan.Changes {
 		if change.Action != ActionCreate ||
 			change.ResourceType != ResourceTypeAIGatewayPolicy ||
@@ -287,33 +291,42 @@ func aiGatewayPolicyCreateDependencies(plan *Plan, namespace string, gatewayRef 
 			continue
 		}
 
+		if change.ResourceRef != "" {
+			depsByRefOrName[change.ResourceRef] = change.ID
+		}
 		name, ok := change.Fields[FieldName].(string)
 		if ok && name != "" {
-			depsByName[name] = change.ID
+			depsByRefOrName[name] = change.ID
 		}
 	}
-	if len(depsByName) == 0 {
+	if len(depsByRefOrName) == 0 {
 		return nil
 	}
-	return depsByName
+	return depsByRefOrName
 }
 
-func aiGatewayPolicyReferenceDependencies(payload map[string]any, policyCreateDepsByName map[string]string) []string {
-	if len(policyCreateDepsByName) == 0 {
+func aiGatewayPolicyReferenceDependencies(
+	payload map[string]any,
+	policyCreateDepsByRefOrName map[string]string,
+) []string {
+	if len(policyCreateDepsByRefOrName) == 0 {
 		return nil
 	}
-	rawPolicies, ok := payload["policies"].([]any)
+	rawPolicies, ok := payload[FieldPolicies].([]any)
 	if !ok {
 		return nil
 	}
 
 	var deps []string
 	for _, rawPolicy := range rawPolicies {
-		policyName, ok := rawPolicy.(string)
-		if !ok || policyName == "" {
+		policyRefOrName, ok := rawPolicy.(string)
+		if !ok || policyRefOrName == "" {
 			continue
 		}
-		if dep := policyCreateDepsByName[policyName]; dep != "" {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(policyRefOrName); ok {
+			policyRefOrName = parsedRef
+		}
+		if dep := policyCreateDepsByRefOrName[policyRefOrName]; dep != "" {
 			deps = appendDependsOn(deps, dep)
 		}
 	}

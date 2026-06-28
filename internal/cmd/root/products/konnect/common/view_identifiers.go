@@ -8,6 +8,7 @@ const (
 	ViewParentAIGateway                     = "ai-gateway"
 	ViewParentAIGatewayProvider             = "ai-gateway-provider"
 	ViewParentAIGatewayPolicy               = "ai-gateway-policy"
+	ViewParentAIGatewayConsumerGroup        = "ai-gateway-consumer-group"
 	ViewParentAIGatewayModel                = "ai-gateway-model"
 	ViewParentAIGatewayMCPServer            = "ai-gateway-mcp-server"
 	ViewParentAIGatewayVault                = "ai-gateway-vault"

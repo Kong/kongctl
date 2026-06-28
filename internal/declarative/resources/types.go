@@ -20,6 +20,7 @@ const (
 	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
 	ResourceTypeAIGatewayProvider                       ResourceType = "ai_gateway_provider"
 	ResourceTypeAIGatewayPolicy                         ResourceType = "ai_gateway_policy"
+	ResourceTypeAIGatewayConsumerGroup                  ResourceType = "ai_gateway_consumer_group"
 	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
 	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
 	ResourceTypeAIGatewayVault                          ResourceType = "ai_gateway_vault"
@@ -113,6 +114,7 @@ type ResourceSet struct {
 	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
 	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_providers,omitempty"                          json:"ai_gateway_providers,omitempty"`                   //nolint:lll
 	AIGatewayPolicies                 []AIGatewayPolicyResource                  `yaml:"ai_gateway_policies,omitempty"                           json:"ai_gateway_policies,omitempty"`                    //nolint:lll
+	AIGatewayConsumerGroups           []AIGatewayConsumerGroupResource           `yaml:"ai_gateway_consumer_groups,omitempty"                    json:"ai_gateway_consumer_groups,omitempty"`             //nolint:lll
 	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
 	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
 	AIGatewayVaults                   []AIGatewayVaultResource                   `yaml:"ai_gateway_vaults,omitempty"                              json:"ai_gateway_vaults,omitempty"`                     //nolint:lll
@@ -363,6 +365,16 @@ func (rs *ResourceSet) GetAIGatewayPolicyByRef(ref string) *AIGatewayPolicyResou
 	return nil
 }
 
+// GetAIGatewayConsumerGroupByRef returns an AI Gateway Consumer Group resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayConsumerGroupByRef(ref string) *AIGatewayConsumerGroupResource {
+	for i := range rs.AIGatewayConsumerGroups {
+		if rs.AIGatewayConsumerGroups[i].GetRef() == ref {
+			return &rs.AIGatewayConsumerGroups[i]
+		}
+	}
+	return nil
+}
+
 // GetAIGatewayModelByRef returns an AI Gateway Model resource by its ref from any namespace.
 func (rs *ResourceSet) GetAIGatewayModelByRef(ref string) *AIGatewayModelResource {
 	for i := range rs.AIGatewayModels {
@@ -500,6 +512,25 @@ func (rs *ResourceSet) GetAIGatewayPoliciesByNamespace(namespace string) []AIGat
 			}
 			if GetNamespace(gateway.Kongctl) == namespace {
 				filtered = append(filtered, policy)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayConsumerGroupsByNamespace returns AI Gateway Consumer Group resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayConsumerGroupsByNamespace(namespace string) []AIGatewayConsumerGroupResource {
+	var filtered []AIGatewayConsumerGroupResource
+	for _, group := range rs.AIGatewayConsumerGroups {
+		if gateway := rs.GetAIGatewayByRef(group.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, group)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, group)
 			}
 		}
 	}
@@ -1153,6 +1184,17 @@ func (rs *ResourceSet) GetAIGatewayPoliciesForGateway(gatewayRef string) []AIGat
 		}
 	}
 	return policies
+}
+
+// GetAIGatewayConsumerGroupsForGateway returns all AI Gateway Consumer Groups for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayConsumerGroupsForGateway(gatewayRef string) []AIGatewayConsumerGroupResource {
+	var groups []AIGatewayConsumerGroupResource
+	for _, group := range rs.AIGatewayConsumerGroups {
+		if NormalizeResourceRef(group.AIGateway) == gatewayRef {
+			groups = append(groups, group)
+		}
+	}
+	return groups
 }
 
 // GetVirtualClustersForGateway returns all virtual clusters (nested + root-level) for a given gateway ref

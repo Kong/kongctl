@@ -76,7 +76,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 			continue
 		}
 
-		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayMCPServer(*fullServer, desiredServer)
+		needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayMCPServer(*fullServer, desiredServer)
 		if err != nil {
 			return err
 		}
@@ -218,7 +218,7 @@ func (p *Planner) planAIGatewayMCPServerDelete(
 	plan.AddChange(change)
 }
 
-func shouldUpdateAIGatewayMCPServer(
+func (p *Planner) shouldUpdateAIGatewayMCPServer(
 	current state.AIGatewayMCPServer,
 	desired resources.AIGatewayMCPServerResource,
 ) (bool, map[string]any, map[string]FieldChange, error) {
@@ -231,16 +231,22 @@ func shouldUpdateAIGatewayMCPServer(
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway MCP Server %q: %w", desired.Ref, err)
 	}
 
+	currentCompare, desiredCompare := normalizeAIGatewayPolicyReferencesForComparison(
+		currentPayload,
+		desiredPayload,
+		p.resources,
+	)
+
 	changedFields := make(map[string]FieldChange)
-	keys := make(map[string]struct{}, len(currentPayload)+len(desiredPayload))
-	for key := range currentPayload {
+	keys := make(map[string]struct{}, len(currentCompare)+len(desiredCompare))
+	for key := range currentCompare {
 		keys[key] = struct{}{}
 	}
-	for key := range desiredPayload {
+	for key := range desiredCompare {
 		keys[key] = struct{}{}
 	}
 	for key := range keys {
-		if !reflect.DeepEqual(currentPayload[key], desiredPayload[key]) {
+		if !reflect.DeepEqual(currentCompare[key], desiredCompare[key]) {
 			changedFields[key] = FieldChange{Old: currentPayload[key], New: desiredPayload[key]}
 		}
 	}
