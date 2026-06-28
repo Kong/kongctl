@@ -278,7 +278,7 @@ func (c *roarCmd) run(command *cobra.Command, _ []string) error {
 }
 
 func rejectUnsupportedRootFlags(command *cobra.Command) error {
-	changed := []string{}
+	var changed []string
 	for _, flagName := range unsupportedRootFlags {
 		flag := command.Flag(flagName)
 		if flag != nil && flag.Changed {
@@ -314,20 +314,20 @@ func climberBannerFlagChanged(command *cobra.Command) bool {
 
 func supportedWidthValues() string {
 	widths := art.SupportedKongBannerWidths()
-	values := make([]string, 0, len(widths))
-	for _, width := range widths {
-		values = append(values, fmt.Sprintf("%d", width))
+	parts := make([]string, len(widths))
+	for i, w := range widths {
+		parts[i] = strconv.Itoa(w)
 	}
-	return strings.Join(values, ", ")
+	return strings.Join(parts, ", ")
 }
 
 func supportedArtValues() string {
 	bannerTypes := art.SupportedKongBannerTypes()
-	values := make([]string, 0, len(bannerTypes))
-	for _, bannerType := range bannerTypes {
-		values = append(values, bannerType.String())
+	parts := make([]string, len(bannerTypes))
+	for i, bannerType := range bannerTypes {
+		parts[i] = bannerType.String()
 	}
-	return strings.Join(values, ", ")
+	return strings.Join(parts, ", ")
 }
 
 func supportedPlacementValues() string {
@@ -342,9 +342,9 @@ func supportedPlacementValues() string {
 		placementBottom,
 		placementBottomRight,
 	}
-	parts := make([]string, 0, len(values))
-	for _, value := range values {
-		parts = append(parts, string(value))
+	parts := make([]string, len(values))
+	for i, value := range values {
+		parts[i] = string(value)
 	}
 	return strings.Join(parts, ", ")
 }
@@ -769,7 +769,7 @@ func resolveEffectiveBannerColor(value string, terminal terminalCapabilities) (c
 	if value == "" || strings.EqualFold(value, nativeColorValue) {
 		return nil, nil
 	}
-	if value == "" || strings.EqualFold(value, autoColorValue) {
+	if strings.EqualFold(value, autoColorValue) {
 		if !shouldUseAutoColor(terminal) {
 			return nil, nil
 		}
