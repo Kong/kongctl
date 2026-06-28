@@ -168,6 +168,25 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.bcName }}"
+
+      - name: 003-verify-produce-policy-unchanged
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.vcName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='diff-produce-policy'] | [0]"
+            expect:
+              fields:
+                enabled: true
+                "config.actions[0].value": "initial"
   - name: 004-diff-sync-mode
     inputOverlayDirs:
       - overlays/004-diff-sync
