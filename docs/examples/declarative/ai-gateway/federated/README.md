@@ -2,8 +2,8 @@
 
 This example shows a federated layout for AI Gateway resources where a central
 AI platform team owns the shared AI Gateway and upstream providers, while a peer
-team owns root-level policies, models, MCP Servers, and vaults that target the
-shared gateway.
+team owns root-level policies, consumer groups, models, MCP Servers, and vaults
+that target the shared gateway.
 
 ## Structure
 
@@ -14,6 +14,7 @@ ai-gateway/federated/
 |-- external-peer-team/
 |   `-- support-model.yaml
 `-- peer-team/
+    |-- support-consumer-group.yaml
     |-- support-mcp-server.yaml
     |-- support-model.yaml
     |-- support-policy.yaml
@@ -26,12 +27,17 @@ ai-gateway/federated/
   providers: OpenAI and Anthropic.
 - `peer-team/support-policy.yaml` defines a standalone `ai_gateway_policies`
   entry that references the central gateway with `!ref shared-ai-gateway#id`.
-  The peer model and MCP Server attach the policy by policy name.
+- `peer-team/support-consumer-group.yaml` defines a standalone
+  `ai_gateway_consumer_groups` entry that references the central gateway with
+  `!ref shared-ai-gateway#id` and attaches the policy with an explicit
+  `!ref peer-mask-sensitive-data`.
 - `peer-team/support-model.yaml` defines a standalone `ai_gateway_models`
-  entry that references the central gateway with `!ref shared-ai-gateway#id`.
+  entry that references the central gateway with `!ref shared-ai-gateway#id`
+  and attaches the policy with an explicit `!ref peer-mask-sensitive-data`.
 - `peer-team/support-mcp-server.yaml` defines a standalone
   `ai_gateway_mcp_servers` entry that references the central gateway with
-  `!ref shared-ai-gateway#id`.
+  `!ref shared-ai-gateway#id` and attaches the policy with an explicit
+  `!ref peer-mask-sensitive-data`.
 - `peer-team/support-vault.yaml` defines a standalone `ai_gateway_vaults` entry
   that references the central gateway with `!ref shared-ai-gateway#id`.
 - `external-peer-team/support-model.yaml` defines an `_external` AI Gateway

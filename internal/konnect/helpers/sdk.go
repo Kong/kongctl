@@ -25,6 +25,7 @@ type SDKAPI interface {
 	GetAIGatewayAPI() AIGatewayAPI
 	GetAIGatewayProvidersAPI() AIGatewayProvidersAPI
 	GetAIGatewayPoliciesAPI() AIGatewayPoliciesAPI
+	GetAIGatewayConsumerGroupsAPI() AIGatewayConsumerGroupsAPI
 	GetAIGatewayModelAPI() AIGatewayModelAPI
 	GetAIGatewayMCPServersAPI() AIGatewayMCPServersAPI
 	GetAIGatewayVaultsAPI() AIGatewayVaultsAPI
@@ -151,6 +152,15 @@ func (k *KonnectSDK) GetAIGatewayPoliciesAPI() AIGatewayPoliciesAPI {
 	}
 
 	return &AIGatewayPoliciesAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the AIGatewayConsumerGroupsAPI interface.
+func (k *KonnectSDK) GetAIGatewayConsumerGroupsAPI() AIGatewayConsumerGroupsAPI {
+	if k.SDK == nil || k.SDK.AIGatewayConsumerGroups == nil {
+		return nil
+	}
+
+	return &AIGatewayConsumerGroupsAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the AIGatewayModelAPI interface.

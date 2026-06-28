@@ -52,7 +52,7 @@ func TestAIGatewayPolicyPlannerCreatesChildForExistingGateway(t *testing.T) {
 func TestAIGatewayPolicyPlannerUpdatesExistingPolicy(t *testing.T) {
 	policy := testAIGatewayPolicyResource(t)
 	policy.DisplayName = "Mask Sensitive Data Updated"
-	current := testAIGatewayPolicy("policy-id", "mask-sensitive-data")
+	current := testAIGatewayPolicy()
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
@@ -95,7 +95,7 @@ func TestAIGatewayPolicyPlannerSyncDeletesScopedPolicies(t *testing.T) {
 			gateways: []kkComps.AIGateway{testAIGateway()},
 		},
 		AIGatewayPoliciesAPI: &testAIGatewayPolicyAPI{
-			policies: []kkComps.AIGatewayPolicy{testAIGatewayPolicy("policy-id", "mask-sensitive-data")},
+			policies: []kkComps.AIGatewayPolicy{testAIGatewayPolicy()},
 		},
 	})
 	rs := &resources.ResourceSet{
@@ -197,12 +197,12 @@ func testAIGatewayModelResourceWithPolicy(t *testing.T, policyName string) resou
 	return model
 }
 
-func testAIGatewayPolicy(id string, name string) kkComps.AIGatewayPolicy {
+func testAIGatewayPolicy() kkComps.AIGatewayPolicy {
 	enabled := true
 	global := false
 	return kkComps.AIGatewayPolicy{
-		ID:          id,
-		Name:        name,
+		ID:          "policy-id",
+		Name:        "mask-sensitive-data",
 		Type:        "ai-sanitizer",
 		DisplayName: "Mask Sensitive Data",
 		Enabled:     &enabled,

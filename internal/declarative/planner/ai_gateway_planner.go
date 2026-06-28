@@ -213,6 +213,28 @@ func (p *Planner) planAIGatewayChanges(
 		}
 		policyCreateDepsByName := aiGatewayPolicyCreateDependencies(plan, namespace, desiredGateway.Ref)
 
+		consumerGroups := p.resources.GetAIGatewayConsumerGroupsForGateway(desiredGateway.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeAIGateway,
+			desiredGateway.Ref,
+			resources.ResourceTypeAIGatewayConsumerGroup,
+		) && (len(consumerGroups) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayConsumerGroupChanges(
+				ctx,
+				namespace,
+				desiredGateway.Ref,
+				desiredGateway.DisplayName,
+				gatewayID,
+				gatewayChangeID,
+				policyCreateDepsByName,
+				consumerGroups,
+				plan,
+			); err != nil {
+				return err
+			}
+		}
+
 		models := p.resources.GetAIGatewayModelsForGateway(desiredGateway.Ref)
 		if p.shouldPlanChild(
 			plan,
@@ -354,6 +376,28 @@ func (p *Planner) planExternalAIGatewayChildren(
 		}
 	}
 	policyCreateDepsByName := aiGatewayPolicyCreateDependencies(plan, namespace, desiredGateway.Ref)
+
+	consumerGroups := p.resources.GetAIGatewayConsumerGroupsForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayConsumerGroup,
+	) && len(consumerGroups) > 0 {
+		if err := p.planAIGatewayConsumerGroupChanges(
+			ctx,
+			namespace,
+			desiredGateway.Ref,
+			desiredGateway.DisplayName,
+			gatewayID,
+			"",
+			policyCreateDepsByName,
+			consumerGroups,
+			plan,
+		); err != nil {
+			return err
+		}
+	}
 
 	models := p.resources.GetAIGatewayModelsForGateway(desiredGateway.Ref)
 	if p.shouldPlanChild(
