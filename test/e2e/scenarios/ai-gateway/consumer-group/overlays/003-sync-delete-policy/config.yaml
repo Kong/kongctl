@@ -1,0 +1,13 @@
+ai_gateways:
+  - ref: ai-gateway-consumer-group-e2e
+    display_name: "AI Gateway Consumer Group E2E"
+    description: "AI Gateway Consumer Group e2e"
+    proxy_urls:
+      - host: ai-gateway-consumer-group-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    policies: []
+    consumer_groups: []

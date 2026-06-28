@@ -1,0 +1,33 @@
+ai_gateways:
+  - ref: ai-gateway-consumer-group-e2e
+    display_name: "AI Gateway Consumer Group E2E"
+    description: "AI Gateway Consumer Group e2e"
+    proxy_urls:
+      - host: ai-gateway-consumer-group-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    policies:
+      - ref: mask-sensitive-data
+        name: mask-sensitive-data
+        type: ai-sanitizer
+        display_name: "Mask Sensitive Data"
+        enabled: true
+        global: false
+        labels:
+          team: support
+          phase: create
+        config:
+          anonymize:
+            - email
+    consumer_groups:
+      - ref: premium-support-users
+        name: premium-support-users
+        display_name: "Premium Support Users Updated"
+        labels:
+          team: support
+          phase: update
+        policies:
+          - !ref mask-sensitive-data

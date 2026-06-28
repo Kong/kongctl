@@ -14,6 +14,7 @@ import (
 func init() {
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldProviders, loadAIGatewayProviders)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldPolicies, loadAIGatewayPolicies)
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumerGroups, loadAIGatewayConsumerGroups)
 }
 
 func loadAIGatewayProviders(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -76,6 +77,37 @@ func loadAIGatewayPolicies(_ context.Context, helper cmd.Helper, parent any) (ta
 		return tableview.ChildView{}, err
 	}
 	return buildAIGatewayPolicyChildView(policies), nil
+}
+
+func loadAIGatewayConsumerGroups(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	groupAPI := sdk.GetAIGatewayConsumerGroupsAPI()
+	if groupAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Consumer Groups client is not available")
+	}
+
+	groups, err := fetchAIGatewayConsumerGroups(helper, groupAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayConsumerGroupChildView(groups), nil
 }
 
 func aiGatewayIDFromParent(parent any) (string, error) {

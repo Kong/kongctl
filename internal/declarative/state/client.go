@@ -26,22 +26,23 @@ import (
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
 	// Core APIs
-	PortalAPI               helpers.PortalAPI
-	APIAPI                  helpers.APIAPI
-	AppAuthAPI              helpers.AppAuthStrategiesAPI
-	DCRProviderAPI          helpers.DCRProvidersAPI
-	ControlPlaneAPI         helpers.ControlPlaneAPI
-	GatewayServiceAPI       helpers.GatewayServiceAPI
-	DataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
-	ControlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
-	CatalogServiceAPI       helpers.CatalogServicesAPI
-	AIGatewayAPI            helpers.AIGatewayAPI
-	AIGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
-	AIGatewayPoliciesAPI    helpers.AIGatewayPoliciesAPI
-	AIGatewayModelAPI       helpers.AIGatewayModelAPI
-	AIGatewayMCPServersAPI  helpers.AIGatewayMCPServersAPI
-	AIGatewayVaultsAPI      helpers.AIGatewayVaultsAPI
-	DashboardsAPI           helpers.DashboardsAPI
+	PortalAPI                  helpers.PortalAPI
+	APIAPI                     helpers.APIAPI
+	AppAuthAPI                 helpers.AppAuthStrategiesAPI
+	DCRProviderAPI             helpers.DCRProvidersAPI
+	ControlPlaneAPI            helpers.ControlPlaneAPI
+	GatewayServiceAPI          helpers.GatewayServiceAPI
+	DataPlaneCertificateAPI    helpers.DataPlaneCertificateAPI
+	ControlPlaneGroupsAPI      helpers.ControlPlaneGroupsAPI
+	CatalogServiceAPI          helpers.CatalogServicesAPI
+	AIGatewayAPI               helpers.AIGatewayAPI
+	AIGatewayProvidersAPI      helpers.AIGatewayProvidersAPI
+	AIGatewayPoliciesAPI       helpers.AIGatewayPoliciesAPI
+	AIGatewayConsumerGroupsAPI helpers.AIGatewayConsumerGroupsAPI
+	AIGatewayModelAPI          helpers.AIGatewayModelAPI
+	AIGatewayMCPServersAPI     helpers.AIGatewayMCPServersAPI
+	AIGatewayVaultsAPI         helpers.AIGatewayVaultsAPI
+	DashboardsAPI              helpers.DashboardsAPI
 
 	// Portal child resource APIs
 	PortalPageAPI             helpers.PortalPageAPI
@@ -94,22 +95,23 @@ type ClientConfig struct {
 // Client wraps Konnect SDK for state management
 type Client struct {
 	// Core APIs
-	portalAPI               helpers.PortalAPI
-	apiAPI                  helpers.APIAPI
-	appAuthAPI              helpers.AppAuthStrategiesAPI
-	dcrProviderAPI          helpers.DCRProvidersAPI
-	controlPlaneAPI         helpers.ControlPlaneAPI
-	gatewayServiceAPI       helpers.GatewayServiceAPI
-	dataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
-	controlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
-	catalogServiceAPI       helpers.CatalogServicesAPI
-	aiGatewayAPI            helpers.AIGatewayAPI
-	aiGatewayProvidersAPI   helpers.AIGatewayProvidersAPI
-	aiGatewayPoliciesAPI    helpers.AIGatewayPoliciesAPI
-	aiGatewayModelAPI       helpers.AIGatewayModelAPI
-	aiGatewayMCPServersAPI  helpers.AIGatewayMCPServersAPI
-	aiGatewayVaultsAPI      helpers.AIGatewayVaultsAPI
-	dashboardsAPI           helpers.DashboardsAPI
+	portalAPI                  helpers.PortalAPI
+	apiAPI                     helpers.APIAPI
+	appAuthAPI                 helpers.AppAuthStrategiesAPI
+	dcrProviderAPI             helpers.DCRProvidersAPI
+	controlPlaneAPI            helpers.ControlPlaneAPI
+	gatewayServiceAPI          helpers.GatewayServiceAPI
+	dataPlaneCertificateAPI    helpers.DataPlaneCertificateAPI
+	controlPlaneGroupsAPI      helpers.ControlPlaneGroupsAPI
+	catalogServiceAPI          helpers.CatalogServicesAPI
+	aiGatewayAPI               helpers.AIGatewayAPI
+	aiGatewayProvidersAPI      helpers.AIGatewayProvidersAPI
+	aiGatewayPoliciesAPI       helpers.AIGatewayPoliciesAPI
+	aiGatewayConsumerGroupsAPI helpers.AIGatewayConsumerGroupsAPI
+	aiGatewayModelAPI          helpers.AIGatewayModelAPI
+	aiGatewayMCPServersAPI     helpers.AIGatewayMCPServersAPI
+	aiGatewayVaultsAPI         helpers.AIGatewayVaultsAPI
+	dashboardsAPI              helpers.DashboardsAPI
 
 	// Portal child resource APIs
 	portalPageAPI             helpers.PortalPageAPI
@@ -163,22 +165,23 @@ type Client struct {
 func NewClient(config ClientConfig) *Client {
 	return &Client{
 		// Core APIs
-		portalAPI:               config.PortalAPI,
-		apiAPI:                  config.APIAPI,
-		appAuthAPI:              config.AppAuthAPI,
-		dcrProviderAPI:          config.DCRProviderAPI,
-		controlPlaneAPI:         config.ControlPlaneAPI,
-		gatewayServiceAPI:       config.GatewayServiceAPI,
-		dataPlaneCertificateAPI: config.DataPlaneCertificateAPI,
-		controlPlaneGroupsAPI:   config.ControlPlaneGroupsAPI,
-		catalogServiceAPI:       config.CatalogServiceAPI,
-		aiGatewayAPI:            config.AIGatewayAPI,
-		aiGatewayProvidersAPI:   config.AIGatewayProvidersAPI,
-		aiGatewayPoliciesAPI:    config.AIGatewayPoliciesAPI,
-		aiGatewayModelAPI:       config.AIGatewayModelAPI,
-		aiGatewayMCPServersAPI:  config.AIGatewayMCPServersAPI,
-		aiGatewayVaultsAPI:      config.AIGatewayVaultsAPI,
-		dashboardsAPI:           config.DashboardsAPI,
+		portalAPI:                  config.PortalAPI,
+		apiAPI:                     config.APIAPI,
+		appAuthAPI:                 config.AppAuthAPI,
+		dcrProviderAPI:             config.DCRProviderAPI,
+		controlPlaneAPI:            config.ControlPlaneAPI,
+		gatewayServiceAPI:          config.GatewayServiceAPI,
+		dataPlaneCertificateAPI:    config.DataPlaneCertificateAPI,
+		controlPlaneGroupsAPI:      config.ControlPlaneGroupsAPI,
+		catalogServiceAPI:          config.CatalogServiceAPI,
+		aiGatewayAPI:               config.AIGatewayAPI,
+		aiGatewayProvidersAPI:      config.AIGatewayProvidersAPI,
+		aiGatewayPoliciesAPI:       config.AIGatewayPoliciesAPI,
+		aiGatewayConsumerGroupsAPI: config.AIGatewayConsumerGroupsAPI,
+		aiGatewayModelAPI:          config.AIGatewayModelAPI,
+		aiGatewayMCPServersAPI:     config.AIGatewayMCPServersAPI,
+		aiGatewayVaultsAPI:         config.AIGatewayVaultsAPI,
+		dashboardsAPI:              config.DashboardsAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:             config.PortalPageAPI,
@@ -284,6 +287,12 @@ type AIGatewayProvider struct {
 // AIGatewayPolicy represents a Konnect AI Gateway Policy for internal use.
 type AIGatewayPolicy struct {
 	kkComps.AIGatewayPolicy
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayConsumerGroup represents a Konnect AI Gateway Consumer Group for internal use.
+type AIGatewayConsumerGroup struct {
+	kkComps.AIGatewayConsumerGroup
 	NormalizedLabels map[string]string
 }
 
