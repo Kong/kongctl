@@ -87,3 +87,56 @@ control plane is pinned to minimum runtime version `1.2` because topic
 aliases require Event Gateway runtime 1.2 or later.
 
 See [topic-aliases.yaml](topic-aliases.yaml) for a focused example.
+
+---
+
+## How do I use Kong Identity principal metadata in CEL?
+
+Set `fetch_kong_identity_principal` inside the virtual cluster
+`authentication` entry. Event Gateway fetches the Kong Identity principal
+after authentication and exposes the principal to CEL expressions as
+`context.auth.principal`.
+
+For `sasl_plain`, `sasl_scram`, and `client_certificate`, provide
+`fetch_by.key` to identify which authenticated value should be used to
+look up the principal in the Kong Identity directory.
+
+```yaml
+authentication:
+  - type: sasl_scram
+    algorithm: sha256
+    fetch_kong_identity_principal:
+      directory: customer-directory
+      fetch_by:
+        key: kafka_username
+      failure_mode: error
+```
+
+For `oauth_bearer`, the lookup uses the authenticated bearer principal,
+so the nested `fetch_by` field is not used.
+
+```yaml
+authentication:
+  - type: oauth_bearer
+    mediation: validate_forward
+    fetch_kong_identity_principal:
+      directory: customer-directory
+      failure_mode: ignore
+```
+
+After the fetch is enabled, CEL conditions can reference the loaded
+principal ID or metadata.
+
+```yaml
+topic_aliases:
+  - alias: customer-orders
+    topic: tenant-a.orders
+    condition: 'context.auth.principal.metadata["tenant"] == "tenant-a"'
+```
+
+The Event Gateway control plane is pinned to minimum runtime version `1.2`
+because principal metadata sourcing requires Event Gateway runtime 1.2 or
+later.
+
+See [principal-metadata.yaml](principal-metadata.yaml) for a focused
+example.

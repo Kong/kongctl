@@ -728,6 +728,13 @@ func compareAuthentication(
 				}
 			}
 
+			if !compareFetchKongIdentityPrincipal(
+				currPlain.FetchKongIdentityPrincipal,
+				desiredPlain.FetchKongIdentityPrincipal,
+			) {
+				return false
+			}
+
 		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeSaslScram:
 			// Compare algorithm for sasl_scram
 			if current[i].VirtualClusterAuthenticationSaslScram == nil ||
@@ -736,6 +743,12 @@ func compareAuthentication(
 			}
 			if current[i].VirtualClusterAuthenticationSaslScram.Algorithm !=
 				desired[i].VirtualClusterAuthenticationSaslScram.Algorithm {
+				return false
+			}
+			if !compareFetchKongIdentityPrincipal(
+				current[i].VirtualClusterAuthenticationSaslScram.FetchKongIdentityPrincipal,
+				desired[i].VirtualClusterAuthenticationSaslScram.FetchKongIdentityPrincipal,
+			) {
 				return false
 			}
 
@@ -795,10 +808,22 @@ func compareAuthentication(
 				}
 			}
 
+			if !compareFetchKongIdentityPrincipalOauthBearer(
+				currOAuth.FetchKongIdentityPrincipal,
+				desiredOAuth.FetchKongIdentityPrincipal,
+			) {
+				return false
+			}
+
 		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeClientCertificate:
-			// Client certificate has no additional fields to compare
 			if current[i].VirtualClusterAuthenticationClientCertificate == nil ||
 				desired[i].VirtualClusterAuthenticationClientCertificate == nil {
+				return false
+			}
+			if !compareFetchKongIdentityPrincipal(
+				current[i].VirtualClusterAuthenticationClientCertificate.FetchKongIdentityPrincipal,
+				desired[i].VirtualClusterAuthenticationClientCertificate.FetchKongIdentityPrincipal,
+			) {
 				return false
 			}
 
@@ -808,6 +833,37 @@ func compareAuthentication(
 	}
 
 	return true
+}
+
+func compareFetchKongIdentityPrincipal(
+	current *components.FetchKongIdentityPrincipal,
+	desired *components.FetchKongIdentityPrincipal,
+) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+
+	return current.Directory == desired.Directory &&
+		current.FetchBy.Key == desired.FetchBy.Key &&
+		current.FailureMode == desired.FailureMode
+}
+
+func compareFetchKongIdentityPrincipalOauthBearer(
+	current *components.FetchKongIdentityPrincipalOauthBearer,
+	desired *components.FetchKongIdentityPrincipalOauthBearer,
+) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+
+	return current.Directory == desired.Directory &&
+		current.FailureMode == desired.FailureMode
 }
 
 // compareVirtualClusterNamespaces compares namespace configurations

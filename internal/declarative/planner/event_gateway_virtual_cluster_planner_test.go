@@ -125,6 +125,78 @@ func TestShouldUpdateVirtualClusterPreservesOmittedTopicAliasesOnUnrelatedUpdate
 	require.Equal(t, currentAliases, updates[FieldTopicAliases])
 }
 
+func TestShouldUpdateVirtualClusterDetectsFetchKongIdentityPrincipalChanges(t *testing.T) {
+	current := virtualClusterState(nil)
+	current.Authentication = []components.VirtualClusterAuthenticationSensitiveDataAwareScheme{
+		components.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
+			components.VirtualClusterAuthenticationSaslScram{
+				Algorithm: components.VirtualClusterAuthenticationSaslScramAlgorithmSha256,
+				FetchKongIdentityPrincipal: virtualClusterFetchKongIdentityPrincipal(
+					"identity-directory",
+					"principal-key",
+					components.FetchKongIdentityPrincipalFailureModeIgnore,
+				),
+			},
+		),
+	}
+
+	desired := virtualClusterResource(nil)
+	desired.Authentication = []components.VirtualClusterAuthenticationScheme{
+		components.CreateVirtualClusterAuthenticationSchemeSaslScram(
+			components.VirtualClusterAuthenticationSaslScram{
+				Algorithm: components.VirtualClusterAuthenticationSaslScramAlgorithmSha256,
+				FetchKongIdentityPrincipal: virtualClusterFetchKongIdentityPrincipal(
+					"identity-directory",
+					"different-principal-key",
+					components.FetchKongIdentityPrincipalFailureModeIgnore,
+				),
+			},
+		),
+	}
+
+	needsUpdate, updates, changed := (&Planner{}).shouldUpdateVirtualCluster(current, desired)
+
+	require.True(t, needsUpdate)
+	require.Equal(t, current.Authentication, changed[FieldAuthentication].Old)
+	require.Equal(t, desired.Authentication, changed[FieldAuthentication].New)
+	require.Equal(t, desired.Authentication, updates[FieldAuthentication])
+}
+
+func TestShouldUpdateVirtualClusterDetectsOauthBearerFetchKongIdentityPrincipalChanges(t *testing.T) {
+	current := virtualClusterState(nil)
+	current.Authentication = []components.VirtualClusterAuthenticationSensitiveDataAwareScheme{
+		components.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeOauthBearer(
+			components.VirtualClusterAuthenticationOauthBearer{
+				Mediation: components.VirtualClusterAuthenticationOauthBearerMediationValidateForward,
+				FetchKongIdentityPrincipal: virtualClusterFetchKongIdentityPrincipalOauthBearer(
+					"identity-directory",
+					components.FetchKongIdentityPrincipalFailureModeError,
+				),
+			},
+		),
+	}
+
+	desired := virtualClusterResource(nil)
+	desired.Authentication = []components.VirtualClusterAuthenticationScheme{
+		components.CreateVirtualClusterAuthenticationSchemeOauthBearer(
+			components.VirtualClusterAuthenticationOauthBearer{
+				Mediation: components.VirtualClusterAuthenticationOauthBearerMediationValidateForward,
+				FetchKongIdentityPrincipal: virtualClusterFetchKongIdentityPrincipalOauthBearer(
+					"different-identity-directory",
+					components.FetchKongIdentityPrincipalFailureModeError,
+				),
+			},
+		),
+	}
+
+	needsUpdate, updates, changed := (&Planner{}).shouldUpdateVirtualCluster(current, desired)
+
+	require.True(t, needsUpdate)
+	require.Equal(t, current.Authentication, changed[FieldAuthentication].Old)
+	require.Equal(t, desired.Authentication, changed[FieldAuthentication].New)
+	require.Equal(t, desired.Authentication, updates[FieldAuthentication])
+}
+
 func virtualClusterState(aliases []components.VirtualClusterTopicAlias) state.EventGatewayVirtualCluster {
 	description := "description"
 
@@ -184,4 +256,28 @@ func virtualClusterTopicAliases(topic string) []components.VirtualClusterTopicAl
 		Condition: &condition,
 		Conflict:  &conflict,
 	}}
+}
+
+func virtualClusterFetchKongIdentityPrincipal(
+	directory string,
+	key string,
+	failureMode components.FetchKongIdentityPrincipalFailureMode,
+) *components.FetchKongIdentityPrincipal {
+	return &components.FetchKongIdentityPrincipal{
+		Directory: directory,
+		FetchBy: components.FetchKongIdentityPrincipalFetchBy{
+			Key: key,
+		},
+		FailureMode: failureMode,
+	}
+}
+
+func virtualClusterFetchKongIdentityPrincipalOauthBearer(
+	directory string,
+	failureMode components.FetchKongIdentityPrincipalFailureMode,
+) *components.FetchKongIdentityPrincipalOauthBearer {
+	return &components.FetchKongIdentityPrincipalOauthBearer{
+		Directory:   directory,
+		FailureMode: failureMode,
+	}
 }

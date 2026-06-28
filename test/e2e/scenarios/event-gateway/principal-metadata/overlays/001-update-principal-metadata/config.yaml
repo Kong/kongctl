@@ -1,0 +1,71 @@
+_defaults:
+  kongctl:
+    namespace: event-gateway-principal-metadata-test
+
+event_gateways:
+  - ref: egw-principal-metadata
+    name: egw-principal-metadata
+    description: "EGW CP for Kong Identity principal metadata test"
+    min_runtime_version: "1.2"
+    backend_clusters:
+      - ref: principal-metadata-backend-cluster
+        name: principal-metadata-backend-cluster
+        description: "Backend Cluster for principal metadata test"
+        bootstrap_servers:
+          - "egw-principal-metadata.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: principal-metadata-scram-vc
+        name: principal-metadata-scram-vc
+        description: "SASL/SCRAM virtual cluster with principal metadata"
+        destination:
+          id: !ref principal-metadata-backend-cluster#id
+        authentication:
+          - type: sasl_scram
+            algorithm: sha256
+            fetch_kong_identity_principal:
+              directory: !env "KONGCTL_E2E_KONG_IDENTITY_DIRECTORY"
+              fetch_by:
+                key: kafka_principal_id
+              failure_mode: error
+        topic_aliases:
+          - alias: customer-orders
+            topic: tenant-a.orders
+            condition: 'context.auth.principal.metadata["tenant"] == "tenant-a"'
+            conflict: warn
+        acl_mode: enforce_on_gateway
+        dns_label: vc-principal-scram
+      - ref: principal-metadata-oauth-vc
+        name: principal-metadata-oauth-vc
+        description: "OAuth virtual cluster with principal metadata"
+        destination:
+          id: !ref principal-metadata-backend-cluster#id
+        authentication:
+          - type: oauth_bearer
+            mediation: validate_forward
+            claims_mapping:
+              sub: sub
+              scope: scope
+            jwks:
+              endpoint: https://issuer.example.com/.well-known/jwks.json
+            validate:
+              issuer: https://issuer.example.com/
+              audiences:
+                - name: orders-api
+            fetch_kong_identity_principal:
+              directory: !env "KONGCTL_E2E_KONG_IDENTITY_DIRECTORY"
+              failure_mode: error
+        topic_aliases:
+          - alias: principal-orders
+            topic: tenant-a.principal-orders
+            condition: 'context.auth.principal.id != ""'
+            conflict: warn
+        acl_mode: passthrough
+        dns_label: vc-principal-oauth

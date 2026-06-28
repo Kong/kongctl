@@ -1,0 +1,24 @@
+_defaults:
+  kongctl:
+    namespace: event-gateway-principal-metadata-test
+
+event_gateways:
+  - ref: egw-principal-metadata
+    name: egw-principal-metadata
+    description: "EGW CP for Kong Identity principal metadata test"
+    min_runtime_version: "1.2"
+    backend_clusters:
+      - ref: principal-metadata-backend-cluster
+        name: principal-metadata-backend-cluster
+        description: "Backend Cluster for principal metadata test"
+        bootstrap_servers:
+          - "egw-principal-metadata.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters: []

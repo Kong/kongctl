@@ -1,0 +1,264 @@
+test:
+  enabledByEnvVar: KONGCTL_E2E_RUN_EGW_PRINCIPAL_METADATA
+  requiredEnvVars:
+    - KONGCTL_E2E_KONG_IDENTITY_DIRECTORY
+  info: >-
+    Requires a Konnect environment with Event Gateway runtime 1.2 principal
+    metadata support and a Kong Identity directory. Set
+    KONGCTL_E2E_RUN_EGW_PRINCIPAL_METADATA=1 and
+    KONGCTL_E2E_KONG_IDENTITY_DIRECTORY to include it.
+
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  egwName: egw-principal-metadata
+  scramVCRef: principal-metadata-scram-vc
+  oauthVCRef: principal-metadata-oauth-vc
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.scramVCRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                "fields.authentication[0].type": sasl_scram
+                "fields.authentication[0].fetch_kong_identity_principal.directory": __ENV__:KONGCTL_E2E_KONG_IDENTITY_DIRECTORY
+                "fields.authentication[0].fetch_kong_identity_principal.fetch_by.key": kafka_username
+                "fields.authentication[0].fetch_kong_identity_principal.failure_mode": ignore
+                "fields.topic_aliases[0].condition": 'context.auth.principal.metadata["tenant"] == "tenant-a"'
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.oauthVCRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                "fields.authentication[0].type": oauth_bearer
+                "fields.authentication[0].fetch_kong_identity_principal.directory": __ENV__:KONGCTL_E2E_KONG_IDENTITY_DIRECTORY
+                "fields.authentication[0].fetch_kong_identity_principal.failure_mode": error
+                "fields.topic_aliases[0].condition": 'context.auth.principal.id != ""'
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.scramVCRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.scramVCRef }}"
+                "authentication[0].type": sasl_scram
+                "authentication[0].fetch_kong_identity_principal.directory": "{{ .env.KONGCTL_E2E_KONG_IDENTITY_DIRECTORY }}"
+                "authentication[0].fetch_kong_identity_principal.fetch_by.key": kafka_username
+                "authentication[0].fetch_kong_identity_principal.failure_mode": ignore
+                "topic_aliases[0].condition": 'context.auth.principal.metadata["tenant"] == "tenant-a"'
+          - select: "[?name=='{{ .vars.oauthVCRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.oauthVCRef }}"
+                "authentication[0].type": oauth_bearer
+                "authentication[0].fetch_kong_identity_principal.directory": "{{ .env.KONGCTL_E2E_KONG_IDENTITY_DIRECTORY }}"
+                "authentication[0].fetch_kong_identity_principal.failure_mode": error
+                "topic_aliases[0].condition": 'context.auth.principal.id != ""'
+
+  - name: 002-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update-principal-metadata
+    commands:
+      - name: 001-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.scramVCRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "fields.authentication[0].fetch_kong_identity_principal.fetch_by.key": kafka_principal_id
+                "fields.authentication[0].fetch_kong_identity_principal.failure_mode": error
+      - name: 002-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-update
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.scramVCRef }}'] | [0]"
+            expect:
+              fields:
+                "authentication[0].fetch_kong_identity_principal.directory": "{{ .env.KONGCTL_E2E_KONG_IDENTITY_DIRECTORY }}"
+                "authentication[0].fetch_kong_identity_principal.fetch_by.key": kafka_principal_id
+                "authentication[0].fetch_kong_identity_principal.failure_mode": error
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name={{ .vars.egwName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.scramVCRef }}'] | [0]
+            expect:
+              fields:
+                "authentication[0].fetch_kong_identity_principal.directory": "{{ .env.KONGCTL_E2E_KONG_IDENTITY_DIRECTORY }}"
+                "authentication[0].fetch_kong_identity_principal.fetch_by.key": kafka_principal_id
+                "authentication[0].fetch_kong_identity_principal.failure_mode": error
+                "topic_aliases[0].condition": 'context.auth.principal.metadata["tenant"] == "tenant-a"'
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.oauthVCRef }}'] | [0]
+            expect:
+              fields:
+                "authentication[0].fetch_kong_identity_principal.directory": "{{ .env.KONGCTL_E2E_KONG_IDENTITY_DIRECTORY }}"
+                "authentication[0].fetch_kong_identity_principal.failure_mode": error
+                "topic_aliases[0].condition": 'context.auth.principal.id != ""'
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-sync-delete
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 001-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.scramVCRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.oauthVCRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: 002-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0

@@ -84,3 +84,51 @@ func TestEventGatewayVirtualClusterResourceUnmarshalJSONIncludesTopicAliases(t *
 	require.NotNil(t, alias.Conflict)
 	require.Equal(t, kkComps.VirtualClusterTopicAliasConflictIgnore, *alias.Conflict)
 }
+
+func TestEventGatewayVirtualClusterResourceUnmarshalJSONIncludesFetchKongIdentityPrincipal(t *testing.T) {
+	raw := []byte(`{
+		"ref": "virtual-cluster-ref",
+		"name": "virtual-cluster",
+		"destination": {"name": "backend-cluster"},
+		"authentication": [
+			{
+				"type": "sasl_scram",
+				"algorithm": "sha256",
+				"fetch_kong_identity_principal": {
+					"directory": "identity-directory",
+					"fetch_by": {"key": "principal-key"},
+					"failure_mode": "ignore"
+				}
+			},
+			{
+				"type": "oauth_bearer",
+				"mediation": "validate_forward",
+				"fetch_kong_identity_principal": {
+					"directory": "oauth-directory",
+					"failure_mode": "error"
+				}
+			}
+		],
+		"acl_mode": "passthrough",
+		"dns_label": "vc-default"
+	}`)
+
+	var cluster EventGatewayVirtualClusterResource
+	require.NoError(t, json.Unmarshal(raw, &cluster))
+	require.Len(t, cluster.Authentication, 2)
+
+	scram := cluster.Authentication[0].VirtualClusterAuthenticationSaslScram
+	require.NotNil(t, scram)
+	require.NotNil(t, scram.FetchKongIdentityPrincipal)
+	require.Equal(t, "identity-directory", scram.FetchKongIdentityPrincipal.Directory)
+	require.Equal(t, "principal-key", scram.FetchKongIdentityPrincipal.FetchBy.Key)
+	require.Equal(t, kkComps.FetchKongIdentityPrincipalFailureModeIgnore,
+		scram.FetchKongIdentityPrincipal.FailureMode)
+
+	oauth := cluster.Authentication[1].VirtualClusterAuthenticationOauthBearer
+	require.NotNil(t, oauth)
+	require.NotNil(t, oauth.FetchKongIdentityPrincipal)
+	require.Equal(t, "oauth-directory", oauth.FetchKongIdentityPrincipal.Directory)
+	require.Equal(t, kkComps.FetchKongIdentityPrincipalFailureModeError,
+		oauth.FetchKongIdentityPrincipal.FailureMode)
+}
