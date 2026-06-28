@@ -123,6 +123,23 @@ portals:
 	assert.Equal(t, "User-agent: *", *customization.Robots)
 }
 
+func TestLoaderRejectsIdentityDirectoryTTLBelowMinimum(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+identity:
+  directories:
+    - ref: directory
+      name: directory
+      negative_ttl_secs: 60
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "negative_ttl_secs must be between 300 and 86400")
+}
+
 func TestLoader_LoadFile_ValidConfigs(t *testing.T) {
 	tests := []struct {
 		name                  string

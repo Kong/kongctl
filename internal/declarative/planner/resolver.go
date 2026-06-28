@@ -213,6 +213,9 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 	case FieldEntityID:
 		return ResourceTypeAPI
 	default:
+		if strings.HasPrefix(fieldName, FieldAllowedControlPlanes+".") {
+			return ResourceTypeControlPlane
+		}
 		if strings.HasSuffix(fieldName, ".schema_registry.id") {
 			return ResourceTypeEventGatewaySchemaRegistry
 		}

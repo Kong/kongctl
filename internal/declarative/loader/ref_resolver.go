@@ -190,6 +190,19 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.IdentityDirectories {
+		if err := resolveResourceFields(ctx, &rs.IdentityDirectories[i], rs,
+			resolver, resolutionPath, logger); err != nil {
+			logger.LogAttrs(
+				ctx, slog.LevelError, "Failed to resolve identity directory references",
+				slog.String("directory_ref", rs.IdentityDirectories[i].GetRef()),
+				slog.String("error", err.Error()),
+			)
+			return fmt.Errorf("resolving identity directory %s: %w", rs.IdentityDirectories[i].GetRef(), err)
+		}
+		processCount++
+	}
+
 	// Process child resources (PortalPages, PortalSnippets, etc.)
 	for i := range rs.PortalPages {
 		if err := resolveResourceFields(ctx, &rs.PortalPages[i], rs, resolver, resolutionPath, logger); err != nil {

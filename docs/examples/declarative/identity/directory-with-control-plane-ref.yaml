@@ -1,0 +1,26 @@
+# Kong Identity directory restricted to a declarative control plane.
+
+_defaults:
+  kongctl:
+    namespace: identity-restricted-example
+
+control_planes:
+  - ref: identity-restricted-cp
+    name: identity-restricted-cp
+    description: Control plane allowed to use the restricted workforce directory
+    cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+    labels:
+      environment: example
+
+identity:
+  directories:
+    - ref: workforce-restricted
+      name: identity-restricted-workforce
+      description: Workforce identities restricted to selected control planes
+      allowed_control_planes:
+        - !ref identity-restricted-cp
+      ttl_secs: 600
+      negative_ttl_secs: 300
+      labels:
+        audience: workforce
+        environment: example

@@ -49,6 +49,7 @@ const (
 	ResourceTypeOrganizationSystemAccount               ResourceType = "organization_system_account"
 	ResourceTypeOrganizationSystemAccountTeamMembership ResourceType = "organization_system_account_team_membership"
 	ResourceTypeOrganizationSystemAccountRole           ResourceType = "organization_system_account_role"
+	ResourceTypeIdentityDirectory                       ResourceType = "identity_directory"
 	ResourceTypeTeam                                    ResourceType = "team"
 	ResourceTypeEventGatewayListener                    ResourceType = "event_gateway_listener"
 	ResourceTypeEventGatewayListenerPolicy              ResourceType = "event_gateway_listener_policy"
@@ -67,9 +68,10 @@ const (
 )
 
 const (
-	SchemaFieldRef    = "ref"
-	SchemaFieldPortal = "portal"
-	SchemaFieldTeams  = "teams"
+	SchemaFieldRef         = "ref"
+	SchemaFieldPortal      = "portal"
+	SchemaFieldTeams       = "teams"
+	SchemaFieldDirectories = "directories"
 )
 
 // ResourceRef represents a reference to another resource
@@ -119,6 +121,8 @@ type ResourceSet struct {
 	EventGatewayVirtualClusters []EventGatewayVirtualClusterResource `yaml:"event_gateway_virtual_clusters,omitempty"                 json:"event_gateway_virtual_clusters,omitempty"` //nolint:lll
 	// Organization grouping - contains nested resources like teams
 	Organization *OrganizationResource `yaml:"organization,omitempty"                                   json:"organization,omitempty"` //nolint:lll
+	// Identity grouping - contains nested Kong Identity resources.
+	Identity *IdentityResource `yaml:"identity,omitempty" json:"identity,omitempty"`
 	// Analytics grouping - contains nested resources like dashboards
 	Analytics *AnalyticsResource `yaml:"analytics,omitempty" json:"analytics,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
@@ -129,6 +133,7 @@ type ResourceSet struct {
 	OrganizationUserRoles                    []OrganizationUserRoleResource                    `yaml:"-" json:"-"`
 	OrganizationSystemAccountTeamMemberships []OrganizationSystemAccountTeamMembershipResource `yaml:"-" json:"-"`
 	OrganizationSystemAccountRoles           []OrganizationSystemAccountRoleResource           `yaml:"-" json:"-"`
+	IdentityDirectories                      []IdentityDirectoryResource                       `yaml:"-" json:"-"`
 	EventGatewayListeners                    []EventGatewayListenerResource                    `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                                               //nolint:lll
 	EventGatewayListenerPolicies             []EventGatewayListenerPolicyResource              `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`                               //nolint:lll
 	EventGatewayClusterPolicies              []EventGatewayClusterPolicyResource               `yaml:"event_gateway_virtual_cluster_cluster_policies,omitempty" json:"event_gateway_virtual_cluster_cluster_policies,omitempty"` //nolint:lll
@@ -325,6 +330,16 @@ func (rs *ResourceSet) GetDCRProviderByRef(ref string) *DCRProviderResource {
 	return nil
 }
 
+// GetIdentityDirectoryByRef returns an identity directory resource by its ref from any namespace.
+func (rs *ResourceSet) GetIdentityDirectoryByRef(ref string) *IdentityDirectoryResource {
+	for i := range rs.IdentityDirectories {
+		if rs.IdentityDirectories[i].GetRef() == ref {
+			return &rs.IdentityDirectories[i]
+		}
+	}
+	return nil
+}
+
 // Namespace-filtered access methods
 
 // GetPortalsByNamespace returns all portal resources from the specified namespace
@@ -405,6 +420,17 @@ func (rs *ResourceSet) GetDCRProvidersByNamespace(namespace string) []DCRProvide
 	for _, provider := range rs.DCRProviders {
 		if GetNamespace(provider.Kongctl) == namespace {
 			filtered = append(filtered, provider)
+		}
+	}
+	return filtered
+}
+
+// GetIdentityDirectoriesByNamespace returns all identity directory resources from the specified namespace.
+func (rs *ResourceSet) GetIdentityDirectoriesByNamespace(namespace string) []IdentityDirectoryResource {
+	var filtered []IdentityDirectoryResource
+	for _, directory := range rs.IdentityDirectories {
+		if GetNamespace(directory.Kongctl) == namespace {
+			filtered = append(filtered, directory)
 		}
 	}
 	return filtered

@@ -85,6 +85,11 @@ func (b *BasePlanner) GetDesiredDCRProviders(namespace string) []resources.DCRPr
 	return b.planner.resources.GetDCRProvidersByNamespace(namespace)
 }
 
+// GetDesiredIdentityDirectories returns desired identity directory resources from the specified namespace.
+func (b *BasePlanner) GetDesiredIdentityDirectories(namespace string) []resources.IdentityDirectoryResource {
+	return b.planner.resources.GetIdentityDirectoriesByNamespace(namespace)
+}
+
 // GetDesiredAPIs returns desired API resources from the specified namespace
 func (b *BasePlanner) GetDesiredAPIs(namespace string) []resources.APIResource {
 	return b.planner.resources.GetAPIsByNamespace(namespace)

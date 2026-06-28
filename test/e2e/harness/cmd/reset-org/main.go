@@ -15,11 +15,17 @@ func main() {
 	capture := flag.Bool("capture", false, "record a synthetic reset command in e2e artifacts")
 	flag.Parse()
 
-	var err error
+	var (
+		summary harness.ResetSummary
+		err     error
+	)
 	if *capture {
-		err = harness.ResetOrgWithCapture(*stage)
+		summary, err = harness.ResetOrgWithCaptureSummary(*stage)
 	} else {
-		err = harness.ResetOrg(*stage)
+		summary, err = harness.ResetOrgSummary(*stage)
+	}
+	if printErr := harness.WriteResetDeletionSummary(os.Stdout, summary); printErr != nil && err == nil {
+		err = printErr
 	}
 
 	if err != nil {

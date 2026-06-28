@@ -22,12 +22,15 @@ type planningResourceCache struct {
 	managedPortalsAll    []state.Portal
 	managedPortalsLoaded bool
 
-	managedAuthStrategiesByKey  map[string][]state.ApplicationAuthStrategy
-	managedAuthStrategiesAll    []state.ApplicationAuthStrategy
-	managedAuthStrategiesLoaded bool
-	managedDCRProvidersByKey    map[string][]state.DCRProvider
-	managedDCRProvidersAll      []state.DCRProvider
-	managedDCRProvidersLoaded   bool
+	managedAuthStrategiesByKey       map[string][]state.ApplicationAuthStrategy
+	managedAuthStrategiesAll         []state.ApplicationAuthStrategy
+	managedAuthStrategiesLoaded      bool
+	managedDCRProvidersByKey         map[string][]state.DCRProvider
+	managedDCRProvidersAll           []state.DCRProvider
+	managedDCRProvidersLoaded        bool
+	managedIdentityDirectoriesByKey  map[string][]state.IdentityDirectory
+	managedIdentityDirectoriesAll    []state.IdentityDirectory
+	managedIdentityDirectoriesLoaded bool
 
 	managedAPIsByKey  map[string][]state.API
 	managedAPIsAll    []state.API
@@ -57,6 +60,7 @@ func newPlanningResourceCache() *planningResourceCache {
 		managedPortalsByKey:                   make(map[string][]state.Portal),
 		managedAuthStrategiesByKey:            make(map[string][]state.ApplicationAuthStrategy),
 		managedDCRProvidersByKey:              make(map[string][]state.DCRProvider),
+		managedIdentityDirectoriesByKey:       make(map[string][]state.IdentityDirectory),
 		managedAPIsByKey:                      make(map[string][]state.API),
 		managedCatalogServicesByKey:           make(map[string][]state.CatalogService),
 		managedDashboardsByKey:                make(map[string][]state.Dashboard),
@@ -271,6 +275,62 @@ func (p *Planner) listManagedDCRProviders(ctx context.Context, namespaces []stri
 	}
 
 	return providers, nil
+}
+
+func (p *Planner) listManagedIdentityDirectories(
+	ctx context.Context,
+	namespaces []string,
+) ([]state.IdentityDirectory, error) {
+	normalizedNamespaces := normalizeNamespaces(namespaces)
+	if len(normalizedNamespaces) == 0 {
+		return []state.IdentityDirectory{}, nil
+	}
+
+	cache := p.resourceCache
+	cacheKey := namespaceCacheKey(normalizedNamespaces)
+	if cache != nil {
+		if cached, ok := cache.managedIdentityDirectoriesByKey[cacheKey]; ok {
+			return cached, nil
+		}
+
+		if cacheKey != "*" && cache.managedIdentityDirectoriesLoaded {
+			filtered := filterIdentityDirectoriesByNamespaces(
+				cache.managedIdentityDirectoriesAll,
+				normalizedNamespaces,
+			)
+			cache.managedIdentityDirectoriesByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+	}
+
+	requestNamespaces := normalizedNamespaces
+	useAllNamespaces := p.namespaceFanout && cacheKey != "*"
+	if useAllNamespaces {
+		requestNamespaces = []string{"*"}
+	}
+
+	directories, err := p.client.ListManagedIdentityDirectories(ctx, requestNamespaces)
+	if err != nil {
+		return nil, err
+	}
+
+	if cache != nil {
+		if useAllNamespaces {
+			cache.managedIdentityDirectoriesAll = directories
+			cache.managedIdentityDirectoriesLoaded = true
+			filtered := filterIdentityDirectoriesByNamespaces(directories, normalizedNamespaces)
+			cache.managedIdentityDirectoriesByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+
+		cache.managedIdentityDirectoriesByKey[cacheKey] = directories
+		if cacheKey == "*" {
+			cache.managedIdentityDirectoriesAll = directories
+			cache.managedIdentityDirectoriesLoaded = true
+		}
+	}
+
+	return directories, nil
 }
 
 func (p *Planner) listManagedAPIs(ctx context.Context, namespaces []string) ([]state.API, error) {
@@ -744,6 +804,33 @@ func filterDCRProvidersByNamespaces(providers []state.DCRProvider, namespaces []
 		namespace := provider.NormalizedLabels[labels.NamespaceKey]
 		if _, ok := allowed[namespace]; ok {
 			filtered = append(filtered, provider)
+		}
+	}
+
+	return filtered
+}
+
+func filterIdentityDirectoriesByNamespaces(
+	directories []state.IdentityDirectory,
+	namespaces []string,
+) []state.IdentityDirectory {
+	if len(namespaces) == 0 {
+		return []state.IdentityDirectory{}
+	}
+	if len(namespaces) == 1 && namespaces[0] == "*" {
+		return directories
+	}
+
+	allowed := make(map[string]struct{}, len(namespaces))
+	for _, ns := range namespaces {
+		allowed[ns] = struct{}{}
+	}
+
+	filtered := make([]state.IdentityDirectory, 0, len(directories))
+	for _, directory := range directories {
+		namespace := directory.NormalizedLabels[labels.NamespaceKey]
+		if _, ok := allowed[namespace]; ok {
+			filtered = append(filtered, directory)
 		}
 	}
 

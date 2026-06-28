@@ -71,6 +71,7 @@ type Planner struct {
 	controlPlanePlanner             ControlPlanePlanner
 	authStrategyPlanner             AuthStrategyPlanner
 	dcrProviderPlanner              DCRProviderPlanner
+	identityDirectoryPlanner        IdentityDirectoryPlanner
 	apiPlanner                      APIPlanner
 	catalogServicePlanner           CatalogServicePlanner
 	dashboardPlanner                DashboardPlanner
@@ -122,6 +123,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.controlPlanePlanner = NewControlPlanePlanner(base)
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
 	p.dcrProviderPlanner = NewDCRProviderPlanner(base)
+	p.identityDirectoryPlanner = NewIdentityDirectoryPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
 	p.dashboardPlanner = NewDashboardPlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
@@ -229,6 +231,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.controlPlanePlanner = NewControlPlanePlanner(base)
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.dcrProviderPlanner = NewDCRProviderPlanner(base)
+		namespacePlanner.identityDirectoryPlanner = NewIdentityDirectoryPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
 		namespacePlanner.dashboardPlanner = NewDashboardPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
@@ -279,6 +282,16 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 				namespacePlan,
 			); err != nil {
 				return nil, fmt.Errorf("failed to plan DCR provider changes for namespace %s: %w", namespace, err)
+			}
+		}
+
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeIdentityDirectory) {
+			if err := namespacePlanner.identityDirectoryPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.identityDirectoryPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan identity directory changes for namespace %s: %w", namespace, err)
 			}
 		}
 
@@ -2213,6 +2226,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, provider := range rs.DCRProviders {
 		ns := resources.GetNamespace(provider.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, directory := range rs.IdentityDirectories {
+		ns := resources.GetNamespace(directory.Kongctl)
 		namespaceSet[ns] = true
 	}
 

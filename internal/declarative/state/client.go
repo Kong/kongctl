@@ -30,6 +30,7 @@ type ClientConfig struct {
 	APIAPI                  helpers.APIAPI
 	AppAuthAPI              helpers.AppAuthStrategiesAPI
 	DCRProviderAPI          helpers.DCRProvidersAPI
+	IdentityDirectoryAPI    helpers.IdentityDirectoryAPI
 	ControlPlaneAPI         helpers.ControlPlaneAPI
 	GatewayServiceAPI       helpers.GatewayServiceAPI
 	DataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
@@ -92,6 +93,7 @@ type Client struct {
 	apiAPI                  helpers.APIAPI
 	appAuthAPI              helpers.AppAuthStrategiesAPI
 	dcrProviderAPI          helpers.DCRProvidersAPI
+	identityDirectoryAPI    helpers.IdentityDirectoryAPI
 	controlPlaneAPI         helpers.ControlPlaneAPI
 	gatewayServiceAPI       helpers.GatewayServiceAPI
 	dataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
@@ -155,6 +157,7 @@ func NewClient(config ClientConfig) *Client {
 		apiAPI:                  config.APIAPI,
 		appAuthAPI:              config.AppAuthAPI,
 		dcrProviderAPI:          config.DCRProviderAPI,
+		identityDirectoryAPI:    config.IdentityDirectoryAPI,
 		controlPlaneAPI:         config.ControlPlaneAPI,
 		gatewayServiceAPI:       config.GatewayServiceAPI,
 		dataPlaneCertificateAPI: config.DataPlaneCertificateAPI,
@@ -350,6 +353,12 @@ type DCRProvider struct {
 	ProviderType     string
 	Issuer           string
 	DCRConfig        map[string]any
+	NormalizedLabels map[string]string
+}
+
+// IdentityDirectory represents a normalized Kong Identity directory.
+type IdentityDirectory struct {
+	kkComps.KongDirectory
 	NormalizedLabels map[string]string
 }
 
@@ -2771,6 +2780,226 @@ func (c *Client) DeleteDCRProvider(ctx context.Context, id string) error {
 		return fmt.Errorf("failed to delete DCR provider: %w", err)
 	}
 	return nil
+}
+
+func normalizeIdentityDirectory(directory kkComps.KongDirectory) IdentityDirectory {
+	return IdentityDirectory{
+		KongDirectory:    directory,
+		NormalizedLabels: normalizeLabelMap(directory.Labels),
+	}
+}
+
+// ListIdentityDirectories returns all Kong Identity directories.
+func (c *Client) ListIdentityDirectories(ctx context.Context) ([]IdentityDirectory, error) {
+	return c.listIdentityDirectories(ctx, []string{"*"}, false)
+}
+
+// ListManagedIdentityDirectories returns all KONGCTL-managed identity directories in the specified namespaces.
+func (c *Client) ListManagedIdentityDirectories(ctx context.Context, namespaces []string) ([]IdentityDirectory, error) {
+	return c.listIdentityDirectories(ctx, namespaces, true)
+}
+
+func (c *Client) listIdentityDirectories(
+	ctx context.Context,
+	namespaces []string,
+	managedOnly bool,
+) ([]IdentityDirectory, error) {
+	if err := ValidateAPIClient(c.identityDirectoryAPI, "identity directory API"); err != nil {
+		return nil, err
+	}
+
+	var directories []IdentityDirectory
+	pageSize := int64(100)
+	sortByName := "name"
+	var pageAfter *string
+
+	for {
+		page := &kkComps.CursorPageParameters{Size: &pageSize}
+		if pageAfter != nil {
+			page.After = pageAfter
+		}
+
+		resp, err := c.identityDirectoryAPI.ListKongDirectories(ctx, page, &sortByName)
+		if err != nil {
+			return nil, WrapAPIError(err, "list identity directories", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypeIdentityDirectory),
+				UseEnhanced:  true,
+			})
+		}
+		if resp == nil || resp.GetListKongDirectories() == nil {
+			return []IdentityDirectory{}, nil
+		}
+
+		list := resp.GetListKongDirectories()
+		for _, directory := range list.GetData() {
+			normalized := normalizeIdentityDirectory(directory)
+			if managedOnly {
+				if !labels.IsManagedResource(normalized.NormalizedLabels) ||
+					!shouldIncludeNamespace(normalized.NormalizedLabels[labels.NamespaceKey], namespaces) {
+					continue
+				}
+			}
+			directories = append(directories, normalized)
+		}
+
+		nextCursor := pagination.ExtractPageAfterCursor(list.Meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	return directories, nil
+}
+
+func (c *Client) GetIdentityDirectoryByName(ctx context.Context, name string) (*IdentityDirectory, error) {
+	directories, err := c.ListManagedIdentityDirectories(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+	for _, directory := range directories {
+		if directory.Name == name {
+			return &directory, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *Client) GetIdentityDirectoryByNameUnfiltered(ctx context.Context, name string) (*IdentityDirectory, error) {
+	directories, err := c.ListIdentityDirectories(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, directory := range directories {
+		if directory.Name == name {
+			return &directory, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *Client) GetIdentityDirectoryByID(ctx context.Context, id string) (*IdentityDirectory, error) {
+	if err := ValidateAPIClient(c.identityDirectoryAPI, "identity directory API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.identityDirectoryAPI.GetDirectory(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "get identity directory", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeIdentityDirectory),
+			ResourceName: id,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.GetKongDirectory() == nil {
+		return nil, nil
+	}
+
+	directory := normalizeIdentityDirectory(*resp.GetKongDirectory())
+	return &directory, nil
+}
+
+func (c *Client) CreateIdentityDirectory(
+	ctx context.Context,
+	directory kkComps.CreateDirectoryBody,
+	_ string,
+) (*IdentityDirectory, error) {
+	if err := ValidateAPIClient(c.identityDirectoryAPI, "identity directory API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.identityDirectoryAPI.CreateDirectory(ctx, directory)
+	if err != nil {
+		return nil, WrapAPIError(err, "create identity directory", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeIdentityDirectory),
+			ResourceName: directory.Name,
+			UseEnhanced:  true,
+		})
+	}
+	if resp != nil && resp.GetKongDirectory() != nil {
+		created := normalizeIdentityDirectory(*resp.GetKongDirectory())
+		return &created, nil
+	}
+
+	created, err := c.GetIdentityDirectoryByName(ctx, directory.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch identity directory after create: %w", err)
+	}
+	if created == nil {
+		return nil, fmt.Errorf("created identity directory not found by name: %s", directory.Name)
+	}
+	return created, nil
+}
+
+func (c *Client) ReplaceIdentityDirectory(
+	ctx context.Context,
+	id string,
+	directory kkComps.ReplaceDirectoryBody,
+	_ string,
+) (*IdentityDirectory, error) {
+	if err := ValidateAPIClient(c.identityDirectoryAPI, "identity directory API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.identityDirectoryAPI.ReplaceDirectory(ctx, id, directory)
+	if err != nil {
+		return nil, WrapAPIError(err, "replace identity directory", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeIdentityDirectory),
+			ResourceName: id,
+			UseEnhanced:  true,
+		})
+	}
+	if resp != nil && resp.GetKongDirectory() != nil {
+		updated := normalizeIdentityDirectory(*resp.GetKongDirectory())
+		return &updated, nil
+	}
+
+	updated, err := c.GetIdentityDirectoryByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch identity directory after replace: %w", err)
+	}
+	if updated == nil {
+		return nil, fmt.Errorf("replaced identity directory not found by ID: %s", id)
+	}
+	return updated, nil
+}
+
+func (c *Client) DeleteIdentityDirectory(ctx context.Context, id string) error {
+	if err := ValidateAPIClient(c.identityDirectoryAPI, "identity directory API"); err != nil {
+		return err
+	}
+
+	force := kkOps.DeleteDirectoryQueryParamForceFalse
+	if _, err := c.identityDirectoryAPI.DeleteDirectory(ctx, id, force.ToPointer()); err != nil {
+		return WrapAPIError(err, "delete identity directory", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeIdentityDirectory),
+			ResourceName: id,
+			UseEnhanced:  true,
+		})
+	}
+	return nil
+}
+
+func (c *Client) GetIdentityDirectoryRealmConfig(
+	ctx context.Context,
+	id string,
+) (*kkComps.KongDirectoryRealmValues, error) {
+	if err := ValidateAPIClient(c.identityDirectoryAPI, "identity directory API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.identityDirectoryAPI.GetRealmConfig(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "get identity directory realm config", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeIdentityDirectory),
+			ResourceName: id,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil {
+		return nil, nil
+	}
+	return resp.GetKongDirectoryRealmValues(), nil
 }
 
 // GetAuthStrategyByName finds a managed auth strategy by name

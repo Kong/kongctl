@@ -17,6 +17,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/eventgateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/identity"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
@@ -294,6 +295,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 		cmd.AddCommand(dcrProviderCmd)
 
+		identityCmd, err := identity.NewIdentityCmd(verb, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(identityCmd)
+
 		analyticsCmd, err := adopt.NewAnalyticsCmd(verb, &cobra.Command{}, addFlags, preRunE)
 		if err != nil {
 			return nil, err
@@ -364,6 +371,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(dcrpc)
+
+	// Add identity command
+	ic, e := identity.NewIdentityCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(ic)
 
 	// Add me command (read-only)
 	if verb == verbs.Get {
