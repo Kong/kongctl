@@ -27,6 +27,6 @@ ai_gateway_models:
         config:
           type: anthropic
     policies:
-      - peer-mask-sensitive-data
+      - !ref peer-mask-sensitive-data
     capabilities:
       - generate

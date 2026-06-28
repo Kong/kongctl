@@ -50,6 +50,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayPolicies(rs); err != nil {
 		return err
 	}
+	if err := l.validateAIGatewayConsumerGroups(rs); err != nil {
+		return err
+	}
 	if err := l.validateAIGatewayModels(rs); err != nil {
 		return err
 	}
@@ -832,6 +835,58 @@ func (l *Loader) validateAIGatewayPolicies(rs *resources.ResourceSet) error {
 			)
 		}
 		namesByGateway[nameKey] = policy.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayConsumerGroups validates AI Gateway child Consumer Group resources.
+func (l *Loader) validateAIGatewayConsumerGroups(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayConsumerGroups {
+		group := &rs.AIGatewayConsumerGroups[i]
+
+		if err := group.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_consumer_group %q: %w", group.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(group.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayConsumerGroup {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					group.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(group.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_consumer_group %q references unknown ai_gateway %q",
+				group.GetRef(),
+				group.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_consumer_group %q references %q which is %s, not ai_gateway",
+				group.GetRef(),
+				group.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + group.Name
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_consumer_group name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				group.Name,
+				gatewayRef,
+				group.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = group.GetRef()
 	}
 
 	return nil

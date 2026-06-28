@@ -23,12 +23,13 @@ func init() {
 type AIGatewayResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	kkComps.CreateAIGatewayRequest
-	External   *ExternalBlock               `yaml:"_external,omitempty" json:"_external,omitempty"`
-	Providers  []AIGatewayProviderResource  `yaml:"providers,omitempty" json:"providers,omitempty"`
-	Policies   []AIGatewayPolicyResource    `yaml:"policies,omitempty" json:"policies,omitempty"`
-	Models     []AIGatewayModelResource     `yaml:"models,omitempty"    json:"models,omitempty"`
-	MCPServers []AIGatewayMCPServerResource `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
-	Vaults     []AIGatewayVaultResource     `yaml:"vaults,omitempty" json:"vaults,omitempty"`
+	External       *ExternalBlock                   `yaml:"_external,omitempty" json:"_external,omitempty"`
+	Providers      []AIGatewayProviderResource      `yaml:"providers,omitempty" json:"providers,omitempty"`
+	Policies       []AIGatewayPolicyResource        `yaml:"policies,omitempty" json:"policies,omitempty"`
+	ConsumerGroups []AIGatewayConsumerGroupResource `yaml:"consumer_groups,omitempty" json:"consumer_groups,omitempty"`
+	Models         []AIGatewayModelResource         `yaml:"models,omitempty"    json:"models,omitempty"`
+	MCPServers     []AIGatewayMCPServerResource     `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
+	Vaults         []AIGatewayVaultResource         `yaml:"vaults,omitempty" json:"vaults,omitempty"`
 }
 
 func (a AIGatewayResource) MarshalJSON() ([]byte, error) {
@@ -41,34 +42,36 @@ func (a AIGatewayResource) MarshalYAML() (any, error) {
 }
 
 type aiGatewayAlias struct {
-	Ref         string                       `json:"ref"                   yaml:"ref"`
-	Kongctl     *KongctlMeta                 `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`
-	External    *ExternalBlock               `json:"_external,omitempty"   yaml:"_external,omitempty"`
-	DisplayName string                       `json:"display_name"          yaml:"display_name"`
-	Description *string                      `json:"description,omitempty" yaml:"description,omitempty"`
-	ProxyURLs   []kkComps.AIGatewayProxyURL  `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
-	Labels      map[string]string            `json:"labels,omitempty"      yaml:"labels,omitempty"`
-	Providers   []AIGatewayProviderResource  `json:"providers,omitempty"   yaml:"providers,omitempty"`
-	Policies    []AIGatewayPolicyResource    `json:"policies,omitempty"    yaml:"policies,omitempty"`
-	Models      []AIGatewayModelResource     `json:"models,omitempty"      yaml:"models,omitempty"`
-	MCPServers  []AIGatewayMCPServerResource `json:"mcp_servers,omitempty" yaml:"mcp_servers,omitempty"`
-	Vaults      []AIGatewayVaultResource     `json:"vaults,omitempty"      yaml:"vaults,omitempty"`
+	Ref            string                           `json:"ref"                   yaml:"ref"`
+	Kongctl        *KongctlMeta                     `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`
+	External       *ExternalBlock                   `json:"_external,omitempty"   yaml:"_external,omitempty"`
+	DisplayName    string                           `json:"display_name"          yaml:"display_name"`
+	Description    *string                          `json:"description,omitempty" yaml:"description,omitempty"`
+	ProxyURLs      []kkComps.AIGatewayProxyURL      `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
+	Labels         map[string]string                `json:"labels,omitempty"      yaml:"labels,omitempty"`
+	Providers      []AIGatewayProviderResource      `json:"providers,omitempty"   yaml:"providers,omitempty"`
+	Policies       []AIGatewayPolicyResource        `json:"policies,omitempty"    yaml:"policies,omitempty"`
+	ConsumerGroups []AIGatewayConsumerGroupResource `json:"consumer_groups,omitempty" yaml:"consumer_groups,omitempty"`
+	Models         []AIGatewayModelResource         `json:"models,omitempty"      yaml:"models,omitempty"`
+	MCPServers     []AIGatewayMCPServerResource     `json:"mcp_servers,omitempty" yaml:"mcp_servers,omitempty"`
+	Vaults         []AIGatewayVaultResource         `json:"vaults,omitempty"      yaml:"vaults,omitempty"`
 }
 
 func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 	return aiGatewayAlias{
-		Ref:         a.Ref,
-		Kongctl:     a.Kongctl,
-		External:    a.External,
-		DisplayName: a.DisplayName,
-		Description: a.Description,
-		ProxyURLs:   a.ProxyUrls,
-		Labels:      a.Labels,
-		Providers:   a.Providers,
-		Policies:    a.Policies,
-		Models:      a.Models,
-		MCPServers:  a.MCPServers,
-		Vaults:      a.Vaults,
+		Ref:            a.Ref,
+		Kongctl:        a.Kongctl,
+		External:       a.External,
+		DisplayName:    a.DisplayName,
+		Description:    a.Description,
+		ProxyURLs:      a.ProxyUrls,
+		Labels:         a.Labels,
+		Providers:      a.Providers,
+		Policies:       a.Policies,
+		ConsumerGroups: a.ConsumerGroups,
+		Models:         a.Models,
+		MCPServers:     a.MCPServers,
+		Vaults:         a.Vaults,
 	}
 }
 
@@ -76,18 +79,19 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 // type only carries JSON tags.
 func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	var raw struct {
-		Ref         string                       `yaml:"ref"`
-		Kongctl     *KongctlMeta                 `yaml:"kongctl,omitempty"`
-		External    *ExternalBlock               `yaml:"_external,omitempty"`
-		DisplayName string                       `yaml:"display_name"`
-		Description *string                      `yaml:"description,omitempty"`
-		ProxyURLs   []kkComps.AIGatewayProxyURL  `yaml:"proxy_urls,omitempty"`
-		Labels      map[string]string            `yaml:"labels,omitempty"`
-		Providers   []AIGatewayProviderResource  `yaml:"providers,omitempty"`
-		Policies    []AIGatewayPolicyResource    `yaml:"policies,omitempty"`
-		Models      []AIGatewayModelResource     `yaml:"models,omitempty"`
-		MCPServers  []AIGatewayMCPServerResource `yaml:"mcp_servers,omitempty"`
-		Vaults      []AIGatewayVaultResource     `yaml:"vaults,omitempty"`
+		Ref            string                           `yaml:"ref"`
+		Kongctl        *KongctlMeta                     `yaml:"kongctl,omitempty"`
+		External       *ExternalBlock                   `yaml:"_external,omitempty"`
+		DisplayName    string                           `yaml:"display_name"`
+		Description    *string                          `yaml:"description,omitempty"`
+		ProxyURLs      []kkComps.AIGatewayProxyURL      `yaml:"proxy_urls,omitempty"`
+		Labels         map[string]string                `yaml:"labels,omitempty"`
+		Providers      []AIGatewayProviderResource      `yaml:"providers,omitempty"`
+		Policies       []AIGatewayPolicyResource        `yaml:"policies,omitempty"`
+		ConsumerGroups []AIGatewayConsumerGroupResource `yaml:"consumer_groups,omitempty"`
+		Models         []AIGatewayModelResource         `yaml:"models,omitempty"`
+		MCPServers     []AIGatewayMCPServerResource     `yaml:"mcp_servers,omitempty"`
+		Vaults         []AIGatewayVaultResource         `yaml:"vaults,omitempty"`
 	}
 	if err := unmarshal(&raw); err != nil {
 		return err
@@ -106,6 +110,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 	a.Providers = raw.Providers
 	a.Policies = raw.Policies
+	a.ConsumerGroups = raw.ConsumerGroups
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
 	a.Vaults = raw.Vaults
@@ -117,18 +122,19 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 // through JSON tags and the embedded SDK request type has a custom unmarshaler.
 func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		Ref         string                       `json:"ref"`
-		Kongctl     *KongctlMeta                 `json:"kongctl,omitempty"`
-		External    *ExternalBlock               `json:"_external,omitempty"`
-		DisplayName string                       `json:"display_name"`
-		Description *string                      `json:"description,omitempty"`
-		ProxyURLs   []kkComps.AIGatewayProxyURL  `json:"proxy_urls,omitempty"`
-		Labels      map[string]string            `json:"labels,omitempty"`
-		Providers   []AIGatewayProviderResource  `json:"providers,omitempty"`
-		Policies    []AIGatewayPolicyResource    `json:"policies,omitempty"`
-		Models      []AIGatewayModelResource     `json:"models,omitempty"`
-		MCPServers  []AIGatewayMCPServerResource `json:"mcp_servers,omitempty"`
-		Vaults      []AIGatewayVaultResource     `json:"vaults,omitempty"`
+		Ref            string                           `json:"ref"`
+		Kongctl        *KongctlMeta                     `json:"kongctl,omitempty"`
+		External       *ExternalBlock                   `json:"_external,omitempty"`
+		DisplayName    string                           `json:"display_name"`
+		Description    *string                          `json:"description,omitempty"`
+		ProxyURLs      []kkComps.AIGatewayProxyURL      `json:"proxy_urls,omitempty"`
+		Labels         map[string]string                `json:"labels,omitempty"`
+		Providers      []AIGatewayProviderResource      `json:"providers,omitempty"`
+		Policies       []AIGatewayPolicyResource        `json:"policies,omitempty"`
+		ConsumerGroups []AIGatewayConsumerGroupResource `json:"consumer_groups,omitempty"`
+		Models         []AIGatewayModelResource         `json:"models,omitempty"`
+		MCPServers     []AIGatewayMCPServerResource     `json:"mcp_servers,omitempty"`
+		Vaults         []AIGatewayVaultResource         `json:"vaults,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -147,6 +153,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	}
 	a.Providers = raw.Providers
 	a.Policies = raw.Policies
+	a.ConsumerGroups = raw.ConsumerGroups
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
 	a.Vaults = raw.Vaults
@@ -209,6 +216,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	for i := range a.Policies {
 		a.Policies[i].SetDefaults()
 	}
+	for i := range a.ConsumerGroups {
+		a.ConsumerGroups[i].SetDefaults()
+	}
 	for i := range a.Models {
 		a.Models[i].SetDefaults()
 	}
@@ -260,6 +270,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		}, false, false),
 		explainField("providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
 		explainField("policies", explainArrayOf(aiGatewayPolicyInlineExplainNode()), false, false),
+		explainField("consumer_groups", explainArrayOf(aiGatewayConsumerGroupInlineExplainNode()), false, false),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 		explainField("mcp_servers", explainArrayOf(aiGatewayMCPServerInlineExplainNode()), false, false),
 		explainField("vaults", explainArrayOf(aiGatewayVaultInlineExplainNode()), false, false),
@@ -276,6 +287,14 @@ func aiGatewayProviderInlineExplainNode() *ExplainNode {
 
 func aiGatewayPolicyInlineExplainNode() *ExplainNode {
 	node, err := aiGatewayPolicyExplainNode(ExplainBuildContext{})
+	if err != nil {
+		return explainObject()
+	}
+	return node
+}
+
+func aiGatewayConsumerGroupInlineExplainNode() *ExplainNode {
+	node, err := aiGatewayConsumerGroupExplainNode(ExplainBuildContext{})
 	if err != nil {
 		return explainObject()
 	}

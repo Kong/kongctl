@@ -20,4 +20,4 @@ ai_gateway_mcp_servers:
         method: GET
         path: /customers/{customer_id}
     policies:
-      - peer-mask-sensitive-data
+      - !ref peer-mask-sensitive-data
