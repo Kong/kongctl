@@ -312,7 +312,7 @@ func buildAIGatewayChildView(gateways []kkComps.AIGateway) tableview.ChildView {
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "DISPLAY NAME"},
+		Headers:        []string{aiGatewayHeaderID, aiGatewayHeaderDisplayName},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "AI Gateways",

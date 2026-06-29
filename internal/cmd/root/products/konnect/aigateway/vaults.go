@@ -236,7 +236,13 @@ func (h aiGatewayVaultsHandler) listVaults(
 		vaults,
 		"",
 		tableview.WithCustomTable(
-			[]string{"ID", "NAME", "TYPE", "DESCRIPTION", "UPDATED"},
+			[]string{
+				aiGatewayHeaderID,
+				aiGatewayHeaderName,
+				aiGatewayHeaderType,
+				"DESCRIPTION",
+				aiGatewayHeaderUpdated,
+			},
 			tableRows,
 		),
 		tableview.WithRootLabel(helper.GetCmd().Name()),

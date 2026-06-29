@@ -38,6 +38,7 @@ type ClientConfig struct {
 	AIGatewayAPI               helpers.AIGatewayAPI
 	AIGatewayProvidersAPI      helpers.AIGatewayProvidersAPI
 	AIGatewayPoliciesAPI       helpers.AIGatewayPoliciesAPI
+	AIGatewayConsumersAPI      helpers.AIGatewayConsumersAPI
 	AIGatewayConsumerGroupsAPI helpers.AIGatewayConsumerGroupsAPI
 	AIGatewayModelAPI          helpers.AIGatewayModelAPI
 	AIGatewayMCPServersAPI     helpers.AIGatewayMCPServersAPI
@@ -107,6 +108,7 @@ type Client struct {
 	aiGatewayAPI               helpers.AIGatewayAPI
 	aiGatewayProvidersAPI      helpers.AIGatewayProvidersAPI
 	aiGatewayPoliciesAPI       helpers.AIGatewayPoliciesAPI
+	aiGatewayConsumersAPI      helpers.AIGatewayConsumersAPI
 	aiGatewayConsumerGroupsAPI helpers.AIGatewayConsumerGroupsAPI
 	aiGatewayModelAPI          helpers.AIGatewayModelAPI
 	aiGatewayMCPServersAPI     helpers.AIGatewayMCPServersAPI
@@ -177,6 +179,7 @@ func NewClient(config ClientConfig) *Client {
 		aiGatewayAPI:               config.AIGatewayAPI,
 		aiGatewayProvidersAPI:      config.AIGatewayProvidersAPI,
 		aiGatewayPoliciesAPI:       config.AIGatewayPoliciesAPI,
+		aiGatewayConsumersAPI:      config.AIGatewayConsumersAPI,
 		aiGatewayConsumerGroupsAPI: config.AIGatewayConsumerGroupsAPI,
 		aiGatewayModelAPI:          config.AIGatewayModelAPI,
 		aiGatewayMCPServersAPI:     config.AIGatewayMCPServersAPI,
@@ -287,6 +290,12 @@ type AIGatewayProvider struct {
 // AIGatewayPolicy represents a Konnect AI Gateway Policy for internal use.
 type AIGatewayPolicy struct {
 	kkComps.AIGatewayPolicy
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayConsumer represents a Konnect AI Gateway Consumer for internal use.
+type AIGatewayConsumer struct {
+	kkComps.AIGatewayConsumer
 	NormalizedLabels map[string]string
 }
 

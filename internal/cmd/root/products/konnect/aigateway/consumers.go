@@ -26,49 +26,50 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type aiGatewayConsumerGroupRecord struct {
+type aiGatewayConsumerRecord struct {
 	ID               string
 	Name             string
 	DisplayName      string
+	Type             string
 	PolicyCount      string
 	LocalUpdatedTime string
 }
 
 var (
-	aiGatewayConsumerGroupsUse   = "consumer-groups [consumer-group-id|consumer-group-name]"
-	aiGatewayConsumerGroupsShort = i18n.T(
-		"root.products.konnect.ai-gateway.consumer-groupsShort",
-		"List or get Consumer Groups for a Konnect AI Gateway",
+	aiGatewayConsumersUse   = "consumers [consumer-id|consumer-name]"
+	aiGatewayConsumersShort = i18n.T(
+		"root.products.konnect.ai-gateway.consumersShort",
+		"List or get Consumers for a Konnect AI Gateway",
 	)
-	aiGatewayConsumerGroupsLong = normalizers.LongDesc(i18n.T(
-		"root.products.konnect.ai-gateway.consumer-groupsLong",
-		`Use the consumer-groups command to list or retrieve Consumer Groups for a specific Konnect AI Gateway.`,
+	aiGatewayConsumersLong = normalizers.LongDesc(i18n.T(
+		"root.products.konnect.ai-gateway.consumersLong",
+		`Use the consumers command to list or retrieve Consumers for a specific Konnect AI Gateway.`,
 	))
-	aiGatewayConsumerGroupsExample = normalizers.Examples(
-		i18n.T("root.products.konnect.ai-gateway.consumer-groupsExamples",
-			fmt.Sprintf(`# List Consumer Groups for an AI Gateway by display name
-%[1]s get ai-gateway consumer-groups --gateway-name "Customer Support Gateway"
-# List Consumer Groups for an AI Gateway by ID
-%[1]s get ai-gateway consumer-groups --gateway-id <gateway-id>
-# Get a Consumer Group by name
-%[1]s get ai-gateway consumer-groups --gateway-name "Customer Support Gateway" premium-users
-# Get a Consumer Group by ID
-%[1]s get ai-gateway consumer-groups --gateway-id <gateway-id> --consumer-group-id <consumer-group-id>
+	aiGatewayConsumersExample = normalizers.Examples(
+		i18n.T("root.products.konnect.ai-gateway.consumersExamples",
+			fmt.Sprintf(`# List Consumers for an AI Gateway by display name
+%[1]s get ai-gateway consumers --gateway-name "Customer Support Gateway"
+# List Consumers for an AI Gateway by ID
+%[1]s get ai-gateway consumers --gateway-id <gateway-id>
+# Get a Consumer by name
+%[1]s get ai-gateway consumers --gateway-name "Customer Support Gateway" support-user
+# Get a Consumer by ID
+%[1]s get ai-gateway consumers --gateway-id <gateway-id> --consumer-id <consumer-id>
 `, meta.CLIName)),
 	)
 )
 
-func newGetAIGatewayConsumerGroupsCmd(
+func newGetAIGatewayConsumersCmd(
 	verb verbs.VerbValue,
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
 	parentPreRun func(*cobra.Command, []string) error,
 ) *cobra.Command {
 	c := &cobra.Command{
-		Use:     aiGatewayConsumerGroupsUse,
-		Short:   aiGatewayConsumerGroupsShort,
-		Long:    aiGatewayConsumerGroupsLong,
-		Example: aiGatewayConsumerGroupsExample,
-		Aliases: []string{"consumer-group"},
+		Use:     aiGatewayConsumersUse,
+		Short:   aiGatewayConsumersShort,
+		Long:    aiGatewayConsumersLong,
+		Example: aiGatewayConsumersExample,
+		Aliases: []string{"consumer"},
 		PreRunE: func(c *cobra.Command, args []string) error {
 			if parentPreRun != nil {
 				if err := parentPreRun(c, args); err != nil {
@@ -78,31 +79,31 @@ func newGetAIGatewayConsumerGroupsCmd(
 			if err := bindAIGatewayChildFlags(c, args); err != nil {
 				return err
 			}
-			return bindAIGatewayConsumerGroupFlags(c, args)
+			return bindAIGatewayConsumerFlags(c, args)
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			handler := aiGatewayConsumerGroupsHandler{cmd: c}
+			handler := aiGatewayConsumersHandler{cmd: c}
 			return handler.run(args)
 		},
 	}
 
 	addAIGatewayChildFlags(c)
-	addAIGatewayConsumerGroupFlags(c)
+	addAIGatewayConsumerFlags(c)
 	if addParentFlags != nil {
 		addParentFlags(verb, c)
 	}
 	return c
 }
 
-type aiGatewayConsumerGroupsHandler struct {
+type aiGatewayConsumersHandler struct {
 	cmd *cobra.Command
 }
 
-func (h aiGatewayConsumerGroupsHandler) run(args []string) error {
+func (h aiGatewayConsumersHandler) run(args []string) error {
 	helper := cmd.BuildHelper(h.cmd, args)
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("too many arguments. Listing AI Gateway Consumer Groups requires 0 or 1 arguments (ID or name)"),
+			Err: fmt.Errorf("too many arguments. Listing AI Gateway Consumers requires 0 or 1 arguments (ID or name)"),
 		}
 	}
 
@@ -112,13 +113,13 @@ func (h aiGatewayConsumerGroupsHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		groupID, groupName := getAIGatewayConsumerGroupIdentifiers(cfg)
-		if groupID != "" || groupName != "" {
+		consumerID, consumerName := getAIGatewayConsumerIdentifiers(cfg)
+		if consumerID != "" || consumerName != "" {
 			return &cmd.ConfigurationError{
 				Err: fmt.Errorf(
 					"cannot specify both positional argument and --%s or --%s flags",
-					aiGatewayConsumerGroupIDFlagName,
-					aiGatewayConsumerGroupNameFlagName,
+					aiGatewayConsumerIDFlagName,
+					aiGatewayConsumerNameFlagName,
 				),
 			}
 		}
@@ -165,21 +166,21 @@ func (h aiGatewayConsumerGroupsHandler) run(args []string) error {
 		}
 	}
 
-	groupAPI := sdk.GetAIGatewayConsumerGroupsAPI()
-	if groupAPI == nil {
+	consumerAPI := sdk.GetAIGatewayConsumersAPI()
+	if consumerAPI == nil {
 		return &cmd.ExecutionError{
-			Msg: "AI Gateway Consumer Groups client is not available",
-			Err: fmt.Errorf("AI Gateway Consumer Groups client not configured"),
+			Msg: "AI Gateway Consumers client is not available",
+			Err: fmt.Errorf("AI Gateway Consumers client not configured"),
 		}
 	}
 
-	groupID, groupName := getAIGatewayConsumerGroupIdentifiers(cfg)
-	if groupID != "" && groupName != "" {
+	consumerID, consumerName := getAIGatewayConsumerIdentifiers(cfg)
+	if consumerID != "" && consumerName != "" {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf(
 				"only one of --%s or --%s can be provided",
-				aiGatewayConsumerGroupIDFlagName,
-				aiGatewayConsumerGroupNameFlagName,
+				aiGatewayConsumerIDFlagName,
+				aiGatewayConsumerNameFlagName,
 			),
 		}
 	}
@@ -187,40 +188,41 @@ func (h aiGatewayConsumerGroupsHandler) run(args []string) error {
 	identifier := ""
 	if len(args) == 1 {
 		identifier = strings.TrimSpace(args[0])
-	} else if groupID != "" {
-		identifier = groupID
-	} else if groupName != "" {
-		identifier = groupName
+	} else if consumerID != "" {
+		identifier = consumerID
+	} else if consumerName != "" {
+		identifier = consumerName
 	}
 
 	if identifier != "" {
-		return h.getSingleConsumerGroup(helper, groupAPI, gatewayID, identifier, outType, printer)
+		return h.getSingleConsumer(helper, consumerAPI, gatewayID, identifier, outType, printer)
 	}
-	return h.listConsumerGroups(helper, groupAPI, gatewayID, outType, printer, cfg)
+	return h.listConsumers(helper, consumerAPI, gatewayID, outType, printer, cfg)
 }
 
-func (h aiGatewayConsumerGroupsHandler) listConsumerGroups(
+func (h aiGatewayConsumersHandler) listConsumers(
 	helper cmd.Helper,
-	groupAPI helpers.AIGatewayConsumerGroupsAPI,
+	consumerAPI helpers.AIGatewayConsumersAPI,
 	gatewayID string,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
-	groups, err := fetchAIGatewayConsumerGroups(helper, groupAPI, gatewayID, cfg)
+	consumers, err := fetchAIGatewayConsumers(helper, consumerAPI, gatewayID, cfg)
 	if err != nil {
 		return err
 	}
 
-	records := make([]aiGatewayConsumerGroupRecord, 0, len(groups))
-	tableRows := make([]table.Row, 0, len(groups))
-	for _, group := range groups {
-		record := aiGatewayConsumerGroupToRecord(group)
+	records := make([]aiGatewayConsumerRecord, 0, len(consumers))
+	tableRows := make([]table.Row, 0, len(consumers))
+	for _, consumer := range consumers {
+		record := aiGatewayConsumerToRecord(consumer)
 		records = append(records, record)
 		tableRows = append(tableRows, table.Row{
 			record.ID,
 			record.Name,
 			record.DisplayName,
+			record.Type,
 			record.PolicyCount,
 			record.LocalUpdatedTime,
 		})
@@ -233,13 +235,14 @@ func (h aiGatewayConsumerGroupsHandler) listConsumerGroups(
 		printer,
 		helper.GetStreams(),
 		records,
-		groups,
+		consumers,
 		"",
 		tableview.WithCustomTable(
 			[]string{
 				aiGatewayHeaderID,
 				aiGatewayHeaderName,
 				aiGatewayHeaderDisplayName,
+				aiGatewayHeaderType,
 				aiGatewayHeaderPolicies,
 				aiGatewayHeaderUpdated,
 			},
@@ -248,42 +251,42 @@ func (h aiGatewayConsumerGroupsHandler) listConsumerGroups(
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
 		tableview.WithDetailRenderer(func(index int) string {
-			if index < 0 || index >= len(groups) {
+			if index < 0 || index >= len(consumers) {
 				return ""
 			}
-			return aiGatewayConsumerGroupDetailView(groups[index])
+			return aiGatewayConsumerDetailView(consumers[index])
 		}),
-		tableview.WithDetailContext(common.ViewParentAIGatewayConsumerGroup, func(index int) any {
-			if index < 0 || index >= len(groups) {
+		tableview.WithDetailContext(common.ViewParentAIGatewayConsumer, func(index int) any {
+			if index < 0 || index >= len(consumers) {
 				return nil
 			}
-			return &groups[index]
+			return &consumers[index]
 		}),
 	)
 }
 
-func (h aiGatewayConsumerGroupsHandler) getSingleConsumerGroup(
+func (h aiGatewayConsumersHandler) getSingleConsumer(
 	helper cmd.Helper,
-	groupAPI helpers.AIGatewayConsumerGroupsAPI,
+	consumerAPI helpers.AIGatewayConsumersAPI,
 	gatewayID string,
 	identifier string,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 ) error {
-	res, err := groupAPI.GetAiGatewayConsumerGroup(helper.GetContext(), gatewayID, identifier)
+	res, err := consumerAPI.GetAiGatewayConsumer(helper.GetContext(), gatewayID, identifier)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to get AI Gateway Consumer Group", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError("Failed to get AI Gateway Consumer", err, helper.GetCmd(), attrs...)
 	}
-	if res == nil || res.AIGatewayConsumerGroup == nil {
+	if res == nil || res.AIGatewayConsumer == nil {
 		return &cmd.ExecutionError{
-			Msg: "AI Gateway Consumer Group response was empty",
-			Err: fmt.Errorf("no Consumer Group returned for id or name %s", identifier),
+			Msg: "AI Gateway Consumer response was empty",
+			Err: fmt.Errorf("no Consumer returned for id or name %s", identifier),
 		}
 	}
-	group := res.AIGatewayConsumerGroup
+	consumer := res.AIGatewayConsumer
 
-	record := aiGatewayConsumerGroupToRecord(*group)
+	record := aiGatewayConsumerToRecord(*consumer)
 	return tableview.RenderForFormat(
 		helper,
 		false,
@@ -291,7 +294,7 @@ func (h aiGatewayConsumerGroupsHandler) getSingleConsumerGroup(
 		printer,
 		helper.GetStreams(),
 		record,
-		group,
+		consumer,
 		"",
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
@@ -299,29 +302,29 @@ func (h aiGatewayConsumerGroupsHandler) getSingleConsumerGroup(
 			if index != 0 {
 				return ""
 			}
-			return aiGatewayConsumerGroupDetailView(*group)
+			return aiGatewayConsumerDetailView(*consumer)
 		}),
-		tableview.WithDetailContext(common.ViewParentAIGatewayConsumerGroup, func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAIGatewayConsumer, func(index int) any {
 			if index != 0 {
 				return nil
 			}
-			return group
+			return consumer
 		}),
 	)
 }
 
-func fetchAIGatewayConsumerGroups(
+func fetchAIGatewayConsumers(
 	helper cmd.Helper,
-	groupAPI helpers.AIGatewayConsumerGroupsAPI,
+	consumerAPI helpers.AIGatewayConsumersAPI,
 	gatewayID string,
 	cfg config.Hook,
-) ([]kkComps.AIGatewayConsumerGroup, error) {
+) ([]kkComps.AIGatewayConsumer, error) {
 	requestPageSize := common.ResolveRequestPageSize(cfg)
 	var pageAfter *string
-	var allData []kkComps.AIGatewayConsumerGroup
+	var allData []kkComps.AIGatewayConsumer
 
 	for {
-		req := kkOps.ListAiGatewayConsumerGroupsRequest{
+		req := kkOps.ListAiGatewayConsumersRequest{
 			GatewayID: gatewayID,
 			PageSize:  &requestPageSize,
 		}
@@ -329,22 +332,17 @@ func fetchAIGatewayConsumerGroups(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := groupAPI.ListAiGatewayConsumerGroups(helper.GetContext(), req)
+		res, err := consumerAPI.ListAiGatewayConsumers(helper.GetContext(), req)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError(
-				"Failed to list AI Gateway Consumer Groups",
-				err,
-				helper.GetCmd(),
-				attrs...,
-			)
+			return nil, cmd.PrepareExecutionError("Failed to list AI Gateway Consumers", err, helper.GetCmd(), attrs...)
 		}
-		if res == nil || res.ListAIGatewayConsumerGroupsResponse == nil {
+		if res == nil || res.ListAIGatewayConsumersResponse == nil {
 			break
 		}
 
-		allData = append(allData, res.ListAIGatewayConsumerGroupsResponse.Data...)
-		nextCursor := pagination.ExtractPageAfterCursor(res.ListAIGatewayConsumerGroupsResponse.Meta.Page.Next)
+		allData = append(allData, res.ListAIGatewayConsumersResponse.Data...)
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListAIGatewayConsumersResponse.Meta.Page.Next)
 		if nextCursor == "" {
 			break
 		}
@@ -354,26 +352,27 @@ func fetchAIGatewayConsumerGroups(
 	return allData, nil
 }
 
-func aiGatewayConsumerGroupToRecord(group kkComps.AIGatewayConsumerGroup) aiGatewayConsumerGroupRecord {
-	record := aiGatewayConsumerGroupRecord{
+func aiGatewayConsumerToRecord(consumer kkComps.AIGatewayConsumer) aiGatewayConsumerRecord {
+	record := aiGatewayConsumerRecord{
 		ID:               aiGatewayMissingValue,
-		Name:             valueOrMissing(declresources.AIGatewayConsumerGroupName(group)),
-		DisplayName:      valueOrMissing(declresources.AIGatewayConsumerGroupDisplayName(group)),
-		PolicyCount:      fmt.Sprintf("%d", len(group.Policies)),
+		Name:             valueOrMissing(declresources.AIGatewayConsumerName(consumer)),
+		DisplayName:      valueOrMissing(declresources.AIGatewayConsumerDisplayName(consumer)),
+		Type:             valueOrMissing(string(consumer.Type)),
+		PolicyCount:      fmt.Sprintf("%d", len(consumer.Policies)),
 		LocalUpdatedTime: aiGatewayMissingValue,
 	}
-	if id := declresources.AIGatewayConsumerGroupID(group); id != "" {
+	if id := declresources.AIGatewayConsumerID(consumer); id != "" {
 		record.ID = util.AbbreviateUUID(id)
 	}
-	if updatedAt := declresources.AIGatewayConsumerGroupUpdatedAt(group); !updatedAt.IsZero() {
+	if updatedAt := declresources.AIGatewayConsumerUpdatedAt(consumer); !updatedAt.IsZero() {
 		record.LocalUpdatedTime = updatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	}
 	return record
 }
 
-func aiGatewayConsumerGroupDetailView(group kkComps.AIGatewayConsumerGroup) string {
+func aiGatewayConsumerDetailView(consumer kkComps.AIGatewayConsumer) string {
 	payload := make(map[string]any)
-	data, err := json.Marshal(group)
+	data, err := json.Marshal(consumer)
 	if err == nil {
 		_ = json.Unmarshal(data, &payload)
 	}
@@ -381,7 +380,9 @@ func aiGatewayConsumerGroupDetailView(group kkComps.AIGatewayConsumerGroup) stri
 	order := []string{
 		"id",
 		"name",
+		"type",
 		"display_name",
+		"custom_id",
 		"policies",
 		"labels",
 		"managed_by",
@@ -396,14 +397,15 @@ func aiGatewayConsumerGroupDetailView(group kkComps.AIGatewayConsumerGroup) stri
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func buildAIGatewayConsumerGroupChildView(groups []kkComps.AIGatewayConsumerGroup) tableview.ChildView {
-	tableRows := make([]table.Row, 0, len(groups))
-	for i := range groups {
-		record := aiGatewayConsumerGroupToRecord(groups[i])
+func buildAIGatewayConsumerChildView(consumers []kkComps.AIGatewayConsumer) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(consumers))
+	for i := range consumers {
+		record := aiGatewayConsumerToRecord(consumers[i])
 		tableRows = append(tableRows, table.Row{
 			record.ID,
 			record.Name,
 			record.DisplayName,
+			record.Type,
 			record.PolicyCount,
 		})
 	}
@@ -413,22 +415,23 @@ func buildAIGatewayConsumerGroupChildView(groups []kkComps.AIGatewayConsumerGrou
 			aiGatewayHeaderID,
 			aiGatewayHeaderName,
 			aiGatewayHeaderDisplayName,
+			aiGatewayHeaderType,
 			aiGatewayHeaderPolicies,
 		},
 		Rows: tableRows,
 		DetailRenderer: func(index int) string {
-			if index < 0 || index >= len(groups) {
+			if index < 0 || index >= len(consumers) {
 				return ""
 			}
-			return aiGatewayConsumerGroupDetailView(groups[index])
+			return aiGatewayConsumerDetailView(consumers[index])
 		},
-		Title:      "AI Gateway Consumer Groups",
-		ParentType: common.ViewParentAIGatewayConsumerGroup,
+		Title:      "AI Gateway Consumers",
+		ParentType: common.ViewParentAIGatewayConsumer,
 		DetailContext: func(index int) any {
-			if index < 0 || index >= len(groups) {
+			if index < 0 || index >= len(consumers) {
 				return nil
 			}
-			return &groups[index]
+			return &consumers[index]
 		},
 	}
 }
