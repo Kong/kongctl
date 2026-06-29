@@ -1,0 +1,10 @@
+_defaults:
+  kongctl:
+    namespace: federated-ai-gateway
+
+ai_gateway_data_plane_certificates:
+  - ref: peer-support-data-plane-cert
+    ai_gateway: !ref shared-ai-gateway#id
+    title: peer-support-data-plane-cert
+    description: "Peer-owned data plane certificate"
+    cert: !file ../../certs/data-plane.pem

@@ -240,7 +240,8 @@ func aiGatewayChildSerializationParentKey(change PlannedChange) string {
 		ResourceTypeAIGatewayConsumerGroup,
 		ResourceTypeAIGatewayModel,
 		ResourceTypeAIGatewayMCPServer,
-		ResourceTypeAIGatewayVault:
+		ResourceTypeAIGatewayVault,
+		ResourceTypeAIGatewayDataPlaneCertificate:
 	default:
 		return ""
 	}
@@ -350,7 +351,8 @@ func (d *DependencyResolver) getParentType(childType string) string {
 		ResourceTypeAIGatewayConsumerGroup,
 		ResourceTypeAIGatewayModel,
 		ResourceTypeAIGatewayMCPServer,
-		ResourceTypeAIGatewayVault:
+		ResourceTypeAIGatewayVault,
+		ResourceTypeAIGatewayDataPlaneCertificate:
 		return ResourceTypeAIGateway
 	default:
 		return ""

@@ -15,6 +15,7 @@ const (
 	ViewParentAIGatewayMCPServer            = "ai-gateway-mcp-server"
 	ViewParentAIGatewayVault                = "ai-gateway-vault"
 	ViewParentAIGatewayNode                 = "ai-gateway-node"
+	ViewParentAIGatewayDataPlaneCertificate = "ai-gateway-data-plane-certificate"
 	ViewParentAPIDocument                   = "api-document"
 	ViewParentAPIImplementation             = "api-implementation"
 	ViewParentAPIPublication                = "api-publication"

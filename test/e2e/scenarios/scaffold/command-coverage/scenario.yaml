@@ -139,3 +139,33 @@ steps:
                 "contains(stdout, 'provider: openai')": false
                 "contains(stdout, 'ai_gateway: value')": false
                 "contains(stdout, 'kongctl:')": false
+
+  - name: 008-scaffold-ai-gateway-data-plane-certificates
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-ai-gateway-data-plane-certificate-root
+        run:
+          - scaffold
+          - ai_gateway_data_plane_certificate
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_data_plane_certificates:')": true
+                "contains(stdout, 'ai_gateway: !ref')": true
+                "contains(stdout, 'title:')": true
+                "contains(stdout, 'cert: !file ./certs/data-plane.pem')": true
+      - name: 001-scaffold-ai-gateway-data-plane-certificate-nested
+        run:
+          - scaffold
+          - ai_gateway.data_plane_certificates
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateways:')": true
+                "contains(stdout, 'data_plane_certificates:')": true
+                "contains(stdout, 'cert: !file ./certs/data-plane.pem')": true
+                "contains(stdout, 'ai_gateway: !ref')": false
