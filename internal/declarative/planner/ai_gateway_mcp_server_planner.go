@@ -145,6 +145,7 @@ func (p *Planner) planAIGatewayMCPServerCreate(
 		plan.AddWarning(server.GetRef(), fmt.Sprintf("failed to build AI Gateway MCP Server create payload: %s", err))
 		return
 	}
+	normalizeAIGatewayPolicyNameReferencesForRequest(fields, p.resources)
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayMCPServer, server.Ref),
@@ -230,6 +231,7 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 	if err != nil {
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway MCP Server %q: %w", desired.Ref, err)
 	}
+	normalizeAIGatewayPolicyNameReferencesForRequest(desiredPayload, p.resources)
 
 	currentCompare, desiredCompare := normalizeAIGatewayPolicyReferencesForComparison(
 		currentPayload,

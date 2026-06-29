@@ -5,7 +5,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
-func normalizeAIGatewayAgentPolicyReferencesForRequest(payload map[string]any, rs *resources.ResourceSet) {
+func normalizeAIGatewayPolicyNameReferencesForRequest(payload map[string]any, rs *resources.ResourceSet) {
 	if payload == nil {
 		return
 	}
@@ -22,20 +22,20 @@ func normalizeAIGatewayAgentPolicyReferencesForRequest(payload map[string]any, r
 			if !ok {
 				continue
 			}
-			policies[i] = aiGatewayAgentPolicyReferenceForRequest(policyRef, rs)
+			policies[i] = aiGatewayPolicyNameReferenceForRequest(policyRef, rs)
 		}
 	case []string:
 		normalized := make([]any, len(policies))
 		for i, policyRef := range policies {
-			normalized[i] = aiGatewayAgentPolicyReferenceForRequest(policyRef, rs)
+			normalized[i] = aiGatewayPolicyNameReferenceForRequest(policyRef, rs)
 		}
 		payload[FieldPolicies] = normalized
 	}
 }
 
-func aiGatewayAgentPolicyReferenceForRequest(policyRef string, rs *resources.ResourceSet) string {
-	targetRef, _, ok := tags.ParseRefPlaceholder(policyRef)
-	if !ok {
+func aiGatewayPolicyNameReferenceForRequest(policyRef string, rs *resources.ResourceSet) string {
+	targetRef, field, ok := tags.ParseRefPlaceholder(policyRef)
+	if !ok || field != FieldName {
 		return policyRef
 	}
 

@@ -157,7 +157,7 @@ func (p *Planner) planAIGatewayAgentCreate(
 		plan.AddWarning(agent.GetRef(), fmt.Sprintf("failed to build AI Gateway Agent create payload: %s", err))
 		return
 	}
-	normalizeAIGatewayAgentPolicyReferencesForRequest(fields, p.resources)
+	normalizeAIGatewayPolicyNameReferencesForRequest(fields, p.resources)
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayAgent, agent.Ref),
@@ -247,7 +247,7 @@ func (p *Planner) shouldUpdateAIGatewayAgent(
 			err,
 		)
 	}
-	normalizeAIGatewayAgentPolicyReferencesForRequest(desiredPayload, p.resources)
+	normalizeAIGatewayPolicyNameReferencesForRequest(desiredPayload, p.resources)
 
 	currentCompare, desiredCompare := normalizeAIGatewayPolicyReferencesForComparison(
 		currentPayload,

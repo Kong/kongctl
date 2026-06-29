@@ -97,7 +97,6 @@ func TestAIGatewayAgentPlannerSyncDeletesScopedAgents(t *testing.T) {
 
 func TestAIGatewayAgentPlannerDependsOnPolicyCreate(t *testing.T) {
 	policy := testAIGatewayPolicyResource(t)
-	policy.Name = "mask-sensitive-data-api-name"
 	agent := testAIGatewayAgentResource(t, []string{tags.RefPlaceholderPrefix + "mask-sensitive-data#id"})
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{},
@@ -120,6 +119,31 @@ func TestAIGatewayAgentPlannerDependsOnPolicyCreate(t *testing.T) {
 	agentCreate := findAIGatewayModelTestChange(t, plan, ResourceTypeAIGatewayAgent, "booking-agent")
 
 	require.Contains(t, policyCreate.DependsOn, gatewayCreate.ID)
+	require.Contains(t, agentCreate.DependsOn, policyCreate.ID)
+	require.Equal(t, []any{tags.RefPlaceholderPrefix + "mask-sensitive-data#id"}, agentCreate.Fields[FieldPolicies])
+	require.Equal(t, resources.UnknownReferenceID, agentCreate.References[FieldPolicies+".0"].ID)
+	require.Equal(t, tags.RefPlaceholderPrefix+"mask-sensitive-data#id", agentCreate.References[FieldPolicies+".0"].Ref)
+}
+
+func TestAIGatewayAgentPlannerPolicyNameRefSendsName(t *testing.T) {
+	policy := testAIGatewayPolicyResource(t)
+	policy.Name = "mask-sensitive-data-api-name"
+	agent := testAIGatewayAgentResource(t, []string{tags.RefPlaceholderPrefix + "mask-sensitive-data#name"})
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways:        []resources.AIGatewayResource{testAIGatewayResource()},
+		AIGatewayPolicies: []resources.AIGatewayPolicyResource{policy},
+		AIGatewayAgents:   []resources.AIGatewayAgentResource{agent},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+
+	policyCreate := findAIGatewayModelTestChange(t, plan, ResourceTypeAIGatewayPolicy, "mask-sensitive-data")
+	agentCreate := findAIGatewayModelTestChange(t, plan, ResourceTypeAIGatewayAgent, "booking-agent")
+
 	require.Contains(t, agentCreate.DependsOn, policyCreate.ID)
 	require.Equal(t, []any{"mask-sensitive-data-api-name"}, agentCreate.Fields[FieldPolicies])
 	require.NotContains(t, agentCreate.References, FieldPolicies+".0")

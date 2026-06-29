@@ -157,6 +157,7 @@ func (p *Planner) planAIGatewayConsumerCreate(
 		plan.AddWarning(consumer.GetRef(), fmt.Sprintf("failed to build AI Gateway Consumer create payload: %s", err))
 		return
 	}
+	normalizeAIGatewayPolicyNameReferencesForRequest(fields, p.resources)
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayConsumer, consumer.Ref),
@@ -246,6 +247,7 @@ func (p *Planner) shouldUpdateAIGatewayConsumer(
 			err,
 		)
 	}
+	normalizeAIGatewayPolicyNameReferencesForRequest(desiredPayload, p.resources)
 
 	currentCompare, desiredCompare := normalizeAIGatewayPolicyReferencesForComparison(
 		currentPayload,

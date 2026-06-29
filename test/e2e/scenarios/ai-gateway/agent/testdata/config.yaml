@@ -43,4 +43,4 @@ ai_gateways:
           logging:
             max_payload_size: 524288
         policies:
-          - !ref mask-sensitive-data
+          - !ref mask-sensitive-data#name

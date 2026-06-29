@@ -160,6 +160,7 @@ func (p *Planner) planAIGatewayModelCreate(
 		plan.AddWarning(model.GetRef(), fmt.Sprintf("failed to build AI Gateway model create payload: %s", err))
 		return
 	}
+	normalizeAIGatewayPolicyNameReferencesForRequest(fields, p.resources)
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayModel, model.Ref),
@@ -245,6 +246,7 @@ func (p *Planner) shouldUpdateAIGatewayModel(
 	if err != nil {
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway model %q: %w", desired.Ref, err)
 	}
+	normalizeAIGatewayPolicyNameReferencesForRequest(desiredPayload, p.resources)
 
 	currentCompare, desiredCompare := normalizeAIGatewayPolicyReferencesForComparison(
 		currentPayload,
