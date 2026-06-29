@@ -14,6 +14,7 @@ import (
 func init() {
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldProviders, loadAIGatewayProviders)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldPolicies, loadAIGatewayPolicies)
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldAgents, loadAIGatewayAgents)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumers, loadAIGatewayConsumers)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumerGroups, loadAIGatewayConsumerGroups)
 }
@@ -78,6 +79,37 @@ func loadAIGatewayPolicies(_ context.Context, helper cmd.Helper, parent any) (ta
 		return tableview.ChildView{}, err
 	}
 	return buildAIGatewayPolicyChildView(policies), nil
+}
+
+func loadAIGatewayAgents(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	agentAPI := sdk.GetAIGatewayAgentsAPI()
+	if agentAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Agents client is not available")
+	}
+
+	agents, err := fetchAIGatewayAgents(helper, agentAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayAgentChildView(agents), nil
 }
 
 func loadAIGatewayConsumers(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

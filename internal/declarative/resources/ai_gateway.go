@@ -26,6 +26,7 @@ type AIGatewayResource struct {
 	External       *ExternalBlock                   `yaml:"_external,omitempty" json:"_external,omitempty"`
 	Providers      []AIGatewayProviderResource      `yaml:"providers,omitempty" json:"providers,omitempty"`
 	Policies       []AIGatewayPolicyResource        `yaml:"policies,omitempty" json:"policies,omitempty"`
+	Agents         []AIGatewayAgentResource         `yaml:"agents,omitempty" json:"agents,omitempty"`
 	Consumers      []AIGatewayConsumerResource      `yaml:"consumers,omitempty" json:"consumers,omitempty"`
 	ConsumerGroups []AIGatewayConsumerGroupResource `yaml:"consumer_groups,omitempty" json:"consumer_groups,omitempty"`
 	Models         []AIGatewayModelResource         `yaml:"models,omitempty"    json:"models,omitempty"`
@@ -52,6 +53,7 @@ type aiGatewayAlias struct {
 	Labels         map[string]string                `json:"labels,omitempty"      yaml:"labels,omitempty"`
 	Providers      []AIGatewayProviderResource      `json:"providers,omitempty"   yaml:"providers,omitempty"`
 	Policies       []AIGatewayPolicyResource        `json:"policies,omitempty"    yaml:"policies,omitempty"`
+	Agents         []AIGatewayAgentResource         `json:"agents,omitempty"      yaml:"agents,omitempty"`
 	Consumers      []AIGatewayConsumerResource      `json:"consumers,omitempty"   yaml:"consumers,omitempty"`
 	ConsumerGroups []AIGatewayConsumerGroupResource `json:"consumer_groups,omitempty" yaml:"consumer_groups,omitempty"`
 	Models         []AIGatewayModelResource         `json:"models,omitempty"      yaml:"models,omitempty"`
@@ -70,6 +72,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		Labels:         a.Labels,
 		Providers:      a.Providers,
 		Policies:       a.Policies,
+		Agents:         a.Agents,
 		Consumers:      a.Consumers,
 		ConsumerGroups: a.ConsumerGroups,
 		Models:         a.Models,
@@ -91,6 +94,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Labels         map[string]string                `yaml:"labels,omitempty"`
 		Providers      []AIGatewayProviderResource      `yaml:"providers,omitempty"`
 		Policies       []AIGatewayPolicyResource        `yaml:"policies,omitempty"`
+		Agents         []AIGatewayAgentResource         `yaml:"agents,omitempty"`
 		Consumers      []AIGatewayConsumerResource      `yaml:"consumers,omitempty"`
 		ConsumerGroups []AIGatewayConsumerGroupResource `yaml:"consumer_groups,omitempty"`
 		Models         []AIGatewayModelResource         `yaml:"models,omitempty"`
@@ -114,6 +118,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 	a.Providers = raw.Providers
 	a.Policies = raw.Policies
+	a.Agents = raw.Agents
 	a.Consumers = raw.Consumers
 	a.ConsumerGroups = raw.ConsumerGroups
 	a.Models = raw.Models
@@ -136,6 +141,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Labels         map[string]string                `json:"labels,omitempty"`
 		Providers      []AIGatewayProviderResource      `json:"providers,omitempty"`
 		Policies       []AIGatewayPolicyResource        `json:"policies,omitempty"`
+		Agents         []AIGatewayAgentResource         `json:"agents,omitempty"`
 		Consumers      []AIGatewayConsumerResource      `json:"consumers,omitempty"`
 		ConsumerGroups []AIGatewayConsumerGroupResource `json:"consumer_groups,omitempty"`
 		Models         []AIGatewayModelResource         `json:"models,omitempty"`
@@ -159,6 +165,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	}
 	a.Providers = raw.Providers
 	a.Policies = raw.Policies
+	a.Agents = raw.Agents
 	a.Consumers = raw.Consumers
 	a.ConsumerGroups = raw.ConsumerGroups
 	a.Models = raw.Models
@@ -223,6 +230,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	for i := range a.Policies {
 		a.Policies[i].SetDefaults()
 	}
+	for i := range a.Agents {
+		a.Agents[i].SetDefaults()
+	}
 	for i := range a.Consumers {
 		a.Consumers[i].SetDefaults()
 	}
@@ -271,7 +281,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("description", &ExplainNode{Kind: explainKindString, Nullable: true}, false, false),
 		explainField("proxy_urls", explainArrayOf(explainObject(
 			explainField("host", explainStringNode("proxy.example.com"), true, true),
-			explainField("port", &ExplainNode{Kind: "integer", Literal: "443"}, true, true),
+			explainField("port", &ExplainNode{Kind: explainKindInteger, Literal: "443"}, true, true),
 			explainField("protocol", explainStringNode("https"), true, true),
 		)), false, false),
 		explainField("labels", &ExplainNode{

@@ -27,6 +27,12 @@ const (
 	aiGatewayPolicyIDConfigPath   = "konnect.ai-gateway.policy.id"
 	aiGatewayPolicyNameConfigPath = "konnect.ai-gateway.policy.name"
 
+	aiGatewayAgentIDFlagName   = "agent-id"
+	aiGatewayAgentNameFlagName = "agent-name"
+
+	aiGatewayAgentIDConfigPath   = "konnect.ai-gateway.agent.id"
+	aiGatewayAgentNameConfigPath = "konnect.ai-gateway.agent.name"
+
 	aiGatewayConsumerIDFlagName   = "consumer-id"
 	aiGatewayConsumerNameFlagName = "consumer-name"
 
@@ -57,6 +63,7 @@ const (
 	aiGatewayHeaderName        = "NAME"
 	aiGatewayHeaderDisplayName = "DISPLAY NAME"
 	aiGatewayHeaderType        = "TYPE"
+	aiGatewayHeaderEnabled     = "ENABLED"
 	aiGatewayHeaderPolicies    = "POLICIES"
 	aiGatewayHeaderUpdated     = "UPDATED"
 )
@@ -161,6 +168,40 @@ func bindAIGatewayPolicyFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayPolicyIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(aiGatewayPolicyIDConfigPath), cfg.GetString(aiGatewayPolicyNameConfigPath)
+}
+
+func addAIGatewayAgentFlags(c *cobra.Command) {
+	c.Flags().String(aiGatewayAgentIDFlagName, "",
+		fmt.Sprintf(`The ID of the AI Gateway Agent to retrieve.
+- Config path: [ %s ]`, aiGatewayAgentIDConfigPath))
+	c.Flags().String(aiGatewayAgentNameFlagName, "",
+		fmt.Sprintf(`The name of the AI Gateway Agent to retrieve.
+- Config path: [ %s ]`, aiGatewayAgentNameConfigPath))
+	c.MarkFlagsMutuallyExclusive(aiGatewayAgentIDFlagName, aiGatewayAgentNameFlagName)
+}
+
+func bindAIGatewayAgentFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(aiGatewayAgentIDFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayAgentIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	if flag := c.Flags().Lookup(aiGatewayAgentNameFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayAgentNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getAIGatewayAgentIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(aiGatewayAgentIDConfigPath), cfg.GetString(aiGatewayAgentNameConfigPath)
 }
 
 func addAIGatewayConsumerFlags(c *cobra.Command) {

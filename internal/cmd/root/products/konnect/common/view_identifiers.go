@@ -8,6 +8,7 @@ const (
 	ViewParentAIGateway                     = "ai-gateway"
 	ViewParentAIGatewayProvider             = "ai-gateway-provider"
 	ViewParentAIGatewayPolicy               = "ai-gateway-policy"
+	ViewParentAIGatewayAgent                = "ai-gateway-agent"
 	ViewParentAIGatewayConsumer             = "ai-gateway-consumer"
 	ViewParentAIGatewayConsumerGroup        = "ai-gateway-consumer-group"
 	ViewParentAIGatewayModel                = "ai-gateway-model"
@@ -59,6 +60,7 @@ const (
 const (
 	ViewFieldApplications          = "applications"
 	ViewFieldAuthSettings          = "auth-settings"
+	ViewFieldAgents                = "agents"
 	ViewFieldBackendClusters       = "backend-clusters"
 	ViewFieldClusterPolicies       = "cluster-policies"
 	ViewFieldConsumePolicies       = "consume-policies"
