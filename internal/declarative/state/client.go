@@ -44,6 +44,7 @@ type ClientConfig struct {
 	AIGatewayModelAPI          helpers.AIGatewayModelAPI
 	AIGatewayMCPServersAPI     helpers.AIGatewayMCPServersAPI
 	AIGatewayVaultsAPI         helpers.AIGatewayVaultsAPI
+	AIGatewayNodesAPI          helpers.AIGatewayNodesAPI
 	DashboardsAPI              helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -115,6 +116,7 @@ type Client struct {
 	aiGatewayModelAPI          helpers.AIGatewayModelAPI
 	aiGatewayMCPServersAPI     helpers.AIGatewayMCPServersAPI
 	aiGatewayVaultsAPI         helpers.AIGatewayVaultsAPI
+	aiGatewayNodesAPI          helpers.AIGatewayNodesAPI
 	dashboardsAPI              helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -187,6 +189,7 @@ func NewClient(config ClientConfig) *Client {
 		aiGatewayModelAPI:          config.AIGatewayModelAPI,
 		aiGatewayMCPServersAPI:     config.AIGatewayMCPServersAPI,
 		aiGatewayVaultsAPI:         config.AIGatewayVaultsAPI,
+		aiGatewayNodesAPI:          config.AIGatewayNodesAPI,
 		dashboardsAPI:              config.DashboardsAPI,
 
 		// Portal child resource APIs
@@ -330,6 +333,17 @@ type AIGatewayMCPServer struct {
 type AIGatewayVault struct {
 	kkComps.AIGatewayVault
 	NormalizedLabels map[string]string
+}
+
+// AIGatewayNode represents a Konnect AI Gateway data plane node for internal use.
+type AIGatewayNode struct {
+	kkComps.AIGatewayDataPlaneNode
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayNodeRequest represents an AI Gateway data plane node mutation payload.
+type AIGatewayNodeRequest struct {
+	Payload map[string]any
 }
 
 // Dashboard represents a Konnect Analytics custom dashboard for internal use.

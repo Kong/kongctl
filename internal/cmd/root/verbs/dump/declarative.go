@@ -60,6 +60,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"ai_gateway_models":           {},
 	"ai_gateway_mcp_servers":      {},
 	"ai_gateway_vaults":           {},
+	"ai_gateway_nodes":            {},
 	"organization.teams":          {},
 }
 
@@ -94,7 +95,7 @@ func newDeclarativeCmd() *cobra.Command {
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
 			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_policies, "+
 			"ai_gateway_agents, ai_gateway_consumers, ai_gateway_consumer_groups, ai_gateway_models, "+
-			"ai_gateway_mcp_servers, ai_gateway_vaults, "+
+			"ai_gateway_mcp_servers, ai_gateway_vaults, ai_gateway_nodes, "+
 			"organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
@@ -216,7 +217,8 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		slices.Contains(opts.resources, "ai_gateway_consumer_groups") ||
 		slices.Contains(opts.resources, "ai_gateway_models") ||
 		slices.Contains(opts.resources, "ai_gateway_mcp_servers") ||
-		slices.Contains(opts.resources, "ai_gateway_vaults") {
+		slices.Contains(opts.resources, "ai_gateway_vaults") ||
+		slices.Contains(opts.resources, "ai_gateway_nodes") {
 		stateClient = declstate.NewClient(declstate.ClientConfig{
 			PortalAPI:                           sdk.GetPortalAPI(),
 			APIAPI:                              sdk.GetAPIAPI(),
@@ -236,6 +238,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			AIGatewayModelAPI:                   sdk.GetAIGatewayModelAPI(),
 			AIGatewayMCPServersAPI:              sdk.GetAIGatewayMCPServersAPI(),
 			AIGatewayVaultsAPI:                  sdk.GetAIGatewayVaultsAPI(),
+			AIGatewayNodesAPI:                   sdk.GetAIGatewayNodesAPI(),
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
@@ -464,6 +467,18 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.AIGatewayVaults = append(resourceSet.AIGatewayVaults, vaults...)
+		case "ai_gateway_nodes":
+			nodes, err := collectDeclarativeAIGatewayNodes(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayNodes = append(resourceSet.AIGatewayNodes, nodes...)
 		case "organization.teams":
 			teams, err := collectDeclarativeOrganizationTeams(
 				ctx,
@@ -1097,6 +1112,44 @@ func collectDeclarativeAIGatewayVaults(
 	})
 
 	return vaults, nil
+}
+
+func collectDeclarativeAIGatewayNodes(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayNodeResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Nodes API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var nodes []declresources.AIGatewayNodeResource
+	for _, gateway := range gateways {
+		gatewayNodes, err := buildAIGatewayNodes(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, gatewayNodes...)
+	}
+
+	nodes = filterByNameOrID(nodes, filter, func(r declresources.AIGatewayNodeResource) (string, string) {
+		return r.ID, r.Ref
+	})
+	slices.SortFunc(nodes, func(a, b declresources.AIGatewayNodeResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.ID, b.ID)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return nodes, nil
 }
 
 func collectDeclarativeOrganizationTeams(
