@@ -54,6 +54,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"event_gateways":              {},
 	"ai_gateways":                 {},
 	"ai_gateway_policies":         {},
+	"ai_gateway_agents":           {},
 	"ai_gateway_consumers":        {},
 	"ai_gateway_consumer_groups":  {},
 	"ai_gateway_models":           {},
@@ -92,7 +93,7 @@ func newDeclarativeCmd() *cobra.Command {
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
 			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_policies, "+
-			"ai_gateway_consumers, ai_gateway_consumer_groups, ai_gateway_models, "+
+			"ai_gateway_agents, ai_gateway_consumers, ai_gateway_consumer_groups, ai_gateway_models, "+
 			"ai_gateway_mcp_servers, ai_gateway_vaults, "+
 			"organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
@@ -210,6 +211,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 	var stateClient *declstate.Client
 	if opts.includeChildResources ||
 		slices.Contains(opts.resources, "ai_gateway_policies") ||
+		slices.Contains(opts.resources, "ai_gateway_agents") ||
 		slices.Contains(opts.resources, "ai_gateway_consumers") ||
 		slices.Contains(opts.resources, "ai_gateway_consumer_groups") ||
 		slices.Contains(opts.resources, "ai_gateway_models") ||
@@ -228,6 +230,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
 			AIGatewayProvidersAPI:               sdk.GetAIGatewayProvidersAPI(),
 			AIGatewayPoliciesAPI:                sdk.GetAIGatewayPoliciesAPI(),
+			AIGatewayAgentsAPI:                  sdk.GetAIGatewayAgentsAPI(),
 			AIGatewayConsumersAPI:               sdk.GetAIGatewayConsumersAPI(),
 			AIGatewayConsumerGroupsAPI:          sdk.GetAIGatewayConsumerGroupsAPI(),
 			AIGatewayModelAPI:                   sdk.GetAIGatewayModelAPI(),
@@ -389,6 +392,18 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.AIGatewayPolicies = append(resourceSet.AIGatewayPolicies, policies...)
+		case "ai_gateway_agents":
+			agents, err := collectDeclarativeAIGatewayAgents(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayAgents = append(resourceSet.AIGatewayAgents, agents...)
 		case "ai_gateway_consumers":
 			consumers, err := collectDeclarativeAIGatewayConsumers(
 				ctx,
@@ -854,6 +869,44 @@ func collectDeclarativeAIGatewayPolicies(
 	})
 
 	return policies, nil
+}
+
+func collectDeclarativeAIGatewayAgents(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayAgentResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Agents API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var agents []declresources.AIGatewayAgentResource
+	for _, gateway := range gateways {
+		gatewayAgents, err := buildAIGatewayAgents(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		agents = append(agents, gatewayAgents...)
+	}
+
+	agents = filterByNameOrID(agents, filter, func(r declresources.AIGatewayAgentResource) (string, string) {
+		return r.Name, r.Ref
+	})
+	slices.SortFunc(agents, func(a, b declresources.AIGatewayAgentResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name, b.Name)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return agents, nil
 }
 
 func collectDeclarativeAIGatewayConsumerGroups(

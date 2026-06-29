@@ -58,6 +58,24 @@ ai_gateways:
         labels:
           team: support
           access: agent
+    agents:
+      - ref: customer-support-agent
+        name: customer-support-agent
+        type: a2a
+        display_name: "Customer Support Agent"
+        enabled: true
+        labels:
+          team: support
+          agent: customer-support
+        config:
+          url: https://support-agent.example.com
+          route:
+            paths:
+              - /agents/support
+          logging:
+            max_payload_size: 524288
+        policies:
+          - !ref mask-sensitive-data
     consumer_groups:
       - ref: premium-support-users
         name: premium-support-users
