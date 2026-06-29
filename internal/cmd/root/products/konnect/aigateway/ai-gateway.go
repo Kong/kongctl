@@ -31,6 +31,7 @@ func NewAIGatewayCmd(
 		root := newGetAIGatewayCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command
 		root.AddCommand(newGetAIGatewayProvidersCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayPoliciesCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayConsumersCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayConsumerGroupsCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayModelsCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayMCPServersCmd(verb, addParentFlags, parentPreRun))

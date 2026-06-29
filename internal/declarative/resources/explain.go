@@ -1774,7 +1774,7 @@ func scaffoldSkippedField(node *ExplainNode, omit map[string]struct{}, skipFirst
 
 func scaffoldLiteral(node *ExplainNode) string {
 	if node == nil {
-		return "null"
+		return jsonNullLiteral
 	}
 	node = scaffoldActiveNode(node)
 	if node.Const != nil {
@@ -1959,14 +1959,14 @@ func explainOneOfBranchesShareKind(branches []*ExplainNode) bool {
 func schemaTypeValue(kind string, nullable bool) any {
 	if kind == "any" || kind == "" {
 		if nullable {
-			return []string{"null"}
+			return []string{jsonNullLiteral}
 		}
 		return nil
 	}
 	if !nullable {
 		return kind
 	}
-	return []string{kind, "null"}
+	return []string{kind, jsonNullLiteral}
 }
 
 func nestedRelationsFor(target ResourceType) []ExplainRelation {

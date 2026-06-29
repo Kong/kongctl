@@ -200,7 +200,7 @@ func (a *AIGatewayConsumerGroupResource) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
 	}
-	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != "null" {
+	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != jsonNullLiteral {
 		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 

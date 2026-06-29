@@ -246,7 +246,10 @@ func (r *ReferenceResolver) getResourceTypeForChangeField(change PlannedChange, 
 
 func aiGatewayPolicyReferenceField(resourceType, fieldName string) bool {
 	switch resourceType {
-	case ResourceTypeAIGatewayConsumerGroup, ResourceTypeAIGatewayModel, ResourceTypeAIGatewayMCPServer:
+	case ResourceTypeAIGatewayConsumer,
+		ResourceTypeAIGatewayConsumerGroup,
+		ResourceTypeAIGatewayModel,
+		ResourceTypeAIGatewayMCPServer:
 	default:
 		return false
 	}
