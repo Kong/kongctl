@@ -15,7 +15,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
-	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util"
@@ -338,20 +337,67 @@ func fetchAIGatewayNodes(
 func aiGatewayNodeToRecord(node kkComps.AIGatewayDataPlaneNode) aiGatewayNodeRecord {
 	record := aiGatewayNodeRecord{
 		ID:               aiGatewayMissingValue,
-		Hostname:         valueOrMissing(declresources.AIGatewayNodeHostname(node)),
-		Type:             valueOrMissing(declresources.AIGatewayNodeType(node)),
-		Version:          valueOrMissing(declresources.AIGatewayNodeVersion(node)),
-		ConfigVersion:    valueOrMissing(declresources.AIGatewayNodeConfigVersion(node)),
+		Hostname:         valueOrMissing(aiGatewayNodeHostname(node)),
+		Type:             valueOrMissing(aiGatewayNodeType(node)),
+		Version:          valueOrMissing(aiGatewayNodeVersion(node)),
+		ConfigVersion:    valueOrMissing(aiGatewayNodeConfigVersion(node)),
 		State:            valueOrMissing(aiGatewayNodeCompatibilityState(node)),
 		LocalUpdatedTime: aiGatewayMissingValue,
 	}
-	if id := declresources.AIGatewayNodeID(node); id != "" {
+	if id := aiGatewayNodeID(node); id != "" {
 		record.ID = util.AbbreviateUUID(id)
 	}
-	if updatedAt := declresources.AIGatewayNodeUpdatedAt(node); !updatedAt.IsZero() {
+	if updatedAt := aiGatewayNodeUpdatedAt(node); !updatedAt.IsZero() {
 		record.LocalUpdatedTime = updatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	}
 	return record
+}
+
+func aiGatewayNodeID(node kkComps.AIGatewayDataPlaneNode) string {
+	return aiGatewayNodeStringField(node, "id")
+}
+
+func aiGatewayNodeVersion(node kkComps.AIGatewayDataPlaneNode) string {
+	return aiGatewayNodeStringField(node, "version")
+}
+
+func aiGatewayNodeHostname(node kkComps.AIGatewayDataPlaneNode) string {
+	return aiGatewayNodeStringField(node, "hostname")
+}
+
+func aiGatewayNodeType(node kkComps.AIGatewayDataPlaneNode) string {
+	return aiGatewayNodeStringField(node, "type")
+}
+
+func aiGatewayNodeConfigVersion(node kkComps.AIGatewayDataPlaneNode) string {
+	return aiGatewayNodeStringField(node, "config_version")
+}
+
+func aiGatewayNodeUpdatedAt(node kkComps.AIGatewayDataPlaneNode) time.Time {
+	value := aiGatewayNodeStringField(node, aiGatewayFieldUpdatedAt)
+	if value == "" {
+		return time.Time{}
+	}
+	updatedAt, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return time.Time{}
+	}
+	return updatedAt
+}
+
+func aiGatewayNodeStringField(node kkComps.AIGatewayDataPlaneNode, key string) string {
+	payload := make(map[string]any)
+	data, err := json.Marshal(node)
+	if err != nil {
+		return ""
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return ""
+	}
+	if value, ok := payload[key].(string); ok {
+		return value
+	}
+	return ""
 }
 
 func aiGatewayNodeCompatibilityState(node kkComps.AIGatewayDataPlaneNode) string {
