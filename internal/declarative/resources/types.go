@@ -26,6 +26,7 @@ const (
 	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
 	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
 	ResourceTypeAIGatewayVault                          ResourceType = "ai_gateway_vault"
+	ResourceTypeAIGatewayNode                           ResourceType = "ai_gateway_node"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
@@ -123,6 +124,7 @@ type ResourceSet struct {
 	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
 	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
 	AIGatewayVaults                   []AIGatewayVaultResource                   `yaml:"ai_gateway_vaults,omitempty"                              json:"ai_gateway_vaults,omitempty"`                     //nolint:lll
+	AIGatewayNodes                    []AIGatewayNodeResource                    `yaml:"ai_gateway_nodes,omitempty"                               json:"ai_gateway_nodes,omitempty"`                      //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
@@ -430,6 +432,16 @@ func (rs *ResourceSet) GetAIGatewayVaultByRef(ref string) *AIGatewayVaultResourc
 	return nil
 }
 
+// GetAIGatewayNodeByRef returns an AI Gateway Node resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayNodeByRef(ref string) *AIGatewayNodeResource {
+	for i := range rs.AIGatewayNodes {
+		if rs.AIGatewayNodes[i].GetRef() == ref {
+			return &rs.AIGatewayNodes[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {
@@ -651,6 +663,25 @@ func (rs *ResourceSet) GetAIGatewayVaultsByNamespace(namespace string) []AIGatew
 			}
 			if GetNamespace(gateway.Kongctl) == namespace {
 				filtered = append(filtered, vault)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayNodesByNamespace returns AI Gateway Node resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayNodesByNamespace(namespace string) []AIGatewayNodeResource {
+	var filtered []AIGatewayNodeResource
+	for _, node := range rs.AIGatewayNodes {
+		if gateway := rs.GetAIGatewayByRef(node.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, node)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, node)
 			}
 		}
 	}
@@ -1674,4 +1705,15 @@ func (rs *ResourceSet) GetAIGatewayVaultsForGateway(gatewayRef string) []AIGatew
 		}
 	}
 	return vaults
+}
+
+// GetAIGatewayNodesForGateway returns all AI Gateway Nodes for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayNodesForGateway(gatewayRef string) []AIGatewayNodeResource {
+	var nodes []AIGatewayNodeResource
+	for _, node := range rs.AIGatewayNodes {
+		if NormalizeResourceRef(node.AIGateway) == gatewayRef {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
 }

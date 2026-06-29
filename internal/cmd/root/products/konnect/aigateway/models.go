@@ -427,8 +427,8 @@ func aiGatewayModelDetailView(model kkComps.AIGatewayModel) string {
 		"enabled",
 		"capabilities",
 		"labels",
-		"created_at",
-		"updated_at",
+		aiGatewayFieldCreatedAt,
+		aiGatewayFieldUpdatedAt,
 	}
 
 	var b strings.Builder

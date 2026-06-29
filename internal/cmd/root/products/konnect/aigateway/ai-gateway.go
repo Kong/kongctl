@@ -37,6 +37,7 @@ func NewAIGatewayCmd(
 		root.AddCommand(newGetAIGatewayModelsCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayMCPServersCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayVaultsCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayNodesCmd(verb, addParentFlags, parentPreRun))
 		return root, nil
 	}
 

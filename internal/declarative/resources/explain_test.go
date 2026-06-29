@@ -58,6 +58,20 @@ func TestResolveExplainSubject_AIGatewayModelsNestedChildResource(t *testing.T) 
 	assert.Equal(t, []ResourceType{ResourceTypeAIGateway}, subject.AncestorTypes)
 }
 
+func TestResolveExplainSubject_AIGatewayNodesNestedChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway.nodes")
+	require.NoError(t, err)
+
+	assert.Equal(t, "ai_gateway.nodes", subject.DisplayPath)
+	assert.Equal(t, ResourceTypeAIGatewayNode, subject.Doc.ResourceType)
+	assert.Equal(t, explainResourceClassChild, subject.Doc.ResourceClass)
+	assert.True(t, subject.Doc.SupportsRoot)
+	assert.True(t, subject.Doc.SupportsNestedDeclaration)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []string{"nodes"}, subject.FieldPath)
+	assert.Equal(t, []ResourceType{ResourceTypeAIGateway}, subject.AncestorTypes)
+}
+
 func TestResolveExplainSubject_OrganizationTeamsGroupedResource(t *testing.T) {
 	subject, err := ResolveExplainSubject("organization.teams")
 	require.NoError(t, err)
@@ -501,6 +515,23 @@ func TestRenderScaffoldYAML_AIGatewayModelsNestedChildResource(t *testing.T) {
 	assert.Contains(t, scaffold, "type: model")
 	assert.Contains(t, scaffold, "# type: api")
 	assert.NotContains(t, scaffold, "provider: openai")
+	assert.NotContains(t, scaffold, "ai_gateway: value")
+	assert.NotContains(t, scaffold, "kongctl:")
+}
+
+func TestRenderScaffoldYAML_AIGatewayNodesNestedChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway.nodes")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "ai_gateways:")
+	assert.Contains(t, scaffold, "nodes:")
+	assert.Contains(t, scaffold, "id:")
+	assert.Contains(t, scaffold, "version:")
+	assert.Contains(t, scaffold, "hostname:")
+	assert.Contains(t, scaffold, "type: data-plane")
 	assert.NotContains(t, scaffold, "ai_gateway: value")
 	assert.NotContains(t, scaffold, "kongctl:")
 }
