@@ -233,7 +233,10 @@ func (h aiGatewayProvidersHandler) listProviders(
 		records,
 		providers,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME", "TYPE", "DISPLAY NAME"}, tableRows),
+		tableview.WithCustomTable(
+			[]string{aiGatewayHeaderID, aiGatewayHeaderName, aiGatewayHeaderType, aiGatewayHeaderDisplayName},
+			tableRows,
+		),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
 		tableview.WithDetailContext(common.ViewParentAIGatewayProvider, func(index int) any {
@@ -375,7 +378,7 @@ func buildAIGatewayProviderChildView(providers []kkComps.AIGatewayProvider) tabl
 	}
 
 	return tableview.ChildView{
-		Headers: []string{"ID", "NAME", "TYPE", "DISPLAY NAME"},
+		Headers: []string{aiGatewayHeaderID, aiGatewayHeaderName, aiGatewayHeaderType, aiGatewayHeaderDisplayName},
 		Rows:    tableRows,
 		DetailRenderer: func(index int) string {
 			if index < 0 || index >= len(providers) {

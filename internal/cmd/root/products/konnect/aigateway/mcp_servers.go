@@ -238,7 +238,14 @@ func (h aiGatewayMCPServersHandler) listMCPServers(
 		servers,
 		"",
 		tableview.WithCustomTable(
-			[]string{"ID", "NAME", "DISPLAY NAME", "TYPE", "ENABLED", "UPDATED"},
+			[]string{
+				aiGatewayHeaderID,
+				aiGatewayHeaderName,
+				aiGatewayHeaderDisplayName,
+				aiGatewayHeaderType,
+				"ENABLED",
+				aiGatewayHeaderUpdated,
+			},
 			tableRows,
 		),
 		tableview.WithRootLabel(helper.GetCmd().Name()),

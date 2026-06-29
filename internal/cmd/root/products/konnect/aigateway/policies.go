@@ -240,7 +240,15 @@ func (h aiGatewayPoliciesHandler) listPolicies(
 		policies,
 		"",
 		tableview.WithCustomTable(
-			[]string{"ID", "NAME", "DISPLAY NAME", "TYPE", "ENABLED", "GLOBAL", "UPDATED"},
+			[]string{
+				aiGatewayHeaderID,
+				aiGatewayHeaderName,
+				aiGatewayHeaderDisplayName,
+				aiGatewayHeaderType,
+				"ENABLED",
+				"GLOBAL",
+				aiGatewayHeaderUpdated,
+			},
 			tableRows,
 		),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
@@ -415,8 +423,15 @@ func buildAIGatewayPolicyChildView(policies []kkComps.AIGatewayPolicy) tableview
 	}
 
 	return tableview.ChildView{
-		Headers: []string{"ID", "NAME", "TYPE", "DISPLAY NAME", "ENABLED", "GLOBAL"},
-		Rows:    tableRows,
+		Headers: []string{
+			aiGatewayHeaderID,
+			aiGatewayHeaderName,
+			aiGatewayHeaderType,
+			aiGatewayHeaderDisplayName,
+			"ENABLED",
+			"GLOBAL",
+		},
+		Rows: tableRows,
 		DetailRenderer: func(index int) string {
 			if index < 0 || index >= len(policies) {
 				return ""
