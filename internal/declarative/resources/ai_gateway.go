@@ -26,6 +26,7 @@ type AIGatewayResource struct {
 	External       *ExternalBlock                   `yaml:"_external,omitempty" json:"_external,omitempty"`
 	Providers      []AIGatewayProviderResource      `yaml:"providers,omitempty" json:"providers,omitempty"`
 	Policies       []AIGatewayPolicyResource        `yaml:"policies,omitempty" json:"policies,omitempty"`
+	Consumers      []AIGatewayConsumerResource      `yaml:"consumers,omitempty" json:"consumers,omitempty"`
 	ConsumerGroups []AIGatewayConsumerGroupResource `yaml:"consumer_groups,omitempty" json:"consumer_groups,omitempty"`
 	Models         []AIGatewayModelResource         `yaml:"models,omitempty"    json:"models,omitempty"`
 	MCPServers     []AIGatewayMCPServerResource     `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
@@ -51,6 +52,7 @@ type aiGatewayAlias struct {
 	Labels         map[string]string                `json:"labels,omitempty"      yaml:"labels,omitempty"`
 	Providers      []AIGatewayProviderResource      `json:"providers,omitempty"   yaml:"providers,omitempty"`
 	Policies       []AIGatewayPolicyResource        `json:"policies,omitempty"    yaml:"policies,omitempty"`
+	Consumers      []AIGatewayConsumerResource      `json:"consumers,omitempty"   yaml:"consumers,omitempty"`
 	ConsumerGroups []AIGatewayConsumerGroupResource `json:"consumer_groups,omitempty" yaml:"consumer_groups,omitempty"`
 	Models         []AIGatewayModelResource         `json:"models,omitempty"      yaml:"models,omitempty"`
 	MCPServers     []AIGatewayMCPServerResource     `json:"mcp_servers,omitempty" yaml:"mcp_servers,omitempty"`
@@ -68,6 +70,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		Labels:         a.Labels,
 		Providers:      a.Providers,
 		Policies:       a.Policies,
+		Consumers:      a.Consumers,
 		ConsumerGroups: a.ConsumerGroups,
 		Models:         a.Models,
 		MCPServers:     a.MCPServers,
@@ -88,6 +91,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Labels         map[string]string                `yaml:"labels,omitempty"`
 		Providers      []AIGatewayProviderResource      `yaml:"providers,omitempty"`
 		Policies       []AIGatewayPolicyResource        `yaml:"policies,omitempty"`
+		Consumers      []AIGatewayConsumerResource      `yaml:"consumers,omitempty"`
 		ConsumerGroups []AIGatewayConsumerGroupResource `yaml:"consumer_groups,omitempty"`
 		Models         []AIGatewayModelResource         `yaml:"models,omitempty"`
 		MCPServers     []AIGatewayMCPServerResource     `yaml:"mcp_servers,omitempty"`
@@ -110,6 +114,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 	a.Providers = raw.Providers
 	a.Policies = raw.Policies
+	a.Consumers = raw.Consumers
 	a.ConsumerGroups = raw.ConsumerGroups
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
@@ -131,6 +136,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Labels         map[string]string                `json:"labels,omitempty"`
 		Providers      []AIGatewayProviderResource      `json:"providers,omitempty"`
 		Policies       []AIGatewayPolicyResource        `json:"policies,omitempty"`
+		Consumers      []AIGatewayConsumerResource      `json:"consumers,omitempty"`
 		ConsumerGroups []AIGatewayConsumerGroupResource `json:"consumer_groups,omitempty"`
 		Models         []AIGatewayModelResource         `json:"models,omitempty"`
 		MCPServers     []AIGatewayMCPServerResource     `json:"mcp_servers,omitempty"`
@@ -153,6 +159,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	}
 	a.Providers = raw.Providers
 	a.Policies = raw.Policies
+	a.Consumers = raw.Consumers
 	a.ConsumerGroups = raw.ConsumerGroups
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
@@ -216,6 +223,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	for i := range a.Policies {
 		a.Policies[i].SetDefaults()
 	}
+	for i := range a.Consumers {
+		a.Consumers[i].SetDefaults()
+	}
 	for i := range a.ConsumerGroups {
 		a.ConsumerGroups[i].SetDefaults()
 	}
@@ -270,6 +280,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		}, false, false),
 		explainField("providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
 		explainField("policies", explainArrayOf(aiGatewayPolicyInlineExplainNode()), false, false),
+		explainField("consumers", explainArrayOf(aiGatewayConsumerInlineExplainNode()), false, false),
 		explainField("consumer_groups", explainArrayOf(aiGatewayConsumerGroupInlineExplainNode()), false, false),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 		explainField("mcp_servers", explainArrayOf(aiGatewayMCPServerInlineExplainNode()), false, false),
@@ -295,6 +306,14 @@ func aiGatewayPolicyInlineExplainNode() *ExplainNode {
 
 func aiGatewayConsumerGroupInlineExplainNode() *ExplainNode {
 	node, err := aiGatewayConsumerGroupExplainNode(ExplainBuildContext{})
+	if err != nil {
+		return explainObject()
+	}
+	return node
+}
+
+func aiGatewayConsumerInlineExplainNode() *ExplainNode {
+	node, err := aiGatewayConsumerExplainNode(ExplainBuildContext{})
 	if err != nil {
 		return explainObject()
 	}

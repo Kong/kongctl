@@ -250,7 +250,7 @@ func (a *AIGatewayModelResource) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
 	}
-	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != "null" {
+	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != jsonNullLiteral {
 		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
@@ -350,7 +350,7 @@ func rawStringField(raw map[string]json.RawMessage, field string) (string, bool,
 }
 
 func isJSONNull(raw json.RawMessage) bool {
-	return string(raw) == "null"
+	return string(raw) == jsonNullLiteral
 }
 
 func AIGatewayModelID(model any) string {

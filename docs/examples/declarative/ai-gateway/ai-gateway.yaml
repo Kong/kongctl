@@ -48,6 +48,16 @@ ai_gateways:
         config:
           anonymize:
             - email
+    consumers:
+      - ref: support-agent
+        name: support-agent
+        type: api-key
+        display_name: "Support Agent"
+        policies:
+          - !ref mask-sensitive-data
+        labels:
+          team: support
+          access: agent
     consumer_groups:
       - ref: premium-support-users
         name: premium-support-users

@@ -50,6 +50,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayPolicies(rs); err != nil {
 		return err
 	}
+	if err := l.validateAIGatewayConsumers(rs); err != nil {
+		return err
+	}
 	if err := l.validateAIGatewayConsumerGroups(rs); err != nil {
 		return err
 	}
@@ -835,6 +838,58 @@ func (l *Loader) validateAIGatewayPolicies(rs *resources.ResourceSet) error {
 			)
 		}
 		namesByGateway[nameKey] = policy.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayConsumers validates AI Gateway child Consumer resources.
+func (l *Loader) validateAIGatewayConsumers(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayConsumers {
+		consumer := &rs.AIGatewayConsumers[i]
+
+		if err := consumer.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_consumer %q: %w", consumer.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(consumer.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayConsumer {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					consumer.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(consumer.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_consumer %q references unknown ai_gateway %q",
+				consumer.GetRef(),
+				consumer.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_consumer %q references %q which is %s, not ai_gateway",
+				consumer.GetRef(),
+				consumer.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + consumer.Name
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_consumer name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				consumer.Name,
+				gatewayRef,
+				consumer.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = consumer.GetRef()
 	}
 
 	return nil
