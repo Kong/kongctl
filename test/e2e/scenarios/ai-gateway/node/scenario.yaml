@@ -1,0 +1,390 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-node-e2e"
+  gateway_name: "AI Gateway Node E2E"
+  gateway_ref: "ai-gateway-node-e2e"
+  node_ref: "support-node"
+  node_id: "3f2b1c9a-8d7e-4f6a-9b0c-1d2e3f4a5b6c"
+  node_hostname: "support-node-1"
+  node_updated_hostname: "support-node-1-updated"
+  node_version: "3.11.0"
+  node_updated_version: "3.11.1"
+  node_config_version: "2024.06.01"
+  node_updated_config_version: "2024.06.02"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-node-json
+        run:
+          - explain
+          - ai_gateway_node
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway_node"
+                '"x-kongctl-root-key"': ai_gateway_nodes
+          - select: "contains(keys(properties), 'ai_gateway')"
+            expect:
+              fields:
+                "@": true
+          - select: "contains(keys(properties), 'id')"
+            expect:
+              fields:
+                "@": true
+      - name: 001-scaffold-ai-gateway-node
+        run:
+          - scaffold
+          - ai_gateway_node
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_nodes:')": true
+                "contains(stdout, 'ai_gateway: !ref')": true
+                "contains(stdout, 'id:')": true
+                "contains(stdout, 'version:')": true
+                "contains(stdout, 'hostname:')": true
+      - name: 002-explain-ai-gateway-nodes-nested-json
+        run:
+          - explain
+          - ai_gateway.nodes
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.nodes"
+                '"x-kongctl-root-key"': ai_gateway_nodes
+
+  - name: 002-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='ai_gateway_node' && resource_ref=='{{ .vars.node_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.id: "{{ .vars.node_id }}"
+                fields.version: "{{ .vars.node_version }}"
+                fields.hostname: "{{ .vars.node_hostname }}"
+                fields.type: data-plane
+                fields.config_version: "{{ .vars.node_config_version }}"
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+      - name: 002-list-nodes
+        run:
+          - get
+          - ai-gateway
+          - nodes
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?id=='{{ .vars.node_id }}'] | [0]"
+            expect:
+              fields:
+                hostname: "{{ .vars.node_hostname }}"
+                type: data-plane
+                version: "{{ .vars.node_version }}"
+                config_version: "{{ .vars.node_config_version }}"
+      - name: 003-get-node-by-id
+        run:
+          - get
+          - ai-gateway
+          - node
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.node_id }}"
+          - -o
+          - json
+        assertions:
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.node_id }}"
+          - select: hostname
+            expect:
+              fields:
+                "@": "{{ .vars.node_hostname }}"
+      - name: 004-get-node-by-id-flag
+        run:
+          - get
+          - ai-gateway
+          - nodes
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --node-id
+          - "{{ .vars.node_id }}"
+          - -o
+          - json
+        assertions:
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.node_id }}"
+
+  - name: 003-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='ai_gateway_node' && resource_ref=='{{ .vars.node_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.id: "{{ .vars.node_id }}"
+                fields.version: "{{ .vars.node_updated_version }}"
+                fields.hostname: "{{ .vars.node_updated_hostname }}"
+                fields.config_version: "{{ .vars.node_updated_config_version }}"
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-verify-update
+        run:
+          - get
+          - ai-gateway
+          - nodes
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.node_id }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                hostname: "{{ .vars.node_updated_hostname }}"
+                version: "{{ .vars.node_updated_version }}"
+                config_version: "{{ .vars.node_updated_config_version }}"
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateway-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-ai-gateway.yaml"
+        assertions:
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].nodes[?id=='{{ .vars.node_id }}'] | [0]
+            expect:
+              fields:
+                hostname: "{{ .vars.node_updated_hostname }}"
+                version: "{{ .vars.node_updated_version }}"
+                type: data-plane
+                config_version: "{{ .vars.node_updated_config_version }}"
+      - name: 001-plan-from-ai-gateway-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-ai-gateway.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 002-dump-root-nodes
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_nodes"
+          - "--filter-id={{ .vars.node_id }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_nodes[0]"
+            expect:
+              fields:
+                id: "{{ .vars.node_id }}"
+                hostname: "{{ .vars.node_updated_hostname }}"
+                version: "{{ .vars.node_updated_version }}"
+          - select: "ai_gateway_nodes[0].ai_gateway != ''"
+            expect:
+              fields:
+                "@": true
+
+  - name: 005-sync-delete-node
+    inputOverlayDirs:
+      - overlays/002-sync-delete-node
+    commands:
+      - name: 000-sync-delete-node
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_node' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.node_id }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-nodes-empty
+        run:
+          - get
+          - ai-gateway
+          - nodes
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 006-sync-delete-gateway
+    inputOverlayDirs:
+      - overlays/003-sync-delete-gateway
+    commands:
+      - name: 000-sync-delete-gateway
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-get-ai-gateways
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?display_name=='{{ .vars.gateway_name }}']"
+            expect:
+              fields:
+                "length(@)": 0

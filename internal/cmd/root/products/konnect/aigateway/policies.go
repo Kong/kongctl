@@ -397,8 +397,8 @@ func aiGatewayPolicyDetailView(policy kkComps.AIGatewayPolicy) string {
 		"config",
 		"labels",
 		"managed_by",
-		"created_at",
-		"updated_at",
+		aiGatewayFieldCreatedAt,
+		aiGatewayFieldUpdatedAt,
 	}
 
 	var b strings.Builder
