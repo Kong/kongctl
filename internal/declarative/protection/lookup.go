@@ -161,7 +161,8 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeAIGatewayConsumerGroup,
 		resources.ResourceTypeAIGatewayModel,
 		resources.ResourceTypeAIGatewayMCPServer,
-		resources.ResourceTypeAIGatewayVault:
+		resources.ResourceTypeAIGatewayVault,
+		resources.ResourceTypeAIGatewayDataPlaneCertificate:
 		return false, nil
 	}
 

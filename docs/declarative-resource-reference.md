@@ -315,22 +315,25 @@ control_plane_data_plane_certificates:
 This section covers the root AI Gateway resource backed by the Konnect
 `/v1/ai-gateways` API, AI Gateway Providers, AI Gateway Models, AI Gateway
 MCP Servers, AI Gateway Agents, AI Gateway Consumers, AI Gateway Consumer
-Groups, and AI Gateway Vaults. Use
+Groups, AI Gateway Vaults, and AI Gateway Data Plane Certificates. Use
 `kongctl explain ai_gateway --output yaml`,
 `kongctl explain ai_gateway_provider --output yaml`,
 `kongctl explain ai_gateway.agents --output yaml`,
 `kongctl explain ai_gateway.consumers --output yaml`,
 `kongctl explain ai_gateway.consumer_groups --output yaml`,
 `kongctl explain ai_gateway.models --output yaml`,
-`kongctl explain ai_gateway.mcp_servers --output yaml`, and
-`kongctl explain ai_gateway.vaults --output yaml` as the authoritative schemas.
+`kongctl explain ai_gateway.mcp_servers --output yaml`,
+`kongctl explain ai_gateway.vaults --output yaml`, and
+`kongctl explain ai_gateway.data_plane_certificates --output yaml` as the
+authoritative schemas.
 
 The `ref` value is used as the stable Konnect API `name` when creating an AI
 Gateway. Use `display_name` for the human-readable name shown in Konnect.
 AI Gateway Providers, Policies, Agents, Consumers, Consumer Groups, Models, MCP
 Servers, and Vaults use their own required `name` field as the stable Konnect
-child name. Child entries inherit management scope from their parent AI
-Gateway and do not accept `kongctl` metadata.
+child name. AI Gateway Data Plane Certificates use their required `title` field
+as the stable Konnect child name. Child entries inherit management scope from
+their parent AI Gateway and do not accept `kongctl` metadata.
 
 For AI Gateway Models, `target_models[].provider` must match an AI Gateway
 Provider `name` under the parent gateway. The provider can already exist or be
@@ -342,17 +345,19 @@ Existing Konnect policy names or IDs can be supplied as strings. Declarative
 references should use `!ref <policy-ref>` so the relationship is explicit and
 same-plan policy creates are ordered and resolved.
 
-For AI Gateway Policies, Agents, Consumers, Consumer Groups, MCP Servers, and
-Vaults, root-level declarations must include `ai_gateway`, while nested
-declarations inherit the parent gateway. Omit `policies`, `agents`,
-`consumers`, `consumer_groups`, `mcp_servers`, or `vaults` to leave existing
-child resources unmanaged during sync. Use `policies: []`, `agents: []`,
-`consumers: []`, `consumer_groups: []`, `mcp_servers: []`, or `vaults: []`
-under a specific AI Gateway to sync-delete that child type for that gateway.
-Root-level `ai_gateway_policies: []`, `ai_gateway_agents: []`,
-`ai_gateway_consumers: []`, `ai_gateway_consumer_groups: []`,
-`ai_gateway_mcp_servers: []`, and `ai_gateway_vaults: []` are rejected because
-they do not identify a parent gateway.
+For AI Gateway Policies, Agents, Consumers, Consumer Groups, MCP Servers,
+Vaults, and Data Plane Certificates, root-level declarations must include
+`ai_gateway`, while nested declarations inherit the parent gateway. Omit
+`policies`, `agents`, `consumers`, `consumer_groups`, `mcp_servers`, `vaults`,
+or `data_plane_certificates` to leave existing child resources unmanaged during
+sync. Use `policies: []`, `agents: []`, `consumers: []`,
+`consumer_groups: []`, `mcp_servers: []`, `vaults: []`, or
+`data_plane_certificates: []` under a specific AI Gateway to sync-delete that
+child type for that gateway. Root-level `ai_gateway_policies: []`,
+`ai_gateway_agents: []`, `ai_gateway_consumers: []`,
+`ai_gateway_consumer_groups: []`, `ai_gateway_mcp_servers: []`,
+`ai_gateway_vaults: []`, and `ai_gateway_data_plane_certificates: []` are
+rejected because they do not identify a parent gateway.
 
 ```yaml
 ai_gateways:
@@ -483,6 +488,11 @@ ai_gateways:
         key: value
       managed_by: object [string]string
         key: value
+   data_plane_certificates:
+    - ref: string
+      title: string required
+      description: string
+      cert: string required # prefer !file or !env for PEM data
 ```
 
 AI Gateway Providers can also be declared as root resources. Root-level
@@ -654,6 +664,20 @@ ai_gateway_vaults:
      key: value
    managed_by: object [string]string
      key: value
+```
+
+AI Gateway Data Plane Certificates can also be declared as root resources.
+Include `ai_gateway` to point at the parent gateway `ref`. There is no update
+endpoint for this resource; changing `cert` or `description` for the same
+`title` replaces the certificate with a delete followed by a create.
+
+```yaml
+ai_gateway_data_plane_certificates:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   title: string required
+   description: string
+   cert: string required # prefer !file or !env for PEM data
 ```
 
 ## Event Gateways
