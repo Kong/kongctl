@@ -42,7 +42,8 @@ var (
 	%[1]s get api my-api
 	# Get all the APIs using command aliases
 	%[1]s get apis
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 // Represents a text display record for an API
@@ -444,7 +445,8 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 			if e != nil {
 				return e
 			}
-			return tableview.RenderForFormat(helper,
+			return tableview.RenderForFormat(
+				helper,
 				false,
 				outType,
 				printer,
@@ -468,7 +470,8 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 			return e
 		}
 
-		return tableview.RenderForFormat(helper,
+		return tableview.RenderForFormat(
+			helper,
 			false,
 			outType,
 			printer,
@@ -521,7 +524,8 @@ func renderAPIList(
 		options = append(options, tableview.WithDetailContext(childView.ParentType, childView.DetailContext))
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,

@@ -336,7 +336,8 @@ func runKongctlJSON(t *testing.T, cli *harness.CLI, out any, args ...string) har
 
 	decoder := json.NewDecoder(strings.NewReader(res.Stdout))
 	if err := decoder.Decode(out); err != nil {
-		t.Fatalf("decode JSON output for %q: %v\nstdout:\n%s\nstderr:\n%s",
+		t.Fatalf(
+			"decode JSON output for %q: %v\nstdout:\n%s\nstderr:\n%s",
 			strings.Join(finalArgs, " "),
 			err,
 			res.Stdout,

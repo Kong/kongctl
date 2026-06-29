@@ -932,7 +932,8 @@ func writeRemoteTrustPrompt(
 ) error {
 	ui := extensionUI()
 	source := sourceStateFromFetched(fetched)
-	if _, err := fmt.Fprintf(w, "%s %s\n",
+	if _, err := fmt.Fprintf(
+		w, "%s %s\n",
 		ui.warning.Render("!"),
 		ui.strong.Render("Remote extension trust warning!!"),
 	); err != nil {
@@ -1096,7 +1097,8 @@ func writeLinkSummary(w io.Writer, ext extensioncore.Extension, source string) e
 func writeListSummary(w io.Writer, extensions []extensioncore.Extension, cliVersion string) error {
 	ui := extensionUI()
 	if len(extensions) == 0 {
-		_, err := fmt.Fprintf(w, "%s No extensions installed or linked.\n  %s\n",
+		_, err := fmt.Fprintf(
+			w, "%s No extensions installed or linked.\n  %s\n",
 			ui.muted.Render("•"),
 			ui.muted.Render("Try: "+meta.CLIName+" install extension <path>"),
 		)
@@ -1160,7 +1162,8 @@ func writeExtensionSummary(w io.Writer, ext extensioncore.Extension, cliVersion 
 
 func writeUninstallSummary(w io.Writer, result extensioncore.UninstallResult) error {
 	ui := extensionUI()
-	if _, err := fmt.Fprintf(w, "%s %s %s\n",
+	if _, err := fmt.Fprintf(
+		w, "%s %s %s\n",
 		ui.success.Render("✓"),
 		ui.strong.Render("Uninstalled"),
 		result.ID,
@@ -1177,7 +1180,8 @@ func writeUninstallSummary(w io.Writer, result extensioncore.UninstallResult) er
 
 func writeUpgradeSummary(w io.Writer, upgraded, previous extensioncore.Extension) error {
 	ui := extensionUI()
-	if _, err := fmt.Fprintf(w, "%s %s %s\n",
+	if _, err := fmt.Fprintf(
+		w, "%s %s %s\n",
 		ui.success.Render("✓"),
 		ui.strong.Render("Upgraded"),
 		upgraded.ID,
@@ -1213,7 +1217,8 @@ func writeUpgradeOutcome(w io.Writer, outcome upgradeExtensionOutcome) error {
 
 func writeUpgradeUpToDateSummary(w io.Writer, ext extensioncore.Extension) error {
 	ui := extensionUI()
-	if _, err := fmt.Fprintf(w, "%s %s %s\n",
+	if _, err := fmt.Fprintf(
+		w, "%s %s %s\n",
 		ui.success.Render("✓"),
 		ui.strong.Render("Extension is up to date"),
 		ext.ID,
@@ -1244,20 +1249,23 @@ func writeUpgradeAllSummary(w io.Writer, result upgradeAllExtensionResult) error
 		fmt.Fprintf(w, "%s %s  up to date\n", ui.success.Render("✓"), ui.strong.Render(id))
 	}
 	for _, skipped := range result.Skipped {
-		fmt.Fprintf(w, "%s %s  skipped  %s\n",
+		fmt.Fprintf(
+			w, "%s %s  skipped  %s\n",
 			ui.muted.Render("•"),
 			ui.strong.Render(skipped.ID),
 			ui.muted.Render(skipped.Reason),
 		)
 	}
 	for _, failed := range result.Failed {
-		fmt.Fprintf(w, "%s %s  failed  %s\n",
+		fmt.Fprintf(
+			w, "%s %s  failed  %s\n",
 			ui.warning.Render("!"),
 			ui.strong.Render(failed.ID),
 			failed.Error,
 		)
 	}
-	fmt.Fprintf(w, "\nSummary: %d upgraded, %d up to date, %d skipped, %d failed\n",
+	fmt.Fprintf(
+		w, "\nSummary: %d upgraded, %d up to date, %d skipped, %d failed\n",
 		len(result.Upgraded),
 		len(result.UpToDate),
 		len(result.Skipped),
@@ -1272,7 +1280,8 @@ func writeCommands(w io.Writer, ui extensionUIStyles, paths []extensioncore.Comm
 	}
 	fmt.Fprintf(w, "  %s\n", ui.label.Render("Commands"))
 	for _, path := range paths {
-		fmt.Fprintf(w, "    %s %s %s\n",
+		fmt.Fprintf(
+			w, "    %s %s %s\n",
 			ui.muted.Render("•"),
 			ui.command.Render(meta.CLIName),
 			ui.command.Render(extensioncore.CommandPathString(path)),

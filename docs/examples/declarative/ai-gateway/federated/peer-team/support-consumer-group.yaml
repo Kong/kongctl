@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: federated-ai-gateway
+
+ai_gateway_consumer_groups:
+  - ref: premium-support-users
+    ai_gateway: !ref shared-ai-gateway#id
+    name: premium-support-users
+    display_name: "Premium Support Users"
+    policies:
+      - !ref peer-mask-sensitive-data
+    labels:
+      team: support
+      tier: premium

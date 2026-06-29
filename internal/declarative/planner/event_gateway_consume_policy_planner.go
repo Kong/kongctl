@@ -25,7 +25,8 @@ func (p *Planner) planEventGatewayConsumePolicyChanges(
 	desired []resources.EventGatewayConsumePolicyResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning Event Gateway Consume Policy changes",
+	p.logger.Debug(
+		"Planning Event Gateway Consume Policy changes",
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
 		"virtual_cluster_name", virtualClusterName,
@@ -63,7 +64,8 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 	desired []resources.EventGatewayConsumePolicyResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning changes for existing virtual cluster consume policies",
+	p.logger.Debug(
+		"Planning changes for existing virtual cluster consume policies",
 		"gateway_id", gatewayID,
 		"virtual_cluster_id", virtualClusterID,
 		"virtual_cluster_ref", virtualClusterRef,
@@ -76,7 +78,8 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 		return fmt.Errorf("failed to list consume policies for virtual cluster %s: %w", virtualClusterID, err)
 	}
 
-	p.logger.Debug("Fetched current consume policies",
+	p.logger.Debug(
+		"Fetched current consume policies",
 		"virtual_cluster_id", virtualClusterID,
 		"current_count", len(currentPolicies),
 	)
@@ -96,7 +99,8 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 		desiredNames[policyName] = true
 		current, exists := currentByName[policyName]
 		if !exists {
-			p.logger.Debug("Planning consume policy CREATE",
+			p.logger.Debug(
+				"Planning consume policy CREATE",
 				"policy_name", policyName,
 				"virtual_cluster_ref", virtualClusterRef,
 			)
@@ -105,14 +109,16 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 				desiredPolicy, []string{}, plan,
 			)
 		} else {
-			p.logger.Debug("Checking if consume policy needs update",
+			p.logger.Debug(
+				"Checking if consume policy needs update",
 				"policy_name", policyName,
 				"policy_id", current.ID,
 			)
 
 			needsUpdate, updateFields, changedFields := p.shouldUpdateConsumePolicy(current, desiredPolicy)
 			if needsUpdate {
-				p.logger.Debug("Planning consume policy UPDATE",
+				p.logger.Debug(
+					"Planning consume policy UPDATE",
 					"policy_name", policyName,
 					"policy_id", current.ID,
 					"changed_fields", changedFields,
@@ -129,7 +135,8 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				p.logger.Debug("Planning consume policy DELETE (sync mode)",
+				p.logger.Debug(
+					"Planning consume policy DELETE (sync mode)",
 					"policy_name", name,
 					"policy_id", current.ID,
 				)
@@ -155,7 +162,8 @@ func (p *Planner) planConsumePolicyCreatesForNewVirtualCluster(
 	policies []resources.EventGatewayConsumePolicyResource,
 	plan *Plan,
 ) {
-	p.logger.Debug("Planning consume policy creates for new virtual cluster",
+	p.logger.Debug(
+		"Planning consume policy creates for new virtual cluster",
 		"virtual_cluster_ref", virtualClusterRef,
 		"virtual_cluster_change_id", virtualClusterChangeID,
 		"policy_count", len(policies),
@@ -219,7 +227,8 @@ func (p *Planner) planConsumePolicyCreate(
 		},
 	}
 
-	p.logger.Debug("Enqueuing consume policy CREATE",
+	p.logger.Debug(
+		"Enqueuing consume policy CREATE",
 		"policy_ref", policy.Ref,
 		"policy_name", policy.GetMoniker(),
 		"virtual_cluster_ref", virtualClusterRef,
@@ -270,7 +279,8 @@ func (p *Planner) planConsumePolicyUpdate(
 		},
 	}
 
-	p.logger.Debug("Enqueuing consume policy UPDATE",
+	p.logger.Debug(
+		"Enqueuing consume policy UPDATE",
 		"policy_ref", policy.Ref,
 		"policy_name", policy.GetMoniker(),
 		"policy_id", policyID,
@@ -310,7 +320,8 @@ func (p *Planner) planConsumePolicyDelete(
 		},
 	}
 
-	p.logger.Debug("Enqueuing consume policy DELETE",
+	p.logger.Debug(
+		"Enqueuing consume policy DELETE",
 		"policy_name", policyName,
 		"policy_id", policyID,
 	)

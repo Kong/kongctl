@@ -45,15 +45,23 @@ type DeclarativeDumpOptions struct {
 }
 
 var declarativeAllowedResources = map[string]struct{}{
-	"portals":                     {},
-	resourceAPIs:                  {},
-	"application_auth_strategies": {},
-	"dcr_providers":               {},
-	"control_planes":              {},
-	resourceAnalyticsDashboards:   {},
-	"event_gateways":              {},
-	"ai_gateways":                 {},
-	"organization.teams":          {},
+	"portals":                            {},
+	resourceAPIs:                         {},
+	"application_auth_strategies":        {},
+	"dcr_providers":                      {},
+	"control_planes":                     {},
+	resourceAnalyticsDashboards:          {},
+	"event_gateways":                     {},
+	"ai_gateways":                        {},
+	"ai_gateway_policies":                {},
+	"ai_gateway_agents":                  {},
+	"ai_gateway_consumers":               {},
+	"ai_gateway_consumer_groups":         {},
+	"ai_gateway_models":                  {},
+	"ai_gateway_mcp_servers":             {},
+	"ai_gateway_vaults":                  {},
+	"ai_gateway_data_plane_certificates": {},
+	"organization.teams":                 {},
 }
 
 func newDeclarativeCmd() *cobra.Command {
@@ -85,7 +93,10 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
-			resourceAnalyticsDashboards+", event_gateways, ai_gateways, organization.teams).")
+			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_policies, "+
+			"ai_gateway_agents, ai_gateway_consumers, ai_gateway_consumer_groups, ai_gateway_models, "+
+			"ai_gateway_mcp_servers, ai_gateway_vaults, ai_gateway_data_plane_certificates, "+
+			"organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -199,7 +210,15 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 	}
 
 	var stateClient *declstate.Client
-	if opts.includeChildResources {
+	if opts.includeChildResources ||
+		slices.Contains(opts.resources, "ai_gateway_policies") ||
+		slices.Contains(opts.resources, "ai_gateway_agents") ||
+		slices.Contains(opts.resources, "ai_gateway_consumers") ||
+		slices.Contains(opts.resources, "ai_gateway_consumer_groups") ||
+		slices.Contains(opts.resources, "ai_gateway_models") ||
+		slices.Contains(opts.resources, "ai_gateway_mcp_servers") ||
+		slices.Contains(opts.resources, "ai_gateway_vaults") ||
+		slices.Contains(opts.resources, "ai_gateway_data_plane_certificates") {
 		stateClient = declstate.NewClient(declstate.ClientConfig{
 			PortalAPI:                           sdk.GetPortalAPI(),
 			APIAPI:                              sdk.GetAPIAPI(),
@@ -211,6 +230,15 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			ControlPlaneGroupsAPI:               sdk.GetControlPlaneGroupsAPI(),
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
 			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
+			AIGatewayProvidersAPI:               sdk.GetAIGatewayProvidersAPI(),
+			AIGatewayPoliciesAPI:                sdk.GetAIGatewayPoliciesAPI(),
+			AIGatewayAgentsAPI:                  sdk.GetAIGatewayAgentsAPI(),
+			AIGatewayConsumersAPI:               sdk.GetAIGatewayConsumersAPI(),
+			AIGatewayConsumerGroupsAPI:          sdk.GetAIGatewayConsumerGroupsAPI(),
+			AIGatewayModelAPI:                   sdk.GetAIGatewayModelAPI(),
+			AIGatewayMCPServersAPI:              sdk.GetAIGatewayMCPServersAPI(),
+			AIGatewayVaultsAPI:                  sdk.GetAIGatewayVaultsAPI(),
+			AIGatewayDataPlaneCertificatesAPI:   sdk.GetAIGatewayDataPlaneCertificatesAPI(),
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
@@ -351,7 +379,106 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			if err != nil {
 				return err
 			}
+			if opts.includeChildResources {
+				populateAIGatewayChildren(ctx, logger, stateClient, aiGateways)
+			}
 			resourceSet.AIGateways = append(resourceSet.AIGateways, aiGateways...)
+		case "ai_gateway_policies":
+			policies, err := collectDeclarativeAIGatewayPolicies(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayPolicies = append(resourceSet.AIGatewayPolicies, policies...)
+		case "ai_gateway_agents":
+			agents, err := collectDeclarativeAIGatewayAgents(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayAgents = append(resourceSet.AIGatewayAgents, agents...)
+		case "ai_gateway_consumers":
+			consumers, err := collectDeclarativeAIGatewayConsumers(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayConsumers = append(resourceSet.AIGatewayConsumers, consumers...)
+		case "ai_gateway_consumer_groups":
+			groups, err := collectDeclarativeAIGatewayConsumerGroups(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayConsumerGroups = append(resourceSet.AIGatewayConsumerGroups, groups...)
+		case "ai_gateway_models":
+			models, err := collectDeclarativeAIGatewayModels(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayModels = append(resourceSet.AIGatewayModels, models...)
+		case "ai_gateway_mcp_servers":
+			servers, err := collectDeclarativeAIGatewayMCPServers(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayMCPServers = append(resourceSet.AIGatewayMCPServers, servers...)
+		case "ai_gateway_vaults":
+			vaults, err := collectDeclarativeAIGatewayVaults(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayVaults = append(resourceSet.AIGatewayVaults, vaults...)
+		case "ai_gateway_data_plane_certificates":
+			certs, err := collectDeclarativeAIGatewayDataPlaneCertificates(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayDataPlaneCertificates = append(resourceSet.AIGatewayDataPlaneCertificates, certs...)
 		case "organization.teams":
 			teams, err := collectDeclarativeOrganizationTeams(
 				ctx,
@@ -719,6 +846,316 @@ func collectDeclarativeAIGateways(
 	})
 
 	return results, nil
+}
+
+func collectDeclarativeAIGatewayPolicies(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayPolicyResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Policies API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var policies []declresources.AIGatewayPolicyResource
+	for _, gateway := range gateways {
+		gatewayPolicies, err := buildAIGatewayPolicies(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		policies = append(policies, gatewayPolicies...)
+	}
+
+	policies = filterByNameOrID(policies, filter, func(r declresources.AIGatewayPolicyResource) (string, string) {
+		return r.Name, r.Ref
+	})
+	slices.SortFunc(policies, func(a, b declresources.AIGatewayPolicyResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name, b.Name)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return policies, nil
+}
+
+func collectDeclarativeAIGatewayAgents(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayAgentResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Agents API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var agents []declresources.AIGatewayAgentResource
+	for _, gateway := range gateways {
+		gatewayAgents, err := buildAIGatewayAgents(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		agents = append(agents, gatewayAgents...)
+	}
+
+	agents = filterByNameOrID(agents, filter, func(r declresources.AIGatewayAgentResource) (string, string) {
+		return r.Name, r.Ref
+	})
+	slices.SortFunc(agents, func(a, b declresources.AIGatewayAgentResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name, b.Name)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return agents, nil
+}
+
+func collectDeclarativeAIGatewayConsumerGroups(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayConsumerGroupResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Consumer Groups API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var groups []declresources.AIGatewayConsumerGroupResource
+	for _, gateway := range gateways {
+		gatewayGroups, err := buildAIGatewayConsumerGroups(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, gatewayGroups...)
+	}
+
+	groups = filterByNameOrID(groups, filter, func(r declresources.AIGatewayConsumerGroupResource) (string, string) {
+		return r.Name, r.Ref
+	})
+	slices.SortFunc(groups, func(a, b declresources.AIGatewayConsumerGroupResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name, b.Name)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return groups, nil
+}
+
+func collectDeclarativeAIGatewayConsumers(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayConsumerResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Consumers API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var consumers []declresources.AIGatewayConsumerResource
+	for _, gateway := range gateways {
+		gatewayConsumers, err := buildAIGatewayConsumers(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		consumers = append(consumers, gatewayConsumers...)
+	}
+
+	consumers = filterByNameOrID(consumers, filter, func(r declresources.AIGatewayConsumerResource) (string, string) {
+		return r.Name, r.Ref
+	})
+	slices.SortFunc(consumers, func(a, b declresources.AIGatewayConsumerResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name, b.Name)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return consumers, nil
+}
+
+func collectDeclarativeAIGatewayModels(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayModelResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway model API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var models []declresources.AIGatewayModelResource
+	for _, gateway := range gateways {
+		gatewayModels, err := buildAIGatewayModels(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		models = append(models, gatewayModels...)
+	}
+
+	models = filterByNameOrID(models, filter, func(r declresources.AIGatewayModelResource) (string, string) {
+		return r.Name(), r.Ref
+	})
+	slices.SortFunc(models, func(a, b declresources.AIGatewayModelResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name(), b.Name())
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return models, nil
+}
+
+func collectDeclarativeAIGatewayMCPServers(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayMCPServerResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway MCP Servers API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var servers []declresources.AIGatewayMCPServerResource
+	for _, gateway := range gateways {
+		gatewayServers, err := buildAIGatewayMCPServers(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		servers = append(servers, gatewayServers...)
+	}
+
+	servers = filterByNameOrID(servers, filter, func(r declresources.AIGatewayMCPServerResource) (string, string) {
+		return r.Name(), r.Ref
+	})
+	slices.SortFunc(servers, func(a, b declresources.AIGatewayMCPServerResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name(), b.Name())
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return servers, nil
+}
+
+func collectDeclarativeAIGatewayVaults(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayVaultResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Vaults API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var vaults []declresources.AIGatewayVaultResource
+	for _, gateway := range gateways {
+		gatewayVaults, err := buildAIGatewayVaults(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		vaults = append(vaults, gatewayVaults...)
+	}
+
+	vaults = filterByNameOrID(vaults, filter, func(r declresources.AIGatewayVaultResource) (string, string) {
+		return r.Name(), r.Ref
+	})
+	slices.SortFunc(vaults, func(a, b declresources.AIGatewayVaultResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name(), b.Name())
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return vaults, nil
+}
+
+func collectDeclarativeAIGatewayDataPlaneCertificates(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayDataPlaneCertificateResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway data plane certificates API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var certs []declresources.AIGatewayDataPlaneCertificateResource
+	for _, gateway := range gateways {
+		gatewayCerts, err := buildAIGatewayDataPlaneCertificates(
+			ctx,
+			client,
+			gateway.Ref,
+			gateway.DisplayName,
+			gateway.Ref,
+		)
+		if err != nil {
+			return nil, err
+		}
+		certs = append(certs, gatewayCerts...)
+	}
+
+	certs = filterByNameOrID(certs, filter, func(r declresources.AIGatewayDataPlaneCertificateResource) (string, string) {
+		return r.Title, r.Ref
+	})
+	slices.SortFunc(certs, func(a, b declresources.AIGatewayDataPlaneCertificateResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Title, b.Title)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return certs, nil
 }
 
 func collectDeclarativeOrganizationTeams(

@@ -1,3 +1,6 @@
+test:
+  requiresPAT: false
+
 steps:
   - name: 001-scaffold-api-root
     skipInputs: true
@@ -94,3 +97,58 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "flags -o/--output are not supported for the scaffold command"
+
+  - name: 007-scaffold-ai-gateway-models-nested
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-ai-gateway-models
+        run:
+          - scaffold
+          - ai_gateway.models
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateways:')": true
+                "contains(stdout, 'models:')": true
+                "contains(stdout, 'route: {}')": true
+                "contains(stdout, 'model: {}')": true
+                "contains(stdout, '- type: openai')": true
+                "contains(stdout, 'target_models:')": true
+                "contains(stdout, 'provider: existing-provider-name')": true
+                "contains(stdout, 'type: model')": true
+                "contains(stdout, '# type: api')": true
+                "contains(stdout, 'provider: openai')": false
+                "contains(stdout, 'ai_gateway: value')": false
+                "contains(stdout, 'kongctl:')": false
+
+  - name: 008-scaffold-ai-gateway-data-plane-certificates
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-ai-gateway-data-plane-certificate-root
+        run:
+          - scaffold
+          - ai_gateway_data_plane_certificate
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_data_plane_certificates:')": true
+                "contains(stdout, 'ai_gateway: !ref')": true
+                "contains(stdout, 'title:')": true
+                "contains(stdout, 'cert: !file ./certs/data-plane.pem')": true
+      - name: 001-scaffold-ai-gateway-data-plane-certificate-nested
+        run:
+          - scaffold
+          - ai_gateway.data_plane_certificates
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateways:')": true
+                "contains(stdout, 'data_plane_certificates:')": true
+                "contains(stdout, 'cert: !file ./certs/data-plane.pem')": true
+                "contains(stdout, 'ai_gateway: !ref')": false

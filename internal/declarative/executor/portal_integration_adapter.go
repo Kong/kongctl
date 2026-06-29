@@ -49,7 +49,8 @@ func (p *PortalIntegrationAdapter) MapUpdateFields(
 	}
 
 	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
-		logger.Debug("mapped portal integration request",
+		logger.Debug(
+			"mapped portal integration request",
 			"has_google_tag_manager", update.GoogleTagManager != nil,
 			"has_google_analytics_4", update.GoogleAnalytics4 != nil,
 		)

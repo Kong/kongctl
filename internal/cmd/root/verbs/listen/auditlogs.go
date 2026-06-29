@@ -23,7 +23,8 @@ func NewDirectAuditLogsCmd() (*cobra.Command, error) {
 - Default   : [ %s ]`,
 				common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmdObj.Flags().String(common.RegionFlagName, "",
+		cmdObj.Flags().String(
+			common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 				common.BaseURLFlagName, common.RegionConfigPath),

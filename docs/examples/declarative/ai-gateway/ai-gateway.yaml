@@ -13,3 +13,118 @@ ai_gateways:
     labels:
       team: support
       environment: staging
+    providers:
+      - ref: openai-provider
+        name: openai-provider
+        type: openai
+        display_name: "OpenAI Provider"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !env OPENAI_AUTH_HEADER
+    vaults:
+      - ref: support-env
+        name: support-env
+        type: env
+        description: "Environment variables for support AI Gateway secrets"
+        labels:
+          team: support
+          purpose: runtime-secrets
+        config:
+          prefix: SUPPORT_AI_
+          base64_decode: false
+    data_plane_certificates:
+      - ref: support-data-plane-cert
+        title: support-data-plane-cert
+        description: "Pinned data plane certificate for support AI traffic"
+        cert: !file ./certs/data-plane.pem
+    policies:
+      - ref: mask-sensitive-data
+        name: mask-sensitive-data
+        type: ai-sanitizer
+        display_name: "Mask Sensitive Data"
+        enabled: true
+        global: false
+        labels:
+          team: support
+          purpose: pii-redaction
+        config:
+          anonymize:
+            - email
+    consumers:
+      - ref: support-agent
+        name: support-agent
+        type: api-key
+        display_name: "Support Agent"
+        policies:
+          - !ref mask-sensitive-data
+        labels:
+          team: support
+          access: agent
+    agents:
+      - ref: customer-support-agent
+        name: customer-support-agent
+        type: a2a
+        display_name: "Customer Support Agent"
+        enabled: true
+        labels:
+          team: support
+          agent: customer-support
+        config:
+          url: https://support-agent.example.com
+          route:
+            paths:
+              - /agents/support
+          logging:
+            max_payload_size: 524288
+        policies:
+          - !ref mask-sensitive-data
+    consumer_groups:
+      - ref: premium-support-users
+        name: premium-support-users
+        display_name: "Premium Support Users"
+        policies:
+          - !ref mask-sensitive-data
+        labels:
+          team: support
+          tier: premium
+    models:
+      - ref: customer-support-gpt
+        type: model
+        name: customer-support-gpt
+        display_name: "Customer Support GPT"
+        enabled: true
+        config:
+          route: {}
+          model: {}
+        formats:
+          - type: openai
+        target_models:
+          - name: gpt-4o
+            provider: openai-provider
+            config:
+              type: openai
+        policies:
+          - !ref mask-sensitive-data
+        capabilities:
+          - generate
+    mcp_servers:
+      - ref: customer-support-tools
+        type: conversion-only
+        name: customer-support-tools
+        display_name: "Customer Support Tools"
+        enabled: true
+        labels:
+          team: support
+          toolset: customer-profile
+        config:
+          url: https://support-tools.example.com
+        tools:
+          - name: lookup-customer
+            description: "Look up a customer profile"
+            method: GET
+            path: /customers/{customer_id}
+        policies:
+          - !ref mask-sensitive-data

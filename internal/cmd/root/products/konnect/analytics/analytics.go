@@ -29,7 +29,8 @@ var (
 	%[1]s get analytics dashboard "API Summary"
 	# List analytics dashboards using explicit konnect product
 	%[1]s get konnect analytics dashboards
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 func NewAnalyticsCmd(

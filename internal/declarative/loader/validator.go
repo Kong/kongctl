@@ -44,6 +44,34 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	if err := l.validateAIGatewayProviders(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayPolicies(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayAgents(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayConsumers(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayConsumerGroups(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayModels(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayMCPServers(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayVaults(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayDataPlaneCertificates(rs); err != nil {
+		return err
+	}
+
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
 		return err
@@ -696,6 +724,9 @@ func (l *Loader) validateAIGateways(
 			}
 		}
 
+		if gateway.IsExternal() {
+			continue
+		}
 		namespace := resources.GetNamespace(gateway.Kongctl)
 		nameKey := namespace + "\x00" + gateway.DisplayName
 		if existingRef, exists := displayNamesByNamespace[nameKey]; exists {
@@ -708,6 +739,475 @@ func (l *Loader) validateAIGateways(
 			)
 		}
 		displayNamesByNamespace[nameKey] = gateway.GetRef()
+	}
+
+	return nil
+}
+
+func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+	for i := range rs.AIGatewayProviders {
+		provider := &rs.AIGatewayProviders[i]
+		if err := provider.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_provider %q: %w", provider.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(provider.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayProvider {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					provider.GetRef(), existing.GetType())
+			}
+		}
+
+		if provider.AIGateway == "" {
+			return fmt.Errorf("ai_gateway_provider %q must specify ai_gateway", provider.GetRef())
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(provider.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_provider %q references unknown ai_gateway %q",
+				provider.GetRef(),
+				provider.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_provider %q references %q which is %s, not ai_gateway",
+				provider.GetRef(),
+				provider.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + provider.Name
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_provider name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				provider.Name,
+				gatewayRef,
+				provider.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = provider.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayPolicies validates AI Gateway child policy resources.
+func (l *Loader) validateAIGatewayPolicies(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayPolicies {
+		policy := &rs.AIGatewayPolicies[i]
+
+		if err := policy.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_policy %q: %w", policy.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(policy.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayPolicy {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					policy.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(policy.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_policy %q references unknown ai_gateway %q",
+				policy.GetRef(),
+				policy.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_policy %q references %q which is %s, not ai_gateway",
+				policy.GetRef(),
+				policy.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + policy.Name
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_policy name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				policy.Name,
+				gatewayRef,
+				policy.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = policy.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayAgents validates AI Gateway child Agent resources.
+func (l *Loader) validateAIGatewayAgents(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayAgents {
+		agent := &rs.AIGatewayAgents[i]
+
+		if err := agent.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_agent %q: %w", agent.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(agent.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayAgent {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					agent.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(agent.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_agent %q references unknown ai_gateway %q",
+				agent.GetRef(),
+				agent.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_agent %q references %q which is %s, not ai_gateway",
+				agent.GetRef(),
+				agent.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + agent.Name
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_agent name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				agent.Name,
+				gatewayRef,
+				agent.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = agent.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayConsumers validates AI Gateway child Consumer resources.
+func (l *Loader) validateAIGatewayConsumers(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayConsumers {
+		consumer := &rs.AIGatewayConsumers[i]
+
+		if err := consumer.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_consumer %q: %w", consumer.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(consumer.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayConsumer {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					consumer.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(consumer.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_consumer %q references unknown ai_gateway %q",
+				consumer.GetRef(),
+				consumer.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_consumer %q references %q which is %s, not ai_gateway",
+				consumer.GetRef(),
+				consumer.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + consumer.Name
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_consumer name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				consumer.Name,
+				gatewayRef,
+				consumer.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = consumer.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayConsumerGroups validates AI Gateway child Consumer Group resources.
+func (l *Loader) validateAIGatewayConsumerGroups(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayConsumerGroups {
+		group := &rs.AIGatewayConsumerGroups[i]
+
+		if err := group.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_consumer_group %q: %w", group.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(group.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayConsumerGroup {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					group.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(group.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_consumer_group %q references unknown ai_gateway %q",
+				group.GetRef(),
+				group.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_consumer_group %q references %q which is %s, not ai_gateway",
+				group.GetRef(),
+				group.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + group.Name
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_consumer_group name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				group.Name,
+				gatewayRef,
+				group.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = group.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayModels validates AI Gateway child model resources.
+func (l *Loader) validateAIGatewayModels(rs *resources.ResourceSet) error {
+	modelNamesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayModels {
+		model := &rs.AIGatewayModels[i]
+
+		if err := model.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_model %q: %w", model.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(model.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayModel {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					model.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(model.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_model %q references unknown ai_gateway %q",
+				model.GetRef(),
+				model.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_model %q references %q which is %s, not ai_gateway",
+				model.GetRef(),
+				model.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + model.Name()
+		if existingRef, exists := modelNamesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_model name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				model.Name(),
+				gatewayRef,
+				model.GetRef(),
+				existingRef,
+			)
+		}
+		modelNamesByGateway[nameKey] = model.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayMCPServers validates AI Gateway child MCP Server resources.
+func (l *Loader) validateAIGatewayMCPServers(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayMCPServers {
+		server := &rs.AIGatewayMCPServers[i]
+
+		if err := server.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_mcp_server %q: %w", server.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(server.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayMCPServer {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					server.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(server.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_mcp_server %q references unknown ai_gateway %q",
+				server.GetRef(),
+				server.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_mcp_server %q references %q which is %s, not ai_gateway",
+				server.GetRef(),
+				server.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + server.Name()
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_mcp_server name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				server.Name(),
+				gatewayRef,
+				server.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = server.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayVaults validates AI Gateway child Vault resources.
+func (l *Loader) validateAIGatewayVaults(rs *resources.ResourceSet) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayVaults {
+		vault := &rs.AIGatewayVaults[i]
+
+		if err := vault.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_vault %q: %w", vault.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(vault.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayVault {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					vault.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(vault.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_vault %q references unknown ai_gateway %q",
+				vault.GetRef(),
+				vault.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_vault %q references %q which is %s, not ai_gateway",
+				vault.GetRef(),
+				vault.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		nameKey := gatewayRef + "\x00" + vault.Name()
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_vault name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				vault.Name(),
+				gatewayRef,
+				vault.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = vault.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayDataPlaneCertificates validates AI Gateway child data plane certificate resources.
+func (l *Loader) validateAIGatewayDataPlaneCertificates(rs *resources.ResourceSet) error {
+	titlesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayDataPlaneCertificates {
+		cert := &rs.AIGatewayDataPlaneCertificates[i]
+
+		if err := cert.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_data_plane_certificate %q: %w", cert.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(cert.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayDataPlaneCertificate {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					cert.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(cert.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_data_plane_certificate %q references unknown ai_gateway %q",
+				cert.GetRef(),
+				cert.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_data_plane_certificate %q references %q which is %s, not ai_gateway",
+				cert.GetRef(),
+				cert.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		titleKey := gatewayRef + "\x00" + cert.Title
+		if existingRef, exists := titlesByGateway[titleKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_data_plane_certificate title %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				cert.Title,
+				gatewayRef,
+				cert.GetRef(),
+				existingRef,
+			)
+		}
+		titlesByGateway[titleKey] = cert.GetRef()
 	}
 
 	return nil

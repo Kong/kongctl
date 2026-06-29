@@ -264,10 +264,6 @@ func discardPlannerLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func stringPtr(value string) *string {
-	return &value
-}
-
 func plannerNamespaceMeta(namespace string) *resources.KongctlMeta {
 	return &resources.KongctlMeta{Namespace: &namespace}
 }
@@ -410,6 +406,8 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 		teamID    = "team-123"
 		teamName  = "Platform Engineering"
 	)
+	teamIDValue := teamID
+	teamNameValue := teamName
 
 	user := resources.OrganizationUserResource{Ref: "alice", Email: "alice@example.com"}
 	user.SetKonnectID(userID)
@@ -440,8 +438,8 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 				queriedUserIDs = append(queriedUserIDs, req.UserID)
 				return &kkOps.ListUserTeamsResponse{
 					TeamCollection: teamCollection(kkComps.Team{
-						ID:   stringPtr(teamID),
-						Name: stringPtr(teamName),
+						ID:   &teamIDValue,
+						Name: &teamNameValue,
 					}),
 				}, nil
 			},
@@ -457,7 +455,7 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 		namespace,
 		nil,
 		map[string]state.OrganizationTeam{
-			teamName: {Team: kkComps.Team{ID: stringPtr(teamID), Name: stringPtr(teamName)}},
+			teamName: {Team: kkComps.Team{ID: &teamIDValue, Name: &teamNameValue}},
 		},
 		plan,
 	)
@@ -478,6 +476,8 @@ func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelector
 		teamID    = "team-123"
 		teamName  = "Platform Engineering"
 	)
+	teamIDValue := teamID
+	teamNameValue := teamName
 
 	account := resources.OrganizationSystemAccountResource{Ref: "ci-bot", Name: "CI Bot"}
 	account.SetKonnectID(accountID)
@@ -508,8 +508,8 @@ func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelector
 				queriedAccountIDs = append(queriedAccountIDs, req.AccountID)
 				return &kkOps.GetSystemAccountsAccountIDTeamsResponse{
 					TeamCollection: teamCollection(kkComps.Team{
-						ID:   stringPtr(teamID),
-						Name: stringPtr(teamName),
+						ID:   &teamIDValue,
+						Name: &teamNameValue,
 					}),
 				}, nil
 			},
@@ -525,7 +525,7 @@ func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelector
 		namespace,
 		nil,
 		map[string]state.OrganizationTeam{
-			teamName: {Team: kkComps.Team{ID: stringPtr(teamID), Name: stringPtr(teamName)}},
+			teamName: {Team: kkComps.Team{ID: &teamIDValue, Name: &teamNameValue}},
 		},
 		plan,
 	)

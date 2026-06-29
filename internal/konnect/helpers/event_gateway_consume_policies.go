@@ -47,7 +47,8 @@ func (a *EventGatewayConsumePolicyAPIImpl) ListEventGatewayVirtualClusterConsume
 	opts ...kkOps.Option,
 ) (*kkOps.ListEventGatewayVirtualClusterConsumePoliciesResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterConsumePolicies.ListEventGatewayVirtualClusterConsumePolicies(
-		ctx, request, opts...)
+		ctx, request, opts...,
+	)
 }
 
 func (a *EventGatewayConsumePolicyAPIImpl) GetEventGatewayVirtualClusterConsumePolicy(
@@ -56,7 +57,8 @@ func (a *EventGatewayConsumePolicyAPIImpl) GetEventGatewayVirtualClusterConsumeP
 	opts ...kkOps.Option,
 ) (*kkOps.GetEventGatewayVirtualClusterConsumePolicyResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterConsumePolicies.GetEventGatewayVirtualClusterConsumePolicy(
-		ctx, request, opts...)
+		ctx, request, opts...,
+	)
 }
 
 func (a *EventGatewayConsumePolicyAPIImpl) CreateEventGatewayVirtualClusterConsumePolicy(
@@ -65,7 +67,8 @@ func (a *EventGatewayConsumePolicyAPIImpl) CreateEventGatewayVirtualClusterConsu
 	opts ...kkOps.Option,
 ) (*kkOps.CreateEventGatewayVirtualClusterConsumePolicyResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterConsumePolicies.CreateEventGatewayVirtualClusterConsumePolicy(
-		ctx, request, opts...)
+		ctx, request, opts...,
+	)
 }
 
 func (a *EventGatewayConsumePolicyAPIImpl) UpdateEventGatewayVirtualClusterConsumePolicy(
@@ -74,7 +77,8 @@ func (a *EventGatewayConsumePolicyAPIImpl) UpdateEventGatewayVirtualClusterConsu
 	opts ...kkOps.Option,
 ) (*kkOps.UpdateEventGatewayVirtualClusterConsumePolicyResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterConsumePolicies.UpdateEventGatewayVirtualClusterConsumePolicy(
-		ctx, request, opts...)
+		ctx, request, opts...,
+	)
 }
 
 func (a *EventGatewayConsumePolicyAPIImpl) DeleteEventGatewayVirtualClusterConsumePolicy(
@@ -83,7 +87,8 @@ func (a *EventGatewayConsumePolicyAPIImpl) DeleteEventGatewayVirtualClusterConsu
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteEventGatewayVirtualClusterConsumePolicyResponse, error) {
 	return a.SDK.EventGatewayVirtualClusterConsumePolicies.DeleteEventGatewayVirtualClusterConsumePolicy(
-		ctx, request, opts...)
+		ctx, request, opts...,
+	)
 }
 
 // Compile-time interface assertion

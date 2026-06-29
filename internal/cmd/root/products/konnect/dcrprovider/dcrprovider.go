@@ -29,7 +29,8 @@ var (
 	%[1]s get dcr-provider <id|name>
 	# List DCR providers using explicit konnect product
 	%[1]s get konnect dcr-providers
-	`, meta.CLIName)))
+	`, meta.CLIName)),
+	)
 )
 
 func NewDCRProviderCmd(verb verbs.VerbValue,

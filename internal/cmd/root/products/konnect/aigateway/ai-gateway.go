@@ -28,7 +28,18 @@ func NewAIGatewayCmd(
 	}
 
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetAIGatewayCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+		root := newGetAIGatewayCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command
+		root.AddCommand(newGetAIGatewayProvidersCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayPoliciesCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayAgentsCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayConsumersCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayConsumerGroupsCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayModelsCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayMCPServersCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayVaultsCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayNodesCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayDataPlaneCertificatesCmd(verb, addParentFlags, parentPreRun))
+		return root, nil
 	}
 
 	return &baseCmd, nil

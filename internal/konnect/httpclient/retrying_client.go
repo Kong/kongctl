@@ -180,7 +180,8 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		// the current response as-is without retrying.
 		if !bodyReplayable {
 			c.logRetrySkipped(
-				req, requestID, attempt+1, resp.StatusCode, "request body is not replayable", time.Since(start), "")
+				req, requestID, attempt+1, resp.StatusCode, "request body is not replayable", time.Since(start), "",
+			)
 			return resp, nil
 		}
 		if isLast {
@@ -445,7 +446,8 @@ func (c *RetryingHTTPClient) logRetryAttempt(
 	}
 
 	attrs := c.retryBaseAttrs(req, requestID, retryEventAttempt)
-	attrs = append(attrs,
+	attrs = append(
+		attrs,
 		slog.Int("attempt", retryAttempt),
 		slog.Int("next_attempt", retryAttempt+1),
 		slog.Int("attempts_remaining", c.cfg.MaxAttempts-retryAttempt),
@@ -478,7 +480,8 @@ func (c *RetryingHTTPClient) logRetrySucceeded(
 	}
 
 	attrs := c.retryBaseAttrs(req, requestID, retryEventSucceeded)
-	attrs = append(attrs,
+	attrs = append(
+		attrs,
 		slog.Int("attempt", attempt),
 		slog.Int("max_attempts", c.cfg.MaxAttempts),
 		slog.Duration("duration", duration),
@@ -508,7 +511,8 @@ func (c *RetryingHTTPClient) logRetrySkipped(
 	}
 
 	attrs := c.retryBaseAttrs(req, requestID, retryEventSkipped)
-	attrs = append(attrs,
+	attrs = append(
+		attrs,
 		slog.Int("attempt", attempt),
 		slog.Int("max_attempts", c.cfg.MaxAttempts),
 		slog.Duration("duration", duration),
@@ -541,7 +545,8 @@ func (c *RetryingHTTPClient) logRetryExhausted(
 	}
 
 	attrs := c.retryBaseAttrs(req, requestID, retryEventExhausted)
-	attrs = append(attrs,
+	attrs = append(
+		attrs,
 		slog.Int("attempt", attempt),
 		slog.Duration("duration", duration),
 	)
@@ -573,7 +578,8 @@ func (c *RetryingHTTPClient) logRetryInterrupted(
 	}
 
 	attrs := c.retryBaseAttrs(req, requestID, retryEventInterrupted)
-	attrs = append(attrs,
+	attrs = append(
+		attrs,
 		slog.Int("attempt", attempt),
 		slog.Int64("next_interval_ms", nextInterval.Milliseconds()),
 		slog.Duration("duration", duration),

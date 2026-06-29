@@ -68,7 +68,8 @@ var (
 %[1]s get portal application registrations --portal-name my-portal --application-name checkout-app
 # Get a specific registration by ID
 %[1]s get portal application registrations --portal-name my-portal <registration-id>
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetPortalApplicationRegistrationsCmd(
@@ -236,7 +237,8 @@ func (h portalApplicationRegistrationsHandler) listRegistrations(
 		return portalApplicationRegistrationDetailView(&regs[index])
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,
@@ -299,11 +301,13 @@ func (h portalApplicationRegistrationsHandler) getSingleRegistration(
 			"Failed to get portal application registration",
 			err,
 			helper.GetCmd(),
-			attrs...)
+			attrs...,
+		)
 	}
 
 	record := portalApplicationRegistrationDetailRecordFromResponse(res.GetGetApplicationRegistrationResponse())
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,

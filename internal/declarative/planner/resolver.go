@@ -230,7 +230,23 @@ func (r *ReferenceResolver) getResourceTypeForChangeField(change PlannedChange, 
 			return string(resourceType)
 		}
 	}
+	if aiGatewayPolicyReferenceField(change.ResourceType, fieldName) {
+		return ResourceTypeAIGatewayPolicy
+	}
 	return r.getResourceTypeForField(fieldName)
+}
+
+func aiGatewayPolicyReferenceField(resourceType, fieldName string) bool {
+	switch resourceType {
+	case ResourceTypeAIGatewayAgent,
+		ResourceTypeAIGatewayConsumer,
+		ResourceTypeAIGatewayConsumerGroup,
+		ResourceTypeAIGatewayModel,
+		ResourceTypeAIGatewayMCPServer:
+	default:
+		return false
+	}
+	return fieldName == FieldPolicies || strings.HasPrefix(fieldName, FieldPolicies+".")
 }
 
 func referenceTargetRef(ref string) string {

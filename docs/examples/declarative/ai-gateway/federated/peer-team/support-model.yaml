@@ -1,0 +1,32 @@
+_defaults:
+  kongctl:
+    namespace: federated-ai-gateway
+
+ai_gateway_models:
+  - ref: peer-support-assistant
+    ai_gateway: !ref shared-ai-gateway#id
+    type: model
+    name: peer-support-assistant
+    display_name: "Peer Support Assistant"
+    enabled: true
+    labels:
+      team: support-experience
+      ownership: peer
+    config:
+      route: {}
+      model: {}
+    formats:
+      - type: openai
+    target_models:
+      - name: gpt-4o-mini
+        provider: shared-openai
+        config:
+          type: openai
+      - name: claude-3-5-sonnet-latest
+        provider: shared-anthropic
+        config:
+          type: anthropic
+    policies:
+      - !ref peer-mask-sensitive-data
+    capabilities:
+      - generate

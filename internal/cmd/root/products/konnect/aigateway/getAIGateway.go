@@ -288,6 +288,12 @@ func renderAIGatewayList(
 		"",
 		tableview.WithRootLabel(rootLabel),
 		tableview.WithDetailHelper(helper),
+		tableview.WithDetailContext(common.ViewParentAIGateway, func(index int) any {
+			if index < 0 || index >= len(gateways) {
+				return nil
+			}
+			return &gateways[index]
+		}),
 	)
 }
 
@@ -306,7 +312,7 @@ func buildAIGatewayChildView(gateways []kkComps.AIGateway) tableview.ChildView {
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "DISPLAY NAME"},
+		Headers:        []string{aiGatewayHeaderID, aiGatewayHeaderDisplayName},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "AI Gateways",
@@ -366,8 +372,8 @@ func aiGatewayDetailView(gateway *kkComps.AIGateway) string {
 	)
 	fmt.Fprintf(&b, "config_hash: %s\n", configHash)
 	fmt.Fprintf(&b, "labels: %s\n", formatLabelPairs(gateway.Labels, missing))
-	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
-	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+	fmt.Fprintf(&b, "%s: %s\n", aiGatewayFieldCreatedAt, createdAt)
+	fmt.Fprintf(&b, "%s: %s\n", aiGatewayFieldUpdatedAt, updatedAt)
 
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -421,6 +427,8 @@ func newGetAIGatewayCmd(
 	if addParentFlags != nil {
 		addParentFlags(verb, rv.Command)
 	}
+
+	rv.AddCommand(newGetAIGatewayModelsCmd(verb, addParentFlags, parentPreRun))
 
 	return &rv
 }

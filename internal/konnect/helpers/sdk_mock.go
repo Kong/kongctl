@@ -4,33 +4,43 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token                              string
-	T                                  *testing.T
-	CPAPIFactory                       func() ControlPlaneAPI
-	ControlPlaneGroupsFactory          func() ControlPlaneGroupsAPI
-	PortalFactory                      func() PortalAPI
-	APIFactory                         func() APIFullAPI
-	AIGatewayFactory                   func() AIGatewayAPI
-	CatalogServicesFactory             func() CatalogServicesAPI
-	DashboardsFactory                  func() DashboardsAPI
-	APIDocumentFactory                 func() APIDocumentAPI
-	APIVersionFactory                  func() APIVersionAPI
-	APIPublicationFactory              func() APIPublicationAPI
-	APIImplementationFactory           func() APIImplementationAPI
-	AppAuthStrategiesFactory           func() AppAuthStrategiesAPI
-	DCRProvidersFactory                func() DCRProvidersAPI
-	MeFactory                          func() MeAPI
-	PersonalAccessTokenFactory         func() PersonalAccessTokenAPI
-	SystemAccountAccessTokenFactory    func() SystemAccountAccessTokenAPI
-	GatewayServiceFactory              func() GatewayServiceAPI
-	DataPlaneCertificateFactory        func() DataPlaneCertificateAPI
-	SystemAccountFactory               func() SystemAccountAPI
-	SystemAccountRolesFactory          func() SystemAccountRolesAPI
-	SystemAccountTeamMembershipFactory func() SystemAccountTeamMembershipAPI
-	OrganizationTeamFactory            func() OrganizationTeamAPI
-	OrganizationTeamRolesFactory       func() OrganizationTeamRolesAPI
-	OrganizationUsersFactory           func() OrganizationUsersAPI
-	OrganizationMembershipFactory      func() OrganizationTeamMembershipAPI
+	Token                                 string
+	T                                     *testing.T
+	CPAPIFactory                          func() ControlPlaneAPI
+	ControlPlaneGroupsFactory             func() ControlPlaneGroupsAPI
+	PortalFactory                         func() PortalAPI
+	APIFactory                            func() APIFullAPI
+	AIGatewayFactory                      func() AIGatewayAPI
+	AIGatewayProvidersFactory             func() AIGatewayProvidersAPI
+	AIGatewayPoliciesFactory              func() AIGatewayPoliciesAPI
+	AIGatewayAgentsFactory                func() AIGatewayAgentsAPI
+	AIGatewayConsumersFactory             func() AIGatewayConsumersAPI
+	AIGatewayConsumerGroupsFactory        func() AIGatewayConsumerGroupsAPI
+	AIGatewayModelFactory                 func() AIGatewayModelAPI
+	AIGatewayMCPServersFactory            func() AIGatewayMCPServersAPI
+	AIGatewayVaultsFactory                func() AIGatewayVaultsAPI
+	AIGatewayNodesFactory                 func() AIGatewayNodesAPI
+	AIGatewayDataPlaneCertificatesFactory func() AIGatewayDataPlaneCertificatesAPI
+	CatalogServicesFactory                func() CatalogServicesAPI
+	DashboardsFactory                     func() DashboardsAPI
+	APIDocumentFactory                    func() APIDocumentAPI
+	APIVersionFactory                     func() APIVersionAPI
+	APIPublicationFactory                 func() APIPublicationAPI
+	APIImplementationFactory              func() APIImplementationAPI
+	AppAuthStrategiesFactory              func() AppAuthStrategiesAPI
+	DCRProvidersFactory                   func() DCRProvidersAPI
+	MeFactory                             func() MeAPI
+	PersonalAccessTokenFactory            func() PersonalAccessTokenAPI
+	SystemAccountAccessTokenFactory       func() SystemAccountAccessTokenAPI
+	GatewayServiceFactory                 func() GatewayServiceAPI
+	DataPlaneCertificateFactory           func() DataPlaneCertificateAPI
+	SystemAccountFactory                  func() SystemAccountAPI
+	SystemAccountRolesFactory             func() SystemAccountRolesAPI
+	SystemAccountTeamMembershipFactory    func() SystemAccountTeamMembershipAPI
+	OrganizationTeamFactory               func() OrganizationTeamAPI
+	OrganizationTeamRolesFactory          func() OrganizationTeamRolesAPI
+	OrganizationUsersFactory              func() OrganizationUsersAPI
+	OrganizationMembershipFactory         func() OrganizationTeamMembershipAPI
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
@@ -99,6 +109,86 @@ func (m *MockKonnectSDK) GetAPIAPI() APIFullAPI {
 func (m *MockKonnectSDK) GetAIGatewayAPI() AIGatewayAPI {
 	if m.AIGatewayFactory != nil {
 		return m.AIGatewayFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayProvidersAPI.
+func (m *MockKonnectSDK) GetAIGatewayProvidersAPI() AIGatewayProvidersAPI {
+	if m.AIGatewayProvidersFactory != nil {
+		return m.AIGatewayProvidersFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayPoliciesAPI.
+func (m *MockKonnectSDK) GetAIGatewayPoliciesAPI() AIGatewayPoliciesAPI {
+	if m.AIGatewayPoliciesFactory != nil {
+		return m.AIGatewayPoliciesFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayConsumersAPI.
+func (m *MockKonnectSDK) GetAIGatewayConsumersAPI() AIGatewayConsumersAPI {
+	if m.AIGatewayConsumersFactory != nil {
+		return m.AIGatewayConsumersFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayAgentsAPI.
+func (m *MockKonnectSDK) GetAIGatewayAgentsAPI() AIGatewayAgentsAPI {
+	if m.AIGatewayAgentsFactory != nil {
+		return m.AIGatewayAgentsFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayConsumerGroupsAPI.
+func (m *MockKonnectSDK) GetAIGatewayConsumerGroupsAPI() AIGatewayConsumerGroupsAPI {
+	if m.AIGatewayConsumerGroupsFactory != nil {
+		return m.AIGatewayConsumerGroupsFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayModelAPI.
+func (m *MockKonnectSDK) GetAIGatewayModelAPI() AIGatewayModelAPI {
+	if m.AIGatewayModelFactory != nil {
+		return m.AIGatewayModelFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayMCPServersAPI.
+func (m *MockKonnectSDK) GetAIGatewayMCPServersAPI() AIGatewayMCPServersAPI {
+	if m.AIGatewayMCPServersFactory != nil {
+		return m.AIGatewayMCPServersFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayVaultsAPI.
+func (m *MockKonnectSDK) GetAIGatewayVaultsAPI() AIGatewayVaultsAPI {
+	if m.AIGatewayVaultsFactory != nil {
+		return m.AIGatewayVaultsFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayNodesAPI.
+func (m *MockKonnectSDK) GetAIGatewayNodesAPI() AIGatewayNodesAPI {
+	if m.AIGatewayNodesFactory != nil {
+		return m.AIGatewayNodesFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayDataPlaneCertificatesAPI.
+func (m *MockKonnectSDK) GetAIGatewayDataPlaneCertificatesAPI() AIGatewayDataPlaneCertificatesAPI {
+	if m.AIGatewayDataPlaneCertificatesFactory != nil {
+		return m.AIGatewayDataPlaneCertificatesFactory()
 	}
 	return nil
 }

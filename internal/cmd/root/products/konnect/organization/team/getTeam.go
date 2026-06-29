@@ -121,7 +121,8 @@ func renderTeamsList(
 		tableview.WithDetailHelper(helper),
 	}
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,
@@ -196,7 +197,8 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 			return err
 		}
 
-		return tableview.RenderForFormat(helper,
+		return tableview.RenderForFormat(
+			helper,
 			false,
 			outType,
 			printer,

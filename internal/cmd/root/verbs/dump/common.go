@@ -13,8 +13,8 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
-	"github.com/kong/kongctl/internal/config"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/config"
 )
 
 type paginationHandler func(pageNumber int64) (bool, error)
@@ -160,6 +160,24 @@ func mapResourceName(name string) string {
 		return resourceAnalyticsDashboards
 	case "ai-gateway", "ai-gateways", "ai_gateway", "ai_gateways", "aigw":
 		return "ai_gateways"
+	case "ai-gateway-policy", "ai-gateway-policies", "ai_gateway_policy", "ai_gateway_policies":
+		return "ai_gateway_policies"
+	case "ai-gateway-agent", "ai-gateway-agents", "ai_gateway_agent", "ai_gateway_agents":
+		return "ai_gateway_agents"
+	case "ai-gateway-consumer", "ai-gateway-consumers", "ai_gateway_consumer", "ai_gateway_consumers":
+		return "ai_gateway_consumers"
+	case "ai-gateway-consumer-group", "ai-gateway-consumer-groups",
+		"ai_gateway_consumer_group", "ai_gateway_consumer_groups":
+		return "ai_gateway_consumer_groups"
+	case "ai-gateway-model", "ai-gateway-models", "ai_gateway_model", "ai_gateway_models":
+		return "ai_gateway_models"
+	case "ai-gateway-mcp-server", "ai-gateway-mcp-servers", "ai_gateway_mcp_server", "ai_gateway_mcp_servers":
+		return "ai_gateway_mcp_servers"
+	case "ai-gateway-vault", "ai-gateway-vaults", "ai_gateway_vault", "ai_gateway_vaults":
+		return "ai_gateway_vaults"
+	case "ai-gateway-data-plane-certificate", "ai-gateway-data-plane-certificates",
+		"ai_gateway_data_plane_certificate", "ai_gateway_data_plane_certificates", "aigw-dpc", "aigw-dpcs":
+		return "ai_gateway_data_plane_certificates"
 	case "org.team", "org.teams", "organization.team", "organization.teams":
 		return "organization.teams"
 	default:

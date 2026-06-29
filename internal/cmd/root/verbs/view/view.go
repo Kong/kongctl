@@ -69,7 +69,8 @@ func addKonnectFlags(cmd *cobra.Command) {
 - Default   : [ %s ]`,
 			konnectcommon.BaseURLConfigPath, konnectcommon.BaseURLDefault))
 
-	cmd.Flags().String(konnectcommon.RegionFlagName, "",
+	cmd.Flags().String(
+		konnectcommon.RegionFlagName, "",
 		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
 			konnectcommon.BaseURLFlagName, konnectcommon.RegionConfigPath),
