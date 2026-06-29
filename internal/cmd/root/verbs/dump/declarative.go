@@ -45,22 +45,23 @@ type DeclarativeDumpOptions struct {
 }
 
 var declarativeAllowedResources = map[string]struct{}{
-	"portals":                     {},
-	resourceAPIs:                  {},
-	"application_auth_strategies": {},
-	"dcr_providers":               {},
-	"control_planes":              {},
-	resourceAnalyticsDashboards:   {},
-	"event_gateways":              {},
-	"ai_gateways":                 {},
-	"ai_gateway_policies":         {},
-	"ai_gateway_agents":           {},
-	"ai_gateway_consumers":        {},
-	"ai_gateway_consumer_groups":  {},
-	"ai_gateway_models":           {},
-	"ai_gateway_mcp_servers":      {},
-	"ai_gateway_vaults":           {},
-	"organization.teams":          {},
+	"portals":                            {},
+	resourceAPIs:                         {},
+	"application_auth_strategies":        {},
+	"dcr_providers":                      {},
+	"control_planes":                     {},
+	resourceAnalyticsDashboards:          {},
+	"event_gateways":                     {},
+	"ai_gateways":                        {},
+	"ai_gateway_policies":                {},
+	"ai_gateway_agents":                  {},
+	"ai_gateway_consumers":               {},
+	"ai_gateway_consumer_groups":         {},
+	"ai_gateway_models":                  {},
+	"ai_gateway_mcp_servers":             {},
+	"ai_gateway_vaults":                  {},
+	"ai_gateway_data_plane_certificates": {},
+	"organization.teams":                 {},
 }
 
 func newDeclarativeCmd() *cobra.Command {
@@ -94,7 +95,7 @@ func newDeclarativeCmd() *cobra.Command {
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
 			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_policies, "+
 			"ai_gateway_agents, ai_gateway_consumers, ai_gateway_consumer_groups, ai_gateway_models, "+
-			"ai_gateway_mcp_servers, ai_gateway_vaults, "+
+			"ai_gateway_mcp_servers, ai_gateway_vaults, ai_gateway_data_plane_certificates, "+
 			"organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
@@ -216,7 +217,8 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		slices.Contains(opts.resources, "ai_gateway_consumer_groups") ||
 		slices.Contains(opts.resources, "ai_gateway_models") ||
 		slices.Contains(opts.resources, "ai_gateway_mcp_servers") ||
-		slices.Contains(opts.resources, "ai_gateway_vaults") {
+		slices.Contains(opts.resources, "ai_gateway_vaults") ||
+		slices.Contains(opts.resources, "ai_gateway_data_plane_certificates") {
 		stateClient = declstate.NewClient(declstate.ClientConfig{
 			PortalAPI:                           sdk.GetPortalAPI(),
 			APIAPI:                              sdk.GetAPIAPI(),
@@ -236,6 +238,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			AIGatewayModelAPI:                   sdk.GetAIGatewayModelAPI(),
 			AIGatewayMCPServersAPI:              sdk.GetAIGatewayMCPServersAPI(),
 			AIGatewayVaultsAPI:                  sdk.GetAIGatewayVaultsAPI(),
+			AIGatewayDataPlaneCertificatesAPI:   sdk.GetAIGatewayDataPlaneCertificatesAPI(),
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
@@ -464,6 +467,18 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.AIGatewayVaults = append(resourceSet.AIGatewayVaults, vaults...)
+		case "ai_gateway_data_plane_certificates":
+			certs, err := collectDeclarativeAIGatewayDataPlaneCertificates(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayDataPlaneCertificates = append(resourceSet.AIGatewayDataPlaneCertificates, certs...)
 		case "organization.teams":
 			teams, err := collectDeclarativeOrganizationTeams(
 				ctx,
@@ -1097,6 +1112,50 @@ func collectDeclarativeAIGatewayVaults(
 	})
 
 	return vaults, nil
+}
+
+func collectDeclarativeAIGatewayDataPlaneCertificates(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayDataPlaneCertificateResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway data plane certificates API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var certs []declresources.AIGatewayDataPlaneCertificateResource
+	for _, gateway := range gateways {
+		gatewayCerts, err := buildAIGatewayDataPlaneCertificates(
+			ctx,
+			client,
+			gateway.Ref,
+			gateway.DisplayName,
+			gateway.Ref,
+		)
+		if err != nil {
+			return nil, err
+		}
+		certs = append(certs, gatewayCerts...)
+	}
+
+	certs = filterByNameOrID(certs, filter, func(r declresources.AIGatewayDataPlaneCertificateResource) (string, string) {
+		return r.Title, r.Ref
+	})
+	slices.SortFunc(certs, func(a, b declresources.AIGatewayDataPlaneCertificateResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Title, b.Title)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return certs, nil
 }
 
 func collectDeclarativeOrganizationTeams(

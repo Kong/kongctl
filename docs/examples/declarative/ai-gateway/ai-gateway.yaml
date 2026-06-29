@@ -35,6 +35,11 @@ ai_gateways:
         config:
           prefix: SUPPORT_AI_
           base64_decode: false
+    data_plane_certificates:
+      - ref: support-data-plane-cert
+        title: support-data-plane-cert
+        description: "Pinned data plane certificate for support AI traffic"
+        cert: !file ./certs/data-plane.pem
     policies:
       - ref: mask-sensitive-data
         name: mask-sensitive-data

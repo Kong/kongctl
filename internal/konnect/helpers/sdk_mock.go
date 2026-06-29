@@ -4,42 +4,43 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token                              string
-	T                                  *testing.T
-	CPAPIFactory                       func() ControlPlaneAPI
-	ControlPlaneGroupsFactory          func() ControlPlaneGroupsAPI
-	PortalFactory                      func() PortalAPI
-	APIFactory                         func() APIFullAPI
-	AIGatewayFactory                   func() AIGatewayAPI
-	AIGatewayProvidersFactory          func() AIGatewayProvidersAPI
-	AIGatewayPoliciesFactory           func() AIGatewayPoliciesAPI
-	AIGatewayAgentsFactory             func() AIGatewayAgentsAPI
-	AIGatewayConsumersFactory          func() AIGatewayConsumersAPI
-	AIGatewayConsumerGroupsFactory     func() AIGatewayConsumerGroupsAPI
-	AIGatewayModelFactory              func() AIGatewayModelAPI
-	AIGatewayMCPServersFactory         func() AIGatewayMCPServersAPI
-	AIGatewayVaultsFactory             func() AIGatewayVaultsAPI
-	AIGatewayNodesFactory              func() AIGatewayNodesAPI
-	CatalogServicesFactory             func() CatalogServicesAPI
-	DashboardsFactory                  func() DashboardsAPI
-	APIDocumentFactory                 func() APIDocumentAPI
-	APIVersionFactory                  func() APIVersionAPI
-	APIPublicationFactory              func() APIPublicationAPI
-	APIImplementationFactory           func() APIImplementationAPI
-	AppAuthStrategiesFactory           func() AppAuthStrategiesAPI
-	DCRProvidersFactory                func() DCRProvidersAPI
-	MeFactory                          func() MeAPI
-	PersonalAccessTokenFactory         func() PersonalAccessTokenAPI
-	SystemAccountAccessTokenFactory    func() SystemAccountAccessTokenAPI
-	GatewayServiceFactory              func() GatewayServiceAPI
-	DataPlaneCertificateFactory        func() DataPlaneCertificateAPI
-	SystemAccountFactory               func() SystemAccountAPI
-	SystemAccountRolesFactory          func() SystemAccountRolesAPI
-	SystemAccountTeamMembershipFactory func() SystemAccountTeamMembershipAPI
-	OrganizationTeamFactory            func() OrganizationTeamAPI
-	OrganizationTeamRolesFactory       func() OrganizationTeamRolesAPI
-	OrganizationUsersFactory           func() OrganizationUsersAPI
-	OrganizationMembershipFactory      func() OrganizationTeamMembershipAPI
+	Token                                 string
+	T                                     *testing.T
+	CPAPIFactory                          func() ControlPlaneAPI
+	ControlPlaneGroupsFactory             func() ControlPlaneGroupsAPI
+	PortalFactory                         func() PortalAPI
+	APIFactory                            func() APIFullAPI
+	AIGatewayFactory                      func() AIGatewayAPI
+	AIGatewayProvidersFactory             func() AIGatewayProvidersAPI
+	AIGatewayPoliciesFactory              func() AIGatewayPoliciesAPI
+	AIGatewayAgentsFactory                func() AIGatewayAgentsAPI
+	AIGatewayConsumersFactory             func() AIGatewayConsumersAPI
+	AIGatewayConsumerGroupsFactory        func() AIGatewayConsumerGroupsAPI
+	AIGatewayModelFactory                 func() AIGatewayModelAPI
+	AIGatewayMCPServersFactory            func() AIGatewayMCPServersAPI
+	AIGatewayVaultsFactory                func() AIGatewayVaultsAPI
+	AIGatewayNodesFactory                 func() AIGatewayNodesAPI
+	AIGatewayDataPlaneCertificatesFactory func() AIGatewayDataPlaneCertificatesAPI
+	CatalogServicesFactory                func() CatalogServicesAPI
+	DashboardsFactory                     func() DashboardsAPI
+	APIDocumentFactory                    func() APIDocumentAPI
+	APIVersionFactory                     func() APIVersionAPI
+	APIPublicationFactory                 func() APIPublicationAPI
+	APIImplementationFactory              func() APIImplementationAPI
+	AppAuthStrategiesFactory              func() AppAuthStrategiesAPI
+	DCRProvidersFactory                   func() DCRProvidersAPI
+	MeFactory                             func() MeAPI
+	PersonalAccessTokenFactory            func() PersonalAccessTokenAPI
+	SystemAccountAccessTokenFactory       func() SystemAccountAccessTokenAPI
+	GatewayServiceFactory                 func() GatewayServiceAPI
+	DataPlaneCertificateFactory           func() DataPlaneCertificateAPI
+	SystemAccountFactory                  func() SystemAccountAPI
+	SystemAccountRolesFactory             func() SystemAccountRolesAPI
+	SystemAccountTeamMembershipFactory    func() SystemAccountTeamMembershipAPI
+	OrganizationTeamFactory               func() OrganizationTeamAPI
+	OrganizationTeamRolesFactory          func() OrganizationTeamRolesAPI
+	OrganizationUsersFactory              func() OrganizationUsersAPI
+	OrganizationMembershipFactory         func() OrganizationTeamMembershipAPI
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
@@ -180,6 +181,14 @@ func (m *MockKonnectSDK) GetAIGatewayVaultsAPI() AIGatewayVaultsAPI {
 func (m *MockKonnectSDK) GetAIGatewayNodesAPI() AIGatewayNodesAPI {
 	if m.AIGatewayNodesFactory != nil {
 		return m.AIGatewayNodesFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AIGatewayDataPlaneCertificatesAPI.
+func (m *MockKonnectSDK) GetAIGatewayDataPlaneCertificatesAPI() AIGatewayDataPlaneCertificatesAPI {
+	if m.AIGatewayDataPlaneCertificatesFactory != nil {
+		return m.AIGatewayDataPlaneCertificatesFactory()
 	}
 	return nil
 }

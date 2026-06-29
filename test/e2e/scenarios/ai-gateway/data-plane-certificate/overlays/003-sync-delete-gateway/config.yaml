@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-data-plane-certificate-e2e
+
+ai_gateways: []

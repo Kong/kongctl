@@ -22,6 +22,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type createAIGatewayDataPlaneCertificateRequest = kkComps.CreateAIGatewayDataPlaneCertificateRequest
+
 // Executor handles the execution of declarative configuration plans
 type Executor struct {
 	client   *state.Client
@@ -73,6 +75,7 @@ type Executor struct {
 		kkComps.CreateAIGatewayMCPServerRequest, kkComps.UpdateAIGatewayMCPServerRequest]
 	aiGatewayVaultExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayVaultRequest, kkComps.UpdateAIGatewayVaultRequest]
+	aiGatewayDataPlaneCertificateExecutor  *BaseCreateDeleteExecutor[createAIGatewayDataPlaneCertificateRequest]
 	dashboardExecutor                      *BaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest]
 	eventGatewayControlPlaneExecutor       *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 	organizationTeamExecutor               *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
@@ -302,6 +305,10 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		kkComps.CreateAIGatewayVaultRequest, kkComps.UpdateAIGatewayVaultRequest](
 		NewAIGatewayVaultAdapter(client),
 		client,
+		dryRun,
+	)
+	e.aiGatewayDataPlaneCertificateExecutor = NewBaseCreateDeleteExecutor[createAIGatewayDataPlaneCertificateRequest](
+		NewAIGatewayDataPlaneCertificateAdapter(client),
 		dryRun,
 	)
 	e.dashboardExecutor = NewBaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest](
@@ -2413,6 +2420,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayVaultExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayDataPlaneCertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayDataPlaneCertificateExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDCRProvider:
@@ -3530,6 +3542,11 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		return e.aiGatewayMCPServerExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayVault:
 		return e.aiGatewayVaultExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayDataPlaneCertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayDataPlaneCertificateExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAPIVersion:

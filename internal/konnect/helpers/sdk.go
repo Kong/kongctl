@@ -32,6 +32,7 @@ type SDKAPI interface {
 	GetAIGatewayMCPServersAPI() AIGatewayMCPServersAPI
 	GetAIGatewayVaultsAPI() AIGatewayVaultsAPI
 	GetAIGatewayNodesAPI() AIGatewayNodesAPI
+	GetAIGatewayDataPlaneCertificatesAPI() AIGatewayDataPlaneCertificatesAPI
 	GetCatalogServicesAPI() CatalogServicesAPI
 	GetDashboardsAPI() DashboardsAPI
 	GetAPIDocumentAPI() APIDocumentAPI
@@ -224,6 +225,15 @@ func (k *KonnectSDK) GetAIGatewayNodesAPI() AIGatewayNodesAPI {
 	}
 
 	return &AIGatewayNodesAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the AIGatewayDataPlaneCertificatesAPI interface.
+func (k *KonnectSDK) GetAIGatewayDataPlaneCertificatesAPI() AIGatewayDataPlaneCertificatesAPI {
+	if k.SDK == nil || k.SDK.AIGatewayDataPlaneCertificates == nil {
+		return nil
+	}
+
+	return &AIGatewayDataPlaneCertificatesAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the CatalogServicesAPI interface

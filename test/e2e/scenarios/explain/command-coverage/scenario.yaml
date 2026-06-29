@@ -287,3 +287,29 @@ steps:
               fields:
                 type.const: env
                 config.properties.prefix.type: string
+
+  - name: 014-explain-ai-gateway-data-plane-certificates-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-data-plane-certificates-yaml
+        run:
+          - explain
+          - ai_gateway.data_plane_certificates
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.data_plane_certificates"
+                '"x-kongctl-resource"': ai_gateway_data_plane_certificate
+                '"x-kongctl-root-key"': ai_gateway_data_plane_certificates
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: properties.cert
+            expect:
+              fields:
+                type: string
+                '"x-kongctl-preferred-tag"': "!file"
