@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: federated-ai-gateway
+
+ai_gateway_consumers:
+  - ref: support-agent
+    ai_gateway: !ref shared-ai-gateway#id
+    name: support-agent
+    type: api-key
+    display_name: "Support Agent"
+    policies:
+      - !ref peer-mask-sensitive-data
+    labels:
+      team: support-experience
+      access: agent

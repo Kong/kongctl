@@ -284,6 +284,15 @@ func populateAIGatewayChildren(
 			gateway.Policies = policies
 		}
 
+		consumers, err := buildAIGatewayConsumers(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Consumers", gatewayID, gateway.DisplayName, err)
+			continue
+		}
+		if len(consumers) > 0 {
+			gateway.Consumers = consumers
+		}
+
 		groups, err := buildAIGatewayConsumerGroups(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway Consumer Groups", gatewayID, gateway.DisplayName, err)
@@ -403,6 +412,39 @@ func buildAIGatewayPolicies(
 	}
 
 	slices.SortFunc(result, func(a, b declresources.AIGatewayPolicyResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayConsumers(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayConsumerResource, error) {
+	consumers, err := client.ListAIGatewayConsumers(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayConsumerResource, 0, len(consumers))
+	for _, consumer := range consumers {
+		resource, err := declresources.AIGatewayConsumerResourceFromResponse(
+			gatewayRef,
+			consumer.AIGatewayConsumer,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Consumer for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayConsumerResource) int {
 		if a.Name == b.Name {
 			return cmp.Compare(a.Ref, b.Ref)
 		}

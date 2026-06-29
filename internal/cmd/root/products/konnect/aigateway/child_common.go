@@ -27,6 +27,12 @@ const (
 	aiGatewayPolicyIDConfigPath   = "konnect.ai-gateway.policy.id"
 	aiGatewayPolicyNameConfigPath = "konnect.ai-gateway.policy.name"
 
+	aiGatewayConsumerIDFlagName   = "consumer-id"
+	aiGatewayConsumerNameFlagName = "consumer-name"
+
+	aiGatewayConsumerIDConfigPath   = "konnect.ai-gateway.consumer.id"
+	aiGatewayConsumerNameConfigPath = "konnect.ai-gateway.consumer.name"
+
 	aiGatewayConsumerGroupIDFlagName   = "consumer-group-id"
 	aiGatewayConsumerGroupNameFlagName = "consumer-group-name"
 
@@ -46,6 +52,13 @@ const (
 	aiGatewayVaultNameConfigPath = "konnect.ai-gateway.vault.name"
 
 	aiGatewayMissingValue = "n/a"
+
+	aiGatewayHeaderID          = "ID"
+	aiGatewayHeaderName        = "NAME"
+	aiGatewayHeaderDisplayName = "DISPLAY NAME"
+	aiGatewayHeaderType        = "TYPE"
+	aiGatewayHeaderPolicies    = "POLICIES"
+	aiGatewayHeaderUpdated     = "UPDATED"
 )
 
 func addAIGatewayChildFlags(c *cobra.Command) {
@@ -148,6 +161,40 @@ func bindAIGatewayPolicyFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayPolicyIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(aiGatewayPolicyIDConfigPath), cfg.GetString(aiGatewayPolicyNameConfigPath)
+}
+
+func addAIGatewayConsumerFlags(c *cobra.Command) {
+	c.Flags().String(aiGatewayConsumerIDFlagName, "",
+		fmt.Sprintf(`The ID of the AI Gateway Consumer to retrieve.
+- Config path: [ %s ]`, aiGatewayConsumerIDConfigPath))
+	c.Flags().String(aiGatewayConsumerNameFlagName, "",
+		fmt.Sprintf(`The name of the AI Gateway Consumer to retrieve.
+- Config path: [ %s ]`, aiGatewayConsumerNameConfigPath))
+	c.MarkFlagsMutuallyExclusive(aiGatewayConsumerIDFlagName, aiGatewayConsumerNameFlagName)
+}
+
+func bindAIGatewayConsumerFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(aiGatewayConsumerIDFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayConsumerIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	if flag := c.Flags().Lookup(aiGatewayConsumerNameFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayConsumerNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getAIGatewayConsumerIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(aiGatewayConsumerIDConfigPath), cfg.GetString(aiGatewayConsumerNameConfigPath)
 }
 
 func addAIGatewayConsumerGroupFlags(c *cobra.Command) {

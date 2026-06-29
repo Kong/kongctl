@@ -1,0 +1,38 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-consumer-e2e
+
+ai_gateways:
+  - ref: ai-gateway-consumer-e2e
+    display_name: "AI Gateway Consumer E2E"
+    description: "AI Gateway Consumer e2e"
+    proxy_urls:
+      - host: ai-gateway-consumer-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    policies:
+      - ref: mask-sensitive-data
+        name: mask-sensitive-data
+        type: ai-sanitizer
+        display_name: "Mask Sensitive Data"
+        enabled: true
+        global: false
+        labels:
+          team: support
+          phase: create
+        config:
+          anonymize:
+            - email
+    consumers:
+      - ref: support-agent
+        name: support-agent
+        type: api-key
+        display_name: "Support Agent"
+        labels:
+          team: support
+          phase: create
+        policies:
+          - !ref mask-sensitive-data

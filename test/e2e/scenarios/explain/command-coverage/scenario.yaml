@@ -181,7 +181,34 @@ steps:
                 "contains(stdout, 'ROOT YAML PATH: control_plane_data_plane_certificates[].cert')": true
                 "contains(stdout, 'NESTED YAML PATH: control_planes[].data_plane_certificates[].cert')": true
 
-  - name: 010-explain-ai-gateway-models-nested-yaml
+  - name: 010-explain-ai-gateway-consumers-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-consumers-yaml
+        run:
+          - explain
+          - ai_gateway.consumers
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.consumers"
+                '"x-kongctl-resource"': ai_gateway_consumer
+                '"x-kongctl-root-key"': ai_gateway_consumers
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: properties
+            expect:
+              fields:
+                type.type: string
+                custom_id.type: string
+                policies.items.type: string
+
+  - name: 011-explain-ai-gateway-models-nested-yaml
     skipInputs: true
     commands:
       - name: 000-explain-ai-gateway-models-yaml
@@ -208,7 +235,7 @@ steps:
                 formats.items.properties.type.type: string
                 target_models.items.properties.config.properties.type.type: string
 
-  - name: 011-explain-ai-gateway-mcp-servers-nested-yaml
+  - name: 012-explain-ai-gateway-mcp-servers-nested-yaml
     skipInputs: true
     commands:
       - name: 000-explain-ai-gateway-mcp-servers-yaml
@@ -235,7 +262,7 @@ steps:
                 config.properties.url.type: string
                 tools.items.properties.method.type: string
 
-  - name: 012-explain-ai-gateway-vaults-nested-yaml
+  - name: 013-explain-ai-gateway-vaults-nested-yaml
     skipInputs: true
     commands:
       - name: 000-explain-ai-gateway-vaults-yaml

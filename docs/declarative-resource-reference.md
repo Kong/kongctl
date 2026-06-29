@@ -319,9 +319,11 @@ control_plane_data_plane_certificates:
 
 This section covers the root AI Gateway resource backed by the Konnect
 `/v1/ai-gateways` API, AI Gateway Providers, AI Gateway Models, AI Gateway
-MCP Servers, AI Gateway Consumer Groups, and AI Gateway Vaults. Use
+MCP Servers, AI Gateway Consumers, AI Gateway Consumer Groups, and AI Gateway
+Vaults. Use
 `kongctl explain ai_gateway --output yaml`,
 `kongctl explain ai_gateway_provider --output yaml`,
+`kongctl explain ai_gateway.consumers --output yaml`,
 `kongctl explain ai_gateway.consumer_groups --output yaml`,
 `kongctl explain ai_gateway.models --output yaml`,
 `kongctl explain ai_gateway.mcp_servers --output yaml`, and
@@ -329,28 +331,29 @@ MCP Servers, AI Gateway Consumer Groups, and AI Gateway Vaults. Use
 
 The `ref` value is used as the stable Konnect API `name` when creating an AI
 Gateway. Use `display_name` for the human-readable name shown in Konnect.
-AI Gateway Providers, Policies, Consumer Groups, Models, MCP Servers, and
-Vaults use their own required `name` field as the stable Konnect child name.
-Child entries inherit management scope from their parent AI Gateway and do not
-accept `kongctl` metadata.
+AI Gateway Providers, Policies, Consumers, Consumer Groups, Models, MCP
+Servers, and Vaults use their own required `name` field as the stable Konnect
+child name. Child entries inherit management scope from their parent AI
+Gateway and do not accept `kongctl` metadata.
 
 For AI Gateway Models, `target_models[].provider` must match an AI Gateway
 Provider `name` under the parent gateway. The provider can already exist or be
 declared in the same gateway configuration.
 
-For AI Gateway Models, MCP Servers, and Consumer Groups, `policies` entries
-reference AI Gateway Policies under the same parent gateway. Existing Konnect
-policy names or IDs can be supplied as strings. Declarative references should
-use `!ref <policy-ref>` so the relationship is explicit and same-plan policy
-creates are ordered and resolved.
+For AI Gateway Consumers, Consumer Groups, Models, and MCP Servers, `policies`
+entries reference AI Gateway Policies under the same parent gateway. Existing
+Konnect policy names or IDs can be supplied as strings. Declarative references
+should use `!ref <policy-ref>` so the relationship is explicit and same-plan
+policy creates are ordered and resolved.
 
-For AI Gateway Policies, Consumer Groups, MCP Servers, and Vaults, root-level
-declarations must include `ai_gateway`, while nested declarations inherit the
-parent gateway. Omit `policies`, `consumer_groups`, `mcp_servers`, or `vaults`
-to leave existing child resources unmanaged during sync. Use `policies: []`,
-`consumer_groups: []`, `mcp_servers: []`, or `vaults: []` under a specific AI
-Gateway to sync-delete that child type for that gateway. Root-level
-`ai_gateway_policies: []`, `ai_gateway_consumer_groups: []`,
+For AI Gateway Policies, Consumers, Consumer Groups, MCP Servers, and Vaults,
+root-level declarations must include `ai_gateway`, while nested declarations
+inherit the parent gateway. Omit `policies`, `consumers`, `consumer_groups`,
+`mcp_servers`, or `vaults` to leave existing child resources unmanaged during
+sync. Use `policies: []`, `consumers: []`, `consumer_groups: []`,
+`mcp_servers: []`, or `vaults: []` under a specific AI Gateway to sync-delete
+that child type for that gateway. Root-level `ai_gateway_policies: []`,
+`ai_gateway_consumers: []`, `ai_gateway_consumer_groups: []`,
 `ai_gateway_mcp_servers: []`, and `ai_gateway_vaults: []` are rejected because
 they do not identify a parent gateway.
 
@@ -390,6 +393,18 @@ ai_gateways:
          key: value
        managed_by: object [string]string
          key: value
+   consumers:
+    - ref: string
+      name: string required
+      type: api-key # or oauth
+      display_name: string required
+      custom_id: string
+      policies:
+       - !ref policy-ref
+      labels: object [string]string
+        key: value
+      managed_by: object [string]string
+        key: value
    consumer_groups:
     - ref: string
       name: string required
@@ -485,6 +500,25 @@ ai_gateway_policies:
    enabled: boolean
    global: boolean
    config: object required
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Consumers can also be declared as root resources. Include
+`ai_gateway` to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_consumers:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   type: api-key # or oauth
+   display_name: string required
+   custom_id: string
+   policies:
+    - !ref policy-ref
    labels: object [string]string
      key: value
    managed_by: object [string]string
