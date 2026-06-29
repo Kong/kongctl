@@ -1077,13 +1077,6 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.AIGatewayVaults = append(rs.AIGatewayVaults, vault)
 		}
 		gateway.Vaults = nil
-
-		for j := range gateway.Nodes {
-			node := gateway.Nodes[j]
-			node.AIGateway = gateway.Ref
-			rs.AIGatewayNodes = append(rs.AIGatewayNodes, node)
-		}
-		gateway.Nodes = nil
 	}
 
 	for i := range rs.APIs {

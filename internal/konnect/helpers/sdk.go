@@ -223,13 +223,7 @@ func (k *KonnectSDK) GetAIGatewayNodesAPI() AIGatewayNodesAPI {
 		return nil
 	}
 
-	return &AIGatewayNodesAPIImpl{
-		SDK:         k.SDK,
-		BaseURL:     k.BaseURL,
-		Token:       k.Token,
-		TokenSource: k.TokenSource,
-		HTTPClient:  k.HTTPClient,
-	}
+	return &AIGatewayNodesAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the CatalogServicesAPI interface

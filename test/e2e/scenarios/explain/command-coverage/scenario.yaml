@@ -287,31 +287,3 @@ steps:
               fields:
                 type.const: env
                 config.properties.prefix.type: string
-
-  - name: 014-explain-ai-gateway-nodes-nested-yaml
-    skipInputs: true
-    commands:
-      - name: 000-explain-ai-gateway-nodes-yaml
-        run:
-          - explain
-          - ai_gateway.nodes
-        outputFormat: yaml
-        parseAs: yaml
-        assertions:
-          - select: "@"
-            expect:
-              fields:
-                type: object
-                title: "kongctl declarative schema: ai_gateway.nodes"
-                '"x-kongctl-resource"': ai_gateway_node
-                '"x-kongctl-root-key"': ai_gateway_nodes
-                '"x-kongctl-resource-class"': child
-                '"x-kongctl-supports-root"': true
-                '"x-kongctl-supports-nested-declaration"': true
-          - select: properties
-            expect:
-              fields:
-                id.type: string
-                version.type: string
-                hostname.type: string
-                type.type: string
