@@ -337,15 +337,6 @@ func populateAIGatewayChildren(
 		if len(vaults) > 0 {
 			gateway.Vaults = vaults
 		}
-
-		nodes, err := buildAIGatewayNodes(ctx, client, gatewayID, gateway.DisplayName, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway Nodes", gatewayID, gateway.DisplayName, err)
-			continue
-		}
-		if len(nodes) > 0 {
-			gateway.Nodes = nodes
-		}
 	}
 }
 
@@ -623,36 +614,6 @@ func buildAIGatewayVaults(
 			return cmp.Compare(a.Ref, b.Ref)
 		}
 		return cmp.Compare(a.Name(), b.Name())
-	})
-
-	return result, nil
-}
-
-func buildAIGatewayNodes(
-	ctx context.Context,
-	client *declstate.Client,
-	gatewayID string,
-	gatewayName string,
-	gatewayRef string,
-) ([]declresources.AIGatewayNodeResource, error) {
-	nodes, err := client.ListAIGatewayNodes(ctx, gatewayID)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]declresources.AIGatewayNodeResource, 0, len(nodes))
-	for _, node := range nodes {
-		resource, err := declresources.AIGatewayNodeResourceFromResponse(gatewayRef, node.AIGatewayDataPlaneNode)
-		if err != nil {
-			return nil, fmt.Errorf("failed to map AI Gateway Node for gateway %s: %w", gatewayName, err)
-		}
-		result = append(result, resource)
-	}
-
-	slices.SortFunc(result, func(a, b declresources.AIGatewayNodeResource) int {
-		if a.ID == b.ID {
-			return cmp.Compare(a.Ref, b.Ref)
-		}
-		return cmp.Compare(a.ID, b.ID)
 	})
 
 	return result, nil

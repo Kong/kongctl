@@ -35,13 +35,6 @@ ai_gateways:
         config:
           prefix: SUPPORT_AI_
           base64_decode: false
-    nodes:
-      - ref: support-node-1
-        id: 3f2b1c9a-8d7e-4f6a-9b0c-1d2e3f4a5b6c
-        version: "3.11.0"
-        hostname: support-ai-node-1
-        type: data-plane
-        config_version: "2024.06.01"
     policies:
       - ref: mask-sensitive-data
         name: mask-sensitive-data
