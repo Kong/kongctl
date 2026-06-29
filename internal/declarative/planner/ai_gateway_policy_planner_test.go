@@ -86,6 +86,52 @@ func TestAIGatewayPolicyPlannerUpdatesExistingPolicy(t *testing.T) {
 	require.Contains(t, change.ChangedFields, FieldDisplayName)
 }
 
+func TestAIGatewayPolicyPlannerIgnoresAISanitizerResponseDefaults(t *testing.T) {
+	policy := testAIGatewayPolicyResource(t)
+	current := testAIGatewayPolicy()
+	current.Config = testAIGatewayAISanitizerDefaultedConfig()
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayPoliciesAPI: &testAIGatewayPolicyAPI{
+			policies: []kkComps.AIGatewayPolicy{current},
+		},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways:        []resources.AIGatewayResource{testAIGatewayResource()},
+		AIGatewayPolicies: []resources.AIGatewayPolicyResource{policy},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+}
+
+func TestAIGatewayPolicyPlannerDetectsNonDefaultAISanitizerConfigDrift(t *testing.T) {
+	policy := testAIGatewayPolicyResource(t)
+	current := testAIGatewayPolicy()
+	current.Config = testAIGatewayAISanitizerDefaultedConfig()
+	current.Config["stop_on_error"] = false
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayPoliciesAPI: &testAIGatewayPolicyAPI{
+			policies: []kkComps.AIGatewayPolicy{current},
+		},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways:        []resources.AIGatewayResource{testAIGatewayResource()},
+		AIGatewayPolicies: []resources.AIGatewayPolicyResource{policy},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Contains(t, plan.Changes[0].ChangedFields, FieldConfig)
+}
+
 func TestAIGatewayPolicyPlannerSyncDeletesScopedPolicies(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
@@ -208,6 +254,35 @@ func testAIGatewayPolicy() kkComps.AIGatewayPolicy {
 		Enabled:     &enabled,
 		Global:      &global,
 		Config:      map[string]any{"anonymize": []any{"email"}},
+	}
+}
+
+func testAIGatewayAISanitizerDefaultedConfig() map[string]any {
+	return map[string]any{
+		"allow_all_conversation_history": true,
+		"anonymize":                      []any{"email"},
+		"block_if_detected":              false,
+		"custom_patterns":                nil,
+		"host":                           "localhost",
+		"keepalive_timeout":              60000,
+		"port":                           8080,
+		"proxy_config": map[string]any{
+			"auth_password":    nil,
+			"auth_username":    nil,
+			"http_proxy_host":  nil,
+			"http_proxy_port":  nil,
+			"https_proxy_host": nil,
+			"https_proxy_port": nil,
+			"no_proxy":         nil,
+			"proxy_scheme":     "http",
+		},
+		"recover_redacted":             true,
+		"redact_type":                  "placeholder",
+		"sanitization_mode":            "INPUT",
+		"scheme":                       "http",
+		"skip_logging_sanitized_items": false,
+		"stop_on_error":                true,
+		"timeout":                      10000,
 	}
 }
 

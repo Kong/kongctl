@@ -254,6 +254,7 @@ func (p *Planner) shouldUpdateAIGatewayAgent(
 		desiredPayload,
 		p.resources,
 	)
+	currentCompare, desiredCompare = normalizeAIGatewayRouteDefaultsForComparison(currentCompare, desiredCompare)
 
 	changedFields := make(map[string]FieldChange)
 	keys := make(map[string]struct{}, len(currentCompare)+len(desiredCompare))

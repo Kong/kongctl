@@ -216,16 +216,18 @@ func shouldUpdateAIGatewayPolicy(
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway Policy %q: %w", desired.Ref, err)
 	}
 
+	currentCompare, desiredCompare := normalizeAIGatewayPolicyDefaultsForComparison(currentPayload, desiredPayload)
+
 	changedFields := make(map[string]FieldChange)
-	keys := make(map[string]struct{}, len(currentPayload)+len(desiredPayload))
-	for key := range currentPayload {
+	keys := make(map[string]struct{}, len(currentCompare)+len(desiredCompare))
+	for key := range currentCompare {
 		keys[key] = struct{}{}
 	}
-	for key := range desiredPayload {
+	for key := range desiredCompare {
 		keys[key] = struct{}{}
 	}
 	for key := range keys {
-		if !reflect.DeepEqual(currentPayload[key], desiredPayload[key]) {
+		if !reflect.DeepEqual(currentCompare[key], desiredCompare[key]) {
 			changedFields[key] = FieldChange{Old: currentPayload[key], New: desiredPayload[key]}
 		}
 	}

@@ -156,6 +156,51 @@ func TestAIGatewayAgentPlannerPolicyRefNoopForExistingAgent(t *testing.T) {
 	}
 }
 
+func TestAIGatewayAgentPlannerIgnoresDefaultRouteProtocols(t *testing.T) {
+	agent := testAIGatewayAgentResourceWithRoute(t)
+	current := testAIGatewayAgent("agent-id", "booking-agent", nil)
+	current.Config.Route = &kkComps.AIGatewayRouteConfig{
+		Paths:     []string{"/booking"},
+		Protocols: []string{"http", "https"},
+	}
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayAgentsAPI: &testAIGatewayAgentAPI{
+			agents: []kkComps.AIGatewayAgent{current},
+		},
+	})
+	rs := testAIGatewayAgentResourceSet(agent)
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+}
+
+func TestAIGatewayAgentPlannerDetectsNonDefaultRouteProtocols(t *testing.T) {
+	agent := testAIGatewayAgentResourceWithRoute(t)
+	current := testAIGatewayAgent("agent-id", "booking-agent", nil)
+	current.Config.Route = &kkComps.AIGatewayRouteConfig{
+		Paths:     []string{"/booking"},
+		Protocols: []string{"https"},
+	}
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayAgentsAPI: &testAIGatewayAgentAPI{
+			agents: []kkComps.AIGatewayAgent{current},
+		},
+	})
+	rs := testAIGatewayAgentResourceSet(agent)
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Contains(t, plan.Changes[0].ChangedFields, FieldConfig)
+}
+
 func testAIGatewayAgentResourceSet(
 	agent resources.AIGatewayAgentResource,
 ) *resources.ResourceSet {
@@ -182,6 +227,28 @@ func testAIGatewayAgentResource(
 	}
 	if policies != nil {
 		payload[FieldPolicies] = policies
+	}
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+	var agent resources.AIGatewayAgentResource
+	require.NoError(t, json.Unmarshal(data, &agent))
+	return agent
+}
+
+func testAIGatewayAgentResourceWithRoute(t *testing.T) resources.AIGatewayAgentResource {
+	t.Helper()
+	payload := map[string]any{
+		"ref":          "booking-agent",
+		"ai_gateway":   "support-gateway",
+		"name":         "booking-agent",
+		"type":         "a2a",
+		"display_name": "Booking Agent",
+		"config": map[string]any{
+			"url": "https://booking-agent.example.com",
+			"route": map[string]any{
+				"paths": []string{"/booking"},
+			},
+		},
 	}
 	data, err := json.Marshal(payload)
 	require.NoError(t, err)
