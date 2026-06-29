@@ -2,8 +2,8 @@
 
 This example shows a federated layout for AI Gateway resources where a central
 AI platform team owns the shared AI Gateway and upstream providers, while a peer
-team owns root-level policies, consumers, consumer groups, models, MCP Servers,
-and vaults that target the shared gateway.
+team owns root-level policies, agents, consumers, consumer groups, models, MCP
+Servers, and vaults that target the shared gateway.
 
 ## Structure
 
@@ -14,6 +14,7 @@ ai-gateway/federated/
 |-- external-peer-team/
 |   `-- support-model.yaml
 `-- peer-team/
+    |-- support-agent.yaml
     |-- support-consumer.yaml
     |-- support-consumer-group.yaml
     |-- support-mcp-server.yaml
@@ -28,6 +29,9 @@ ai-gateway/federated/
   providers: OpenAI and Anthropic.
 - `peer-team/support-policy.yaml` defines a standalone `ai_gateway_policies`
   entry that references the central gateway with `!ref shared-ai-gateway#id`.
+- `peer-team/support-agent.yaml` defines a standalone `ai_gateway_agents` entry
+  that references the central gateway with `!ref shared-ai-gateway#id` and
+  attaches the policy with an explicit `!ref peer-mask-sensitive-data`.
 - `peer-team/support-consumer.yaml` defines a standalone
   `ai_gateway_consumers` entry that references the central gateway with
   `!ref shared-ai-gateway#id` and attaches the policy with an explicit
