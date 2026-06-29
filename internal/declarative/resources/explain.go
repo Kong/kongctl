@@ -15,6 +15,7 @@ const (
 	explainKindArray      = "array"
 	explainKindObject     = "object"
 	explainKindString     = "string"
+	explainKindInteger    = "integer"
 
 	explainResourceClassTopLevel = "top-level"
 	explainResourceClassChild    = "child"
@@ -1021,7 +1022,7 @@ func autoExplainValueNode(
 		node.Kind = "boolean"
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		node.Kind = "integer"
+		node.Kind = explainKindInteger
 	case reflect.Float32, reflect.Float64:
 		node.Kind = "number"
 	case reflect.Interface:
@@ -1124,7 +1125,7 @@ func explainLiteralFor(node *ExplainNode, name string) string {
 		default:
 			return "value"
 		}
-	case "integer":
+	case explainKindInteger:
 		switch name {
 		case "port":
 			return "80"
@@ -1784,7 +1785,7 @@ func scaffoldLiteral(node *ExplainNode) string {
 		return node.Literal
 	}
 	switch node.Kind {
-	case explainKindString, "integer", "number", "boolean":
+	case explainKindString, explainKindInteger, "number", "boolean":
 		return ""
 	case "array":
 		if node.Items != nil {

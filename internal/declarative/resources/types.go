@@ -20,6 +20,7 @@ const (
 	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
 	ResourceTypeAIGatewayProvider                       ResourceType = "ai_gateway_provider"
 	ResourceTypeAIGatewayPolicy                         ResourceType = "ai_gateway_policy"
+	ResourceTypeAIGatewayAgent                          ResourceType = "ai_gateway_agent"
 	ResourceTypeAIGatewayConsumer                       ResourceType = "ai_gateway_consumer"
 	ResourceTypeAIGatewayConsumerGroup                  ResourceType = "ai_gateway_consumer_group"
 	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
@@ -116,6 +117,7 @@ type ResourceSet struct {
 	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
 	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_providers,omitempty"                          json:"ai_gateway_providers,omitempty"`                   //nolint:lll
 	AIGatewayPolicies                 []AIGatewayPolicyResource                  `yaml:"ai_gateway_policies,omitempty"                           json:"ai_gateway_policies,omitempty"`                    //nolint:lll
+	AIGatewayAgents                   []AIGatewayAgentResource                   `yaml:"ai_gateway_agents,omitempty"                             json:"ai_gateway_agents,omitempty"`                      //nolint:lll
 	AIGatewayConsumers                []AIGatewayConsumerResource                `yaml:"ai_gateway_consumers,omitempty"                          json:"ai_gateway_consumers,omitempty"`                   //nolint:lll
 	AIGatewayConsumerGroups           []AIGatewayConsumerGroupResource           `yaml:"ai_gateway_consumer_groups,omitempty"                    json:"ai_gateway_consumer_groups,omitempty"`             //nolint:lll
 	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
@@ -368,6 +370,16 @@ func (rs *ResourceSet) GetAIGatewayPolicyByRef(ref string) *AIGatewayPolicyResou
 	return nil
 }
 
+// GetAIGatewayAgentByRef returns an AI Gateway Agent resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayAgentByRef(ref string) *AIGatewayAgentResource {
+	for i := range rs.AIGatewayAgents {
+		if rs.AIGatewayAgents[i].GetRef() == ref {
+			return &rs.AIGatewayAgents[i]
+		}
+	}
+	return nil
+}
+
 // GetAIGatewayConsumerByRef returns an AI Gateway Consumer resource by its ref from any namespace.
 func (rs *ResourceSet) GetAIGatewayConsumerByRef(ref string) *AIGatewayConsumerResource {
 	for i := range rs.AIGatewayConsumers {
@@ -525,6 +537,25 @@ func (rs *ResourceSet) GetAIGatewayPoliciesByNamespace(namespace string) []AIGat
 			}
 			if GetNamespace(gateway.Kongctl) == namespace {
 				filtered = append(filtered, policy)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayAgentsByNamespace returns AI Gateway Agent resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayAgentsByNamespace(namespace string) []AIGatewayAgentResource {
+	var filtered []AIGatewayAgentResource
+	for _, agent := range rs.AIGatewayAgents {
+		if gateway := rs.GetAIGatewayByRef(agent.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, agent)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, agent)
 			}
 		}
 	}
@@ -1239,6 +1270,17 @@ func (rs *ResourceSet) GetAIGatewayPoliciesForGateway(gatewayRef string) []AIGat
 		}
 	}
 	return policies
+}
+
+// GetAIGatewayAgentsForGateway returns all AI Gateway Agents for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayAgentsForGateway(gatewayRef string) []AIGatewayAgentResource {
+	var agents []AIGatewayAgentResource
+	for _, agent := range rs.AIGatewayAgents {
+		if NormalizeResourceRef(agent.AIGateway) == gatewayRef {
+			agents = append(agents, agent)
+		}
+	}
+	return agents
 }
 
 // GetAIGatewayConsumersForGateway returns all AI Gateway Consumers for a given gateway ref.
