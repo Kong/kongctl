@@ -1,0 +1,32 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-example
+
+ai_gateways:
+  - ref: customer-support-ai-gateway
+    display_name: "Customer Support AI Gateway"
+    description: "AI Gateway for customer support traffic"
+    proxy_urls:
+      - host: support-ai.example.com
+        port: 443
+        protocol: https
+    data_plane_certificates:
+      - ref: support-data-plane-cert
+        title: support-data-plane-cert
+        description: "Pinned data plane certificate for support AI traffic"
+        cert: !file ./certs/data-plane.pem
+
+  - ref: analytics-ai-gateway
+    display_name: "Analytics AI Gateway"
+    description: "AI Gateway for analytics workloads"
+    proxy_urls:
+      - host: analytics-ai.example.com
+        port: 443
+        protocol: https
+
+ai_gateway_data_plane_certificates:
+  - ref: analytics-data-plane-cert
+    ai_gateway: analytics-ai-gateway
+    title: analytics-data-plane-cert
+    description: "Pinned data plane certificate for analytics AI traffic"
+    cert: !file ./certs/data-plane.pem

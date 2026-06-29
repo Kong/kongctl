@@ -17,6 +17,11 @@ func init() {
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldAgents, loadAIGatewayAgents)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumers, loadAIGatewayConsumers)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumerGroups, loadAIGatewayConsumerGroups)
+	tableview.RegisterChildLoader(
+		common.ViewParentAIGateway,
+		common.ViewFieldDataPlaneCertificates,
+		loadAIGatewayDataPlaneCertificates,
+	)
 }
 
 func loadAIGatewayProviders(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -172,6 +177,37 @@ func loadAIGatewayConsumerGroups(_ context.Context, helper cmd.Helper, parent an
 		return tableview.ChildView{}, err
 	}
 	return buildAIGatewayConsumerGroupChildView(groups), nil
+}
+
+func loadAIGatewayDataPlaneCertificates(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	certAPI := sdk.GetAIGatewayDataPlaneCertificatesAPI()
+	if certAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway data plane certificates client is not available")
+	}
+
+	certs, err := fetchAIGatewayDataPlaneCertificates(helper, certAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayDataPlaneCertificateChildView(certs), nil
 }
 
 func aiGatewayIDFromParent(parent any) (string, error) {
