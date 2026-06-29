@@ -97,6 +97,7 @@ func TestAIGatewayAgentPlannerSyncDeletesScopedAgents(t *testing.T) {
 
 func TestAIGatewayAgentPlannerDependsOnPolicyCreate(t *testing.T) {
 	policy := testAIGatewayPolicyResource(t)
+	policy.Name = "mask-sensitive-data-api-name"
 	agent := testAIGatewayAgentResource(t, []string{tags.RefPlaceholderPrefix + "mask-sensitive-data#id"})
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{},
@@ -120,8 +121,8 @@ func TestAIGatewayAgentPlannerDependsOnPolicyCreate(t *testing.T) {
 
 	require.Contains(t, policyCreate.DependsOn, gatewayCreate.ID)
 	require.Contains(t, agentCreate.DependsOn, policyCreate.ID)
-	require.Equal(t, resources.UnknownReferenceID, agentCreate.References[FieldPolicies+".0"].ID)
-	require.Equal(t, tags.RefPlaceholderPrefix+"mask-sensitive-data#id", agentCreate.References[FieldPolicies+".0"].Ref)
+	require.Equal(t, []any{"mask-sensitive-data-api-name"}, agentCreate.Fields[FieldPolicies])
+	require.NotContains(t, agentCreate.References, FieldPolicies+".0")
 }
 
 func TestAIGatewayAgentPlannerPolicyRefNoopForExistingAgent(t *testing.T) {
