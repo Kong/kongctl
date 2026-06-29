@@ -175,6 +175,9 @@ func mapResourceName(name string) string {
 		return "ai_gateway_mcp_servers"
 	case "ai-gateway-vault", "ai-gateway-vaults", "ai_gateway_vault", "ai_gateway_vaults":
 		return "ai_gateway_vaults"
+	case "ai-gateway-data-plane-certificate", "ai-gateway-data-plane-certificates",
+		"ai_gateway_data_plane_certificate", "ai_gateway_data_plane_certificates", "aigw-dpc", "aigw-dpcs":
+		return "ai_gateway_data_plane_certificates"
 	case "org.team", "org.teams", "organization.team", "organization.teams":
 		return "organization.teams"
 	default:
