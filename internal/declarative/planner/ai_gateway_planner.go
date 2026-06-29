@@ -175,27 +175,6 @@ func (p *Planner) planAIGatewayChanges(
 			}
 		}
 
-		nodes := p.resources.GetAIGatewayNodesForGateway(desiredGateway.Ref)
-		if p.shouldPlanChild(
-			plan,
-			resources.ResourceTypeAIGateway,
-			desiredGateway.Ref,
-			resources.ResourceTypeAIGatewayNode,
-		) && (len(nodes) > 0 || plan.Metadata.Mode == PlanModeSync) {
-			if err := p.planAIGatewayNodeChanges(
-				ctx,
-				namespace,
-				desiredGateway.Ref,
-				desiredGateway.DisplayName,
-				gatewayID,
-				gatewayChangeID,
-				nodes,
-				plan,
-			); err != nil {
-				return err
-			}
-		}
-
 		providers := p.resources.GetAIGatewayProvidersForGateway(desiredGateway.Ref)
 		if p.shouldPlanChild(
 			plan,
@@ -399,27 +378,6 @@ func (p *Planner) planExternalAIGatewayChildren(
 			gatewayID,
 			"",
 			vaults,
-			plan,
-		); err != nil {
-			return err
-		}
-	}
-
-	nodes := p.resources.GetAIGatewayNodesForGateway(desiredGateway.Ref)
-	if p.shouldPlanChild(
-		plan,
-		resources.ResourceTypeAIGateway,
-		desiredGateway.Ref,
-		resources.ResourceTypeAIGatewayNode,
-	) && len(nodes) > 0 {
-		if err := p.planAIGatewayNodeChanges(
-			ctx,
-			namespace,
-			desiredGateway.Ref,
-			desiredGateway.DisplayName,
-			gatewayID,
-			"",
-			nodes,
 			plan,
 		); err != nil {
 			return err

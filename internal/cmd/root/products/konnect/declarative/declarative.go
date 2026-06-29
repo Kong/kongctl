@@ -2849,7 +2849,6 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		AIGatewayModelAPI:       kkClient.GetAIGatewayModelAPI(),
 		AIGatewayMCPServersAPI:  kkClient.GetAIGatewayMCPServersAPI(),
 		AIGatewayVaultsAPI:      kkClient.GetAIGatewayVaultsAPI(),
-		AIGatewayNodesAPI:       kkClient.GetAIGatewayNodesAPI(),
 		DashboardsAPI:           kkClient.GetDashboardsAPI(),
 
 		// Portal child resource APIs

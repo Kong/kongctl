@@ -139,24 +139,3 @@ steps:
                 "contains(stdout, 'provider: openai')": false
                 "contains(stdout, 'ai_gateway: value')": false
                 "contains(stdout, 'kongctl:')": false
-
-  - name: 008-scaffold-ai-gateway-nodes-nested
-    skipInputs: true
-    commands:
-      - name: 000-scaffold-ai-gateway-nodes
-        run:
-          - scaffold
-          - ai_gateway.nodes
-        outputFormat: disable
-        parseAs: raw
-        assertions:
-          - expect:
-              fields:
-                "contains(stdout, 'ai_gateways:')": true
-                "contains(stdout, 'nodes:')": true
-                "contains(stdout, 'id:')": true
-                "contains(stdout, 'version:')": true
-                "contains(stdout, 'hostname:')": true
-                "contains(stdout, 'type: data-plane')": true
-                "contains(stdout, 'ai_gateway: value')": false
-                "contains(stdout, 'kongctl:')": false

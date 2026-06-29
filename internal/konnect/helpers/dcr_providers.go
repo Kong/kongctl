@@ -173,13 +173,13 @@ func (a *DCRProvidersAPIImpl) CreateDcrProvider(ctx context.Context,
 		}
 
 		result, err := a.request(ctx, http.MethodPost, "/v2/dcr-providers",
-			map[string]string{httpHeaderContentType: contentTypeJSON}, bytes.NewReader(payload))
+			map[string]string{"Content-Type": "application/json"}, bytes.NewReader(payload))
 		if err != nil {
 			return nil, err
 		}
 
 		response := &kkOPS.CreateDcrProviderResponse{
-			ContentType: result.Header.Get(httpHeaderContentType),
+			ContentType: result.Header.Get("Content-Type"),
 			StatusCode:  result.StatusCode,
 			RawResponse: newDCRProviderRawResponse(result),
 		}
@@ -203,13 +203,13 @@ func (a *DCRProvidersAPIImpl) UpdateDcrProvider(ctx context.Context, id string,
 
 		path := fmt.Sprintf("/v2/dcr-providers/%s", url.PathEscape(id))
 		result, err := a.request(ctx, http.MethodPatch, path,
-			map[string]string{httpHeaderContentType: contentTypeJSON}, bytes.NewReader(payload))
+			map[string]string{"Content-Type": "application/json"}, bytes.NewReader(payload))
 		if err != nil {
 			return nil, err
 		}
 
 		response := &kkOPS.UpdateDcrProviderResponse{
-			ContentType: result.Header.Get(httpHeaderContentType),
+			ContentType: result.Header.Get("Content-Type"),
 			StatusCode:  result.StatusCode,
 			RawResponse: newDCRProviderRawResponse(result),
 		}
@@ -233,7 +233,7 @@ func (a *DCRProvidersAPIImpl) DeleteDcrProvider(ctx context.Context,
 		}
 
 		response := &kkOPS.DeleteDcrProviderResponse{
-			ContentType: result.Header.Get(httpHeaderContentType),
+			ContentType: result.Header.Get("Content-Type"),
 			StatusCode:  result.StatusCode,
 			RawResponse: newDCRProviderRawResponse(result),
 		}
