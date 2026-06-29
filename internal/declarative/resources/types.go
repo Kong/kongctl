@@ -27,6 +27,7 @@ const (
 	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
 	ResourceTypeAIGatewayVault                          ResourceType = "ai_gateway_vault"
 	ResourceTypeAIGatewayNode                           ResourceType = "ai_gateway_node"
+	ResourceTypeAIGatewayDataPlaneCertificate           ResourceType = "ai_gateway_data_plane_certificate"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
@@ -125,6 +126,7 @@ type ResourceSet struct {
 	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
 	AIGatewayVaults                   []AIGatewayVaultResource                   `yaml:"ai_gateway_vaults,omitempty"                              json:"ai_gateway_vaults,omitempty"`                     //nolint:lll
 	AIGatewayNodes                    []AIGatewayNodeResource                    `yaml:"ai_gateway_nodes,omitempty"                               json:"ai_gateway_nodes,omitempty"`                      //nolint:lll
+	AIGatewayDataPlaneCertificates    []AIGatewayDataPlaneCertificateResource    `yaml:"ai_gateway_data_plane_certificates,omitempty"              json:"ai_gateway_data_plane_certificates,omitempty"`   //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
@@ -442,6 +444,19 @@ func (rs *ResourceSet) GetAIGatewayNodeByRef(ref string) *AIGatewayNodeResource 
 	return nil
 }
 
+// GetAIGatewayDataPlaneCertificateByRef returns an AI Gateway data plane certificate
+// resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayDataPlaneCertificateByRef(
+	ref string,
+) *AIGatewayDataPlaneCertificateResource {
+	for i := range rs.AIGatewayDataPlaneCertificates {
+		if rs.AIGatewayDataPlaneCertificates[i].GetRef() == ref {
+			return &rs.AIGatewayDataPlaneCertificates[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {
@@ -682,6 +697,28 @@ func (rs *ResourceSet) GetAIGatewayNodesByNamespace(namespace string) []AIGatewa
 			}
 			if GetNamespace(gateway.Kongctl) == namespace {
 				filtered = append(filtered, node)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayDataPlaneCertificatesByNamespace returns AI Gateway data plane certificate
+// resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayDataPlaneCertificatesByNamespace(
+	namespace string,
+) []AIGatewayDataPlaneCertificateResource {
+	var filtered []AIGatewayDataPlaneCertificateResource
+	for _, cert := range rs.AIGatewayDataPlaneCertificates {
+		if gateway := rs.GetAIGatewayByRef(cert.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, cert)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, cert)
 			}
 		}
 	}
@@ -1716,4 +1753,18 @@ func (rs *ResourceSet) GetAIGatewayNodesForGateway(gatewayRef string) []AIGatewa
 		}
 	}
 	return nodes
+}
+
+// GetAIGatewayDataPlaneCertificatesForGateway returns all AI Gateway data plane
+// certificates for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayDataPlaneCertificatesForGateway(
+	gatewayRef string,
+) []AIGatewayDataPlaneCertificateResource {
+	var certs []AIGatewayDataPlaneCertificateResource
+	for _, cert := range rs.AIGatewayDataPlaneCertificates {
+		if NormalizeResourceRef(cert.AIGateway) == gatewayRef {
+			certs = append(certs, cert)
+		}
+	}
+	return certs
 }

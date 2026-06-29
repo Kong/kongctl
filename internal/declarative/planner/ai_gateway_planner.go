@@ -196,6 +196,27 @@ func (p *Planner) planAIGatewayChanges(
 			}
 		}
 
+		certs := p.resources.GetAIGatewayDataPlaneCertificatesForGateway(desiredGateway.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeAIGateway,
+			desiredGateway.Ref,
+			resources.ResourceTypeAIGatewayDataPlaneCertificate,
+		) && (len(certs) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayDataPlaneCertificateChanges(
+				ctx,
+				namespace,
+				desiredGateway.Ref,
+				desiredGateway.DisplayName,
+				gatewayID,
+				gatewayChangeID,
+				certs,
+				plan,
+			); err != nil {
+				return err
+			}
+		}
+
 		providers := p.resources.GetAIGatewayProvidersForGateway(desiredGateway.Ref)
 		if p.shouldPlanChild(
 			plan,
@@ -420,6 +441,27 @@ func (p *Planner) planExternalAIGatewayChildren(
 			gatewayID,
 			"",
 			nodes,
+			plan,
+		); err != nil {
+			return err
+		}
+	}
+
+	certs := p.resources.GetAIGatewayDataPlaneCertificatesForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayDataPlaneCertificate,
+	) && len(certs) > 0 {
+		if err := p.planAIGatewayDataPlaneCertificateChanges(
+			ctx,
+			namespace,
+			desiredGateway.Ref,
+			desiredGateway.DisplayName,
+			gatewayID,
+			"",
+			certs,
 			plan,
 		); err != nil {
 			return err

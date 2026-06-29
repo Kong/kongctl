@@ -346,6 +346,15 @@ func populateAIGatewayChildren(
 		if len(nodes) > 0 {
 			gateway.Nodes = nodes
 		}
+
+		certs, err := buildAIGatewayDataPlaneCertificates(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway data plane certificates", gatewayID, gateway.DisplayName, err)
+			continue
+		}
+		if len(certs) > 0 {
+			gateway.DataPlaneCertificates = certs
+		}
 	}
 }
 
@@ -653,6 +662,36 @@ func buildAIGatewayNodes(
 			return cmp.Compare(a.Ref, b.Ref)
 		}
 		return cmp.Compare(a.ID, b.ID)
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayDataPlaneCertificates(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	_ string,
+	gatewayRef string,
+) ([]declresources.AIGatewayDataPlaneCertificateResource, error) {
+	certs, err := client.ListAIGatewayDataPlaneCertificates(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayDataPlaneCertificateResource, 0, len(certs))
+	for _, cert := range certs {
+		resource := declresources.AIGatewayDataPlaneCertificateResourceFromResponse(
+			gatewayRef,
+			cert.AIGatewayDataPlaneClientCertificate,
+		)
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayDataPlaneCertificateResource) int {
+		if a.Title == b.Title {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Title, b.Title)
 	})
 
 	return result, nil

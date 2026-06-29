@@ -60,11 +60,11 @@ type AIGatewayNodeResource struct {
 	ID                  string                            `yaml:"id,omitempty"                   json:"id,omitempty"`
 	Version             string                            `yaml:"version,omitempty"              json:"version,omitempty"`
 	Hostname            string                            `yaml:"hostname,omitempty"             json:"hostname,omitempty"`
-	LastPing            *int64                            `yaml:"last_ping,omitempty"            json:"last_ping,omitempty"`
+	LastPing            *int64                            `yaml:"last_ping,omitempty"            json:"last_ping,omitempty"` //nolint:lll
 	Type                string                            `yaml:"type,omitempty"                 json:"type,omitempty"`
-	ConfigVersion       *string                           `yaml:"config_version,omitempty"       json:"config_version,omitempty"`
+	ConfigVersion       *string                           `yaml:"config_version,omitempty"       json:"config_version,omitempty"` //nolint:lll
 	Errors              []aiGatewayNodeError              `yaml:"errors,omitempty" json:"errors,omitempty"`
-	CompatibilityStatus *aiGatewayNodeCompatibilityStatus `yaml:"compatibility_status,omitempty" json:"compatibility_status,omitempty"`
+	CompatibilityStatus *aiGatewayNodeCompatibilityStatus `yaml:"compatibility_status,omitempty" json:"compatibility_status,omitempty"` //nolint:lll
 }
 
 func (a AIGatewayNodeResource) GetType() ResourceType {

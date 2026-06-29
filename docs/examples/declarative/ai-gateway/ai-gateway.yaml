@@ -42,6 +42,11 @@ ai_gateways:
         hostname: support-ai-node-1
         type: data-plane
         config_version: "2024.06.01"
+    data_plane_certificates:
+      - ref: support-data-plane-cert
+        title: support-data-plane-cert
+        description: "Pinned data plane certificate for support AI traffic"
+        cert: !file ./certs/data-plane.pem
     policies:
       - ref: mask-sensitive-data
         name: mask-sensitive-data

@@ -71,6 +71,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayNodes(rs); err != nil {
 		return err
 	}
+	if err := l.validateAIGatewayDataPlaneCertificates(rs); err != nil {
+		return err
+	}
 
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
@@ -1208,6 +1211,58 @@ func (l *Loader) validateAIGatewayNodes(rs *resources.ResourceSet) error {
 			)
 		}
 		idsByGateway[nodeKey] = node.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayDataPlaneCertificates validates AI Gateway child data plane certificate resources.
+func (l *Loader) validateAIGatewayDataPlaneCertificates(rs *resources.ResourceSet) error {
+	titlesByGateway := make(map[string]string)
+
+	for i := range rs.AIGatewayDataPlaneCertificates {
+		cert := &rs.AIGatewayDataPlaneCertificates[i]
+
+		if err := cert.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_data_plane_certificate %q: %w", cert.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(cert.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayDataPlaneCertificate {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					cert.GetRef(), existing.GetType())
+			}
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(cert.AIGateway)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_data_plane_certificate %q references unknown ai_gateway %q",
+				cert.GetRef(),
+				cert.AIGateway,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"ai_gateway_data_plane_certificate %q references %q which is %s, not ai_gateway",
+				cert.GetRef(),
+				cert.AIGateway,
+				gateway.GetType(),
+			)
+		}
+
+		titleKey := gatewayRef + "\x00" + cert.Title
+		if existingRef, exists := titlesByGateway[titleKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_data_plane_certificate title %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				cert.Title,
+				gatewayRef,
+				cert.GetRef(),
+				existingRef,
+			)
+		}
+		titlesByGateway[titleKey] = cert.GetRef()
 	}
 
 	return nil

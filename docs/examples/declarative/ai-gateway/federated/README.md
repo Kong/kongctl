@@ -3,7 +3,8 @@
 This example shows a federated layout for AI Gateway resources where a central
 AI platform team owns the shared AI Gateway and upstream providers, while a peer
 team owns root-level policies, agents, consumers, consumer groups, models, MCP
-Servers, vaults, and nodes that target the shared gateway.
+Servers, vaults, nodes, and data plane certificates that target the shared
+gateway.
 
 ## Structure
 
@@ -17,6 +18,7 @@ ai-gateway/federated/
     |-- support-agent.yaml
     |-- support-consumer.yaml
     |-- support-consumer-group.yaml
+    |-- support-data-plane-certificate.yaml
     |-- support-mcp-server.yaml
     |-- support-model.yaml
     |-- support-node.yaml
@@ -52,6 +54,9 @@ ai-gateway/federated/
   that references the central gateway with `!ref shared-ai-gateway#id`.
 - `peer-team/support-node.yaml` defines a standalone `ai_gateway_nodes` entry
   that references the central gateway with `!ref shared-ai-gateway#id`.
+- `peer-team/support-data-plane-certificate.yaml` defines a standalone
+  `ai_gateway_data_plane_certificates` entry that references the central
+  gateway with `!ref shared-ai-gateway#id`.
 - `external-peer-team/support-model.yaml` defines an `_external` AI Gateway
   stub and points a standalone model at it with
   `!ref external-shared-ai-gateway#id`.

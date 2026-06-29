@@ -1,0 +1,20 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-data-plane-certificate-e2e
+
+ai_gateways:
+  - ref: ai-gateway-data-plane-certificate-e2e
+    display_name: "AI Gateway Data Plane Certificate E2E"
+    description: "AI Gateway data plane certificate e2e"
+    proxy_urls:
+      - host: ai-gateway-data-plane-certificate-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    data_plane_certificates:
+      - ref: support-data-plane-cert
+        title: support-data-plane-cert
+        description: "Support data plane certificate rotated"
+        cert: !file ./certs/second.pem

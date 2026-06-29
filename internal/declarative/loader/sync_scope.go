@@ -86,6 +86,12 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
+		key:          "ai_gateway_data_plane_certificates",
+		resourceType: resources.ResourceTypeAIGatewayDataPlaneCertificate,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "control_plane_data_plane_certificates",
 		resourceType: resources.ResourceTypeControlPlaneDataPlaneCertificate,
 		parentKey:    "control_plane",
@@ -408,6 +414,11 @@ var aiGatewayChildCollectionScopes = []childCollectionScope{
 		resourceType: resources.ResourceTypeAIGatewayNode,
 		parentType:   resources.ResourceTypeAIGateway,
 	},
+	{
+		key:          "data_plane_certificates",
+		resourceType: resources.ResourceTypeAIGatewayDataPlaneCertificate,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
 }
 
 var eventGatewayChildCollectionScopes = []childCollectionScope{
@@ -547,6 +558,12 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 		}
 		if entry.resourceType == resources.ResourceTypeAIGatewayNode {
 			return fmt.Errorf("%s cannot be empty because each Node must declare an ai_gateway parent", entry.key)
+		}
+		if entry.resourceType == resources.ResourceTypeAIGatewayDataPlaneCertificate {
+			return fmt.Errorf(
+				"%s cannot be empty because each data plane certificate must declare an ai_gateway parent",
+				entry.key,
+			)
 		}
 		scope.AddRootChildCollection(entry.resourceType)
 		return nil

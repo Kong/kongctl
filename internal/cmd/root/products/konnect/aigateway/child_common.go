@@ -60,6 +60,12 @@ const (
 	aiGatewayNodeIDFlagName   = "node-id"
 	aiGatewayNodeIDConfigPath = "konnect.ai-gateway.node.id"
 
+	aiGatewayDataPlaneCertificateIDFlagName    = "data-plane-certificate-id"
+	aiGatewayDataPlaneCertificateTitleFlagName = "data-plane-certificate-title"
+
+	aiGatewayDataPlaneCertificateIDConfigPath    = "konnect.ai-gateway.data-plane-certificate.id"
+	aiGatewayDataPlaneCertificateTitleConfigPath = "konnect.ai-gateway.data-plane-certificate.title"
+
 	aiGatewayMissingValue = "n/a"
 
 	aiGatewayFieldCreatedAt = "created_at"
@@ -369,4 +375,39 @@ func bindAIGatewayNodeFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayNodeIdentifier(cfg config.Hook) string {
 	return cfg.GetString(aiGatewayNodeIDConfigPath)
+}
+
+func addAIGatewayDataPlaneCertificateFlags(c *cobra.Command) {
+	c.Flags().String(aiGatewayDataPlaneCertificateIDFlagName, "",
+		fmt.Sprintf(`The ID of the AI Gateway data plane certificate to retrieve.
+- Config path: [ %s ]`, aiGatewayDataPlaneCertificateIDConfigPath))
+	c.Flags().String(aiGatewayDataPlaneCertificateTitleFlagName, "",
+		fmt.Sprintf(`The title of the AI Gateway data plane certificate to retrieve.
+- Config path: [ %s ]`, aiGatewayDataPlaneCertificateTitleConfigPath))
+	c.MarkFlagsMutuallyExclusive(aiGatewayDataPlaneCertificateIDFlagName, aiGatewayDataPlaneCertificateTitleFlagName)
+}
+
+func bindAIGatewayDataPlaneCertificateFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(aiGatewayDataPlaneCertificateIDFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayDataPlaneCertificateIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	if flag := c.Flags().Lookup(aiGatewayDataPlaneCertificateTitleFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayDataPlaneCertificateTitleConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getAIGatewayDataPlaneCertificateIdentifiers(cfg config.Hook) (id string, title string) {
+	return cfg.GetString(aiGatewayDataPlaneCertificateIDConfigPath),
+		cfg.GetString(aiGatewayDataPlaneCertificateTitleConfigPath)
 }
