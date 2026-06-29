@@ -372,8 +372,8 @@ func aiGatewayDetailView(gateway *kkComps.AIGateway) string {
 	)
 	fmt.Fprintf(&b, "config_hash: %s\n", configHash)
 	fmt.Fprintf(&b, "labels: %s\n", formatLabelPairs(gateway.Labels, missing))
-	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
-	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+	fmt.Fprintf(&b, "%s: %s\n", aiGatewayFieldCreatedAt, createdAt)
+	fmt.Fprintf(&b, "%s: %s\n", aiGatewayFieldUpdatedAt, updatedAt)
 
 	return strings.TrimRight(b.String(), "\n")
 }

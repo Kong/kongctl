@@ -1,0 +1,22 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-node-e2e
+
+ai_gateways:
+  - ref: ai-gateway-node-e2e
+    display_name: "AI Gateway Node E2E"
+    description: "AI Gateway Node e2e"
+    proxy_urls:
+      - host: ai-gateway-node-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    nodes:
+      - ref: support-node
+        id: 3f2b1c9a-8d7e-4f6a-9b0c-1d2e3f4a5b6c
+        version: "3.11.0"
+        hostname: support-node-1
+        type: data-plane
+        config_version: "2024.06.01"

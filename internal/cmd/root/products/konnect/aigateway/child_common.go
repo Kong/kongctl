@@ -57,7 +57,13 @@ const (
 	aiGatewayVaultIDConfigPath   = "konnect.ai-gateway.vault.id"
 	aiGatewayVaultNameConfigPath = "konnect.ai-gateway.vault.name"
 
+	aiGatewayNodeIDFlagName   = "node-id"
+	aiGatewayNodeIDConfigPath = "konnect.ai-gateway.node.id"
+
 	aiGatewayMissingValue = "n/a"
+
+	aiGatewayFieldCreatedAt = "created_at"
+	aiGatewayFieldUpdatedAt = "updated_at"
 
 	aiGatewayHeaderID          = "ID"
 	aiGatewayHeaderName        = "NAME"
@@ -338,4 +344,29 @@ func bindAIGatewayVaultFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayVaultIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(aiGatewayVaultIDConfigPath), cfg.GetString(aiGatewayVaultNameConfigPath)
+}
+
+func addAIGatewayNodeFlags(c *cobra.Command) {
+	c.Flags().String(aiGatewayNodeIDFlagName, "",
+		fmt.Sprintf(`The ID of the AI Gateway Node to retrieve.
+- Config path: [ %s ]`, aiGatewayNodeIDConfigPath))
+}
+
+func bindAIGatewayNodeFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(aiGatewayNodeIDFlagName); flag != nil {
+		if err := cfg.BindFlag(aiGatewayNodeIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getAIGatewayNodeIdentifier(cfg config.Hook) string {
+	return cfg.GetString(aiGatewayNodeIDConfigPath)
 }

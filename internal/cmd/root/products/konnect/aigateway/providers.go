@@ -425,8 +425,8 @@ func aiGatewayProviderToDisplayRecord(provider kkComps.AIGatewayProvider) aiGate
 		Name:             name,
 		Type:             providerType,
 		DisplayName:      displayName,
-		LocalCreatedTime: aiGatewayProviderTimeField(raw, "created_at"),
-		LocalUpdatedTime: aiGatewayProviderTimeField(raw, "updated_at"),
+		LocalCreatedTime: aiGatewayProviderTimeField(raw, aiGatewayFieldCreatedAt),
+		LocalUpdatedTime: aiGatewayProviderTimeField(raw, aiGatewayFieldUpdatedAt),
 	}
 }
 
@@ -446,7 +446,7 @@ func aiGatewayProviderDetailView(provider *kkComps.AIGatewayProvider) string {
 		switch key {
 		case "labels", "managed_by", "config":
 			fmt.Fprintf(&b, "%s: %s\n", key, formatAIGatewayProviderJSONValue(value))
-		case "created_at", "updated_at":
+		case aiGatewayFieldCreatedAt, aiGatewayFieldUpdatedAt:
 			fmt.Fprintf(&b, "%s: %s\n", key, aiGatewayProviderTimeField(raw, key))
 		default:
 			fmt.Fprintf(&b, "%s: %s\n", key, aiGatewayProviderStringFieldFromRaw(raw, key))
@@ -454,7 +454,8 @@ func aiGatewayProviderDetailView(provider *kkComps.AIGatewayProvider) string {
 	}
 
 	for _, key := range []string{
-		"id", "name", "type", "display_name", "labels", "managed_by", "config", "created_at", "updated_at",
+		"id", "name", "type", "display_name", "labels", "managed_by", "config",
+		aiGatewayFieldCreatedAt, aiGatewayFieldUpdatedAt,
 	} {
 		writeProviderField(key)
 	}
