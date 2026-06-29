@@ -68,9 +68,6 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayVaults(rs); err != nil {
 		return err
 	}
-	if err := l.validateAIGatewayNodes(rs); err != nil {
-		return err
-	}
 
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
@@ -1156,58 +1153,6 @@ func (l *Loader) validateAIGatewayVaults(rs *resources.ResourceSet) error {
 			)
 		}
 		namesByGateway[nameKey] = vault.GetRef()
-	}
-
-	return nil
-}
-
-// validateAIGatewayNodes validates AI Gateway child Node resources.
-func (l *Loader) validateAIGatewayNodes(rs *resources.ResourceSet) error {
-	idsByGateway := make(map[string]string)
-
-	for i := range rs.AIGatewayNodes {
-		node := &rs.AIGatewayNodes[i]
-
-		if err := node.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_node %q: %w", node.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(node.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayNode {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					node.GetRef(), existing.GetType())
-			}
-		}
-
-		gatewayRef := resources.NormalizeResourceRef(node.AIGateway)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"ai_gateway_node %q references unknown ai_gateway %q",
-				node.GetRef(),
-				node.AIGateway,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"ai_gateway_node %q references %q which is %s, not ai_gateway",
-				node.GetRef(),
-				node.AIGateway,
-				gateway.GetType(),
-			)
-		}
-
-		nodeKey := gatewayRef + "\x00" + node.ID
-		if existingRef, exists := idsByGateway[nodeKey]; exists {
-			return fmt.Errorf(
-				"duplicate ai_gateway_node id %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				node.ID,
-				gatewayRef,
-				node.GetRef(),
-				existingRef,
-			)
-		}
-		idsByGateway[nodeKey] = node.GetRef()
 	}
 
 	return nil

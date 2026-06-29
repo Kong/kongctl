@@ -204,13 +204,6 @@ func addAIGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceS
 			resources.ResourceTypeAIGatewayVault,
 		)
 	}
-	for _, child := range rs.AIGatewayNodes {
-		scope.AddChild(
-			resources.ResourceTypeAIGateway,
-			resources.NormalizeResourceRef(child.AIGateway),
-			resources.ResourceTypeAIGatewayNode,
-		)
-	}
 }
 
 func addEventGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
