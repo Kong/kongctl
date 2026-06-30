@@ -75,7 +75,9 @@ const (
 	ViewFieldIdentityProviders     = "identity-providers"
 	ViewFieldImplementations       = "implementations"
 	ViewFieldListeners             = "listeners"
+	ViewFieldMCPServers            = "mcp-servers"
 	ViewFieldModels                = "models"
+	ViewFieldNodes                 = "nodes"
 	ViewFieldPages                 = "pages"
 	ViewFieldPlugins               = "plugins"
 	ViewFieldPolicies              = "policies"
@@ -99,6 +101,7 @@ const (
 	ViewFieldUsers                 = "users"
 	ViewFieldVersions              = "versions"
 	ViewFieldVirtualClusters       = "virtual-clusters"
+	ViewFieldVaults                = "vaults"
 )
 
 // View resource selectors used by the Konnect navigator.

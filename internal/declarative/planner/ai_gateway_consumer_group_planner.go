@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -133,7 +134,7 @@ func (p *Planner) planAIGatewayConsumerGroupCreatesForNewGateway(
 		dependsOn = []string{gatewayChangeID}
 	}
 	for _, group := range groups {
-		groupDependsOn := append([]string{}, dependsOn...)
+		groupDependsOn := slices.Clone(dependsOn)
 		for _, dep := range aiGatewayConsumerGroupPolicyCreateDependencies(group, policyCreateDepsByRefOrName) {
 			groupDependsOn = appendDependsOn(groupDependsOn, dep)
 		}

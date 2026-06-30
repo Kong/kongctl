@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -74,6 +75,13 @@ func (a AIGatewayVaultResource) GetParentRef() *ResourceRef {
 	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}
 }
 
+func (a AIGatewayVaultResource) GetReferenceFieldMappings() map[string]string {
+	if a.AIGateway == "" {
+		return nil
+	}
+	return map[string]string{SchemaFieldAIGateway: string(ResourceTypeAIGateway)}
+}
+
 func (a AIGatewayVaultResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway Vault ref: %w", err)
@@ -108,6 +116,7 @@ func (a *AIGatewayVaultResource) SetDefaults() {
 		return
 	}
 
+	// Defaults are best-effort; validation and planning surface malformed payloads through PayloadMap.
 	payload, err := a.PayloadMap()
 	if err != nil {
 		return
@@ -170,6 +179,7 @@ func (a AIGatewayVaultResource) CreateRequest() kkComps.CreateAIGatewayVaultRequ
 }
 
 func (a AIGatewayVaultResource) UpdateRequest() kkComps.UpdateAIGatewayVaultRequest {
+	// UpdateRequest is best-effort for legacy callers; MutablePayloadMap surfaces payload errors to planners.
 	payload, err := a.PayloadMap()
 	if err != nil || len(payload) == 0 {
 		return kkComps.UpdateAIGatewayVaultRequest{}
@@ -255,7 +265,7 @@ func (a *AIGatewayVaultResource) UnmarshalJSON(data []byte) error {
 
 	delete(raw, SchemaFieldRef)
 	delete(raw, SchemaFieldAIGateway)
-	delete(raw, "kongctl")
+	delete(raw, SchemaFieldKongctl)
 
 	payload, err := json.Marshal(raw)
 	if err != nil {
@@ -358,7 +368,7 @@ func AIGatewayVaultResourceFromResponse(
 
 func stripAIGatewayVaultServerFields(payload map[string]any) {
 	delete(payload, aiGatewayVaultFieldID)
-	delete(payload, "created_at")
+	delete(payload, SchemaFieldCreatedAt)
 	delete(payload, aiGatewayVaultFieldUpdatedAt)
 }
 
@@ -390,7 +400,7 @@ func aiGatewayVaultExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 
 	return explainUnionNode(
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("env"), true, true),
 			explainField("config", explainObject(
 				explainField("prefix", explainStringNode("SUPPORT_"), false, true),
@@ -398,40 +408,40 @@ func aiGatewayVaultExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			), true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("konnect"), true, true),
 			explainField("config", explainObject(
 				explainField("config_store_id", explainStringNode("config-store-id"), true, true),
 			), true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("aws"), true, true),
 			explainField("config", explainObject(
 				explainField("region", explainStringNode("us-east-1"), false, true),
 			), true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("gcp"), true, true),
 			explainField("config", explainObject(
 				explainField("project_id", explainStringNode("my-project"), true, true),
 			), true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("azure"), true, true),
 			explainField("config", explainObject(
 				explainField("vault_uri", explainStringNode("https://vault.example.net"), true, true),
 			), true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("conjur"), true, true),
 			explainField("config", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("hcv"), true, true),
 			explainField("config", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
 		)...),

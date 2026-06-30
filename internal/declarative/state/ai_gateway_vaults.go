@@ -34,7 +34,7 @@ func (c *Client) ListAIGatewayVaults(ctx context.Context, gatewayID string) ([]A
 		}
 
 		if resp == nil || resp.ListAIGatewayVaultsResponse == nil {
-			return []AIGatewayVault{}, nil
+			break
 		}
 
 		allData = append(allData, resp.ListAIGatewayVaultsResponse.Data...)

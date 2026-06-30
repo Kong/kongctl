@@ -11,7 +11,7 @@ import (
 func TestShouldUpdateAIGatewayProviderRejectsTypeChange(t *testing.T) {
 	t.Parallel()
 
-	needsUpdate, fields, _ := shouldUpdateAIGatewayProvider(
+	needsUpdate, fields, _, err := shouldUpdateAIGatewayProvider(
 		state.AIGatewayProvider{
 			Type:        "openai",
 			DisplayName: "OpenAI Provider",
@@ -24,8 +24,10 @@ func TestShouldUpdateAIGatewayProviderRejectsTypeChange(t *testing.T) {
 		},
 	)
 
-	require.True(t, needsUpdate)
-	require.Contains(t, fields[FieldError], "changing AI Gateway Provider type")
+	require.Error(t, err)
+	require.False(t, needsUpdate)
+	require.Nil(t, fields)
+	require.Contains(t, err.Error(), "changing AI Gateway Provider type")
 }
 
 func TestAIGatewayProviderConfigChangedIgnoresWriteOnlyValues(t *testing.T) {

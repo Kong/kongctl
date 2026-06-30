@@ -468,8 +468,9 @@ func findAIGatewayProviderByNameOrID(
 ) *kkComps.AIGatewayProvider {
 	lowered := strings.ToLower(strings.TrimSpace(identifier))
 	for i := range providers {
-		id := strings.ToLower(aiGatewayProviderStringField(providers[i], "id"))
-		name := strings.ToLower(aiGatewayProviderStringField(providers[i], "name"))
+		raw := aiGatewayProviderRawMap(providers[i])
+		id := strings.ToLower(aiGatewayProviderStringFieldFromRaw(raw, "id"))
+		name := strings.ToLower(aiGatewayProviderStringFieldFromRaw(raw, "name"))
 		if id == lowered || name == lowered {
 			return &providers[i]
 		}

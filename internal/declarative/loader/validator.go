@@ -744,473 +744,191 @@ func (l *Loader) validateAIGateways(
 	return nil
 }
 
-func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
+type aiGatewayChildResource[T any] interface {
+	*T
+	resources.ResourceWithParent
+}
+
+func validateAIGatewayChildren[T any, P aiGatewayChildResource[T]](
+	rs *resources.ResourceSet,
+	children []T,
+	resourceType resources.ResourceType,
+	resourceLabel string,
+	uniqueFieldLabel string,
+	uniqueValue func(*T) string,
+) error {
 	namesByGateway := make(map[string]string)
-	for i := range rs.AIGatewayProviders {
-		provider := &rs.AIGatewayProviders[i]
-		if err := provider.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_provider %q: %w", provider.GetRef(), err)
+
+	for i := range children {
+		childPtr := &children[i]
+		child := P(childPtr)
+
+		if err := child.Validate(); err != nil {
+			return fmt.Errorf("invalid %s %q: %w", resourceLabel, child.GetRef(), err)
 		}
 
-		if existing, found := rs.GetResourceByRef(provider.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayProvider {
+		if existing, found := rs.GetResourceByRef(child.GetRef()); found {
+			if existing.GetType() != resourceType {
 				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					provider.GetRef(), existing.GetType())
+					child.GetRef(), existing.GetType())
 			}
 		}
 
-		if provider.AIGateway == "" {
-			return fmt.Errorf("ai_gateway_provider %q must specify ai_gateway", provider.GetRef())
+		parentRef := child.GetParentRef()
+		if parentRef == nil || parentRef.Ref == "" {
+			return fmt.Errorf("%s %q must specify ai_gateway", resourceLabel, child.GetRef())
 		}
 
-		gatewayRef := resources.NormalizeResourceRef(provider.AIGateway)
+		gatewayRef := resources.NormalizeResourceRef(parentRef.Ref)
 		gateway, found := rs.GetResourceByRef(gatewayRef)
 		if !found {
 			return fmt.Errorf(
-				"ai_gateway_provider %q references unknown ai_gateway %q",
-				provider.GetRef(),
-				provider.AIGateway,
+				"%s %q references unknown ai_gateway %q",
+				resourceLabel,
+				child.GetRef(),
+				parentRef.Ref,
 			)
 		}
 		if gateway.GetType() != resources.ResourceTypeAIGateway {
 			return fmt.Errorf(
-				"ai_gateway_provider %q references %q which is %s, not ai_gateway",
-				provider.GetRef(),
-				provider.AIGateway,
+				"%s %q references %q which is %s, not ai_gateway",
+				resourceLabel,
+				child.GetRef(),
+				parentRef.Ref,
 				gateway.GetType(),
 			)
 		}
 
-		nameKey := gatewayRef + "\x00" + provider.Name
+		value := uniqueValue(childPtr)
+		nameKey := gatewayRef + "\x00" + value
 		if existingRef, exists := namesByGateway[nameKey]; exists {
 			return fmt.Errorf(
-				"duplicate ai_gateway_provider name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				provider.Name,
+				"duplicate %s %s %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				resourceLabel,
+				uniqueFieldLabel,
+				value,
 				gatewayRef,
-				provider.GetRef(),
+				child.GetRef(),
 				existingRef,
 			)
 		}
-		namesByGateway[nameKey] = provider.GetRef()
+		namesByGateway[nameKey] = child.GetRef()
 	}
 
 	return nil
+}
+
+func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[resources.AIGatewayProviderResource, *resources.AIGatewayProviderResource](
+		rs,
+		rs.AIGatewayProviders,
+		resources.ResourceTypeAIGatewayProvider,
+		"ai_gateway_provider",
+		"name",
+		func(provider *resources.AIGatewayProviderResource) string { return provider.Name },
+	)
 }
 
 // validateAIGatewayPolicies validates AI Gateway child policy resources.
 func (l *Loader) validateAIGatewayPolicies(rs *resources.ResourceSet) error {
-	namesByGateway := make(map[string]string)
-
-	for i := range rs.AIGatewayPolicies {
-		policy := &rs.AIGatewayPolicies[i]
-
-		if err := policy.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_policy %q: %w", policy.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(policy.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayPolicy {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					policy.GetRef(), existing.GetType())
-			}
-		}
-
-		gatewayRef := resources.NormalizeResourceRef(policy.AIGateway)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"ai_gateway_policy %q references unknown ai_gateway %q",
-				policy.GetRef(),
-				policy.AIGateway,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"ai_gateway_policy %q references %q which is %s, not ai_gateway",
-				policy.GetRef(),
-				policy.AIGateway,
-				gateway.GetType(),
-			)
-		}
-
-		nameKey := gatewayRef + "\x00" + policy.Name
-		if existingRef, exists := namesByGateway[nameKey]; exists {
-			return fmt.Errorf(
-				"duplicate ai_gateway_policy name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				policy.Name,
-				gatewayRef,
-				policy.GetRef(),
-				existingRef,
-			)
-		}
-		namesByGateway[nameKey] = policy.GetRef()
-	}
-
-	return nil
+	return validateAIGatewayChildren[resources.AIGatewayPolicyResource, *resources.AIGatewayPolicyResource](
+		rs,
+		rs.AIGatewayPolicies,
+		resources.ResourceTypeAIGatewayPolicy,
+		"ai_gateway_policy",
+		"name",
+		func(policy *resources.AIGatewayPolicyResource) string { return policy.Name },
+	)
 }
 
 // validateAIGatewayAgents validates AI Gateway child Agent resources.
 func (l *Loader) validateAIGatewayAgents(rs *resources.ResourceSet) error {
-	namesByGateway := make(map[string]string)
-
-	for i := range rs.AIGatewayAgents {
-		agent := &rs.AIGatewayAgents[i]
-
-		if err := agent.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_agent %q: %w", agent.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(agent.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayAgent {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					agent.GetRef(), existing.GetType())
-			}
-		}
-
-		gatewayRef := resources.NormalizeResourceRef(agent.AIGateway)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"ai_gateway_agent %q references unknown ai_gateway %q",
-				agent.GetRef(),
-				agent.AIGateway,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"ai_gateway_agent %q references %q which is %s, not ai_gateway",
-				agent.GetRef(),
-				agent.AIGateway,
-				gateway.GetType(),
-			)
-		}
-
-		nameKey := gatewayRef + "\x00" + agent.Name
-		if existingRef, exists := namesByGateway[nameKey]; exists {
-			return fmt.Errorf(
-				"duplicate ai_gateway_agent name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				agent.Name,
-				gatewayRef,
-				agent.GetRef(),
-				existingRef,
-			)
-		}
-		namesByGateway[nameKey] = agent.GetRef()
-	}
-
-	return nil
+	return validateAIGatewayChildren[resources.AIGatewayAgentResource, *resources.AIGatewayAgentResource](
+		rs,
+		rs.AIGatewayAgents,
+		resources.ResourceTypeAIGatewayAgent,
+		"ai_gateway_agent",
+		"name",
+		func(agent *resources.AIGatewayAgentResource) string { return agent.Name },
+	)
 }
 
 // validateAIGatewayConsumers validates AI Gateway child Consumer resources.
 func (l *Loader) validateAIGatewayConsumers(rs *resources.ResourceSet) error {
-	namesByGateway := make(map[string]string)
-
-	for i := range rs.AIGatewayConsumers {
-		consumer := &rs.AIGatewayConsumers[i]
-
-		if err := consumer.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_consumer %q: %w", consumer.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(consumer.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayConsumer {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					consumer.GetRef(), existing.GetType())
-			}
-		}
-
-		gatewayRef := resources.NormalizeResourceRef(consumer.AIGateway)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"ai_gateway_consumer %q references unknown ai_gateway %q",
-				consumer.GetRef(),
-				consumer.AIGateway,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"ai_gateway_consumer %q references %q which is %s, not ai_gateway",
-				consumer.GetRef(),
-				consumer.AIGateway,
-				gateway.GetType(),
-			)
-		}
-
-		nameKey := gatewayRef + "\x00" + consumer.Name
-		if existingRef, exists := namesByGateway[nameKey]; exists {
-			return fmt.Errorf(
-				"duplicate ai_gateway_consumer name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				consumer.Name,
-				gatewayRef,
-				consumer.GetRef(),
-				existingRef,
-			)
-		}
-		namesByGateway[nameKey] = consumer.GetRef()
-	}
-
-	return nil
+	return validateAIGatewayChildren[resources.AIGatewayConsumerResource, *resources.AIGatewayConsumerResource](
+		rs,
+		rs.AIGatewayConsumers,
+		resources.ResourceTypeAIGatewayConsumer,
+		"ai_gateway_consumer",
+		"name",
+		func(consumer *resources.AIGatewayConsumerResource) string { return consumer.Name },
+	)
 }
 
 // validateAIGatewayConsumerGroups validates AI Gateway child Consumer Group resources.
 func (l *Loader) validateAIGatewayConsumerGroups(rs *resources.ResourceSet) error {
-	namesByGateway := make(map[string]string)
-
-	for i := range rs.AIGatewayConsumerGroups {
-		group := &rs.AIGatewayConsumerGroups[i]
-
-		if err := group.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_consumer_group %q: %w", group.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(group.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayConsumerGroup {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					group.GetRef(), existing.GetType())
-			}
-		}
-
-		gatewayRef := resources.NormalizeResourceRef(group.AIGateway)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"ai_gateway_consumer_group %q references unknown ai_gateway %q",
-				group.GetRef(),
-				group.AIGateway,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"ai_gateway_consumer_group %q references %q which is %s, not ai_gateway",
-				group.GetRef(),
-				group.AIGateway,
-				gateway.GetType(),
-			)
-		}
-
-		nameKey := gatewayRef + "\x00" + group.Name
-		if existingRef, exists := namesByGateway[nameKey]; exists {
-			return fmt.Errorf(
-				"duplicate ai_gateway_consumer_group name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				group.Name,
-				gatewayRef,
-				group.GetRef(),
-				existingRef,
-			)
-		}
-		namesByGateway[nameKey] = group.GetRef()
-	}
-
-	return nil
+	return validateAIGatewayChildren[
+		resources.AIGatewayConsumerGroupResource,
+		*resources.AIGatewayConsumerGroupResource,
+	](
+		rs,
+		rs.AIGatewayConsumerGroups,
+		resources.ResourceTypeAIGatewayConsumerGroup,
+		"ai_gateway_consumer_group",
+		"name",
+		func(group *resources.AIGatewayConsumerGroupResource) string { return group.Name },
+	)
 }
 
 // validateAIGatewayModels validates AI Gateway child model resources.
 func (l *Loader) validateAIGatewayModels(rs *resources.ResourceSet) error {
-	modelNamesByGateway := make(map[string]string)
-
-	for i := range rs.AIGatewayModels {
-		model := &rs.AIGatewayModels[i]
-
-		if err := model.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_model %q: %w", model.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(model.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayModel {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					model.GetRef(), existing.GetType())
-			}
-		}
-
-		gatewayRef := resources.NormalizeResourceRef(model.AIGateway)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"ai_gateway_model %q references unknown ai_gateway %q",
-				model.GetRef(),
-				model.AIGateway,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"ai_gateway_model %q references %q which is %s, not ai_gateway",
-				model.GetRef(),
-				model.AIGateway,
-				gateway.GetType(),
-			)
-		}
-
-		nameKey := gatewayRef + "\x00" + model.Name()
-		if existingRef, exists := modelNamesByGateway[nameKey]; exists {
-			return fmt.Errorf(
-				"duplicate ai_gateway_model name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				model.Name(),
-				gatewayRef,
-				model.GetRef(),
-				existingRef,
-			)
-		}
-		modelNamesByGateway[nameKey] = model.GetRef()
-	}
-
-	return nil
+	return validateAIGatewayChildren[resources.AIGatewayModelResource, *resources.AIGatewayModelResource](
+		rs,
+		rs.AIGatewayModels,
+		resources.ResourceTypeAIGatewayModel,
+		"ai_gateway_model",
+		"name",
+		func(model *resources.AIGatewayModelResource) string { return model.Name() },
+	)
 }
 
 // validateAIGatewayMCPServers validates AI Gateway child MCP Server resources.
 func (l *Loader) validateAIGatewayMCPServers(rs *resources.ResourceSet) error {
-	namesByGateway := make(map[string]string)
-
-	for i := range rs.AIGatewayMCPServers {
-		server := &rs.AIGatewayMCPServers[i]
-
-		if err := server.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_mcp_server %q: %w", server.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(server.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayMCPServer {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					server.GetRef(), existing.GetType())
-			}
-		}
-
-		gatewayRef := resources.NormalizeResourceRef(server.AIGateway)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"ai_gateway_mcp_server %q references unknown ai_gateway %q",
-				server.GetRef(),
-				server.AIGateway,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"ai_gateway_mcp_server %q references %q which is %s, not ai_gateway",
-				server.GetRef(),
-				server.AIGateway,
-				gateway.GetType(),
-			)
-		}
-
-		nameKey := gatewayRef + "\x00" + server.Name()
-		if existingRef, exists := namesByGateway[nameKey]; exists {
-			return fmt.Errorf(
-				"duplicate ai_gateway_mcp_server name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				server.Name(),
-				gatewayRef,
-				server.GetRef(),
-				existingRef,
-			)
-		}
-		namesByGateway[nameKey] = server.GetRef()
-	}
-
-	return nil
+	return validateAIGatewayChildren[resources.AIGatewayMCPServerResource, *resources.AIGatewayMCPServerResource](
+		rs,
+		rs.AIGatewayMCPServers,
+		resources.ResourceTypeAIGatewayMCPServer,
+		"ai_gateway_mcp_server",
+		"name",
+		func(server *resources.AIGatewayMCPServerResource) string { return server.Name() },
+	)
 }
 
 // validateAIGatewayVaults validates AI Gateway child Vault resources.
 func (l *Loader) validateAIGatewayVaults(rs *resources.ResourceSet) error {
-	namesByGateway := make(map[string]string)
-
-	for i := range rs.AIGatewayVaults {
-		vault := &rs.AIGatewayVaults[i]
-
-		if err := vault.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_vault %q: %w", vault.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(vault.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayVault {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					vault.GetRef(), existing.GetType())
-			}
-		}
-
-		gatewayRef := resources.NormalizeResourceRef(vault.AIGateway)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"ai_gateway_vault %q references unknown ai_gateway %q",
-				vault.GetRef(),
-				vault.AIGateway,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"ai_gateway_vault %q references %q which is %s, not ai_gateway",
-				vault.GetRef(),
-				vault.AIGateway,
-				gateway.GetType(),
-			)
-		}
-
-		nameKey := gatewayRef + "\x00" + vault.Name()
-		if existingRef, exists := namesByGateway[nameKey]; exists {
-			return fmt.Errorf(
-				"duplicate ai_gateway_vault name %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				vault.Name(),
-				gatewayRef,
-				vault.GetRef(),
-				existingRef,
-			)
-		}
-		namesByGateway[nameKey] = vault.GetRef()
-	}
-
-	return nil
+	return validateAIGatewayChildren[resources.AIGatewayVaultResource, *resources.AIGatewayVaultResource](
+		rs,
+		rs.AIGatewayVaults,
+		resources.ResourceTypeAIGatewayVault,
+		"ai_gateway_vault",
+		"name",
+		func(vault *resources.AIGatewayVaultResource) string { return vault.Name() },
+	)
 }
 
 // validateAIGatewayDataPlaneCertificates validates AI Gateway child data plane certificate resources.
 func (l *Loader) validateAIGatewayDataPlaneCertificates(rs *resources.ResourceSet) error {
-	titlesByGateway := make(map[string]string)
-
-	for i := range rs.AIGatewayDataPlaneCertificates {
-		cert := &rs.AIGatewayDataPlaneCertificates[i]
-
-		if err := cert.Validate(); err != nil {
-			return fmt.Errorf("invalid ai_gateway_data_plane_certificate %q: %w", cert.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(cert.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeAIGatewayDataPlaneCertificate {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					cert.GetRef(), existing.GetType())
-			}
-		}
-
-		gatewayRef := resources.NormalizeResourceRef(cert.AIGateway)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"ai_gateway_data_plane_certificate %q references unknown ai_gateway %q",
-				cert.GetRef(),
-				cert.AIGateway,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"ai_gateway_data_plane_certificate %q references %q which is %s, not ai_gateway",
-				cert.GetRef(),
-				cert.AIGateway,
-				gateway.GetType(),
-			)
-		}
-
-		titleKey := gatewayRef + "\x00" + cert.Title
-		if existingRef, exists := titlesByGateway[titleKey]; exists {
-			return fmt.Errorf(
-				"duplicate ai_gateway_data_plane_certificate title %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
-				cert.Title,
-				gatewayRef,
-				cert.GetRef(),
-				existingRef,
-			)
-		}
-		titlesByGateway[titleKey] = cert.GetRef()
-	}
-
-	return nil
+	return validateAIGatewayChildren[
+		resources.AIGatewayDataPlaneCertificateResource,
+		*resources.AIGatewayDataPlaneCertificateResource,
+	](
+		rs,
+		rs.AIGatewayDataPlaneCertificates,
+		resources.ResourceTypeAIGatewayDataPlaneCertificate,
+		"ai_gateway_data_plane_certificate",
+		"title",
+		func(cert *resources.AIGatewayDataPlaneCertificateResource) string { return cert.Title },
+	)
 }
 
 // validateDashboards validates dashboard resources.

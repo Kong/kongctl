@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/spf13/cobra"
@@ -94,6 +95,9 @@ func adoptAIGateway(
 			}
 		}
 	}
+	if gateway.ID == "" {
+		return nil, fmt.Errorf("AI Gateway %q is missing an ID", gateway.DisplayName)
+	}
 
 	updateReq := kkComps.UpdateAIGatewayRequest{
 		DisplayName: gateway.DisplayName,
@@ -123,7 +127,7 @@ func adoptAIGateway(
 	}
 
 	return &adoptCommon.AdoptResult{
-		ResourceType: "ai_gateway",
+		ResourceType: string(resources.ResourceTypeAIGateway),
 		ID:           updated.ID,
 		Name:         updated.DisplayName,
 		Namespace:    ns,

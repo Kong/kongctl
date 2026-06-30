@@ -72,13 +72,12 @@ func (p *Planner) planAIGatewayProviderChanges(
 			continue
 		}
 
-		needsUpdate, updateFields, changedFields := shouldUpdateAIGatewayProvider(*fullProvider, desiredProvider)
+		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayProvider(*fullProvider, desiredProvider)
+		if err != nil {
+			return err
+		}
 		if !needsUpdate {
 			continue
-		}
-
-		if errMsg, ok := updateFields[FieldError].(string); ok {
-			return fmt.Errorf("%s", errMsg)
 		}
 
 		p.planAIGatewayProviderUpdate(
@@ -217,16 +216,15 @@ func (p *Planner) planAIGatewayProviderDelete(
 func shouldUpdateAIGatewayProvider(
 	current state.AIGatewayProvider,
 	desired resources.AIGatewayProviderResource,
-) (bool, map[string]any, map[string]FieldChange) {
+) (bool, map[string]any, map[string]FieldChange, error) {
 	updateFields := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
 	if current.Type != desired.Type {
-		updateFields[FieldError] = fmt.Sprintf(
+		return false, nil, nil, fmt.Errorf(
 			"changing AI Gateway Provider type from %s to %s is not supported. Please delete and recreate the provider",
 			current.Type, desired.Type,
 		)
-		return true, updateFields, changedFields
 	}
 
 	if current.DisplayName != desired.DisplayName {
@@ -249,11 +247,11 @@ func shouldUpdateAIGatewayProvider(
 	}
 
 	if len(changedFields) == 0 {
-		return false, updateFields, changedFields
+		return false, updateFields, changedFields, nil
 	}
 
 	updateFields = extractAIGatewayProviderFields(desired)
-	return true, updateFields, changedFields
+	return true, updateFields, changedFields, nil
 }
 
 func extractAIGatewayProviderFields(provider resources.AIGatewayProviderResource) map[string]any {

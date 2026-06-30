@@ -377,6 +377,7 @@ func aiGatewayMCPServerDetailView(server kkComps.AIGatewayMCPServer) string {
 	payload := make(map[string]any)
 	data, err := json.Marshal(server)
 	if err == nil {
+		// Detail views are best-effort; leave missing fields as n/a if SDK union data cannot round-trip.
 		_ = json.Unmarshal(data, &payload)
 	}
 
@@ -403,4 +404,45 @@ func aiGatewayMCPServerDetailView(server kkComps.AIGatewayMCPServer) string {
 		fmt.Fprintf(&b, "%s: %s\n", field, formatAIGatewayModelDetailValue(payload[field]))
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func buildAIGatewayMCPServerChildView(servers []kkComps.AIGatewayMCPServer) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(servers))
+	for i := range servers {
+		record := aiGatewayMCPServerToRecord(servers[i])
+		tableRows = append(tableRows, table.Row{
+			record.ID,
+			record.Name,
+			record.DisplayName,
+			record.Type,
+			record.Enabled,
+			record.LocalUpdatedTime,
+		})
+	}
+
+	return tableview.ChildView{
+		Headers: []string{
+			aiGatewayHeaderID,
+			aiGatewayHeaderName,
+			aiGatewayHeaderDisplayName,
+			aiGatewayHeaderType,
+			aiGatewayHeaderEnabled,
+			aiGatewayHeaderUpdated,
+		},
+		Rows: tableRows,
+		DetailRenderer: func(index int) string {
+			if index < 0 || index >= len(servers) {
+				return ""
+			}
+			return aiGatewayMCPServerDetailView(servers[index])
+		},
+		Title:      "AI Gateway MCP Servers",
+		ParentType: common.ViewParentAIGatewayMCPServer,
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(servers) {
+				return nil
+			}
+			return &servers[index]
+		},
+	}
 }
