@@ -6,6 +6,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -45,6 +46,12 @@ const (
 	aiGatewayConsumerGroupIDConfigPath   = "konnect.ai-gateway.consumer-group.id"
 	aiGatewayConsumerGroupNameConfigPath = "konnect.ai-gateway.consumer-group.name"
 
+	aiGatewayModelIDFlagName   = "model-id"
+	aiGatewayModelNameFlagName = "model-name"
+
+	aiGatewayModelIDConfigPath   = "konnect.ai-gateway.model.id"
+	aiGatewayModelNameConfigPath = "konnect.ai-gateway.model.name"
+
 	aiGatewayMCPServerIDFlagName   = "mcp-server-id"
 	aiGatewayMCPServerNameFlagName = "mcp-server-name"
 
@@ -80,276 +87,266 @@ const (
 	aiGatewayHeaderUpdated     = "UPDATED"
 )
 
+type pairedAIGatewayFlags struct {
+	idFlag   string
+	idPath   string
+	idHelp   string
+	nameFlag string
+	namePath string
+	nameHelp string
+}
+
+type flagBinding struct {
+	flag       string
+	configPath string
+}
+
+func addPairedAIGatewayFlags(c *cobra.Command, flags pairedAIGatewayFlags) {
+	c.Flags().String(flags.idFlag, "", fmt.Sprintf(`%s
+- Config path: [ %s ]`, flags.idHelp, flags.idPath))
+	c.Flags().String(flags.nameFlag, "", fmt.Sprintf(`%s
+- Config path: [ %s ]`, flags.nameHelp, flags.namePath))
+	c.MarkFlagsMutuallyExclusive(flags.idFlag, flags.nameFlag)
+}
+
+func bindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
+	if cfg == nil || flags == nil {
+		return nil
+	}
+	if flag := flags.Lookup(flagName); flag != nil {
+		return cfg.BindFlag(configPath, flag)
+	}
+	return nil
+}
+
+func bindAIGatewayFlags(c *cobra.Command, args []string, bindings ...flagBinding) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	for _, binding := range bindings {
+		if err := bindFlag(cfg, c.Flags(), binding.flag, binding.configPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func pairedAIGatewayBindings(flags pairedAIGatewayFlags) []flagBinding {
+	return []flagBinding{
+		{flag: flags.idFlag, configPath: flags.idPath},
+		{flag: flags.nameFlag, configPath: flags.namePath},
+	}
+}
+
+func getPairedAIGatewayIdentifiers(cfg config.Hook, idPath string, namePath string) (id string, name string) {
+	return cfg.GetString(idPath), cfg.GetString(namePath)
+}
+
+var (
+	aiGatewayChildFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayIDFlagName,
+		idPath:   aiGatewayIDConfigPath,
+		idHelp:   "The ID of the AI Gateway that owns the resource.",
+		nameFlag: aiGatewayNameFlagName,
+		namePath: aiGatewayNameConfigPath,
+		nameHelp: "The display name of the AI Gateway that owns the resource.",
+	}
+
+	aiGatewayProviderFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayProviderIDFlagName,
+		idPath:   aiGatewayProviderIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Provider to retrieve.",
+		nameFlag: aiGatewayProviderNameFlagName,
+		namePath: aiGatewayProviderNameConfigPath,
+		nameHelp: "The name of the AI Gateway Provider to retrieve.",
+	}
+
+	aiGatewayPolicyFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayPolicyIDFlagName,
+		idPath:   aiGatewayPolicyIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Policy to retrieve.",
+		nameFlag: aiGatewayPolicyNameFlagName,
+		namePath: aiGatewayPolicyNameConfigPath,
+		nameHelp: "The name of the AI Gateway Policy to retrieve.",
+	}
+
+	aiGatewayAgentFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayAgentIDFlagName,
+		idPath:   aiGatewayAgentIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Agent to retrieve.",
+		nameFlag: aiGatewayAgentNameFlagName,
+		namePath: aiGatewayAgentNameConfigPath,
+		nameHelp: "The name of the AI Gateway Agent to retrieve.",
+	}
+
+	aiGatewayConsumerFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayConsumerIDFlagName,
+		idPath:   aiGatewayConsumerIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Consumer to retrieve.",
+		nameFlag: aiGatewayConsumerNameFlagName,
+		namePath: aiGatewayConsumerNameConfigPath,
+		nameHelp: "The name of the AI Gateway Consumer to retrieve.",
+	}
+
+	aiGatewayConsumerGroupFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayConsumerGroupIDFlagName,
+		idPath:   aiGatewayConsumerGroupIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Consumer Group to retrieve.",
+		nameFlag: aiGatewayConsumerGroupNameFlagName,
+		namePath: aiGatewayConsumerGroupNameConfigPath,
+		nameHelp: "The name of the AI Gateway Consumer Group to retrieve.",
+	}
+
+	aiGatewayModelFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayModelIDFlagName,
+		idPath:   aiGatewayModelIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Model to retrieve.",
+		nameFlag: aiGatewayModelNameFlagName,
+		namePath: aiGatewayModelNameConfigPath,
+		nameHelp: "The name of the AI Gateway Model to retrieve.",
+	}
+
+	aiGatewayMCPServerFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayMCPServerIDFlagName,
+		idPath:   aiGatewayMCPServerIDConfigPath,
+		idHelp:   "The ID of the AI Gateway MCP Server to retrieve.",
+		nameFlag: aiGatewayMCPServerNameFlagName,
+		namePath: aiGatewayMCPServerNameConfigPath,
+		nameHelp: "The name of the AI Gateway MCP Server to retrieve.",
+	}
+
+	aiGatewayVaultFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayVaultIDFlagName,
+		idPath:   aiGatewayVaultIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Vault to retrieve.",
+		nameFlag: aiGatewayVaultNameFlagName,
+		namePath: aiGatewayVaultNameConfigPath,
+		nameHelp: "The name of the AI Gateway Vault to retrieve.",
+	}
+
+	aiGatewayDataPlaneCertificateFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayDataPlaneCertificateIDFlagName,
+		idPath:   aiGatewayDataPlaneCertificateIDConfigPath,
+		idHelp:   "The ID of the AI Gateway data plane certificate to retrieve.",
+		nameFlag: aiGatewayDataPlaneCertificateTitleFlagName,
+		namePath: aiGatewayDataPlaneCertificateTitleConfigPath,
+		nameHelp: "The title of the AI Gateway data plane certificate to retrieve.",
+	}
+)
+
 func addAIGatewayChildFlags(c *cobra.Command) {
-	c.Flags().String(aiGatewayIDFlagName, "",
-		fmt.Sprintf(`The ID of the AI Gateway that owns the resource.
-- Config path: [ %s ]`, aiGatewayIDConfigPath))
-	c.Flags().String(aiGatewayNameFlagName, "",
-		fmt.Sprintf(`The display name of the AI Gateway that owns the resource.
-- Config path: [ %s ]`, aiGatewayNameConfigPath))
-	c.MarkFlagsMutuallyExclusive(aiGatewayIDFlagName, aiGatewayNameFlagName)
+	addPairedAIGatewayFlags(c, aiGatewayChildFlags)
 }
 
 func bindAIGatewayChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	if flag := c.Flags().Lookup(aiGatewayNameFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayNameConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayChildFlags)...)
 }
 
 func getAIGatewayIdentifiers(cfg config.Hook) (id string, name string) {
-	return cfg.GetString(aiGatewayIDConfigPath), cfg.GetString(aiGatewayNameConfigPath)
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayIDConfigPath, aiGatewayNameConfigPath)
 }
 
 func addAIGatewayProviderFlags(c *cobra.Command) {
-	c.Flags().String(aiGatewayProviderIDFlagName, "",
-		fmt.Sprintf(`The ID of the AI Gateway Provider to retrieve.
-- Config path: [ %s ]`, aiGatewayProviderIDConfigPath))
-	c.Flags().String(aiGatewayProviderNameFlagName, "",
-		fmt.Sprintf(`The name of the AI Gateway Provider to retrieve.
-- Config path: [ %s ]`, aiGatewayProviderNameConfigPath))
-	c.MarkFlagsMutuallyExclusive(aiGatewayProviderIDFlagName, aiGatewayProviderNameFlagName)
+	addPairedAIGatewayFlags(c, aiGatewayProviderFlags)
 }
 
 func bindAIGatewayProviderFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayProviderIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayProviderIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	if flag := c.Flags().Lookup(aiGatewayProviderNameFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayProviderNameConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayProviderFlags)...)
 }
 
 func getAIGatewayProviderIdentifiers(cfg config.Hook) (id string, name string) {
-	return cfg.GetString(aiGatewayProviderIDConfigPath), cfg.GetString(aiGatewayProviderNameConfigPath)
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayProviderIDConfigPath, aiGatewayProviderNameConfigPath)
 }
 
 func addAIGatewayPolicyFlags(c *cobra.Command) {
-	c.Flags().String(aiGatewayPolicyIDFlagName, "",
-		fmt.Sprintf(`The ID of the AI Gateway Policy to retrieve.
-- Config path: [ %s ]`, aiGatewayPolicyIDConfigPath))
-	c.Flags().String(aiGatewayPolicyNameFlagName, "",
-		fmt.Sprintf(`The name of the AI Gateway Policy to retrieve.
-- Config path: [ %s ]`, aiGatewayPolicyNameConfigPath))
-	c.MarkFlagsMutuallyExclusive(aiGatewayPolicyIDFlagName, aiGatewayPolicyNameFlagName)
+	addPairedAIGatewayFlags(c, aiGatewayPolicyFlags)
 }
 
 func bindAIGatewayPolicyFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayPolicyIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayPolicyIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	if flag := c.Flags().Lookup(aiGatewayPolicyNameFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayPolicyNameConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayPolicyFlags)...)
 }
 
 func getAIGatewayPolicyIdentifiers(cfg config.Hook) (id string, name string) {
-	return cfg.GetString(aiGatewayPolicyIDConfigPath), cfg.GetString(aiGatewayPolicyNameConfigPath)
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayPolicyIDConfigPath, aiGatewayPolicyNameConfigPath)
 }
 
 func addAIGatewayAgentFlags(c *cobra.Command) {
-	c.Flags().String(aiGatewayAgentIDFlagName, "",
-		fmt.Sprintf(`The ID of the AI Gateway Agent to retrieve.
-- Config path: [ %s ]`, aiGatewayAgentIDConfigPath))
-	c.Flags().String(aiGatewayAgentNameFlagName, "",
-		fmt.Sprintf(`The name of the AI Gateway Agent to retrieve.
-- Config path: [ %s ]`, aiGatewayAgentNameConfigPath))
-	c.MarkFlagsMutuallyExclusive(aiGatewayAgentIDFlagName, aiGatewayAgentNameFlagName)
+	addPairedAIGatewayFlags(c, aiGatewayAgentFlags)
 }
 
 func bindAIGatewayAgentFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayAgentIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayAgentIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	if flag := c.Flags().Lookup(aiGatewayAgentNameFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayAgentNameConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayAgentFlags)...)
 }
 
 func getAIGatewayAgentIdentifiers(cfg config.Hook) (id string, name string) {
-	return cfg.GetString(aiGatewayAgentIDConfigPath), cfg.GetString(aiGatewayAgentNameConfigPath)
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayAgentIDConfigPath, aiGatewayAgentNameConfigPath)
 }
 
 func addAIGatewayConsumerFlags(c *cobra.Command) {
-	c.Flags().String(aiGatewayConsumerIDFlagName, "",
-		fmt.Sprintf(`The ID of the AI Gateway Consumer to retrieve.
-- Config path: [ %s ]`, aiGatewayConsumerIDConfigPath))
-	c.Flags().String(aiGatewayConsumerNameFlagName, "",
-		fmt.Sprintf(`The name of the AI Gateway Consumer to retrieve.
-- Config path: [ %s ]`, aiGatewayConsumerNameConfigPath))
-	c.MarkFlagsMutuallyExclusive(aiGatewayConsumerIDFlagName, aiGatewayConsumerNameFlagName)
+	addPairedAIGatewayFlags(c, aiGatewayConsumerFlags)
 }
 
 func bindAIGatewayConsumerFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayConsumerIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayConsumerIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	if flag := c.Flags().Lookup(aiGatewayConsumerNameFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayConsumerNameConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayConsumerFlags)...)
 }
 
 func getAIGatewayConsumerIdentifiers(cfg config.Hook) (id string, name string) {
-	return cfg.GetString(aiGatewayConsumerIDConfigPath), cfg.GetString(aiGatewayConsumerNameConfigPath)
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayConsumerIDConfigPath, aiGatewayConsumerNameConfigPath)
 }
 
 func addAIGatewayConsumerGroupFlags(c *cobra.Command) {
-	c.Flags().String(aiGatewayConsumerGroupIDFlagName, "",
-		fmt.Sprintf(`The ID of the AI Gateway Consumer Group to retrieve.
-- Config path: [ %s ]`, aiGatewayConsumerGroupIDConfigPath))
-	c.Flags().String(aiGatewayConsumerGroupNameFlagName, "",
-		fmt.Sprintf(`The name of the AI Gateway Consumer Group to retrieve.
-- Config path: [ %s ]`, aiGatewayConsumerGroupNameConfigPath))
-	c.MarkFlagsMutuallyExclusive(aiGatewayConsumerGroupIDFlagName, aiGatewayConsumerGroupNameFlagName)
+	addPairedAIGatewayFlags(c, aiGatewayConsumerGroupFlags)
 }
 
 func bindAIGatewayConsumerGroupFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayConsumerGroupIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayConsumerGroupIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	if flag := c.Flags().Lookup(aiGatewayConsumerGroupNameFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayConsumerGroupNameConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayConsumerGroupFlags)...)
 }
 
 func getAIGatewayConsumerGroupIdentifiers(cfg config.Hook) (id string, name string) {
-	return cfg.GetString(aiGatewayConsumerGroupIDConfigPath), cfg.GetString(aiGatewayConsumerGroupNameConfigPath)
+	return getPairedAIGatewayIdentifiers(
+		cfg,
+		aiGatewayConsumerGroupIDConfigPath,
+		aiGatewayConsumerGroupNameConfigPath,
+	)
+}
+
+func addAIGatewayModelFlags(c *cobra.Command) {
+	addPairedAIGatewayFlags(c, aiGatewayModelFlags)
+}
+
+func bindAIGatewayModelFlags(c *cobra.Command, args []string) error {
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayModelFlags)...)
+}
+
+func getAIGatewayModelIdentifiers(cfg config.Hook) (id string, name string) {
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayModelIDConfigPath, aiGatewayModelNameConfigPath)
 }
 
 func addAIGatewayMCPServerFlags(c *cobra.Command) {
-	c.Flags().String(aiGatewayMCPServerIDFlagName, "",
-		fmt.Sprintf(`The ID of the AI Gateway MCP Server to retrieve.
-- Config path: [ %s ]`, aiGatewayMCPServerIDConfigPath))
-	c.Flags().String(aiGatewayMCPServerNameFlagName, "",
-		fmt.Sprintf(`The name of the AI Gateway MCP Server to retrieve.
-- Config path: [ %s ]`, aiGatewayMCPServerNameConfigPath))
-	c.MarkFlagsMutuallyExclusive(aiGatewayMCPServerIDFlagName, aiGatewayMCPServerNameFlagName)
+	addPairedAIGatewayFlags(c, aiGatewayMCPServerFlags)
 }
 
 func bindAIGatewayMCPServerFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayMCPServerIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayMCPServerIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	if flag := c.Flags().Lookup(aiGatewayMCPServerNameFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayMCPServerNameConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayMCPServerFlags)...)
 }
 
 func getAIGatewayMCPServerIdentifiers(cfg config.Hook) (id string, name string) {
-	return cfg.GetString(aiGatewayMCPServerIDConfigPath), cfg.GetString(aiGatewayMCPServerNameConfigPath)
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayMCPServerIDConfigPath, aiGatewayMCPServerNameConfigPath)
 }
 
 func addAIGatewayVaultFlags(c *cobra.Command) {
-	c.Flags().String(aiGatewayVaultIDFlagName, "",
-		fmt.Sprintf(`The ID of the AI Gateway Vault to retrieve.
-- Config path: [ %s ]`, aiGatewayVaultIDConfigPath))
-	c.Flags().String(aiGatewayVaultNameFlagName, "",
-		fmt.Sprintf(`The name of the AI Gateway Vault to retrieve.
-- Config path: [ %s ]`, aiGatewayVaultNameConfigPath))
-	c.MarkFlagsMutuallyExclusive(aiGatewayVaultIDFlagName, aiGatewayVaultNameFlagName)
+	addPairedAIGatewayFlags(c, aiGatewayVaultFlags)
 }
 
 func bindAIGatewayVaultFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayVaultIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayVaultIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	if flag := c.Flags().Lookup(aiGatewayVaultNameFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayVaultNameConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayVaultFlags)...)
 }
 
 func getAIGatewayVaultIdentifiers(cfg config.Hook) (id string, name string) {
-	return cfg.GetString(aiGatewayVaultIDConfigPath), cfg.GetString(aiGatewayVaultNameConfigPath)
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayVaultIDConfigPath, aiGatewayVaultNameConfigPath)
 }
 
 func addAIGatewayNodeFlags(c *cobra.Command) {
@@ -359,18 +356,10 @@ func addAIGatewayNodeFlags(c *cobra.Command) {
 }
 
 func bindAIGatewayNodeFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayNodeIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayNodeIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, flagBinding{
+		flag:       aiGatewayNodeIDFlagName,
+		configPath: aiGatewayNodeIDConfigPath,
+	})
 }
 
 func getAIGatewayNodeIdentifier(cfg config.Hook) string {
@@ -378,36 +367,17 @@ func getAIGatewayNodeIdentifier(cfg config.Hook) string {
 }
 
 func addAIGatewayDataPlaneCertificateFlags(c *cobra.Command) {
-	c.Flags().String(aiGatewayDataPlaneCertificateIDFlagName, "",
-		fmt.Sprintf(`The ID of the AI Gateway data plane certificate to retrieve.
-- Config path: [ %s ]`, aiGatewayDataPlaneCertificateIDConfigPath))
-	c.Flags().String(aiGatewayDataPlaneCertificateTitleFlagName, "",
-		fmt.Sprintf(`The title of the AI Gateway data plane certificate to retrieve.
-- Config path: [ %s ]`, aiGatewayDataPlaneCertificateTitleConfigPath))
-	c.MarkFlagsMutuallyExclusive(aiGatewayDataPlaneCertificateIDFlagName, aiGatewayDataPlaneCertificateTitleFlagName)
+	addPairedAIGatewayFlags(c, aiGatewayDataPlaneCertificateFlags)
 }
 
 func bindAIGatewayDataPlaneCertificateFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(aiGatewayDataPlaneCertificateIDFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayDataPlaneCertificateIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	if flag := c.Flags().Lookup(aiGatewayDataPlaneCertificateTitleFlagName); flag != nil {
-		if err := cfg.BindFlag(aiGatewayDataPlaneCertificateTitleConfigPath, flag); err != nil {
-			return err
-		}
-	}
-	return nil
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayDataPlaneCertificateFlags)...)
 }
 
 func getAIGatewayDataPlaneCertificateIdentifiers(cfg config.Hook) (id string, title string) {
-	return cfg.GetString(aiGatewayDataPlaneCertificateIDConfigPath),
-		cfg.GetString(aiGatewayDataPlaneCertificateTitleConfigPath)
+	return getPairedAIGatewayIdentifiers(
+		cfg,
+		aiGatewayDataPlaneCertificateIDConfigPath,
+		aiGatewayDataPlaneCertificateTitleConfigPath,
+	)
 }

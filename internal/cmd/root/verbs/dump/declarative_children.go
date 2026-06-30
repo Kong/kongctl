@@ -278,72 +278,56 @@ func populateAIGatewayChildren(
 		policies, err := buildAIGatewayPolicies(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway Policies", gatewayID, gateway.DisplayName, err)
-			continue
-		}
-		if len(policies) > 0 {
+		} else if len(policies) > 0 {
 			gateway.Policies = policies
 		}
 
 		agents, err := buildAIGatewayAgents(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway Agents", gatewayID, gateway.DisplayName, err)
-			continue
-		}
-		if len(agents) > 0 {
+		} else if len(agents) > 0 {
 			gateway.Agents = agents
 		}
 
 		consumers, err := buildAIGatewayConsumers(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway Consumers", gatewayID, gateway.DisplayName, err)
-			continue
-		}
-		if len(consumers) > 0 {
+		} else if len(consumers) > 0 {
 			gateway.Consumers = consumers
 		}
 
 		groups, err := buildAIGatewayConsumerGroups(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway Consumer Groups", gatewayID, gateway.DisplayName, err)
-			continue
-		}
-		if len(groups) > 0 {
+		} else if len(groups) > 0 {
 			gateway.ConsumerGroups = groups
 		}
 
 		models, err := buildAIGatewayModels(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway models", gatewayID, gateway.DisplayName, err)
-			continue
-		}
-		if len(models) > 0 {
+		} else if len(models) > 0 {
 			gateway.Models = models
 		}
 
 		servers, err := buildAIGatewayMCPServers(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway MCP Servers", gatewayID, gateway.DisplayName, err)
-			continue
-		}
-		if len(servers) > 0 {
+		} else if len(servers) > 0 {
 			gateway.MCPServers = servers
 		}
 
 		vaults, err := buildAIGatewayVaults(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway Vaults", gatewayID, gateway.DisplayName, err)
-			continue
-		}
-		if len(vaults) > 0 {
+		} else if len(vaults) > 0 {
 			gateway.Vaults = vaults
 		}
 
 		certs, err := buildAIGatewayDataPlaneCertificates(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway data plane certificates", gatewayID, gateway.DisplayName, err)
-			continue
-		}
-		if len(certs) > 0 {
+		} else if len(certs) > 0 {
 			gateway.DataPlaneCertificates = certs
 		}
 	}
@@ -389,13 +373,13 @@ func buildAIGatewayProviders(
 		}
 
 		results = append(results, declresources.AIGatewayProviderResource{
-			Ref:         ref,
-			Name:        provider.Name,
-			Type:        provider.Type,
-			DisplayName: provider.DisplayName,
-			Labels:      provider.Labels,
-			ManagedBy:   provider.ManagedBy,
-			Config:      provider.Config,
+			BaseResource: declresources.BaseResource{Ref: ref},
+			Name:         provider.Name,
+			Type:         provider.Type,
+			DisplayName:  provider.DisplayName,
+			Labels:       provider.Labels,
+			ManagedBy:    provider.ManagedBy,
+			Config:       provider.Config,
 		})
 	}
 

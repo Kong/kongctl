@@ -11,9 +11,9 @@ func TestAIGatewayProviderResourceValidateRequiresName(t *testing.T) {
 	t.Parallel()
 
 	provider := AIGatewayProviderResource{
-		Ref:         "openai-provider",
-		Type:        "openai",
-		DisplayName: "OpenAI Provider",
+		BaseResource: BaseResource{Ref: "openai-provider"},
+		Type:         "openai",
+		DisplayName:  "OpenAI Provider",
 		Config: map[string]any{
 			"auth": map[string]any{"type": "basic"},
 		},
@@ -28,9 +28,9 @@ func TestAIGatewayProviderResourceParentRef(t *testing.T) {
 	t.Parallel()
 
 	provider := AIGatewayProviderResource{
-		Ref:       "openai-provider",
-		AIGateway: "ai-gateway",
-		Name:      "openai-provider",
+		BaseResource: BaseResource{Ref: "openai-provider"},
+		AIGateway:    "ai-gateway",
+		Name:         "openai-provider",
 	}
 
 	parent := provider.GetParentRef()
@@ -43,9 +43,9 @@ func TestAIGatewayProviderResourceParentRefNormalizesDeferredRef(t *testing.T) {
 	t.Parallel()
 
 	provider := AIGatewayProviderResource{
-		Ref:       "openai-provider",
-		AIGateway: tags.RefPlaceholderPrefix + "ai-gateway#id",
-		Name:      "openai-provider",
+		BaseResource: BaseResource{Ref: "openai-provider"},
+		AIGateway:    tags.RefPlaceholderPrefix + "ai-gateway#id",
+		Name:         "openai-provider",
 	}
 
 	parent := provider.GetParentRef()
