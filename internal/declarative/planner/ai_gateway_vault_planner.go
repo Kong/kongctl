@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"maps"
-	"reflect"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -215,26 +214,50 @@ func shouldUpdateAIGatewayVault(
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway Vault %q: %w", desired.Ref, err)
 	}
 
-	changedFields := make(map[string]FieldChange)
-	keys := make(map[string]struct{}, len(currentPayload)+len(desiredPayload))
-	for key := range currentPayload {
-		keys[key] = struct{}{}
-	}
-	for key := range desiredPayload {
-		keys[key] = struct{}{}
-	}
-	for key := range keys {
-		if !reflect.DeepEqual(currentPayload[key], desiredPayload[key]) {
-			changedFields[key] = FieldChange{Old: currentPayload[key], New: desiredPayload[key]}
-		}
-	}
+	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	currentCompare = scrubAIGatewayVaultWriteOnlyFields(currentCompare).(map[string]any)
+	desiredCompare = scrubAIGatewayVaultWriteOnlyFields(desiredCompare).(map[string]any)
+
+	currentPlanPayload := scrubAIGatewayVaultWriteOnlyFields(currentPayload).(map[string]any)
+	desiredPlanPayload := scrubAIGatewayVaultWriteOnlyFields(desiredPayload).(map[string]any)
+
+	changedFields := diffAIGatewayPayloads(currentPlanPayload, desiredPlanPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {
 		return false, nil, nil, nil
 	}
 
-	updateFields := make(map[string]any, len(desiredPayload))
-	maps.Copy(updateFields, desiredPayload)
-	return true, updateFields, changedFields, nil
+	return true, desiredPlanPayload, changedFields, nil
+}
+
+func scrubAIGatewayVaultWriteOnlyFields(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(typed))
+		for key, val := range typed {
+			if isAIGatewayVaultWriteOnlyField(key) {
+				continue
+			}
+			result[key] = scrubAIGatewayVaultWriteOnlyFields(val)
+		}
+		return result
+	case []any:
+		result := make([]any, len(typed))
+		for i := range typed {
+			result[i] = scrubAIGatewayVaultWriteOnlyFields(typed[i])
+		}
+		return result
+	default:
+		return value
+	}
+}
+
+func isAIGatewayVaultWriteOnlyField(key string) bool {
+	switch strings.ToLower(key) {
+	case "api_key", "client_secret", "key", "secret_access_key", "secret_id", "token":
+		return true
+	default:
+		return false
+	}
 }
 
 func indexAIGatewayVaults(
