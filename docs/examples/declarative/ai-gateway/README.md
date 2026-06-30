@@ -7,6 +7,10 @@ Gateway resources.
   a nested OpenAI provider, env vault, data plane certificate, policy,
   consumer, agent, consumer group, model that targets that provider, and a
   conversion-only MCP Server.
+- [ai-gateway-remote.yaml](ai-gateway-remote.yaml) is the same full example
+  with the data plane certificate PEM inlined, so it can be loaded directly
+  from a remote URL with `-f https://...` and does not require any sibling
+  files.
 - [data-plane-certificates.yaml](data-plane-certificates.yaml) defines AI
   Gateway data plane certificates using both nested
   `data_plane_certificates` and root-level
