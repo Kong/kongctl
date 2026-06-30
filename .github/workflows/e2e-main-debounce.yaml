@@ -73,6 +73,7 @@ jobs:
             done
 
           gh workflow run e2e.yaml \
+            --repo "${GITHUB_REPOSITORY}" \
             --ref "${GITHUB_REF_NAME}" \
             -f dispatch_source=main-debounce \
             -f main_sha="${latest_main_sha}"
