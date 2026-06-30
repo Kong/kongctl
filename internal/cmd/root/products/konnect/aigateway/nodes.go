@@ -411,6 +411,7 @@ func aiGatewayNodeDetailView(node kkComps.AIGatewayDataPlaneNode) string {
 	payload := make(map[string]any)
 	data, err := json.Marshal(node)
 	if err == nil {
+		// Detail views are best-effort; leave missing fields as n/a if SDK union data cannot round-trip.
 		_ = json.Unmarshal(data, &payload)
 	}
 
@@ -432,4 +433,47 @@ func aiGatewayNodeDetailView(node kkComps.AIGatewayDataPlaneNode) string {
 		fmt.Fprintf(&b, "%s: %s\n", field, formatAIGatewayModelDetailValue(payload[field]))
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func buildAIGatewayNodeChildView(nodes []kkComps.AIGatewayDataPlaneNode) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(nodes))
+	for i := range nodes {
+		record := aiGatewayNodeToRecord(nodes[i])
+		tableRows = append(tableRows, table.Row{
+			record.ID,
+			record.Hostname,
+			record.Type,
+			record.Version,
+			record.ConfigVersion,
+			record.State,
+			record.LocalUpdatedTime,
+		})
+	}
+
+	return tableview.ChildView{
+		Headers: []string{
+			aiGatewayHeaderID,
+			"HOSTNAME",
+			aiGatewayHeaderType,
+			"VERSION",
+			"CONFIG",
+			"STATE",
+			aiGatewayHeaderUpdated,
+		},
+		Rows: tableRows,
+		DetailRenderer: func(index int) string {
+			if index < 0 || index >= len(nodes) {
+				return ""
+			}
+			return aiGatewayNodeDetailView(nodes[index])
+		},
+		Title:      "AI Gateway Nodes",
+		ParentType: common.ViewParentAIGatewayNode,
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(nodes) {
+				return nil
+			}
+			return &nodes[index]
+		},
+	}
 }

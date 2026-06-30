@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -136,7 +137,7 @@ func (p *Planner) planAIGatewayModelCreatesForNewGateway(
 		dependsOn = []string{gatewayChangeID}
 	}
 	for _, model := range models {
-		modelDependsOn := append([]string{}, dependsOn...)
+		modelDependsOn := slices.Clone(dependsOn)
 		for _, dep := range aiGatewayModelCreateDependencies(model, providerCreateDepsByName, policyCreateDepsByName) {
 			modelDependsOn = appendDependsOn(modelDependsOn, dep)
 		}

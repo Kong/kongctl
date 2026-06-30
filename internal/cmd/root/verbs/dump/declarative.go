@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -838,11 +837,11 @@ func collectDeclarativeAIGateways(
 		return r.DisplayName, r.Ref
 	})
 
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].DisplayName == results[j].DisplayName {
-			return results[i].Ref < results[j].Ref
+	slices.SortFunc(results, func(a, b declresources.AIGatewayResource) int {
+		if a.DisplayName == b.DisplayName {
+			return cmp.Compare(a.Ref, b.Ref)
 		}
-		return results[i].DisplayName < results[j].DisplayName
+		return cmp.Compare(a.DisplayName, b.DisplayName)
 	})
 
 	return results, nil
@@ -1134,6 +1133,7 @@ func collectDeclarativeAIGatewayDataPlaneCertificates(
 	for _, gateway := range gateways {
 		gatewayCerts, err := buildAIGatewayDataPlaneCertificates(
 			ctx,
+			nil,
 			client,
 			gateway.Ref,
 			gateway.DisplayName,
