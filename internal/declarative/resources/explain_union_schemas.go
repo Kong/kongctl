@@ -731,7 +731,6 @@ func portalIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, err
 		explainResourceRefField(),
 		explainRefField(SchemaFieldPortal, ResourceTypePortal, false),
 		explainField("enabled", explainBoolNode("false"), false, false),
-		explainField("login_path", explainStringNode("/login"), false, false),
 	}
 	oidcBranch := explainObject(append(
 		common,

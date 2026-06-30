@@ -205,6 +205,40 @@ func TestShouldUpdateConsumePolicy_TypeChanged(t *testing.T) {
 	assert.Equal(t, "schema_validation", changedFields[FieldType].New)
 }
 
+func TestShouldUpdateConsumePolicy_IgnoresUnresolvedParentPolicyPlaceholder(t *testing.T) {
+	desired := consumePolicyResourceFromJSON(t, `{
+		"ref": "decrypt-fields",
+		"type": "decrypt_fields",
+		"name": "decrypt-fields",
+		"parent_policy_id": "__REF__:schema-validation#id",
+		"config": {
+			"failure_mode": "error",
+			"key_sources": [],
+			"decrypt_fields": {
+				"paths": "record.value.content.customer.ssn"
+			}
+		}
+	}`)
+	p := &Planner{}
+	current := state.EventGatewayConsumePolicyInfo{
+		EventGatewayPolicy: kkComps.EventGatewayPolicy{
+			ID:             "decrypt-fields-id",
+			Name:           new("decrypt-fields"),
+			Enabled:        new(true),
+			Type:           "decrypt_fields",
+			ParentPolicyID: new("schema-validation-id"),
+		},
+		NormalizedLabels: map[string]string{},
+		RawConfig:        p.extractConsumePolicyConfig(desired),
+	}
+
+	needsUpdate, updateFields, changedFields := p.shouldUpdateConsumePolicy(current, desired)
+
+	assert.False(t, needsUpdate)
+	assert.Nil(t, updateFields)
+	assert.Empty(t, changedFields)
+}
+
 func TestConsumePolicyToFieldsDecryptFields(t *testing.T) {
 	policy := consumePolicyResourceFromJSON(t, `{
 		"ref": "decrypt-fields",

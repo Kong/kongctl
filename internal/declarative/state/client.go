@@ -3388,12 +3388,6 @@ func (c *Client) UpdatePortalIdentityProvider(
 func portalUpdateIdentityProviderFromUpdate(
 	body kkComps.UpdateIdentityProvider,
 ) (kkComps.PortalUpdateIdentityProvider, error) {
-	if body.LoginPath != nil {
-		return kkComps.PortalUpdateIdentityProvider{}, fmt.Errorf(
-			"login_path is not supported for portal identity provider update requests",
-		)
-	}
-
 	converted := kkComps.PortalUpdateIdentityProvider{Enabled: body.Enabled}
 	if body.Config == nil {
 		return converted, nil
@@ -3492,6 +3486,9 @@ func normalizePortalIdentityProviderConfig(
 		convertedSAML := kkComps.SAMLIdentityProviderConfig{
 			IdpMetadataURL: config.PortalSAMLIdentityProviderConfig.IdpMetadataURL,
 			IdpMetadataXML: config.PortalSAMLIdentityProviderConfig.IdpMetadataXML,
+			SpMetadataURL:  config.PortalSAMLIdentityProviderConfig.SpMetadataURL,
+			SpEntityID:     config.PortalSAMLIdentityProviderConfig.SpEntityID,
+			CallbackURL:    config.PortalSAMLIdentityProviderConfig.CallbackURL,
 		}
 		converted := kkComps.CreateIdentityProviderConfigSAMLIdentityProviderConfig(convertedSAML)
 		return &converted

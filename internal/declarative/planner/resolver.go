@@ -347,24 +347,26 @@ func (r *ReferenceResolver) getEventGatewayChildResourceByTypeAndRef(
 			}
 		case ResourceTypeEventGatewayProducePolicy:
 			for _, virtualCluster := range gateway.VirtualClusters {
-				for _, policy := range virtualCluster.ProducePolicies {
-					if policy.Ref == ref {
-						policyCopy := policy
-						policyCopy.EventGateway = gateway.Ref
-						policyCopy.VirtualCluster = virtualCluster.Ref
-						return &policyCopy, true
-					}
+				resource, ok := eventGatewayProducePolicyByRef(
+					virtualCluster.ProducePolicies,
+					ref,
+					gateway.Ref,
+					virtualCluster.Ref,
+				)
+				if ok {
+					return resource, true
 				}
 			}
 		case ResourceTypeEventGatewayConsumePolicy:
 			for _, virtualCluster := range gateway.VirtualClusters {
-				for _, policy := range virtualCluster.ConsumePolicies {
-					if policy.Ref == ref {
-						policyCopy := policy
-						policyCopy.EventGateway = gateway.Ref
-						policyCopy.VirtualCluster = virtualCluster.Ref
-						return &policyCopy, true
-					}
+				resource, ok := eventGatewayConsumePolicyByRef(
+					virtualCluster.ConsumePolicies,
+					ref,
+					gateway.Ref,
+					virtualCluster.Ref,
+				)
+				if ok {
+					return resource, true
 				}
 			}
 		}
@@ -372,22 +374,62 @@ func (r *ReferenceResolver) getEventGatewayChildResourceByTypeAndRef(
 	for _, virtualCluster := range r.resources.EventGatewayVirtualClusters {
 		switch resourceType {
 		case ResourceTypeEventGatewayProducePolicy:
-			for _, policy := range virtualCluster.ProducePolicies {
-				if policy.Ref == ref {
-					policyCopy := policy
-					policyCopy.VirtualCluster = virtualCluster.Ref
-					return &policyCopy, true
-				}
+			resource, ok := eventGatewayProducePolicyByRef(
+				virtualCluster.ProducePolicies,
+				ref,
+				virtualCluster.EventGateway,
+				virtualCluster.Ref,
+			)
+			if ok {
+				return resource, true
 			}
 		case ResourceTypeEventGatewayConsumePolicy:
-			for _, policy := range virtualCluster.ConsumePolicies {
-				if policy.Ref == ref {
-					policyCopy := policy
-					policyCopy.VirtualCluster = virtualCluster.Ref
-					return &policyCopy, true
-				}
+			resource, ok := eventGatewayConsumePolicyByRef(
+				virtualCluster.ConsumePolicies,
+				ref,
+				virtualCluster.EventGateway,
+				virtualCluster.Ref,
+			)
+			if ok {
+				return resource, true
 			}
 		}
+	}
+	return nil, false
+}
+
+func eventGatewayProducePolicyByRef(
+	policies []resources.EventGatewayProducePolicyResource,
+	ref string,
+	gatewayRef string,
+	virtualClusterRef string,
+) (resources.Resource, bool) {
+	for _, policy := range policies {
+		if policy.Ref != ref {
+			continue
+		}
+		policyCopy := policy
+		policyCopy.EventGateway = gatewayRef
+		policyCopy.VirtualCluster = virtualClusterRef
+		return &policyCopy, true
+	}
+	return nil, false
+}
+
+func eventGatewayConsumePolicyByRef(
+	policies []resources.EventGatewayConsumePolicyResource,
+	ref string,
+	gatewayRef string,
+	virtualClusterRef string,
+) (resources.Resource, bool) {
+	for _, policy := range policies {
+		if policy.Ref != ref {
+			continue
+		}
+		policyCopy := policy
+		policyCopy.EventGateway = gatewayRef
+		policyCopy.VirtualCluster = virtualClusterRef
+		return &policyCopy, true
 	}
 	return nil, false
 }

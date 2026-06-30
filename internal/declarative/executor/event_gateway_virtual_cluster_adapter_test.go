@@ -285,6 +285,20 @@ func TestBuildVirtualClusterTopicAliasesTreatsEmptyConflictAsUnset(t *testing.T)
 	require.Nil(t, aliases[0].Conflict)
 }
 
+func TestBuildVirtualClusterTopicAliasesTreatsEmptyConditionAsUnset(t *testing.T) {
+	aliases, err := buildVirtualClusterTopicAliases([]any{
+		map[string]any{
+			"alias":     "public-orders",
+			"topic":     "tenant-a.orders",
+			"condition": "",
+		},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, aliases, 1)
+	require.Nil(t, aliases[0].Condition)
+}
+
 func TestBuildVirtualClusterTopicAliasesRejectsInvalidConflict(t *testing.T) {
 	_, err := buildVirtualClusterTopicAliases([]any{
 		map[string]any{

@@ -200,6 +200,36 @@ func TestShouldUpdateProducePolicy_SchemaValidationConfigChanged(t *testing.T) {
 	assert.NotContains(t, changedFields, "enabled")
 }
 
+func TestShouldUpdateProducePolicy_IgnoresUnresolvedParentPolicyPlaceholder(t *testing.T) {
+	desired := producePolicyResourceFromJSON(t, `{
+		"ref": "encrypt-fields",
+		"type": "encrypt_fields",
+		"name": "encrypt-fields",
+		"parent_policy_id": "__REF__:schema-validation#id",
+		"config": {
+			"failure_mode": "reject",
+			"encrypt_fields": []
+		}
+	}`)
+	p := newTestPlanner()
+	current := state.EventGatewayVirtualClusterProducePolicyInfo{
+		EventGatewayPolicy: kkComps.EventGatewayPolicy{
+			ID:             "encrypt-fields-id",
+			Name:           new("encrypt-fields"),
+			Enabled:        new(true),
+			Type:           "encrypt_fields",
+			ParentPolicyID: new("schema-validation-id"),
+		},
+		RawConfig: p.extractProducePolicyConfig(desired),
+	}
+
+	needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desired)
+
+	assert.False(t, needsUpdate)
+	assert.Nil(t, updateFields)
+	assert.Empty(t, changedFields)
+}
+
 func TestProducePolicyToFieldsEncryptFields(t *testing.T) {
 	policy := producePolicyResourceFromJSON(t, `{
 		"ref": "encrypt-fields",

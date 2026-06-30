@@ -154,12 +154,6 @@ func (p *PortalIdentityProviderAPIImpl) DeletePortalIdentityProvider(
 func createPortalIdentityProviderRequest(
 	request kkComps.CreateIdentityProvider,
 ) (kkComps.PortalCreateIdentityProvider, error) {
-	if request.LoginPath != nil {
-		return kkComps.PortalCreateIdentityProvider{}, fmt.Errorf(
-			"login_path is not supported for portal identity provider create requests",
-		)
-	}
-
 	converted := kkComps.PortalCreateIdentityProvider{
 		Enabled: request.Enabled,
 		Type:    request.Type,

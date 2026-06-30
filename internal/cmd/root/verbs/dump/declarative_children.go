@@ -941,9 +941,8 @@ func buildPortalIdentityProviders(
 		providerRes := declresources.PortalIdentityProviderResource{
 			Ref: buildChildRef("portal-identity-provider", provider.ID),
 			CreateIdentityProvider: kkComps.CreateIdentityProvider{
-				Type:      provider.Type.ToPointer(),
-				Enabled:   provider.Enabled,
-				LoginPath: provider.LoginPath,
+				Type:    provider.Type.ToPointer(),
+				Enabled: provider.Enabled,
 			},
 		}
 

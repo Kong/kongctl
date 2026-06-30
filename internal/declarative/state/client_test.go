@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -12,6 +11,8 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // testContextWithLogger returns a context with a test logger
@@ -20,16 +21,16 @@ func testContextWithLogger() context.Context {
 	return context.WithValue(context.Background(), log.LoggerKey, logger)
 }
 
-func TestPortalUpdateIdentityProviderFromUpdateRejectsLoginPath(t *testing.T) {
+func TestPortalUpdateIdentityProviderFromUpdateOmitsLoginPath(t *testing.T) {
 	t.Parallel()
 
 	loginPath := "oidc-login"
-	_, err := portalUpdateIdentityProviderFromUpdate(kkComps.UpdateIdentityProvider{LoginPath: &loginPath})
-	if err == nil {
-		t.Fatal("expected login_path error")
+	converted, err := portalUpdateIdentityProviderFromUpdate(kkComps.UpdateIdentityProvider{LoginPath: &loginPath})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "login_path") {
-		t.Fatalf("expected login_path error, got %v", err)
+	if converted.Config != nil {
+		t.Fatalf("expected empty update body, got %#v", converted)
 	}
 }
 
@@ -109,6 +110,35 @@ func TestListPortalIdentityProvidersHandlesNilResponse(t *testing.T) {
 	if providers != nil {
 		t.Fatalf("expected nil providers for nil response, got %#v", providers)
 	}
+}
+
+func TestNormalizePortalIdentityProviderConfigPreservesPortalSAMLFields(t *testing.T) {
+	t.Parallel()
+
+	idpMetadataURL := "https://idp.example.test/metadata"
+	idpMetadataXML := "<xml />"
+	spMetadataURL := "/api/v2/developer/authenticate/saml/metadata"
+	spEntityID := "https://cloud.konghq.com/sp/00000000-0000-0000-0000-000000000000"
+	callbackURL := "/api/v2/developer/authenticate/saml/acs"
+	input := kkComps.CreatePortalIdentityProviderConfigPortalSAMLIdentityProviderConfig(
+		kkComps.PortalSAMLIdentityProviderConfig{
+			IdpMetadataURL: &idpMetadataURL,
+			IdpMetadataXML: &idpMetadataXML,
+			SpMetadataURL:  &spMetadataURL,
+			SpEntityID:     &spEntityID,
+			CallbackURL:    &callbackURL,
+		},
+	)
+
+	normalized := normalizePortalIdentityProviderConfig(&input)
+
+	require.NotNil(t, normalized)
+	require.NotNil(t, normalized.SAMLIdentityProviderConfig)
+	assert.Equal(t, &idpMetadataURL, normalized.SAMLIdentityProviderConfig.IdpMetadataURL)
+	assert.Equal(t, &idpMetadataXML, normalized.SAMLIdentityProviderConfig.IdpMetadataXML)
+	assert.Equal(t, &spMetadataURL, normalized.SAMLIdentityProviderConfig.SpMetadataURL)
+	assert.Equal(t, &spEntityID, normalized.SAMLIdentityProviderConfig.SpEntityID)
+	assert.Equal(t, &callbackURL, normalized.SAMLIdentityProviderConfig.CallbackURL)
 }
 
 // mockPortalAPI implements helpers.PortalAPI for testing

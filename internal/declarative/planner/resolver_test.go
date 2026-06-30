@@ -780,6 +780,52 @@ func TestResolveReferences_EventGatewayConsumePolicyParentPolicyCreatedInPlan(t 
 	assert.Equal(t, declresources.UnknownReferenceID, parentRef.ID)
 }
 
+func TestGetEventGatewayChildResourceByTypeAndRefTopLevelVirtualClusterSetsProducePolicyRefs(t *testing.T) {
+	resolver := NewReferenceResolver(nil, &declresources.ResourceSet{
+		EventGatewayVirtualClusters: []declresources.EventGatewayVirtualClusterResource{{
+			Ref:          "virtual-cluster",
+			EventGateway: "event-gateway",
+			ProducePolicies: []declresources.EventGatewayProducePolicyResource{{
+				Ref: "produce-policy",
+			}},
+		}},
+	})
+
+	resource, ok := resolver.getEventGatewayChildResourceByTypeAndRef(
+		ResourceTypeEventGatewayProducePolicy,
+		"produce-policy",
+	)
+
+	require.True(t, ok)
+	policy, ok := resource.(*declresources.EventGatewayProducePolicyResource)
+	require.True(t, ok)
+	assert.Equal(t, "event-gateway", policy.EventGateway)
+	assert.Equal(t, "virtual-cluster", policy.VirtualCluster)
+}
+
+func TestGetEventGatewayChildResourceByTypeAndRefTopLevelVirtualClusterSetsConsumePolicyRefs(t *testing.T) {
+	resolver := NewReferenceResolver(nil, &declresources.ResourceSet{
+		EventGatewayVirtualClusters: []declresources.EventGatewayVirtualClusterResource{{
+			Ref:          "virtual-cluster",
+			EventGateway: "event-gateway",
+			ConsumePolicies: []declresources.EventGatewayConsumePolicyResource{{
+				Ref: "consume-policy",
+			}},
+		}},
+	})
+
+	resource, ok := resolver.getEventGatewayChildResourceByTypeAndRef(
+		ResourceTypeEventGatewayConsumePolicy,
+		"consume-policy",
+	)
+
+	require.True(t, ok)
+	policy, ok := resource.(*declresources.EventGatewayConsumePolicyResource)
+	require.True(t, ok)
+	assert.Equal(t, "event-gateway", policy.EventGateway)
+	assert.Equal(t, "virtual-cluster", policy.VirtualCluster)
+}
+
 func TestResolveReferences_EventGatewayProducePolicyNestedSchemaRegistryReferenceExistingNestedResource(t *testing.T) {
 	ctx := context.Background()
 	mockCPAPI := helpers.NewMockControlPlaneAPI(t)

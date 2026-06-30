@@ -609,7 +609,7 @@ func (p *Planner) shouldUpdateConsumePolicy(
 	}
 
 	desiredParentPolicyID := consumePolicyParentPolicyID(desired)
-	if desiredParentPolicyID != "" {
+	if desiredParentPolicyID != "" && !tags.IsRefPlaceholder(desiredParentPolicyID) {
 		currentParentPolicyID := ""
 		if current.ParentPolicyID != nil {
 			currentParentPolicyID = *current.ParentPolicyID

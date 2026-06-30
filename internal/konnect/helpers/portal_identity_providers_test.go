@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
@@ -111,21 +110,32 @@ func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderStripsEnabledF
 	}
 }
 
-func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderRejectsLoginPath(t *testing.T) {
+func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderOmitsLoginPath(t *testing.T) {
 	t.Parallel()
 
-	api := &PortalIdentityProviderAPIImpl{SDK: kkSDK.New()}
+	client := &portalIdentityProviderCapturingClient{t: t}
+	api := &PortalIdentityProviderAPIImpl{
+		SDK:        kkSDK.New(),
+		BaseURL:    "https://example.test",
+		Token:      "test-token",
+		HTTPClient: client,
+	}
 	loginPath := "oidc-login"
 
 	_, err := api.CreatePortalIdentityProvider(context.Background(), "portal-123", kkComps.CreateIdentityProvider{
 		Type:      kkComps.IdentityProviderTypeOidc.ToPointer(),
 		LoginPath: &loginPath,
 	})
-	if err == nil {
-		t.Fatal("expected login_path error")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "login_path") {
-		t.Fatalf("expected login_path error, got %v", err)
+
+	var requestBody map[string]any
+	if err := json.Unmarshal(client.requestBody, &requestBody); err != nil {
+		t.Fatalf("failed to decode request body: %v", err)
+	}
+	if _, ok := requestBody["login_path"]; ok {
+		t.Fatalf("expected login_path to be omitted from portal create body, got %v", requestBody["login_path"])
 	}
 }
 

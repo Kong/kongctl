@@ -868,7 +868,9 @@ func buildVirtualClusterTopicAliases(field any) ([]kkComps.VirtualClusterTopicAl
 			if !ok {
 				return nil, fmt.Errorf("topic_aliases[%d].condition must be a string", i)
 			}
-			topicAlias.Condition = &condition
+			if condition != "" {
+				topicAlias.Condition = &condition
+			}
 		}
 
 		if conflictValue, ok := aliasMap["conflict"]; ok && conflictValue != nil {
@@ -876,13 +878,12 @@ func buildVirtualClusterTopicAliases(field any) ([]kkComps.VirtualClusterTopicAl
 			if !ok {
 				return nil, fmt.Errorf("topic_aliases[%d].conflict must be a string", i)
 			}
-			if conflict != "" {
-				conflictEnum := kkComps.VirtualClusterTopicAliasConflict(conflict)
-				if !conflictEnum.ToPointer().IsExact() {
-					return nil, fmt.Errorf("topic_aliases[%d].conflict must be one of: warn, ignore", i)
-				}
-				topicAlias.Conflict = &conflictEnum
+			conflictEnum := kkComps.VirtualClusterTopicAliasConflict(conflict)
+			normalizedConflict, err := normalizeVirtualClusterTopicAliasConflict(i, &conflictEnum)
+			if err != nil {
+				return nil, err
 			}
+			topicAlias.Conflict = normalizedConflict
 		}
 
 		result = append(result, topicAlias)
@@ -898,19 +899,27 @@ func normalizeVirtualClusterTopicAliases(
 	copy(result, aliases)
 
 	for i := range result {
-		if result[i].Conflict == nil {
-			continue
+		normalizedConflict, err := normalizeVirtualClusterTopicAliasConflict(i, result[i].Conflict)
+		if err != nil {
+			return nil, err
 		}
-		if *result[i].Conflict == "" {
-			result[i].Conflict = nil
-			continue
-		}
-		if !result[i].Conflict.IsExact() {
-			return nil, fmt.Errorf("topic_aliases[%d].conflict must be one of: warn, ignore", i)
-		}
+		result[i].Conflict = normalizedConflict
 	}
 
 	return result, nil
+}
+
+func normalizeVirtualClusterTopicAliasConflict(
+	index int,
+	conflict *kkComps.VirtualClusterTopicAliasConflict,
+) (*kkComps.VirtualClusterTopicAliasConflict, error) {
+	if conflict == nil || *conflict == "" {
+		return nil, nil
+	}
+	if !conflict.IsExact() {
+		return nil, fmt.Errorf("topic_aliases[%d].conflict must be one of: warn, ignore", index)
+	}
+	return conflict, nil
 }
 
 // convertToVirtualClusterSensitiveDataAwareAuth converts VirtualClusterAuthenticationScheme

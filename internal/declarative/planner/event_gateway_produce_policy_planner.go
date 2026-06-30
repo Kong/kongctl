@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -562,31 +563,11 @@ func (p *Planner) producePolicyToFields(policy resources.EventGatewayProducePoli
 	}
 
 	// Explicitly add labels from the active variant (mirrors clusterPolicyToFields).
-	if lbl := extractProducePolicyVariantLabels(policy); lbl != nil {
+	if lbl := p.extractProducePolicyLabels(policy); lbl != nil {
 		fields[FieldLabels] = lbl
 	}
 
 	return fields
-}
-
-// extractProducePolicyVariantLabels extracts labels from whichever union variant is set.
-func extractProducePolicyVariantLabels(policy resources.EventGatewayProducePolicyResource) map[string]string {
-	if policy.EventGatewayModifyHeadersPolicyCreate != nil &&
-		policy.EventGatewayModifyHeadersPolicyCreate.Labels != nil {
-		return policy.EventGatewayModifyHeadersPolicyCreate.Labels
-	}
-	if policy.EventGatewayProduceSchemaValidationPolicy != nil &&
-		policy.EventGatewayProduceSchemaValidationPolicy.Labels != nil {
-		return policy.EventGatewayProduceSchemaValidationPolicy.Labels
-	}
-	if policy.EventGatewayEncryptPolicy != nil && policy.EventGatewayEncryptPolicy.Labels != nil {
-		return policy.EventGatewayEncryptPolicy.Labels
-	}
-	if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil &&
-		policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Labels != nil {
-		return policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Labels
-	}
-	return nil
 }
 
 func producePolicyType(policy resources.EventGatewayProducePolicyResource) string {
@@ -638,23 +619,14 @@ func (p *Planner) shouldUpdateProducePolicy(
 
 	// Type comparison - type changes are not supported by the API and require a DELETE+CREATE.
 	currentType := current.Type
-	desiredType := ""
-	if desired.EventGatewayModifyHeadersPolicyCreate != nil {
-		desiredType = desired.EventGatewayModifyHeadersPolicyCreate.GetType()
-	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil {
-		desiredType = desired.EventGatewayProduceSchemaValidationPolicy.GetType()
-	} else if desired.EventGatewayEncryptPolicy != nil {
-		desiredType = desired.EventGatewayEncryptPolicy.GetType()
-	} else if desired.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil {
-		desiredType = desired.EventGatewayParsedRecordEncryptFieldsPolicyCreate.GetType()
-	}
+	desiredType := producePolicyType(desired)
 	if currentType != desiredType {
 		needsUpdate = true
 		changes[FieldType] = FieldChange{Old: currentType, New: desiredType}
 	}
 
 	desiredParentPolicyID := producePolicyParentPolicyID(desired)
-	if desiredParentPolicyID != "" {
+	if desiredParentPolicyID != "" && !tags.IsRefPlaceholder(desiredParentPolicyID) {
 		currentParentPolicyID := ""
 		if current.ParentPolicyID != nil {
 			currentParentPolicyID = *current.ParentPolicyID
@@ -680,20 +652,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	if current.Description != nil {
 		currentDesc = *current.Description
 	}
-	desiredDesc := ""
-	// Check each known variant for description
-	if desired.EventGatewayModifyHeadersPolicyCreate != nil &&
-		desired.EventGatewayModifyHeadersPolicyCreate.Description != nil {
-		desiredDesc = *desired.EventGatewayModifyHeadersPolicyCreate.Description
-	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil &&
-		desired.EventGatewayProduceSchemaValidationPolicy.Description != nil {
-		desiredDesc = *desired.EventGatewayProduceSchemaValidationPolicy.Description
-	} else if desired.EventGatewayEncryptPolicy != nil && desired.EventGatewayEncryptPolicy.Description != nil {
-		desiredDesc = *desired.EventGatewayEncryptPolicy.Description
-	} else if desired.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil &&
-		desired.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Description != nil {
-		desiredDesc = *desired.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Description
-	}
+	desiredDesc := p.extractProducePolicyDescription(desired)
 	if currentDesc != desiredDesc {
 		needsUpdate = true
 		changes[FieldDescription] = FieldChange{Old: currentDesc, New: desiredDesc}
@@ -704,19 +663,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	if current.Enabled != nil {
 		currentEnabled = *current.Enabled
 	}
-	desiredEnabled := true
-	if desired.EventGatewayModifyHeadersPolicyCreate != nil &&
-		desired.EventGatewayModifyHeadersPolicyCreate.Enabled != nil {
-		desiredEnabled = *desired.EventGatewayModifyHeadersPolicyCreate.Enabled
-	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil &&
-		desired.EventGatewayProduceSchemaValidationPolicy.Enabled != nil {
-		desiredEnabled = *desired.EventGatewayProduceSchemaValidationPolicy.Enabled
-	} else if desired.EventGatewayEncryptPolicy != nil && desired.EventGatewayEncryptPolicy.Enabled != nil {
-		desiredEnabled = *desired.EventGatewayEncryptPolicy.Enabled
-	} else if desired.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil &&
-		desired.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Enabled != nil {
-		desiredEnabled = *desired.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Enabled
-	}
+	desiredEnabled := p.extractProducePolicyEnabled(desired)
 	if currentEnabled != desiredEnabled {
 		needsUpdate = true
 		changes[FieldEnabled] = FieldChange{Old: currentEnabled, New: desiredEnabled}
@@ -730,7 +677,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	}
 
 	// Labels comparison
-	desiredLabels := extractProducePolicyVariantLabels(desired)
+	desiredLabels := p.extractProducePolicyLabels(desired)
 	if desiredLabels != nil {
 		if !compareMaps(current.Labels, desiredLabels) {
 			needsUpdate = true
@@ -751,30 +698,81 @@ func (p *Planner) shouldUpdateProducePolicy(
 	return needsUpdate, updateFields, changes
 }
 
+// extractProducePolicyLabels extracts labels from whichever union variant is set.
+func (p *Planner) extractProducePolicyLabels(
+	policy resources.EventGatewayProducePolicyResource,
+) map[string]string {
+	v := reflect.ValueOf(policy.EventGatewayProducePolicyCreate)
+	for _, field := range v.Fields() {
+		if field.Kind() != reflect.Pointer || field.IsNil() {
+			continue
+		}
+		labelsField := field.Elem().FieldByName("Labels")
+		if labelsField.IsValid() && !labelsField.IsNil() {
+			return labelsField.Interface().(map[string]string)
+		}
+	}
+	return nil
+}
+
+// extractProducePolicyDescription extracts description from whichever union variant is set.
+func (p *Planner) extractProducePolicyDescription(
+	policy resources.EventGatewayProducePolicyResource,
+) string {
+	v := reflect.ValueOf(policy.EventGatewayProducePolicyCreate)
+	for _, field := range v.Fields() {
+		if field.Kind() != reflect.Pointer || field.IsNil() {
+			continue
+		}
+		descField := field.Elem().FieldByName("Description")
+		if descField.IsValid() && !descField.IsNil() {
+			return *descField.Interface().(*string)
+		}
+	}
+	return ""
+}
+
+// extractProducePolicyEnabled extracts the enabled flag from whichever union variant is set.
+func (p *Planner) extractProducePolicyEnabled(
+	policy resources.EventGatewayProducePolicyResource,
+) bool {
+	v := reflect.ValueOf(policy.EventGatewayProducePolicyCreate)
+	for _, field := range v.Fields() {
+		if field.Kind() != reflect.Pointer || field.IsNil() {
+			continue
+		}
+		enabledField := field.Elem().FieldByName("Enabled")
+		if enabledField.IsValid() && !enabledField.IsNil() {
+			return *enabledField.Interface().(*bool)
+		}
+	}
+	return true
+}
+
 func (p *Planner) extractProducePolicyConfig(policy resources.EventGatewayProducePolicyResource) map[string]any {
-	// Config fields are value types on each variant; marshal the active variant's config.
-	var cfg any
-	if policy.EventGatewayModifyHeadersPolicyCreate != nil {
-		cfg = policy.EventGatewayModifyHeadersPolicyCreate.Config
-	} else if policy.EventGatewayProduceSchemaValidationPolicy != nil {
-		cfg = policy.EventGatewayProduceSchemaValidationPolicy.Config
-	} else if policy.EventGatewayEncryptPolicy != nil {
-		cfg = policy.EventGatewayEncryptPolicy.Config
-	} else if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil {
-		cfg = policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Config
-	}
+	v := reflect.ValueOf(policy.EventGatewayProducePolicyCreate)
+	for _, field := range v.Fields() {
+		if field.Kind() != reflect.Pointer || field.IsNil() {
+			continue
+		}
+		configField := field.Elem().FieldByName("Config")
+		if !configField.IsValid() {
+			continue
+		}
 
-	if cfg == nil {
-		return nil
-	}
+		data, err := json.Marshal(configField.Interface())
+		if err != nil {
+			continue
+		}
 
-	data, err := json.Marshal(cfg)
-	if err != nil {
-		return nil
+		var config map[string]any
+		if err := json.Unmarshal(data, &config); err != nil {
+			continue
+		}
+
+		if len(config) > 0 {
+			return config
+		}
 	}
-	var out map[string]any
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil
-	}
-	return out
+	return nil
 }

@@ -1210,6 +1210,9 @@ func (e *Executor) syncResolvedEventGatewayStaticKeyConfigRef(
 	change *planner.PlannedChange,
 ) error {
 	const fieldName = planner.FieldConfig + ".encryption_key.key." + planner.FieldID
+	var keys []state.EventGatewayStaticKey
+	var keysLoaded bool
+
 	for currentFieldName, ref := range change.References {
 		if currentFieldName != fieldName && !isEventGatewayEncryptFieldsStaticKeyRef(currentFieldName) {
 			continue
@@ -1224,9 +1227,13 @@ func (e *Executor) syncResolvedEventGatewayStaticKeyConfigRef(
 				return err
 			}
 			name := referenceLookupName(ref)
-			keys, err := e.client.ListEventGatewayStaticKeys(ctx, gatewayID)
-			if err != nil {
-				return fmt.Errorf("failed to resolve event gateway static key reference: %w", err)
+			if !keysLoaded {
+				var err error
+				keys, err = e.client.ListEventGatewayStaticKeys(ctx, gatewayID)
+				if err != nil {
+					return fmt.Errorf("failed to resolve event gateway static key reference: %w", err)
+				}
+				keysLoaded = true
 			}
 			for _, key := range keys {
 				if key.Name == name {
