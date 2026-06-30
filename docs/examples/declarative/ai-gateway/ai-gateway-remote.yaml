@@ -23,7 +23,7 @@ ai_gateways:
             type: basic
             headers:
               - name: Authorization
-                value: !env OPENAI_AUTH_HEADER
+                value: "Bearer do-not-put-secrets-in-plain-text-files"
     vaults:
       - ref: support-env
         name: support-env
