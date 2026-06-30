@@ -118,6 +118,13 @@ func (a AIGatewayProviderResource) GetParentRef() *ResourceRef {
 	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}
 }
 
+func (a AIGatewayProviderResource) GetReferenceFieldMappings() map[string]string {
+	if a.AIGateway == "" {
+		return nil
+	}
+	return map[string]string{SchemaFieldAIGateway: string(ResourceTypeAIGateway)}
+}
+
 func (a AIGatewayProviderResource) PayloadMap() (map[string]any, error) {
 	payload := map[string]any{
 		aiGatewayProviderFieldName:        a.Name,
