@@ -38,7 +38,7 @@ func (c *Client) ListAIGatewayDataPlaneCertificates(
 		}
 
 		if resp == nil || resp.ListAIGatewayDataPlaneCertificatesResponse == nil {
-			return []AIGatewayDataPlaneCertificate{}, nil
+			break
 		}
 
 		allData = append(allData, resp.ListAIGatewayDataPlaneCertificatesResponse.Data...)

@@ -407,6 +407,7 @@ func aiGatewayModelDetailView(model kkComps.AIGatewayModel) string {
 	payload := make(map[string]any)
 	data, err := json.Marshal(model)
 	if err == nil {
+		// Detail views are best-effort; leave missing fields as n/a if SDK union data cannot round-trip.
 		_ = json.Unmarshal(data, &payload)
 	}
 
@@ -454,5 +455,46 @@ func formatAIGatewayModelDetailValue(value any) string {
 			return fmt.Sprintf("%v", typed)
 		}
 		return string(data)
+	}
+}
+
+func buildAIGatewayModelChildView(models []kkComps.AIGatewayModel) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(models))
+	for i := range models {
+		record := aiGatewayModelToRecord(models[i])
+		tableRows = append(tableRows, table.Row{
+			record.ID,
+			record.Name,
+			record.DisplayName,
+			record.Type,
+			record.Enabled,
+			record.LocalUpdatedTime,
+		})
+	}
+
+	return tableview.ChildView{
+		Headers: []string{
+			aiGatewayHeaderID,
+			aiGatewayHeaderName,
+			aiGatewayHeaderDisplayName,
+			aiGatewayHeaderType,
+			aiGatewayHeaderEnabled,
+			aiGatewayHeaderUpdated,
+		},
+		Rows: tableRows,
+		DetailRenderer: func(index int) string {
+			if index < 0 || index >= len(models) {
+				return ""
+			}
+			return aiGatewayModelDetailView(models[index])
+		},
+		Title:      "AI Gateway Models",
+		ParentType: common.ViewParentAIGatewayModel,
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(models) {
+				return nil
+			}
+			return &models[index]
+		},
 	}
 }

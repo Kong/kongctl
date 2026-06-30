@@ -381,6 +381,7 @@ func aiGatewayAgentDetailView(agent kkComps.AIGatewayAgent) string {
 	payload := make(map[string]any)
 	data, err := json.Marshal(agent)
 	if err == nil {
+		// Detail views are best-effort; leave missing fields as n/a if SDK union data cannot round-trip.
 		_ = json.Unmarshal(data, &payload)
 	}
 

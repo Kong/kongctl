@@ -34,7 +34,7 @@ func (c *Client) ListAIGatewayMCPServers(ctx context.Context, gatewayID string) 
 		}
 
 		if resp == nil || resp.ListAIGatewayMCPServersResponse == nil {
-			return []AIGatewayMCPServer{}, nil
+			break
 		}
 
 		allData = append(allData, resp.ListAIGatewayMCPServersResponse.Data...)

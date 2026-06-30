@@ -76,6 +76,13 @@ func (a AIGatewayPolicyResource) GetParentRef() *ResourceRef {
 	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}
 }
 
+func (a AIGatewayPolicyResource) GetReferenceFieldMappings() map[string]string {
+	if a.AIGateway == "" {
+		return nil
+	}
+	return map[string]string{SchemaFieldAIGateway: string(ResourceTypeAIGateway)}
+}
+
 func (a AIGatewayPolicyResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway policy ref: %w", err)
@@ -223,7 +230,7 @@ func (a *AIGatewayPolicyResource) UnmarshalJSON(data []byte) error {
 
 	delete(raw, SchemaFieldRef)
 	delete(raw, SchemaFieldAIGateway)
-	delete(raw, "kongctl")
+	delete(raw, SchemaFieldKongctl)
 
 	payload, err := json.Marshal(raw)
 	if err != nil {
@@ -350,7 +357,7 @@ func AIGatewayPolicyResourceFromResponse(
 
 func stripAIGatewayPolicyServerFields(payload map[string]any) {
 	delete(payload, aiGatewayPolicyFieldID)
-	delete(payload, "created_at")
+	delete(payload, SchemaFieldCreatedAt)
 	delete(payload, aiGatewayPolicyFieldUpdatedAt)
 }
 

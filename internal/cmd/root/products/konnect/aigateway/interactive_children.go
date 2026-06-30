@@ -17,6 +17,10 @@ func init() {
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldAgents, loadAIGatewayAgents)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumers, loadAIGatewayConsumers)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumerGroups, loadAIGatewayConsumerGroups)
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldModels, loadAIGatewayModels)
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldMCPServers, loadAIGatewayMCPServers)
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldVaults, loadAIGatewayVaults)
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldNodes, loadAIGatewayNodes)
 	tableview.RegisterChildLoader(
 		common.ViewParentAIGateway,
 		common.ViewFieldDataPlaneCertificates,
@@ -177,6 +181,130 @@ func loadAIGatewayConsumerGroups(_ context.Context, helper cmd.Helper, parent an
 		return tableview.ChildView{}, err
 	}
 	return buildAIGatewayConsumerGroupChildView(groups), nil
+}
+
+func loadAIGatewayModels(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	modelAPI := sdk.GetAIGatewayModelAPI()
+	if modelAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Models client is not available")
+	}
+
+	models, err := listAIGatewayModels(helper, modelAPI, gatewayID)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayModelChildView(models), nil
+}
+
+func loadAIGatewayMCPServers(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	serverAPI := sdk.GetAIGatewayMCPServersAPI()
+	if serverAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway MCP Servers client is not available")
+	}
+
+	servers, err := fetchAIGatewayMCPServers(helper, serverAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayMCPServerChildView(servers), nil
+}
+
+func loadAIGatewayVaults(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	vaultAPI := sdk.GetAIGatewayVaultsAPI()
+	if vaultAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Vaults client is not available")
+	}
+
+	vaults, err := fetchAIGatewayVaults(helper, vaultAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayVaultChildView(vaults), nil
+}
+
+func loadAIGatewayNodes(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	nodeAPI := sdk.GetAIGatewayNodesAPI()
+	if nodeAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Nodes client is not available")
+	}
+
+	nodes, err := fetchAIGatewayNodes(helper, nodeAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayNodeChildView(nodes), nil
 }
 
 func loadAIGatewayDataPlaneCertificates(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

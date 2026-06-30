@@ -85,6 +85,10 @@ const (
 	SchemaFieldPortal    = "portal"
 	SchemaFieldTeams     = "teams"
 	SchemaFieldAIGateway = "ai_gateway"
+	SchemaFieldKongctl   = "kongctl"
+	SchemaFieldID        = "id"
+	SchemaFieldCreatedAt = "created_at"
+	SchemaFieldUpdatedAt = "updated_at"
 	jsonNullLiteral      = "null"
 )
 

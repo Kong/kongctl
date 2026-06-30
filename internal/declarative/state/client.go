@@ -1836,7 +1836,7 @@ func (c *Client) GetAIGatewayByID(ctx context.Context, id string) (*AIGateway, e
 		return nil, WrapAPIError(err, "fetch AI Gateway", nil)
 	}
 
-	if resp.AIGateway == nil {
+	if resp == nil || resp.AIGateway == nil {
 		return nil, nil
 	}
 
@@ -1874,7 +1874,7 @@ func (c *Client) CreateAIGateway(
 		})
 	}
 
-	if resp.AIGateway == nil {
+	if resp == nil || resp.AIGateway == nil {
 		return nil, fmt.Errorf("create AI Gateway response missing data")
 	}
 
@@ -1905,7 +1905,7 @@ func (c *Client) UpdateAIGateway(
 		})
 	}
 
-	if resp.AIGateway == nil {
+	if resp == nil || resp.AIGateway == nil {
 		return nil, fmt.Errorf("update AI Gateway response missing data")
 	}
 
@@ -1949,7 +1949,7 @@ func (c *Client) ListAIGatewayModels(ctx context.Context, gatewayID string) ([]A
 		}
 
 		if resp == nil || resp.ListAIGatewayModelsResponse == nil {
-			return []AIGatewayModel{}, nil
+			break
 		}
 
 		allData = append(allData, resp.ListAIGatewayModelsResponse.Data...)

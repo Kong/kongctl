@@ -324,7 +324,7 @@ func populateAIGatewayChildren(
 			gateway.Vaults = vaults
 		}
 
-		certs, err := buildAIGatewayDataPlaneCertificates(ctx, client, gatewayID, gateway.DisplayName, "")
+		certs, err := buildAIGatewayDataPlaneCertificates(ctx, logger, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway data plane certificates", gatewayID, gateway.DisplayName, err)
 		} else if len(certs) > 0 {
@@ -614,9 +614,10 @@ func buildAIGatewayVaults(
 
 func buildAIGatewayDataPlaneCertificates(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
-	_ string,
+	gatewayName string,
 	gatewayRef string,
 ) ([]declresources.AIGatewayDataPlaneCertificateResource, error) {
 	certs, err := client.ListAIGatewayDataPlaneCertificates(ctx, gatewayID)
@@ -625,6 +626,20 @@ func buildAIGatewayDataPlaneCertificates(
 	}
 	result := make([]declresources.AIGatewayDataPlaneCertificateResource, 0, len(certs))
 	for _, cert := range certs {
+		if strings.TrimSpace(cert.ID) == "" {
+			logWarn(logger, "AI Gateway data plane certificate missing ID", gatewayID, gatewayName, nil)
+			continue
+		}
+		if strings.TrimSpace(cert.Cert) == "" {
+			logWarn(
+				logger,
+				"AI Gateway data plane certificate missing certificate content",
+				gatewayID,
+				gatewayName,
+				nil,
+			)
+			continue
+		}
 		resource := declresources.AIGatewayDataPlaneCertificateResourceFromResponse(
 			gatewayRef,
 			cert.AIGatewayDataPlaneClientCertificate,
