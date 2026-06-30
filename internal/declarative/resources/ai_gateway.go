@@ -234,6 +234,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	if a.DisplayName == "" {
 		a.DisplayName = a.Ref
 	}
+	for i := range a.Providers {
+		a.Providers[i].SetDefaults()
+	}
 	for i := range a.Policies {
 		a.Policies[i].SetDefaults()
 	}
