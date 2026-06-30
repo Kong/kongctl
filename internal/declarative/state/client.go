@@ -1805,6 +1805,26 @@ func (c *Client) GetAIGatewayByDisplayName(ctx context.Context, displayName stri
 	return nil, nil
 }
 
+// GetAIGatewayByName finds a managed AI Gateway by name.
+func (c *Client) GetAIGatewayByName(ctx context.Context, name string) (*AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+
+	gateways, err := c.ListManagedAIGateways(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range gateways {
+		if gateways[i].Name == name {
+			return &gateways[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
 // GetAIGatewayByID fetches an AI Gateway by ID.
 func (c *Client) GetAIGatewayByID(ctx context.Context, id string) (*AIGateway, error) {
 	if c.aiGatewayAPI == nil {

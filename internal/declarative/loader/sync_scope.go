@@ -496,13 +496,6 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	captureNestedCollectionScopes(
 		scope,
 		raw,
-		"ai_gateways",
-		resources.ResourceTypeAIGateway,
-		aiGatewayChildCollectionScopes,
-	)
-	captureNestedCollectionScopes(
-		scope,
-		raw,
 		"event_gateways",
 		resources.ResourceTypeEventGatewayControlPlane,
 		eventGatewayChildCollectionScopes,
