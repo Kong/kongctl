@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"maps"
-	"reflect"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -231,32 +229,19 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway MCP Server %q: %w", desired.Ref, err)
 	}
 
-	currentCompare, desiredCompare := normalizeAIGatewayPolicyReferencesForComparison(
-		currentPayload,
-		desiredPayload,
+	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
+		currentCompare,
+		desiredCompare,
 		p.resources,
 	)
 
-	changedFields := make(map[string]FieldChange)
-	keys := make(map[string]struct{}, len(currentCompare)+len(desiredCompare))
-	for key := range currentCompare {
-		keys[key] = struct{}{}
-	}
-	for key := range desiredCompare {
-		keys[key] = struct{}{}
-	}
-	for key := range keys {
-		if !reflect.DeepEqual(currentCompare[key], desiredCompare[key]) {
-			changedFields[key] = FieldChange{Old: currentPayload[key], New: desiredPayload[key]}
-		}
-	}
+	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {
 		return false, nil, nil, nil
 	}
 
-	updateFields := make(map[string]any, len(desiredPayload))
-	maps.Copy(updateFields, desiredPayload)
-	return true, updateFields, changedFields, nil
+	return true, clonePayloadMap(desiredPayload), changedFields, nil
 }
 
 func indexAIGatewayMCPServers(

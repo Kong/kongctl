@@ -65,6 +65,51 @@ func TestAIGatewayAgentPlannerUpdatesExistingAgent(t *testing.T) {
 	require.Contains(t, change.ChangedFields, FieldDisplayName)
 }
 
+func TestAIGatewayAgentPlannerIgnoresAPIDefaults(t *testing.T) {
+	agent := testAIGatewayAgentResourceWithConfig(t, `{
+		"url": "https://booking-agent.example.com",
+		"route": {"paths": ["/agents/support"]},
+		"logging": {"max_payload_size": 524288}
+	}`)
+	var current kkComps.AIGatewayAgent
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "agent-id",
+		"name": "booking-agent",
+		"type": "a2a",
+		"display_name": "Booking Agent",
+		"enabled": true,
+		"config": {
+			"url": "https://booking-agent.example.com",
+			"route": {
+				"paths": ["/agents/support"],
+				"https_redirect_status_code": 426,
+				"preserve_host": false,
+				"protocols": ["http", "https"],
+				"regex_priority": 0,
+				"request_buffering": true,
+				"response_buffering": true,
+				"strip_path": true
+			},
+			"max_request_body_size": 8388608,
+			"logging": {
+				"payloads": false,
+				"statistics": true,
+				"max_payload_size": 524288
+			}
+		}
+	}`), &current))
+
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayAgent(
+		state.AIGatewayAgent{AIGatewayAgent: current},
+		agent,
+	)
+
+	require.NoError(t, err)
+	require.False(t, needsUpdate)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func TestAIGatewayAgentPlannerSyncDeletesScopedAgents(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
@@ -121,7 +166,7 @@ func TestAIGatewayAgentPlannerDependsOnPolicyCreate(t *testing.T) {
 	require.Contains(t, policyCreate.DependsOn, gatewayCreate.ID)
 	require.Contains(t, agentCreate.DependsOn, policyCreate.ID)
 	require.Equal(t, resources.UnknownReferenceID, agentCreate.References[FieldPolicies+".0"].ID)
-	require.Equal(t, tags.RefPlaceholderPrefix+"mask-sensitive-data#id", agentCreate.References[FieldPolicies+".0"].Ref)
+	require.Equal(t, tags.RefPlaceholderPrefix+"mask-sensitive-data#name", agentCreate.References[FieldPolicies+".0"].Ref)
 }
 
 func TestAIGatewayAgentPlannerPolicyRefNoopForExistingAgent(t *testing.T) {
@@ -169,15 +214,34 @@ func testAIGatewayAgentResource(
 	policies []string,
 ) resources.AIGatewayAgentResource {
 	t.Helper()
+	return testAIGatewayAgentResourceWithConfigAndPolicies(
+		t,
+		`{"url": "https://booking-agent.example.com"}`,
+		policies,
+	)
+}
+
+func testAIGatewayAgentResourceWithConfig(
+	t *testing.T,
+	config string,
+) resources.AIGatewayAgentResource {
+	t.Helper()
+	return testAIGatewayAgentResourceWithConfigAndPolicies(t, config, nil)
+}
+
+func testAIGatewayAgentResourceWithConfigAndPolicies(
+	t *testing.T,
+	config string,
+	policies []string,
+) resources.AIGatewayAgentResource {
+	t.Helper()
 	payload := map[string]any{
 		"ref":          "booking-agent",
 		"ai_gateway":   "support-gateway",
 		"name":         "booking-agent",
 		"type":         "a2a",
 		"display_name": "Booking Agent",
-		"config": map[string]any{
-			"url": "https://booking-agent.example.com",
-		},
+		"config":       json.RawMessage(config),
 	}
 	if policies != nil {
 		payload[FieldPolicies] = policies

@@ -33,6 +33,9 @@ ai_gateways:
           phase: update
         config:
           url: https://support-tools-updated.example.com
+          route:
+            paths:
+              - /support-tools
         tools:
           - name: lookup-customer
             description: "Look up an updated customer profile"
