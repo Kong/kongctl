@@ -37,6 +37,9 @@ ai_gateways:
           phase: create
         config:
           url: https://support-tools.example.com
+          route:
+            paths:
+              - /support-tools
         tools:
           - name: lookup-customer
             description: "Look up a customer profile"
