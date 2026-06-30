@@ -10,6 +10,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/log"
 )
 
@@ -67,7 +68,7 @@ func NewBaseExecutor[TCreate any, TUpdate any](
 func (b *BaseExecutor[TCreate, TUpdate]) Create(ctx context.Context, change planner.PlannedChange) (string, error) {
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	logger.Debug(fmt.Sprintf("Creating %s", b.ops.ResourceType()),
-		slog.Any("fields", change.Fields))
+		slog.Any("fields", httpclient.RedactSensitiveFields(change.Fields)))
 
 	// Validate required fields
 	if err := common.ValidateRequiredFields(change.Fields, b.ops.RequiredFields()); err != nil {
@@ -107,7 +108,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	logger.Debug(fmt.Sprintf("Updating %s", b.ops.ResourceType()),
-		slog.Any("change", change))
+		slog.Any("change", httpclient.RedactSensitiveFields(change)))
 
 	resourceName := common.ExtractResourceName(change.Fields)
 

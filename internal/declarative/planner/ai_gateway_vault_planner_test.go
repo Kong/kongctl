@@ -82,6 +82,38 @@ func TestAIGatewayVaultPlannerUpdatesChangedVault(t *testing.T) {
 	require.Contains(t, change.ChangedFields, FieldConfig)
 }
 
+func TestAIGatewayVaultPlannerIgnoresWriteOnlySecretDrift(t *testing.T) {
+	currentPayload := map[string]any{
+		FieldType: "hcv",
+		FieldName: "support-hcv",
+		FieldConfig: map[string]any{
+			"auth_method": "token",
+			"host":        "vault.example.test",
+			"port":        float64(8200),
+		},
+	}
+	desiredPayload := map[string]any{
+		FieldType: "hcv",
+		FieldName: "support-hcv",
+		FieldConfig: map[string]any{
+			"auth_method": "token",
+			"host":        "vault.example.test",
+			"port":        float64(8200),
+			"token":       "super-secret-token",
+		},
+	}
+
+	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	currentCompare = scrubAIGatewayVaultWriteOnlyFields(currentCompare).(map[string]any)
+	desiredCompare = scrubAIGatewayVaultWriteOnlyFields(desiredCompare).(map[string]any)
+	currentPlanPayload := scrubAIGatewayVaultWriteOnlyFields(currentPayload).(map[string]any)
+	desiredPlanPayload := scrubAIGatewayVaultWriteOnlyFields(desiredPayload).(map[string]any)
+
+	changedFields := diffAIGatewayPayloads(currentPlanPayload, desiredPlanPayload, currentCompare, desiredCompare)
+	require.Empty(t, changedFields)
+	require.NotContains(t, desiredPlanPayload[FieldConfig].(map[string]any), "token")
+}
+
 func TestAIGatewayVaultPlannerSyncDeletesScopedVaults(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
