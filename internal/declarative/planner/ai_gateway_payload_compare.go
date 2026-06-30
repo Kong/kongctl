@@ -43,7 +43,7 @@ func diffAIGatewayPayloads(
 	desiredCompare map[string]any,
 ) map[string]FieldChange {
 	changedFields := make(map[string]FieldChange)
-	keys := make(map[string]struct{}, len(currentCompare)+len(desiredCompare))
+	keys := make(map[string]struct{})
 	for key := range currentCompare {
 		keys[key] = struct{}{}
 	}
