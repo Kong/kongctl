@@ -118,7 +118,7 @@ func (p *Planner) planAIGatewayVaultCreatesForNewGateway(
 func (p *Planner) planAIGatewayVaultCreate(
 	namespace string,
 	gatewayRef string,
-	gatewayName string,
+	_ string,
 	gatewayID string,
 	vault resources.AIGatewayVaultResource,
 	dependsOn []string,
@@ -146,7 +146,7 @@ func (p *Planner) planAIGatewayVaultCreate(
 			FieldAIGatewayID: {
 				Ref: gatewayRef,
 				LookupFields: map[string]string{
-					FieldDisplayName: gatewayName,
+					FieldName: gatewayRef,
 				},
 			},
 		}

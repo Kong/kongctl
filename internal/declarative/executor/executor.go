@@ -1959,20 +1959,32 @@ func (e *Executor) resolveAIGatewayRef(ctx context.Context, refInfo planner.Refe
 	}
 
 	lookupValue := lookupRef
+	lookupByName := false
 	if refInfo.LookupFields != nil {
-		if displayName := strings.TrimSpace(refInfo.LookupFields[planner.FieldDisplayName]); displayName != "" {
-			lookupValue = displayName
-		} else if name := strings.TrimSpace(refInfo.LookupFields[planner.FieldName]); name != "" {
+		if name := strings.TrimSpace(refInfo.LookupFields[planner.FieldName]); name != "" {
 			lookupValue = name
+			lookupByName = true
+		} else if displayName := strings.TrimSpace(refInfo.LookupFields[planner.FieldDisplayName]); displayName != "" {
+			lookupValue = displayName
 		}
 	}
 
-	gateway, err := e.client.GetAIGatewayByDisplayName(ctx, lookupValue)
+	var gateway *state.AIGateway
+	var err error
+	if lookupByName {
+		gateway, err = e.client.GetAIGatewayByName(ctx, lookupValue)
+	} else {
+		gateway, err = e.client.GetAIGatewayByDisplayName(ctx, lookupValue)
+	}
 	if err != nil {
-		return "", fmt.Errorf("failed to get AI Gateway by display_name: %w", err)
+		return "", fmt.Errorf("failed to get AI Gateway: %w", err)
 	}
 	if gateway == nil {
-		return "", fmt.Errorf("AI Gateway not found: ref=%s, looked up by display_name=%s", refInfo.Ref, lookupValue)
+		lookupField := planner.FieldDisplayName
+		if lookupByName {
+			lookupField = planner.FieldName
+		}
+		return "", fmt.Errorf("AI Gateway not found: ref=%s, looked up by %s=%s", refInfo.Ref, lookupField, lookupValue)
 	}
 
 	e.setRef(planner.ResourceTypeAIGateway, lookupRef, gateway.ID)
@@ -3627,10 +3639,19 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.aiGatewayConsumerGroupExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayModel:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
 		return e.aiGatewayModelExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayMCPServer:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
 		return e.aiGatewayMCPServerExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayVault:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
 		return e.aiGatewayVaultExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayDataPlaneCertificate:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {

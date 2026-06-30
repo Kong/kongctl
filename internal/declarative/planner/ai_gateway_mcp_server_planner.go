@@ -132,7 +132,7 @@ func (p *Planner) planAIGatewayMCPServerCreatesForNewGateway(
 func (p *Planner) planAIGatewayMCPServerCreate(
 	namespace string,
 	gatewayRef string,
-	gatewayName string,
+	_ string,
 	gatewayID string,
 	server resources.AIGatewayMCPServerResource,
 	dependsOn []string,
@@ -160,7 +160,7 @@ func (p *Planner) planAIGatewayMCPServerCreate(
 			FieldAIGatewayID: {
 				Ref: gatewayRef,
 				LookupFields: map[string]string{
-					FieldDisplayName: gatewayName,
+					FieldName: gatewayRef,
 				},
 			},
 		}

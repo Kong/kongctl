@@ -135,7 +135,7 @@ func (p *Planner) planAIGatewayDataPlaneCertificateCreatesForNewGateway(
 func (p *Planner) planAIGatewayDataPlaneCertificateCreate(
 	namespace string,
 	gatewayRef string,
-	gatewayName string,
+	_ string,
 	gatewayID string,
 	cert resources.AIGatewayDataPlaneCertificateResource,
 	dependsOn []string,
@@ -157,7 +157,7 @@ func (p *Planner) planAIGatewayDataPlaneCertificateCreate(
 			FieldAIGatewayID: {
 				Ref: gatewayRef,
 				LookupFields: map[string]string{
-					FieldDisplayName: gatewayName,
+					FieldName: gatewayRef,
 				},
 			},
 		}
