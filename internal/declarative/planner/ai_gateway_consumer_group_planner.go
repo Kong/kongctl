@@ -146,7 +146,7 @@ func (p *Planner) planAIGatewayConsumerGroupCreatesForNewGateway(
 func (p *Planner) planAIGatewayConsumerGroupCreate(
 	namespace string,
 	gatewayRef string,
-	gatewayName string,
+	_ string,
 	gatewayID string,
 	group resources.AIGatewayConsumerGroupResource,
 	dependsOn []string,
@@ -174,7 +174,7 @@ func (p *Planner) planAIGatewayConsumerGroupCreate(
 			FieldAIGatewayID: {
 				Ref: gatewayRef,
 				LookupFields: map[string]string{
-					FieldDisplayName: gatewayName,
+					FieldName: gatewayRef,
 				},
 			},
 		}
