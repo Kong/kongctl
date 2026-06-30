@@ -82,6 +82,11 @@ var nonSensitiveTokenFieldKeys = map[string]struct{}{
 	"token_type":  {},
 }
 
+// RedactSensitiveFields returns a copy of value with known sensitive fields redacted.
+func RedactSensitiveFields(value any) any {
+	return redactSensitiveValue(cloneLogValue(value))
+}
+
 // LoggingHTTPClient wraps an HTTP client to add centralized request/response logging.
 type LoggingHTTPClient struct {
 	wrapped        *http.Client
@@ -545,6 +550,10 @@ func redactJSONBody(body []byte) (string, bool) {
 }
 
 func redactJSONValue(value any) any {
+	return redactSensitiveValue(value)
+}
+
+func redactSensitiveValue(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, nested := range typed {
@@ -560,6 +569,21 @@ func redactJSONValue(value any) any {
 		}
 	}
 	return value
+}
+
+func cloneLogValue(value any) any {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return value
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var cloned any
+	if err := decoder.Decode(&cloned); err != nil {
+		return value
+	}
+	return cloned
 }
 
 func redactFormBody(body []byte) (string, bool) {
