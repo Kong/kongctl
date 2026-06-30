@@ -1296,10 +1296,10 @@ func buildAPIImplementations(
 			ID:             impl.Service.ID,
 			ControlPlaneID: impl.Service.ControlPlaneID,
 		}
-		ref := kkComps.ServiceReferenceInput{Service: &service}
+		ref := kkComps.ServiceReference{Service: &service}
 		res := declresources.APIImplementationResource{
 			Ref:               impl.ID,
-			APIImplementation: kkComps.CreateAPIImplementationServiceReferenceInput(ref),
+			APIImplementation: kkComps.CreateAPIImplementationServiceReference(ref),
 		}
 
 		results = append(results, res)

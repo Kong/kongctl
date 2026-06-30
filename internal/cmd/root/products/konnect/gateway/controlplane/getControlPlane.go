@@ -188,7 +188,7 @@ func runListByName(name string, kkClient helpers.ControlPlaneAPI, helper cmd.Hel
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
 			Filter: &kkComps.ControlPlaneFilterParameters{
-				Name: &kkComps.Name{
+				Name: &kkComps.ControlPlaneFilterParametersName{
 					Eq: new(name),
 				},
 			},

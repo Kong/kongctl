@@ -809,7 +809,7 @@ func buildVirtualClusterNamespace(field any) (*kkComps.VirtualClusterNamespace, 
 	}
 
 	namespace := &kkComps.VirtualClusterNamespace{
-		Mode: kkComps.VirtualClusterNamespaceMode(mode),
+		Mode: kkComps.Mode(mode),
 	}
 
 	if prefix, ok := nsMap["prefix"].(string); ok {

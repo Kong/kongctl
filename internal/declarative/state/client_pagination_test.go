@@ -578,7 +578,7 @@ func newListPortalTeamRolesResponse(
 			RoleName:       fmt.Sprintf("Role %d-%d", pageNumber, i+1),
 			EntityID:       fmt.Sprintf("entity-%d-%d", pageNumber, i+1),
 			EntityTypeName: "api",
-			EntityRegion:   kkComps.PortalAssignedRoleResponseEntityRegionUs,
+			EntityRegion:   kkComps.EntityRegionUs,
 		}
 	}
 

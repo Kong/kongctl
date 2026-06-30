@@ -1537,7 +1537,7 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 
 	for i := range rs.APIImplementations {
 		impl := &rs.APIImplementations[i]
-		service := impl.ServiceReferenceInput.GetService()
+		service := impl.ServiceReference.GetService()
 		if service == nil {
 			p.logger.Debug(
 				"API implementation missing service reference before normalization",
@@ -1556,7 +1556,7 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 		if err := p.normalizeAPIImplementationService(impl, serviceByRef, controlPlaneByRef); err != nil {
 			return err
 		}
-		service = impl.ServiceReferenceInput.GetService()
+		service = impl.ServiceReference.GetService()
 		if service == nil {
 			p.logger.Debug(
 				"API implementation missing service reference after normalization",
@@ -1582,7 +1582,7 @@ func (p *Planner) normalizeAPIImplementationService(
 	serviceByRef map[string]*resources.GatewayServiceResource,
 	controlPlaneByRef map[string]*resources.ControlPlaneResource,
 ) error {
-	if impl.ServiceReferenceInput == nil {
+	if impl.ServiceReference == nil {
 		p.logger.Debug(
 			"API implementation has nil service reference; skipping normalization",
 			slog.String("api_implementation_ref", impl.GetRef()),
@@ -1591,7 +1591,7 @@ func (p *Planner) normalizeAPIImplementationService(
 		return nil
 	}
 
-	service := impl.ServiceReferenceInput.GetService()
+	service := impl.ServiceReference.GetService()
 	if service == nil {
 		p.logger.Debug(
 			"API implementation has nil service; skipping normalization",

@@ -12,7 +12,7 @@ func TestAPIImplementationResourceMarshalJSONIncludesMetadata(t *testing.T) {
 		ID:             "svc-id",
 		ControlPlaneID: "cp-id",
 	}
-	impl := kkComps.CreateAPIImplementationServiceReferenceInput(kkComps.ServiceReferenceInput{Service: &service})
+	impl := kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{Service: &service})
 
 	resource := APIImplementationResource{
 		APIImplementation: impl,
