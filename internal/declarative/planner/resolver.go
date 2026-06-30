@@ -230,6 +230,14 @@ func (r *ReferenceResolver) getResourceTypeForChangeField(change PlannedChange, 
 			return string(resourceType)
 		}
 	}
+	if fieldName == FieldParentPolicyID {
+		switch change.ResourceType {
+		case ResourceTypeEventGatewayProducePolicy:
+			return ResourceTypeEventGatewayProducePolicy
+		case ResourceTypeEventGatewayConsumePolicy:
+			return ResourceTypeEventGatewayConsumePolicy
+		}
+	}
 	return r.getResourceTypeForField(fieldName)
 }
 
@@ -337,7 +345,91 @@ func (r *ReferenceResolver) getEventGatewayChildResourceByTypeAndRef(
 					return &staticKeyCopy, true
 				}
 			}
+		case ResourceTypeEventGatewayProducePolicy:
+			for _, virtualCluster := range gateway.VirtualClusters {
+				resource, ok := eventGatewayProducePolicyByRef(
+					virtualCluster.ProducePolicies,
+					ref,
+					gateway.Ref,
+					virtualCluster.Ref,
+				)
+				if ok {
+					return resource, true
+				}
+			}
+		case ResourceTypeEventGatewayConsumePolicy:
+			for _, virtualCluster := range gateway.VirtualClusters {
+				resource, ok := eventGatewayConsumePolicyByRef(
+					virtualCluster.ConsumePolicies,
+					ref,
+					gateway.Ref,
+					virtualCluster.Ref,
+				)
+				if ok {
+					return resource, true
+				}
+			}
 		}
+	}
+	for _, virtualCluster := range r.resources.EventGatewayVirtualClusters {
+		switch resourceType {
+		case ResourceTypeEventGatewayProducePolicy:
+			resource, ok := eventGatewayProducePolicyByRef(
+				virtualCluster.ProducePolicies,
+				ref,
+				virtualCluster.EventGateway,
+				virtualCluster.Ref,
+			)
+			if ok {
+				return resource, true
+			}
+		case ResourceTypeEventGatewayConsumePolicy:
+			resource, ok := eventGatewayConsumePolicyByRef(
+				virtualCluster.ConsumePolicies,
+				ref,
+				virtualCluster.EventGateway,
+				virtualCluster.Ref,
+			)
+			if ok {
+				return resource, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func eventGatewayProducePolicyByRef(
+	policies []resources.EventGatewayProducePolicyResource,
+	ref string,
+	gatewayRef string,
+	virtualClusterRef string,
+) (resources.Resource, bool) {
+	for _, policy := range policies {
+		if policy.Ref != ref {
+			continue
+		}
+		policyCopy := policy
+		policyCopy.EventGateway = gatewayRef
+		policyCopy.VirtualCluster = virtualClusterRef
+		return &policyCopy, true
+	}
+	return nil, false
+}
+
+func eventGatewayConsumePolicyByRef(
+	policies []resources.EventGatewayConsumePolicyResource,
+	ref string,
+	gatewayRef string,
+	virtualClusterRef string,
+) (resources.Resource, bool) {
+	for _, policy := range policies {
+		if policy.Ref != ref {
+			continue
+		}
+		policyCopy := policy
+		policyCopy.EventGateway = gatewayRef
+		policyCopy.VirtualCluster = virtualClusterRef
+		return &policyCopy, true
 	}
 	return nil, false
 }

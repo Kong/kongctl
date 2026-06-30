@@ -941,9 +941,8 @@ func buildPortalIdentityProviders(
 		providerRes := declresources.PortalIdentityProviderResource{
 			Ref: buildChildRef("portal-identity-provider", provider.ID),
 			CreateIdentityProvider: kkComps.CreateIdentityProvider{
-				Type:      provider.Type.ToPointer(),
-				Enabled:   provider.Enabled,
-				LoginPath: provider.LoginPath,
+				Type:    provider.Type.ToPointer(),
+				Enabled: provider.Enabled,
 			},
 		}
 
@@ -1583,6 +1582,7 @@ func buildEventGatewayVirtualClusters(
 				Destination:    destination,
 				Authentication: auth,
 				Namespace:      cluster.Namespace,
+				TopicAliases:   cluster.TopicAliases,
 				ACLMode:        cluster.ACLMode,
 				DNSLabel:       cluster.DNSLabel,
 				Labels:         cluster.Labels,
@@ -1968,6 +1968,12 @@ func convertConsumePolicyToResource(
 	}
 	if policy.Labels != nil {
 		policyMap["labels"] = policy.Labels
+	}
+	if policy.Condition != nil {
+		policyMap["condition"] = *policy.Condition
+	}
+	if policy.ParentPolicyID != nil {
+		policyMap["parent_policy_id"] = *policy.ParentPolicyID
 	}
 
 	data, err := json.Marshal(policyMap)

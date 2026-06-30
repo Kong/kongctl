@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"encoding/json"
 	"log/slog"
 	"os"
 	"testing"
@@ -66,6 +67,14 @@ func rawConfigFromSetAction(key, value string) map[string]any {
 			map[string]any{"op": "set", "key": key, "value": value},
 		},
 	}
+}
+
+func producePolicyResourceFromJSON(t *testing.T, data string) resources.EventGatewayProducePolicyResource {
+	t.Helper()
+
+	var policy resources.EventGatewayProducePolicyResource
+	require.NoError(t, json.Unmarshal([]byte(data), &policy))
+	return policy
 }
 
 // ---------------------------------------------------------------------------
@@ -189,4 +198,170 @@ func TestShouldUpdateProducePolicy_SchemaValidationConfigChanged(t *testing.T) {
 	assert.NotContains(t, changedFields, "name")
 	assert.NotContains(t, changedFields, "description")
 	assert.NotContains(t, changedFields, "enabled")
+}
+
+func TestShouldUpdateProducePolicy_IgnoresUnresolvedParentPolicyPlaceholder(t *testing.T) {
+	desired := producePolicyResourceFromJSON(t, `{
+		"ref": "encrypt-fields",
+		"type": "encrypt_fields",
+		"name": "encrypt-fields",
+		"parent_policy_id": "__REF__:schema-validation#id",
+		"config": {
+			"failure_mode": "reject",
+			"encrypt_fields": []
+		}
+	}`)
+	p := newTestPlanner()
+	current := state.EventGatewayVirtualClusterProducePolicyInfo{
+		EventGatewayPolicy: kkComps.EventGatewayPolicy{
+			ID:             "encrypt-fields-id",
+			Name:           new("encrypt-fields"),
+			Enabled:        new(true),
+			Type:           "encrypt_fields",
+			ParentPolicyID: new("schema-validation-id"),
+		},
+		RawConfig: p.extractProducePolicyConfig(desired),
+	}
+
+	needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desired)
+
+	assert.False(t, needsUpdate)
+	assert.Nil(t, updateFields)
+	assert.Empty(t, changedFields)
+}
+
+func TestProducePolicyToFieldsEncryptFields(t *testing.T) {
+	policy := producePolicyResourceFromJSON(t, `{
+		"ref": "encrypt-fields",
+		"type": "encrypt_fields",
+		"name": "encrypt-fields",
+		"parent_policy_id": "__REF__:schema-validation#id",
+		"config": {
+			"failure_mode": "reject",
+			"encrypt_fields": [
+				{
+					"paths": "record.value.content.customer.ssn",
+					"encryption_key": {
+						"type": "static",
+						"key": {
+							"id": "__REF__:static-key#id"
+						}
+					}
+				}
+			]
+		}
+	}`)
+
+	p := newTestPlanner()
+	fields := p.producePolicyToFields(policy)
+
+	require.Equal(t, "encrypt_fields", fields[FieldType])
+	require.Equal(t, "__REF__:schema-validation#id", fields[FieldParentPolicyID])
+	config, ok := fields[FieldConfig].(map[string]any)
+	require.True(t, ok)
+	encryptFields, ok := config["encrypt_fields"].([]any)
+	require.True(t, ok)
+	require.Len(t, encryptFields, 1)
+}
+
+func TestPlanProducePolicyCreateEncryptFieldsReferences(t *testing.T) {
+	policy := producePolicyResourceFromJSON(t, `{
+		"ref": "encrypt-fields",
+		"type": "encrypt_fields",
+		"name": "encrypt-fields",
+		"parent_policy_id": "__REF__:schema-validation#id",
+		"config": {
+			"failure_mode": "reject",
+			"encrypt_fields": [
+				{
+					"paths": "record.value.content.customer.ssn",
+					"encryption_key": {
+						"type": "static",
+						"key": {
+							"id": "__REF__:static-key#id"
+						}
+					}
+				}
+			]
+		}
+	}`)
+
+	p := newTestPlanner()
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	p.planProducePolicyCreate(
+		"default",
+		"gateway-id",
+		"gateway-ref",
+		"virtual-cluster-id",
+		"virtual-cluster-ref",
+		"virtual-cluster",
+		policy,
+		nil,
+		plan,
+	)
+
+	require.Len(t, plan.Changes, 1)
+	change := plan.Changes[0]
+	parentRef, ok := change.References[FieldParentPolicyID]
+	require.True(t, ok)
+	require.Equal(t, "__REF__:schema-validation#id", parentRef.Ref)
+
+	staticKeyRef, ok := change.References["config.encrypt_fields.0.encryption_key.key.id"]
+	require.True(t, ok)
+	require.Equal(t, "__REF__:static-key#id", staticKeyRef.Ref)
+}
+
+func TestPrepareProducePolicyParentRefsResolvesExistingSchemaValidationParent(t *testing.T) {
+	parent := producePolicyResourceFromJSON(t, `{
+		"ref": "schema-validation",
+		"type": "schema_validation",
+		"name": "schema-validation",
+		"config": {
+			"type": "json"
+		}
+	}`)
+	child := producePolicyResourceFromJSON(t, `{
+		"ref": "encrypt-fields",
+		"type": "encrypt_fields",
+		"name": "encrypt-fields",
+		"parent_policy_id": "__REF__:schema-validation#id",
+		"config": {
+			"failure_mode": "reject",
+			"encrypt_fields": [
+				{
+					"paths": "record.value.content.customer.ssn",
+					"encryption_key": {
+						"type": "static",
+						"key": {
+							"id": "__REF__:static-key#id"
+						}
+					}
+				}
+			]
+		}
+	}`)
+
+	currentByName := map[string]state.EventGatewayVirtualClusterProducePolicyInfo{
+		"schema-validation": {
+			EventGatewayPolicy: kkComps.EventGatewayPolicy{
+				ID:   "schema-validation-id",
+				Name: new("schema-validation"),
+				Type: "schema_validation",
+			},
+		},
+	}
+
+	p := newTestPlanner()
+	prepared, err := p.prepareProducePolicyParentRefs(
+		[]resources.EventGatewayProducePolicyResource{parent, child},
+		currentByName,
+	)
+
+	require.NoError(t, err)
+	require.Len(t, prepared, 2)
+	require.Equal(
+		t,
+		"schema-validation-id",
+		prepared[1].EventGatewayParsedRecordEncryptFieldsPolicyCreate.ParentPolicyID,
+	)
 }

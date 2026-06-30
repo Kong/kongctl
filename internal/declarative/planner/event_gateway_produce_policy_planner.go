@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -46,10 +49,9 @@ func (p *Planner) planEventGatewayVirtualClusterProducePolicyChanges(
 	}
 
 	// Parent doesn't exist yet: plan creates only with dependency
-	p.planProducePolicyCreatesForNewVirtualCluster(
+	return p.planProducePolicyCreatesForNewVirtualCluster(
 		namespace, gatewayRef, virtualClusterRef, virtualClusterName, virtualClusterChangeID, desired, plan,
 	)
-	return nil
 }
 
 func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
@@ -83,6 +85,11 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 		}
 	}
 
+	desired, err = p.prepareProducePolicyParentRefs(desired, currentByName)
+	if err != nil {
+		return err
+	}
+
 	desiredNames := make(map[string]bool)
 	for _, desiredPolicy := range desired {
 		policyName := desiredPolicy.GetMoniker()
@@ -101,20 +108,20 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 		} else {
 			needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desiredPolicy)
 			if needsUpdate {
-				if _, typeChanged := changedFields[FieldType]; typeChanged {
-					// Type changes are not supported by the API; force DELETE + CREATE.
+				if producePolicyRequiresRecreate(changedFields) {
+					// Type and parent-policy changes are not supported by the API; force DELETE + CREATE.
 					p.logger.Debug(
-						"Planning produce policy DELETE+CREATE due to type change",
+						"Planning produce policy DELETE+CREATE due to immutable field change",
 						"policy_name", policyName,
 						"policy_id", current.ID,
 					)
-					p.planProducePolicyDelete(
+					deleteID := p.planProducePolicyDelete(
 						gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
 						current.ID, policyName, plan,
 					)
 					p.planProducePolicyCreate(
 						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
-						desiredPolicy, []string{}, plan,
+						desiredPolicy, []string{deleteID}, plan,
 					)
 				} else {
 					p.logger.Debug(
@@ -159,13 +166,18 @@ func (p *Planner) planProducePolicyCreatesForNewVirtualCluster(
 	virtualClusterChangeID string,
 	policies []resources.EventGatewayProducePolicyResource,
 	plan *Plan,
-) {
+) error {
 	p.logger.Debug(
 		"Planning produce policy creates for new virtual cluster",
 		"virtual_cluster_ref", virtualClusterRef,
 		"virtual_cluster_change_id", virtualClusterChangeID,
 		"policy_count", len(policies),
 	)
+
+	policies, err := p.prepareProducePolicyParentRefs(policies, nil)
+	if err != nil {
+		return err
+	}
 
 	var dependsOn []string
 	if virtualClusterChangeID != "" {
@@ -178,6 +190,65 @@ func (p *Planner) planProducePolicyCreatesForNewVirtualCluster(
 			policy, dependsOn, plan,
 		)
 	}
+	return nil
+}
+
+func (p *Planner) prepareProducePolicyParentRefs(
+	policies []resources.EventGatewayProducePolicyResource,
+	currentByName map[string]state.EventGatewayVirtualClusterProducePolicyInfo,
+) ([]resources.EventGatewayProducePolicyResource, error) {
+	if len(policies) == 0 {
+		return policies, nil
+	}
+
+	byRef := make(map[string]resources.EventGatewayProducePolicyResource, len(policies))
+	for _, policy := range policies {
+		byRef[policy.Ref] = policy
+	}
+
+	prepared := make([]resources.EventGatewayProducePolicyResource, len(policies))
+	copy(prepared, policies)
+
+	for i, policy := range prepared {
+		parentPolicyID := producePolicyParentPolicyID(policy)
+		if parentPolicyID == "" || !tags.IsRefPlaceholder(parentPolicyID) {
+			continue
+		}
+
+		targetRef := referenceTargetRef(parentPolicyID)
+		parentPolicy, ok := byRef[targetRef]
+		if !ok {
+			return nil, fmt.Errorf(
+				"produce policy %q parent_policy_id references unknown policy ref %q",
+				policy.GetMoniker(),
+				targetRef,
+			)
+		}
+		if !producePolicyIsSchemaValidation(parentPolicy) {
+			return nil, fmt.Errorf(
+				"produce policy %q parent_policy_id must reference a schema_validation produce policy, got %q",
+				policy.GetMoniker(),
+				producePolicyType(parentPolicy),
+			)
+		}
+
+		if current, ok := currentByName[parentPolicy.GetMoniker()]; ok && current.ID != "" &&
+			current.Type == string(kkComps.EventGatewayProducePolicyCreateTypeSchemaValidation) {
+			prepared[i] = producePolicyWithParentPolicyID(policy, current.ID)
+		}
+	}
+
+	return prepared, nil
+}
+
+func producePolicyRequiresRecreate(changedFields map[string]FieldChange) bool {
+	if _, typeChanged := changedFields[FieldType]; typeChanged {
+		return true
+	}
+	if _, parentPolicyChanged := changedFields[FieldParentPolicyID]; parentPolicyChanged {
+		return true
+	}
+	return false
 }
 
 func (p *Planner) planProducePolicyCreate(
@@ -295,6 +366,8 @@ func (p *Planner) addProducePolicyConfigReferences(change *PlannedChange) {
 		FieldConfig+".encryption_key.key."+FieldID,
 		ResourceTypeEventGatewayStaticKey,
 	)
+	p.addProducePolicyEncryptFieldsConfigReferences(change)
+	p.addProducePolicyParentPolicyReference(change)
 }
 
 func (p *Planner) addProducePolicyConfigReference(
@@ -326,6 +399,64 @@ func (p *Planner) addProducePolicyConfigReference(
 	change.References[fieldPath] = refInfo
 }
 
+func (p *Planner) addProducePolicyEncryptFieldsConfigReferences(change *PlannedChange) {
+	if change == nil || change.Fields == nil {
+		return
+	}
+
+	config, ok := change.Fields[FieldConfig].(map[string]any)
+	if !ok {
+		return
+	}
+	encryptFields, ok := config["encrypt_fields"].([]any)
+	if !ok {
+		return
+	}
+
+	for i, field := range encryptFields {
+		fieldMap, ok := field.(map[string]any)
+		if !ok {
+			continue
+		}
+		ref, ok := stringValueAtFieldPath(fieldMap, "encryption_key.key."+FieldID)
+		if !ok || !tags.IsRefPlaceholder(ref) {
+			continue
+		}
+
+		fieldPath := fmt.Sprintf("%s.encrypt_fields.%d.encryption_key.key.%s", FieldConfig, i, FieldID)
+		p.addProducePolicyConfigReference(change, fieldPath, ResourceTypeEventGatewayStaticKey)
+	}
+}
+
+func (p *Planner) addProducePolicyParentPolicyReference(change *PlannedChange) {
+	if change == nil || change.Fields == nil {
+		return
+	}
+
+	parentPolicyID, ok := change.Fields[FieldParentPolicyID].(string)
+	if !ok || !tags.IsRefPlaceholder(parentPolicyID) {
+		return
+	}
+
+	refInfo := ReferenceInfo{
+		Ref: parentPolicyID,
+		ID:  resources.UnknownReferenceID,
+	}
+	targetRef := referenceTargetRef(parentPolicyID)
+	if p.resolver != nil {
+		if resource, exists := p.resolver.getResourceByTypeAndRef(ResourceTypeEventGatewayProducePolicy, targetRef); exists {
+			if moniker := resource.GetMoniker(); moniker != "" {
+				refInfo.LookupFields = map[string]string{FieldName: moniker}
+			}
+		}
+	}
+
+	if change.References == nil {
+		change.References = make(map[string]ReferenceInfo)
+	}
+	change.References[FieldParentPolicyID] = refInfo
+}
+
 func stringValueAtFieldPath(fields map[string]any, fieldPath string) (string, bool) {
 	if fields == nil || fieldPath == "" {
 		return "", false
@@ -336,12 +467,20 @@ func stringValueAtFieldPath(fields map[string]any, fieldPath string) (string, bo
 
 	var current any = fields
 	for segment := range strings.SplitSeq(fieldPath, ".") {
-		currentMap, ok := current.(map[string]any)
-		if !ok {
-			return "", false
-		}
-		current, ok = currentMap[segment]
-		if !ok {
+		switch typed := current.(type) {
+		case map[string]any:
+			next, ok := typed[segment]
+			if !ok {
+				return "", false
+			}
+			current = next
+		case []any:
+			index, err := strconv.Atoi(segment)
+			if err != nil || index < 0 || index >= len(typed) {
+				return "", false
+			}
+			current = typed[index]
+		default:
 			return "", false
 		}
 	}
@@ -358,7 +497,7 @@ func (p *Planner) planProducePolicyDelete(
 	policyID string,
 	policyName string,
 	plan *Plan,
-) {
+) string {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypeEventGatewayProducePolicy, policyName),
 		ResourceType: ResourceTypeEventGatewayProducePolicy,
@@ -387,6 +526,7 @@ func (p *Planner) planProducePolicyDelete(
 		"policy_id", policyID,
 	)
 	plan.AddChange(change)
+	return change.ID
 }
 
 func (p *Planner) producePolicyToFields(policy resources.EventGatewayProducePolicyResource) map[string]any {
@@ -403,6 +543,8 @@ func (p *Planner) producePolicyToFields(policy resources.EventGatewayProducePoli
 		variantData, err = json.Marshal(policy.EventGatewayProduceSchemaValidationPolicy)
 	} else if policy.EventGatewayEncryptPolicy != nil {
 		variantData, err = json.Marshal(policy.EventGatewayEncryptPolicy)
+	} else if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil {
+		variantData, err = json.Marshal(policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate)
 	}
 
 	if err != nil {
@@ -421,27 +563,51 @@ func (p *Planner) producePolicyToFields(policy resources.EventGatewayProducePoli
 	}
 
 	// Explicitly add labels from the active variant (mirrors clusterPolicyToFields).
-	if lbl := extractProducePolicyVariantLabels(policy); lbl != nil {
+	if lbl := p.extractProducePolicyLabels(policy); lbl != nil {
 		fields[FieldLabels] = lbl
 	}
 
 	return fields
 }
 
-// extractProducePolicyVariantLabels extracts labels from whichever union variant is set.
-func extractProducePolicyVariantLabels(policy resources.EventGatewayProducePolicyResource) map[string]string {
-	if policy.EventGatewayModifyHeadersPolicyCreate != nil &&
-		policy.EventGatewayModifyHeadersPolicyCreate.Labels != nil {
-		return policy.EventGatewayModifyHeadersPolicyCreate.Labels
+func producePolicyType(policy resources.EventGatewayProducePolicyResource) string {
+	if policy.EventGatewayModifyHeadersPolicyCreate != nil {
+		return policy.EventGatewayModifyHeadersPolicyCreate.GetType()
 	}
-	if policy.EventGatewayProduceSchemaValidationPolicy != nil &&
-		policy.EventGatewayProduceSchemaValidationPolicy.Labels != nil {
-		return policy.EventGatewayProduceSchemaValidationPolicy.Labels
+	if policy.EventGatewayProduceSchemaValidationPolicy != nil {
+		return policy.EventGatewayProduceSchemaValidationPolicy.GetType()
 	}
-	if policy.EventGatewayEncryptPolicy != nil && policy.EventGatewayEncryptPolicy.Labels != nil {
-		return policy.EventGatewayEncryptPolicy.Labels
+	if policy.EventGatewayEncryptPolicy != nil {
+		return policy.EventGatewayEncryptPolicy.GetType()
 	}
-	return nil
+	if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil {
+		return policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.GetType()
+	}
+	return ""
+}
+
+func producePolicyIsSchemaValidation(policy resources.EventGatewayProducePolicyResource) bool {
+	return policy.EventGatewayProduceSchemaValidationPolicy != nil
+}
+
+func producePolicyParentPolicyID(policy resources.EventGatewayProducePolicyResource) string {
+	if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate == nil {
+		return ""
+	}
+	return policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.ParentPolicyID
+}
+
+func producePolicyWithParentPolicyID(
+	policy resources.EventGatewayProducePolicyResource,
+	parentPolicyID string,
+) resources.EventGatewayProducePolicyResource {
+	if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate == nil {
+		return policy
+	}
+	variant := *policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate
+	variant.ParentPolicyID = parentPolicyID
+	policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate = &variant
+	return policy
 }
 
 func (p *Planner) shouldUpdateProducePolicy(
@@ -453,17 +619,22 @@ func (p *Planner) shouldUpdateProducePolicy(
 
 	// Type comparison - type changes are not supported by the API and require a DELETE+CREATE.
 	currentType := current.Type
-	desiredType := ""
-	if desired.EventGatewayModifyHeadersPolicyCreate != nil {
-		desiredType = desired.EventGatewayModifyHeadersPolicyCreate.GetType()
-	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil {
-		desiredType = desired.EventGatewayProduceSchemaValidationPolicy.GetType()
-	} else if desired.EventGatewayEncryptPolicy != nil {
-		desiredType = desired.EventGatewayEncryptPolicy.GetType()
-	}
+	desiredType := producePolicyType(desired)
 	if currentType != desiredType {
 		needsUpdate = true
 		changes[FieldType] = FieldChange{Old: currentType, New: desiredType}
+	}
+
+	desiredParentPolicyID := producePolicyParentPolicyID(desired)
+	if desiredParentPolicyID != "" && !tags.IsRefPlaceholder(desiredParentPolicyID) {
+		currentParentPolicyID := ""
+		if current.ParentPolicyID != nil {
+			currentParentPolicyID = *current.ParentPolicyID
+		}
+		if currentParentPolicyID != desiredParentPolicyID {
+			needsUpdate = true
+			changes[FieldParentPolicyID] = FieldChange{Old: currentParentPolicyID, New: desiredParentPolicyID}
+		}
 	}
 
 	desiredName := desired.GetMoniker()
@@ -481,17 +652,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	if current.Description != nil {
 		currentDesc = *current.Description
 	}
-	desiredDesc := ""
-	// Check each known variant for description
-	if desired.EventGatewayModifyHeadersPolicyCreate != nil &&
-		desired.EventGatewayModifyHeadersPolicyCreate.Description != nil {
-		desiredDesc = *desired.EventGatewayModifyHeadersPolicyCreate.Description
-	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil &&
-		desired.EventGatewayProduceSchemaValidationPolicy.Description != nil {
-		desiredDesc = *desired.EventGatewayProduceSchemaValidationPolicy.Description
-	} else if desired.EventGatewayEncryptPolicy != nil && desired.EventGatewayEncryptPolicy.Description != nil {
-		desiredDesc = *desired.EventGatewayEncryptPolicy.Description
-	}
+	desiredDesc := p.extractProducePolicyDescription(desired)
 	if currentDesc != desiredDesc {
 		needsUpdate = true
 		changes[FieldDescription] = FieldChange{Old: currentDesc, New: desiredDesc}
@@ -502,16 +663,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	if current.Enabled != nil {
 		currentEnabled = *current.Enabled
 	}
-	desiredEnabled := true
-	if desired.EventGatewayModifyHeadersPolicyCreate != nil &&
-		desired.EventGatewayModifyHeadersPolicyCreate.Enabled != nil {
-		desiredEnabled = *desired.EventGatewayModifyHeadersPolicyCreate.Enabled
-	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil &&
-		desired.EventGatewayProduceSchemaValidationPolicy.Enabled != nil {
-		desiredEnabled = *desired.EventGatewayProduceSchemaValidationPolicy.Enabled
-	} else if desired.EventGatewayEncryptPolicy != nil && desired.EventGatewayEncryptPolicy.Enabled != nil {
-		desiredEnabled = *desired.EventGatewayEncryptPolicy.Enabled
-	}
+	desiredEnabled := p.extractProducePolicyEnabled(desired)
 	if currentEnabled != desiredEnabled {
 		needsUpdate = true
 		changes[FieldEnabled] = FieldChange{Old: currentEnabled, New: desiredEnabled}
@@ -525,7 +677,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	}
 
 	// Labels comparison
-	desiredLabels := extractProducePolicyVariantLabels(desired)
+	desiredLabels := p.extractProducePolicyLabels(desired)
 	if desiredLabels != nil {
 		if !compareMaps(current.Labels, desiredLabels) {
 			needsUpdate = true
@@ -546,28 +698,81 @@ func (p *Planner) shouldUpdateProducePolicy(
 	return needsUpdate, updateFields, changes
 }
 
+// extractProducePolicyLabels extracts labels from whichever union variant is set.
+func (p *Planner) extractProducePolicyLabels(
+	policy resources.EventGatewayProducePolicyResource,
+) map[string]string {
+	v := reflect.ValueOf(policy.EventGatewayProducePolicyCreate)
+	for _, field := range v.Fields() {
+		if field.Kind() != reflect.Pointer || field.IsNil() {
+			continue
+		}
+		labelsField := field.Elem().FieldByName("Labels")
+		if labelsField.IsValid() && !labelsField.IsNil() {
+			return labelsField.Interface().(map[string]string)
+		}
+	}
+	return nil
+}
+
+// extractProducePolicyDescription extracts description from whichever union variant is set.
+func (p *Planner) extractProducePolicyDescription(
+	policy resources.EventGatewayProducePolicyResource,
+) string {
+	v := reflect.ValueOf(policy.EventGatewayProducePolicyCreate)
+	for _, field := range v.Fields() {
+		if field.Kind() != reflect.Pointer || field.IsNil() {
+			continue
+		}
+		descField := field.Elem().FieldByName("Description")
+		if descField.IsValid() && !descField.IsNil() {
+			return *descField.Interface().(*string)
+		}
+	}
+	return ""
+}
+
+// extractProducePolicyEnabled extracts the enabled flag from whichever union variant is set.
+func (p *Planner) extractProducePolicyEnabled(
+	policy resources.EventGatewayProducePolicyResource,
+) bool {
+	v := reflect.ValueOf(policy.EventGatewayProducePolicyCreate)
+	for _, field := range v.Fields() {
+		if field.Kind() != reflect.Pointer || field.IsNil() {
+			continue
+		}
+		enabledField := field.Elem().FieldByName("Enabled")
+		if enabledField.IsValid() && !enabledField.IsNil() {
+			return *enabledField.Interface().(*bool)
+		}
+	}
+	return true
+}
+
 func (p *Planner) extractProducePolicyConfig(policy resources.EventGatewayProducePolicyResource) map[string]any {
-	// Config fields are value types on each variant; marshal the active variant's config.
-	var cfg any
-	if policy.EventGatewayModifyHeadersPolicyCreate != nil {
-		cfg = policy.EventGatewayModifyHeadersPolicyCreate.Config
-	} else if policy.EventGatewayProduceSchemaValidationPolicy != nil {
-		cfg = policy.EventGatewayProduceSchemaValidationPolicy.Config
-	} else if policy.EventGatewayEncryptPolicy != nil {
-		cfg = policy.EventGatewayEncryptPolicy.Config
-	}
+	v := reflect.ValueOf(policy.EventGatewayProducePolicyCreate)
+	for _, field := range v.Fields() {
+		if field.Kind() != reflect.Pointer || field.IsNil() {
+			continue
+		}
+		configField := field.Elem().FieldByName("Config")
+		if !configField.IsValid() {
+			continue
+		}
 
-	if cfg == nil {
-		return nil
-	}
+		data, err := json.Marshal(configField.Interface())
+		if err != nil {
+			continue
+		}
 
-	data, err := json.Marshal(cfg)
-	if err != nil {
-		return nil
+		var config map[string]any
+		if err := json.Unmarshal(data, &config); err != nil {
+			continue
+		}
+
+		if len(config) > 0 {
+			return config
+		}
 	}
-	var out map[string]any
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil
-	}
-	return out
+	return nil
 }

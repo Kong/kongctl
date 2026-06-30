@@ -17,7 +17,9 @@ static_keys:
 `kongctl apply`. The value should be a 256-bit (32-byte)
 base64-encoded string.
 ```
-export ENV_STATIC_KEY_VALUE=$(printf '%s' 'your-secret-value' | openssl dgst -sha256 -binary | base64 -w0)
+export ENV_STATIC_KEY_VALUE=$(
+  printf '%s' 'your-secret-value' | openssl dgst -sha256 -binary | base64 -w0
+)
 ```
 
 See [static-key.yaml](static-key.yaml) for a minimal example that
@@ -25,7 +27,7 @@ contains the static key resource.
 
 ---
 
-## How do I set destination using reference for backend cluster's ID in a virtual cluster?
+## How do I set a virtual cluster destination by reference?
 
 Use the `!ref` YAML tag with the syntax `<ref-name>#<field>` to pull
 a field from another resource in the same manifest at plan/apply
@@ -45,3 +47,96 @@ kongctl to substitute the resolved Konnect ID of that resource once
 it has been created or looked up.
 
 See [event-gateway.yaml](event-gateway.yaml) for the full example.
+
+---
+
+## How do I expose a backend topic under an alias?
+
+Use `topic_aliases` on an Event Gateway virtual cluster. Each alias
+maps a client-visible topic name to the namespace-visible backend topic
+name. Optional `condition` values are CEL expressions evaluated against
+the connection auth context, and `conflict` controls how alias/topic name
+collisions are handled.
+
+```yaml
+event_gateways:
+  - ref: my-event-gateway
+    name: my-event-gateway
+    min_runtime_version: "1.2"
+    virtual_clusters:
+      - ref: public-orders-virtual-cluster
+        name: public-orders-virtual-cluster
+        destination:
+          id: !ref orders-backend-cluster#id
+        authentication:
+          - type: anonymous
+        namespace:
+          mode: hide_prefix
+          prefix: tenant-a.
+        topic_aliases:
+          - alias: public-orders
+            topic: orders
+            condition: "context.auth.type == 'anonymous'"
+            conflict: warn
+```
+
+When a namespace is configured, `topic` uses the namespace-visible topic
+name. In this example, clients use `public-orders` while the backend
+topic remains under the `tenant-a.` namespace prefix. The Event Gateway
+control plane is pinned to minimum runtime version `1.2` because topic
+aliases require Event Gateway runtime 1.2 or later.
+
+See [topic-aliases.yaml](topic-aliases.yaml) for a focused example.
+
+---
+
+## How do I use Kong Identity principal metadata in CEL?
+
+Set `fetch_kong_identity_principal` inside the virtual cluster
+`authentication` entry. Event Gateway fetches the Kong Identity principal
+after authentication and exposes the principal to CEL expressions as
+`context.auth.principal`.
+
+For `sasl_plain`, `sasl_scram`, and `client_certificate`, provide
+`fetch_by.key` to identify which authenticated value should be used to
+look up the principal in the Kong Identity directory.
+
+```yaml
+authentication:
+  - type: sasl_scram
+    algorithm: sha256
+    fetch_kong_identity_principal:
+      directory: customer-directory
+      fetch_by:
+        key: kafka_username
+      failure_mode: error
+```
+
+For `oauth_bearer`, the lookup uses the authenticated bearer principal,
+so the nested `fetch_by` field is not used.
+
+```yaml
+authentication:
+  - type: oauth_bearer
+    mediation: validate_forward
+    fetch_kong_identity_principal:
+      directory: customer-directory
+      failure_mode: ignore
+```
+
+After the fetch is enabled, CEL conditions can reference the loaded
+principal ID or metadata.
+
+```yaml
+topic_aliases:
+  - alias: customer-orders
+    topic: tenant-a.orders
+    condition: 'context.auth.principal.metadata["tenant"] == "tenant-a"'
+```
+
+The Event Gateway control plane is pinned to minimum runtime version `1.2`
+because principal metadata sourcing requires Event Gateway runtime 1.2 or
+later.
+
+See [principal-metadata.yaml](principal-metadata.yaml) for a focused
+example.

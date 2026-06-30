@@ -46,15 +46,17 @@ type consumePolicySummaryRecord struct {
 // consumePolicyWithConfig is a wrapper that includes the full config from raw API response.
 // The SDK's EventGatewayPolicyConfig struct is empty, so we use map[string]any to capture actual config.
 type consumePolicyWithConfig struct {
-	Type        string            `json:"type" yaml:"type"`
-	Name        *string           `json:"name,omitempty" yaml:"name,omitempty"`
-	Description *string           `json:"description,omitempty" yaml:"description,omitempty"`
-	Enabled     *bool             `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	Labels      map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
-	ID          string            `json:"id" yaml:"id"`
-	Config      map[string]any    `json:"config" yaml:"config"`
-	CreatedAt   time.Time         `json:"created_at" yaml:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at" yaml:"updated_at"`
+	Type           string            `json:"type" yaml:"type"`
+	Name           *string           `json:"name,omitempty" yaml:"name,omitempty"`
+	Description    *string           `json:"description,omitempty" yaml:"description,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	ID             string            `json:"id" yaml:"id"`
+	Config         map[string]any    `json:"config" yaml:"config"`
+	ParentPolicyID *string           `json:"parent_policy_id,omitempty" yaml:"parent_policy_id,omitempty"`
+	Condition      *string           `json:"condition,omitempty" yaml:"condition,omitempty"`
+	CreatedAt      time.Time         `json:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at" yaml:"updated_at"`
 }
 
 var (
@@ -592,6 +594,14 @@ func consumePolicyWithConfigDetailView(policy *consumePolicyWithConfig) string {
 	enabled := formatEnabledBool(policy.Enabled)
 	labels := formatLabelPairs(policy.Labels)
 	config := formatJSONValue(policy.Config)
+	parentPolicyID := valueNA
+	if policy.ParentPolicyID != nil && strings.TrimSpace(*policy.ParentPolicyID) != "" {
+		parentPolicyID = strings.TrimSpace(*policy.ParentPolicyID)
+	}
+	condition := valueNA
+	if policy.Condition != nil && strings.TrimSpace(*policy.Condition) != "" {
+		condition = strings.TrimSpace(*policy.Condition)
+	}
 
 	createdAt := policy.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	updatedAt := policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
@@ -603,6 +613,8 @@ func consumePolicyWithConfigDetailView(policy *consumePolicyWithConfig) string {
 	fmt.Fprintf(&b, "description: %s\n", description)
 	fmt.Fprintf(&b, "enabled: %s\n", enabled)
 	fmt.Fprintf(&b, "labels: %s\n", labels)
+	fmt.Fprintf(&b, "condition: %s\n", condition)
+	fmt.Fprintf(&b, "parent_policy_id: %s\n", parentPolicyID)
 	fmt.Fprintf(&b, "config: %s\n", config)
 	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
 	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)

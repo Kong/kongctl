@@ -2,6 +2,7 @@ event_gateways:
   - ref: my-event-gateway
     name: my-event-gateway
     description: "My Event Gateway Control Plane"
+    min_runtime_version: "1.2"
     listeners:
       - ref: default-listener-ref
         name: default-listener-name
@@ -47,6 +48,11 @@ event_gateways:
           id: !ref default-backend-cluster#id
         authentication:
           - type: anonymous
+        topic_aliases:
+          - alias: public-orders
+            topic: tenant-a.orders
+            condition: "context.auth.type == 'anonymous'"
+            conflict: warn
         acl_mode: enforce_on_gateway
         dns_label: vc-default
         cluster_policies:
@@ -76,6 +82,29 @@ event_gateways:
                   value: "${client_id}"
                 - op: remove
                   key: x-original-header
+          - ref: default-produce-schema-validation
+            name: default-produce-schema-validation
+            description: Default Produce Schema Validation Policy
+            type: schema_validation
+            enabled: true
+            config:
+              type: json
+              failure_mode: reject
+              validate_value: true
+          - ref: default-produce-encrypt-fields
+            name: default-produce-encrypt-fields
+            description: Default Produce Field Encryption Policy
+            type: encrypt_fields
+            parent_policy_id: !ref default-produce-schema-validation#id
+            enabled: true
+            config:
+              failure_mode: reject
+              encrypt_fields:
+                - paths: record.value.content.customer.ssn
+                  encryption_key:
+                    type: static
+                    key:
+                      id: !ref default-static-key#id
         consume_policies:
           - ref: default-consume-policy
             name: default-consume-policy
@@ -87,6 +116,18 @@ event_gateways:
               key_validation_action: mark
               type: json
               value_validation_action: skip
+          - ref: default-consume-decrypt-fields
+            name: default-consume-decrypt-fields
+            description: Default Consume Field Decryption Policy
+            type: decrypt_fields
+            parent_policy_id: !ref default-consume-policy#id
+            enabled: true
+            config:
+              failure_mode: error
+              key_sources:
+                - type: static
+              decrypt_fields:
+                paths: record.value.content.customer.ssn
     schema_registries:
       - ref: default-schema-registry
         name: default-schema-registry

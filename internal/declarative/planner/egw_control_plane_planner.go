@@ -437,6 +437,14 @@ func (p *Planner) shouldUpdateEGWControlPlaneResource(
 		}
 	}
 
+	if desired.MinRuntimeVersion != nil && current.MinRuntimeVersion != getString(desired.MinRuntimeVersion) {
+		updates[FieldMinRuntimeVersion] = getString(desired.MinRuntimeVersion)
+		changedFields[FieldMinRuntimeVersion] = FieldChange{
+			Old: current.MinRuntimeVersion,
+			New: getString(desired.MinRuntimeVersion),
+		}
+	}
+
 	if desired.Labels != nil {
 		if labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
 			updates[FieldLabels] = desired.GetLabels()
@@ -499,6 +507,10 @@ func extractEGWControlPlaneFields(resource any) map[string]any {
 
 	if egwControlPlane.Description != nil {
 		fields[FieldDescription] = *egwControlPlane.Description
+	}
+
+	if egwControlPlane.MinRuntimeVersion != nil {
+		fields[FieldMinRuntimeVersion] = *egwControlPlane.MinRuntimeVersion
 	}
 
 	if len(egwControlPlane.GetLabels()) > 0 {

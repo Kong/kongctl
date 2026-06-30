@@ -180,11 +180,10 @@ type PortalSnippet struct {
 
 // PortalIdentityProvider represents a portal identity provider.
 type PortalIdentityProvider struct {
-	ID        string
-	Type      kkComps.IdentityProviderType
-	Enabled   *bool
-	LoginPath *string
-	Config    *kkComps.IdentityProviderConfig
+	ID      string
+	Type    kkComps.IdentityProviderType
+	Enabled *bool
+	Config  *kkComps.IdentityProviderConfig
 }
 
 // PortalTeam represents a portal team (developer team)

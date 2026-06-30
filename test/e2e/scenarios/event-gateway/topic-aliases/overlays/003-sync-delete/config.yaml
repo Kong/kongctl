@@ -1,0 +1,24 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-topic-aliases-test
+
+event_gateways:
+  - ref: egw-topic-aliases
+    name: egw-topic-aliases
+    description: "EGW CP for Topic Aliases Test"
+    min_runtime_version: "1.2"
+    backend_clusters:
+      - ref: topic-aliases-backend-cluster
+        name: topic-aliases-backend-cluster
+        description: "Backend Cluster for Topic Aliases Test"
+        bootstrap_servers:
+          - "egw-topic-aliases.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters: []

@@ -1,8 +1,10 @@
 package planner
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -348,6 +350,9 @@ func (p *Planner) planVirtualClusterCreate(
 	if cluster.Namespace != nil {
 		fields[FieldNamespace] = cluster.Namespace
 	}
+	if cluster.TopicAliases != nil {
+		fields[FieldTopicAliases] = cluster.TopicAliases
+	}
 	if len(cluster.Labels) > 0 {
 		fields[FieldLabels] = cluster.Labels
 	}
@@ -591,6 +596,16 @@ func (p *Planner) shouldUpdateVirtualCluster(
 		}
 	}
 
+	// Compare topic aliases when managed by declarative config. A nil desired
+	// slice means the field was omitted, while an empty slice means clear aliases.
+	if desired.TopicAliases != nil && !compareTopicAliases(current.TopicAliases, desired.TopicAliases) {
+		needsUpdate = true
+		changes[FieldTopicAliases] = FieldChange{
+			Old: current.TopicAliases,
+			New: desired.TopicAliases,
+		}
+	}
+
 	// Compare labels
 	if desired.Labels != nil {
 		if !compareMaps(current.Labels, desired.Labels) {
@@ -617,6 +632,12 @@ func (p *Planner) shouldUpdateVirtualCluster(
 
 		if desired.Namespace != nil {
 			updates[FieldNamespace] = desired.Namespace
+		}
+
+		if desired.TopicAliases != nil {
+			updates[FieldTopicAliases] = desired.TopicAliases
+		} else if len(current.TopicAliases) > 0 {
+			updates[FieldTopicAliases] = current.TopicAliases
 		}
 
 		if len(desired.Labels) > 0 {
@@ -707,6 +728,13 @@ func compareAuthentication(
 				}
 			}
 
+			if !compareFetchKongIdentityPrincipal(
+				currPlain.FetchKongIdentityPrincipal,
+				desiredPlain.FetchKongIdentityPrincipal,
+			) {
+				return false
+			}
+
 		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeSaslScram:
 			// Compare algorithm for sasl_scram
 			if current[i].VirtualClusterAuthenticationSaslScram == nil ||
@@ -715,6 +743,12 @@ func compareAuthentication(
 			}
 			if current[i].VirtualClusterAuthenticationSaslScram.Algorithm !=
 				desired[i].VirtualClusterAuthenticationSaslScram.Algorithm {
+				return false
+			}
+			if !compareFetchKongIdentityPrincipal(
+				current[i].VirtualClusterAuthenticationSaslScram.FetchKongIdentityPrincipal,
+				desired[i].VirtualClusterAuthenticationSaslScram.FetchKongIdentityPrincipal,
+			) {
 				return false
 			}
 
@@ -774,10 +808,22 @@ func compareAuthentication(
 				}
 			}
 
+			if !compareFetchKongIdentityPrincipalOauthBearer(
+				currOAuth.FetchKongIdentityPrincipal,
+				desiredOAuth.FetchKongIdentityPrincipal,
+			) {
+				return false
+			}
+
 		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeClientCertificate:
-			// Client certificate has no additional fields to compare
 			if current[i].VirtualClusterAuthenticationClientCertificate == nil ||
 				desired[i].VirtualClusterAuthenticationClientCertificate == nil {
+				return false
+			}
+			if !compareFetchKongIdentityPrincipal(
+				current[i].VirtualClusterAuthenticationClientCertificate.FetchKongIdentityPrincipal,
+				desired[i].VirtualClusterAuthenticationClientCertificate.FetchKongIdentityPrincipal,
+			) {
 				return false
 			}
 
@@ -787,6 +833,37 @@ func compareAuthentication(
 	}
 
 	return true
+}
+
+func compareFetchKongIdentityPrincipal(
+	current *components.FetchKongIdentityPrincipal,
+	desired *components.FetchKongIdentityPrincipal,
+) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+
+	return current.Directory == desired.Directory &&
+		current.FetchBy.Key == desired.FetchBy.Key &&
+		current.FailureMode == desired.FailureMode
+}
+
+func compareFetchKongIdentityPrincipalOauthBearer(
+	current *components.FetchKongIdentityPrincipalOauthBearer,
+	desired *components.FetchKongIdentityPrincipalOauthBearer,
+) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+
+	return current.Directory == desired.Directory &&
+		current.FailureMode == desired.FailureMode
 }
 
 // compareVirtualClusterNamespaces compares namespace configurations
@@ -810,6 +887,71 @@ func compareVirtualClusterNamespaces(
 	}
 
 	return true
+}
+
+func compareTopicAliases(
+	current []components.VirtualClusterTopicAlias,
+	desired []components.VirtualClusterTopicAlias,
+) bool {
+	if len(current) != len(desired) {
+		return false
+	}
+
+	currentAliases := slices.Clone(current)
+	desiredAliases := slices.Clone(desired)
+	slices.SortFunc(currentAliases, compareTopicAlias)
+	slices.SortFunc(desiredAliases, compareTopicAlias)
+
+	for i := range currentAliases {
+		if currentAliases[i].Alias != desiredAliases[i].Alias ||
+			currentAliases[i].Topic != desiredAliases[i].Topic ||
+			!topicAliasConditionPtrEqual(currentAliases[i].Condition, desiredAliases[i].Condition) ||
+			!topicAliasConflictPtrEqual(currentAliases[i].Conflict, desiredAliases[i].Conflict) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func compareTopicAlias(a, b components.VirtualClusterTopicAlias) int {
+	if c := cmp.Compare(a.Alias, b.Alias); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(a.Topic, b.Topic); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(stringPtrValue(a.Condition), stringPtrValue(b.Condition)); c != 0 {
+		return c
+	}
+	return cmp.Compare(string(topicAliasConflictPtrValue(a.Conflict)), string(topicAliasConflictPtrValue(b.Conflict)))
+}
+
+func topicAliasConditionPtrEqual(a *string, b *string) bool {
+	return stringPtrValue(a) == stringPtrValue(b)
+}
+
+func topicAliasConflictPtrEqual(
+	a *components.VirtualClusterTopicAliasConflict,
+	b *components.VirtualClusterTopicAliasConflict,
+) bool {
+	return topicAliasConflictPtrValue(a) == topicAliasConflictPtrValue(b)
+}
+
+func topicAliasConflictPtrValue(
+	conflict *components.VirtualClusterTopicAliasConflict,
+) components.VirtualClusterTopicAliasConflict {
+	if conflict == nil {
+		return components.VirtualClusterTopicAliasConflictWarn
+	}
+	return *conflict
+}
+
+func stringPtrValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // compareMaps compares two string maps

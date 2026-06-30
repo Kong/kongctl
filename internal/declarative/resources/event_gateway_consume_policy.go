@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -24,7 +25,7 @@ func init() {
 // EventGatewayConsumePolicyResource represents a consume policy in declarative configuration.
 // Consume policies are grandchildren: Event Gateway → Virtual Cluster → Consume Policy.
 // The SDK represents consume policies as a discriminated union type (EventGatewayConsumePolicyCreate)
-// with four variants: modify_headers, schema_validation, decrypt, skip_record.
+// with five variants: modify_headers, schema_validation, decrypt, skip_record, decrypt_fields.
 // The "type" discriminator field is required.
 type EventGatewayConsumePolicyResource struct {
 	kkComps.EventGatewayConsumePolicyCreate `yaml:",inline" json:",inline"`
@@ -60,6 +61,10 @@ func (e EventGatewayConsumePolicyResource) GetMoniker() string {
 	if e.EventGatewaySkipRecordPolicyCreate != nil && e.EventGatewaySkipRecordPolicyCreate.Name != nil {
 		return *e.EventGatewaySkipRecordPolicyCreate.Name
 	}
+	if e.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil &&
+		e.EventGatewayParsedRecordDecryptFieldsPolicyCreate.Name != nil {
+		return *e.EventGatewayParsedRecordDecryptFieldsPolicyCreate.Name
+	}
 	return e.Ref
 }
 
@@ -85,10 +90,12 @@ func (e EventGatewayConsumePolicyResource) Validate() error {
 	hasVariant := e.EventGatewayModifyHeadersPolicyCreate != nil ||
 		e.EventGatewayConsumeSchemaValidationPolicy != nil ||
 		e.EventGatewayDecryptPolicy != nil ||
-		e.EventGatewaySkipRecordPolicyCreate != nil
+		e.EventGatewaySkipRecordPolicyCreate != nil ||
+		e.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil
 	if !hasVariant {
 		return fmt.Errorf(
-			"consume policy must specify 'type' field (one of: modify_headers, schema_validation, decrypt, skip_record)",
+			"consume policy must specify 'type' field (one of: %s)",
+			strings.Join(validConsumePolicyTypeStrings(), ", "),
 		)
 	}
 
@@ -173,6 +180,7 @@ func (e EventGatewayConsumePolicyResource) MarshalJSON() ([]byte, error) {
 //   - "schema_validation" → EventGatewayConsumeSchemaValidationPolicy
 //   - "decrypt" → EventGatewayDecryptPolicy
 //   - "skip_record" → EventGatewaySkipRecordPolicyCreate
+//   - "decrypt_fields" → EventGatewayParsedRecordDecryptFieldsPolicyCreate
 func (e *EventGatewayConsumePolicyResource) UnmarshalJSON(data []byte) error {
 	// Extract our metadata fields
 	var meta struct {
@@ -213,17 +221,13 @@ func (e *EventGatewayConsumePolicyResource) UnmarshalJSON(data []byte) error {
 
 // validateConsumePolicyType ensures the required type discriminator is present and valid.
 func validateConsumePolicyType(raw map[string]any) error {
-	validTypes := []string{
-		string(kkComps.EventGatewayConsumePolicyCreateTypeModifyHeaders),
-		string(kkComps.EventGatewayConsumePolicyCreateTypeSchemaValidation),
-		string(kkComps.EventGatewayConsumePolicyCreateTypeDecrypt),
-		string(kkComps.EventGatewayConsumePolicyCreateTypeSkipRecord),
-	}
+	validTypes := validConsumePolicyTypeStrings()
 
 	policyType, hasType := raw["type"]
 	if !hasType {
 		return fmt.Errorf(
-			"consume policy requires 'type' field (one of: modify_headers, schema_validation, decrypt, skip_record)",
+			"consume policy requires 'type' field (one of: %s)",
+			strings.Join(validTypes, ", "),
 		)
 	}
 
@@ -237,7 +241,18 @@ func validateConsumePolicyType(raw map[string]any) error {
 	}
 
 	return fmt.Errorf(
-		"consume policy 'type' must be one of [modify_headers, schema_validation, decrypt, skip_record], got %q",
+		"consume policy 'type' must be one of [%s], got %q",
+		strings.Join(validTypes, ", "),
 		policyTypeStr,
 	)
+}
+
+func validConsumePolicyTypeStrings() []string {
+	return []string{
+		string(kkComps.EventGatewayConsumePolicyCreateTypeModifyHeaders),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeSchemaValidation),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeDecrypt),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeSkipRecord),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeDecryptFields),
+	}
 }

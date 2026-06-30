@@ -1,0 +1,68 @@
+event_gateways:
+  - ref: my-event-gateway
+    name: my-event-gateway
+    description: "Event Gateway with Kong Identity principal metadata"
+    min_runtime_version: "1.2"
+    backend_clusters:
+      - ref: orders-backend-cluster
+        name: orders-backend-cluster
+        description: "Kafka backend for orders"
+        bootstrap_servers:
+          - "orders-kafka-1.example.com:9092"
+          - "orders-kafka-2.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: scram-orders-virtual-cluster
+        name: scram-orders-virtual-cluster
+        description: "Resolve principal metadata after SASL/SCRAM auth"
+        destination:
+          id: !ref orders-backend-cluster#id
+        authentication:
+          - type: sasl_scram
+            algorithm: sha256
+            fetch_kong_identity_principal:
+              directory: customer-directory
+              fetch_by:
+                key: kafka_username
+              failure_mode: error
+        topic_aliases:
+          - alias: customer-orders
+            topic: tenant-a.orders
+            condition: 'context.auth.principal.metadata["tenant"] == "tenant-a"'
+            conflict: warn
+        acl_mode: enforce_on_gateway
+        dns_label: vc-scram-orders
+      - ref: oauth-orders-virtual-cluster
+        name: oauth-orders-virtual-cluster
+        description: "Resolve principal metadata after OAuth bearer auth"
+        destination:
+          id: !ref orders-backend-cluster#id
+        authentication:
+          - type: oauth_bearer
+            mediation: validate_forward
+            claims_mapping:
+              sub: sub
+              scope: scope
+            jwks:
+              endpoint: https://issuer.example.com/.well-known/jwks.json
+            validate:
+              issuer: https://issuer.example.com/
+              audiences:
+                - name: orders-api
+            fetch_kong_identity_principal:
+              directory: customer-directory
+              failure_mode: ignore
+        topic_aliases:
+          - alias: principal-orders
+            topic: tenant-a.principal-orders
+            condition: 'context.auth.principal.id != ""'
+            conflict: warn
+        acl_mode: passthrough
+        dns_label: vc-oauth-orders

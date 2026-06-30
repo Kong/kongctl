@@ -34,9 +34,6 @@ func (p *PortalIdentityProviderAdapter) MapCreateFields(
 	if enabled, ok := fields[planner.FieldEnabled].(bool); ok {
 		create.Enabled = &enabled
 	}
-	if loginPath, ok := fields[planner.FieldLoginPath].(string); ok {
-		create.LoginPath = &loginPath
-	}
 
 	config, err := createIdentityProviderConfigFromField(fields[planner.FieldConfig])
 	if err != nil {
@@ -56,9 +53,6 @@ func (p *PortalIdentityProviderAdapter) MapUpdateFields(
 ) error {
 	if enabled, ok := fields[planner.FieldEnabled].(bool); ok {
 		update.Enabled = &enabled
-	}
-	if loginPath, ok := fields[planner.FieldLoginPath].(string); ok {
-		update.LoginPath = &loginPath
 	}
 	if rawConfig, ok := fields[planner.FieldConfig]; ok {
 		config, err := createIdentityProviderConfigFromField(rawConfig)

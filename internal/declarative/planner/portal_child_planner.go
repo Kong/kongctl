@@ -912,11 +912,6 @@ func (p *Planner) shouldUpdatePortalIdentityProvider(
 		changedFields[FieldEnabled] = FieldChange{Old: current.Enabled, New: *desired.Enabled}
 	}
 
-	if desired.LoginPath != nil && (current.LoginPath == nil || *current.LoginPath != *desired.LoginPath) {
-		updates[FieldLoginPath] = *desired.LoginPath
-		changedFields[FieldLoginPath] = FieldChange{Old: current.LoginPath, New: *desired.LoginPath}
-	}
-
 	if desired.Config != nil {
 		if portalIdentityProviderConfigNeedsUpdate(current.Config, desired.Config) {
 			updates[FieldConfig] = portalIdentityProviderConfigDiffValueFromCreate(desired.Config)
@@ -966,9 +961,6 @@ func (p *Planner) planPortalIdentityProviderDelete(
 	parentNamespace string, portalRef string, portalID string, provider state.PortalIdentityProvider, plan *Plan,
 ) {
 	fields := map[string]any{FieldType: string(provider.Type)}
-	if provider.LoginPath != nil {
-		fields[FieldLoginPath] = *provider.LoginPath
-	}
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalIdentityProvider, provider.ID),
@@ -999,9 +991,6 @@ func (p *Planner) buildAllPortalIdentityProviderFields(
 	}
 	if provider.Enabled != nil {
 		fields[FieldEnabled] = *provider.Enabled
-	}
-	if provider.LoginPath != nil {
-		fields[FieldLoginPath] = *provider.LoginPath
 	}
 	if provider.Config != nil {
 		fields[FieldConfig] = portalIdentityProviderConfigDiffValueFromCreate(provider.Config)

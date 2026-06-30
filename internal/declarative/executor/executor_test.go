@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -160,6 +164,150 @@ func TestHydrateKnownReferenceIDsUpdatesNestedField(t *testing.T) {
 	assert.NotContains(t, change.Fields, "config.encryption_key.key.id")
 }
 
+func TestHydrateKnownReferenceIDsUpdatesEncryptFieldsStaticKey(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1-c-static-key"] = "static-key-id"
+
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "1-c-static-key",
+		ResourceType: planner.ResourceTypeEventGatewayStaticKey,
+		ResourceRef:  "static-key",
+		Action:       planner.ActionCreate,
+	})
+
+	change := planner.PlannedChange{
+		ID:           "2-c-produce-policy",
+		ResourceType: planner.ResourceTypeEventGatewayProducePolicy,
+		ResourceRef:  "produce-policy",
+		Action:       planner.ActionCreate,
+		DependsOn:    []string{"1-c-static-key"},
+		Fields: map[string]any{
+			planner.FieldConfig: map[string]any{
+				"encrypt_fields": []any{
+					map[string]any{
+						"encryption_key": map[string]any{
+							"key": map[string]any{
+								planner.FieldID: "__REF__:static-key#id",
+							},
+						},
+					},
+				},
+			},
+		},
+		References: map[string]planner.ReferenceInfo{
+			"config.encrypt_fields.0.encryption_key.key.id": {
+				Ref: "__REF__:static-key#id",
+				ID:  resources.UnknownReferenceID,
+			},
+		},
+	}
+	plan.AddChange(change)
+
+	exec.hydrateKnownReferenceIDs(&change, plan)
+
+	ref := change.References["config.encrypt_fields.0.encryption_key.key.id"]
+	assert.Equal(t, "static-key-id", ref.ID)
+	config := change.Fields[planner.FieldConfig].(map[string]any)
+	encryptFields := config["encrypt_fields"].([]any)
+	firstField := encryptFields[0].(map[string]any)
+	encryptionKey := firstField["encryption_key"].(map[string]any)
+	key := encryptionKey["key"].(map[string]any)
+	assert.Equal(t, "static-key-id", key[planner.FieldID])
+}
+
+func TestHydrateKnownReferenceIDsUpdatesPolicyParentID(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1-c-schema-validation"] = "schema-validation-id"
+
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "1-c-schema-validation",
+		ResourceType: planner.ResourceTypeEventGatewayProducePolicy,
+		ResourceRef:  "schema-validation",
+		Action:       planner.ActionCreate,
+	})
+
+	change := planner.PlannedChange{
+		ID:           "2-c-encrypt-fields",
+		ResourceType: planner.ResourceTypeEventGatewayProducePolicy,
+		ResourceRef:  "encrypt-fields",
+		Action:       planner.ActionCreate,
+		DependsOn:    []string{"1-c-schema-validation"},
+		Fields: map[string]any{
+			planner.FieldParentPolicyID: "__REF__:schema-validation#id",
+		},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldParentPolicyID: {
+				Ref: "__REF__:schema-validation#id",
+				ID:  resources.UnknownReferenceID,
+			},
+		},
+	}
+	plan.AddChange(change)
+
+	exec.hydrateKnownReferenceIDs(&change, plan)
+
+	ref := change.References[planner.FieldParentPolicyID]
+	assert.Equal(t, "schema-validation-id", ref.ID)
+	assert.Equal(t, "schema-validation-id", change.Fields[planner.FieldParentPolicyID])
+}
+
+func TestSyncResolvedEventGatewayStaticKeyConfigRefListsStaticKeysOnce(t *testing.T) {
+	api := &stubEventGatewayStaticKeyAPI{
+		keys: []kkComps.EventGatewayStaticKey{
+			{Name: "key-one", ID: "key-one-id"},
+			{Name: "key-two", ID: "key-two-id"},
+		},
+	}
+	exec := New(state.NewClient(state.ClientConfig{EventGatewayStaticKeyAPI: api}), nil, false)
+	change := planner.PlannedChange{
+		Fields: map[string]any{
+			planner.FieldConfig: map[string]any{
+				"encrypt_fields": []any{
+					map[string]any{
+						"encryption_key": map[string]any{
+							"key": map[string]any{planner.FieldID: "__REF__:key-one#id"},
+						},
+					},
+					map[string]any{
+						"encryption_key": map[string]any{
+							"key": map[string]any{planner.FieldID: "__REF__:key-two#id"},
+						},
+					},
+				},
+			},
+		},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldEventGatewayID: {ID: "gateway-id"},
+			"config.encrypt_fields.0.encryption_key.key.id": {
+				Ref:          "__REF__:key-one#id",
+				ID:           resources.UnknownReferenceID,
+				LookupFields: map[string]string{planner.FieldName: "key-one"},
+			},
+			"config.encrypt_fields.1.encryption_key.key.id": {
+				Ref:          "__REF__:key-two#id",
+				ID:           resources.UnknownReferenceID,
+				LookupFields: map[string]string{planner.FieldName: "key-two"},
+			},
+		},
+	}
+
+	err := exec.syncResolvedEventGatewayStaticKeyConfigRef(context.Background(), &change)
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, api.listCalls)
+	assert.Equal(t, "key-one-id", change.References["config.encrypt_fields.0.encryption_key.key.id"].ID)
+	assert.Equal(t, "key-two-id", change.References["config.encrypt_fields.1.encryption_key.key.id"].ID)
+
+	config := change.Fields[planner.FieldConfig].(map[string]any)
+	encryptFields := config["encrypt_fields"].([]any)
+	firstKey := encryptFields[0].(map[string]any)["encryption_key"].(map[string]any)["key"].(map[string]any)
+	secondKey := encryptFields[1].(map[string]any)["encryption_key"].(map[string]any)["key"].(map[string]any)
+	assert.Equal(t, "key-one-id", firstKey[planner.FieldID])
+	assert.Equal(t, "key-two-id", secondKey[planner.FieldID])
+}
+
 func TestHydrateKnownReferenceIDsAppliesResolvedNestedField(t *testing.T) {
 	exec := New(nil, nil, false)
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
@@ -189,6 +337,50 @@ func TestHydrateKnownReferenceIDsAppliesResolvedNestedField(t *testing.T) {
 	schemaRegistry := config["schema_registry"].(map[string]any)
 	assert.Equal(t, "schema-registry-id", schemaRegistry[planner.FieldID])
 	assert.NotContains(t, change.Fields, "config.schema_registry.id")
+}
+
+type stubEventGatewayStaticKeyAPI struct {
+	keys      []kkComps.EventGatewayStaticKey
+	listCalls int
+}
+
+var _ helpers.EventGatewayStaticKeyAPI = (*stubEventGatewayStaticKeyAPI)(nil)
+
+func (s *stubEventGatewayStaticKeyAPI) ListEventGatewayStaticKeys(
+	context.Context,
+	kkOps.ListEventGatewayStaticKeysRequest,
+	...kkOps.Option,
+) (*kkOps.ListEventGatewayStaticKeysResponse, error) {
+	s.listCalls++
+	return &kkOps.ListEventGatewayStaticKeysResponse{
+		ListEventGatewayStaticKeysResponse: &kkComps.ListEventGatewayStaticKeysResponse{
+			Data: s.keys,
+		},
+	}, nil
+}
+
+func (s *stubEventGatewayStaticKeyAPI) GetEventGatewayStaticKey(
+	context.Context,
+	kkOps.GetEventGatewayStaticKeyRequest,
+	...kkOps.Option,
+) (*kkOps.GetEventGatewayStaticKeyResponse, error) {
+	return nil, fmt.Errorf("GetEventGatewayStaticKey not implemented")
+}
+
+func (s *stubEventGatewayStaticKeyAPI) CreateEventGatewayStaticKey(
+	context.Context,
+	kkOps.CreateEventGatewayStaticKeyRequest,
+	...kkOps.Option,
+) (*kkOps.CreateEventGatewayStaticKeyResponse, error) {
+	return nil, fmt.Errorf("CreateEventGatewayStaticKey not implemented")
+}
+
+func (s *stubEventGatewayStaticKeyAPI) DeleteEventGatewayStaticKey(
+	context.Context,
+	kkOps.DeleteEventGatewayStaticKeyRequest,
+	...kkOps.Option,
+) (*kkOps.DeleteEventGatewayStaticKeyResponse, error) {
+	return nil, fmt.Errorf("DeleteEventGatewayStaticKey not implemented")
 }
 
 func TestExecutor_Execute_EmptyPlan(t *testing.T) {

@@ -980,7 +980,7 @@ func TestPlanPortalIdentityProviders_CreateWhenAbsent(t *testing.T) {
 		assert.Equal(t, ResourceTypePortalIdentityProvider, change.ResourceType)
 		assert.Equal(t, "portal-oidc", change.ResourceRef)
 		assert.Equal(t, "oidc", change.Fields["type"])
-		assert.Equal(t, "oidc-login", change.Fields["login_path"])
+		assert.NotContains(t, change.Fields, "login_path")
 		if assert.NotNil(t, change.Parent) {
 			assert.Equal(t, "portal-1", change.Parent.Ref)
 			assert.Equal(t, "portal-id", change.Parent.ID)
@@ -1057,7 +1057,7 @@ func TestPlanPortalIdentityProviders_UpdateWhenStateDiffers(t *testing.T) {
 		assert.Equal(t, ResourceTypePortalIdentityProvider, change.ResourceType)
 		assert.Equal(t, "provider-id", change.ResourceID)
 		assert.Equal(t, true, change.Fields["enabled"])
-		assert.Equal(t, "oidc-login-updated", change.Fields["login_path"])
+		assert.NotContains(t, change.Fields, "login_path")
 		assert.Contains(t, change.ChangedFields, "config")
 	}
 }
