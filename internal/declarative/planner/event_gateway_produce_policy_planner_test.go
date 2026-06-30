@@ -210,7 +210,7 @@ func TestProducePolicyToFieldsEncryptFields(t *testing.T) {
 			"failure_mode": "reject",
 			"encrypt_fields": [
 				{
-					"paths": "$.customer.ssn",
+					"paths": "record.value.content.customer.ssn",
 					"encryption_key": {
 						"type": "static",
 						"key": {
@@ -244,7 +244,7 @@ func TestPlanProducePolicyCreateEncryptFieldsReferences(t *testing.T) {
 			"failure_mode": "reject",
 			"encrypt_fields": [
 				{
-					"paths": "$.customer.ssn",
+					"paths": "record.value.content.customer.ssn",
 					"encryption_key": {
 						"type": "static",
 						"key": {
@@ -299,7 +299,7 @@ func TestPrepareProducePolicyParentRefsResolvesExistingSchemaValidationParent(t 
 			"failure_mode": "reject",
 			"encrypt_fields": [
 				{
-					"paths": "$.customer.ssn",
+					"paths": "record.value.content.customer.ssn",
 					"encryption_key": {
 						"type": "static",
 						"key": {

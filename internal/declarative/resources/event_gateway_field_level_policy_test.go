@@ -17,7 +17,7 @@ func TestEventGatewayProducePolicyEncryptFieldsUnmarshal(t *testing.T) {
 			"failure_mode": "reject",
 			"encrypt_fields": [
 				{
-					"paths": "$.customer.ssn",
+					"paths": "record.value.content.customer.ssn",
 					"encryption_key": {
 						"type": "static",
 						"key": {
@@ -58,7 +58,7 @@ func TestEventGatewayConsumePolicyDecryptFieldsUnmarshal(t *testing.T) {
 				{"type": "static"}
 			],
 			"decrypt_fields": {
-				"paths": "$.customer.ssn"
+				"paths": "record.value.content.customer.ssn"
 			}
 		}
 	}`)
@@ -74,5 +74,5 @@ func TestEventGatewayConsumePolicyDecryptFieldsUnmarshal(t *testing.T) {
 	require.Len(t, variant.Config.KeySources, 1)
 	require.NotNil(t, variant.Config.KeySources[0].EventGatewayStaticKeySource)
 	require.NotNil(t, variant.Config.DecryptFields.Paths.Str)
-	require.Equal(t, "$.customer.ssn", *variant.Config.DecryptFields.Paths.Str)
+	require.Equal(t, "record.value.content.customer.ssn", *variant.Config.DecryptFields.Paths.Str)
 }

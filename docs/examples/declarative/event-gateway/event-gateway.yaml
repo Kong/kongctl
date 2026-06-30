@@ -100,7 +100,7 @@ event_gateways:
             config:
               failure_mode: reject
               encrypt_fields:
-                - paths: $.customer.ssn
+                - paths: record.value.content.customer.ssn
                   encryption_key:
                     type: static
                     key:
@@ -127,7 +127,7 @@ event_gateways:
               key_sources:
                 - type: static
               decrypt_fields:
-                paths: $.customer.ssn
+                paths: record.value.content.customer.ssn
     schema_registries:
       - ref: default-schema-registry
         name: default-schema-registry

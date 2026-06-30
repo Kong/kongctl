@@ -217,7 +217,7 @@ func TestConsumePolicyToFieldsDecryptFields(t *testing.T) {
 				{"type": "static"}
 			],
 			"decrypt_fields": {
-				"paths": "$.customer.ssn"
+				"paths": "record.value.content.customer.ssn"
 			}
 		}
 	}`)
@@ -245,7 +245,7 @@ func TestPlanConsumePolicyCreateDecryptFieldsReference(t *testing.T) {
 				{"type": "static"}
 			],
 			"decrypt_fields": {
-				"paths": "$.customer.ssn"
+				"paths": "record.value.content.customer.ssn"
 			}
 		}
 	}`)
@@ -290,7 +290,7 @@ func TestPrepareConsumePolicyParentRefsResolvesExistingSchemaValidationParent(t 
 				{"type": "static"}
 			],
 			"decrypt_fields": {
-				"paths": "$.customer.ssn"
+				"paths": "record.value.content.customer.ssn"
 			}
 		}
 	}`)

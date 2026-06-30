@@ -444,7 +444,7 @@ produce_policies:
     config:
       failure_mode: reject
       encrypt_fields:
-        - paths: $.customer.ssn
+        - paths: record.value.content.customer.ssn
           encryption_key:
             type: static
             key:
@@ -465,7 +465,7 @@ consume_policies:
       key_sources:
         - type: static
       decrypt_fields:
-        paths: $.customer.ssn
+        paths: record.value.content.customer.ssn
 ```
 
 ## Organization
