@@ -3,4 +3,4 @@ control_planes:
     name: "e2e-deck-env-cp"
     description: "E2E control plane for deck environment variables"
     cluster_type: "CLUSTER_TYPE_SERVERLESS"
-
+    cloud_gateway: false

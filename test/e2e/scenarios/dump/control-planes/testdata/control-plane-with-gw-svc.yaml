@@ -3,6 +3,7 @@ control_planes:
     name: "e2e-dump-cp"
     description: "E2E Dump Test Control Plane"
     cluster_type: "CLUSTER_TYPE_SERVERLESS"
+    cloud_gateway: false
     _deck:
       files:
         - "gateway-service.yaml"
