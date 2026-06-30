@@ -99,7 +99,7 @@ func (a *AIGatewayProviderAdapter) Delete(ctx context.Context, id string, execCt
 }
 
 func (a *AIGatewayProviderAdapter) GetByName(_ context.Context, _ string) (ResourceInfo, error) {
-	return nil, nil
+	return nil, fmt.Errorf("GetByName not supported for AI Gateway Providers")
 }
 
 func (a *AIGatewayProviderAdapter) GetByID(
