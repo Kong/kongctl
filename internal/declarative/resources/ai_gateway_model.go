@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -55,6 +56,13 @@ func (a AIGatewayModelResource) GetParentRef() *ResourceRef {
 		return nil
 	}
 	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}
+}
+
+func (a AIGatewayModelResource) GetReferenceFieldMappings() map[string]string {
+	if a.AIGateway == "" {
+		return nil
+	}
+	return map[string]string{SchemaFieldAIGateway: string(ResourceTypeAIGateway)}
 }
 
 func (a AIGatewayModelResource) Validate() error {
@@ -256,7 +264,7 @@ func (a *AIGatewayModelResource) UnmarshalJSON(data []byte) error {
 
 	delete(raw, SchemaFieldRef)
 	delete(raw, SchemaFieldAIGateway)
-	delete(raw, "kongctl")
+	delete(raw, SchemaFieldKongctl)
 	if err := normalizeAIGatewayModelPayloadAliases(raw); err != nil {
 		return err
 	}
@@ -503,9 +511,9 @@ func marshalObjectToMap(value any, label string) (map[string]any, error) {
 }
 
 func stripAIGatewayModelServerFields(payload map[string]any) {
-	delete(payload, "id")
-	delete(payload, "created_at")
-	delete(payload, "updated_at")
+	delete(payload, SchemaFieldID)
+	delete(payload, SchemaFieldCreatedAt)
+	delete(payload, SchemaFieldUpdatedAt)
 }
 
 func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
@@ -545,21 +553,15 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	}
 
 	modelFields := append(
-		slicesCloneExplainFields(commonFields),
+		slices.Clone(commonFields),
 		explainField("type", explainConstStringNode("model"), true, true),
 		explainField("capabilities", explainArrayOf(explainStringNode("generate")), true, true),
 	)
 	apiFields := append(
-		slicesCloneExplainFields(commonFields),
+		slices.Clone(commonFields),
 		explainField("type", explainConstStringNode("api"), true, true),
 		explainField("capabilities", explainArrayOf(explainStringNode("files")), true, true),
 	)
 
 	return explainUnionNode(explainObject(modelFields...), explainObject(apiFields...)), nil
-}
-
-func slicesCloneExplainFields(fields []*ExplainField) []*ExplainField {
-	cloned := make([]*ExplainField, len(fields))
-	copy(cloned, fields)
-	return cloned
 }

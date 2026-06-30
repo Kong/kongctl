@@ -384,6 +384,7 @@ func aiGatewayPolicyDetailView(policy kkComps.AIGatewayPolicy) string {
 	payload := make(map[string]any)
 	data, err := json.Marshal(policy)
 	if err == nil {
+		// Detail views are best-effort; leave missing fields as n/a if SDK union data cannot round-trip.
 		_ = json.Unmarshal(data, &payload)
 	}
 

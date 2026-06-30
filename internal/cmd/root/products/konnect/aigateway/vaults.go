@@ -404,6 +404,7 @@ func aiGatewayVaultDetailView(vault kkComps.AIGatewayVault) string {
 	payload := make(map[string]any)
 	data, err := json.Marshal(vault)
 	if err == nil {
+		// Detail views are best-effort; leave missing fields as n/a if SDK union data cannot round-trip.
 		_ = json.Unmarshal(data, &payload)
 	}
 
@@ -424,4 +425,43 @@ func aiGatewayVaultDetailView(vault kkComps.AIGatewayVault) string {
 		fmt.Fprintf(&b, "%s: %s\n", field, formatAIGatewayModelDetailValue(payload[field]))
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func buildAIGatewayVaultChildView(vaults []kkComps.AIGatewayVault) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(vaults))
+	for i := range vaults {
+		record := aiGatewayVaultToRecord(vaults[i])
+		tableRows = append(tableRows, table.Row{
+			record.ID,
+			record.Name,
+			record.Type,
+			record.Description,
+			record.LocalUpdatedTime,
+		})
+	}
+
+	return tableview.ChildView{
+		Headers: []string{
+			aiGatewayHeaderID,
+			aiGatewayHeaderName,
+			aiGatewayHeaderType,
+			"DESCRIPTION",
+			aiGatewayHeaderUpdated,
+		},
+		Rows: tableRows,
+		DetailRenderer: func(index int) string {
+			if index < 0 || index >= len(vaults) {
+				return ""
+			}
+			return aiGatewayVaultDetailView(vaults[index])
+		},
+		Title:      "AI Gateway Vaults",
+		ParentType: common.ViewParentAIGatewayVault,
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(vaults) {
+				return nil
+			}
+			return &vaults[index]
+		},
+	}
 }

@@ -33,7 +33,7 @@ func (c *Client) ListAIGatewayPolicies(ctx context.Context, gatewayID string) ([
 		}
 
 		if resp == nil || resp.ListAIGatewayPoliciesResponse == nil {
-			return []AIGatewayPolicy{}, nil
+			break
 		}
 
 		allData = append(allData, resp.ListAIGatewayPoliciesResponse.Data...)

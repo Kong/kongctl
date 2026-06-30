@@ -375,6 +375,7 @@ func aiGatewayConsumerGroupDetailView(group kkComps.AIGatewayConsumerGroup) stri
 	payload := make(map[string]any)
 	data, err := json.Marshal(group)
 	if err == nil {
+		// Detail views are best-effort; leave missing fields as n/a if SDK union data cannot round-trip.
 		_ = json.Unmarshal(data, &payload)
 	}
 

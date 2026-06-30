@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -76,6 +77,13 @@ func (a AIGatewayMCPServerResource) GetParentRef() *ResourceRef {
 	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}
 }
 
+func (a AIGatewayMCPServerResource) GetReferenceFieldMappings() map[string]string {
+	if a.AIGateway == "" {
+		return nil
+	}
+	return map[string]string{SchemaFieldAIGateway: string(ResourceTypeAIGateway)}
+}
+
 func (a AIGatewayMCPServerResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway MCP Server ref: %w", err)
@@ -106,6 +114,7 @@ func (a *AIGatewayMCPServerResource) SetDefaults() {
 		return
 	}
 
+	// Defaults are best-effort; validation and planning surface malformed payloads through PayloadMap.
 	payload, err := a.PayloadMap()
 	if err != nil {
 		return
@@ -180,6 +189,7 @@ func (a AIGatewayMCPServerResource) CreateRequest() kkComps.CreateAIGatewayMCPSe
 }
 
 func (a AIGatewayMCPServerResource) UpdateRequest() kkComps.UpdateAIGatewayMCPServerRequest {
+	// UpdateRequest is best-effort for legacy callers; MutablePayloadMap surfaces payload errors to planners.
 	payload, err := a.PayloadMap()
 	if err != nil || len(payload) == 0 {
 		return kkComps.UpdateAIGatewayMCPServerRequest{}
@@ -263,7 +273,7 @@ func (a *AIGatewayMCPServerResource) UnmarshalJSON(data []byte) error {
 
 	delete(raw, SchemaFieldRef)
 	delete(raw, SchemaFieldAIGateway)
-	delete(raw, "kongctl")
+	delete(raw, SchemaFieldKongctl)
 
 	payload, err := json.Marshal(raw)
 	if err != nil {
@@ -378,7 +388,7 @@ func AIGatewayMCPServerResourceFromResponse(
 
 func stripAIGatewayMCPServerServerFields(payload map[string]any) {
 	delete(payload, aiGatewayMCPServerFieldID)
-	delete(payload, "created_at")
+	delete(payload, SchemaFieldCreatedAt)
 	delete(payload, aiGatewayMCPServerFieldUpdatedAt)
 }
 
@@ -421,26 +431,26 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 
 	return explainUnionNode(
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("conversion-only"), true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("conversion-listener"), true, true),
 			explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("listener"), true, true),
 			explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("passthrough-listener"), true, true),
 			explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
 		)...),
 		explainObject(append(
-			slicesCloneExplainFields(commonFields),
+			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("upstream-server"), true, true),
 			explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
 		)...),

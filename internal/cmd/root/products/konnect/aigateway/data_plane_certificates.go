@@ -436,6 +436,7 @@ func aiGatewayDataPlaneCertificateDetailView(cert kkComps.AIGatewayDataPlaneClie
 	payload := make(map[string]any)
 	data, err := json.Marshal(cert)
 	if err == nil {
+		// Detail views are best-effort; leave missing fields as n/a if SDK union data cannot round-trip.
 		_ = json.Unmarshal(data, &payload)
 	}
 
