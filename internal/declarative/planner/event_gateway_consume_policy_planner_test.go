@@ -46,11 +46,12 @@ func TestShouldUpdateConsumePolicy_NoChanges(t *testing.T) {
 					"env":  "prod",
 					"team": "platform",
 				},
-				Config: kkComps.EventGatewayConsumeSchemaValidationPolicyConfig{
-					Type:                  kkComps.SchemaValidationTypeJSON,
-					KeyValidationAction:   &keyAction,
-					ValueValidationAction: &valueAction,
-				},
+				Config: kkComps.CreateEventGatewayConsumeSchemaValidationPolicyConfigJSON(
+					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{
+						KeyValidationAction:   &keyAction,
+						ValueValidationAction: &valueAction,
+					},
+				),
 			},
 		),
 		Ref: "test-consume-policy-ref",
@@ -90,9 +91,9 @@ func TestShouldUpdateConsumePolicy_DescriptionChanged(t *testing.T) {
 				Name:        &name,
 				Description: &newDesc,
 				Enabled:     &enabled,
-				Config: kkComps.EventGatewayConsumeSchemaValidationPolicyConfig{
-					Type: kkComps.SchemaValidationTypeJSON,
-				},
+				Config: kkComps.CreateEventGatewayConsumeSchemaValidationPolicyConfigJSON(
+					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{},
+				),
 			},
 		),
 		Ref: "test-consume-policy-ref",
@@ -137,10 +138,11 @@ func TestShouldUpdateConsumePolicy_ConfigChangedNestedField(t *testing.T) {
 				Name:        &name,
 				Description: &desc,
 				Enabled:     &enabled,
-				Config: kkComps.EventGatewayConsumeSchemaValidationPolicyConfig{
-					Type:                kkComps.SchemaValidationTypeJSON,
-					KeyValidationAction: &newKeyAction,
-				},
+				Config: kkComps.CreateEventGatewayConsumeSchemaValidationPolicyConfigJSON(
+					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{
+						KeyValidationAction: &newKeyAction,
+					},
+				),
 			},
 		),
 		Ref: "test-consume-policy-ref",

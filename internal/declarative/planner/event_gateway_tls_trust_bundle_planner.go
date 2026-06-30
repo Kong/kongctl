@@ -22,7 +22,8 @@ func (p *Planner) planEventGatewayTLSTrustBundleChanges(
 	desired []resources.EventGatewayTLSTrustBundleResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning Event Gateway TLS Trust Bundle changes",
+	p.logger.Debug(
+		"Planning Event Gateway TLS Trust Bundle changes",
 		"gateway_name", gatewayName,
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
@@ -39,7 +40,8 @@ func (p *Planner) planEventGatewayTLSTrustBundleChanges(
 
 	// Gateway doesn't exist yet: plan creates only with dependency on gateway creation
 	p.planTrustBundleCreatesForNewGateway(
-		namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan)
+		namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan,
+	)
 	return nil
 }
 
@@ -53,7 +55,8 @@ func (p *Planner) planTrustBundleChangesForExistingGateway(
 	desired []resources.EventGatewayTLSTrustBundleResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning changes for existing gateway TLS trust bundles",
+	p.logger.Debug(
+		"Planning changes for existing gateway TLS trust bundles",
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
 		"desired_count", len(desired),
@@ -64,7 +67,8 @@ func (p *Planner) planTrustBundleChangesForExistingGateway(
 		return fmt.Errorf("failed to list TLS trust bundles for gateway %s: %w", gatewayID, err)
 	}
 
-	p.logger.Debug("Fetched current TLS trust bundles",
+	p.logger.Debug(
+		"Fetched current TLS trust bundles",
 		"gateway_id", gatewayID,
 		"current_count", len(currentBundles),
 	)
@@ -83,27 +87,31 @@ func (p *Planner) planTrustBundleChangesForExistingGateway(
 		current, exists := currentByName[name]
 
 		if !exists {
-			p.logger.Debug("Planning TLS trust bundle CREATE",
+			p.logger.Debug(
+				"Planning TLS trust bundle CREATE",
 				"bundle_name", name,
 				"gateway_ref", gatewayRef,
 			)
 			p.planTrustBundleCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredTB, []string{}, plan)
 		} else {
-			p.logger.Debug("Checking if TLS trust bundle needs update",
+			p.logger.Debug(
+				"Checking if TLS trust bundle needs update",
 				"bundle_name", name,
 				"bundle_id", current.ID,
 			)
 
 			needsUpdate, updateFields, changedFields := p.shouldUpdateTrustBundle(current, desiredTB)
 			if needsUpdate {
-				p.logger.Debug("Planning TLS trust bundle UPDATE",
+				p.logger.Debug(
+					"Planning TLS trust bundle UPDATE",
 					"bundle_name", name,
 					"bundle_id", current.ID,
 					"update_fields", updateFields,
 				)
 				p.planTrustBundleUpdate(
 					namespace, gatewayRef, gatewayID,
-					current.ID, desiredTB, updateFields, changedFields, plan)
+					current.ID, desiredTB, updateFields, changedFields, plan,
+				)
 			}
 		}
 	}
@@ -112,7 +120,8 @@ func (p *Planner) planTrustBundleChangesForExistingGateway(
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				p.logger.Debug("Planning TLS trust bundle DELETE (sync mode)",
+				p.logger.Debug(
+					"Planning TLS trust bundle DELETE (sync mode)",
 					"bundle_name", name,
 					"bundle_id", current.ID,
 				)
@@ -133,7 +142,8 @@ func (p *Planner) planTrustBundleCreatesForNewGateway(
 	bundles []resources.EventGatewayTLSTrustBundleResource,
 	plan *Plan,
 ) {
-	p.logger.Debug("Planning TLS trust bundle creates for new gateway",
+	p.logger.Debug(
+		"Planning TLS trust bundle creates for new gateway",
 		"gateway_ref", gatewayRef,
 		"gateway_change_id", gatewayChangeID,
 		"bundle_count", len(bundles),

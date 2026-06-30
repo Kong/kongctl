@@ -2907,7 +2907,8 @@ func (c *Client) UpdatePortalAuthSettings(
 	}
 
 	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
-		logger.Debug("updating portal auth settings",
+		logger.Debug(
+			"updating portal auth settings",
 			"portal_id", portalID,
 			"basic_auth_enabled", settings.BasicAuthEnabled,
 			"idp_mapping_enabled", settings.IdpMappingEnabled,
@@ -3226,7 +3227,8 @@ func (c *Client) UpsertPortalIntegrations(
 	}
 
 	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
-		logger.Debug("upserting portal integrations",
+		logger.Debug(
+			"upserting portal integrations",
 			"portal_id", portalID,
 			"has_google_tag_manager", integrations.GoogleTagManager != nil,
 			"has_google_analytics_4", integrations.GoogleAnalytics4 != nil,
@@ -3265,8 +3267,12 @@ func (c *Client) ListPortalIdentityProviders(ctx context.Context, portalID strin
 		)
 	}
 
-	providers := make([]PortalIdentityProvider, 0, len(resp.IdentityProviders))
-	for _, provider := range resp.IdentityProviders {
+	if resp == nil {
+		return nil, nil
+	}
+
+	providers := make([]PortalIdentityProvider, 0, len(resp.PortalIdentityProviders))
+	for _, provider := range resp.PortalIdentityProviders {
 		providers = append(providers, normalizePortalIdentityProvider(provider))
 	}
 
@@ -3299,11 +3305,11 @@ func (c *Client) GetPortalIdentityProvider(
 			},
 		)
 	}
-	if resp == nil || resp.IdentityProvider == nil {
+	if resp == nil || resp.PortalIdentityProvider == nil {
 		return nil, nil
 	}
 
-	provider := normalizePortalIdentityProvider(*resp.IdentityProvider)
+	provider := normalizePortalIdentityProvider(*resp.PortalIdentityProvider)
 	return &provider, nil
 }
 
@@ -3332,11 +3338,11 @@ func (c *Client) CreatePortalIdentityProvider(
 			},
 		)
 	}
-	if resp == nil || resp.IdentityProvider == nil || resp.IdentityProvider.ID == nil {
-		return "", NewResponseValidationError("create portal identity provider", "IdentityProvider")
+	if resp == nil || resp.PortalIdentityProvider == nil || resp.PortalIdentityProvider.ID == nil {
+		return "", NewResponseValidationError("create portal identity provider", "PortalIdentityProvider")
 	}
 
-	return *resp.IdentityProvider.ID, nil
+	return *resp.PortalIdentityProvider.ID, nil
 }
 
 // UpdatePortalIdentityProvider updates an identity provider for a portal.
@@ -3351,9 +3357,18 @@ func (c *Client) UpdatePortalIdentityProvider(
 		return err
 	}
 
-	_, err := c.portalIdentityProviderAPI.UpdatePortalIdentityProvider(
+	portalUpdate, err := portalUpdateIdentityProviderFromUpdate(body)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.portalIdentityProviderAPI.UpdatePortalIdentityProvider(
 		ctx,
-		kkOps.UpdatePortalIdentityProviderRequest{PortalID: portalID, ID: id, UpdateIdentityProvider: body},
+		kkOps.UpdatePortalIdentityProviderRequest{
+			PortalID:                     portalID,
+			ID:                           id,
+			PortalUpdateIdentityProvider: portalUpdate,
+		},
 	)
 	if err != nil {
 		return WrapAPIError(
@@ -3368,6 +3383,57 @@ func (c *Client) UpdatePortalIdentityProvider(
 		)
 	}
 	return nil
+}
+
+func portalUpdateIdentityProviderFromUpdate(
+	body kkComps.UpdateIdentityProvider,
+) (kkComps.PortalUpdateIdentityProvider, error) {
+	if body.LoginPath != nil {
+		return kkComps.PortalUpdateIdentityProvider{}, fmt.Errorf(
+			"login_path is not supported for portal identity provider update requests",
+		)
+	}
+
+	converted := kkComps.PortalUpdateIdentityProvider{Enabled: body.Enabled}
+	if body.Config == nil {
+		return converted, nil
+	}
+
+	config, err := portalUpdateIdentityProviderConfigFromUpdate(body.Config)
+	if err != nil {
+		return kkComps.PortalUpdateIdentityProvider{}, err
+	}
+	converted.Config = config
+	return converted, nil
+}
+
+func portalUpdateIdentityProviderConfigFromUpdate(
+	config *kkComps.UpdateIdentityProviderConfig,
+) (*kkComps.PortalUpdateIdentityProviderConfig, error) {
+	switch config.Type {
+	case kkComps.UpdateIdentityProviderConfigTypeOIDCIdentityProviderConfig:
+		if config.OIDCIdentityProviderConfig == nil {
+			return nil, fmt.Errorf("oidc identity provider config is required")
+		}
+		converted := kkComps.CreatePortalUpdateIdentityProviderConfigOIDCIdentityProviderConfig(
+			*config.OIDCIdentityProviderConfig,
+		)
+		return &converted, nil
+	case kkComps.UpdateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:
+		if config.SAMLIdentityProviderConfigInput == nil {
+			return nil, fmt.Errorf("saml identity provider config is required")
+		}
+		convertedSAML := kkComps.PortalSAMLIdentityProviderConfigInput{
+			IdpMetadataURL: config.SAMLIdentityProviderConfigInput.IdpMetadataURL,
+			IdpMetadataXML: config.SAMLIdentityProviderConfigInput.IdpMetadataXML,
+		}
+		converted := kkComps.CreatePortalUpdateIdentityProviderConfigPortalSAMLIdentityProviderConfigInput(
+			convertedSAML,
+		)
+		return &converted, nil
+	default:
+		return nil, fmt.Errorf("identity provider config type is required")
+	}
 }
 
 // DeletePortalIdentityProvider deletes an identity provider from a portal.
@@ -3391,8 +3457,8 @@ func (c *Client) DeletePortalIdentityProvider(ctx context.Context, portalID stri
 	return nil
 }
 
-func normalizePortalIdentityProvider(provider kkComps.IdentityProvider) PortalIdentityProvider {
-	normalized := PortalIdentityProvider{Config: provider.Config}
+func normalizePortalIdentityProvider(provider kkComps.PortalIdentityProvider) PortalIdentityProvider {
+	normalized := PortalIdentityProvider{Config: normalizePortalIdentityProviderConfig(provider.Config)}
 	if provider.ID != nil {
 		normalized.ID = *provider.ID
 	}
@@ -3400,8 +3466,38 @@ func normalizePortalIdentityProvider(provider kkComps.IdentityProvider) PortalId
 		normalized.Type = *provider.Type
 	}
 	normalized.Enabled = provider.Enabled
-	normalized.LoginPath = provider.LoginPath
 	return normalized
+}
+
+func normalizePortalIdentityProviderConfig(
+	config *kkComps.PortalIdentityProviderConfig,
+) *kkComps.IdentityProviderConfig {
+	if config == nil {
+		return nil
+	}
+
+	switch config.Type {
+	case kkComps.PortalIdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
+		if config.OIDCIdentityProviderConfigOutput == nil {
+			return nil
+		}
+		converted := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
+			*config.OIDCIdentityProviderConfigOutput,
+		)
+		return &converted
+	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:
+		if config.PortalSAMLIdentityProviderConfig == nil {
+			return nil
+		}
+		convertedSAML := kkComps.SAMLIdentityProviderConfig{
+			IdpMetadataURL: config.PortalSAMLIdentityProviderConfig.IdpMetadataURL,
+			IdpMetadataXML: config.PortalSAMLIdentityProviderConfig.IdpMetadataXML,
+		}
+		converted := kkComps.CreateIdentityProviderConfigSAMLIdentityProviderConfig(convertedSAML)
+		return &converted
+	default:
+		return nil
+	}
 }
 
 func portalIdentityProviderName(body kkComps.CreateIdentityProvider) string {
@@ -3723,7 +3819,7 @@ func normalizePortalEmailTemplate(t kkComps.EmailTemplate) PortalEmailTemplate {
 func (c *Client) GetPortalCustomization(
 	ctx context.Context,
 	portalID string,
-) (*kkComps.PortalCustomization, error) {
+) (*kkComps.PortalCustomizationV3, error) {
 	if c.portalCustomizationAPI == nil {
 		return nil, fmt.Errorf("portal customization API not configured")
 	}
@@ -3733,18 +3829,18 @@ func (c *Client) GetPortalCustomization(
 		return nil, fmt.Errorf("failed to get portal customization: %w", err)
 	}
 
-	if resp.PortalCustomization == nil {
+	if resp.PortalCustomizationV3 == nil {
 		return nil, fmt.Errorf("no customization data in response")
 	}
 
-	return resp.PortalCustomization, nil
+	return resp.PortalCustomizationV3, nil
 }
 
 // UpdatePortalCustomization updates portal customization settings
 func (c *Client) UpdatePortalCustomization(
 	ctx context.Context,
 	portalID string,
-	customization kkComps.PortalCustomization,
+	customization kkComps.PortalCustomizationV3,
 ) error {
 	if c.portalCustomizationAPI == nil {
 		return fmt.Errorf("portal customization API not configured")
@@ -4634,8 +4730,8 @@ func (c *Client) ListOrganizationUsers(ctx context.Context) ([]OrganizationUser,
 	var users []OrganizationUser
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.organizationUsersAPI.ListUsers(ctx, kkOps.ListUsersRequest{
-			PageSize:   ptrInt64(pageSize),
-			PageNumber: ptrInt64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization users", &ErrorWrapperOptions{
@@ -4674,8 +4770,8 @@ func (c *Client) ListOrganizationUserTeams(
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.organizationMembershipAPI.ListUserTeams(ctx, kkOps.ListUserTeamsRequest{
 			UserID:     userID,
-			PageSize:   ptrInt64(pageSize),
-			PageNumber: ptrInt64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization user teams", &ErrorWrapperOptions{
@@ -4716,8 +4812,8 @@ func (c *Client) ListOrganizationTeamUsers(
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.organizationMembershipAPI.ListTeamUsers(ctx, kkOps.ListTeamUsersRequest{
 			TeamID:     teamID,
-			PageSize:   ptrInt64(pageSize),
-			PageNumber: ptrInt64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization team users", &ErrorWrapperOptions{
@@ -4890,8 +4986,8 @@ func (c *Client) ListOrganizationSystemAccounts(ctx context.Context) ([]Organiza
 	var accounts []OrganizationSystemAccount
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.systemAccountAPI.ListSystemAccounts(ctx, kkOps.GetSystemAccountsRequest{
-			PageSize:   ptrInt64(pageSize),
-			PageNumber: ptrInt64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization system accounts", &ErrorWrapperOptions{
@@ -4932,8 +5028,8 @@ func (c *Client) ListOrganizationSystemAccountTeams(
 			ctx,
 			kkOps.GetSystemAccountsAccountIDTeamsRequest{
 				AccountID:  accountID,
-				PageSize:   ptrInt64(pageSize),
-				PageNumber: ptrInt64(pageNumber),
+				PageSize:   new(pageSize),
+				PageNumber: new(pageNumber),
 			},
 		)
 		if err != nil {
@@ -5616,10 +5712,6 @@ func getRoleName(value *kkComps.RoleName) string {
 		return ""
 	}
 	return string(*value)
-}
-
-func ptrInt64(value int64) *int64 {
-	return &value
 }
 
 // shouldIncludeNamespace checks if a resource's namespace should be included based on filter
@@ -6806,7 +6898,8 @@ func (c *Client) GetEventGatewayDataPlaneCertificate(
 	certificateID string,
 ) (*EventGatewayDataPlaneCertificate, error) {
 	resp, err := c.eventGatewayDataPlaneCertificateAPI.FetchEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID)
+		ctx, gatewayID, certificateID,
+	)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway data plane certificate by ID", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeEventGatewayDataPlaneCertificate),
@@ -6831,7 +6924,8 @@ func (c *Client) UpdateEventGatewayDataPlaneCertificate(
 	namespace string,
 ) (string, error) {
 	resp, err := c.eventGatewayDataPlaneCertificateAPI.UpdateEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID, req)
+		ctx, gatewayID, certificateID, req,
+	)
 	if err != nil {
 		name := ""
 		if req.Name != nil {
@@ -6854,7 +6948,8 @@ func (c *Client) DeleteEventGatewayDataPlaneCertificate(
 	certificateID string,
 ) error {
 	_, err := c.eventGatewayDataPlaneCertificateAPI.DeleteEventGatewayDataPlaneCertificate(
-		ctx, gatewayID, certificateID)
+		ctx, gatewayID, certificateID,
+	)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway data plane certificate", nil)
 	}
@@ -7024,7 +7119,8 @@ func (c *Client) UpdateEventGatewaySchemaRegistry(
 	_ string, // namespace
 ) (string, error) {
 	resp, err := c.eventGatewaySchemaRegistryAPI.UpdateEventGatewaySchemaRegistry(
-		ctx, gatewayID, schemaRegistryID, req)
+		ctx, gatewayID, schemaRegistryID, req,
+	)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway schema registry", nil)
 	}

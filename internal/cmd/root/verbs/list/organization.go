@@ -36,7 +36,8 @@ Setting this value overrides tokens obtained from the login command.
 				common.DefaultRequestPageSize,
 				fmt.Sprintf(`Max number of results to include per response page for get and list operations.
 - Config path: [ %s ]`,
-					common.RequestPageSizeConfigPath))
+					common.RequestPageSizeConfigPath),
+			)
 		}
 	}
 

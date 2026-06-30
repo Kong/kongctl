@@ -17,6 +17,7 @@ steps:
               name: "e2e-cp"
               description: "E2E Control Plane"
               cluster_type: "CLUSTER_TYPE_SERVERLESS"
+              cloud_gateway: false
           recordVar:
             name: cp_id
             responsePath: id

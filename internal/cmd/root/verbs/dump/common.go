@@ -13,8 +13,8 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
-	"github.com/kong/kongctl/internal/config"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/config"
 )
 
 type paginationHandler func(pageNumber int64) (bool, error)

@@ -237,7 +237,8 @@ const (
 	ResourceTypeOrganizationUserTeamMembership          = string(resources.ResourceTypeOrganizationUserTeamMembership)
 	ResourceTypeOrganizationUserRole                    = string(resources.ResourceTypeOrganizationUserRole)
 	ResourceTypeOrganizationSystemAccountTeamMembership = string(
-		resources.ResourceTypeOrganizationSystemAccountTeamMembership)
+		resources.ResourceTypeOrganizationSystemAccountTeamMembership,
+	)
 	ResourceTypeOrganizationSystemAccountRole = string(resources.ResourceTypeOrganizationSystemAccountRole)
 
 	// ResourceTypeDeck represents an internal deck execution step.

@@ -264,10 +264,6 @@ func discardPlannerLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func stringPtr(value string) *string {
-	return &value
-}
-
 func plannerNamespaceMeta(namespace string) *resources.KongctlMeta {
 	return &resources.KongctlMeta{Namespace: &namespace}
 }
@@ -440,8 +436,8 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 				queriedUserIDs = append(queriedUserIDs, req.UserID)
 				return &kkOps.ListUserTeamsResponse{
 					TeamCollection: teamCollection(kkComps.Team{
-						ID:   stringPtr(teamID),
-						Name: stringPtr(teamName),
+						ID:   new(teamID),
+						Name: new(teamName),
 					}),
 				}, nil
 			},
@@ -457,7 +453,7 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 		namespace,
 		nil,
 		map[string]state.OrganizationTeam{
-			teamName: {Team: kkComps.Team{ID: stringPtr(teamID), Name: stringPtr(teamName)}},
+			teamName: {Team: kkComps.Team{ID: new(teamID), Name: new(teamName)}},
 		},
 		plan,
 	)
@@ -508,8 +504,8 @@ func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelector
 				queriedAccountIDs = append(queriedAccountIDs, req.AccountID)
 				return &kkOps.GetSystemAccountsAccountIDTeamsResponse{
 					TeamCollection: teamCollection(kkComps.Team{
-						ID:   stringPtr(teamID),
-						Name: stringPtr(teamName),
+						ID:   new(teamID),
+						Name: new(teamName),
 					}),
 				}, nil
 			},
@@ -525,7 +521,7 @@ func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelector
 		namespace,
 		nil,
 		map[string]state.OrganizationTeam{
-			teamName: {Team: kkComps.Team{ID: stringPtr(teamID), Name: stringPtr(teamName)}},
+			teamName: {Team: kkComps.Team{ID: new(teamID), Name: new(teamName)}},
 		},
 		plan,
 	)

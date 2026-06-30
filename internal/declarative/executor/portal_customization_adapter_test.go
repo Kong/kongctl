@@ -16,15 +16,15 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_MapSlice(t *testing.T
 		planner.FieldMenu: map[string]any{
 			"main": []map[string]any{
 				{
-					"path":                    "/docs",
-					planner.FieldTitle:        "Docs",
-					planner.FieldVisibility:   "public",
-					"external":                false,
+					"path":                  "/docs",
+					planner.FieldTitle:      "Docs",
+					planner.FieldVisibility: "public",
+					"external":              false,
 				},
 			},
 		},
 	}
-	var update kkComps.PortalCustomization
+	var update kkComps.PortalCustomizationV3
 
 	err := adapter.MapUpdateFields(context.Background(), fields, &update)
 
@@ -51,7 +51,7 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_AnySlice(t *testing.T
 			},
 		},
 	}
-	var update kkComps.PortalCustomization
+	var update kkComps.PortalCustomizationV3
 
 	err := adapter.MapUpdateFields(context.Background(), fields, &update)
 
@@ -74,16 +74,16 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuFooterSections_MapSlice(t 
 					"items": []map[string]any{
 						{
 							"path":                  "/about",
-							planner.FieldTitle:       "About",
+							planner.FieldTitle:      "About",
 							planner.FieldVisibility: "public",
-							"external":               false,
+							"external":              false,
 						},
 					},
 				},
 			},
 		},
 	}
-	var update kkComps.PortalCustomization
+	var update kkComps.PortalCustomizationV3
 
 	err := adapter.MapUpdateFields(context.Background(), fields, &update)
 
@@ -106,16 +106,16 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuFooterSections_AnySlice(t 
 					"items": []any{
 						map[string]any{
 							"path":                  "/privacy",
-							planner.FieldTitle:       "Privacy",
+							planner.FieldTitle:      "Privacy",
 							planner.FieldVisibility: "public",
-							"external":               false,
+							"external":              false,
 						},
 					},
 				},
 			},
 		},
 	}
-	var update kkComps.PortalCustomization
+	var update kkComps.PortalCustomizationV3
 
 	err := adapter.MapUpdateFields(context.Background(), fields, &update)
 
@@ -142,7 +142,7 @@ func TestPortalCustomizationAdapterMapUpdateFieldsSpecRendererAndRobots(t *testi
 		},
 		planner.FieldRobots: "User-agent: *",
 	}
-	var update kkComps.PortalCustomization
+	var update kkComps.PortalCustomizationV3
 
 	err := adapter.MapUpdateFields(context.Background(), fields, &update)
 

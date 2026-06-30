@@ -62,7 +62,8 @@ var (
 %[1]s get event-gateway static-keys --gateway-name my-gateway --static-key-name my-static-key
 # Get a specific static key by ID (flag)
 %[1]s get event-gateway static-keys --gateway-id <gateway-id> --static-key-id <static-key-id>
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetEventGatewayStaticKeysCmd(
@@ -113,7 +114,8 @@ func (h staticKeysHandler) run(args []string) error {
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf(
-				"too many arguments. Listing static keys requires 0 or 1 arguments (ID or name)"),
+				"too many arguments. Listing static keys requires 0 or 1 arguments (ID or name)",
+			),
 		}
 	}
 

@@ -105,7 +105,7 @@ func loadPortalIdentityProviders(_ context.Context, helper cmd.Helper, parent an
 		return tableview.ChildView{}, err
 	}
 
-	return buildPortalIdentityProvidersChildView(resp.IdentityProviders), nil
+	return buildPortalIdentityProvidersChildView(resp.PortalIdentityProviders), nil
 }
 
 func loadPortalPages(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

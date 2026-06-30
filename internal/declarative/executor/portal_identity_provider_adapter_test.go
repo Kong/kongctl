@@ -52,7 +52,7 @@ func (s *stubPortalIdentityProviderAPI) CreatePortalIdentityProvider(
 	s.createReq = request
 	id := "provider-1"
 	return &kkOps.CreatePortalIdentityProviderResponse{
-		IdentityProvider: &kkComps.IdentityProvider{ID: &id},
+		PortalIdentityProvider: &kkComps.PortalIdentityProvider{ID: &id},
 	}, nil
 }
 
@@ -98,8 +98,8 @@ func TestPortalIdentityProviderAdapterCreateUpdatesExplicitFalseEnabled(t *testi
 	require.NoError(t, err)
 	assert.Equal(t, "provider-1", id)
 
-	require.NotNil(t, api.updateReq.UpdateIdentityProvider.Enabled)
-	assert.False(t, *api.updateReq.UpdateIdentityProvider.Enabled)
+	require.NotNil(t, api.updateReq.PortalUpdateIdentityProvider.Enabled)
+	assert.False(t, *api.updateReq.PortalUpdateIdentityProvider.Enabled)
 	assert.Equal(t, "portal-1", api.updateReq.PortalID)
 	assert.Equal(t, "provider-1", api.updateReq.ID)
 }
@@ -128,7 +128,7 @@ func TestExecutorDeleteResourceHandlesPortalIdentityProvider(t *testing.T) {
 	providerType := kkComps.IdentityProviderTypeOidc
 	api := &stubPortalIdentityProviderAPI{
 		getResp: &kkOps.GetPortalIdentityProviderResponse{
-			IdentityProvider: &kkComps.IdentityProvider{
+			PortalIdentityProvider: &kkComps.PortalIdentityProvider{
 				ID:   &providerID,
 				Type: &providerType,
 			},

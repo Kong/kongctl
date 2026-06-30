@@ -33,6 +33,7 @@ steps:
               name: "{{ .vars.controlPlaneName }}"
               description: "Nested scenario control plane"
               cluster_type: "CLUSTER_TYPE_SERVERLESS"
+              cloud_gateway: false
           recordVar:
             name: controlPlaneID
             responsePath: id

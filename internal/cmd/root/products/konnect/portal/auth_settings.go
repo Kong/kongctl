@@ -31,7 +31,8 @@ var (
 %[1]s get portal auth-settings --portal-id <portal-id>
 # Get auth settings for a portal by name
 %[1]s get portal auth-settings --portal-name my-portal
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetPortalAuthSettingsCmd(
@@ -135,7 +136,8 @@ func runGetPortalAuthSettings(c *cobra.Command, args []string) error {
 
 	settings := res.PortalAuthenticationSettingsResponse
 
-	return tableview.RenderForFormat(helper,
+	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,

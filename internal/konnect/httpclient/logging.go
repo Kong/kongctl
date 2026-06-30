@@ -260,7 +260,8 @@ func (c *LoggingHTTPClient) logResponse(
 	if resp.Request != nil {
 		// Keep route metadata on responses for easy filtering/aggregation without joining to request
 		// logs via request_id (for example: response-only analysis by method/route/status).
-		attrs = append(attrs,
+		attrs = append(
+			attrs,
 			slog.String("method", resp.Request.Method),
 			slog.String("route", routeFromURL(resp.Request.URL)),
 		)

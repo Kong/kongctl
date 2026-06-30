@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -17,6 +18,97 @@ import (
 func testContextWithLogger() context.Context {
 	logger := slog.Default()
 	return context.WithValue(context.Background(), log.LoggerKey, logger)
+}
+
+func TestPortalUpdateIdentityProviderFromUpdateRejectsLoginPath(t *testing.T) {
+	t.Parallel()
+
+	loginPath := "oidc-login"
+	_, err := portalUpdateIdentityProviderFromUpdate(kkComps.UpdateIdentityProvider{LoginPath: &loginPath})
+	if err == nil {
+		t.Fatal("expected login_path error")
+	}
+	if !strings.Contains(err.Error(), "login_path") {
+		t.Fatalf("expected login_path error, got %v", err)
+	}
+}
+
+type mockPortalIdentityProviderAPI struct {
+	listFunc func(
+		context.Context,
+		kkOps.GetPortalIdentityProvidersRequest,
+		...kkOps.Option,
+	) (*kkOps.GetPortalIdentityProvidersResponse, error)
+}
+
+func (m *mockPortalIdentityProviderAPI) ListPortalIdentityProviders(
+	ctx context.Context,
+	request kkOps.GetPortalIdentityProvidersRequest,
+	opts ...kkOps.Option,
+) (*kkOps.GetPortalIdentityProvidersResponse, error) {
+	if m.listFunc != nil {
+		return m.listFunc(ctx, request, opts...)
+	}
+	return nil, fmt.Errorf("ListPortalIdentityProviders not implemented")
+}
+
+func (m *mockPortalIdentityProviderAPI) GetPortalIdentityProvider(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.GetPortalIdentityProviderResponse, error) {
+	return nil, fmt.Errorf("GetPortalIdentityProvider not implemented")
+}
+
+func (m *mockPortalIdentityProviderAPI) CreatePortalIdentityProvider(
+	context.Context,
+	string,
+	kkComps.CreateIdentityProvider,
+	...kkOps.Option,
+) (*kkOps.CreatePortalIdentityProviderResponse, error) {
+	return nil, fmt.Errorf("CreatePortalIdentityProvider not implemented")
+}
+
+func (m *mockPortalIdentityProviderAPI) UpdatePortalIdentityProvider(
+	context.Context,
+	kkOps.UpdatePortalIdentityProviderRequest,
+	...kkOps.Option,
+) (*kkOps.UpdatePortalIdentityProviderResponse, error) {
+	return nil, fmt.Errorf("UpdatePortalIdentityProvider not implemented")
+}
+
+func (m *mockPortalIdentityProviderAPI) DeletePortalIdentityProvider(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.DeletePortalIdentityProviderResponse, error) {
+	return nil, fmt.Errorf("DeletePortalIdentityProvider not implemented")
+}
+
+func TestListPortalIdentityProvidersHandlesNilResponse(t *testing.T) {
+	t.Parallel()
+
+	client := NewClient(ClientConfig{
+		PortalIdentityProviderAPI: &mockPortalIdentityProviderAPI{
+			listFunc: func(
+				context.Context,
+				kkOps.GetPortalIdentityProvidersRequest,
+				...kkOps.Option,
+			) (*kkOps.GetPortalIdentityProvidersResponse, error) {
+				return nil, nil
+			},
+		},
+	})
+
+	providers, err := client.ListPortalIdentityProviders(context.Background(), "portal-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if providers != nil {
+		t.Fatalf("expected nil providers for nil response, got %#v", providers)
+	}
 }
 
 // mockPortalAPI implements helpers.PortalAPI for testing

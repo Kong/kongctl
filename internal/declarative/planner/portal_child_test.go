@@ -423,7 +423,7 @@ func TestShouldUpdatePortalCustomizationDetectsSpecRendererAndRobots(t *testing.
 	boolPtr := func(v bool) *bool { return &v }
 	stringPtr := func(v string) *string { return &v }
 
-	current := &kkComps.PortalCustomization{
+	current := &kkComps.PortalCustomizationV3{
 		SpecRenderer: &kkComps.SpecRenderer{
 			TryItUI:               boolPtr(true),
 			TryItInsomnia:         boolPtr(true),
@@ -436,7 +436,7 @@ func TestShouldUpdatePortalCustomizationDetectsSpecRendererAndRobots(t *testing.
 		Robots: stringPtr("User-agent: *"),
 	}
 	desired := resources.PortalCustomizationResource{
-		PortalCustomization: kkComps.PortalCustomization{
+		PortalCustomizationV3: kkComps.PortalCustomizationV3{
 			SpecRenderer: &kkComps.SpecRenderer{
 				TryItUI:               boolPtr(false),
 				TryItInsomnia:         boolPtr(false),
@@ -473,7 +473,7 @@ func TestShouldUpdatePortalCustomizationIgnoresMatchingSpecRendererAndRobots(t *
 	boolPtr := func(v bool) *bool { return &v }
 	stringPtr := func(v string) *string { return &v }
 
-	current := &kkComps.PortalCustomization{
+	current := &kkComps.PortalCustomizationV3{
 		SpecRenderer: &kkComps.SpecRenderer{
 			TryItUI:               boolPtr(true),
 			TryItInsomnia:         boolPtr(false),
@@ -486,7 +486,7 @@ func TestShouldUpdatePortalCustomizationIgnoresMatchingSpecRendererAndRobots(t *
 		Robots: stringPtr("User-agent: *"),
 	}
 	desired := resources.PortalCustomizationResource{
-		PortalCustomization: kkComps.PortalCustomization{
+		PortalCustomizationV3: kkComps.PortalCustomizationV3{
 			SpecRenderer: &kkComps.SpecRenderer{
 				TryItUI:               boolPtr(true),
 				TryItInsomnia:         boolPtr(false),
@@ -513,7 +513,7 @@ func TestBuildAllCustomizationFieldsIncludesSpecRendererAndRobots(t *testing.T) 
 	stringPtr := func(v string) *string { return &v }
 
 	fields := planner.buildAllCustomizationFields(resources.PortalCustomizationResource{
-		PortalCustomization: kkComps.PortalCustomization{
+		PortalCustomizationV3: kkComps.PortalCustomizationV3{
 			SpecRenderer: &kkComps.SpecRenderer{
 				TryItUI:               boolPtr(false),
 				TryItInsomnia:         boolPtr(true),
@@ -898,7 +898,7 @@ func (s *stubPortalIdentityProviderAPI) ListPortalIdentityProviders(
 	if s.listFn != nil {
 		return s.listFn(ctx, request, opts...)
 	}
-	return &kkOps.GetPortalIdentityProvidersResponse{IdentityProviders: []kkComps.IdentityProvider{}}, nil
+	return &kkOps.GetPortalIdentityProvidersResponse{PortalIdentityProviders: []kkComps.PortalIdentityProvider{}}, nil
 }
 
 func (s *stubPortalIdentityProviderAPI) GetPortalIdentityProvider(
@@ -997,7 +997,7 @@ func TestPlanPortalIdentityProviders_UpdateWhenStateDiffers(t *testing.T) {
 			_ kkOps.GetPortalIdentityProvidersRequest,
 			_ ...kkOps.Option,
 		) (*kkOps.GetPortalIdentityProvidersResponse, error) {
-			currentConfig := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
+			currentConfig := kkComps.CreatePortalIdentityProviderConfigOIDCIdentityProviderConfigOutput(
 				kkComps.OIDCIdentityProviderConfigOutput{
 					IssuerURL: "https://accounts.google.com",
 					ClientID:  "client-id-old",
@@ -1005,12 +1005,11 @@ func TestPlanPortalIdentityProviders_UpdateWhenStateDiffers(t *testing.T) {
 				},
 			)
 			return &kkOps.GetPortalIdentityProvidersResponse{
-				IdentityProviders: []kkComps.IdentityProvider{{
-					ID:        new("provider-id"),
-					Type:      kkComps.IdentityProviderTypeOidc.ToPointer(),
-					Enabled:   new(false),
-					LoginPath: new("oidc-login"),
-					Config:    &currentConfig,
+				PortalIdentityProviders: []kkComps.PortalIdentityProvider{{
+					ID:      new("provider-id"),
+					Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
+					Enabled: new(false),
+					Config:  &currentConfig,
 				}},
 			}, nil
 		},
@@ -1072,7 +1071,7 @@ func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) 
 			_ kkOps.GetPortalIdentityProvidersRequest,
 			_ ...kkOps.Option,
 		) (*kkOps.GetPortalIdentityProvidersResponse, error) {
-			currentConfig := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
+			currentConfig := kkComps.CreatePortalIdentityProviderConfigOIDCIdentityProviderConfigOutput(
 				kkComps.OIDCIdentityProviderConfigOutput{
 					IssuerURL: "https://accounts.google.com",
 					ClientID:  "client-id-1",
@@ -1085,7 +1084,7 @@ func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) 
 				},
 			)
 			return &kkOps.GetPortalIdentityProvidersResponse{
-				IdentityProviders: []kkComps.IdentityProvider{{
+				PortalIdentityProviders: []kkComps.PortalIdentityProvider{{
 					ID:      new("provider-id"),
 					Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
 					Enabled: new(true),
@@ -1148,7 +1147,7 @@ func TestPlanPortalIdentityProviders_IgnoresOIDCScopeOrderChanges(t *testing.T) 
 			_ kkOps.GetPortalIdentityProvidersRequest,
 			_ ...kkOps.Option,
 		) (*kkOps.GetPortalIdentityProvidersResponse, error) {
-			currentConfig := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
+			currentConfig := kkComps.CreatePortalIdentityProviderConfigOIDCIdentityProviderConfigOutput(
 				kkComps.OIDCIdentityProviderConfigOutput{
 					IssuerURL: "https://accounts.google.com",
 					ClientID:  "client-id-1",
@@ -1156,7 +1155,7 @@ func TestPlanPortalIdentityProviders_IgnoresOIDCScopeOrderChanges(t *testing.T) 
 				},
 			)
 			return &kkOps.GetPortalIdentityProvidersResponse{
-				IdentityProviders: []kkComps.IdentityProvider{{
+				PortalIdentityProviders: []kkComps.PortalIdentityProvider{{
 					ID:      new("provider-id"),
 					Type:    kkComps.IdentityProviderTypeOidc.ToPointer(),
 					Enabled: new(true),

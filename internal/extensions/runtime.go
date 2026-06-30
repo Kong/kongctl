@@ -63,7 +63,7 @@ type ResolvedContext struct {
 type OutputContext struct {
 	Format     string    `json:"format"`
 	ColorTheme string    `json:"color_theme,omitempty"`
-	JQ         JQContext `json:"jq,omitempty"`
+	JQ         JQContext `json:"jq"`
 }
 
 type JQContext struct {

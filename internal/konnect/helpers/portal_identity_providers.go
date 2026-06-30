@@ -93,8 +93,12 @@ func (p *PortalIdentityProviderAPIImpl) CreatePortalIdentityProvider(
 	if p.SDK == nil {
 		return nil, fmt.Errorf("SDK is nil")
 	}
+	portalRequest, err := createPortalIdentityProviderRequest(request)
+	if err != nil {
+		return nil, err
+	}
 	if p.BaseURL == "" || p.HTTPClient == nil {
-		return p.SDK.PortalAuthSettings.CreatePortalIdentityProvider(ctx, portalID, request, opts...)
+		return p.SDK.PortalAuthSettings.CreatePortalIdentityProvider(ctx, portalID, portalRequest, opts...)
 	}
 
 	sdkOpts := []kkSDK.SDKOption{
@@ -119,7 +123,7 @@ func (p *PortalIdentityProviderAPIImpl) CreatePortalIdentityProvider(
 	if sdk == nil || sdk.PortalAuthSettings == nil {
 		return nil, fmt.Errorf("failed to initialize SDK for portal identity provider create")
 	}
-	return sdk.PortalAuthSettings.CreatePortalIdentityProvider(ctx, portalID, request, opts...)
+	return sdk.PortalAuthSettings.CreatePortalIdentityProvider(ctx, portalID, portalRequest, opts...)
 }
 
 // UpdatePortalIdentityProvider updates an identity provider for a portal.
@@ -145,6 +149,60 @@ func (p *PortalIdentityProviderAPIImpl) DeletePortalIdentityProvider(
 		return nil, fmt.Errorf("SDK is nil")
 	}
 	return p.SDK.PortalAuthSettings.DeletePortalIdentityProvider(ctx, portalID, id, opts...)
+}
+
+func createPortalIdentityProviderRequest(
+	request kkComps.CreateIdentityProvider,
+) (kkComps.PortalCreateIdentityProvider, error) {
+	if request.LoginPath != nil {
+		return kkComps.PortalCreateIdentityProvider{}, fmt.Errorf(
+			"login_path is not supported for portal identity provider create requests",
+		)
+	}
+
+	converted := kkComps.PortalCreateIdentityProvider{
+		Enabled: request.Enabled,
+		Type:    request.Type,
+	}
+	if request.Config == nil {
+		return converted, nil
+	}
+
+	config, err := createPortalIdentityProviderConfig(request.Config)
+	if err != nil {
+		return kkComps.PortalCreateIdentityProvider{}, err
+	}
+	converted.Config = config
+	return converted, nil
+}
+
+func createPortalIdentityProviderConfig(
+	config *kkComps.CreateIdentityProviderConfig,
+) (*kkComps.PortalCreateIdentityProviderConfig, error) {
+	switch config.Type {
+	case kkComps.CreateIdentityProviderConfigTypeOIDCIdentityProviderConfig:
+		if config.OIDCIdentityProviderConfig == nil {
+			return nil, fmt.Errorf("oidc identity provider config is required")
+		}
+		converted := kkComps.CreatePortalCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+			*config.OIDCIdentityProviderConfig,
+		)
+		return &converted, nil
+	case kkComps.CreateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:
+		if config.SAMLIdentityProviderConfigInput == nil {
+			return nil, fmt.Errorf("saml identity provider config is required")
+		}
+		convertedSAML := kkComps.PortalSAMLIdentityProviderConfigInput{
+			IdpMetadataURL: config.SAMLIdentityProviderConfigInput.IdpMetadataURL,
+			IdpMetadataXML: config.SAMLIdentityProviderConfigInput.IdpMetadataXML,
+		}
+		converted := kkComps.CreatePortalCreateIdentityProviderConfigPortalSAMLIdentityProviderConfigInput(
+			convertedSAML,
+		)
+		return &converted, nil
+	default:
+		return nil, fmt.Errorf("identity provider config type is required")
+	}
 }
 
 type portalIdentityProviderCreateHTTPClient struct {

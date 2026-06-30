@@ -37,7 +37,8 @@ func NewLocalFieldResolver(logger *slog.Logger) *LocalFieldResolver {
 
 // ResolveField extracts field value using reflection
 func (r *LocalFieldResolver) ResolveField(resource resources.Resource, field string) (string, error) {
-	r.logger.LogAttrs(context.Background(), log.LevelTrace, "Resolving field from resource",
+	r.logger.LogAttrs(
+		context.Background(), log.LevelTrace, "Resolving field from resource",
 		slog.String("resource_ref", resource.GetRef()),
 		slog.String("resource_type", string(resource.GetType())),
 		slog.String("field", field),
@@ -52,7 +53,8 @@ func (r *LocalFieldResolver) ResolveField(resource resources.Resource, field str
 	current := reflect.ValueOf(resource)
 
 	for i, part := range parts {
-		r.logger.LogAttrs(context.Background(), log.LevelTrace, "Walking field path",
+		r.logger.LogAttrs(
+			context.Background(), log.LevelTrace, "Walking field path",
 			slog.String("part", part),
 			slog.Int("index", i),
 			slog.String("current_type", current.Type().String()),
@@ -71,7 +73,8 @@ func (r *LocalFieldResolver) ResolveField(resource resources.Resource, field str
 			}
 
 			if !fieldVal.IsValid() {
-				r.logger.LogAttrs(context.Background(), slog.LevelDebug, "Field not found",
+				r.logger.LogAttrs(
+					context.Background(), slog.LevelDebug, "Field not found",
 					slog.String("resource_ref", resource.GetRef()),
 					slog.String("field_path", strings.Join(parts[:i+1], ".")),
 					slog.String("struct_type", current.Type().String()),
@@ -80,7 +83,8 @@ func (r *LocalFieldResolver) ResolveField(resource resources.Resource, field str
 			}
 			current = fieldVal
 		} else {
-			r.logger.LogAttrs(context.Background(), slog.LevelWarn, "Cannot navigate field on non-struct",
+			r.logger.LogAttrs(
+				context.Background(), slog.LevelWarn, "Cannot navigate field on non-struct",
 				slog.String("resource_ref", resource.GetRef()),
 				slog.String("field_path", strings.Join(parts[:i], ".")),
 				slog.String("kind", current.Kind().String()),
@@ -92,7 +96,8 @@ func (r *LocalFieldResolver) ResolveField(resource resources.Resource, field str
 	// Convert to string
 	result := convertToString(current)
 
-	r.logger.LogAttrs(context.Background(), slog.LevelDebug, "Field resolved successfully",
+	r.logger.LogAttrs(
+		context.Background(), slog.LevelDebug, "Field resolved successfully",
 		slog.String("resource_ref", resource.GetRef()),
 		slog.String("field", field),
 		slog.String("value", result),
@@ -117,7 +122,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		logger = slog.Default()
 	}
 
-	logger.LogAttrs(ctx, slog.LevelDebug, "Starting reference resolution",
+	logger.LogAttrs(
+		ctx, slog.LevelDebug, "Starting reference resolution",
 		slog.Int("portals", len(rs.Portals)),
 		slog.Int("control_planes", len(rs.ControlPlanes)),
 		slog.Int("gateway_services", len(rs.GatewayServices)),
@@ -134,7 +140,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	// Process Portals
 	for i := range rs.Portals {
 		if err := resolveResourceFields(ctx, &rs.Portals[i], rs, resolver, resolutionPath, logger); err != nil {
-			logger.LogAttrs(ctx, slog.LevelError, "Failed to resolve portal references",
+			logger.LogAttrs(
+				ctx, slog.LevelError, "Failed to resolve portal references",
 				slog.String("portal_ref", rs.Portals[i].GetRef()),
 				slog.String("error", err.Error()),
 			)
@@ -146,7 +153,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	// Process ControlPlanes
 	for i := range rs.ControlPlanes {
 		if err := resolveResourceFields(ctx, &rs.ControlPlanes[i], rs, resolver, resolutionPath, logger); err != nil {
-			logger.LogAttrs(ctx, slog.LevelError, "Failed to resolve control plane references",
+			logger.LogAttrs(
+				ctx, slog.LevelError, "Failed to resolve control plane references",
 				slog.String("control_plane_ref", rs.ControlPlanes[i].GetRef()),
 				slog.String("error", err.Error()),
 			)
@@ -158,7 +166,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	// Process APIs
 	for i := range rs.APIs {
 		if err := resolveResourceFields(ctx, &rs.APIs[i], rs, resolver, resolutionPath, logger); err != nil {
-			logger.LogAttrs(ctx, slog.LevelError, "Failed to resolve API references",
+			logger.LogAttrs(
+				ctx, slog.LevelError, "Failed to resolve API references",
 				slog.String("api_ref", rs.APIs[i].GetRef()),
 				slog.String("error", err.Error()),
 			)
@@ -171,7 +180,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	for i := range rs.ApplicationAuthStrategies {
 		if err := resolveResourceFields(ctx, &rs.ApplicationAuthStrategies[i], rs,
 			resolver, resolutionPath, logger); err != nil {
-			logger.LogAttrs(ctx, slog.LevelError, "Failed to resolve auth strategy references",
+			logger.LogAttrs(
+				ctx, slog.LevelError, "Failed to resolve auth strategy references",
 				slog.String("auth_ref", rs.ApplicationAuthStrategies[i].GetRef()),
 				slog.String("error", err.Error()),
 			)
@@ -306,7 +316,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		}
 	}
 
-	logger.LogAttrs(ctx, slog.LevelDebug, "Reference resolution completed",
+	logger.LogAttrs(
+		ctx, slog.LevelDebug, "Reference resolution completed",
 		slog.Int("resources_processed", processCount),
 		slog.Int("api_implementations", implCount),
 		slog.Int("api_implementations_missing_service", implMissingService),
@@ -341,7 +352,8 @@ func resolveResourceFields(ctx context.Context, resource any, rs *resources.Reso
 		}
 	}
 
-	logger.LogAttrs(ctx, log.LevelTrace, "Processing resource for references",
+	logger.LogAttrs(
+		ctx, log.LevelTrace, "Processing resource for references",
 		slog.String("resource_ref", resourceRef),
 		slog.String("type", val.Type().String()),
 	)
@@ -367,14 +379,16 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 		if tags.IsRefPlaceholder(str) {
 			refStr, field, ok := tags.ParseRefPlaceholder(str)
 			if !ok {
-				logger.LogAttrs(ctx, slog.LevelWarn, "Invalid placeholder format",
+				logger.LogAttrs(
+					ctx, slog.LevelWarn, "Invalid placeholder format",
 					slog.String("placeholder", str),
 					slog.String("resource", currentResourceRef),
 				)
 				return fmt.Errorf("invalid placeholder: %s", str)
 			}
 
-			logger.LogAttrs(ctx, slog.LevelDebug, "Found reference placeholder",
+			logger.LogAttrs(
+				ctx, slog.LevelDebug, "Found reference placeholder",
 				slog.String("placeholder", str),
 				slog.String("target_ref", refStr),
 				slog.String("target_field", field),
@@ -384,7 +398,8 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 			// Check for circular dependency
 			pathKey := fmt.Sprintf("%s->%s#%s", currentResourceRef, refStr, field)
 			if slices.Contains(resolutionPath, pathKey) {
-				logger.LogAttrs(ctx, slog.LevelError, "Circular reference detected",
+				logger.LogAttrs(
+					ctx, slog.LevelError, "Circular reference detected",
 					slog.String("path", strings.Join(append(resolutionPath, pathKey), " -> ")),
 				)
 				return fmt.Errorf("circular reference: %s", strings.Join(append(resolutionPath, pathKey), " -> "))
@@ -393,14 +408,16 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 			// Resolve the reference
 			target, exists := rs.GetResourceByRef(refStr)
 			if !exists {
-				logger.LogAttrs(ctx, slog.LevelWarn, "Referenced resource not found",
+				logger.LogAttrs(
+					ctx, slog.LevelWarn, "Referenced resource not found",
 					slog.String("ref", refStr),
 					slog.String("source_resource", currentResourceRef),
 				)
 				return fmt.Errorf("resource not found: %s", refStr)
 			}
 
-			logger.LogAttrs(ctx, log.LevelTrace, "Found target resource",
+			logger.LogAttrs(
+				ctx, log.LevelTrace, "Found target resource",
 				slog.String("target_ref", refStr),
 				slog.String("target_type", string(target.GetType())),
 				slog.String("requesting_field", field),
@@ -410,7 +427,8 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 			value, err := resolver.ResolveField(target, field)
 			if err != nil {
 				// Field not available in config - keep placeholder for runtime resolution
-				logger.LogAttrs(ctx, slog.LevelDebug, "Field not available in config, deferring resolution",
+				logger.LogAttrs(
+					ctx, slog.LevelDebug, "Field not available in config, deferring resolution",
 					slog.String("resource_ref", refStr),
 					slog.String("field", field),
 					slog.String("error", err.Error()),
@@ -421,7 +439,8 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 			// Set the resolved value
 			if val.CanSet() {
 				val.SetString(value)
-				logger.LogAttrs(ctx, slog.LevelDebug, "Reference resolved",
+				logger.LogAttrs(
+					ctx, slog.LevelDebug, "Reference resolved",
 					slog.String("source_resource", currentResourceRef),
 					slog.String("target_ref", refStr),
 					slog.String("field", field),

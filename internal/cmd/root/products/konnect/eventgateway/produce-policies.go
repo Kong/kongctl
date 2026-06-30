@@ -84,7 +84,8 @@ Where possible, apply transformations to the data using produce policies rather 
 %[1]s get event-gateway vc pp --gateway-id <id> --virtual-cluster-id <id> --policy-id <id>
 # Get a specific produce policy by name (flag)
 %[1]s get event-gateway vc pp --gateway-name gw --virtual-cluster-name vc --policy-name p
-`, meta.CLIName)))
+`, meta.CLIName)),
+	)
 )
 
 func newGetEventGatewayProducePoliciesCmd(
