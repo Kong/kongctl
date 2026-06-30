@@ -959,7 +959,7 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 		return
 	}
 
-	depRefToID := make(map[string]string, len(change.DependsOn))
+	depRefs := make(map[string]createdDependencyReference, len(change.DependsOn))
 	for _, depID := range change.DependsOn {
 		createdID, ok := e.getCreatedResourceID(depID)
 		if !ok || createdID == "" {
@@ -971,16 +971,20 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 			continue
 		}
 
-		depRefToID[depChange.ResourceRef] = createdID
+		depRefs[depChange.ResourceRef] = createdDependencyReference{
+			id:          createdID,
+			resourceRef: depChange.ResourceRef,
+			fields:      depChange.Fields,
+		}
 	}
 
-	if len(depRefToID) == 0 {
+	if len(depRefs) == 0 {
 		return
 	}
 
 	if change.Parent != nil && unresolvedReferenceID(change.Parent.ID) {
-		if id, ok := depRefToID[normalizedRefValue(change.Parent.Ref)]; ok {
-			change.Parent.ID = id
+		if dep, ok := depRefs[normalizedRefValue(change.Parent.Ref)]; ok {
+			change.Parent.ID = dep.id
 		}
 	}
 
@@ -988,11 +992,12 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 		updated := false
 
 		if unresolvedReferenceID(refInfo.ID) {
-			if id, ok := depRefToID[normalizedRefValue(refInfo.Ref)]; ok {
-				refInfo.ID = id
+			if dep, ok := depRefs[normalizedRefValue(refInfo.Ref)]; ok {
+				resolvedValue := dep.referenceValue(refInfo.Ref)
+				refInfo.ID = resolvedValue
 				updated = true
 				if change.Fields != nil {
-					setResolvedFieldValue(change.Fields, field, id)
+					setResolvedFieldValue(change.Fields, field, resolvedValue)
 				}
 			}
 		}
@@ -1008,8 +1013,8 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 				if refInfo.ResolvedIDs[i] != "" {
 					continue
 				}
-				if id, ok := depRefToID[normalizedRefValue(ref)]; ok {
-					refInfo.ResolvedIDs[i] = id
+				if dep, ok := depRefs[normalizedRefValue(ref)]; ok {
+					refInfo.ResolvedIDs[i] = dep.referenceValue(ref)
 					updated = true
 				}
 			}
@@ -1019,6 +1024,78 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 			change.References[field] = refInfo
 		}
 	}
+}
+
+type createdDependencyReference struct {
+	id          string
+	resourceRef string
+	fields      map[string]any
+}
+
+func (r createdDependencyReference) referenceValue(ref string) string {
+	field := planner.FieldID
+	if tags.IsRefPlaceholder(ref) {
+		if _, parsedField, ok := tags.ParseRefPlaceholder(ref); ok && parsedField != "" {
+			field = parsedField
+		}
+	}
+
+	switch field {
+	case planner.FieldID, "ID":
+		return r.id
+	case planner.FieldName:
+		if name := common.ExtractResourceName(r.fields); name != "" && name != resources.UnknownReferenceID {
+			return name
+		}
+		if r.resourceRef != "" {
+			return r.resourceRef
+		}
+		return r.id
+	default:
+		if value, ok := stringFieldPathValue(r.fields, field); ok {
+			return value
+		}
+		return r.id
+	}
+}
+
+func stringFieldPathValue(fields map[string]any, fieldPath string) (string, bool) {
+	if fields == nil || fieldPath == "" {
+		return "", false
+	}
+	value, ok := fieldPathValue(fields, strings.Split(fieldPath, "."))
+	if !ok {
+		return "", false
+	}
+	if fieldChange, ok := value.(planner.FieldChange); ok {
+		value = fieldChange.New
+	}
+	switch typed := value.(type) {
+	case string:
+		return typed, true
+	case fmt.Stringer:
+		return typed.String(), true
+	default:
+		return "", false
+	}
+}
+
+func fieldPathValue(current any, segments []string) (any, bool) {
+	if len(segments) == 0 {
+		return current, true
+	}
+	if fieldChange, ok := current.(planner.FieldChange); ok {
+		return fieldPathValue(fieldChange.New, segments)
+	}
+	fields, ok := current.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	next, ok := fields[segments[0]]
+	if !ok {
+		return nil, false
+	}
+	return fieldPathValue(next, segments[1:])
 }
 
 func (e *Executor) getCreatedResourceID(changeID string) (string, bool) {
