@@ -226,7 +226,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	}
 
 	for i := range rs.AIGatewayConsumerGroups {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayConsumerGroups[i], rs, resolver, resolutionPath, logger); err != nil {
+		err := resolveResourceFields(ctx, &rs.AIGatewayConsumerGroups[i], rs, resolver, resolutionPath, logger)
+		if err != nil {
 			return fmt.Errorf("resolving AI gateway consumer group %s: %w", rs.AIGatewayConsumerGroups[i].GetRef(), err)
 		}
 		processCount++
