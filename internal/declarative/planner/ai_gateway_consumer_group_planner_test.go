@@ -115,7 +115,7 @@ func TestAIGatewayConsumerGroupPlannerDependsOnPolicyCreate(t *testing.T) {
 	require.Contains(t, policyCreate.DependsOn, gatewayCreate.ID)
 	require.Contains(t, groupCreate.DependsOn, policyCreate.ID)
 	require.Equal(t, resources.UnknownReferenceID, groupCreate.References[FieldPolicies+".0"].ID)
-	require.Equal(t, tags.RefPlaceholderPrefix+"mask-sensitive-data#id", groupCreate.References[FieldPolicies+".0"].Ref)
+	require.Equal(t, tags.RefPlaceholderPrefix+"mask-sensitive-data#name", groupCreate.References[FieldPolicies+".0"].Ref)
 }
 
 func TestAIGatewayConsumerGroupPlannerResolvesExistingPolicyRef(t *testing.T) {
@@ -141,7 +141,7 @@ func TestAIGatewayConsumerGroupPlannerResolvesExistingPolicyRef(t *testing.T) {
 
 	groupCreate := findAIGatewayModelTestChange(t, plan, ResourceTypeAIGatewayConsumerGroup, "premium-support-users")
 	require.NotContains(t, groupCreate.DependsOn, "policy-id")
-	require.Equal(t, "policy-id", groupCreate.References[FieldPolicies+".0"].ID)
+	require.Equal(t, "mask-sensitive-data", groupCreate.References[FieldPolicies+".0"].ID)
 }
 
 func TestAIGatewayConsumerGroupPlannerPolicyRefNoopForExistingGroup(t *testing.T) {

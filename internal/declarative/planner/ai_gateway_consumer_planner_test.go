@@ -120,7 +120,11 @@ func TestAIGatewayConsumerPlannerDependsOnPolicyCreate(t *testing.T) {
 	require.Contains(t, policyCreate.DependsOn, gatewayCreate.ID)
 	require.Contains(t, consumerCreate.DependsOn, policyCreate.ID)
 	require.Equal(t, resources.UnknownReferenceID, consumerCreate.References[FieldPolicies+".0"].ID)
-	require.Equal(t, tags.RefPlaceholderPrefix+"mask-sensitive-data#id", consumerCreate.References[FieldPolicies+".0"].Ref)
+	require.Equal(
+		t,
+		tags.RefPlaceholderPrefix+"mask-sensitive-data#name",
+		consumerCreate.References[FieldPolicies+".0"].Ref,
+	)
 }
 
 func TestAIGatewayConsumerPlannerPolicyRefNoopForExistingConsumer(t *testing.T) {

@@ -59,7 +59,7 @@ ai_gateways:
         type: api-key
         display_name: "Support Agent"
         policies:
-          - !ref mask-sensitive-data
+          - !ref mask-sensitive-data#name
         labels:
           team: support
           access: agent
@@ -80,13 +80,13 @@ ai_gateways:
           logging:
             max_payload_size: 524288
         policies:
-          - !ref mask-sensitive-data
+          - !ref mask-sensitive-data#name
     consumer_groups:
       - ref: premium-support-users
         name: premium-support-users
         display_name: "Premium Support Users"
         policies:
-          - !ref mask-sensitive-data
+          - !ref mask-sensitive-data#name
         labels:
           team: support
           tier: premium
@@ -107,7 +107,7 @@ ai_gateways:
             config:
               type: openai
         policies:
-          - !ref mask-sensitive-data
+          - !ref mask-sensitive-data#name
         capabilities:
           - generate
     mcp_servers:
@@ -121,10 +121,13 @@ ai_gateways:
           toolset: customer-profile
         config:
           url: https://support-tools.example.com
+          route:
+            paths:
+              - /support-tools
         tools:
           - name: lookup-customer
             description: "Look up a customer profile"
             method: GET
             path: /customers/{customer_id}
         policies:
-          - !ref mask-sensitive-data
+          - !ref mask-sensitive-data#name

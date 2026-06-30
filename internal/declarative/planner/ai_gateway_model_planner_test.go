@@ -124,6 +124,57 @@ func TestAIGatewayModelPlannerSyncDeletesScopedModels(t *testing.T) {
 	require.Equal(t, "gateway-id", change.Parent.ID)
 }
 
+func TestAIGatewayModelPlannerIgnoresAPIDefaults(t *testing.T) {
+	model := testAIGatewayModelResource(t)
+	var current kkComps.AIGatewayModel
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "model-id",
+		"type": "model",
+		"name": "support-gpt",
+		"display_name": "Support GPT",
+		"enabled": true,
+		"config": {
+			"route": {
+				"https_redirect_status_code": 426,
+				"preserve_host": false,
+				"protocols": ["http", "https"],
+				"regex_priority": 0,
+				"request_buffering": true,
+				"response_buffering": true,
+				"strip_path": true
+			},
+			"model": {
+				"alias": "support-gpt",
+				"name_header": true
+			},
+			"response_streaming": "allow",
+			"max_request_body_size": 8388608
+		},
+		"formats": [{"type": "openai"}],
+		"targets": [{
+			"name": "gpt-4o",
+			"provider": "support-openai",
+			"weight": 100,
+			"allow_auth_override": false,
+			"config": {"type": "openai"}
+		}],
+		"policies": [],
+		"capabilities": ["generate"],
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z"
+	}`), &current))
+
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayModel(
+		state.AIGatewayModel{AIGatewayModel: current},
+		model,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func TestAIGatewayModelPlannerDependsOnTargetProviderCreate(t *testing.T) {
 	model := testAIGatewayModelResource(t)
 	client := state.NewClient(state.ClientConfig{

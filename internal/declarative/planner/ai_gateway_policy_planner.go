@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"maps"
-	"reflect"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -216,26 +214,13 @@ func shouldUpdateAIGatewayPolicy(
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway Policy %q: %w", desired.Ref, err)
 	}
 
-	changedFields := make(map[string]FieldChange)
-	keys := make(map[string]struct{}, len(currentPayload)+len(desiredPayload))
-	for key := range currentPayload {
-		keys[key] = struct{}{}
-	}
-	for key := range desiredPayload {
-		keys[key] = struct{}{}
-	}
-	for key := range keys {
-		if !reflect.DeepEqual(currentPayload[key], desiredPayload[key]) {
-			changedFields[key] = FieldChange{Old: currentPayload[key], New: desiredPayload[key]}
-		}
-	}
+	currentCompare, desiredCompare := normalizeAIGatewayPolicyPayloadsForComparison(currentPayload, desiredPayload)
+	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {
 		return false, nil, nil, nil
 	}
 
-	updateFields := make(map[string]any, len(desiredPayload))
-	maps.Copy(updateFields, desiredPayload)
-	return true, updateFields, changedFields, nil
+	return true, clonePayloadMap(desiredPayload), changedFields, nil
 }
 
 func indexAIGatewayPolicies(

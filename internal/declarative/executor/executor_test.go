@@ -7,6 +7,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -428,6 +429,50 @@ func TestExecutor_hydrateKnownReferenceIDs_PopulatesScalarRefAndParent(t *testin
 	assert.Equal(t, "api-id-123", change.Fields[planner.FieldAPIID])
 	require.NotNil(t, change.Parent)
 	assert.Equal(t, "api-id-123", change.Parent.ID)
+}
+
+func TestExecutor_hydrateKnownReferenceIDs_UsesRequestedReferenceField(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1:c:ai_gateway_policy:mask-sensitive-data"] = "policy-id-123"
+
+	plan := &planner.Plan{
+		Changes: []planner.PlannedChange{
+			{
+				ID:           "1:c:ai_gateway_policy:mask-sensitive-data",
+				Action:       planner.ActionCreate,
+				ResourceType: planner.ResourceTypeAIGatewayPolicy,
+				ResourceRef:  "mask-sensitive-data",
+				Fields: map[string]any{
+					planner.FieldName: "mask-sensitive-data",
+				},
+			},
+			{
+				ID:           "2:c:ai_gateway_agent:booking-agent",
+				Action:       planner.ActionCreate,
+				ResourceType: planner.ResourceTypeAIGatewayAgent,
+				ResourceRef:  "booking-agent",
+				DependsOn:    []string{"1:c:ai_gateway_policy:mask-sensitive-data"},
+				Fields: map[string]any{
+					planner.FieldPolicies: []any{tags.RefPlaceholderPrefix + "mask-sensitive-data#name"},
+				},
+				References: map[string]planner.ReferenceInfo{
+					planner.FieldPolicies + ".0": {
+						Ref: tags.RefPlaceholderPrefix + "mask-sensitive-data#name",
+						ID:  resources.UnknownReferenceID,
+					},
+				},
+			},
+		},
+	}
+
+	change := &plan.Changes[1]
+	exec.hydrateKnownReferenceIDs(change, plan)
+
+	refInfo := change.References[planner.FieldPolicies+".0"]
+	assert.Equal(t, "mask-sensitive-data", refInfo.ID)
+	policies := change.Fields[planner.FieldPolicies].([]any)
+	require.Len(t, policies, 1)
+	assert.Equal(t, "mask-sensitive-data", policies[0])
 }
 
 func TestExecutor_hydrateKnownReferenceIDs_PopulatesArrayResolvedIDs(t *testing.T) {
