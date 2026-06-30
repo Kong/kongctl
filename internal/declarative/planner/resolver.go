@@ -70,6 +70,9 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 		// Check fields that might contain references
 		for _, fieldRef := range r.extractReferencesFromFields(change.Fields) {
 			// Determine resource type from field name and role entity metadata.
+			if aiGatewayPolicyReferenceField(change.ResourceType, fieldRef.Field) {
+				fieldRef.Ref = aiGatewayPolicyNameReference(fieldRef.Ref)
+			}
 			resourceType := r.getResourceTypeForChangeField(change, fieldRef.Field)
 			targetRef := referenceTargetRef(fieldRef.Ref)
 
@@ -257,6 +260,17 @@ func aiGatewayPolicyReferenceField(resourceType, fieldName string) bool {
 	return fieldName == FieldPolicies || strings.HasPrefix(fieldName, FieldPolicies+".")
 }
 
+func aiGatewayPolicyNameReference(ref string) string {
+	targetRef := ref
+	if parsedRef, _, ok := tags.ParseRefPlaceholder(ref); ok {
+		targetRef = parsedRef
+	}
+	if targetRef == "" {
+		return ref
+	}
+	return fmt.Sprintf("%s%s#%s", tags.RefPlaceholderPrefix, targetRef, FieldName)
+}
+
 func referenceTargetRef(ref string) string {
 	targetRef, _, ok := tags.ParseRefPlaceholder(ref)
 	if ok {
@@ -299,6 +313,11 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 					return resources.UnknownReferenceID, nil // Trigger forward reference
 				}
 				return konnectID, nil
+			}
+			if fieldName == FieldName {
+				if name := resource.GetMoniker(); name != "" {
+					return name, nil
+				}
 			}
 
 			// For other fields, use reflection to extract value

@@ -86,6 +86,47 @@ func TestAIGatewayPolicyPlannerUpdatesExistingPolicy(t *testing.T) {
 	require.Contains(t, change.ChangedFields, FieldDisplayName)
 }
 
+func TestAIGatewayPolicyPlannerIgnoresEmptyAPIConfigDefaults(t *testing.T) {
+	policy := testAIGatewayPolicyResource(t)
+	current := testAIGatewayPolicy()
+	current.Config = map[string]any{
+		"allow_all_conversation_history": true,
+		"anonymize":                      []any{"email"},
+		"block_if_detected":              false,
+		"custom_patterns":                nil,
+		"host":                           "localhost",
+		"keepalive_timeout":              float64(60000),
+		"port":                           float64(8080),
+		"proxy_config": map[string]any{
+			"auth_password":    nil,
+			"auth_username":    nil,
+			"http_proxy_host":  nil,
+			"http_proxy_port":  nil,
+			"https_proxy_host": nil,
+			"https_proxy_port": nil,
+			"no_proxy":         nil,
+			"proxy_scheme":     "http",
+		},
+		"recover_redacted":             true,
+		"redact_type":                  "placeholder",
+		"sanitization_mode":            "INPUT",
+		"scheme":                       "http",
+		"skip_logging_sanitized_items": false,
+		"stop_on_error":                true,
+		"timeout":                      float64(10000),
+	}
+
+	needsUpdate, fields, changed, err := shouldUpdateAIGatewayPolicy(
+		state.AIGatewayPolicy{AIGatewayPolicy: current},
+		policy,
+	)
+
+	require.NoError(t, err)
+	require.False(t, needsUpdate)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func TestAIGatewayPolicyPlannerSyncDeletesScopedPolicies(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)

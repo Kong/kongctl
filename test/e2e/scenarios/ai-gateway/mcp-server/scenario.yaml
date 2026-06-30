@@ -136,6 +136,7 @@ steps:
                 fields.type: conversion-only
                 fields.display_name: "{{ .vars.server_display_name }}"
                 fields.config.url: https://support-tools.example.com
+                fields.config.route.paths[0]: /support-tools
                 fields.policies[0]: "{{ .vars.policy_name }}"
       - name: 001-apply-create
         outputFormat: json
@@ -232,6 +233,7 @@ steps:
                 type: conversion-only
                 enabled: true
                 config.url: https://support-tools.example.com
+                config.route.paths[0]: /support-tools
                 tools[0].name: lookup-customer
                 policies[0]: "{{ .vars.policy_name }}"
       - name: 006-get-mcp-server-by-name
@@ -323,6 +325,7 @@ steps:
                 enabled: false
                 labels.phase: update
                 config.url: https://support-tools-updated.example.com
+                config.route.paths[0]: /support-tools
       - name: 003-diff-no-changes
         outputFormat: text
         parseAs: raw
