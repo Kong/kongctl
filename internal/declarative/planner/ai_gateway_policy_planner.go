@@ -119,7 +119,7 @@ func (p *Planner) planAIGatewayPolicyCreatesForNewGateway(
 func (p *Planner) planAIGatewayPolicyCreate(
 	namespace string,
 	gatewayRef string,
-	gatewayName string,
+	_ string,
 	gatewayID string,
 	policy resources.AIGatewayPolicyResource,
 	dependsOn []string,
@@ -147,7 +147,7 @@ func (p *Planner) planAIGatewayPolicyCreate(
 			FieldAIGatewayID: {
 				Ref: gatewayRef,
 				LookupFields: map[string]string{
-					FieldDisplayName: gatewayName,
+					FieldName: gatewayRef,
 				},
 			},
 		}
