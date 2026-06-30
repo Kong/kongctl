@@ -93,7 +93,7 @@ type Executor struct {
 		kkComps.CreateTLSTrustBundleRequest, kkComps.UpdateTLSTrustBundleRequest]
 
 	// Portal child resource executors
-	portalCustomizationExecutor    *BaseSingletonExecutor[kkComps.PortalCustomization]
+	portalCustomizationExecutor    *BaseSingletonExecutor[kkComps.PortalCustomizationV3]
 	portalAuthSettingsExecutor     *BaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest]
 	portalIntegrationExecutor      *BaseSingletonExecutor[kkComps.PortalIntegrations]
 	portalIdentityProviderExecutor *BaseExecutor[kkComps.CreateIdentityProvider, kkComps.UpdateIdentityProvider]
@@ -350,7 +350,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 
 	// Initialize portal child resource executors
-	e.portalCustomizationExecutor = NewBaseSingletonExecutor[kkComps.PortalCustomization](
+	e.portalCustomizationExecutor = NewBaseSingletonExecutor[kkComps.PortalCustomizationV3](
 		NewPortalCustomizationAdapter(client),
 		dryRun,
 	)

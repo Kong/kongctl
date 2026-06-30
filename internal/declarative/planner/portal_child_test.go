@@ -423,7 +423,7 @@ func TestShouldUpdatePortalCustomizationDetectsSpecRendererAndRobots(t *testing.
 	boolPtr := func(v bool) *bool { return &v }
 	stringPtr := func(v string) *string { return &v }
 
-	current := &kkComps.PortalCustomization{
+	current := &kkComps.PortalCustomizationV3{
 		SpecRenderer: &kkComps.SpecRenderer{
 			TryItUI:               boolPtr(true),
 			TryItInsomnia:         boolPtr(true),
@@ -436,7 +436,7 @@ func TestShouldUpdatePortalCustomizationDetectsSpecRendererAndRobots(t *testing.
 		Robots: stringPtr("User-agent: *"),
 	}
 	desired := resources.PortalCustomizationResource{
-		PortalCustomization: kkComps.PortalCustomization{
+		PortalCustomizationV3: kkComps.PortalCustomizationV3{
 			SpecRenderer: &kkComps.SpecRenderer{
 				TryItUI:               boolPtr(false),
 				TryItInsomnia:         boolPtr(false),
@@ -473,7 +473,7 @@ func TestShouldUpdatePortalCustomizationIgnoresMatchingSpecRendererAndRobots(t *
 	boolPtr := func(v bool) *bool { return &v }
 	stringPtr := func(v string) *string { return &v }
 
-	current := &kkComps.PortalCustomization{
+	current := &kkComps.PortalCustomizationV3{
 		SpecRenderer: &kkComps.SpecRenderer{
 			TryItUI:               boolPtr(true),
 			TryItInsomnia:         boolPtr(false),
@@ -486,7 +486,7 @@ func TestShouldUpdatePortalCustomizationIgnoresMatchingSpecRendererAndRobots(t *
 		Robots: stringPtr("User-agent: *"),
 	}
 	desired := resources.PortalCustomizationResource{
-		PortalCustomization: kkComps.PortalCustomization{
+		PortalCustomizationV3: kkComps.PortalCustomizationV3{
 			SpecRenderer: &kkComps.SpecRenderer{
 				TryItUI:               boolPtr(true),
 				TryItInsomnia:         boolPtr(false),
@@ -513,7 +513,7 @@ func TestBuildAllCustomizationFieldsIncludesSpecRendererAndRobots(t *testing.T) 
 	stringPtr := func(v string) *string { return &v }
 
 	fields := planner.buildAllCustomizationFields(resources.PortalCustomizationResource{
-		PortalCustomization: kkComps.PortalCustomization{
+		PortalCustomizationV3: kkComps.PortalCustomizationV3{
 			SpecRenderer: &kkComps.SpecRenderer{
 				TryItUI:               boolPtr(false),
 				TryItInsomnia:         boolPtr(true),
