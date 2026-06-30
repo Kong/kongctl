@@ -147,7 +147,7 @@ func (p *Planner) planAIGatewayModelCreatesForNewGateway(
 func (p *Planner) planAIGatewayModelCreate(
 	namespace string,
 	gatewayRef string,
-	gatewayName string,
+	_ string,
 	gatewayID string,
 	model resources.AIGatewayModelResource,
 	dependsOn []string,
@@ -175,7 +175,7 @@ func (p *Planner) planAIGatewayModelCreate(
 			FieldAIGatewayID: {
 				Ref: gatewayRef,
 				LookupFields: map[string]string{
-					FieldDisplayName: gatewayName,
+					FieldName: gatewayRef,
 				},
 			},
 		}

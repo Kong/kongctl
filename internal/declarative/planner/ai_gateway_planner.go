@@ -62,7 +62,7 @@ func (p *Planner) planAIGatewayChanges(
 		}
 	}
 
-	currentByID, currentByDisplayName := indexAIGateways(currentGateways)
+	currentByID, currentByName, currentByDisplayName := indexAIGateways(currentGateways)
 
 	if plan.Metadata.Mode == PlanModeDelete {
 		var protectionErrors []error
@@ -70,7 +70,7 @@ func (p *Planner) planAIGatewayChanges(
 			if desiredGateway.IsExternal() {
 				continue
 			}
-			current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByDisplayName)
+			current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByName, currentByDisplayName)
 			if err != nil {
 				return err
 			}
@@ -108,7 +108,7 @@ func (p *Planner) planAIGatewayChanges(
 			continue
 		}
 
-		current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByDisplayName)
+		current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByName, currentByDisplayName)
 		if err != nil {
 			return err
 		}
@@ -613,26 +613,40 @@ func (p *Planner) shouldUpdateAIGateway(
 	return len(updates) > 0, updates, changedFields
 }
 
-func indexAIGateways(gateways []state.AIGateway) (map[string]state.AIGateway, map[string][]state.AIGateway) {
+func indexAIGateways(
+	gateways []state.AIGateway,
+) (map[string]state.AIGateway, map[string]state.AIGateway, map[string][]state.AIGateway) {
 	byID := make(map[string]state.AIGateway)
+	byName := make(map[string]state.AIGateway)
 	byDisplayName := make(map[string][]state.AIGateway)
 	for _, gateway := range gateways {
 		if gateway.ID != "" {
 			byID[gateway.ID] = gateway
 		}
+		if gateway.Name != "" {
+			byName[gateway.Name] = gateway
+		}
 		byDisplayName[gateway.DisplayName] = append(byDisplayName[gateway.DisplayName], gateway)
 	}
-	return byID, byDisplayName
+	return byID, byName, byDisplayName
 }
 
 func matchCurrentAIGateway(
 	desired resources.AIGatewayResource,
 	currentByID map[string]state.AIGateway,
+	currentByName map[string]state.AIGateway,
 	currentByDisplayName map[string][]state.AIGateway,
 ) (state.AIGateway, bool, error) {
 	if id := aiGatewayDesiredID(desired); id != "" {
 		current, exists := currentByID[id]
 		return current, exists, nil
+	}
+
+	if desired.Ref != "" {
+		current, exists := currentByName[desired.Ref]
+		if exists {
+			return current, true, nil
+		}
 	}
 
 	matches := currentByDisplayName[desired.DisplayName]
@@ -662,6 +676,9 @@ func aiGatewayDesiredID(desired resources.AIGatewayResource) string {
 func aiGatewayIdentity(gateway state.AIGateway) string {
 	if gateway.ID != "" {
 		return "id:" + gateway.ID
+	}
+	if gateway.Name != "" {
+		return "name:" + gateway.Name
 	}
 	return "display_name:" + gateway.DisplayName
 }
@@ -726,13 +743,18 @@ func (p *Planner) planAIGatewayDelete(current state.AIGateway, plan *Plan) {
 	if ns, ok := current.NormalizedLabels[labels.NamespaceKey]; ok && ns != "" {
 		namespace = ns
 	}
+	resourceRef := current.Name
+	if resourceRef == "" {
+		resourceRef = current.DisplayName
+	}
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, ResourceTypeAIGateway, current.DisplayName),
+		ID:           p.nextChangeID(ActionDelete, ResourceTypeAIGateway, resourceRef),
 		Action:       ActionDelete,
 		ResourceType: ResourceTypeAIGateway,
-		ResourceRef:  current.DisplayName,
+		ResourceRef:  resourceRef,
 		ResourceID:   current.ID,
 		Fields: map[string]any{
+			FieldName:        resourceRef,
 			FieldDisplayName: current.DisplayName,
 		},
 		Namespace: namespace,
