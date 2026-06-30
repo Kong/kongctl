@@ -192,11 +192,11 @@ func TestAIGatewayModelPlannerDependsOnTargetProviderCreate(t *testing.T) {
 			},
 		}},
 		AIGatewayProviders: []resources.AIGatewayProviderResource{{
-			Ref:         "support-openai",
-			AIGateway:   "support-gateway",
-			Name:        "support-openai",
-			Type:        "openai",
-			DisplayName: "Support OpenAI",
+			BaseResource: resources.BaseResource{Ref: "support-openai"},
+			AIGateway:    "support-gateway",
+			Name:         "support-openai",
+			Type:         "openai",
+			DisplayName:  "Support OpenAI",
 			Config: map[string]any{
 				"auth": map[string]any{"type": "basic"},
 			},

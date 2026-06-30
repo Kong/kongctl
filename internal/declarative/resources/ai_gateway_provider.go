@@ -5,6 +5,15 @@ import (
 	"fmt"
 )
 
+const (
+	aiGatewayProviderFieldName        = "name"
+	aiGatewayProviderFieldType        = "type"
+	aiGatewayProviderFieldDisplayName = "display_name"
+	aiGatewayProviderFieldLabels      = "labels"
+	aiGatewayProviderFieldManagedBy   = "managed_by"
+	aiGatewayProviderFieldConfig      = "config"
+)
+
 func init() {
 	registerResourceType(
 		ResourceTypeAIGatewayProvider,
@@ -19,7 +28,7 @@ func init() {
 
 // AIGatewayProviderResource represents a Konnect AI Gateway Provider in declarative configuration.
 type AIGatewayProviderResource struct {
-	Ref string `yaml:"ref" json:"ref"`
+	BaseResource `yaml:",inline" json:",inline"`
 	// Parent AI Gateway reference for root-level provider declarations.
 	AIGateway   string            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
 	Name        string            `yaml:"name"                 json:"name"`
@@ -28,18 +37,11 @@ type AIGatewayProviderResource struct {
 	Labels      map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
 	ManagedBy   map[string]string `yaml:"managed_by,omitempty" json:"managed_by,omitempty"`
 	Config      map[string]any    `yaml:"config"               json:"config"`
-
-	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetType returns the resource type.
 func (a AIGatewayProviderResource) GetType() ResourceType {
 	return ResourceTypeAIGatewayProvider
-}
-
-// GetRef returns the declarative ref.
-func (a AIGatewayProviderResource) GetRef() string {
-	return a.Ref
 }
 
 // GetMoniker returns the provider name used for matching within the parent gateway.
@@ -60,6 +62,9 @@ func (a AIGatewayProviderResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway Provider ref: %w", err)
 	}
+	if a.Kongctl != nil {
+		return fmt.Errorf("kongctl metadata not supported on AI Gateway Provider %s", a.Ref)
+	}
 	if a.Name == "" {
 		return fmt.Errorf("name is required for AI Gateway Provider %s", a.Ref)
 	}
@@ -77,22 +82,29 @@ func (a AIGatewayProviderResource) Validate() error {
 
 // SetDefaults applies default values to AI Gateway Provider resources.
 func (a *AIGatewayProviderResource) SetDefaults() {
-}
-
-// GetKonnectID returns the resolved Konnect ID.
-func (a AIGatewayProviderResource) GetKonnectID() string {
-	return a.konnectID
+	if a == nil {
+		return
+	}
+	if a.Ref == "" {
+		a.Ref = a.Name
+	}
+	if a.Name == "" {
+		a.Name = a.Ref
+	}
+	if a.DisplayName == "" {
+		a.DisplayName = a.Name
+	}
 }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup.
 func (a AIGatewayProviderResource) GetKonnectMonikerFilter() string {
-	return fmt.Sprintf("name[eq]=%s", a.Name)
+	return a.BaseResource.GetKonnectMonikerFilter(a.Name)
 }
 
 // TryMatchKonnectResource attempts to match this provider with a Konnect resource.
 func (a *AIGatewayProviderResource) TryMatchKonnectResource(konnectResource any) bool {
 	if id := tryMatchByField(konnectResource, "Name", a.Name); id != "" {
-		a.konnectID = id
+		a.SetKonnectID(id)
 		return true
 	}
 	return false
@@ -104,6 +116,50 @@ func (a AIGatewayProviderResource) GetParentRef() *ResourceRef {
 		return nil
 	}
 	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}
+}
+
+func (a AIGatewayProviderResource) PayloadMap() (map[string]any, error) {
+	payload := map[string]any{
+		aiGatewayProviderFieldName:        a.Name,
+		aiGatewayProviderFieldType:        a.Type,
+		aiGatewayProviderFieldDisplayName: a.DisplayName,
+		aiGatewayProviderFieldConfig:      a.Config,
+	}
+	if a.Labels != nil {
+		payload[aiGatewayProviderFieldLabels] = a.Labels
+	}
+	if a.ManagedBy != nil {
+		payload[aiGatewayProviderFieldManagedBy] = a.ManagedBy
+	}
+	return payload, nil
+}
+
+func (a AIGatewayProviderResource) MutablePayloadMap() (map[string]any, error) {
+	return a.PayloadMap()
+}
+
+func (a AIGatewayProviderResource) MarshalJSON() ([]byte, error) {
+	payload, err := a.PayloadMap()
+	if err != nil {
+		return nil, err
+	}
+	payload[SchemaFieldRef] = a.Ref
+	if a.AIGateway != "" {
+		payload[SchemaFieldAIGateway] = a.AIGateway
+	}
+	return json.Marshal(payload)
+}
+
+func (a AIGatewayProviderResource) MarshalYAML() (any, error) {
+	payload, err := a.PayloadMap()
+	if err != nil {
+		return nil, err
+	}
+	payload[SchemaFieldRef] = a.Ref
+	if a.AIGateway != "" {
+		payload[SchemaFieldAIGateway] = a.AIGateway
+	}
+	return payload, nil
 }
 
 // UnmarshalJSON rejects kongctl metadata on child provider resources.
@@ -126,7 +182,7 @@ func (a *AIGatewayProviderResource) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
-	a.Ref = raw.Ref
+	a.BaseResource = BaseResource{Ref: raw.Ref}
 	a.AIGateway = raw.AIGateway
 	a.Name = raw.Name
 	a.Type = raw.Type

@@ -14,6 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/config"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -23,13 +24,6 @@ import (
 	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
-)
-
-const (
-	aiGatewayModelGatewayIDFlag   = "gateway-id"
-	aiGatewayModelGatewayNameFlag = "gateway-name"
-	aiGatewayModelIDFlag          = "model-id"
-	aiGatewayModelNameFlag        = "model-name"
 )
 
 type aiGatewayModelRecord struct {
@@ -85,7 +79,10 @@ func newGetAIGatewayModelsCmd(
 					return err
 				}
 			}
-			return nil
+			if err := bindAIGatewayChildFlags(cmd, args); err != nil {
+				return err
+			}
+			return bindAIGatewayModelFlags(cmd, args)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			handler := aiGatewayModelsHandler{cmd: cmd}
@@ -93,10 +90,8 @@ func newGetAIGatewayModelsCmd(
 		},
 	}
 
-	modelsCmd.Flags().String(aiGatewayModelGatewayIDFlag, "", "AI Gateway ID.")
-	modelsCmd.Flags().String(aiGatewayModelGatewayNameFlag, "", "AI Gateway display name.")
-	modelsCmd.Flags().String(aiGatewayModelIDFlag, "", "AI Gateway model ID.")
-	modelsCmd.Flags().String(aiGatewayModelNameFlag, "", "AI Gateway model name.")
+	addAIGatewayChildFlags(modelsCmd)
+	addAIGatewayModelFlags(modelsCmd)
 
 	if addParentFlags != nil {
 		addParentFlags(verb, modelsCmd)
@@ -107,12 +102,12 @@ func newGetAIGatewayModelsCmd(
 
 func (h aiGatewayModelsHandler) run(args []string) error {
 	helper := cmd.BuildHelper(h.cmd, args)
-	if err := h.validate(args); err != nil {
-		return err
-	}
 
 	cfg, err := helper.GetConfig()
 	if err != nil {
+		return err
+	}
+	if err := h.validate(args, cfg); err != nil {
 		return err
 	}
 	logger, err := helper.GetLogger()
@@ -134,7 +129,7 @@ func (h aiGatewayModelsHandler) run(args []string) error {
 		return err
 	}
 
-	gatewayID, err := h.resolveGatewayID(helper, sdk.GetAIGatewayAPI())
+	gatewayID, err := h.resolveGatewayID(helper, sdk.GetAIGatewayAPI(), cfg)
 	if err != nil {
 		return err
 	}
@@ -147,65 +142,62 @@ func (h aiGatewayModelsHandler) run(args []string) error {
 		}
 	}
 
-	modelID, modelName := h.modelSelector(args)
+	modelID, modelName := h.modelSelector(args, cfg)
 	if modelID != "" || modelName != "" {
 		return h.getModel(helper, modelAPI, gatewayID, modelID, modelName, outType, printer)
 	}
 	return h.listModels(helper, modelAPI, gatewayID, outType, printer)
 }
 
-func (h aiGatewayModelsHandler) validate(args []string) error {
+func (h aiGatewayModelsHandler) validate(args []string, cfg config.Hook) error {
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf("too many arguments. Listing AI Gateway models requires 0 or 1 arguments (model ID or name)"),
 		}
 	}
 
-	gatewayID, _ := h.cmd.Flags().GetString(aiGatewayModelGatewayIDFlag)
-	gatewayName, _ := h.cmd.Flags().GetString(aiGatewayModelGatewayNameFlag)
+	gatewayID, gatewayName := getAIGatewayIdentifiers(cfg)
 	if strings.TrimSpace(gatewayID) != "" && strings.TrimSpace(gatewayName) != "" {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf("only one of --%s or --%s can be provided",
-				aiGatewayModelGatewayIDFlag, aiGatewayModelGatewayNameFlag),
+				aiGatewayIDFlagName, aiGatewayNameFlagName),
 		}
 	}
 	if strings.TrimSpace(gatewayID) == "" && strings.TrimSpace(gatewayName) == "" {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf("one of --%s or --%s is required",
-				aiGatewayModelGatewayIDFlag, aiGatewayModelGatewayNameFlag),
+				aiGatewayIDFlagName, aiGatewayNameFlagName),
 		}
 	}
 
-	modelID, _ := h.cmd.Flags().GetString(aiGatewayModelIDFlag)
-	modelName, _ := h.cmd.Flags().GetString(aiGatewayModelNameFlag)
+	modelID, modelName := getAIGatewayModelIdentifiers(cfg)
 	if strings.TrimSpace(modelID) != "" && strings.TrimSpace(modelName) != "" {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf("only one of --%s or --%s can be provided",
-				aiGatewayModelIDFlag, aiGatewayModelNameFlag),
+				aiGatewayModelIDFlagName, aiGatewayModelNameFlagName),
 		}
 	}
 	if len(args) == 1 && (strings.TrimSpace(modelID) != "" || strings.TrimSpace(modelName) != "") {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf("model selector can be provided either positionally or with --%s/--%s, not both",
-				aiGatewayModelIDFlag, aiGatewayModelNameFlag),
+				aiGatewayModelIDFlagName, aiGatewayModelNameFlagName),
 		}
 	}
 
 	return nil
 }
 
-func (h aiGatewayModelsHandler) resolveGatewayID(helper cmd.Helper, gatewayAPI helpers.AIGatewayAPI) (string, error) {
-	gatewayID, _ := h.cmd.Flags().GetString(aiGatewayModelGatewayIDFlag)
-	gatewayName, _ := h.cmd.Flags().GetString(aiGatewayModelGatewayNameFlag)
+func (h aiGatewayModelsHandler) resolveGatewayID(
+	helper cmd.Helper,
+	gatewayAPI helpers.AIGatewayAPI,
+	cfg config.Hook,
+) (string, error) {
+	gatewayID, gatewayName := getAIGatewayIdentifiers(cfg)
 	gatewayID = strings.TrimSpace(gatewayID)
 	if gatewayID != "" {
 		return gatewayID, nil
 	}
 
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return "", err
-	}
 	gateway, err := runListByDisplayName(strings.TrimSpace(gatewayName), gatewayAPI, helper, cfg)
 	if err != nil {
 		return "", err
@@ -213,9 +205,8 @@ func (h aiGatewayModelsHandler) resolveGatewayID(helper cmd.Helper, gatewayAPI h
 	return gateway.ID, nil
 }
 
-func (h aiGatewayModelsHandler) modelSelector(args []string) (string, string) {
-	modelID, _ := h.cmd.Flags().GetString(aiGatewayModelIDFlag)
-	modelName, _ := h.cmd.Flags().GetString(aiGatewayModelNameFlag)
+func (h aiGatewayModelsHandler) modelSelector(args []string, cfg config.Hook) (string, string) {
+	modelID, modelName := getAIGatewayModelIdentifiers(cfg)
 	modelID = strings.TrimSpace(modelID)
 	modelName = strings.TrimSpace(modelName)
 	if len(args) == 1 {
