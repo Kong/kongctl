@@ -1,0 +1,63 @@
+name: E2E Required Status
+
+on:
+  pull_request_target:
+    branches: ['**']
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+env:
+  DO_NOT_TRACK: "1"
+
+concurrency:
+  group: e2e-required-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-required-status:
+    name: E2E Required Status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Set E2E Required status
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const statusContext = 'E2E Required';
+            const pr = context.payload.pull_request;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const e2ePattern = /^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal\/.*|test\/e2e\/.*|Makefile|\.goreleaser\.yml|\.github\/workflows\/e2e\.yaml|\.github\/workflows\/e2e-main-debounce\.yaml)$/;
+            const required = files.some((file) => e2ePattern.test(file.filename));
+            const state = required ? 'pending' : 'success';
+            const description = required
+              ? 'E2E required for this PR and waiting for E2E workflow.'
+              : 'E2E not required for this PR.';
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: pr.head.sha,
+              context: statusContext,
+              state,
+              description,
+              target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+            });
+
+            core.info(description);
