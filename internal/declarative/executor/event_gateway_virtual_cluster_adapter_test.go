@@ -186,7 +186,7 @@ func TestConvertToVirtualClusterSensitiveDataAwareAuth_PreservesFetchKongIdentit
 			name: "sasl_scram",
 			auth: kkComps.CreateVirtualClusterAuthenticationSchemeSaslScram(
 				kkComps.VirtualClusterAuthenticationSaslScram{
-					Algorithm:                  kkComps.VirtualClusterAuthenticationSaslScramAlgorithmSha256,
+					Algorithm:                  kkComps.AlgorithmSha256,
 					FetchKongIdentityPrincipal: fetch,
 				},
 			),
