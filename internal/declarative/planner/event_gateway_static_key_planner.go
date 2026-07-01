@@ -105,7 +105,9 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 					"key_id", current.ID,
 					"gateway_ref", gatewayRef,
 				)
-				deleteChangeID := p.planStaticKeyDelete(gatewayRef, gatewayName, gatewayID, current.ID, desiredKey.Name, plan)
+				deleteChangeID := p.planStaticKeyDelete(
+					namespace, gatewayRef, gatewayName, gatewayID, current.ID, desiredKey.Name, plan,
+				)
 				// CREATE depends on the DELETE being applied first
 				p.planStaticKeyCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredKey,
 					[]string{deleteChangeID}, plan)
@@ -122,7 +124,7 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 					"key_name", name,
 					"key_id", current.ID,
 				)
-				p.planStaticKeyDelete(gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
+				p.planStaticKeyDelete(namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
 			}
 		}
 	}
@@ -218,6 +220,7 @@ func (p *Planner) planStaticKeyCreate(
 
 // planStaticKeyDelete plans a DELETE change for a static key and returns the change ID.
 func (p *Planner) planStaticKeyDelete(
+	namespace string,
 	gatewayRef string,
 	_ string, // gatewayName - unused but kept for API consistency
 	gatewayID string,
@@ -234,6 +237,7 @@ func (p *Planner) planStaticKeyDelete(
 		ResourceID:   keyID,
 		Action:       ActionDelete,
 		Fields:       map[string]any{},
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,

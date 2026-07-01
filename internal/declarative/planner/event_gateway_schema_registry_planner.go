@@ -126,7 +126,7 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 					"registry_name", name,
 					"registry_id", current.ID,
 				)
-				p.planSchemaRegistryDelete(gatewayRef, gatewayID, current.ID, name, plan)
+				p.planSchemaRegistryDelete(namespace, gatewayRef, gatewayID, current.ID, name, plan)
 			}
 		}
 	}
@@ -236,6 +236,7 @@ func (p *Planner) planSchemaRegistryUpdate(
 
 // planSchemaRegistryDelete plans a DELETE change for a schema registry.
 func (p *Planner) planSchemaRegistryDelete(
+	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	registryID string,
@@ -248,7 +249,7 @@ func (p *Planner) planSchemaRegistryDelete(
 		ResourceRef:  registryName,
 		ResourceID:   registryID,
 		Action:       ActionDelete,
-		Namespace:    "",
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,

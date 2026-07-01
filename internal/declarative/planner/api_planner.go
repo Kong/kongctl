@@ -858,7 +858,7 @@ func (p *Planner) planAPIVersionChanges(
 					slog.String("version", versionStr),
 					slog.String("version_id", current.ID),
 				)
-				p.planAPIVersionDelete(apiRef, apiID, current.ID, versionStr, plan)
+				p.planAPIVersionDelete(parentNamespace, apiRef, apiID, current.ID, versionStr, plan)
 			}
 		}
 	}
@@ -919,7 +919,9 @@ func (p *Planner) planAPIVersionCreate(
 	plan.AddChange(change)
 }
 
-func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID string, versionStr string, plan *Plan) {
+func (p *Planner) planAPIVersionDelete(
+	parentNamespace string, apiRef string, apiID string, versionID string, versionStr string, plan *Plan,
+) {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypeAPIVersion, versionID),
 		ResourceType: ResourceTypeAPIVersion,
@@ -933,6 +935,7 @@ func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID st
 		Action:    ActionDelete,
 		Fields:    map[string]any{FieldVersion: versionStr},
 		DependsOn: []string{},
+		Namespace: parentNamespace,
 	}
 
 	plan.AddChange(change)
@@ -1148,7 +1151,7 @@ func (p *Planner) planAPIPublicationChanges(
 					portalRef = portalID // Fallback to ID if ref not found
 				}
 				current := currentByPortal[portalID]
-				p.planAPIPublicationDelete(apiRef, apiID, portalID, portalRef, current, plan)
+				p.planAPIPublicationDelete(parentNamespace, apiRef, apiID, portalID, portalRef, current, plan)
 			}
 		}
 	}
@@ -1268,6 +1271,7 @@ func (p *Planner) getAuthStrategyName(strategy resources.ApplicationAuthStrategy
 }
 
 func (p *Planner) planAPIPublicationDelete(
+	parentNamespace string,
 	apiRef string,
 	apiID string,
 	portalID string,
@@ -1297,6 +1301,7 @@ func (p *Planner) planAPIPublicationDelete(
 			FieldPortalID: portalID,
 		},
 		DependsOn: []string{},
+		Namespace: parentNamespace,
 	}
 
 	if len(current.AuthStrategyIDs) > 0 {
@@ -1754,7 +1759,7 @@ func (p *Planner) planAPIDocumentChanges(
 	if plan.Metadata.Mode == PlanModeSync {
 		remaining := stateIndex.unprocessed()
 		for path, current := range remaining {
-			p.planAPIDocumentDelete(apiRef, apiID, current.ID, path, plan)
+			p.planAPIDocumentDelete(parentNamespace, apiRef, apiID, current.ID, path, plan)
 		}
 	}
 
@@ -2089,7 +2094,9 @@ func (p *Planner) planAPIDocumentUpdate(
 	plan.AddChange(change)
 }
 
-func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID string, path string, plan *Plan) {
+func (p *Planner) planAPIDocumentDelete(
+	parentNamespace string, apiRef string, apiID string, documentID string, path string, plan *Plan,
+) {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypeAPIDocument, documentID),
 		ResourceType: ResourceTypeAPIDocument,
@@ -2103,6 +2110,7 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID 
 		Action:    ActionDelete,
 		Fields:    map[string]any{FieldSlug: path},
 		DependsOn: []string{},
+		Namespace: parentNamespace,
 	}
 
 	// Set API reference for executor

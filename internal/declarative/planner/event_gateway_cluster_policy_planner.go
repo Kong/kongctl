@@ -145,7 +145,7 @@ func (p *Planner) planClusterPolicyChangesForExistingVirtualCluster(
 					"policy_id", current.ID,
 				)
 				p.planClusterPolicyDelete(
-					gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
 					current.ID, name, plan,
 				)
 			}
@@ -299,6 +299,7 @@ func (p *Planner) planClusterPolicyUpdate(
 
 // planClusterPolicyDelete plans a DELETE change for a cluster policy
 func (p *Planner) planClusterPolicyDelete(
+	namespace string,
 	gatewayID string,
 	gatewayRef string,
 	virtualClusterID string,
@@ -313,6 +314,7 @@ func (p *Planner) planClusterPolicyDelete(
 		ResourceRef:  policyName,
 		ResourceID:   policyID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: virtualClusterRef,
 			ID:  virtualClusterID,

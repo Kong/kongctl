@@ -7,6 +7,7 @@ env:
 vars:
   egwName: egw-cp-for-bc-test
   bcRef: default-backend-cluster
+  namespace: event-gateways-bc-comprehensive-test
 
 defaults:
   mask:
@@ -259,6 +260,7 @@ steps:
               fields:
                 action: DELETE
                 resource_ref: "{{ .vars.bcRef }}"
+                namespace: "{{ .vars.namespace }}"
       - name: 002-sync-delete
         outputFormat: json
         run:
@@ -380,6 +382,7 @@ steps:
               fields:
                 action: DELETE
                 resource_ref: "{{ .vars.bcRef }}"
+                namespace: "{{ .vars.namespace }}"
       - name: 002-sync-delete-root-level
         outputFormat: json
         run:

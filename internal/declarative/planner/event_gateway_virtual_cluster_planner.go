@@ -237,7 +237,7 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 					"cluster_name", name,
 					"cluster_id", current.ID,
 				)
-				p.planVirtualClusterDelete(gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
+				p.planVirtualClusterDelete(namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
 			}
 		}
 	}
@@ -481,6 +481,7 @@ func (p *Planner) planVirtualClusterUpdate(
 
 // planVirtualClusterDelete plans a DELETE change for a virtual cluster
 func (p *Planner) planVirtualClusterDelete(
+	namespace string,
 	gatewayRef string,
 	_ string, // gatewayName - unused but kept for API consistency
 	gatewayID string,
@@ -494,6 +495,7 @@ func (p *Planner) planVirtualClusterDelete(
 		ResourceRef:  clusterName,
 		ResourceID:   clusterID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,

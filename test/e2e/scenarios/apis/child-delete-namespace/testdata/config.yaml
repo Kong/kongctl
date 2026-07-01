@@ -1,0 +1,23 @@
+_defaults:
+  kongctl:
+    namespace: apis-child-delete-namespace
+
+portals:
+  - ref: api-child-delete-portal
+    name: api-child-delete-portal
+    display_name: "API Child Delete Portal"
+    description: "Portal used to verify child delete namespaces"
+    authentication_enabled: false
+    default_api_visibility: public
+    default_page_visibility: public
+
+apis:
+  - ref: api-child-delete-api
+    name: api-child-delete-api
+    description: "API used to verify child delete namespaces"
+    labels:
+      scenario: child-delete-namespace
+    publications:
+      - ref: api-child-delete-publication
+        portal_id: !ref api-child-delete-portal#id
+        visibility: public

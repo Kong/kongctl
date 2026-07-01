@@ -125,7 +125,7 @@ func (p *Planner) planTrustBundleChangesForExistingGateway(
 					"bundle_name", name,
 					"bundle_id", current.ID,
 				)
-				p.planTrustBundleDelete(gatewayRef, gatewayID, current.ID, name, plan)
+				p.planTrustBundleDelete(namespace, gatewayRef, gatewayID, current.ID, name, plan)
 			}
 		}
 	}
@@ -234,6 +234,7 @@ func (p *Planner) planTrustBundleUpdate(
 
 // planTrustBundleDelete plans a DELETE change for a TLS trust bundle.
 func (p *Planner) planTrustBundleDelete(
+	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	bundleID string,
@@ -246,7 +247,7 @@ func (p *Planner) planTrustBundleDelete(
 		ResourceRef:  bundleName,
 		ResourceID:   bundleID,
 		Action:       ActionDelete,
-		Namespace:    "",
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,

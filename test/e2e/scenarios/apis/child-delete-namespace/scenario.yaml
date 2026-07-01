@@ -1,0 +1,147 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: apis-child-delete-namespace
+  portalRef: api-child-delete-portal
+  apiRef: api-child-delete-api
+  publicationRef: api-child-delete-publication
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-state
+    commands:
+      - name: 000-sync-initial
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+          - select: >-
+              plan.changes[?resource_type=='api_publication' &&
+                            resource_ref=='{{ .vars.publicationRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+
+  - name: 002-delete-child-in-sync-mode
+    inputOverlayDirs:
+      - overlays/002-remove-publication
+    commands:
+      - name: 000-diff-sync-delete-publication
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+          - -o
+          - json
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='api_publication' &&
+                      action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 001-diff-sync-delete-publication-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, '=== Namespace: {{ .vars.namespace }} ===')": true
+                "contains(@, '=== Namespace: default ===')": false
+                "contains(@, 'api_publication')": true
+
+      - name: 002-sync-delete-publication
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='api_publication' &&
+                            action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: "{{ .vars.namespace }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 003-verify-publication-deleted
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiRef }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 003-final-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
