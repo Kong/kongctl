@@ -117,6 +117,7 @@ func (p *Planner) planControlPlaneDataPlaneCertificateDiff(
 
 			certValue := getString(current.Cert)
 			p.planControlPlaneDataPlaneCertificateDelete(
+				namespace,
 				controlPlaneRef,
 				controlPlaneID,
 				getString(current.ID),
@@ -198,6 +199,7 @@ func (p *Planner) planControlPlaneDataPlaneCertificateCreate(
 }
 
 func (p *Planner) planControlPlaneDataPlaneCertificateDelete(
+	namespace string,
 	controlPlaneRef string,
 	controlPlaneID string,
 	certID string,
@@ -212,6 +214,7 @@ func (p *Planner) planControlPlaneDataPlaneCertificateDelete(
 		ResourceID:   certID,
 		Action:       ActionDelete,
 		DependsOn:    dependsOn,
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: controlPlaneRef,
 			ID:  controlPlaneID,

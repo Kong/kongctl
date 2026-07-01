@@ -145,7 +145,7 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 					"policy_id", current.ID,
 				)
 				p.planListenerPolicyDelete(
-					gatewayID, gatewayRef, listenerID, listenerRef,
+					namespace, gatewayID, gatewayRef, listenerID, listenerRef,
 					current.ID, name, plan,
 				)
 			}
@@ -305,6 +305,7 @@ func (p *Planner) planListenerPolicyUpdate(
 
 // planListenerPolicyDelete plans a DELETE change for a listener policy
 func (p *Planner) planListenerPolicyDelete(
+	namespace string,
 	gatewayID string,
 	gatewayRef string,
 	listenerID string,
@@ -319,6 +320,7 @@ func (p *Planner) planListenerPolicyDelete(
 		ResourceRef:  policyName,
 		ResourceID:   policyID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: listenerRef,
 			ID:  listenerID,

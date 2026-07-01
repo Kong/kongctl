@@ -136,7 +136,7 @@ func (p *Planner) planBackendClusterChangesForExistingGateway(
 					"cluster_name", name,
 					"cluster_id", current.ID,
 				)
-				p.planBackendClusterDelete(gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
+				p.planBackendClusterDelete(namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
 			}
 		}
 	}
@@ -288,6 +288,7 @@ func (p *Planner) planBackendClusterUpdate(
 
 // planBackendClusterDelete plans a DELETE change for a backend cluster
 func (p *Planner) planBackendClusterDelete(
+	namespace string,
 	gatewayRef string,
 	_ string, // gatewayName - unused but kept for API consistency
 	gatewayID string,
@@ -302,6 +303,7 @@ func (p *Planner) planBackendClusterDelete(
 		ResourceID:   clusterID,
 		Action:       ActionDelete,
 		Fields:       map[string]any{},
+		Namespace:    namespace,
 	}
 
 	change.Parent = &ParentInfo{

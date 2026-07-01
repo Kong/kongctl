@@ -168,7 +168,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 					"listener_name", name,
 					"listener_id", current.ID,
 				)
-				p.planListenerDelete(gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
+				p.planListenerDelete(namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
 			}
 		}
 	}
@@ -323,6 +323,7 @@ func (p *Planner) planListenerUpdate(
 
 // planListenerDelete plans a DELETE change for a listener
 func (p *Planner) planListenerDelete(
+	namespace string,
 	gatewayRef string,
 	_ string, // gatewayName - unused but kept for API consistency
 	gatewayID string,
@@ -336,6 +337,7 @@ func (p *Planner) planListenerDelete(
 		ResourceRef:  listenerName,
 		ResourceID:   listenerID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,

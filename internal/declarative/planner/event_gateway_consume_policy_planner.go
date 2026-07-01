@@ -131,7 +131,7 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 						"changed_fields", changedFields,
 					)
 					deleteID := p.planConsumePolicyDelete(
-						gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
 						current.ID, policyName, plan,
 					)
 					p.planConsumePolicyCreate(
@@ -164,7 +164,7 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 					"policy_id", current.ID,
 				)
 				p.planConsumePolicyDelete(
-					gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
 					current.ID, name, plan,
 				)
 			}
@@ -408,6 +408,7 @@ func (p *Planner) addConsumePolicyParentPolicyReference(change *PlannedChange) {
 
 // planConsumePolicyDelete plans a DELETE change for a consume policy.
 func (p *Planner) planConsumePolicyDelete(
+	namespace string,
 	gatewayID string,
 	gatewayRef string,
 	virtualClusterID string,
@@ -422,6 +423,7 @@ func (p *Planner) planConsumePolicyDelete(
 		ResourceRef:  policyName,
 		ResourceID:   policyID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: virtualClusterRef,
 			ID:  virtualClusterID,

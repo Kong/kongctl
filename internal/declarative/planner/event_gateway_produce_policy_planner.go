@@ -116,7 +116,7 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 						"policy_id", current.ID,
 					)
 					deleteID := p.planProducePolicyDelete(
-						gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
 						current.ID, policyName, plan,
 					)
 					p.planProducePolicyCreate(
@@ -148,7 +148,7 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 					"policy_id", current.ID,
 				)
 				p.planProducePolicyDelete(
-					gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
 					current.ID, name, plan,
 				)
 			}
@@ -490,6 +490,7 @@ func stringValueAtFieldPath(fields map[string]any, fieldPath string) (string, bo
 }
 
 func (p *Planner) planProducePolicyDelete(
+	namespace string,
 	gatewayID string,
 	gatewayRef string,
 	virtualClusterID string,
@@ -504,6 +505,7 @@ func (p *Planner) planProducePolicyDelete(
 		ResourceRef:  policyName,
 		ResourceID:   policyID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: virtualClusterRef,
 			ID:  virtualClusterID,

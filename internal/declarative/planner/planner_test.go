@@ -109,7 +109,9 @@ func (s *stubAPIPublicationAPI) ListAPIPublications(
 	}, nil
 }
 
-type stubAPIVersionAPI struct{}
+type stubAPIVersionAPI struct {
+	response *kkOps.ListAPIVersionsResponse
+}
 
 func (s *stubAPIVersionAPI) CreateAPIVersion(
 	_ context.Context,
@@ -125,6 +127,9 @@ func (s *stubAPIVersionAPI) ListAPIVersions(
 	_ kkOps.ListAPIVersionsRequest,
 	_ ...kkOps.Option,
 ) (*kkOps.ListAPIVersionsResponse, error) {
+	if s.response != nil {
+		return s.response, nil
+	}
 	return &kkOps.ListAPIVersionsResponse{
 		ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
 			Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{},
@@ -196,7 +201,9 @@ func (s *stubAPIImplementationAPI) DeleteAPIImplementation(
 	return nil, fmt.Errorf("DeleteAPIImplementation not implemented")
 }
 
-type stubAPIDocumentAPI struct{}
+type stubAPIDocumentAPI struct {
+	response *kkOps.ListAPIDocumentsResponse
+}
 
 func (s *stubAPIDocumentAPI) CreateAPIDocument(
 	_ context.Context,
@@ -232,6 +239,9 @@ func (s *stubAPIDocumentAPI) ListAPIDocuments(
 	_ *kkComps.APIDocumentFilterParameters,
 	_ ...kkOps.Option,
 ) (*kkOps.ListAPIDocumentsResponse, error) {
+	if s.response != nil {
+		return s.response, nil
+	}
 	return &kkOps.ListAPIDocumentsResponse{
 		ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
 			Data: []kkComps.APIDocumentSummaryWithChildren{},
@@ -1358,5 +1368,152 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 
 	mockPortalAPI.AssertExpectations(t)
 	mockAPIAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
+}
+
+func TestGeneratePlan_APIChildDeleteChangesUseParentNamespace(t *testing.T) {
+	ctx := context.Background()
+	namespace := "team-a"
+	apiID := "api-123"
+	apiName := "orders-api"
+	apiRef := "orders"
+	portalID := "portal-123"
+	portalName := "docs"
+
+	mockPortalAPI := new(MockPortalAPI)
+	mockAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
+		ListAPIResponse: &kkComps.ListAPIResponse{
+			Data: []kkComps.APIResponseSchema{
+				{
+					ID:   apiID,
+					Name: apiName,
+					Labels: map[string]string{
+						labels.NamespaceKey: namespace,
+					},
+				},
+			},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 1},
+			},
+		},
+	}, nil)
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.ListPortalsResponsePortal{
+				newListPortal(portalID, portalName, map[string]string{labels.NamespaceKey: namespace}),
+			},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 1},
+			},
+		},
+	}, nil).Maybe()
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{Total: 0},
+				},
+			},
+		}, nil).Maybe()
+
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+		APIVersionAPI: &stubAPIVersionAPI{
+			response: &kkOps.ListAPIVersionsResponse{
+				ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+					Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{
+						{
+							ID:      "version-123",
+							Version: "v1",
+						},
+					},
+					Meta: kkComps.PaginatedMeta{
+						Page: kkComps.PageMeta{Total: 1},
+					},
+				},
+			},
+		},
+		APIPublicationAPI: &stubAPIPublicationAPI{
+			response: &kkOps.ListAPIPublicationsResponse{
+				ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
+					Data: []kkComps.APIPublicationListItem{
+						{
+							APIID:    apiID,
+							PortalID: portalID,
+						},
+					},
+					Meta: kkComps.PaginatedMeta{
+						Page: kkComps.PageMeta{Total: 1},
+					},
+				},
+			},
+		},
+		APIImplementationAPI: &stubAPIImplementationAPI{},
+		APIDocumentAPI: &stubAPIDocumentAPI{
+			response: &kkOps.ListAPIDocumentsResponse{
+				ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
+					Data: []kkComps.APIDocumentSummaryWithChildren{
+						{
+							ID:    "document-123",
+							Title: "Overview",
+							Slug:  "overview",
+						},
+					},
+				},
+			},
+		},
+	})
+
+	scope := resources.NewSyncScope()
+	scope.AddRoot(resources.ResourceTypeAPI)
+	scope.AddChild(resources.ResourceTypeAPI, apiRef, resources.ResourceTypeAPIVersion)
+	scope.AddChild(resources.ResourceTypeAPI, apiRef, resources.ResourceTypeAPIPublication)
+	scope.AddChild(resources.ResourceTypeAPI, apiRef, resources.ResourceTypeAPIDocument)
+
+	rs := &resources.ResourceSet{
+		APIs: []resources.APIResource{
+			{
+				BaseResource: resources.BaseResource{
+					Ref: apiRef,
+					Kongctl: &resources.KongctlMeta{
+						Namespace: &namespace,
+					},
+				},
+				CreateAPIRequest: kkComps.CreateAPIRequest{
+					Name: apiName,
+				},
+			},
+		},
+		SyncScope: scope,
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(ctx, rs, Options{Mode: PlanModeSync})
+	require.NoError(t, err)
+
+	deleteChanges := map[string]PlannedChange{}
+	for _, change := range plan.Changes {
+		if change.Action == ActionDelete {
+			deleteChanges[change.ResourceType] = change
+		}
+	}
+
+	for _, resourceType := range []string{
+		ResourceTypeAPIVersion,
+		ResourceTypeAPIPublication,
+		ResourceTypeAPIDocument,
+	} {
+		change, ok := deleteChanges[resourceType]
+		require.True(t, ok, "missing %s delete change", resourceType)
+		assert.Equal(t, namespace, change.Namespace, "%s delete should use parent namespace", resourceType)
+	}
+
+	mockAPIAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
 }

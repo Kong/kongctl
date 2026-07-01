@@ -3475,7 +3475,7 @@ func (p *Planner) planPortalPagesChanges(
 		// Find pages to delete
 		for path, existingPage := range existingByPath {
 			if !desiredPaths[path] {
-				p.planPortalPageDelete(portalRef, portalID, existingPage.ID, existingPage.Slug, plan)
+				p.planPortalPageDelete(parentNamespace, portalRef, portalID, existingPage.ID, existingPage.Slug, plan)
 			}
 		}
 	}
@@ -3742,7 +3742,7 @@ func (p *Planner) planPortalPageUpdate(
 
 // planPortalPageDelete creates a DELETE change for a portal page
 func (p *Planner) planPortalPageDelete(
-	portalRef string, portalID string, pageID string, slug string, plan *Plan,
+	parentNamespace string, portalRef string, portalID string, pageID string, slug string, plan *Plan,
 ) {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalPage, pageID),
@@ -3757,6 +3757,7 @@ func (p *Planner) planPortalPageDelete(
 		Action:    ActionDelete,
 		Fields:    map[string]any{FieldSlug: slug},
 		DependsOn: []string{},
+		Namespace: parentNamespace,
 	}
 
 	// Store parent portal reference

@@ -132,7 +132,7 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 					"cert_name", name,
 					"cert_id", current.ID,
 				)
-				p.planDataPlaneCertificateDelete(gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
+				p.planDataPlaneCertificateDelete(namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
 			}
 		}
 	}
@@ -261,6 +261,7 @@ func (p *Planner) planDataPlaneCertificateUpdate(
 
 // planDataPlaneCertificateDelete plans a DELETE change for a data plane certificate
 func (p *Planner) planDataPlaneCertificateDelete(
+	namespace string,
 	gatewayRef string,
 	_ string, // gatewayName - unused but kept for API consistency
 	gatewayID string,
@@ -274,6 +275,7 @@ func (p *Planner) planDataPlaneCertificateDelete(
 		ResourceRef:  certName,
 		ResourceID:   certID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,
