@@ -66,13 +66,14 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 	}
 
 	formatType := kkComps.AIGatewayModelFormatTypeOpenai
+	alias := "support-gpt"
 	targetConfig := kkComps.CreateAIGatewayTargetConfigOpenai(kkComps.AIGatewayTargetOpenaiConfig{})
 	req := kkComps.CreateCreateAIGatewayModelRequestModel(kkComps.AIGatewayModelModel{
 		DisplayName: "Support GPT",
 		Name:        "support-gpt",
 		Config: kkComps.AIGatewayModelModelConfig{
 			Route: kkComps.AIGatewayRouteConfig{},
-			Model: kkComps.AIGatewayModelModelConfigModel{Alias: "support-gpt"},
+			Model: kkComps.AIGatewayModelModelConfigModel{Alias: &alias},
 		},
 		Formats: []kkComps.AIGatewayModelFormat{
 			{Type: &formatType},

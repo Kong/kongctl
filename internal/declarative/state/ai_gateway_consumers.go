@@ -149,7 +149,7 @@ func (c *Client) UpdateAIGatewayConsumer(
 
 	resp, err := c.aiGatewayConsumersAPI.UpdateAiGatewayConsumer(ctx, kkOps.UpdateAiGatewayConsumerRequest{
 		GatewayID:                      gatewayID,
-		ConsumerID:                     consumerID,
+		ConsumerIDOrName:               consumerID,
 		UpdateAIGatewayConsumerRequest: req,
 	})
 	if err != nil {

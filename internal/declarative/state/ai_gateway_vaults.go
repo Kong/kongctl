@@ -150,7 +150,7 @@ func (c *Client) UpdateAIGatewayVault(
 
 	resp, err := c.aiGatewayVaultsAPI.UpdateAiGatewayVault(ctx, kkOps.UpdateAiGatewayVaultRequest{
 		GatewayID:                   gatewayID,
-		VaultID:                     vaultID,
+		VaultIDOrName:               vaultID,
 		UpdateAIGatewayVaultRequest: req,
 	})
 	if err != nil {
