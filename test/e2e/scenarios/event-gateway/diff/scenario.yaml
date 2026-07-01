@@ -187,6 +187,26 @@ steps:
               fields:
                 enabled: true
                 "config.actions[0].value": "initial"
+      - name: 004-verify-virtual-cluster-unchanged
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?name=='{{ .vars.vcName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.vcName }}"
+                dns_label: vc-diff
+                acl_mode: passthrough
   - name: 004-diff-sync-mode
     inputOverlayDirs:
       - overlays/004-diff-sync
