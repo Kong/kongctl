@@ -198,11 +198,7 @@ func (h aiGatewayModelsHandler) resolveGatewayID(
 		return gatewayID, nil
 	}
 
-	gateway, err := runListByDisplayName(strings.TrimSpace(gatewayName), gatewayAPI, helper, cfg)
-	if err != nil {
-		return "", err
-	}
-	return gateway.ID, nil
+	return resolveAIGatewayIDByName(gatewayName, gatewayAPI, helper, cfg)
 }
 
 func (h aiGatewayModelsHandler) modelSelector(args []string, cfg config.Hook) (string, string) {

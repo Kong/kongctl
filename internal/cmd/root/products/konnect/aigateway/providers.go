@@ -161,7 +161,7 @@ func (h aiGatewayProvidersHandler) run(args []string) error {
 		}
 	}
 	if gatewayID == "" {
-		gatewayID, err = resolveAIGatewayIDByDisplayName(gatewayName, sdk.GetAIGatewayAPI(), helper, cfg)
+		gatewayID, err = resolveAIGatewayIDByName(gatewayName, sdk.GetAIGatewayAPI(), helper, cfg)
 		if err != nil {
 			return err
 		}
@@ -354,18 +354,19 @@ func fetchAIGatewayProviders(
 	return allData, nil
 }
 
-func resolveAIGatewayIDByDisplayName(
-	displayName string,
+func resolveAIGatewayIDByName(
+	identifier string,
 	gatewayAPI helpers.AIGatewayAPI,
 	helper cmd.Helper,
 	cfg config.Hook,
 ) (string, error) {
-	gateway, err := runListByDisplayName(displayName, gatewayAPI, helper, cfg)
+	identifier = strings.TrimSpace(identifier)
+	gateway, err := runListByNameOrDisplayName(identifier, gatewayAPI, helper, cfg)
 	if err != nil {
 		return "", err
 	}
 	if gateway == nil || strings.TrimSpace(gateway.ID) == "" {
-		return "", fmt.Errorf("AI Gateway with display_name %q does not have an ID", displayName)
+		return "", fmt.Errorf("AI Gateway with name or display_name %q does not have an ID", identifier)
 	}
 	return gateway.ID, nil
 }
