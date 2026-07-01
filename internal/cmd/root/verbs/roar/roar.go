@@ -769,10 +769,8 @@ func resolveEffectiveBannerColor(value string, terminal terminalCapabilities) (c
 	if value == "" || strings.EqualFold(value, nativeColorValue) {
 		return nil, nil
 	}
-	if strings.EqualFold(value, autoColorValue) {
-		if !shouldUseAutoColor(terminal) {
-			return nil, nil
-		}
+	if strings.EqualFold(value, autoColorValue) && !shouldUseAutoColor(terminal) {
+		return nil, nil
 	}
 	return resolveBannerColor(value)
 }
