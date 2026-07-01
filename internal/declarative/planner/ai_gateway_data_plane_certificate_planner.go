@@ -70,6 +70,7 @@ func (p *Planner) planAIGatewayDataPlaneCertificateChanges(
 
 		certificateID := resources.AIGatewayDataPlaneCertificateID(current.AIGatewayDataPlaneClientCertificate)
 		deleteChangeID := p.planAIGatewayDataPlaneCertificateDelete(
+			namespace,
 			gatewayRef,
 			gatewayID,
 			certificateID,
@@ -101,6 +102,7 @@ func (p *Planner) planAIGatewayDataPlaneCertificateChanges(
 				resourceRef = certificateID
 			}
 			p.planAIGatewayDataPlaneCertificateDelete(
+				namespace,
 				gatewayRef,
 				gatewayID,
 				certificateID,
@@ -167,6 +169,7 @@ func (p *Planner) planAIGatewayDataPlaneCertificateCreate(
 }
 
 func (p *Planner) planAIGatewayDataPlaneCertificateDelete(
+	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	certificateID string,
@@ -182,6 +185,7 @@ func (p *Planner) planAIGatewayDataPlaneCertificateDelete(
 		ResourceID:    certificateID,
 		Action:        ActionDelete,
 		ChangedFields: changedFields,
+		Namespace:     namespace,
 		Fields: map[string]any{
 			FieldTitle: title,
 		},

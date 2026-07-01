@@ -92,7 +92,7 @@ func (p *Planner) planAIGatewayPolicyChanges(
 			if desiredKeys[policyID] || desiredKeys[policyName] {
 				continue
 			}
-			p.planAIGatewayPolicyDelete(gatewayRef, gatewayID, policyID, policyName, plan)
+			p.planAIGatewayPolicyDelete(namespace, gatewayRef, gatewayID, policyID, policyName, plan)
 		}
 	}
 
@@ -181,6 +181,7 @@ func (p *Planner) planAIGatewayPolicyUpdate(
 }
 
 func (p *Planner) planAIGatewayPolicyDelete(
+	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	policyID string,
@@ -193,6 +194,7 @@ func (p *Planner) planAIGatewayPolicyDelete(
 		ResourceRef:  policyName,
 		ResourceID:   policyID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Fields: map[string]any{
 			FieldName: policyName,
 		},
