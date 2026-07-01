@@ -428,7 +428,5 @@ func newGetAIGatewayCmd(
 		addParentFlags(verb, rv.Command)
 	}
 
-	rv.AddCommand(newGetAIGatewayModelsCmd(verb, addParentFlags, parentPreRun))
-
 	return &rv
 }
