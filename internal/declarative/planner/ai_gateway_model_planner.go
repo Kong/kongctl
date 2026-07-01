@@ -115,7 +115,7 @@ func (p *Planner) planAIGatewayModelChanges(
 			if desiredKeys[modelID] || desiredKeys[modelName] {
 				continue
 			}
-			p.planAIGatewayModelDelete(gatewayRef, gatewayID, modelID, modelName, plan)
+			p.planAIGatewayModelDelete(namespace, gatewayRef, gatewayID, modelID, modelName, plan)
 		}
 	}
 
@@ -212,6 +212,7 @@ func (p *Planner) planAIGatewayModelUpdate(
 }
 
 func (p *Planner) planAIGatewayModelDelete(
+	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	modelID string,
@@ -224,6 +225,7 @@ func (p *Planner) planAIGatewayModelDelete(
 		ResourceRef:  modelName,
 		ResourceID:   modelID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Fields: map[string]any{
 			FieldName: modelName,
 		},

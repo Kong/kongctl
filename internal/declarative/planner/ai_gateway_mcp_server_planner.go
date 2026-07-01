@@ -101,7 +101,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 			if desiredKeys[serverID] || desiredKeys[serverName] {
 				continue
 			}
-			p.planAIGatewayMCPServerDelete(gatewayRef, gatewayID, serverID, serverName, plan)
+			p.planAIGatewayMCPServerDelete(namespace, gatewayRef, gatewayID, serverID, serverName, plan)
 		}
 	}
 
@@ -197,6 +197,7 @@ func (p *Planner) planAIGatewayMCPServerUpdate(
 }
 
 func (p *Planner) planAIGatewayMCPServerDelete(
+	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	serverID string,
@@ -209,6 +210,7 @@ func (p *Planner) planAIGatewayMCPServerDelete(
 		ResourceRef:  serverName,
 		ResourceID:   serverID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Fields: map[string]any{
 			FieldName: serverName,
 		},
