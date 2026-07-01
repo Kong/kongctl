@@ -2061,7 +2061,7 @@ func (c *Client) UpdateAIGatewayModel(
 
 	resp, err := c.aiGatewayModelAPI.UpdateAiGatewayModel(ctx, kkOps.UpdateAiGatewayModelRequest{
 		GatewayID:                   gatewayID,
-		ModelID:                     modelID,
+		ModelIDOrName:               modelID,
 		UpdateAIGatewayModelRequest: req,
 	})
 	if err != nil {

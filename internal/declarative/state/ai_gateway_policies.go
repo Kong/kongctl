@@ -149,7 +149,7 @@ func (c *Client) UpdateAIGatewayPolicy(
 
 	resp, err := c.aiGatewayPoliciesAPI.UpdateAiGatewayPolicy(ctx, kkOps.UpdateAiGatewayPolicyRequest{
 		GatewayID:                    gatewayID,
-		PolicyID:                     policyID,
+		PolicyIDOrName:               policyID,
 		UpdateAIGatewayPolicyRequest: req,
 	})
 	if err != nil {
