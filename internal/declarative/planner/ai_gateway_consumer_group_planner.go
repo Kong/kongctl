@@ -113,7 +113,7 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 			if desiredKeys[groupID] || desiredKeys[groupName] {
 				continue
 			}
-			p.planAIGatewayConsumerGroupDelete(gatewayRef, gatewayID, groupID, groupName, plan)
+			p.planAIGatewayConsumerGroupDelete(namespace, gatewayRef, gatewayID, groupID, groupName, plan)
 		}
 	}
 
@@ -209,6 +209,7 @@ func (p *Planner) planAIGatewayConsumerGroupUpdate(
 }
 
 func (p *Planner) planAIGatewayConsumerGroupDelete(
+	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	groupID string,
@@ -221,6 +222,7 @@ func (p *Planner) planAIGatewayConsumerGroupDelete(
 		ResourceRef:  groupName,
 		ResourceID:   groupID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Fields: map[string]any{
 			FieldName: groupName,
 		},

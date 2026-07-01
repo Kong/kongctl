@@ -170,6 +170,71 @@ func TestDeleteBuildersSetNamespace(t *testing.T) {
 				p.planPortalPageDelete(namespace, "portal", "portal-id", "page-id", "overview", plan)
 			},
 		},
+		{
+			name:         "ai gateway provider",
+			resourceType: ResourceTypeAIGatewayProvider,
+			planDelete: func(p *Planner, plan *Plan) {
+				p.planAIGatewayProviderDelete(namespace, "gateway", "gateway-id", "provider-id", "provider", plan)
+			},
+		},
+		{
+			name:         "ai gateway policy",
+			resourceType: ResourceTypeAIGatewayPolicy,
+			planDelete: func(p *Planner, plan *Plan) {
+				p.planAIGatewayPolicyDelete(namespace, "gateway", "gateway-id", "policy-id", "policy", plan)
+			},
+		},
+		{
+			name:         "ai gateway vault",
+			resourceType: ResourceTypeAIGatewayVault,
+			planDelete: func(p *Planner, plan *Plan) {
+				p.planAIGatewayVaultDelete(namespace, "gateway", "gateway-id", "vault-id", "vault", plan)
+			},
+		},
+		{
+			name:         "ai gateway data plane certificate",
+			resourceType: ResourceTypeAIGatewayDataPlaneCertificate,
+			planDelete: func(p *Planner, plan *Plan) {
+				p.planAIGatewayDataPlaneCertificateDelete(
+					namespace, "gateway", "gateway-id", "certificate-id", "certificate", "certificate", nil, plan,
+				)
+			},
+		},
+		{
+			name:         "ai gateway model",
+			resourceType: ResourceTypeAIGatewayModel,
+			planDelete: func(p *Planner, plan *Plan) {
+				p.planAIGatewayModelDelete(namespace, "gateway", "gateway-id", "model-id", "model", plan)
+			},
+		},
+		{
+			name:         "ai gateway MCP server",
+			resourceType: ResourceTypeAIGatewayMCPServer,
+			planDelete: func(p *Planner, plan *Plan) {
+				p.planAIGatewayMCPServerDelete(namespace, "gateway", "gateway-id", "server-id", "server", plan)
+			},
+		},
+		{
+			name:         "ai gateway agent",
+			resourceType: ResourceTypeAIGatewayAgent,
+			planDelete: func(p *Planner, plan *Plan) {
+				p.planAIGatewayAgentDelete(namespace, "gateway", "gateway-id", "agent-id", "agent", plan)
+			},
+		},
+		{
+			name:         "ai gateway consumer",
+			resourceType: ResourceTypeAIGatewayConsumer,
+			planDelete: func(p *Planner, plan *Plan) {
+				p.planAIGatewayConsumerDelete(namespace, "gateway", "gateway-id", "consumer-id", "consumer", plan)
+			},
+		},
+		{
+			name:         "ai gateway consumer group",
+			resourceType: ResourceTypeAIGatewayConsumerGroup,
+			planDelete: func(p *Planner, plan *Plan) {
+				p.planAIGatewayConsumerGroupDelete(namespace, "gateway", "gateway-id", "group-id", "group", plan)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

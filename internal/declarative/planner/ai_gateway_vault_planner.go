@@ -90,7 +90,7 @@ func (p *Planner) planAIGatewayVaultChanges(
 			if desiredKeys[vaultID] || desiredKeys[vaultName] {
 				continue
 			}
-			p.planAIGatewayVaultDelete(gatewayRef, gatewayID, vaultID, vaultName, plan)
+			p.planAIGatewayVaultDelete(namespace, gatewayRef, gatewayID, vaultID, vaultName, plan)
 		}
 	}
 
@@ -181,6 +181,7 @@ func (p *Planner) planAIGatewayVaultUpdate(
 }
 
 func (p *Planner) planAIGatewayVaultDelete(
+	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	vaultID string,
@@ -193,6 +194,7 @@ func (p *Planner) planAIGatewayVaultDelete(
 		ResourceRef:  vaultName,
 		ResourceID:   vaultID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Fields: map[string]any{
 			FieldName: vaultName,
 		},
