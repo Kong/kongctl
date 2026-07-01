@@ -12,6 +12,8 @@ env:
 vars:
   egwName: egw-cp-for-dump-test
   bcRef: default-backend-cluster
+  dataplaneCertRef: default-dataplane-certificate-ref-dump
+  dataplaneCertName: default-dataplane-certificate-name-dump
   vcRef: default-virtual-cluster
   producePolicyName: default-produce-policy-name-for-dump-test
   consumePolicyName: default-consume-policy-name-for-dump-test
@@ -56,7 +58,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 12
+                applied: 13
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.
@@ -86,6 +88,13 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.bcRef }}"
+          - name: dataplane-certificate-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0]
+              .data_plane_certificates[?name=='{{ .vars.dataplaneCertName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.dataplaneCertName }}"
           - name: virtual-cluster-present
             select: >-
               event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0]
