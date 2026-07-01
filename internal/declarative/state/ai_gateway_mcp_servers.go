@@ -150,7 +150,7 @@ func (c *Client) UpdateAIGatewayMCPServer(
 
 	resp, err := c.aiGatewayMCPServersAPI.UpdateAiGatewayMcpServer(ctx, kkOps.UpdateAiGatewayMcpServerRequest{
 		GatewayID:                       gatewayID,
-		McpServerID:                     mcpServerID,
+		McpServerIDOrName:               mcpServerID,
 		UpdateAIGatewayMCPServerRequest: req,
 	})
 	if err != nil {
