@@ -394,10 +394,6 @@ func (p *Planner) planVirtualClusterCreate(
 	if cluster.Destination.BackendClusterReferenceByID != nil &&
 		tags.IsRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID) {
 		var backendClusterName string
-		backendCluster := p.resources.GetBackendClusterByRef(cluster.Destination.BackendClusterReferenceByID.ID)
-		if backendCluster != nil {
-			backendClusterName = backendCluster.Name
-		}
 
 		change.References[FieldEventGatewayBackendClusterID] = ReferenceInfo{
 			Ref: cluster.Destination.BackendClusterReferenceByID.ID,
@@ -454,10 +450,6 @@ func (p *Planner) planVirtualClusterUpdate(
 	if cluster.Destination.BackendClusterReferenceByID != nil &&
 		tags.IsRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID) {
 		var backendClusterName string
-		backendCluster := p.resources.GetBackendClusterByRef(cluster.Destination.BackendClusterReferenceByID.ID)
-		if backendCluster != nil {
-			backendClusterName = backendCluster.Name
-		}
 		backendClusterRef, _, ok := tags.ParseRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID)
 		if ok {
 			backendCluster := p.resources.GetBackendClusterByRef(backendClusterRef)

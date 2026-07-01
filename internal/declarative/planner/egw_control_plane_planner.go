@@ -78,7 +78,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 	}
 
 	// Collect protection validation errors
-	var protectionErrors []error
+	protectionErrors := &ProtectionErrorCollector{}
 
 	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
 	if plan.Metadata.Mode == PlanModeDelete {
@@ -96,20 +96,14 @@ func (p *Planner) planEGWControlPlaneChanges(
 			if err := p.validateProtection(
 				ResourceTypeEventGatewayControlPlane, desiredEGWCP.Name, isProtected, ActionDelete,
 			); err != nil {
-				protectionErrors = append(protectionErrors, err)
+				protectionErrors.Add(err)
 			} else {
 				p.planEGWControlPlaneDelete(current, plan)
 			}
 		}
 
-		if len(protectionErrors) > 0 {
-			var errMsg strings.Builder
-			errMsg.WriteString("Cannot generate plan due to protected resources:\n")
-			for _, err := range protectionErrors {
-				fmt.Fprintf(&errMsg, "- %s\n", err.Error())
-			}
-			errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
-			return fmt.Errorf("%s", errMsg.String())
+		if protectionErrors.HasErrors() {
+			return protectionErrors.Error()
 		}
 		return nil
 	}
@@ -155,7 +149,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 					needsUpdate,
 				)
 				if err != nil {
-					protectionErrors = append(protectionErrors, err)
+					protectionErrors.Add(err)
 				} else {
 					p.planEGWControlPlaneProtectionChangeWithFields(
 						current,
@@ -175,7 +169,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 					if err := p.validateProtection(
 						ResourceTypeEventGatewayControlPlane, desiredEGWCP.Name, isProtected, ActionUpdate,
 					); err != nil {
-						protectionErrors = append(protectionErrors, err)
+						protectionErrors.Add(err)
 					} else {
 						p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, changedFields, plan)
 					}
@@ -321,7 +315,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 				// Validate protection before adding DELETE
 				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
 				if err := p.validateProtection(ResourceTypeEventGatewayControlPlane, name, isProtected, ActionDelete); err != nil {
-					protectionErrors = append(protectionErrors, err)
+					protectionErrors.Add(err)
 				} else {
 					p.planEGWControlPlaneDelete(current, plan)
 				}
@@ -330,14 +324,8 @@ func (p *Planner) planEGWControlPlaneChanges(
 	}
 
 	// Fail fast if any protected resources would be modified
-	if len(protectionErrors) > 0 {
-		var errMsg strings.Builder
-		errMsg.WriteString("Cannot generate plan due to protected resources:\n")
-		for _, err := range protectionErrors {
-			fmt.Fprintf(&errMsg, "- %s\n", err.Error())
-		}
-		errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
-		return fmt.Errorf("%s", errMsg.String())
+	if protectionErrors.HasErrors() {
+		return protectionErrors.Error()
 	}
 
 	return nil
@@ -385,10 +373,8 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 		if namespace, exists := current.Labels[labels.NamespaceKey]; exists {
 			fields[FieldNamespace] = namespace
 		}
-	}
 
-	// Preserve other critical labels that identify managed resources
-	if current.Labels != nil {
+		// Preserve other critical labels that identify managed resources
 		preservedLabels := make(map[string]string)
 		for key, value := range current.Labels {
 			// Preserve all KONGCTL- prefixed labels except protected (which will be updated)
@@ -417,23 +403,18 @@ func (p *Planner) shouldUpdateEGWControlPlaneResource(
 	changedFields := make(map[string]FieldChange)
 
 	if desired.Name != current.Name {
-		currentName := current.Name
-		if currentName != desired.Name {
-			updates[FieldName] = desired.Name
-			changedFields[FieldName] = FieldChange{
-				Old: currentName,
-				New: desired.Name,
-			}
+		updates[FieldName] = desired.Name
+		changedFields[FieldName] = FieldChange{
+			Old: current.Name,
+			New: desired.Name,
 		}
 	}
 
-	if desired.Description != current.Description {
-		if getString(current.Description) != getString(desired.Description) {
-			updates[FieldDescription] = getString(desired.Description)
-			changedFields[FieldDescription] = FieldChange{
-				Old: getString(current.Description),
-				New: getString(desired.Description),
-			}
+	if getString(current.Description) != getString(desired.Description) {
+		updates[FieldDescription] = getString(desired.Description)
+		changedFields[FieldDescription] = FieldChange{
+			Old: getString(current.Description),
+			New: getString(desired.Description),
 		}
 	}
 

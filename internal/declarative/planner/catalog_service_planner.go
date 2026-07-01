@@ -87,13 +87,11 @@ func (p *Planner) planCatalogServiceChanges(
 		}
 
 		if len(protectionErrors) > 0 {
-			var errMsg strings.Builder
-			errMsg.WriteString("Cannot generate plan due to protected resources:\n")
+			collector := &ProtectionErrorCollector{}
 			for _, err := range protectionErrors {
-				fmt.Fprintf(&errMsg, "- %s\n", err.Error())
+				collector.Add(err)
 			}
-			errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
-			return fmt.Errorf("%s", errMsg.String())
+			return collector.Error()
 		}
 		return nil
 	}
@@ -158,13 +156,11 @@ func (p *Planner) planCatalogServiceChanges(
 	}
 
 	if len(protectionErrors) > 0 {
-		var errMsg strings.Builder
-		errMsg.WriteString("Cannot generate plan due to protected resources:\n")
+		collector := &ProtectionErrorCollector{}
 		for _, err := range protectionErrors {
-			fmt.Fprintf(&errMsg, "- %s\n", err.Error())
+			collector.Add(err)
 		}
-		errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
-		return fmt.Errorf("%s", errMsg.String())
+		return collector.Error()
 	}
 
 	return nil
