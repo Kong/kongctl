@@ -230,7 +230,45 @@ steps:
                       key: x-env-updated
                       value: production
 
-  - name: 003-sync-delete
+  - name: 003-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name={{ .vars.egwName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.virtualClusterName }}'] | [0].consume_policies[?name=='{{ .vars.consumePolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: modify_headers
+                enabled: false
+                "config.actions[0].op": set
+                "config.actions[0].key": x-env-updated
+                "config.actions[0].value": production
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
@@ -290,7 +328,7 @@ steps:
               fields:
                 "@": 0
 
-  - name: 004-root-level-consume-policy
+  - name: 005-root-level-consume-policy
     inputOverlayDirs:
       - overlays/003-root-level-declaration
     commands:
@@ -359,7 +397,7 @@ steps:
                 labels:
                   env: staging
                   team: payments
-  - name: 005-sync-delete-decrypt
+  - name: 006-sync-delete-decrypt
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:
@@ -419,7 +457,7 @@ steps:
               fields:
                 "@": 0
 
-  - name: 006-skip-record-policy
+  - name: 007-skip-record-policy
     inputOverlayDirs:
       - overlays/005-skip-record-policy
     commands:
@@ -485,7 +523,7 @@ steps:
                 type: skip_record
                 enabled: true
 
-  - name: 007-sync-delete-skip-record
+  - name: 008-sync-delete-skip-record
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:
@@ -545,7 +583,7 @@ steps:
               fields:
                 "@": 0
 
-  - name: 008-schema-validation-policy
+  - name: 009-schema-validation-policy
     inputOverlayDirs:
       - overlays/006-schema-validation-policy
     commands:
@@ -615,7 +653,7 @@ steps:
                   value_validation_action: mark
                   type: json
 
-  - name: 009-sync-delete-root-level
+  - name: 010-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:

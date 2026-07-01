@@ -240,8 +240,51 @@ steps:
                       value: "${request_id}"
                     - op: remove
                       key: x-deprecated-header
-                
-  - name: 003-sync-delete
+
+  - name: 003-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name={{ .vars.egwName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.virtualClusterName }}'] | [0].produce_policies[?name=='{{ .vars.producePolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.producePolicyName }}"
+                type: modify_headers
+                enabled: false
+                "config.actions[0].op": set
+                "config.actions[0].key": x-producer-id
+                "config.actions[0].value": "${client_id}"
+                "config.actions[1].op": set
+                "config.actions[1].key": x-trace-id
+                "config.actions[1].value": "${request_id}"
+                "config.actions[2].op": remove
+                "config.actions[2].key": x-deprecated-header
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
@@ -301,7 +344,7 @@ steps:
               fields:
                 "@": 0
 
-  - name: 004-root-level-create
+  - name: 005-root-level-create
     inputOverlayDirs:
       - overlays/003-root-level-declaration
     commands:
@@ -385,7 +428,7 @@ steps:
               fields:
                 "@": true
 
-  - name: 005-root-level-sync-delete
+  - name: 006-root-level-sync-delete
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:
@@ -451,7 +494,7 @@ steps:
               fields:
                 "@": 0
 
-  - name: 006-schema-validation-create
+  - name: 007-schema-validation-create
     inputOverlayDirs:
       - overlays/005-schema-validation-policy
     commands:
@@ -534,7 +577,7 @@ steps:
               fields:
                 "@": true
 
-  - name: 007-schema-validation-update
+  - name: 008-schema-validation-update
     inputOverlayDirs:
       - overlays/006-update-schema-validation
     commands:
@@ -611,7 +654,7 @@ steps:
               fields:
                 "@": true
 
-  - name: 008-schema-validation-sync-delete
+  - name: 009-schema-validation-sync-delete
     inputOverlayDirs:
       - overlays/007-sync-delete-schema-validation
     commands:
