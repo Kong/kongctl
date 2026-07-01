@@ -586,12 +586,13 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 
 	streams := helper.GetStreams()
 	styledLoginOutput := shouldStyleLoginOutput(streams)
+	ctx := helper.GetContext()
 
 	if err := handleTelemetryPreference(
-		helper.GetContext(),
+		ctx,
 		streams,
 		cfg,
-		telemetry.FromContext(helper.GetContext()),
+		telemetry.FromContext(ctx),
 	); err != nil {
 		c.SilenceUsage = true
 		c.SilenceErrors = true
@@ -620,13 +621,13 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 
 	var pollResp *auth.AccessToken
 	if shouldAnimateLoginBanner(streams, c.noAnimate, c.noImage) {
-		pollResp, err = runAnimatedLogin(helper.GetContext(), streams, resp, styledLoginOutput, poll)
+		pollResp, err = runAnimatedLogin(ctx, streams, resp, styledLoginOutput, poll)
 	} else {
 		if err := displayLoginBanner(streams, c.noImage); err != nil {
 			return cmd.PrepareExecutionErrorWithHelper(helper, "failed to render login banner", err)
 		}
 		displayUserInstructions(streams.Out, resp, styledLoginOutput)
-		pollResp, err = waitForDeviceAuthorization(helper.GetContext(), resp, poll)
+		pollResp, err = waitForDeviceAuthorization(ctx, resp, poll)
 	}
 	if errors.Is(err, context.Canceled) {
 		c.SilenceUsage = true
