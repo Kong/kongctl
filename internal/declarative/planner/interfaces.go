@@ -40,6 +40,11 @@ type DCRProviderPlanner interface {
 	ResourcePlanner
 }
 
+// IdentityDirectoryPlanner handles planning for Kong Identity directory resources.
+type IdentityDirectoryPlanner interface {
+	ResourcePlanner
+}
+
 // APIPlanner handles planning for API resources and their child resources
 type APIPlanner interface {
 	ResourcePlanner

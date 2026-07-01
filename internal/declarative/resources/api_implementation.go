@@ -47,10 +47,10 @@ func (i APIImplementationResource) GetMoniker() string {
 }
 
 func (i APIImplementationResource) getService() *kkComps.APIImplementationService {
-	if i.ServiceReference == nil {
+	if i.ServiceReferenceInput == nil {
 		return nil
 	}
-	return i.ServiceReference.GetService()
+	return i.ServiceReferenceInput.GetService()
 }
 
 // GetDependencies returns references to other resources this API implementation depends on
@@ -163,8 +163,8 @@ func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any)
 		}
 	}
 
-	// Handle nested ServiceReference for newer SDK models.
-	serviceRefField := v.FieldByName("ServiceReference")
+	// Handle nested ServiceReferenceInput for newer SDK models.
+	serviceRefField := v.FieldByName("ServiceReferenceInput")
 	if serviceRefField.IsValid() &&
 		serviceRefField.Kind() == reflect.Pointer &&
 		!serviceRefField.IsNil() &&

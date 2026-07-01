@@ -574,7 +574,8 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			len(source.APIs) +
 			len(source.EventGatewayControlPlanes) +
 			len(source.Dashboards) +
-			len(source.OrganizationTeams)
+			len(source.OrganizationTeams) +
+			len(source.IdentityDirectories)
 		if source.Organization != nil {
 			parentCount += len(source.Organization.Users)
 			parentCount += len(source.Organization.SystemAccounts)
@@ -875,6 +876,33 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
+	assignIdentityDirectoryDefaults := func(directory *resources.IdentityDirectoryResource) error {
+		if err := assignNamespace(&directory.Kongctl, "identity directory", directory.Ref); err != nil {
+			return err
+		}
+		if directory.Kongctl.Protected == nil && protectedDefault != nil {
+			directory.Kongctl.Protected = protectedDefault
+		}
+		if directory.Kongctl.Protected == nil {
+			falseVal := false
+			directory.Kongctl.Protected = &falseVal
+		}
+		return nil
+	}
+
+	for i := range rs.IdentityDirectories {
+		if err := assignIdentityDirectoryDefaults(&rs.IdentityDirectories[i]); err != nil {
+			return err
+		}
+	}
+	if rs.Identity != nil {
+		for i := range rs.Identity.Directories {
+			if err := assignIdentityDirectoryDefaults(&rs.Identity.Directories[i]); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Note: Child resources (API versions, publications, etc.) do not get kongctl metadata
 	// as Konnect doesn't support labels on child resources
 	return nil
@@ -928,6 +956,11 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	if rs.Analytics != nil {
 		rs.Dashboards = append(rs.Dashboards, rs.Analytics.Dashboards...)
 		rs.Analytics.Dashboards = nil
+	}
+
+	if rs.Identity != nil {
+		rs.IdentityDirectories = append(rs.IdentityDirectories, rs.Identity.Directories...)
+		rs.Identity.Directories = nil
 	}
 
 	// Extract organization nested resources

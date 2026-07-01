@@ -19,17 +19,19 @@ var dumpResourceByViewParent = map[string]string{
 	common.ViewParentControlPlane:       "control_planes",
 	common.ViewParentDCRProvider:        "dcr_providers",
 	common.ViewParentEventGateway:       "event_gateways",
+	common.ViewParentIdentityDirectory:  "identity.directories",
 	common.ViewParentPortal:             "portals",
 	common.ViewParentTeam:               "organization.teams",
 }
 
 var dumpResourceByNavigatorLabel = map[string]string{
-	common.ViewResourceAPIs:           "apis",
-	common.ViewResourceAuthStrategies: "application_auth_strategies",
-	common.ViewResourceControlPlanes:  "control_planes",
-	common.ViewResourceDCRProviders:   "dcr_providers",
-	common.ViewResourceEventGateways:  "event_gateways",
-	common.ViewResourcePortals:        "portals",
+	common.ViewResourceAPIs:                "apis",
+	common.ViewResourceAuthStrategies:      "application_auth_strategies",
+	common.ViewResourceControlPlanes:       "control_planes",
+	common.ViewResourceDCRProviders:        "dcr_providers",
+	common.ViewResourceEventGateways:       "event_gateways",
+	common.ViewResourceIdentityDirectories: "identity.directories",
+	common.ViewResourcePortals:             "portals",
 }
 
 func newDumpSelectionAction(helper cmdpkg.Helper) tableview.SelectionAction {

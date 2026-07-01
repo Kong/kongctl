@@ -57,6 +57,7 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	addRootIfPresent(scope, resources.ResourceTypeAPI, len(rs.APIs))
 	addRootIfPresent(scope, resources.ResourceTypeEventGatewayControlPlane, len(rs.EventGatewayControlPlanes))
 	addRootIfPresent(scope, resources.ResourceTypeOrganizationTeam, len(rs.OrganizationTeams))
+	addRootIfPresent(scope, resources.ResourceTypeIdentityDirectory, len(rs.IdentityDirectories))
 
 	for _, cert := range rs.ControlPlaneDataPlaneCertificates {
 		scope.AddChild(

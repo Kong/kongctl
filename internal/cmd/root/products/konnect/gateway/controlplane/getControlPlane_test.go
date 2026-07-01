@@ -66,7 +66,7 @@ func TestTextDisplayConversion(t *testing.T) {
 				ID:          "id-field",
 				Name:        "name-field",
 				Description: "description-field",
-				Config: kkComps.ControlPlaneConfig{
+				Config: kkComps.Config{
 					ControlPlaneEndpoint: "config-endpoint-field",
 				},
 				Labels: map[string]string{
@@ -280,7 +280,7 @@ func TestGetControlPlaneCmd(t *testing.T) {
 									ID:          "4d9b3f3e-7b1b-4b6b-8b1b-4b6b7b1b4b6b",
 									Name:        "foo",
 									Description: "blah",
-									Config: kkComps.ControlPlaneConfig{
+									Config: kkComps.Config{
 										ControlPlaneEndpoint: "https://foo.bar",
 									},
 								},

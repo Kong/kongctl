@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: identity-directories
+
+identity:
+  directories:
+    - ref: e2e-identity-directory
+      name: e2e-identity-directory
+      description: Initial identity directory
+      allow_all_control_planes: true
+      ttl_secs: 300
+      negative_ttl_secs: 300
+      labels:
+        team: platform
+        lifecycle: initial

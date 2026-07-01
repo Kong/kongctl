@@ -222,7 +222,8 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		len(rs.APIs) +
 		len(rs.EventGatewayControlPlanes) +
 		len(rs.Dashboards) +
-		len(managedOrganizationTeams)
+		len(managedOrganizationTeams) +
+		len(rs.IdentityDirectories)
 	if rs.Organization != nil {
 		totalParents += len(rs.Organization.Users)
 		totalParents += len(rs.Organization.SystemAccounts)
@@ -335,6 +336,13 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 			string(resources.ResourceTypeOrganizationTeam),
 			managedOrganizationTeams[i].Ref,
 			managedOrganizationTeams[i].Kongctl,
+		)
+	}
+	for i := range rs.IdentityDirectories {
+		check(
+			string(resources.ResourceTypeIdentityDirectory),
+			rs.IdentityDirectories[i].Ref,
+			rs.IdentityDirectories[i].Kongctl,
 		)
 	}
 	if rs.Organization != nil {

@@ -32,18 +32,35 @@ func truthyEnv(v string) bool {
 
 // ResetOrgIfRequested deletes top-level resources (application-auth-strategies, apis, portals)
 // in the target Konnect org when KONGCTL_E2E_RESET is truthy. This is destructive.
-func ResetOrgIfRequested() error { return resetOrg("unspecified", true) }
+func ResetOrgIfRequested() error {
+	_, err := resetOrg("unspecified", true)
+	return err
+}
 
 // ResetOrg performs the destructive reset without recording harness artifacts. Intended for
 // developer utilities that only need to wipe the org state.
-func ResetOrg(stage string) error { return resetOrg(stage, false) }
+func ResetOrg(stage string) error {
+	_, err := ResetOrgSummary(stage)
+	return err
+}
+
+// ResetOrgSummary performs the same destructive reset as ResetOrg and returns
+// per-endpoint deletion counts for command-line reporting.
+func ResetOrgSummary(stage string) (ResetSummary, error) { return resetOrg(stage, false) }
 
 // ResetOrgWithCapture performs the same destructive reset as ResetOrgIfRequested and
 // records a synthetic command under <run>/global/commands documenting execution.
 // The stage parameter is recorded in artifacts (e.g., "before_suite", "before_test").
-func ResetOrgWithCapture(stage string) error { return resetOrg(stage, true) }
+func ResetOrgWithCapture(stage string) error {
+	_, err := ResetOrgWithCaptureSummary(stage)
+	return err
+}
 
-func resetOrg(stage string, capture bool) error {
+// ResetOrgWithCaptureSummary performs the same destructive reset as ResetOrgWithCapture
+// and returns per-endpoint deletion counts for command-line reporting.
+func ResetOrgWithCaptureSummary(stage string) (ResetSummary, error) { return resetOrg(stage, true) }
+
+func resetOrg(stage string, capture bool) (ResetSummary, error) {
 	// Default: reset is ON unless explicitly disabled.
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("KONGCTL_E2E_RESET"))); v != "" {
 		if !truthyEnv(v) { // values like 0,false,off,no
@@ -51,12 +68,12 @@ func resetOrg(stage string, capture bool) error {
 			if capture {
 				captureResetEvent(stage, false, "skipped", "reset disabled", "", nil)
 			}
-			return nil
+			return ResetSummary{Executed: false, Status: "skipped", Reason: "reset disabled"}, nil
 		}
 	}
 	baseURL, err := KonnectBaseURL()
 	if err != nil {
-		return err
+		return ResetSummary{}, err
 	}
 	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
 	if token == "" {
@@ -64,27 +81,32 @@ func resetOrg(stage string, capture bool) error {
 		if capture {
 			captureResetEvent(stage, false, "skipped", "missing PAT", baseURL, nil)
 		}
-		return nil
+		return ResetSummary{
+			Executed: false,
+			Status:   "skipped",
+			Reason:   "missing PAT",
+			BaseURL:  baseURL,
+		}, nil
 	}
 
 	Infof("Resetting Konnect org at %s", baseURL)
 	policy := resetHTTPPolicyFromEnv()
 	result, err := executeReset(baseURL, token, policy)
+	status := "ok"
+	reason := ""
+	if err != nil {
+		status = "error"
+		reason = err.Error()
+	}
 	if capture {
-		status := "ok"
-		reason := ""
-		if err != nil {
-			status = "error"
-			reason = err.Error()
-		}
 		captureResetEvent(stage, true, status, reason, baseURL, result.Details)
 	}
 	if err != nil {
-		return err
+		return resetSummaryFromResult(true, status, reason, baseURL, result), err
 	}
 
 	Infof("Reset complete")
-	return nil
+	return resetSummaryFromResult(true, status, reason, baseURL, result), nil
 }
 
 type listResp struct {
@@ -302,6 +324,98 @@ type resetResult struct {
 	Details []resetEndpoint
 }
 
+// ResetEndpointSummary describes reset activity for one top-level endpoint.
+type ResetEndpointSummary struct {
+	APIVersion string
+	Endpoint   string
+	Total      int
+	Deleted    int
+	Error      string
+}
+
+// ResetSummary describes the outcome of a destructive reset.
+type ResetSummary struct {
+	Executed bool
+	Status   string
+	Reason   string
+	BaseURL  string
+	Details  []ResetEndpointSummary
+}
+
+func resetSummaryFromResult(
+	executed bool,
+	status string,
+	reason string,
+	baseURL string,
+	result resetResult,
+) ResetSummary {
+	details := make([]ResetEndpointSummary, 0, len(result.Details))
+	for _, detail := range result.Details {
+		details = append(details, ResetEndpointSummary{
+			APIVersion: detail.APIVersion,
+			Endpoint:   detail.Endpoint,
+			Total:      detail.Total,
+			Deleted:    detail.Deleted,
+			Error:      detail.Error,
+		})
+	}
+
+	return ResetSummary{
+		Executed: executed,
+		Status:   status,
+		Reason:   reason,
+		BaseURL:  baseURL,
+		Details:  details,
+	}
+}
+
+// WriteResetDeletionSummary prints a concise human-readable summary of top-level
+// resources deleted by ResetOrgSummary.
+func WriteResetDeletionSummary(w io.Writer, summary ResetSummary) error {
+	if w == nil {
+		return nil
+	}
+
+	if !summary.Executed {
+		if summary.Reason == "" {
+			_, err := fmt.Fprintln(w, "Reset skipped")
+			return err
+		}
+		_, err := fmt.Fprintf(w, "Reset skipped: %s\n", summary.Reason)
+		return err
+	}
+
+	deleted := make([]ResetEndpointSummary, 0, len(summary.Details))
+	for _, detail := range summary.Details {
+		if detail.Deleted == 0 || detail.Endpoint == "e2e-user-assignments" {
+			continue
+		}
+		deleted = append(deleted, detail)
+	}
+
+	if len(deleted) == 0 {
+		_, err := fmt.Fprintln(w, "No top-level resources deleted.")
+		return err
+	}
+
+	if _, err := fmt.Fprintln(w, "Deleted top-level resources:"); err != nil {
+		return err
+	}
+	for _, detail := range deleted {
+		if _, err := fmt.Fprintf(
+			w,
+			"  %s/%s: %d deleted (%d found)\n",
+			detail.APIVersion,
+			detail.Endpoint,
+			detail.Deleted,
+			detail.Total,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type resetHTTPSession struct {
 	newClient func() *http.Client
 	client    *http.Client
@@ -380,6 +494,7 @@ var resetSequence = []resetResourceSpec{
 	{Version: "v3", Endpoint: "teams", UseGlobal: true, Filter: skipSystemTeams},
 	{Version: "v2", Endpoint: "application-auth-strategies"},
 	{Version: "v2", Endpoint: "dcr-providers"},
+	{Version: "v2", Endpoint: "directories"},
 	{Version: "v2", Endpoint: "control-planes"},
 	{Version: "v2", Endpoint: "dashboards"},
 	{Version: "v1", Endpoint: "catalog-services"},

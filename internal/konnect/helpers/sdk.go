@@ -30,6 +30,7 @@ type SDKAPI interface {
 	GetAPIImplementationAPI() APIImplementationAPI
 	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
 	GetDCRProvidersAPI() DCRProvidersAPI
+	GetIdentityDirectoryAPI() IdentityDirectoryAPI
 	GetMeAPI() MeAPI
 	GetPersonalAccessTokenAPI() PersonalAccessTokenAPI
 	GetSystemAccountAccessTokenAPI() SystemAccountAccessTokenAPI
@@ -202,6 +203,14 @@ func (k *KonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
 		TokenSource: k.TokenSource,
 		HTTPClient:  k.HTTPClient,
 	}
+}
+
+func (k *KonnectSDK) GetIdentityDirectoryAPI() IdentityDirectoryAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &IdentityDirectoryAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the GatewayServiceAPI interface

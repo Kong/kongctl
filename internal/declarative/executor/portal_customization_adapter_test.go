@@ -33,7 +33,7 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_MapSlice(t *testing.T
 	require.Len(t, update.Menu.Main, 1)
 	assert.Equal(t, "/docs", update.Menu.Main[0].Path)
 	assert.Equal(t, "Docs", update.Menu.Main[0].Title)
-	assert.Equal(t, kkComps.PortalMenuItemVisibility("public"), update.Menu.Main[0].Visibility)
+	assert.Equal(t, kkComps.Visibility("public"), update.Menu.Main[0].Visibility)
 	assert.False(t, update.Menu.Main[0].External)
 }
 
@@ -60,7 +60,7 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_AnySlice(t *testing.T
 	require.Len(t, update.Menu.Main, 1)
 	assert.Equal(t, "/blog", update.Menu.Main[0].Path)
 	assert.Equal(t, "Blog", update.Menu.Main[0].Title)
-	assert.Equal(t, kkComps.PortalMenuItemVisibility("private"), update.Menu.Main[0].Visibility)
+	assert.Equal(t, kkComps.Visibility("private"), update.Menu.Main[0].Visibility)
 	assert.True(t, update.Menu.Main[0].External)
 }
 

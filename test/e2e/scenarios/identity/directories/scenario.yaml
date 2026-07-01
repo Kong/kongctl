@@ -1,0 +1,263 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: identity-directories
+  directoryRef: e2e-identity-directory
+  directoryName: e2e-identity-directory
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-and-apply
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/initial.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='identity_directory' &&
+                resource_ref=='{{ .vars.directoryRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.directoryName }}"
+                fields.allow_all_control_planes: true
+                fields.ttl_secs: 300
+                fields.negative_ttl_secs: 300
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 002-get-and-list
+    skipInputs: true
+    commands:
+      - name: 000-get-directories
+        run:
+          - get
+          - identity
+          - directories
+          - -o
+          - json
+        recordVar:
+          name: directoryID
+          responsePath: "[?name=='{{ .vars.directoryName }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.directoryName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.directoryName }}"
+                description: Initial identity directory
+                ttl_secs: 300
+                negative_ttl_secs: 300
+                allow_all_control_planes: true
+      - name: 001-list-directories
+        run:
+          - list
+          - identity
+          - directories
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.directoryName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.directoryName }}"
+                ttl_secs: 300
+      - name: 002-get-directory-by-name
+        run:
+          - get
+          - identity
+          - directory
+          - "{{ .vars.directoryName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.directoryName }}"
+                description: Initial identity directory
+      - name: 003-get-directory-by-id
+        run:
+          - get
+          - identity
+          - directory
+          - "{{ .vars.directoryID }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.directoryName }}"
+
+  - name: 003-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-directories
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=identity.directories"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - select: "@"
+            expect:
+              fields:
+                "length(identity.directories)": 1
+          - select: "identity.directories[?name=='{{ .vars.directoryName }}'] | [0]"
+            expect:
+              fields:
+                description: Initial identity directory
+                allow_all_control_planes: true
+                ttl_secs: 300
+                negative_ttl_secs: 300
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-sync-update
+    commands:
+      - name: 000-plan-sync
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/sync.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='identity_directory' &&
+                resource_ref=='{{ .vars.directoryRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.description: Updated identity directory
+                fields.ttl_secs: 600
+      - name: 001-apply-sync
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-verify-sync
+        run:
+          - get
+          - identity
+          - directory
+          - "{{ .vars.directoryName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                description: Updated identity directory
+                ttl_secs: 600
+                labels.lifecycle: sync
+
+  - name: 005-delete-cleanup
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/sync.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

@@ -31,6 +31,7 @@ const (
 	filterOpContains                  = "contains"
 	resourceAPIs                      = "apis"
 	resourceAnalyticsDashboards       = "analytics.dashboards"
+	resourceIdentityDirectories       = "identity.directories"
 )
 
 type paginationParams struct {
@@ -154,6 +155,9 @@ func mapResourceName(name string) string {
 		return "application_auth_strategies"
 	case "dcr-provider", "dcr-providers", "dcr_provider", "dcr_providers", "dcrprovider", "dcrproviders":
 		return "dcr_providers"
+	case "identity.directory", "identity.directories", "identity-directory", "identity-directories",
+		"identity_directory", "identity_directories", "directory", "directories":
+		return resourceIdentityDirectories
 	case "control-plane", "controlplane", "controlplanes", "control_planes":
 		return "control_planes"
 	case "dashboard", "dashboards", "analytics.dashboard", resourceAnalyticsDashboards:

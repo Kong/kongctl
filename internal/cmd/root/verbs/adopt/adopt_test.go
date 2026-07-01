@@ -51,6 +51,11 @@ func TestAdoptPersistentFlagsAreInheritedByLeafCommands(t *testing.T) {
 			path: []string{"organization", "team"},
 			args: []string{"--namespace", "team-alpha", "org", "team", "22cd8a0b-72e7-4212-9099-0764f8e9c5ac"},
 		},
+		{
+			name: "direct identity directory",
+			path: []string{"identity", "directory"},
+			args: []string{"--namespace", "team-alpha", "identity", "directory", "workforce"},
+		},
 	}
 
 	for _, tt := range testCases {

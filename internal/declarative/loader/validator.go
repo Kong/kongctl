@@ -88,6 +88,10 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	if err := l.validateIdentityDirectories(rs.IdentityDirectories, rs); err != nil {
+		return err
+	}
+
 	// Validate cross-resource references
 	if err := l.validateCrossReferences(rs); err != nil {
 		return err
@@ -381,6 +385,35 @@ func (l *Loader) validateOrganizationTeams(teams []resources.OrganizationTeamRes
 		}
 
 		names[team.Name] = team.GetRef()
+	}
+
+	return nil
+}
+
+func (l *Loader) validateIdentityDirectories(
+	directories []resources.IdentityDirectoryResource,
+	rs *resources.ResourceSet,
+) error {
+	names := make(map[string]string)
+
+	for i := range directories {
+		directory := &directories[i]
+		if err := directory.Validate(); err != nil {
+			return fmt.Errorf("invalid identity_directory %q: %w", directory.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(directory.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeIdentityDirectory {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					directory.GetRef(), existing.GetType())
+			}
+		}
+
+		if existingRef, exists := names[directory.Name]; exists {
+			return fmt.Errorf("duplicate identity_directory name '%s' (ref: %s conflicts with ref: %s)",
+				directory.Name, directory.GetRef(), existingRef)
+		}
+		names[directory.Name] = directory.GetRef()
 	}
 
 	return nil
@@ -851,6 +884,12 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet) error {
 
 	for i := range rs.PortalAuditLogWebhooks {
 		if err := l.validateResourceReferences(&rs.PortalAuditLogWebhooks[i], rs); err != nil {
+			return err
+		}
+	}
+
+	for i := range rs.IdentityDirectories {
+		if err := l.validateResourceReferences(&rs.IdentityDirectories[i], rs); err != nil {
 			return err
 		}
 	}

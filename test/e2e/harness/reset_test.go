@@ -3,6 +3,7 @@
 package harness
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -56,6 +57,59 @@ func TestConfiguredE2EUserEmails(t *testing.T) {
 	want := []string{"user-1@example.com", "user-2@example.com"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("configuredE2EUserEmails() = %#v, want %#v", got, want)
+	}
+}
+
+func TestWriteResetDeletionSummary(t *testing.T) {
+	tests := []struct {
+		name    string
+		summary ResetSummary
+		want    string
+	}{
+		{
+			name: "skipped",
+			summary: ResetSummary{
+				Executed: false,
+				Reason:   "missing PAT",
+			},
+			want: "Reset skipped: missing PAT\n",
+		},
+		{
+			name: "no top-level resources deleted",
+			summary: ResetSummary{
+				Executed: true,
+				Details: []ResetEndpointSummary{
+					{APIVersion: "v3", Endpoint: "e2e-user-assignments", Total: 2, Deleted: 2},
+					{APIVersion: "v2", Endpoint: "directories", Total: 0, Deleted: 0},
+				},
+			},
+			want: "No top-level resources deleted.\n",
+		},
+		{
+			name: "top-level resources deleted",
+			summary: ResetSummary{
+				Executed: true,
+				Details: []ResetEndpointSummary{
+					{APIVersion: "v2", Endpoint: "directories", Total: 1, Deleted: 1},
+					{APIVersion: "v2", Endpoint: "control-planes", Total: 2, Deleted: 2},
+				},
+			},
+			want: "Deleted top-level resources:\n" +
+				"  v2/directories: 1 deleted (1 found)\n" +
+				"  v2/control-planes: 2 deleted (2 found)\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out bytes.Buffer
+			if err := WriteResetDeletionSummary(&out, tt.summary); err != nil {
+				t.Fatalf("WriteResetDeletionSummary() error = %v", err)
+			}
+			if got := out.String(); got != tt.want {
+				t.Fatalf("WriteResetDeletionSummary() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

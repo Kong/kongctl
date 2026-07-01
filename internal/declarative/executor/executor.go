@@ -50,6 +50,10 @@ type Executor struct {
 		kkComps.CreateDcrProviderRequest,
 		kkComps.UpdateDcrProviderRequest,
 	]
+	identityDirectoryExecutor *BaseExecutor[
+		kkComps.CreateDirectoryBody,
+		kkComps.ReplaceDirectoryBody,
+	]
 	catalogServiceExecutor                 *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
 	dashboardExecutor                      *BaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest]
 	eventGatewayControlPlaneExecutor       *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
@@ -216,6 +220,11 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 	e.dcrProviderExecutor = NewBaseExecutor[kkComps.CreateDcrProviderRequest, kkComps.UpdateDcrProviderRequest](
 		NewDCRProviderAdapter(client),
+		client,
+		dryRun,
+	)
+	e.identityDirectoryExecutor = NewBaseExecutor[kkComps.CreateDirectoryBody, kkComps.ReplaceDirectoryBody](
+		NewIdentityDirectoryAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1292,6 +1301,37 @@ func (e *Executor) syncResolvedDCRProviderID(
 	)
 }
 
+func (e *Executor) syncResolvedIdentityDirectoryAllowedControlPlanes(
+	ctx context.Context,
+	change *planner.PlannedChange,
+) error {
+	if change == nil {
+		return nil
+	}
+
+	for fieldName, ref := range change.References {
+		if fieldName != planner.FieldAllowedControlPlanes &&
+			!strings.HasPrefix(fieldName, planner.FieldAllowedControlPlanes+".") {
+			continue
+		}
+
+		if unresolvedReferenceID(ref.ID) {
+			id, err := e.resolveControlPlaneRef(ctx, ref)
+			if err != nil {
+				return fmt.Errorf("failed to resolve identity directory control plane reference: %w", err)
+			}
+			ref.ID = id
+			change.References[fieldName] = ref
+		}
+
+		if change.Fields != nil && !setResolvedFieldValue(change.Fields, fieldName, ref.ID) {
+			change.Fields[fieldName] = ref.ID
+		}
+	}
+
+	return nil
+}
+
 func (e *Executor) syncResolvedPortalDefaultAuthStrategyID(
 	ctx context.Context,
 	change *planner.PlannedChange,
@@ -2254,6 +2294,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		return e.dashboardExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDCRProvider:
 		return e.dcrProviderExecutor.Create(ctx, *change)
+	case planner.ResourceTypeIdentityDirectory:
+		if err := e.syncResolvedIdentityDirectoryAllowedControlPlanes(ctx, change); err != nil {
+			return "", err
+		}
+		return e.identityDirectoryExecutor.Create(ctx, *change)
 	case planner.ResourceTypeAPIVersion:
 		// First resolve API reference if needed
 		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
@@ -2919,6 +2964,11 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		return e.authStrategyExecutor.Update(ctx, *change)
 	case planner.ResourceTypeDCRProvider:
 		return e.dcrProviderExecutor.Update(ctx, *change)
+	case planner.ResourceTypeIdentityDirectory:
+		if err := e.syncResolvedIdentityDirectoryAllowedControlPlanes(ctx, change); err != nil {
+			return "", err
+		}
+		return e.identityDirectoryExecutor.Update(ctx, *change)
 	case planner.ResourceTypePortalCustomization:
 		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
@@ -3319,6 +3369,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		return e.authStrategyExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeDCRProvider:
 		return e.dcrProviderExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeIdentityDirectory:
+		return e.identityDirectoryExecutor.Delete(ctx, *change)
 	case planner.ResourceTypePortalCustomDomain:
 		// No references to resolve for portal_custom_domain
 		return e.portalDomainExecutor.Delete(ctx, *change)

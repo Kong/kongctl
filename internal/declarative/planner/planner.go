@@ -71,6 +71,7 @@ type Planner struct {
 	controlPlanePlanner             ControlPlanePlanner
 	authStrategyPlanner             AuthStrategyPlanner
 	dcrProviderPlanner              DCRProviderPlanner
+	identityDirectoryPlanner        IdentityDirectoryPlanner
 	apiPlanner                      APIPlanner
 	catalogServicePlanner           CatalogServicePlanner
 	dashboardPlanner                DashboardPlanner
@@ -122,6 +123,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.controlPlanePlanner = NewControlPlanePlanner(base)
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
 	p.dcrProviderPlanner = NewDCRProviderPlanner(base)
+	p.identityDirectoryPlanner = NewIdentityDirectoryPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
 	p.dashboardPlanner = NewDashboardPlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
@@ -229,6 +231,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.controlPlanePlanner = NewControlPlanePlanner(base)
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.dcrProviderPlanner = NewDCRProviderPlanner(base)
+		namespacePlanner.identityDirectoryPlanner = NewIdentityDirectoryPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
 		namespacePlanner.dashboardPlanner = NewDashboardPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
@@ -279,6 +282,16 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 				namespacePlan,
 			); err != nil {
 				return nil, fmt.Errorf("failed to plan DCR provider changes for namespace %s: %w", namespace, err)
+			}
+		}
+
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeIdentityDirectory) {
+			if err := namespacePlanner.identityDirectoryPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.identityDirectoryPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan identity directory changes for namespace %s: %w", namespace, err)
 			}
 		}
 
@@ -1537,7 +1550,7 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 
 	for i := range rs.APIImplementations {
 		impl := &rs.APIImplementations[i]
-		service := impl.ServiceReference.GetService()
+		service := impl.ServiceReferenceInput.GetService()
 		if service == nil {
 			p.logger.Debug(
 				"API implementation missing service reference before normalization",
@@ -1556,7 +1569,7 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 		if err := p.normalizeAPIImplementationService(impl, serviceByRef, controlPlaneByRef); err != nil {
 			return err
 		}
-		service = impl.ServiceReference.GetService()
+		service = impl.ServiceReferenceInput.GetService()
 		if service == nil {
 			p.logger.Debug(
 				"API implementation missing service reference after normalization",
@@ -1582,7 +1595,7 @@ func (p *Planner) normalizeAPIImplementationService(
 	serviceByRef map[string]*resources.GatewayServiceResource,
 	controlPlaneByRef map[string]*resources.ControlPlaneResource,
 ) error {
-	if impl.ServiceReference == nil {
+	if impl.ServiceReferenceInput == nil {
 		p.logger.Debug(
 			"API implementation has nil service reference; skipping normalization",
 			slog.String("api_implementation_ref", impl.GetRef()),
@@ -1591,7 +1604,7 @@ func (p *Planner) normalizeAPIImplementationService(
 		return nil
 	}
 
-	service := impl.ServiceReference.GetService()
+	service := impl.ServiceReferenceInput.GetService()
 	if service == nil {
 		p.logger.Debug(
 			"API implementation has nil service; skipping normalization",
@@ -2213,6 +2226,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, provider := range rs.DCRProviders {
 		ns := resources.GetNamespace(provider.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, directory := range rs.IdentityDirectories {
+		ns := resources.GetNamespace(directory.Kongctl)
 		namespaceSet[ns] = true
 	}
 

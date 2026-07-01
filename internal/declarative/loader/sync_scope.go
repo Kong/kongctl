@@ -393,6 +393,7 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 		return err
 	}
 	captureOrganizationScope(scope, raw)
+	captureIdentityScope(scope, raw)
 	captureAnalyticsScope(scope, raw)
 
 	return nil
@@ -641,6 +642,16 @@ func captureOrganizationScope(scope *resources.SyncScope, raw map[string]any) {
 	}
 	if _, ok := org["system-accounts"]; ok {
 		scope.MarkOrganizationSystemAccountsScoped()
+	}
+}
+
+func captureIdentityScope(scope *resources.SyncScope, raw map[string]any) {
+	identity, ok := asMap(raw["identity"])
+	if !ok {
+		return
+	}
+	if _, ok := identity["directories"]; ok {
+		scope.AddRoot(resources.ResourceTypeIdentityDirectory)
 	}
 }
 
