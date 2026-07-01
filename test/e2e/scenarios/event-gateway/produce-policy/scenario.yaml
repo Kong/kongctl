@@ -240,6 +240,19 @@ steps:
                       value: "${request_id}"
                     - op: remove
                       key: x-deprecated-header
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 003-dump-round-trip
     skipInputs: true
@@ -653,6 +666,19 @@ steps:
             expect:
               fields:
                 "@": true
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 009-schema-validation-sync-delete
     inputOverlayDirs:
