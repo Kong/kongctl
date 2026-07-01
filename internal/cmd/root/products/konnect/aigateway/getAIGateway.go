@@ -131,13 +131,13 @@ func runList(
 	return allData, nil
 }
 
-func runListByDisplayName(
-	displayName string,
+func runListByNameOrDisplayName(
+	identifier string,
 	kkClient helpers.AIGatewayAPI,
 	helper cmd.Helper,
 	cfg config.Hook,
 ) (*kkComps.AIGateway, error) {
-	displayName = strings.TrimSpace(displayName)
+	identifier = strings.TrimSpace(identifier)
 	gateways, err := runList(kkClient, helper, cfg)
 	if err != nil {
 		return nil, err
@@ -145,18 +145,25 @@ func runListByDisplayName(
 
 	var matches []kkComps.AIGateway
 	for _, gateway := range gateways {
-		if gateway.DisplayName == displayName {
+		if gateway.Name == identifier {
 			matches = append(matches, gateway)
+		}
+	}
+	if len(matches) == 0 {
+		for _, gateway := range gateways {
+			if gateway.DisplayName == identifier {
+				matches = append(matches, gateway)
+			}
 		}
 	}
 
 	switch len(matches) {
 	case 0:
-		return nil, fmt.Errorf("AI Gateway with display_name %q not found", displayName)
+		return nil, fmt.Errorf("AI Gateway with name or display_name %q not found", identifier)
 	case 1:
 		return &matches[0], nil
 	default:
-		return nil, fmt.Errorf("AI Gateway display_name %q matches %d gateways", displayName, len(matches))
+		return nil, fmt.Errorf("AI Gateway name or display_name %q matches %d gateways", identifier, len(matches))
 	}
 }
 
@@ -173,7 +180,9 @@ func runGet(id string, kkClient helpers.AIGatewayAPI, helper cmd.Helper) (*kkCom
 func (c *getAIGatewayCmd) validate(helper cmd.Helper) error {
 	if len(helper.GetArgs()) > 1 {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("too many arguments. Listing AI Gateways requires 0 or 1 arguments (display name or ID)"),
+			Err: fmt.Errorf(
+				"too many arguments. Listing AI Gateways requires 0 or 1 arguments (name, display_name, or ID)",
+			),
 		}
 	}
 
@@ -230,7 +239,7 @@ func (c *getAIGatewayCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if util.IsValidUUID(identifier) {
 			gateway, err = runGet(identifier, api, helper)
 		} else {
-			gateway, err = runListByDisplayName(identifier, api, helper, cfg)
+			gateway, err = runListByNameOrDisplayName(identifier, api, helper, cfg)
 		}
 		if err != nil {
 			return err

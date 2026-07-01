@@ -152,7 +152,7 @@ var (
 		idHelp:   "The ID of the AI Gateway that owns the resource.",
 		nameFlag: aiGatewayNameFlagName,
 		namePath: aiGatewayNameConfigPath,
-		nameHelp: "The display name of the AI Gateway that owns the resource.",
+		nameHelp: "The name or display_name of the AI Gateway that owns the resource.",
 	}
 
 	aiGatewayProviderFlags = pairedAIGatewayFlags{
