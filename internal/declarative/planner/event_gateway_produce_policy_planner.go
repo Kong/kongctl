@@ -673,7 +673,8 @@ func (p *Planner) shouldUpdateProducePolicy(
 
 	// Config comparison
 	desiredConfig := p.extractProducePolicyConfig(desired)
-	if !configFieldsMatch(current.RawConfig, desiredConfig) {
+	compareConfig := p.normalizeProducePolicyConfigRefsForCompare(current.RawConfig, desiredConfig)
+	if !configFieldsMatch(current.RawConfig, compareConfig) {
 		needsUpdate = true
 		changes[FieldConfig] = FieldChange{Old: current.RawConfig, New: desiredConfig}
 	}
@@ -777,4 +778,147 @@ func (p *Planner) extractProducePolicyConfig(policy resources.EventGatewayProduc
 		}
 	}
 	return nil
+}
+
+func (p *Planner) normalizeProducePolicyConfigRefsForCompare(
+	current map[string]any,
+	desired map[string]any,
+) map[string]any {
+	if current == nil || desired == nil {
+		return desired
+	}
+
+	normalized := cloneConfigMap(desired)
+	p.normalizeProducePolicyConfigObjectRefForCompare(
+		current,
+		normalized,
+		"schema_registry",
+		ResourceTypeEventGatewaySchemaRegistry,
+	)
+	p.normalizeProducePolicyConfigObjectRefForCompare(
+		current,
+		normalized,
+		"encryption_key.key",
+		ResourceTypeEventGatewayStaticKey,
+	)
+	p.normalizeProducePolicyEncryptFieldsRefsForCompare(current, normalized)
+	return normalized
+}
+
+func cloneConfigMap(config map[string]any) map[string]any {
+	data, err := json.Marshal(config)
+	if err != nil {
+		return config
+	}
+
+	var cloned map[string]any
+	if err := json.Unmarshal(data, &cloned); err != nil {
+		return config
+	}
+	return cloned
+}
+
+func (p *Planner) normalizeProducePolicyEncryptFieldsRefsForCompare(
+	current map[string]any,
+	desired map[string]any,
+) {
+	currentFields, ok := current["encrypt_fields"].([]any)
+	if !ok {
+		return
+	}
+	desiredFields, ok := desired["encrypt_fields"].([]any)
+	if !ok {
+		return
+	}
+
+	for i := range min(len(currentFields), len(desiredFields)) {
+		currentField, ok := currentFields[i].(map[string]any)
+		if !ok {
+			continue
+		}
+		desiredField, ok := desiredFields[i].(map[string]any)
+		if !ok {
+			continue
+		}
+		p.normalizeProducePolicyConfigObjectRefForCompare(
+			currentField,
+			desiredField,
+			"encryption_key.key",
+			ResourceTypeEventGatewayStaticKey,
+		)
+	}
+}
+
+func (p *Planner) normalizeProducePolicyConfigObjectRefForCompare(
+	current map[string]any,
+	desired map[string]any,
+	fieldPath string,
+	resourceType string,
+) {
+	currentRefObject, ok := mapValueAtFieldPath(current, fieldPath)
+	if !ok {
+		return
+	}
+	desiredRefObject, ok := mapValueAtFieldPath(desired, fieldPath)
+	if !ok {
+		return
+	}
+
+	currentID, ok := currentRefObject[FieldID].(string)
+	if !ok || currentID == "" {
+		return
+	}
+	desiredID, ok := desiredRefObject[FieldID].(string)
+	if !ok || !tags.IsRefPlaceholder(desiredID) {
+		return
+	}
+
+	if p.producePolicyConfigRefMatchesCurrent(resourceType, desiredID, currentRefObject) {
+		desiredRefObject[FieldID] = currentID
+	}
+}
+
+func mapValueAtFieldPath(fields map[string]any, fieldPath string) (map[string]any, bool) {
+	if fields == nil || fieldPath == "" {
+		return nil, false
+	}
+
+	var current any = fields
+	for segment := range strings.SplitSeq(fieldPath, ".") {
+		currentMap, ok := current.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		next, ok := currentMap[segment]
+		if !ok {
+			return nil, false
+		}
+		current = next
+	}
+
+	currentMap, ok := current.(map[string]any)
+	return currentMap, ok
+}
+
+func (p *Planner) producePolicyConfigRefMatchesCurrent(
+	resourceType string,
+	ref string,
+	current map[string]any,
+) bool {
+	if p.resolver == nil {
+		return false
+	}
+
+	resource, exists := p.resolver.getResourceByTypeAndRef(resourceType, referenceTargetRef(ref))
+	if !exists {
+		return false
+	}
+
+	if currentID, _ := current[FieldID].(string); currentID != "" && resource.GetKonnectID() == currentID {
+		return true
+	}
+	if currentName, _ := current[FieldName].(string); currentName != "" && resource.GetMoniker() == currentName {
+		return true
+	}
+	return false
 }
