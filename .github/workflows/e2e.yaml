@@ -8,6 +8,7 @@ run-name: >-
   }}
 permissions:
   contents: read
+  statuses: write
 
 on:
   pull_request:
@@ -822,7 +823,7 @@ jobs:
           echo "Verified ${scenario_count} scenarios across ${total} shards."
 
   e2e-required:
-    name: E2E Required
+    name: E2E Required Status
     needs:
       - e2e-needed
       - e2e-verify
@@ -835,23 +836,51 @@ jobs:
         with:
           egress-policy: audit
       - name: Check requirement outcome
-        shell: bash
-        run: |
-          set -euo pipefail
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          E2E_NEEDED_RESULT: ${{ needs.e2e-needed.result }}
+          E2E_REQUIRED: ${{ needs.e2e-needed.outputs.required }}
+          E2E_VERIFY_RESULT: ${{ needs.e2e-verify.result }}
+          STATUS_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        with:
+          script: |
+            const statusContext = 'E2E Required';
+            const eventName = process.env.GITHUB_EVENT_NAME;
+            const neededResult = process.env.E2E_NEEDED_RESULT;
+            const required = process.env.E2E_REQUIRED === 'true';
+            const verifyResult = process.env.E2E_VERIFY_RESULT;
 
-          if [ "${{ needs.e2e-needed.result }}" != "success" ]; then
-            echo "::error::E2E Needed concluded ${{ needs.e2e-needed.result }}."
-            exit 1
-          fi
+            let state = 'success';
+            let description = 'E2E not required for this change.';
+            let failureMessage = '';
 
-          if [ "${{ needs.e2e-needed.outputs.required }}" != "true" ]; then
-            echo "E2E not required for this change."
-            exit 0
-          fi
+            if (neededResult !== 'success') {
+              state = 'failure';
+              description = `E2E Needed concluded ${neededResult}.`;
+              failureMessage = description;
+            } else if (required && verifyResult !== 'success') {
+              state = 'failure';
+              description = `E2E required but E2E Verify concluded ${verifyResult}.`;
+              failureMessage = description;
+            } else if (required) {
+              description = 'E2E required and E2E Verify succeeded.';
+            }
 
-          if [ "${{ needs.e2e-verify.result }}" != "success" ]; then
-            echo "::error::E2E required but E2E Verify concluded ${{ needs.e2e-verify.result }}."
-            exit 1
-          fi
+            if (eventName === 'pull_request' || eventName === 'merge_group') {
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha: process.env.STATUS_SHA,
+                context: statusContext,
+                state,
+                description,
+                target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+              });
+            }
 
-          echo "E2E required and E2E Verify succeeded."
+            if (failureMessage) {
+              core.setFailed(failureMessage);
+              return;
+            }
+
+            core.info(description);
