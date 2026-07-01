@@ -39,6 +39,8 @@ var (
   %[1]s adopt analytics dashboard 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace analytics
   # Adopt a DCR provider by name
   %[1]s adopt dcr-provider my-dcr-provider --namespace team-alpha
+  # Adopt an AI Gateway by display name
+  %[1]s adopt ai-gateway my-ai-gateway --namespace team-alpha
   # Adopt an API explicitly via the konnect product
   %[1]s adopt konnect api my-api --namespace team-alpha
 `, meta.CLIName)))
@@ -127,6 +129,12 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(eventGatewayCmd)
+
+	aiGatewayCmd, err := NewDirectAIGatewayCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(aiGatewayCmd)
 
 	orgCmd, err := NewDirectOrganizationCmd()
 	if err != nil {

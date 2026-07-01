@@ -15,6 +15,7 @@ const (
 	explainKindArray      = "array"
 	explainKindObject     = "object"
 	explainKindString     = "string"
+	explainKindInteger    = "integer"
 
 	explainResourceClassTopLevel = "top-level"
 	explainResourceClassChild    = "child"
@@ -971,7 +972,7 @@ func autoExplainValueNode(
 		node.Kind = "boolean"
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		node.Kind = "integer"
+		node.Kind = explainKindInteger
 	case reflect.Float32, reflect.Float64:
 		node.Kind = "number"
 	case reflect.Interface:
@@ -1074,7 +1075,7 @@ func explainLiteralFor(node *ExplainNode, name string) string {
 		default:
 			return "value"
 		}
-	case "integer":
+	case explainKindInteger:
 		switch name {
 		case "port":
 			return "80"
@@ -1724,7 +1725,7 @@ func scaffoldSkippedField(node *ExplainNode, omit map[string]struct{}, skipFirst
 
 func scaffoldLiteral(node *ExplainNode) string {
 	if node == nil {
-		return "null"
+		return jsonNullLiteral
 	}
 	node = scaffoldActiveNode(node)
 	if node.Const != nil {
@@ -1734,7 +1735,7 @@ func scaffoldLiteral(node *ExplainNode) string {
 		return node.Literal
 	}
 	switch node.Kind {
-	case explainKindString, "integer", "number", "boolean":
+	case explainKindString, explainKindInteger, "number", "boolean":
 		return ""
 	case "array":
 		if node.Items != nil {
@@ -1903,14 +1904,14 @@ func explainOneOfBranchesShareKind(branches []*ExplainNode) bool {
 func schemaTypeValue(kind string, nullable bool) any {
 	if kind == "any" || kind == "" {
 		if nullable {
-			return []string{"null"}
+			return []string{jsonNullLiteral}
 		}
 		return nil
 	}
 	if !nullable {
 		return kind
 	}
-	return []string{kind, "null"}
+	return []string{kind, jsonNullLiteral}
 }
 
 func nestedRelationsFor(target ResourceType) []ExplainRelation {

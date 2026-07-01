@@ -1,0 +1,16 @@
+_defaults:
+  kongctl:
+    namespace: federated-ai-gateway
+
+ai_gateway_vaults:
+  - ref: peer-support-env
+    ai_gateway: !ref shared-ai-gateway#id
+    name: peer-support-env
+    type: env
+    description: "Peer-owned environment variable vault"
+    labels:
+      team: support-experience
+      ownership: peer
+    config:
+      prefix: PEER_SUPPORT_
+      base64_decode: false

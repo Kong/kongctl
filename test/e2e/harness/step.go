@@ -369,6 +369,11 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"event-gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
 	"event_gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
 	"eventgateway":       {Method: http.MethodPost, Path: "/v1/event-gateways"},
+	"ai-gateway":         {Method: http.MethodPost, Path: "/v1/ai-gateways"},
+	"ai_gateway":         {Method: http.MethodPost, Path: "/v1/ai-gateways"},
+	"ai-gateways":        {Method: http.MethodPost, Path: "/v1/ai-gateways"},
+	"ai_gateways":        {Method: http.MethodPost, Path: "/v1/ai-gateways"},
+	"aigw":               {Method: http.MethodPost, Path: "/v1/ai-gateways"},
 	"audit-log-destination": {
 		Method:    http.MethodPost,
 		Path:      "/v3/audit-log-destinations",

@@ -1,0 +1,14 @@
+ai_gateways:
+  - ref: ai-gateway-root
+    display_name: "AI Gateway Root E2E"
+    description: "Initial AI Gateway root e2e description"
+    proxy_urls:
+      - host: "ai-gateway-root.example.com"
+        port: 443
+        protocol: "https"
+    labels:
+      owner: "platform"
+      lifecycle: "dev"
+    kongctl:
+      namespace: "ai-gateway-root-e2e"
+      protected: false

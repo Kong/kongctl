@@ -1,0 +1,13 @@
+ai_gateways:
+  - ref: ai-gateway-agent-e2e
+    display_name: "AI Gateway Agent E2E"
+    description: "AI Gateway Agent e2e"
+    proxy_urls:
+      - host: ai-gateway-agent-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    policies: []
+    agents: []

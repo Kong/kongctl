@@ -1,6 +1,10 @@
 package resources
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/kong/kongctl/internal/declarative/tags"
+)
 
 // ResourceType represents the type of a declarative resource
 type ResourceType string
@@ -13,6 +17,16 @@ const (
 	ResourceTypeControlPlane                            ResourceType = "control_plane"
 	ResourceTypeControlPlaneGroup                       ResourceType = "control_plane_group"
 	ResourceTypeAPI                                     ResourceType = "api"
+	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
+	ResourceTypeAIGatewayProvider                       ResourceType = "ai_gateway_provider"
+	ResourceTypeAIGatewayPolicy                         ResourceType = "ai_gateway_policy"
+	ResourceTypeAIGatewayAgent                          ResourceType = "ai_gateway_agent"
+	ResourceTypeAIGatewayConsumer                       ResourceType = "ai_gateway_consumer"
+	ResourceTypeAIGatewayConsumerGroup                  ResourceType = "ai_gateway_consumer_group"
+	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
+	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
+	ResourceTypeAIGatewayVault                          ResourceType = "ai_gateway_vault"
+	ResourceTypeAIGatewayDataPlaneCertificate           ResourceType = "ai_gateway_data_plane_certificate"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
@@ -67,15 +81,31 @@ const (
 )
 
 const (
-	SchemaFieldRef    = "ref"
-	SchemaFieldPortal = "portal"
-	SchemaFieldTeams  = "teams"
+	SchemaFieldRef       = "ref"
+	SchemaFieldPortal    = "portal"
+	SchemaFieldTeams     = "teams"
+	SchemaFieldAIGateway = "ai_gateway"
+	SchemaFieldKongctl   = "kongctl"
+	SchemaFieldID        = "id"
+	SchemaFieldCreatedAt = "created_at"
+	SchemaFieldUpdatedAt = "updated_at"
+	jsonNullLiteral      = "null"
 )
 
 // ResourceRef represents a reference to another resource
 type ResourceRef struct {
 	Kind ResourceType `json:"kind" yaml:"kind"`
 	Ref  string       `json:"ref"  yaml:"ref"`
+}
+
+// NormalizeResourceRef returns the declarative ref for either a plain ref or a
+// deferred !ref placeholder.
+func NormalizeResourceRef(value string) string {
+	ref, _, ok := tags.ParseRefPlaceholder(value)
+	if ok {
+		return ref
+	}
+	return value
 }
 
 // ResourceSet contains all declarative resources from configuration files
@@ -89,6 +119,16 @@ type ResourceSet struct {
 	// ControlPlanes contains control plane configurations
 	ControlPlanes                     []ControlPlaneResource                     `yaml:"control_planes,omitempty"                                 json:"control_planes,omitempty"`                        //nolint:lll
 	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
+	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
+	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_providers,omitempty"                          json:"ai_gateway_providers,omitempty"`                   //nolint:lll
+	AIGatewayPolicies                 []AIGatewayPolicyResource                  `yaml:"ai_gateway_policies,omitempty"                           json:"ai_gateway_policies,omitempty"`                    //nolint:lll
+	AIGatewayAgents                   []AIGatewayAgentResource                   `yaml:"ai_gateway_agents,omitempty"                             json:"ai_gateway_agents,omitempty"`                      //nolint:lll
+	AIGatewayConsumers                []AIGatewayConsumerResource                `yaml:"ai_gateway_consumers,omitempty"                          json:"ai_gateway_consumers,omitempty"`                   //nolint:lll
+	AIGatewayConsumerGroups           []AIGatewayConsumerGroupResource           `yaml:"ai_gateway_consumer_groups,omitempty"                    json:"ai_gateway_consumer_groups,omitempty"`             //nolint:lll
+	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
+	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
+	AIGatewayVaults                   []AIGatewayVaultResource                   `yaml:"ai_gateway_vaults,omitempty"                              json:"ai_gateway_vaults,omitempty"`                     //nolint:lll
+	AIGatewayDataPlaneCertificates    []AIGatewayDataPlaneCertificateResource    `yaml:"ai_gateway_data_plane_certificates,omitempty"              json:"ai_gateway_data_plane_certificates,omitempty"`   //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
@@ -305,6 +345,110 @@ func (rs *ResourceSet) GetCatalogServiceByRef(ref string) *CatalogServiceResourc
 	return nil
 }
 
+// GetAIGatewayByRef returns an AI Gateway resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayByRef(ref string) *AIGatewayResource {
+	ref = NormalizeResourceRef(ref)
+	for i := range rs.AIGateways {
+		if rs.AIGateways[i].GetRef() == ref {
+			return &rs.AIGateways[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayProviderByRef returns an AI Gateway Provider resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayProviderByRef(ref string) *AIGatewayProviderResource {
+	for i := range rs.AIGatewayProviders {
+		if rs.AIGatewayProviders[i].GetRef() == ref {
+			return &rs.AIGatewayProviders[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayPolicyByRef returns an AI Gateway Policy resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayPolicyByRef(ref string) *AIGatewayPolicyResource {
+	for i := range rs.AIGatewayPolicies {
+		if rs.AIGatewayPolicies[i].GetRef() == ref {
+			return &rs.AIGatewayPolicies[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayAgentByRef returns an AI Gateway Agent resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayAgentByRef(ref string) *AIGatewayAgentResource {
+	for i := range rs.AIGatewayAgents {
+		if rs.AIGatewayAgents[i].GetRef() == ref {
+			return &rs.AIGatewayAgents[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayConsumerByRef returns an AI Gateway Consumer resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayConsumerByRef(ref string) *AIGatewayConsumerResource {
+	for i := range rs.AIGatewayConsumers {
+		if rs.AIGatewayConsumers[i].GetRef() == ref {
+			return &rs.AIGatewayConsumers[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayConsumerGroupByRef returns an AI Gateway Consumer Group resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayConsumerGroupByRef(ref string) *AIGatewayConsumerGroupResource {
+	for i := range rs.AIGatewayConsumerGroups {
+		if rs.AIGatewayConsumerGroups[i].GetRef() == ref {
+			return &rs.AIGatewayConsumerGroups[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayModelByRef returns an AI Gateway Model resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayModelByRef(ref string) *AIGatewayModelResource {
+	for i := range rs.AIGatewayModels {
+		if rs.AIGatewayModels[i].GetRef() == ref {
+			return &rs.AIGatewayModels[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayMCPServerByRef returns an AI Gateway MCP Server resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayMCPServerByRef(ref string) *AIGatewayMCPServerResource {
+	for i := range rs.AIGatewayMCPServers {
+		if rs.AIGatewayMCPServers[i].GetRef() == ref {
+			return &rs.AIGatewayMCPServers[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayVaultByRef returns an AI Gateway Vault resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayVaultByRef(ref string) *AIGatewayVaultResource {
+	for i := range rs.AIGatewayVaults {
+		if rs.AIGatewayVaults[i].GetRef() == ref {
+			return &rs.AIGatewayVaults[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayDataPlaneCertificateByRef returns an AI Gateway data plane certificate
+// resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayDataPlaneCertificateByRef(
+	ref string,
+) *AIGatewayDataPlaneCertificateResource {
+	for i := range rs.AIGatewayDataPlaneCertificates {
+		if rs.AIGatewayDataPlaneCertificates[i].GetRef() == ref {
+			return &rs.AIGatewayDataPlaneCertificates[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {
@@ -361,6 +505,194 @@ func (rs *ResourceSet) GetCatalogServicesByNamespace(namespace string) []Catalog
 	for _, svc := range rs.CatalogServices {
 		if GetNamespace(svc.Kongctl) == namespace {
 			filtered = append(filtered, svc)
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewaysByNamespace returns all AI Gateway resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewaysByNamespace(namespace string) []AIGatewayResource {
+	var filtered []AIGatewayResource
+	for _, gateway := range rs.AIGateways {
+		if gateway.IsExternal() {
+			if namespace == NamespaceExternal {
+				filtered = append(filtered, gateway)
+			}
+			continue
+		}
+		if GetNamespace(gateway.Kongctl) == namespace {
+			filtered = append(filtered, gateway)
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayProvidersByNamespace returns all AI Gateway Provider resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayProvidersByNamespace(namespace string) []AIGatewayProviderResource {
+	gatewayByRef := make(map[string]AIGatewayResource)
+	for _, gateway := range rs.GetAIGatewaysByNamespace(namespace) {
+		gatewayByRef[gateway.Ref] = gateway
+	}
+
+	var filtered []AIGatewayProviderResource
+	for _, provider := range rs.AIGatewayProviders {
+		if _, ok := gatewayByRef[NormalizeResourceRef(provider.AIGateway)]; ok {
+			filtered = append(filtered, provider)
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayPoliciesByNamespace returns AI Gateway policy resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayPoliciesByNamespace(namespace string) []AIGatewayPolicyResource {
+	var filtered []AIGatewayPolicyResource
+	for _, policy := range rs.AIGatewayPolicies {
+		if gateway := rs.GetAIGatewayByRef(policy.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, policy)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, policy)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayAgentsByNamespace returns AI Gateway Agent resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayAgentsByNamespace(namespace string) []AIGatewayAgentResource {
+	var filtered []AIGatewayAgentResource
+	for _, agent := range rs.AIGatewayAgents {
+		if gateway := rs.GetAIGatewayByRef(agent.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, agent)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, agent)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayConsumersByNamespace returns AI Gateway Consumer resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayConsumersByNamespace(namespace string) []AIGatewayConsumerResource {
+	var filtered []AIGatewayConsumerResource
+	for _, consumer := range rs.AIGatewayConsumers {
+		if gateway := rs.GetAIGatewayByRef(consumer.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, consumer)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, consumer)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayConsumerGroupsByNamespace returns AI Gateway Consumer Group resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayConsumerGroupsByNamespace(namespace string) []AIGatewayConsumerGroupResource {
+	var filtered []AIGatewayConsumerGroupResource
+	for _, group := range rs.AIGatewayConsumerGroups {
+		if gateway := rs.GetAIGatewayByRef(group.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, group)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, group)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayModelsByNamespace returns AI Gateway model resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayModelsByNamespace(namespace string) []AIGatewayModelResource {
+	var filtered []AIGatewayModelResource
+	for _, model := range rs.AIGatewayModels {
+		if gateway := rs.GetAIGatewayByRef(model.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, model)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, model)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayMCPServersByNamespace returns AI Gateway MCP Server resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayMCPServersByNamespace(namespace string) []AIGatewayMCPServerResource {
+	var filtered []AIGatewayMCPServerResource
+	for _, server := range rs.AIGatewayMCPServers {
+		if gateway := rs.GetAIGatewayByRef(server.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, server)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, server)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayVaultsByNamespace returns AI Gateway Vault resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayVaultsByNamespace(namespace string) []AIGatewayVaultResource {
+	var filtered []AIGatewayVaultResource
+	for _, vault := range rs.AIGatewayVaults {
+		if gateway := rs.GetAIGatewayByRef(vault.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, vault)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, vault)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayDataPlaneCertificatesByNamespace returns AI Gateway data plane certificate
+// resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayDataPlaneCertificatesByNamespace(
+	namespace string,
+) []AIGatewayDataPlaneCertificateResource {
+	var filtered []AIGatewayDataPlaneCertificateResource
+	for _, cert := range rs.AIGatewayDataPlaneCertificates {
+		if gateway := rs.GetAIGatewayByRef(cert.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, cert)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, cert)
+			}
 		}
 	}
 	return filtered
@@ -936,6 +1268,61 @@ func (rs *ResourceSet) GetBackendClustersForGateway(gatewayRef string) []EventGa
 	return clusters
 }
 
+// GetAIGatewayProvidersForGateway returns all providers for a given AI Gateway ref.
+func (rs *ResourceSet) GetAIGatewayProvidersForGateway(gatewayRef string) []AIGatewayProviderResource {
+	var providers []AIGatewayProviderResource
+	for _, provider := range rs.AIGatewayProviders {
+		if NormalizeResourceRef(provider.AIGateway) == gatewayRef {
+			providers = append(providers, provider)
+		}
+	}
+	return providers
+}
+
+// GetAIGatewayPoliciesForGateway returns all AI Gateway Policies for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayPoliciesForGateway(gatewayRef string) []AIGatewayPolicyResource {
+	var policies []AIGatewayPolicyResource
+	for _, policy := range rs.AIGatewayPolicies {
+		if NormalizeResourceRef(policy.AIGateway) == gatewayRef {
+			policies = append(policies, policy)
+		}
+	}
+	return policies
+}
+
+// GetAIGatewayAgentsForGateway returns all AI Gateway Agents for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayAgentsForGateway(gatewayRef string) []AIGatewayAgentResource {
+	var agents []AIGatewayAgentResource
+	for _, agent := range rs.AIGatewayAgents {
+		if NormalizeResourceRef(agent.AIGateway) == gatewayRef {
+			agents = append(agents, agent)
+		}
+	}
+	return agents
+}
+
+// GetAIGatewayConsumersForGateway returns all AI Gateway Consumers for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayConsumersForGateway(gatewayRef string) []AIGatewayConsumerResource {
+	var consumers []AIGatewayConsumerResource
+	for _, consumer := range rs.AIGatewayConsumers {
+		if NormalizeResourceRef(consumer.AIGateway) == gatewayRef {
+			consumers = append(consumers, consumer)
+		}
+	}
+	return consumers
+}
+
+// GetAIGatewayConsumerGroupsForGateway returns all AI Gateway Consumer Groups for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayConsumerGroupsForGateway(gatewayRef string) []AIGatewayConsumerGroupResource {
+	var groups []AIGatewayConsumerGroupResource
+	for _, group := range rs.AIGatewayConsumerGroups {
+		if NormalizeResourceRef(group.AIGateway) == gatewayRef {
+			groups = append(groups, group)
+		}
+	}
+	return groups
+}
+
 // GetVirtualClustersForGateway returns all virtual clusters (nested + root-level) for a given gateway ref
 func (rs *ResourceSet) GetVirtualClustersForGateway(gatewayRef string) []EventGatewayVirtualClusterResource {
 	var clusters []EventGatewayVirtualClusterResource
@@ -1295,4 +1682,51 @@ func (rs *ResourceSet) GetTrustBundlesForGateway(
 	}
 
 	return bundles
+}
+
+// GetAIGatewayModelsForGateway returns all AI Gateway Models for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayModelsForGateway(gatewayRef string) []AIGatewayModelResource {
+	var models []AIGatewayModelResource
+	for _, model := range rs.AIGatewayModels {
+		if NormalizeResourceRef(model.AIGateway) == gatewayRef {
+			models = append(models, model)
+		}
+	}
+	return models
+}
+
+// GetAIGatewayMCPServersForGateway returns all AI Gateway MCP Servers for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayMCPServersForGateway(gatewayRef string) []AIGatewayMCPServerResource {
+	var servers []AIGatewayMCPServerResource
+	for _, server := range rs.AIGatewayMCPServers {
+		if NormalizeResourceRef(server.AIGateway) == gatewayRef {
+			servers = append(servers, server)
+		}
+	}
+	return servers
+}
+
+// GetAIGatewayVaultsForGateway returns all AI Gateway Vaults for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayVaultsForGateway(gatewayRef string) []AIGatewayVaultResource {
+	var vaults []AIGatewayVaultResource
+	for _, vault := range rs.AIGatewayVaults {
+		if NormalizeResourceRef(vault.AIGateway) == gatewayRef {
+			vaults = append(vaults, vault)
+		}
+	}
+	return vaults
+}
+
+// GetAIGatewayDataPlaneCertificatesForGateway returns all AI Gateway data plane
+// certificates for a given gateway ref.
+func (rs *ResourceSet) GetAIGatewayDataPlaneCertificatesForGateway(
+	gatewayRef string,
+) []AIGatewayDataPlaneCertificateResource {
+	var certs []AIGatewayDataPlaneCertificateResource
+	for _, cert := range rs.AIGatewayDataPlaneCertificates {
+		if NormalizeResourceRef(cert.AIGateway) == gatewayRef {
+			certs = append(certs, cert)
+		}
+	}
+	return certs
 }

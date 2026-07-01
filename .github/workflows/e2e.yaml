@@ -12,6 +12,13 @@ permissions:
 on:
   pull_request:
     branches: ['**']
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+      - unlabeled
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
@@ -28,9 +35,10 @@ on:
         description: Konnect environment to target
         type: choice
         options:
-          - production
+          - auto
+          - com
           - tech
-        default: production
+        default: auto
       run_portal_applications:
         description: Run Gmail-backed portal applications scenario
         type: boolean
@@ -56,6 +64,9 @@ jobs:
     outputs:
       required: ${{ steps.detect.outputs.required }}
       konnect_environment: ${{ steps.target.outputs.konnect_environment }}
+      konnect_base_url: ${{ steps.target.outputs.konnect_base_url }}
+      konnect_base_auth_url: ${{ steps.target.outputs.konnect_base_auth_url }}
+      konnect_machine_client_id: ${{ steps.target.outputs.konnect_machine_client_id }}
       orgs_json: ${{ steps.target.outputs.orgs_json }}
     steps:
       - name: Harden Runner
@@ -74,37 +85,91 @@ jobs:
         env:
           DISPATCH_KONNECT_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.konnect_environment || '' }}
           CONFIGURED_KONNECT_ENVIRONMENT: ${{ vars.KONGCTL_E2E_KONNECT_ENV || '' }}
+          PR_HAS_TECH_LABEL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'konnect-env:tech') && 'true' || 'false' }}
           DEFAULT_ORGS_JSON: ${{ vars.KONGCTL_E2E_ORGS_JSON || '' }}
+          COM_ORGS_JSON: ${{ vars.KONGCTL_E2E_COM_ORGS_JSON || '' }}
           PRODUCTION_ORGS_JSON: ${{ vars.KONGCTL_E2E_PRODUCTION_ORGS_JSON || '' }}
           TECH_ORGS_JSON: ${{ vars.KONGCTL_E2E_TECH_ORGS_JSON || '' }}
+          DEFAULT_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || '' }}
+          DEFAULT_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_AUTH_URL || '' }}
+          DEFAULT_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID || '' }}
+          COM_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_COM_KONNECT_BASE_URL || '' }}
+          COM_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_COM_KONNECT_BASE_AUTH_URL || '' }}
+          COM_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_COM_KONNECT_MACHINE_CLIENT_ID || '' }}
+          TECH_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_TECH_KONNECT_BASE_URL || '' }}
+          TECH_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_TECH_KONNECT_BASE_AUTH_URL || '' }}
+          TECH_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_TECH_KONNECT_MACHINE_CLIENT_ID || '' }}
         run: |
           set -euo pipefail
 
-          konnect_environment="${DISPATCH_KONNECT_ENVIRONMENT:-}"
-          if [ -z "${konnect_environment}" ]; then
-            konnect_environment="${CONFIGURED_KONNECT_ENVIRONMENT:-production}"
-          fi
+          normalize_environment() {
+            local value="${1:-}"
+            case "${value}" in
+              ""|auto)
+                printf '%s' ""
+                ;;
+              com|production|prod)
+                printf '%s' "com"
+                ;;
+              tech)
+                printf '%s' "tech"
+                ;;
+              *)
+                echo "::error::Unsupported Konnect environment: ${value}"
+                exit 1
+                ;;
+            esac
+          }
 
-          case "${konnect_environment}" in
-            production|tech)
-              ;;
-            *)
-              echo "::error::Unsupported Konnect environment: ${konnect_environment}"
-              exit 1
-              ;;
-          esac
+          konnect_environment="$(normalize_environment "${DISPATCH_KONNECT_ENVIRONMENT:-auto}")"
+          if [ -z "${konnect_environment}" ]; then
+            if [ "${PR_HAS_TECH_LABEL:-false}" = "true" ]; then
+              konnect_environment="tech"
+            fi
+          fi
+          if [ -z "${konnect_environment}" ]; then
+            konnect_environment="$(normalize_environment "${CONFIGURED_KONNECT_ENVIRONMENT:-}")"
+          fi
+          if [ -z "${konnect_environment}" ]; then
+            konnect_environment="com"
+          fi
 
           orgs_json=""
           if [ "${konnect_environment}" = "tech" ]; then
             orgs_json="${TECH_ORGS_JSON:-}"
           else
-            orgs_json="${PRODUCTION_ORGS_JSON:-}"
+            orgs_json="${COM_ORGS_JSON:-}"
+            if [ -z "${orgs_json}" ]; then
+              orgs_json="${PRODUCTION_ORGS_JSON:-}"
+            fi
           fi
           if [ -z "${orgs_json}" ]; then
             orgs_json="${DEFAULT_ORGS_JSON:-}"
           fi
           if [ -z "${orgs_json}" ]; then
             orgs_json='[{"org_name":"default"}]'
+          fi
+
+          konnect_base_url=""
+          konnect_base_auth_url=""
+          konnect_machine_client_id=""
+          if [ "${konnect_environment}" = "tech" ]; then
+            konnect_base_url="${TECH_KONNECT_BASE_URL:-}"
+            konnect_base_auth_url="${TECH_KONNECT_BASE_AUTH_URL:-}"
+            konnect_machine_client_id="${TECH_KONNECT_MACHINE_CLIENT_ID:-}"
+          else
+            konnect_base_url="${COM_KONNECT_BASE_URL:-}"
+            konnect_base_auth_url="${COM_KONNECT_BASE_AUTH_URL:-}"
+            konnect_machine_client_id="${COM_KONNECT_MACHINE_CLIENT_ID:-}"
+            if [ -z "${konnect_base_url}" ]; then
+              konnect_base_url="${DEFAULT_KONNECT_BASE_URL:-}"
+            fi
+            if [ -z "${konnect_base_auth_url}" ]; then
+              konnect_base_auth_url="${DEFAULT_KONNECT_BASE_AUTH_URL:-}"
+            fi
+            if [ -z "${konnect_machine_client_id}" ]; then
+              konnect_machine_client_id="${DEFAULT_KONNECT_MACHINE_CLIENT_ID:-}"
+            fi
           fi
 
           orgs_json="$(ORGS_JSON="${orgs_json}" python3 - <<'PY'
@@ -122,6 +187,9 @@ jobs:
           )"
 
           echo "konnect_environment=${konnect_environment}" >> "${GITHUB_OUTPUT}"
+          echo "konnect_base_url=${konnect_base_url}" >> "${GITHUB_OUTPUT}"
+          echo "konnect_base_auth_url=${konnect_base_auth_url}" >> "${GITHUB_OUTPUT}"
+          echo "konnect_machine_client_id=${konnect_machine_client_id}" >> "${GITHUB_OUTPUT}"
           echo "orgs_json=${orgs_json}" >> "${GITHUB_OUTPUT}"
 
       - name: Detect whether E2E is required
@@ -216,11 +284,53 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      - name: Configure private module access
+        shell: bash
+        env:
+          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+        run: |
+          set -euo pipefail
+
+          if ! grep -q 'sdk-konnect-go-internal' go.mod; then
+            exit 0
+          fi
+
+          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
+            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
+            exit 1
+          fi
+
+          git config --global \
+            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
+            "https://github.com/"
+          echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
+
       - name: Setup Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
           cache: false
+
+      - name: Use local private SDK module
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            sdk_ref="$(
+              sed -nE 's#^replace github\.com/Kong/sdk-konnect-go => github\.com/Kong/sdk-konnect-go-internal v[^[:space:]]*-([0-9a-f]+)$#\1#p' go.mod
+            )"
+            if [ -z "${sdk_ref}" ]; then
+              echo "::error::Unable to determine sdk-konnect-go-internal ref from go.mod"
+              exit 1
+            fi
+
+            git clone --filter=blob:none \
+              https://github.com/Kong/sdk-konnect-go-internal \
+              .private/sdk-konnect-go-internal
+            git -C .private/sdk-konnect-go-internal checkout --detach "${sdk_ref}"
+            go mod edit -replace=github.com/Kong/sdk-konnect-go=./.private/sdk-konnect-go-internal
+          fi
 
       - name: Run E2E harness tests
         run: |
@@ -241,11 +351,53 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      - name: Configure private module access
+        shell: bash
+        env:
+          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+        run: |
+          set -euo pipefail
+
+          if ! grep -q 'sdk-konnect-go-internal' go.mod; then
+            exit 0
+          fi
+
+          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
+            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
+            exit 1
+          fi
+
+          git config --global \
+            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
+            "https://github.com/"
+          echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
+
       - name: Setup Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
           cache: false
+
+      - name: Use local private SDK module
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            sdk_ref="$(
+              sed -nE 's#^replace github\.com/Kong/sdk-konnect-go => github\.com/Kong/sdk-konnect-go-internal v[^[:space:]]*-([0-9a-f]+)$#\1#p' go.mod
+            )"
+            if [ -z "${sdk_ref}" ]; then
+              echo "::error::Unable to determine sdk-konnect-go-internal ref from go.mod"
+              exit 1
+            fi
+
+            git clone --filter=blob:none \
+              https://github.com/Kong/sdk-konnect-go-internal \
+              .private/sdk-konnect-go-internal
+            git -C .private/sdk-konnect-go-internal checkout --detach "${sdk_ref}"
+            go mod edit -replace=github.com/Kong/sdk-konnect-go=./.private/sdk-konnect-go-internal
+          fi
 
       - name: Build kongctl
         run: make build-ci
@@ -288,9 +440,9 @@ jobs:
       KONGCTL_E2E_TEST_TIMEOUT: ${{ vars.KONGCTL_E2E_TEST_TIMEOUT || '55m' }}
       KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
       KONGCTL_E2E_KONNECT_ENV: ${{ needs.e2e-needed.outputs.konnect_environment }}
-      KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || '' }}
-      KONGCTL_E2E_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_AUTH_URL || '' }}
-      KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID || '' }}
+      KONGCTL_E2E_KONNECT_BASE_URL: ${{ needs.e2e-needed.outputs.konnect_base_url }}
+      KONGCTL_E2E_KONNECT_BASE_AUTH_URL: ${{ needs.e2e-needed.outputs.konnect_base_auth_url }}
+      KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID: ${{ needs.e2e-needed.outputs.konnect_machine_client_id }}
       # Reset is enabled by default in the harness; set explicitly for clarity
       KONGCTL_E2E_RESET: "1"
       # Set HTTP timeout vars to 0s/default/off to disable kongctl/harness application-level timeouts
@@ -344,12 +496,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      # Optional: Un-comment if you need private module access
-      # - name: Configure private module access
-      #   run: git config --global url.https://$GITHUB_TOKEN@github.com/.insteadOf https://github.com/
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
-
       - name: Setup deck
         uses: kong/setup-deck@6ea0a466ee5826ddb531cbe851ba8e5a77a0e041 # v1.7.1
 
@@ -383,7 +529,7 @@ jobs:
 
           regional_url="${KONGCTL_E2E_KONNECT_BASE_URL:-}"
           global_url="${KONGCTL_E2E_KONNECT_BASE_AUTH_URL:-}"
-          konnect_env="${KONGCTL_E2E_KONNECT_ENV:-production}"
+          konnect_env="${KONGCTL_E2E_KONNECT_ENV:-com}"
 
           if [ -z "${regional_url}" ]; then
             if [ "${konnect_env}" = "tech" ]; then
@@ -565,6 +711,7 @@ jobs:
           nonzero_exit_rows="$(mktemp)"
           expected="$(mktemp)"
           actual="$(mktemp)"
+          excluded="$(mktemp)"
           indices="$(mktemp)"
           records="$(mktemp)"
           selected_records="$(mktemp)"
@@ -600,6 +747,7 @@ jobs:
           fi
 
           : > "${actual}"
+          : > "${excluded}"
           : > "${indices}"
           : > "${records}"
           : > "${selected_records}"
@@ -622,6 +770,11 @@ jobs:
             fi
 
             scenario_rows="$(tail -n +4 "${manifest}" | sed '/^$/d' | wc -l | tr -d ' ')"
+            excluded_file="$(dirname "${manifest}")/excluded-scenarios.txt"
+            if [ -f "${excluded_file}" ]; then
+              cat "${excluded_file}" >> "${excluded}"
+            fi
+
             org_name="$(sed -n 's/^org_name=//p' "${results}")"
             if [ -z "${org_name}" ]; then
               artifact_name="$(basename "$(dirname "$(dirname "${manifest}")")")"
@@ -713,6 +866,12 @@ jobs:
               printf '%s\t%s\n' "${org_name}" "${scenario_name}" >> "${failed_rows}"
             done
           done < "${selected_records}"
+
+          sort -u "${excluded}" -o "${excluded}"
+          if [ -s "${excluded}" ]; then
+            comm -23 "${expected}" "${excluded}" > "${expected}.filtered"
+            mv "${expected}.filtered" "${expected}"
+          fi
 
           manifest_count="$(wc -l < "${indices}" | tr -d ' ')"
           if [ "${manifest_count}" -ne "${total}" ]; then

@@ -44,6 +44,9 @@ const (
 	// FieldLabels contains user-managed labels
 	FieldLabels = "labels"
 
+	// FieldManagedBy contains tool ownership metadata for resources that expose managed_by
+	FieldManagedBy = "managed_by"
+
 	// FieldPreservedLabels contains labels preserved during resource recreation
 	FieldPreservedLabels = "preserved_labels"
 
@@ -86,6 +89,7 @@ const (
 	FieldControlPlaneName             = "control_plane_name"
 	FieldControlPlaneRef              = "control_plane_ref"
 	FieldDefaultApplicationStrategyID = "default_application_auth_strategy_id"
+	FieldAIGatewayID                  = "ai_gateway_id"
 	FieldDCRProvider                  = "dcr_provider"
 	FieldEntityID                     = "entity_id"
 	FieldEntityRegion                 = "entity_region"
@@ -182,6 +186,12 @@ const (
 	FieldMinRuntimeVersion                          = "min_runtime_version"
 	FieldPorts                                      = "ports"
 	FieldProxyURLs                                  = "proxy_urls"
+	FieldFormats                                    = "formats"
+	FieldTargets                                    = "targets"
+	FieldTargetModels                               = "target_models"
+	FieldPolicies                                   = "policies"
+	FieldCapabilities                               = "capabilities"
+	FieldACLS                                       = "acls"
 	FieldTLS                                        = "tls"
 	FieldTopicAliases                               = "topic_aliases"
 	FieldDefaultVirtualClusterTarget                = "default_virtual_cluster_target"
@@ -196,6 +206,16 @@ const (
 	ResourceTypeDCRProvider                      = string(resources.ResourceTypeDCRProvider)
 	ResourceTypeControlPlane                     = string(resources.ResourceTypeControlPlane)
 	ResourceTypeAPI                              = string(resources.ResourceTypeAPI)
+	ResourceTypeAIGateway                        = string(resources.ResourceTypeAIGateway)
+	ResourceTypeAIGatewayProvider                = string(resources.ResourceTypeAIGatewayProvider)
+	ResourceTypeAIGatewayPolicy                  = string(resources.ResourceTypeAIGatewayPolicy)
+	ResourceTypeAIGatewayAgent                   = string(resources.ResourceTypeAIGatewayAgent)
+	ResourceTypeAIGatewayConsumer                = string(resources.ResourceTypeAIGatewayConsumer)
+	ResourceTypeAIGatewayConsumerGroup           = string(resources.ResourceTypeAIGatewayConsumerGroup)
+	ResourceTypeAIGatewayModel                   = string(resources.ResourceTypeAIGatewayModel)
+	ResourceTypeAIGatewayMCPServer               = string(resources.ResourceTypeAIGatewayMCPServer)
+	ResourceTypeAIGatewayVault                   = string(resources.ResourceTypeAIGatewayVault)
+	ResourceTypeAIGatewayDataPlaneCertificate    = string(resources.ResourceTypeAIGatewayDataPlaneCertificate)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)

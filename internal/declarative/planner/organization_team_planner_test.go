@@ -283,7 +283,7 @@ func assignedRoleCollection(roles ...kkComps.AssignedRole) *kkComps.AssignedRole
 }
 
 func assignedRole(id, roleName, entityID, entityTypeName, entityRegion string) kkComps.AssignedRole {
-	region := kkComps.AssignedRoleEntityRegion(entityRegion)
+	region := kkComps.EntityRegion(entityRegion)
 	return kkComps.AssignedRole{
 		ID:             &id,
 		RoleName:       &roleName,
@@ -406,6 +406,8 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 		teamID    = "team-123"
 		teamName  = "Platform Engineering"
 	)
+	teamIDValue := teamID
+	teamNameValue := teamName
 
 	user := resources.OrganizationUserResource{Ref: "alice", Email: "alice@example.com"}
 	user.SetKonnectID(userID)
@@ -436,8 +438,8 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 				queriedUserIDs = append(queriedUserIDs, req.UserID)
 				return &kkOps.ListUserTeamsResponse{
 					TeamCollection: teamCollection(kkComps.Team{
-						ID:   new(teamID),
-						Name: new(teamName),
+						ID:   &teamIDValue,
+						Name: &teamNameValue,
 					}),
 				}, nil
 			},
@@ -453,7 +455,7 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 		namespace,
 		nil,
 		map[string]state.OrganizationTeam{
-			teamName: {Team: kkComps.Team{ID: new(teamID), Name: new(teamName)}},
+			teamName: {Team: kkComps.Team{ID: &teamIDValue, Name: &teamNameValue}},
 		},
 		plan,
 	)
@@ -474,6 +476,8 @@ func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelector
 		teamID    = "team-123"
 		teamName  = "Platform Engineering"
 	)
+	teamIDValue := teamID
+	teamNameValue := teamName
 
 	account := resources.OrganizationSystemAccountResource{Ref: "ci-bot", Name: "CI Bot"}
 	account.SetKonnectID(accountID)
@@ -504,8 +508,8 @@ func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelector
 				queriedAccountIDs = append(queriedAccountIDs, req.AccountID)
 				return &kkOps.GetSystemAccountsAccountIDTeamsResponse{
 					TeamCollection: teamCollection(kkComps.Team{
-						ID:   new(teamID),
-						Name: new(teamName),
+						ID:   &teamIDValue,
+						Name: &teamNameValue,
 					}),
 				}, nil
 			},
@@ -521,7 +525,7 @@ func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelector
 		namespace,
 		nil,
 		map[string]state.OrganizationTeam{
-			teamName: {Team: kkComps.Team{ID: new(teamID), Name: new(teamName)}},
+			teamName: {Team: kkComps.Team{ID: &teamIDValue, Name: &teamNameValue}},
 		},
 		plan,
 	)

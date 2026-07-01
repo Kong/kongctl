@@ -352,25 +352,25 @@ func TestLoader_validateAPIs(t *testing.T) {
 						{
 							Ref: "impl1",
 							APIImplementation: kkComps.APIImplementation{
-								ServiceReference: &kkComps.ServiceReference{
+								ServiceReferenceInput: &kkComps.ServiceReferenceInput{
 									Service: &kkComps.APIImplementationService{
 										ID:             "12345678-1234-1234-1234-123456789012",
 										ControlPlaneID: "dummy-cp", // Use dummy value for required field
 									},
 								},
-								Type: kkComps.APIImplementationTypeServiceReference,
+								Type: kkComps.APIImplementationTypeServiceReferenceInput,
 							},
 						},
 						{
 							Ref: "impl1",
 							APIImplementation: kkComps.APIImplementation{
-								ServiceReference: &kkComps.ServiceReference{
+								ServiceReferenceInput: &kkComps.ServiceReferenceInput{
 									Service: &kkComps.APIImplementationService{
 										ID:             "12345678-1234-1234-1234-123456789012",
 										ControlPlaneID: "dummy-cp",
 									},
 								},
-								Type: kkComps.APIImplementationTypeServiceReference,
+								Type: kkComps.APIImplementationTypeServiceReferenceInput,
 							},
 						},
 					},
@@ -470,6 +470,63 @@ func TestLoader_validateAPIs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoaderValidateAIGatewayProvidersRequiresParent(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{Ref: "ai-gateway"},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				DisplayName: "AI Gateway",
+			},
+		}},
+		AIGatewayProviders: []resources.AIGatewayProviderResource{{
+			BaseResource: resources.BaseResource{Ref: "openai-provider"},
+			Name:         "openai-provider",
+			Type:         "openai",
+			DisplayName:  "OpenAI Provider",
+			Config:       map[string]any{"auth": map[string]any{"type": "basic"}},
+		}},
+	}
+
+	err := loader.validateResourceSet(rs)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "must specify ai_gateway")
+}
+
+func TestLoaderValidateAIGatewayProvidersRejectsDuplicateNamesPerGateway(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{Ref: "ai-gateway"},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				DisplayName: "AI Gateway",
+			},
+		}},
+		AIGatewayProviders: []resources.AIGatewayProviderResource{
+			{
+				BaseResource: resources.BaseResource{Ref: "openai-provider-1"},
+				AIGateway:    "ai-gateway",
+				Name:         "openai-provider",
+				Type:         "openai",
+				DisplayName:  "OpenAI Provider",
+				Config:       map[string]any{"auth": map[string]any{"type": "basic"}},
+			},
+			{
+				BaseResource: resources.BaseResource{Ref: "openai-provider-2"},
+				AIGateway:    "ai-gateway",
+				Name:         "openai-provider",
+				Type:         "openai",
+				DisplayName:  "OpenAI Provider Duplicate",
+				Config:       map[string]any{"auth": map[string]any{"type": "basic"}},
+			},
+		},
+	}
+
+	err := loader.validateResourceSet(rs)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "duplicate ai_gateway_provider name")
 }
 
 func TestLoader_validateCrossReferences(t *testing.T) {

@@ -30,13 +30,54 @@ jobs:
           egress-policy: audit
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - run: git config --global url.https://$GITHUB_TOKEN@github.com/.insteadOf https://github.com/
+
+      - name: Configure private module access
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+        run: |
+          set -euo pipefail
+
+          if ! grep -q 'sdk-konnect-go-internal' go.mod; then
+            exit 0
+          fi
+
+          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
+            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
+            exit 1
+          fi
+
+          git config --global \
+            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
+            "https://github.com/"
+          echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
+
       - name: Setup go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
+
+      - name: Use local private SDK module
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            sdk_ref="$(
+              sed -nE 's#^replace github\.com/Kong/sdk-konnect-go => github\.com/Kong/sdk-konnect-go-internal v[^[:space:]]*-([0-9a-f]+)$#\1#p' go.mod
+            )"
+            if [ -z "${sdk_ref}" ]; then
+              echo "::error::Unable to determine sdk-konnect-go-internal ref from go.mod"
+              exit 1
+            fi
+
+            git clone --filter=blob:none \
+              https://github.com/Kong/sdk-konnect-go-internal \
+              .private/sdk-konnect-go-internal
+            git -C .private/sdk-konnect-go-internal checkout --detach "${sdk_ref}"
+            go mod edit -replace=github.com/Kong/sdk-konnect-go=./.private/sdk-konnect-go-internal
+          fi
+
       - name: Install installer test tools
         run: |
           sudo apt-get update

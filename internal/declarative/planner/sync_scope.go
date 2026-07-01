@@ -53,6 +53,7 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	addRootIfPresent(scope, resources.ResourceTypeDCRProvider, len(rs.DCRProviders))
 	addRootIfPresent(scope, resources.ResourceTypeControlPlane, len(rs.ControlPlanes))
 	addRootIfPresent(scope, resources.ResourceTypeCatalogService, len(rs.CatalogServices))
+	addRootIfPresent(scope, resources.ResourceTypeAIGateway, len(rs.AIGateways))
 	addRootIfPresent(scope, resources.ResourceTypeDashboard, len(rs.Dashboards))
 	addRootIfPresent(scope, resources.ResourceTypeAPI, len(rs.APIs))
 	addRootIfPresent(scope, resources.ResourceTypeEventGatewayControlPlane, len(rs.EventGatewayControlPlanes))
@@ -77,8 +78,8 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	for _, document := range rs.APIDocuments {
 		scope.AddChild(resources.ResourceTypeAPI, document.API, resources.ResourceTypeAPIDocument)
 	}
-
 	addPortalChildScopes(scope, rs)
+	addAIGatewayChildScopes(scope, rs)
 	addEventGatewayChildScopes(scope, rs)
 	addOrganizationChildScopes(scope, rs)
 }
@@ -143,6 +144,72 @@ func addPortalChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet)
 	}
 	for _, child := range rs.PortalAuditLogWebhooks {
 		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAuditLogWebhook)
+	}
+}
+
+func addAIGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
+	for _, child := range rs.AIGatewayProviders {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayProvider,
+		)
+	}
+	for _, child := range rs.AIGatewayPolicies {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayPolicy,
+		)
+	}
+	for _, child := range rs.AIGatewayAgents {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayAgent,
+		)
+	}
+	for _, child := range rs.AIGatewayConsumers {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayConsumer,
+		)
+	}
+	for _, child := range rs.AIGatewayConsumerGroups {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayConsumerGroup,
+		)
+	}
+	for _, child := range rs.AIGatewayModels {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayModel,
+		)
+	}
+	for _, child := range rs.AIGatewayMCPServers {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayMCPServer,
+		)
+	}
+	for _, child := range rs.AIGatewayVaults {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayVault,
+		)
+	}
+	for _, child := range rs.AIGatewayDataPlaneCertificates {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayDataPlaneCertificate,
+		)
 	}
 }
 
@@ -292,6 +359,7 @@ func syncRootParentType(rt resources.ResourceType) bool {
 	case resources.ResourceTypeAPI,
 		resources.ResourceTypePortal,
 		resources.ResourceTypeControlPlane,
+		resources.ResourceTypeAIGateway,
 		resources.ResourceTypeEventGatewayControlPlane,
 		resources.ResourceTypeOrganizationTeam:
 		return true

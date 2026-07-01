@@ -190,6 +190,88 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.AIGateways {
+		if err := resolveResourceFields(ctx, &rs.AIGateways[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway %s: %w", rs.AIGateways[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.AIGatewayProviders {
+		if err := resolveResourceFields(ctx, &rs.AIGatewayProviders[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway provider %s: %w", rs.AIGatewayProviders[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.AIGatewayPolicies {
+		if err := resolveResourceFields(ctx, &rs.AIGatewayPolicies[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway policy %s: %w", rs.AIGatewayPolicies[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.AIGatewayAgents {
+		if err := resolveResourceFields(ctx, &rs.AIGatewayAgents[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway agent %s: %w", rs.AIGatewayAgents[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.AIGatewayConsumers {
+		if err := resolveResourceFields(ctx, &rs.AIGatewayConsumers[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway consumer %s: %w", rs.AIGatewayConsumers[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.AIGatewayConsumerGroups {
+		err := resolveResourceFields(ctx, &rs.AIGatewayConsumerGroups[i], rs, resolver, resolutionPath, logger)
+		if err != nil {
+			return fmt.Errorf("resolving AI gateway consumer group %s: %w", rs.AIGatewayConsumerGroups[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.AIGatewayModels {
+		if err := resolveResourceFields(ctx, &rs.AIGatewayModels[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway model %s: %w", rs.AIGatewayModels[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.AIGatewayMCPServers {
+		if err := resolveResourceFields(ctx, &rs.AIGatewayMCPServers[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway MCP server %s: %w", rs.AIGatewayMCPServers[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.AIGatewayVaults {
+		if err := resolveResourceFields(ctx, &rs.AIGatewayVaults[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway vault %s: %w", rs.AIGatewayVaults[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.AIGatewayDataPlaneCertificates {
+		if err := resolveResourceFields(
+			ctx,
+			&rs.AIGatewayDataPlaneCertificates[i],
+			rs,
+			resolver,
+			resolutionPath,
+			logger,
+		); err != nil {
+			return fmt.Errorf(
+				"resolving AI gateway data plane certificate %s: %w",
+				rs.AIGatewayDataPlaneCertificates[i].GetRef(),
+				err,
+			)
+		}
+		processCount++
+	}
+
 	// Process child resources (PortalPages, PortalSnippets, etc.)
 	for i := range rs.PortalPages {
 		if err := resolveResourceFields(ctx, &rs.PortalPages[i], rs, resolver, resolutionPath, logger); err != nil {
@@ -311,7 +393,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	implCount := len(rs.APIImplementations)
 	implMissingService := 0
 	for i := range rs.APIImplementations {
-		if rs.APIImplementations[i].ServiceReference.GetService() == nil {
+		if rs.APIImplementations[i].ServiceReferenceInput == nil ||
+			rs.APIImplementations[i].ServiceReferenceInput.GetService() == nil {
 			implMissingService++
 		}
 	}

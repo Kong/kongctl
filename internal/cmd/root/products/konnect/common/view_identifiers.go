@@ -5,6 +5,17 @@ package common
 const (
 	ViewParentAPI                           = "api"
 	ViewParentAnalyticsDashboard            = "analytics-dashboard"
+	ViewParentAIGateway                     = "ai-gateway"
+	ViewParentAIGatewayProvider             = "ai-gateway-provider"
+	ViewParentAIGatewayPolicy               = "ai-gateway-policy"
+	ViewParentAIGatewayAgent                = "ai-gateway-agent"
+	ViewParentAIGatewayConsumer             = "ai-gateway-consumer"
+	ViewParentAIGatewayConsumerGroup        = "ai-gateway-consumer-group"
+	ViewParentAIGatewayModel                = "ai-gateway-model"
+	ViewParentAIGatewayMCPServer            = "ai-gateway-mcp-server"
+	ViewParentAIGatewayVault                = "ai-gateway-vault"
+	ViewParentAIGatewayNode                 = "ai-gateway-node"
+	ViewParentAIGatewayDataPlaneCertificate = "ai-gateway-data-plane-certificate"
 	ViewParentAPIDocument                   = "api-document"
 	ViewParentAPIImplementation             = "api-implementation"
 	ViewParentAPIPublication                = "api-publication"
@@ -51,6 +62,7 @@ const (
 const (
 	ViewFieldApplications          = "applications"
 	ViewFieldAuthSettings          = "auth-settings"
+	ViewFieldAgents                = "agents"
 	ViewFieldBackendClusters       = "backend-clusters"
 	ViewFieldClusterPolicies       = "cluster-policies"
 	ViewFieldConsumePolicies       = "consume-policies"
@@ -63,10 +75,14 @@ const (
 	ViewFieldIdentityProviders     = "identity-providers"
 	ViewFieldImplementations       = "implementations"
 	ViewFieldListeners             = "listeners"
+	ViewFieldMCPServers            = "mcp-servers"
+	ViewFieldModels                = "models"
+	ViewFieldNodes                 = "nodes"
 	ViewFieldPages                 = "pages"
 	ViewFieldPlugins               = "plugins"
 	ViewFieldPolicies              = "policies"
 	ViewFieldProducePolicies       = "produce-policies"
+	ViewFieldProviders             = "providers"
 	ViewFieldPublications          = "publications"
 	ViewFieldRegistrations         = "registrations"
 	ViewFieldRoutes                = "routes"
@@ -85,11 +101,13 @@ const (
 	ViewFieldUsers                 = "users"
 	ViewFieldVersions              = "versions"
 	ViewFieldVirtualClusters       = "virtual-clusters"
+	ViewFieldVaults                = "vaults"
 )
 
 // View resource selectors used by the Konnect navigator.
 const (
 	ViewResourceAPIs            = "apis"
+	ViewResourceAIGateways      = "ai-gateways"
 	ViewResourceAuthStrategies  = "auth-strategies"
 	ViewResourceCatalogServices = "catalog-services"
 	ViewResourceControlPlanes   = "control-planes"
@@ -99,6 +117,8 @@ const (
 	ViewResourcePortals         = "portals"
 
 	ViewAliasAPIs                      = "apis"
+	ViewAliasAIGateways                = "ai-gateways"
+	ViewAliasAIGatewayShort            = "aigw"
 	ViewAliasApplicationAuthStrategies = "application-auth-strategies"
 	ViewAliasAuthStrategies            = "auth-strategies"
 	ViewAliasCatalog                   = "catalog"

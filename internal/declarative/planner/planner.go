@@ -73,6 +73,7 @@ type Planner struct {
 	dcrProviderPlanner              DCRProviderPlanner
 	apiPlanner                      APIPlanner
 	catalogServicePlanner           CatalogServicePlanner
+	aiGatewayPlanner                AIGatewayPlanner
 	dashboardPlanner                DashboardPlanner
 	eventGatewayControlPlanePlanner EGWControlPlanePlanner
 	organizationTeamPlanner         OrganizationTeamPlanner
@@ -123,6 +124,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
 	p.dcrProviderPlanner = NewDCRProviderPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
+	p.aiGatewayPlanner = NewAIGatewayPlanner(base)
 	p.dashboardPlanner = NewDashboardPlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
 	p.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
@@ -230,6 +232,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.dcrProviderPlanner = NewDCRProviderPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
+		namespacePlanner.aiGatewayPlanner = NewAIGatewayPlanner(base)
 		namespacePlanner.dashboardPlanner = NewDashboardPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
@@ -319,6 +322,16 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 				namespacePlan,
 			); err != nil {
 				return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
+			}
+		}
+
+		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeAIGateway) {
+			if err := namespacePlanner.aiGatewayPlanner.PlanChanges(
+				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.aiGatewayPlanner), ""),
+				plannerCtx,
+				namespacePlan,
+			); err != nil {
+				return nil, fmt.Errorf("failed to plan AI Gateway changes for namespace %s: %w", namespace, err)
 			}
 		}
 
@@ -903,6 +916,10 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve catalog service identities: %w", err)
 	}
 
+	if err := p.resolveAIGatewayIdentities(ctx, rs.AIGateways); err != nil {
+		return fmt.Errorf("failed to resolve AI Gateway identities: %w", err)
+	}
+
 	// Resolve API identities
 	if err := p.resolveAPIIdentities(ctx, rs.APIs); err != nil {
 		return fmt.Errorf("failed to resolve API identities: %w", err)
@@ -964,6 +981,179 @@ func (p *Planner) resolveCatalogServiceIdentities(
 	}
 
 	return nil
+}
+
+// resolveAIGatewayIdentities resolves Konnect IDs for AI Gateway resources.
+func (p *Planner) resolveAIGatewayIdentities(ctx context.Context, gateways []resources.AIGatewayResource) error {
+	var (
+		managedByDisplayName map[string]*state.AIGateway
+		managedLoaded        bool
+		gatewayByID          map[string]*state.AIGateway
+		gatewayByDisplayName map[string][]*state.AIGateway
+		gatewayByName        map[string][]*state.AIGateway
+		allLoaded            bool
+	)
+
+	loadManagedAIGateways := func() error {
+		if managedLoaded {
+			return nil
+		}
+
+		currentGateways, err := p.listManagedAIGateways(ctx, []string{"*"})
+		if err != nil {
+			return err
+		}
+
+		managedByDisplayName = make(map[string]*state.AIGateway, len(currentGateways))
+		for i := range currentGateways {
+			current := &currentGateways[i]
+			if current.DisplayName == "" {
+				continue
+			}
+			if _, exists := managedByDisplayName[current.DisplayName]; !exists {
+				managedByDisplayName[current.DisplayName] = current
+			}
+		}
+
+		managedLoaded = true
+		return nil
+	}
+
+	loadAllAIGateways := func() error {
+		if allLoaded {
+			return nil
+		}
+
+		currentGateways, err := p.client.ListAllAIGateways(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list AI Gateways for external lookup: %w", err)
+		}
+
+		gatewayByID = make(map[string]*state.AIGateway, len(currentGateways))
+		gatewayByDisplayName = make(map[string][]*state.AIGateway)
+		gatewayByName = make(map[string][]*state.AIGateway)
+		for i := range currentGateways {
+			current := &currentGateways[i]
+			gatewayByID[current.ID] = current
+			if current.DisplayName != "" {
+				gatewayByDisplayName[current.DisplayName] = append(gatewayByDisplayName[current.DisplayName], current)
+			}
+			if current.Name != "" {
+				gatewayByName[current.Name] = append(gatewayByName[current.Name], current)
+			}
+		}
+
+		allLoaded = true
+		return nil
+	}
+
+	for i := range gateways {
+		gateway := &gateways[i]
+
+		if gateway.GetKonnectID() != "" {
+			continue
+		}
+
+		if gateway.IsExternal() {
+			if err := loadAllAIGateways(); err != nil {
+				return err
+			}
+
+			match, err := matchExternalAIGateway(gateway, gatewayByID, gatewayByDisplayName, gatewayByName)
+			if err != nil {
+				return err
+			}
+
+			gateway.SetKonnectID(match.ID)
+			if gateway.DisplayName == "" {
+				gateway.DisplayName = match.DisplayName
+			}
+
+			p.logger.Debug(
+				"Resolved external AI Gateway",
+				slog.String("ref", gateway.GetRef()),
+				slog.String("id", gateway.GetKonnectID()),
+				slog.String("display_name", gateway.DisplayName),
+			)
+			continue
+		}
+
+		if gateway.DisplayName == "" {
+			continue
+		}
+
+		if err := loadManagedAIGateways(); err != nil {
+			if state.IsAPIClientError(err) {
+				continue
+			}
+			return fmt.Errorf("failed to list managed AI Gateways: %w", err)
+		}
+
+		if current, ok := managedByDisplayName[gateway.DisplayName]; ok {
+			gateway.TryMatchKonnectResource(current)
+		}
+	}
+
+	return nil
+}
+
+func matchExternalAIGateway(
+	gateway *resources.AIGatewayResource,
+	gatewayByID map[string]*state.AIGateway,
+	gatewayByDisplayName map[string][]*state.AIGateway,
+	gatewayByName map[string][]*state.AIGateway,
+) (*state.AIGateway, error) {
+	if gateway.External == nil {
+		return nil, fmt.Errorf("external ai_gateway %s: invalid _external configuration", gateway.GetRef())
+	}
+
+	if gateway.External.ID != "" {
+		match := gatewayByID[gateway.External.ID]
+		if match == nil {
+			return nil, fmt.Errorf("external ai_gateway %s: not found with id %s", gateway.GetRef(), gateway.External.ID)
+		}
+		return match, nil
+	}
+
+	if gateway.External.Selector == nil {
+		return nil, fmt.Errorf("external ai_gateway %s: invalid _external configuration", gateway.GetRef())
+	}
+
+	matchFields := gateway.External.Selector.MatchFields
+	if displayName, ok := matchFields[FieldDisplayName]; ok {
+		return singleExternalAIGatewayMatch(
+			gateway.GetRef(),
+			FieldDisplayName,
+			displayName,
+			gatewayByDisplayName[displayName],
+		)
+	}
+	if name, ok := matchFields[FieldName]; ok {
+		return singleExternalAIGatewayMatch(gateway.GetRef(), FieldName, name, gatewayByName[name])
+	}
+
+	return nil, fmt.Errorf("external ai_gateway %s: selector supports 'display_name' or 'name' fields", gateway.GetRef())
+}
+
+func singleExternalAIGatewayMatch(
+	ref string,
+	field string,
+	value string,
+	matches []*state.AIGateway,
+) (*state.AIGateway, error) {
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("external ai_gateway %s: no AI Gateway found with %s %q", ref, field, value)
+	}
+	if len(matches) > 1 {
+		return nil, fmt.Errorf(
+			"external ai_gateway %s: selector matched %d AI Gateways for %s %q",
+			ref,
+			len(matches),
+			field,
+			value,
+		)
+	}
+	return matches[0], nil
 }
 
 // resolveAPIIdentities resolves Konnect IDs for API resources
@@ -1537,7 +1727,7 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 
 	for i := range rs.APIImplementations {
 		impl := &rs.APIImplementations[i]
-		service := impl.ServiceReference.GetService()
+		service := impl.ServiceReferenceInput.GetService()
 		if service == nil {
 			p.logger.Debug(
 				"API implementation missing service reference before normalization",
@@ -1556,7 +1746,7 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 		if err := p.normalizeAPIImplementationService(impl, serviceByRef, controlPlaneByRef); err != nil {
 			return err
 		}
-		service = impl.ServiceReference.GetService()
+		service = impl.ServiceReferenceInput.GetService()
 		if service == nil {
 			p.logger.Debug(
 				"API implementation missing service reference after normalization",
@@ -1582,7 +1772,7 @@ func (p *Planner) normalizeAPIImplementationService(
 	serviceByRef map[string]*resources.GatewayServiceResource,
 	controlPlaneByRef map[string]*resources.ControlPlaneResource,
 ) error {
-	if impl.ServiceReference == nil {
+	if impl.ServiceReferenceInput == nil {
 		p.logger.Debug(
 			"API implementation has nil service reference; skipping normalization",
 			slog.String("api_implementation_ref", impl.GetRef()),
@@ -1591,7 +1781,7 @@ func (p *Planner) normalizeAPIImplementationService(
 		return nil
 	}
 
-	service := impl.ServiceReference.GetService()
+	service := impl.ServiceReferenceInput.GetService()
 	if service == nil {
 		p.logger.Debug(
 			"API implementation has nil service; skipping normalization",
@@ -2174,6 +2364,7 @@ func (p *Planner) resolveAuthStrategyIdentities(
 func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	namespaceSet := make(map[string]bool)
 	hasExternalPortals := false
+	hasExternalAIGateways := false
 	hasExternalOrganizationTeams := false
 
 	// Extract namespaces from parent resources
@@ -2193,6 +2384,15 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, svc := range rs.CatalogServices {
 		ns := resources.GetNamespace(svc.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, gateway := range rs.AIGateways {
+		if gateway.IsExternal() {
+			hasExternalAIGateways = true
+			continue
+		}
+		ns := resources.GetNamespace(gateway.Kongctl)
 		namespaceSet[ns] = true
 	}
 
@@ -2249,7 +2449,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	// Sort for consistent processing order
 	sort.Strings(namespaces)
 
-	if hasExternalPortals || hasExternalOrganizationTeams {
+	if hasExternalPortals || hasExternalAIGateways || hasExternalOrganizationTeams {
 		namespaces = append(namespaces, resources.NamespaceExternal)
 	}
 

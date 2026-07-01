@@ -61,6 +61,11 @@ func Test_Scenarios(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse KONGCTL_E2E_ORGS_JSON: %v", err)
 	}
+	validateEnvs := shouldValidateScenarioEnvironments(
+		os.Getenv("KONGCTL_E2E_KONNECT_ENV"),
+		shard,
+		allowedEnvs,
+	)
 
 	selected, err := selectScenariosWithConfig(scenarios, scenarioSelectionConfig{
 		Filter:       filt,
@@ -68,13 +73,14 @@ func Test_Scenarios(t *testing.T) {
 		CurrentEnv:   os.Getenv("KONGCTL_E2E_MATRIX_ORG"),
 		AllowedEnvs:  allowedEnvs,
 		Assignments:  assignments,
-		ValidateEnvs: shard.Enabled && len(allowedEnvs) > 0,
+		ValidateEnvs: validateEnvs,
 		EnforceEnv:   shard.Enabled,
 	})
 	if err != nil {
 		t.Fatalf("select scenarios: %v", err)
 	}
-	if err := writeScenarioShardManifest(os.Getenv("KONGCTL_E2E_ARTIFACTS_DIR"), shard, selected); err != nil {
+	excluded := missingAssignedEnvironmentScenarios(scenarios, assignments, allowedEnvs, validateEnvs)
+	if err := writeScenarioShardManifest(os.Getenv("KONGCTL_E2E_ARTIFACTS_DIR"), shard, selected, excluded); err != nil {
 		t.Fatalf("write shard manifest: %v", err)
 	}
 
