@@ -49,6 +49,9 @@ jobs:
             const description = required
               ? 'E2E required for this PR and waiting for E2E workflow.'
               : 'E2E not required for this PR.';
+            const targetUrl = required
+              ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/pull/${pr.number}/checks`
+              : `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
@@ -57,7 +60,7 @@ jobs:
               context: statusContext,
               state,
               description,
-              target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+              target_url: targetUrl,
             });
 
             core.info(description);
