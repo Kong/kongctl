@@ -149,7 +149,7 @@ func (c *Client) UpdateAIGatewayAgent(
 
 	resp, err := c.aiGatewayAgentsAPI.UpdateAiGatewayAgent(ctx, kkOps.UpdateAiGatewayAgentRequest{
 		GatewayID:                   gatewayID,
-		AgentID:                     agentID,
+		AgentIDOrName:               agentID,
 		UpdateAIGatewayAgentRequest: req,
 	})
 	if err != nil {

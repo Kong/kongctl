@@ -149,7 +149,7 @@ func (c *Client) UpdateAIGatewayConsumerGroup(
 
 	resp, err := c.aiGatewayConsumerGroupsAPI.UpdateAiGatewayConsumerGroup(ctx, kkOps.UpdateAiGatewayConsumerGroupRequest{
 		GatewayID:                           gatewayID,
-		ConsumerGroupID:                     consumerGroupID,
+		ConsumerGroupIDOrName:               consumerGroupID,
 		UpdateAIGatewayConsumerGroupRequest: req,
 	})
 	if err != nil {

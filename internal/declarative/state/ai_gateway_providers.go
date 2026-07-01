@@ -178,7 +178,7 @@ func (c *Client) UpdateAIGatewayProvider(
 	resourceName := aiGatewayProviderUpdateRequestName(req)
 	resp, err := c.aiGatewayProvidersAPI.UpdateAiGatewayProvider(ctx, kkOps.UpdateAiGatewayProviderRequest{
 		GatewayID:                      gatewayID,
-		ProviderID:                     providerID,
+		ProviderIDOrName:               providerID,
 		UpdateAIGatewayProviderRequest: req,
 	})
 	if err != nil {
