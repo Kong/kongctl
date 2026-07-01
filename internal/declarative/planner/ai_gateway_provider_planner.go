@@ -95,7 +95,7 @@ func (p *Planner) planAIGatewayProviderChanges(
 			if err := p.validateProtection(ResourceTypeAIGatewayProvider, name, isProtected, ActionDelete); err != nil {
 				return err
 			}
-			p.planAIGatewayProviderDelete(gatewayRef, gatewayID, current.ID, name, plan)
+			p.planAIGatewayProviderDelete(namespace, gatewayRef, gatewayID, current.ID, name, plan)
 		}
 	}
 
@@ -190,6 +190,7 @@ func (p *Planner) planAIGatewayProviderUpdate(
 }
 
 func (p *Planner) planAIGatewayProviderDelete(
+	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	providerID string,
@@ -202,6 +203,7 @@ func (p *Planner) planAIGatewayProviderDelete(
 		ResourceRef:  providerName,
 		ResourceID:   providerID,
 		Action:       ActionDelete,
+		Namespace:    namespace,
 		Fields: map[string]any{
 			FieldName: providerName,
 		},
