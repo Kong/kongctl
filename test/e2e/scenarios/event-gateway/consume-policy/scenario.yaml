@@ -229,6 +229,19 @@ steps:
                     - op: set
                       key: x-env-updated
                       value: production
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 003-dump-round-trip
     skipInputs: true

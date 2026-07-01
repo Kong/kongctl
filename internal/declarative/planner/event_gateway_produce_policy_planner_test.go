@@ -200,6 +200,122 @@ func TestShouldUpdateProducePolicy_SchemaValidationConfigChanged(t *testing.T) {
 	assert.NotContains(t, changedFields, "enabled")
 }
 
+func TestShouldUpdateProducePolicy_SchemaRegistryReferenceMatchesExpandedCurrentConfig(t *testing.T) {
+	current := state.EventGatewayVirtualClusterProducePolicyInfo{
+		EventGatewayPolicy: kkComps.EventGatewayPolicy{
+			ID:      "sv-1",
+			Name:    new("sv-policy"),
+			Enabled: new(true),
+			Type:    "schema_validation",
+		},
+		RawConfig: map[string]any{
+			"key_validation_action":   "mark",
+			"value_validation_action": "mark",
+			"type":                    "confluent_schema_registry",
+			"schema_registry": map[string]any{
+				"id":   "schema-registry-id",
+				"name": "schema-registry-name",
+			},
+		},
+	}
+	desired := producePolicyResourceFromJSON(t, `{
+		"ref": "sv-policy-ref",
+		"type": "schema_validation",
+		"name": "sv-policy",
+		"config": {
+			"key_validation_action": "mark",
+			"value_validation_action": "mark",
+			"type": "confluent_schema_registry",
+			"schema_registry": {
+				"id": "__REF__:schema-registry-ref#id"
+			}
+		}
+	}`)
+
+	p := newTestPlanner()
+	p.resolver = NewReferenceResolver(nil, &resources.ResourceSet{
+		EventGatewayControlPlanes: []resources.EventGatewayControlPlaneResource{
+			{
+				BaseResource: resources.BaseResource{Ref: "gateway-ref"},
+				SchemaRegistries: []resources.EventGatewaySchemaRegistryResource{
+					{
+						Ref: "schema-registry-ref",
+						SchemaRegistryCreate: kkComps.CreateSchemaRegistryCreateConfluent(
+							kkComps.SchemaRegistryConfluent{
+								Name: "schema-registry-name",
+							},
+						),
+					},
+				},
+			},
+		},
+	})
+
+	needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desired)
+
+	assert.False(t, needsUpdate)
+	assert.Nil(t, updateFields)
+	assert.Empty(t, changedFields)
+}
+
+func TestShouldUpdateProducePolicy_SchemaRegistryReferenceChanged(t *testing.T) {
+	current := state.EventGatewayVirtualClusterProducePolicyInfo{
+		EventGatewayPolicy: kkComps.EventGatewayPolicy{
+			ID:      "sv-1",
+			Name:    new("sv-policy"),
+			Enabled: new(true),
+			Type:    "schema_validation",
+		},
+		RawConfig: map[string]any{
+			"key_validation_action":   "mark",
+			"value_validation_action": "mark",
+			"type":                    "confluent_schema_registry",
+			"schema_registry": map[string]any{
+				"id":   "old-schema-registry-id",
+				"name": "old-schema-registry-name",
+			},
+		},
+	}
+	desired := producePolicyResourceFromJSON(t, `{
+		"ref": "sv-policy-ref",
+		"type": "schema_validation",
+		"name": "sv-policy",
+		"config": {
+			"key_validation_action": "mark",
+			"value_validation_action": "mark",
+			"type": "confluent_schema_registry",
+			"schema_registry": {
+				"id": "__REF__:new-schema-registry-ref#id"
+			}
+		}
+	}`)
+
+	p := newTestPlanner()
+	p.resolver = NewReferenceResolver(nil, &resources.ResourceSet{
+		EventGatewayControlPlanes: []resources.EventGatewayControlPlaneResource{
+			{
+				BaseResource: resources.BaseResource{Ref: "gateway-ref"},
+				SchemaRegistries: []resources.EventGatewaySchemaRegistryResource{
+					{
+						Ref: "new-schema-registry-ref",
+						SchemaRegistryCreate: kkComps.CreateSchemaRegistryCreateConfluent(
+							kkComps.SchemaRegistryConfluent{
+								Name: "new-schema-registry-name",
+							},
+						),
+					},
+				},
+			},
+		},
+	})
+
+	needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desired)
+
+	assert.True(t, needsUpdate)
+	assert.NotNil(t, updateFields)
+	assert.Contains(t, changedFields, FieldConfig)
+}
+
 func TestShouldUpdateProducePolicy_IgnoresUnresolvedParentPolicyPlaceholder(t *testing.T) {
 	desired := producePolicyResourceFromJSON(t, `{
 		"ref": "encrypt-fields",
