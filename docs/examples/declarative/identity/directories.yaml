@@ -1,17 +1,10 @@
 # Kong Identity directories.
 
-_defaults:
-  kongctl:
-    namespace: identity-example
-
 identity:
   directories:
-    - ref: workforce
-      name: identity-example-workforce
-      description: Workforce identities available to all control planes
+    - ref: directory-1
+      name: example-directory-1
+      description: Directory 1 identities available to all control planes
       allow_all_control_planes: true
       ttl_secs: 600
       negative_ttl_secs: 300
-      labels:
-        audience: workforce
-        environment: example
