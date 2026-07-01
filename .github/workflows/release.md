@@ -29,7 +29,9 @@ permissions:
   pull-requests: read
   actions: read
   issues: read
-engine: copilot
+engine:
+  id: copilot
+  model: gpt-5-mini
 strict: false
 timeout-minutes: 30
 network:
