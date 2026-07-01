@@ -160,7 +160,7 @@ func (h aiGatewayConsumersHandler) run(args []string) error {
 		}
 	}
 	if gatewayID == "" {
-		gatewayID, err = resolveAIGatewayIDByDisplayName(gatewayName, sdk.GetAIGatewayAPI(), helper, cfg)
+		gatewayID, err = resolveAIGatewayIDByName(gatewayName, sdk.GetAIGatewayAPI(), helper, cfg)
 		if err != nil {
 			return err
 		}
