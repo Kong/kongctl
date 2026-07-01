@@ -393,6 +393,7 @@ func TestLoginKonnectNoAnimateFlag(t *testing.T) {
 	flag := loginCmd.Flags().Lookup(loginNoAnimateFlagName)
 	if flag == nil {
 		t.Fatal("expected no-animate flag")
+		return
 	}
 	if !strings.Contains(flag.Usage, "static login banner") {
 		t.Fatalf("expected no-animate usage to mention static login banner, got %q", flag.Usage)
@@ -410,6 +411,7 @@ func TestLoginKonnectNoImageFlag(t *testing.T) {
 	flag := loginCmd.Flags().Lookup(loginNoImageFlagName)
 	if flag == nil {
 		t.Fatal("expected no-image flag")
+		return
 	}
 	if !strings.Contains(flag.Usage, "only login text") {
 		t.Fatalf("expected no-image usage to mention login text, got %q", flag.Usage)

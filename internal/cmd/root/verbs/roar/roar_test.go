@@ -187,6 +187,7 @@ func TestClimberArtFlagUsageClarifiesClimberScope(t *testing.T) {
 	flag := cmd.Flags().Lookup(climberArtFlagName)
 	if flag == nil {
 		t.Fatal("expected climber-art flag")
+		return
 	}
 	for _, want := range []string{
 		"Climber banner art type",
@@ -200,6 +201,7 @@ func TestClimberArtFlagUsageClarifiesClimberScope(t *testing.T) {
 	legacyFlag := cmd.Flags().Lookup(legacyArtFlagName)
 	if legacyFlag == nil {
 		t.Fatal("expected legacy art flag")
+		return
 	}
 	if !legacyFlag.Hidden {
 		t.Fatal("expected legacy art flag to be hidden")
@@ -211,6 +213,7 @@ func TestClimberFlagUsage(t *testing.T) {
 	flag := cmd.Flags().Lookup(climberFlagName)
 	if flag == nil {
 		t.Fatal("expected climber flag")
+		return
 	}
 	if !strings.Contains(flag.Usage, "static climber banner") {
 		t.Fatalf("expected climber flag usage to describe climber banner, got %q", flag.Usage)
@@ -222,6 +225,7 @@ func TestClimberWidthFlagUsage(t *testing.T) {
 	flag := cmd.Flags().Lookup(climberWidthFlagName)
 	if flag == nil {
 		t.Fatal("expected climber-width flag")
+		return
 	}
 	if !strings.Contains(flag.Usage, "Climber banner width") {
 		t.Fatalf("expected climber-width flag usage to describe climber banner width, got %q", flag.Usage)
@@ -230,6 +234,7 @@ func TestClimberWidthFlagUsage(t *testing.T) {
 	legacyFlag := cmd.Flags().Lookup(legacyWidthFlagName)
 	if legacyFlag == nil {
 		t.Fatal("expected legacy width flag")
+		return
 	}
 	if !legacyFlag.Hidden {
 		t.Fatal("expected legacy width flag to be hidden")
@@ -241,6 +246,7 @@ func TestColorFlagDefaultsToNative(t *testing.T) {
 	flag := cmd.Flags().Lookup(colorFlagName)
 	if flag == nil {
 		t.Fatal("expected color flag")
+		return
 	}
 	if flag.DefValue != nativeColorValue {
 		t.Fatalf("default color = %q, want %q", flag.DefValue, nativeColorValue)
@@ -485,6 +491,7 @@ func TestLocationFlagDefaultsToTopLeft(t *testing.T) {
 	flag := cmd.Flags().Lookup(locationFlagName)
 	if flag == nil {
 		t.Fatal("expected location flag")
+		return
 	}
 	if flag.DefValue != string(placementTopLeft) {
 		t.Fatalf("default location = %q, want %q", flag.DefValue, placementTopLeft)
@@ -493,6 +500,7 @@ func TestLocationFlagDefaultsToTopLeft(t *testing.T) {
 	legacyFlag := cmd.Flags().Lookup(legacyPlacementFlagName)
 	if legacyFlag == nil {
 		t.Fatal("expected legacy placement flag")
+		return
 	}
 	if !legacyFlag.Hidden {
 		t.Fatal("expected legacy placement flag to be hidden")
