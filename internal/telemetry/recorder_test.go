@@ -159,6 +159,7 @@ func TestNewRecorder_NilCfg_Enabled(t *testing.T) {
 	rec := NewRecorder(t.Context(), nil, nil, nil, nil, false)
 	if rec == nil {
 		t.Fatal("NewRecorder returned nil")
+		return
 	}
 	if !rec.enabled {
 		t.Errorf("enabled = false, want true when cfg is nil and no kill switch is set")
