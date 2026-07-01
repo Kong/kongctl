@@ -8,7 +8,11 @@ on:
         required: true
         type: string
       release_tag:
-        description: Optional prerelease tag to create
+        description: Optional immutable prerelease tag to create
+        required: false
+        type: string
+      stable_release_tag:
+        description: Optional stable prerelease channel tag to create or update
         required: false
         type: string
 
@@ -16,7 +20,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: adhoc-prerelease-${{ github.event.inputs.source_ref }}
+  group: adhoc-prerelease-${{ github.event.inputs.stable_release_tag || github.event.inputs.source_ref }}
   cancel-in-progress: false
 
 run-name: Ad-hoc prerelease ${{ inputs.source_ref }}
@@ -67,12 +71,13 @@ jobs:
           ref: ${{ inputs.source_ref }}
           token: ${{ env.RELEASE_GITHUB_TOKEN }}
 
-      - name: Resolve source and release tag
+      - name: Resolve source and release tags
         id: release
         shell: bash
         env:
           GH_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
           RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
+          STABLE_RELEASE_TAG_INPUT: ${{ inputs.stable_release_tag }}
           SOURCE_REF: ${{ inputs.source_ref }}
         run: |
           set -euo pipefail
@@ -159,9 +164,26 @@ jobs:
             fi
           }
 
+          validate_stable_release_tag() {
+            local tag="$1"
+
+            validate_tag "${tag}"
+
+            if [[ "${tag}" != prerelease-* ]]; then
+              echo "::error::stable_release_tag must start with 'prerelease-' to avoid moving stable release tags: ${tag}"
+              exit 1
+            fi
+
+            if [[ "${tag}" =~ -[0-9]{8}-[0-9]{4}-g[0-9a-fA-F]{7,}$ ]]; then
+              echo "::error::stable_release_tag must not look like an immutable timestamped prerelease tag: ${tag}"
+              exit 1
+            fi
+          }
+
           source_sha="$(git rev-parse HEAD)"
           short_sha="$(git rev-parse --short=7 HEAD)"
           safe_ref="$(sanitize_ref "${SOURCE_REF}")"
+          stable_release_tag="${STABLE_RELEASE_TAG_INPUT}"
 
           if [ -n "${RELEASE_TAG_INPUT}" ]; then
             release_tag="${RELEASE_TAG_INPUT}"
@@ -171,6 +193,13 @@ jobs:
           fi
 
           validate_tag "${release_tag}"
+          if [ -n "${stable_release_tag}" ]; then
+            validate_stable_release_tag "${stable_release_tag}"
+            if [ "${stable_release_tag}" = "${release_tag}" ]; then
+              echo "::error::stable_release_tag must be different from release_tag: ${stable_release_tag}"
+              exit 1
+            fi
+          fi
 
           git fetch origin --tags --force
           if git show-ref --verify --quiet "refs/tags/${release_tag}"; then
@@ -190,6 +219,7 @@ jobs:
 
           {
             echo "release_tag=${release_tag}"
+            echo "stable_release_tag=${stable_release_tag}"
             echo "safe_ref=${safe_ref}"
             echo "short_sha=${short_sha}"
             echo "source_sha=${source_sha}"
@@ -329,6 +359,7 @@ jobs:
           SDK_COMMIT: ${{ steps.private_sdk.outputs.sdk_commit }}
           SDK_MODE: ${{ steps.private_sdk.outputs.sdk_mode }}
           SDK_VERSION: ${{ steps.private_sdk.outputs.sdk_version }}
+          STABLE_RELEASE_TAG: ${{ steps.release.outputs.stable_release_tag }}
           SOURCE_REF: ${{ inputs.source_ref }}
           SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
         run: |
@@ -341,6 +372,9 @@ jobs:
             echo "- Source ref: \`${SOURCE_REF}\`"
             echo "- Source SHA: \`${SOURCE_SHA}\`"
             echo "- Binary version: \`dev\`"
+            if [ -n "${STABLE_RELEASE_TAG}" ]; then
+              echo "- Stable channel: \`${STABLE_RELEASE_TAG}\`"
+            fi
             echo "- SDK mode: \`${SDK_MODE:-public}\`"
             if [ -n "${SDK_VERSION}" ]; then
               echo "- Internal SDK version: \`${SDK_VERSION}\`"
@@ -358,6 +392,16 @@ jobs:
             echo ""
             echo "### Install"
             echo ""
+            if [ -n "${STABLE_RELEASE_TAG}" ]; then
+              echo "Stable channel:"
+              echo ""
+              echo "\`\`\`sh"
+              echo "curl -fsSL https://raw.githubusercontent.com/Kong/kongctl/main/scripts/install.sh | sh -s -- --version ${STABLE_RELEASE_TAG}"
+              echo "\`\`\`"
+              echo ""
+              echo "This immutable build:"
+              echo ""
+            fi
             echo "\`\`\`sh"
             echo "curl -fsSL https://raw.githubusercontent.com/Kong/kongctl/main/scripts/install.sh | sh -s -- --version ${RELEASE_TAG}"
             echo "\`\`\`"
@@ -393,24 +437,69 @@ jobs:
             --title "${RELEASE_TAG}" \
             --verify-tag
 
+      - name: Create or update stable GitHub prerelease
+        if: steps.release.outputs.stable_release_tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+          STABLE_RELEASE_TAG: ${{ steps.release.outputs.stable_release_tag }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -fa "${STABLE_RELEASE_TAG}" "${SOURCE_SHA}" \
+            -m "Ad-hoc prerelease channel ${STABLE_RELEASE_TAG} -> ${RELEASE_TAG}"
+          git push --force origin "refs/tags/${STABLE_RELEASE_TAG}"
+
+          if gh release view "${STABLE_RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${STABLE_RELEASE_TAG}" release-assets/*.zip release-assets/checksums.txt --clobber
+            gh release edit "${STABLE_RELEASE_TAG}" \
+              --notes-file "${{ steps.notes.outputs.path }}" \
+              --prerelease \
+              --target "${SOURCE_SHA}" \
+              --title "${STABLE_RELEASE_TAG}"
+          else
+            gh release create "${STABLE_RELEASE_TAG}" release-assets/*.zip release-assets/checksums.txt \
+              --notes-file "${{ steps.notes.outputs.path }}" \
+              --prerelease \
+              --latest=false \
+              --target "${SOURCE_SHA}" \
+              --title "${STABLE_RELEASE_TAG}" \
+              --verify-tag
+          fi
+
       - name: Verify GitHub prerelease state
         shell: bash
         env:
           GH_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+          STABLE_RELEASE_TAG: ${{ steps.release.outputs.stable_release_tag }}
         run: |
           set -euo pipefail
 
-          is_prerelease="$(gh release view "${RELEASE_TAG}" --json isPrerelease --jq '.isPrerelease')"
-          if [ "${is_prerelease}" != "true" ]; then
-            echo "::error::GitHub release ${RELEASE_TAG} is not marked as a prerelease"
-            exit 1
-          fi
-
           latest_tag="$(gh api "/repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name' 2>/dev/null || true)"
-          if [ "${latest_tag}" = "${RELEASE_TAG}" ]; then
-            echo "::error::GitHub release ${RELEASE_TAG} is marked as the repository latest release"
-            exit 1
+
+          verify_prerelease() {
+            local tag="$1"
+
+            is_prerelease="$(gh release view "${tag}" --json isPrerelease --jq '.isPrerelease')"
+            if [ "${is_prerelease}" != "true" ]; then
+              echo "::error::GitHub release ${tag} is not marked as a prerelease"
+              exit 1
+            fi
+
+            if [ "${latest_tag}" = "${tag}" ]; then
+              echo "::error::GitHub release ${tag} is marked as the repository latest release"
+              exit 1
+            fi
+          }
+
+          verify_prerelease "${RELEASE_TAG}"
+          if [ -n "${STABLE_RELEASE_TAG}" ]; then
+            verify_prerelease "${STABLE_RELEASE_TAG}"
           fi
 
       - name: Cleanup private SDK workspace
