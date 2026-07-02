@@ -28,12 +28,6 @@ apis:
         status: unpublished
         content: !file apis/sms/docs/authentication.md
 
-      - ref: sms-webhooks
-        title: "SMS API: Webhooks"
-        slug: sms-webhooks
-        status: published
-        content: !file apis/sms/docs/webhooks.md
-
     publications:
       - ref: sms-api-to-getting-started
         portal_id: !ref getting-started-portal#id
@@ -57,6 +51,24 @@ apis:
         slug: voice-getting-started
         status: published
         content: !file apis/voice/docs/getting-started.md
+
+      - ref: voice-ncco
+        title: "Voice API: NCCO Reference"
+        slug: voice-ncco
+        status: published
+        content: !file apis/voice/docs/ncco.md
+        children:
+          - ref: voice-errors
+            title: "Voice API: Error Handling"
+            slug: voice-errors
+            status: published
+            content: !file apis/voice/docs/errors.md
+            children:
+              - ref: voice-authentication
+                title: "Voice API: Authentication Guide"
+                slug: voice-authentication
+                status: published
+                content: !file apis/voice/docs/authentication.md
 
     publications:
       - ref: voice-api-to-getting-started

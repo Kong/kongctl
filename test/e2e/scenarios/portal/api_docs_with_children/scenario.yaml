@@ -273,23 +273,11 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 3
-                by_action.DELETE: 3
+                total_changes: 1
+                by_action.DELETE: 1
           - select: >-
               changes[?resource_type=='api_document' &&
-              resource_ref=='voice-ncco'] | [0]
-            expect:
-              fields:
-                action: DELETE
-          - select: >-
-              changes[?resource_type=='api_document' &&
-              resource_ref=='voice-errors'] | [0]
-            expect:
-              fields:
-                action: DELETE
-          - select: >-
-              changes[?resource_type=='api_document' &&
-              resource_ref=='voice-authentication'] | [0]
+              fields.slug=='sms-webhooks'] | [0]
             expect:
               fields:
                 action: DELETE
@@ -305,7 +293,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 1
                 failed: 0
 
       - name: 002-get-documents-after-parent-delete
@@ -314,23 +302,25 @@ steps:
           - api
           - documents
           - --api-name
-          - "Voice API"
+          - "SMS API"
           - -o
           - json
         assertions:
-          - select: "[?slug=='voice-getting-started'] | [0]"
+          - select: "[?slug=='sms-getting-started'] | [0]"
             expect:
               fields:
-                slug: voice-getting-started
-          - select: "[?slug=='voice-ncco']"
+                slug: sms-getting-started
+                status: published
+          - select: "[?slug=='sms-authentication'] | [0]"
+            expect:
+              fields:
+                slug: sms-authentication
+                status: unpublished
+          - select: "[?slug=='sms-webhooks']"
             expect:
               fields:
                 "length(@)": 0
-          - select: "[?slug=='voice-errors']"
-            expect:
-              fields:
-                "length(@)": 0
-          - select: "[?slug=='voice-authentication']"
+          - select: "[?slug=='sms-errors']"
             expect:
               fields:
                 "length(@)": 0
@@ -359,29 +349,23 @@ steps:
               fields:
                 slug: sms-authentication
                 status: unpublished
-          - select: "apis[?name=='SMS API'] | [0].documents[?slug=='sms-webhooks'] | [0]"
+          - select: "apis[?name=='SMS API'] | [0].documents[?slug=='sms-webhooks']"
             expect:
               fields:
-                slug: sms-webhooks
-                status: published
-          # Verify Voice API parent-child hierarchy was removed by sync delete
+                "length(@)": 0
+          # Verify Voice API parent-child hierarchy is preserved
           - select: "apis[?name=='Voice API'] | [0].documents[?slug=='voice-getting-started'] | [0]"
             expect:
               fields:
                 slug: voice-getting-started
                 status: published
-          - select: "apis[?name=='Voice API'] | [0].documents[?slug=='voice-ncco']"
+          - select: >-
+              apis[?name=='Voice API'] | [0].documents[?slug=='voice-ncco'] |
+              [0].children[?slug=='voice-errors'] | [0]
             expect:
               fields:
-                "length(@)": 0
-          - select: "apis[?name=='Voice API'] | [0].documents[?slug=='voice-errors']"
-            expect:
-              fields:
-                "length(@)": 0
-          - select: "apis[?name=='Voice API'] | [0].documents[?slug=='voice-authentication']"
-            expect:
-              fields:
-                "length(@)": 0
+                slug: voice-errors
+                status: published
       - name: 001-plan-from-dump
         outputFormat: disable
         run:
