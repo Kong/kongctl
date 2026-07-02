@@ -171,6 +171,13 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(dcrProviderCmd)
 
+	// Add identity command directly for Konnect-first pattern
+	identityCmd, err := NewDirectIdentityCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(identityCmd)
+
 	// Add catalog command directly for Konnect-first pattern
 	catalogCmd, err := NewDirectCatalogCmd()
 	if err != nil {

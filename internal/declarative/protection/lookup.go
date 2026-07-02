@@ -102,6 +102,14 @@ func IsManagedResourceProtected(
 			}
 			return r.NormalizedLabels, err
 		})
+	case resources.ResourceTypeIdentityDirectory:
+		return fetchProtection(resourceName, "identity directory", func() (map[string]string, error) {
+			r, err := client.GetIdentityDirectoryByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
+			}
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeAPIVersion,
 		resources.ResourceTypeAPIPublication,
 		resources.ResourceTypeAPIImplementation,

@@ -285,6 +285,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	if strings.TrimSpace(segments[0]) == "organization" {
 		return resolveOrganizationExplainSubject(path, segments)
 	}
+	if strings.TrimSpace(segments[0]) == "identity" {
+		return resolveIdentityExplainSubject(path, segments)
+	}
 	if strings.TrimSpace(segments[0]) == "analytics" {
 		return resolveAnalyticsExplainSubject(path, segments)
 	}
@@ -318,6 +321,11 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	if len(segments) == 1 {
 		if doc.ResourceType == ResourceTypeOrganizationTeam {
 			if err := applyOrganizationTeamScaffold(subject); err != nil {
+				return nil, err
+			}
+		}
+		if doc.ResourceType == ResourceTypeIdentityDirectory {
+			if err := applyIdentityDirectoryScaffold(subject); err != nil {
 				return nil, err
 			}
 		}
@@ -510,6 +518,80 @@ func resolveOrganizationExplainSubject(path string, segments []string) (*Explain
 	return subject, nil
 }
 
+func resolveIdentityExplainSubject(path string, segments []string) (*ExplainSubject, error) {
+	if len(segments) < 2 || strings.TrimSpace(segments[1]) != SchemaFieldDirectories {
+		return nil, fmt.Errorf("unsupported resource path %q", path)
+	}
+
+	directoryDoc, ok := explainDocByType(ResourceTypeIdentityDirectory)
+	if !ok {
+		return nil, fmt.Errorf("resource type %q does not have explain registration", ResourceTypeIdentityDirectory)
+	}
+
+	identityNode, err := identityExplainNode()
+	if err != nil {
+		return nil, err
+	}
+
+	subject := &ExplainSubject{
+		Doc:            directoryDoc,
+		Node:           directoryDoc.Schema.clone(),
+		DisplayPath:    path,
+		ResourceTarget: true,
+		FieldPath:      []string{SchemaFieldDirectories},
+		ScaffoldSteps: []ExplainScaffoldStep{
+			{Name: "identity"},
+			{Name: SchemaFieldDirectories, Array: true},
+		},
+		ScaffoldTrail: []ExplainScaffoldNode{
+			{
+				Step: ExplainScaffoldStep{Name: "identity"},
+				Node: identityNode,
+			},
+			{
+				Step: ExplainScaffoldStep{Name: SchemaFieldDirectories, Array: true},
+				Node: directoryDoc.Schema.clone(),
+			},
+		},
+	}
+
+	if len(segments) == 2 {
+		subject.ScaffoldOmit = scaffoldOmitFields(nil)
+		return subject, nil
+	}
+
+	currentNode := subject.Node
+	var relativePath []string
+	for _, rawSegment := range segments[2:] {
+		segment := strings.TrimSpace(rawSegment)
+		field, ok := currentNode.property(segment)
+		if !ok {
+			return nil, fmt.Errorf("field %q not found in %q", segment, path)
+		}
+
+		nextNode := field.Node
+		resourceTarget := false
+		if nextNode.Kind == explainKindArray && nextNode.Items != nil && nextNode.Items.Kind == explainKindObject {
+			nextNode = nextNode.Items.clone()
+			resourceTarget = true
+		} else {
+			nextNode = nextNode.clone()
+		}
+
+		subject.FieldPath = append(subject.FieldPath, segment)
+		relativePath = append(relativePath, segment)
+		subject.FieldRelativePath = append([]string(nil), relativePath...)
+		subject.FieldRequired = field.Required
+		subject.FieldRecommended = field.Recommended
+		currentNode = nextNode
+		subject.Node = currentNode
+		subject.ResourceTarget = resourceTarget
+	}
+
+	subject.ScaffoldOmit = scaffoldOmitFields(nil)
+	return subject, nil
+}
+
 func resolveAnalyticsExplainSubject(path string, segments []string) (*ExplainSubject, error) {
 	if len(segments) < 2 || strings.TrimSpace(segments[1]) != "dashboards" {
 		return nil, fmt.Errorf("unsupported resource path %q", path)
@@ -608,6 +690,29 @@ func applyOrganizationTeamScaffold(subject *ExplainSubject) error {
 	return nil
 }
 
+func applyIdentityDirectoryScaffold(subject *ExplainSubject) error {
+	identityNode, err := identityExplainNode()
+	if err != nil {
+		return err
+	}
+
+	subject.ScaffoldSteps = []ExplainScaffoldStep{
+		{Name: "identity"},
+		{Name: SchemaFieldDirectories, Array: true},
+	}
+	subject.ScaffoldTrail = []ExplainScaffoldNode{
+		{
+			Step: ExplainScaffoldStep{Name: "identity"},
+			Node: identityNode,
+		},
+		{
+			Step: ExplainScaffoldStep{Name: SchemaFieldDirectories, Array: true},
+			Node: subject.Doc.Schema.clone(),
+		},
+	}
+	return nil
+}
+
 func applyAnalyticsDashboardScaffold(subject *ExplainSubject) error {
 	analyticsNode, err := analyticsExplainNode()
 	if err != nil {
@@ -633,6 +738,10 @@ func applyAnalyticsDashboardScaffold(subject *ExplainSubject) error {
 
 func organizationExplainNode() (*ExplainNode, error) {
 	return autoExplainNode(reflect.TypeFor[OrganizationResource](), nil, defaultExplainHints(""), nil)
+}
+
+func identityExplainNode() (*ExplainNode, error) {
+	return autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
 }
 
 func analyticsExplainNode() (*ExplainNode, error) {

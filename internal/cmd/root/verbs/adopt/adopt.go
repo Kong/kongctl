@@ -116,6 +116,12 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(dcrProviderCmd)
 
+	identityCmd, err := NewDirectIdentityCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(identityCmd)
+
 	analyticsCmd, err := NewDirectAnalyticsCmd()
 	if err != nil {
 		return nil, err

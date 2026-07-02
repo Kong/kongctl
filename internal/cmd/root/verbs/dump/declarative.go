@@ -48,6 +48,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	resourceAPIs:                  {},
 	"application_auth_strategies": {},
 	"dcr_providers":               {},
+	resourceIdentityDirectories:   {},
 	"control_planes":              {},
 	resourceAnalyticsDashboards:   {},
 	"event_gateways":              {},
@@ -83,7 +84,7 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
-			resourceAnalyticsDashboards+", event_gateways, organization.teams).")
+			resourceIdentityDirectories+", "+resourceAnalyticsDashboards+", event_gateways, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -203,6 +204,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			APIAPI:                              sdk.GetAPIAPI(),
 			AppAuthAPI:                          sdk.GetAppAuthStrategiesAPI(),
 			DCRProviderAPI:                      sdk.GetDCRProvidersAPI(),
+			IdentityDirectoryAPI:                sdk.GetIdentityDirectoryAPI(),
 			ControlPlaneAPI:                     sdk.GetControlPlaneAPI(),
 			GatewayServiceAPI:                   sdk.GetGatewayServiceAPI(),
 			DataPlaneCertificateAPI:             sdk.GetDataPlaneCertificateAPI(),
@@ -300,6 +302,17 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.DCRProviders = append(resourceSet.DCRProviders, dcrProviders...)
+		case resourceIdentityDirectories:
+			directories, err := collectDeclarativeIdentityDirectories(
+				ctx, sdk.GetIdentityDirectoryAPI(), requestPageSize, opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			if resourceSet.Identity == nil {
+				resourceSet.Identity = &declresources.IdentityResource{}
+			}
+			resourceSet.Identity.Directories = append(resourceSet.Identity.Directories, directories...)
 		case "control_planes":
 			controlPlanes, err := collectDeclarativeControlPlanes(
 				ctx,
@@ -976,7 +989,7 @@ func collectDeclarativeAuthStrategies(
 		}
 
 		if filter.name != "" {
-			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
+			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		resp, err := api.ListAppAuthStrategies(ctx, req)
@@ -1204,6 +1217,97 @@ func mapDCRProviderToDeclarativeResource(data any) (declresources.DCRProviderRes
 	return resource, nil
 }
 
+func buildIdentityDirectoryRef(id, name string) string {
+	if trimmed := strings.TrimSpace(id); trimmed != "" {
+		return trimmed
+	}
+	return strings.TrimSpace(name)
+}
+
+func collectDeclarativeIdentityDirectories(
+	ctx context.Context,
+	api helpers.IdentityDirectoryAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.IdentityDirectoryResource, error) {
+	if api == nil {
+		return nil, fmt.Errorf("identity directory API is not configured")
+	}
+	if requestPageSize < 1 {
+		requestPageSize = konnectCommon.DefaultRequestPageSize
+	}
+
+	var results []declresources.IdentityDirectoryResource
+	sortByName := "name"
+	var pageAfter *string
+
+	for pageNumber := int64(1); ; pageNumber++ {
+		if pageNumber > maxPaginationPages {
+			return nil, fmt.Errorf("pagination exceeded safety limit of %d pages", maxPaginationPages)
+		}
+
+		page := &kkComps.CursorPageParameters{Size: &requestPageSize}
+		if pageAfter != nil {
+			page.After = pageAfter
+		}
+
+		resp, err := api.ListKongDirectories(ctx, page, &sortByName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list identity directories: %w", err)
+		}
+		if resp == nil || resp.GetListKongDirectories() == nil {
+			break
+		}
+
+		list := resp.GetListKongDirectories()
+		for _, directory := range list.GetData() {
+			results = append(results, mapIdentityDirectoryToDeclarativeResource(directory))
+		}
+
+		nextCursor := pagination.ExtractPageAfterCursor(list.Meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	results = filterByNameOrID(results, filter, func(r declresources.IdentityDirectoryResource) (string, string) {
+		return r.Name, r.Ref
+	})
+
+	slices.SortFunc(results, func(a, b declresources.IdentityDirectoryResource) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return results, nil
+}
+
+func mapIdentityDirectoryToDeclarativeResource(
+	directory kkComps.KongDirectory,
+) declresources.IdentityDirectoryResource {
+	resource := declresources.IdentityDirectoryResource{
+		BaseResource: declresources.BaseResource{
+			Ref:     buildIdentityDirectoryRef(directory.ID, directory.Name),
+			Kongctl: kongctlMetaFromLabels(directory.Labels),
+		},
+		Name:                  directory.Name,
+		AllowedControlPlanes:  slices.Clone(directory.AllowedControlPlanes),
+		AllowAllControlPlanes: directory.AllowAllControlPlanes,
+		TTLSecs:               directory.TTLSecs,
+		NegativeTTLSecs:       directory.NegativeTTLSecs,
+		Labels:                decllabels.GetUserLabels(directory.Labels),
+	}
+
+	if strings.TrimSpace(directory.Description) != "" {
+		resource.Description = stringPointer(directory.Description)
+	}
+	if len(resource.AllowedControlPlanes) == 0 {
+		resource.AllowedControlPlanes = nil
+	}
+
+	return resource
+}
+
 func collectDeclarativeControlPlanes(
 	ctx context.Context,
 	api helpers.ControlPlaneAPI,
@@ -1225,7 +1329,7 @@ func collectDeclarativeControlPlanes(
 
 		if filter.name != "" {
 			op, val := parseFilterName(filter.name)
-			nameFilter := &kkComps.ControlPlaneFilterParametersName{}
+			nameFilter := &kkComps.Name{}
 			if op == filterOpContains {
 				nameFilter.Contains = &val
 			} else {

@@ -38,6 +38,18 @@ const (
 	// FieldDCRProviderConfig contains provider-specific DCR configuration
 	FieldDCRProviderConfig = "dcr_config"
 
+	// FieldAllowedControlPlanes contains identity directory allowed control plane IDs
+	FieldAllowedControlPlanes = "allowed_control_planes"
+
+	// FieldAllowAllControlPlanes contains whether an identity directory permits all control planes
+	FieldAllowAllControlPlanes = "allow_all_control_planes"
+
+	// FieldTTLSecs contains identity directory positive cache TTL seconds
+	FieldTTLSecs = "ttl_secs"
+
+	// FieldNegativeTTLSecs contains identity directory negative cache TTL seconds
+	FieldNegativeTTLSecs = "negative_ttl_secs"
+
 	// FieldDisplayName contains a resource display name
 	FieldDisplayName = "display_name"
 
@@ -194,6 +206,7 @@ const (
 	ResourceTypePortal                           = string(resources.ResourceTypePortal)
 	ResourceTypeApplicationAuthStrategy          = string(resources.ResourceTypeApplicationAuthStrategy)
 	ResourceTypeDCRProvider                      = string(resources.ResourceTypeDCRProvider)
+	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
 	ResourceTypeControlPlane                     = string(resources.ResourceTypeControlPlane)
 	ResourceTypeAPI                              = string(resources.ResourceTypeAPI)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
