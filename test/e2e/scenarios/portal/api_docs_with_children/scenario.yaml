@@ -254,7 +254,78 @@ steps:
               fields:
                 slug: sms-webhooks
 
-  - name: 004-dump-and-plan-round-trip
+  - name: 004-sync-delete-parent-with-children
+    inputOverlayDirs:
+      - overlays/004-sync-delete-parent
+    commands:
+      - name: 000-plan-sync-delete-parent
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-delete-parent.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='api_document' &&
+              fields.slug=='sms-webhooks'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-sync-delete-parent
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-delete-parent.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-get-documents-after-parent-delete
+        run:
+          - get
+          - api
+          - documents
+          - --api-name
+          - "SMS API"
+          - -o
+          - json
+        assertions:
+          - select: "[?slug=='sms-getting-started'] | [0]"
+            expect:
+              fields:
+                slug: sms-getting-started
+                status: published
+          - select: "[?slug=='sms-authentication'] | [0]"
+            expect:
+              fields:
+                slug: sms-authentication
+                status: unpublished
+          - select: "[?slug=='sms-webhooks']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?slug=='sms-errors']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 005-dump-and-plan-round-trip
     skipInputs: true
     commands:
       - name: 000-dump-apis
@@ -278,12 +349,16 @@ steps:
               fields:
                 slug: sms-authentication
                 status: unpublished
-          - select: "apis[?name=='SMS API'] | [0].documents[?slug=='sms-webhooks'] | [0]"
+          - select: "apis[?name=='SMS API'] | [0].documents[?slug=='sms-webhooks']"
             expect:
               fields:
-                slug: sms-webhooks
-                status: published
+                "length(@)": 0
           # Verify Voice API parent-child hierarchy is preserved
+          - select: "apis[?name=='Voice API'] | [0].documents[?slug=='voice-getting-started'] | [0]"
+            expect:
+              fields:
+                slug: voice-getting-started
+                status: published
           - select: >-
               apis[?name=='Voice API'] | [0].documents[?slug=='voice-ncco'] |
               [0].children[?slug=='voice-errors'] | [0]
@@ -305,7 +380,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-delete-cleanup
+  - name: 006-delete-cleanup
     commands:
       - name: 000-delete
         outputFormat: json
