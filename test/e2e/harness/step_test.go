@@ -66,7 +66,9 @@ func TestEventGatewayChildEndpointExpansion(t *testing.T) {
 }
 
 func TestRedactSensitiveJSONRedactsTokenFields(t *testing.T) {
-	body := []byte(`{"id":"token-id","token":"secret-token","nested":{"api_token":"nested-secret"},"items":[{"secret":"value"}]}`)
+	body := []byte(
+		`{"id":"token-id","token":"secret-token","nested":{"api_token":"nested-secret"},"items":[{"secret":"value"}]}`,
+	)
 
 	got := string(redactSensitiveJSONBytes(body))
 	for _, leaked := range []string{"secret-token", "nested-secret", `"secret": "value"`} {

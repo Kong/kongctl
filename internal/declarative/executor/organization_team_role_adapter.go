@@ -143,7 +143,12 @@ func (o *OrganizationTeamRoleAdapter) ResourceType() string {
 }
 
 func (o *OrganizationTeamRoleAdapter) RequiredFields() []string {
-	return []string{planner.FieldRoleName, planner.FieldEntityID, planner.FieldEntityTypeName, planner.FieldEntityRegion}
+	return []string{
+		planner.FieldRoleName,
+		planner.FieldEntityID,
+		planner.FieldEntityTypeName,
+		planner.FieldEntityRegion,
+	}
 }
 
 func (o *OrganizationTeamRoleAdapter) SupportsUpdate() bool {

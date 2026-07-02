@@ -50,7 +50,10 @@ func (p *dcrProviderPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Co
 		for _, desiredProvider := range desired {
 			current, exists := currentByName[desiredProvider.Name]
 			if !exists {
-				plan.AddWarning("", fmt.Sprintf("dcr_provider %q not found in Konnect, skipping delete", desiredProvider.Name))
+				plan.AddWarning(
+					"",
+					fmt.Sprintf("dcr_provider %q not found in Konnect, skipping delete", desiredProvider.Name),
+				)
 				continue
 			}
 
@@ -77,7 +80,8 @@ func (p *dcrProviderPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Co
 
 		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
 		shouldProtect := false
-		if desiredProvider.Kongctl != nil && desiredProvider.Kongctl.Protected != nil && *desiredProvider.Kongctl.Protected {
+		if desiredProvider.Kongctl != nil && desiredProvider.Kongctl.Protected != nil &&
+			*desiredProvider.Kongctl.Protected {
 			shouldProtect = true
 		}
 

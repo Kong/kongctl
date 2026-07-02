@@ -2157,7 +2157,8 @@ func (c *Client) ListManagedDashboards(ctx context.Context, namespaces []string)
 				normalized = make(map[string]string)
 			}
 
-			if labels.IsManagedResource(normalized) && shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+			if labels.IsManagedResource(normalized) &&
+				shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
 				filtered = append(filtered, Dashboard{
 					DashboardResponse: dashboard,
 					NormalizedLabels:  normalized,

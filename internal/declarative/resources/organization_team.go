@@ -18,7 +18,7 @@ func init() {
 // OrganizationTeamResource represents a team in declarative configuration
 type OrganizationTeamResource struct {
 	BaseResource
-	kkComps.CreateTeam `               yaml:",inline"             json:",inline"`
+	kkComps.CreateTeam `yaml:",inline" json:",inline"`
 	External           *ExternalBlock                 `yaml:"_external,omitempty" json:"_external,omitempty"`
 	Roles              []OrganizationTeamRoleResource `yaml:"roles,omitempty"     json:"roles,omitempty"`
 }
@@ -32,13 +32,13 @@ func (t OrganizationTeamResource) MarshalYAML() (any, error) {
 }
 
 type organizationTeamAlias struct {
-	Ref         string                         `json:"ref"                 yaml:"ref"`
-	Kongctl     *KongctlMeta                   `json:"kongctl,omitempty"   yaml:"kongctl,omitempty"`
-	External    *ExternalBlock                 `json:"_external,omitempty" yaml:"_external,omitempty"`
-	Name        string                         `json:"name"                yaml:"name"`
+	Ref         string                         `json:"ref"                   yaml:"ref"`
+	Kongctl     *KongctlMeta                   `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`
+	External    *ExternalBlock                 `json:"_external,omitempty"   yaml:"_external,omitempty"`
+	Name        string                         `json:"name"                  yaml:"name"`
 	Description *string                        `json:"description,omitempty" yaml:"description,omitempty"`
-	Labels      map[string]string              `json:"labels,omitempty"    yaml:"labels,omitempty"`
-	Roles       []OrganizationTeamRoleResource `json:"roles,omitempty"     yaml:"roles,omitempty"`
+	Labels      map[string]string              `json:"labels,omitempty"      yaml:"labels,omitempty"`
+	Roles       []OrganizationTeamRoleResource `json:"roles,omitempty"       yaml:"roles,omitempty"`
 }
 
 func (t OrganizationTeamResource) organizationTeamAlias() organizationTeamAlias {

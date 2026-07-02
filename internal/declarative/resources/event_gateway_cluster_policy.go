@@ -23,7 +23,7 @@ func init() {
 // with the "acls" variant (EventGatewayACLsPolicy).
 type EventGatewayClusterPolicyResource struct {
 	kkComps.EventGatewayClusterPolicyModify `yaml:",inline" json:",inline"`
-	Ref                                     string `yaml:"ref"                            json:"ref"`
+	Ref                                     string `yaml:"ref"                       json:"ref"`
 	// Parent Event Gateway Virtual Cluster reference (for root-level definitions)
 	VirtualCluster string `yaml:"virtual_cluster,omitempty" json:"virtual_cluster,omitempty"`
 	EventGateway   string `yaml:"event_gateway,omitempty"   json:"event_gateway,omitempty"`

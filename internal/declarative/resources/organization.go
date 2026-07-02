@@ -4,9 +4,9 @@ package resources
 // It's a grouping concept that can contain nested resources like teams.
 type OrganizationResource struct {
 	// Teams nested under this organization
-	Teams []OrganizationTeamResource `yaml:"teams,omitempty" json:"teams,omitempty"`
+	Teams []OrganizationTeamResource `yaml:"teams,omitempty"           json:"teams,omitempty"`
 	// Users contains user-bound team memberships and role assignments.
-	Users []OrganizationUserResource `yaml:"users,omitempty" json:"users,omitempty"`
+	Users []OrganizationUserResource `yaml:"users,omitempty"           json:"users,omitempty"`
 	// SystemAccounts contains system-account-bound team memberships and role assignments.
 	SystemAccounts []OrganizationSystemAccountResource `yaml:"system-accounts,omitempty" json:"system-accounts,omitempty"`
 }

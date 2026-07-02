@@ -2377,7 +2377,10 @@ func (p *Planner) resolveOrganizationSystemAccountIdentities(
 			return fmt.Errorf("organization system account not found with name: %s", systemAccount.Name)
 		}
 		if len(matches) > 1 {
-			return fmt.Errorf("organization system account name %q matched multiple system accounts", systemAccount.Name)
+			return fmt.Errorf(
+				"organization system account name %q matched multiple system accounts",
+				systemAccount.Name,
+			)
 		}
 		if matches[0].ID == "" {
 			return fmt.Errorf("organization system account %q has no ID", systemAccount.Name)

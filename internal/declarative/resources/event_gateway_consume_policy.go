@@ -29,7 +29,7 @@ func init() {
 // The "type" discriminator field is required.
 type EventGatewayConsumePolicyResource struct {
 	kkComps.EventGatewayConsumePolicyCreate `yaml:",inline" json:",inline"`
-	Ref                                     string `yaml:"ref" json:"ref"`
+	Ref                                     string `yaml:"ref"                       json:"ref"`
 	// Parent Virtual Cluster reference (for root-level definitions)
 	VirtualCluster string `yaml:"virtual_cluster,omitempty" json:"virtual_cluster,omitempty"`
 	EventGateway   string `yaml:"event_gateway,omitempty"   json:"event_gateway,omitempty"`

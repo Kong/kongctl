@@ -59,13 +59,13 @@ func (r PortalTeamRoleResource) MarshalJSON() ([]byte, error) {
 // MarshalYAML ensures YAML output mirrors the custom JSON encoding.
 func (r PortalTeamRoleResource) MarshalYAML() (any, error) {
 	type alias struct {
-		Ref            string `json:"ref" yaml:"ref"`
+		Ref            string `json:"ref"              yaml:"ref"`
 		Portal         string `json:"portal,omitempty" yaml:"portal,omitempty"`
-		Team           string `json:"team,omitempty" yaml:"team,omitempty"`
-		RoleName       string `json:"role_name" yaml:"role_name"`
-		EntityID       string `json:"entity_id" yaml:"entity_id"`
+		Team           string `json:"team,omitempty"   yaml:"team,omitempty"`
+		RoleName       string `json:"role_name"        yaml:"role_name"`
+		EntityID       string `json:"entity_id"        yaml:"entity_id"`
 		EntityTypeName string `json:"entity_type_name" yaml:"entity_type_name"`
-		EntityRegion   string `json:"entity_region" yaml:"entity_region"`
+		EntityRegion   string `json:"entity_region"    yaml:"entity_region"`
 	}
 
 	return alias{

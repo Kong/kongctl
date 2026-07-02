@@ -619,7 +619,11 @@ func resetUserAssignments(
 	teamItems, err := retryListItems(
 		ctx,
 		session,
-		pagedURL(fmt.Sprintf("%s/v3/users/%s/teams", strings.TrimRight(globalBaseURL, "/"), url.PathEscape(user.ID)), 100, 1),
+		pagedURL(
+			fmt.Sprintf("%s/v3/users/%s/teams", strings.TrimRight(globalBaseURL, "/"), url.PathEscape(user.ID)),
+			100,
+			1,
+		),
 		token,
 		"user teams",
 		policy,
@@ -660,7 +664,11 @@ func resetUserAssignments(
 		if roleID == "" {
 			continue
 		}
-		deleteURL := fmt.Sprintf("%s/v3/users/%s/assigned-roles", strings.TrimRight(globalBaseURL, "/"), url.PathEscape(user.ID))
+		deleteURL := fmt.Sprintf(
+			"%s/v3/users/%s/assigned-roles",
+			strings.TrimRight(globalBaseURL, "/"),
+			url.PathEscape(user.ID),
+		)
 		if err := retryDeleteOne(ctx, session, deleteURL, token, "user role assignment", roleID, policy); err != nil {
 			if he, ok := err.(*httpError); ok && he.status == http.StatusNotFound {
 				continue
