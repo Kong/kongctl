@@ -66,7 +66,7 @@ var (
 	clusterPoliciesLong = normalizers.LongDesc(i18n.T(
 		"root.products.konnect.eventgateway.clusterPoliciesLong",
 		`Use the cluster-policies command to list or retrieve cluster policies for a specific Event Gateway Virtual Cluster.`,
-	)) //nolint:lll
+	))
 	clusterPoliciesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.eventgateway.clusterPoliciesExamples",
 			fmt.Sprintf(`

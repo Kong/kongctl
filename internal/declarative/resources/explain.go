@@ -126,30 +126,30 @@ type ExplainField struct {
 }
 
 type JSONSchema struct {
-	Schema      string                  `json:"$schema,omitempty"                               yaml:"$schema,omitempty"`
-	ID          string                  `json:"$id,omitempty"                                   yaml:"$id,omitempty"`
-	Title       string                  `json:"title,omitempty"                                 yaml:"title,omitempty"`
-	Description string                  `json:"description,omitempty"                           yaml:"description,omitempty"`
-	Type        any                     `json:"type,omitempty"                                  yaml:"type,omitempty"`
-	Properties  map[string]*JSONSchema  `json:"properties,omitempty"                            yaml:"properties,omitempty"`
-	Required    []string                `json:"required,omitempty"                              yaml:"required,omitempty"`
-	Items       *JSONSchema             `json:"items,omitempty"                                 yaml:"items,omitempty"`
-	Additional  any                     `json:"additionalProperties,omitempty"                  yaml:"additionalProperties,omitempty"`
-	OneOf       []*JSONSchema           `json:"oneOf,omitempty"                                 yaml:"oneOf,omitempty"`
-	Const       any                     `json:"const,omitempty"                                 yaml:"const,omitempty"`
-	Enum        []any                   `json:"enum,omitempty"                                  yaml:"enum,omitempty"`
-	Default     any                     `json:"default,omitempty"                               yaml:"default,omitempty"`
-	XResource   any                     `json:"x-kongctl-resource,omitempty"                    yaml:"x-kongctl-resource,omitempty"`
-	XPath       string                  `json:"x-kongctl-path,omitempty"                        yaml:"x-kongctl-path,omitempty"`
-	XRootKey    string                  `json:"x-kongctl-root-key,omitempty"                    yaml:"x-kongctl-root-key,omitempty"`
-	XClass      string                  `json:"x-kongctl-resource-class,omitempty"              yaml:"x-kongctl-resource-class,omitempty"` //nolint:lll
-	XRefKind    string                  `json:"x-kongctl-ref-kind,omitempty"                    yaml:"x-kongctl-ref-kind,omitempty"`
-	XTag        string                  `json:"x-kongctl-preferred-tag,omitempty"               yaml:"x-kongctl-preferred-tag,omitempty"`
-	XDefault    string                  `json:"x-kongctl-default-from,omitempty"                yaml:"x-kongctl-default-from,omitempty"`
-	XNotes      []string                `json:"x-kongctl-notes,omitempty"                       yaml:"x-kongctl-notes,omitempty"`
-	XSubject    *ExplainSchemaSubject   `json:"x-kongctl-subject,omitempty"                     yaml:"x-kongctl-subject,omitempty"`
-	XPlacement  *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty"                   yaml:"x-kongctl-placement,omitempty"`
-	XRoot       *bool                   `json:"x-kongctl-supports-root,omitempty"               yaml:"x-kongctl-supports-root,omitempty"`
+	Schema      string                  `json:"$schema,omitempty" yaml:"$schema,omitempty"`
+	ID          string                  `json:"$id,omitempty" yaml:"$id,omitempty"`
+	Title       string                  `json:"title,omitempty" yaml:"title,omitempty"`
+	Description string                  `json:"description,omitempty" yaml:"description,omitempty"`
+	Type        any                     `json:"type,omitempty" yaml:"type,omitempty"`
+	Properties  map[string]*JSONSchema  `json:"properties,omitempty" yaml:"properties,omitempty"`
+	Required    []string                `json:"required,omitempty" yaml:"required,omitempty"`
+	Items       *JSONSchema             `json:"items,omitempty" yaml:"items,omitempty"`
+	Additional  any                     `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+	OneOf       []*JSONSchema           `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	Const       any                     `json:"const,omitempty" yaml:"const,omitempty"`
+	Enum        []any                   `json:"enum,omitempty" yaml:"enum,omitempty"`
+	Default     any                     `json:"default,omitempty" yaml:"default,omitempty"`
+	XResource   any                     `json:"x-kongctl-resource,omitempty" yaml:"x-kongctl-resource,omitempty"`
+	XPath       string                  `json:"x-kongctl-path,omitempty" yaml:"x-kongctl-path,omitempty"`
+	XRootKey    string                  `json:"x-kongctl-root-key,omitempty" yaml:"x-kongctl-root-key,omitempty"`
+	XClass      string                  `json:"x-kongctl-resource-class,omitempty" yaml:"x-kongctl-resource-class,omitempty"` //nolint:lll
+	XRefKind    string                  `json:"x-kongctl-ref-kind,omitempty" yaml:"x-kongctl-ref-kind,omitempty"`
+	XTag        string                  `json:"x-kongctl-preferred-tag,omitempty" yaml:"x-kongctl-preferred-tag,omitempty"`
+	XDefault    string                  `json:"x-kongctl-default-from,omitempty" yaml:"x-kongctl-default-from,omitempty"`
+	XNotes      []string                `json:"x-kongctl-notes,omitempty" yaml:"x-kongctl-notes,omitempty"`
+	XSubject    *ExplainSchemaSubject   `json:"x-kongctl-subject,omitempty" yaml:"x-kongctl-subject,omitempty"`
+	XPlacement  *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty" yaml:"x-kongctl-placement,omitempty"`
+	XRoot       *bool                   `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`
 	XNestedDecl *bool                   `json:"x-kongctl-supports-nested-declaration,omitempty" yaml:"x-kongctl-supports-nested-declaration,omitempty"` //nolint:lll
 }
 

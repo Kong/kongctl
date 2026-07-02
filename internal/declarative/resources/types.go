@@ -120,15 +120,15 @@ type ResourceSet struct {
 	// Organization grouping - contains nested resources like teams
 	Organization *OrganizationResource `yaml:"organization,omitempty"                                   json:"organization,omitempty"` //nolint:lll
 	// Analytics grouping - contains nested resources like dashboards
-	Analytics *AnalyticsResource `yaml:"analytics,omitempty"                                      json:"analytics,omitempty"`
+	Analytics *AnalyticsResource `yaml:"analytics,omitempty" json:"analytics,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
-	OrganizationTeams                        []OrganizationTeamResource                        `yaml:"-"                                                        json:"-"`
+	OrganizationTeams                        []OrganizationTeamResource                        `yaml:"-" json:"-"`
 	OrganizationTeamRoles                    []OrganizationTeamRoleResource                    `yaml:"organization_team_roles,omitempty"                        json:"organization_team_roles,omitempty"` //nolint:lll
-	OrganizationUserTeamMemberships          []OrganizationUserTeamMembershipResource          `yaml:"-"                                                        json:"-"`
-	OrganizationUserRoles                    []OrganizationUserRoleResource                    `yaml:"-"                                                        json:"-"`
-	OrganizationSystemAccountTeamMemberships []OrganizationSystemAccountTeamMembershipResource `yaml:"-"                                                        json:"-"`
-	OrganizationSystemAccountRoles           []OrganizationSystemAccountRoleResource           `yaml:"-"                                                        json:"-"`
+	OrganizationUserTeamMemberships          []OrganizationUserTeamMembershipResource          `yaml:"-" json:"-"`
+	OrganizationUserRoles                    []OrganizationUserRoleResource                    `yaml:"-" json:"-"`
+	OrganizationSystemAccountTeamMemberships []OrganizationSystemAccountTeamMembershipResource `yaml:"-" json:"-"`
+	OrganizationSystemAccountRoles           []OrganizationSystemAccountRoleResource           `yaml:"-" json:"-"`
 	EventGatewayListeners                    []EventGatewayListenerResource                    `yaml:"event_gateway_listeners,omitempty"                        json:"event_gateway_listeners,omitempty"`                        //nolint:lll
 	EventGatewayListenerPolicies             []EventGatewayListenerPolicyResource              `yaml:"event_gateway_listener_policies,omitempty"                json:"event_gateway_listener_policies,omitempty"`                //nolint:lll
 	EventGatewayClusterPolicies              []EventGatewayClusterPolicyResource               `yaml:"event_gateway_virtual_cluster_cluster_policies,omitempty" json:"event_gateway_virtual_cluster_cluster_policies,omitempty"` //nolint:lll

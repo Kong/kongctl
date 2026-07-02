@@ -67,7 +67,7 @@ var (
 	consumePoliciesLong = normalizers.LongDesc(i18n.T(
 		"root.products.konnect.eventgateway.consumePoliciesLong",
 		`Use the consume-policies command to list or retrieve consume policies for a specific Event Gateway Virtual Cluster.`,
-	)) //nolint:lll
+	))
 	consumePoliciesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.eventgateway.consumePoliciesExamples",
 			fmt.Sprintf(`

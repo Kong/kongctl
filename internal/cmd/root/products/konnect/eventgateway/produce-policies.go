@@ -69,8 +69,9 @@ var (
 		`Use the produce-policies command to list or retrieve produce policies for a specific Event Gateway Virtual Cluster.
 
 Produce policies operate on Kafka messages before they are written to the Kafka cluster.
-Where possible, apply transformations to the data using produce policies rather than consume policies for maximum efficiency.`,
-	)) //nolint:lll
+Where possible, apply transformations to the data using produce policies rather than consume policies
+for maximum efficiency.`,
+	))
 	producePoliciesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.eventgateway.producePoliciesExamples",
 			fmt.Sprintf(`
