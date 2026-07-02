@@ -129,10 +129,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 		if desiredEGWCP.IsExternal() {
 			gatewayID = desiredEGWCP.GetKonnectID()
 			if gatewayID == "" {
-				plan.AddWarning("", fmt.Sprintf(
-					"external event_gateway %q has no resolved ID; child diffs may be incomplete",
-					desiredEGWCP.GetRef(),
-				))
+				return fmt.Errorf("external event_gateway %q has no resolved Konnect ID", desiredEGWCP.GetRef())
 			}
 		} else {
 			current, exists := currentByName[desiredEGWCP.Name]

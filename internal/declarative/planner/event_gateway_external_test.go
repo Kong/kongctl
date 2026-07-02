@@ -282,6 +282,24 @@ func TestPlanner_ExternalEventGateway_PlansExternalVirtualClusterChildren(t *tes
 	require.Equal(t, virtualClusterID, change.References[FieldEventGatewayVirtualClusterID].ID)
 }
 
+func TestPlanner_ExternalEventGateway_MissingResolvedIDFailsBeforeChildPlanning(t *testing.T) {
+	t.Parallel()
+
+	rs := externalEventGatewayResourceSet()
+	planner := NewPlanner(state.NewClient(state.ClientConfig{}), slog.Default())
+	planner.resources = rs
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := planner.planEGWControlPlaneChanges(
+		context.Background(),
+		NewConfig(resources.NamespaceExternal),
+		rs.GetEventGatewayControlPlanesByNamespace(resources.NamespaceExternal),
+		plan,
+	)
+	require.ErrorContains(t, err, `external event_gateway "event-gateway-ref" has no resolved Konnect ID`)
+	require.Empty(t, plan.Changes)
+}
+
 func TestPlanner_ExternalEventGateway_SyncDoesNotDeleteExistingBackendClusters(t *testing.T) {
 	t.Parallel()
 
