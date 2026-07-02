@@ -77,6 +77,15 @@ ai_gateways:
         labels:
           team: support
           access: agent
+        credentials:
+          - ref: support-agent-key
+            name: support-agent-key
+            type: api-key
+            display_name: "Support Agent API Key"
+            ttl: 0
+            labels:
+              team: support
+              access: agent
     agents:
       - ref: customer-support-agent
         name: customer-support-agent

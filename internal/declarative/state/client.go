@@ -311,6 +311,12 @@ type AIGatewayConsumer struct {
 	NormalizedLabels map[string]string
 }
 
+// AIGatewayConsumerCredential represents a Konnect AI Gateway Consumer Credential for internal use.
+type AIGatewayConsumerCredential struct {
+	kkComps.AIGatewayConsumerCredential
+	NormalizedLabels map[string]string
+}
+
 // AIGatewayConsumerGroup represents a Konnect AI Gateway Consumer Group for internal use.
 type AIGatewayConsumerGroup struct {
 	kkComps.AIGatewayConsumerGroup

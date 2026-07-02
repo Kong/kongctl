@@ -289,7 +289,7 @@ func populateAIGatewayChildren(
 			gateway.Agents = agents
 		}
 
-		consumers, err := buildAIGatewayConsumers(ctx, client, gatewayID, gateway.DisplayName, "")
+		consumers, err := buildAIGatewayConsumers(ctx, client, gatewayID, gateway.DisplayName, "", true)
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway Consumers", gatewayID, gateway.DisplayName, err)
 		} else if len(consumers) > 0 {
@@ -462,6 +462,7 @@ func buildAIGatewayConsumers(
 	gatewayID string,
 	gatewayName string,
 	gatewayRef string,
+	includeCredentials bool,
 ) ([]declresources.AIGatewayConsumerResource, error) {
 	consumers, err := client.ListAIGatewayConsumers(ctx, gatewayID)
 	if err != nil {
@@ -476,10 +477,67 @@ func buildAIGatewayConsumers(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Consumer for gateway %s: %w", gatewayName, err)
 		}
+		if includeCredentials {
+			credentials, err := buildAIGatewayConsumerCredentials(
+				ctx,
+				client,
+				gatewayID,
+				gatewayName,
+				resource.Ref,
+				resource.Name,
+				"",
+			)
+			if err != nil {
+				return nil, err
+			}
+			if len(credentials) > 0 {
+				resource.Credentials = credentials
+			}
+		}
 		result = append(result, resource)
 	}
 
 	slices.SortFunc(result, func(a, b declresources.AIGatewayConsumerResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayConsumerCredentials(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	consumerID string,
+	consumerName string,
+	consumerRef string,
+) ([]declresources.AIGatewayConsumerCredentialResource, error) {
+	credentials, err := client.ListAIGatewayConsumerCredentials(ctx, gatewayID, consumerID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayConsumerCredentialResource, 0, len(credentials))
+	for _, credential := range credentials {
+		resource, err := declresources.AIGatewayConsumerCredentialResourceFromResponse(
+			consumerRef,
+			credential.AIGatewayConsumerCredential,
+		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to map AI Gateway Consumer Credential for gateway %s consumer %s: %w",
+				gatewayName,
+				consumerName,
+				err,
+			)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayConsumerCredentialResource) int {
 		if a.Name == b.Name {
 			return cmp.Compare(a.Ref, b.Ref)
 		}

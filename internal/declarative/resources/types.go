@@ -22,6 +22,7 @@ const (
 	ResourceTypeAIGatewayPolicy                         ResourceType = "ai_gateway_policy"
 	ResourceTypeAIGatewayAgent                          ResourceType = "ai_gateway_agent"
 	ResourceTypeAIGatewayConsumer                       ResourceType = "ai_gateway_consumer"
+	ResourceTypeAIGatewayConsumerCredential             ResourceType = "ai_gateway_consumer_credential"
 	ResourceTypeAIGatewayConsumerGroup                  ResourceType = "ai_gateway_consumer_group"
 	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
 	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
@@ -81,15 +82,16 @@ const (
 )
 
 const (
-	SchemaFieldRef       = "ref"
-	SchemaFieldPortal    = "portal"
-	SchemaFieldTeams     = "teams"
-	SchemaFieldAIGateway = "ai_gateway"
-	SchemaFieldKongctl   = "kongctl"
-	SchemaFieldID        = "id"
-	SchemaFieldCreatedAt = "created_at"
-	SchemaFieldUpdatedAt = "updated_at"
-	jsonNullLiteral      = "null"
+	SchemaFieldRef               = "ref"
+	SchemaFieldPortal            = "portal"
+	SchemaFieldTeams             = "teams"
+	SchemaFieldAIGateway         = "ai_gateway"
+	SchemaFieldAIGatewayConsumer = "ai_gateway_consumer"
+	SchemaFieldKongctl           = "kongctl"
+	SchemaFieldID                = "id"
+	SchemaFieldCreatedAt         = "created_at"
+	SchemaFieldUpdatedAt         = "updated_at"
+	jsonNullLiteral              = "null"
 )
 
 // ResourceRef represents a reference to another resource
@@ -124,6 +126,7 @@ type ResourceSet struct {
 	AIGatewayPolicies                 []AIGatewayPolicyResource                  `yaml:"ai_gateway_policies,omitempty"                           json:"ai_gateway_policies,omitempty"`                    //nolint:lll
 	AIGatewayAgents                   []AIGatewayAgentResource                   `yaml:"ai_gateway_agents,omitempty"                             json:"ai_gateway_agents,omitempty"`                      //nolint:lll
 	AIGatewayConsumers                []AIGatewayConsumerResource                `yaml:"ai_gateway_consumers,omitempty"                          json:"ai_gateway_consumers,omitempty"`                   //nolint:lll
+	AIGatewayConsumerCredentials      []AIGatewayConsumerCredentialResource      `yaml:"ai_gateway_consumer_credentials,omitempty"               json:"ai_gateway_consumer_credentials,omitempty"`        //nolint:lll
 	AIGatewayConsumerGroups           []AIGatewayConsumerGroupResource           `yaml:"ai_gateway_consumer_groups,omitempty"                    json:"ai_gateway_consumer_groups,omitempty"`             //nolint:lll
 	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
 	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
@@ -396,6 +399,17 @@ func (rs *ResourceSet) GetAIGatewayConsumerByRef(ref string) *AIGatewayConsumerR
 	return nil
 }
 
+// GetAIGatewayConsumerCredentialByRef returns an AI Gateway Consumer Credential
+// resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayConsumerCredentialByRef(ref string) *AIGatewayConsumerCredentialResource {
+	for i := range rs.AIGatewayConsumerCredentials {
+		if rs.AIGatewayConsumerCredentials[i].GetRef() == ref {
+			return &rs.AIGatewayConsumerCredentials[i]
+		}
+	}
+	return nil
+}
+
 // GetAIGatewayConsumerGroupByRef returns an AI Gateway Consumer Group resource by its ref from any namespace.
 func (rs *ResourceSet) GetAIGatewayConsumerGroupByRef(ref string) *AIGatewayConsumerGroupResource {
 	for i := range rs.AIGatewayConsumerGroups {
@@ -613,6 +627,30 @@ func (rs *ResourceSet) GetAIGatewayConsumerGroupsByNamespace(namespace string) [
 			}
 			if GetNamespace(gateway.Kongctl) == namespace {
 				filtered = append(filtered, group)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayConsumerCredentialsByNamespace returns AI Gateway Consumer Credential
+// resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayConsumerCredentialsByNamespace(
+	namespace string,
+) []AIGatewayConsumerCredentialResource {
+	var filtered []AIGatewayConsumerCredentialResource
+	for _, credential := range rs.AIGatewayConsumerCredentials {
+		if consumer := rs.GetAIGatewayConsumerByRef(credential.AIGatewayConsumer); consumer != nil {
+			if gateway := rs.GetAIGatewayByRef(consumer.AIGateway); gateway != nil {
+				if gateway.IsExternal() {
+					if namespace == NamespaceExternal {
+						filtered = append(filtered, credential)
+					}
+					continue
+				}
+				if GetNamespace(gateway.Kongctl) == namespace {
+					filtered = append(filtered, credential)
+				}
 			}
 		}
 	}
@@ -1333,6 +1371,20 @@ func (rs *ResourceSet) GetAIGatewayConsumersForGateway(gatewayRef string) []AIGa
 		}
 	}
 	return consumers
+}
+
+// GetAIGatewayConsumerCredentialsForConsumer returns all AI Gateway Consumer
+// Credentials for a given consumer ref.
+func (rs *ResourceSet) GetAIGatewayConsumerCredentialsForConsumer(
+	consumerRef string,
+) []AIGatewayConsumerCredentialResource {
+	var credentials []AIGatewayConsumerCredentialResource
+	for _, credential := range rs.AIGatewayConsumerCredentials {
+		if NormalizeResourceRef(credential.AIGatewayConsumer) == consumerRef {
+			credentials = append(credentials, credential)
+		}
+	}
+	return credentials
 }
 
 // GetAIGatewayConsumerGroupsForGateway returns all AI Gateway Consumer Groups for a given gateway ref.

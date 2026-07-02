@@ -38,6 +38,26 @@ type AIGatewayConsumersAPI interface {
 		consumerID string,
 		opts ...kkOps.Option,
 	) (*kkOps.DeleteAiGatewayConsumerResponse, error)
+	ListAiGatewayConsumerCredentials(
+		ctx context.Context,
+		request kkOps.ListAiGatewayConsumerCredentialsRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.ListAiGatewayConsumerCredentialsResponse, error)
+	CreateAiGatewayConsumerCredential(
+		ctx context.Context,
+		request kkOps.CreateAiGatewayConsumerCredentialRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.CreateAiGatewayConsumerCredentialResponse, error)
+	GetAiGatewayConsumerCredential(
+		ctx context.Context,
+		request kkOps.GetAiGatewayConsumerCredentialRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.GetAiGatewayConsumerCredentialResponse, error)
+	DeleteAiGatewayConsumerCredential(
+		ctx context.Context,
+		request kkOps.DeleteAiGatewayConsumerCredentialRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.DeleteAiGatewayConsumerCredentialResponse, error)
 }
 
 // AIGatewayConsumersAPIImpl provides the real SDK implementation.
@@ -86,4 +106,36 @@ func (a *AIGatewayConsumersAPIImpl) DeleteAiGatewayConsumer(
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteAiGatewayConsumerResponse, error) {
 	return a.SDK.AIGatewayConsumers.DeleteAiGatewayConsumer(ctx, gatewayID, consumerID, opts...)
+}
+
+func (a *AIGatewayConsumersAPIImpl) ListAiGatewayConsumerCredentials(
+	ctx context.Context,
+	request kkOps.ListAiGatewayConsumerCredentialsRequest,
+	opts ...kkOps.Option,
+) (*kkOps.ListAiGatewayConsumerCredentialsResponse, error) {
+	return a.SDK.AIGatewayConsumers.ListAiGatewayConsumerCredentials(ctx, request, opts...)
+}
+
+func (a *AIGatewayConsumersAPIImpl) CreateAiGatewayConsumerCredential(
+	ctx context.Context,
+	request kkOps.CreateAiGatewayConsumerCredentialRequest,
+	opts ...kkOps.Option,
+) (*kkOps.CreateAiGatewayConsumerCredentialResponse, error) {
+	return a.SDK.AIGatewayConsumers.CreateAiGatewayConsumerCredential(ctx, request, opts...)
+}
+
+func (a *AIGatewayConsumersAPIImpl) GetAiGatewayConsumerCredential(
+	ctx context.Context,
+	request kkOps.GetAiGatewayConsumerCredentialRequest,
+	opts ...kkOps.Option,
+) (*kkOps.GetAiGatewayConsumerCredentialResponse, error) {
+	return a.SDK.AIGatewayConsumers.GetAiGatewayConsumerCredential(ctx, request, opts...)
+}
+
+func (a *AIGatewayConsumersAPIImpl) DeleteAiGatewayConsumerCredential(
+	ctx context.Context,
+	request kkOps.DeleteAiGatewayConsumerCredentialRequest,
+	opts ...kkOps.Option,
+) (*kkOps.DeleteAiGatewayConsumerCredentialResponse, error) {
+	return a.SDK.AIGatewayConsumers.DeleteAiGatewayConsumerCredential(ctx, request, opts...)
 }

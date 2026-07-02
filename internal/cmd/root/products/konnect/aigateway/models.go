@@ -414,7 +414,7 @@ func aiGatewayModelDetailView(model kkComps.AIGatewayModel) string {
 		"type",
 		"enabled",
 		"capabilities",
-		"labels",
+		aiGatewayFieldLabels,
 		aiGatewayFieldCreatedAt,
 		aiGatewayFieldUpdatedAt,
 	}

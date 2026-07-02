@@ -63,7 +63,25 @@ func (p *Planner) planAIGatewayConsumerChanges(
 				desiredConsumer,
 				policyCreateDepsByRefOrName,
 			)
-			p.planAIGatewayConsumerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredConsumer, dependsOn, plan)
+			consumerCreateID := p.planAIGatewayConsumerCreate(
+				namespace,
+				gatewayRef,
+				gatewayName,
+				gatewayID,
+				desiredConsumer,
+				dependsOn,
+				plan,
+			)
+			p.planAIGatewayConsumerCredentialCreatesForNewConsumer(
+				namespace,
+				gatewayRef,
+				gatewayID,
+				desiredConsumer.Ref,
+				desiredConsumer.Name,
+				consumerCreateID,
+				p.resources.GetAIGatewayConsumerCredentialsForConsumer(desiredConsumer.Ref),
+				plan,
+			)
 			continue
 		}
 
@@ -80,7 +98,25 @@ func (p *Planner) planAIGatewayConsumerChanges(
 				desiredConsumer,
 				policyCreateDepsByRefOrName,
 			)
-			p.planAIGatewayConsumerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredConsumer, dependsOn, plan)
+			consumerCreateID := p.planAIGatewayConsumerCreate(
+				namespace,
+				gatewayRef,
+				gatewayName,
+				gatewayID,
+				desiredConsumer,
+				dependsOn,
+				plan,
+			)
+			p.planAIGatewayConsumerCredentialCreatesForNewConsumer(
+				namespace,
+				gatewayRef,
+				gatewayID,
+				desiredConsumer.Ref,
+				desiredConsumer.Name,
+				consumerCreateID,
+				p.resources.GetAIGatewayConsumerCredentialsForConsumer(desiredConsumer.Ref),
+				plan,
+			)
 			continue
 		}
 
@@ -103,6 +139,27 @@ func (p *Planner) planAIGatewayConsumerChanges(
 				),
 				plan,
 			)
+		}
+		credentials := p.resources.GetAIGatewayConsumerCredentialsForConsumer(desiredConsumer.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeAIGatewayConsumer,
+			desiredConsumer.Ref,
+			resources.ResourceTypeAIGatewayConsumerCredential,
+		) && (len(credentials) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayConsumerCredentialChanges(
+				ctx,
+				namespace,
+				gatewayRef,
+				gatewayID,
+				desiredConsumer.Ref,
+				desiredConsumer.Name,
+				consumerID,
+				credentials,
+				plan,
+			); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -138,7 +195,25 @@ func (p *Planner) planAIGatewayConsumerCreatesForNewGateway(
 		for _, dep := range aiGatewayConsumerPolicyCreateDependencies(consumer, policyCreateDepsByRefOrName) {
 			consumerDependsOn = appendDependsOn(consumerDependsOn, dep)
 		}
-		p.planAIGatewayConsumerCreate(namespace, gatewayRef, gatewayName, "", consumer, consumerDependsOn, plan)
+		consumerCreateID := p.planAIGatewayConsumerCreate(
+			namespace,
+			gatewayRef,
+			gatewayName,
+			"",
+			consumer,
+			consumerDependsOn,
+			plan,
+		)
+		p.planAIGatewayConsumerCredentialCreatesForNewConsumer(
+			namespace,
+			gatewayRef,
+			"",
+			consumer.Ref,
+			consumer.Name,
+			consumerCreateID,
+			p.resources.GetAIGatewayConsumerCredentialsForConsumer(consumer.Ref),
+			plan,
+		)
 	}
 }
 
@@ -150,11 +225,11 @@ func (p *Planner) planAIGatewayConsumerCreate(
 	consumer resources.AIGatewayConsumerResource,
 	dependsOn []string,
 	plan *Plan,
-) {
+) string {
 	fields, err := consumer.MutablePayloadMap()
 	if err != nil {
 		plan.AddWarning(consumer.GetRef(), fmt.Sprintf("failed to build AI Gateway Consumer create payload: %s", err))
-		return
+		return ""
 	}
 
 	change := PlannedChange{
@@ -180,6 +255,7 @@ func (p *Planner) planAIGatewayConsumerCreate(
 	}
 
 	plan.AddChange(change)
+	return change.ID
 }
 
 func (p *Planner) planAIGatewayConsumerUpdate(

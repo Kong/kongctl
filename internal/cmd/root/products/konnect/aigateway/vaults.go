@@ -414,8 +414,8 @@ func aiGatewayVaultDetailView(vault kkComps.AIGatewayVault) string {
 		"description",
 		"type",
 		"config",
-		"labels",
-		"managed_by",
+		aiGatewayFieldLabels,
+		aiGatewayFieldManagedBy,
 		aiGatewayFieldCreatedAt,
 		aiGatewayFieldUpdatedAt,
 	}

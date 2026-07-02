@@ -22,7 +22,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type createAIGatewayDataPlaneCertificateRequest = kkComps.CreateAIGatewayDataPlaneCertificateRequest
+type (
+	createAIGatewayDataPlaneCertificateRequest = kkComps.CreateAIGatewayDataPlaneCertificateRequest
+	createAIGatewayConsumerCredentialRequest   = kkComps.CreateAIGatewayConsumerCredentialRequest
+)
 
 // Executor handles the execution of declarative configuration plans
 type Executor struct {
@@ -66,7 +69,8 @@ type Executor struct {
 	aiGatewayConsumerExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayConsumerRequest,
 		kkComps.UpdateAIGatewayConsumerRequest]
-	aiGatewayConsumerGroupExecutor *BaseExecutor[
+	aiGatewayConsumerCredentialExecutor *BaseCreateDeleteExecutor[createAIGatewayConsumerCredentialRequest]
+	aiGatewayConsumerGroupExecutor      *BaseExecutor[
 		kkComps.CreateAIGatewayConsumerGroupRequest,
 		kkComps.UpdateAIGatewayConsumerGroupRequest]
 	aiGatewayModelExecutor *BaseExecutor[
@@ -280,6 +284,10 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		kkComps.UpdateAIGatewayConsumerRequest](
 		NewAIGatewayConsumerAdapter(client),
 		client,
+		dryRun,
+	)
+	e.aiGatewayConsumerCredentialExecutor = NewBaseCreateDeleteExecutor[createAIGatewayConsumerCredentialRequest](
+		NewAIGatewayConsumerCredentialAdapter(client),
 		dryRun,
 	)
 	e.aiGatewayConsumerGroupExecutor = NewBaseExecutor[
@@ -2502,6 +2510,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayConsumerExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerCredential:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayConsumerCredentialExecutor.Create(ctx, *change)
 	case planner.ResourceTypeAIGatewayConsumerGroup:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
@@ -3633,6 +3646,11 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			return err
 		}
 		return e.aiGatewayConsumerExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerCredential:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayConsumerCredentialExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayConsumerGroup:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return err
