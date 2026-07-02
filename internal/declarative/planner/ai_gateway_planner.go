@@ -584,6 +584,11 @@ func (p *Planner) shouldUpdateAIGateway(
 	updates := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
+	if current.Name != desired.Name {
+		updates[FieldName] = desired.Name
+		changedFields[FieldName] = FieldChange{Old: current.Name, New: desired.Name}
+	}
+
 	if current.DisplayName != desired.DisplayName {
 		updates[FieldDisplayName] = desired.DisplayName
 		changedFields[FieldDisplayName] = FieldChange{Old: current.DisplayName, New: desired.DisplayName}
@@ -642,7 +647,14 @@ func matchCurrentAIGateway(
 		return current, exists, nil
 	}
 
-	if desired.Ref != "" {
+	if desired.Name != "" {
+		current, exists := currentByName[desired.Name]
+		if exists {
+			return current, true, nil
+		}
+	}
+
+	if desired.Ref != "" && desired.Ref != desired.Name {
 		current, exists := currentByName[desired.Ref]
 		if exists {
 			return current, true, nil
@@ -710,7 +722,7 @@ func (p *Planner) planAIGatewayUpdate(
 	namespace, _ := aiGatewayNamespaceAndProtection(desired)
 	fields := make(map[string]any)
 	maps.Copy(fields, updateFields)
-	fields[FieldName] = current.Name
+	fields[FieldName] = desired.Name
 	if fields[FieldName] == "" {
 		fields[FieldName] = desired.GetRef()
 	}
@@ -764,7 +776,7 @@ func (p *Planner) planAIGatewayDelete(current state.AIGateway, plan *Plan) {
 
 func extractAIGatewayFields(resource resources.AIGatewayResource) map[string]any {
 	fields := map[string]any{
-		FieldName:        resource.GetRef(),
+		FieldName:        resource.Name,
 		FieldDisplayName: resource.DisplayName,
 	}
 	if resource.Description != nil {

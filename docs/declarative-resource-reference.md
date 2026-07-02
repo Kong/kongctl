@@ -332,12 +332,14 @@ Groups, AI Gateway Vaults, and AI Gateway Data Plane Certificates. Use
 `kongctl explain ai_gateway.data_plane_certificates --output yaml` as the
 authoritative schemas.
 
-The `ref` value is used as the stable Konnect API `name` when creating an AI
-Gateway. Use `display_name` for the human-readable name shown in Konnect.
-AI Gateway Providers, Policies, Agents, Consumers, Consumer Groups, Models, MCP
-Servers, and Vaults use their own required `name` field as the stable Konnect
-child name. AI Gateway Data Plane Certificates use their required `title` field
-as the stable Konnect child name. Child entries inherit management scope from
+The `ref` value is a local declarative identifier used by kongctl for
+references and planning. Use `name` as the stable Konnect API name for the AI
+Gateway. If `name` is omitted, kongctl defaults it from `ref`. Use
+`display_name` for the human-readable name shown in Konnect. AI Gateway
+Providers, Policies, Agents, Consumers, Consumer Groups, Models, MCP Servers,
+and Vaults use their own required `name` field as the stable Konnect child
+name. AI Gateway Data Plane Certificates use their required `title` field as
+the stable Konnect child name. Child entries inherit management scope from
 their parent AI Gateway and do not accept `kongctl` metadata.
 
 For AI Gateway Models, `target_models[].provider` must match an AI Gateway
@@ -367,6 +369,7 @@ rejected because they do not identify a parent gateway.
 ```yaml
 ai_gateways:
  - ref: string
+   name: string
    display_name: string required
    description: string
    proxy_urls: array[object]

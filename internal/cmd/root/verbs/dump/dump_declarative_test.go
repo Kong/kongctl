@@ -321,8 +321,8 @@ func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
 	if resource.DisplayName != gateway.DisplayName {
 		t.Fatalf("expected display name %q, got %q", gateway.DisplayName, resource.DisplayName)
 	}
-	if resource.Name != "" {
-		t.Fatalf("expected SDK name to be omitted from declarative resource, got %q", resource.Name)
+	if resource.Name != gateway.Name {
+		t.Fatalf("expected name %q, got %q", gateway.Name, resource.Name)
 	}
 	if resource.Description == nil || *resource.Description != description {
 		t.Fatalf("expected description pointer with %q", description)
