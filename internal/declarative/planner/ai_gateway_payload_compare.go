@@ -3,6 +3,9 @@ package planner
 import (
 	"encoding/json"
 	"reflect"
+	"slices"
+	"strconv"
+	"strings"
 )
 
 func normalizeAIGatewayPayloadsForComparison(
@@ -14,6 +17,8 @@ func normalizeAIGatewayPayloadsForComparison(
 
 	pruneNilValues(currentCompare)
 	pruneNilValues(desiredCompare)
+	normalizeAIGatewayUnorderedCollections(currentCompare)
+	normalizeAIGatewayUnorderedCollections(desiredCompare)
 	pruneAIGatewayDefaultsMissingFromPeer(currentCompare, desiredCompare)
 	pruneAIGatewayDefaultsMissingFromPeer(desiredCompare, currentCompare)
 	pruneEmptyContainersMissingFromPeer(currentCompare, desiredCompare)
@@ -92,6 +97,109 @@ func pruneNilValues(value any) any {
 	default:
 		return value
 	}
+}
+
+func normalizeAIGatewayUnorderedCollections(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			typed[key] = normalizeAIGatewayUnorderedCollectionValue(key, child)
+		}
+		return typed
+	case []any:
+		for i, child := range typed {
+			typed[i] = normalizeAIGatewayUnorderedCollections(child)
+		}
+		return typed
+	default:
+		return value
+	}
+}
+
+func normalizeAIGatewayUnorderedCollectionValue(key string, value any) any {
+	normalized := normalizeAIGatewayUnorderedCollections(value)
+	switch key {
+	case FieldTargets:
+		return sortAIGatewayObjectSlice(normalized, FieldName, FieldProvider, FieldType)
+	case FieldFormats:
+		return sortAIGatewayObjectSlice(normalized, FieldType)
+	case "capabilities", "failover_criteria", "protocols":
+		return sortAIGatewayStringSlice(normalized)
+	default:
+		return normalized
+	}
+}
+
+func sortAIGatewayObjectSlice(value any, keys ...string) any {
+	items, ok := value.([]any)
+	if !ok {
+		return value
+	}
+	for _, item := range items {
+		if _, ok := item.(map[string]any); !ok {
+			return value
+		}
+	}
+	slices.SortStableFunc(items, func(a, b any) int {
+		return strings.Compare(aiGatewayObjectSortKey(a, keys), aiGatewayObjectSortKey(b, keys))
+	})
+	return items
+}
+
+func aiGatewayObjectSortKey(value any, keys []string) string {
+	payload, ok := value.(map[string]any)
+	if !ok {
+		return ""
+	}
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		if part, ok := aiGatewayScalarSortValue(payload[key]); ok {
+			parts = append(parts, key+"="+part)
+		}
+	}
+	if len(parts) > 0 {
+		return strings.Join(parts, "\x00")
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func aiGatewayScalarSortValue(value any) (string, bool) {
+	switch typed := value.(type) {
+	case string:
+		return typed, true
+	case bool:
+		if typed {
+			return "true", true
+		}
+		return "false", true
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64), true
+	case nil:
+		return "", false
+	default:
+		data, err := json.Marshal(typed)
+		if err != nil {
+			return "", false
+		}
+		return string(data), true
+	}
+}
+
+func sortAIGatewayStringSlice(value any) any {
+	items, ok := stringSliceFromValue(value)
+	if !ok {
+		return value
+	}
+	slices.Sort(items)
+	normalized := make([]any, len(items))
+	for i, item := range items {
+		normalized[i] = item
+	}
+	return normalized
 }
 
 func pruneAIGatewayDefaultsMissingFromPeer(payload map[string]any, peer map[string]any) {
@@ -219,6 +327,8 @@ func isAIGatewaySanitizerConfigDefaultValue(key string, value any) bool {
 		return stringValueEqual(value, "localhost")
 	case "keepalive_timeout":
 		return numberValueEqual(value, 60000)
+	case "max_request_body_size":
+		return numberValueEqual(value, 8388608)
 	case "port":
 		return numberValueEqual(value, 8080)
 	case "proxy_scheme", "scheme":
@@ -229,6 +339,8 @@ func isAIGatewaySanitizerConfigDefaultValue(key string, value any) bool {
 		return stringValueEqual(value, "INPUT")
 	case "timeout":
 		return numberValueEqual(value, 10000)
+	case "dictionary_name", "genai_category", "llm_format", "redis":
+		return true
 	default:
 		return false
 	}
@@ -250,8 +362,20 @@ func isAIGatewayDefaultValue(key string, value any) bool {
 		return numberValueEqual(value, 0)
 	case "response_streaming":
 		return stringValueEqual(value, "allow")
+	case "failover_criteria":
+		return stringSliceValueEqual(value, []string{"error", "timeout"})
 	case "protocols":
 		return stringSliceValueEqual(value, []string{"http", "https"})
+	case "connect_timeout", "read_timeout", "write_timeout":
+		return numberValueEqual(value, 60000)
+	case "fail_timeout":
+		return numberValueEqual(value, 10000)
+	case "max_fails":
+		return numberValueEqual(value, 0)
+	case "retries":
+		return numberValueEqual(value, 5)
+	case "slots":
+		return numberValueEqual(value, 10000)
 	case "weight":
 		return numberValueEqual(value, 100)
 	default:
@@ -287,28 +411,32 @@ func stringValueEqual(value any, want string) bool {
 }
 
 func stringSliceValueEqual(value any, want []string) bool {
+	got, ok := stringSliceFromValue(value)
+	if !ok || len(got) != len(want) {
+		return false
+	}
+	got = slices.Clone(got)
+	want = slices.Clone(want)
+	slices.Sort(got)
+	slices.Sort(want)
+	return slices.Equal(got, want)
+}
+
+func stringSliceFromValue(value any) ([]string, bool) {
 	switch typed := value.(type) {
 	case []any:
-		if len(typed) != len(want) {
-			return false
-		}
+		items := make([]string, len(typed))
 		for i, item := range typed {
-			if item != want[i] {
-				return false
+			stringItem, ok := item.(string)
+			if !ok {
+				return nil, false
 			}
+			items[i] = stringItem
 		}
-		return true
+		return items, true
 	case []string:
-		if len(typed) != len(want) {
-			return false
-		}
-		for i, item := range typed {
-			if item != want[i] {
-				return false
-			}
-		}
-		return true
+		return slices.Clone(typed), true
 	default:
-		return false
+		return nil, false
 	}
 }

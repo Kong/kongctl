@@ -175,6 +175,91 @@ func TestAIGatewayModelPlannerIgnoresAPIDefaults(t *testing.T) {
 	require.Nil(t, changed)
 }
 
+func TestAIGatewayModelPlannerIgnoresTargetOrderAndAPIDefaults(t *testing.T) {
+	var model resources.AIGatewayModelResource
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"ref": "support-gpt",
+		"ai_gateway": "support-gateway",
+		"type": "model",
+		"name": "support-gpt",
+		"display_name": "Support GPT",
+		"enabled": true,
+		"config": {"route": {}, "model": {}},
+		"formats": [{"type": "openai"}],
+		"target_models": [
+			{"name": "gpt-4o", "provider": "support-openai", "config": {"type": "openai"}},
+			{"name": "gpt-4o-mini", "provider": "support-openai", "config": {"type": "openai"}}
+		],
+		"policies": [],
+		"capabilities": ["generate"]
+	}`), &model))
+
+	var current kkComps.AIGatewayModel
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "model-id",
+		"type": "model",
+		"name": "support-gpt",
+		"display_name": "Support GPT",
+		"enabled": true,
+		"config": {
+			"route": {
+				"https_redirect_status_code": 426,
+				"preserve_host": false,
+				"protocols": ["https", "http"],
+				"regex_priority": 0,
+				"request_buffering": true,
+				"response_buffering": true,
+				"strip_path": true
+			},
+			"model": {
+				"alias": "support-gpt",
+				"name_header": true,
+				"failover_criteria": ["timeout", "error"],
+				"connect_timeout": 60000,
+				"fail_timeout": 10000,
+				"max_fails": 0,
+				"read_timeout": 60000,
+				"retries": 5,
+				"slots": 10000,
+				"write_timeout": 60000
+			},
+			"response_streaming": "allow",
+			"max_request_body_size": 8388608
+		},
+		"formats": [{"type": "openai"}],
+		"targets": [
+			{
+				"name": "gpt-4o-mini",
+				"provider": "support-openai",
+				"weight": 100,
+				"allow_auth_override": false,
+				"config": {"type": "openai"}
+			},
+			{
+				"name": "gpt-4o",
+				"provider": "support-openai",
+				"weight": 100,
+				"allow_auth_override": false,
+				"config": {"type": "openai"}
+			}
+		],
+		"policies": [],
+		"capabilities": ["generate"],
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z"
+	}`), &current))
+
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayModel(
+		state.AIGatewayModel{AIGatewayModel: current},
+		model,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func TestAIGatewayModelPlannerDependsOnTargetProviderCreate(t *testing.T) {
 	model := testAIGatewayModelResource(t)
 	client := state.NewClient(state.ClientConfig{

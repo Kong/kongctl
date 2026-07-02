@@ -94,8 +94,12 @@ func TestAIGatewayPolicyPlannerIgnoresEmptyAPIConfigDefaults(t *testing.T) {
 		"anonymize":                      []any{"email"},
 		"block_if_detected":              false,
 		"custom_patterns":                nil,
+		"dictionary_name":                "kong-default",
+		"genai_category":                 "text",
 		"host":                           "localhost",
 		"keepalive_timeout":              float64(60000),
+		"llm_format":                     "openai",
+		"max_request_body_size":          float64(8388608),
 		"port":                           float64(8080),
 		"proxy_config": map[string]any{
 			"auth_password":    nil,
@@ -106,6 +110,14 @@ func TestAIGatewayPolicyPlannerIgnoresEmptyAPIConfigDefaults(t *testing.T) {
 			"https_proxy_port": nil,
 			"no_proxy":         nil,
 			"proxy_scheme":     "http",
+		},
+		"redis": map[string]any{
+			"database":   float64(0),
+			"host":       "127.0.0.1",
+			"port":       float64(6379),
+			"ssl":        false,
+			"ssl_verify": false,
+			"timeout":    float64(2000),
 		},
 		"recover_redacted":             true,
 		"redact_type":                  "placeholder",
@@ -122,7 +134,7 @@ func TestAIGatewayPolicyPlannerIgnoresEmptyAPIConfigDefaults(t *testing.T) {
 	)
 
 	require.NoError(t, err)
-	require.False(t, needsUpdate)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
 	require.Nil(t, fields)
 	require.Nil(t, changed)
 }
