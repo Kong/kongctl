@@ -662,7 +662,13 @@ func eventGatewayConsumePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 		[]string{"parent_policy_id"},
 		explainRefField("parent_policy_id", ResourceTypeEventGatewayConsumePolicy, true).Node,
 	)
-	return eventGatewayVirtualClusterPolicyUnion(modifyHeaders, schemaValidation, decrypt, skipRecord, decryptFields), nil
+	return eventGatewayVirtualClusterPolicyUnion(
+		modifyHeaders,
+		schemaValidation,
+		decrypt,
+		skipRecord,
+		decryptFields,
+	), nil
 }
 
 func eventGatewayVirtualClusterPolicyUnion(branches ...*ExplainNode) *ExplainNode {

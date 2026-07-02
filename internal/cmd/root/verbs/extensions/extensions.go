@@ -554,7 +554,11 @@ func upgradeGitHubReleaseExtension(
 	}
 	result, err := store.InstallGitHubSource(fetched.Dir, fetched, version, time.Now(), trustConfirmed)
 	if err != nil {
-		return upgradeExtensionOutcome{}, cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to upgrade extension", err)
+		return upgradeExtensionOutcome{}, cmdpkg.PrepareExecutionErrorWithHelper(
+			helper,
+			"failed to upgrade extension",
+			err,
+		)
 	}
 	return upgradeExtensionOutcome{
 		Status:    upgradeExtensionStatusUpgraded,
@@ -602,7 +606,11 @@ func upgradeGitHubSourceExtension(
 
 	fetched, err := extensioncore.FetchGitHubSourceClone(helper.GetContext(), githubSource, store.TempDir())
 	if err != nil {
-		return upgradeExtensionOutcome{}, cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to fetch GitHub source", err)
+		return upgradeExtensionOutcome{}, cmdpkg.PrepareExecutionErrorWithHelper(
+			helper,
+			"failed to fetch GitHub source",
+			err,
+		)
 	}
 	defer fetched.Cleanup()
 
@@ -624,7 +632,11 @@ func upgradeGitHubSourceExtension(
 	}
 	result, err := store.InstallGitHubSource(fetched.Dir, fetched, version, time.Now(), trustConfirmed)
 	if err != nil {
-		return upgradeExtensionOutcome{}, cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to upgrade extension", err)
+		return upgradeExtensionOutcome{}, cmdpkg.PrepareExecutionErrorWithHelper(
+			helper,
+			"failed to upgrade extension",
+			err,
+		)
 	}
 	return upgradeExtensionOutcome{
 		Status:    upgradeExtensionStatusUpgraded,
@@ -645,9 +657,11 @@ func validateRemoteUpgradeCandidate(
 		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{Err: err}
 	}
 	if candidate.ID != current.ID {
-		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{Err: fmt.Errorf(
-			"upgrade candidate id %q does not match installed extension %q", candidate.ID, current.ID,
-		)}
+		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf(
+				"upgrade candidate id %q does not match installed extension %q", candidate.ID, current.ID,
+			),
+		}
 	}
 	if err := extensioncore.ValidateExtensionCommands(command.Root(), candidate); err != nil {
 		return extensioncore.Extension{}, extensioncore.PackageObservation{}, &cmdpkg.ConfigurationError{Err: err}

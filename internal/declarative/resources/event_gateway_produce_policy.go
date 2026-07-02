@@ -24,8 +24,8 @@ func init() {
 // The SDK represents produce policies as a union type (EventGatewayProducePolicyCreate)
 // with variants: modify_headers, schema_validation, encrypt, and encrypt_fields.
 type EventGatewayProducePolicyResource struct {
-	kkComps.EventGatewayProducePolicyCreate `yaml:",inline" json:",inline"`
-	Ref                                     string `yaml:"ref"                            json:"ref"`
+	kkComps.EventGatewayProducePolicyCreate `       yaml:",inline"                   json:",inline"`
+	Ref                                     string `yaml:"ref"                       json:"ref"`
 	// Parent Event Gateway Virtual Cluster reference (for root-level definitions)
 	VirtualCluster string `yaml:"virtual_cluster,omitempty" json:"virtual_cluster,omitempty"`
 	EventGateway   string `yaml:"event_gateway,omitempty"   json:"event_gateway,omitempty"`

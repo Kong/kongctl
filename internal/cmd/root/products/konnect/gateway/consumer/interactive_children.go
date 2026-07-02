@@ -16,7 +16,11 @@ import (
 )
 
 func init() {
-	tableview.RegisterChildLoader(kkCommon.ViewParentControlPlane, kkCommon.ViewFieldConsumers, loadControlPlaneConsumers)
+	tableview.RegisterChildLoader(
+		kkCommon.ViewParentControlPlane,
+		kkCommon.ViewFieldConsumers,
+		loadControlPlaneConsumers,
+	)
 }
 
 func loadControlPlaneConsumers(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

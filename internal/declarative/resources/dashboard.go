@@ -23,10 +23,10 @@ func init() {
 // DashboardResource represents a Konnect Analytics custom dashboard.
 type DashboardResource struct {
 	BaseResource
-	Name          string            `yaml:"name"                 json:"name"`
-	Definition    kkComps.Dashboard `yaml:"definition"           json:"definition"`
-	Labels        map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
-	definitionSet bool              `yaml:"-"                    json:"-"`
+	Name          string            `yaml:"name"             json:"name"`
+	Definition    kkComps.Dashboard `yaml:"definition"       json:"definition"`
+	Labels        map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
+	definitionSet bool              `yaml:"-"                json:"-"`
 }
 
 func (d DashboardResource) GetType() ResourceType {
