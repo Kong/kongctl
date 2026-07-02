@@ -85,6 +85,75 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 	// 3. Compare desired vs current
 	desiredNames := make(map[string]bool)
 	for _, desiredCluster := range desired {
+		if desiredCluster.IsExternal() {
+			current, err := matchExternalEventGatewayVirtualCluster(&desiredCluster, currentClusters)
+			if err != nil {
+				return err
+			}
+			if !desiredCluster.TryMatchKonnectResource(current) {
+				return fmt.Errorf(
+					"external event_gateway_virtual_cluster %s: failed to bind Konnect resource",
+					desiredCluster.GetRef(),
+				)
+			}
+			if current.Name != "" {
+				desiredCluster.Name = current.Name
+			}
+			desiredNames[current.Name] = true
+
+			// Plan child resources for this existing external virtual cluster, but never update
+			// the virtual cluster itself.
+			clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(desiredCluster.Ref)
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayClusterPolicy,
+			) && (len(clusterPolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
+				if err := p.planEventGatewayClusterPolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, current.ID, desiredCluster.Ref,
+					"", clusterPolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
+
+			producePolicies := p.resources.GetProducePoliciesForVirtualCluster(desiredCluster.Ref)
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayProducePolicy,
+			) && (len(producePolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
+				if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, current.ID, desiredCluster.Ref,
+					"", producePolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
+
+			consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(desiredCluster.Ref)
+			if p.shouldPlanChild(
+				plan,
+				resources.ResourceTypeEventGatewayVirtualCluster,
+				desiredCluster.Ref,
+				resources.ResourceTypeEventGatewayConsumePolicy,
+			) && (len(consumePolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
+				if err := p.planEventGatewayConsumePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, current.ID, desiredCluster.Ref,
+					"", consumePolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
+
+			continue
+		}
+
 		desiredNames[desiredCluster.Name] = true
 		current, exists := currentByName[desiredCluster.Name]
 		if !exists {
@@ -229,7 +298,7 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 	}
 
 	// 4. SYNC MODE: Delete unmanaged clusters
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayExternal(gatewayRef) {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

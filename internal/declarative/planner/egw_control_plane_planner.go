@@ -61,14 +61,18 @@ func (p *Planner) planEGWControlPlaneChanges(
 	namespace := plannerCtx.Namespace
 
 	// Fetch current managed Event Gateway Control Planes from the specific namespace
-	namespaceFilter := []string{namespace}
-	currentEGWControlPlanes, err := p.listManagedEventGatewayControlPlanes(ctx, namespaceFilter)
-	if err != nil {
-		// If API client is not configured, skip Event Gateway Control Plane planning
-		if state.IsAPIClientError(err) {
-			return nil
+	var currentEGWControlPlanes []state.EventGatewayControlPlane
+	if namespace != resources.NamespaceExternal {
+		namespaceFilter := []string{namespace}
+		var err error
+		currentEGWControlPlanes, err = p.listManagedEventGatewayControlPlanes(ctx, namespaceFilter)
+		if err != nil {
+			// If API client is not configured, skip Event Gateway Control Plane planning
+			if state.IsAPIClientError(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to list current Event Gateway Control Planes: %w", err)
 		}
-		return fmt.Errorf("failed to list current Event Gateway Control Planes: %w", err)
 	}
 
 	// Index current Event Gateway Control Planes by name
@@ -83,6 +87,14 @@ func (p *Planner) planEGWControlPlaneChanges(
 	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
 	if plan.Metadata.Mode == PlanModeDelete {
 		for _, desiredEGWCP := range desired {
+			if desiredEGWCP.IsExternal() {
+				plan.AddWarning("", fmt.Sprintf(
+					"event_gateway_control_plane %q is external, skipping delete",
+					desiredEGWCP.GetRef(),
+				))
+				continue
+			}
+
 			current, exists := currentByName[desiredEGWCP.Name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
@@ -110,68 +122,80 @@ func (p *Planner) planEGWControlPlaneChanges(
 
 	// Compare each desired Event Gateway Control Plane
 	for _, desiredEGWCP := range desired {
-		current, exists := currentByName[desiredEGWCP.Name]
-
 		// Track the gateway change ID for dependency resolution
 		var gatewayChangeID string
+		var gatewayID string
 
-		if !exists {
-			// CREATE action
-			gatewayChangeID = p.planEGWControlPlaneCreate(desiredEGWCP, plan)
-		} else {
-			// Check if update needed
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-
-			// Get protection status from desired configuration
-			shouldProtect := false
-			if desiredEGWCP.Kongctl != nil && desiredEGWCP.Kongctl.Protected != nil && *desiredEGWCP.Kongctl.Protected {
-				shouldProtect = true
+		if desiredEGWCP.IsExternal() {
+			gatewayID = desiredEGWCP.GetKonnectID()
+			if gatewayID == "" {
+				return fmt.Errorf("external event_gateway %q has no resolved Konnect ID", desiredEGWCP.GetRef())
 			}
+		} else {
+			current, exists := currentByName[desiredEGWCP.Name]
 
-			// Handle protection changes
-			if isProtected != shouldProtect {
-				// When changing protection status, include any other field updates too
-				needsUpdate, updateFields, changedFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
-
-				// Create protection change object
-				protectionChange := &ProtectionChange{
-					Old: isProtected,
-					New: shouldProtect,
-				}
-
-				// Validate protection change
-				err := p.validateProtectionWithChange(
-					ResourceTypeEventGatewayControlPlane,
-					desiredEGWCP.Name,
-					isProtected,
-					ActionUpdate,
-					protectionChange,
-					needsUpdate,
-				)
-				if err != nil {
-					protectionErrors.Add(err)
-				} else {
-					p.planEGWControlPlaneProtectionChangeWithFields(
-						current,
-						desiredEGWCP,
-						isProtected,
-						shouldProtect,
-						updateFields,
-						changedFields,
-						plan,
-					)
-				}
+			if !exists {
+				// CREATE action
+				gatewayChangeID = p.planEGWControlPlaneCreate(desiredEGWCP, plan)
 			} else {
-				// Check if update needed based on configuration
-				needsUpdate, updateFields, changedFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
-				if needsUpdate {
-					// Regular update - check protection
-					if err := p.validateProtection(
-						ResourceTypeEventGatewayControlPlane, desiredEGWCP.Name, isProtected, ActionUpdate,
-					); err != nil {
+				gatewayID = current.ID
+
+				// Check if update needed
+				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+
+				// Get protection status from desired configuration
+				shouldProtect := false
+				if desiredEGWCP.Kongctl != nil &&
+					desiredEGWCP.Kongctl.Protected != nil &&
+					*desiredEGWCP.Kongctl.Protected {
+					shouldProtect = true
+				}
+
+				// Handle protection changes
+				if isProtected != shouldProtect {
+					// When changing protection status, include any other field updates too
+					needsUpdate, updateFields, changedFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
+
+					// Create protection change object
+					protectionChange := &ProtectionChange{
+						Old: isProtected,
+						New: shouldProtect,
+					}
+
+					// Validate protection change
+					err := p.validateProtectionWithChange(
+						ResourceTypeEventGatewayControlPlane,
+						desiredEGWCP.Name,
+						isProtected,
+						ActionUpdate,
+						protectionChange,
+						needsUpdate,
+					)
+					if err != nil {
 						protectionErrors.Add(err)
 					} else {
-						p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, changedFields, plan)
+						p.planEGWControlPlaneProtectionChangeWithFields(
+							current,
+							desiredEGWCP,
+							isProtected,
+							shouldProtect,
+							updateFields,
+							changedFields,
+							plan,
+						)
+					}
+				} else {
+					// Check if update needed based on configuration
+					needsUpdate, updateFields, changedFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
+					if needsUpdate {
+						// Regular update - check protection
+						if err := p.validateProtection(
+							ResourceTypeEventGatewayControlPlane, desiredEGWCP.Name, isProtected, ActionUpdate,
+						); err != nil {
+							protectionErrors.Add(err)
+						} else {
+							p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, changedFields, plan)
+						}
 					}
 				}
 			}
@@ -179,10 +203,6 @@ func (p *Planner) planEGWControlPlaneChanges(
 
 		// Plan backend clusters for this gateway (whether it exists or is being created)
 		backendClusters := p.resources.GetBackendClustersForGateway(desiredEGWCP.Ref)
-		gatewayID := ""
-		if exists {
-			gatewayID = current.ID
-		}
 
 		if p.shouldPlanChild(
 			plan,

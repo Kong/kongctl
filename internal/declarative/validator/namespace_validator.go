@@ -214,13 +214,21 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		managedOrganizationTeams = append(managedOrganizationTeams, team)
 	}
 
+	managedEventGateways := make([]resources.EventGatewayControlPlaneResource, 0, len(rs.EventGatewayControlPlanes))
+	for _, eventGateway := range rs.EventGatewayControlPlanes {
+		if eventGateway.IsExternal() {
+			continue
+		}
+		managedEventGateways = append(managedEventGateways, eventGateway)
+	}
+
 	totalParents := len(managedPortals) +
 		len(rs.ApplicationAuthStrategies) +
 		len(rs.DCRProviders) +
 		len(managedControlPlanes) +
 		len(rs.CatalogServices) +
 		len(rs.APIs) +
-		len(rs.EventGatewayControlPlanes) +
+		len(managedEventGateways) +
 		len(rs.Dashboards) +
 		len(managedOrganizationTeams)
 	if rs.Organization != nil {

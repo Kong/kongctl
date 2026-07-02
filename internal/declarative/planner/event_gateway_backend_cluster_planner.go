@@ -128,7 +128,7 @@ func (p *Planner) planBackendClusterChangesForExistingGateway(
 	}
 
 	// 4. SYNC MODE: Delete unmanaged clusters
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayExternal(gatewayRef) {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

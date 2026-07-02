@@ -733,6 +733,12 @@ func (rs *ResourceSet) GetPortalTeamRolesByNamespace(namespace string) []PortalT
 func (rs *ResourceSet) GetEventGatewayControlPlanesByNamespace(namespace string) []EventGatewayControlPlaneResource {
 	var filtered []EventGatewayControlPlaneResource
 	for _, cp := range rs.EventGatewayControlPlanes {
+		if cp.IsExternal() {
+			if namespace == NamespaceExternal {
+				filtered = append(filtered, cp)
+			}
+			continue
+		}
 		if GetNamespace(cp.Kongctl) == namespace {
 			filtered = append(filtered, cp)
 		}
@@ -750,8 +756,25 @@ func (rs *ResourceSet) GetBackendClusterByRef(ref string) *EventGatewayBackendCl
 	return nil
 }
 
+// GetEventGatewayControlPlaneByRef returns an Event Gateway resource by its ref from any namespace.
+func (rs *ResourceSet) GetEventGatewayControlPlaneByRef(ref string) *EventGatewayControlPlaneResource {
+	for i := range rs.EventGatewayControlPlanes {
+		if rs.EventGatewayControlPlanes[i].GetRef() == ref {
+			return &rs.EventGatewayControlPlanes[i]
+		}
+	}
+	return nil
+}
+
 // GetVirtualClusterByRef returns a virtual cluster resource by its ref from any namespace
 func (rs *ResourceSet) GetVirtualClusterByRef(ref string) *EventGatewayVirtualClusterResource {
+	for gatewayIdx := range rs.EventGatewayControlPlanes {
+		for clusterIdx := range rs.EventGatewayControlPlanes[gatewayIdx].VirtualClusters {
+			if rs.EventGatewayControlPlanes[gatewayIdx].VirtualClusters[clusterIdx].GetRef() == ref {
+				return &rs.EventGatewayControlPlanes[gatewayIdx].VirtualClusters[clusterIdx]
+			}
+		}
+	}
 	for i := range rs.EventGatewayVirtualClusters {
 		if rs.EventGatewayVirtualClusters[i].GetRef() == ref {
 			return &rs.EventGatewayVirtualClusters[i]

@@ -1,0 +1,212 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  egw_name: external-sync-event-gateway
+  backend_cluster_name: external-sync-backend-cluster
+  virtual_cluster_name: external-sync-virtual-cluster
+  cluster_policy_ref: external-sync-cluster-policy
+  cluster_policy_name: external-sync-cluster-policy
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-out-of-band-event-gateway
+    skipInputs: true
+    commands:
+      - name: 000-create-event-gateway
+        create:
+          resource: event_gateway
+          payload:
+            inline:
+              name: "{{ .vars.egw_name }}"
+              description: "External sync event gateway"
+          recordVar:
+            name: egw_id
+            responsePath: id
+
+      - name: 001-create-backend-cluster
+        create:
+          resource: event-gateway-backend-cluster
+          endpointParams:
+            gatewayId: "{{ .vars.egw_id }}"
+          payload:
+            inline:
+              name: "{{ .vars.backend_cluster_name }}"
+              description: "External sync backend cluster"
+              authentication:
+                type: anonymous
+              insecure_allow_anonymous_virtual_cluster_auth: true
+              bootstrap_servers:
+                - "external-sync-backend-1.example.com:9092"
+                - "external-sync-backend-2.example.com:9092"
+              tls:
+                enabled: true
+                skip_verify: false
+                tls_versions:
+                  - tls12
+                  - tls13
+          recordVar:
+            name: backend_cluster_id
+            responsePath: id
+
+      - name: 002-create-virtual-cluster
+        create:
+          resource: event-gateway-virtual-cluster
+          endpointParams:
+            gatewayId: "{{ .vars.egw_id }}"
+          payload:
+            inline:
+              name: "{{ .vars.virtual_cluster_name }}"
+              description: "External sync virtual cluster"
+              destination:
+                id: "{{ .vars.backend_cluster_id }}"
+              authentication:
+                - type: anonymous
+              acl_mode: enforce_on_gateway
+              dns_label: external-sync-vc
+          recordVar:
+            name: virtual_cluster_id
+            responsePath: id
+
+  - name: 002-sync-external-reference
+    commands:
+      - name: 000-sync-dry-run
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --dry-run
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?resource_type=='event_gateway_backend_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-sync-with-declarative-cluster-policy
+    inputOverlayDirs:
+      - overlays/002-add-cluster-policy
+    commands:
+      - name: 000-sync-add-cluster-policy
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' &&
+              resource_ref=='{{ .vars.cluster_policy_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.cluster_policy_ref }}"
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-cluster-policies
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtual_cluster_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.cluster_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.cluster_policy_name }}"
+                description: "External sync cluster policy"
+
+  - name: 004-sync-idempotency
+    inputOverlayDirs:
+      - overlays/002-add-cluster-policy
+    commands:
+      - name: 000-sync-no-changes
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-sync-remove-declarative-cluster-policy
+    commands:
+      - name: 000-sync-no-deletions
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-cluster-policies-after-sync
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtual_cluster_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.cluster_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.cluster_policy_name }}"

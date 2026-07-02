@@ -1,0 +1,12 @@
+event_gateways:
+  - ref: external-sync-event-gateway
+    _external:
+      selector:
+        matchFields:
+          name: "external-sync-event-gateway"
+    virtual_clusters:
+      - ref: external-sync-virtual-cluster
+        _external:
+          selector:
+            matchFields:
+              name: "external-sync-virtual-cluster"

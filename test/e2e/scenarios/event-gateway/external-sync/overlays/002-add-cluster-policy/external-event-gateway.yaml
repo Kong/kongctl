@@ -1,0 +1,26 @@
+event_gateways:
+  - ref: external-sync-event-gateway
+    _external:
+      selector:
+        matchFields:
+          name: "external-sync-event-gateway"
+    virtual_clusters:
+      - ref: external-sync-virtual-cluster
+        _external:
+          selector:
+            matchFields:
+              name: "external-sync-virtual-cluster"
+        cluster_policies:
+          - ref: external-sync-cluster-policy
+            name: external-sync-cluster-policy
+            description: "External sync cluster policy"
+            type: acls
+            enabled: true
+            config:
+              rules:
+                - action: allow
+                  operations:
+                    - name: describe_configs
+                  resource_names:
+                    - match: "*"
+                  resource_type: transactional_id

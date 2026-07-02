@@ -28,6 +28,9 @@ type EventGatewayControlPlaneResource struct {
 	SchemaRegistries      []EventGatewaySchemaRegistryResource       `yaml:"schema_registries,omitempty"       json:"schema_registries,omitempty"`       //nolint:lll
 	StaticKeys            []EventGatewayStaticKeyResource            `yaml:"static_keys,omitempty"             json:"static_keys,omitempty"`             //nolint:lll
 	TrustBundles          []EventGatewayTLSTrustBundleResource       `yaml:"tls_trust_bundles,omitempty"       json:"tls_trust_bundles,omitempty"`       //nolint:lll
+
+	// External resource marker
+	External *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
 }
 
 func (e EventGatewayControlPlaneResource) GetType() ResourceType {
@@ -54,6 +57,12 @@ func (e *EventGatewayControlPlaneResource) SetLabels(labels map[string]string) {
 func (e EventGatewayControlPlaneResource) Validate() error {
 	if err := ValidateRef(e.Ref); err != nil {
 		return fmt.Errorf("invalid Event Gateway Control Plane ref: %w", err)
+	}
+
+	if e.External != nil {
+		if err := e.External.Validate(); err != nil {
+			return fmt.Errorf("invalid _external block: %w", err)
+		}
 	}
 
 	// Validate backend clusters
@@ -183,5 +192,19 @@ func (e EventGatewayControlPlaneResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource.
 func (e *EventGatewayControlPlaneResource) TryMatchKonnectResource(konnectResource any) bool {
-	return e.TryMatchByName(e.Name, konnectResource, matchOptions{sdkType: "EventGatewayInfo"})
+	id, ok := tryMatchByNameWithExternal(
+		e.Name,
+		konnectResource,
+		matchOptions{sdkType: "EventGatewayInfo"},
+		e.External,
+	)
+	if ok {
+		e.SetKonnectID(id)
+	}
+	return ok
+}
+
+// IsExternal returns true if this Event Gateway is externally managed.
+func (e *EventGatewayControlPlaneResource) IsExternal() bool {
+	return e.External != nil && e.External.IsExternal()
 }
