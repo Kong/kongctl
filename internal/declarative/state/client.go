@@ -5225,6 +5225,53 @@ func (c *Client) ListManagedEventGatewayControlPlanes(
 	return filteredEGWControlPlanes, nil
 }
 
+// ListAllEventGatewayControlPlanes returns all Event Gateways, including non-managed ones.
+func (c *Client) ListAllEventGatewayControlPlanes(ctx context.Context) ([]EventGatewayControlPlane, error) {
+	if err := ValidateAPIClient(c.egwControlPlaneAPI, "event gateway control plane API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.EventGatewayInfo
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewaysRequest{}
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.egwControlPlaneAPI.ListEGWControlPlanes(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list all event gateway control planes", nil)
+		}
+		if res.ListEventGatewaysResponse == nil {
+			return []EventGatewayControlPlane{}, nil
+		}
+
+		allData = append(allData, res.ListEventGatewaysResponse.Data...)
+
+		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewaysResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	gateways := make([]EventGatewayControlPlane, 0, len(allData))
+	for _, gateway := range allData {
+		normalized := gateway.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+		gateways = append(gateways, EventGatewayControlPlane{
+			EventGatewayInfo: gateway,
+			NormalizedLabels: normalized,
+		})
+	}
+
+	return gateways, nil
+}
+
 func (c *Client) CreateEventGatewayControlPlane(
 	ctx context.Context,
 	req kkComps.CreateGatewayRequest,

@@ -305,6 +305,7 @@ func syncParentTypeSupportsExternal(rt resources.ResourceType) bool {
 	switch rt {
 	case resources.ResourceTypePortal,
 		resources.ResourceTypeControlPlane,
+		resources.ResourceTypeEventGatewayControlPlane,
 		resources.ResourceTypeOrganizationTeam:
 		return true
 	default:

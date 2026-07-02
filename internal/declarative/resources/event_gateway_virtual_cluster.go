@@ -23,6 +23,9 @@ type EventGatewayVirtualClusterResource struct {
 	// Parent Event Gateway reference (for root-level definitions)
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 
+	// External resource marker
+	External *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
+
 	// Nested child resources
 	ClusterPolicies []EventGatewayClusterPolicyResource `yaml:"cluster_policies,omitempty" json:"cluster_policies,omitempty"`  //nolint:lll
 	ProducePolicies []EventGatewayProducePolicyResource `yaml:"produce_policies,omitempty" json:"produce_policies,omitempty"`  //nolint:lll
@@ -60,6 +63,12 @@ func (e EventGatewayVirtualClusterResource) GetKonnectID() string {
 func (e EventGatewayVirtualClusterResource) Validate() error {
 	if err := ValidateRef(e.Ref); err != nil {
 		return fmt.Errorf("invalid child ref: %w", err)
+	}
+
+	if e.External != nil {
+		if err := e.External.Validate(); err != nil {
+			return fmt.Errorf("invalid _external block: %w", err)
+		}
 	}
 
 	// Validate cluster policies
@@ -126,11 +135,20 @@ func (e EventGatewayVirtualClusterResource) GetKonnectMonikerFilter() string {
 }
 
 func (e *EventGatewayVirtualClusterResource) TryMatchKonnectResource(konnectResource any) bool {
-	if id := tryMatchByField(konnectResource, "Name", e.Name); id != "" {
-		e.konnectID = id
-		return true
+	id, ok := tryMatchByNameWithExternal(e.Name, konnectResource, matchOptions{}, e.External)
+	if ok {
+		e.SetKonnectID(id)
 	}
-	return false
+	return ok
+}
+
+func (e *EventGatewayVirtualClusterResource) SetKonnectID(id string) {
+	e.konnectID = id
+}
+
+// IsExternal returns true if this virtual cluster is externally managed.
+func (e *EventGatewayVirtualClusterResource) IsExternal() bool {
+	return e.External != nil && e.External.IsExternal()
 }
 
 // REQUIRED: Implement ResourceWithParent
@@ -145,8 +163,9 @@ func (e EventGatewayVirtualClusterResource) GetParentRef() *ResourceRef {
 // Without this, the embedded CreateVirtualClusterRequest's MarshalJSON is promoted and drops metadata fields.
 func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
 	type alias struct {
-		Ref          string `json:"ref"`
-		EventGateway string `json:"event_gateway,omitempty"`
+		Ref          string         `json:"ref"`
+		EventGateway string         `json:"event_gateway,omitempty"`
+		External     *ExternalBlock `json:"_external,omitempty"`
 
 		// Fields from kkComps.CreateVirtualClusterRequest
 		Name           string                                       `json:"name"`
@@ -168,6 +187,7 @@ func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
 	payload := alias{
 		Ref:             e.Ref,
 		EventGateway:    e.EventGateway,
+		External:        e.External,
 		Name:            e.Name,
 		Description:     e.Description,
 		Destination:     e.Destination,
@@ -190,9 +210,10 @@ func (e *EventGatewayVirtualClusterResource) UnmarshalJSON(data []byte) error {
 	// Temporary structure for unmarshaling resource metadata together with
 	// the CreateVirtualClusterRequest fields from the SDK.
 	var temp struct {
-		Ref          string `json:"ref"`
-		EventGateway string `json:"event_gateway,omitempty"`
-		Kongctl      any    `json:"kongctl,omitempty"`
+		Ref          string         `json:"ref"`
+		EventGateway string         `json:"event_gateway,omitempty"`
+		External     *ExternalBlock `json:"_external,omitempty"`
+		Kongctl      any            `json:"kongctl,omitempty"`
 
 		// Fields from kkComps.CreateVirtualClusterRequest
 		Name           string                                       `json:"name"`
@@ -222,6 +243,7 @@ func (e *EventGatewayVirtualClusterResource) UnmarshalJSON(data []byte) error {
 	// Populate resource metadata
 	e.Ref = temp.Ref
 	e.EventGateway = temp.EventGateway
+	e.External = temp.External
 
 	// Populate embedded CreateVirtualClusterRequest fields
 	e.Name = temp.Name

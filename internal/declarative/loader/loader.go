@@ -800,9 +800,18 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 	}
 
 	for i := range rs.EventGatewayControlPlanes {
+		if rs.EventGatewayControlPlanes[i].IsExternal() {
+			if rs.EventGatewayControlPlanes[i].Kongctl != nil {
+				return fmt.Errorf(
+					"event_gateway '%s' is marked as external and cannot use kongctl metadata",
+					rs.EventGatewayControlPlanes[i].Ref,
+				)
+			}
+			continue
+		}
 		if err := assignNamespace(
 			&rs.EventGatewayControlPlanes[i].Kongctl,
-			"control_plane",
+			"event_gateway",
 			rs.EventGatewayControlPlanes[i].Ref,
 		); err != nil {
 			return err

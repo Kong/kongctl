@@ -117,7 +117,7 @@ func (p *Planner) planTrustBundleChangesForExistingGateway(
 	}
 
 	// SYNC MODE: Delete unmanaged trust bundles
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayExternal(gatewayRef) {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

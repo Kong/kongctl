@@ -885,6 +885,10 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve control plane identities: %w", err)
 	}
 
+	if err := p.resolveEventGatewayControlPlaneIdentities(ctx, rs.EventGatewayControlPlanes); err != nil {
+		return fmt.Errorf("failed to resolve Event Gateway identities: %w", err)
+	}
+
 	if err := p.resolveGatewayServiceIdentities(ctx, rs.GatewayServices, rs.ControlPlanes); err != nil {
 		return fmt.Errorf("failed to resolve gateway service identities: %w", err)
 	}
@@ -1188,6 +1192,106 @@ func (p *Planner) resolveControlPlaneIdentities(
 	}
 
 	return nil
+}
+
+func (p *Planner) resolveEventGatewayControlPlaneIdentities(
+	ctx context.Context,
+	eventGateways []resources.EventGatewayControlPlaneResource,
+) error {
+	var (
+		allGateways []state.EventGatewayControlPlane
+		loaded      bool
+	)
+
+	loadAll := func() error {
+		if loaded {
+			return nil
+		}
+		gateways, err := p.client.ListAllEventGatewayControlPlanes(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list Event Gateways for external lookup: %w", err)
+		}
+		allGateways = gateways
+		loaded = true
+		return nil
+	}
+
+	for i := range eventGateways {
+		eventGateway := &eventGateways[i]
+		if eventGateway.GetKonnectID() != "" || !eventGateway.IsExternal() {
+			continue
+		}
+		if err := loadAll(); err != nil {
+			return err
+		}
+
+		match, err := matchExternalEventGatewayControlPlane(eventGateway, allGateways)
+		if err != nil {
+			return err
+		}
+		if !eventGateway.TryMatchKonnectResource(match) {
+			return fmt.Errorf("external event_gateway %s: failed to bind Konnect resource", eventGateway.GetRef())
+		}
+		if match.Name != "" {
+			eventGateway.Name = match.Name
+		}
+
+		p.logger.Debug(
+			"Resolved external Event Gateway",
+			slog.String("ref", eventGateway.GetRef()),
+			slog.String("id", eventGateway.GetKonnectID()),
+			slog.String("name", eventGateway.Name),
+		)
+	}
+
+	return nil
+}
+
+func matchExternalEventGatewayControlPlane(
+	eventGateway *resources.EventGatewayControlPlaneResource,
+	available []state.EventGatewayControlPlane,
+) (*state.EventGatewayControlPlane, error) {
+	if eventGateway == nil || eventGateway.External == nil {
+		return nil, fmt.Errorf("event_gateway requires _external")
+	}
+
+	if eventGateway.External.ID != "" {
+		for i := range available {
+			if available[i].ID == eventGateway.External.ID {
+				return &available[i], nil
+			}
+		}
+		return nil, fmt.Errorf("external event_gateway %s: not found with id %s",
+			eventGateway.GetRef(), eventGateway.External.ID)
+	}
+
+	if eventGateway.External.Selector == nil {
+		return nil, fmt.Errorf("external event_gateway %s: invalid _external configuration", eventGateway.GetRef())
+	}
+
+	matchFields := eventGateway.External.Selector.MatchFields
+	var match *state.EventGatewayControlPlane
+	for i := range available {
+		if eventGateway.External.Selector.Match(available[i]) {
+			if match != nil {
+				return nil, fmt.Errorf(
+					"external event_gateway %s: selector %v matched multiple Event Gateways",
+					eventGateway.GetRef(),
+					matchFields,
+				)
+			}
+			match = &available[i]
+		}
+	}
+	if match == nil {
+		return nil, fmt.Errorf(
+			"external event_gateway %s: selector %v did not match any Event Gateway",
+			eventGateway.GetRef(),
+			matchFields,
+		)
+	}
+
+	return match, nil
 }
 
 func (p *Planner) resolveGatewayServiceIdentities(
@@ -2174,6 +2278,7 @@ func (p *Planner) resolveAuthStrategyIdentities(
 func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	namespaceSet := make(map[string]bool)
 	hasExternalPortals := false
+	hasExternalEventGateways := false
 	hasExternalOrganizationTeams := false
 
 	// Extract namespaces from parent resources
@@ -2217,6 +2322,10 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	}
 
 	for _, cp := range rs.EventGatewayControlPlanes {
+		if cp.IsExternal() {
+			hasExternalEventGateways = true
+			continue
+		}
 		ns := resources.GetNamespace(cp.Kongctl)
 		namespaceSet[ns] = true
 	}
@@ -2249,7 +2358,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	// Sort for consistent processing order
 	sort.Strings(namespaces)
 
-	if hasExternalPortals || hasExternalOrganizationTeams {
+	if hasExternalPortals || hasExternalEventGateways || hasExternalOrganizationTeams {
 		namespaces = append(namespaces, resources.NamespaceExternal)
 	}
 

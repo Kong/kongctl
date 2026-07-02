@@ -3,6 +3,7 @@ package resources
 import (
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 )
@@ -51,6 +52,45 @@ func TestGetPortalsByNamespaceIncludesExternalsWhenRequested(t *testing.T) {
 	externalPages := rs.GetPortalPagesByNamespace(NamespaceExternal)
 	require.Len(t, externalPages, 1)
 	require.Equal(t, "page-2", externalPages[0].Ref)
+}
+
+func TestGetEventGatewayControlPlanesByNamespaceIncludesExternalsWhenRequested(t *testing.T) {
+	team := "team-one"
+	rs := &ResourceSet{
+		EventGatewayControlPlanes: []EventGatewayControlPlaneResource{
+			{
+				BaseResource: BaseResource{
+					Ref:     "managed",
+					Kongctl: namespaceMeta(team),
+				},
+				CreateGatewayRequest: kkComps.CreateGatewayRequest{Name: "managed"},
+			},
+			{
+				BaseResource:         BaseResource{Ref: "external"},
+				CreateGatewayRequest: kkComps.CreateGatewayRequest{Name: "external"},
+				External:             &ExternalBlock{ID: "gateway-123"},
+				VirtualClusters: []EventGatewayVirtualClusterResource{
+					{
+						Ref:                         "external-vc",
+						CreateVirtualClusterRequest: kkComps.CreateVirtualClusterRequest{Name: "external-vc"},
+						External:                    &ExternalBlock{ID: "vc-123"},
+					},
+				},
+			},
+		},
+	}
+
+	managed := rs.GetEventGatewayControlPlanesByNamespace(team)
+	require.Len(t, managed, 1)
+	require.Equal(t, "managed", managed[0].Ref)
+
+	external := rs.GetEventGatewayControlPlanesByNamespace(NamespaceExternal)
+	require.Len(t, external, 1)
+	require.Equal(t, "external", external[0].Ref)
+
+	require.Equal(t, "external", rs.GetEventGatewayControlPlaneByRef("external").Ref)
+	require.Equal(t, "external-vc", rs.GetVirtualClusterByRef("external-vc").Ref)
+	require.Equal(t, "vc-123", rs.GetVirtualClusterByRef("external-vc").External.ID)
 }
 
 func TestGetOrganizationUserTeamMembershipsByNamespaceUsesTeamNamespace(t *testing.T) {

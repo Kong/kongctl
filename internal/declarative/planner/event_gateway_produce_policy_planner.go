@@ -139,7 +139,7 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayVirtualClusterExternal(virtualClusterRef) {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(
