@@ -254,7 +254,88 @@ steps:
               fields:
                 slug: sms-webhooks
 
-  - name: 004-dump-and-plan-round-trip
+  - name: 004-sync-delete-parent-with-children
+    inputOverlayDirs:
+      - overlays/004-sync-delete-parent
+    commands:
+      - name: 000-plan-sync-delete-parent
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-delete-parent.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: >-
+              changes[?resource_type=='api_document' &&
+              resource_ref=='voice-ncco'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='api_document' &&
+              resource_ref=='voice-errors'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='api_document' &&
+              resource_ref=='voice-authentication'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-sync-delete-parent
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-delete-parent.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+
+      - name: 002-get-documents-after-parent-delete
+        run:
+          - get
+          - api
+          - documents
+          - --api-name
+          - "Voice API"
+          - -o
+          - json
+        assertions:
+          - select: "[?slug=='voice-getting-started'] | [0]"
+            expect:
+              fields:
+                slug: voice-getting-started
+          - select: "[?slug=='voice-ncco']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?slug=='voice-errors']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?slug=='voice-authentication']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 005-dump-and-plan-round-trip
     skipInputs: true
     commands:
       - name: 000-dump-apis
@@ -283,14 +364,24 @@ steps:
               fields:
                 slug: sms-webhooks
                 status: published
-          # Verify Voice API parent-child hierarchy is preserved
-          - select: >-
-              apis[?name=='Voice API'] | [0].documents[?slug=='voice-ncco'] |
-              [0].children[?slug=='voice-errors'] | [0]
+          # Verify Voice API parent-child hierarchy was removed by sync delete
+          - select: "apis[?name=='Voice API'] | [0].documents[?slug=='voice-getting-started'] | [0]"
             expect:
               fields:
-                slug: voice-errors
+                slug: voice-getting-started
                 status: published
+          - select: "apis[?name=='Voice API'] | [0].documents[?slug=='voice-ncco']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "apis[?name=='Voice API'] | [0].documents[?slug=='voice-errors']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "apis[?name=='Voice API'] | [0].documents[?slug=='voice-authentication']"
+            expect:
+              fields:
+                "length(@)": 0
       - name: 001-plan-from-dump
         outputFormat: disable
         run:
@@ -305,7 +396,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-delete-cleanup
+  - name: 006-delete-cleanup
     commands:
       - name: 000-delete
         outputFormat: json
