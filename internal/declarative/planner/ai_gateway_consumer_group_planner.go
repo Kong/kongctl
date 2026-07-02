@@ -248,9 +248,10 @@ func (p *Planner) shouldUpdateAIGatewayConsumerGroup(
 		)
 	}
 
-	currentCompare, desiredCompare := normalizeAIGatewayPolicyReferencesForComparison(
-		currentPayload,
-		desiredPayload,
+	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
+		currentCompare,
+		desiredCompare,
 		p.resources,
 	)
 
