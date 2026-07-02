@@ -56,6 +56,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayConsumers(rs); err != nil {
 		return err
 	}
+	if err := l.validateAIGatewayConsumerCredentials(rs); err != nil {
+		return err
+	}
 	if err := l.validateAIGatewayConsumerGroups(rs); err != nil {
 		return err
 	}
@@ -863,6 +866,58 @@ func (l *Loader) validateAIGatewayConsumers(rs *resources.ResourceSet) error {
 		"name",
 		func(consumer *resources.AIGatewayConsumerResource) string { return consumer.Name },
 	)
+}
+
+// validateAIGatewayConsumerCredentials validates AI Gateway Consumer child Credential resources.
+func (l *Loader) validateAIGatewayConsumerCredentials(rs *resources.ResourceSet) error {
+	namesByConsumer := make(map[string]string)
+
+	for i := range rs.AIGatewayConsumerCredentials {
+		credential := &rs.AIGatewayConsumerCredentials[i]
+
+		if err := credential.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_consumer_credential %q: %w", credential.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(credential.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayConsumerCredential {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					credential.GetRef(), existing.GetType())
+			}
+		}
+
+		consumerRef := resources.NormalizeResourceRef(credential.AIGatewayConsumer)
+		consumer, found := rs.GetResourceByRef(consumerRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_consumer_credential %q references unknown ai_gateway_consumer %q",
+				credential.GetRef(),
+				credential.AIGatewayConsumer,
+			)
+		}
+		if consumer.GetType() != resources.ResourceTypeAIGatewayConsumer {
+			return fmt.Errorf(
+				"ai_gateway_consumer_credential %q references %q which is %s, not ai_gateway_consumer",
+				credential.GetRef(),
+				credential.AIGatewayConsumer,
+				consumer.GetType(),
+			)
+		}
+
+		nameKey := consumerRef + "\x00" + credential.Name
+		if existingRef, exists := namesByConsumer[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_consumer_credential name %q for ai_gateway_consumer %q (ref: %s conflicts with ref: %s)",
+				credential.Name,
+				consumerRef,
+				credential.GetRef(),
+				existingRef,
+			)
+		}
+		namesByConsumer[nameKey] = credential.GetRef()
+	}
+
+	return nil
 }
 
 // validateAIGatewayConsumerGroups validates AI Gateway child Consumer Group resources.

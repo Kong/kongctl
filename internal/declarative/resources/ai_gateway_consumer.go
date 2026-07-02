@@ -16,6 +16,7 @@ const (
 	aiGatewayConsumerFieldDisplayName = "display_name"
 	aiGatewayConsumerFieldCustomID    = "custom_id"
 	aiGatewayConsumerFieldPolicies    = "policies"
+	aiGatewayConsumerFieldCredentials = "credentials"
 	aiGatewayConsumerFieldLabels      = "labels"
 	aiGatewayConsumerFieldUpdatedAt   = "updated_at"
 )
@@ -50,6 +51,8 @@ type AIGatewayConsumerResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	// Parent AI Gateway reference for root-level declarations.
 	AIGateway string `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
+
+	Credentials []AIGatewayConsumerCredentialResource `yaml:"credentials,omitempty" json:"credentials,omitempty"`
 
 	kkComps.CreateAIGatewayConsumerRequest `yaml:",inline" json:",inline"`
 }
@@ -118,6 +121,9 @@ func (a *AIGatewayConsumerResource) SetDefaults() {
 	if a.DisplayName == "" {
 		a.DisplayName = a.Name
 	}
+	for i := range a.Credentials {
+		a.Credentials[i].SetDefaults()
+	}
 }
 
 func (a AIGatewayConsumerResource) GetKonnectMonikerFilter() string {
@@ -184,6 +190,9 @@ func (a AIGatewayConsumerResource) MarshalJSON() ([]byte, error) {
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
+	if len(a.Credentials) > 0 {
+		payload[aiGatewayConsumerFieldCredentials] = a.Credentials
+	}
 	return json.Marshal(payload)
 }
 
@@ -196,6 +205,9 @@ func (a AIGatewayConsumerResource) MarshalYAML() (any, error) {
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
+	if len(a.Credentials) > 0 {
+		payload[aiGatewayConsumerFieldCredentials] = a.Credentials
+	}
 	return payload, nil
 }
 
@@ -206,9 +218,10 @@ func (a *AIGatewayConsumerResource) UnmarshalJSON(data []byte) error {
 	}
 
 	var meta struct {
-		Ref       string          `json:"ref"`
-		AIGateway string          `json:"ai_gateway,omitempty"`
-		Kongctl   json.RawMessage `json:"kongctl,omitempty"`
+		Ref         string                                `json:"ref"`
+		AIGateway   string                                `json:"ai_gateway,omitempty"`
+		Credentials []AIGatewayConsumerCredentialResource `json:"credentials,omitempty"`
+		Kongctl     json.RawMessage                       `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
@@ -219,6 +232,7 @@ func (a *AIGatewayConsumerResource) UnmarshalJSON(data []byte) error {
 
 	delete(raw, SchemaFieldRef)
 	delete(raw, SchemaFieldAIGateway)
+	delete(raw, aiGatewayConsumerFieldCredentials)
 	delete(raw, SchemaFieldKongctl)
 
 	payload, err := json.Marshal(raw)
@@ -232,6 +246,7 @@ func (a *AIGatewayConsumerResource) UnmarshalJSON(data []byte) error {
 
 	a.BaseResource = BaseResource{Ref: meta.Ref}
 	a.AIGateway = meta.AIGateway
+	a.Credentials = meta.Credentials
 	a.CreateAIGatewayConsumerRequest = req
 	return nil
 }
@@ -346,6 +361,12 @@ func aiGatewayConsumerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			explainArrayOf(explainStringNode("!ref mask-sensitive-data")),
 			false,
 			true,
+		),
+		explainField(
+			aiGatewayConsumerFieldCredentials,
+			explainArrayOf(aiGatewayConsumerCredentialInlineExplainNode()),
+			false,
+			false,
 		),
 		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
 		explainField(

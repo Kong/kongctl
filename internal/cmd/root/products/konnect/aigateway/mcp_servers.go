@@ -393,8 +393,8 @@ func aiGatewayMCPServerDetailView(server kkComps.AIGatewayMCPServer) string {
 		"config",
 		"tools",
 		"policies",
-		"labels",
-		"managed_by",
+		aiGatewayFieldLabels,
+		aiGatewayFieldManagedBy,
 		aiGatewayFieldCreatedAt,
 		aiGatewayFieldUpdatedAt,
 	}

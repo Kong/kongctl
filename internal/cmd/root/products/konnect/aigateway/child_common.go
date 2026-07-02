@@ -40,6 +40,12 @@ const (
 	aiGatewayConsumerIDConfigPath   = "konnect.ai-gateway.consumer.id"
 	aiGatewayConsumerNameConfigPath = "konnect.ai-gateway.consumer.name"
 
+	aiGatewayConsumerCredentialIDFlagName   = "credential-id"   //nolint:gosec
+	aiGatewayConsumerCredentialNameFlagName = "credential-name" //nolint:gosec
+
+	aiGatewayConsumerCredentialIDConfigPath   = "konnect.ai-gateway.consumer.credential.id"   //nolint:gosec
+	aiGatewayConsumerCredentialNameConfigPath = "konnect.ai-gateway.consumer.credential.name" //nolint:gosec
+
 	aiGatewayConsumerGroupIDFlagName   = "consumer-group-id"
 	aiGatewayConsumerGroupNameFlagName = "consumer-group-name"
 
@@ -77,11 +83,15 @@ const (
 
 	aiGatewayFieldCreatedAt = "created_at"
 	aiGatewayFieldUpdatedAt = "updated_at"
+	aiGatewayFieldLabels    = "labels"
+	aiGatewayFieldManagedBy = "managed_by"
+	aiGatewayFieldConfig    = "config"
 
 	aiGatewayHeaderID          = "ID"
 	aiGatewayHeaderName        = "NAME"
 	aiGatewayHeaderDisplayName = "DISPLAY NAME"
 	aiGatewayHeaderType        = "TYPE"
+	aiGatewayHeaderTTL         = "TTL"
 	aiGatewayHeaderEnabled     = "ENABLED"
 	aiGatewayHeaderPolicies    = "POLICIES"
 	aiGatewayHeaderUpdated     = "UPDATED"
@@ -191,6 +201,15 @@ var (
 		nameHelp: "The name of the AI Gateway Consumer to retrieve.",
 	}
 
+	aiGatewayConsumerCredentialFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayConsumerCredentialIDFlagName,
+		idPath:   aiGatewayConsumerCredentialIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Consumer Credential to retrieve.",
+		nameFlag: aiGatewayConsumerCredentialNameFlagName,
+		namePath: aiGatewayConsumerCredentialNameConfigPath,
+		nameHelp: "The name of the AI Gateway Consumer Credential to retrieve.",
+	}
+
 	aiGatewayConsumerGroupFlags = pairedAIGatewayFlags{
 		idFlag:   aiGatewayConsumerGroupIDFlagName,
 		idPath:   aiGatewayConsumerGroupIDConfigPath,
@@ -295,6 +314,22 @@ func bindAIGatewayConsumerFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayConsumerIdentifiers(cfg config.Hook) (id string, name string) {
 	return getPairedAIGatewayIdentifiers(cfg, aiGatewayConsumerIDConfigPath, aiGatewayConsumerNameConfigPath)
+}
+
+func addAIGatewayConsumerCredentialFlags(c *cobra.Command) {
+	addPairedAIGatewayFlags(c, aiGatewayConsumerCredentialFlags)
+}
+
+func bindAIGatewayConsumerCredentialFlags(c *cobra.Command, args []string) error {
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayConsumerCredentialFlags)...)
+}
+
+func getAIGatewayConsumerCredentialIdentifiers(cfg config.Hook) (id string, name string) {
+	return getPairedAIGatewayIdentifiers(
+		cfg,
+		aiGatewayConsumerCredentialIDConfigPath,
+		aiGatewayConsumerCredentialNameConfigPath,
+	)
 }
 
 func addAIGatewayConsumerGroupFlags(c *cobra.Command) {

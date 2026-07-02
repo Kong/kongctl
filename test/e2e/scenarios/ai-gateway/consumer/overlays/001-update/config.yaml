@@ -1,3 +1,7 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-consumer-e2e
+
 ai_gateways:
   - ref: ai-gateway-consumer-e2e
     display_name: "AI Gateway Consumer E2E"
@@ -32,3 +36,12 @@ ai_gateways:
           phase: update
         policies:
           - !ref mask-sensitive-data
+        credentials:
+          - ref: support-agent-key
+            name: support-agent-key
+            type: api-key
+            display_name: "Support Agent API Key"
+            ttl: 0
+            labels:
+              team: support
+              phase: create

@@ -35,6 +35,11 @@ type aiGatewayConsumerRecord struct {
 	LocalUpdatedTime string
 }
 
+type aiGatewayConsumerDetailContext struct {
+	GatewayID string
+	Consumer  kkComps.AIGatewayConsumer
+}
+
 var (
 	aiGatewayConsumersUse   = "consumers [consumer-id|consumer-name]"
 	aiGatewayConsumersShort = i18n.T(
@@ -260,7 +265,10 @@ func (h aiGatewayConsumersHandler) listConsumers(
 			if index < 0 || index >= len(consumers) {
 				return nil
 			}
-			return &consumers[index]
+			return &aiGatewayConsumerDetailContext{
+				GatewayID: gatewayID,
+				Consumer:  consumers[index],
+			}
 		}),
 	)
 }
@@ -308,7 +316,10 @@ func (h aiGatewayConsumersHandler) getSingleConsumer(
 			if index != 0 {
 				return nil
 			}
-			return consumer
+			return &aiGatewayConsumerDetailContext{
+				GatewayID: gatewayID,
+				Consumer:  *consumer,
+			}
 		}),
 	)
 }
@@ -385,8 +396,8 @@ func aiGatewayConsumerDetailView(consumer kkComps.AIGatewayConsumer) string {
 		"display_name",
 		"custom_id",
 		"policies",
-		"labels",
-		"managed_by",
+		aiGatewayFieldLabels,
+		aiGatewayFieldManagedBy,
 		aiGatewayFieldCreatedAt,
 		aiGatewayFieldUpdatedAt,
 	}
@@ -398,7 +409,7 @@ func aiGatewayConsumerDetailView(consumer kkComps.AIGatewayConsumer) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func buildAIGatewayConsumerChildView(consumers []kkComps.AIGatewayConsumer) tableview.ChildView {
+func buildAIGatewayConsumerChildView(gatewayID string, consumers []kkComps.AIGatewayConsumer) tableview.ChildView {
 	tableRows := make([]table.Row, 0, len(consumers))
 	for i := range consumers {
 		record := aiGatewayConsumerToRecord(consumers[i])
@@ -432,7 +443,10 @@ func buildAIGatewayConsumerChildView(consumers []kkComps.AIGatewayConsumer) tabl
 			if index < 0 || index >= len(consumers) {
 				return nil
 			}
-			return &consumers[index]
+			return &aiGatewayConsumerDetailContext{
+				GatewayID: gatewayID,
+				Consumer:  consumers[index],
+			}
 		},
 	}
 }

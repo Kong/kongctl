@@ -62,6 +62,12 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
+		key:          "ai_gateway_consumer_credentials",
+		resourceType: resources.ResourceTypeAIGatewayConsumerCredential,
+		parentKey:    resources.SchemaFieldAIGatewayConsumer,
+		parentType:   resources.ResourceTypeAIGatewayConsumer,
+	},
+	{
 		key:          "ai_gateway_models",
 		resourceType: resources.ResourceTypeAIGatewayModel,
 		parentKey:    resources.SchemaFieldAIGateway,
@@ -480,6 +486,7 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 		resources.ResourceTypeAIGateway,
 		aiGatewayChildCollectionScopes,
 	)
+	captureNestedAIGatewayConsumerCredentialScopes(scope, raw)
 	captureNestedCollectionScopes(
 		scope,
 		raw,
@@ -528,6 +535,9 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 		}
 		if entry.resourceType == resources.ResourceTypeAIGatewayConsumerGroup {
 			return fmt.Errorf("%s cannot be empty because each Consumer Group must declare an ai_gateway parent", entry.key)
+		}
+		if entry.resourceType == resources.ResourceTypeAIGatewayConsumerCredential {
+			return fmt.Errorf("%s cannot be empty because each Credential must declare an ai_gateway_consumer parent", entry.key)
 		}
 		if entry.resourceType == resources.ResourceTypeAIGatewayModel {
 			return fmt.Errorf("%s cannot be empty because each model must declare an ai_gateway parent", entry.key)
@@ -583,6 +593,46 @@ func captureNestedCollectionScopes(
 			if _, ok := parent[child.key]; ok {
 				scope.AddChild(parentType, parentRef, child.resourceType)
 			}
+		}
+	}
+}
+
+func captureNestedAIGatewayConsumerCredentialScopes(scope *resources.SyncScope, raw map[string]any) {
+	captureCredentialsUnderConsumers(scope, raw["ai_gateway_consumers"])
+
+	gateways, ok := asSlice(raw["ai_gateways"])
+	if !ok {
+		return
+	}
+	for _, item := range gateways {
+		gateway, ok := asMap(item)
+		if !ok {
+			continue
+		}
+		captureCredentialsUnderConsumers(scope, gateway["consumers"])
+	}
+}
+
+func captureCredentialsUnderConsumers(scope *resources.SyncScope, value any) {
+	consumers, ok := asSlice(value)
+	if !ok {
+		return
+	}
+	for _, item := range consumers {
+		consumer, ok := asMap(item)
+		if !ok {
+			continue
+		}
+		consumerRef := stringValue(consumer[resources.SchemaFieldRef])
+		if consumerRef == "" {
+			continue
+		}
+		if _, ok := consumer["credentials"]; ok {
+			scope.AddChild(
+				resources.ResourceTypeAIGatewayConsumer,
+				consumerRef,
+				resources.ResourceTypeAIGatewayConsumerCredential,
+			)
 		}
 	}
 }

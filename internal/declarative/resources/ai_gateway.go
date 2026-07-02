@@ -362,6 +362,14 @@ func aiGatewayConsumerInlineExplainNode() *ExplainNode {
 	return node
 }
 
+func aiGatewayConsumerCredentialInlineExplainNode() *ExplainNode {
+	node, err := aiGatewayConsumerCredentialExplainNode(ExplainBuildContext{})
+	if err != nil {
+		return explainObject()
+	}
+	return node
+}
+
 func aiGatewayMCPServerInlineExplainNode() *ExplainNode {
 	node, err := aiGatewayMCPServerExplainNode(ExplainBuildContext{})
 	if err != nil {

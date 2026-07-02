@@ -55,6 +55,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"ai_gateway_policies":                {},
 	"ai_gateway_agents":                  {},
 	"ai_gateway_consumers":               {},
+	"ai_gateway_consumer_credentials":    {},
 	"ai_gateway_consumer_groups":         {},
 	"ai_gateway_models":                  {},
 	"ai_gateway_mcp_servers":             {},
@@ -93,9 +94,9 @@ func newDeclarativeCmd() *cobra.Command {
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
 			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_policies, "+
-			"ai_gateway_agents, ai_gateway_consumers, ai_gateway_consumer_groups, ai_gateway_models, "+
-			"ai_gateway_mcp_servers, ai_gateway_vaults, ai_gateway_data_plane_certificates, "+
-			"organization.teams).")
+			"ai_gateway_agents, ai_gateway_consumers, ai_gateway_consumer_credentials, "+
+			"ai_gateway_consumer_groups, ai_gateway_models, ai_gateway_mcp_servers, ai_gateway_vaults, "+
+			"ai_gateway_data_plane_certificates, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -213,6 +214,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		slices.Contains(opts.resources, "ai_gateway_policies") ||
 		slices.Contains(opts.resources, "ai_gateway_agents") ||
 		slices.Contains(opts.resources, "ai_gateway_consumers") ||
+		slices.Contains(opts.resources, "ai_gateway_consumer_credentials") ||
 		slices.Contains(opts.resources, "ai_gateway_consumer_groups") ||
 		slices.Contains(opts.resources, "ai_gateway_models") ||
 		slices.Contains(opts.resources, "ai_gateway_mcp_servers") ||
@@ -418,6 +420,18 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.AIGatewayConsumers = append(resourceSet.AIGatewayConsumers, consumers...)
+		case "ai_gateway_consumer_credentials":
+			credentials, err := collectDeclarativeAIGatewayConsumerCredentials(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayConsumerCredentials = append(resourceSet.AIGatewayConsumerCredentials, credentials...)
 		case "ai_gateway_consumer_groups":
 			groups, err := collectDeclarativeAIGatewayConsumerGroups(
 				ctx,
@@ -979,7 +993,7 @@ func collectDeclarativeAIGatewayConsumers(
 
 	var consumers []declresources.AIGatewayConsumerResource
 	for _, gateway := range gateways {
-		gatewayConsumers, err := buildAIGatewayConsumers(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref)
+		gatewayConsumers, err := buildAIGatewayConsumers(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref, false)
 		if err != nil {
 			return nil, err
 		}
@@ -997,6 +1011,61 @@ func collectDeclarativeAIGatewayConsumers(
 	})
 
 	return consumers, nil
+}
+
+func collectDeclarativeAIGatewayConsumerCredentials(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayConsumerCredentialResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Consumer Credentials API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var credentials []declresources.AIGatewayConsumerCredentialResource
+	for _, gateway := range gateways {
+		consumers, err := buildAIGatewayConsumers(ctx, client, gateway.Ref, gateway.DisplayName, gateway.Ref, false)
+		if err != nil {
+			return nil, err
+		}
+		for _, consumer := range consumers {
+			consumerCredentials, err := buildAIGatewayConsumerCredentials(
+				ctx,
+				client,
+				gateway.Ref,
+				gateway.DisplayName,
+				consumer.Ref,
+				consumer.Name,
+				consumer.Ref,
+			)
+			if err != nil {
+				return nil, err
+			}
+			credentials = append(credentials, consumerCredentials...)
+		}
+	}
+
+	credentials = filterByNameOrID(credentials, filter, func(r declresources.AIGatewayConsumerCredentialResource) (
+		string,
+		string,
+	) {
+		return r.Name, r.Ref
+	})
+	slices.SortFunc(credentials, func(a, b declresources.AIGatewayConsumerCredentialResource) int {
+		if a.AIGatewayConsumer == b.AIGatewayConsumer {
+			return cmp.Compare(a.Name, b.Name)
+		}
+		return cmp.Compare(a.AIGatewayConsumer, b.AIGatewayConsumer)
+	})
+
+	return credentials, nil
 }
 
 func collectDeclarativeAIGatewayModels(
