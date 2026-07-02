@@ -1,0 +1,100 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-model-e2e"
+  gateway_ref: "ai-gateway-model-e2e"
+  gateway_name: "AI Gateway Model E2E"
+  provider_ref: "support-openai"
+  model_ref: "support-gpt"
+  model_name: "support-gpt"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='{{ .vars.model_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.model_name }}"
+                fields.target_models[0].name: gpt-4o
+                fields.target_models[1].name: gpt-4o-mini
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+      - name: 002-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 002-sync-delete
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 000-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

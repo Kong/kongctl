@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-e2e
+
+ai_gateways: []
