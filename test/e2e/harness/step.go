@@ -369,6 +369,36 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"event-gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
 	"event_gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
 	"eventgateway":       {Method: http.MethodPost, Path: "/v1/event-gateways"},
+	"event-gateway-backend-cluster": {
+		Method:    http.MethodPost,
+		Path:      "/v1/event-gateways/{gatewayId}/backend-clusters",
+		ParamKeys: []string{"gatewayId"},
+	},
+	"event_gateway_backend_cluster": {
+		Method:    http.MethodPost,
+		Path:      "/v1/event-gateways/{gatewayId}/backend-clusters",
+		ParamKeys: []string{"gatewayId"},
+	},
+	"eventgatewaybackendcluster": {
+		Method:    http.MethodPost,
+		Path:      "/v1/event-gateways/{gatewayId}/backend-clusters",
+		ParamKeys: []string{"gatewayId"},
+	},
+	"event-gateway-virtual-cluster": {
+		Method:    http.MethodPost,
+		Path:      "/v1/event-gateways/{gatewayId}/virtual-clusters",
+		ParamKeys: []string{"gatewayId"},
+	},
+	"event_gateway_virtual_cluster": {
+		Method:    http.MethodPost,
+		Path:      "/v1/event-gateways/{gatewayId}/virtual-clusters",
+		ParamKeys: []string{"gatewayId"},
+	},
+	"eventgatewayvirtualcluster": {
+		Method:    http.MethodPost,
+		Path:      "/v1/event-gateways/{gatewayId}/virtual-clusters",
+		ParamKeys: []string{"gatewayId"},
+	},
 	"audit-log-destination": {
 		Method:    http.MethodPost,
 		Path:      "/v3/audit-log-destinations",

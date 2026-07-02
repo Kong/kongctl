@@ -28,6 +28,43 @@ func TestSystemAccountAccessTokenEndpointExpansion(t *testing.T) {
 	}
 }
 
+func TestEventGatewayChildEndpointExpansion(t *testing.T) {
+	tests := []struct {
+		name     string
+		resource string
+		want     string
+	}{
+		{
+			name:     "backend cluster",
+			resource: "event-gateway-backend-cluster",
+			want:     "/v1/event-gateways/gateway%2F123/backend-clusters",
+		},
+		{
+			name:     "virtual cluster",
+			resource: "event-gateway-virtual-cluster",
+			want:     "/v1/event-gateways/gateway%2F123/virtual-clusters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			endpoint, ok := createResourceEndpoints[tt.resource]
+			if !ok {
+				t.Fatalf("%s endpoint missing", tt.resource)
+			}
+
+			path, err := endpoint.expandPath(map[string]string{"gatewayId": "gateway/123"})
+			if err != nil {
+				t.Fatalf("expandPath() error = %v", err)
+			}
+
+			if path != tt.want {
+				t.Fatalf("path = %q, want %q", path, tt.want)
+			}
+		})
+	}
+}
+
 func TestRedactSensitiveJSONRedactsTokenFields(t *testing.T) {
 	body := []byte(`{"id":"token-id","token":"secret-token","nested":{"api_token":"nested-secret"},"items":[{"secret":"value"}]}`)
 
