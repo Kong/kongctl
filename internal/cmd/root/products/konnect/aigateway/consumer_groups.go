@@ -384,8 +384,8 @@ func aiGatewayConsumerGroupDetailView(group kkComps.AIGatewayConsumerGroup) stri
 		"name",
 		"display_name",
 		"policies",
-		"labels",
-		"managed_by",
+		aiGatewayFieldLabels,
+		aiGatewayFieldManagedBy,
 		aiGatewayFieldCreatedAt,
 		aiGatewayFieldUpdatedAt,
 	}

@@ -36,3 +36,12 @@ ai_gateways:
           phase: create
         policies:
           - !ref mask-sensitive-data
+        credentials:
+          - ref: support-agent-key
+            name: support-agent-key
+            type: api-key
+            display_name: "Support Agent API Key"
+            ttl: 0
+            labels:
+              team: support
+              phase: create

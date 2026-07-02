@@ -396,8 +396,8 @@ func aiGatewayPolicyDetailView(policy kkComps.AIGatewayPolicy) string {
 		"enabled",
 		"global",
 		"config",
-		"labels",
-		"managed_by",
+		aiGatewayFieldLabels,
+		aiGatewayFieldManagedBy,
 		aiGatewayFieldCreatedAt,
 		aiGatewayFieldUpdatedAt,
 	}

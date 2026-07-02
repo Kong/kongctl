@@ -26,4 +26,14 @@ ai_gateways:
         config:
           anonymize:
             - email
-    consumers: []
+    consumers:
+      - ref: support-agent
+        name: support-agent
+        type: api-key
+        display_name: "Support Agent Updated"
+        labels:
+          team: support
+          phase: update
+        policies:
+          - !ref mask-sensitive-data
+        credentials: []

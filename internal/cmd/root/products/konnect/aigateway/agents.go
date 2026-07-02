@@ -394,8 +394,8 @@ func aiGatewayAgentDetailView(agent kkComps.AIGatewayAgent) string {
 		"policies",
 		"acls",
 		"config",
-		"labels",
-		"managed_by",
+		aiGatewayFieldLabels,
+		aiGatewayFieldManagedBy,
 		aiGatewayFieldCreatedAt,
 		aiGatewayFieldUpdatedAt,
 	}

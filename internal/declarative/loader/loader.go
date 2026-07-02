@@ -1356,6 +1356,16 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		}
 		gateway.DataPlaneCertificates = nil
 	}
+
+	for i := range rs.AIGatewayConsumers {
+		consumer := &rs.AIGatewayConsumers[i]
+		for j := range consumer.Credentials {
+			credential := consumer.Credentials[j]
+			credential.AIGatewayConsumer = consumer.Ref
+			rs.AIGatewayConsumerCredentials = append(rs.AIGatewayConsumerCredentials, credential)
+		}
+		consumer.Credentials = nil
+	}
 }
 
 // extractAPIDocuments recursively extracts and flattens nested API documents

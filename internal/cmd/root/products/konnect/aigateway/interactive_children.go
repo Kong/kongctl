@@ -16,6 +16,11 @@ func init() {
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldPolicies, loadAIGatewayPolicies)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldAgents, loadAIGatewayAgents)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumers, loadAIGatewayConsumers)
+	tableview.RegisterChildLoader(
+		common.ViewParentAIGatewayConsumer,
+		common.ViewFieldCredentials,
+		loadAIGatewayConsumerCredentials,
+	)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumerGroups, loadAIGatewayConsumerGroups)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldModels, loadAIGatewayModels)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldMCPServers, loadAIGatewayMCPServers)
@@ -149,7 +154,38 @@ func loadAIGatewayConsumers(_ context.Context, helper cmd.Helper, parent any) (t
 	if err != nil {
 		return tableview.ChildView{}, err
 	}
-	return buildAIGatewayConsumerChildView(consumers), nil
+	return buildAIGatewayConsumerChildView(gatewayID, consumers), nil
+}
+
+func loadAIGatewayConsumerCredentials(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, consumerID, err := aiGatewayConsumerCredentialParentIDs(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	consumerAPI := sdk.GetAIGatewayConsumersAPI()
+	if consumerAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Consumers client is not available")
+	}
+
+	credentials, err := fetchAIGatewayConsumerCredentials(helper, consumerAPI, gatewayID, consumerID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayConsumerCredentialChildView(credentials), nil
 }
 
 func loadAIGatewayConsumerGroups(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -336,6 +372,37 @@ func loadAIGatewayDataPlaneCertificates(_ context.Context, helper cmd.Helper, pa
 		return tableview.ChildView{}, err
 	}
 	return buildAIGatewayDataPlaneCertificateChildView(certs), nil
+}
+
+func aiGatewayConsumerCredentialParentIDs(parent any) (string, string, error) {
+	if parent == nil {
+		return "", "", fmt.Errorf("AI Gateway Consumer parent is nil")
+	}
+
+	switch p := parent.(type) {
+	case *aiGatewayConsumerDetailContext:
+		gatewayID := strings.TrimSpace(p.GatewayID)
+		consumerID := strings.TrimSpace(p.Consumer.ID)
+		if gatewayID == "" {
+			return "", "", fmt.Errorf("AI Gateway identifier is missing")
+		}
+		if consumerID == "" {
+			return "", "", fmt.Errorf("AI Gateway Consumer identifier is missing")
+		}
+		return gatewayID, consumerID, nil
+	case aiGatewayConsumerDetailContext:
+		gatewayID := strings.TrimSpace(p.GatewayID)
+		consumerID := strings.TrimSpace(p.Consumer.ID)
+		if gatewayID == "" {
+			return "", "", fmt.Errorf("AI Gateway identifier is missing")
+		}
+		if consumerID == "" {
+			return "", "", fmt.Errorf("AI Gateway Consumer identifier is missing")
+		}
+		return gatewayID, consumerID, nil
+	default:
+		return "", "", fmt.Errorf("unexpected parent type %T", parent)
+	}
 }
 
 func aiGatewayIDFromParent(parent any) (string, error) {

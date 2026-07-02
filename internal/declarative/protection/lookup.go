@@ -158,6 +158,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeAIGatewayPolicy,
 		resources.ResourceTypeAIGatewayAgent,
 		resources.ResourceTypeAIGatewayConsumer,
+		resources.ResourceTypeAIGatewayConsumerCredential,
 		resources.ResourceTypeAIGatewayConsumerGroup,
 		resources.ResourceTypeAIGatewayModel,
 		resources.ResourceTypeAIGatewayMCPServer,

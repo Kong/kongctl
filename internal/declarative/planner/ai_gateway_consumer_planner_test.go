@@ -47,7 +47,7 @@ func TestAIGatewayConsumerPlannerUpdatesExistingConsumer(t *testing.T) {
 		},
 		AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{
 			consumers: []kkComps.AIGatewayConsumer{
-				testAIGatewayConsumer("consumer-id", "support-user", nil),
+				testAIGatewayConsumer(nil),
 			},
 		},
 	})
@@ -74,7 +74,7 @@ func TestAIGatewayConsumerPlannerSyncDeletesScopedConsumers(t *testing.T) {
 		},
 		AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{
 			consumers: []kkComps.AIGatewayConsumer{
-				testAIGatewayConsumer("consumer-id", "support-user", nil),
+				testAIGatewayConsumer(nil),
 			},
 		},
 	})
@@ -141,7 +141,7 @@ func TestAIGatewayConsumerPlannerPolicyRefNoopForExistingConsumer(t *testing.T) 
 				},
 				AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{
 					consumers: []kkComps.AIGatewayConsumer{
-						testAIGatewayConsumer("consumer-id", "support-user", []string{currentPolicyRef}),
+						testAIGatewayConsumer([]string{currentPolicyRef}),
 					},
 				},
 			})
@@ -156,6 +156,107 @@ func TestAIGatewayConsumerPlannerPolicyRefNoopForExistingConsumer(t *testing.T) 
 			require.Empty(t, plan.Changes)
 		})
 	}
+}
+
+func TestAIGatewayConsumerPlannerCreatesCredentialForExistingConsumer(t *testing.T) {
+	consumer := testAIGatewayConsumerResource(t, nil)
+	credential := testAIGatewayConsumerCredentialResource(t, "support-user-key", "Support User API Key", "create")
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{
+			consumers: []kkComps.AIGatewayConsumer{
+				testAIGatewayConsumer(nil),
+			},
+		},
+	})
+	rs := testAIGatewayConsumerResourceSet(consumer)
+	rs.AIGatewayConsumerCredentials = []resources.AIGatewayConsumerCredentialResource{credential}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+
+	change := plan.Changes[0]
+	require.Equal(t, ActionCreate, change.Action)
+	require.Equal(t, ResourceTypeAIGatewayConsumerCredential, change.ResourceType)
+	require.Equal(t, "support-user-key", change.ResourceRef)
+	require.Equal(t, "support-user-key", change.Fields[FieldName])
+	require.Equal(t, "api-key", change.Fields[FieldType])
+	require.Equal(t, "Support User API Key", change.Fields[FieldDisplayName])
+	require.Equal(t, map[string]any{"phase": "create"}, change.Fields[FieldLabels])
+	require.NotNil(t, change.Parent)
+	require.Equal(t, "support-user", change.Parent.Ref)
+	require.Equal(t, "consumer-id", change.Parent.ID)
+	require.Equal(t, "gateway-id", change.References[FieldAIGatewayID].ID)
+	require.Equal(t, "consumer-id", change.References[FieldAIGatewayConsumerID].ID)
+}
+
+func TestAIGatewayConsumerPlannerCreatesCredentialAfterNewConsumer(t *testing.T) {
+	consumer := testAIGatewayConsumerResource(t, nil)
+	credential := testAIGatewayConsumerCredentialResource(t, "support-user-key", "Support User API Key", "create")
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{},
+	})
+	rs := testAIGatewayConsumerResourceSet(consumer)
+	rs.AIGatewayConsumerCredentials = []resources.AIGatewayConsumerCredentialResource{credential}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+
+	consumerCreate := findAIGatewayModelTestChange(t, plan, ResourceTypeAIGatewayConsumer, "support-user")
+	credentialCreate := findAIGatewayModelTestChange(
+		t,
+		plan,
+		ResourceTypeAIGatewayConsumerCredential,
+		"support-user-key",
+	)
+	require.Equal(t, ActionCreate, credentialCreate.Action)
+	require.Contains(t, credentialCreate.DependsOn, consumerCreate.ID)
+	require.Equal(t, "support-user", credentialCreate.Parent.Ref)
+	require.Empty(t, credentialCreate.Parent.ID)
+	require.Equal(t, "gateway-id", credentialCreate.References[FieldAIGatewayID].ID)
+	require.Empty(t, credentialCreate.References[FieldAIGatewayConsumerID].ID)
+}
+
+func TestAIGatewayConsumerPlannerReplacesCredentialWhenMetadataChanges(t *testing.T) {
+	consumer := testAIGatewayConsumerResource(t, nil)
+	credential := testAIGatewayConsumerCredentialResource(t, "support-user-key", "Support User API Key Updated", "update")
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{
+			consumers: []kkComps.AIGatewayConsumer{
+				testAIGatewayConsumer(nil),
+			},
+			credentials: []kkComps.AIGatewayConsumerCredential{
+				testAIGatewayConsumerCredential("credential-id", "support-user-key", "Support User API Key", "create"),
+			},
+		},
+	})
+	rs := testAIGatewayConsumerResourceSet(consumer)
+	rs.AIGatewayConsumerCredentials = []resources.AIGatewayConsumerCredentialResource{credential}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 2)
+
+	deleteChange := plan.Changes[0]
+	createChange := plan.Changes[1]
+	require.Equal(t, ActionDelete, deleteChange.Action)
+	require.Equal(t, ResourceTypeAIGatewayConsumerCredential, deleteChange.ResourceType)
+	require.Equal(t, "credential-id", deleteChange.ResourceID)
+	require.Contains(t, deleteChange.ChangedFields, FieldDisplayName)
+	require.Contains(t, deleteChange.ChangedFields, FieldLabels)
+	require.Equal(t, ActionCreate, createChange.Action)
+	require.Equal(t, ResourceTypeAIGatewayConsumerCredential, createChange.ResourceType)
+	require.Contains(t, createChange.DependsOn, deleteChange.ID)
+	require.Equal(t, "Support User API Key Updated", createChange.Fields[FieldDisplayName])
 }
 
 func testAIGatewayConsumerResourceSet(
@@ -189,18 +290,61 @@ func testAIGatewayConsumerResource(
 	return consumer
 }
 
-func testAIGatewayConsumer(id string, name string, policies []string) kkComps.AIGatewayConsumer {
+func testAIGatewayConsumerCredentialResource(
+	t *testing.T,
+	name string,
+	displayName string,
+	phase string,
+) resources.AIGatewayConsumerCredentialResource {
+	t.Helper()
+	payload := map[string]any{
+		"ref":                 name,
+		"ai_gateway_consumer": "support-user",
+		"name":                name,
+		"type":                "api-key",
+		"display_name":        displayName,
+		"labels": map[string]string{
+			"phase": phase,
+		},
+	}
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+	var credential resources.AIGatewayConsumerCredentialResource
+	require.NoError(t, json.Unmarshal(data, &credential))
+	credential.SetDefaults()
+	return credential
+}
+
+func testAIGatewayConsumer(policies []string) kkComps.AIGatewayConsumer {
 	return kkComps.AIGatewayConsumer{
-		ID:          id,
-		Name:        name,
+		ID:          "consumer-id",
+		Name:        "support-user",
 		Type:        kkComps.AIGatewayConsumerTypeAPIKey,
 		DisplayName: "Support User",
 		Policies:    policies,
 	}
 }
 
+func testAIGatewayConsumerCredential(
+	id string,
+	name string,
+	displayName string,
+	phase string,
+) kkComps.AIGatewayConsumerCredential {
+	ttl := int64(0)
+	return kkComps.AIGatewayConsumerCredential{
+		ID:          id,
+		Name:        name,
+		Type:        kkComps.AIGatewayConsumerCredentialTypeAPIKey,
+		DisplayName: displayName,
+		Labels:      map[string]string{"phase": phase},
+		TTL:         &ttl,
+	}
+}
+
 type testAIGatewayConsumerAPI struct {
-	consumers []kkComps.AIGatewayConsumer
+	consumers   []kkComps.AIGatewayConsumer
+	credentials []kkComps.AIGatewayConsumerCredential
 }
 
 func (t *testAIGatewayConsumerAPI) ListAiGatewayConsumers(
@@ -252,5 +396,46 @@ func (t *testAIGatewayConsumerAPI) DeleteAiGatewayConsumer(
 	string,
 	...kkOps.Option,
 ) (*kkOps.DeleteAiGatewayConsumerResponse, error) {
+	return nil, nil
+}
+
+func (t *testAIGatewayConsumerAPI) ListAiGatewayConsumerCredentials(
+	context.Context,
+	kkOps.ListAiGatewayConsumerCredentialsRequest,
+	...kkOps.Option,
+) (*kkOps.ListAiGatewayConsumerCredentialsResponse, error) {
+	return &kkOps.ListAiGatewayConsumerCredentialsResponse{
+		ListAIGatewayConsumerCredentialsResponse: &kkComps.ListAIGatewayConsumerCredentialsResponse{
+			Data: t.credentials,
+		},
+	}, nil
+}
+
+func (t *testAIGatewayConsumerAPI) CreateAiGatewayConsumerCredential(
+	context.Context,
+	kkOps.CreateAiGatewayConsumerCredentialRequest,
+	...kkOps.Option,
+) (*kkOps.CreateAiGatewayConsumerCredentialResponse, error) {
+	return nil, nil
+}
+
+func (t *testAIGatewayConsumerAPI) GetAiGatewayConsumerCredential(
+	_ context.Context,
+	request kkOps.GetAiGatewayConsumerCredentialRequest,
+	_ ...kkOps.Option,
+) (*kkOps.GetAiGatewayConsumerCredentialResponse, error) {
+	for _, credential := range t.credentials {
+		if credential.ID == request.CredentialID || credential.Name == request.CredentialID {
+			return &kkOps.GetAiGatewayConsumerCredentialResponse{AIGatewayConsumerCredential: &credential}, nil
+		}
+	}
+	return &kkOps.GetAiGatewayConsumerCredentialResponse{}, nil
+}
+
+func (t *testAIGatewayConsumerAPI) DeleteAiGatewayConsumerCredential(
+	context.Context,
+	kkOps.DeleteAiGatewayConsumerCredentialRequest,
+	...kkOps.Option,
+) (*kkOps.DeleteAiGatewayConsumerCredentialResponse, error) {
 	return nil, nil
 }

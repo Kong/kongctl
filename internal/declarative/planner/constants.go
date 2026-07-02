@@ -90,6 +90,7 @@ const (
 	FieldControlPlaneRef              = "control_plane_ref"
 	FieldDefaultApplicationStrategyID = "default_application_auth_strategy_id"
 	FieldAIGatewayID                  = "ai_gateway_id"
+	FieldAIGatewayConsumerID          = "ai_gateway_consumer_id"
 	FieldDCRProvider                  = "dcr_provider"
 	FieldEntityID                     = "entity_id"
 	FieldEntityRegion                 = "entity_region"
@@ -212,6 +213,7 @@ const (
 	ResourceTypeAIGatewayPolicy                  = string(resources.ResourceTypeAIGatewayPolicy)
 	ResourceTypeAIGatewayAgent                   = string(resources.ResourceTypeAIGatewayAgent)
 	ResourceTypeAIGatewayConsumer                = string(resources.ResourceTypeAIGatewayConsumer)
+	ResourceTypeAIGatewayConsumerCredential      = string(resources.ResourceTypeAIGatewayConsumerCredential)
 	ResourceTypeAIGatewayConsumerGroup           = string(resources.ResourceTypeAIGatewayConsumerGroup)
 	ResourceTypeAIGatewayModel                   = string(resources.ResourceTypeAIGatewayModel)
 	ResourceTypeAIGatewayMCPServer               = string(resources.ResourceTypeAIGatewayMCPServer)
