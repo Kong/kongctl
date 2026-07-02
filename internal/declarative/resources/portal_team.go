@@ -17,7 +17,7 @@ func init() {
 
 // PortalTeamResource represents a portal team (developer team)
 type PortalTeamResource struct {
-	kkComps.PortalCreateTeamRequest `       yaml:",inline"          json:",inline"`
+	kkComps.PortalCreateTeamRequest `yaml:",inline" json:",inline"`
 	Ref                             string `yaml:"ref"              json:"ref"`
 	// Parent portal reference
 	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"`
@@ -41,7 +41,7 @@ func (p PortalTeamResource) MarshalYAML() (any, error) {
 }
 
 type portalTeamAlias struct {
-	portalCreateTeamAlias `                                 json:",inline"                  yaml:",inline"`
+	portalCreateTeamAlias `json:",inline" yaml:",inline"`
 	Ref                   string                           `json:"ref"                      yaml:"ref"`
 	Portal                string                           `json:"portal,omitempty"         yaml:"portal,omitempty"`
 	Roles                 []PortalTeamRoleResource         `json:"roles,omitempty"          yaml:"roles,omitempty"`

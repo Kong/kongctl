@@ -28,7 +28,7 @@ func init() {
 // with five variants: modify_headers, schema_validation, decrypt, skip_record, decrypt_fields.
 // The "type" discriminator field is required.
 type EventGatewayConsumePolicyResource struct {
-	kkComps.EventGatewayConsumePolicyCreate `       yaml:",inline"                   json:",inline"`
+	kkComps.EventGatewayConsumePolicyCreate `yaml:",inline" json:",inline"`
 	Ref                                     string `yaml:"ref"                       json:"ref"`
 	// Parent Virtual Cluster reference (for root-level definitions)
 	VirtualCluster string `yaml:"virtual_cluster,omitempty" json:"virtual_cluster,omitempty"`

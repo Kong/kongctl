@@ -23,7 +23,7 @@ type ControlPlaneGroupMember struct {
 // ControlPlaneResource represents a control plane in declarative configuration
 type ControlPlaneResource struct {
 	BaseResource
-	kkComps.CreateControlPlaneRequest `                                           yaml:",inline"                           json:",inline"`
+	kkComps.CreateControlPlaneRequest `yaml:",inline" json:",inline"`
 	External                          *ExternalBlock                             `yaml:"_external,omitempty"               json:"_external,omitempty"`               //nolint:lll
 	Deck                              *DeckConfig                                `yaml:"_deck,omitempty"                   json:"_deck,omitempty"`                   //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"        json:"gateway_services,omitempty"`        //nolint:lll

@@ -24,7 +24,7 @@ func init() {
 type ApplicationAuthStrategyResource struct {
 	BaseResource
 	DCRProviderID                        *string `yaml:"dcr_provider_id,omitempty" json:"dcr_provider_id,omitempty"`
-	kkComps.CreateAppAuthStrategyRequest `        yaml:",inline"                   json:",inline"`
+	kkComps.CreateAppAuthStrategyRequest `yaml:",inline" json:",inline"`
 }
 
 // GetType returns the resource type
