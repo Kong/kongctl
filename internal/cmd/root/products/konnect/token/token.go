@@ -447,7 +447,12 @@ func runCreateSPAT(c *cobra.Command, args []string, opts *spatOptions) error {
 	res, err := api.PostSystemAccountsIDAccessTokens(helper.GetContext(), accountID, request)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
-		return cmdpkg.PrepareExecutionError("Failed to create system account access token", err, helper.GetCmd(), attrs...)
+		return cmdpkg.PrepareExecutionError(
+			"Failed to create system account access token",
+			err,
+			helper.GetCmd(),
+			attrs...,
+		)
 	}
 	record := createSPATRecord(res.GetSystemAccountAccessTokenCreated(), accountID, accountName)
 	return renderCreateRecord(helper, record)
@@ -540,7 +545,12 @@ func runDeleteSPAT(c *cobra.Command, args []string, opts *spatOptions) error {
 	tokenID := pointerValue(token.ID)
 	if _, err := api.DeleteSystemAccountsIDAccessTokensID(helper.GetContext(), accountID, tokenID); err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
-		return cmdpkg.PrepareExecutionError("Failed to delete system account access token", err, helper.GetCmd(), attrs...)
+		return cmdpkg.PrepareExecutionError(
+			"Failed to delete system account access token",
+			err,
+			helper.GetCmd(),
+			attrs...,
+		)
 	}
 	record.Status = "deleted"
 	return renderDeleteRecord(helper, record)
@@ -592,7 +602,12 @@ func listPATs(
 	res, err := api.ListUsersPersonalAccessTokens(helper.GetContext(), userID)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
-		return nil, cmdpkg.PrepareExecutionError("Failed to list personal access tokens", err, helper.GetCmd(), attrs...)
+		return nil, cmdpkg.PrepareExecutionError(
+			"Failed to list personal access tokens",
+			err,
+			helper.GetCmd(),
+			attrs...,
+		)
 	}
 	list := res.GetPersonalAccessTokenListResponse()
 	if list == nil {
@@ -612,7 +627,12 @@ func resolvePAT(
 		res, err := api.GetPersonalAccessTokenDetails(helper.GetContext(), userID, identifier)
 		if err != nil {
 			attrs := cmdpkg.TryConvertErrorToAttrs(err)
-			return nil, cmdpkg.PrepareExecutionError("Failed to get personal access token", err, helper.GetCmd(), attrs...)
+			return nil, cmdpkg.PrepareExecutionError(
+				"Failed to get personal access token",
+				err,
+				helper.GetCmd(),
+				attrs...,
+			)
 		}
 		return res.GetPersonalAccessToken(), nil
 	}
@@ -774,7 +794,12 @@ func resolveSPAT(
 		res, err := api.GetSystemAccountsIDAccessTokensID(helper.GetContext(), accountID, identifier)
 		if err != nil {
 			attrs := cmdpkg.TryConvertErrorToAttrs(err)
-			return nil, cmdpkg.PrepareExecutionError("Failed to get system account access token", err, helper.GetCmd(), attrs...)
+			return nil, cmdpkg.PrepareExecutionError(
+				"Failed to get system account access token",
+				err,
+				helper.GetCmd(),
+				attrs...,
+			)
 		}
 		return res.GetSystemAccountAccessToken(), nil
 	}

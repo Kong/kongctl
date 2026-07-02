@@ -260,7 +260,10 @@ func suggestSimilarShorthandFlags(command *cobra.Command, typed string) Suggesti
 			return
 		}
 		if similar(typed, flag.Shorthand) {
-			candidates = append(candidates, newFlagSuggestion(fmt.Sprintf("-%s, --%s", flag.Shorthand, flag.Name), flag))
+			candidates = append(
+				candidates,
+				newFlagSuggestion(fmt.Sprintf("-%s, --%s", flag.Shorthand, flag.Name), flag),
+			)
 		}
 	})
 	return Suggestion{Kind: "flag", Values: formatFlagSuggestions(candidates)}

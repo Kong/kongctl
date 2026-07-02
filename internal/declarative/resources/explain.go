@@ -49,11 +49,11 @@ type ExplainBuildContext struct {
 }
 
 type ExplainRelation struct {
-	ParentAlias   string `json:"parent_alias"   yaml:"parent_alias"`
-	ParentType    string `json:"parent_type"    yaml:"parent_type"`
-	FieldName     string `json:"field_name"     yaml:"field_name"`
-	FieldArray    bool   `json:"field_array"    yaml:"field_array"`
-	ChildAlias    string `json:"child_alias"    yaml:"child_alias"`
+	ParentAlias   string `json:"parent_alias"    yaml:"parent_alias"`
+	ParentType    string `json:"parent_type"     yaml:"parent_type"`
+	FieldName     string `json:"field_name"      yaml:"field_name"`
+	FieldArray    bool   `json:"field_array"     yaml:"field_array"`
+	ChildAlias    string `json:"child_alias"     yaml:"child_alias"`
 	ParentRootKey string `json:"parent_root_key" yaml:"parent_root_key"`
 }
 
@@ -154,21 +154,21 @@ type JSONSchema struct {
 }
 
 type ExplainSchemaSubject struct {
-	Kind        string `json:"kind" yaml:"kind"`
-	Path        string `json:"path" yaml:"path"`
-	Required    *bool  `json:"required,omitempty" yaml:"required,omitempty"`
+	Kind        string `json:"kind"                  yaml:"kind"`
+	Path        string `json:"path"                  yaml:"path"`
+	Required    *bool  `json:"required,omitempty"    yaml:"required,omitempty"`
 	Recommended *bool  `json:"recommended,omitempty" yaml:"recommended,omitempty"`
 }
 
 type ExplainSchemaPlacement struct {
-	YAMLPath        string   `json:"yaml_path,omitempty" yaml:"yaml_path,omitempty"`
-	RootYAMLPath    string   `json:"root_yaml_path,omitempty" yaml:"root_yaml_path,omitempty"`
-	NestedYAMLPath  string   `json:"nested_yaml_path,omitempty" yaml:"nested_yaml_path,omitempty"`
+	YAMLPath        string   `json:"yaml_path,omitempty"         yaml:"yaml_path,omitempty"`
+	RootYAMLPath    string   `json:"root_yaml_path,omitempty"    yaml:"root_yaml_path,omitempty"`
+	NestedYAMLPath  string   `json:"nested_yaml_path,omitempty"  yaml:"nested_yaml_path,omitempty"`
 	NestedYAMLPaths []string `json:"nested_yaml_paths,omitempty" yaml:"nested_yaml_paths,omitempty"`
 }
 
 type ExplainSchemaResource struct {
-	Name          string `json:"name" yaml:"name"`
+	Name          string `json:"name"           yaml:"name"`
 	ResourceClass string `json:"resource_class" yaml:"resource_class"`
 }
 

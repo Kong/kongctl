@@ -914,11 +914,8 @@ func (p *Planner) producePolicyConfigRefMatchesCurrent(
 		return false
 	}
 
-	if currentID, _ := current[FieldID].(string); currentID != "" && resource.GetKonnectID() == currentID {
-		return true
-	}
-	if currentName, _ := current[FieldName].(string); currentName != "" && resource.GetMoniker() == currentName {
-		return true
-	}
-	return false
+	currentID, _ := current[FieldID].(string)
+	currentName, _ := current[FieldName].(string)
+	return (currentID != "" && resource.GetKonnectID() == currentID) ||
+		(currentName != "" && resource.GetMoniker() == currentName)
 }

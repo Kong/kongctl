@@ -147,13 +147,29 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			if !c.shouldRetryError(req, err) {
 				if attempt > 0 {
-					c.logRetrySkipped(req, requestID, attempt+1, 0, "error is not retryable", time.Since(start), err.Error())
+					c.logRetrySkipped(
+						req,
+						requestID,
+						attempt+1,
+						0,
+						"error is not retryable",
+						time.Since(start),
+						err.Error(),
+					)
 				}
 				return nil, err
 			}
 			// If the body cannot be replayed we cannot safely retry the error.
 			if !bodyReplayable {
-				c.logRetrySkipped(req, requestID, attempt+1, 0, "request body is not replayable", time.Since(start), err.Error())
+				c.logRetrySkipped(
+					req,
+					requestID,
+					attempt+1,
+					0,
+					"request body is not replayable",
+					time.Since(start),
+					err.Error(),
+				)
 				return nil, err
 			}
 			if isLast {

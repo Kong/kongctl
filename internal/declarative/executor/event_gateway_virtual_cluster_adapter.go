@@ -447,7 +447,10 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 		switch authType {
 		case "anonymous":
 			if fetchField, ok := authMap["fetch_kong_identity_principal"]; ok && fetchField != nil {
-				return nil, fmt.Errorf("authentication[%d].fetch_kong_identity_principal is not supported for anonymous", i)
+				return nil, fmt.Errorf(
+					"authentication[%d].fetch_kong_identity_principal is not supported for anonymous",
+					i,
+				)
 			}
 
 			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeAnonymous(

@@ -144,7 +144,11 @@ func rootForContribution(
 		if syntheticOwnedBy(command, ext.ID) {
 			return command, nil
 		}
-		return nil, fmt.Errorf("custom root %q collides with existing command %q", rootSegment.Name, command.CommandPath())
+		return nil, fmt.Errorf(
+			"custom root %q collides with existing command %q",
+			rootSegment.Name,
+			command.CommandPath(),
+		)
 	}
 	if !create {
 		return nil, nil

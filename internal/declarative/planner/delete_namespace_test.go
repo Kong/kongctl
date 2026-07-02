@@ -32,7 +32,15 @@ func TestDeleteBuildersSetNamespace(t *testing.T) {
 			name:         "api publication",
 			resourceType: ResourceTypeAPIPublication,
 			planDelete: func(p *Planner, plan *Plan) {
-				p.planAPIPublicationDelete(namespace, "api", "api-id", "portal-id", "portal", state.APIPublication{}, plan)
+				p.planAPIPublicationDelete(
+					namespace,
+					"api",
+					"api-id",
+					"portal-id",
+					"portal",
+					state.APIPublication{},
+					plan,
+				)
 			},
 		},
 		{
@@ -60,14 +68,32 @@ func TestDeleteBuildersSetNamespace(t *testing.T) {
 			name:         "event gateway cluster policy",
 			resourceType: ResourceTypeEventGatewayClusterPolicy,
 			planDelete: func(p *Planner, plan *Plan) {
-				p.planClusterPolicyDelete(namespace, "gateway-id", "gateway", "cluster-id", "cluster", "policy-id", "policy", plan)
+				p.planClusterPolicyDelete(
+					namespace,
+					"gateway-id",
+					"gateway",
+					"cluster-id",
+					"cluster",
+					"policy-id",
+					"policy",
+					plan,
+				)
 			},
 		},
 		{
 			name:         "event gateway consume policy",
 			resourceType: ResourceTypeEventGatewayConsumePolicy,
 			planDelete: func(p *Planner, plan *Plan) {
-				p.planConsumePolicyDelete(namespace, "gateway-id", "gateway", "cluster-id", "cluster", "policy-id", "policy", plan)
+				p.planConsumePolicyDelete(
+					namespace,
+					"gateway-id",
+					"gateway",
+					"cluster-id",
+					"cluster",
+					"policy-id",
+					"policy",
+					plan,
+				)
 			},
 		},
 		{
@@ -97,7 +123,16 @@ func TestDeleteBuildersSetNamespace(t *testing.T) {
 			name:         "event gateway produce policy",
 			resourceType: ResourceTypeEventGatewayProducePolicy,
 			planDelete: func(p *Planner, plan *Plan) {
-				p.planProducePolicyDelete(namespace, "gateway-id", "gateway", "cluster-id", "cluster", "policy-id", "policy", plan)
+				p.planProducePolicyDelete(
+					namespace,
+					"gateway-id",
+					"gateway",
+					"cluster-id",
+					"cluster",
+					"policy-id",
+					"policy",
+					plan,
+				)
 			},
 		},
 		{

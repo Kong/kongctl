@@ -57,16 +57,16 @@ type textDisplayRecord struct {
 }
 
 type dcrProvider struct {
-	ID           string            `json:"id" yaml:"id"`
-	Name         string            `json:"name" yaml:"name"`
+	ID           string            `json:"id"                     yaml:"id"`
+	Name         string            `json:"name"                   yaml:"name"`
 	DisplayName  string            `json:"display_name,omitempty" yaml:"display_name,omitempty"`
-	ProviderType string            `json:"provider_type" yaml:"provider_type"`
-	Issuer       string            `json:"issuer" yaml:"issuer"`
-	DCRConfig    map[string]any    `json:"dcr_config,omitempty" yaml:"dcr_config,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
-	Active       *bool             `json:"active,omitempty" yaml:"active,omitempty"`
-	CreatedAt    *time.Time        `json:"created_at,omitempty" yaml:"created_at,omitempty"`
-	UpdatedAt    *time.Time        `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
+	ProviderType string            `json:"provider_type"          yaml:"provider_type"`
+	Issuer       string            `json:"issuer"                 yaml:"issuer"`
+	DCRConfig    map[string]any    `json:"dcr_config,omitempty"   yaml:"dcr_config,omitempty"`
+	Labels       map[string]string `json:"labels,omitempty"       yaml:"labels,omitempty"`
+	Active       *bool             `json:"active,omitempty"       yaml:"active,omitempty"`
+	CreatedAt    *time.Time        `json:"created_at,omitempty"   yaml:"created_at,omitempty"`
+	UpdatedAt    *time.Time        `json:"updated_at,omitempty"   yaml:"updated_at,omitempty"`
 }
 
 type getDCRProviderCmd struct {

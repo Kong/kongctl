@@ -18,7 +18,9 @@ func init() {
 }
 
 func portalAuthSettingsExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	node, err := autoExplainConcreteNode[PortalAuthSettingsResource](defaultExplainHints(ResourceTypePortalAuthSettings))
+	node, err := autoExplainConcreteNode[PortalAuthSettingsResource](
+		defaultExplainHints(ResourceTypePortalAuthSettings),
+	)
 	if err != nil {
 		return nil, err
 	}

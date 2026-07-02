@@ -36,7 +36,9 @@ func (a *APIResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if _, ok := raw["spec_content"]; ok {
-		return fmt.Errorf("apis[].spec_content is not supported in declarative configuration; use versions[].spec instead")
+		return fmt.Errorf(
+			"apis[].spec_content is not supported in declarative configuration; use versions[].spec instead",
+		)
 	}
 
 	type apiResourceAlias APIResource

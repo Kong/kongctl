@@ -1704,7 +1704,10 @@ func TestApplyKonnectEnvironmentDefaultsSurvivesLaterFlagBinding(t *testing.T) {
 	command.Flags().String(konnectcommon.MachineClientIDFlagName, "", "")
 
 	requireNoError(t, konnectcommon.ApplyEnvironmentDefaults(command, cfg))
-	requireNoError(t, cfg.BindFlag(konnectcommon.BaseURLConfigPath, command.Flags().Lookup(konnectcommon.BaseURLFlagName)))
+	requireNoError(
+		t,
+		cfg.BindFlag(konnectcommon.BaseURLConfigPath, command.Flags().Lookup(konnectcommon.BaseURLFlagName)),
+	)
 	requireNoError(t, cfg.BindFlag(
 		konnectcommon.AuthBaseURLConfigPath,
 		command.Flags().Lookup(konnectcommon.AuthBaseURLFlagName),
