@@ -1,5 +1,6 @@
 ai_gateways:
-  - ref: ai-gateway-root
+  - ref: ai-gateway-root-ref
+    name: ai-gateway-root-api-name
     display_name: "AI Gateway Root E2E"
     description: "Initial AI Gateway root e2e description"
     proxy_urls:

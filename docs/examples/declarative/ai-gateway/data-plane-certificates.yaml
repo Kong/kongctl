@@ -4,6 +4,7 @@ _defaults:
 
 ai_gateways:
   - ref: customer-support-ai-gateway
+    name: customer-support-ai-gateway
     display_name: "Customer Support AI Gateway"
     description: "AI Gateway for customer support traffic"
     proxy_urls:
@@ -17,6 +18,7 @@ ai_gateways:
         cert: !file ./certs/data-plane.pem
 
   - ref: analytics-ai-gateway
+    name: analytics-ai-gateway
     display_name: "Analytics AI Gateway"
     description: "AI Gateway for analytics workloads"
     proxy_urls:

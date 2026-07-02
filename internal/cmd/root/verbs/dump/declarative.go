@@ -834,14 +834,14 @@ func collectDeclarativeAIGateways(
 	}
 
 	results = filterByNameOrID(results, filter, func(r declresources.AIGatewayResource) (string, string) {
-		return r.DisplayName, r.Ref
+		return r.Name, r.Ref
 	})
 
 	slices.SortFunc(results, func(a, b declresources.AIGatewayResource) int {
-		if a.DisplayName == b.DisplayName {
+		if a.Name == b.Name {
 			return cmp.Compare(a.Ref, b.Ref)
 		}
-		return cmp.Compare(a.DisplayName, b.DisplayName)
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return results, nil
@@ -1374,6 +1374,7 @@ func mapAIGatewayToDeclarativeResource(gateway kkComps.AIGateway) declresources.
 	result := declresources.AIGatewayResource{
 		BaseResource: declresources.BaseResource{Ref: gateway.ID},
 		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+			Name:        gateway.Name,
 			DisplayName: gateway.DisplayName,
 			Description: gateway.Description,
 			ProxyUrls:   gateway.ProxyUrls,

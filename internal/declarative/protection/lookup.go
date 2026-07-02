@@ -72,7 +72,7 @@ func IsManagedResourceProtected(
 		})
 	case resources.ResourceTypeAIGateway:
 		return fetchProtection(resourceName, "AI Gateway", func() (map[string]string, error) {
-			r, err := client.GetAIGatewayByDisplayName(ctx, resourceName)
+			r, err := client.GetAIGatewayByName(ctx, resourceName)
 			if r == nil {
 				return nil, err
 			}

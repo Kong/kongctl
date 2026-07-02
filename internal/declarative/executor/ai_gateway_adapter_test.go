@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAIGatewayAdapterMapCreateFieldsUsesRefNameAndDisplayName(t *testing.T) {
+func TestAIGatewayAdapterMapCreateFieldsUsesNameAndDisplayName(t *testing.T) {
 	adapter := NewAIGatewayAdapter(nil)
 	execCtx := NewExecutionContext(&planner.PlannedChange{
 		ResourceRef: "customer-support-ai-gateway",
@@ -20,7 +20,7 @@ func TestAIGatewayAdapterMapCreateFieldsUsesRefNameAndDisplayName(t *testing.T) 
 	})
 	description := "AI Gateway for customer support traffic"
 	fields := map[string]any{
-		planner.FieldName:        "customer-support-ai-gateway",
+		planner.FieldName:        "support-gateway",
 		planner.FieldDisplayName: "Customer Support AI Gateway",
 		planner.FieldDescription: description,
 		planner.FieldLabels: map[string]any{
@@ -31,7 +31,7 @@ func TestAIGatewayAdapterMapCreateFieldsUsesRefNameAndDisplayName(t *testing.T) 
 	var req kkComps.CreateAIGatewayRequest
 	require.NoError(t, adapter.MapCreateFields(context.Background(), execCtx, fields, &req))
 
-	assert.Equal(t, "customer-support-ai-gateway", req.Name)
+	assert.Equal(t, "support-gateway", req.Name)
 	assert.Equal(t, "Customer Support AI Gateway", req.DisplayName)
 	require.NotNil(t, req.Description)
 	assert.Equal(t, description, *req.Description)
@@ -47,7 +47,7 @@ func TestAIGatewayAdapterMapUpdateFieldsPreservesCurrentName(t *testing.T) {
 		Namespace:   "ai-gateway-example",
 	})
 	fields := map[string]any{
-		planner.FieldName:        "customer-support-ai-gateway",
+		planner.FieldName:        "support-gateway",
 		planner.FieldDisplayName: "Customer Support AI Gateway Renamed",
 	}
 
@@ -56,7 +56,7 @@ func TestAIGatewayAdapterMapUpdateFieldsPreservesCurrentName(t *testing.T) {
 		labels.NamespaceKey: "ai-gateway-example",
 	}))
 
-	assert.Equal(t, "customer-support-ai-gateway", req.Name)
+	assert.Equal(t, "support-gateway", req.Name)
 	assert.Equal(t, "Customer Support AI Gateway Renamed", req.DisplayName)
 	assert.Equal(t, "ai-gateway-example", req.Labels[labels.NamespaceKey])
 }
