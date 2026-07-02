@@ -262,7 +262,7 @@ func testAIGateway() kkComps.AIGateway {
 	)
 	return kkComps.AIGateway{
 		ID:          id,
-		Name:        id,
+		Name:        "support-gateway",
 		DisplayName: displayName,
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",

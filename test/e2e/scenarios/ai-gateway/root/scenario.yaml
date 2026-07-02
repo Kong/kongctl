@@ -4,6 +4,8 @@ env:
   KONGCTL_LOG_LEVEL: info
 
 vars:
+  gateway_ref: "ai-gateway-root-ref"
+  gateway_api_name: "ai-gateway-root-api-name"
   gateway_name: "AI Gateway Root E2E"
   gateway_initial_description: "Initial AI Gateway root e2e description"
   gateway_updated_description: "Updated AI Gateway root e2e description"
@@ -57,7 +59,7 @@ steps:
           - select: "contains(keys(properties), 'name')"
             expect:
               fields:
-                "@": false
+                "@": true
       - name: 001-scaffold-ai-gateway
         run:
           - scaffold
@@ -69,6 +71,7 @@ steps:
               fields:
                 "contains(stdout, 'ai_gateways:')": true
                 "contains(stdout, '- ref: my-resource')": true
+                "contains(stdout, 'name: my-ai-gateway')": true
                 "contains(stdout, 'display_name: My AI Gateway')": true
                 "contains(stdout, 'proxy_urls:')": true
 
@@ -93,11 +96,11 @@ steps:
               fields:
                 total_changes: 1
                 by_action.CREATE: 1
-          - select: "changes[?resource_type=='ai_gateway' && resource_ref=='ai-gateway-root'] | [0]"
+          - select: "changes[?resource_type=='ai_gateway' && resource_ref=='{{ .vars.gateway_ref }}'] | [0]"
             expect:
               fields:
                 action: CREATE
-                fields.name: "ai-gateway-root"
+                fields.name: "{{ .vars.gateway_api_name }}"
                 fields.display_name: "{{ .vars.gateway_name }}"
                 fields.description: "{{ .vars.gateway_initial_description }}"
                 fields.proxy_urls[0].host: "ai-gateway-root.example.com"
@@ -114,7 +117,7 @@ steps:
             expect:
               fields:
                 "contains(@, 'Plan: 1 to add')": true
-                "contains(@, 'ai_gateway \"ai-gateway-root\" will be created')": true
+                "contains(@, 'ai_gateway \"{{ .vars.gateway_ref }}\" will be created')": true
       - name: 002-apply-plan
         outputFormat: json
         run:
@@ -147,6 +150,7 @@ steps:
             expect:
               fields:
                 display_name: "{{ .vars.gateway_name }}"
+                name: "{{ .vars.gateway_api_name }}"
                 description: "{{ .vars.gateway_initial_description }}"
                 labels.owner: "platform"
                 labels.lifecycle: "dev"
@@ -162,7 +166,23 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.gateway_name }}"
-      - name: 005-get-by-display-name
+      - name: 005-get-by-name
+        run:
+          - get
+          - ai-gateway
+          - "{{ .vars.gateway_api_name }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.gateway_api_name }}"
+          - select: display_name
+            expect:
+              fields:
+                "@": "{{ .vars.gateway_name }}"
+      - name: 006-get-by-display-name
         run:
           - get
           - ai-gateway
@@ -174,7 +194,7 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.gateway_name }}"
-      - name: 006-get-by-id
+      - name: 007-get-by-id
         run:
           - get
           - ai-gateway
@@ -210,11 +230,11 @@ steps:
               fields:
                 total_changes: 1
                 by_action.UPDATE: 1
-          - select: "changes[?resource_type=='ai_gateway' && resource_ref=='ai-gateway-root'] | [0]"
+          - select: "changes[?resource_type=='ai_gateway' && resource_ref=='{{ .vars.gateway_ref }}'] | [0]"
             expect:
               fields:
                 action: UPDATE
-                fields.name: "ai-gateway-root"
+                fields.name: "{{ .vars.gateway_api_name }}"
                 fields.description: "{{ .vars.gateway_updated_description }}"
                 fields.proxy_urls[0].host: "ai-gateway-root-updated.example.com"
                 fields.labels.owner: "platform-eng"
@@ -229,7 +249,7 @@ steps:
           - select: stdout
             expect:
               fields:
-                "contains(@, 'ai_gateway \"ai-gateway-root\" will be updated')": true
+                "contains(@, 'ai_gateway \"{{ .vars.gateway_ref }}\" will be updated')": true
       - name: 002-apply-plan
         outputFormat: json
         run:
@@ -273,12 +293,13 @@ steps:
             expect:
               fields:
                 display_name: "{{ .vars.gateway_name }}"
+                name: "{{ .vars.gateway_api_name }}"
                 description: "{{ .vars.gateway_updated_description }}"
                 labels.owner: "platform-eng"
           - select: "contains(keys(ai_gateways[0]), 'name')"
             expect:
               fields:
-                "@": false
+                "@": true
           - select: "_defaults.kongctl"
             expect:
               fields:
@@ -301,7 +322,7 @@ steps:
           - dump
           - declarative
           - "--resources=aigw"
-          - "--filter-name={{ .vars.gateway_name }}"
+          - "--filter-name={{ .vars.gateway_api_name }}"
         outputFormat: none
         parseAs: yaml
         assertions:

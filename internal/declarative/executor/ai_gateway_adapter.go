@@ -126,9 +126,9 @@ func (a *AIGatewayAdapter) Delete(ctx context.Context, id string, _ *ExecutionCo
 	return a.client.DeleteAIGateway(ctx, id)
 }
 
-// GetByName fetches an AI Gateway by display name.
+// GetByName fetches an AI Gateway by name.
 func (a *AIGatewayAdapter) GetByName(ctx context.Context, name string) (ResourceInfo, error) {
-	gateway, err := a.client.GetAIGatewayByDisplayName(ctx, name)
+	gateway, err := a.client.GetAIGatewayByName(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (a *aiGatewayResourceInfo) GetID() string {
 }
 
 func (a *aiGatewayResourceInfo) GetName() string {
-	return a.gateway.DisplayName
+	return a.gateway.Name
 }
 
 func (a *aiGatewayResourceInfo) GetLabels() map[string]string {

@@ -478,6 +478,7 @@ func TestLoaderValidateAIGatewayProvidersRequiresParent(t *testing.T) {
 		AIGateways: []resources.AIGatewayResource{{
 			BaseResource: resources.BaseResource{Ref: "ai-gateway"},
 			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "ai-gateway",
 				DisplayName: "AI Gateway",
 			},
 		}},
@@ -501,6 +502,7 @@ func TestLoaderValidateAIGatewayProvidersRejectsDuplicateNamesPerGateway(t *test
 		AIGateways: []resources.AIGatewayResource{{
 			BaseResource: resources.BaseResource{Ref: "ai-gateway"},
 			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "ai-gateway",
 				DisplayName: "AI Gateway",
 			},
 		}},

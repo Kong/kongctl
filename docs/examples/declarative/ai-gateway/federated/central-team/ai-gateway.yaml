@@ -4,6 +4,7 @@ _defaults:
 
 ai_gateways:
   - ref: shared-ai-gateway
+    name: shared-ai-gateway
     display_name: "Shared Federated AI Gateway"
     description: "Central AI Gateway owned by the AI platform team"
     proxy_urls:
@@ -38,4 +39,3 @@ ai_gateways:
             headers:
               - name: x-api-key
                 value: !env ANTHROPIC_API_KEY
-
