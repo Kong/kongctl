@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/require"
@@ -46,6 +50,132 @@ func TestAIGatewayMCPServerPlannerCreatesChildForExistingGateway(t *testing.T) {
 	require.Equal(t, "gateway-id", change.Parent.ID)
 	require.Equal(t, "support-gateway", change.Parent.Ref)
 	require.Equal(t, "conversion-only", change.Fields[FieldType])
+}
+
+func TestAIGatewayMCPServerPlannerCreatesIssue1499NestedServers(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: poc-default-ai-gateway
+    display_name: POC Default AI Gateway
+    mcp_servers:
+      - ref: poc-mcp-conversion
+        type: conversion-only
+        name: poc-mcp-conversion
+        display_name: POC MCP Conversion-Only (httpbin)
+        enabled: true
+        tools:
+          - name: get-status
+            description: Return the processing status for a given request ID.
+            method: GET
+            path: /status/{requestId}
+            parameters:
+              - name: requestId
+                in: path
+                required: true
+                description: The unique request identifier
+                schema: {type: string}
+        config:
+          url: https://httpbin.konghq.com/anything
+          route:
+            paths: [/mcp-conversion]
+            methods: [GET, POST]
+      - ref: poc-mcp-server
+        type: passthrough-listener
+        name: poc-mcp-server
+        display_name: POC MCP Server (Context7 passthrough)
+        enabled: true
+        policies: []
+        tools: []
+        acl_attribute_type: oauth_access_token
+        access_token_claim_field: sub
+        config:
+          url: https://mcp.context7.com/mcp
+          route:
+            paths: [/mcp]
+            methods: [GET, POST]
+      - ref: poc-mcp-conversion-listener
+        type: conversion-listener
+        name: poc-mcp-conversion-listener
+        display_name: POC MCP Conversion Listener
+        enabled: true
+        tools: []
+        acl_attribute_type: consumer
+        config:
+          url: https://httpbin.konghq.com/anything
+          route:
+            paths: [/mcp-conversion-listener]
+            methods: [GET, POST]
+      - ref: poc-mcp-listener
+        type: listener
+        name: poc-mcp-listener
+        display_name: POC MCP Listener
+        enabled: true
+        tools: []
+        acl_attribute_type: consumer
+        config:
+          route:
+            paths: [/mcp-listener]
+            methods: [GET, POST]
+      - ref: poc-mcp-upstream
+        type: upstream-server
+        name: poc-mcp-upstream
+        display_name: POC MCP Upstream Server
+        enabled: true
+        tools: []
+        acl_attribute_type: consumer
+        config:
+          url: https://mcp.example.com/mcp
+          tools_cache_ttl_seconds: 60
+          route:
+            paths: [/mcp-upstream]
+            methods: [GET, POST]
+`
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(input), 0o600))
+
+	rs, err := loader.New().LoadFromSources([]loader.Source{{
+		Path: path,
+		Type: loader.SourceTypeFile,
+	}}, false)
+	require.NoError(t, err)
+
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{{
+				ID:          "gateway-id",
+				Name:        "poc-default-ai-gateway",
+				DisplayName: "POC Default AI Gateway",
+				Labels: map[string]string{
+					labels.NamespaceKey: "default",
+				},
+			}},
+		},
+		AIGatewayMCPServersAPI: &testAIGatewayMCPServerAPI{},
+	})
+
+	for _, mode := range []PlanMode{PlanModeApply, PlanModeSync} {
+		plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: mode})
+		require.NoError(t, err)
+		require.Len(t, plan.Changes, 5)
+
+		byRef := map[string]PlannedChange{}
+		for _, change := range plan.Changes {
+			require.Equal(t, ActionCreate, change.Action)
+			require.Equal(t, ResourceTypeAIGatewayMCPServer, change.ResourceType)
+			byRef[change.ResourceRef] = change
+		}
+
+		require.Contains(t, byRef, "poc-mcp-conversion")
+		require.Equal(t, "conversion-only", byRef["poc-mcp-conversion"].Fields[FieldType])
+		require.Contains(t, byRef, "poc-mcp-server")
+		require.Equal(t, "passthrough-listener", byRef["poc-mcp-server"].Fields[FieldType])
+		require.Contains(t, byRef, "poc-mcp-conversion-listener")
+		require.Equal(t, "conversion-listener", byRef["poc-mcp-conversion-listener"].Fields[FieldType])
+		require.Contains(t, byRef, "poc-mcp-listener")
+		require.Equal(t, "listener", byRef["poc-mcp-listener"].Fields[FieldType])
+		require.Contains(t, byRef, "poc-mcp-upstream")
+		require.Equal(t, "upstream-server", byRef["poc-mcp-upstream"].Fields[FieldType])
+	}
 }
 
 func TestAIGatewayMCPServerPlannerSyncDeletesScopedServers(t *testing.T) {
