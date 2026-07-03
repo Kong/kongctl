@@ -118,3 +118,14 @@ apis:
               title: API Pagination
               version: 10.0.0
             paths: {}
+      - ref: api-pagination-v11
+        version: "11.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Pagination
+              version: 11.0.0
+            paths: {}
