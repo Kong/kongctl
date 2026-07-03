@@ -24,7 +24,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 11
+                applied: 12
                 failed: 0
 
       - name: 001-get-versions-default-page-size
@@ -43,12 +43,36 @@ steps:
           - select: "@"
             expect:
               fields:
-                "length(@)": 10
+                "length(@)": 11
                 "[?version=='1.0.0'] | length(@)": 1
                 "[?version=='10.0.0'] | length(@)": 1
+                "[?version=='11.0.0'] | length(@)": 1
           - source:
               artifact:
                 glob: http-dumps/request-*.txt
             expect:
               fields:
-                count: 2
+                count: 3
+
+  - name: 002-delete-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                "total_changes > `0`": true
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
