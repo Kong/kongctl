@@ -4332,7 +4332,7 @@ func normalizePortalEmailTemplate(t kkComps.EmailTemplate) PortalEmailTemplate {
 func (c *Client) GetPortalCustomization(
 	ctx context.Context,
 	portalID string,
-) (*kkComps.PortalCustomizationV3, error) {
+) (*kkComps.PortalCustomization, error) {
 	if c.portalCustomizationAPI == nil {
 		return nil, fmt.Errorf("portal customization API not configured")
 	}
@@ -4342,18 +4342,18 @@ func (c *Client) GetPortalCustomization(
 		return nil, fmt.Errorf("failed to get portal customization: %w", err)
 	}
 
-	if resp.PortalCustomizationV3 == nil {
+	if resp.PortalCustomization == nil {
 		return nil, fmt.Errorf("no customization data in response")
 	}
 
-	return resp.PortalCustomizationV3, nil
+	return resp.PortalCustomization, nil
 }
 
 // UpdatePortalCustomization updates portal customization settings
 func (c *Client) UpdatePortalCustomization(
 	ctx context.Context,
 	portalID string,
-	customization kkComps.PortalCustomizationV3,
+	customization kkComps.PortalCustomization,
 ) error {
 	if c.portalCustomizationAPI == nil {
 		return fmt.Errorf("portal customization API not configured")
