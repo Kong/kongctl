@@ -143,6 +143,72 @@ steps:
               fields:
                 total_changes: 0
 
+  - name: 001a-plan-apply-auth-settings-update
+    inputOverlayDirs:
+      - overlays/001-auth-settings-update
+    commands:
+      - name: 000-plan-auth-settings-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-auth-settings-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_auth_settings' && resource_ref=='portal-idp-auth-settings'] | [0].fields
+            expect:
+              fields:
+                konnect_mapping_enabled: false
+      - name: 001-apply-auth-settings-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-auth-settings-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-auth-settings-updated
+        run:
+          - get
+          - portal
+          - auth-settings
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                basic_auth_enabled: true
+                idp_mapping_enabled: true
+                konnect_mapping_enabled: false
+      - name: 003-plan-auth-settings-update-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 001b-plan-apply-root-level-team-group-mapping
     inputOverlayDirs:
       - overlays/001-root-mapping-update
