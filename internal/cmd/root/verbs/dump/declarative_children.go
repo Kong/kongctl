@@ -1460,8 +1460,8 @@ func buildPortalCustomization(
 
 	ref := buildChildRef("portal-customization", portalID)
 	resource := declresources.PortalCustomizationResource{
-		PortalCustomizationV3: *customization,
-		Ref:                   ref,
+		PortalCustomization: *customization,
+		Ref:                 ref,
 	}
 
 	return &resource, nil
