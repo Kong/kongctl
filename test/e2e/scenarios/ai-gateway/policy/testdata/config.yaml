@@ -1,0 +1,23 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-policy-e2e
+
+ai_gateways:
+  - ref: ai-gateway-policy-e2e
+    name: ai-gateway-policy-e2e
+    display_name: "AI Gateway Policy E2E"
+    description: "AI Gateway Policy e2e"
+    proxy_urls:
+      - host: ai-gateway-policy-e2e.example.com
+        port: 443
+        protocol: https
+    policies:
+      - ref: repro-prompt-guard
+        name: repro-prompt-guard
+        type: ai-prompt-guard
+        display_name: "Repro Prompt Guard"
+        enabled: true
+        global: false
+        config:
+          deny_patterns:
+            - ".*(W|w)ar.*"

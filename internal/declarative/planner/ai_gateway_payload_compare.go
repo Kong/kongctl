@@ -281,10 +281,11 @@ func pruneEmptyContainersMissingFromPeer(payload map[string]any, peer map[string
 }
 
 func pruneAIGatewayPolicyConfigDefaultsMissingFromPeer(payload map[string]any, peer map[string]any) {
-	if !stringValueEqual(payload[FieldType], "ai-sanitizer") {
+	policyType, ok := payload[FieldType].(string)
+	if !ok {
 		return
 	}
-	if peerType, ok := peer[FieldType].(string); ok && peerType != "ai-sanitizer" {
+	if peerType, ok := peer[FieldType].(string); ok && peerType != policyType {
 		return
 	}
 
@@ -293,10 +294,20 @@ func pruneAIGatewayPolicyConfigDefaultsMissingFromPeer(payload map[string]any, p
 		return
 	}
 	peerConfig, _ := peer[FieldConfig].(map[string]any)
-	pruneAIGatewaySanitizerConfigDefaults(config, peerConfig)
+
+	switch policyType {
+	case "ai-prompt-guard":
+		pruneAIGatewayPolicyConfigDefaults(config, peerConfig, isAIGatewayPromptGuardConfigDefaultValue)
+	case "ai-sanitizer":
+		pruneAIGatewayPolicyConfigDefaults(config, peerConfig, isAIGatewaySanitizerConfigDefaultValue)
+	}
 }
 
-func pruneAIGatewaySanitizerConfigDefaults(config map[string]any, peerConfig map[string]any) {
+func pruneAIGatewayPolicyConfigDefaults(
+	config map[string]any,
+	peerConfig map[string]any,
+	isDefault func(string, any) bool,
+) {
 	for key, value := range config {
 		var peerValue any
 		if peerConfig != nil {
@@ -308,12 +319,29 @@ func pruneAIGatewaySanitizerConfigDefaults(config map[string]any, peerConfig map
 			if typed, ok := peerValue.(map[string]any); ok {
 				peerMap = typed
 			}
-			pruneAIGatewaySanitizerConfigDefaults(configMap, peerMap)
+			pruneAIGatewayPolicyConfigDefaults(configMap, peerMap, isDefault)
 		}
 
-		if _, ok := peerConfig[key]; !ok && isAIGatewaySanitizerConfigDefaultValue(key, value) {
+		if _, ok := peerConfig[key]; !ok && isDefault(key, value) {
 			delete(config, key)
 		}
+	}
+}
+
+func isAIGatewayPromptGuardConfigDefaultValue(key string, value any) bool {
+	switch key {
+	case "allow_all_conversation_history", "match_all_roles":
+		return boolValueEqual(value, false)
+	case "allow_patterns":
+		return value == nil
+	case "genai_category":
+		return stringValueEqual(value, "text/generation")
+	case "llm_format":
+		return stringValueEqual(value, "openai")
+	case "max_request_body_size":
+		return numberValueEqual(value, 8388608)
+	default:
+		return false
 	}
 }
 
