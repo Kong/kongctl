@@ -67,6 +67,10 @@ steps:
             expect:
               fields:
                 mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                "total_changes > `0`": true
           - select: summary
             expect:
               fields:
