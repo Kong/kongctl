@@ -1,12 +1,10 @@
 test:
-  enabledByEnvVar: KONGCTL_E2E_RUN_EGW_PRINCIPAL_METADATA
   requiredEnvVars:
     - KONGCTL_E2E_KONG_IDENTITY_DIRECTORY
   info: >-
-    Requires a Konnect environment with Event Gateway runtime 1.2 principal
-    metadata support and a Kong Identity directory. Set
-    KONGCTL_E2E_RUN_EGW_PRINCIPAL_METADATA=1 and
-    KONGCTL_E2E_KONG_IDENTITY_DIRECTORY to include it.
+    Covers Event Gateway runtime 1.2 principal metadata support and requires a
+    Kong Identity directory. Set KONGCTL_E2E_KONG_IDENTITY_DIRECTORY to include
+    it.
 
 baseInputsPath: ./testdata
 
