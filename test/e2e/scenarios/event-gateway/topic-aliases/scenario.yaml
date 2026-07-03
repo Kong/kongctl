@@ -1,8 +1,6 @@
 test:
-  enabledByEnvVar: KONGCTL_E2E_RUN_EGW_TOPIC_ALIASES
   info: >-
-    Requires a Konnect environment with Event Gateway runtime 1.2 topic_aliases
-    support. Set KONGCTL_E2E_RUN_EGW_TOPIC_ALIASES=1 to include it.
+    Covers Event Gateway runtime 1.2 topic_aliases support.
 
 baseInputsPath: ./testdata
 
