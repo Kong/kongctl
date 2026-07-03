@@ -16,7 +16,7 @@ on:
         required: false
         type: string
       retention_days:
-        description: Days before cleanup deletes this prerelease; use 0 to disable
+        description: Days before cleanup deletes this prerelease (0 to disable; max 365)
         required: false
         default: "60"
         type: string
