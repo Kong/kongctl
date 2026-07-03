@@ -15,6 +15,15 @@ on:
         description: Optional stable prerelease channel tag to create or update
         required: false
         type: string
+      retention_days:
+        description: Days before cleanup deletes this prerelease; use 0 to disable
+        required: false
+        default: "60"
+        type: string
+      expires_at:
+        description: Optional expiration date or RFC3339 timestamp; overrides retention_days
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -76,7 +85,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ env.RELEASE_GITHUB_TOKEN }}
+          EXPIRES_AT_INPUT: ${{ inputs.expires_at }}
           RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
+          RETENTION_DAYS_INPUT: ${{ inputs.retention_days }}
           STABLE_RELEASE_TAG_INPUT: ${{ inputs.stable_release_tag }}
           SOURCE_REF: ${{ inputs.source_ref }}
         run: |
@@ -208,8 +219,52 @@ jobs:
             fi
           }
 
+          resolve_expiration() {
+            local expires_at_input="$1"
+            local retention_days_input="$2"
+            local now_epoch
+            local expires_at_epoch
+
+            now_epoch="$(date -u +%s)"
+
+            if [ -n "${expires_at_input}" ]; then
+              if ! expires_at_epoch="$(date -u -d "${expires_at_input}" +%s 2>/dev/null)"; then
+                echo "::error::expires_at must be a valid date or RFC3339 timestamp: ${expires_at_input}"
+                exit 1
+              fi
+            else
+              retention_days_input="${retention_days_input:-60}"
+
+              if ! [[ "${retention_days_input}" =~ ^[0-9]+$ ]]; then
+                echo "::error::retention_days must be a non-negative integer: ${retention_days_input}"
+                exit 1
+              fi
+
+              local retention_days_num
+              retention_days_num="$((10#${retention_days_input}))"
+              if [ "${retention_days_num}" -eq 0 ]; then
+                return 0
+              fi
+
+              if [ "${retention_days_num}" -gt 365 ]; then
+                echo "::error::retention_days must be 365 or less for ad-hoc prereleases"
+                exit 1
+              fi
+
+              expires_at_epoch="$((now_epoch + retention_days_num * 86400))"
+            fi
+
+            if [ "${expires_at_epoch}" -le "${now_epoch}" ]; then
+              echo "::error::expiration must be in the future"
+              exit 1
+            fi
+
+            date -u -d "@${expires_at_epoch}" +"%Y-%m-%dT%H:%M:%SZ"
+          }
+
           source_sha="$(git rev-parse HEAD)"
           short_sha="$(git rev-parse --short=7 HEAD)"
+          expires_at="$(resolve_expiration "${EXPIRES_AT_INPUT}" "${RETENTION_DAYS_INPUT}")"
           safe_ref="$(sanitize_ref "${SOURCE_REF}")"
           stable_release_tag="${STABLE_RELEASE_TAG_INPUT}"
 
@@ -248,6 +303,7 @@ jobs:
           {
             echo "release_tag=${release_tag}"
             echo "stable_release_tag=${stable_release_tag}"
+            echo "expires_at=${expires_at}"
             echo "safe_ref=${safe_ref}"
             echo "short_sha=${short_sha}"
             echo "source_sha=${source_sha}"
@@ -388,6 +444,7 @@ jobs:
           SDK_MODE: ${{ steps.private_sdk.outputs.sdk_mode }}
           SDK_VERSION: ${{ steps.private_sdk.outputs.sdk_version }}
           STABLE_RELEASE_TAG: ${{ steps.release.outputs.stable_release_tag }}
+          EXPIRES_AT: ${{ steps.release.outputs.expires_at }}
           SOURCE_REF: ${{ inputs.source_ref }}
           SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
         run: |
@@ -397,11 +454,21 @@ jobs:
           {
             echo "## Ad-hoc prerelease"
             echo ""
+            echo "<!-- kongctl-adhoc-prerelease: true -->"
+            if [ -n "${EXPIRES_AT}" ]; then
+              echo "<!-- kongctl-adhoc-prerelease-expires-at: ${EXPIRES_AT} -->"
+            fi
+            echo ""
             echo "- Source ref: \`${SOURCE_REF}\`"
             echo "- Source SHA: \`${SOURCE_SHA}\`"
             echo "- Binary version: \`dev\`"
             if [ -n "${STABLE_RELEASE_TAG}" ]; then
               echo "- Stable channel: \`${STABLE_RELEASE_TAG}\`"
+            fi
+            if [ -n "${EXPIRES_AT}" ]; then
+              echo "- Expires at: \`${EXPIRES_AT}\`"
+            else
+              echo "- Expires at: disabled"
             fi
             echo "- SDK mode: \`${SDK_MODE:-public}\`"
             if [ -n "${SDK_VERSION}" ]; then

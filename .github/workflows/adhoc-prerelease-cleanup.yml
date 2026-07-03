@@ -1,0 +1,115 @@
+name: Ad-hoc prerelease cleanup
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview expired prereleases without deleting them
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: adhoc-prerelease-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Delete expired prereleases
+    runs-on: ubuntu-latest
+    env:
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+      GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh_host="${GITHUB_SERVER_URL#https://}"
+          gh_host="${gh_host#http://}"
+          echo "GH_HOST=${gh_host}" >> "$GITHUB_ENV"
+
+      - name: Delete expired ad-hoc prereleases
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          marker="<!-- kongctl-adhoc-prerelease: true -->"
+          expiry_prefix="<!-- kongctl-adhoc-prerelease-expires-at: "
+          now_epoch="$(date -u +%s)"
+          deleted_count=0
+          expired_count=0
+          skipped_count=0
+          releases_file="${RUNNER_TEMP}/adhoc-prereleases.jsonl"
+          summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
+
+          echo "## Ad-hoc prerelease cleanup" >> "${summary}"
+          echo "" >> "${summary}"
+
+          gh api --paginate "/repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[] | @base64' > "${releases_file}"
+
+          while IFS= read -r encoded_release; do
+            release_json="$(printf '%s' "${encoded_release}" | base64 -d)"
+            tag="$(jq -r '.tag_name' <<< "${release_json}")"
+            is_draft="$(jq -r '.draft' <<< "${release_json}")"
+            is_prerelease="$(jq -r '.prerelease' <<< "${release_json}")"
+            body="$(jq -r '.body // ""' <<< "${release_json}")"
+
+            if [ "${is_draft}" != "false" ] || [ "${is_prerelease}" != "true" ]; then
+              continue
+            fi
+
+            if [[ "${tag}" != prerelease-* ]]; then
+              continue
+            fi
+
+            if [[ "${body}" != *"${marker}"* ]]; then
+              continue
+            fi
+
+            expires_at="$(jq -r --arg prefix "${expiry_prefix}" '
+              (.body // "") as $body
+              | ($body | split($prefix) | .[1] // "")
+              | split(" -->") | .[0] // ""
+            ' <<< "${release_json}")"
+
+            if [ -z "${expires_at}" ]; then
+              continue
+            fi
+
+            if ! expires_at_epoch="$(date -u -d "${expires_at}" +%s 2>/dev/null)"; then
+              skipped_count="$((skipped_count + 1))"
+              echo "::warning::Skipping ${tag}; invalid expiration marker: ${expires_at}"
+              continue
+            fi
+
+            if [ "${expires_at_epoch}" -gt "${now_epoch}" ]; then
+              continue
+            fi
+
+            expired_count="$((expired_count + 1))"
+            if [ "${DRY_RUN}" = "true" ]; then
+              echo "::notice::Would delete expired ad-hoc prerelease ${tag} (expired ${expires_at})"
+              echo "- Would delete \`${tag}\` (expired \`${expires_at}\`)" >> "${summary}"
+              continue
+            fi
+
+            gh release delete "${tag}" --cleanup-tag --yes
+            deleted_count="$((deleted_count + 1))"
+            echo "- Deleted \`${tag}\` (expired \`${expires_at}\`)" >> "${summary}"
+          done < "${releases_file}"
+
+          if [ "${expired_count}" -eq 0 ]; then
+            echo "No expired ad-hoc prereleases found." >> "${summary}"
+          fi
+
+          echo "" >> "${summary}"
+          echo "- Expired matches: ${expired_count}" >> "${summary}"
+          echo "- Deleted: ${deleted_count}" >> "${summary}"
+          echo "- Skipped: ${skipped_count}" >> "${summary}"
