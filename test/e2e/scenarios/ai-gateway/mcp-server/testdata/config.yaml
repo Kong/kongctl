@@ -47,3 +47,23 @@ ai_gateways:
             path: /customers/{customer_id}
         policies:
           - mask-sensitive-data
+      - ref: context7-passthrough
+        type: passthrough-listener
+        name: context7-passthrough
+        display_name: "POC MCP Server (Context7 passthrough)"
+        enabled: true
+        labels:
+          team: support
+          phase: create
+        tools: []
+        acl_attribute_type: oauth_access_token
+        access_token_claim_field: sub
+        config:
+          url: https://mcp.context7.com/mcp
+          route:
+            paths:
+              - /mcp
+            methods:
+              - GET
+              - POST
+        policies: []

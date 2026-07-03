@@ -14,6 +14,9 @@ vars:
   server_name: "support-tools"
   server_display_name: "Support Tools"
   server_updated_display_name: "Support Tools Updated"
+  passthrough_server_ref: "context7-passthrough"
+  passthrough_server_name: "context7-passthrough"
+  passthrough_server_display_name: "POC MCP Server (Context7 passthrough)"
 
 defaults:
   mask:
@@ -49,10 +52,15 @@ steps:
                 type: object
                 title: "kongctl declarative schema: ai_gateway_policy"
                 '"x-kongctl-root-key"': ai_gateway_policies
-          - select: "contains(keys(properties), 'ai_gateway')"
+          - select: "contains(keys(oneOf[0].properties), 'ai_gateway')"
             expect:
               fields:
                 "@": true
+          - select: "oneOf[?properties.type.const=='passthrough-listener'] | [0].properties"
+            expect:
+              fields:
+                acl_attribute_type.type: string
+                type.const: passthrough-listener
       - name: 001-scaffold-ai-gateway-policy
         run:
           - scaffold
@@ -114,8 +122,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 3
-                by_action.CREATE: 3
+                total_changes: 4
+                by_action.CREATE: 4
           - select: >-
               changes[?resource_type=='ai_gateway_policy' && resource_ref=='{{ .vars.policy_ref }}'] | [0]
             expect:
@@ -138,6 +146,20 @@ steps:
                 fields.config.url: https://support-tools.example.com
                 fields.config.route.paths[0]: /support-tools
                 fields.policies[0]: "{{ .vars.policy_name }}"
+          - select: >-
+              changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.passthrough_server_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.passthrough_server_name }}"
+                fields.type: passthrough-listener
+                fields.display_name: "{{ .vars.passthrough_server_display_name }}"
+                fields.config.url: https://mcp.context7.com/mcp
+                fields.config.route.paths[0]: /mcp
+                fields.config.route.methods[0]: GET
+                fields.config.route.methods[1]: POST
+                fields.acl_attribute_type: oauth_access_token
+                fields.access_token_claim_field: sub
       - name: 001-apply-create
         outputFormat: json
         run:
@@ -149,7 +171,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 4
                 failed: 0
                 status: success
       - name: 002-list-policies
@@ -236,6 +258,19 @@ steps:
                 config.route.paths[0]: /support-tools
                 tools[0].name: lookup-customer
                 policies[0]: "{{ .vars.policy_name }}"
+          - select: "[?name=='{{ .vars.passthrough_server_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.passthrough_server_name }}"
+                display_name: "{{ .vars.passthrough_server_display_name }}"
+                type: passthrough-listener
+                enabled: true
+                config.url: https://mcp.context7.com/mcp
+                config.route.paths[0]: /mcp
+                config.route.methods[0]: GET
+                config.route.methods[1]: POST
+                acl_attribute_type: oauth_access_token
+                access_token_claim_field: sub
       - name: 006-get-mcp-server-by-name
         run:
           - get
@@ -251,7 +286,26 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.server_name }}"
-      - name: 007-get-mcp-server-by-id
+      - name: 007-get-passthrough-mcp-server-by-name
+        run:
+          - get
+          - ai-gateway
+          - mcp-server
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.passthrough_server_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.passthrough_server_name }}"
+                type: passthrough-listener
+                config.route.paths[0]: /mcp
+                acl_attribute_type: oauth_access_token
+                access_token_claim_field: sub
+      - name: 008-get-mcp-server-by-id
         run:
           - get
           - ai-gateway
@@ -362,6 +416,15 @@ steps:
                 type: conversion-only
                 policies[0]: "{{ .vars.policy_name }}"
           - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.passthrough_server_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.passthrough_server_name }}"
+                display_name: "{{ .vars.passthrough_server_display_name }}"
+                type: passthrough-listener
+                acl_attribute_type: oauth_access_token
+                access_token_claim_field: sub
+          - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].policies[?name=='{{ .vars.policy_name }}'] | [0]
             expect:
               fields:
@@ -436,17 +499,22 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 1
-                by_action.DELETE: 1
+                total_changes: 2
+                by_action.DELETE: 2
           - select: >-
-              plan.changes[?resource_type=='ai_gateway_mcp_server' && action=='DELETE'] | [0]
+              plan.changes[?resource_type=='ai_gateway_mcp_server' && action=='DELETE' && resource_ref=='{{ .vars.server_name }}'] | [0]
             expect:
               fields:
                 resource_ref: "{{ .vars.server_name }}"
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_mcp_server' && action=='DELETE' && resource_ref=='{{ .vars.passthrough_server_name }}'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.passthrough_server_name }}"
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
                 status: success
       - name: 001-list-mcp-servers-empty
