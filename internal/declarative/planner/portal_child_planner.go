@@ -1166,7 +1166,7 @@ func (p *Planner) planPortalCustomizationUpdateWithFields(
 
 // shouldUpdatePortalCustomization compares current and desired customization
 func (p *Planner) shouldUpdatePortalCustomization(
-	current *kkComps.PortalCustomizationV3,
+	current *kkComps.PortalCustomization,
 	desired resources.PortalCustomizationResource,
 ) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
@@ -1495,8 +1495,8 @@ func (p *Planner) compareBoolPtr(current, desired *bool) bool {
 	return *current == *desired
 }
 
-// compareModePtr compares two PortalCustomizationV3Mode pointers
-func (p *Planner) compareModePtr(current, desired *kkComps.PortalCustomizationV3Mode) bool {
+// compareModePtr compares two PortalCustomizationMode pointers
+func (p *Planner) compareModePtr(current, desired *kkComps.PortalCustomizationMode) bool {
 	if current == nil && desired == nil {
 		return true
 	}
