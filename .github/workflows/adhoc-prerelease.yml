@@ -357,6 +357,16 @@ jobs:
           PY
           echo "config=${config}" >> "$GITHUB_OUTPUT"
 
+      - name: Hide ad-hoc prerelease tags from GoReleaser
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t prerelease_tags < <(git tag -l 'prerelease-*')
+          if [ "${#prerelease_tags[@]}" -gt 0 ]; then
+            git tag -d "${prerelease_tags[@]}"
+          fi
+
       - name: Build release binaries
         uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
         env:
