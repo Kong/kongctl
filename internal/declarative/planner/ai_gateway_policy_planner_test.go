@@ -139,6 +139,30 @@ func TestAIGatewayPolicyPlannerIgnoresEmptyAPIConfigDefaults(t *testing.T) {
 	require.Nil(t, changed)
 }
 
+func TestAIGatewayPolicyPlannerIgnoresPromptGuardAPIDefaults(t *testing.T) {
+	policy := testAIGatewayPromptGuardPolicyResource(t)
+	current := testAIGatewayPromptGuardPolicy()
+	current.Config = map[string]any{
+		"allow_all_conversation_history": false,
+		"allow_patterns":                 nil,
+		"deny_patterns":                  []any{".*(W|w)ar.*"},
+		"genai_category":                 "text/generation",
+		"llm_format":                     "openai",
+		"match_all_roles":                false,
+		"max_request_body_size":          float64(8388608),
+	}
+
+	needsUpdate, fields, changed, err := shouldUpdateAIGatewayPolicy(
+		state.AIGatewayPolicy{AIGatewayPolicy: current},
+		policy,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func TestAIGatewayPolicyPlannerSyncDeletesScopedPolicies(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
@@ -225,6 +249,23 @@ func testAIGatewayPolicyResource(t *testing.T) resources.AIGatewayPolicyResource
 	return policy
 }
 
+func testAIGatewayPromptGuardPolicyResource(t *testing.T) resources.AIGatewayPolicyResource {
+	t.Helper()
+	payload := `{
+		"ref": "repro-prompt-guard",
+		"ai_gateway": "repro-gateway",
+		"type": "ai-prompt-guard",
+		"name": "repro-prompt-guard",
+		"display_name": "Repro Prompt Guard",
+		"enabled": true,
+		"global": false,
+		"config": {"deny_patterns": [".*(W|w)ar.*"]}
+	}`
+	var policy resources.AIGatewayPolicyResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &policy))
+	return policy
+}
+
 func testAIGatewayModelResourceWithPolicy(t *testing.T, policyName string) resources.AIGatewayModelResource {
 	t.Helper()
 	payload := strings.Replace(
@@ -261,6 +302,22 @@ func testAIGatewayPolicy() kkComps.AIGatewayPolicy {
 		Enabled:     &enabled,
 		Global:      &global,
 		Config:      map[string]any{"anonymize": []any{"email"}},
+	}
+}
+
+func testAIGatewayPromptGuardPolicy() kkComps.AIGatewayPolicy {
+	enabled := true
+	global := false
+	return kkComps.AIGatewayPolicy{
+		ID:          "prompt-guard-policy-id",
+		Name:        "repro-prompt-guard",
+		Type:        "ai-prompt-guard",
+		DisplayName: "Repro Prompt Guard",
+		Enabled:     &enabled,
+		Global:      &global,
+		Config: map[string]any{
+			"deny_patterns": []any{".*(W|w)ar.*"},
+		},
 	}
 }
 
