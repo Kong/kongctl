@@ -31,7 +31,92 @@ steps:
 
   - name: 001-plan-apply-create
     commands:
-      - name: 000-plan-create
+      - name: 000-plan-gemini-gcp-environment
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-gcp-environment.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/gcp-environment.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='ai_gateway_provider' && resource_ref=='support-gemini-provider'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-gemini-provider
+                fields.type: gemini
+                fields.config.auth.type: gcp
+                fields.config.auth.service_account_json: fake-service-account-json
+                fields.config.auth.use_gcp_service_account: false
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='support-gemini'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-gemini
+                fields.targets[0].name: gemini-1.5-pro
+                fields.targets[0].config.type: gemini
+                fields.targets[0].config.gcp_environment.api_endpoint: us-central1-aiplatform.googleapis.com
+                fields.targets[0].config.gcp_environment.location_id: us-central1
+                fields.targets[0].config.gcp_environment.project_id: support-project
+      - name: 001-diff-gemini-gcp-environment-preview
+        outputFormat: json
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/gcp-environment.yaml"
+          - -o
+          - json
+        assertions:
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='support-gemini'] | [0]
+            expect:
+              fields:
+                fields.targets[0].config.gcp_environment.api_endpoint: us-central1-aiplatform.googleapis.com
+                fields.targets[0].config.gcp_environment.location_id: us-central1
+                fields.targets[0].config.gcp_environment.project_id: support-project
+      - name: 002-apply-gemini-gcp-environment
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-gcp-environment.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+      - name: 003-get-gemini-gcp-environment
+        run:
+          - get
+          - ai-gateway
+          - models
+          - --gateway-name
+          - ai-gateway-model-gcp-environment-e2e
+          - --model-name
+          - support-gemini
+          - -o
+          - json
+        assertions:
+          - select: targets[0].config
+            expect:
+              fields:
+                type: gemini
+                gcp_environment.api_endpoint: us-central1-aiplatform.googleapis.com
+                gcp_environment.location_id: us-central1
+                gcp_environment.project_id: support-project
+      - name: 004-plan-create
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-create.json"
         run:
@@ -52,9 +137,9 @@ steps:
               fields:
                 action: CREATE
                 fields.name: "{{ .vars.model_name }}"
-                fields.target_models[0].name: gpt-4o
-                fields.target_models[1].name: gpt-4o-mini
-      - name: 001-apply-create
+                fields.targets[0].name: gpt-4o
+                fields.targets[1].name: gpt-4o-mini
+      - name: 005-apply-create
         outputFormat: json
         run:
           - apply
@@ -68,13 +153,15 @@ steps:
                 applied: 3
                 failed: 0
                 status: success
-      - name: 002-diff-no-changes
+      - name: 006-diff-no-changes
         outputFormat: text
         parseAs: raw
         run:
           - diff
           - -f
           - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
         assertions:
           - select: stdout
             expect:

@@ -87,6 +87,50 @@ func TestAIGatewayModelPlannerCreatesChildForExternalGatewayRef(t *testing.T) {
 	require.Equal(t, "external-support-gateway", change.Parent.Ref)
 }
 
+func TestAIGatewayModelPlannerPreservesGeminiGCPEnvironmentInCreatePlan(t *testing.T) {
+	model := testAIGatewayModelResourceWithGeminiGCPEnvironment(t)
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayModelAPI: &testAIGatewayModelAPI{},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{
+				Ref:     "support-gateway",
+				Kongctl: &resources.KongctlMeta{Namespace: new("default")},
+			},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "support-gateway",
+				DisplayName: "Support Gateway",
+			},
+		}},
+		AIGatewayModels: []resources.AIGatewayModelResource{model},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	change := plan.Changes[0]
+	require.Equal(t, ActionCreate, change.Action)
+	require.Equal(t, ResourceTypeAIGatewayModel, change.ResourceType)
+	require.Equal(t, "support-gemini", change.ResourceRef)
+
+	targets, ok := change.Fields[FieldTargets].([]any)
+	require.True(t, ok)
+	require.Len(t, targets, 1)
+	target, ok := targets[0].(map[string]any)
+	require.True(t, ok)
+	config, ok := target[FieldConfig].(map[string]any)
+	require.True(t, ok)
+	gcpEnvironment, ok := config["gcp_environment"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "us-central1-aiplatform.googleapis.com", gcpEnvironment["api_endpoint"])
+	require.Equal(t, "us-central1", gcpEnvironment["location_id"])
+	require.Equal(t, "support-project", gcpEnvironment["project_id"])
+}
+
 func TestAIGatewayModelPlannerSyncDeletesScopedModels(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
@@ -332,6 +376,37 @@ func testAIGatewayModelResource(t *testing.T) resources.AIGatewayModelResource {
 		"config": {"route": {}, "model": {}},
 		"formats": [{"type": "openai"}],
 		"target_models": [{"name": "gpt-4o", "provider": "support-openai", "config": {"type": "openai"}}],
+		"policies": [],
+		"capabilities": ["generate"]
+	}`
+	var model resources.AIGatewayModelResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &model))
+	return model
+}
+
+func testAIGatewayModelResourceWithGeminiGCPEnvironment(t *testing.T) resources.AIGatewayModelResource {
+	t.Helper()
+	payload := `{
+		"ref": "support-gemini",
+		"ai_gateway": "support-gateway",
+		"type": "model",
+		"name": "support-gemini",
+		"display_name": "Support Gemini",
+		"enabled": true,
+		"config": {"route": {}, "model": {}},
+		"formats": [{"type": "openai"}],
+		"target_models": [{
+			"name": "gemini-1.5-pro",
+			"provider": "support-gemini-provider",
+			"config": {
+				"type": "gemini",
+				"gcp_environment": {
+					"api_endpoint": "us-central1-aiplatform.googleapis.com",
+					"location_id": "us-central1",
+					"project_id": "support-project"
+				}
+			}
+		}],
 		"policies": [],
 		"capabilities": ["generate"]
 	}`
