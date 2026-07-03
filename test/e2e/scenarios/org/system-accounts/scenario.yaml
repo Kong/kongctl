@@ -66,12 +66,18 @@ steps:
                 name: "{{ .vars.account_1_name }}"
                 description: "{{ .vars.account_1_description }}"
                 id: "{{ .vars.account_1_id }}"
+                "konnect_managed != null": true
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
           - select: "[?name=='{{ .vars.account_2_name }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.account_2_name }}"
                 description: "{{ .vars.account_2_description }}"
                 id: "{{ .vars.account_2_id }}"
+                "konnect_managed != null": true
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
 
   - name: 003-get-system-account-by-name
     skipInputs: true
@@ -88,6 +94,9 @@ steps:
                 name: "{{ .vars.account_1_name }}"
                 description: "{{ .vars.account_1_description }}"
                 id: "{{ .vars.account_1_id }}"
+                "konnect_managed != null": true
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
 
       - name: 001-get-by-name-account-2
         run:
@@ -101,6 +110,9 @@ steps:
                 name: "{{ .vars.account_2_name }}"
                 description: "{{ .vars.account_2_description }}"
                 id: "{{ .vars.account_2_id }}"
+                "konnect_managed != null": true
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
 
   - name: 004-get-system-account-by-id
     skipInputs: true
@@ -117,6 +129,9 @@ steps:
                 name: "{{ .vars.account_1_name }}"
                 description: "{{ .vars.account_1_description }}"
                 id: "{{ .vars.account_1_id }}"
+                "konnect_managed != null": true
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
 
       - name: 001-get-by-id-account-2
         run:
@@ -130,6 +145,9 @@ steps:
                 name: "{{ .vars.account_2_name }}"
                 description: "{{ .vars.account_2_description }}"
                 id: "{{ .vars.account_2_id }}"
+                "konnect_managed != null": true
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
 
   - name: 005-list-all-system-accounts
     skipInputs: true
@@ -147,10 +165,22 @@ steps:
           - name: account-1-in-output
             expect:
               fields:
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'NAME')": true
+                "contains(stdout, 'DESCRIPTION')": true
+                "contains(stdout, 'LOCAL CREATED TIME')": true
+                "contains(stdout, 'LOCAL UPDATED TIME')": true
+                "contains(stdout, 'KONNECT MANAGED')": true
                 "contains(stdout, 'e2e-system-account-1')": true
           - name: account-2-in-output
             expect:
               fields:
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'NAME')": true
+                "contains(stdout, 'DESCRIPTION')": true
+                "contains(stdout, 'LOCAL CREATED TIME')": true
+                "contains(stdout, 'LOCAL UPDATED TIME')": true
+                "contains(stdout, 'KONNECT MANAGED')": true
                 "contains(stdout, 'e2e-system-account-2')": true
 
   - name: 006-list-system-account-by-name
@@ -170,4 +200,10 @@ steps:
           - name: account-1-in-output
             expect:
               fields:
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'NAME')": true
+                "contains(stdout, 'DESCRIPTION')": true
+                "contains(stdout, 'LOCAL CREATED TIME')": true
+                "contains(stdout, 'LOCAL UPDATED TIME')": true
+                "contains(stdout, 'KONNECT MANAGED')": true
                 "contains(stdout, 'e2e-system-account-1')": true
