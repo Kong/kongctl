@@ -1,0 +1,47 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-e2e
+
+ai_gateways:
+  - ref: ai-gateway-model-gcp-environment-e2e
+    name: ai-gateway-model-gcp-environment-e2e
+    display_name: "AI Gateway Model GCP Environment E2E"
+    proxy_urls:
+      - host: ai-gateway-model-gcp-environment-e2e.example.com
+        port: 443
+        protocol: https
+    providers:
+      - ref: support-gemini-provider
+        name: support-gemini-provider
+        type: gemini
+        display_name: "Support Gemini Provider"
+        config:
+          auth:
+            type: gcp
+            service_account_json: "fake-service-account-json"
+            use_gcp_service_account: false
+    models:
+      - ref: support-gemini
+        type: model
+        name: support-gemini
+        display_name: "Support Gemini"
+        enabled: true
+        config:
+          route: {}
+          model: {}
+        formats:
+          - type: openai
+        target_models:
+          - name: gemini-1.5-pro
+            provider: support-gemini-provider
+            config:
+              type: gemini
+              # The target-level GCP environment must carry project_id; provider
+              # auth does not supply it to targets.
+              gcp_environment:
+                api_endpoint: us-central1-aiplatform.googleapis.com
+                location_id: us-central1
+                project_id: support-project
+        policies: []
+        capabilities:
+          - generate

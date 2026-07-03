@@ -103,6 +103,58 @@ func TestAIGatewayModelResourceMarshalPreservesParentAndPayload(t *testing.T) {
 	require.NotContains(t, payload, "id")
 }
 
+func TestAIGatewayModelResourcePreservesGeminiGCPEnvironment(t *testing.T) {
+	var model AIGatewayModelResource
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"ref": "support-gemini",
+		"ai_gateway": "support-gateway",
+		"type": "model",
+		"name": "support-gemini",
+		"display_name": "Support Gemini",
+		"enabled": true,
+		"config": {"route": {}, "model": {}},
+		"formats": [{"type": "openai"}],
+		"target_models": [{
+			"name": "gemini-1.5-pro",
+			"provider": "support-gemini-provider",
+			"config": {
+				"type": "gemini",
+				"gcp_environment": {
+					"api_endpoint": "us-central1-aiplatform.googleapis.com",
+					"location_id": "us-central1",
+					"project_id": "support-project"
+				}
+			}
+		}],
+		"policies": [],
+		"capabilities": ["generate"]
+	}`), &model))
+
+	require.NotNil(t, model.AIGatewayModelModel)
+	require.Len(t, model.AIGatewayModelModel.Targets, 1)
+	geminiConfig := model.AIGatewayModelModel.Targets[0].Config.AIGatewayTargetGeminiConfig
+	require.NotNil(t, geminiConfig)
+	require.NotNil(t, geminiConfig.GcpEnvironment)
+	require.Equal(t, "us-central1-aiplatform.googleapis.com", geminiConfig.GcpEnvironment.APIEndpoint)
+	require.Equal(t, "us-central1", geminiConfig.GcpEnvironment.LocationID)
+	require.Equal(t, "support-project", geminiConfig.GcpEnvironment.ProjectID)
+
+	payload, err := model.MutablePayloadMap()
+	require.NoError(t, err)
+	targets, ok := payload["targets"].([]any)
+	require.True(t, ok)
+	require.Len(t, targets, 1)
+	target, ok := targets[0].(map[string]any)
+	require.True(t, ok)
+	config, ok := target["config"].(map[string]any)
+	require.True(t, ok)
+	gcpEnvironment, ok := config["gcp_environment"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "us-central1-aiplatform.googleapis.com", gcpEnvironment["api_endpoint"])
+	require.Equal(t, "us-central1", gcpEnvironment["location_id"])
+	require.Equal(t, "support-project", gcpEnvironment["project_id"])
+}
+
 func TestAIGatewayModelResourceParentRefNormalizesDeferredRef(t *testing.T) {
 	var model AIGatewayModelResource
 	require.NoError(t, json.Unmarshal([]byte(aiGatewayModelJSON), &model))
