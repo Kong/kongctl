@@ -96,6 +96,7 @@ steps:
         set:
           auto_approve_applications: true
           default_api_visibility: "private"
+    commands:
       - name: 000-plan-portal-update
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-portal-update.json"
