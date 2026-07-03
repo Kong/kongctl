@@ -90,9 +90,12 @@ steps:
                 "length(@)": 0
 
   - name: 002-update-portal-settings
-    inputOverlayDirs:
-      - overlays/002-update-portal-settings
-    commands:
+    inputOverlayOps:
+      - file: "portal.yaml"
+        match: "portals[?ref=='getting-started-portal'] | [0]"
+        set:
+          auto_approve_applications: true
+          default_api_visibility: "private"
       - name: 000-plan-portal-update
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-portal-update.json"
