@@ -163,6 +163,123 @@ func TestAIGatewayPolicyPlannerIgnoresPromptGuardAPIDefaults(t *testing.T) {
 	require.Nil(t, changed)
 }
 
+func TestAIGatewayPolicyPlannerIgnoresUndeclaredConfigFields(t *testing.T) {
+	policy := testAIGatewayHTTPLogPolicyResource(t, `{
+		"http_endpoint": "https://logging.example.com/ai-gateway"
+	}`)
+	current := testAIGatewayHTTPLogPolicy()
+	current.Config = map[string]any{
+		"content_type":         "application/json",
+		"custom_fields_by_lua": nil,
+		"flush_timeout":        nil,
+		"headers":              nil,
+		"http_endpoint":        "https://logging.example.com/ai-gateway",
+		"keepalive":            float64(60000),
+		"method":               "POST",
+		"queue": map[string]any{
+			"concurrency_limit":    float64(1),
+			"initial_retry_delay":  float64(0.01),
+			"max_batch_size":       float64(1),
+			"max_bytes":            nil,
+			"max_coalescing_delay": float64(1),
+			"max_entries":          float64(10000),
+			"max_retry_delay":      float64(60),
+			"max_retry_time":       float64(60),
+		},
+		"queue_size":  nil,
+		"retry_count": nil,
+		"ssl_verify":  true,
+		"timeout":     float64(10000),
+	}
+
+	needsUpdate, fields, changed, err := shouldUpdateAIGatewayPolicy(
+		state.AIGatewayPolicy{AIGatewayPolicy: current},
+		policy,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
+func TestAIGatewayPolicyPlannerComparesDeclaredNestedConfigFields(t *testing.T) {
+	policy := testAIGatewayHTTPLogPolicyResource(t, `{
+		"http_endpoint": "https://logging.example.com/ai-gateway",
+		"queue": {"max_batch_size": 2}
+	}`)
+	current := testAIGatewayHTTPLogPolicy()
+	current.Config = map[string]any{
+		"http_endpoint": "https://logging.example.com/ai-gateway",
+		"queue": map[string]any{
+			"concurrency_limit": float64(1),
+			"max_batch_size":    float64(1),
+			"max_entries":       float64(10000),
+		},
+	}
+
+	needsUpdate, fields, changed, err := shouldUpdateAIGatewayPolicy(
+		state.AIGatewayPolicy{AIGatewayPolicy: current},
+		policy,
+	)
+
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	require.NotNil(t, fields)
+	require.Contains(t, changed, FieldConfig)
+}
+
+func TestAIGatewayPolicyPlannerComparesDeclaredEmptyAndNullConfigValues(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		desiredConfig string
+		currentConfig map[string]any
+	}{
+		{
+			name: "empty map",
+			desiredConfig: `{
+				"http_endpoint": "https://logging.example.com/ai-gateway",
+				"queue": {}
+			}`,
+			currentConfig: map[string]any{
+				"http_endpoint": "https://logging.example.com/ai-gateway",
+				"queue": map[string]any{
+					"max_batch_size": float64(1),
+				},
+			},
+		},
+		{
+			name: "null",
+			desiredConfig: `{
+				"http_endpoint": "https://logging.example.com/ai-gateway",
+				"headers": null
+			}`,
+			currentConfig: map[string]any{
+				"http_endpoint": "https://logging.example.com/ai-gateway",
+				"headers": map[string]any{
+					"X-Team": "platform",
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			policy := testAIGatewayHTTPLogPolicyResource(t, tc.desiredConfig)
+			current := testAIGatewayHTTPLogPolicy()
+			current.Config = tc.currentConfig
+
+			needsUpdate, fields, changed, err := shouldUpdateAIGatewayPolicy(
+				state.AIGatewayPolicy{AIGatewayPolicy: current},
+				policy,
+			)
+
+			require.NoError(t, err)
+			require.True(t, needsUpdate)
+			require.NotNil(t, fields)
+			require.Contains(t, changed, FieldConfig)
+		})
+	}
+}
+
 func TestAIGatewayPolicyPlannerSyncDeletesScopedPolicies(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
@@ -266,6 +383,23 @@ func testAIGatewayPromptGuardPolicyResource(t *testing.T) resources.AIGatewayPol
 	return policy
 }
 
+func testAIGatewayHTTPLogPolicyResource(t *testing.T, config string) resources.AIGatewayPolicyResource {
+	t.Helper()
+	payload := `{
+		"ref": "repro-http-log",
+		"ai_gateway": "repro-gateway",
+		"type": "http-log",
+		"name": "repro-http-log",
+		"display_name": "Repro HTTP Log",
+		"enabled": true,
+		"global": false,
+		"config": CONFIG
+	}`
+	var policy resources.AIGatewayPolicyResource
+	require.NoError(t, json.Unmarshal([]byte(strings.Replace(payload, "CONFIG", config, 1)), &policy))
+	return policy
+}
+
 func testAIGatewayModelResourceWithPolicy(t *testing.T, policyName string) resources.AIGatewayModelResource {
 	t.Helper()
 	payload := strings.Replace(
@@ -317,6 +451,22 @@ func testAIGatewayPromptGuardPolicy() kkComps.AIGatewayPolicy {
 		Global:      &global,
 		Config: map[string]any{
 			"deny_patterns": []any{".*(W|w)ar.*"},
+		},
+	}
+}
+
+func testAIGatewayHTTPLogPolicy() kkComps.AIGatewayPolicy {
+	enabled := true
+	global := false
+	return kkComps.AIGatewayPolicy{
+		ID:          "http-log-policy-id",
+		Name:        "repro-http-log",
+		Type:        "http-log",
+		DisplayName: "Repro HTTP Log",
+		Enabled:     &enabled,
+		Global:      &global,
+		Config: map[string]any{
+			"http_endpoint": "https://logging.example.com/ai-gateway",
 		},
 	}
 }

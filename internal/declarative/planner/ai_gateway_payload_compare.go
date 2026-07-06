@@ -31,10 +31,11 @@ func normalizeAIGatewayPolicyPayloadsForComparison(
 	currentPayload map[string]any,
 	desiredPayload map[string]any,
 ) (map[string]any, map[string]any) {
+	currentPolicyPayload := normalizeAIGatewayJSONMap(currentPayload)
+	desiredPolicyPayload := normalizeAIGatewayJSONMap(desiredPayload)
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
 
-	pruneAIGatewayPolicyConfigDefaultsMissingFromPeer(currentCompare, desiredCompare)
-	pruneAIGatewayPolicyConfigDefaultsMissingFromPeer(desiredCompare, currentCompare)
+	projectAIGatewayPolicyConfigForComparison(currentCompare, desiredCompare, currentPolicyPayload, desiredPolicyPayload)
 	pruneEmptyContainersMissingFromPeer(currentCompare, desiredCompare)
 	pruneEmptyContainersMissingFromPeer(desiredCompare, currentCompare)
 
@@ -278,6 +279,50 @@ func pruneEmptyContainersMissingFromPeer(payload map[string]any, peer map[string
 			}
 		}
 	}
+}
+
+func projectAIGatewayPolicyConfigForComparison(
+	currentCompare map[string]any,
+	desiredCompare map[string]any,
+	currentPayload map[string]any,
+	desiredPayload map[string]any,
+) {
+	desiredConfig, ok := desiredPayload[FieldConfig].(map[string]any)
+	if !ok {
+		return
+	}
+	currentConfig, currentHasConfig := currentPayload[FieldConfig].(map[string]any)
+	if !currentHasConfig {
+		return
+	}
+
+	normalizeAIGatewayUnorderedCollections(currentConfig)
+	normalizeAIGatewayUnorderedCollections(desiredConfig)
+	currentCompare[FieldConfig] = projectAIGatewayPolicyConfigValue(currentConfig, desiredConfig)
+	desiredCompare[FieldConfig] = desiredConfig
+}
+
+func projectAIGatewayPolicyConfigValue(current any, desired any) any {
+	desiredMap, desiredIsMap := desired.(map[string]any)
+	if !desiredIsMap {
+		return current
+	}
+	if len(desiredMap) == 0 {
+		return current
+	}
+
+	currentMap, currentIsMap := current.(map[string]any)
+	if !currentIsMap {
+		return current
+	}
+
+	projected := make(map[string]any, len(desiredMap))
+	for key, desiredValue := range desiredMap {
+		if currentValue, ok := currentMap[key]; ok {
+			projected[key] = projectAIGatewayPolicyConfigValue(currentValue, desiredValue)
+		}
+	}
+	return projected
 }
 
 func pruneAIGatewayPolicyConfigDefaultsMissingFromPeer(payload map[string]any, peer map[string]any) {
