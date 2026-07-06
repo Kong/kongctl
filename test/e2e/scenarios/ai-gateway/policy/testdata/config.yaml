@@ -21,3 +21,11 @@ ai_gateways:
         config:
           deny_patterns:
             - ".*(W|w)ar.*"
+      - ref: repro-http-log
+        name: repro-http-log
+        type: http-log
+        display_name: "Repro HTTP Log"
+        enabled: true
+        global: false
+        config:
+          http_endpoint: https://logging.example.com/ai-gateway
