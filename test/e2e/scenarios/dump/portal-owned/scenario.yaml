@@ -69,6 +69,32 @@ steps:
                 strategy_type: key_auth
                 name: key-auth
                 'configs."key-auth".key_names[0]': X-API-Key
+          # SMS API has 2 versions defined in testdata
+          - name: sms-api-versions
+            select: "apis[?name=='SMS API'] | [0].versions"
+            expect:
+              fields:
+                "length(@)": 2
+                "[?version=='1.0.11'] | length(@)": 1
+          # SMS API has 4 documents defined in testdata
+          - name: sms-api-documents
+            select: "apis[?name=='SMS API'] | [0].documents"
+            expect:
+              fields:
+                "length(@)": 4
+          # Voice API has 1 version defined in testdata
+          - name: voice-api-versions
+            select: "apis[?name=='Voice API'] | [0].versions"
+            expect:
+              fields:
+                "length(@)": 1
+                "[?version=='1.3.7'] | length(@)": 1
+          # Voice API has 4 documents defined in testdata
+          - name: voice-api-documents
+            select: "apis[?name=='Voice API'] | [0].documents"
+            expect:
+              fields:
+                "length(@)": 4
 
       - name: 001-plan-from-dump
         outputFormat: disable
