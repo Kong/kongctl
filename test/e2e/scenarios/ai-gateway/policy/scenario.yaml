@@ -9,6 +9,8 @@ vars:
   gateway_name: "AI Gateway Policy E2E"
   policy_ref: "repro-prompt-guard"
   policy_name: "repro-prompt-guard"
+  http_log_policy_ref: "repro-http-log"
+  http_log_policy_name: "repro-http-log"
 
 defaults:
   mask:
@@ -43,8 +45,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 2
-                by_action.CREATE: 2
+                total_changes: 3
+                by_action.CREATE: 3
           - select: >-
               changes[?resource_type=='ai_gateway_policy' && resource_ref=='{{ .vars.policy_ref }}'] | [0]
             expect:
@@ -53,6 +55,14 @@ steps:
                 fields.name: "{{ .vars.policy_name }}"
                 fields.type: ai-prompt-guard
                 fields.config.deny_patterns[0]: ".*(W|w)ar.*"
+          - select: >-
+              changes[?resource_type=='ai_gateway_policy' && resource_ref=='{{ .vars.http_log_policy_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.http_log_policy_name }}"
+                fields.type: http-log
+                fields.config.http_endpoint: https://logging.example.com/ai-gateway
       - name: 001-apply-create
         outputFormat: json
         run:
@@ -64,7 +74,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 3
                 failed: 0
                 status: success
       - name: 002-diff-no-changes
