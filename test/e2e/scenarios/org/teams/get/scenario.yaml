@@ -73,12 +73,16 @@ steps:
                 name: "{{ .vars.team_alpha_name }}"
                 description: "{{ .vars.team_alpha_description }}"
                 id: "{{ .vars.team_alpha_id }}"
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
           - select: "[?name=='{{ .vars.team_beta_name }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.team_beta_name }}"
                 description: "{{ .vars.team_beta_description }}"
                 id: "{{ .vars.team_beta_id }}"
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
 
   - name: 003-get-team-by-name
     skipInputs: true
@@ -156,10 +160,22 @@ steps:
           - name: alpha-in-output
             expect:
               fields:
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'NAME')": true
+                "contains(stdout, 'DESCRIPTION')": true
+                "contains(stdout, 'LOCAL CREATED TIME')": true
+                "contains(stdout, 'LOCAL UPDATED TIME')": true
+                "contains(stdout, 'IS SYSTEM TEAM')": true
                 "contains(stdout, 'e2e-get-team-alpha')": true
           - name: beta-in-output
             expect:
               fields:
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'NAME')": true
+                "contains(stdout, 'DESCRIPTION')": true
+                "contains(stdout, 'LOCAL CREATED TIME')": true
+                "contains(stdout, 'LOCAL UPDATED TIME')": true
+                "contains(stdout, 'IS SYSTEM TEAM')": true
                 "contains(stdout, 'e2e-get-team-beta')": true
 
   - name: 006-list-team-by-name-text
@@ -177,6 +193,12 @@ steps:
           - name: alpha-in-output
             expect:
               fields:
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'NAME')": true
+                "contains(stdout, 'DESCRIPTION')": true
+                "contains(stdout, 'LOCAL CREATED TIME')": true
+                "contains(stdout, 'LOCAL UPDATED TIME')": true
+                "contains(stdout, 'IS SYSTEM TEAM')": true
                 "contains(stdout, 'e2e-get-team-alpha')": true
           - name: beta-not-in-output
             expect:
