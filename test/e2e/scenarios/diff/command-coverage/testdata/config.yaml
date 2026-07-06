@@ -23,6 +23,32 @@ apis:
     description: "Orders API"
     labels:
       team: commerce
+    versions:
+      - ref: orders-api-v1
+        version: "1.0.0"
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: Orders API
+              version: 1.0.0
+            paths: {}
+      - ref: orders-api-v2
+        version: "2.0.0"
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: Orders API
+              version: 2.0.0
+            paths: {}
+    documents:
+      - ref: orders-api-overview-doc
+        title: "Orders Overview"
+        status: published
+        content: |
+          # Orders Overview
+          Use the Orders API to manage purchase flows.
   - ref: legacy-api
     name: legacy-api
     description: "Legacy API slated for removal"

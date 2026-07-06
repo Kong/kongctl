@@ -23,6 +23,23 @@ apis:
     description: "Orders API"
     labels:
       team: commerce
+    versions:
+      - ref: orders-api-v1
+        version: "1.0.0"
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: Orders API
+              version: 1.0.1
+            paths: {}
+    documents:
+      - ref: orders-api-overview-doc
+        title: "Orders Overview"
+        status: published
+        content: |
+          # Orders Overview
+          Use the Orders API to manage purchase flows with change history.
   - ref: analytics-api
     name: analytics-api
     description: "Analytics API"
