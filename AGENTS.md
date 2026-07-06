@@ -14,6 +14,10 @@ For declarative resource type implementation work, use
 `docs/contributor/declarative-resource-implementation-guide.md` as the
 primary guide.
 
+## Agent guidance
+
+- Spend time on thinking, you do not need to use the commentary channel to report progress to me unecesasrily
+
 ## Repository Overview
 
 **kongctl** is a command-line interface (CLI) tool for operating Kong Konnect
