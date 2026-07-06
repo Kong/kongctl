@@ -84,6 +84,9 @@ steps:
           - services
           - -o
           - json
+        recordVar:
+          name: serviceID
+          responsePath: "[0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -94,6 +97,40 @@ steps:
               fields:
                 name: "{{ .vars.serviceName }}"
                 display_name: "Payments Service"
+
+      - name: 003-get-service-by-id
+        run:
+          - get
+          - catalog
+          - service
+          - "{{ .vars.serviceID }}"
+          - -o
+          - json
+        assertions:
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.serviceID }}"
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.serviceName }}"
+                display_name: "Payments Service"
+
+      - name: 004-get-service-not-found
+        parseAs: raw
+        run:
+          - get
+          - catalog
+          - service
+          - nonexistent-catalog-service-xyz
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "contains(stdout, 'No catalog service found')": true
 
   - name: 002-update-catalog-service
     inputOverlayDirs:
