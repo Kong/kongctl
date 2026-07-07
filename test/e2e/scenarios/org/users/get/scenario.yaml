@@ -134,6 +134,14 @@ steps:
           - name: user-1-in-output
             expect:
               fields:
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'EMAIL')": true
+                "contains(stdout, 'FULL NAME')": true
+                "contains(stdout, 'PREFERRED NAME')": true
+                "contains(stdout, 'ACTIVE')": true
+                "contains(stdout, 'INFERRED REGION')": true
+                "contains(stdout, 'CREATED AT')": true
+                "contains(stdout, 'UPDATED AT')": true
                 "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}')": true
           - name: user-2-in-output
             expect:
@@ -155,6 +163,14 @@ steps:
           - name: user-1-in-output
             expect:
               fields:
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'EMAIL')": true
+                "contains(stdout, 'FULL NAME')": true
+                "contains(stdout, 'PREFERRED NAME')": true
+                "contains(stdout, 'ACTIVE')": true
+                "contains(stdout, 'INFERRED REGION')": true
+                "contains(stdout, 'CREATED AT')": true
+                "contains(stdout, 'UPDATED AT')": true
                 "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}')": true
           - name: user-2-not-in-output
             expect:
