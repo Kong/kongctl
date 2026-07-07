@@ -67,3 +67,60 @@ ai_gateways:
               - GET
               - POST
         policies: []
+      - ref: support-conversion-listener
+        type: conversion-listener
+        name: support-conversion-listener
+        display_name: "Support Conversion Listener"
+        enabled: true
+        labels:
+          team: support
+          phase: create
+        tools: []
+        acl_attribute_type: consumer
+        config:
+          url: https://support-conversion-listener.example.com
+          route:
+            paths:
+              - /support-conversion-listener
+            methods:
+              - GET
+              - POST
+        policies: []
+      - ref: support-listener
+        type: listener
+        name: support-listener
+        display_name: "Support Listener"
+        enabled: true
+        labels:
+          team: support
+          phase: create
+        tools: []
+        acl_attribute_type: consumer
+        config:
+          route:
+            paths:
+              - /support-listener
+            methods:
+              - GET
+              - POST
+        policies: []
+      - ref: support-upstream
+        type: upstream-server
+        name: support-upstream
+        display_name: "Support Upstream Server"
+        enabled: true
+        labels:
+          team: support
+          phase: create
+        tools: []
+        acl_attribute_type: consumer
+        config:
+          url: https://support-upstream.example.com/mcp
+          tools_cache_ttl_seconds: 60
+          route:
+            paths:
+              - /support-upstream
+            methods:
+              - GET
+              - POST
+        policies: []
