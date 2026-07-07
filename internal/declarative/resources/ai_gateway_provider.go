@@ -19,17 +19,26 @@ func init() {
 		ResourceTypeAIGatewayProvider,
 		func(rs *ResourceSet) *[]AIGatewayProviderResource { return &rs.AIGatewayProviders },
 		AutoExplain[AIGatewayProviderResource](
-			WithExplainAliases("ai_gateway_providers", "ai-gateway-provider", "ai-gateway-providers", "aigw-provider"),
+			WithExplainAliases(
+				"ai_gateway_model_providers",
+				"ai-gateway-model-provider",
+				"ai-gateway-model-providers",
+				"aigw-model-provider",
+				"ai_gateway_providers",
+				"ai-gateway-provider",
+				"ai-gateway-providers",
+				"aigw-provider",
+			),
 			WithExplainRecommendedFields("ref", "ai_gateway", "name", "type", "display_name", "config"),
 			WithExplainSchemaBuilder(aiGatewayProviderExplainNode),
 		),
 	)
 }
 
-// AIGatewayProviderResource represents a Konnect AI Gateway Provider in declarative configuration.
+// AIGatewayProviderResource represents a Konnect AI Gateway Model Provider in declarative configuration.
 type AIGatewayProviderResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
-	// Parent AI Gateway reference for root-level provider declarations.
+	// Parent AI Gateway reference for root-level model provider declarations.
 	AIGateway   string            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
 	Name        string            `yaml:"name"                 json:"name"`
 	Type        string            `yaml:"type"                 json:"type"`
@@ -57,30 +66,30 @@ func (a AIGatewayProviderResource) GetDependencies() []ResourceRef {
 	return []ResourceRef{{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}}
 }
 
-// Validate ensures the AI Gateway Provider resource is valid.
+// Validate ensures the AI Gateway Model Provider resource is valid.
 func (a AIGatewayProviderResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
-		return fmt.Errorf("invalid AI Gateway Provider ref: %w", err)
+		return fmt.Errorf("invalid AI Gateway Model Provider ref: %w", err)
 	}
 	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway Provider %s", a.Ref)
+		return fmt.Errorf("kongctl metadata not supported on AI Gateway Model Provider %s", a.Ref)
 	}
 	if a.Name == "" {
-		return fmt.Errorf("name is required for AI Gateway Provider %s", a.Ref)
+		return fmt.Errorf("name is required for AI Gateway Model Provider %s", a.Ref)
 	}
 	if a.Type == "" {
-		return fmt.Errorf("type is required for AI Gateway Provider %s", a.Ref)
+		return fmt.Errorf("type is required for AI Gateway Model Provider %s", a.Ref)
 	}
 	if a.DisplayName == "" {
-		return fmt.Errorf("display_name is required for AI Gateway Provider %s", a.Ref)
+		return fmt.Errorf("display_name is required for AI Gateway Model Provider %s", a.Ref)
 	}
 	if a.Config == nil {
-		return fmt.Errorf("config is required for AI Gateway Provider %s", a.Ref)
+		return fmt.Errorf("config is required for AI Gateway Model Provider %s", a.Ref)
 	}
 	return nil
 }
 
-// SetDefaults applies default values to AI Gateway Provider resources.
+// SetDefaults applies default values to AI Gateway Model Provider resources.
 func (a *AIGatewayProviderResource) SetDefaults() {
 	if a == nil {
 		return

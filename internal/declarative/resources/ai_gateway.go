@@ -24,7 +24,9 @@ type AIGatewayResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	kkComps.CreateAIGatewayRequest
 	External              *ExternalBlock                          `yaml:"_external,omitempty" json:"_external,omitempty"`
-	Providers             []AIGatewayProviderResource             `yaml:"providers,omitempty" json:"providers,omitempty"`
+	Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty" json:"model_providers,omitempty"` //nolint:lll
+	LegacyProviders       []AIGatewayProviderResource             `yaml:"providers,omitempty" json:"providers,omitempty"`
+	IdentityProviders     []AIGatewayIdentityProviderResource     `yaml:"identity_providers,omitempty" json:"identity_providers,omitempty"` //nolint:lll
 	Policies              []AIGatewayPolicyResource               `yaml:"policies,omitempty" json:"policies,omitempty"`
 	Agents                []AIGatewayAgentResource                `yaml:"agents,omitempty" json:"agents,omitempty"`
 	Consumers             []AIGatewayConsumerResource             `yaml:"consumers,omitempty" json:"consumers,omitempty"`
@@ -53,7 +55,8 @@ type aiGatewayAlias struct {
 	Description           *string                                 `json:"description,omitempty" yaml:"description,omitempty"` //nolint:lll
 	ProxyURLs             []kkComps.AIGatewayProxyURL             `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`  //nolint:lll
 	Labels                map[string]string                       `json:"labels,omitempty"      yaml:"labels,omitempty"`
-	Providers             []AIGatewayProviderResource             `json:"providers,omitempty"   yaml:"providers,omitempty"`
+	Providers             []AIGatewayProviderResource             `json:"model_providers,omitempty" yaml:"model_providers,omitempty"`       //nolint:lll
+	IdentityProviders     []AIGatewayIdentityProviderResource     `json:"identity_providers,omitempty" yaml:"identity_providers,omitempty"` //nolint:lll
 	Policies              []AIGatewayPolicyResource               `json:"policies,omitempty"    yaml:"policies,omitempty"`
 	Agents                []AIGatewayAgentResource                `json:"agents,omitempty"      yaml:"agents,omitempty"`
 	Consumers             []AIGatewayConsumerResource             `json:"consumers,omitempty"   yaml:"consumers,omitempty"`
@@ -75,6 +78,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		ProxyURLs:             a.ProxyUrls,
 		Labels:                a.Labels,
 		Providers:             a.Providers,
+		IdentityProviders:     a.IdentityProviders,
 		Policies:              a.Policies,
 		Agents:                a.Agents,
 		Consumers:             a.Consumers,
@@ -98,7 +102,9 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Description           *string                                 `yaml:"description,omitempty"`
 		ProxyURLs             []kkComps.AIGatewayProxyURL             `yaml:"proxy_urls,omitempty"`
 		Labels                map[string]string                       `yaml:"labels,omitempty"`
-		Providers             []AIGatewayProviderResource             `yaml:"providers,omitempty"`
+		Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty"`
+		LegacyProviders       []AIGatewayProviderResource             `yaml:"providers,omitempty"`
+		IdentityProviders     []AIGatewayIdentityProviderResource     `yaml:"identity_providers,omitempty"`
 		Policies              []AIGatewayPolicyResource               `yaml:"policies,omitempty"`
 		Agents                []AIGatewayAgentResource                `yaml:"agents,omitempty"`
 		Consumers             []AIGatewayConsumerResource             `yaml:"consumers,omitempty"`
@@ -124,7 +130,8 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		ProxyUrls:   raw.ProxyURLs,
 		Labels:      raw.Labels,
 	}
-	a.Providers = raw.Providers
+	a.Providers = append(raw.Providers, raw.LegacyProviders...)
+	a.IdentityProviders = raw.IdentityProviders
 	a.Policies = raw.Policies
 	a.Agents = raw.Agents
 	a.Consumers = raw.Consumers
@@ -149,7 +156,9 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Description           *string                                 `json:"description,omitempty"`
 		ProxyURLs             []kkComps.AIGatewayProxyURL             `json:"proxy_urls,omitempty"`
 		Labels                map[string]string                       `json:"labels,omitempty"`
-		Providers             []AIGatewayProviderResource             `json:"providers,omitempty"`
+		Providers             []AIGatewayProviderResource             `json:"model_providers,omitempty"`
+		LegacyProviders       []AIGatewayProviderResource             `json:"providers,omitempty"`
+		IdentityProviders     []AIGatewayIdentityProviderResource     `json:"identity_providers,omitempty"`
 		Policies              []AIGatewayPolicyResource               `json:"policies,omitempty"`
 		Agents                []AIGatewayAgentResource                `json:"agents,omitempty"`
 		Consumers             []AIGatewayConsumerResource             `json:"consumers,omitempty"`
@@ -175,7 +184,8 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		ProxyUrls:   raw.ProxyURLs,
 		Labels:      raw.Labels,
 	}
-	a.Providers = raw.Providers
+	a.Providers = append(raw.Providers, raw.LegacyProviders...)
+	a.IdentityProviders = raw.IdentityProviders
 	a.Policies = raw.Policies
 	a.Agents = raw.Agents
 	a.Consumers = raw.Consumers
@@ -314,7 +324,8 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			Kind:       explainKindObject,
 			Additional: explainStringNode("value"),
 		}, false, false),
-		explainField("providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
+		explainField("model_providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
+		explainField("identity_providers", explainArrayOf(aiGatewayIdentityProviderInlineExplainNode()), false, false),
 		explainField("policies", explainArrayOf(aiGatewayPolicyInlineExplainNode()), false, false),
 		explainField("consumers", explainArrayOf(aiGatewayConsumerInlineExplainNode()), false, false),
 		explainField("consumer_groups", explainArrayOf(aiGatewayConsumerGroupInlineExplainNode()), false, false),

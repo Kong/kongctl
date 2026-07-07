@@ -441,7 +441,7 @@ func aiGatewayDataPlaneCertificateDetailView(cert kkComps.AIGatewayDataPlaneClie
 	}
 
 	order := []string{
-		"id",
+		aiGatewayFieldID,
 		"title",
 		"description",
 		"cert",

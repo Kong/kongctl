@@ -29,12 +29,12 @@ func TestAIGatewayProviderAdapterMapCreateFieldsBuildsSDKUnion(t *testing.T) {
 		planner.FieldLabels: map[string]string{"team": "platform"},
 	}
 
-	var req kkComps.CreateAIGatewayProviderRequest
+	var req kkComps.CreateAIGatewayModelProviderRequest
 	require.NoError(t, adapter.MapCreateFields(context.Background(), nil, fields, &req))
-	require.NotNil(t, req.AIGatewayProviderOpenai)
-	require.Equal(t, "openai-provider", req.AIGatewayProviderOpenai.Name)
-	require.Equal(t, "OpenAI Provider", req.AIGatewayProviderOpenai.DisplayName)
-	require.Equal(t, "platform", req.AIGatewayProviderOpenai.Labels["team"])
+	require.NotNil(t, req.AIGatewayModelProviderOpenai)
+	require.Equal(t, "openai-provider", req.AIGatewayModelProviderOpenai.Name)
+	require.Equal(t, "OpenAI Provider", req.AIGatewayModelProviderOpenai.DisplayName)
+	require.Equal(t, "platform", req.AIGatewayModelProviderOpenai.Labels["team"])
 
 	data, err := json.Marshal(req)
 	require.NoError(t, err)

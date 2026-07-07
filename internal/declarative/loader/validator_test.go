@@ -528,7 +528,66 @@ func TestLoaderValidateAIGatewayProvidersRejectsDuplicateNamesPerGateway(t *test
 
 	err := loader.validateResourceSet(rs)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "duplicate ai_gateway_provider name")
+	require.Contains(t, err.Error(), "duplicate ai_gateway_model_provider name")
+}
+
+func TestLoaderValidateAIGatewayIdentityProvidersRequiresParent(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{Ref: "ai-gateway"},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "ai-gateway",
+				DisplayName: "AI Gateway",
+			},
+		}},
+		AIGatewayIdentityProviders: []resources.AIGatewayIdentityProviderResource{{
+			BaseResource: resources.BaseResource{Ref: "support-key-auth"},
+			Name:         "support-key-auth",
+			Type:         "key-auth",
+			DisplayName:  "Support Key Auth",
+			Config:       map[string]any{"key_names": []any{"apikey"}},
+		}},
+	}
+
+	err := loader.validateResourceSet(rs)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "must specify ai_gateway")
+}
+
+func TestLoaderValidateAIGatewayIdentityProvidersRejectsDuplicateNamesPerGateway(t *testing.T) {
+	loader := New()
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{Ref: "ai-gateway"},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "ai-gateway",
+				DisplayName: "AI Gateway",
+			},
+		}},
+		AIGatewayIdentityProviders: []resources.AIGatewayIdentityProviderResource{
+			{
+				BaseResource: resources.BaseResource{Ref: "support-key-auth-1"},
+				AIGateway:    "ai-gateway",
+				Name:         "support-key-auth",
+				Type:         "key-auth",
+				DisplayName:  "Support Key Auth",
+				Config:       map[string]any{"key_names": []any{"apikey"}},
+			},
+			{
+				BaseResource: resources.BaseResource{Ref: "support-key-auth-2"},
+				AIGateway:    "ai-gateway",
+				Name:         "support-key-auth",
+				Type:         "key-auth",
+				DisplayName:  "Support Key Auth Duplicate",
+				Config:       map[string]any{"key_names": []any{"apikey"}},
+			},
+		},
+	}
+
+	err := loader.validateResourceSet(rs)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "duplicate ai_gateway_identity_provider name")
 }
 
 func TestLoader_validateCrossReferences(t *testing.T) {

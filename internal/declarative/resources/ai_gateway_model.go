@@ -536,7 +536,7 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			explainField("provider", &ExplainNode{
 				Kind:        explainKindString,
 				Literal:     "existing-provider-name",
-				Description: "AI Gateway Provider name in the parent gateway",
+				Description: "AI Gateway Model Provider name in the parent gateway",
 			}, true, true),
 			explainField("config", explainObject(
 				explainField("type", explainStringNode("openai"), true, true),

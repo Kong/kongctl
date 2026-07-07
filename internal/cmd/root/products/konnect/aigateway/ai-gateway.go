@@ -30,6 +30,7 @@ func NewAIGatewayCmd(
 	if verb == verbs.Get || verb == verbs.List {
 		root := newGetAIGatewayCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command
 		root.AddCommand(newGetAIGatewayProvidersCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayIdentityProvidersCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayPoliciesCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayAgentsCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayConsumersCmd(verb, addParentFlags, parentPreRun))

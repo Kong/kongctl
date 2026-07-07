@@ -408,10 +408,10 @@ func aiGatewayModelDetailView(model kkComps.AIGatewayModel) string {
 	}
 
 	order := []string{
-		"id",
-		"name",
-		"display_name",
-		"type",
+		aiGatewayFieldID,
+		aiGatewayFieldName,
+		aiGatewayFieldDisplayName,
+		aiGatewayFieldType,
 		"enabled",
 		"capabilities",
 		aiGatewayFieldLabels,

@@ -382,14 +382,12 @@ func aiGatewayMCPServerDetailView(server kkComps.AIGatewayMCPServer) string {
 	}
 
 	order := []string{
-		"id",
-		"name",
-		"display_name",
-		"type",
+		aiGatewayFieldID,
+		aiGatewayFieldName,
+		aiGatewayFieldDisplayName,
+		aiGatewayFieldType,
 		"enabled",
-		"acl_attribute_type",
-		"acls",
-		"default_tool_acls",
+		"access",
 		"config",
 		"tools",
 		"policies",

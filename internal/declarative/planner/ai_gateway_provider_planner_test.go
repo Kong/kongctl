@@ -27,7 +27,7 @@ func TestShouldUpdateAIGatewayProviderRejectsTypeChange(t *testing.T) {
 	require.Error(t, err)
 	require.False(t, needsUpdate)
 	require.Nil(t, fields)
-	require.Contains(t, err.Error(), "changing AI Gateway Provider type")
+	require.Contains(t, err.Error(), "changing AI Gateway Model Provider type")
 }
 
 func TestAIGatewayProviderConfigChangedIgnoresWriteOnlyValues(t *testing.T) {

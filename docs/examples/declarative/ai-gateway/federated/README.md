@@ -1,7 +1,7 @@
 # Federated AI Gateway Example
 
 This example shows a federated layout for AI Gateway resources where a central
-AI platform team owns the shared AI Gateway and upstream providers, while a peer
+AI platform team owns the shared AI Gateway and upstream model providers, while a peer
 team owns root-level policies, agents, consumers, consumer groups, models, MCP
 Servers, vaults, and data plane certificates that target the shared gateway.
 
@@ -27,7 +27,7 @@ ai-gateway/federated/
 ## Ownership
 
 - `central-team/ai-gateway.yaml` defines the shared AI Gateway and two nested
-  providers: OpenAI and Anthropic.
+  model providers: OpenAI and Anthropic.
 - `peer-team/support-policy.yaml` defines a standalone `ai_gateway_policies`
   entry that references the central gateway with `!ref shared-ai-gateway#id`.
 - `peer-team/support-agent.yaml` defines a standalone `ai_gateway_agents` entry

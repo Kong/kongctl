@@ -38,6 +38,18 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
+		key:          "ai_gateway_model_providers",
+		resourceType: resources.ResourceTypeAIGatewayProvider,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
+		key:          "ai_gateway_identity_providers",
+		resourceType: resources.ResourceTypeAIGatewayIdentityProvider,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "ai_gateway_policies",
 		resourceType: resources.ResourceTypeAIGatewayPolicy,
 		parentKey:    resources.SchemaFieldAIGateway,
@@ -370,8 +382,18 @@ var portalSingletonChildKeys = map[string]struct{}{
 
 var aiGatewayChildCollectionScopes = []childCollectionScope{
 	{
+		key:          "model_providers",
+		resourceType: resources.ResourceTypeAIGatewayProvider,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "providers",
 		resourceType: resources.ResourceTypeAIGatewayProvider,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
+		key:          "identity_providers",
+		resourceType: resources.ResourceTypeAIGatewayIdentityProvider,
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{

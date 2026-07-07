@@ -955,6 +955,11 @@ func (l *Loader) extractPortalPages(
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	if len(rs.AIGatewayLegacyProviders) > 0 {
+		rs.AIGatewayProviders = append(rs.AIGatewayProviders, rs.AIGatewayLegacyProviders...)
+		rs.AIGatewayLegacyProviders = nil
+	}
+
 	// Extract analytics nested resources.
 	if rs.Analytics != nil {
 		rs.Dashboards = append(rs.Dashboards, rs.Analytics.Dashboards...)
@@ -1044,6 +1049,13 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.AIGatewayPolicies = append(rs.AIGatewayPolicies, policy)
 		}
 		gateway.Policies = nil
+
+		for j := range gateway.IdentityProviders {
+			provider := gateway.IdentityProviders[j]
+			provider.AIGateway = gateway.Ref
+			rs.AIGatewayIdentityProviders = append(rs.AIGatewayIdentityProviders, provider)
+		}
+		gateway.IdentityProviders = nil
 
 		for j := range gateway.Agents {
 			agent := gateway.Agents[j]
@@ -1307,6 +1319,12 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.AIGatewayProviders = append(rs.AIGatewayProviders, provider)
 		}
 		gateway.Providers = nil
+
+		for _, provider := range gateway.IdentityProviders {
+			provider.AIGateway = gateway.Ref
+			rs.AIGatewayIdentityProviders = append(rs.AIGatewayIdentityProviders, provider)
+		}
+		gateway.IdentityProviders = nil
 
 		for _, policy := range gateway.Policies {
 			policy.AIGateway = gateway.Ref

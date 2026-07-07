@@ -56,8 +56,9 @@ ai_gateways:
           team: support
           phase: create
         tools: []
-        acl_attribute_type: oauth_access_token
-        access_token_claim_field: sub
+        access:
+          acl_attribute_type: oauth_access_token
+          access_token_claim_field: sub
         config:
           url: https://mcp.context7.com/mcp
           route:
@@ -76,7 +77,8 @@ ai_gateways:
           team: support
           phase: create
         tools: []
-        acl_attribute_type: consumer
+        access:
+          acl_attribute_type: consumer
         config:
           url: https://support-conversion-listener.example.com
           route:
@@ -95,7 +97,8 @@ ai_gateways:
           team: support
           phase: create
         tools: []
-        acl_attribute_type: consumer
+        access:
+          acl_attribute_type: consumer
         config:
           route:
             paths:
@@ -113,7 +116,8 @@ ai_gateways:
           team: support
           phase: create
         tools: []
-        acl_attribute_type: consumer
+        access:
+          acl_attribute_type: consumer
         config:
           url: https://support-upstream.example.com/mcp
           tools_cache_ttl_seconds: 60

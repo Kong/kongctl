@@ -10,7 +10,7 @@ ai_gateways:
       - host: ai-gateway-model-gcp-environment-e2e.example.com
         port: 443
         protocol: https
-    providers:
+    model_providers:
       - ref: support-gemini-provider
         name: support-gemini-provider
         type: gemini

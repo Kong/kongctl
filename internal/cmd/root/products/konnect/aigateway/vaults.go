@@ -409,10 +409,10 @@ func aiGatewayVaultDetailView(vault kkComps.AIGatewayVault) string {
 	}
 
 	order := []string{
-		"id",
-		"name",
+		aiGatewayFieldID,
+		aiGatewayFieldName,
 		"description",
-		"type",
+		aiGatewayFieldType,
 		"config",
 		aiGatewayFieldLabels,
 		aiGatewayFieldManagedBy,

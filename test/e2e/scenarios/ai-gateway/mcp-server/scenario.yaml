@@ -97,7 +97,7 @@ steps:
           - select: "oneOf[?properties.type.const=='passthrough-listener'] | [0].properties"
             expect:
               fields:
-                acl_attribute_type.type: string
+                access.properties.acl_attribute_type.type: string
                 type.const: passthrough-listener
       - name: 003-scaffold-ai-gateway-mcp-server
         run:
@@ -167,8 +167,8 @@ steps:
                 fields.config.route.paths[0]: /mcp
                 fields.config.route.methods[0]: GET
                 fields.config.route.methods[1]: POST
-                fields.acl_attribute_type: oauth_access_token
-                fields.access_token_claim_field: sub
+                fields.access.acl_attribute_type: oauth_access_token
+                fields.access.access_token_claim_field: sub
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.conversion_listener_server_ref }}'] | [0]
             expect:
@@ -179,7 +179,7 @@ steps:
                 fields.display_name: "{{ .vars.conversion_listener_server_display_name }}"
                 fields.config.url: https://support-conversion-listener.example.com
                 fields.config.route.paths[0]: /support-conversion-listener
-                fields.acl_attribute_type: consumer
+                fields.access.acl_attribute_type: consumer
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.listener_server_ref }}'] | [0]
             expect:
@@ -189,7 +189,7 @@ steps:
                 fields.type: listener
                 fields.display_name: "{{ .vars.listener_server_display_name }}"
                 fields.config.route.paths[0]: /support-listener
-                fields.acl_attribute_type: consumer
+                fields.access.acl_attribute_type: consumer
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.upstream_server_ref }}'] | [0]
             expect:
@@ -201,7 +201,7 @@ steps:
                 fields.config.url: https://support-upstream.example.com/mcp
                 fields.config.tools_cache_ttl_seconds: 60
                 fields.config.route.paths[0]: /support-upstream
-                fields.acl_attribute_type: consumer
+                fields.access.acl_attribute_type: consumer
       - name: 001-apply-create
         outputFormat: json
         run:
@@ -311,8 +311,9 @@ steps:
                 config.route.paths[0]: /mcp
                 config.route.methods[0]: GET
                 config.route.methods[1]: POST
-                acl_attribute_type: oauth_access_token
-                access_token_claim_field: sub
+                access:
+                  acl_attribute_type: oauth_access_token
+                  access_token_claim_field: sub
           - select: "[?name=='{{ .vars.conversion_listener_server_name }}'] | [0]"
             expect:
               fields:
@@ -322,7 +323,8 @@ steps:
                 enabled: true
                 config.url: https://support-conversion-listener.example.com
                 config.route.paths[0]: /support-conversion-listener
-                acl_attribute_type: consumer
+                access:
+                  acl_attribute_type: consumer
           - select: "[?name=='{{ .vars.listener_server_name }}'] | [0]"
             expect:
               fields:
@@ -331,7 +333,8 @@ steps:
                 type: listener
                 enabled: true
                 config.route.paths[0]: /support-listener
-                acl_attribute_type: consumer
+                access:
+                  acl_attribute_type: consumer
           - select: "[?name=='{{ .vars.upstream_server_name }}'] | [0]"
             expect:
               fields:
@@ -342,7 +345,8 @@ steps:
                 config.url: https://support-upstream.example.com/mcp
                 config.tools_cache_ttl_seconds: 60
                 config.route.paths[0]: /support-upstream
-                acl_attribute_type: consumer
+                access:
+                  acl_attribute_type: consumer
       - name: 006-get-mcp-server-by-name
         run:
           - get
@@ -375,8 +379,9 @@ steps:
                 name: "{{ .vars.passthrough_server_name }}"
                 type: passthrough-listener
                 config.route.paths[0]: /mcp
-                acl_attribute_type: oauth_access_token
-                access_token_claim_field: sub
+                access:
+                  acl_attribute_type: oauth_access_token
+                  access_token_claim_field: sub
       - name: 008-get-conversion-listener-mcp-server-by-name
         run:
           - get
@@ -394,7 +399,8 @@ steps:
                 name: "{{ .vars.conversion_listener_server_name }}"
                 type: conversion-listener
                 config.route.paths[0]: /support-conversion-listener
-                acl_attribute_type: consumer
+                access:
+                  acl_attribute_type: consumer
       - name: 009-get-listener-mcp-server-by-name
         run:
           - get
@@ -412,7 +418,8 @@ steps:
                 name: "{{ .vars.listener_server_name }}"
                 type: listener
                 config.route.paths[0]: /support-listener
-                acl_attribute_type: consumer
+                access:
+                  acl_attribute_type: consumer
       - name: 010-get-upstream-mcp-server-by-name
         run:
           - get
@@ -430,7 +437,8 @@ steps:
                 name: "{{ .vars.upstream_server_name }}"
                 type: upstream-server
                 config.route.paths[0]: /support-upstream
-                acl_attribute_type: consumer
+                access:
+                  acl_attribute_type: consumer
       - name: 011-get-mcp-server-by-id
         run:
           - get
@@ -548,8 +556,9 @@ steps:
                 name: "{{ .vars.passthrough_server_name }}"
                 display_name: "{{ .vars.passthrough_server_display_name }}"
                 type: passthrough-listener
-                acl_attribute_type: oauth_access_token
-                access_token_claim_field: sub
+                access:
+                  acl_attribute_type: oauth_access_token
+                  access_token_claim_field: sub
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.conversion_listener_server_name }}'] | [0]
             expect:
@@ -557,7 +566,8 @@ steps:
                 name: "{{ .vars.conversion_listener_server_name }}"
                 display_name: "{{ .vars.conversion_listener_server_display_name }}"
                 type: conversion-listener
-                acl_attribute_type: consumer
+                access:
+                  acl_attribute_type: consumer
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.listener_server_name }}'] | [0]
             expect:
@@ -565,7 +575,8 @@ steps:
                 name: "{{ .vars.listener_server_name }}"
                 display_name: "{{ .vars.listener_server_display_name }}"
                 type: listener
-                acl_attribute_type: consumer
+                access:
+                  acl_attribute_type: consumer
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.upstream_server_name }}'] | [0]
             expect:
@@ -573,7 +584,8 @@ steps:
                 name: "{{ .vars.upstream_server_name }}"
                 display_name: "{{ .vars.upstream_server_display_name }}"
                 type: upstream-server
-                acl_attribute_type: consumer
+                access:
+                  acl_attribute_type: consumer
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].policies[?name=='{{ .vars.policy_name }}'] | [0]
             expect:
