@@ -79,8 +79,9 @@ ai_gateways:
         enabled: true
         policies: []
         tools: []
-        acl_attribute_type: oauth_access_token
-        access_token_claim_field: sub
+        access:
+          acl_attribute_type: oauth_access_token
+          access_token_claim_field: sub
         config:
           url: https://mcp.context7.com/mcp
           route:
@@ -92,7 +93,8 @@ ai_gateways:
         display_name: POC MCP Conversion Listener
         enabled: true
         tools: []
-        acl_attribute_type: consumer
+        access:
+          acl_attribute_type: consumer
         config:
           url: https://httpbin.konghq.com/anything
           route:
@@ -104,7 +106,8 @@ ai_gateways:
         display_name: POC MCP Listener
         enabled: true
         tools: []
-        acl_attribute_type: consumer
+        access:
+          acl_attribute_type: consumer
         config:
           route:
             paths: [/mcp-listener]
@@ -115,7 +118,8 @@ ai_gateways:
         display_name: POC MCP Upstream Server
         enabled: true
         tools: []
-        acl_attribute_type: consumer
+        access:
+          acl_attribute_type: consumer
         config:
           url: https://mcp.example.com/mcp
           tools_cache_ttl_seconds: 60

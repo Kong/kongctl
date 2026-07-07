@@ -14,7 +14,7 @@ ai_gateways:
     labels:
       team: ai-platform
       ownership: central
-    providers:
+    model_providers:
       - ref: shared-openai-provider
         name: shared-openai
         type: openai
@@ -39,3 +39,14 @@ ai_gateways:
             headers:
               - name: x-api-key
                 value: !env ANTHROPIC_API_KEY
+    identity_providers:
+      - ref: shared-key-auth
+        name: shared-key-auth
+        type: key-auth
+        display_name: "Shared Key Auth"
+        labels:
+          auth: shared
+        config:
+          key_names:
+            - x-ai-gateway-key
+          hide_credentials: true

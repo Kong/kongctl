@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"slices"
 	"strings"
@@ -52,6 +53,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	resourceAnalyticsDashboards:          {},
 	"event_gateways":                     {},
 	"ai_gateways":                        {},
+	"ai_gateway_identity_providers":      {},
 	"ai_gateway_policies":                {},
 	"ai_gateway_agents":                  {},
 	"ai_gateway_consumers":               {},
@@ -93,8 +95,8 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(portals, apis, application_auth_strategies, dcr_providers, control_planes, "+
-			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_policies, "+
-			"ai_gateway_agents, ai_gateway_consumers, ai_gateway_consumer_credentials, "+
+			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_identity_providers, "+
+			"ai_gateway_policies, ai_gateway_agents, ai_gateway_consumers, ai_gateway_consumer_credentials, "+
 			"ai_gateway_consumer_groups, ai_gateway_models, ai_gateway_mcp_servers, ai_gateway_vaults, "+
 			"ai_gateway_data_plane_certificates, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
@@ -211,6 +213,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 
 	var stateClient *declstate.Client
 	if opts.includeChildResources ||
+		slices.Contains(opts.resources, "ai_gateway_identity_providers") ||
 		slices.Contains(opts.resources, "ai_gateway_policies") ||
 		slices.Contains(opts.resources, "ai_gateway_agents") ||
 		slices.Contains(opts.resources, "ai_gateway_consumers") ||
@@ -232,6 +235,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
 			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
 			AIGatewayProvidersAPI:               sdk.GetAIGatewayProvidersAPI(),
+			AIGatewayIdentityProvidersAPI:       sdk.GetAIGatewayIdentityProvidersAPI(),
 			AIGatewayPoliciesAPI:                sdk.GetAIGatewayPoliciesAPI(),
 			AIGatewayAgentsAPI:                  sdk.GetAIGatewayAgentsAPI(),
 			AIGatewayConsumersAPI:               sdk.GetAIGatewayConsumersAPI(),
@@ -384,6 +388,18 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				populateAIGatewayChildren(ctx, logger, stateClient, aiGateways)
 			}
 			resourceSet.AIGateways = append(resourceSet.AIGateways, aiGateways...)
+		case "ai_gateway_identity_providers":
+			providers, err := collectDeclarativeAIGatewayIdentityProviders(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayIdentityProviders = append(resourceSet.AIGatewayIdentityProviders, providers...)
 		case "ai_gateway_policies":
 			policies, err := collectDeclarativeAIGatewayPolicies(
 				ctx,
@@ -897,6 +913,53 @@ func collectDeclarativeAIGatewayPolicies(
 	})
 
 	return policies, nil
+}
+
+func collectDeclarativeAIGatewayIdentityProviders(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayIdentityProviderResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Identity Providers API client is not configured")
+	}
+
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var providers []declresources.AIGatewayIdentityProviderResource
+	for _, gateway := range gateways {
+		gatewayProviders, err := buildAIGatewayIdentityProviders(
+			ctx,
+			slog.Default(),
+			client,
+			gateway.Ref,
+			gateway.DisplayName,
+		)
+		if err != nil {
+			return nil, err
+		}
+		providers = append(providers, gatewayProviders...)
+	}
+
+	providers = filterByNameOrID(providers, filter, func(r declresources.AIGatewayIdentityProviderResource) (
+		string,
+		string,
+	) {
+		return r.Name, r.Ref
+	})
+	slices.SortFunc(providers, func(a, b declresources.AIGatewayIdentityProviderResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name, b.Name)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+
+	return providers, nil
 }
 
 func collectDeclarativeAIGatewayAgents(

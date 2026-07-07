@@ -354,7 +354,7 @@ func aiGatewayNodeToRecord(node kkComps.AIGatewayDataPlaneNode) aiGatewayNodeRec
 }
 
 func aiGatewayNodeID(node kkComps.AIGatewayDataPlaneNode) string {
-	return aiGatewayNodeStringField(node, "id")
+	return aiGatewayNodeStringField(node, aiGatewayFieldID)
 }
 
 func aiGatewayNodeVersion(node kkComps.AIGatewayDataPlaneNode) string {
@@ -366,7 +366,7 @@ func aiGatewayNodeHostname(node kkComps.AIGatewayDataPlaneNode) string {
 }
 
 func aiGatewayNodeType(node kkComps.AIGatewayDataPlaneNode) string {
-	return aiGatewayNodeStringField(node, "type")
+	return aiGatewayNodeStringField(node, aiGatewayFieldType)
 }
 
 func aiGatewayNodeConfigVersion(node kkComps.AIGatewayDataPlaneNode) string {
@@ -416,11 +416,11 @@ func aiGatewayNodeDetailView(node kkComps.AIGatewayDataPlaneNode) string {
 	}
 
 	order := []string{
-		"id",
+		aiGatewayFieldID,
 		"version",
 		"hostname",
 		"last_ping",
-		"type",
+		aiGatewayFieldType,
 		"config_version",
 		"errors",
 		"compatibility_status",

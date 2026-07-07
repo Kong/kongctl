@@ -13,7 +13,7 @@ import (
 )
 
 // NormalizeAIGatewayProvider converts the SDK union response into a stable internal representation.
-func NormalizeAIGatewayProvider(provider kkComps.AIGatewayProvider) (AIGatewayProvider, error) {
+func NormalizeAIGatewayProvider(provider kkComps.AIGatewayModelProvider) (AIGatewayProvider, error) {
 	raw, err := aiGatewayProviderRawMap(provider)
 	if err != nil {
 		return AIGatewayProvider{}, err
@@ -41,7 +41,7 @@ func NormalizeAIGatewayProvider(provider kkComps.AIGatewayProvider) (AIGatewayPr
 }
 
 func (c *Client) ListAIGatewayProviders(ctx context.Context, gatewayID string) ([]AIGatewayProvider, error) {
-	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Providers API"); err != nil {
+	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Model Providers API"); err != nil {
 		return nil, err
 	}
 
@@ -51,7 +51,7 @@ func (c *Client) ListAIGatewayProviders(ctx context.Context, gatewayID string) (
 	var all []AIGatewayProvider
 
 	for {
-		req := kkOps.ListAiGatewayProvidersRequest{
+		req := kkOps.ListAiGatewayModelProvidersRequest{
 			GatewayID: gatewayID,
 			PageSize:  &pageSize,
 		}
@@ -61,21 +61,21 @@ func (c *Client) ListAIGatewayProviders(ctx context.Context, gatewayID string) (
 
 		resp, err := c.aiGatewayProvidersAPI.ListAiGatewayProviders(ctx, req)
 		if err != nil {
-			return nil, WrapAPIError(err, "list AI Gateway Providers", nil)
+			return nil, WrapAPIError(err, "list AI Gateway Model Providers", nil)
 		}
-		if resp == nil || resp.ListAIGatewayProvidersResponse == nil {
+		if resp == nil || resp.ListAIGatewayModelProvidersResponse == nil {
 			return all, nil
 		}
 
-		for _, provider := range resp.ListAIGatewayProvidersResponse.Data {
+		for _, provider := range resp.ListAIGatewayModelProvidersResponse.Data {
 			normalized, err := NormalizeAIGatewayProvider(provider)
 			if err != nil {
-				return nil, fmt.Errorf("normalize AI Gateway Provider: %w", err)
+				return nil, fmt.Errorf("normalize AI Gateway Model Provider: %w", err)
 			}
 			all = append(all, normalized)
 		}
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayProvidersResponse.Meta.Page.Next)
+		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayModelProvidersResponse.Meta.Page.Next)
 		if nextCursor == "" {
 			break
 		}
@@ -90,24 +90,24 @@ func (c *Client) GetAIGatewayProvider(
 	gatewayID string,
 	providerID string,
 ) (*AIGatewayProvider, error) {
-	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Providers API"); err != nil {
+	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Model Providers API"); err != nil {
 		return nil, err
 	}
 
 	resp, err := c.aiGatewayProvidersAPI.GetAiGatewayProvider(ctx, gatewayID, providerID)
 	if err != nil {
-		return nil, WrapAPIError(err, "get AI Gateway Provider", &ErrorWrapperOptions{
+		return nil, WrapAPIError(err, "get AI Gateway Model Provider", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeAIGatewayProvider),
 			UseEnhanced:  true,
 		})
 	}
-	if resp == nil || resp.AIGatewayProvider == nil {
+	if resp == nil || resp.AIGatewayModelProvider == nil {
 		return nil, nil
 	}
 
-	normalized, err := NormalizeAIGatewayProvider(*resp.AIGatewayProvider)
+	normalized, err := NormalizeAIGatewayProvider(*resp.AIGatewayModelProvider)
 	if err != nil {
-		return nil, fmt.Errorf("normalize AI Gateway Provider: %w", err)
+		return nil, fmt.Errorf("normalize AI Gateway Model Provider: %w", err)
 	}
 	return &normalized, nil
 }
@@ -119,7 +119,7 @@ func (c *Client) GetAIGatewayProviderByName(
 ) (*AIGatewayProvider, error) {
 	providers, err := c.ListAIGatewayProviders(ctx, gatewayID)
 	if err != nil {
-		return nil, WrapAPIError(err, "list AI Gateway Providers to find by name", &ErrorWrapperOptions{
+		return nil, WrapAPIError(err, "list AI Gateway Model Providers to find by name", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeAIGatewayProvider),
 			ResourceName: name,
 			UseEnhanced:  true,
@@ -136,30 +136,30 @@ func (c *Client) GetAIGatewayProviderByName(
 func (c *Client) CreateAIGatewayProvider(
 	ctx context.Context,
 	gatewayID string,
-	req kkComps.CreateAIGatewayProviderRequest,
+	req kkComps.CreateAIGatewayModelProviderRequest,
 	namespace string,
 ) (string, error) {
-	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Providers API"); err != nil {
+	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Model Providers API"); err != nil {
 		return "", err
 	}
 
 	resourceName := aiGatewayProviderCreateRequestName(req)
 	resp, err := c.aiGatewayProvidersAPI.CreateAiGatewayProvider(ctx, gatewayID, req)
 	if err != nil {
-		return "", WrapAPIError(err, "create AI Gateway Provider", &ErrorWrapperOptions{
+		return "", WrapAPIError(err, "create AI Gateway Model Provider", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeAIGatewayProvider),
 			ResourceName: resourceName,
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
 	}
-	if resp == nil || resp.AIGatewayProvider == nil {
-		return "", fmt.Errorf("create AI Gateway Provider response missing data")
+	if resp == nil || resp.AIGatewayModelProvider == nil {
+		return "", fmt.Errorf("create AI Gateway Model Provider response missing data")
 	}
 
-	normalized, err := NormalizeAIGatewayProvider(*resp.AIGatewayProvider)
+	normalized, err := NormalizeAIGatewayProvider(*resp.AIGatewayModelProvider)
 	if err != nil {
-		return "", fmt.Errorf("normalize AI Gateway Provider: %w", err)
+		return "", fmt.Errorf("normalize AI Gateway Model Provider: %w", err)
 	}
 	return normalized.ID, nil
 }
@@ -168,63 +168,63 @@ func (c *Client) UpdateAIGatewayProvider(
 	ctx context.Context,
 	gatewayID string,
 	providerID string,
-	req kkComps.UpdateAIGatewayProviderRequest,
+	req kkComps.UpdateAIGatewayModelProviderRequest,
 	namespace string,
 ) (string, error) {
-	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Providers API"); err != nil {
+	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Model Providers API"); err != nil {
 		return "", err
 	}
 
 	resourceName := aiGatewayProviderUpdateRequestName(req)
-	resp, err := c.aiGatewayProvidersAPI.UpdateAiGatewayProvider(ctx, kkOps.UpdateAiGatewayProviderRequest{
-		GatewayID:                      gatewayID,
-		ProviderIDOrName:               providerID,
-		UpdateAIGatewayProviderRequest: req,
+	resp, err := c.aiGatewayProvidersAPI.UpdateAiGatewayProvider(ctx, kkOps.UpdateAiGatewayModelProviderRequest{
+		GatewayID:                           gatewayID,
+		ModelProviderIDOrName:               providerID,
+		UpdateAIGatewayModelProviderRequest: req,
 	})
 	if err != nil {
-		return "", WrapAPIError(err, "update AI Gateway Provider", &ErrorWrapperOptions{
+		return "", WrapAPIError(err, "update AI Gateway Model Provider", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeAIGatewayProvider),
 			ResourceName: resourceName,
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
 	}
-	if resp == nil || resp.AIGatewayProvider == nil {
-		return "", fmt.Errorf("update AI Gateway Provider response missing data")
+	if resp == nil || resp.AIGatewayModelProvider == nil {
+		return "", fmt.Errorf("update AI Gateway Model Provider response missing data")
 	}
 
-	normalized, err := NormalizeAIGatewayProvider(*resp.AIGatewayProvider)
+	normalized, err := NormalizeAIGatewayProvider(*resp.AIGatewayModelProvider)
 	if err != nil {
-		return "", fmt.Errorf("normalize AI Gateway Provider: %w", err)
+		return "", fmt.Errorf("normalize AI Gateway Model Provider: %w", err)
 	}
 	return normalized.ID, nil
 }
 
 func (c *Client) DeleteAIGatewayProvider(ctx context.Context, gatewayID string, providerID string) error {
-	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Providers API"); err != nil {
+	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Model Providers API"); err != nil {
 		return err
 	}
 
 	_, err := c.aiGatewayProvidersAPI.DeleteAiGatewayProvider(ctx, gatewayID, providerID)
 	if err != nil {
-		return WrapAPIError(err, "delete AI Gateway Provider", nil)
+		return WrapAPIError(err, "delete AI Gateway Model Provider", nil)
 	}
 	return nil
 }
 
-func aiGatewayProviderRawMap(provider kkComps.AIGatewayProvider) (map[string]any, error) {
+func aiGatewayProviderRawMap(provider kkComps.AIGatewayModelProvider) (map[string]any, error) {
 	data, err := json.Marshal(provider)
 	if err != nil {
-		return nil, fmt.Errorf("marshal AI Gateway Provider: %w", err)
+		return nil, fmt.Errorf("marshal AI Gateway Model Provider: %w", err)
 	}
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("unmarshal AI Gateway Provider: %w", err)
+		return nil, fmt.Errorf("unmarshal AI Gateway Model Provider: %w", err)
 	}
 	return raw, nil
 }
 
-func aiGatewayProviderCreateRequestName(req kkComps.CreateAIGatewayProviderRequest) string {
+func aiGatewayProviderCreateRequestName(req kkComps.CreateAIGatewayModelProviderRequest) string {
 	data, err := json.Marshal(req)
 	if err != nil {
 		return ""
@@ -236,7 +236,7 @@ func aiGatewayProviderCreateRequestName(req kkComps.CreateAIGatewayProviderReque
 	return stringFromRaw(raw["name"])
 }
 
-func aiGatewayProviderUpdateRequestName(req kkComps.UpdateAIGatewayProviderRequest) string {
+func aiGatewayProviderUpdateRequestName(req kkComps.UpdateAIGatewayModelProviderRequest) string {
 	data, err := json.Marshal(req)
 	if err != nil {
 		return ""

@@ -386,11 +386,11 @@ func aiGatewayAgentDetailView(agent kkComps.AIGatewayAgent) string {
 	}
 
 	order := []string{
-		"id",
-		"name",
-		"display_name",
+		aiGatewayFieldID,
+		aiGatewayFieldName,
+		aiGatewayFieldDisplayName,
 		"enabled",
-		"type",
+		aiGatewayFieldType,
 		"policies",
 		"acls",
 		"config",

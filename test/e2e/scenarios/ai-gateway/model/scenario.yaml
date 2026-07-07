@@ -47,7 +47,7 @@ steps:
                 total_changes: 3
                 by_action.CREATE: 3
           - select: >-
-              changes[?resource_type=='ai_gateway_provider' && resource_ref=='support-gemini-provider'] | [0]
+              changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-gemini-provider'] | [0]
             expect:
               fields:
                 action: CREATE

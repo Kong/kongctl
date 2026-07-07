@@ -212,6 +212,21 @@ func (p *Planner) planAIGatewayChanges(
 		}
 		providerCreateDepsByName := aiGatewayProviderCreateDependencies(plan, namespace, desiredGateway.Ref)
 
+		identityProviders := p.resources.GetAIGatewayIdentityProvidersForGateway(desiredGateway.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeAIGateway,
+			desiredGateway.Ref,
+			resources.ResourceTypeAIGatewayIdentityProvider,
+		) && (len(identityProviders) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayIdentityProviderChanges(
+				ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref,
+				gatewayChangeID, identityProviders, plan,
+			); err != nil {
+				return err
+			}
+		}
+
 		policies := p.resources.GetAIGatewayPoliciesForGateway(desiredGateway.Ref)
 		if p.shouldPlanChild(
 			plan,
@@ -440,6 +455,20 @@ func (p *Planner) planExternalAIGatewayChildren(
 		}
 	}
 	providerCreateDepsByName := aiGatewayProviderCreateDependencies(plan, namespace, desiredGateway.Ref)
+
+	identityProviders := p.resources.GetAIGatewayIdentityProvidersForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayIdentityProvider,
+	) && len(identityProviders) > 0 {
+		if err := p.planAIGatewayIdentityProviderChanges(
+			ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref, "", identityProviders, plan,
+		); err != nil {
+			return err
+		}
+	}
 
 	policies := p.resources.GetAIGatewayPoliciesForGateway(desiredGateway.Ref)
 	if p.shouldPlanChild(

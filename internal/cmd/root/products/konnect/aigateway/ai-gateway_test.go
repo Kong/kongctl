@@ -121,7 +121,7 @@ func TestAIGatewayChildHelpDescribesGatewayNameLookup(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"providers", "--help"})
+	rootCmd.SetArgs([]string{"model-providers", "--help"})
 
 	require.NoError(t, rootCmd.Execute())
 	require.Contains(t, out.String(), "The name or display_name of the AI Gateway that owns the resource.")
@@ -211,6 +211,23 @@ func TestRunListByNameOrDisplayNameReportsBothFields(t *testing.T) {
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `AI Gateway with name or display_name "missing-gateway" not found`)
+}
+
+func TestRedactAIGatewayIdentityProviderSecrets(t *testing.T) {
+	t.Parallel()
+
+	redacted := redactAIGatewayIdentityProviderSecrets(map[string]any{
+		"config": map[string]any{
+			"client_secret": []any{"secret"},
+			"nested": []any{
+				map[string]any{"client_secret": "nested-secret"},
+			},
+		},
+	})
+
+	require.Equal(t, "[redacted]", redacted["config"].(map[string]any)["client_secret"])
+	nested := redacted["config"].(map[string]any)["nested"].([]any)[0].(map[string]any)
+	require.Equal(t, "[redacted]", nested["client_secret"])
 }
 
 var _ config.Hook = aiGatewayTestConfig{}

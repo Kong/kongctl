@@ -204,6 +204,24 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.AIGatewayIdentityProviders {
+		if err := resolveResourceFields(
+			ctx,
+			&rs.AIGatewayIdentityProviders[i],
+			rs,
+			resolver,
+			resolutionPath,
+			logger,
+		); err != nil {
+			return fmt.Errorf(
+				"resolving AI gateway identity provider %s: %w",
+				rs.AIGatewayIdentityProviders[i].GetRef(),
+				err,
+			)
+		}
+		processCount++
+	}
+
 	for i := range rs.AIGatewayPolicies {
 		if err := resolveResourceFields(ctx, &rs.AIGatewayPolicies[i], rs, resolver, resolutionPath, logger); err != nil {
 			return fmt.Errorf("resolving AI gateway policy %s: %w", rs.AIGatewayPolicies[i].GetRef(), err)

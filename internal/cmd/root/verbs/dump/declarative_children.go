@@ -270,9 +270,16 @@ func populateAIGatewayChildren(
 		}
 
 		if providers, err := buildAIGatewayProviders(ctx, logger, client, gatewayID, gateway.DisplayName); err != nil {
-			logWarn(logger, "failed to load AI Gateway Providers", gatewayID, gateway.DisplayName, err)
+			logWarn(logger, "failed to load AI Gateway Model Providers", gatewayID, gateway.DisplayName, err)
 		} else if len(providers) > 0 {
 			gateway.Providers = providers
+		}
+
+		identityProviders, err := buildAIGatewayIdentityProviders(ctx, logger, client, gatewayID, gateway.DisplayName)
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Identity Providers", gatewayID, gateway.DisplayName, err)
+		} else if len(identityProviders) > 0 {
+			gateway.IdentityProviders = identityProviders
 		}
 
 		policies, err := buildAIGatewayPolicies(ctx, client, gatewayID, gateway.DisplayName, "")
@@ -351,19 +358,19 @@ func buildAIGatewayProviders(
 	results := make([]declresources.AIGatewayProviderResource, 0, len(providers))
 	for _, provider := range providers {
 		if strings.TrimSpace(provider.Name) == "" {
-			logWarn(logger, "AI Gateway Provider missing name", gatewayID, gatewayDisplayName, nil)
+			logWarn(logger, "AI Gateway Model Provider missing name", gatewayID, gatewayDisplayName, nil)
 			continue
 		}
 		if strings.TrimSpace(provider.Type) == "" {
-			logWarn(logger, "AI Gateway Provider missing type", gatewayID, gatewayDisplayName, nil)
+			logWarn(logger, "AI Gateway Model Provider missing type", gatewayID, gatewayDisplayName, nil)
 			continue
 		}
 		if strings.TrimSpace(provider.DisplayName) == "" {
-			logWarn(logger, "AI Gateway Provider missing display_name", gatewayID, gatewayDisplayName, nil)
+			logWarn(logger, "AI Gateway Model Provider missing display_name", gatewayID, gatewayDisplayName, nil)
 			continue
 		}
 		if provider.Config == nil {
-			logWarn(logger, "AI Gateway Provider missing config", gatewayID, gatewayDisplayName, nil)
+			logWarn(logger, "AI Gateway Model Provider missing config", gatewayID, gatewayDisplayName, nil)
 			continue
 		}
 
@@ -384,6 +391,66 @@ func buildAIGatewayProviders(
 	}
 
 	slices.SortFunc(results, func(a, b declresources.AIGatewayProviderResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return results, nil
+}
+
+func buildAIGatewayIdentityProviders(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayDisplayName string,
+) ([]declresources.AIGatewayIdentityProviderResource, error) {
+	providers, err := client.ListAIGatewayIdentityProviders(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(providers) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.AIGatewayIdentityProviderResource, 0, len(providers))
+	for _, provider := range providers {
+		if strings.TrimSpace(provider.Name) == "" {
+			logWarn(logger, "AI Gateway Identity Provider missing name", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+		if strings.TrimSpace(provider.Type) == "" {
+			logWarn(logger, "AI Gateway Identity Provider missing type", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+		if strings.TrimSpace(provider.DisplayName) == "" {
+			logWarn(logger, "AI Gateway Identity Provider missing display_name", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+		if provider.Config == nil {
+			logWarn(logger, "AI Gateway Identity Provider missing config", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+
+		ref := strings.TrimSpace(provider.ID)
+		if ref == "" {
+			ref = provider.Name
+		}
+
+		results = append(results, declresources.AIGatewayIdentityProviderResource{
+			BaseResource: declresources.BaseResource{Ref: ref},
+			Name:         provider.Name,
+			Type:         provider.Type,
+			DisplayName:  provider.DisplayName,
+			Labels:       provider.Labels,
+			ManagedBy:    provider.ManagedBy,
+			Config:       provider.Config,
+		})
+	}
+
+	slices.SortFunc(results, func(a, b declresources.AIGatewayIdentityProviderResource) int {
 		if a.Name == b.Name {
 			return cmp.Compare(a.Ref, b.Ref)
 		}

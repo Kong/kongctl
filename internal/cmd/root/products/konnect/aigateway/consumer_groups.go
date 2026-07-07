@@ -380,9 +380,9 @@ func aiGatewayConsumerGroupDetailView(group kkComps.AIGatewayConsumerGroup) stri
 	}
 
 	order := []string{
-		"id",
-		"name",
-		"display_name",
+		aiGatewayFieldID,
+		aiGatewayFieldName,
+		aiGatewayFieldDisplayName,
 		"policies",
 		aiGatewayFieldLabels,
 		aiGatewayFieldManagedBy,

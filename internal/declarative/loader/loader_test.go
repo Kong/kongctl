@@ -63,7 +63,7 @@ func TestLoaderFlattensAIGatewayProviders(t *testing.T) {
 ai_gateways:
   - ref: customer-support-gateway
     display_name: Customer Support Gateway
-    providers:
+    model_providers:
       - ref: openai-provider
         name: openai-provider
         type: openai
@@ -84,6 +84,34 @@ ai_gateways:
 	require.Len(t, rs.AIGatewayProviders, 1)
 	require.Equal(t, "customer-support-gateway", rs.AIGatewayProviders[0].AIGateway)
 	require.Equal(t, "openai-provider", rs.AIGatewayProviders[0].Name)
+}
+
+func TestLoaderFlattensAIGatewayIdentityProviders(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+    identity_providers:
+      - ref: support-key-auth
+        name: support-key-auth
+        type: key-auth
+        display_name: Support Key Auth
+        config:
+          key_names:
+            - x-support-api-key
+          hide_credentials: true
+`), 0o600)
+	require.NoError(t, err)
+
+	rs, err := New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, rs.AIGateways, 1)
+	require.Empty(t, rs.AIGateways[0].IdentityProviders)
+	require.Len(t, rs.AIGatewayIdentityProviders, 1)
+	require.Equal(t, "customer-support-gateway", rs.AIGatewayIdentityProviders[0].AIGateway)
+	require.Equal(t, "support-key-auth", rs.AIGatewayIdentityProviders[0].Name)
 }
 
 func TestLoaderPortalTeamGroupMappingsPortalLevelNestedRejected(t *testing.T) {

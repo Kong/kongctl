@@ -486,10 +486,10 @@ func aiGatewayConsumerCredentialDetailView(credential kkComps.AIGatewayConsumerC
 	}
 
 	order := []string{
-		"id",
-		"name",
-		"type",
-		"display_name",
+		aiGatewayFieldID,
+		aiGatewayFieldName,
+		aiGatewayFieldType,
+		aiGatewayFieldDisplayName,
 		"ttl",
 		aiGatewayFieldLabels,
 		aiGatewayFieldManagedBy,
