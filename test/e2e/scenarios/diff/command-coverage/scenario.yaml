@@ -11,6 +11,12 @@ vars:
   existingAPIName: orders-api
   removedAPIName: legacy-api
   newAPIRef: analytics-api
+  existingAPIVersionRef: orders-api-v1
+  removedAPIVersionRef: orders-api-v2
+  removedAPIVersion: "2.0.0"
+  apiVersionUpdatedInfoVersion: "1.0.1"
+  apiDocumentRef: orders-api-overview-doc
+  apiDocumentUpdatedText: "change history"
   cpRef: diff-cp
   cpName: "diff-coverage-cp"
   cpDesc: "Control plane for diff coverage E2E"
@@ -51,12 +57,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 7
-                by_action.CREATE: 7
+                total_changes: 10
+                by_action.CREATE: 10
           - select: "summary"
             expect:
               fields:
-                applied: 7
+                applied: 10
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='portal' &&
@@ -64,6 +70,33 @@ steps:
             expect:
               fields:
                 action: CREATE
+          - select: "plan.changes[?resource_type=='api_version']"
+            expect:
+              fields:
+                "length(@)": 2
+          - select: >-
+              plan.changes[?resource_type=='api_version' &&
+                            resource_ref=='{{ .vars.existingAPIVersionRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='api_version' &&
+                            resource_ref=='{{ .vars.removedAPIVersionRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.version: "{{ .vars.removedAPIVersion }}"
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='api_document' &&
+                            resource_ref=='{{ .vars.apiDocumentRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.status: published
+                namespace: "{{ .vars.namespace }}"
 
       - name: 001-get-portals
         run: ["get", "portals"]
@@ -103,6 +136,14 @@ steps:
             expect:
               fields:
                 "length(@)": 0
+          - select: "changes[?resource_type=='api_version']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "changes[?resource_type=='api_document']"
+            expect:
+              fields:
+                "length(@)": 0
 
   - name: 003-diff-with-modifications
     inputOverlayDirs:
@@ -125,9 +166,9 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 6
+                total_changes: 8
                 by_action.CREATE: 1
-                by_action.UPDATE: 5
+                by_action.UPDATE: 7
           - expect:
               fields:
                 "length(changes[?action=='DELETE'])": 0
@@ -152,6 +193,20 @@ steps:
               fields:
                 action: CREATE
                 namespace: "{{ .vars.namespace }}"
+          - select: >-
+              changes[?resource_type=='api_version' &&
+                       resource_ref=='{{ .vars.existingAPIVersionRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "contains(changed_fields.spec.new, '{{ .vars.apiVersionUpdatedInfoVersion }}')": true
+          - select: >-
+              changes[?resource_type=='api_document' &&
+                       resource_ref=='{{ .vars.apiDocumentRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "contains(changed_fields.content.new, '{{ .vars.apiDocumentUpdatedText }}')": true
           - select: >-
               changes[?resource_type=='application_auth_strategy' &&
                        resource_ref=='{{ .vars.authStrategyRef }}'] | [0]
@@ -252,10 +307,10 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 7
+                total_changes: 10
                 by_action.CREATE: 1
-                by_action.UPDATE: 5
-                by_action.DELETE: 1
+                by_action.UPDATE: 7
+                by_action.DELETE: 2
           - select: >-
               changes[?resource_type=='control_plane' &&
                        resource_ref=='{{ .vars.cpRef }}'] | [0]
@@ -283,6 +338,29 @@ steps:
             expect:
               fields:
                 action: DELETE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              changes[?resource_type=='api_version' &&
+                       resource_ref=='{{ .vars.existingAPIVersionRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "contains(changed_fields.spec.new, '{{ .vars.apiVersionUpdatedInfoVersion }}')": true
+          - select: >-
+              changes[?resource_type=='api_document' &&
+                       resource_ref=='{{ .vars.apiDocumentRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "contains(changed_fields.content.new, '{{ .vars.apiDocumentUpdatedText }}')": true
+          - select: >-
+              changes[?resource_type=='api_version' &&
+                       action=='DELETE' &&
+                       fields.version=='{{ .vars.removedAPIVersion }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_monikers.parent_api: "{{ .vars.existingAPIName }}"
                 namespace: "{{ .vars.namespace }}"
           - select: >-
               changes[?resource_type=='application_auth_strategy' &&
@@ -317,12 +395,19 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 7
+                total_changes: 10
           - select: >-
               changes[?resource_ref=='{{ .vars.newAPIRef }}'] | [0]
             expect:
               fields:
                 action: CREATE
+          - select: >-
+              changes[?resource_type=='api_version' &&
+                       action=='DELETE' &&
+                       fields.version=='{{ .vars.removedAPIVersion }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
 
       - name: 004-get-portals
         run: ["get", "portals"]
