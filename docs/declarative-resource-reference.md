@@ -313,12 +313,13 @@ control_plane_data_plane_certificates:
 ## AI Gateways
 
 This section covers the root AI Gateway resource backed by the Konnect
-`/v1/ai-gateways` API, AI Gateway Providers, AI Gateway Models, AI Gateway
-MCP Servers, AI Gateway Agents, AI Gateway Consumers, AI Gateway Consumer
-Credentials, AI Gateway Consumer Groups, AI Gateway Vaults, and AI Gateway
-Data Plane Certificates. Use
+`/v1/ai-gateways` API, AI Gateway Model Providers, AI Gateway Models, AI
+Gateway Identity Providers, AI Gateway MCP Servers, AI Gateway Agents, AI
+Gateway Consumers, AI Gateway Consumer Credentials, AI Gateway Consumer Groups,
+AI Gateway Vaults, and AI Gateway Data Plane Certificates. Use
 `kongctl explain ai_gateway --output yaml`,
-`kongctl explain ai_gateway_provider --output yaml`,
+`kongctl explain ai_gateway_model_provider --output yaml`,
+`kongctl explain ai_gateway_identity_provider --output yaml`,
 `kongctl explain ai_gateway.agents --output yaml`,
 `kongctl explain ai_gateway.consumers --output yaml`,
 `kongctl explain ai_gateway.consumers.credentials --output yaml`,
@@ -332,17 +333,18 @@ authoritative schemas.
 The `ref` value is a local declarative identifier used by kongctl for
 references and planning. Use `name` as the stable Konnect API name for the AI
 Gateway. If `name` is omitted, kongctl defaults it from `ref`. Use
-`display_name` for the human-readable name shown in Konnect. AI Gateway
-Providers, Policies, Agents, Consumers, Consumer Credentials, Consumer Groups,
-Models, MCP Servers, and Vaults use their own required `name` field as the
-stable Konnect child name. AI Gateway Data Plane Certificates use their
+`display_name` for the human-readable name shown in Konnect. AI Gateway Model
+Providers, Identity Providers, Policies, Agents, Consumers, Consumer
+Credentials, Consumer Groups, Models, MCP Servers, and Vaults use their own
+required `name` field as the stable Konnect child name. AI Gateway Data Plane
+Certificates use their
 required `title` field as the stable Konnect child name. Child entries inherit
 management scope from their parent resource and do not accept `kongctl`
 metadata.
 
 For AI Gateway Models, `target_models[].provider` must match an AI Gateway
-Provider `name` under the parent gateway. The provider can already exist or be
-declared in the same gateway configuration.
+Model Provider `name` under the parent gateway. The model provider can already
+exist or be declared in the same gateway configuration.
 
 For AI Gateway Agents, Consumers, Consumer Groups, Models, and MCP Servers,
 `policies` entries reference AI Gateway Policies under the same parent gateway.
@@ -350,18 +352,21 @@ Existing Konnect policy names or IDs can be supplied as strings. Declarative
 references should use `!ref <policy-ref>` so the relationship is explicit and
 same-plan policy creates are ordered and resolved.
 
-For AI Gateway Policies, Agents, Consumers, Consumer Groups, MCP Servers,
-Vaults, and Data Plane Certificates, root-level declarations must include
-`ai_gateway`, while nested declarations inherit the parent gateway. AI Gateway
+For AI Gateway Identity Providers, Policies, Agents, Consumers, Consumer
+Groups, MCP Servers, Vaults, and Data Plane Certificates, root-level
+declarations must include `ai_gateway`, while nested declarations inherit the
+parent gateway. AI Gateway
 Consumer Credentials are children of AI Gateway Consumers; root-level
 declarations must include `ai_gateway_consumer`, while nested declarations
-inherit the parent consumer. Omit `policies`, `agents`, `consumers`,
-`credentials`, `consumer_groups`, `mcp_servers`, `vaults`, or
+inherit the parent consumer. Omit `identity_providers`, `policies`, `agents`,
+`consumers`, `credentials`, `consumer_groups`, `mcp_servers`, `vaults`, or
 `data_plane_certificates` to leave existing child resources unmanaged during
-sync. Use `policies: []`, `agents: []`, `consumers: []`, `credentials: []`,
-`consumer_groups: []`, `mcp_servers: []`, `vaults: []`, or
+sync. Use `identity_providers: []`, `policies: []`, `agents: []`,
+`consumers: []`, `credentials: []`, `consumer_groups: []`, `mcp_servers: []`,
+`vaults: []`, or
 `data_plane_certificates: []` under a specific parent to sync-delete that child
-type. Root-level `ai_gateway_policies: []`, `ai_gateway_agents: []`,
+type. Root-level `ai_gateway_identity_providers: []`,
+`ai_gateway_policies: []`, `ai_gateway_agents: []`,
 `ai_gateway_consumers: []`, `ai_gateway_consumer_credentials: []`,
 `ai_gateway_consumer_groups: []`, `ai_gateway_mcp_servers: []`,
 `ai_gateway_vaults: []`, and `ai_gateway_data_plane_certificates: []` are
@@ -382,10 +387,20 @@ ai_gateways:
    kongctl:
      namespace: string
      protected: boolean
-   providers:
+   model_providers:
      - ref: string
        name: string required
        type: string required
+       display_name: string required
+       config: object required
+       labels: object [string]string
+         key: value
+       managed_by: object [string]string
+         key: value
+   identity_providers:
+     - ref: string
+       name: string required
+       type: key-auth # or openid-connect
        display_name: string required
        config: object required
        labels: object [string]string
@@ -514,15 +529,40 @@ ai_gateways:
       cert: string required # prefer !file or !env for PEM data
 ```
 
-AI Gateway Providers can also be declared as root resources. Root-level
-provider declarations must identify the parent AI Gateway with `ai_gateway`.
+AI Gateway Model Providers can also be declared as root resources. Root-level
+model provider declarations must identify the parent AI Gateway with
+`ai_gateway`.
 
 ```yaml
-ai_gateway_providers:
+ai_gateway_model_providers:
  - ref: string
    ai_gateway: string required # AI Gateway ref
    name: string required
    type: string required
+   display_name: string required
+   config: object required
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+Legacy `providers` and `ai_gateway_providers` keys are still accepted as
+compatibility aliases, but new declarative configuration should use
+`model_providers` and `ai_gateway_model_providers`.
+
+AI Gateway Identity Providers can also be declared as root resources.
+Root-level identity provider declarations must identify the parent AI Gateway
+with `ai_gateway`. OpenID Connect `config.client_secret` values are write-only
+in Konnect and are skipped during diff calculation because the API does not
+return the stored secret.
+
+```yaml
+ai_gateway_identity_providers:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   type: key-auth # or openid-connect
    display_name: string required
    config: object required
    labels: object [string]string

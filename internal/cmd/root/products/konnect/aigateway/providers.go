@@ -26,27 +26,27 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 )
 
-const aiGatewayProvidersUse = "providers [provider-id|provider-name]"
+const aiGatewayProvidersUse = "model-providers [model-provider-id|model-provider-name]"
 
 var (
 	aiGatewayProvidersShort = i18n.T(
 		"root.products.konnect.ai-gateway.providersShort",
-		"List or get providers for a Konnect AI Gateway",
+		"List or get model providers for a Konnect AI Gateway",
 	)
 	aiGatewayProvidersLong = i18n.T(
 		"root.products.konnect.ai-gateway.providersLong",
-		`Use the providers command to list or retrieve AI Gateway Providers for a specific AI Gateway.`,
+		`Use the model-providers command to list or retrieve AI Gateway Model Providers for a specific AI Gateway.`,
 	)
 	aiGatewayProvidersExample = normalizers.Examples(
 		i18n.T("root.products.konnect.ai-gateway.providersExamples",
-			fmt.Sprintf(`# List providers for an AI Gateway by ID
-%[1]s get ai-gateways providers --gateway-id <gateway-id>
-# List providers for an AI Gateway by display name
-%[1]s get ai-gateways providers --gateway-name "Customer Support Gateway"
-# Get a provider by ID or name
-%[1]s get ai-gateways providers --gateway-name "Customer Support Gateway" openai-provider
-# Get a provider by flag
-%[1]s get ai-gateways providers --gateway-id <gateway-id> --provider-name openai-provider
+			fmt.Sprintf(`# List model providers for an AI Gateway by ID
+%[1]s get ai-gateways model-providers --gateway-id <gateway-id>
+# List model providers for an AI Gateway by display name
+%[1]s get ai-gateways model-providers --gateway-name "Customer Support Gateway"
+# Get a model provider by ID or name
+%[1]s get ai-gateways model-providers --gateway-name "Customer Support Gateway" openai-provider
+# Get a model provider by flag
+%[1]s get ai-gateways model-providers --gateway-id <gateway-id> --model-provider-name openai-provider
 `, meta.CLIName)),
 	)
 )
@@ -70,7 +70,7 @@ func newGetAIGatewayProvidersCmd(
 		Short:   aiGatewayProvidersShort,
 		Long:    aiGatewayProvidersLong,
 		Example: aiGatewayProvidersExample,
-		Aliases: []string{"provider"},
+		Aliases: []string{"model-provider", "providers", "provider"},
 		PreRunE: func(c *cobra.Command, args []string) error {
 			if parentPreRun != nil {
 				if err := parentPreRun(c, args); err != nil {
@@ -104,7 +104,7 @@ func (h aiGatewayProvidersHandler) run(args []string) error {
 	helper := cmd.BuildHelper(h.cmd, args)
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("too many arguments. Listing AI Gateway Providers requires 0 or 1 arguments (ID or name)"),
+			Err: fmt.Errorf("too many arguments. Listing AI Gateway Model Providers requires 0 or 1 arguments (ID or name)"),
 		}
 	}
 
@@ -170,8 +170,8 @@ func (h aiGatewayProvidersHandler) run(args []string) error {
 	providerAPI := sdk.GetAIGatewayProvidersAPI()
 	if providerAPI == nil {
 		return &cmd.ExecutionError{
-			Msg: "AI Gateway Providers client is not available",
-			Err: fmt.Errorf("AI Gateway Providers client not configured"),
+			Msg: "AI Gateway Model Providers client is not available",
+			Err: fmt.Errorf("AI Gateway Model Providers client not configured"),
 		}
 	}
 
@@ -266,16 +266,16 @@ func (h aiGatewayProvidersHandler) getSingleProvider(
 		match := findAIGatewayProviderByNameOrID(providers, identifier)
 		if match == nil {
 			return &cmd.ConfigurationError{
-				Err: fmt.Errorf("AI Gateway Provider %q not found", identifier),
+				Err: fmt.Errorf("AI Gateway Model Provider %q not found", identifier),
 			}
 		}
-		providerIdentifier = aiGatewayProviderStringField(*match, "id")
+		providerIdentifier = aiGatewayProviderStringField(*match, aiGatewayFieldID)
 		if providerIdentifier == "" {
-			providerIdentifier = aiGatewayProviderStringField(*match, "name")
+			providerIdentifier = aiGatewayProviderStringField(*match, aiGatewayFieldName)
 		}
 		if providerIdentifier == "" {
 			return &cmd.ConfigurationError{
-				Err: fmt.Errorf("AI Gateway Provider %q does not have an ID or name", identifier),
+				Err: fmt.Errorf("AI Gateway Model Provider %q does not have an ID or name", identifier),
 			}
 		}
 	}
@@ -283,13 +283,13 @@ func (h aiGatewayProvidersHandler) getSingleProvider(
 	res, err := providerAPI.GetAiGatewayProvider(helper.GetContext(), gatewayID, providerIdentifier)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to get AI Gateway Provider", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError("Failed to get AI Gateway Model Provider", err, helper.GetCmd(), attrs...)
 	}
-	provider := res.GetAIGatewayProvider()
+	provider := res.GetAIGatewayModelProvider()
 	if provider == nil {
 		return &cmd.ExecutionError{
-			Msg: "AI Gateway Provider response was empty",
-			Err: fmt.Errorf("no provider returned for id or name %s", providerIdentifier),
+			Msg: "AI Gateway Model Provider response was empty",
+			Err: fmt.Errorf("no model provider returned for id or name %s", providerIdentifier),
 		}
 	}
 
@@ -318,13 +318,13 @@ func fetchAIGatewayProviders(
 	providerAPI helpers.AIGatewayProvidersAPI,
 	gatewayID string,
 	cfg config.Hook,
-) ([]kkComps.AIGatewayProvider, error) {
+) ([]kkComps.AIGatewayModelProvider, error) {
 	requestPageSize := common.ResolveRequestPageSize(cfg)
 	var pageAfter *string
-	var allData []kkComps.AIGatewayProvider
+	var allData []kkComps.AIGatewayModelProvider
 
 	for {
-		req := kkOps.ListAiGatewayProvidersRequest{
+		req := kkOps.ListAiGatewayModelProvidersRequest{
 			GatewayID: gatewayID,
 			PageSize:  &requestPageSize,
 		}
@@ -335,16 +335,16 @@ func fetchAIGatewayProviders(
 		res, err := providerAPI.ListAiGatewayProviders(helper.GetContext(), req)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError("Failed to list AI Gateway Providers", err, helper.GetCmd(), attrs...)
+			return nil, cmd.PrepareExecutionError("Failed to list AI Gateway Model Providers", err, helper.GetCmd(), attrs...)
 		}
-		if res.GetListAIGatewayProvidersResponse() == nil {
+		if res.GetListAIGatewayModelProvidersResponse() == nil {
 			break
 		}
 
-		data := res.GetListAIGatewayProvidersResponse().Data
+		data := res.GetListAIGatewayModelProvidersResponse().Data
 		allData = append(allData, data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(res.GetListAIGatewayProvidersResponse().Meta.Page.Next)
+		nextCursor := pagination.ExtractPageAfterCursor(res.GetListAIGatewayModelProvidersResponse().Meta.Page.Next)
 		if nextCursor == "" {
 			break
 		}
@@ -371,7 +371,7 @@ func resolveAIGatewayIDByName(
 	return gateway.ID, nil
 }
 
-func buildAIGatewayProviderChildView(providers []kkComps.AIGatewayProvider) tableview.ChildView {
+func buildAIGatewayProviderChildView(providers []kkComps.AIGatewayModelProvider) tableview.ChildView {
 	tableRows := make([]table.Row, 0, len(providers))
 	for i := range providers {
 		record := aiGatewayProviderToDisplayRecord(providers[i])
@@ -387,7 +387,7 @@ func buildAIGatewayProviderChildView(providers []kkComps.AIGatewayProvider) tabl
 			}
 			return aiGatewayProviderDetailView(&providers[index])
 		},
-		Title:      "AI Gateway Providers",
+		Title:      "AI Gateway Model Providers",
 		ParentType: common.ViewParentAIGatewayProvider,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(providers) {
@@ -398,25 +398,25 @@ func buildAIGatewayProviderChildView(providers []kkComps.AIGatewayProvider) tabl
 	}
 }
 
-func aiGatewayProviderToDisplayRecord(provider kkComps.AIGatewayProvider) aiGatewayProviderDisplayRecord {
+func aiGatewayProviderToDisplayRecord(provider kkComps.AIGatewayModelProvider) aiGatewayProviderDisplayRecord {
 	raw := aiGatewayProviderRawMap(provider)
 
-	id := aiGatewayProviderStringFieldFromRaw(raw, "id")
+	id := aiGatewayProviderStringFieldFromRaw(raw, aiGatewayFieldID)
 	if id != "" {
 		id = util.AbbreviateUUID(id)
 	} else {
 		id = aiGatewayMissingValue
 	}
 
-	name := aiGatewayProviderStringFieldFromRaw(raw, "name")
+	name := aiGatewayProviderStringFieldFromRaw(raw, aiGatewayFieldName)
 	if name == "" {
 		name = aiGatewayMissingValue
 	}
-	providerType := aiGatewayProviderStringFieldFromRaw(raw, "type")
+	providerType := aiGatewayProviderStringFieldFromRaw(raw, aiGatewayFieldType)
 	if providerType == "" {
 		providerType = aiGatewayMissingValue
 	}
-	displayName := aiGatewayProviderStringFieldFromRaw(raw, "display_name")
+	displayName := aiGatewayProviderStringFieldFromRaw(raw, aiGatewayFieldDisplayName)
 	if displayName == "" {
 		displayName = aiGatewayMissingValue
 	}
@@ -431,7 +431,7 @@ func aiGatewayProviderToDisplayRecord(provider kkComps.AIGatewayProvider) aiGate
 	}
 }
 
-func aiGatewayProviderDetailView(provider *kkComps.AIGatewayProvider) string {
+func aiGatewayProviderDetailView(provider *kkComps.AIGatewayModelProvider) string {
 	if provider == nil {
 		return ""
 	}
@@ -455,7 +455,13 @@ func aiGatewayProviderDetailView(provider *kkComps.AIGatewayProvider) string {
 	}
 
 	for _, key := range []string{
-		"id", "name", "type", "display_name", aiGatewayFieldLabels, aiGatewayFieldManagedBy, aiGatewayFieldConfig,
+		aiGatewayFieldID,
+		aiGatewayFieldName,
+		aiGatewayFieldType,
+		aiGatewayFieldDisplayName,
+		aiGatewayFieldLabels,
+		aiGatewayFieldManagedBy,
+		aiGatewayFieldConfig,
 		aiGatewayFieldCreatedAt, aiGatewayFieldUpdatedAt,
 	} {
 		writeProviderField(key)
@@ -464,14 +470,14 @@ func aiGatewayProviderDetailView(provider *kkComps.AIGatewayProvider) string {
 }
 
 func findAIGatewayProviderByNameOrID(
-	providers []kkComps.AIGatewayProvider,
+	providers []kkComps.AIGatewayModelProvider,
 	identifier string,
-) *kkComps.AIGatewayProvider {
+) *kkComps.AIGatewayModelProvider {
 	lowered := strings.ToLower(strings.TrimSpace(identifier))
 	for i := range providers {
 		raw := aiGatewayProviderRawMap(providers[i])
-		id := strings.ToLower(aiGatewayProviderStringFieldFromRaw(raw, "id"))
-		name := strings.ToLower(aiGatewayProviderStringFieldFromRaw(raw, "name"))
+		id := strings.ToLower(aiGatewayProviderStringFieldFromRaw(raw, aiGatewayFieldID))
+		name := strings.ToLower(aiGatewayProviderStringFieldFromRaw(raw, aiGatewayFieldName))
 		if id == lowered || name == lowered {
 			return &providers[i]
 		}
@@ -479,11 +485,11 @@ func findAIGatewayProviderByNameOrID(
 	return nil
 }
 
-func aiGatewayProviderStringField(provider kkComps.AIGatewayProvider, key string) string {
+func aiGatewayProviderStringField(provider kkComps.AIGatewayModelProvider, key string) string {
 	return aiGatewayProviderStringFieldFromRaw(aiGatewayProviderRawMap(provider), key)
 }
 
-func aiGatewayProviderRawMap(provider kkComps.AIGatewayProvider) map[string]any {
+func aiGatewayProviderRawMap(provider kkComps.AIGatewayModelProvider) map[string]any {
 	data, err := json.Marshal(provider)
 	if err != nil {
 		return map[string]any{}

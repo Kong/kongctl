@@ -10,62 +10,62 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
-// AIGatewayProviderAdapter implements ResourceOperations for AI Gateway Model Providers.
-type AIGatewayProviderAdapter struct {
+// AIGatewayIdentityProviderAdapter implements ResourceOperations for AI Gateway Identity Providers.
+type AIGatewayIdentityProviderAdapter struct {
 	client *state.Client
 }
 
-// NewAIGatewayProviderAdapter creates a new AI Gateway Model Provider adapter.
-func NewAIGatewayProviderAdapter(client *state.Client) *AIGatewayProviderAdapter {
-	return &AIGatewayProviderAdapter{client: client}
+// NewAIGatewayIdentityProviderAdapter creates a new AI Gateway Identity Provider adapter.
+func NewAIGatewayIdentityProviderAdapter(client *state.Client) *AIGatewayIdentityProviderAdapter {
+	return &AIGatewayIdentityProviderAdapter{client: client}
 }
 
-func (a *AIGatewayProviderAdapter) MapCreateFields(
+func (a *AIGatewayIdentityProviderAdapter) MapCreateFields(
 	_ context.Context,
 	_ *ExecutionContext,
 	fields map[string]any,
-	create *kkComps.CreateAIGatewayModelProviderRequest,
+	create *kkComps.CreateAIGatewayIdentityProviderRequest,
 ) error {
-	payload, err := aiGatewayProviderPayloadFromFields(fields)
+	payload, err := aiGatewayIdentityProviderPayloadFromFields(fields)
 	if err != nil {
 		return err
 	}
 
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Model Provider create payload: %w", err)
+		return fmt.Errorf("failed to encode AI Gateway Identity Provider create payload: %w", err)
 	}
 	if err := json.Unmarshal(data, create); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Model Provider create payload: %w", err)
+		return fmt.Errorf("failed to decode AI Gateway Identity Provider create payload: %w", err)
 	}
 	return nil
 }
 
-func (a *AIGatewayProviderAdapter) MapUpdateFields(
+func (a *AIGatewayIdentityProviderAdapter) MapUpdateFields(
 	_ context.Context,
 	_ *ExecutionContext,
 	fields map[string]any,
-	update *kkComps.UpdateAIGatewayModelProviderRequest,
+	update *kkComps.UpdateAIGatewayIdentityProviderRequest,
 	_ map[string]string,
 ) error {
-	payload, err := aiGatewayProviderPayloadFromFields(fields)
+	payload, err := aiGatewayIdentityProviderPayloadFromFields(fields)
 	if err != nil {
 		return err
 	}
 
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Model Provider update payload: %w", err)
+		return fmt.Errorf("failed to encode AI Gateway Identity Provider update payload: %w", err)
 	}
 	if err := json.Unmarshal(data, update); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Model Provider update payload: %w", err)
+		return fmt.Errorf("failed to decode AI Gateway Identity Provider update payload: %w", err)
 	}
 	return nil
 }
 
-func (a *AIGatewayProviderAdapter) Create(
+func (a *AIGatewayIdentityProviderAdapter) Create(
 	ctx context.Context,
-	req kkComps.CreateAIGatewayModelProviderRequest,
+	req kkComps.CreateAIGatewayIdentityProviderRequest,
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
@@ -73,13 +73,13 @@ func (a *AIGatewayProviderAdapter) Create(
 	if err != nil {
 		return "", err
 	}
-	return a.client.CreateAIGatewayProvider(ctx, gatewayID, req, namespace)
+	return a.client.CreateAIGatewayIdentityProvider(ctx, gatewayID, req, namespace)
 }
 
-func (a *AIGatewayProviderAdapter) Update(
+func (a *AIGatewayIdentityProviderAdapter) Update(
 	ctx context.Context,
 	id string,
-	req kkComps.UpdateAIGatewayModelProviderRequest,
+	req kkComps.UpdateAIGatewayIdentityProviderRequest,
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
@@ -87,22 +87,22 @@ func (a *AIGatewayProviderAdapter) Update(
 	if err != nil {
 		return "", err
 	}
-	return a.client.UpdateAIGatewayProvider(ctx, gatewayID, id, req, namespace)
+	return a.client.UpdateAIGatewayIdentityProvider(ctx, gatewayID, id, req, namespace)
 }
 
-func (a *AIGatewayProviderAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
+func (a *AIGatewayIdentityProviderAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
 	}
-	return a.client.DeleteAIGatewayProvider(ctx, gatewayID, id)
+	return a.client.DeleteAIGatewayIdentityProvider(ctx, gatewayID, id)
 }
 
-func (a *AIGatewayProviderAdapter) GetByName(_ context.Context, _ string) (ResourceInfo, error) {
-	return nil, fmt.Errorf("GetByName not supported for AI Gateway Model Providers")
+func (a *AIGatewayIdentityProviderAdapter) GetByName(_ context.Context, _ string) (ResourceInfo, error) {
+	return nil, fmt.Errorf("GetByName not supported for AI Gateway Identity Providers")
 }
 
-func (a *AIGatewayProviderAdapter) GetByID(
+func (a *AIGatewayIdentityProviderAdapter) GetByID(
 	ctx context.Context,
 	id string,
 	execCtx *ExecutionContext,
@@ -112,29 +112,31 @@ func (a *AIGatewayProviderAdapter) GetByID(
 		return nil, err
 	}
 
-	provider, err := a.client.GetAIGatewayProvider(ctx, gatewayID, id)
+	provider, err := a.client.GetAIGatewayIdentityProvider(ctx, gatewayID, id)
 	if err != nil {
 		return nil, err
 	}
 	if provider == nil {
 		return nil, nil
 	}
-	return &aiGatewayProviderResourceInfo{provider: provider}, nil
+	return &aiGatewayIdentityProviderResourceInfo{provider: provider}, nil
 }
 
-func (a *AIGatewayProviderAdapter) ResourceType() string {
-	return planner.ResourceTypeAIGatewayProvider
+func (a *AIGatewayIdentityProviderAdapter) ResourceType() string {
+	return planner.ResourceTypeAIGatewayIdentityProvider
 }
 
-func (a *AIGatewayProviderAdapter) RequiredFields() []string {
+func (a *AIGatewayIdentityProviderAdapter) RequiredFields() []string {
 	return []string{planner.FieldName, planner.FieldType, planner.FieldDisplayName, planner.FieldConfig}
 }
 
-func (a *AIGatewayProviderAdapter) SupportsUpdate() bool {
+func (a *AIGatewayIdentityProviderAdapter) SupportsUpdate() bool {
 	return true
 }
 
-func (a *AIGatewayProviderAdapter) getAIGatewayIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+func (a *AIGatewayIdentityProviderAdapter) getAIGatewayIDFromExecutionContext(
+	execCtx *ExecutionContext,
+) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context required")
 	}
@@ -146,10 +148,10 @@ func (a *AIGatewayProviderAdapter) getAIGatewayIDFromExecutionContext(execCtx *E
 	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
 		return change.Parent.ID, nil
 	}
-	return "", fmt.Errorf("AI Gateway ID required for AI Gateway Model Provider operations")
+	return "", fmt.Errorf("AI Gateway ID required for AI Gateway Identity Provider operations")
 }
 
-func aiGatewayProviderPayloadFromFields(fields map[string]any) (map[string]any, error) {
+func aiGatewayIdentityProviderPayloadFromFields(fields map[string]any) (map[string]any, error) {
 	name, ok := fields[planner.FieldName].(string)
 	if !ok || name == "" {
 		return nil, fmt.Errorf("name is required")
@@ -182,22 +184,22 @@ func aiGatewayProviderPayloadFromFields(fields map[string]any) (map[string]any, 
 	return payload, nil
 }
 
-type aiGatewayProviderResourceInfo struct {
-	provider *state.AIGatewayProvider
+type aiGatewayIdentityProviderResourceInfo struct {
+	provider *state.AIGatewayIdentityProvider
 }
 
-func (a *aiGatewayProviderResourceInfo) GetID() string {
+func (a *aiGatewayIdentityProviderResourceInfo) GetID() string {
 	return a.provider.ID
 }
 
-func (a *aiGatewayProviderResourceInfo) GetName() string {
+func (a *aiGatewayIdentityProviderResourceInfo) GetName() string {
 	return a.provider.Name
 }
 
-func (a *aiGatewayProviderResourceInfo) GetLabels() map[string]string {
+func (a *aiGatewayIdentityProviderResourceInfo) GetLabels() map[string]string {
 	return a.provider.Labels
 }
 
-func (a *aiGatewayProviderResourceInfo) GetNormalizedLabels() map[string]string {
+func (a *aiGatewayIdentityProviderResourceInfo) GetNormalizedLabels() map[string]string {
 	return a.provider.NormalizedLabels
 }

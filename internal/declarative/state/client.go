@@ -37,6 +37,7 @@ type ClientConfig struct {
 	CatalogServiceAPI                 helpers.CatalogServicesAPI
 	AIGatewayAPI                      helpers.AIGatewayAPI
 	AIGatewayProvidersAPI             helpers.AIGatewayProvidersAPI
+	AIGatewayIdentityProvidersAPI     helpers.AIGatewayIdentityProvidersAPI
 	AIGatewayPoliciesAPI              helpers.AIGatewayPoliciesAPI
 	AIGatewayAgentsAPI                helpers.AIGatewayAgentsAPI
 	AIGatewayConsumersAPI             helpers.AIGatewayConsumersAPI
@@ -109,6 +110,7 @@ type Client struct {
 	catalogServiceAPI                 helpers.CatalogServicesAPI
 	aiGatewayAPI                      helpers.AIGatewayAPI
 	aiGatewayProvidersAPI             helpers.AIGatewayProvidersAPI
+	aiGatewayIdentityProvidersAPI     helpers.AIGatewayIdentityProvidersAPI
 	aiGatewayPoliciesAPI              helpers.AIGatewayPoliciesAPI
 	aiGatewayAgentsAPI                helpers.AIGatewayAgentsAPI
 	aiGatewayConsumersAPI             helpers.AIGatewayConsumersAPI
@@ -182,6 +184,7 @@ func NewClient(config ClientConfig) *Client {
 		catalogServiceAPI:                 config.CatalogServiceAPI,
 		aiGatewayAPI:                      config.AIGatewayAPI,
 		aiGatewayProvidersAPI:             config.AIGatewayProvidersAPI,
+		aiGatewayIdentityProvidersAPI:     config.AIGatewayIdentityProvidersAPI,
 		aiGatewayPoliciesAPI:              config.AIGatewayPoliciesAPI,
 		aiGatewayAgentsAPI:                config.AIGatewayAgentsAPI,
 		aiGatewayConsumersAPI:             config.AIGatewayConsumersAPI,
@@ -278,8 +281,23 @@ type AIGateway struct {
 	NormalizedLabels map[string]string
 }
 
-// AIGatewayProvider represents a Konnect AI Gateway Provider for internal use.
+// AIGatewayProvider represents a Konnect AI Gateway Model Provider for internal use.
 type AIGatewayProvider struct {
+	ID               string
+	Name             string
+	Type             string
+	DisplayName      string
+	Labels           map[string]string
+	ManagedBy        map[string]string
+	Config           map[string]any
+	CreatedAt        string
+	UpdatedAt        string
+	Raw              map[string]any
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayIdentityProvider represents a Konnect AI Gateway Identity Provider for internal use.
+type AIGatewayIdentityProvider struct {
 	ID               string
 	Name             string
 	Type             string

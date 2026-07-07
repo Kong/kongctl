@@ -389,10 +389,10 @@ func aiGatewayPolicyDetailView(policy kkComps.AIGatewayPolicy) string {
 	}
 
 	order := []string{
-		"id",
-		"name",
-		"display_name",
-		"type",
+		aiGatewayFieldID,
+		aiGatewayFieldName,
+		aiGatewayFieldDisplayName,
+		aiGatewayFieldType,
 		"enabled",
 		"global",
 		"config",

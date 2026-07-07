@@ -24,6 +24,7 @@ type SDKAPI interface {
 	GetAPIAPI() APIFullAPI // TODO: Change to APIAPI once refactoring is complete
 	GetAIGatewayAPI() AIGatewayAPI
 	GetAIGatewayProvidersAPI() AIGatewayProvidersAPI
+	GetAIGatewayIdentityProvidersAPI() AIGatewayIdentityProvidersAPI
 	GetAIGatewayPoliciesAPI() AIGatewayPoliciesAPI
 	GetAIGatewayAgentsAPI() AIGatewayAgentsAPI
 	GetAIGatewayConsumersAPI() AIGatewayConsumersAPI
@@ -142,11 +143,20 @@ func (k *KonnectSDK) GetAIGatewayAPI() AIGatewayAPI {
 
 // Returns the implementation of the AIGatewayProvidersAPI interface.
 func (k *KonnectSDK) GetAIGatewayProvidersAPI() AIGatewayProvidersAPI {
-	if k.SDK == nil || k.SDK.AIGatewayProviders == nil {
+	if k.SDK == nil || k.SDK.AIGatewayModelProviders == nil {
 		return nil
 	}
 
 	return &AIGatewayProvidersAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the AIGatewayIdentityProvidersAPI interface.
+func (k *KonnectSDK) GetAIGatewayIdentityProvidersAPI() AIGatewayIdentityProvidersAPI {
+	if k.SDK == nil || k.SDK.AIGatewayIdentityProviders == nil {
+		return nil
+	}
+
+	return &AIGatewayIdentityProvidersAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the AIGatewayPoliciesAPI interface.

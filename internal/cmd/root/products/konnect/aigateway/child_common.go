@@ -16,11 +16,20 @@ const (
 	aiGatewayIDConfigPath   = "konnect.ai-gateway.id"
 	aiGatewayNameConfigPath = "konnect.ai-gateway.name"
 
-	aiGatewayProviderIDFlagName   = "provider-id"
-	aiGatewayProviderNameFlagName = "provider-name"
+	aiGatewayProviderIDFlagName           = "model-provider-id"
+	aiGatewayProviderNameFlagName         = "model-provider-name"
+	aiGatewayLegacyProviderIDFlagName     = "provider-id"
+	aiGatewayLegacyProviderNameFlagName   = "provider-name"
+	aiGatewayProviderIDConfigPath         = "konnect.ai-gateway.model-provider.id"
+	aiGatewayProviderNameConfigPath       = "konnect.ai-gateway.model-provider.name"
+	aiGatewayLegacyProviderIDConfigPath   = "konnect.ai-gateway.provider.id"
+	aiGatewayLegacyProviderNameConfigPath = "konnect.ai-gateway.provider.name"
 
-	aiGatewayProviderIDConfigPath   = "konnect.ai-gateway.provider.id"
-	aiGatewayProviderNameConfigPath = "konnect.ai-gateway.provider.name"
+	aiGatewayIdentityProviderIDFlagName   = "identity-provider-id"
+	aiGatewayIdentityProviderNameFlagName = "identity-provider-name"
+
+	aiGatewayIdentityProviderIDConfigPath   = "konnect.ai-gateway.identity-provider.id"
+	aiGatewayIdentityProviderNameConfigPath = "konnect.ai-gateway.identity-provider.name"
 
 	aiGatewayPolicyIDFlagName   = "policy-id"
 	aiGatewayPolicyNameFlagName = "policy-name"
@@ -81,11 +90,15 @@ const (
 
 	aiGatewayMissingValue = "n/a"
 
-	aiGatewayFieldCreatedAt = "created_at"
-	aiGatewayFieldUpdatedAt = "updated_at"
-	aiGatewayFieldLabels    = "labels"
-	aiGatewayFieldManagedBy = "managed_by"
-	aiGatewayFieldConfig    = "config"
+	aiGatewayFieldCreatedAt   = "created_at"
+	aiGatewayFieldUpdatedAt   = "updated_at"
+	aiGatewayFieldID          = "id"
+	aiGatewayFieldName        = "name"
+	aiGatewayFieldType        = "type"
+	aiGatewayFieldDisplayName = "display_name"
+	aiGatewayFieldLabels      = "labels"
+	aiGatewayFieldManagedBy   = "managed_by"
+	aiGatewayFieldConfig      = "config"
 
 	aiGatewayHeaderID          = "ID"
 	aiGatewayHeaderName        = "NAME"
@@ -168,10 +181,19 @@ var (
 	aiGatewayProviderFlags = pairedAIGatewayFlags{
 		idFlag:   aiGatewayProviderIDFlagName,
 		idPath:   aiGatewayProviderIDConfigPath,
-		idHelp:   "The ID of the AI Gateway Provider to retrieve.",
+		idHelp:   "The ID of the AI Gateway Model Provider to retrieve.",
 		nameFlag: aiGatewayProviderNameFlagName,
 		namePath: aiGatewayProviderNameConfigPath,
-		nameHelp: "The name of the AI Gateway Provider to retrieve.",
+		nameHelp: "The name of the AI Gateway Model Provider to retrieve.",
+	}
+
+	aiGatewayIdentityProviderFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayIdentityProviderIDFlagName,
+		idPath:   aiGatewayIdentityProviderIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Identity Provider to retrieve.",
+		nameFlag: aiGatewayIdentityProviderNameFlagName,
+		namePath: aiGatewayIdentityProviderNameConfigPath,
+		nameHelp: "The name of the AI Gateway Identity Provider to retrieve.",
 	}
 
 	aiGatewayPolicyFlags = pairedAIGatewayFlags{
@@ -270,14 +292,53 @@ func getAIGatewayIdentifiers(cfg config.Hook) (id string, name string) {
 
 func addAIGatewayProviderFlags(c *cobra.Command) {
 	addPairedAIGatewayFlags(c, aiGatewayProviderFlags)
+	c.Flags().String(aiGatewayLegacyProviderIDFlagName, "", "The ID of the AI Gateway Model Provider to retrieve.")
+	c.Flags().String(aiGatewayLegacyProviderNameFlagName, "", "The name of the AI Gateway Model Provider to retrieve.")
+	_ = c.Flags().MarkHidden(aiGatewayLegacyProviderIDFlagName)
+	_ = c.Flags().MarkHidden(aiGatewayLegacyProviderNameFlagName)
+	c.MarkFlagsMutuallyExclusive(
+		aiGatewayProviderIDFlagName,
+		aiGatewayProviderNameFlagName,
+		aiGatewayLegacyProviderIDFlagName,
+		aiGatewayLegacyProviderNameFlagName,
+	)
 }
 
 func bindAIGatewayProviderFlags(c *cobra.Command, args []string) error {
-	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayProviderFlags)...)
+	bindings := pairedAIGatewayBindings(aiGatewayProviderFlags)
+	bindings = append(
+		bindings,
+		flagBinding{flag: aiGatewayLegacyProviderIDFlagName, configPath: aiGatewayLegacyProviderIDConfigPath},
+		flagBinding{flag: aiGatewayLegacyProviderNameFlagName, configPath: aiGatewayLegacyProviderNameConfigPath},
+	)
+	return bindAIGatewayFlags(c, args, bindings...)
 }
 
 func getAIGatewayProviderIdentifiers(cfg config.Hook) (id string, name string) {
-	return getPairedAIGatewayIdentifiers(cfg, aiGatewayProviderIDConfigPath, aiGatewayProviderNameConfigPath)
+	id, name = getPairedAIGatewayIdentifiers(cfg, aiGatewayProviderIDConfigPath, aiGatewayProviderNameConfigPath)
+	if id == "" {
+		id = cfg.GetString(aiGatewayLegacyProviderIDConfigPath)
+	}
+	if name == "" {
+		name = cfg.GetString(aiGatewayLegacyProviderNameConfigPath)
+	}
+	return id, name
+}
+
+func addAIGatewayIdentityProviderFlags(c *cobra.Command) {
+	addPairedAIGatewayFlags(c, aiGatewayIdentityProviderFlags)
+}
+
+func bindAIGatewayIdentityProviderFlags(c *cobra.Command, args []string) error {
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayIdentityProviderFlags)...)
+}
+
+func getAIGatewayIdentityProviderIdentifiers(cfg config.Hook) (id string, name string) {
+	return getPairedAIGatewayIdentifiers(
+		cfg,
+		aiGatewayIdentityProviderIDConfigPath,
+		aiGatewayIdentityProviderNameConfigPath,
+	)
 }
 
 func addAIGatewayPolicyFlags(c *cobra.Command) {

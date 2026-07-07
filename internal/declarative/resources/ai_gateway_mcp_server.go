@@ -274,6 +274,9 @@ func (a *AIGatewayMCPServerResource) UnmarshalJSON(data []byte) error {
 	delete(raw, SchemaFieldRef)
 	delete(raw, SchemaFieldAIGateway)
 	delete(raw, SchemaFieldKongctl)
+	if err := normalizeAIGatewayMCPServerAccess(raw); err != nil {
+		return err
+	}
 
 	payload, err := json.Marshal(raw)
 	if err != nil {
@@ -287,6 +290,36 @@ func (a *AIGatewayMCPServerResource) UnmarshalJSON(data []byte) error {
 	a.BaseResource = BaseResource{Ref: meta.Ref}
 	a.AIGateway = meta.AIGateway
 	a.CreateAIGatewayMCPServerRequest = req
+	return nil
+}
+
+func normalizeAIGatewayMCPServerAccess(raw map[string]json.RawMessage) error {
+	if _, ok := raw["access"]; ok {
+		return nil
+	}
+
+	accessFields := []string{
+		"acl_attribute_type",
+		"access_token_claim_field",
+		"acls",
+		"default_tool_acls",
+	}
+	access := make(map[string]json.RawMessage)
+	for _, field := range accessFields {
+		if value, ok := raw[field]; ok {
+			access[field] = value
+			delete(raw, field)
+		}
+	}
+	if len(access) == 0 {
+		return nil
+	}
+
+	payload, err := json.Marshal(access)
+	if err != nil {
+		return fmt.Errorf("failed to encode AI Gateway MCP Server access: %w", err)
+	}
+	raw["access"] = payload
 	return nil
 }
 
@@ -428,6 +461,9 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 			false,
 		),
 	}
+	accessField := explainField("access", explainObject(
+		explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
+	), true, true)
 
 	return explainUnionNode(
 		explainObject(append(
@@ -437,22 +473,22 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		explainObject(append(
 			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("conversion-listener"), true, true),
-			explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
+			accessField,
 		)...),
 		explainObject(append(
 			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("listener"), true, true),
-			explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
+			accessField,
 		)...),
 		explainObject(append(
 			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("passthrough-listener"), true, true),
-			explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
+			accessField,
 		)...),
 		explainObject(append(
 			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("upstream-server"), true, true),
-			explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
+			accessField,
 		)...),
 	), nil
 }

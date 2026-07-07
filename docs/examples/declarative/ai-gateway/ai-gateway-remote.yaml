@@ -14,7 +14,7 @@ ai_gateways:
     labels:
       team: support
       environment: staging
-    providers:
+    model_providers:
       - ref: openai-provider
         name: openai-provider
         type: openai
@@ -25,6 +25,15 @@ ai_gateways:
             headers:
               - name: Authorization
                 value: "Bearer do-not-put-secrets-in-plain-text-files"
+    identity_providers:
+      - ref: support-key-auth
+        name: support-key-auth
+        type: key-auth
+        display_name: "Support Key Auth"
+        config:
+          key_names:
+            - x-support-api-key
+          hide_credentials: true
     vaults:
       - ref: support-env
         name: support-env

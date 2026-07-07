@@ -8,36 +8,36 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
-// AIGatewayProvidersAPI defines the interface for AI Gateway Provider operations needed by kongctl.
+// AIGatewayProvidersAPI defines the interface for AI Gateway Model Provider operations needed by kongctl.
 type AIGatewayProvidersAPI interface {
 	ListAiGatewayProviders(
 		ctx context.Context,
-		request kkOps.ListAiGatewayProvidersRequest,
+		request kkOps.ListAiGatewayModelProvidersRequest,
 		opts ...kkOps.Option,
-	) (*kkOps.ListAiGatewayProvidersResponse, error)
+	) (*kkOps.ListAiGatewayModelProvidersResponse, error)
 	CreateAiGatewayProvider(
 		ctx context.Context,
 		gatewayID string,
-		request kkComps.CreateAIGatewayProviderRequest,
+		request kkComps.CreateAIGatewayModelProviderRequest,
 		opts ...kkOps.Option,
-	) (*kkOps.CreateAiGatewayProviderResponse, error)
+	) (*kkOps.CreateAiGatewayModelProviderResponse, error)
 	GetAiGatewayProvider(
 		ctx context.Context,
 		gatewayID string,
 		providerID string,
 		opts ...kkOps.Option,
-	) (*kkOps.GetAiGatewayProviderResponse, error)
+	) (*kkOps.GetAiGatewayModelProviderResponse, error)
 	UpdateAiGatewayProvider(
 		ctx context.Context,
-		request kkOps.UpdateAiGatewayProviderRequest,
+		request kkOps.UpdateAiGatewayModelProviderRequest,
 		opts ...kkOps.Option,
-	) (*kkOps.UpdateAiGatewayProviderResponse, error)
+	) (*kkOps.UpdateAiGatewayModelProviderResponse, error)
 	DeleteAiGatewayProvider(
 		ctx context.Context,
 		gatewayID string,
 		providerID string,
 		opts ...kkOps.Option,
-	) (*kkOps.DeleteAiGatewayProviderResponse, error)
+	) (*kkOps.DeleteAiGatewayModelProviderResponse, error)
 }
 
 // AIGatewayProvidersAPIImpl provides the real SDK implementation.
@@ -47,19 +47,19 @@ type AIGatewayProvidersAPIImpl struct {
 
 func (a *AIGatewayProvidersAPIImpl) ListAiGatewayProviders(
 	ctx context.Context,
-	request kkOps.ListAiGatewayProvidersRequest,
+	request kkOps.ListAiGatewayModelProvidersRequest,
 	opts ...kkOps.Option,
-) (*kkOps.ListAiGatewayProvidersResponse, error) {
-	return a.SDK.AIGatewayProviders.ListAiGatewayProviders(ctx, request, opts...)
+) (*kkOps.ListAiGatewayModelProvidersResponse, error) {
+	return a.SDK.AIGatewayModelProviders.ListAiGatewayModelProviders(ctx, request, opts...)
 }
 
 func (a *AIGatewayProvidersAPIImpl) CreateAiGatewayProvider(
 	ctx context.Context,
 	gatewayID string,
-	request kkComps.CreateAIGatewayProviderRequest,
+	request kkComps.CreateAIGatewayModelProviderRequest,
 	opts ...kkOps.Option,
-) (*kkOps.CreateAiGatewayProviderResponse, error) {
-	return a.SDK.AIGatewayProviders.CreateAiGatewayProvider(ctx, gatewayID, request, opts...)
+) (*kkOps.CreateAiGatewayModelProviderResponse, error) {
+	return a.SDK.AIGatewayModelProviders.CreateAiGatewayModelProvider(ctx, gatewayID, request, opts...)
 }
 
 func (a *AIGatewayProvidersAPIImpl) GetAiGatewayProvider(
@@ -67,16 +67,16 @@ func (a *AIGatewayProvidersAPIImpl) GetAiGatewayProvider(
 	gatewayID string,
 	providerID string,
 	opts ...kkOps.Option,
-) (*kkOps.GetAiGatewayProviderResponse, error) {
-	return a.SDK.AIGatewayProviders.GetAiGatewayProvider(ctx, gatewayID, providerID, opts...)
+) (*kkOps.GetAiGatewayModelProviderResponse, error) {
+	return a.SDK.AIGatewayModelProviders.GetAiGatewayModelProvider(ctx, gatewayID, providerID, opts...)
 }
 
 func (a *AIGatewayProvidersAPIImpl) UpdateAiGatewayProvider(
 	ctx context.Context,
-	request kkOps.UpdateAiGatewayProviderRequest,
+	request kkOps.UpdateAiGatewayModelProviderRequest,
 	opts ...kkOps.Option,
-) (*kkOps.UpdateAiGatewayProviderResponse, error) {
-	return a.SDK.AIGatewayProviders.UpdateAiGatewayProvider(ctx, request, opts...)
+) (*kkOps.UpdateAiGatewayModelProviderResponse, error) {
+	return a.SDK.AIGatewayModelProviders.UpdateAiGatewayModelProvider(ctx, request, opts...)
 }
 
 func (a *AIGatewayProvidersAPIImpl) DeleteAiGatewayProvider(
@@ -84,6 +84,6 @@ func (a *AIGatewayProvidersAPIImpl) DeleteAiGatewayProvider(
 	gatewayID string,
 	providerID string,
 	opts ...kkOps.Option,
-) (*kkOps.DeleteAiGatewayProviderResponse, error) {
-	return a.SDK.AIGatewayProviders.DeleteAiGatewayProvider(ctx, gatewayID, providerID, opts...)
+) (*kkOps.DeleteAiGatewayModelProviderResponse, error) {
+	return a.SDK.AIGatewayModelProviders.DeleteAiGatewayModelProvider(ctx, gatewayID, providerID, opts...)
 }

@@ -14,7 +14,7 @@ ai_gateways:
     labels:
       owner: platform
       lifecycle: dev
-    providers:
+    model_providers:
       - ref: support-openai
         name: support-openai
         type: openai

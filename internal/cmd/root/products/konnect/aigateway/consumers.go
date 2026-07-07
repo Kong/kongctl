@@ -390,10 +390,10 @@ func aiGatewayConsumerDetailView(consumer kkComps.AIGatewayConsumer) string {
 	}
 
 	order := []string{
-		"id",
-		"name",
-		"type",
-		"display_name",
+		aiGatewayFieldID,
+		aiGatewayFieldName,
+		aiGatewayFieldType,
+		aiGatewayFieldDisplayName,
 		"custom_id",
 		"policies",
 		aiGatewayFieldLabels,
