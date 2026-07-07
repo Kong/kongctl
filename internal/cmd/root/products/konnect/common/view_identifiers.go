@@ -23,6 +23,8 @@ const (
 	ViewParentGatewayRoute                  = "gateway-route"
 	ViewParentGatewayService                = "gateway-service"
 	ViewParentIdentityDirectory             = "identity-directory"
+	ViewParentIdentityPrincipal             = "identity-principal"
+	ViewParentIdentityPrincipalIdentity     = "identity-principal-identity"
 	ViewParentListener                      = "listener"
 	ViewParentListenerPolicy                = "listener-policy"
 	ViewParentOrganization                  = "organization"

@@ -71,6 +71,7 @@ func NewIdentityCmd(
 		verbs.Diff,
 		verbs.Export,
 		verbs.Patch,
+		verbs.Roar,
 		verbs.Explain,
 		verbs.Scaffold,
 		verbs.Uninstall,

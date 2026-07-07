@@ -19,6 +19,8 @@ type MockKonnectSDK struct {
 	AppAuthStrategiesFactory           func() AppAuthStrategiesAPI
 	DCRProvidersFactory                func() DCRProvidersAPI
 	IdentityDirectoryFactory           func() IdentityDirectoryAPI
+	IdentityPrincipalFactory           func() IdentityPrincipalAPI
+	IdentityPrincipalIdentityFactory   func() IdentityPrincipalIdentityAPI
 	MeFactory                          func() MeAPI
 	PersonalAccessTokenFactory         func() PersonalAccessTokenAPI
 	SystemAccountAccessTokenFactory    func() SystemAccountAccessTokenAPI
@@ -162,6 +164,20 @@ func (m *MockKonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
 func (m *MockKonnectSDK) GetIdentityDirectoryAPI() IdentityDirectoryAPI {
 	if m.IdentityDirectoryFactory != nil {
 		return m.IdentityDirectoryFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalAPI() IdentityPrincipalAPI {
+	if m.IdentityPrincipalFactory != nil {
+		return m.IdentityPrincipalFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalIdentityAPI() IdentityPrincipalIdentityAPI {
+	if m.IdentityPrincipalIdentityFactory != nil {
+		return m.IdentityPrincipalIdentityFactory()
 	}
 	return nil
 }

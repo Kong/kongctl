@@ -180,7 +180,9 @@ func directoryToDisplayRecord(directory directoryResource) directoryTextRecord {
 	return record
 }
 
-func summarizeMap(labels map[string]string, missing string) string {
+func summarizeMap(labels map[string]string) string {
+	const missing = "n/a"
+
 	switch {
 	case labels == nil:
 		return missing
@@ -228,15 +230,15 @@ func directoryDetailView(directory directoryResource) string {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "id: %s\n", valueOrMissing(directory.ID, missing))
-	fmt.Fprintf(&b, "name: %s\n", valueOrMissing(directory.Name, missing))
-	fmt.Fprintf(&b, "description: %s\n", valueOrMissing(directory.Description, missing))
+	fmt.Fprintf(&b, "id: %s\n", valueOrMissing(directory.ID))
+	fmt.Fprintf(&b, "name: %s\n", valueOrMissing(directory.Name))
+	fmt.Fprintf(&b, "description: %s\n", valueOrMissing(directory.Description))
 	fmt.Fprintf(&b, "allow_all_control_planes: %s\n", boolValue)
 	fmt.Fprintf(&b, "allowed_control_planes: %s\n", summarizeStringSlice(directory.AllowedControlPlanes, missing))
 	fmt.Fprintf(&b, "ttl_secs: %s\n", ttl)
 	fmt.Fprintf(&b, "negative_ttl_secs: %s\n", negativeTTL)
-	fmt.Fprintf(&b, "labels: %s\n", summarizeMap(directory.Labels, missing))
-	fmt.Fprintf(&b, "managed_by: %s\n", summarizeMap(directory.ManagedBy, missing))
+	fmt.Fprintf(&b, "labels: %s\n", summarizeMap(directory.Labels))
+	fmt.Fprintf(&b, "managed_by: %s\n", summarizeMap(directory.ManagedBy))
 	if directory.RealmConfig != nil {
 		realmTTL := missing
 		if directory.RealmConfig.TTL != nil {
@@ -257,7 +259,9 @@ func directoryDetailView(directory directoryResource) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func valueOrMissing(value string, missing string) string {
+func valueOrMissing(value string) string {
+	const missing = "n/a"
+
 	if strings.TrimSpace(value) == "" {
 		return missing
 	}
@@ -505,6 +509,10 @@ func newDirectoryCmd(
 
 	if addParentFlags != nil {
 		addParentFlags(verb, rv.Command)
+	}
+
+	if verb == verbs.Get || verb == verbs.List {
+		rv.AddCommand(newPrincipalCmd(verb, addParentFlags, parentPreRun))
 	}
 
 	return rv.Command
