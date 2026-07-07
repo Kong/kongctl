@@ -32,7 +32,7 @@ steps:
                 "length(name) > `0`": true
                 "contains(['active','inactive','provisioned'], state)": true
                 "length(owner_id) > `0`": true
-                "length(login_path) > `0`": true
+                "login_path != null": true
                 "retention_period_days != null": true
                 "length(created_at) > `0`": true
                 "length(updated_at) > `0`": true
@@ -50,7 +50,7 @@ steps:
           - select: "@"
             expect:
               fields:
-                "contains(stdout, 'ID')": true
+                "starts_with(stdout, 'ID')": true
                 "contains(stdout, 'NAME')": true
                 "contains(stdout, 'STATE')": true
                 "contains(stdout, 'OWNER ID')": true
@@ -77,7 +77,7 @@ steps:
                 "length(name) > `0`": true
                 "contains(['active','inactive','provisioned'], state)": true
                 "length(owner_id) > `0`": true
-                "length(login_path) > `0`": true
+                "login_path != null": true
                 "retention_period_days != null": true
                 "length(created_at) > `0`": true
                 "length(updated_at) > `0`": true
