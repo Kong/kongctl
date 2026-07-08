@@ -1,0 +1,62 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-e2e
+
+ai_gateways:
+  - ref: ai-gateway-model-semantic-e2e
+    name: ai-gateway-model-semantic-e2e
+    display_name: "AI Gateway Model Semantic E2E"
+    proxy_urls:
+      - host: ai-gateway-model-semantic-e2e.example.com
+        port: 443
+        protocol: https
+    model_providers:
+      - ref: support-huggingface
+        name: support-huggingface
+        type: huggingface
+        display_name: "Support Hugging Face"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: placeholder
+    models:
+      - ref: support-semantic-router
+        type: model
+        name: support-semantic-router
+        display_name: "Support Semantic Router"
+        enabled: true
+        config:
+          route: {}
+          model: {}
+          balancer:
+            algorithm: semantic
+            embeddings:
+              provider: support-huggingface
+              name: sentence-transformers/all-MiniLM-L6-v2
+              config:
+                type: huggingface
+                upstream_url: https://example.com/hf/embeddings
+            vectordb:
+              type: pgvector
+              dimensions: 384
+              distance_metric: cosine
+        formats:
+          - type: openai
+        target_models:
+          - name: support-tier-primary
+            provider: support-huggingface
+            semantic_description: "General support requests"
+            config:
+              type: huggingface
+              upstream_url: https://example.com/hf/support-primary
+          - name: support-tier-billing
+            provider: support-huggingface
+            semantic_description: "Billing and account questions"
+            config:
+              type: huggingface
+              upstream_url: https://example.com/hf/support-billing
+        policies: []
+        capabilities:
+          - generate
