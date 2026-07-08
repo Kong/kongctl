@@ -103,6 +103,9 @@ func controlPlaneIDFromParent(parent any) (string, error) {
 	var id string
 	switch cp := parent.(type) {
 	case *kkComps.ControlPlane:
+		if cp == nil {
+			return "", fmt.Errorf("control plane parent is nil")
+		}
 		id = strings.TrimSpace(cp.ID)
 	case kkComps.ControlPlane:
 		id = strings.TrimSpace(cp.ID)
