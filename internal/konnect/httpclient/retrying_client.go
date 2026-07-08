@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -32,6 +34,8 @@ const (
 	retryEventSkipped     = "retry_skipped"
 	retryEventInterrupted = "retry_interrupted"
 	retryEventDisabled    = "retry_disabled"
+
+	maxRetryResponseTraceBodyBytes = 8 * 1024
 )
 
 // idempotentMethods are the HTTP methods safe to retry on connection errors.
@@ -46,6 +50,8 @@ var idempotentMethods = []string{
 
 // defaultRetryCodes are the HTTP status codes that trigger a retry by default.
 var defaultRetryCodes = []int{403, 429, 500, 502, 503, 504}
+
+var jsonInstanceFieldPattern = regexp.MustCompile(`"instance"\s*:\s*"(?:\\.|[^"\\])*"`)
 
 // RetryClientOption is a functional option for RetryingHTTPClient.
 type RetryClientOption func(*RetryingHTTPClient)
@@ -177,7 +183,7 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 				return nil, err
 			}
 			next := c.nextInterval(attempt)
-			c.logRetryAttempt(req, requestID, 0, attempt+1, next, err.Error())
+			c.logRetryAttempt(req, requestID, 0, attempt+1, next, err.Error(), "")
 			if waitErr := c.wait(req.Context(), next); waitErr != nil {
 				c.logRetryInterrupted(req, requestID, attempt+1, next, time.Since(start), waitErr.Error())
 				return nil, waitErr
@@ -207,10 +213,10 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 
 		// We will retry — consume and close the response body to free the
 		// connection back to the pool.
-		drainBody(resp)
+		responseTraceID := drainBodyForRetryTrace(resp)
 
 		next := c.nextIntervalForResponse(resp, attempt)
-		c.logRetryAttempt(req, requestID, resp.StatusCode, attempt+1, next, "")
+		c.logRetryAttempt(req, requestID, resp.StatusCode, attempt+1, next, "", responseTraceID)
 
 		if waitErr := c.wait(req.Context(), next); waitErr != nil {
 			c.logRetryInterrupted(req, requestID, attempt+1, next, time.Since(start), waitErr.Error())
@@ -444,7 +450,7 @@ func (c *RetryingHTTPClient) logRetryDisabled(req *http.Request, reason string) 
 	c.logger.LogAttrs(ctx, slog.LevelDebug, "http retry disabled", attrs...)
 }
 
-// logRetryAttempt emits a debug-level log entry before sleeping for another attempt.
+// logRetryAttempt emits a warn-level log entry before sleeping for another attempt.
 func (c *RetryingHTTPClient) logRetryAttempt(
 	req *http.Request,
 	requestID string,
@@ -452,6 +458,7 @@ func (c *RetryingHTTPClient) logRetryAttempt(
 	retryAttempt int,
 	nextInterval time.Duration,
 	errMsg string,
+	responseTraceID string,
 ) {
 	if c.logger == nil {
 		return
@@ -475,6 +482,9 @@ func (c *RetryingHTTPClient) logRetryAttempt(
 	}
 	if errMsg != "" {
 		attrs = append(attrs, slog.String("error", errMsg))
+	}
+	if responseTraceID != "" {
+		attrs = append(attrs, slog.String("response_trace_id", responseTraceID))
 	}
 
 	c.logger.LogAttrs(ctx, slog.LevelWarn, "retrying request", attrs...)
@@ -606,13 +616,60 @@ func (c *RetryingHTTPClient) logRetryInterrupted(
 	c.logger.LogAttrs(ctx, slog.LevelWarn, "http retry interrupted", attrs...)
 }
 
-// drainBody reads and discards the response body so the underlying TCP
-// connection can be returned to the pool, then closes it.
-func drainBody(resp *http.Response) {
+// drainBodyForRetryTrace reads a bounded prefix of the response body to extract
+// the Kong trace ID, then drains and closes it so the TCP connection can be reused.
+func drainBodyForRetryTrace(resp *http.Response) string {
 	if resp == nil || resp.Body == nil {
-		return
+		return ""
 	}
-	// Ignore errors — we're discarding anyway.
+
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxRetryResponseTraceBodyBytes+1))
 	_, _ = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
+	if readErr != nil {
+		return ""
+	}
+	if len(body) > maxRetryResponseTraceBodyBytes {
+		body = body[:maxRetryResponseTraceBodyBytes]
+	}
+	return extractKongTraceID(body)
+}
+
+func extractKongTraceID(body []byte) string {
+	var payload struct {
+		Instance string `json:"instance"`
+	}
+	if err := json.Unmarshal(body, &payload); err == nil {
+		return kongTraceID(payload.Instance)
+	}
+
+	return extractKongTraceIDFromFragment(body)
+}
+
+func extractKongTraceIDFromFragment(body []byte) string {
+	match := jsonInstanceFieldPattern.Find(body)
+	if len(match) == 0 {
+		return ""
+	}
+
+	_, value, found := strings.Cut(string(match), ":")
+	if !found {
+		return ""
+	}
+	unquoted, err := strconv.Unquote(strings.TrimSpace(value))
+	if err != nil {
+		return ""
+	}
+	return kongTraceID(unquoted)
+}
+
+func kongTraceID(value string) string {
+	instance := strings.TrimSpace(value)
+	if !strings.HasPrefix(instance, "kong:trace:") {
+		return ""
+	}
+	if len(instance) > 256 || strings.ContainsAny(instance, " \t\r\n") {
+		return ""
+	}
+	return instance
 }

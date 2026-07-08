@@ -27,6 +27,7 @@ type mockHTTPClient struct {
 type mockResponse struct {
 	statusCode int
 	headers    http.Header
+	body       string
 	err        error
 }
 
@@ -43,7 +44,7 @@ func (m *mockHTTPClient) Do(_ *http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: r.statusCode,
 		Header:     r.headers,
-		Body:       io.NopCloser(strings.NewReader("")),
+		Body:       io.NopCloser(strings.NewReader(r.body)),
 	}, nil
 }
 
@@ -206,6 +207,83 @@ func TestRetryingHTTPClient_LogsRetryAttemptAndSuccessAtWarn(t *testing.T) {
 	require.Contains(t, out, "max_interval_ms=5")
 	require.Contains(t, out, "backoff_factor=1")
 	require.NotContains(t, out, "event=retry_policy")
+}
+
+func TestRetryingHTTPClient_LogsRetryableResponseTraceID(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	inner := &mockHTTPClient{
+		responses: []*mockResponse{
+			{
+				statusCode: 500,
+				body:       `{"status":500,"title":"Internal Server Error","instance":"kong:trace:12345","detail":"boom"}`,
+			},
+			{statusCode: 200},
+		},
+	}
+
+	c := NewRetryingHTTPClient(inner, defaultRetryConfig(), logger)
+	resp, err := c.Do(newTestRequest(t))
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+
+	out := logs.String()
+	require.Contains(t, out, "event=retry_attempt")
+	require.Contains(t, out, "status_code=500")
+	require.Contains(t, out, "response_trace_id=kong:trace:12345")
+	require.NotContains(t, out, "Internal Server Error")
+	require.NotContains(t, out, "boom")
+}
+
+func TestRetryingHTTPClient_LogsRetryableResponseTraceIDFromLargeTruncatedBody(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	inner := &mockHTTPClient{
+		responses: []*mockResponse{
+			{
+				statusCode: 500,
+				body: `{"status":500,"instance":"kong:trace:large-response","padding":"` +
+					strings.Repeat("x", maxRetryResponseTraceBodyBytes+1),
+			},
+			{statusCode: 200},
+		},
+	}
+
+	c := NewRetryingHTTPClient(inner, defaultRetryConfig(), logger)
+	resp, err := c.Do(newTestRequest(t))
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+
+	out := logs.String()
+	require.Contains(t, out, "event=retry_attempt")
+	require.Contains(t, out, "status_code=500")
+	require.Contains(t, out, "response_trace_id=kong:trace:large-response")
+	require.NotContains(t, out, "padding")
+}
+
+func TestRetryingHTTPClient_IgnoresNonKongRetryableResponseInstance(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	inner := &mockHTTPClient{
+		responses: []*mockResponse{
+			{
+				statusCode: 500,
+				body:       `{"instance":"https://example.com/errors/123"}`,
+			},
+			{statusCode: 200},
+		},
+	}
+
+	c := NewRetryingHTTPClient(inner, defaultRetryConfig(), logger)
+	resp, err := c.Do(newTestRequest(t))
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+
+	out := logs.String()
+	require.Contains(t, out, "event=retry_attempt")
+	require.Contains(t, out, "status_code=500")
+	require.NotContains(t, out, "response_trace_id=")
+	require.NotContains(t, out, "errors/123")
 }
 
 func TestRetryingHTTPClient_LogsRetryExhaustedAtWarn(t *testing.T) {
