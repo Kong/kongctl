@@ -5,9 +5,9 @@
 #
 # Test flow:
 # 1. Reset org
-# 2. Get org in JSON output mode — assert id, name, and state are present
-# 3. Get org in default text output mode — assert table headers appear
-# 4. Get org in YAML output mode — assert id and name are present
+# 2. Get org in JSON output mode — assert rendered org fields are present
+# 3. Get org in default text output mode — assert all table headers appear
+# 4. Get org in YAML output mode — assert rendered org fields are present
 
 steps:
   - name: 000-reset
@@ -31,6 +31,11 @@ steps:
                 "length(id) > `0`": true
                 "length(name) > `0`": true
                 "contains(['active','inactive','provisioned'], state)": true
+                "length(owner_id) > `0`": true
+                "login_path != null": true
+                "retention_period_days != null": true
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
 
   - name: 002-get-org-text
     skipInputs: true
@@ -45,8 +50,14 @@ steps:
           - select: "@"
             expect:
               fields:
+                "starts_with(stdout, 'ID')": true
                 "contains(stdout, 'NAME')": true
                 "contains(stdout, 'STATE')": true
+                "contains(stdout, 'OWNER ID')": true
+                "contains(stdout, 'LOGIN PATH')": true
+                "contains(stdout, 'RETENTION PERIOD DAYS')": true
+                "contains(stdout, 'LOCAL CREATED TIME')": true
+                "contains(stdout, 'LOCAL UPDATED TIME')": true
 
   - name: 003-get-org-yaml
     skipInputs: true
@@ -64,3 +75,9 @@ steps:
               fields:
                 "length(id) > `0`": true
                 "length(name) > `0`": true
+                "contains(['active','inactive','provisioned'], state)": true
+                "length(owner_id) > `0`": true
+                "login_path != null": true
+                "retention_period_days != null": true
+                "length(created_at) > `0`": true
+                "length(updated_at) > `0`": true
