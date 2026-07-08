@@ -668,5 +668,8 @@ func kongTraceID(value string) string {
 	if !strings.HasPrefix(instance, "kong:trace:") {
 		return ""
 	}
+	if len(instance) > 256 || strings.ContainsAny(instance, " \t\r\n") {
+		return ""
+	}
 	return instance
 }
