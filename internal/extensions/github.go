@@ -114,7 +114,15 @@ func FetchGitHubSource(ctx context.Context, source GitHubSource, tempRoot string
 	if isLatestGitHubRef(source.Ref) {
 		source.Ref = ""
 	}
-	return FetchGitHubSourceClone(ctx, source, tempRoot)
+	fetched, err = FetchGitHubSourceClone(ctx, source, tempRoot)
+	if err != nil {
+		return FetchedGitHubSource{}, err
+	}
+	if err := validateGitHubSourceCloneFallback(source, fetched); err != nil {
+		fetched.Cleanup()
+		return FetchedGitHubSource{}, err
+	}
+	return fetched, nil
 }
 
 func FetchGitHubReleaseAsset(ctx context.Context, source GitHubSource, tempRoot string) (FetchedGitHubSource, error) {
@@ -254,6 +262,25 @@ func fetchGitHubSourceClone(ctx context.Context, source GitHubSource, tempRoot s
 		ResolvedCommit: strings.TrimSpace(commit),
 		Cleanup:        cleanup,
 	}, nil
+}
+
+func validateGitHubSourceCloneFallback(source GitHubSource, fetched FetchedGitHubSource) error {
+	if _, err := os.Stat(filepath.Join(fetched.Dir, ManifestFileName)); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf(
+				"no compatible GitHub release archive found for %s\n"+
+					"source clone fallback is not installable because the repository root does not contain %s\n\n"+
+					"Publish a GitHub release archive with %s at the archive root, or add %s and a runnable "+
+					"runtime.command to the repository root",
+				source.Repository(),
+				ManifestFileName,
+				ManifestFileName,
+				ManifestFileName,
+			)
+		}
+		return err
+	}
+	return nil
 }
 
 func cloneGitHubSource(ctx context.Context, source GitHubSource, cloneDir string) (string, error) {

@@ -239,6 +239,27 @@ func TestFetchGitHubReleaseAssetLatestDoesNotProbeVLatest(t *testing.T) {
 	require.Equal(t, []string{"/repos/kong/kongctl-ext-foo/releases/latest"}, requested)
 }
 
+func TestValidateGitHubSourceCloneFallbackReportsReleaseAndManifestGuidance(t *testing.T) {
+	source := GitHubSource{
+		Owner: "kong",
+		Repo:  "kongctl-ext-foo",
+	}
+	fetched := FetchedGitHubSource{
+		Dir: t.TempDir(),
+	}
+
+	err := validateGitHubSourceCloneFallback(source, fetched)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "no compatible GitHub release archive found for kong/kongctl-ext-foo")
+	require.ErrorContains(t, err, "\nsource clone fallback is not installable")
+	require.ErrorContains(t, err, "source clone fallback is not installable")
+	require.ErrorContains(t, err, "repository root does not contain kongctl-extension.yaml")
+	require.ErrorContains(t, err, "\n\nPublish a GitHub release archive")
+	require.ErrorContains(t, err, "Publish a GitHub release archive")
+	require.NotContains(t, err.Error(), fetched.Dir)
+}
+
 func TestSelectGitHubReleaseAssetRequiresUnambiguousArchive(t *testing.T) {
 	_, err := selectGitHubReleaseAsset([]githubReleaseAsset{
 		{Name: "one.tar.gz", DownloadURL: "https://example.test/one.tar.gz"},
