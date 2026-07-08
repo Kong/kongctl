@@ -15,7 +15,9 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPIImplementation,
 		func(rs *ResourceSet) *[]APIImplementationResource { return &rs.APIImplementations },
-		AutoExplain[APIImplementationResource](),
+		AutoExplain[APIImplementationResource](
+			WithExplainSchemaBuilder(apiImplementationExplainNode),
+		),
 	)
 }
 
@@ -229,6 +231,7 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		Ref               string `json:"ref"`
 		API               string `json:"api,omitempty"`
+		Type              string `json:"type,omitempty"`
 		ImplementationURL string `json:"implementation_url,omitempty"`
 		Service           *struct {
 			ID             string `json:"id"`
@@ -248,6 +251,10 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	// Set our custom fields
 	i.Ref = temp.Ref
 	i.API = temp.API
+
+	if temp.Type != "" && temp.Type != "service" {
+		return fmt.Errorf("API implementation type must be service")
+	}
 
 	// Check if kongctl field was provided and reject it
 	if temp.Kongctl != nil {
