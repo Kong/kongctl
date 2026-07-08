@@ -20,6 +20,8 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
+	kprofile "github.com/kong/kongctl/internal/profile"
+	viperutil "github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/cobra"
 )
 
@@ -536,6 +538,15 @@ func GetAccessTokenSource(cfg config.Hook, logger *slog.Logger) (*auth.TokenSour
 
 func accessTokenUnavailableError(cfg config.Hook) error {
 	profile := cfg.GetProfile()
+
+	if !profileIsConfigured(cfg) {
+		return fmt.Errorf(
+			"profile %q is not configured. Run '%s get profiles' to list configured "+
+				"profiles, or '%s login --profile %s' to set it up",
+			profile, meta.CLIName, meta.CLIName, profile,
+		)
+	}
+
 	envVar := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", strings.ToUpper(profile))
 
 	return fmt.Errorf(
@@ -551,6 +562,47 @@ func accessTokenUnavailableError(cfg config.Hook) error {
 		profile,
 		PATConfigPath,
 	)
+}
+
+// profileIsConfigured reports whether the CLI has any prior knowledge of the
+// requested profile, via the config file, environment variables, or a stored
+// login credential. An unknown profile is almost always a mistyped --profile
+// value, which otherwise surfaces later as a confusing auth failure.
+func profileIsConfigured(cfg config.Hook) bool {
+	name := cfg.GetProfile()
+	if name == kprofile.DefaultProfile {
+		return true
+	}
+	if profileInConfigFile(cfg, name) {
+		return true
+	}
+	if profileHasEnvVars(name) {
+		return true
+	}
+	return auth.HasStoredCredential(cfg)
+}
+
+func profileInConfigFile(cfg config.Hook, name string) bool {
+	pc, ok := cfg.(*config.ProfiledConfig)
+	if !ok || pc.Viper == nil {
+		return false
+	}
+	for _, key := range pc.AllKeys() {
+		if top, _, _ := strings.Cut(key, "."); top == name {
+			return true
+		}
+	}
+	return false
+}
+
+func profileHasEnvVars(name string) bool {
+	prefix := viperutil.ProfileEnvPrefix(name) + "_"
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func isDeclarativeRetryVerb(verb verbs.VerbValue) bool {

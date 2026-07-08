@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -186,6 +187,13 @@ func credentialFilePath(cfg config.Hook) string {
 	profile := cfg.GetProfile()
 	cfgPath := filepath.Dir(cfg.GetPath())
 	return filepath.Join(cfgPath, getCredentialFileName(profile))
+}
+
+// HasStoredCredential reports whether a saved login credential file exists on
+// disk for the configured profile.
+func HasStoredCredential(cfg config.Hook) bool {
+	_, err := os.Stat(credentialFilePath(cfg))
+	return err == nil
 }
 
 func (t *AccessToken) expiresWithin(skew time.Duration) bool {
