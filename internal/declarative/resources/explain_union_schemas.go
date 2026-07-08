@@ -365,6 +365,18 @@ func apiExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return node, nil
 }
 
+func apiImplementationExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	return explainObject(
+		explainField(SchemaFieldRef, explainStringNode("my-resource"), true, true),
+		explainField("api", explainStringNode("my-api"), false, false),
+		explainField("type", explainConstStringNode("service"), false, true),
+		explainField("service", explainObject(
+			explainRefField("id", ResourceTypeGatewayService, true),
+			explainRefField("control_plane_id", ResourceTypeControlPlane, true),
+		), true, true),
+	), nil
+}
+
 func dashboardExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	hints := defaultExplainHints(ResourceTypeDashboard)
 	hints["name"] = ExplainFieldHint{DefaultFrom: SchemaFieldRef, Literal: "my-resource", Recommended: new(true)}

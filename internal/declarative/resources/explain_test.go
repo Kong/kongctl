@@ -7,6 +7,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type explainInlineUnionResource struct {
+	ExplainInlineUnion `yaml:",inline" json:",inline"`
+	Ref                string `yaml:"ref"     json:"ref"`
+}
+
+type ExplainInlineUnion struct {
+	ServiceReference *ExplainServiceReference `queryParam:"inline" union:"member"`
+}
+
+type ExplainServiceReference struct {
+	Service *ExplainService `json:"service,omitempty"`
+}
+
+type ExplainService struct {
+	ID string `json:"id"`
+}
+
 func TestResolveExplainSubject_Resource(t *testing.T) {
 	subject, err := ResolveExplainSubject("api")
 	require.NoError(t, err)
@@ -244,6 +261,39 @@ func TestRenderExplainSchema_AnalyticsDashboardDiscriminators(t *testing.T) {
 	assert.Equal(t, "horizontal_bar", chart.OneOf[2].Properties["type"].Const)
 }
 
+func TestRenderExplainSchema_APIImplementationServiceShape(t *testing.T) {
+	subject, err := ResolveExplainSubject("api.implementations")
+	require.NoError(t, err)
+
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+
+	assert.Contains(t, schema.Properties, "service")
+	assert.Contains(t, schema.Properties, "type")
+	assert.NotContains(t, schema.Properties, "service_reference")
+	assert.NotContains(t, schema.Properties, "control_plane_reference")
+
+	service := schema.Properties["service"]
+	require.NotNil(t, service)
+	require.NotNil(t, service.Properties["id"])
+	require.NotNil(t, service.Properties["control_plane_id"])
+	assert.Equal(t, "gateway_service", service.Properties["id"].XRefKind)
+	assert.Equal(t, "control_plane", service.Properties["control_plane_id"].XRefKind)
+}
+
+func TestAutoExplainInlineSDKUnionUsesPayloadFields(t *testing.T) {
+	node, err := autoExplainConcreteNode[explainInlineUnionResource](nil)
+	require.NoError(t, err)
+
+	assert.True(t, node.propertyExists("service"))
+	assert.True(t, node.propertyExists("ref"))
+	assert.False(t, node.propertyExists("service_reference"))
+	require.Len(t, node.OneOf, 1)
+	assert.True(t, node.OneOf[0].propertyExists("service"))
+	assert.True(t, node.OneOf[0].propertyExists("ref"))
+	assert.False(t, node.OneOf[0].propertyExists("service_reference"))
+}
+
 func TestRenderExplainText_AnalyticsDashboardAllowedValues(t *testing.T) {
 	subject, err := ResolveExplainSubject("analytics.dashboards.definition.tiles.definition.query.datasource")
 	require.NoError(t, err)
@@ -390,6 +440,10 @@ func TestRenderScaffoldYAML_RootResource(t *testing.T) {
 	assert.Contains(t, scaffold, "- ref: my-resource")
 	assert.Contains(t, scaffold, "name: my-resource")
 	assert.Contains(t, scaffold, "# versions:")
+	assert.Contains(t, scaffold, "# type: service")
+	assert.Contains(t, scaffold, "# service:")
+	assert.NotContains(t, scaffold, "service_reference")
+	assert.NotContains(t, scaffold, "control_plane_reference")
 	assert.NotContains(t, scaffold, "spec_content")
 }
 

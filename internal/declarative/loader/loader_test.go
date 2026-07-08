@@ -876,6 +876,80 @@ func TestLoader_LoadFile_APIWithChildren(t *testing.T) {
 	assert.Equal(t, "my-api", rs.APIImplementations[0].API) // Parent reference
 }
 
+func TestLoader_LoadFile_APIImplementationServiceShape(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+apis:
+  - ref: users-api
+    name: Users API
+    implementations:
+      - ref: users-api-impl
+        type: service
+        service:
+          id: users-service
+          control_plane_id: users-control-plane
+`), 0o600)
+	require.NoError(t, err)
+
+	rs, err := New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, rs.APIImplementations, 1)
+
+	implementation := rs.APIImplementations[0]
+	assert.Equal(t, "users-api-impl", implementation.GetRef())
+	assert.Equal(t, "users-api", implementation.API)
+	require.NotNil(t, implementation.ServiceReference)
+	service := implementation.ServiceReference.GetService()
+	require.NotNil(t, service)
+	assert.Equal(t, "users-service", service.ID)
+	assert.Equal(t, "users-control-plane", service.ControlPlaneID)
+}
+
+func TestLoader_LoadFile_APIImplementationRejectsServiceReference(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+apis:
+  - ref: users-api
+    name: Users API
+    implementations:
+      - ref: users-api-impl
+        type: service
+        service_reference:
+          service:
+            id: users-service
+            control_plane_id: users-control-plane
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field 'service_reference'")
+	assert.Contains(t, err.Error(), "Did you mean 'service'?")
+}
+
+func TestLoader_LoadFile_APIImplementationRejectsUnsupportedType(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+apis:
+  - ref: users-api
+    name: Users API
+    implementations:
+      - ref: users-api-impl
+        type: control_plane
+        service:
+          id: users-service
+          control_plane_id: users-control-plane
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "API implementation type must be service")
+}
+
 func TestLoader_LoadFile_RejectsAPISpecContent(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

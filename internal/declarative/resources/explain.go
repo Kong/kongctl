@@ -842,6 +842,7 @@ func autoExplainNode(
 			Properties: []*ExplainField{},
 			propIndex:  make(map[string]*ExplainField),
 		}
+		inlineUnions := []*ExplainNode{}
 
 		for field := range typ.Fields() {
 			if !field.IsExported() {
@@ -854,6 +855,16 @@ func autoExplainNode(
 			}
 			jsonName, _, jsonOmit, _ := explainFieldName(field, "json")
 			if field.Anonymous && (yamlInline || jsonName == ",inline" || (yamlName == "" && jsonName == "")) {
+				if union, ok, err := autoExplainSDKUnionNode(field.Type, path, hints, stack); err != nil {
+					return nil, err
+				} else if ok {
+					for _, embeddedField := range union.Properties {
+						node.addField(embeddedField)
+					}
+					inlineUnions = append(inlineUnions, union)
+					continue
+				}
+
 				embedded, err := autoExplainNode(field.Type, path, hints, stack)
 				if err != nil {
 					return nil, err
@@ -893,11 +904,52 @@ func autoExplainNode(
 			}
 			node.addField(fieldNode)
 		}
+		applyInlineUnionBranches(node, inlineUnions)
 
 		return node, nil
 	}
 
 	return autoExplainValueNode(typ, path, hints, stack)
+}
+
+func applyInlineUnionBranches(node *ExplainNode, inlineUnions []*ExplainNode) {
+	if node == nil || len(inlineUnions) == 0 {
+		return
+	}
+
+	for _, union := range inlineUnions {
+		if union == nil || len(union.OneOf) == 0 {
+			continue
+		}
+		unionFieldNames := explainFieldNameSet(union.Properties)
+		for _, branch := range union.OneOf {
+			if branch == nil {
+				continue
+			}
+			composed := branch.clone()
+			for _, field := range node.Properties {
+				if _, ok := unionFieldNames[field.Name]; ok {
+					continue
+				}
+				if composed.propertyExists(field.Name) {
+					continue
+				}
+				composed.addField(field.clone())
+			}
+			node.OneOf = append(node.OneOf, composed)
+		}
+	}
+}
+
+func explainFieldNameSet(fields []*ExplainField) map[string]struct{} {
+	names := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		if field == nil {
+			continue
+		}
+		names[field.Name] = struct{}{}
+	}
+	return names
 }
 
 func autoExplainValueNode(
@@ -1799,6 +1851,18 @@ func (n *ExplainNode) lookup(path []string) (*ExplainNode, bool) {
 	return current, true
 }
 
+func (f *ExplainField) clone() *ExplainField {
+	if f == nil {
+		return nil
+	}
+	return &ExplainField{
+		Name:        f.Name,
+		Node:        f.Node.clone(),
+		Required:    f.Required,
+		Recommended: f.Recommended,
+	}
+}
+
 func (n *ExplainNode) clone() *ExplainNode {
 	if n == nil {
 		return nil
@@ -1821,13 +1885,7 @@ func (n *ExplainNode) clone() *ExplainNode {
 		propIndex:    make(map[string]*ExplainField),
 	}
 	for _, child := range n.Properties {
-		clonedField := &ExplainField{
-			Name:        child.Name,
-			Node:        child.Node.clone(),
-			Required:    child.Required,
-			Recommended: child.Recommended,
-		}
-		cloned.addField(clonedField)
+		cloned.addField(child.clone())
 	}
 	for _, branch := range n.OneOf {
 		cloned.OneOf = append(cloned.OneOf, branch.clone())
