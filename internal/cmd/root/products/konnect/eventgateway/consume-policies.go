@@ -146,14 +146,16 @@ func bindConsumePolicyChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(consumePolicyIDFlagName); flag != nil {
-		if err := cfg.BindFlag(consumePolicyIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{consumePolicyIDFlagName, consumePolicyIDConfigPath},
+		{consumePolicyNameFlagName, consumePolicyNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(consumePolicyNameFlagName); flag != nil {
-		if err := cfg.BindFlag(consumePolicyNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}

@@ -150,14 +150,16 @@ func bindProducePolicyChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(producePolicyIDFlagName); flag != nil {
-		if err := cfg.BindFlag(producePolicyIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{producePolicyIDFlagName, producePolicyIDConfigPath},
+		{producePolicyNameFlagName, producePolicyNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(producePolicyNameFlagName); flag != nil {
-		if err := cfg.BindFlag(producePolicyNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
@@ -500,10 +502,9 @@ func findProducePolicyByName(
 	identifier string,
 ) *kkComps.EventGatewayPolicy {
 	lowered := strings.ToLower(identifier)
-	for _, policy := range policies {
-		if policy.Name != nil && strings.ToLower(*policy.Name) == lowered {
-			policyCopy := policy
-			return &policyCopy
+	for i := range policies {
+		if policies[i].Name != nil && strings.ToLower(*policies[i].Name) == lowered {
+			return &policies[i]
 		}
 	}
 	return nil

@@ -100,20 +100,18 @@ func controlPlaneIDFromParent(parent any) (string, error) {
 		return "", fmt.Errorf("control plane parent is nil")
 	}
 
+	var id string
 	switch cp := parent.(type) {
 	case *kkComps.ControlPlane:
-		id := strings.TrimSpace(cp.ID)
-		if id == "" {
-			return "", fmt.Errorf("control plane identifier is missing")
-		}
-		return id, nil
+		id = strings.TrimSpace(cp.ID)
 	case kkComps.ControlPlane:
-		id := strings.TrimSpace(cp.ID)
-		if id == "" {
-			return "", fmt.Errorf("control plane identifier is missing")
-		}
-		return id, nil
+		id = strings.TrimSpace(cp.ID)
 	default:
 		return "", fmt.Errorf("unexpected parent type %T", parent)
 	}
+
+	if id == "" {
+		return "", fmt.Errorf("control plane identifier is missing")
+	}
+	return id, nil
 }
