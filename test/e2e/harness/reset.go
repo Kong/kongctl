@@ -146,7 +146,7 @@ func deleteAll(
 	// preDeleteFn is called for each resource ID before deletion. It is used to clean up
 	// sub-resources. Any errors must be logged inside the function; the function must not
 	// return an error (it must not block deletion of the parent resource).
-	preDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string),
+	preDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string, policy HTTPRetryPolicy),
 	policy HTTPRetryPolicy,
 	transportOptions HTTPTransportOptions,
 ) (int, int, error) {
@@ -236,7 +236,7 @@ func deleteAll(
 		conflicts := 0
 		for _, id := range idsToDelete {
 			if preDeleteFn != nil {
-				preDeleteFn(ctx, session, deleteURL, token, id)
+				preDeleteFn(ctx, session, deleteURL, token, id, policy)
 			}
 			if err := retryDeleteOne(ctx, session, deleteURL, token, deleteEndpoint, id, policy); err != nil {
 				Warnf("delete %s %s failed: %v", deleteEndpoint, id, err)
@@ -475,7 +475,7 @@ type resetResourceSpec struct {
 	// PreDeleteFn is called for each resource ID before deletion. It is used to clean
 	// up sub-resources that Konnect does not cascade-delete automatically. Errors are
 	// logged but do not stop the deletion.
-	PreDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string)
+	PreDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string, policy HTTPRetryPolicy)
 }
 
 var resetSequence = []resetResourceSpec{
@@ -494,7 +494,7 @@ var resetSequence = []resetResourceSpec{
 	{Version: "v3", Endpoint: "teams", UseGlobal: true, Filter: skipSystemTeams},
 	{Version: "v2", Endpoint: "application-auth-strategies"},
 	{Version: "v2", Endpoint: "dcr-providers"},
-	{Version: "v2", Endpoint: "directories"},
+	{Version: "v2", Endpoint: "directories", PreDeleteFn: tryDeleteDirectoryPrincipals},
 	{Version: "v2", Endpoint: "control-planes"},
 	{Version: "v2", Endpoint: "dashboards"},
 	{Version: "v1", Endpoint: "catalog-services"},
@@ -517,6 +517,7 @@ func tryDeletePortalCustomDomain(
 	ctx context.Context,
 	session *resetHTTPSession,
 	portalsURL, token, portalID string,
+	_ HTTPRetryPolicy,
 ) {
 	url := strings.TrimRight(portalsURL, "/") + "/" + portalID + "/custom-domain"
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
@@ -538,6 +539,74 @@ func tryDeletePortalCustomDomain(
 	default:
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		Warnf("pre-delete portal custom domain %s: unexpected status %d: %s", portalID, resp.StatusCode, b)
+	}
+}
+
+func tryDeleteDirectoryPrincipals(
+	ctx context.Context,
+	session *resetHTTPSession,
+	directoriesURL, token, directoryID string,
+	policy HTTPRetryPolicy,
+) {
+	principalsURL := fmt.Sprintf(
+		"%s/%s/principals",
+		strings.TrimRight(directoriesURL, "/"),
+		url.PathEscape(directoryID),
+	)
+	principals, err := retryListAllItems(ctx, session, principalsURL, token, "directory principals", policy)
+	if err != nil {
+		Warnf("pre-delete directory principals %s: list principals: %v", directoryID, err)
+		return
+	}
+
+	for _, principal := range principals {
+		principalID, _ := principal["id"].(string)
+		if principalID == "" {
+			continue
+		}
+
+		tryDeletePrincipalIdentities(ctx, session, principalsURL, token, directoryID, principalID, policy)
+		if err := retryDeleteOne(
+			ctx, session, principalsURL, token, "directory principal", principalID, policy,
+		); err != nil {
+			if he, ok := err.(*httpError); ok && he.status == http.StatusNotFound {
+				continue
+			}
+			Warnf("pre-delete directory principal %s/%s: %v", directoryID, principalID, err)
+		}
+	}
+}
+
+func tryDeletePrincipalIdentities(
+	ctx context.Context,
+	session *resetHTTPSession,
+	principalsURL, token, directoryID, principalID string,
+	policy HTTPRetryPolicy,
+) {
+	identitiesURL := fmt.Sprintf(
+		"%s/%s/identities",
+		strings.TrimRight(principalsURL, "/"),
+		url.PathEscape(principalID),
+	)
+	identities, err := retryListAllItems(ctx, session, identitiesURL, token, "principal identities", policy)
+	if err != nil {
+		Warnf("pre-delete principal identities %s/%s: list identities: %v", directoryID, principalID, err)
+		return
+	}
+
+	for _, identity := range identities {
+		identityID, _ := identity["id"].(string)
+		if identityID == "" {
+			continue
+		}
+		if err := retryDeleteOne(
+			ctx, session, identitiesURL, token, "principal identity", identityID, policy,
+		); err != nil {
+			if he, ok := err.(*httpError); ok && he.status == http.StatusNotFound {
+				continue
+			}
+			Warnf("pre-delete principal identity %s/%s/%s: %v", directoryID, principalID, identityID, err)
+		}
 	}
 }
 

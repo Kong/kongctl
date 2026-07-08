@@ -221,3 +221,86 @@ func TestDeleteAllDeletesFilteredItemsAcrossPages(t *testing.T) {
 		t.Fatal("deleteAll() deleted system-team-0, want system teams skipped")
 	}
 }
+
+func TestTryDeleteDirectoryPrincipalsDeletesIdentitiesBeforePrincipals(t *testing.T) {
+	deletedPrincipals := map[string]bool{}
+	deletedIdentities := map[string]bool{}
+	principalIDs := []string{"principal-1", "principal-2"}
+	identityIDs := map[string][]string{
+		"principal-1": {"identity-1", "identity-2"},
+		"principal-2": {"identity-3"},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v2/directories/dir-1/principals":
+			data := make([]map[string]any, 0, len(principalIDs))
+			for _, principalID := range principalIDs {
+				if deletedPrincipals[principalID] {
+					continue
+				}
+				data = append(data, map[string]any{"id": principalID})
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v2/directories/dir-1/principals/") &&
+			strings.HasSuffix(r.URL.Path, "/identities"):
+			principalID := strings.TrimSuffix(
+				strings.TrimPrefix(r.URL.Path, "/v2/directories/dir-1/principals/"),
+				"/identities",
+			)
+			data := make([]map[string]any, 0, len(identityIDs[principalID]))
+			for _, identityID := range identityIDs[principalID] {
+				if deletedIdentities[identityID] {
+					continue
+				}
+				data = append(data, map[string]any{"id": identityID})
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+
+		case r.Method == http.MethodDelete && strings.Contains(r.URL.Path, "/identities/"):
+			identityID := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+			deletedIdentities[identityID] = true
+			w.WriteHeader(http.StatusNoContent)
+
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/v2/directories/dir-1/principals/"):
+			principalID := strings.TrimPrefix(r.URL.Path, "/v2/directories/dir-1/principals/")
+			for _, identityID := range identityIDs[principalID] {
+				if !deletedIdentities[identityID] {
+					http.Error(w, "cannot delete principal with associated identities", http.StatusConflict)
+					return
+				}
+			}
+			deletedPrincipals[principalID] = true
+			w.WriteHeader(http.StatusNoContent)
+
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	policy := HTTPRetryPolicy{
+		RequestTimeout: time.Second,
+		Backoff:        BackoffConfig{Attempts: 1},
+	}
+	session := newResetHTTPSession(policy.RequestTimeout, HTTPTransportOptions{})
+	defer session.Close()
+
+	tryDeleteDirectoryPrincipals(t.Context(), session, server.URL+"/v2/directories", "test-token", "dir-1", policy)
+
+	for _, principalID := range principalIDs {
+		if !deletedPrincipals[principalID] {
+			t.Fatalf("expected principal %s to be deleted", principalID)
+		}
+	}
+	for _, ids := range identityIDs {
+		for _, identityID := range ids {
+			if !deletedIdentities[identityID] {
+				t.Fatalf("expected identity %s to be deleted", identityID)
+			}
+		}
+	}
+}
