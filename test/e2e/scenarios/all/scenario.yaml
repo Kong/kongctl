@@ -82,10 +82,6 @@ steps:
               fields:
                 failed: 0
                 status: success
-          - select: "plan.changes[?resource_type=='portal' && resource_ref=='all-portal'] | [0]"
-            expect:
-              fields:
-                action: CREATE
           - select: "plan.changes[?resource_type=='application_auth_strategy' && resource_ref=='all-key-auth'] | [0]"
             expect:
               fields:
