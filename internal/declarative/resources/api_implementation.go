@@ -253,7 +253,7 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	i.API = temp.API
 
 	if temp.Type != "" && temp.Type != "service" {
-		return fmt.Errorf("API implementation type must be service")
+		return fmt.Errorf("API implementation type must be service (got %q)", temp.Type)
 	}
 
 	// Check if kongctl field was provided and reject it
