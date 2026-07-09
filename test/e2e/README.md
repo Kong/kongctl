@@ -476,8 +476,8 @@ tech defaults are not sufficient.
 If the org-pool variable is unset, the workflow falls back to a single-org
 matrix entry named `default` for non-fork runs, which is useful during
 migration if you still have a `default` environment or a temporary
-repository-level `KONGCTL_E2E_KONNECT_PAT` secret in place. Fork PR runs do not
-use this fallback.
+repository-level `KONGCTL_E2E_KONNECT_PAT` secret in place.
+Untrusted fork-triggered PR runs do not use this fallback.
 
 ### SDK Prerelease Preview Automation
 

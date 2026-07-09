@@ -99,14 +99,9 @@ jobs:
           TECH_ORGS_JSON: ${{ vars.KONGCTL_E2E_TECH_ORGS_JSON || '' }}
           DISABLE_DEFAULT_ORG_FALLBACK: >-
             ${{
-              ((
-                  github.event_name == 'pull_request' &&
-                  github.event.pull_request.head.repo.full_name != github.repository
-                ) ||
-                (
-                  github.event_name == 'workflow_dispatch' &&
-                  inputs.trusted_pr_number != ''
-                )
+              (
+                github.event_name == 'pull_request' &&
+                github.event.pull_request.head.repo.full_name != github.repository
               ) &&
               'true' ||
               'false'
@@ -183,11 +178,11 @@ jobs:
           checkout_ref="${GITHUB_SHA}"
           is_fork=false
 
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && \
-            [ -n "${PULL_REQUEST_HEAD_REPO}" ] && \
-            [ "${PULL_REQUEST_HEAD_REPO}" != "${GITHUB_REPOSITORY}" ]; then
-            is_fork=true
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ -n "${PULL_REQUEST_HEAD_SHA}" ]; then
             status_sha="${PULL_REQUEST_HEAD_SHA}"
+            if [ -n "${PULL_REQUEST_HEAD_REPO}" ] && [ "${PULL_REQUEST_HEAD_REPO}" != "${GITHUB_REPOSITORY}" ]; then
+              is_fork=true
+            fi
           fi
 
           emit_outputs() {
