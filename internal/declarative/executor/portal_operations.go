@@ -201,6 +201,10 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		updatePortal.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, change.Namespace, change.Protection)
 	}
 
+	if updatePortal.AuthenticationEnabled == nil {
+		updatePortal.AuthenticationEnabled = portal.AuthenticationEnabled
+	}
+
 	// Update the portal
 	resp, err := e.client.UpdatePortal(ctx, change.ResourceID, updatePortal, change.Namespace)
 	if err != nil {

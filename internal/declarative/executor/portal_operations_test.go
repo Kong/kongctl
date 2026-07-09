@@ -311,8 +311,9 @@ func TestExecutor_updatePortal(t *testing.T) {
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
 						Data: []kkComps.ListPortalsResponsePortal{
 							{
-								ID:   "portal-123",
-								Name: "updated-portal",
+								ID:                    "portal-123",
+								Name:                  "updated-portal",
+								AuthenticationEnabled: boolPtr(false),
 								Labels: map[string]string{
 									labels.NamespaceKey: "default",
 									// No protected label
@@ -328,7 +329,8 @@ func TestExecutor_updatePortal(t *testing.T) {
 				// Mock UpdatePortal
 				m.On("UpdatePortal", mock.Anything, "portal-123", mock.MatchedBy(func(p kkComps.UpdatePortal) bool {
 					return p.Name != nil && *p.Name == "updated-portal" &&
-						p.Description != nil && *p.Description == "Updated description"
+						p.Description != nil && *p.Description == "Updated description" &&
+						p.AuthenticationEnabled != nil && !*p.AuthenticationEnabled
 				})).Return(&kkOps.UpdatePortalResponse{
 					PortalResponse: &kkComps.PortalResponse{
 						ID: "portal-123",
@@ -626,6 +628,10 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 	assert.Contains(t, err.Error(), "resource is protected")
 
 	mockAPI.AssertExpectations(t)
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }
 
 // Ensure interfaces are satisfied
