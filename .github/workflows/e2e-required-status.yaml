@@ -45,13 +45,18 @@ jobs:
             });
             const e2ePattern = /^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal\/.*|test\/e2e\/.*|Makefile|\.goreleaser\.yml|\.github\/workflows\/e2e\.yaml|\.github\/workflows\/e2e-main-debounce\.yaml)$/;
             const required = files.some((file) => e2ePattern.test(file.filename));
+            const forkPullRequest = pr.head.repo.full_name !== pr.base.repo.full_name;
             const state = required ? 'pending' : 'success';
-            const description = required
-              ? 'E2E required for this PR and waiting for E2E workflow.'
-              : 'E2E not required for this PR.';
-            const targetUrl = required
-              ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/pull/${pr.number}/checks`
-              : `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            let description = 'E2E not required for this PR.';
+            let targetUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+            if (required && forkPullRequest) {
+              description = 'Fork PR requires trusted maintainer E2E for reviewed SHA.';
+              targetUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/workflows/e2e.yaml`;
+            } else if (required) {
+              description = 'E2E required for this PR and waiting for E2E workflow.';
+              targetUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/pull/${pr.number}/checks`;
+            }
 
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,

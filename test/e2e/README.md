@@ -379,6 +379,27 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 - `KONGCTL_E2E_MATRIX_ORG=${{ matrix.org_name }}`
 - `KONGCTL_E2E_ORGS_JSON` set to the selected org matrix
 
+Fork pull requests do not receive secret-backed E2E automatically. When a fork
+PR changes files that require E2E, the required status remains pending with a
+message that trusted maintainer E2E is required. The normal fork-triggered E2E
+workflow does not expand shard jobs, does not use the `default` org fallback,
+and does not receive Konnect or Gmail secrets.
+
+To run trusted E2E for a fork PR:
+
+1. Review the PR for malicious changes, especially build scripts, tests,
+   dependency updates, workflow-adjacent files, shell execution, and network
+   calls.
+2. Record the exact current PR head SHA from the reviewed commit.
+3. Run the `E2E` workflow manually with `trusted_pr_number` and
+   `trusted_head_sha`.
+4. Approve the protected E2E environment when prompted.
+5. Re-run trusted E2E if the contributor pushes another commit.
+
+The workflow verifies that `trusted_head_sha` still matches the PR head before
+checking out or running the fork code. The trusted run writes the final
+`E2E Required` status to that exact SHA.
+
 The workflow also exposes the Konnect target, test timeout, HTTP timeout, and
 retry knobs above as repository or organization variables of the same names,
 so CI can tune runtime behavior without changing Go code. Manual dispatch
@@ -440,7 +461,7 @@ override this with the `konnect_environment` input.
 If production and `.tech` need separate org pools, set
 `KONGCTL_E2E_PRODUCTION_ORGS_JSON` and `KONGCTL_E2E_TECH_ORGS_JSON` to
 environment names backed by matching PATs. The workflow selects an org matrix
-with this fallback order:
+with this fallback order for non-fork runs:
 
 1. `KONGCTL_E2E_TECH_ORGS_JSON` for `.tech`, or
    `KONGCTL_E2E_PRODUCTION_ORGS_JSON` for production.
@@ -453,9 +474,10 @@ Use `KONGCTL_E2E_KONNECT_BASE_URL`,
 tech defaults are not sufficient.
 
 If the org-pool variable is unset, the workflow falls back to a single-org
-matrix entry named `default`, which is useful during migration if you still
-have a `default` environment or a temporary repository-level
-`KONGCTL_E2E_KONNECT_PAT` secret in place.
+matrix entry named `default` for non-fork runs, which is useful during
+migration if you still have a `default` environment or a temporary
+repository-level `KONGCTL_E2E_KONNECT_PAT` secret in place. Fork PR runs do not
+use this fallback.
 
 ### SDK Prerelease Preview Automation
 
