@@ -454,8 +454,8 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 10
-                by_action.DELETE: 10
+                total_changes: 7
+                by_action.DELETE: 7
           - select: summary
             expect:
               fields:
