@@ -391,21 +391,8 @@ that status and posts an updatable PR comment with the exact SHA and trusted
 workflow command. The trusted workflow dispatch later updates the same commit
 status and comment with the pass or fail result.
 
-To run trusted E2E for a fork PR:
-
-1. Review the PR for malicious changes, especially build scripts, tests,
-   dependency updates, workflow-adjacent files, shell execution, and network
-   calls.
-2. Record the exact current PR head SHA from the reviewed commit.
-3. Run the `E2E` workflow manually with `trusted_pr_number` and
-   `trusted_head_sha`.
-4. Approve the protected E2E environment when prompted.
-5. Re-run trusted E2E if the contributor pushes another commit.
-
-The workflow verifies that `trusted_head_sha` still matches the PR head before
-checking out or running the fork code. The trusted run writes the final
-`E2E Required` status to that exact SHA and posts an updatable PR comment
-with the reviewed SHA and trusted run URL.
+For the maintainer runbook, see
+`docs/contributor/forked-pr-e2e.md`.
 
 The workflow also exposes the Konnect target, test timeout, HTTP timeout, and
 retry knobs above as repository or organization variables of the same names,
