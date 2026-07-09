@@ -1,4 +1,4 @@
-name: E2E Required Status
+name: E2E Gate
 
 on:
   pull_request_target:
@@ -23,20 +23,27 @@ concurrency:
 
 jobs:
   e2e-required-status:
-    name: E2E Required Status
+    name: "E2E Gate: Initialize Status"
     runs-on: ubuntu-latest
+    outputs:
+      required: ${{ steps.status.outputs.required }}
+      fork_pull_request: ${{ steps.status.outputs.fork_pull_request }}
+      pr_number: ${{ steps.status.outputs.pr_number }}
+      pr_head_sha: ${{ steps.status.outputs.pr_head_sha }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - name: Set E2E Required status
+      - name: Initialize E2E Required status
+        id: status
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const statusContext = 'E2E Required';
             const pr = context.payload.pull_request;
+            const runURL = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -47,8 +54,13 @@ jobs:
             const required = files.some((file) => e2ePattern.test(file.filename));
             const forkPullRequest = pr.head.repo.full_name !== pr.base.repo.full_name;
             const state = required ? 'pending' : 'success';
+            core.setOutput('required', String(required));
+            core.setOutput('fork_pull_request', String(forkPullRequest));
+            core.setOutput('pr_number', String(pr.number));
+            core.setOutput('pr_head_sha', pr.head.sha);
+
             let description = 'E2E not required for this PR.';
-            let targetUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            let targetUrl = runURL;
 
             if (required && forkPullRequest) {
               description = 'Fork PR requires trusted maintainer E2E for reviewed SHA.';
@@ -69,3 +81,93 @@ jobs:
             });
 
             core.info(description);
+
+  trusted-e2e-required-comment:
+    name: "E2E Gate: Request Trusted Run"
+    needs:
+      - e2e-required-status
+    if: >-
+      ${{
+        needs.e2e-required-status.outputs.required == 'true' &&
+        needs.e2e-required-status.outputs.fork_pull_request == 'true'
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Request trusted E2E run
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ needs.e2e-required-status.outputs.pr_number }}
+          PR_HEAD_SHA: ${{ needs.e2e-required-status.outputs.pr_head_sha }}
+        with:
+          script: |
+            const trustedCommentMarker = '<!-- kongctl-trusted-e2e-status -->';
+            const prNumber = Number(process.env.PR_NUMBER);
+            const prHeadSHA = process.env.PR_HEAD_SHA;
+            const defaultBranch = context.payload.repository.default_branch;
+            const trustedCommand = [
+              `gh workflow run e2e.yaml --repo ${process.env.GITHUB_REPOSITORY}`,
+              `--ref ${defaultBranch}`,
+              `-f trusted_pr_number=${prNumber}`,
+              `-f trusted_head_sha=${prHeadSHA}`,
+            ].join(' ');
+            const body = [
+              trustedCommentMarker,
+              'Trusted E2E is required for this fork PR.',
+              '',
+              `- PR: #${prNumber}`,
+              `- Reviewed SHA: \`${prHeadSHA}\``,
+              '- Status: `pending`',
+              '- Trusted run: not started',
+              '',
+              'After maintainer review, run trusted E2E from the base repository:',
+              '',
+              '```bash',
+              trustedCommand,
+              '```',
+              '',
+              'This trusted E2E result will apply only to the exact reviewed SHA above. Re-run trusted E2E if the contributor pushes another commit.',
+            ].join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) =>
+              comment.body?.includes(trustedCommentMarker) &&
+              comment.user?.login === 'github-actions[bot]'
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
+            await core.summary
+              .addHeading('Trusted Fork E2E')
+              .addList([
+                'Status: pending',
+                `PR: #${prNumber}`,
+                `Reviewed SHA: ${prHeadSHA}`,
+                'Trusted run: not started',
+              ])
+              .write();

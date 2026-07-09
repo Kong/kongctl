@@ -385,6 +385,12 @@ message that trusted maintainer E2E is required. The normal fork-triggered E2E
 workflow does not expand shard jobs, does not use the `default` org fallback,
 and does not receive Konnect or Gmail secrets.
 
+The status named `E2E Required` is the merge gate. It is a commit status, not
+one of the workflow job names. For fork PRs, an `E2E Gate` workflow initializes
+that status and posts an updatable PR comment with the exact SHA and trusted
+workflow command. The trusted workflow dispatch later updates the same commit
+status and comment with the pass or fail result.
+
 To run trusted E2E for a fork PR:
 
 1. Review the PR for malicious changes, especially build scripts, tests,
@@ -398,7 +404,8 @@ To run trusted E2E for a fork PR:
 
 The workflow verifies that `trusted_head_sha` still matches the PR head before
 checking out or running the fork code. The trusted run writes the final
-`E2E Required` status to that exact SHA.
+`E2E Required` status to that exact SHA and posts an updatable PR comment
+with the reviewed SHA and trusted run URL.
 
 The workflow also exposes the Konnect target, test timeout, HTTP timeout, and
 retry knobs above as repository or organization variables of the same names,
