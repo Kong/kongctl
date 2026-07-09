@@ -62,7 +62,7 @@ concurrency:
 
 jobs:
   e2e-needed:
-    name: E2E Needed
+    name: "E2E Gate: Decide"
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -665,7 +665,7 @@ jobs:
           path: ${{ env.KONGCTL_E2E_ARTIFACTS_DIR }}
 
   e2e-verify:
-    name: E2E Verify
+    name: E2E Shard Verification
     needs:
       - e2e-needed
       - e2e
@@ -956,7 +956,7 @@ jobs:
           echo "Verified ${scenario_count} scenarios across ${total} shards."
 
   e2e-required:
-    name: E2E Required Status
+    name: "E2E Gate: Report Result"
     needs:
       - e2e-needed
       - e2e-verify
@@ -972,7 +972,7 @@ jobs:
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      - name: Check requirement outcome
+      - name: Report E2E Required outcome
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           E2E_NEEDED_RESULT: ${{ needs.e2e-needed.result }}
@@ -1062,6 +1062,7 @@ jobs:
                 `- Reviewed SHA: \`${statusSha}\``,
                 `- Trusted run: ${runURL}`,
                 `- Status: \`${state}\``,
+                `- Description: ${description}`,
                 '',
                 'This trusted E2E result applies only to the exact reviewed SHA above. Re-run trusted E2E if the contributor pushes another commit.',
               ].join('\n');
@@ -1088,6 +1089,17 @@ jobs:
                   body,
                 });
               }
+
+              await core.summary
+                .addHeading('Trusted Fork E2E')
+                .addList([
+                  `Status: ${state}`,
+                  `Description: ${description}`,
+                  `PR: #${trustedPRNumber}`,
+                  `Reviewed SHA: ${statusSha}`,
+                  `Trusted run: ${runURL}`,
+                ])
+                .write();
             }
 
             if (failureMessage) {

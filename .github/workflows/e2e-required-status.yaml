@@ -1,4 +1,4 @@
-name: E2E Required Status
+name: E2E Gate
 
 on:
   pull_request_target:
@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
   pull-requests: read
   statuses: write
 
@@ -23,7 +24,7 @@ concurrency:
 
 jobs:
   e2e-required-status:
-    name: E2E Required Status
+    name: "E2E Gate: Initialize Status"
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -31,12 +32,14 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Set E2E Required status
+      - name: Initialize E2E Required status
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const statusContext = 'E2E Required';
+            const trustedCommentMarker = '<!-- kongctl-trusted-e2e-status -->';
             const pr = context.payload.pull_request;
+            const runURL = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -48,7 +51,7 @@ jobs:
             const forkPullRequest = pr.head.repo.full_name !== pr.base.repo.full_name;
             const state = required ? 'pending' : 'success';
             let description = 'E2E not required for this PR.';
-            let targetUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            let targetUrl = runURL;
 
             if (required && forkPullRequest) {
               description = 'Fork PR requires trusted maintainer E2E for reviewed SHA.';
@@ -67,5 +70,65 @@ jobs:
               description,
               target_url: targetUrl,
             });
+
+            if (required && forkPullRequest) {
+              const defaultBranch = context.payload.repository.default_branch;
+              const trustedCommand = [
+                `gh workflow run e2e.yaml --repo ${process.env.GITHUB_REPOSITORY}`,
+                `--ref ${defaultBranch}`,
+                `-f trusted_pr_number=${pr.number}`,
+                `-f trusted_head_sha=${pr.head.sha}`,
+              ].join(' ');
+              const body = [
+                trustedCommentMarker,
+                'Trusted E2E is required for this fork PR.',
+                '',
+                `- PR: #${pr.number}`,
+                `- Reviewed SHA: \`${pr.head.sha}\``,
+                '- Status: `pending`',
+                '- Trusted run: not started',
+                '',
+                'After maintainer review, run trusted E2E from the base repository:',
+                '',
+                '```bash',
+                trustedCommand,
+                '```',
+                '',
+                'This trusted E2E result will apply only to the exact reviewed SHA above. Re-run trusted E2E if the contributor pushes another commit.',
+              ].join('\n');
+
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                per_page: 100,
+              });
+              const existing = comments.find((comment) => comment.body?.includes(trustedCommentMarker));
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body,
+                });
+              }
+
+              await core.summary
+                .addHeading('Trusted Fork E2E')
+                .addList([
+                  `Status: ${state}`,
+                  `PR: #${pr.number}`,
+                  `Reviewed SHA: ${pr.head.sha}`,
+                  'Trusted run: not started',
+                ])
+                .write();
+            }
 
             core.info(description);
