@@ -398,7 +398,8 @@ To run trusted E2E for a fork PR:
 
 The workflow verifies that `trusted_head_sha` still matches the PR head before
 checking out or running the fork code. The trusted run writes the final
-`E2E Required` status to that exact SHA.
+`E2E Required` status to that exact SHA and posts an updatable PR comment
+with the reviewed SHA and trusted run URL.
 
 The workflow also exposes the Konnect target, test timeout, HTTP timeout, and
 retry knobs above as repository or organization variables of the same names,
