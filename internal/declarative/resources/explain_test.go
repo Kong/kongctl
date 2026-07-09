@@ -447,6 +447,39 @@ func TestRenderScaffoldYAML_RootResource(t *testing.T) {
 	assert.NotContains(t, scaffold, "spec_content")
 }
 
+func TestResolveExplainSubject_APIVersionSpecPrefersFileScalar(t *testing.T) {
+	subject, err := ResolveExplainSubject("api_version.spec")
+	require.NoError(t, err)
+
+	assert.Equal(t, "!file", subject.Node.PreferredTag)
+	assert.Equal(t, "!file ./specs/openapi.yaml", subject.Node.Literal)
+}
+
+func TestResolveExplainSubject_APIVersionSpecContentHasNoFileTag(t *testing.T) {
+	subject, err := ResolveExplainSubject("api_version.spec.content")
+	require.NoError(t, err)
+
+	// The nested content field must not inherit the generic "content" !file
+	// guidance; that steers users toward the double-wrapping spec.content shape.
+	assert.Empty(t, subject.Node.PreferredTag)
+	assert.NotContains(t, subject.Node.Literal, "!file")
+}
+
+func TestRenderScaffoldYAML_APIVersionSpecUsesFileScalar(t *testing.T) {
+	for _, path := range []string{"api_version", "api.versions"} {
+		t.Run(path, func(t *testing.T) {
+			subject, err := ResolveExplainSubject(path)
+			require.NoError(t, err)
+
+			scaffold, err := RenderScaffoldYAML(subject)
+			require.NoError(t, err)
+
+			assert.Contains(t, scaffold, "spec: !file ./specs/openapi.yaml")
+			assert.NotContains(t, scaffold, "content: !file")
+		})
+	}
+}
+
 func TestRenderScaffoldYAML_ApplicationAuthStrategyUnion(t *testing.T) {
 	subject, err := ResolveExplainSubject("application_auth_strategies")
 	require.NoError(t, err)

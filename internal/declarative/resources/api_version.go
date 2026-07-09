@@ -13,7 +13,20 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPIVersion,
 		func(rs *ResourceSet) *[]APIVersionResource { return &rs.APIVersions },
-		AutoExplain[APIVersionResource](),
+		AutoExplain[APIVersionResource](
+			// spec is an SDK object ({content: ...}) but is supplied whole from a
+			// file. Present it as `spec: !file ...` so users don't nest the content
+			// under spec.content, which double-wraps the payload and Konnect rejects.
+			WithExplainFieldHint("spec", ExplainFieldHint{
+				Literal:      "!file ./specs/openapi.yaml",
+				PreferredTag: "!file",
+			}),
+			// Override the generic "content" !file guidance for this nested field so
+			// it does not steer users toward the double-wrapping spec.content form.
+			WithExplainFieldHint("spec.content", ExplainFieldHint{
+				Notes: []string{"Set the whole spec with `spec: !file ...` instead of populating content directly."},
+			}),
+		),
 	)
 }
 
