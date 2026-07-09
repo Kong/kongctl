@@ -320,7 +320,7 @@ func TestPlanner_ExternalPortalReferenceOnlyPublicationDoesNotListIPAllowLists(t
 func TestPlanner_ExternalPortalExplicitIPAllowListStillListsIPAllowLists(t *testing.T) {
 	ctx := context.Background()
 	allowListAPI := &countingPortalIPAllowListAPI{t: t}
-	plan := generateExternalPortalPlanWithIPAllowListAPI(t, ctx, PlanModeApply, allowListAPI, true)
+	plan := generateExternalPortalPlanWithIPAllowListAPI(ctx, t, PlanModeApply, allowListAPI, true)
 
 	require.Equal(t, 1, allowListAPI.listCalls, "explicit external portal IP allow list must list current entries")
 	requirePlanChange(t, plan, ResourceTypePortalIPAllowList, ActionCreate)
@@ -329,15 +329,15 @@ func TestPlanner_ExternalPortalExplicitIPAllowListStillListsIPAllowLists(t *test
 func TestPlanner_ExternalPortalSyncScopedIPAllowListStillListsIPAllowLists(t *testing.T) {
 	ctx := context.Background()
 	allowListAPI := &countingPortalIPAllowListAPI{t: t}
-	plan := generateExternalPortalPlanWithIPAllowListAPI(t, ctx, PlanModeSync, allowListAPI, false)
+	plan := generateExternalPortalPlanWithIPAllowListAPI(ctx, t, PlanModeSync, allowListAPI, false)
 
 	require.Equal(t, 1, allowListAPI.listCalls, "explicit sync scope must list current IP allow-list entries")
 	require.Empty(t, plan.Changes)
 }
 
 func generateExternalPortalPlanWithIPAllowListAPI(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	mode PlanMode,
 	allowListAPI *countingPortalIPAllowListAPI,
 	includeDesiredAllowList bool,
