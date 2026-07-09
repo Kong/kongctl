@@ -181,25 +181,10 @@ func addListenerPolicyChildFlags(cmd *cobra.Command) {
 }
 
 func bindListenerPolicyChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	if flag := c.Flags().Lookup(policyIDFlagName); flag != nil {
-		if err := cfg.BindFlag(policyIDConfigPath, flag); err != nil {
-			return err
-		}
-	}
-
-	if flag := c.Flags().Lookup(policyNameFlagName); flag != nil {
-		if err := cfg.BindFlag(policyNameConfigPath, flag); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return bindChildFlags(c, args, []flagBinding{
+		{policyIDFlagName, policyIDConfigPath},
+		{policyNameFlagName, policyNameConfigPath},
+	})
 }
 
 func getListenerPolicyIdentifiers(cfg config.Hook) (id string, name string) {

@@ -85,27 +85,10 @@ func addEventGatewayChildFlags(cmd *cobra.Command) {
 }
 
 func bindEventGatewayChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	bindings := []struct {
-		flag   string
-		config string
-	}{
+	return bindChildFlags(c, args, []flagBinding{
 		{gatewayIDFlagName, gatewayIDConfigPath},
 		{gatewayNameFlagName, gatewayNameConfigPath},
-	}
-
-	for _, b := range bindings {
-		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
 func getEventGatewayIdentifiers(cfg config.Hook) (id string, name string) {
@@ -123,27 +106,10 @@ func addBackendClusterChildFlags(cmd *cobra.Command) {
 }
 
 func bindBackendClusterChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	bindings := []struct {
-		flag   string
-		config string
-	}{
+	return bindChildFlags(c, args, []flagBinding{
 		{backendClusterIDFlagName, backendClusterIDConfigPath},
 		{backendClusterNameFlagName, backendClusterNameConfigPath},
-	}
-
-	for _, b := range bindings {
-		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
 func getBackendClusterIdentifiers(cfg config.Hook) (id string, name string) {
@@ -161,27 +127,10 @@ func addVirtualClusterChildFlags(cmd *cobra.Command) {
 }
 
 func bindVirtualClusterChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	bindings := []struct {
-		flag   string
-		config string
-	}{
+	return bindChildFlags(c, args, []flagBinding{
 		{virtualClusterIDFlagName, virtualClusterIDConfigPath},
 		{virtualClusterNameFlagName, virtualClusterNameConfigPath},
-	}
-
-	for _, b := range bindings {
-		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
 func getVirtualClusterIdentifiers(cfg config.Hook) (id string, name string) {
@@ -199,27 +148,10 @@ func addListenerChildFlags(cmd *cobra.Command) {
 }
 
 func bindListenerChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	bindings := []struct {
-		flag   string
-		config string
-	}{
+	return bindChildFlags(c, args, []flagBinding{
 		{listenerIDFlagName, listenerIDConfigPath},
 		{listenerNameFlagName, listenerNameConfigPath},
-	}
-
-	for _, b := range bindings {
-		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
 func getListenerIdentifiers(cfg config.Hook) (id string, name string) {
@@ -237,27 +169,10 @@ func addDataPlaneCertChildFlags(cmd *cobra.Command) {
 }
 
 func bindDataPlaneCertChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	bindings := []struct {
-		flag   string
-		config string
-	}{
+	return bindChildFlags(c, args, []flagBinding{
 		{dataPlaneCertIDFlagName, dataPlaneCertIDConfigPath},
 		{dataPlaneCertNameFlagName, dataPlaneCertNameConfigPath},
-	}
-
-	for _, b := range bindings {
-		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
 func getDataPlaneCertIdentifiers(cfg config.Hook) (id string, name string) {
@@ -275,27 +190,10 @@ func addSchemaRegistryChildFlags(cmd *cobra.Command) {
 }
 
 func bindSchemaRegistryChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	bindings := []struct {
-		flag   string
-		config string
-	}{
+	return bindChildFlags(c, args, []flagBinding{
 		{schemaRegistryIDFlagName, schemaRegistryIDConfigPath},
 		{schemaRegistryNameFlagName, schemaRegistryNameConfigPath},
-	}
-
-	for _, b := range bindings {
-		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
 func getSchemaRegistryIdentifiers(cfg config.Hook) (id string, name string) {
@@ -313,27 +211,10 @@ func addStaticKeyChildFlags(cmd *cobra.Command) {
 }
 
 func bindStaticKeyChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	bindings := []struct {
-		flag   string
-		config string
-	}{
+	return bindChildFlags(c, args, []flagBinding{
 		{staticKeyIDFlagName, staticKeyIDConfigPath},
 		{staticKeyNameFlagName, staticKeyNameConfigPath},
-	}
-
-	for _, b := range bindings {
-		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
 func getStaticKeyIdentifiers(cfg config.Hook) (id string, name string) {
@@ -351,18 +232,17 @@ func addTLSTrustBundleChildFlags(cmd *cobra.Command) {
 }
 
 func bindTLSTrustBundleChildFlags(c *cobra.Command, args []string) error {
+	return bindChildFlags(c, args, []flagBinding{
+		{tlsTrustBundleIDFlagName, tlsTrustBundleIDConfigPath},
+		{tlsTrustBundleNameFlagName, tlsTrustBundleNameConfigPath},
+	})
+}
+
+func bindChildFlags(c *cobra.Command, args []string, bindings []flagBinding) error {
 	helper := cmd.BuildHelper(c, args)
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
-	}
-
-	bindings := []struct {
-		flag   string
-		config string
-	}{
-		{tlsTrustBundleIDFlagName, tlsTrustBundleIDConfigPath},
-		{tlsTrustBundleNameFlagName, tlsTrustBundleNameConfigPath},
 	}
 
 	for _, b := range bindings {
@@ -407,4 +287,9 @@ func bindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string
 		return cfg.BindFlag(configPath, f)
 	}
 	return nil
+}
+
+type flagBinding struct {
+	flag   string
+	config string
 }

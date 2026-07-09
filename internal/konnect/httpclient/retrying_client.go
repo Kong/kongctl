@@ -623,15 +623,9 @@ func drainBodyForRetryTrace(resp *http.Response) string {
 		return ""
 	}
 
-	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxRetryResponseTraceBodyBytes+1))
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxRetryResponseTraceBodyBytes))
 	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()
-	if readErr != nil {
-		return ""
-	}
-	if len(body) > maxRetryResponseTraceBodyBytes {
-		body = body[:maxRetryResponseTraceBodyBytes]
-	}
 	return extractKongTraceID(body)
 }
 

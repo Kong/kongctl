@@ -139,27 +139,10 @@ func addClusterPolicyChildFlags(cmd *cobra.Command) {
 }
 
 func bindClusterPolicyChildFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	bindings := []struct {
-		flag   string
-		config string
-	}{
+	return bindChildFlags(c, args, []flagBinding{
 		{clusterPolicyIDFlagName, clusterPolicyIDConfigPath},
 		{clusterPolicyNameFlagName, clusterPolicyNameConfigPath},
-	}
-
-	for _, b := range bindings {
-		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
 func getClusterPolicyIdentifiers(cfg config.Hook) (id string, name string) {
