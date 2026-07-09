@@ -1158,7 +1158,8 @@ jobs:
                 });
               }
             } catch (error) {
-              core.warning(`Unable to create or update trusted E2E PR comment: ${error.message}`);
+              const errorMessage = error?.message ?? String(error);
+              core.warning(`Unable to create or update trusted E2E PR comment: ${errorMessage}`);
             }
 
             await core.summary
