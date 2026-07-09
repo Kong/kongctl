@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -16,6 +17,8 @@ import (
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
+	kprofile "github.com/kong/kongctl/internal/profile"
+	utilviper "github.com/kong/kongctl/internal/util/viper"
 	configtest "github.com/kong/kongctl/test/config"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
@@ -663,6 +666,90 @@ func TestResolveAccessTokenMapsMissingCredentialsToGuidance(t *testing.T) {
 	require.Contains(t, err.Error(), "kongctl login")
 	require.NotContains(t, err.Error(), dir)
 	require.NotContains(t, err.Error(), "stat ")
+}
+
+func newFileBackedConfig(t *testing.T, dir, profile string, fileKeys map[string]any) *config.ProfiledConfig {
+	t.Helper()
+	path := filepath.Join(dir, "config.yaml")
+	mainv := utilviper.NewViper(path)
+	for key, value := range fileKeys {
+		mainv.Set(key, value)
+	}
+	return config.BuildProfiledConfig(profile, path, mainv)
+}
+
+func requireAuthGuidance(t *testing.T, cfg config.Hook) {
+	t.Helper()
+	_, err := ResolveAccessToken(t.Context(), cfg, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "authentication token not available")
+	require.NotContains(t, err.Error(), "is not configured")
+}
+
+func TestResolveAccessTokenUnknownProfileListsAvailableProfiles(t *testing.T) {
+	cfg := newFileBackedConfig(t, t.TempDir(), "tech", map[string]any{
+		"default.konnect.base_url": BaseURLDefault,
+		"dev.konnect.base_url":     BaseURLDefault,
+	})
+
+	_, err := ResolveAccessToken(t.Context(), cfg, nil)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `profile "tech" is not configured`)
+	require.Contains(t, err.Error(), "Available profiles:")
+	require.Contains(t, err.Error(), "    default")
+	require.Contains(t, err.Error(), "    dev")
+	require.Contains(t, err.Error(), `--profile set to "tech"`)
+	require.NotContains(t, err.Error(), "authentication token not available")
+}
+
+func TestResolveAccessTokenUnknownProfileWithNoProfilesConfigured(t *testing.T) {
+	cfg := newFileBackedConfig(t, t.TempDir(), "tech", nil)
+
+	_, err := ResolveAccessToken(t.Context(), cfg, nil)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `profile "tech" is not configured`)
+	require.Contains(t, err.Error(), "No profiles are configured yet.")
+	require.Contains(t, err.Error(), `--profile set to "tech"`)
+	require.NotContains(t, err.Error(), "authentication token not available")
+}
+
+func TestResolveAccessTokenUnknownProfileEscapesProfileName(t *testing.T) {
+	cfg := newFileBackedConfig(t, t.TempDir(), "evil; rm -rf /", nil)
+
+	_, err := ResolveAccessToken(t.Context(), cfg, nil)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `--profile set to "evil; rm -rf /"`)
+}
+
+func TestResolveAccessTokenKnownProfilesReportAuthGuidance(t *testing.T) {
+	t.Run("default profile", func(t *testing.T) {
+		cfg := newFileBackedConfig(t, t.TempDir(), kprofile.DefaultProfile, nil)
+		requireAuthGuidance(t, cfg)
+	})
+
+	t.Run("profile in config file", func(t *testing.T) {
+		cfg := newFileBackedConfig(t, t.TempDir(), "dev", map[string]any{
+			"dev.konnect.base_url": BaseURLDefault,
+		})
+		requireAuthGuidance(t, cfg)
+	})
+
+	t.Run("profile with environment variables", func(t *testing.T) {
+		t.Setenv("KONGCTL_CI_HTTP_TIMEOUT", "13s")
+		cfg := newFileBackedConfig(t, t.TempDir(), "ci", nil)
+		requireAuthGuidance(t, cfg)
+	})
+
+	t.Run("profile with stored credential", func(t *testing.T) {
+		dir := t.TempDir()
+		credPath := filepath.Join(dir, ".work-konnect-token.json")
+		require.NoError(t, os.WriteFile(credPath, []byte("{}"), 0o600))
+		cfg := newFileBackedConfig(t, dir, "work", nil)
+		requireAuthGuidance(t, cfg)
+	})
 }
 
 func TestResolveAccessTokenPreservesContextErrors(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,8 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
+	kprofile "github.com/kong/kongctl/internal/profile"
+	viperutil "github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/cobra"
 )
 
@@ -536,6 +539,11 @@ func GetAccessTokenSource(cfg config.Hook, logger *slog.Logger) (*auth.TokenSour
 
 func accessTokenUnavailableError(cfg config.Hook) error {
 	profile := cfg.GetProfile()
+
+	if !profileIsConfigured(cfg) {
+		return unknownProfileError(cfg, profile)
+	}
+
 	envVar := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", strings.ToUpper(profile))
 
 	return fmt.Errorf(
@@ -551,6 +559,68 @@ func accessTokenUnavailableError(cfg config.Hook) error {
 		profile,
 		PATConfigPath,
 	)
+}
+
+// profileIsConfigured reports whether the CLI has any prior knowledge of the
+// requested profile, via the config file, environment variables, or a stored
+// login credential. An unknown profile is almost always a mistyped --profile
+// value, which otherwise surfaces later as a confusing auth failure.
+func profileIsConfigured(cfg config.Hook) bool {
+	name := cfg.GetProfile()
+	if name == kprofile.DefaultProfile {
+		return true
+	}
+	if slices.Contains(configuredProfileNames(cfg), name) {
+		return true
+	}
+	if profileHasEnvVars(name) {
+		return true
+	}
+	return auth.HasStoredCredential(cfg)
+}
+
+// unknownProfileError explains that the requested profile is unknown and lists
+// the profiles found in the config file so a mistyped name is easy to spot.
+func unknownProfileError(cfg config.Hook, profile string) error {
+	var b strings.Builder
+	fmt.Fprintf(&b, "profile %q is not configured.\n\n", profile)
+
+	available := configuredProfileNames(cfg)
+	if len(available) > 0 {
+		b.WriteString("Available profiles:\n")
+		for _, name := range available {
+			fmt.Fprintf(&b, "    %s\n", name)
+		}
+		fmt.Fprintf(&b, "\nUse one of these profiles, or run %s login with --profile set to %q "+
+			"to authenticate with this profile.", meta.CLIName, profile)
+	} else {
+		b.WriteString("No profiles are configured yet.\n\n")
+		fmt.Fprintf(&b, "Run %s login with --profile set to %q to authenticate with this profile.",
+			meta.CLIName, profile)
+	}
+
+	return errors.New(b.String())
+}
+
+// configuredProfileNames returns the sorted profiles defined in the config file.
+func configuredProfileNames(cfg config.Hook) []string {
+	pc, ok := cfg.(*config.ProfiledConfig)
+	if !ok || pc.Viper == nil {
+		return nil
+	}
+	names := kprofile.NewManager(pc.Viper).GetProfiles()
+	slices.Sort(names)
+	return names
+}
+
+func profileHasEnvVars(name string) bool {
+	prefix := viperutil.ProfileEnvPrefix(name) + "_"
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func isDeclarativeRetryVerb(verb verbs.VerbValue) bool {
