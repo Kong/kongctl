@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -540,11 +541,7 @@ func accessTokenUnavailableError(cfg config.Hook) error {
 	profile := cfg.GetProfile()
 
 	if !profileIsConfigured(cfg) {
-		return fmt.Errorf(
-			"profile %q is not configured. Run '%s get profiles' to list configured "+
-				"profiles, or '%s login --profile %s' to set it up",
-			profile, meta.CLIName, meta.CLIName, profile,
-		)
+		return unknownProfileError(cfg, profile)
 	}
 
 	envVar := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", strings.ToUpper(profile))
@@ -573,7 +570,7 @@ func profileIsConfigured(cfg config.Hook) bool {
 	if name == kprofile.DefaultProfile {
 		return true
 	}
-	if profileInConfigFile(cfg, name) {
+	if slices.Contains(configuredProfileNames(cfg), name) {
 		return true
 	}
 	if profileHasEnvVars(name) {
@@ -582,17 +579,38 @@ func profileIsConfigured(cfg config.Hook) bool {
 	return auth.HasStoredCredential(cfg)
 }
 
-func profileInConfigFile(cfg config.Hook, name string) bool {
+// unknownProfileError explains that the requested profile is unknown and lists
+// the profiles found in the config file so a mistyped name is easy to spot.
+func unknownProfileError(cfg config.Hook, profile string) error {
+	var b strings.Builder
+	fmt.Fprintf(&b, "profile %q is not configured.\n\n", profile)
+
+	available := configuredProfileNames(cfg)
+	if len(available) > 0 {
+		b.WriteString("Available profiles:\n")
+		for _, name := range available {
+			fmt.Fprintf(&b, "    %s\n", name)
+		}
+		fmt.Fprintf(&b, "\nUse one of these profiles or run '%s login --profile %s' "+
+			"to authenticate with this profile.", meta.CLIName, profile)
+	} else {
+		b.WriteString("No profiles are configured yet.\n\n")
+		fmt.Fprintf(&b, "Run '%s login --profile %s' to authenticate with this profile.",
+			meta.CLIName, profile)
+	}
+
+	return errors.New(b.String())
+}
+
+// configuredProfileNames returns the sorted profiles defined in the config file.
+func configuredProfileNames(cfg config.Hook) []string {
 	pc, ok := cfg.(*config.ProfiledConfig)
 	if !ok || pc.Viper == nil {
-		return false
+		return nil
 	}
-	for _, key := range pc.AllKeys() {
-		if top, _, _ := strings.Cut(key, "."); top == name {
-			return true
-		}
-	}
-	return false
+	names := kprofile.NewManager(pc.Viper).GetProfiles()
+	slices.Sort(names)
+	return names
 }
 
 func profileHasEnvVars(name string) bool {

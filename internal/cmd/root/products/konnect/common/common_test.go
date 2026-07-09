@@ -686,14 +686,32 @@ func requireAuthGuidance(t *testing.T, cfg config.Hook) {
 	require.NotContains(t, err.Error(), "is not configured")
 }
 
-func TestResolveAccessTokenUnknownProfileReportsNotConfigured(t *testing.T) {
-	dir := t.TempDir()
-	cfg := newFileBackedConfig(t, dir, "tech", nil)
+func TestResolveAccessTokenUnknownProfileListsAvailableProfiles(t *testing.T) {
+	cfg := newFileBackedConfig(t, t.TempDir(), "tech", map[string]any{
+		"default.konnect.base_url": BaseURLDefault,
+		"dev.konnect.base_url":     BaseURLDefault,
+	})
 
 	_, err := ResolveAccessToken(t.Context(), cfg, nil)
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `profile "tech" is not configured`)
+	require.Contains(t, err.Error(), "Available profiles:")
+	require.Contains(t, err.Error(), "    default")
+	require.Contains(t, err.Error(), "    dev")
+	require.Contains(t, err.Error(), "kongctl login --profile tech")
+	require.NotContains(t, err.Error(), "authentication token not available")
+}
+
+func TestResolveAccessTokenUnknownProfileWithNoProfilesConfigured(t *testing.T) {
+	cfg := newFileBackedConfig(t, t.TempDir(), "tech", nil)
+
+	_, err := ResolveAccessToken(t.Context(), cfg, nil)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `profile "tech" is not configured`)
+	require.Contains(t, err.Error(), "No profiles are configured yet.")
+	require.Contains(t, err.Error(), "kongctl login --profile tech")
 	require.NotContains(t, err.Error(), "authentication token not available")
 }
 
