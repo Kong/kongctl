@@ -183,6 +183,8 @@ steps:
           - diff
           - -f
           - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
         assertions:
           - select: stdout
             expect:
