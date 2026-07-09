@@ -594,6 +594,17 @@ func TestRenderScaffoldYAML_AIGatewayModelsNestedChildResource(t *testing.T) {
 	assert.NotContains(t, scaffold, "kongctl:")
 }
 
+func TestRenderScaffoldYAML_AIGatewayIdentityProviderConsumerClaims(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway_identity_provider")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "consumer_claims:")
+	assert.NotContains(t, scaffold, "consumer_claim:")
+}
+
 func TestRenderScaffoldYAML_NestedSingletonChildResource(t *testing.T) {
 	subject, err := ResolveExplainSubject("portal.auth_settings")
 	require.NoError(t, err)
