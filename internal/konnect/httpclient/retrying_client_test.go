@@ -31,6 +31,25 @@ type mockResponse struct {
 	err        error
 }
 
+type partialReadErrorCloser struct {
+	data   []byte
+	read   bool
+	closed bool
+}
+
+func (r *partialReadErrorCloser) Read(p []byte) (int, error) {
+	if r.read {
+		return 0, io.EOF
+	}
+	r.read = true
+	return copy(p, r.data), errors.New("read body")
+}
+
+func (r *partialReadErrorCloser) Close() error {
+	r.closed = true
+	return nil
+}
+
 func (m *mockHTTPClient) Do(_ *http.Request) (*http.Response, error) {
 	idx := m.calls
 	m.calls++
@@ -259,6 +278,17 @@ func TestRetryingHTTPClient_LogsRetryableResponseTraceIDFromLargeTruncatedBody(t
 	require.Contains(t, out, "status_code=500")
 	require.Contains(t, out, "response_trace_id=kong:trace:large-response")
 	require.NotContains(t, out, "padding")
+}
+
+func TestDrainBodyForRetryTraceIgnoresPartialReadOnError(t *testing.T) {
+	body := &partialReadErrorCloser{
+		data: []byte(`{"instance":"kong:trace:partial-read"}`),
+	}
+
+	traceID := drainBodyForRetryTrace(&http.Response{Body: body})
+
+	require.Empty(t, traceID)
+	require.True(t, body.closed)
 }
 
 func TestRetryingHTTPClient_IgnoresNonKongRetryableResponseInstance(t *testing.T) {
