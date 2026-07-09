@@ -591,11 +591,11 @@ func unknownProfileError(cfg config.Hook, profile string) error {
 		for _, name := range available {
 			fmt.Fprintf(&b, "    %s\n", name)
 		}
-		fmt.Fprintf(&b, "\nUse one of these profiles or run '%s login --profile %s' "+
+		fmt.Fprintf(&b, "\nUse one of these profiles, or run %s login with --profile set to %q "+
 			"to authenticate with this profile.", meta.CLIName, profile)
 	} else {
 		b.WriteString("No profiles are configured yet.\n\n")
-		fmt.Fprintf(&b, "Run '%s login --profile %s' to authenticate with this profile.",
+		fmt.Fprintf(&b, "Run %s login with --profile set to %q to authenticate with this profile.",
 			meta.CLIName, profile)
 	}
 

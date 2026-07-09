@@ -190,10 +190,12 @@ func credentialFilePath(cfg config.Hook) string {
 }
 
 // HasStoredCredential reports whether a saved login credential file exists on
-// disk for the configured profile.
+// disk for the configured profile. A stat error other than "not found" (e.g. a
+// permission or IO error) is treated as present, so the profile is not wrongly
+// reported as unknown.
 func HasStoredCredential(cfg config.Hook) bool {
 	_, err := os.Stat(credentialFilePath(cfg))
-	return err == nil
+	return err == nil || !errors.Is(err, os.ErrNotExist)
 }
 
 func (t *AccessToken) expiresWithin(skew time.Duration) bool {

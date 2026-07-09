@@ -699,7 +699,7 @@ func TestResolveAccessTokenUnknownProfileListsAvailableProfiles(t *testing.T) {
 	require.Contains(t, err.Error(), "Available profiles:")
 	require.Contains(t, err.Error(), "    default")
 	require.Contains(t, err.Error(), "    dev")
-	require.Contains(t, err.Error(), "kongctl login --profile tech")
+	require.Contains(t, err.Error(), `--profile set to "tech"`)
 	require.NotContains(t, err.Error(), "authentication token not available")
 }
 
@@ -711,8 +711,17 @@ func TestResolveAccessTokenUnknownProfileWithNoProfilesConfigured(t *testing.T) 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `profile "tech" is not configured`)
 	require.Contains(t, err.Error(), "No profiles are configured yet.")
-	require.Contains(t, err.Error(), "kongctl login --profile tech")
+	require.Contains(t, err.Error(), `--profile set to "tech"`)
 	require.NotContains(t, err.Error(), "authentication token not available")
+}
+
+func TestResolveAccessTokenUnknownProfileEscapesProfileName(t *testing.T) {
+	cfg := newFileBackedConfig(t, t.TempDir(), "evil; rm -rf /", nil)
+
+	_, err := ResolveAccessToken(t.Context(), cfg, nil)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `--profile set to "evil; rm -rf /"`)
 }
 
 func TestResolveAccessTokenKnownProfilesReportAuthGuidance(t *testing.T) {
