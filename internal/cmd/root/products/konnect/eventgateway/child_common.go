@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -90,14 +91,16 @@ func bindEventGatewayChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(gatewayIDFlagName); flag != nil {
-		if err := cfg.BindFlag(gatewayIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{gatewayIDFlagName, gatewayIDConfigPath},
+		{gatewayNameFlagName, gatewayNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(gatewayNameFlagName); flag != nil {
-		if err := cfg.BindFlag(gatewayNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
@@ -126,14 +129,16 @@ func bindBackendClusterChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(backendClusterIDFlagName); flag != nil {
-		if err := cfg.BindFlag(backendClusterIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{backendClusterIDFlagName, backendClusterIDConfigPath},
+		{backendClusterNameFlagName, backendClusterNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(backendClusterNameFlagName); flag != nil {
-		if err := cfg.BindFlag(backendClusterNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
@@ -162,14 +167,16 @@ func bindVirtualClusterChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(virtualClusterIDFlagName); flag != nil {
-		if err := cfg.BindFlag(virtualClusterIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{virtualClusterIDFlagName, virtualClusterIDConfigPath},
+		{virtualClusterNameFlagName, virtualClusterNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(virtualClusterNameFlagName); flag != nil {
-		if err := cfg.BindFlag(virtualClusterNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
@@ -198,14 +205,16 @@ func bindListenerChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(listenerIDFlagName); flag != nil {
-		if err := cfg.BindFlag(listenerIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{listenerIDFlagName, listenerIDConfigPath},
+		{listenerNameFlagName, listenerNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(listenerNameFlagName); flag != nil {
-		if err := cfg.BindFlag(listenerNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
@@ -234,14 +243,16 @@ func bindDataPlaneCertChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(dataPlaneCertIDFlagName); flag != nil {
-		if err := cfg.BindFlag(dataPlaneCertIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{dataPlaneCertIDFlagName, dataPlaneCertIDConfigPath},
+		{dataPlaneCertNameFlagName, dataPlaneCertNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(dataPlaneCertNameFlagName); flag != nil {
-		if err := cfg.BindFlag(dataPlaneCertNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
@@ -270,14 +281,16 @@ func bindSchemaRegistryChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(schemaRegistryIDFlagName); flag != nil {
-		if err := cfg.BindFlag(schemaRegistryIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{schemaRegistryIDFlagName, schemaRegistryIDConfigPath},
+		{schemaRegistryNameFlagName, schemaRegistryNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(schemaRegistryNameFlagName); flag != nil {
-		if err := cfg.BindFlag(schemaRegistryNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
@@ -306,14 +319,16 @@ func bindStaticKeyChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(staticKeyIDFlagName); flag != nil {
-		if err := cfg.BindFlag(staticKeyIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{staticKeyIDFlagName, staticKeyIDConfigPath},
+		{staticKeyNameFlagName, staticKeyNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(staticKeyNameFlagName); flag != nil {
-		if err := cfg.BindFlag(staticKeyNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
@@ -342,14 +357,16 @@ func bindTLSTrustBundleChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(tlsTrustBundleIDFlagName); flag != nil {
-		if err := cfg.BindFlag(tlsTrustBundleIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{tlsTrustBundleIDFlagName, tlsTrustBundleIDConfigPath},
+		{tlsTrustBundleNameFlagName, tlsTrustBundleNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(tlsTrustBundleNameFlagName); flag != nil {
-		if err := cfg.BindFlag(tlsTrustBundleNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
@@ -383,4 +400,11 @@ func resolveEventGatewayIDByName(
 	}
 
 	return gateway.ID, nil
+}
+
+func bindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
+	if f := flags.Lookup(flagName); f != nil {
+		return cfg.BindFlag(configPath, f)
+	}
+	return nil
 }

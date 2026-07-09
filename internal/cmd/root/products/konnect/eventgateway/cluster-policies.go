@@ -145,14 +145,16 @@ func bindClusterPolicyChildFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if flag := c.Flags().Lookup(clusterPolicyIDFlagName); flag != nil {
-		if err := cfg.BindFlag(clusterPolicyIDConfigPath, flag); err != nil {
-			return err
-		}
+	bindings := []struct {
+		flag   string
+		config string
+	}{
+		{clusterPolicyIDFlagName, clusterPolicyIDConfigPath},
+		{clusterPolicyNameFlagName, clusterPolicyNameConfigPath},
 	}
 
-	if flag := c.Flags().Lookup(clusterPolicyNameFlagName); flag != nil {
-		if err := cfg.BindFlag(clusterPolicyNameConfigPath, flag); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.config); err != nil {
 			return err
 		}
 	}
