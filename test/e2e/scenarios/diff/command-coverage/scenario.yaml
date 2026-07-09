@@ -436,3 +436,28 @@ steps:
             expect:
               fields:
                 description: "{{ .vars.cpDesc }}"
+
+  - name: 004-delete-cleanup
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 10
+                by_action.DELETE: 10
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
