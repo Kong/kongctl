@@ -11,18 +11,25 @@ import (
 )
 
 type stubAPIPublicationAPI struct {
-	t            *testing.T
-	deleteAPIID  string
-	deletePortal string
+	t             *testing.T
+	publishAPIID  string
+	publishPortal string
+	publishReq    kkComps.APIPublication
+	deleteAPIID   string
+	deletePortal  string
 }
 
 func (s *stubAPIPublicationAPI) PublishAPIToPortal(
-	context.Context,
-	kkOps.PublishAPIToPortalRequest,
-	...kkOps.Option,
+	_ context.Context,
+	request kkOps.PublishAPIToPortalRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.PublishAPIToPortalResponse, error) {
-	s.t.Fatalf("unexpected PublishAPIToPortal call")
-	return nil, nil
+	s.publishAPIID = request.APIID
+	s.publishPortal = request.PortalID
+	s.publishReq = request.APIPublication
+	return &kkOps.PublishAPIToPortalResponse{
+		APIPublicationResponse: &kkComps.APIPublicationResponse{},
+	}, nil
 }
 
 func (s *stubAPIPublicationAPI) DeletePublication(
@@ -75,6 +82,55 @@ func TestAPIPublicationAdapterDeleteUsesPortalIDField(t *testing.T) {
 	}
 	if api.deletePortal != "portal-456" {
 		t.Fatalf("DeletePublication() portalID = %q, want %q", api.deletePortal, "portal-456")
+	}
+}
+
+func TestAPIPublicationAdapterCreatePublishesAPIToResolvedPortal(t *testing.T) {
+	t.Parallel()
+
+	api := &stubAPIPublicationAPI{t: t}
+	client := state.NewClient(state.ClientConfig{APIPublicationAPI: api})
+	adapter := NewAPIPublicationAdapter(client)
+	base := NewBaseCreateDeleteExecutor[kkComps.APIPublication](adapter, false)
+
+	change := planner.PlannedChange{
+		ID:           "1:c:api_publication:sms-to-getting-started-portal",
+		ResourceType: "api_publication",
+		ResourceRef:  "sms-to-getting-started-portal",
+		Action:       planner.ActionCreate,
+		Fields: map[string]any{
+			"portal_id":  "portal-456",
+			"visibility": "private",
+		},
+		Parent: &planner.ParentInfo{Ref: "sms", ID: "api-123"},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldAPIID: {
+				Ref: "sms",
+				ID:  "api-123",
+			},
+			planner.FieldPortalID: {
+				Ref: "getting-started-portal",
+				ID:  "portal-456",
+			},
+		},
+	}
+
+	id, err := base.Create(context.Background(), change)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if id != "api-123" {
+		t.Fatalf("Create() id = %q, want %q", id, "api-123")
+	}
+	if api.publishAPIID != "api-123" {
+		t.Fatalf("PublishAPIToPortal() apiID = %q, want %q", api.publishAPIID, "api-123")
+	}
+	if api.publishPortal != "portal-456" {
+		t.Fatalf("PublishAPIToPortal() portalID = %q, want %q", api.publishPortal, "portal-456")
+	}
+	if api.publishReq.Visibility == nil || *api.publishReq.Visibility != kkComps.APIPublicationVisibility("private") {
+		t.Fatalf("PublishAPIToPortal() visibility = %v, want private", api.publishReq.Visibility)
 	}
 }
 

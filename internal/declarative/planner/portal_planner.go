@@ -1084,8 +1084,8 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 ) error {
 	// Get the main planner instance to access child resource planning methods
 	planner := p.planner
-	childInScope := func(rt resources.ResourceType) bool {
-		return planner.shouldPlanChild(plan, resources.ResourceTypePortal, desired.Ref, rt)
+	childInScope := func(rt resources.ResourceType, hasDesired bool) bool {
+		return p.shouldPlanPortalChild(plan, desired, rt, hasDesired)
 	}
 
 	// Extract parent namespace for child resources
@@ -1103,7 +1103,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			pages = append(pages, page)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalPage) {
+	if childInScope(resources.ResourceTypePortalPage, len(pages) > 0) {
 		if err := planner.planPortalPagesChanges(ctx, parentNamespace, current.ID, desired.Ref, pages, plan); err != nil {
 			return fmt.Errorf("failed to plan portal page changes: %w", err)
 		}
@@ -1118,7 +1118,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			snippets = append(snippets, snippet)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalSnippet) {
+	if childInScope(resources.ResourceTypePortalSnippet, len(snippets) > 0) {
 		if err := planner.planPortalSnippetsChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, snippets, plan,
 		); err != nil {
@@ -1133,7 +1133,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			allowLists = append(allowLists, allowList)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalIPAllowList) {
+	if childInScope(resources.ResourceTypePortalIPAllowList, len(allowLists) > 0) {
 		if err := planner.planPortalIPAllowListsChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, allowLists, plan,
 		); err != nil {
@@ -1148,7 +1148,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			integrations = append(integrations, integration)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalIntegration) {
+	if childInScope(resources.ResourceTypePortalIntegration, len(integrations) > 0) {
 		if err := planner.planPortalIntegrationsChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, integrations, plan,
 		); err != nil {
@@ -1163,7 +1163,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			identityProviders = append(identityProviders, provider)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalIdentityProvider) {
+	if childInScope(resources.ResourceTypePortalIdentityProvider, len(identityProviders) > 0) {
 		if err := planner.planPortalIdentityProvidersChanges(
 			ctx,
 			parentNamespace,
@@ -1183,7 +1183,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			authSettings = append(authSettings, auth)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalAuthSettings) {
+	if childInScope(resources.ResourceTypePortalAuthSettings, len(authSettings) > 0) {
 		if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, authSettings, plan); err != nil {
 			return fmt.Errorf("failed to plan portal auth settings changes: %w", err)
 		}
@@ -1196,7 +1196,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			emailConfigs = append(emailConfigs, cfg)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalEmailConfig) {
+	if childInScope(resources.ResourceTypePortalEmailConfig, len(emailConfigs) > 0) {
 		if err := planner.planPortalEmailConfigsChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, emailConfigs, plan,
 		); err != nil {
@@ -1211,7 +1211,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			auditLogWebhooks = append(auditLogWebhooks, webhook)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalAuditLogWebhook) {
+	if childInScope(resources.ResourceTypePortalAuditLogWebhook, len(auditLogWebhooks) > 0) {
 		if err := planner.planPortalAuditLogWebhooksChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, auditLogWebhooks, plan,
 		); err != nil {
@@ -1226,7 +1226,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			templates = append(templates, tpl)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalEmailTemplate) {
+	if childInScope(resources.ResourceTypePortalEmailTemplate, len(templates) > 0) {
 		if err := planner.planPortalEmailTemplatesChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, desired.Name, templates, plan,
 		); err != nil {
@@ -1241,7 +1241,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			customizations = append(customizations, customization)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalCustomization) {
+	if childInScope(resources.ResourceTypePortalCustomization, len(customizations) > 0) {
 		if err := planner.planPortalCustomizationsChanges(
 			ctx, plannerCtx, parentNamespace, customizations, plan,
 		); err != nil {
@@ -1256,7 +1256,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			teams = append(teams, team)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalTeam) {
+	if childInScope(resources.ResourceTypePortalTeam, len(teams) > 0) {
 		if err := planner.planPortalTeamsChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, teams, plan,
 		); err != nil {
@@ -1270,7 +1270,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			mappings = append(mappings, mapping)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalTeamGroupMapping) {
+	if childInScope(resources.ResourceTypePortalTeamGroupMapping, len(mappings) > 0) {
 		if err := planner.planPortalTeamGroupMappingsChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, mappings, plan,
 		); err != nil {
@@ -1278,7 +1278,14 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 		}
 	}
 
-	if childInScope(resources.ResourceTypePortalTeamRole) {
+	hasTeamRoles := false
+	for _, role := range planner.desiredPortalTeamRoles {
+		if role.Portal == desired.Ref {
+			hasTeamRoles = true
+			break
+		}
+	}
+	if childInScope(resources.ResourceTypePortalTeamRole, hasTeamRoles) {
 		if err := planner.planPortalTeamRolesChanges(
 			ctx, parentNamespace, current.ID, desired.Ref, desired.Name, plan,
 		); err != nil {
@@ -1293,7 +1300,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			domains = append(domains, domain)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalCustomDomain) {
+	if childInScope(resources.ResourceTypePortalCustomDomain, len(domains) > 0) {
 		if err := planner.planPortalCustomDomainsChanges(
 			ctx,
 			parentNamespace,
@@ -1313,7 +1320,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			logos = append(logos, logo)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalAssetLogo) {
+	if childInScope(resources.ResourceTypePortalAssetLogo, len(logos) > 0) {
 		if err := planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan); err != nil {
 			return fmt.Errorf("failed to plan portal asset logo changes: %w", err)
 		}
@@ -1326,7 +1333,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			favicons = append(favicons, favicon)
 		}
 	}
-	if childInScope(resources.ResourceTypePortalAssetFavicon) {
+	if childInScope(resources.ResourceTypePortalAssetFavicon, len(favicons) > 0) {
 		if err := planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan); err != nil {
 			return fmt.Errorf("failed to plan portal asset favicon changes: %w", err)
 		}
@@ -1335,7 +1342,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)
 	if !desired.IsExternal() && desired.Assets != nil {
 		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
-			if childInScope(resources.ResourceTypePortalAssetLogo) &&
+			if childInScope(resources.ResourceTypePortalAssetLogo, true) &&
 				!plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
 				needsUpdate, currentDataURL, err := planner.portalAssetNeedsUpdate(
 					ctx,
@@ -1365,7 +1372,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			}
 		}
 		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
-			if childInScope(resources.ResourceTypePortalAssetFavicon) &&
+			if childInScope(resources.ResourceTypePortalAssetFavicon, true) &&
 				!plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
 				needsUpdate, currentDataURL, err := planner.portalAssetNeedsUpdate(
 					ctx,
@@ -1397,4 +1404,16 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	}
 
 	return nil
+}
+
+func (p *portalPlannerImpl) shouldPlanPortalChild(
+	plan *Plan,
+	desired resources.PortalResource,
+	rt resources.ResourceType,
+	hasDesired bool,
+) bool {
+	if desired.IsExternal() && plan != nil && plan.Metadata.Mode != PlanModeSync {
+		return hasDesired
+	}
+	return p.planner.shouldPlanChild(plan, resources.ResourceTypePortal, desired.Ref, rt)
 }
