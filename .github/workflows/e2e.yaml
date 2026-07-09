@@ -965,14 +965,19 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      issues: write
       statuses: write
+    outputs:
+      state: ${{ steps.report.outputs.state }}
+      description: ${{ steps.report.outputs.description }}
+      status_sha: ${{ steps.report.outputs.status_sha }}
+      trusted_pr_number: ${{ steps.report.outputs.trusted_pr_number }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - name: Report E2E Required outcome
+        id: report
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           E2E_NEEDED_RESULT: ${{ needs.e2e-needed.result }}
@@ -998,7 +1003,6 @@ jobs:
         with:
           script: |
             const statusContext = 'E2E Required';
-            const trustedCommentMarker = '<!-- kongctl-trusted-e2e-status -->';
             const eventName = process.env.GITHUB_EVENT_NAME;
             const neededResult = process.env.E2E_NEEDED_RESULT;
             const required = process.env.E2E_REQUIRED === 'true';
@@ -1034,6 +1038,11 @@ jobs:
                 : 'E2E required and E2E Verify succeeded.';
             }
 
+            core.setOutput('state', state);
+            core.setOutput('description', description);
+            core.setOutput('status_sha', statusSha);
+            core.setOutput('trusted_pr_number', trustedPRNumber || '');
+
             if (forkPullRequest) {
               core.warning('Skipping E2E Required status update for fork pull request.');
             } else if (eventName === 'pull_request' || eventName === 'merge_group' || trustedDispatch) {
@@ -1049,47 +1058,6 @@ jobs:
             }
 
             if (trustedDispatch && trustedPRNumber) {
-              const statusLabel = state === 'success'
-                ? 'passed'
-                : state === 'failure' || state === 'error'
-                  ? 'failed'
-                  : state;
-              const body = [
-                trustedCommentMarker,
-                `Trusted E2E ${statusLabel} for reviewed fork SHA.`,
-                '',
-                `- PR: #${trustedPRNumber}`,
-                `- Reviewed SHA: \`${statusSha}\``,
-                `- Trusted run: ${runURL}`,
-                `- Status: \`${state}\``,
-                `- Description: ${description}`,
-                '',
-                'This trusted E2E result applies only to the exact reviewed SHA above. Re-run trusted E2E if the contributor pushes another commit.',
-              ].join('\n');
-
-              const comments = await github.paginate(github.rest.issues.listComments, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: Number(trustedPRNumber),
-                per_page: 100,
-              });
-              const existing = comments.find((comment) => comment.body?.includes(trustedCommentMarker));
-              if (existing) {
-                await github.rest.issues.updateComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: existing.id,
-                  body,
-                });
-              } else {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: Number(trustedPRNumber),
-                  body,
-                });
-              }
-
               await core.summary
                 .addHeading('Trusted Fork E2E')
                 .addList([
@@ -1108,3 +1076,93 @@ jobs:
             }
 
             core.info(description);
+
+  trusted-e2e-result-comment:
+    name: "E2E Gate: Update Trusted PR Comment"
+    needs:
+      - e2e-required
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Update trusted E2E comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          E2E_REQUIRED_STATE: ${{ needs.e2e-required.outputs.state || 'failure' }}
+          E2E_REQUIRED_DESCRIPTION: >-
+            ${{
+              needs.e2e-required.outputs.description ||
+              format('E2E gate result job concluded {0}.', needs.e2e-required.result)
+            }}
+          TRUSTED_PR_NUMBER: ${{ needs.e2e-required.outputs.trusted_pr_number || inputs.trusted_pr_number }}
+          STATUS_SHA: ${{ needs.e2e-required.outputs.status_sha || inputs.trusted_head_sha }}
+        with:
+          script: |
+            const trustedCommentMarker = '<!-- kongctl-trusted-e2e-status -->';
+            const state = process.env.E2E_REQUIRED_STATE;
+            const description = process.env.E2E_REQUIRED_DESCRIPTION;
+            const trustedPRNumber = Number(process.env.TRUSTED_PR_NUMBER);
+            const statusSha = process.env.STATUS_SHA;
+            const runURL = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const statusLabel = state === 'success'
+              ? 'passed'
+              : state === 'failure' || state === 'error'
+                ? 'failed'
+                : state;
+            const body = [
+              trustedCommentMarker,
+              `Trusted E2E ${statusLabel} for reviewed fork SHA.`,
+              '',
+              `- PR: #${trustedPRNumber}`,
+              `- Reviewed SHA: \`${statusSha}\``,
+              `- Trusted run: ${runURL}`,
+              `- Status: \`${state}\``,
+              `- Description: ${description}`,
+              '',
+              'This trusted E2E result applies only to the exact reviewed SHA above. Re-run trusted E2E if the contributor pushes another commit.',
+            ].join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: trustedPRNumber,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) =>
+              comment.body?.includes(trustedCommentMarker) &&
+              comment.user?.login === 'github-actions[bot]'
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: trustedPRNumber,
+                body,
+              });
+            }
+
+            await core.summary
+              .addHeading('Trusted Fork E2E')
+              .addList([
+                `Status: ${state}`,
+                `Description: ${description}`,
+                `PR: #${trustedPRNumber}`,
+                `Reviewed SHA: ${statusSha}`,
+                `Trusted run: ${runURL}`,
+              ])
+              .write();
