@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
@@ -100,7 +99,6 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 	var requestBody map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(client.requestBody, &requestBody))
 	require.Contains(t, requestBody, "targets")
-	require.NotContains(t, requestBody, "target_models")
 	require.JSONEq(
 		t,
 		`[{
@@ -112,83 +110,4 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 		}]`,
 		string(requestBody["targets"]),
 	)
-}
-
-func TestAddTargetsToAIGatewayModelRequestCopiesTargetModels(t *testing.T) {
-	req := newAIGatewayModelMutationRequest(t, http.MethodPost, "/v1/ai-gateways/gw-1/models", `{
-		"type": "model",
-		"target_models": [
-			{"name": "gpt-4o-mini", "provider": "shared-openai", "config": {"type": "openai"}}
-		]
-	}`)
-
-	require.NoError(t, addTargetsToAIGatewayModelRequest(req))
-
-	payload := readAIGatewayModelRequestPayload(t, req)
-	require.JSONEq(t, string(payload["target_models"]), string(payload["targets"]))
-}
-
-func TestAddTargetsToAIGatewayModelRequestPreservesExistingTargets(t *testing.T) {
-	req := newAIGatewayModelMutationRequest(t, http.MethodPost, "/v1/ai-gateways/gw-1/models", `{
-		"type": "model",
-		"target_models": [
-			{"name": "gpt-4o-mini", "provider": "shared-openai", "config": {"type": "openai"}}
-		],
-		"targets": [
-			{"name": "custom", "provider": "shared-openai", "config": {"type": "openai"}}
-		]
-	}`)
-
-	require.NoError(t, addTargetsToAIGatewayModelRequest(req))
-
-	payload := readAIGatewayModelRequestPayload(t, req)
-	require.JSONEq(
-		t,
-		`[{"name":"custom","provider":"shared-openai","config":{"type":"openai"}}]`,
-		string(payload["targets"]),
-	)
-}
-
-func TestAddTargetsToAIGatewayModelRequestSupportsUpdatePath(t *testing.T) {
-	req := newAIGatewayModelMutationRequest(t, http.MethodPut, "/v1/ai-gateways/gw-1/models/model-1", `{
-		"type": "model",
-		"target_models": [
-			{"name": "gpt-4o-mini", "provider": "shared-openai", "config": {"type": "openai"}}
-		]
-	}`)
-
-	require.NoError(t, addTargetsToAIGatewayModelRequest(req))
-
-	payload := readAIGatewayModelRequestPayload(t, req)
-	require.Contains(t, payload, "targets")
-}
-
-func TestAddTargetsToAIGatewayModelRequestIgnoresNonModelMutation(t *testing.T) {
-	req := newAIGatewayModelMutationRequest(t, http.MethodPost, "/v1/ai-gateways/gw-1/providers", `{
-		"target_models": [{"name": "gpt-4o-mini"}]
-	}`)
-
-	require.NoError(t, addTargetsToAIGatewayModelRequest(req))
-
-	payload := readAIGatewayModelRequestPayload(t, req)
-	require.NotContains(t, payload, "targets")
-}
-
-func newAIGatewayModelMutationRequest(t *testing.T, method string, path string, body string) *http.Request {
-	t.Helper()
-
-	req, err := http.NewRequest(method, "https://example.test"+path, strings.NewReader(body))
-	require.NoError(t, err)
-	return req
-}
-
-func readAIGatewayModelRequestPayload(t *testing.T, req *http.Request) map[string]json.RawMessage {
-	t.Helper()
-
-	body, err := readAndRestoreRequestBody(req)
-	require.NoError(t, err)
-
-	var payload map[string]json.RawMessage
-	require.NoError(t, json.Unmarshal(body, &payload))
-	return payload
 }

@@ -1,0 +1,70 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-provider-e2e
+
+ai_gateways:
+  - ref: ai-gateway-model-provider-e2e
+    name: ai-gateway-model-provider-e2e
+    display_name: "AI Gateway Model Provider E2E"
+    description: "AI Gateway Model Provider e2e"
+    proxy_urls:
+      - host: ai-gateway-model-provider-e2e.example.com
+        port: 443
+        protocol: https
+    model_providers:
+      - ref: support-bedrock
+        name: support-bedrock
+        type: bedrock
+        display_name: "Support Bedrock"
+        labels:
+          provider: bedrock
+          team: support
+        config:
+          auth:
+            type: aws
+            access_key_id: fake-access-key-id
+            secret_access_key: fake-secret-access-key
+      - ref: support-azure
+        name: support-azure
+        type: azure
+        display_name: "Updated Support Azure OpenAI"
+        labels:
+          provider: azure
+          team: platform
+        config:
+          instance: support-openai-resource
+          auth:
+            type: basic
+            headers:
+              - name: api-key
+                value: fake-azure-api-key
+            params:
+              - name: api-version
+                value: "2024-10-01-preview"
+                location: query
+      - ref: support-gemini
+        name: support-gemini
+        type: gemini
+        display_name: "Support Gemini"
+        labels:
+          provider: gemini
+          team: support
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: x-goog-api-key
+                value: fake-gemini-api-key
+      - ref: support-openai
+        name: support-openai
+        type: openai
+        display_name: "Support OpenAI"
+        labels:
+          provider: openai
+          team: support
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: Bearer fake-openai-api-key

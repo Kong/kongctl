@@ -36,7 +36,7 @@ ai_gateways:
           model: {}
         formats:
           - type: openai
-        target_models:
+        targets:
           - name: gpt-4o
             provider: support-openai
             config:

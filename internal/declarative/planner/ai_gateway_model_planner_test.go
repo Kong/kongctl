@@ -230,7 +230,7 @@ func TestAIGatewayModelPlannerIgnoresTargetOrderAndAPIDefaults(t *testing.T) {
 		"enabled": true,
 		"config": {"route": {}, "model": {}},
 		"formats": [{"type": "openai"}],
-		"target_models": [
+		"targets": [
 			{"name": "gpt-4o", "provider": "support-openai", "config": {"type": "openai"}},
 			{"name": "gpt-4o-mini", "provider": "support-openai", "config": {"type": "openai"}}
 		],
@@ -375,7 +375,7 @@ func testAIGatewayModelResource(t *testing.T) resources.AIGatewayModelResource {
 		"enabled": true,
 		"config": {"route": {}, "model": {}},
 		"formats": [{"type": "openai"}],
-		"target_models": [{"name": "gpt-4o", "provider": "support-openai", "config": {"type": "openai"}}],
+		"targets": [{"name": "gpt-4o", "provider": "support-openai", "config": {"type": "openai"}}],
 		"policies": [],
 		"capabilities": ["generate"]
 	}`
@@ -395,7 +395,7 @@ func testAIGatewayModelResourceWithGeminiGCPEnvironment(t *testing.T) resources.
 		"enabled": true,
 		"config": {"route": {}, "model": {}},
 		"formats": [{"type": "openai"}],
-		"target_models": [{
+		"targets": [{
 			"name": "gemini-1.5-pro",
 			"provider": "support-gemini-provider",
 			"config": {

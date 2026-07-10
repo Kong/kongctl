@@ -25,7 +25,7 @@ ai_gateways:
           model: {}
         formats:
           - type: openai
-        target_models:
+        targets:
           - name: gpt-4o
             provider: support-openai
             config:
@@ -62,7 +62,7 @@ ai_gateway_models:
     display_name: Support GPT
     config: {route: {}, model: {}}
     formats: [{type: openai}]
-    target_models: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
+    targets: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
     policies: []
     capabilities: [generate]
 `
@@ -81,7 +81,7 @@ ai_gateways:
         display_name: Support GPT
         config: {route: {}, model: {}}
         formats: [{type: openai}]
-        target_models: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
+        targets: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
         policies: []
         capabilities: [generate]
       - ref: support-gpt-2
@@ -90,7 +90,7 @@ ai_gateways:
         display_name: Support GPT 2
         config: {route: {}, model: {}}
         formats: [{type: openai}]
-        target_models: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
+        targets: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
         policies: []
         capabilities: [generate]
 `
@@ -123,7 +123,7 @@ ai_gateway_models:
     display_name: Support GPT
     config: {route: {}, model: {}}
     formats: [{type: openai}]
-    target_models: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
+    targets: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
     policies: []
     capabilities: [generate]
 `

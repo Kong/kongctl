@@ -132,7 +132,7 @@ steps:
                 "contains(stdout, 'route: {}')": true
                 "contains(stdout, 'model: {}')": true
                 "contains(stdout, '- type: openai')": true
-                "contains(stdout, 'target_models:')": true
+                "contains(stdout, 'targets:')": true
                 "contains(stdout, 'provider: existing-provider-name')": true
                 "contains(stdout, 'type: model')": true
                 "contains(stdout, '# type: api')": true

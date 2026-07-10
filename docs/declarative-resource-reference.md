@@ -342,7 +342,7 @@ required `title` field as the stable Konnect child name. Child entries inherit
 management scope from their parent resource and do not accept `kongctl`
 metadata.
 
-For AI Gateway Models, `target_models[].provider` must match an AI Gateway
+For AI Gateway Models, `targets[].provider` must match an AI Gateway
 Model Provider `name` under the parent gateway. The model provider can already
 exist or be declared in the same gateway configuration.
 
@@ -480,7 +480,7 @@ ai_gateways:
         model: object required
       formats:
        - type: string required
-      target_models:
+      targets:
        - name: string required
          provider: string required # provider name in parent AI Gateway
          config:
@@ -682,7 +682,7 @@ ai_gateway_models:
      model: object required
    formats:
     - type: string required
-   target_models:
+   targets:
     - name: string required
       provider: string required # provider name in parent AI Gateway
       config:

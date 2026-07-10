@@ -1,12 +1,8 @@
 package helpers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"strings"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -124,7 +120,7 @@ func (a *AIGatewayModelAPIImpl) DeleteAiGatewayModel(
 func (a *AIGatewayModelAPIImpl) modelCompatibilitySDK() (*kkSDK.SDK, error) {
 	sdkOpts := []kkSDK.SDKOption{
 		kkSDK.WithServerURL(a.BaseURL),
-		kkSDK.WithClient(&aiGatewayModelCompatibilityHTTPClient{base: a.HTTPClient}),
+		kkSDK.WithClient(a.HTTPClient),
 	}
 	if a.TokenSource != nil {
 		sdkOpts = append(sdkOpts, kkSDK.WithSecuritySource(func(ctx context.Context) (kkComps.Security, error) {
@@ -145,77 +141,4 @@ func (a *AIGatewayModelAPIImpl) modelCompatibilitySDK() (*kkSDK.SDK, error) {
 		return nil, fmt.Errorf("failed to initialize SDK for AI Gateway model request")
 	}
 	return sdk, nil
-}
-
-type aiGatewayModelCompatibilityHTTPClient struct {
-	base kkSDK.HTTPClient
-}
-
-func (c *aiGatewayModelCompatibilityHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	if c == nil || c.base == nil {
-		return nil, fmt.Errorf("http client is not configured")
-	}
-
-	if err := addTargetsToAIGatewayModelRequest(req); err != nil {
-		return nil, err
-	}
-
-	return c.base.Do(req)
-}
-
-func addTargetsToAIGatewayModelRequest(req *http.Request) error {
-	if !isAIGatewayModelMutationRequest(req) {
-		return nil
-	}
-
-	body, err := readAndRestoreRequestBody(req)
-	if err != nil {
-		return err
-	}
-	if len(bytes.TrimSpace(body)) == 0 {
-		return nil
-	}
-
-	var payload map[string]json.RawMessage
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway model request: %w", err)
-	}
-	if _, ok := payload["targets"]; ok {
-		return nil
-	}
-
-	targetModels, ok := payload["target_models"]
-	if !ok || len(bytes.TrimSpace(targetModels)) == 0 || bytes.Equal(bytes.TrimSpace(targetModels), []byte("null")) {
-		return nil
-	}
-	payload["targets"] = targetModels
-
-	encoded, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway model request: %w", err)
-	}
-	restoreRequestBody(req, encoded)
-	return nil
-}
-
-func isAIGatewayModelMutationRequest(req *http.Request) bool {
-	if req == nil || req.URL == nil {
-		return false
-	}
-	if req.Method != http.MethodPost && req.Method != http.MethodPut {
-		return false
-	}
-
-	path := strings.Trim(req.URL.Path, "/")
-	segments := strings.Split(path, "/")
-	if len(segments) != 4 && len(segments) != 5 {
-		return false
-	}
-	if segments[0] != "v1" || segments[1] != "ai-gateways" || segments[2] == "" || segments[3] != "models" {
-		return false
-	}
-	if req.Method == http.MethodPost {
-		return len(segments) == 4
-	}
-	return len(segments) == 5 && segments[4] != ""
 }

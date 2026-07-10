@@ -304,25 +304,43 @@ func projectAIGatewayPolicyConfigForComparison(
 
 func projectAIGatewayPolicyConfigValue(current any, desired any) any {
 	desiredMap, desiredIsMap := desired.(map[string]any)
-	if !desiredIsMap {
-		return current
-	}
-	if len(desiredMap) == 0 {
-		return desiredMap
-	}
-
-	currentMap, currentIsMap := current.(map[string]any)
-	if !currentIsMap {
-		return current
-	}
-
-	projected := make(map[string]any, len(desiredMap))
-	for key, desiredValue := range desiredMap {
-		if currentValue, ok := currentMap[key]; ok {
-			projected[key] = projectAIGatewayPolicyConfigValue(currentValue, desiredValue)
+	if desiredIsMap {
+		if len(desiredMap) == 0 {
+			return desiredMap
 		}
+
+		currentMap, currentIsMap := current.(map[string]any)
+		if !currentIsMap {
+			return current
+		}
+
+		projected := make(map[string]any, len(desiredMap))
+		for key, desiredValue := range desiredMap {
+			if currentValue, ok := currentMap[key]; ok {
+				projected[key] = projectAIGatewayPolicyConfigValue(currentValue, desiredValue)
+			}
+		}
+		return projected
 	}
-	return projected
+
+	desiredSlice, desiredIsSlice := desired.([]any)
+	if desiredIsSlice {
+		currentSlice, currentIsSlice := current.([]any)
+		if !currentIsSlice {
+			return current
+		}
+
+		projected := make([]any, 0, min(len(currentSlice), len(desiredSlice)))
+		for i, desiredValue := range desiredSlice {
+			if i >= len(currentSlice) {
+				break
+			}
+			projected = append(projected, projectAIGatewayPolicyConfigValue(currentSlice[i], desiredValue))
+		}
+		return projected
+	}
+
+	return current
 }
 
 func isAIGatewayDefaultValue(key string, value any) bool {

@@ -265,6 +265,62 @@ func TestAIGatewayPolicyPlannerIgnoresServerDefaultsUnderDeclaredEmptyConfigObje
 	require.Nil(t, changed)
 }
 
+func TestAIGatewayPolicyPlannerIgnoresServerDefaultsInsideDeclaredConfigArrays(t *testing.T) {
+	policy := testAIGatewayRateLimitingAdvancedPolicyResource(t)
+	current := testAIGatewayRateLimitingAdvancedPolicy()
+	current.Config = map[string]any{
+		"custom_cost_count_function": nil,
+		"dictionary_name":            "kong_rate_limiting_counters",
+		"identifier":                 "ip",
+		"strategy":                   "local",
+		"tokens_count_strategy":      "total_tokens",
+		"window_type":                "sliding",
+		"policies": []any{
+			map[string]any{
+				"id":          nil,
+				"timezone":    nil,
+				"window_type": "sliding",
+				"limits": []any{
+					map[string]any{
+						"limit":                 float64(5),
+						"month_day":             nil,
+						"period":                nil,
+						"tokens_count_strategy": "total_tokens",
+						"week_start_day":        nil,
+						"window_size":           float64(3600),
+					},
+				},
+				"match": []any{
+					map[string]any{
+						"key":          nil,
+						"partition_by": false,
+						"type":         "ip",
+						"values":       nil,
+					},
+				},
+			},
+		},
+		"redis": map[string]any{
+			"database":   float64(0),
+			"host":       "127.0.0.1",
+			"port":       float64(6379),
+			"ssl":        false,
+			"ssl_verify": true,
+			"timeout":    float64(2000),
+		},
+	}
+
+	needsUpdate, fields, changed, err := shouldUpdateAIGatewayPolicy(
+		state.AIGatewayPolicy{AIGatewayPolicy: current},
+		policy,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func TestAIGatewayPolicyPlannerComparesDeclaredNullConfigValues(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
@@ -454,6 +510,38 @@ func testAIGatewayResponseTransformerPolicyResource(t *testing.T) resources.AIGa
 	return policy
 }
 
+func testAIGatewayRateLimitingAdvancedPolicyResource(t *testing.T) resources.AIGatewayPolicyResource {
+	t.Helper()
+	payload := `{
+		"ref": "cost-budget",
+		"ai_gateway": "support-gateway",
+		"type": "ai-rate-limiting-advanced",
+		"name": "cost-budget",
+		"display_name": "Cost Budget",
+		"enabled": true,
+		"global": false,
+		"config": {
+			"identifier": "ip",
+			"strategy": "local",
+			"policies": [
+				{
+					"match": [{"type": "ip"}],
+					"limits": [
+						{
+							"limit": 5,
+							"window_size": 3600,
+							"tokens_count_strategy": "total_tokens"
+						}
+					]
+				}
+			]
+		}
+	}`
+	var policy resources.AIGatewayPolicyResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &policy))
+	return policy
+}
+
 func testAIGatewayModelResourceWithPolicy(t *testing.T, policyName string) resources.AIGatewayModelResource {
 	t.Helper()
 	payload := strings.Replace(
@@ -466,7 +554,7 @@ func testAIGatewayModelResourceWithPolicy(t *testing.T, policyName string) resou
 		"enabled": true,
 		"config": {"route": {}, "model": {}},
 		"formats": [{"type": "openai"}],
-		"target_models": [{"name": "gpt-4o", "provider": "support-openai", "config": {"type": "openai"}}],
+		"targets": [{"name": "gpt-4o", "provider": "support-openai", "config": {"type": "openai"}}],
 		"policies": ["POLICY_NAME"],
 		"capabilities": ["generate"]
 	}`,
@@ -538,6 +626,20 @@ func testAIGatewayResponseTransformerPolicy() kkComps.AIGatewayPolicy {
 		Config: map[string]any{
 			"prompt": "Mask all credit card numbers.",
 		},
+	}
+}
+
+func testAIGatewayRateLimitingAdvancedPolicy() kkComps.AIGatewayPolicy {
+	enabled := true
+	global := false
+	return kkComps.AIGatewayPolicy{
+		ID:          "cost-budget-policy-id",
+		Name:        "cost-budget",
+		Type:        "ai-rate-limiting-advanced",
+		DisplayName: "Cost Budget",
+		Enabled:     &enabled,
+		Global:      &global,
+		Config:      map[string]any{},
 	}
 }
 

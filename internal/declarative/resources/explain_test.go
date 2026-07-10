@@ -597,7 +597,7 @@ func TestRenderScaffoldYAML_AIGatewayModelsNestedChildResource(t *testing.T) {
 	assert.Contains(t, scaffold, "model: {}")
 	assert.Contains(t, scaffold, "formats:")
 	assert.Contains(t, scaffold, "- type: openai")
-	assert.Contains(t, scaffold, "target_models:")
+	assert.Contains(t, scaffold, "targets:")
 	assert.Contains(t, scaffold, "provider: existing-provider-name")
 	assert.Contains(t, scaffold, "type: model")
 	assert.Contains(t, scaffold, "# type: api")

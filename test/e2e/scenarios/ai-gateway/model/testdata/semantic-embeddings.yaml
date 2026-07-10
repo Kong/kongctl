@@ -44,7 +44,7 @@ ai_gateways:
               distance_metric: cosine
         formats:
           - type: openai
-        target_models:
+        targets:
           - name: support-tier-primary
             provider: support-huggingface
             semantic_description: "General support requests"
