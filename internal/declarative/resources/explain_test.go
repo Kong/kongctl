@@ -250,15 +250,17 @@ func TestRenderExplainSchema_AnalyticsDashboardDiscriminators(t *testing.T) {
 	assert.Equal(t, "chart", tile.Properties["type"].Const)
 
 	query := tile.Properties["definition"].Properties["query"]
-	require.Len(t, query.OneOf, 3)
+	require.Len(t, query.OneOf, 4)
 	assert.Equal(t, "api_usage", query.OneOf[0].Properties["datasource"].Const)
 	assert.Equal(t, "llm_usage", query.OneOf[1].Properties["datasource"].Const)
 	assert.Equal(t, "agentic_usage", query.OneOf[2].Properties["datasource"].Const)
+	assert.Equal(t, "platform_usage", query.OneOf[3].Properties["datasource"].Const)
 
 	chart := tile.Properties["definition"].Properties["chart"]
-	require.Len(t, chart.OneOf, 7)
+	require.Len(t, chart.OneOf, 8)
 	assert.Equal(t, "timeseries_line", chart.OneOf[0].Properties["type"].Const)
 	assert.Equal(t, "horizontal_bar", chart.OneOf[2].Properties["type"].Const)
+	assert.Equal(t, "top_n", chart.OneOf[7].Properties["type"].Const)
 }
 
 func TestRenderExplainSchema_APIImplementationServiceShape(t *testing.T) {
@@ -300,7 +302,7 @@ func TestRenderExplainText_AnalyticsDashboardAllowedValues(t *testing.T) {
 
 	text := RenderExplainText(subject, false)
 
-	assert.Contains(t, text, "ALLOWED: api_usage|llm_usage|agentic_usage")
+	assert.Contains(t, text, "ALLOWED: api_usage|llm_usage|agentic_usage|platform_usage")
 }
 
 func TestRenderExplainText_ResourceSubject(t *testing.T) {

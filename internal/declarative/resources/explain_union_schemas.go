@@ -429,6 +429,7 @@ func dashboardQueryExplainNode() *ExplainNode {
 		dashboardQueryBranch("api_usage", "request_count"),
 		dashboardQueryBranch("llm_usage", "total_tokens"),
 		dashboardQueryBranch("agentic_usage", "request_count"),
+		dashboardQueryBranch("platform_usage", "request_count"),
 	)
 }
 
@@ -457,6 +458,7 @@ func dashboardChartExplainNode() *ExplainNode {
 		dashboardChartBranch("single_value", false, true),
 		dashboardChartBranch("donut", false, false),
 		dashboardChartBranch("choropleth_map", false, false),
+		dashboardChartBranch("top_n", false, false),
 	)
 }
 

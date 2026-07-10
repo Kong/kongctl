@@ -117,7 +117,53 @@ analytics:
 	_, err := New().LoadFile(configPath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid analytics dashboard tile query.datasource")
-	assert.Contains(t, err.Error(), "expected one of api_usage, llm_usage, agentic_usage")
+	assert.Contains(t, err.Error(), "expected one of api_usage, llm_usage, agentic_usage, platform_usage")
+}
+
+func TestLoaderLoadsTopNChartAndPlatformDatasource(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte(`
+analytics:
+  dashboards:
+    - ref: mcp-servers
+      name: MCP Servers
+      definition:
+        tiles:
+          - layout:
+              position: { col: 0, row: 0 }
+              size: { cols: 4, rows: 2 }
+            type: chart
+            definition:
+              query:
+                datasource: api_usage
+                metrics:
+                  - request_count
+                dimensions:
+                  - gateway_service
+              chart:
+                type: top_n
+                chart_title: Top Services
+          - layout:
+              position: { col: 4, row: 0 }
+              size: { cols: 4, rows: 2 }
+            type: chart
+            definition:
+              query:
+                datasource: platform_usage
+                metrics:
+                  - request_count
+                dimensions:
+                  - time
+              chart:
+                type: timeseries_line
+                chart_title: Platform Usage
+`), 0o600))
+
+	rs, err := New().LoadFile(configPath)
+	require.NoError(t, err)
+	require.Len(t, rs.Dashboards, 1)
+	require.Len(t, rs.Dashboards[0].Definition.Tiles, 2)
 }
 
 func TestLoaderDashboardDefinitionPresenceFromYAML(t *testing.T) {
