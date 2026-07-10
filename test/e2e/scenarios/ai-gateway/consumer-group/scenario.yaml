@@ -355,10 +355,17 @@ steps:
                 total_changes: 2
                 by_action.DELETE: 2
           - select: >-
-              plan.changes[?resource_type=='ai_gateway_consumer_group' && action=='DELETE'] | [0]
+              length(plan.changes[?resource_type=='ai_gateway_consumer_group' && action=='DELETE' &&
+              resource_ref=='{{ .vars.consumer_group_name }}'])
             expect:
               fields:
-                resource_ref: "{{ .vars.consumer_group_name }}"
+                "@": 1
+          - select: >-
+              length(plan.changes[?resource_type=='ai_gateway_consumer_group' && action=='DELETE' &&
+              resource_ref=='{{ .vars.second_consumer_group_name }}'])
+            expect:
+              fields:
+                "@": 1
           - select: summary
             expect:
               fields:
