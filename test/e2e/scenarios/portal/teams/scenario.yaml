@@ -563,7 +563,7 @@ steps:
                 applied: 1
                 failed: 0
 
-      - name: 002-verify-role-removed-by-get
+      - name: 002-verify-qa-role-removed-by-get
         outputFormat: json
         run:
           - get
@@ -573,7 +573,7 @@ steps:
           - --portal-name
           - "{{ .vars.portalName }}"
           - --team-name
-          - "Backend Team"
+          - "QA Team"
         assertions:
           - select: "length(@)"
             expect:
