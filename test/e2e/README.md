@@ -157,8 +157,9 @@ Core harness settings:
 
 Scenario selection and sharding:
 
-- `KONGCTL_E2E_SCENARIO`: Exact scenario selector. Examples:
-  `portal/edit`, `scenarios/portal/edit`, or a full `scenario.yaml` path.
+- `KONGCTL_E2E_SCENARIO`: Scenario selector. Examples: `portal/edit`,
+  `scenarios/portal/edit`, a full `scenario.yaml` path, or a directory prefix
+  such as `ai-gateway`.
 - `KONGCTL_E2E_SHARD_INDEX`: Zero-based shard index for this test process.
 - `KONGCTL_E2E_SHARD_TOTAL`: Total number of shards in the run.
 - `KONGCTL_E2E_MATRIX_ORG`: Optional diagnostic label for the current CI job.
