@@ -66,6 +66,43 @@ func TestAIGatewayIdentityProviderConfigChangedDetectsObservableChanges(t *testi
 	require.True(t, aiGatewayIdentityProviderConfigChanged(current, desired))
 }
 
+func TestAIGatewayIdentityProviderConfigChangedIgnoresUndeclaredDefaults(t *testing.T) {
+	t.Parallel()
+
+	current := map[string]any{
+		"hide_credentials": true,
+		"key_in_body":      false,
+		"key_in_header":    true,
+		"key_in_query":     true,
+		"key_names":        []any{"x-support-api-key"},
+	}
+	desired := map[string]any{
+		"hide_credentials": true,
+		"key_names":        []any{"x-support-api-key"},
+	}
+
+	require.False(t, aiGatewayIdentityProviderConfigChanged(current, desired))
+}
+
+func TestAIGatewayIdentityProviderConfigChangedComparesDeclaredDefaults(t *testing.T) {
+	t.Parallel()
+
+	current := map[string]any{
+		"hide_credentials": true,
+		"key_in_body":      false,
+		"key_in_header":    true,
+		"key_in_query":     true,
+		"key_names":        []any{"x-support-api-key"},
+	}
+	desired := map[string]any{
+		"hide_credentials": true,
+		"key_in_body":      true,
+		"key_names":        []any{"x-support-api-key"},
+	}
+
+	require.True(t, aiGatewayIdentityProviderConfigChanged(current, desired))
+}
+
 func TestAIGatewayIdentityProviderChangedFieldsScrubClientSecret(t *testing.T) {
 	t.Parallel()
 

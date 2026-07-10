@@ -65,6 +65,7 @@ const (
 	FieldType        = "type"
 	FieldConfig      = "config"
 	FieldConfigs     = "configs"
+	FieldConsumers   = "consumers"
 	FieldEnabled     = "enabled"
 	FieldVersion     = "version"
 	FieldSpec        = "spec"

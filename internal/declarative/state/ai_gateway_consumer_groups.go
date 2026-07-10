@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -180,6 +181,161 @@ func (c *Client) DeleteAIGatewayConsumerGroup(ctx context.Context, gatewayID str
 	}
 
 	return nil
+}
+
+func (c *Client) ListAIGatewayConsumersInConsumerGroup(
+	ctx context.Context,
+	gatewayID string,
+	consumerGroupID string,
+) ([]AIGatewayConsumer, error) {
+	if err := ValidateAPIClient(c.aiGatewayConsumerGroupsAPI, "AI Gateway Consumer Groups API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.AIGatewayConsumer
+	var pageAfter *string
+	pageSize := int64(100)
+
+	for {
+		req := kkOps.ListAiGatewayConsumersInConsumerGroupRequest{
+			GatewayID:       gatewayID,
+			ConsumerGroupID: consumerGroupID,
+			PageSize:        &pageSize,
+			PageAfter:       pageAfter,
+		}
+
+		resp, err := c.aiGatewayConsumerGroupsAPI.ListAiGatewayConsumersInConsumerGroup(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list AI Gateway Consumers in Consumer Group", nil)
+		}
+		if resp == nil || resp.ListAIGatewayConsumersResponse == nil {
+			break
+		}
+
+		allData = append(allData, resp.ListAIGatewayConsumersResponse.Data...)
+
+		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayConsumersResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	consumers := make([]AIGatewayConsumer, 0, len(allData))
+	for _, consumer := range allData {
+		consumers = append(consumers, AIGatewayConsumer{
+			AIGatewayConsumer: consumer,
+			NormalizedLabels:  normalizedAIGatewayConsumerLabels(consumer),
+		})
+	}
+	return consumers, nil
+}
+
+func (c *Client) UpsertAIGatewayConsumerGroupConsumers(
+	ctx context.Context,
+	gatewayID string,
+	consumerGroupID string,
+	desired []string,
+) error {
+	if err := ValidateAPIClient(c.aiGatewayConsumerGroupsAPI, "AI Gateway Consumer Groups API"); err != nil {
+		return err
+	}
+
+	current, err := c.ListAIGatewayConsumersInConsumerGroup(ctx, gatewayID, consumerGroupID)
+	if err != nil {
+		return err
+	}
+
+	desired = normalizedConsumerNames(desired)
+	desiredSet := make(map[string]struct{}, len(desired))
+	for _, consumer := range desired {
+		desiredSet[consumer] = struct{}{}
+	}
+
+	currentSet := make(map[string]struct{}, len(current))
+	currentByName := make(map[string]string, len(current))
+	for _, consumer := range current {
+		name := resources.AIGatewayConsumerName(consumer.AIGatewayConsumer)
+		id := resources.AIGatewayConsumerID(consumer.AIGatewayConsumer)
+		if name != "" {
+			currentSet[name] = struct{}{}
+			currentByName[name] = name
+		}
+		if id != "" {
+			currentSet[id] = struct{}{}
+			currentByName[id] = name
+		}
+	}
+
+	for _, consumer := range current {
+		name := resources.AIGatewayConsumerName(consumer.AIGatewayConsumer)
+		id := resources.AIGatewayConsumerID(consumer.AIGatewayConsumer)
+		_, nameDesired := desiredSet[name]
+		_, idDesired := desiredSet[id]
+		if nameDesired || idDesired {
+			continue
+		}
+		remove := firstNonEmpty(name, id)
+		if remove == "" {
+			continue
+		}
+		req := kkOps.RemoveAiGatewayConsumerFromConsumerGroupRequest{
+			GatewayID:        gatewayID,
+			ConsumerGroupID:  consumerGroupID,
+			ConsumerIDOrName: remove,
+		}
+		if _, err := c.aiGatewayConsumerGroupsAPI.RemoveAiGatewayConsumerFromConsumerGroup(ctx, req); err != nil {
+			return WrapAPIError(err, "remove AI Gateway Consumer from Consumer Group", nil)
+		}
+	}
+
+	for _, consumer := range desired {
+		if _, ok := currentSet[consumer]; ok {
+			continue
+		}
+		if name := currentByName[consumer]; name != "" {
+			currentSet[name] = struct{}{}
+			continue
+		}
+		req := kkOps.AddAiGatewayConsumerToConsumerGroupRequest{
+			GatewayID:       gatewayID,
+			ConsumerGroupID: consumerGroupID,
+			AddAIGatewayConsumerToGroupRequest: kkComps.AddAIGatewayConsumerToGroupRequest{
+				Consumer: consumer,
+			},
+		}
+		if _, err := c.aiGatewayConsumerGroupsAPI.AddAiGatewayConsumerToConsumerGroup(ctx, req); err != nil {
+			return WrapAPIError(err, "add AI Gateway Consumer to Consumer Group", nil)
+		}
+	}
+
+	return nil
+}
+
+func normalizedConsumerNames(consumers []string) []string {
+	normalized := make([]string, 0, len(consumers))
+	seen := make(map[string]struct{}, len(consumers))
+	for _, consumer := range consumers {
+		if consumer == "" {
+			continue
+		}
+		if _, ok := seen[consumer]; ok {
+			continue
+		}
+		seen[consumer] = struct{}{}
+		normalized = append(normalized, consumer)
+	}
+	slices.Sort(normalized)
+	return normalized
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func normalizedAIGatewayConsumerGroupLabels(group kkComps.AIGatewayConsumerGroup) map[string]string {

@@ -229,25 +229,48 @@ func TestAIGatewayPolicyPlannerComparesDeclaredNestedConfigFields(t *testing.T) 
 	require.Contains(t, changed, FieldConfig)
 }
 
-func TestAIGatewayPolicyPlannerComparesDeclaredEmptyAndNullConfigValues(t *testing.T) {
+func TestAIGatewayPolicyPlannerIgnoresServerDefaultsUnderDeclaredEmptyConfigObjects(t *testing.T) {
+	policy := testAIGatewayResponseTransformerPolicyResource(t)
+	current := testAIGatewayResponseTransformerPolicy()
+	current.Config = map[string]any{
+		"http_timeout": float64(60000),
+		"https_verify": true,
+		"prompt":       "Mask all credit card numbers.",
+		"llm": map[string]any{
+			"route_type": "llm/v1/chat",
+			"auth": map[string]any{
+				"allow_override":  false,
+				"azure_client_id": nil,
+				"header_name":     "Authorization",
+				"header_value":    "{vault://poc-aigw-secrets/response-transformer-token}",
+			},
+			"model": map[string]any{
+				"provider": "bedrock",
+				"name":     "anthropic.claude-3-haiku-20240307-v1:0",
+				"options": map[string]any{
+					"azure_api_version": "2023-05-15",
+				},
+			},
+		},
+	}
+
+	needsUpdate, fields, changed, err := shouldUpdateAIGatewayPolicy(
+		state.AIGatewayPolicy{AIGatewayPolicy: current},
+		policy,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
+func TestAIGatewayPolicyPlannerComparesDeclaredNullConfigValues(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		desiredConfig string
 		currentConfig map[string]any
 	}{
-		{
-			name: "empty map",
-			desiredConfig: `{
-				"http_endpoint": "https://logging.example.com/ai-gateway",
-				"queue": {}
-			}`,
-			currentConfig: map[string]any{
-				"http_endpoint": "https://logging.example.com/ai-gateway",
-				"queue": map[string]any{
-					"max_batch_size": float64(1),
-				},
-			},
-		},
 		{
 			name: "null",
 			desiredConfig: `{
@@ -400,6 +423,37 @@ func testAIGatewayHTTPLogPolicyResource(t *testing.T, config string) resources.A
 	return policy
 }
 
+func testAIGatewayResponseTransformerPolicyResource(t *testing.T) resources.AIGatewayPolicyResource {
+	t.Helper()
+	payload := `{
+		"ref": "poc-response-transformer",
+		"ai_gateway": "support-gateway",
+		"type": "ai-response-transformer",
+		"name": "poc-response-transformer",
+		"display_name": "POC Response Transformer",
+		"enabled": true,
+		"global": false,
+		"config": {
+			"prompt": "Mask all credit card numbers.",
+			"llm": {
+				"route_type": "llm/v1/chat",
+				"auth": {
+					"header_name": "Authorization",
+					"header_value": "{vault://poc-aigw-secrets/response-transformer-token}"
+				},
+				"model": {
+					"provider": "bedrock",
+					"name": "anthropic.claude-3-haiku-20240307-v1:0",
+					"options": {}
+				}
+			}
+		}
+	}`
+	var policy resources.AIGatewayPolicyResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &policy))
+	return policy
+}
+
 func testAIGatewayModelResourceWithPolicy(t *testing.T, policyName string) resources.AIGatewayModelResource {
 	t.Helper()
 	payload := strings.Replace(
@@ -467,6 +521,22 @@ func testAIGatewayHTTPLogPolicy() kkComps.AIGatewayPolicy {
 		Global:      &global,
 		Config: map[string]any{
 			"http_endpoint": "https://logging.example.com/ai-gateway",
+		},
+	}
+}
+
+func testAIGatewayResponseTransformerPolicy() kkComps.AIGatewayPolicy {
+	enabled := true
+	global := false
+	return kkComps.AIGatewayPolicy{
+		ID:          "response-transformer-policy-id",
+		Name:        "poc-response-transformer",
+		Type:        "ai-response-transformer",
+		DisplayName: "POC Response Transformer",
+		Enabled:     &enabled,
+		Global:      &global,
+		Config: map[string]any{
+			"prompt": "Mask all credit card numbers.",
 		},
 	}
 }

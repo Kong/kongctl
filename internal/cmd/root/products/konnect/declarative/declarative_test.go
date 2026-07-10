@@ -90,6 +90,32 @@ func (d *declarativeAIGatewayConsumerGroupsAPI) DeleteAiGatewayConsumerGroup(
 	return nil, nil
 }
 
+func (d *declarativeAIGatewayConsumerGroupsAPI) ListAiGatewayConsumersInConsumerGroup(
+	context.Context,
+	kkOps.ListAiGatewayConsumersInConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.ListAiGatewayConsumersInConsumerGroupResponse, error) {
+	return &kkOps.ListAiGatewayConsumersInConsumerGroupResponse{
+		ListAIGatewayConsumersResponse: &kkComps.ListAIGatewayConsumersResponse{},
+	}, nil
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) AddAiGatewayConsumerToConsumerGroup(
+	context.Context,
+	kkOps.AddAiGatewayConsumerToConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.AddAiGatewayConsumerToConsumerGroupResponse, error) {
+	return nil, nil
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) RemoveAiGatewayConsumerFromConsumerGroup(
+	context.Context,
+	kkOps.RemoveAiGatewayConsumerFromConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.RemoveAiGatewayConsumerFromConsumerGroupResponse, error) {
+	return nil, nil
+}
+
 var _ helpers.AIGatewayConsumerGroupsAPI = (*declarativeAIGatewayConsumerGroupsAPI)(nil)
 
 func TestCreateStateClientWiresAIGatewayConsumerGroupsAPI(t *testing.T) {

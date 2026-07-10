@@ -1,3 +1,7 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-vault-e2e
+
 ai_gateways:
   - ref: ai-gateway-vault-e2e
     display_name: "AI Gateway Vault E2E"

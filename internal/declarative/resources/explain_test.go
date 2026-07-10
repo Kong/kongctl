@@ -75,6 +75,20 @@ func TestResolveExplainSubject_AIGatewayModelsNestedChildResource(t *testing.T) 
 	assert.Equal(t, []ResourceType{ResourceTypeAIGateway}, subject.AncestorTypes)
 }
 
+func TestResolveExplainSubject_AIGatewayAgentsNestedChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway.agents")
+	require.NoError(t, err)
+
+	assert.Equal(t, "ai_gateway.agents", subject.DisplayPath)
+	assert.Equal(t, ResourceTypeAIGatewayAgent, subject.Doc.ResourceType)
+	assert.Equal(t, explainResourceClassChild, subject.Doc.ResourceClass)
+	assert.True(t, subject.Doc.SupportsRoot)
+	assert.True(t, subject.Doc.SupportsNestedDeclaration)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []string{"agents"}, subject.FieldPath)
+	assert.Equal(t, []ResourceType{ResourceTypeAIGateway}, subject.AncestorTypes)
+}
+
 func TestResolveExplainSubject_OrganizationTeamsGroupedResource(t *testing.T) {
 	subject, err := ResolveExplainSubject("organization.teams")
 	require.NoError(t, err)

@@ -44,9 +44,12 @@ func TestAIGatewayConsumerGroupPlannerUpdatesExistingGroup(t *testing.T) {
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
 		},
+		AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{
+			consumers: []kkComps.AIGatewayConsumer{testAIGatewayConsumer(nil)},
+		},
 		AIGatewayConsumerGroupsAPI: &testAIGatewayConsumerGroupAPI{
 			groups: []kkComps.AIGatewayConsumerGroup{
-				testAIGatewayConsumerGroup("group-id", "premium-support-users", nil),
+				testAIGatewayConsumerGroup(nil),
 			},
 		},
 	})
@@ -71,9 +74,12 @@ func TestAIGatewayConsumerGroupPlannerSyncDeletesScopedGroups(t *testing.T) {
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
 		},
+		AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{
+			consumers: []kkComps.AIGatewayConsumer{testAIGatewayConsumer(nil)},
+		},
 		AIGatewayConsumerGroupsAPI: &testAIGatewayConsumerGroupAPI{
 			groups: []kkComps.AIGatewayConsumerGroup{
-				testAIGatewayConsumerGroup("group-id", "premium-support-users", nil),
+				testAIGatewayConsumerGroup(nil),
 			},
 		},
 	})
@@ -158,7 +164,7 @@ func TestAIGatewayConsumerGroupPlannerPolicyRefNoopForExistingGroup(t *testing.T
 				},
 				AIGatewayConsumerGroupsAPI: &testAIGatewayConsumerGroupAPI{
 					groups: []kkComps.AIGatewayConsumerGroup{
-						testAIGatewayConsumerGroup("group-id", "premium-support-users", []string{currentPolicyRef}),
+						testAIGatewayConsumerGroup([]string{currentPolicyRef}),
 					},
 				},
 			})
@@ -173,6 +179,68 @@ func TestAIGatewayConsumerGroupPlannerPolicyRefNoopForExistingGroup(t *testing.T
 			require.Empty(t, plan.Changes)
 		})
 	}
+}
+
+func TestAIGatewayConsumerGroupPlannerConsumerMembershipNoopForExistingGroup(t *testing.T) {
+	group := testAIGatewayConsumerGroupResourceWithConsumers(t, []string{tags.RefPlaceholderPrefix + "support-user#name"})
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{
+			consumers: []kkComps.AIGatewayConsumer{testAIGatewayConsumer(nil)},
+		},
+		AIGatewayConsumerGroupsAPI: &testAIGatewayConsumerGroupAPI{
+			groups: []kkComps.AIGatewayConsumerGroup{
+				testAIGatewayConsumerGroup(nil),
+			},
+			consumersByGroupID: map[string][]kkComps.AIGatewayConsumer{
+				"group-id": {testAIGatewayConsumer(nil)},
+			},
+		},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways:              []resources.AIGatewayResource{testAIGatewayResource()},
+		AIGatewayConsumers:      []resources.AIGatewayConsumerResource{testAIGatewayConsumerResource(t, nil)},
+		AIGatewayConsumerGroups: []resources.AIGatewayConsumerGroupResource{group},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+}
+
+func TestAIGatewayConsumerGroupPlannerPlansConsumerMembershipUpdate(t *testing.T) {
+	group := testAIGatewayConsumerGroupResourceWithConsumers(t, []string{tags.RefPlaceholderPrefix + "support-user#name"})
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{
+			consumers: []kkComps.AIGatewayConsumer{testAIGatewayConsumer(nil)},
+		},
+		AIGatewayConsumerGroupsAPI: &testAIGatewayConsumerGroupAPI{
+			groups: []kkComps.AIGatewayConsumerGroup{
+				testAIGatewayConsumerGroup(nil),
+			},
+		},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways:              []resources.AIGatewayResource{testAIGatewayResource()},
+		AIGatewayConsumers:      []resources.AIGatewayConsumerResource{testAIGatewayConsumerResource(t, nil)},
+		AIGatewayConsumerGroups: []resources.AIGatewayConsumerGroupResource{group},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+
+	change := plan.Changes[0]
+	require.Equal(t, ActionUpdate, change.Action)
+	require.Equal(t, ResourceTypeAIGatewayConsumerGroup, change.ResourceType)
+	require.Equal(t, []string{"support-user"}, change.Fields[FieldConsumers])
+	require.Equal(t, []string{}, change.ChangedFields[FieldConsumers].Old)
+	require.Equal(t, []string{"support-user"}, change.ChangedFields[FieldConsumers].New)
 }
 
 func testAIGatewayResource() resources.AIGatewayResource {
@@ -218,17 +286,30 @@ func testAIGatewayConsumerGroupResource(
 	return group
 }
 
-func testAIGatewayConsumerGroup(id string, name string, policies []string) kkComps.AIGatewayConsumerGroup {
+func testAIGatewayConsumerGroupResourceWithConsumers(
+	t *testing.T,
+	consumers []string,
+) resources.AIGatewayConsumerGroupResource {
+	t.Helper()
+	group := testAIGatewayConsumerGroupResource(t, nil)
+	group.AdditionalProperties = map[string]any{
+		FieldConsumers: consumers,
+	}
+	return group
+}
+
+func testAIGatewayConsumerGroup(policies []string) kkComps.AIGatewayConsumerGroup {
 	return kkComps.AIGatewayConsumerGroup{
-		ID:          id,
-		Name:        name,
+		ID:          "group-id",
+		Name:        "premium-support-users",
 		DisplayName: "Premium Support Users",
 		Policies:    policies,
 	}
 }
 
 type testAIGatewayConsumerGroupAPI struct {
-	groups []kkComps.AIGatewayConsumerGroup
+	groups             []kkComps.AIGatewayConsumerGroup
+	consumersByGroupID map[string][]kkComps.AIGatewayConsumer
 }
 
 func (t *testAIGatewayConsumerGroupAPI) ListAiGatewayConsumerGroups(
@@ -280,5 +361,33 @@ func (t *testAIGatewayConsumerGroupAPI) DeleteAiGatewayConsumerGroup(
 	string,
 	...kkOps.Option,
 ) (*kkOps.DeleteAiGatewayConsumerGroupResponse, error) {
+	return nil, nil
+}
+
+func (t *testAIGatewayConsumerGroupAPI) ListAiGatewayConsumersInConsumerGroup(
+	_ context.Context,
+	request kkOps.ListAiGatewayConsumersInConsumerGroupRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAiGatewayConsumersInConsumerGroupResponse, error) {
+	return &kkOps.ListAiGatewayConsumersInConsumerGroupResponse{
+		ListAIGatewayConsumersResponse: &kkComps.ListAIGatewayConsumersResponse{
+			Data: t.consumersByGroupID[request.ConsumerGroupID],
+		},
+	}, nil
+}
+
+func (t *testAIGatewayConsumerGroupAPI) AddAiGatewayConsumerToConsumerGroup(
+	context.Context,
+	kkOps.AddAiGatewayConsumerToConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.AddAiGatewayConsumerToConsumerGroupResponse, error) {
+	return nil, nil
+}
+
+func (t *testAIGatewayConsumerGroupAPI) RemoveAiGatewayConsumerFromConsumerGroup(
+	context.Context,
+	kkOps.RemoveAiGatewayConsumerFromConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.RemoveAiGatewayConsumerFromConsumerGroupResponse, error) {
 	return nil, nil
 }

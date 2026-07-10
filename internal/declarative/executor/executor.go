@@ -1764,6 +1764,60 @@ func (e *Executor) detachControlPlaneGroupMembers(ctx context.Context, change *p
 	return e.client.RemoveControlPlaneGroupMemberships(ctx, change.ResourceID, normalized)
 }
 
+func (e *Executor) syncAIGatewayConsumerGroupConsumers(
+	ctx context.Context,
+	change *planner.PlannedChange,
+	consumerGroupID string,
+) error {
+	field, ok := change.Fields[planner.FieldConsumers]
+	if !ok {
+		return nil
+	}
+
+	consumers, err := extractStringSliceField(field)
+	if err != nil {
+		return fmt.Errorf("failed to extract AI Gateway Consumer Group consumers: %w", err)
+	}
+
+	gatewayID := ""
+	if change.Parent != nil {
+		gatewayID = change.Parent.ID
+	}
+	if gatewayID == "" {
+		return fmt.Errorf("AI Gateway ID required for Consumer Group membership operations")
+	}
+	if consumerGroupID == "" {
+		consumerGroupID = change.ResourceID
+	}
+	if consumerGroupID == "" {
+		return fmt.Errorf("AI Gateway Consumer Group ID required for membership operations")
+	}
+	if e.dryRun {
+		return nil
+	}
+
+	return e.client.UpsertAIGatewayConsumerGroupConsumers(ctx, gatewayID, consumerGroupID, consumers)
+}
+
+func extractStringSliceField(field any) ([]string, error) {
+	switch typed := field.(type) {
+	case []string:
+		return append([]string(nil), typed...), nil
+	case []any:
+		values := make([]string, len(typed))
+		for i, value := range typed {
+			stringValue, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("value at index %d must be a string", i)
+			}
+			values[i] = stringValue
+		}
+		return values, nil
+	default:
+		return nil, fmt.Errorf("expected string list, got %T", field)
+	}
+}
+
 func (e *Executor) resolveMemberReference(
 	ctx context.Context,
 	placeholder string,
@@ -2534,7 +2588,14 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
 		}
-		return e.aiGatewayConsumerGroupExecutor.Create(ctx, *change)
+		id, err := e.aiGatewayConsumerGroupExecutor.Create(ctx, *change)
+		if err != nil {
+			return "", err
+		}
+		if err := e.syncAIGatewayConsumerGroupConsumers(ctx, change, id); err != nil {
+			return "", err
+		}
+		return id, nil
 	case planner.ResourceTypeAIGatewayModel:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
@@ -3166,7 +3227,14 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
 		}
-		return e.aiGatewayConsumerGroupExecutor.Update(ctx, *change)
+		id, err := e.aiGatewayConsumerGroupExecutor.Update(ctx, *change)
+		if err != nil {
+			return "", err
+		}
+		if err := e.syncAIGatewayConsumerGroupConsumers(ctx, change, id); err != nil {
+			return "", err
+		}
+		return id, nil
 	case planner.ResourceTypeAIGatewayModel:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err

@@ -535,7 +535,6 @@ func resetConfiguredE2EUserAssignments(
 	for _, email := range emails {
 		user, ok := usersByEmail[email]
 		if !ok {
-			Warnf("reset: configured E2E user was not found; skipping assignment reset")
 			continue
 		}
 		userTotal, userDeleted, err := resetUserAssignments(ctx, session, globalBaseURL, token, policy, user)
