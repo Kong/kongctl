@@ -172,12 +172,8 @@ func (a *AIGatewayConsumerGroupAdapter) getAIGatewayIDFromExecutionContext(
 		return "", fmt.Errorf("execution context required")
 	}
 
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
+	if gatewayID := aiGatewayIDFromChange(execCtx.PlannedChange); gatewayID != "" {
+		return gatewayID, nil
 	}
 
 	return "", fmt.Errorf("AI Gateway ID required for Consumer Group operations")

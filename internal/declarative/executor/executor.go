@@ -1779,10 +1779,7 @@ func (e *Executor) syncAIGatewayConsumerGroupConsumers(
 		return fmt.Errorf("failed to extract AI Gateway Consumer Group consumers: %w", err)
 	}
 
-	gatewayID := ""
-	if change.Parent != nil {
-		gatewayID = change.Parent.ID
-	}
+	gatewayID := aiGatewayIDFromChange(change)
 	if gatewayID == "" {
 		return fmt.Errorf("AI Gateway ID required for Consumer Group membership operations")
 	}
@@ -1797,6 +1794,22 @@ func (e *Executor) syncAIGatewayConsumerGroupConsumers(
 	}
 
 	return e.client.UpsertAIGatewayConsumerGroupConsumers(ctx, gatewayID, consumerGroupID, consumers)
+}
+
+func aiGatewayIDFromChange(change *planner.PlannedChange) string {
+	if change == nil {
+		return ""
+	}
+	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
+		return gatewayRef.ID
+	}
+	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
+		return change.Parent.ID
+	}
+	if id, ok := change.Fields[planner.FieldAIGatewayID].(string); ok && !unresolvedReferenceID(id) {
+		return id
+	}
+	return ""
 }
 
 func extractStringSliceField(field any) ([]string, error) {

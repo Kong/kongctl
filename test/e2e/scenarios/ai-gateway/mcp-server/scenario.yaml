@@ -154,6 +154,11 @@ steps:
                 fields.display_name: "{{ .vars.server_display_name }}"
                 fields.config.url: https://support-tools.example.com
                 fields.config.route.paths[0]: /support-tools
+                fields.tools[0].annotations.title: "Lookup customer"
+                fields.tools[0].annotations.read_only_hint: true
+                fields.tools[0].parameters[0].name: customer_id
+                fields.tools[0].parameters[0].in: path
+                fields.tools[0].parameters[0].schema.type: string
                 fields.policies[0]: "{{ .vars.policy_name }}"
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.passthrough_server_ref }}'] | [0]
@@ -189,7 +194,9 @@ steps:
                 fields.type: listener
                 fields.display_name: "{{ .vars.listener_server_display_name }}"
                 fields.config.route.paths[0]: /support-listener
-                fields.access.acl_attribute_type: consumer
+                fields.access.acl_attribute_type: oauth_access_token
+                fields.access.access_token_claim_field: sub
+                fields.access.default_tool_acls.allow[0]: support-subject
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.upstream_server_ref }}'] | [0]
             expect:
@@ -299,6 +306,11 @@ steps:
                 config.url: https://support-tools.example.com
                 config.route.paths[0]: /support-tools
                 tools[0].name: lookup-customer
+                tools[0].annotations.title: "Lookup customer"
+                tools[0].annotations.read_only_hint: true
+                tools[0].parameters[0].name: customer_id
+                tools[0].parameters[0].in: path
+                tools[0].parameters[0].schema.type: string
                 policies[0]: "{{ .vars.policy_name }}"
           - select: "[?name=='{{ .vars.passthrough_server_name }}'] | [0]"
             expect:
@@ -334,7 +346,11 @@ steps:
                 enabled: true
                 config.route.paths[0]: /support-listener
                 access:
-                  acl_attribute_type: consumer
+                  acl_attribute_type: oauth_access_token
+                  access_token_claim_field: sub
+                  default_tool_acls:
+                    allow:
+                      - support-subject
           - select: "[?name=='{{ .vars.upstream_server_name }}'] | [0]"
             expect:
               fields:
@@ -419,7 +435,11 @@ steps:
                 type: listener
                 config.route.paths[0]: /support-listener
                 access:
-                  acl_attribute_type: consumer
+                  acl_attribute_type: oauth_access_token
+                  access_token_claim_field: sub
+                  default_tool_acls:
+                    allow:
+                      - support-subject
       - name: 010-get-upstream-mcp-server-by-name
         run:
           - get
@@ -514,6 +534,8 @@ steps:
                 labels.phase: update
                 config.url: https://support-tools-updated.example.com
                 config.route.paths[0]: /support-tools
+                tools[0].annotations.title: "Lookup customer"
+                tools[0].parameters[0].name: customer_id
       - name: 003-diff-no-changes
         outputFormat: text
         parseAs: raw
@@ -549,6 +571,8 @@ steps:
                 display_name: "{{ .vars.server_updated_display_name }}"
                 type: conversion-only
                 policies[0]: "{{ .vars.policy_name }}"
+                tools[0].annotations.title: "Lookup customer"
+                tools[0].parameters[0].name: customer_id
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.passthrough_server_name }}'] | [0]
             expect:
@@ -576,7 +600,11 @@ steps:
                 display_name: "{{ .vars.listener_server_display_name }}"
                 type: listener
                 access:
-                  acl_attribute_type: consumer
+                  acl_attribute_type: oauth_access_token
+                  access_token_claim_field: sub
+                  default_tool_acls:
+                    allow:
+                      - support-subject
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.upstream_server_name }}'] | [0]
             expect:

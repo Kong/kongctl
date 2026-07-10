@@ -4,6 +4,7 @@ _defaults:
 
 ai_gateways:
   - ref: ai-gateway-consumer-group-e2e
+    name: ai-gateway-consumer-group-e2e
     display_name: "AI Gateway Consumer Group E2E"
     description: "AI Gateway Consumer Group e2e"
     proxy_urls:
@@ -26,6 +27,21 @@ ai_gateways:
         config:
           anonymize:
             - email
+    consumers:
+      - ref: support-agent
+        name: support-agent
+        type: api-key
+        display_name: "Support Agent"
+        labels:
+          team: support
+          phase: create
+      - ref: analytics-agent
+        name: analytics-agent
+        type: api-key
+        display_name: "Analytics Agent"
+        labels:
+          team: analytics
+          phase: create
     consumer_groups:
       - ref: premium-support-users
         name: premium-support-users
@@ -35,3 +51,14 @@ ai_gateways:
           phase: create
         policies:
           - !ref mask-sensitive-data
+        consumers:
+          - !ref support-agent#name
+          - !ref analytics-agent#name
+      - ref: analytics-users
+        name: analytics-users
+        display_name: "Analytics Users"
+        labels:
+          team: analytics
+          phase: create
+        consumers:
+          - !ref analytics-agent#name

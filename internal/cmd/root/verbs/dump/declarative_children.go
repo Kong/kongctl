@@ -634,6 +634,32 @@ func buildAIGatewayConsumerGroups(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Consumer Group for gateway %s: %w", gatewayName, err)
 		}
+		groupID := declresources.AIGatewayConsumerGroupID(group.AIGatewayConsumerGroup)
+		if groupID != "" {
+			consumers, err := client.ListAIGatewayConsumersInConsumerGroup(ctx, gatewayID, groupID)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to list AI Gateway Consumers in Consumer Group %s for gateway %s: %w",
+					groupID,
+					gatewayName,
+					err,
+				)
+			}
+			consumerNames := make([]string, 0, len(consumers))
+			for _, consumer := range consumers {
+				name := declresources.AIGatewayConsumerName(consumer.AIGatewayConsumer)
+				if name != "" {
+					consumerNames = append(consumerNames, name)
+				}
+			}
+			slices.Sort(consumerNames)
+			if len(consumerNames) > 0 {
+				if resource.AdditionalProperties == nil {
+					resource.AdditionalProperties = map[string]any{}
+				}
+				resource.AdditionalProperties["consumers"] = consumerNames
+			}
+		}
 		result = append(result, resource)
 	}
 
