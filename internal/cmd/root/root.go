@@ -828,17 +828,51 @@ func renderPlainCommandError(w io.Writer, err error) {
 	fmt.Fprintf(w, "Error: %s\n", errorText)
 }
 
+// flattenJoinedErrors expands an error into the individual errors of an
+// errors.Join, reached through single-error wrappers such as ConfigurationError.
+// It returns nil for a plain single error so it renders unchanged.
+func flattenJoinedErrors(err error) []error {
+	for err != nil {
+		if joined, ok := err.(interface{ Unwrap() []error }); ok {
+			var out []error
+			for _, e := range joined.Unwrap() {
+				if sub := flattenJoinedErrors(e); sub != nil {
+					out = append(out, sub...)
+				} else {
+					out = append(out, e)
+				}
+			}
+			return out
+		}
+		u, ok := err.(interface{ Unwrap() error })
+		if !ok {
+			return nil
+		}
+		err = u.Unwrap()
+	}
+	return nil
+}
+
 func renderCommandUsageError(w io.Writer, command *cobra.Command, err error) {
 	if w == nil || err == nil {
 		return
 	}
 
-	errorText := strings.TrimSpace(stripCobraSuggestion(err.Error()))
-	if errorText == "" {
-		errorText = "invalid command usage"
+	if leaves := flattenJoinedErrors(err); len(leaves) > 1 {
+		for _, leaf := range leaves {
+			text := strings.TrimSpace(stripCobraSuggestion(leaf.Error()))
+			if text == "" {
+				text = "invalid command usage"
+			}
+			fmt.Fprintf(w, "- Error: %s\n", text)
+		}
+	} else {
+		errorText := strings.TrimSpace(stripCobraSuggestion(err.Error()))
+		if errorText == "" {
+			errorText = "invalid command usage"
+		}
+		fmt.Fprintf(w, "Error: %s\n", errorText)
 	}
-
-	fmt.Fprintf(w, "Error: %s\n", errorText)
 
 	suggestion := cmdpkg.SuggestionForError(command, err)
 	if len(suggestion.Values) > 0 {

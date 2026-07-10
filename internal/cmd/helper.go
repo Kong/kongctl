@@ -175,6 +175,12 @@ func (e *ConfigurationError) Error() string {
 	return e.Err.Error()
 }
 
+// Unwrap exposes the wrapped error so callers (and the top-level error
+// renderer) can inspect a joined set of validation errors.
+func (e *ConfigurationError) Unwrap() error {
+	return e.Err
+}
+
 func (e *ExecutionError) Error() string {
 	return e.Err.Error()
 }

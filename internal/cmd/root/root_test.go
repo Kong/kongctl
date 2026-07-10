@@ -723,6 +723,50 @@ func TestCreatePATRejectsExpiresAtOutsideBounds(t *testing.T) {
 	}
 }
 
+func TestCreatePATBundlesMissingRequiredFlags(t *testing.T) {
+	result := executeRootForTest(t, "create", "pat")
+	if result.exitCode == 0 {
+		t.Fatalf("expected create pat without flags to fail\nstdout:\n%s", result.stdout)
+	}
+	for _, want := range []string{
+		"- Error: --name is required",
+		"- Error: exactly one of --expires-in or --expires-at is required",
+	} {
+		if !strings.Contains(result.stderr, want) {
+			t.Fatalf("expected stderr to contain %q\nstderr:\n%s", want, result.stderr)
+		}
+	}
+}
+
+func TestCreateSPATBundlesMissingRequiredFlags(t *testing.T) {
+	result := executeRootForTest(t, "create", "spat")
+	if result.exitCode == 0 {
+		t.Fatalf("expected create spat without flags to fail\nstdout:\n%s", result.stdout)
+	}
+	for _, want := range []string{
+		"- Error: --name is required",
+		"- Error: exactly one of --system-account-id or --system-account-name is required",
+		"- Error: exactly one of --expires-in or --expires-at is required",
+	} {
+		if !strings.Contains(result.stderr, want) {
+			t.Fatalf("expected stderr to contain %q\nstderr:\n%s", want, result.stderr)
+		}
+	}
+}
+
+func TestCreatePATSingleMissingFlagRendersPlainError(t *testing.T) {
+	result := executeRootForTest(t, "create", "pat", "--name", "ci")
+	if result.exitCode == 0 {
+		t.Fatalf("expected create pat without expiry to fail\nstdout:\n%s", result.stdout)
+	}
+	if strings.Contains(result.stderr, "- Error:") {
+		t.Fatalf("single error should not use the bundled list format\nstderr:\n%s", result.stderr)
+	}
+	if !strings.Contains(result.stderr, "Error: exactly one of --expires-in or --expires-at is required") {
+		t.Fatalf("expected plain expiry error\nstderr:\n%s", result.stderr)
+	}
+}
+
 func TestCreatePATTokenOutputAndJQ(t *testing.T) {
 	patAPI := &rootTestPATAPI{token: "kpat_123", id: "pat-id"}
 	installRootTokenSDK(t, &helpers.MockKonnectSDK{
