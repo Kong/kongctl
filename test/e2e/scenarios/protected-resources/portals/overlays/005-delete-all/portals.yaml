@@ -1,0 +1,8 @@
+# Overlay: Remove all portals from config
+# Both portals should now be deleteable
+
+_defaults:
+  kongctl:
+    namespace: default
+
+portals: []

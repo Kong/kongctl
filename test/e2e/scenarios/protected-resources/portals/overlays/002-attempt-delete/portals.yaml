@@ -1,0 +1,14 @@
+# Overlay: Remove the protected portal from config
+# This should trigger a protected-resource failure in sync mode
+
+_defaults:
+  kongctl:
+    namespace: default
+
+portals:
+  - ref: unprotected-portal
+    name: "Unprotected Portal"
+    display_name: "Unprotected Portal"
+    description: "Unprotected portal for e2e coverage"
+    kongctl:
+      namespace: default
