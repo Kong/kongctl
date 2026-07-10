@@ -142,6 +142,25 @@ steps:
                 name: "Mobile Team"
                 description: "Mobile app developers"
 
+      - name: 003-get-single-team-by-name
+        outputFormat: json
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
+        run:
+          - get
+          - portal
+          - teams
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - "Backend Team"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "Backend Team"
+                description: "Backend developers working on APIs"
+
   - name: 002-update-team-description
     inputOverlayDirs:
       - overlays/002-update-team
