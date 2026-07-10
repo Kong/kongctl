@@ -452,7 +452,7 @@ func TestResolveExplainSubject_APIVersionSpecPrefersFileScalar(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "!file", subject.Node.PreferredTag)
-	assert.Equal(t, "!file ./specs/openapi.yaml", subject.Node.Literal)
+	assert.Equal(t, "!file ./specs/api.yaml", subject.Node.Literal)
 }
 
 func TestResolveExplainSubject_APIVersionSpecContentHasNoFileTag(t *testing.T) {
@@ -474,7 +474,7 @@ func TestRenderScaffoldYAML_APIVersionSpecUsesFileScalar(t *testing.T) {
 			scaffold, err := RenderScaffoldYAML(subject)
 			require.NoError(t, err)
 
-			assert.Contains(t, scaffold, "spec: !file ./specs/openapi.yaml")
+			assert.Contains(t, scaffold, "spec: !file ./specs/api.yaml")
 			assert.NotContains(t, scaffold, "content: !file")
 		})
 	}

@@ -18,7 +18,7 @@ func init() {
 			// file. Present it as `spec: !file ...` so users don't nest the content
 			// under spec.content, which double-wraps the payload and Konnect rejects.
 			WithExplainFieldHint("spec", ExplainFieldHint{
-				Literal:      "!file ./specs/openapi.yaml",
+				Literal:      "!file ./specs/api.yaml",
 				PreferredTag: "!file",
 			}),
 			// Override the generic "content" !file guidance for this nested field so

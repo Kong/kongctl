@@ -111,7 +111,7 @@ apis:
     versions: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-version
       - ref: string
         version: string
-        spec: object required (OpenAPI or AsyncAPI content; json or yaml) # prefer: !file ./specs/api.yaml
+        spec: !file ./specs/api.yaml # required (OpenAPI or AsyncAPI content; json or yaml)
     publications: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/publish-api-to-portal
       - ref: string
         portal_id: string required (uuid) # prefer: !ref <portal-ref>
