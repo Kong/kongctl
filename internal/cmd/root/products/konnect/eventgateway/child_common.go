@@ -75,13 +75,13 @@ func formatEnabledBool(enabled *bool) string {
 }
 
 func addEventGatewayChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(gatewayIDFlagName, "",
-		fmt.Sprintf(`The ID of the event gateway that owns the resource.
-- Config path: [ %s ]`, gatewayIDConfigPath))
-	cmd.Flags().String(gatewayNameFlagName, "",
-		fmt.Sprintf(`The name of the event gateway that owns the resource.
-- Config path: [ %s ]`, gatewayNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(gatewayIDFlagName, gatewayNameFlagName)
+	addChildFlags(
+		cmd,
+		gatewayIDFlagName, gatewayIDConfigPath,
+		"The ID of the event gateway that owns the resource.",
+		gatewayNameFlagName, gatewayNameConfigPath,
+		"The name of the event gateway that owns the resource.",
+	)
 }
 
 func bindEventGatewayChildFlags(c *cobra.Command, args []string) error {
@@ -96,13 +96,13 @@ func getEventGatewayIdentifiers(cfg config.Hook) (id string, name string) {
 }
 
 func addBackendClusterChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(backendClusterIDFlagName, "",
-		fmt.Sprintf(`The ID of the backend cluster to retrieve.
-- Config path: [ %s ]`, backendClusterIDConfigPath))
-	cmd.Flags().String(backendClusterNameFlagName, "",
-		fmt.Sprintf(`The name of the backend cluster to retrieve.
-- Config path: [ %s ]`, backendClusterNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(backendClusterIDFlagName, backendClusterNameFlagName)
+	addChildFlags(
+		cmd,
+		backendClusterIDFlagName, backendClusterIDConfigPath,
+		"The ID of the backend cluster to retrieve.",
+		backendClusterNameFlagName, backendClusterNameConfigPath,
+		"The name of the backend cluster to retrieve.",
+	)
 }
 
 func bindBackendClusterChildFlags(c *cobra.Command, args []string) error {
@@ -117,13 +117,13 @@ func getBackendClusterIdentifiers(cfg config.Hook) (id string, name string) {
 }
 
 func addVirtualClusterChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(virtualClusterIDFlagName, "",
-		fmt.Sprintf(`The ID of the virtual cluster to retrieve.
-- Config path: [ %s ]`, virtualClusterIDConfigPath))
-	cmd.Flags().String(virtualClusterNameFlagName, "",
-		fmt.Sprintf(`The name of the virtual cluster to retrieve.
-- Config path: [ %s ]`, virtualClusterNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(virtualClusterIDFlagName, virtualClusterNameFlagName)
+	addChildFlags(
+		cmd,
+		virtualClusterIDFlagName, virtualClusterIDConfigPath,
+		"The ID of the virtual cluster to retrieve.",
+		virtualClusterNameFlagName, virtualClusterNameConfigPath,
+		"The name of the virtual cluster to retrieve.",
+	)
 }
 
 func bindVirtualClusterChildFlags(c *cobra.Command, args []string) error {
@@ -138,13 +138,13 @@ func getVirtualClusterIdentifiers(cfg config.Hook) (id string, name string) {
 }
 
 func addListenerChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(listenerIDFlagName, "",
-		fmt.Sprintf(`The ID of the listener to retrieve.
-- Config path: [ %s ]`, listenerIDConfigPath))
-	cmd.Flags().String(listenerNameFlagName, "",
-		fmt.Sprintf(`The name of the listener to retrieve.
-- Config path: [ %s ]`, listenerNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(listenerIDFlagName, listenerNameFlagName)
+	addChildFlags(
+		cmd,
+		listenerIDFlagName, listenerIDConfigPath,
+		"The ID of the listener to retrieve.",
+		listenerNameFlagName, listenerNameConfigPath,
+		"The name of the listener to retrieve.",
+	)
 }
 
 func bindListenerChildFlags(c *cobra.Command, args []string) error {
@@ -159,13 +159,13 @@ func getListenerIdentifiers(cfg config.Hook) (id string, name string) {
 }
 
 func addDataPlaneCertChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(dataPlaneCertIDFlagName, "",
-		fmt.Sprintf(`The ID of the data plane certificate to retrieve.
-- Config path: [ %s ]`, dataPlaneCertIDConfigPath))
-	cmd.Flags().String(dataPlaneCertNameFlagName, "",
-		fmt.Sprintf(`The name of the data plane certificate to retrieve.
-- Config path: [ %s ]`, dataPlaneCertNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(dataPlaneCertIDFlagName, dataPlaneCertNameFlagName)
+	addChildFlags(
+		cmd,
+		dataPlaneCertIDFlagName, dataPlaneCertIDConfigPath,
+		"The ID of the data plane certificate to retrieve.",
+		dataPlaneCertNameFlagName, dataPlaneCertNameConfigPath,
+		"The name of the data plane certificate to retrieve.",
+	)
 }
 
 func bindDataPlaneCertChildFlags(c *cobra.Command, args []string) error {
@@ -180,13 +180,13 @@ func getDataPlaneCertIdentifiers(cfg config.Hook) (id string, name string) {
 }
 
 func addSchemaRegistryChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(schemaRegistryIDFlagName, "",
-		fmt.Sprintf(`The ID of the schema registry to retrieve.
-- Config path: [ %s ]`, schemaRegistryIDConfigPath))
-	cmd.Flags().String(schemaRegistryNameFlagName, "",
-		fmt.Sprintf(`The name of the schema registry to retrieve.
-- Config path: [ %s ]`, schemaRegistryNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(schemaRegistryIDFlagName, schemaRegistryNameFlagName)
+	addChildFlags(
+		cmd,
+		schemaRegistryIDFlagName, schemaRegistryIDConfigPath,
+		"The ID of the schema registry to retrieve.",
+		schemaRegistryNameFlagName, schemaRegistryNameConfigPath,
+		"The name of the schema registry to retrieve.",
+	)
 }
 
 func bindSchemaRegistryChildFlags(c *cobra.Command, args []string) error {
@@ -201,13 +201,13 @@ func getSchemaRegistryIdentifiers(cfg config.Hook) (id string, name string) {
 }
 
 func addStaticKeyChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(staticKeyIDFlagName, "",
-		fmt.Sprintf(`The ID of the static key to retrieve.
-- Config path: [ %s ]`, staticKeyIDConfigPath))
-	cmd.Flags().String(staticKeyNameFlagName, "",
-		fmt.Sprintf(`The name of the static key to retrieve.
-- Config path: [ %s ]`, staticKeyNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(staticKeyIDFlagName, staticKeyNameFlagName)
+	addChildFlags(
+		cmd,
+		staticKeyIDFlagName, staticKeyIDConfigPath,
+		"The ID of the static key to retrieve.",
+		staticKeyNameFlagName, staticKeyNameConfigPath,
+		"The name of the static key to retrieve.",
+	)
 }
 
 func bindStaticKeyChildFlags(c *cobra.Command, args []string) error {
@@ -222,13 +222,13 @@ func getStaticKeyIdentifiers(cfg config.Hook) (id string, name string) {
 }
 
 func addTLSTrustBundleChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(tlsTrustBundleIDFlagName, "",
-		fmt.Sprintf(`The ID of the TLS trust bundle to retrieve.
-- Config path: [ %s ]`, tlsTrustBundleIDConfigPath))
-	cmd.Flags().String(tlsTrustBundleNameFlagName, "",
-		fmt.Sprintf(`The name of the TLS trust bundle to retrieve.
-- Config path: [ %s ]`, tlsTrustBundleNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(tlsTrustBundleIDFlagName, tlsTrustBundleNameFlagName)
+	addChildFlags(
+		cmd,
+		tlsTrustBundleIDFlagName, tlsTrustBundleIDConfigPath,
+		"The ID of the TLS trust bundle to retrieve.",
+		tlsTrustBundleNameFlagName, tlsTrustBundleNameConfigPath,
+		"The name of the TLS trust bundle to retrieve.",
+	)
 }
 
 func bindTLSTrustBundleChildFlags(c *cobra.Command, args []string) error {
@@ -236,6 +236,18 @@ func bindTLSTrustBundleChildFlags(c *cobra.Command, args []string) error {
 		{tlsTrustBundleIDFlagName, tlsTrustBundleIDConfigPath},
 		{tlsTrustBundleNameFlagName, tlsTrustBundleNameConfigPath},
 	})
+}
+
+func addChildFlags(
+	cmd *cobra.Command,
+	idFlagName, idConfigPath, idDesc string,
+	nameFlagName, nameConfigPath, nameDesc string,
+) {
+	cmd.Flags().String(idFlagName, "",
+		fmt.Sprintf("%s\n- Config path: [ %s ]", idDesc, idConfigPath))
+	cmd.Flags().String(nameFlagName, "",
+		fmt.Sprintf("%s\n- Config path: [ %s ]", nameDesc, nameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(idFlagName, nameFlagName)
 }
 
 func bindChildFlags(c *cobra.Command, args []string, bindings []flagBinding) error {

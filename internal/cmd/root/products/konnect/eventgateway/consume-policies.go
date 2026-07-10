@@ -130,13 +130,13 @@ func newGetEventGatewayConsumePoliciesCmd(
 }
 
 func addConsumePolicyChildFlags(c *cobra.Command) {
-	c.Flags().String(consumePolicyIDFlagName, "",
-		fmt.Sprintf(`The ID of the consume policy to retrieve.
-- Config path: [ %s ]`, consumePolicyIDConfigPath))
-	c.Flags().String(consumePolicyNameFlagName, "",
-		fmt.Sprintf(`The name of the consume policy to retrieve.
-- Config path: [ %s ]`, consumePolicyNameConfigPath))
-	c.MarkFlagsMutuallyExclusive(consumePolicyIDFlagName, consumePolicyNameFlagName)
+	addChildFlags(
+		c,
+		consumePolicyIDFlagName, consumePolicyIDConfigPath,
+		"The ID of the consume policy to retrieve.",
+		consumePolicyNameFlagName, consumePolicyNameConfigPath,
+		"The name of the consume policy to retrieve.",
+	)
 }
 
 func bindConsumePolicyChildFlags(c *cobra.Command, args []string) error {
