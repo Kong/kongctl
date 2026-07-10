@@ -117,7 +117,7 @@ steps:
                 fields.config.url: https://booking-agent.example.com
                 fields.labels.phase: create
                 fields.policies[0]: "__REF__:{{ .vars.policy_ref }}#id"
-                references."policies.0".ref: "__REF__:{{ .vars.policy_ref }}#id"
+                references."policies.0".ref: "__REF__:{{ .vars.policy_ref }}#name"
       - name: 001-apply-create
         outputFormat: json
         run:

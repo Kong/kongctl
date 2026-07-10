@@ -38,6 +38,21 @@ type AIGatewayConsumerGroupsAPI interface {
 		consumerGroupID string,
 		opts ...kkOps.Option,
 	) (*kkOps.DeleteAiGatewayConsumerGroupResponse, error)
+	ListAiGatewayConsumersInConsumerGroup(
+		ctx context.Context,
+		request kkOps.ListAiGatewayConsumersInConsumerGroupRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.ListAiGatewayConsumersInConsumerGroupResponse, error)
+	AddAiGatewayConsumerToConsumerGroup(
+		ctx context.Context,
+		request kkOps.AddAiGatewayConsumerToConsumerGroupRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.AddAiGatewayConsumerToConsumerGroupResponse, error)
+	RemoveAiGatewayConsumerFromConsumerGroup(
+		ctx context.Context,
+		request kkOps.RemoveAiGatewayConsumerFromConsumerGroupRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.RemoveAiGatewayConsumerFromConsumerGroupResponse, error)
 }
 
 // AIGatewayConsumerGroupsAPIImpl provides the real SDK implementation.
@@ -86,4 +101,28 @@ func (a *AIGatewayConsumerGroupsAPIImpl) DeleteAiGatewayConsumerGroup(
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteAiGatewayConsumerGroupResponse, error) {
 	return a.SDK.AIGatewayConsumerGroups.DeleteAiGatewayConsumerGroup(ctx, gatewayID, consumerGroupID, opts...)
+}
+
+func (a *AIGatewayConsumerGroupsAPIImpl) ListAiGatewayConsumersInConsumerGroup(
+	ctx context.Context,
+	request kkOps.ListAiGatewayConsumersInConsumerGroupRequest,
+	opts ...kkOps.Option,
+) (*kkOps.ListAiGatewayConsumersInConsumerGroupResponse, error) {
+	return a.SDK.AIGatewayConsumerGroups.ListAiGatewayConsumersInConsumerGroup(ctx, request, opts...)
+}
+
+func (a *AIGatewayConsumerGroupsAPIImpl) AddAiGatewayConsumerToConsumerGroup(
+	ctx context.Context,
+	request kkOps.AddAiGatewayConsumerToConsumerGroupRequest,
+	opts ...kkOps.Option,
+) (*kkOps.AddAiGatewayConsumerToConsumerGroupResponse, error) {
+	return a.SDK.AIGatewayConsumerGroups.AddAiGatewayConsumerToConsumerGroup(ctx, request, opts...)
+}
+
+func (a *AIGatewayConsumerGroupsAPIImpl) RemoveAiGatewayConsumerFromConsumerGroup(
+	ctx context.Context,
+	request kkOps.RemoveAiGatewayConsumerFromConsumerGroupRequest,
+	opts ...kkOps.Option,
+) (*kkOps.RemoveAiGatewayConsumerFromConsumerGroupResponse, error) {
+	return a.SDK.AIGatewayConsumerGroups.RemoveAiGatewayConsumerFromConsumerGroup(ctx, request, opts...)
 }

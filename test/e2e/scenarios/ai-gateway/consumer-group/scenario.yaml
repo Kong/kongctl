@@ -108,7 +108,7 @@ steps:
                 fields.display_name: "{{ .vars.consumer_group_display_name }}"
                 fields.labels.phase: create
                 fields.policies[0]: "__REF__:{{ .vars.policy_ref }}#id"
-                references."policies.0".ref: "__REF__:{{ .vars.policy_ref }}#id"
+                references."policies.0".ref: "__REF__:{{ .vars.policy_ref }}#name"
       - name: 001-apply-create
         outputFormat: json
         run:

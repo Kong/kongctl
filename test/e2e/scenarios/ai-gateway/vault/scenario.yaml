@@ -44,9 +44,9 @@ steps:
             expect:
               fields:
                 type: object
-                title: "kongctl declarative schema: ai_gateway.vaults"
+                title: "kongctl declarative schema: ai_gateway_vault"
                 '"x-kongctl-root-key"': ai_gateway_vaults
-          - select: "contains(keys(properties), 'ai_gateway')"
+          - select: "contains(keys(oneOf[0].properties), 'ai_gateway')"
             expect:
               fields:
                 "@": true
@@ -74,7 +74,7 @@ steps:
             expect:
               fields:
                 type: object
-                title: "kongctl declarative schema: ai_gateway_vault"
+                title: "kongctl declarative schema: ai_gateway.vaults"
                 '"x-kongctl-root-key"': ai_gateway_vaults
 
   - name: 002-plan-apply-create

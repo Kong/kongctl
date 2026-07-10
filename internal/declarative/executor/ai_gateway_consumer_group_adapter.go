@@ -28,6 +28,7 @@ func (a *AIGatewayConsumerGroupAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayConsumerGroupRequest,
 ) error {
+	fields = cloneFieldsWithoutAIGatewayConsumerGroupMembership(fields)
 	data, err := json.Marshal(fields)
 	if err != nil {
 		return fmt.Errorf("failed to encode AI Gateway Consumer Group create fields: %w", err)
@@ -49,6 +50,7 @@ func (a *AIGatewayConsumerGroupAdapter) MapUpdateFields(
 	update *kkComps.UpdateAIGatewayConsumerGroupRequest,
 	_ map[string]string,
 ) error {
+	fields = cloneFieldsWithoutAIGatewayConsumerGroupMembership(fields)
 	data, err := json.Marshal(fields)
 	if err != nil {
 		return fmt.Errorf("failed to encode AI Gateway Consumer Group update fields: %w", err)
@@ -84,6 +86,9 @@ func (a *AIGatewayConsumerGroupAdapter) Update(
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
+	}
+	if isEmptyAIGatewayConsumerGroupUpdateRequest(req) {
+		return id, nil
 	}
 	return a.client.UpdateAIGatewayConsumerGroup(ctx, gatewayID, id, req, namespace)
 }
@@ -135,6 +140,29 @@ func (a *AIGatewayConsumerGroupAdapter) RequiredFields() []string {
 // SupportsUpdate indicates update support.
 func (a *AIGatewayConsumerGroupAdapter) SupportsUpdate() bool {
 	return true
+}
+
+func cloneFieldsWithoutAIGatewayConsumerGroupMembership(fields map[string]any) map[string]any {
+	clone := make(map[string]any, len(fields))
+	for key, value := range fields {
+		if key == planner.FieldConsumers {
+			continue
+		}
+		clone[key] = value
+	}
+	return clone
+}
+
+func isEmptyAIGatewayConsumerGroupUpdateRequest(req kkComps.UpdateAIGatewayConsumerGroupRequest) bool {
+	data, err := json.Marshal(req)
+	if err != nil {
+		return false
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return false
+	}
+	return len(payload) == 0
 }
 
 func (a *AIGatewayConsumerGroupAdapter) getAIGatewayIDFromExecutionContext(

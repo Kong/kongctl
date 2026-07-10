@@ -178,7 +178,7 @@ steps:
           - -f
           - "{{ .workdir }}/config.yaml"
           - --mode
-          - apply
+          - sync
         assertions:
           - select: summary
             expect:
@@ -207,7 +207,7 @@ steps:
       - name: 001-apply-replace
         outputFormat: json
         run:
-          - apply
+          - sync
           - --plan
           - "{{ .workdir }}/plan-replace.json"
           - --auto-approve

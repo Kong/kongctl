@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -14,6 +15,7 @@ const (
 	aiGatewayConsumerGroupFieldName        = "name"
 	aiGatewayConsumerGroupFieldDisplayName = "display_name"
 	aiGatewayConsumerGroupFieldPolicies    = "policies"
+	aiGatewayConsumerGroupFieldConsumers   = "consumers"
 	aiGatewayConsumerGroupFieldLabels      = "labels"
 	aiGatewayConsumerGroupFieldUpdatedAt   = "updated_at"
 )
@@ -169,6 +171,14 @@ func (a AIGatewayConsumerGroupResource) MutablePayloadMap() (map[string]any, err
 	return payload, nil
 }
 
+func (a AIGatewayConsumerGroupResource) ConsumerNames() ([]string, bool, error) {
+	payload, err := a.PayloadMap()
+	if err != nil {
+		return nil, false, err
+	}
+	return AIGatewayConsumerGroupConsumers(payload)
+}
+
 func (a AIGatewayConsumerGroupResource) MarshalJSON() ([]byte, error) {
 	payload, err := a.PayloadMap()
 	if err != nil {
@@ -260,6 +270,41 @@ func AIGatewayConsumerGroupLabels(group any) map[string]string {
 	return labels
 }
 
+func AIGatewayConsumerGroupConsumers(group any) ([]string, bool, error) {
+	payload, err := marshalObjectToMap(group, "AI Gateway Consumer Group")
+	if err != nil {
+		return nil, false, err
+	}
+	raw, ok := payload[aiGatewayConsumerGroupFieldConsumers]
+	if !ok {
+		return nil, false, nil
+	}
+	consumers, ok := stringSliceFromAny(raw)
+	if !ok {
+		return nil, true, fmt.Errorf("consumers must be a list of strings")
+	}
+	return consumers, true, nil
+}
+
+func stringSliceFromAny(raw any) ([]string, bool) {
+	switch typed := raw.(type) {
+	case []string:
+		return slices.Clone(typed), true
+	case []any:
+		values := make([]string, len(typed))
+		for i, value := range typed {
+			stringValue, ok := value.(string)
+			if !ok {
+				return nil, false
+			}
+			values[i] = stringValue
+		}
+		return values, true
+	default:
+		return nil, false
+	}
+}
+
 func AIGatewayConsumerGroupUpdatedAt(group any) time.Time {
 	payload, err := marshalObjectToMap(group, "AI Gateway Consumer Group")
 	if err != nil {
@@ -314,6 +359,10 @@ func stripAIGatewayConsumerGroupServerFields(payload map[string]any) {
 	delete(payload, aiGatewayConsumerGroupFieldID)
 	delete(payload, SchemaFieldCreatedAt)
 	delete(payload, aiGatewayConsumerGroupFieldUpdatedAt)
+}
+
+func StripAIGatewayConsumerGroupMembershipFields(payload map[string]any) {
+	delete(payload, aiGatewayConsumerGroupFieldConsumers)
 }
 
 func aiGatewayConsumerGroupStringField(value any, key string) string {

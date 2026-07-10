@@ -3,12 +3,6 @@ baseInputsPath: testdata
 env:
   KONGCTL_LOG_LEVEL: info
 
-test:
-  enabledByEnvVar: KONGCTL_E2E_RUN_AIGW_IDENTITY_PROVIDERS
-  info: >-
-    Requires AI Gateway identity provider API routes to be deployed in the
-    target Konnect environment.
-
 vars:
   namespace: "ai-gateway-identity-provider-e2e"
   gateway_ref: "ai-gateway-identity-provider-e2e"

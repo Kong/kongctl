@@ -1,1 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-consumer-group-e2e
+
 ai_gateways: []

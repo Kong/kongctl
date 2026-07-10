@@ -283,9 +283,23 @@ func extractAIGatewayIdentityProviderFields(provider resources.AIGatewayIdentity
 }
 
 func aiGatewayIdentityProviderConfigChanged(current, desired map[string]any) bool {
-	currentComparable := scrubAIGatewayIdentityProviderSecretFields(normalizeIdentityProviderConfigForCompare(current))
-	desiredComparable := scrubAIGatewayIdentityProviderSecretFields(normalizeIdentityProviderConfigForCompare(desired))
+	currentComparable := normalizeIdentityProviderConfigForCompare(current)
+	desiredComparable := normalizeIdentityProviderConfigForCompare(desired)
+	projectAIGatewayIdentityProviderConfigForComparison(currentComparable, desiredComparable)
+	currentComparable = scrubAIGatewayIdentityProviderSecretFields(currentComparable).(map[string]any)
+	desiredComparable = scrubAIGatewayIdentityProviderSecretFields(desiredComparable).(map[string]any)
 	return !reflect.DeepEqual(currentComparable, desiredComparable)
+}
+
+func projectAIGatewayIdentityProviderConfigForComparison(currentCompare map[string]any, desiredCompare map[string]any) {
+	if currentCompare == nil || desiredCompare == nil {
+		return
+	}
+	for key := range currentCompare {
+		if _, declared := desiredCompare[key]; !declared {
+			delete(currentCompare, key)
+		}
+	}
 }
 
 func normalizeIdentityProviderConfigForCompare(config map[string]any) map[string]any {

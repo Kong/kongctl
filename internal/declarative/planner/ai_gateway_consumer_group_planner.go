@@ -8,6 +8,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -50,6 +51,7 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 
 	currentByID, currentByName := indexAIGatewayConsumerGroups(currentGroups)
 	desiredKeys := make(map[string]bool)
+	consumerCreateDepsByRefOrName := aiGatewayConsumerCreateDependencies(plan, namespace, gatewayRef)
 
 	for _, desiredGroup := range desired {
 		current, exists := matchCurrentAIGatewayConsumerGroup(desiredGroup, currentByID, currentByName)
@@ -63,6 +65,9 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 				desiredGroup,
 				policyCreateDepsByRefOrName,
 			)
+			for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(desiredGroup, consumerCreateDepsByRefOrName) {
+				dependsOn = appendDependsOn(dependsOn, dep)
+			}
 			p.planAIGatewayConsumerGroupCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredGroup, dependsOn, plan)
 			continue
 		}
@@ -80,15 +85,39 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 				desiredGroup,
 				policyCreateDepsByRefOrName,
 			)
+			for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(desiredGroup, consumerCreateDepsByRefOrName) {
+				dependsOn = appendDependsOn(dependsOn, dep)
+			}
 			p.planAIGatewayConsumerGroupCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredGroup, dependsOn, plan)
 			continue
 		}
 
-		needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayConsumerGroup(*fullGroup, desiredGroup)
+		var currentConsumers []state.AIGatewayConsumer
+		if _, managesConsumers, err := desiredGroup.ConsumerNames(); err != nil {
+			return err
+		} else if managesConsumers {
+			currentConsumers, err = p.client.ListAIGatewayConsumersInConsumerGroup(ctx, gatewayID, groupID)
+			if err != nil {
+				return fmt.Errorf("failed to list AI Gateway Consumers in Consumer Group %s: %w", groupID, err)
+			}
+		}
+
+		needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayConsumerGroup(
+			*fullGroup,
+			desiredGroup,
+			currentConsumers,
+		)
 		if err != nil {
 			return err
 		}
 		if needsUpdate {
+			dependsOn := aiGatewayConsumerGroupPolicyCreateDependencies(
+				desiredGroup,
+				policyCreateDepsByRefOrName,
+			)
+			for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(desiredGroup, consumerCreateDepsByRefOrName) {
+				dependsOn = appendDependsOn(dependsOn, dep)
+			}
 			p.planAIGatewayConsumerGroupUpdate(
 				namespace,
 				gatewayRef,
@@ -97,10 +126,7 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 				desiredGroup,
 				updateFields,
 				changedFields,
-				aiGatewayConsumerGroupPolicyCreateDependencies(
-					desiredGroup,
-					policyCreateDepsByRefOrName,
-				),
+				dependsOn,
 				plan,
 			)
 		}
@@ -138,6 +164,10 @@ func (p *Planner) planAIGatewayConsumerGroupCreatesForNewGateway(
 		for _, dep := range aiGatewayConsumerGroupPolicyCreateDependencies(group, policyCreateDepsByRefOrName) {
 			groupDependsOn = appendDependsOn(groupDependsOn, dep)
 		}
+		consumerCreateDepsByRefOrName := aiGatewayConsumerCreateDependencies(plan, namespace, gatewayRef)
+		for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(group, consumerCreateDepsByRefOrName) {
+			groupDependsOn = appendDependsOn(groupDependsOn, dep)
+		}
 		p.planAIGatewayConsumerGroupCreate(namespace, gatewayRef, gatewayName, "", group, groupDependsOn, plan)
 	}
 }
@@ -156,6 +186,7 @@ func (p *Planner) planAIGatewayConsumerGroupCreate(
 		plan.AddWarning(group.GetRef(), fmt.Sprintf("failed to build AI Gateway Consumer Group create payload: %s", err))
 		return
 	}
+	p.resolveAIGatewayConsumerGroupConsumerRefs(fields)
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayConsumerGroup, group.Ref),
@@ -234,6 +265,7 @@ func (p *Planner) planAIGatewayConsumerGroupDelete(
 func (p *Planner) shouldUpdateAIGatewayConsumerGroup(
 	current state.AIGatewayConsumerGroup,
 	desired resources.AIGatewayConsumerGroupResource,
+	currentConsumers []state.AIGatewayConsumer,
 ) (bool, map[string]any, map[string]FieldChange, error) {
 	currentPayload, err := resources.AIGatewayConsumerGroupMutablePayloadMap(current.AIGatewayConsumerGroup)
 	if err != nil {
@@ -247,6 +279,19 @@ func (p *Planner) shouldUpdateAIGatewayConsumerGroup(
 			err,
 		)
 	}
+	desiredConsumers, managesConsumers, err := desired.ConsumerNames()
+	if err != nil {
+		return false, nil, nil, fmt.Errorf(
+			"failed to normalize desired AI Gateway Consumer Group consumers %q: %w",
+			desired.Ref,
+			err,
+		)
+	}
+	if managesConsumers {
+		desiredConsumers = p.resolveAIGatewayConsumerGroupConsumerRefs(desiredPayload)
+	}
+	resources.StripAIGatewayConsumerGroupMembershipFields(currentPayload)
+	resources.StripAIGatewayConsumerGroupMembershipFields(desiredPayload)
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
@@ -256,11 +301,24 @@ func (p *Planner) shouldUpdateAIGatewayConsumerGroup(
 	)
 
 	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
+	if managesConsumers {
+		currentConsumerNames := aiGatewayConsumerNamesFromState(currentConsumers)
+		if !slices.Equal(currentConsumerNames, normalizedAIGatewayConsumerGroupConsumers(desiredConsumers)) {
+			changedFields[FieldConsumers] = FieldChange{
+				Old: currentConsumerNames,
+				New: normalizedAIGatewayConsumerGroupConsumers(desiredConsumers),
+			}
+		}
+	}
 	if len(changedFields) == 0 {
 		return false, nil, nil, nil
 	}
 
-	return true, clonePayloadMap(desiredPayload), changedFields, nil
+	updateFields := clonePayloadMap(desiredPayload)
+	if managesConsumers {
+		updateFields[FieldConsumers] = normalizedAIGatewayConsumerGroupConsumers(desiredConsumers)
+	}
+	return true, updateFields, changedFields, nil
 }
 
 func indexAIGatewayConsumerGroups(
@@ -311,4 +369,102 @@ func aiGatewayConsumerGroupPolicyCreateDependencies(
 		return nil
 	}
 	return aiGatewayPolicyReferenceDependencies(payload, policyCreateDepsByRefOrName)
+}
+
+func aiGatewayConsumerCreateDependencies(
+	plan *Plan,
+	namespace string,
+	gatewayRef string,
+) map[string]string {
+	if plan == nil {
+		return nil
+	}
+
+	depsByRefOrName := make(map[string]string)
+	for _, change := range plan.Changes {
+		if change.Action != ActionCreate ||
+			change.ResourceType != ResourceTypeAIGatewayConsumer ||
+			change.Namespace != namespace ||
+			!aiGatewayChildChangeMatchesParent(change, gatewayRef) {
+			continue
+		}
+		if change.ResourceRef != "" {
+			depsByRefOrName[change.ResourceRef] = change.ID
+		}
+		if name, ok := change.Fields[FieldName].(string); ok && name != "" {
+			depsByRefOrName[name] = change.ID
+		}
+	}
+	return depsByRefOrName
+}
+
+func aiGatewayConsumerGroupConsumerCreateDependencies(
+	group resources.AIGatewayConsumerGroupResource,
+	consumerCreateDepsByRefOrName map[string]string,
+) []string {
+	consumers, managesConsumers, err := group.ConsumerNames()
+	if err != nil || !managesConsumers {
+		return nil
+	}
+
+	var deps []string
+	for _, consumer := range consumers {
+		ref := consumer
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(consumer); ok {
+			ref = parsedRef
+		}
+		if dep := consumerCreateDepsByRefOrName[ref]; dep != "" {
+			deps = appendDependsOn(deps, dep)
+		}
+	}
+	return deps
+}
+
+func (p *Planner) resolveAIGatewayConsumerGroupConsumerRefs(payload map[string]any) []string {
+	consumers, ok := stringSliceFromValue(payload[FieldConsumers])
+	if !ok {
+		return nil
+	}
+	for i, consumer := range consumers {
+		ref, field, ok := tags.ParseRefPlaceholder(consumer)
+		if !ok {
+			continue
+		}
+		if field != FieldName {
+			continue
+		}
+		if resource := p.resources.GetAIGatewayConsumerByRef(ref); resource != nil && resource.Name != "" {
+			consumers[i] = resource.Name
+		}
+	}
+	consumers = normalizedAIGatewayConsumerGroupConsumers(consumers)
+	payload[FieldConsumers] = consumers
+	return consumers
+}
+
+func aiGatewayConsumerNamesFromState(consumers []state.AIGatewayConsumer) []string {
+	names := make([]string, 0, len(consumers))
+	for _, consumer := range consumers {
+		if name := resources.AIGatewayConsumerName(consumer.AIGatewayConsumer); name != "" {
+			names = append(names, name)
+		}
+	}
+	return normalizedAIGatewayConsumerGroupConsumers(names)
+}
+
+func normalizedAIGatewayConsumerGroupConsumers(consumers []string) []string {
+	normalized := make([]string, 0, len(consumers))
+	seen := make(map[string]struct{}, len(consumers))
+	for _, consumer := range consumers {
+		if consumer == "" {
+			continue
+		}
+		if _, ok := seen[consumer]; ok {
+			continue
+		}
+		seen[consumer] = struct{}{}
+		normalized = append(normalized, consumer)
+	}
+	slices.Sort(normalized)
+	return normalized
 }

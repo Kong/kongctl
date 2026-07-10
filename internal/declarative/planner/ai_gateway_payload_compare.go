@@ -308,7 +308,7 @@ func projectAIGatewayPolicyConfigValue(current any, desired any) any {
 		return current
 	}
 	if len(desiredMap) == 0 {
-		return current
+		return desiredMap
 	}
 
 	currentMap, currentIsMap := current.(map[string]any)

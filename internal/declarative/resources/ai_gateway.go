@@ -327,6 +327,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("model_providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
 		explainField("identity_providers", explainArrayOf(aiGatewayIdentityProviderInlineExplainNode()), false, false),
 		explainField("policies", explainArrayOf(aiGatewayPolicyInlineExplainNode()), false, false),
+		explainField("agents", explainArrayOf(aiGatewayAgentInlineExplainNode()), false, false),
 		explainField("consumers", explainArrayOf(aiGatewayConsumerInlineExplainNode()), false, false),
 		explainField("consumer_groups", explainArrayOf(aiGatewayConsumerGroupInlineExplainNode()), false, false),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
@@ -351,6 +352,14 @@ func aiGatewayProviderInlineExplainNode() *ExplainNode {
 
 func aiGatewayPolicyInlineExplainNode() *ExplainNode {
 	node, err := aiGatewayPolicyExplainNode(ExplainBuildContext{})
+	if err != nil {
+		return explainObject()
+	}
+	return node
+}
+
+func aiGatewayAgentInlineExplainNode() *ExplainNode {
+	node, err := aiGatewayAgentExplainNode(ExplainBuildContext{})
 	if err != nil {
 		return explainObject()
 	}

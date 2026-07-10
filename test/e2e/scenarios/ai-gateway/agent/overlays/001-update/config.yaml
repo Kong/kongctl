@@ -1,3 +1,7 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-agent-e2e
+
 ai_gateways:
   - ref: ai-gateway-agent-e2e
     display_name: "AI Gateway Agent E2E"
