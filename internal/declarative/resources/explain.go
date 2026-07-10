@@ -189,8 +189,6 @@ var (
 		"content":            "./content.txt",
 		"css":                "./custom.css",
 		"robots":             "./robots.txt",
-		"spec":               "./specs/openapi.yaml",
-		"spec.content":       "./specs/openapi.yaml",
 		"custom_certificate": "./certs/cert.pem",
 		"custom_private_key": "./certs/key.pem",
 	}
@@ -1069,7 +1067,7 @@ func applyExplainFieldHint(node *ExplainNode, hint ExplainFieldHint) {
 	if len(hint.Enum) > 0 {
 		node.Enum = append([]any(nil), hint.Enum...)
 	}
-	if hint.FileSample != "" {
+	if hint.FileSample != "" && node.Kind != explainKindObject {
 		node.Literal = fmt.Sprintf("!file %s", hint.FileSample)
 	}
 	if hint.Literal != "" {
@@ -1560,7 +1558,7 @@ func renderScaffoldField(write scaffoldWriter, depth int, field *ExplainField, o
 	}
 
 	node := scaffoldActiveNode(field.Node)
-	if node.Kind == explainKindObject && node.Additional == nil {
+	if node.Kind == explainKindObject && node.Additional == nil && node.Literal == "" {
 		write(indent + commentPrefix + field.Name + ":")
 		renderCommentedBlock(write, depth+1, field.Node, omit, comment)
 		return
