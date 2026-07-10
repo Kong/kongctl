@@ -413,7 +413,29 @@ steps:
                 applied: 4
                 failed: 0
 
-      - name: 002-plan-team-roles-idempotent
+      - name: 002-get-team-roles-by-team-name
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - team
+          - roles
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - --team-name
+          - "Backend Team"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                role_name: "API Viewer"
+                entity_type_name: "Services"
+
+      - name: 003-plan-team-roles-idempotent
         outputFormat: disable
         run:
           - plan
@@ -541,7 +563,24 @@ steps:
                 applied: 1
                 failed: 0
 
-      - name: 002-plan-post-removal
+      - name: 002-verify-qa-role-removed-by-get
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - team
+          - roles
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - --team-name
+          - "QA Team"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+      - name: 003-plan-post-removal
         outputFormat: disable
         run:
           - plan
