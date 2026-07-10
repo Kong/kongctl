@@ -14,6 +14,7 @@ vars:
   consumer_group_name: "premium-support-users"
   consumer_group_display_name: "Premium Support Users"
   consumer_group_updated_display_name: "Premium Support Users Updated"
+  second_consumer_group_name: "analytics-users"
 
 defaults:
   mask:
@@ -97,8 +98,16 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 3
-                by_action.CREATE: 3
+                total_changes: 6
+                by_action.CREATE: 6
+          - select: "length(changes[?resource_type=='ai_gateway_consumer'])"
+            expect:
+              fields:
+                "@": 2
+          - select: "length(changes[?resource_type=='ai_gateway_consumer_group'])"
+            expect:
+              fields:
+                "@": 2
           - select: >-
               changes[?resource_type=='ai_gateway_consumer_group' && resource_ref=='{{ .vars.consumer_group_ref }}'] | [0]
             expect:
@@ -108,7 +117,17 @@ steps:
                 fields.display_name: "{{ .vars.consumer_group_display_name }}"
                 fields.labels.phase: create
                 fields.policies[0]: "__REF__:{{ .vars.policy_ref }}#id"
+                "length(fields.consumers)": 2
+                "contains(fields.consumers, 'support-agent')": true
+                "contains(fields.consumers, 'analytics-agent')": true
                 references."policies.0".ref: "__REF__:{{ .vars.policy_ref }}#name"
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer_group' && resource_ref=='analytics-users'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.second_consumer_group_name }}"
+                fields.consumers[0]: analytics-agent
       - name: 001-apply-create
         outputFormat: json
         run:
@@ -120,7 +139,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 6
                 failed: 0
                 status: success
       - name: 002-list-consumer-groups
@@ -143,6 +162,11 @@ steps:
                 display_name: "{{ .vars.consumer_group_display_name }}"
                 labels.phase: create
                 "length(policies)": 1
+          - select: "[?name=='{{ .vars.second_consumer_group_name }}'] | [0]"
+            expect:
+              fields:
+                display_name: "Analytics Users"
+                labels.phase: create
       - name: 003-get-consumer-group-by-name
         run:
           - get
@@ -200,6 +224,8 @@ steps:
                 action: UPDATE
                 fields.display_name: "{{ .vars.consumer_group_updated_display_name }}"
                 fields.labels.phase: update
+                "length(fields.consumers)": 1
+                fields.consumers[0]: support-agent
       - name: 001-apply-update
         outputFormat: json
         run:
@@ -263,6 +289,13 @@ steps:
                 name: "{{ .vars.consumer_group_name }}"
                 display_name: "{{ .vars.consumer_group_updated_display_name }}"
                 "length(policies)": 1
+                "length(consumers)": 1
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].consumer_groups[?name=='{{ .vars.second_consumer_group_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.second_consumer_group_name }}"
+                "length(consumers)": 1
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].policies[?name=='{{ .vars.policy_name }}'] | [0]
             expect:
@@ -319,8 +352,8 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 1
-                by_action.DELETE: 1
+                total_changes: 2
+                by_action.DELETE: 2
           - select: >-
               plan.changes[?resource_type=='ai_gateway_consumer_group' && action=='DELETE'] | [0]
             expect:
@@ -329,7 +362,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
                 status: success
       - name: 001-list-consumer-groups-empty

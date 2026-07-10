@@ -275,7 +275,7 @@ func (c *Client) UpsertAIGatewayConsumerGroupConsumers(
 		if nameDesired || idDesired {
 			continue
 		}
-		remove := firstNonEmpty(name, id)
+		remove := firstNonEmpty(id, name)
 		if remove == "" {
 			continue
 		}

@@ -274,7 +274,7 @@ func (a *AIGatewayMCPServerResource) UnmarshalJSON(data []byte) error {
 	delete(raw, SchemaFieldRef)
 	delete(raw, SchemaFieldAIGateway)
 	delete(raw, SchemaFieldKongctl)
-	if err := normalizeAIGatewayMCPServerAccess(raw); err != nil {
+	if err := rejectLegacyAIGatewayMCPServerAccessFields(raw); err != nil {
 		return err
 	}
 
@@ -293,33 +293,18 @@ func (a *AIGatewayMCPServerResource) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func normalizeAIGatewayMCPServerAccess(raw map[string]json.RawMessage) error {
-	if _, ok := raw["access"]; ok {
-		return nil
-	}
-
-	accessFields := []string{
+func rejectLegacyAIGatewayMCPServerAccessFields(raw map[string]json.RawMessage) error {
+	legacyFields := []string{
 		"acl_attribute_type",
 		"access_token_claim_field",
 		"acls",
 		"default_tool_acls",
 	}
-	access := make(map[string]json.RawMessage)
-	for _, field := range accessFields {
-		if value, ok := raw[field]; ok {
-			access[field] = value
-			delete(raw, field)
+	for _, field := range legacyFields {
+		if _, ok := raw[field]; ok {
+			return fmt.Errorf("AI Gateway MCP Server field %q must be nested under access", field)
 		}
 	}
-	if len(access) == 0 {
-		return nil
-	}
-
-	payload, err := json.Marshal(access)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway MCP Server access: %w", err)
-	}
-	raw["access"] = payload
 	return nil
 }
 
