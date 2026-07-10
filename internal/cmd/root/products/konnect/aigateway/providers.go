@@ -70,7 +70,7 @@ func newGetAIGatewayProvidersCmd(
 		Short:   aiGatewayProvidersShort,
 		Long:    aiGatewayProvidersLong,
 		Example: aiGatewayProvidersExample,
-		Aliases: []string{"model-provider", "providers", "provider"},
+		Aliases: []string{"model-provider"},
 		PreRunE: func(c *cobra.Command, args []string) error {
 			if parentPreRun != nil {
 				if err := parentPreRun(c, args); err != nil {

@@ -955,11 +955,6 @@ func (l *Loader) extractPortalPages(
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
-	if len(rs.AIGatewayLegacyProviders) > 0 {
-		rs.AIGatewayProviders = append(rs.AIGatewayProviders, rs.AIGatewayLegacyProviders...)
-		rs.AIGatewayLegacyProviders = nil
-	}
-
 	// Extract analytics nested resources.
 	if rs.Analytics != nil {
 		rs.Dashboards = append(rs.Dashboards, rs.Analytics.Dashboards...)

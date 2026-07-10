@@ -32,12 +32,6 @@ var rootCollectionScopes = []rootCollectionScope{
 
 var rootChildCollectionScopes = []childCollectionScope{
 	{
-		key:          "ai_gateway_providers",
-		resourceType: resources.ResourceTypeAIGatewayProvider,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
 		key:          "ai_gateway_model_providers",
 		resourceType: resources.ResourceTypeAIGatewayProvider,
 		parentKey:    resources.SchemaFieldAIGateway,
@@ -383,11 +377,6 @@ var portalSingletonChildKeys = map[string]struct{}{
 var aiGatewayChildCollectionScopes = []childCollectionScope{
 	{
 		key:          "model_providers",
-		resourceType: resources.ResourceTypeAIGatewayProvider,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "providers",
 		resourceType: resources.ResourceTypeAIGatewayProvider,
 		parentType:   resources.ResourceTypeAIGateway,
 	},
