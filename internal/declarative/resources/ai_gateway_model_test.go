@@ -21,7 +21,7 @@ const aiGatewayModelJSON = `{
     "model": {}
   },
   "formats": [{"type": "openai"}],
-  "target_models": [{
+  "targets": [{
     "name": "gpt-4o",
     "provider": "support-openai",
     "config": {"type": "openai"}
@@ -42,7 +42,7 @@ const aiGatewayAPIModelJSON = `{
     "model": {}
   },
   "formats": [{"type": "openai"}],
-  "target_models": [{
+  "targets": [{
     "name": "gpt-4o",
     "provider": "support-openai",
     "config": {"type": "openai"}
@@ -114,7 +114,7 @@ func TestAIGatewayModelResourcePreservesGeminiGCPEnvironment(t *testing.T) {
 		"enabled": true,
 		"config": {"route": {}, "model": {}},
 		"formats": [{"type": "openai"}],
-		"target_models": [{
+		"targets": [{
 			"name": "gemini-1.5-pro",
 			"provider": "support-gemini-provider",
 			"config": {

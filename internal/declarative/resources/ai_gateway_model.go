@@ -285,13 +285,6 @@ func (a *AIGatewayModelResource) UnmarshalJSON(data []byte) error {
 }
 
 func normalizeAIGatewayModelPayloadAliases(raw map[string]json.RawMessage) error {
-	if _, ok := raw["targets"]; ok {
-		delete(raw, "target_models")
-	} else if targets, ok := raw["target_models"]; ok {
-		raw["targets"] = targets
-		delete(raw, "target_models")
-	}
-
 	if err := normalizeAIGatewayModelAlias(raw); err != nil {
 		return err
 	}
@@ -531,7 +524,7 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("formats", explainArrayOf(explainObject(
 			explainField("type", explainStringNode("openai"), true, true),
 		)), true, true),
-		explainField("target_models", explainArrayOf(explainObject(
+		explainField("targets", explainArrayOf(explainObject(
 			explainField("name", explainStringNode("gpt-4o"), true, true),
 			explainField("provider", &ExplainNode{
 				Kind:        explainKindString,

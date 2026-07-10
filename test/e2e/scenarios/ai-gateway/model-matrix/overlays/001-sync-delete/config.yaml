@@ -1,0 +1,59 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-matrix-e2e
+
+ai_gateways:
+  - ref: ai-gateway-model-matrix-e2e
+    name: ai-gateway-model-matrix-e2e
+    display_name: "AI Gateway Model Matrix E2E"
+    description: "AI Gateway model variant matrix e2e"
+    proxy_urls:
+      - host: ai-gateway-model-matrix-e2e.example.com
+        port: 443
+        protocol: https
+    model_providers:
+      - ref: matrix-bedrock
+        name: matrix-bedrock
+        type: bedrock
+        display_name: "Matrix Bedrock"
+        config:
+          auth:
+            type: aws
+            access_key_id: fake-access-key-id
+            secret_access_key: fake-secret-access-key
+      - ref: matrix-azure
+        name: matrix-azure
+        type: azure
+        display_name: "Matrix Azure OpenAI"
+        config:
+          instance: matrix-openai-resource
+          auth:
+            type: basic
+            headers:
+              - name: api-key
+                value: fake-azure-api-key
+            params:
+              - name: api-version
+                value: "2024-06-01"
+                location: query
+      - ref: matrix-gemini
+        name: matrix-gemini
+        type: gemini
+        display_name: "Matrix Gemini"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: x-goog-api-key
+                value: fake-gemini-api-key
+      - ref: matrix-openai
+        name: matrix-openai
+        type: openai
+        display_name: "Matrix OpenAI"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: Bearer fake-openai-api-key
+    models: []

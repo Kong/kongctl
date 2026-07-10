@@ -1,0 +1,141 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-policy-matrix-e2e"
+  gateway_name: "AI Gateway Policy Matrix E2E"
+  policy_count: 17
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 18
+                by_action.CREATE: 18
+          - select: "length(changes[?resource_type=='ai_gateway_policy'])"
+            expect:
+              fields:
+                "@": 17
+          - select: >-
+              changes[?resource_type=='ai_gateway_policy' && resource_ref=='semantic-prompt-guard'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.type: ai-semantic-prompt-guard
+                fields.config.vectordb.strategy: redis
+          - select: >-
+              changes[?resource_type=='ai_gateway_policy' && resource_ref=='request-transformer'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.type: ai-request-transformer
+                fields.config.llm.route_type: llm/v1/chat
+          - select: >-
+              changes[?resource_type=='ai_gateway_policy' && resource_ref=='response-transformer'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.type: ai-response-transformer
+                fields.config.llm.model.provider: bedrock
+          - select: >-
+              changes[?resource_type=='ai_gateway_policy' && resource_ref=='cost-budget'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.type: ai-rate-limiting-advanced
+                fields.config.policies[0].limits[0].tokens_count_strategy: total_tokens
+          - select: >-
+              changes[?resource_type=='ai_gateway_policy' && resource_ref=='mcp-oauth2'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.type: ai-mcp-oauth2
+                fields.config.consumer_by[1]: custom_id
+          - select: >-
+              changes[?resource_type=='ai_gateway_policy' && resource_ref=='opentelemetry'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.type: opentelemetry
+                fields.config.metrics.enable_ai_metrics: true
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 18
+                failed: 0
+                status: success
+      - name: 002-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 002-sync-delete
+    inputOverlayDirs:
+      - overlays/001-sync-delete
+    commands:
+      - name: 000-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 17
+                by_action.DELETE: 17
+          - select: summary
+            expect:
+              fields:
+                applied: 17
+                failed: 0
+                status: success

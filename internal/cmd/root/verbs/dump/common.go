@@ -160,6 +160,9 @@ func mapResourceName(name string) string {
 		return resourceAnalyticsDashboards
 	case "ai-gateway", "ai-gateways", "ai_gateway", "ai_gateways", "aigw":
 		return "ai_gateways"
+	case "ai-gateway-model-provider", "ai-gateway-model-providers",
+		"ai_gateway_model_provider", "ai_gateway_model_providers":
+		return "ai_gateway_model_providers"
 	case "ai-gateway-identity-provider", "ai-gateway-identity-providers",
 		"ai_gateway_identity_provider", "ai_gateway_identity_providers":
 		return "ai_gateway_identity_providers"

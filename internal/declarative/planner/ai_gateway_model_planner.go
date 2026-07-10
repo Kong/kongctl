@@ -370,9 +370,6 @@ func aiGatewayModelProviderCreateDependencies(
 	}
 	targetModels, ok := payload[FieldTargets].([]any)
 	if !ok {
-		targetModels, ok = payload[FieldTargetModels].([]any)
-	}
-	if !ok {
 		return nil
 	}
 

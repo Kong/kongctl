@@ -24,7 +24,7 @@ ai_gateway_models:
       model: {}
     formats:
       - type: openai
-    target_models:
+    targets:
       - name: gpt-4o-mini
         provider: shared-openai
         config:

@@ -555,6 +555,9 @@ func TestNormalizeResourceListMapsDashboardAliasesToAnalyticsDashboards(t *testi
 		{input: "ai-gateway", want: []string{"ai_gateways"}},
 		{input: "ai-gateways", want: []string{"ai_gateways"}},
 		{input: "aigw", want: []string{"ai_gateways"}},
+		{input: "ai-gateway-model-provider", want: []string{"ai_gateway_model_providers"}},
+		{input: "ai_gateway_model_provider", want: []string{"ai_gateway_model_providers"}},
+		{input: "ai_gateway_model_providers", want: []string{"ai_gateway_model_providers"}},
 		{input: "ai_gateways,analytics.dashboards", want: []string{"ai_gateways", "analytics.dashboards"}},
 	}
 

@@ -265,7 +265,7 @@ steps:
               fields:
                 type.const: model
                 formats.items.properties.type.type: string
-                target_models.items.properties.config.properties.type.type: string
+                targets.items.properties.config.properties.type.type: string
 
   - name: 013-explain-ai-gateway-mcp-servers-nested-yaml
     skipInputs: true
