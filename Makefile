@@ -135,6 +135,10 @@ test-e2e-scenarios:
 .PHONY: scenario
 scenario: test-e2e-scenarios
 
+.PHONY: test-e2e-ai-gateway
+test-e2e-ai-gateway:
+	@$(MAKE) test-e2e-scenarios SCENARIO=ai-gateway
+
 .PHONY: benchmark-declarative
 benchmark-declarative:
 	@set -eu; \

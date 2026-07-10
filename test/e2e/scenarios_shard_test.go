@@ -99,6 +99,24 @@ func TestSelectScenariosFilterIgnoresTrailingSlash(t *testing.T) {
 	}
 }
 
+func TestSelectScenariosFilterMatchesDirectoryPrefix(t *testing.T) {
+	scenarios := []string{
+		"test/e2e/scenarios/ai-gateway/agent/scenario.yaml",
+		"test/e2e/scenarios/ai-gateway/root/scenario.yaml",
+		"test/e2e/scenarios/apis/basic/scenario.yaml",
+	}
+
+	selected := selectScenarios(scenarios, "ai-gateway", scenarioShard{})
+
+	want := []string{
+		"test/e2e/scenarios/ai-gateway/agent/scenario.yaml",
+		"test/e2e/scenarios/ai-gateway/root/scenario.yaml",
+	}
+	if !slices.Equal(selected, want) {
+		t.Fatalf("unexpected filtered scenarios: got %v want %v", selected, want)
+	}
+}
+
 func TestSelectScenariosPinsAssignedEnvironment(t *testing.T) {
 	scenarios := []string{
 		"test/e2e/scenarios/apis/basic/scenario.yaml",

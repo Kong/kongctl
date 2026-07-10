@@ -102,7 +102,7 @@ func scenarioMatches(scenarioPath, filter string) bool {
 
 	scenarioDir := strings.TrimSuffix(normalizeScenarioPath(scenarioPath), "/scenario.yaml")
 	filterDir := strings.TrimSuffix(normalizeScenarioPath(filter), "/scenario.yaml")
-	return scenarioDir == filterDir
+	return scenarioDir == filterDir || strings.HasPrefix(scenarioDir, filterDir+"/")
 }
 
 func normalizeScenarioPath(path string) string {
