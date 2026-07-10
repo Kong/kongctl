@@ -124,7 +124,6 @@ type ResourceSet struct {
 	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
 	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
 	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_model_providers,omitempty"                    json:"ai_gateway_model_providers,omitempty"`             //nolint:lll
-	AIGatewayLegacyProviders          []AIGatewayProviderResource                `yaml:"ai_gateway_providers,omitempty"                          json:"ai_gateway_providers,omitempty"`                   //nolint:lll
 	AIGatewayIdentityProviders        []AIGatewayIdentityProviderResource        `yaml:"ai_gateway_identity_providers,omitempty"                 json:"ai_gateway_identity_providers,omitempty"`          //nolint:lll
 	AIGatewayPolicies                 []AIGatewayPolicyResource                  `yaml:"ai_gateway_policies,omitempty"                           json:"ai_gateway_policies,omitempty"`                    //nolint:lll
 	AIGatewayAgents                   []AIGatewayAgentResource                   `yaml:"ai_gateway_agents,omitempty"                             json:"ai_gateway_agents,omitempty"`                      //nolint:lll

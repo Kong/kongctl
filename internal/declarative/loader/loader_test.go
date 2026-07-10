@@ -86,6 +86,54 @@ ai_gateways:
 	require.Equal(t, "openai-provider", rs.AIGatewayProviders[0].Name)
 }
 
+func TestLoaderRejectsLegacyNestedAIGatewayProviders(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+    providers:
+      - ref: openai-provider
+        name: openai-provider
+        type: openai
+        display_name: OpenAI Provider
+        config:
+          auth:
+            type: basic
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ai_gateways.providers is not supported")
+	require.Contains(t, err.Error(), "ai_gateways.model_providers")
+}
+
+func TestLoaderRejectsLegacyRootAIGatewayProviders(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+ai_gateway_providers:
+  - ref: openai-provider
+    ai_gateway: customer-support-gateway
+    name: openai-provider
+    type: openai
+    display_name: OpenAI Provider
+    config:
+      auth:
+        type: basic
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown field 'ai_gateway_providers'")
+}
+
 func TestLoaderFlattensAIGatewayIdentityProviders(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

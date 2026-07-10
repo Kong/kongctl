@@ -547,10 +547,6 @@ ai_gateway_model_providers:
      key: value
 ```
 
-Legacy `providers` and `ai_gateway_providers` keys are still accepted as
-compatibility aliases, but new declarative configuration should use
-`model_providers` and `ai_gateway_model_providers`.
-
 AI Gateway Identity Providers can also be declared as root resources.
 Root-level identity provider declarations must identify the parent AI Gateway
 with `ai_gateway`. OpenID Connect `config.client_secret` values are write-only

@@ -7,6 +7,11 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+const (
+	aiGatewayModelProvidersField  = "model_providers"
+	aiGatewayLegacyProvidersField = "providers"
+)
+
 func init() {
 	registerResourceType(
 		ResourceTypeAIGateway,
@@ -24,8 +29,7 @@ type AIGatewayResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	kkComps.CreateAIGatewayRequest
 	External              *ExternalBlock                          `yaml:"_external,omitempty" json:"_external,omitempty"`
-	Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty" json:"model_providers,omitempty"` //nolint:lll
-	LegacyProviders       []AIGatewayProviderResource             `yaml:"providers,omitempty" json:"providers,omitempty"`
+	Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty" json:"model_providers,omitempty"`       //nolint:lll
 	IdentityProviders     []AIGatewayIdentityProviderResource     `yaml:"identity_providers,omitempty" json:"identity_providers,omitempty"` //nolint:lll
 	Policies              []AIGatewayPolicyResource               `yaml:"policies,omitempty" json:"policies,omitempty"`
 	Agents                []AIGatewayAgentResource                `yaml:"agents,omitempty" json:"agents,omitempty"`
@@ -93,6 +97,18 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 // UnmarshalYAML decodes AI Gateway fields explicitly because the SDK request
 // type only carries JSON tags.
 func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
+	var fields map[string]any
+	if err := unmarshal(&fields); err != nil {
+		return err
+	}
+	if _, ok := fields[aiGatewayLegacyProvidersField]; ok {
+		return fmt.Errorf(
+			"ai_gateways.%s is not supported; use ai_gateways.%s",
+			aiGatewayLegacyProvidersField,
+			aiGatewayModelProvidersField,
+		)
+	}
+
 	var raw struct {
 		Ref                   string                                  `yaml:"ref"`
 		Kongctl               *KongctlMeta                            `yaml:"kongctl,omitempty"`
@@ -103,7 +119,6 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		ProxyURLs             []kkComps.AIGatewayProxyURL             `yaml:"proxy_urls,omitempty"`
 		Labels                map[string]string                       `yaml:"labels,omitempty"`
 		Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty"`
-		LegacyProviders       []AIGatewayProviderResource             `yaml:"providers,omitempty"`
 		IdentityProviders     []AIGatewayIdentityProviderResource     `yaml:"identity_providers,omitempty"`
 		Policies              []AIGatewayPolicyResource               `yaml:"policies,omitempty"`
 		Agents                []AIGatewayAgentResource                `yaml:"agents,omitempty"`
@@ -130,7 +145,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		ProxyUrls:   raw.ProxyURLs,
 		Labels:      raw.Labels,
 	}
-	a.Providers = append(raw.Providers, raw.LegacyProviders...)
+	a.Providers = raw.Providers
 	a.IdentityProviders = raw.IdentityProviders
 	a.Policies = raw.Policies
 	a.Agents = raw.Agents
@@ -147,6 +162,18 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 // UnmarshalJSON decodes AI Gateways explicitly because YAML loading goes
 // through JSON tags and the embedded SDK request type has a custom unmarshaler.
 func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	if _, ok := fields[aiGatewayLegacyProvidersField]; ok {
+		return fmt.Errorf(
+			"ai_gateways.%s is not supported; use ai_gateways.%s",
+			aiGatewayLegacyProvidersField,
+			aiGatewayModelProvidersField,
+		)
+	}
+
 	var raw struct {
 		Ref                   string                                  `json:"ref"`
 		Kongctl               *KongctlMeta                            `json:"kongctl,omitempty"`
@@ -157,7 +184,6 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		ProxyURLs             []kkComps.AIGatewayProxyURL             `json:"proxy_urls,omitempty"`
 		Labels                map[string]string                       `json:"labels,omitempty"`
 		Providers             []AIGatewayProviderResource             `json:"model_providers,omitempty"`
-		LegacyProviders       []AIGatewayProviderResource             `json:"providers,omitempty"`
 		IdentityProviders     []AIGatewayIdentityProviderResource     `json:"identity_providers,omitempty"`
 		Policies              []AIGatewayPolicyResource               `json:"policies,omitempty"`
 		Agents                []AIGatewayAgentResource                `json:"agents,omitempty"`
@@ -184,7 +210,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		ProxyUrls:   raw.ProxyURLs,
 		Labels:      raw.Labels,
 	}
-	a.Providers = append(raw.Providers, raw.LegacyProviders...)
+	a.Providers = raw.Providers
 	a.IdentityProviders = raw.IdentityProviders
 	a.Policies = raw.Policies
 	a.Agents = raw.Agents

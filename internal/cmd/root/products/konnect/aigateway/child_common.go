@@ -16,14 +16,10 @@ const (
 	aiGatewayIDConfigPath   = "konnect.ai-gateway.id"
 	aiGatewayNameConfigPath = "konnect.ai-gateway.name"
 
-	aiGatewayProviderIDFlagName           = "model-provider-id"
-	aiGatewayProviderNameFlagName         = "model-provider-name"
-	aiGatewayLegacyProviderIDFlagName     = "provider-id"
-	aiGatewayLegacyProviderNameFlagName   = "provider-name"
-	aiGatewayProviderIDConfigPath         = "konnect.ai-gateway.model-provider.id"
-	aiGatewayProviderNameConfigPath       = "konnect.ai-gateway.model-provider.name"
-	aiGatewayLegacyProviderIDConfigPath   = "konnect.ai-gateway.provider.id"
-	aiGatewayLegacyProviderNameConfigPath = "konnect.ai-gateway.provider.name"
+	aiGatewayProviderIDFlagName     = "model-provider-id"
+	aiGatewayProviderNameFlagName   = "model-provider-name"
+	aiGatewayProviderIDConfigPath   = "konnect.ai-gateway.model-provider.id"
+	aiGatewayProviderNameConfigPath = "konnect.ai-gateway.model-provider.name"
 
 	aiGatewayIdentityProviderIDFlagName   = "identity-provider-id"
 	aiGatewayIdentityProviderNameFlagName = "identity-provider-name"
@@ -292,37 +288,14 @@ func getAIGatewayIdentifiers(cfg config.Hook) (id string, name string) {
 
 func addAIGatewayProviderFlags(c *cobra.Command) {
 	addPairedAIGatewayFlags(c, aiGatewayProviderFlags)
-	c.Flags().String(aiGatewayLegacyProviderIDFlagName, "", "The ID of the AI Gateway Model Provider to retrieve.")
-	c.Flags().String(aiGatewayLegacyProviderNameFlagName, "", "The name of the AI Gateway Model Provider to retrieve.")
-	_ = c.Flags().MarkHidden(aiGatewayLegacyProviderIDFlagName)
-	_ = c.Flags().MarkHidden(aiGatewayLegacyProviderNameFlagName)
-	c.MarkFlagsMutuallyExclusive(
-		aiGatewayProviderIDFlagName,
-		aiGatewayProviderNameFlagName,
-		aiGatewayLegacyProviderIDFlagName,
-		aiGatewayLegacyProviderNameFlagName,
-	)
 }
 
 func bindAIGatewayProviderFlags(c *cobra.Command, args []string) error {
-	bindings := pairedAIGatewayBindings(aiGatewayProviderFlags)
-	bindings = append(
-		bindings,
-		flagBinding{flag: aiGatewayLegacyProviderIDFlagName, configPath: aiGatewayLegacyProviderIDConfigPath},
-		flagBinding{flag: aiGatewayLegacyProviderNameFlagName, configPath: aiGatewayLegacyProviderNameConfigPath},
-	)
-	return bindAIGatewayFlags(c, args, bindings...)
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayProviderFlags)...)
 }
 
 func getAIGatewayProviderIdentifiers(cfg config.Hook) (id string, name string) {
-	id, name = getPairedAIGatewayIdentifiers(cfg, aiGatewayProviderIDConfigPath, aiGatewayProviderNameConfigPath)
-	if id == "" {
-		id = cfg.GetString(aiGatewayLegacyProviderIDConfigPath)
-	}
-	if name == "" {
-		name = cfg.GetString(aiGatewayLegacyProviderNameConfigPath)
-	}
-	return id, name
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayProviderIDConfigPath, aiGatewayProviderNameConfigPath)
 }
 
 func addAIGatewayIdentityProviderFlags(c *cobra.Command) {
