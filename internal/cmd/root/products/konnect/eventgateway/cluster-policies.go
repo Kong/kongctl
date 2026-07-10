@@ -129,13 +129,13 @@ func newGetEventGatewayClusterPoliciesCmd(
 }
 
 func addClusterPolicyChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(clusterPolicyIDFlagName, "",
-		fmt.Sprintf(`The ID of the cluster policy to retrieve.
-- Config path: [ %s ]`, clusterPolicyIDConfigPath))
-	cmd.Flags().String(clusterPolicyNameFlagName, "",
-		fmt.Sprintf(`The name of the cluster policy to retrieve.
-- Config path: [ %s ]`, clusterPolicyNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(clusterPolicyIDFlagName, clusterPolicyNameFlagName)
+	addChildFlags(
+		cmd,
+		clusterPolicyIDFlagName, clusterPolicyIDConfigPath,
+		"The ID of the cluster policy to retrieve.",
+		clusterPolicyNameFlagName, clusterPolicyNameConfigPath,
+		"The name of the cluster policy to retrieve.",
+	)
 }
 
 func bindClusterPolicyChildFlags(c *cobra.Command, args []string) error {

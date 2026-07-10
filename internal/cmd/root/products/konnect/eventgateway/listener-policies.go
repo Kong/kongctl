@@ -171,13 +171,13 @@ func newGetEventGatewayListenerPoliciesCmd(
 }
 
 func addListenerPolicyChildFlags(cmd *cobra.Command) {
-	cmd.Flags().String(policyIDFlagName, "",
-		fmt.Sprintf(`The ID of the listener policy to retrieve.
-- Config path: [ %s ]`, policyIDConfigPath))
-	cmd.Flags().String(policyNameFlagName, "",
-		fmt.Sprintf(`The name of the listener policy to retrieve.
-- Config path: [ %s ]`, policyNameConfigPath))
-	cmd.MarkFlagsMutuallyExclusive(policyIDFlagName, policyNameFlagName)
+	addChildFlags(
+		cmd,
+		policyIDFlagName, policyIDConfigPath,
+		"The ID of the listener policy to retrieve.",
+		policyNameFlagName, policyNameConfigPath,
+		"The name of the listener policy to retrieve.",
+	)
 }
 
 func bindListenerPolicyChildFlags(c *cobra.Command, args []string) error {
