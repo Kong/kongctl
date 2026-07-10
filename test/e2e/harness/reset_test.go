@@ -59,6 +59,48 @@ func TestConfiguredE2EUserEmails(t *testing.T) {
 	}
 }
 
+func TestSkipAIGatewaysResetForUnsupportedRegion(t *testing.T) {
+	tests := []struct {
+		name    string
+		baseURL string
+		want    bool
+	}{
+		{
+			name:    "tech eu",
+			baseURL: "https://eu.api.konghq.tech",
+			want:    true,
+		},
+		{
+			name:    "production eu",
+			baseURL: "https://eu.api.konghq.com",
+			want:    true,
+		},
+		{
+			name:    "tech us",
+			baseURL: "https://us.api.konghq.tech",
+			want:    false,
+		},
+		{
+			name:    "global",
+			baseURL: "https://global.api.konghq.tech",
+			want:    false,
+		},
+		{
+			name:    "invalid url",
+			baseURL: "%",
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := skipAIGatewaysResetForUnsupportedRegion(tt.baseURL); got != tt.want {
+				t.Fatalf("skipAIGatewaysResetForUnsupportedRegion() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDeleteAllDeletesFilteredItemsAcrossPages(t *testing.T) {
 	type team struct {
 		id         string

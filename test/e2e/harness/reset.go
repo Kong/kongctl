@@ -362,6 +362,9 @@ type resetResourceSpec struct {
 	// up sub-resources that Konnect does not cascade-delete automatically. Errors are
 	// logged but do not stop the deletion.
 	PreDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string)
+	// SkipForBaseURL skips reset for resources that are not available in every
+	// regional Konnect environment.
+	SkipForBaseURL func(baseURL string) bool
 }
 
 var resetSequence = []resetResourceSpec{
@@ -384,7 +387,15 @@ var resetSequence = []resetResourceSpec{
 	{Version: "v2", Endpoint: "dashboards"},
 	{Version: "v1", Endpoint: "catalog-services"},
 	{Version: "v1", Endpoint: "event-gateways"},
-	{Version: "v1", Endpoint: "ai-gateways"},
+	{Version: "v1", Endpoint: "ai-gateways", SkipForBaseURL: skipAIGatewaysResetForUnsupportedRegion},
+}
+
+func skipAIGatewaysResetForUnsupportedRegion(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(strings.ToLower(u.Hostname()), "eu.api.")
 }
 
 func onlyE2EEmailDomains(resource map[string]any) bool {
@@ -470,6 +481,10 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 		targetURL := baseURL
 		if step.UseGlobal {
 			targetURL = globalBaseURL
+		}
+		if step.SkipForBaseURL != nil && step.SkipForBaseURL(targetURL) {
+			Debugf("Skipping %s reset for %s", step.Endpoint, targetURL)
+			continue
 		}
 		deleteTargetURL := targetURL
 		if step.DeleteUseRegional {
