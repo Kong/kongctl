@@ -23,6 +23,18 @@ steps:
             expect:
               fields:
                 total_changes: 3
+      - name: 002-record-staging-id
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - groups-staging-runtime
+          - -o
+          - json
+        recordVar:
+          name: stagingRuntimeID
+          responsePath: id
 
   - name: 002-update-group-members
     inputOverlayDirs:
@@ -61,21 +73,46 @@ steps:
             expect:
               fields:
                 action: UPDATE
+      - name: 003-record-emea-id
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - groups-emea-runtime
+          - -o
+          - json
+        recordVar:
+          name: emeaRuntimeID
+          responsePath: id
 
-  - name: 003-verify-group-type-and-name
+  - name: 003-verify-members-after-sync
     skipInputs: true
     commands:
-      - name: 000-get-group
-        run: ["get", "konnect", "gateway", "control-plane", "groups-shared-group", "-o", "json"]
+      - name: 000-dump-group-members
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+          - "--filter-name=groups-shared-group"
+        outputFormat: none
+        parseAs: yaml
         assertions:
-          - select: config.cluster_type
+          - select: "control_planes[?name=='groups-shared-group'] | [0]"
             expect:
               fields:
-                "@": "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
-          - select: name
+                name: "groups-shared-group"
+                cluster_type: "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+          - select: "control_planes[?name=='groups-shared-group'] | [0].members"
             expect:
               fields:
-                "@": "groups-shared-group"
+                "length(@)": 2
+                "length([?id=='{{ .vars.stagingRuntimeID }}'])": 0
+                "length([?id=='{{ .vars.emeaRuntimeID }}'])": 1
+          - select: "control_planes[?name=='groups-shared-group'] | [0].members[?id=='{{ .vars.emeaRuntimeID }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.emeaRuntimeID }}"
 
   - name: 004-plan-idempotent
     inputOverlayDirs:
