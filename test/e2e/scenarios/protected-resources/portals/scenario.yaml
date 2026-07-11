@@ -1,0 +1,195 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  protectedPortalName: "Protected Portal"
+  unprotectedPortalName: "Unprotected Portal"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-initial-sync
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portals.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: >-
+              plan.changes[?resource_type=='portal' &&
+                            resource_ref=='protected-portal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='portal' &&
+                            resource_ref=='unprotected-portal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: "plan.summary.protection_changes"
+            expect:
+              fields:
+                protecting: 1
+                unprotecting: 0
+
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedPortalName }}'] | [0]"
+            expect:
+              fields:
+                name: "Protected Portal"
+                display_name: "Protected Portal"
+                labels."KONGCTL-protected": "true"
+                labels."KONGCTL-namespace": "default"
+          - select: "[?name=='{{ .vars.unprotectedPortalName }}'] | [0]"
+            expect:
+              fields:
+                name: "Unprotected Portal"
+                labels."KONGCTL-protected": null
+                labels."KONGCTL-namespace": "default"
+
+  - name: 002-attempt-delete-protected
+    inputOverlayDirs:
+      - overlays/002-attempt-delete
+    commands:
+      - name: 000-sync-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portals.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+      - name: 001-verify-protected-exists
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedPortalName }}'] | [0]"
+            expect:
+              fields:
+                display_name: "Protected Portal"
+                labels."KONGCTL-protected": "true"
+
+  - name: 003-attempt-update-protected
+    inputOverlayDirs:
+      - overlays/003-attempt-update
+    commands:
+      - name: 000-sync-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portals.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+      - name: 001-verify-protected-unchanged
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedPortalName }}'] | [0]"
+            expect:
+              fields:
+                display_name: "Protected Portal"
+                labels."KONGCTL-protected": "true"
+
+  - name: 004-unprotect-and-delete
+    inputOverlayDirs:
+      - overlays/004-unprotect
+    commands:
+      - name: 000-sync-unprotect
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portals.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              plan.changes[?resource_type=='portal' &&
+                            resource_ref=='protected-portal'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+          - select: "summary"
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+          - select: "plan.summary.protection_changes"
+            expect:
+              fields:
+                protecting: 0
+                unprotecting: 1
+
+      - name: 001-verify-unprotected
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedPortalName }}'] | [0]"
+            expect:
+              fields:
+                display_name: "Protected Portal"
+                labels."KONGCTL-protected": null
+                labels."KONGCTL-namespace": "default"
+
+  - name: 005-unprotected-portal-sync-delete
+    inputOverlayDirs:
+      - overlays/005-delete-all
+    commands:
+      - name: 000-sync-delete
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portals.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              plan.changes[?resource_type=='portal' &&
+                            resource_ref=='{{ .vars.protectedPortalName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              plan.changes[?resource_type=='portal' &&
+                            resource_ref=='{{ .vars.unprotectedPortalName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: "summary"
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 001-verify-deleted
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 006-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true

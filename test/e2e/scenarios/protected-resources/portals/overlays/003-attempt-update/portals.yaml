@@ -1,0 +1,22 @@
+# Overlay: Change the protected portal display name
+# This should trigger a protected-resource failure in sync mode
+
+_defaults:
+  kongctl:
+    namespace: default
+
+portals:
+  - ref: protected-portal
+    name: "Protected Portal"
+    display_name: "Protected Portal Updated"
+    description: "Protected portal for e2e coverage"
+    kongctl:
+      protected: true
+      namespace: default
+
+  - ref: unprotected-portal
+    name: "Unprotected Portal"
+    display_name: "Unprotected Portal"
+    description: "Unprotected portal for e2e coverage"
+    kongctl:
+      namespace: default
