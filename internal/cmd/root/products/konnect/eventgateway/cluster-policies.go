@@ -321,12 +321,10 @@ func (h clusterPoliciesHandler) listPolicies(
 	}
 
 	records := make([]clusterPolicySummaryRecord, 0, len(policies))
+	tableRows := make([]table.Row, 0, len(policies))
 	for _, policy := range policies {
-		records = append(records, clusterPolicyToRecord(policy))
-	}
-
-	tableRows := make([]table.Row, 0, len(records))
-	for _, record := range records {
+		record := clusterPolicyToRecord(policy)
+		records = append(records, record)
 		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.Type})
 	}
 
@@ -402,14 +400,8 @@ func (h clusterPoliciesHandler) getSinglePolicy(
 	}
 
 	// Parse raw response to get full config (SDK's EventGatewayPolicyConfig is empty)
-	var policyWithConfig *clusterPolicyWithConfig
 	var parsed clusterPolicyWithConfig
-	if parseRawClusterPolicyResponse(helper, res, &parsed) {
-		policyWithConfig = &parsed
-	}
-
-	// If we successfully parsed the raw response with config, use that
-	if policyWithConfig != nil {
+	if parseRawPolicyResponse(helper, res, &parsed) {
 		return tableview.RenderForFormat(
 			helper,
 			false,
@@ -417,7 +409,7 @@ func (h clusterPoliciesHandler) getSinglePolicy(
 			printer,
 			helper.GetStreams(),
 			clusterPolicyToRecord(*policy),
-			policyWithConfig,
+			&parsed,
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
 		)
@@ -434,12 +426,6 @@ func (h clusterPoliciesHandler) getSinglePolicy(
 		"",
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
-}
-
-// parseRawClusterPolicyResponse parses the raw HTTP response body to extract cluster policies with full config.
-// The SDK's EventGatewayPolicyConfig struct is empty, so we use this to capture actual config.
-func parseRawClusterPolicyResponse[T any](helper cmd.Helper, sdkResponse sdkResponseWithRawBody, target *T) bool {
-	return parseRawPolicyResponse(helper, sdkResponse, target)
 }
 
 func fetchClusterPolicies(
