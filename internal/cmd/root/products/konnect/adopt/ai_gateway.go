@@ -161,7 +161,7 @@ func resolveAIGateway(
 
 	pageSize := common.ResolveRequestPageSize(cfg)
 	pageNumber := int64(1)
-	var matches []kkComps.AIGateway
+	var gateways []kkComps.AIGateway
 
 	for {
 		resp, err := api.ListAiGateways(ctx, &pageSize, &pageNumber)
@@ -178,16 +178,26 @@ func resolveAIGateway(
 			break
 		}
 
-		for _, gateway := range list.Data {
-			if gateway.DisplayName == identifier {
-				matches = append(matches, gateway)
-			}
-		}
+		gateways = append(gateways, list.Data...)
 
 		if !common.HasMorePageNumberResults(int(list.Meta.Page.Total), int(pageNumber*pageSize), len(list.Data)) {
 			break
 		}
 		pageNumber++
+	}
+
+	var matches []kkComps.AIGateway
+	for _, gateway := range gateways {
+		if gateway.Name == identifier {
+			matches = append(matches, gateway)
+		}
+	}
+	if len(matches) == 0 {
+		for _, gateway := range gateways {
+			if gateway.DisplayName == identifier {
+				matches = append(matches, gateway)
+			}
+		}
 	}
 
 	switch len(matches) {
@@ -197,7 +207,7 @@ func resolveAIGateway(
 		return &matches[0], nil
 	default:
 		return nil, &cmdpkg.ConfigurationError{
-			Err: fmt.Errorf("AI Gateway display name %q matches %d AI Gateways; use the AI Gateway ID",
+			Err: fmt.Errorf("AI Gateway name or display_name %q matches %d AI Gateways; use the AI Gateway ID",
 				identifier, len(matches)),
 		}
 	}

@@ -114,6 +114,42 @@ func TestAIGatewayVaultPlannerIgnoresWriteOnlySecretDrift(t *testing.T) {
 	require.NotContains(t, desiredPlanPayload[FieldConfig].(map[string]any), "token")
 }
 
+func TestAIGatewayVaultPlannerSendsWriteOnlySecretsOnObservableUpdate(t *testing.T) {
+	var currentVault kkComps.AIGatewayVault
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "vault-id",
+		"type": "hcv",
+		"name": "support-hcv",
+		"description": "Support Hashicorp Vault",
+		"config": {"auth_method": "token", "host": "old-vault.example.test", "port": 8200},
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z"
+	}`), &currentVault))
+	current := state.AIGatewayVault{AIGatewayVault: currentVault}
+	var desired resources.AIGatewayVaultResource
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"ref": "support-hcv",
+		"ai_gateway": "support-gateway",
+		"type": "hcv",
+		"name": "support-hcv",
+		"description": "Support Hashicorp Vault",
+		"config": {
+			"auth_method": "token",
+			"host": "vault.example.test",
+			"port": 8200,
+			"token": "super-secret-token"
+		}
+	}`), &desired))
+
+	needsUpdate, fields, changedFields, err := shouldUpdateAIGatewayVault(current, desired)
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	require.Equal(t, "super-secret-token", fields[FieldConfig].(map[string]any)["token"])
+
+	configChange := changedFields[FieldConfig]
+	require.NotContains(t, configChange.New.(map[string]any), "token")
+}
+
 func TestAIGatewayVaultPlannerSyncDeletesScopedVaults(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -85,12 +86,16 @@ func (p *Planner) planAIGatewayPolicyChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
 		for _, current := range currentPolicies {
 			policyID := resources.AIGatewayPolicyID(current.AIGatewayPolicy)
 			policyName := resources.AIGatewayPolicyName(current.AIGatewayPolicy)
 			if desiredKeys[policyID] || desiredKeys[policyName] {
 				continue
+			}
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection(ResourceTypeAIGatewayPolicy, policyName, isProtected, ActionDelete); err != nil {
+				return err
 			}
 			p.planAIGatewayPolicyDelete(namespace, gatewayRef, gatewayID, policyID, policyName, plan)
 		}

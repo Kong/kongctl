@@ -248,6 +248,12 @@ func aiGatewayChildSerializationParentKey(change PlannedChange) string {
 		return ""
 	}
 
+	if change.ResourceType == ResourceTypeAIGatewayConsumerCredential {
+		if key := aiGatewayChildSerializationReferenceKey(change); key != "" {
+			return key
+		}
+	}
+
 	if change.Parent != nil {
 		if change.Parent.Ref != "" {
 			return "ref:" + change.Parent.Ref
@@ -257,6 +263,20 @@ func aiGatewayChildSerializationParentKey(change PlannedChange) string {
 		}
 	}
 
+	refInfo, ok := change.References[FieldAIGatewayID]
+	if !ok {
+		return ""
+	}
+	if refInfo.Ref != "" {
+		return "ref:" + refInfo.Ref
+	}
+	if !unresolvedReferenceID(refInfo.ID) {
+		return "id:" + refInfo.ID
+	}
+	return ""
+}
+
+func aiGatewayChildSerializationReferenceKey(change PlannedChange) string {
 	refInfo, ok := change.References[FieldAIGatewayID]
 	if !ok {
 		return ""
@@ -350,6 +370,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 	case ResourceTypeAIGatewayProvider,
 		ResourceTypeAIGatewayIdentityProvider,
 		ResourceTypeAIGatewayPolicy,
+		ResourceTypeAIGatewayAgent,
 		ResourceTypeAIGatewayConsumer,
 		ResourceTypeAIGatewayConsumerGroup,
 		ResourceTypeAIGatewayModel,

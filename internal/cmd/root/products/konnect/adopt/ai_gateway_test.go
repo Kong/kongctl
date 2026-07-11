@@ -130,4 +130,40 @@ func TestAdoptAIGatewayAssignsNamespacePreservingAPIName(t *testing.T) {
 	helper.AssertExpectations(t)
 }
 
+func TestAdoptAIGatewayResolvesByNameBeforeDisplayName(t *testing.T) {
+	helper := new(cmd.MockHelper)
+	helper.EXPECT().GetContext().Return(context.Background()).Times(2)
+
+	nameMatchID := "22cd8a0b-72e7-4212-9099-0764f8e9c5ac"
+	stub := &adoptAIGatewayAPIStub{
+		t: t,
+		gateways: []kkComps.AIGateway{
+			{
+				ID:          "33cd8a0b-72e7-4212-9099-0764f8e9c5ac",
+				DisplayName: "support-gateway",
+				Name:        "different-gateway",
+			},
+			{
+				ID:          nameMatchID,
+				DisplayName: "Support Gateway",
+				Name:        "support-gateway",
+			},
+		},
+	}
+
+	result, err := adoptAIGateway(
+		helper,
+		stub,
+		stubConfig{pageSize: 50},
+		"team-alpha",
+		false,
+		"support-gateway",
+	)
+	require.NoError(t, err)
+	assert.Equal(t, nameMatchID, result.ID)
+	assert.Equal(t, nameMatchID, stub.updateID)
+
+	helper.AssertExpectations(t)
+}
+
 var _ helpers.AIGatewayAPI = (*adoptAIGatewayAPIStub)(nil)

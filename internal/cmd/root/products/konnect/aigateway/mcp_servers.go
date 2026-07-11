@@ -243,7 +243,7 @@ func (h aiGatewayMCPServersHandler) listMCPServers(
 				aiGatewayHeaderName,
 				aiGatewayHeaderDisplayName,
 				aiGatewayHeaderType,
-				"ENABLED",
+				aiGatewayHeaderEnabled,
 				aiGatewayHeaderUpdated,
 			},
 			tableRows,

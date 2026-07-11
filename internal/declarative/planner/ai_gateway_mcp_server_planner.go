@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/util"
@@ -94,12 +95,16 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
 		for _, current := range currentServers {
 			serverID := resources.AIGatewayMCPServerID(current.AIGatewayMCPServer)
 			serverName := resources.AIGatewayMCPServerName(current.AIGatewayMCPServer)
 			if desiredKeys[serverID] || desiredKeys[serverName] {
 				continue
+			}
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection(ResourceTypeAIGatewayMCPServer, serverName, isProtected, ActionDelete); err != nil {
+				return err
 			}
 			p.planAIGatewayMCPServerDelete(namespace, gatewayRef, gatewayID, serverID, serverName, plan)
 		}

@@ -1201,6 +1201,48 @@ func TestResolveDependenciesWithGroups_AIGatewayChildrenSameParentSerialized(t *
 	}
 }
 
+func TestResolveDependenciesWithGroups_AIGatewayConsumerCredentialsSerializeByGateway(t *testing.T) {
+	d := NewDependencyResolver()
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-user-a-key",
+			ResourceType: ResourceTypeAIGatewayConsumerCredential,
+			ResourceRef:  "user-a-key",
+			Action:       ActionCreate,
+			Parent:       &ParentInfo{Ref: "user-a", ID: "consumer-a-id"},
+			References: map[string]ReferenceInfo{
+				FieldAIGatewayID: {Ref: "shared-gateway"},
+			},
+		},
+		{
+			ID:           "2-c-user-b-key",
+			ResourceType: ResourceTypeAIGatewayConsumerCredential,
+			ResourceRef:  "user-b-key",
+			Action:       ActionCreate,
+			Parent:       &ParentInfo{Ref: "user-b", ID: "consumer-b-id"},
+			References: map[string]ReferenceInfo{
+				FieldAIGatewayID: {Ref: "shared-gateway"},
+			},
+		},
+	}
+
+	res, err := d.ResolveDependenciesWithGroups(changes)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedGroups := [][]string{
+		{"1-c-user-a-key"},
+		{"2-c-user-b-key"},
+	}
+	if !equalNestedSlices(res.ExecutionGroups, expectedGroups) {
+		t.Fatalf("expected AI Gateway credential groups %v, got %v", expectedGroups, res.ExecutionGroups)
+	}
+	if !contains(res.FullDepsMap["2-c-user-b-key"], "1-c-user-a-key") {
+		t.Errorf("expected second credential to depend on first credential, got %v", res.FullDepsMap["2-c-user-b-key"])
+	}
+}
+
 func TestResolveDependenciesWithGroups_AIGatewayChildrenDifferentParentsConcurrent(t *testing.T) {
 	d := NewDependencyResolver()
 	changes := []PlannedChange{

@@ -393,6 +393,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		case "ai_gateway_model_providers":
 			providers, err := collectDeclarativeAIGatewayProviders(
 				ctx,
+				logger,
 				stateClient,
 				sdk.GetAIGatewayAPI(),
 				requestPageSize,
@@ -405,6 +406,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		case "ai_gateway_identity_providers":
 			providers, err := collectDeclarativeAIGatewayIdentityProviders(
 				ctx,
+				logger,
 				stateClient,
 				sdk.GetAIGatewayAPI(),
 				requestPageSize,
@@ -513,6 +515,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		case "ai_gateway_data_plane_certificates":
 			certs, err := collectDeclarativeAIGatewayDataPlaneCertificates(
 				ctx,
+				logger,
 				stateClient,
 				sdk.GetAIGatewayAPI(),
 				requestPageSize,
@@ -931,6 +934,7 @@ func collectDeclarativeAIGatewayPolicies(
 
 func collectDeclarativeAIGatewayProviders(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	aiGatewayClient helpers.AIGatewayAPI,
 	requestPageSize int64,
@@ -949,7 +953,7 @@ func collectDeclarativeAIGatewayProviders(
 	for _, gateway := range gateways {
 		gatewayProviders, err := buildAIGatewayProviders(
 			ctx,
-			slog.Default(),
+			logger,
 			client,
 			gateway.Ref,
 			gateway.DisplayName,
@@ -981,6 +985,7 @@ func collectDeclarativeAIGatewayProviders(
 
 func collectDeclarativeAIGatewayIdentityProviders(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	aiGatewayClient helpers.AIGatewayAPI,
 	requestPageSize int64,
@@ -999,7 +1004,7 @@ func collectDeclarativeAIGatewayIdentityProviders(
 	for _, gateway := range gateways {
 		gatewayProviders, err := buildAIGatewayIdentityProviders(
 			ctx,
-			slog.Default(),
+			logger,
 			client,
 			gateway.Ref,
 			gateway.DisplayName,
@@ -1314,6 +1319,7 @@ func collectDeclarativeAIGatewayVaults(
 
 func collectDeclarativeAIGatewayDataPlaneCertificates(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	aiGatewayClient helpers.AIGatewayAPI,
 	requestPageSize int64,
@@ -1332,7 +1338,7 @@ func collectDeclarativeAIGatewayDataPlaneCertificates(
 	for _, gateway := range gateways {
 		gatewayCerts, err := buildAIGatewayDataPlaneCertificates(
 			ctx,
-			nil,
+			logger,
 			client,
 			gateway.Ref,
 			gateway.DisplayName,

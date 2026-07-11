@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayIdentityProviderChanges(
@@ -51,16 +52,16 @@ func (p *Planner) planAIGatewayIdentityProviderChanges(
 		return fmt.Errorf("failed to list AI Gateway Identity Providers for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByName := make(map[string]state.AIGatewayIdentityProvider)
-	for _, provider := range currentProviders {
-		currentByName[provider.Name] = provider
-	}
+	currentByID, currentByName := indexAIGatewayIdentityProviders(currentProviders)
 
-	desiredNames := make(map[string]bool)
+	desiredKeys := make(map[string]bool)
 	for _, desiredProvider := range desired {
-		desiredNames[desiredProvider.Name] = true
+		desiredKeys[desiredProvider.Name] = true
+		if id := aiGatewayIdentityProviderDesiredID(desiredProvider); id != "" {
+			desiredKeys[id] = true
+		}
 
-		current, exists := currentByName[desiredProvider.Name]
+		current, exists := matchCurrentAIGatewayIdentityProvider(desiredProvider, currentByID, currentByName)
 		if !exists {
 			p.planAIGatewayIdentityProviderCreate(
 				namespace, gatewayRef, gatewayName, gatewayID, desiredProvider, nil, plan,
@@ -92,21 +93,65 @@ func (p *Planner) planAIGatewayIdentityProviderChanges(
 		)
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if desiredNames[name] {
+	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+		for _, current := range currentProviders {
+			if desiredKeys[current.ID] || desiredKeys[current.Name] {
 				continue
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAIGatewayIdentityProvider, name, isProtected, ActionDelete); err != nil {
+			if err := p.validateProtection(
+				ResourceTypeAIGatewayIdentityProvider,
+				current.Name,
+				isProtected,
+				ActionDelete,
+			); err != nil {
 				return err
 			}
-			p.planAIGatewayIdentityProviderDelete(namespace, gatewayRef, gatewayID, current.ID, name, plan)
+			p.planAIGatewayIdentityProviderDelete(namespace, gatewayRef, gatewayID, current.ID, current.Name, plan)
 		}
 	}
 
 	return nil
+}
+
+func indexAIGatewayIdentityProviders(
+	providers []state.AIGatewayIdentityProvider,
+) (map[string]state.AIGatewayIdentityProvider, map[string]state.AIGatewayIdentityProvider) {
+	byID := make(map[string]state.AIGatewayIdentityProvider)
+	byName := make(map[string]state.AIGatewayIdentityProvider)
+	for _, provider := range providers {
+		if provider.ID != "" {
+			byID[provider.ID] = provider
+		}
+		if provider.Name != "" {
+			byName[provider.Name] = provider
+		}
+	}
+	return byID, byName
+}
+
+func matchCurrentAIGatewayIdentityProvider(
+	desired resources.AIGatewayIdentityProviderResource,
+	currentByID map[string]state.AIGatewayIdentityProvider,
+	currentByName map[string]state.AIGatewayIdentityProvider,
+) (state.AIGatewayIdentityProvider, bool) {
+	if id := aiGatewayIdentityProviderDesiredID(desired); id != "" {
+		current, exists := currentByID[id]
+		return current, exists
+	}
+	current, exists := currentByName[desired.Name]
+	return current, exists
+}
+
+func aiGatewayIdentityProviderDesiredID(desired resources.AIGatewayIdentityProviderResource) string {
+	if id := desired.GetKonnectID(); id != "" {
+		return id
+	}
+	if util.IsValidUUID(desired.Ref) {
+		return desired.Ref
+	}
+	return ""
 }
 
 func (p *Planner) planAIGatewayIdentityProviderCreatesForNewGateway(

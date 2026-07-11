@@ -308,7 +308,7 @@ steps:
                 type.const: env
                 config.properties.prefix.type: string
 
-  - name: 014-explain-ai-gateway-data-plane-certificates-nested-yaml
+  - name: 015-explain-ai-gateway-data-plane-certificates-nested-yaml
     skipInputs: true
     commands:
       - name: 000-explain-ai-gateway-data-plane-certificates-yaml

@@ -606,6 +606,14 @@ func (p *Planner) planExternalAIGatewayChildren(
 	return nil
 }
 
+func (p *Planner) isAIGatewayExternal(gatewayRef string) bool {
+	if p == nil || p.resources == nil {
+		return false
+	}
+	gateway := p.resources.GetAIGatewayByRef(gatewayRef)
+	return gateway != nil && gateway.IsExternal()
+}
+
 func (p *Planner) shouldUpdateAIGateway(
 	current state.AIGateway,
 	desired resources.AIGatewayResource,

@@ -51,7 +51,7 @@ var (
 	)
 )
 
-type aiGatewayProviderDisplayRecord struct {
+type aiGatewayProviderRecord struct {
 	ID               string
 	Name             string
 	Type             string
@@ -214,7 +214,7 @@ func (h aiGatewayProvidersHandler) listProviders(
 		return err
 	}
 
-	records := make([]aiGatewayProviderDisplayRecord, 0, len(providers))
+	records := make([]aiGatewayProviderRecord, 0, len(providers))
 	for _, provider := range providers {
 		records = append(records, aiGatewayProviderToDisplayRecord(provider))
 	}
@@ -398,7 +398,7 @@ func buildAIGatewayProviderChildView(providers []kkComps.AIGatewayModelProvider)
 	}
 }
 
-func aiGatewayProviderToDisplayRecord(provider kkComps.AIGatewayModelProvider) aiGatewayProviderDisplayRecord {
+func aiGatewayProviderToDisplayRecord(provider kkComps.AIGatewayModelProvider) aiGatewayProviderRecord {
 	raw := aiGatewayProviderRawMap(provider)
 
 	id := aiGatewayProviderStringFieldFromRaw(raw, aiGatewayFieldID)
@@ -421,7 +421,7 @@ func aiGatewayProviderToDisplayRecord(provider kkComps.AIGatewayModelProvider) a
 		displayName = aiGatewayMissingValue
 	}
 
-	return aiGatewayProviderDisplayRecord{
+	return aiGatewayProviderRecord{
 		ID:               id,
 		Name:             name,
 		Type:             providerType,

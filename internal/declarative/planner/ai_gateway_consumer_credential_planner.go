@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/util"
@@ -102,7 +103,7 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 		)
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
 		for _, current := range currentCredentials {
 			credentialID := resources.AIGatewayConsumerCredentialID(current.AIGatewayConsumerCredential)
 			credentialName := resources.AIGatewayConsumerCredentialName(current.AIGatewayConsumerCredential)
@@ -112,6 +113,15 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 			resourceRef := credentialName
 			if resourceRef == "" {
 				resourceRef = credentialID
+			}
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection(
+				ResourceTypeAIGatewayConsumerCredential,
+				resourceRef,
+				isProtected,
+				ActionDelete,
+			); err != nil {
+				return err
 			}
 			p.planAIGatewayConsumerCredentialDelete(
 				namespace,

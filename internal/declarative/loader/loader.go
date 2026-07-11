@@ -1038,6 +1038,13 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 
 	for i := range rs.AIGateways {
 		gateway := &rs.AIGateways[i]
+		for j := range gateway.Providers {
+			provider := gateway.Providers[j]
+			provider.AIGateway = gateway.Ref
+			rs.AIGatewayProviders = append(rs.AIGatewayProviders, provider)
+		}
+		gateway.Providers = nil
+
 		for j := range gateway.Policies {
 			policy := gateway.Policies[j]
 			policy.AIGateway = gateway.Ref
@@ -1093,6 +1100,12 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.AIGatewayVaults = append(rs.AIGatewayVaults, vault)
 		}
 		gateway.Vaults = nil
+
+		for _, cert := range gateway.DataPlaneCertificates {
+			cert.AIGateway = gateway.Ref
+			rs.AIGatewayDataPlaneCertificates = append(rs.AIGatewayDataPlaneCertificates, cert)
+		}
+		gateway.DataPlaneCertificates = nil
 	}
 
 	for i := range rs.APIs {
@@ -1305,69 +1318,6 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.EventGatewayDataPlaneCertificates = append(rs.EventGatewayDataPlaneCertificates, dp)
 		}
 		egw.DataPlaneCertificates = nil
-	}
-
-	for i := range rs.AIGateways {
-		gateway := &rs.AIGateways[i]
-		for _, provider := range gateway.Providers {
-			provider.AIGateway = gateway.Ref
-			rs.AIGatewayProviders = append(rs.AIGatewayProviders, provider)
-		}
-		gateway.Providers = nil
-
-		for _, provider := range gateway.IdentityProviders {
-			provider.AIGateway = gateway.Ref
-			rs.AIGatewayIdentityProviders = append(rs.AIGatewayIdentityProviders, provider)
-		}
-		gateway.IdentityProviders = nil
-
-		for _, policy := range gateway.Policies {
-			policy.AIGateway = gateway.Ref
-			rs.AIGatewayPolicies = append(rs.AIGatewayPolicies, policy)
-		}
-		gateway.Policies = nil
-
-		for _, agent := range gateway.Agents {
-			agent.AIGateway = gateway.Ref
-			rs.AIGatewayAgents = append(rs.AIGatewayAgents, agent)
-		}
-		gateway.Agents = nil
-
-		for _, consumer := range gateway.Consumers {
-			consumer.AIGateway = gateway.Ref
-			rs.AIGatewayConsumers = append(rs.AIGatewayConsumers, consumer)
-		}
-		gateway.Consumers = nil
-
-		for _, group := range gateway.ConsumerGroups {
-			group.AIGateway = gateway.Ref
-			rs.AIGatewayConsumerGroups = append(rs.AIGatewayConsumerGroups, group)
-		}
-		gateway.ConsumerGroups = nil
-
-		for _, model := range gateway.Models {
-			model.AIGateway = gateway.Ref
-			rs.AIGatewayModels = append(rs.AIGatewayModels, model)
-		}
-		gateway.Models = nil
-
-		for _, server := range gateway.MCPServers {
-			server.AIGateway = gateway.Ref
-			rs.AIGatewayMCPServers = append(rs.AIGatewayMCPServers, server)
-		}
-		gateway.MCPServers = nil
-
-		for _, vault := range gateway.Vaults {
-			vault.AIGateway = gateway.Ref
-			rs.AIGatewayVaults = append(rs.AIGatewayVaults, vault)
-		}
-		gateway.Vaults = nil
-
-		for _, cert := range gateway.DataPlaneCertificates {
-			cert.AIGateway = gateway.Ref
-			rs.AIGatewayDataPlaneCertificates = append(rs.AIGatewayDataPlaneCertificates, cert)
-		}
-		gateway.DataPlaneCertificates = nil
 	}
 
 	for i := range rs.AIGatewayConsumers {

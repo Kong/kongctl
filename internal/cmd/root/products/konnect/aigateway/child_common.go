@@ -102,6 +102,7 @@ const (
 	aiGatewayHeaderType        = "TYPE"
 	aiGatewayHeaderTTL         = "TTL"
 	aiGatewayHeaderEnabled     = "ENABLED"
+	aiGatewayHeaderGlobal      = "GLOBAL"
 	aiGatewayHeaderPolicies    = "POLICIES"
 	aiGatewayHeaderUpdated     = "UPDATED"
 )

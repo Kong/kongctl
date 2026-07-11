@@ -26,7 +26,7 @@ func init() {
 				"ai-gateway-identity-providers",
 				"aigw-identity-provider",
 			),
-			WithExplainRecommendedFields("ref", "ai_gateway", "name", "type", "display_name", "config"),
+			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "name", "type", "display_name", "config"),
 			WithExplainSchemaBuilder(aiGatewayIdentityProviderExplainNode),
 		),
 	)
@@ -209,7 +209,7 @@ func (a *AIGatewayIdentityProviderResource) UnmarshalJSON(data []byte) error {
 func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	commonFields := []*ExplainField{
 		explainResourceRefField(),
-		explainRefField("ai_gateway", ResourceTypeAIGateway, true),
+		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("support-key-auth"), true, true),
 		explainField("display_name", explainStringNode("Support Key Auth"), true, true),
 		explainField("labels", &ExplainNode{
@@ -256,7 +256,7 @@ func aiGatewayIdentityProviderInlineExplainNode() *ExplainNode {
 	if err != nil {
 		return explainObject(
 			explainResourceRefField(),
-			explainRefField("ai_gateway", ResourceTypeAIGateway, true),
+			explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 			explainField("name", explainStringNode("support-key-auth"), true, true),
 			explainField("type", explainStringNode("key-auth"), true, true),
 			explainField("display_name", explainStringNode("Support Key Auth"), true, true),
