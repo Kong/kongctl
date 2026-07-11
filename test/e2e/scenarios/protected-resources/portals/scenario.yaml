@@ -165,13 +165,13 @@ steps:
         assertions:
           - select: >-
               plan.changes[?resource_type=='portal' &&
-                            resource_ref=='protected-portal'] | [0]
+                            resource_ref=='{{ .vars.protectedPortalName }}'] | [0]
             expect:
               fields:
                 action: DELETE
           - select: >-
               plan.changes[?resource_type=='portal' &&
-                            resource_ref=='unprotected-portal'] | [0]
+                            resource_ref=='{{ .vars.unprotectedPortalName }}'] | [0]
             expect:
               fields:
                 action: DELETE
