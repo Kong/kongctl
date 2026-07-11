@@ -260,7 +260,7 @@ func (h aiGatewayModelsHandler) listModels(
 				aiGatewayHeaderName,
 				aiGatewayHeaderDisplayName,
 				aiGatewayHeaderType,
-				"ENABLED",
+				aiGatewayHeaderEnabled,
 				aiGatewayHeaderUpdated,
 			},
 			tableRows,
@@ -378,14 +378,13 @@ func listAIGatewayModels(
 }
 
 func aiGatewayModelToRecord(model kkComps.AIGatewayModel) aiGatewayModelRecord {
-	const missing = "n/a"
 	record := aiGatewayModelRecord{
-		ID:               missing,
+		ID:               aiGatewayMissingValue,
 		Name:             valueOrMissing(declresources.AIGatewayModelName(model)),
 		DisplayName:      valueOrMissing(declresources.AIGatewayModelDisplayName(model)),
 		Type:             valueOrMissing(declresources.AIGatewayModelType(model)),
-		Enabled:          missing,
-		LocalUpdatedTime: missing,
+		Enabled:          aiGatewayMissingValue,
+		LocalUpdatedTime: aiGatewayMissingValue,
 	}
 	if id := declresources.AIGatewayModelID(model); id != "" {
 		record.ID = util.AbbreviateUUID(id)

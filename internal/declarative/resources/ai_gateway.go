@@ -316,7 +316,7 @@ func (a AIGatewayResource) GetKonnectMonikerFilter() string {
 	if a.IsExternal() {
 		return ""
 	}
-	return a.Name
+	return a.BaseResource.GetKonnectMonikerFilter(a.Name)
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource.

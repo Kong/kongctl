@@ -90,7 +90,7 @@ func (p *Planner) planAIGatewayDataPlaneCertificateChanges(
 		)
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
 		for _, current := range currentCerts {
 			title := resources.AIGatewayDataPlaneCertificateTitle(current.AIGatewayDataPlaneClientCertificate)
 			if desiredTitles[title] {

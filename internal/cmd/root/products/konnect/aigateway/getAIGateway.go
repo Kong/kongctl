@@ -61,15 +61,13 @@ type getAIGatewayCmd struct {
 }
 
 func aiGatewayToDisplayRecord(gateway kkComps.AIGateway) aiGatewayDisplayRecord {
-	const missing = "n/a"
-
 	record := aiGatewayDisplayRecord{
-		ID:               missing,
-		DisplayName:      missing,
-		Description:      missing,
+		ID:               aiGatewayMissingValue,
+		DisplayName:      aiGatewayMissingValue,
+		Description:      aiGatewayMissingValue,
 		ProxyURLCount:    fmt.Sprintf("%d", len(gateway.ProxyUrls)),
-		LocalCreatedTime: missing,
-		LocalUpdatedTime: missing,
+		LocalCreatedTime: aiGatewayMissingValue,
+		LocalUpdatedTime: aiGatewayMissingValue,
 	}
 
 	if strings.TrimSpace(gateway.ID) != "" {
@@ -340,31 +338,30 @@ func aiGatewayDetailView(gateway *kkComps.AIGateway) string {
 		return ""
 	}
 
-	const missing = "n/a"
 	valueOrMissing := func(value string) string {
 		value = strings.TrimSpace(value)
 		if value == "" {
-			return missing
+			return aiGatewayMissingValue
 		}
 		return value
 	}
 
-	description := missing
+	description := aiGatewayMissingValue
 	if gateway.Description != nil && strings.TrimSpace(*gateway.Description) != "" {
 		description = strings.TrimSpace(*gateway.Description)
 	}
 
-	configHash := missing
+	configHash := aiGatewayMissingValue
 	if gateway.ConfigHash != nil {
 		configHash = valueOrMissing(*gateway.ConfigHash)
 	}
 
-	createdAt := missing
+	createdAt := aiGatewayMissingValue
 	if !gateway.CreatedAt.IsZero() {
 		createdAt = gateway.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	}
 
-	updatedAt := missing
+	updatedAt := aiGatewayMissingValue
 	if !gateway.UpdatedAt.IsZero() {
 		updatedAt = gateway.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	}
@@ -380,7 +377,7 @@ func aiGatewayDetailView(gateway *kkComps.AIGateway) string {
 		valueOrMissing(gateway.Endpoints.Telemetry),
 	)
 	fmt.Fprintf(&b, "config_hash: %s\n", configHash)
-	fmt.Fprintf(&b, "labels: %s\n", formatLabelPairs(gateway.Labels, missing))
+	fmt.Fprintf(&b, "labels: %s\n", formatLabelPairs(gateway.Labels, aiGatewayMissingValue))
 	fmt.Fprintf(&b, "%s: %s\n", aiGatewayFieldCreatedAt, createdAt)
 	fmt.Fprintf(&b, "%s: %s\n", aiGatewayFieldUpdatedAt, updatedAt)
 

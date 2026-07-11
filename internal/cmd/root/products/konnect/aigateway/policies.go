@@ -245,8 +245,8 @@ func (h aiGatewayPoliciesHandler) listPolicies(
 				aiGatewayHeaderName,
 				aiGatewayHeaderDisplayName,
 				aiGatewayHeaderType,
-				"ENABLED",
-				"GLOBAL",
+				aiGatewayHeaderEnabled,
+				aiGatewayHeaderGlobal,
 				aiGatewayHeaderUpdated,
 			},
 			tableRows,
@@ -416,10 +416,11 @@ func buildAIGatewayPolicyChildView(policies []kkComps.AIGatewayPolicy) tableview
 		tableRows = append(tableRows, table.Row{
 			record.ID,
 			record.Name,
-			record.Type,
 			record.DisplayName,
+			record.Type,
 			record.Enabled,
 			record.Global,
+			record.LocalUpdatedTime,
 		})
 	}
 
@@ -427,10 +428,11 @@ func buildAIGatewayPolicyChildView(policies []kkComps.AIGatewayPolicy) tableview
 		Headers: []string{
 			aiGatewayHeaderID,
 			aiGatewayHeaderName,
-			aiGatewayHeaderType,
 			aiGatewayHeaderDisplayName,
-			"ENABLED",
-			"GLOBAL",
+			aiGatewayHeaderType,
+			aiGatewayHeaderEnabled,
+			aiGatewayHeaderGlobal,
+			aiGatewayHeaderUpdated,
 		},
 		Rows: tableRows,
 		DetailRenderer: func(index int) string {

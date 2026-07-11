@@ -535,6 +535,15 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 	}
 	items, ok := asSlice(value)
 	if !ok || len(items) == 0 {
+		if entry.resourceType == resources.ResourceTypeAIGatewayProvider {
+			return fmt.Errorf("%s cannot be empty because each Model Provider must declare an ai_gateway parent", entry.key)
+		}
+		if entry.resourceType == resources.ResourceTypeAIGatewayIdentityProvider {
+			return fmt.Errorf(
+				"%s cannot be empty because each Identity Provider must declare an ai_gateway parent",
+				entry.key,
+			)
+		}
 		if entry.resourceType == resources.ResourceTypeAIGatewayPolicy {
 			return fmt.Errorf("%s cannot be empty because each policy must declare an ai_gateway parent", entry.key)
 		}

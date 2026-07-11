@@ -418,6 +418,7 @@ func buildAIGatewayAgentChildView(agents []kkComps.AIGatewayAgent) tableview.Chi
 			record.Type,
 			record.Enabled,
 			record.PolicyCount,
+			record.LocalUpdatedTime,
 		})
 	}
 
@@ -429,6 +430,7 @@ func buildAIGatewayAgentChildView(agents []kkComps.AIGatewayAgent) tableview.Chi
 			aiGatewayHeaderType,
 			aiGatewayHeaderEnabled,
 			aiGatewayHeaderPolicies,
+			aiGatewayHeaderUpdated,
 		},
 		Rows: tableRows,
 		DetailRenderer: func(index int) string {

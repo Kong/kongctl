@@ -142,7 +142,7 @@ func (a *AIGatewayVaultResource) SetDefaults() {
 }
 
 func (a AIGatewayVaultResource) GetKonnectMonikerFilter() string {
-	return a.Name()
+	return a.BaseResource.GetKonnectMonikerFilter(a.Name())
 }
 
 func (a *AIGatewayVaultResource) TryMatchKonnectResource(konnectResource any) bool {

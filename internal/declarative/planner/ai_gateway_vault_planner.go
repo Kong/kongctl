@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/util"
@@ -83,12 +84,16 @@ func (p *Planner) planAIGatewayVaultChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
 		for _, current := range currentVaults {
 			vaultID := resources.AIGatewayVaultID(current.AIGatewayVault)
 			vaultName := resources.AIGatewayVaultName(current.AIGatewayVault)
 			if desiredKeys[vaultID] || desiredKeys[vaultName] {
 				continue
+			}
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection(ResourceTypeAIGatewayVault, vaultName, isProtected, ActionDelete); err != nil {
+				return err
 			}
 			p.planAIGatewayVaultDelete(namespace, gatewayRef, gatewayID, vaultID, vaultName, plan)
 		}
@@ -228,7 +233,7 @@ func shouldUpdateAIGatewayVault(
 		return false, nil, nil, nil
 	}
 
-	return true, desiredPlanPayload, changedFields, nil
+	return true, desiredPayload, changedFields, nil
 }
 
 func scrubAIGatewayVaultWriteOnlyFields(value any) any {

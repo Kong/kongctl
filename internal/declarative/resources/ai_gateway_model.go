@@ -128,7 +128,7 @@ func (a *AIGatewayModelResource) SetDefaults() {
 }
 
 func (a AIGatewayModelResource) GetKonnectMonikerFilter() string {
-	return a.Name()
+	return a.BaseResource.GetKonnectMonikerFilter(a.Name())
 }
 
 func (a *AIGatewayModelResource) TryMatchKonnectResource(konnectResource any) bool {

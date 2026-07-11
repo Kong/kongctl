@@ -48,6 +48,25 @@ func TestAIGatewayIdentityProviderConfigChangedIgnoresClientSecret(t *testing.T)
 	require.False(t, aiGatewayIdentityProviderConfigChanged(current, desired))
 }
 
+func TestAIGatewayIdentityProviderMatchPrefersIDOverName(t *testing.T) {
+	t.Parallel()
+
+	id := "11111111-1111-4111-8111-111111111111"
+	currentByID, currentByName := indexAIGatewayIdentityProviders([]state.AIGatewayIdentityProvider{
+		{ID: id, Name: "old-provider"},
+		{ID: "22222222-2222-4222-8222-222222222222", Name: "new-provider"},
+	})
+
+	current, ok := matchCurrentAIGatewayIdentityProvider(
+		resources.AIGatewayIdentityProviderResource{BaseResource: resources.BaseResource{Ref: id}, Name: "new-provider"},
+		currentByID,
+		currentByName,
+	)
+
+	require.True(t, ok)
+	require.Equal(t, id, current.ID)
+}
+
 func TestAIGatewayIdentityProviderConfigChangedDetectsObservableChanges(t *testing.T) {
 	t.Parallel()
 

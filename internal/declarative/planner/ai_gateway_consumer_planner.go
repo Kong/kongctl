@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/util"
@@ -163,12 +164,16 @@ func (p *Planner) planAIGatewayConsumerChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
 		for _, current := range currentConsumers {
 			consumerID := resources.AIGatewayConsumerID(current.AIGatewayConsumer)
 			consumerName := resources.AIGatewayConsumerName(current.AIGatewayConsumer)
 			if desiredKeys[consumerID] || desiredKeys[consumerName] {
 				continue
+			}
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection(ResourceTypeAIGatewayConsumer, consumerName, isProtected, ActionDelete); err != nil {
+				return err
 			}
 			p.planAIGatewayConsumerDelete(namespace, gatewayRef, gatewayID, consumerID, consumerName, plan)
 		}

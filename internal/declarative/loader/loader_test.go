@@ -86,6 +86,14 @@ ai_gateways:
 	require.Equal(t, "openai-provider", rs.AIGatewayProviders[0].Name)
 }
 
+func TestLoaderRejectsRootLevelEmptyAIGatewayModelProviders(t *testing.T) {
+	input := `ai_gateway_model_providers: []`
+
+	_, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ai_gateway_model_providers cannot be empty")
+}
+
 func TestLoaderRejectsLegacyNestedAIGatewayProviders(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
@@ -160,6 +168,14 @@ ai_gateways:
 	require.Len(t, rs.AIGatewayIdentityProviders, 1)
 	require.Equal(t, "customer-support-gateway", rs.AIGatewayIdentityProviders[0].AIGateway)
 	require.Equal(t, "support-key-auth", rs.AIGatewayIdentityProviders[0].Name)
+}
+
+func TestLoaderRejectsRootLevelEmptyAIGatewayIdentityProviders(t *testing.T) {
+	input := `ai_gateway_identity_providers: []`
+
+	_, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ai_gateway_identity_providers cannot be empty")
 }
 
 func TestLoaderPortalTeamGroupMappingsPortalLevelNestedRejected(t *testing.T) {

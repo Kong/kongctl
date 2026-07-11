@@ -25,7 +25,7 @@ func init() {
 				"ai-gateway-model-providers",
 				"aigw-model-provider",
 			),
-			WithExplainRecommendedFields("ref", "ai_gateway", "name", "type", "display_name", "config"),
+			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "name", "type", "display_name", "config"),
 			WithExplainSchemaBuilder(aiGatewayProviderExplainNode),
 		),
 	)
@@ -208,7 +208,7 @@ func (a *AIGatewayProviderResource) UnmarshalJSON(data []byte) error {
 func aiGatewayProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return explainObject(
 		explainResourceRefField(),
-		explainRefField("ai_gateway", ResourceTypeAIGateway, true),
+		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("openai-provider"), true, true),
 		explainField("type", explainStringNode("openai"), true, true),
 		explainField("display_name", explainStringNode("OpenAI Provider"), true, true),

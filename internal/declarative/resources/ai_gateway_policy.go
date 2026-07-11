@@ -132,7 +132,7 @@ func (a *AIGatewayPolicyResource) SetDefaults() {
 }
 
 func (a AIGatewayPolicyResource) GetKonnectMonikerFilter() string {
-	return a.Name
+	return a.BaseResource.GetKonnectMonikerFilter(a.Name)
 }
 
 func (a *AIGatewayPolicyResource) TryMatchKonnectResource(konnectResource any) bool {
