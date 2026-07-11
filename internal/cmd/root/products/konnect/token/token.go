@@ -1,6 +1,7 @@
 package token
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -275,8 +276,8 @@ func runCreatePAT(c *cobra.Command, args []string, opts *patOptions) error {
 	if err := applyCreateJQExpressionArg(c, args); err != nil {
 		return err
 	}
-	if strings.TrimSpace(opts.name) == "" {
-		return &cmdpkg.ConfigurationError{Err: fmt.Errorf("--%s is required", flagName)}
+	if err := validateCreatePATFlags(opts); err != nil {
+		return err
 	}
 
 	exp, err := parseCreateTokenExpiration(opts.expiresIn, opts.expiresAt)
@@ -405,10 +406,7 @@ func runCreateSPAT(c *cobra.Command, args []string, opts *spatOptions) error {
 	if err := applyCreateJQExpressionArg(c, args); err != nil {
 		return err
 	}
-	if strings.TrimSpace(opts.name) == "" {
-		return &cmdpkg.ConfigurationError{Err: fmt.Errorf("--%s is required", flagName)}
-	}
-	if err := validateSystemAccountSelector(opts.systemAccountID, opts.systemAccountName); err != nil {
+	if err := validateCreateSPATFlags(opts); err != nil {
 		return err
 	}
 
@@ -658,13 +656,63 @@ func resolvePAT(
 	return &matches[0], nil
 }
 
-func validateSystemAccountSelector(id, name string) error {
+// validateCreatePATFlags reports every missing required flag at once so the user
+// doesn't have to rerun the command to discover them one by one.
+func validateCreatePATFlags(opts *patOptions) error {
+	var errs []error
+	if strings.TrimSpace(opts.name) == "" {
+		errs = append(errs, fmt.Errorf("--%s is required", flagName))
+	}
+	if err := expirationRequiredError(opts.expiresIn, opts.expiresAt); err != nil {
+		errs = append(errs, err)
+	}
+	return bundleConfigErrors(errs)
+}
+
+// validateCreateSPATFlags mirrors validateCreatePATFlags and adds the system
+// account selector requirement.
+func validateCreateSPATFlags(opts *spatOptions) error {
+	var errs []error
+	if strings.TrimSpace(opts.name) == "" {
+		errs = append(errs, fmt.Errorf("--%s is required", flagName))
+	}
+	if err := systemAccountSelectorError(opts.systemAccountID, opts.systemAccountName); err != nil {
+		errs = append(errs, err)
+	}
+	if err := expirationRequiredError(opts.expiresIn, opts.expiresAt); err != nil {
+		errs = append(errs, err)
+	}
+	return bundleConfigErrors(errs)
+}
+
+// expirationRequiredError returns an error when neither expiry flag is set. The
+// mutually-exclusive case (both set) is left to expiration parsing.
+func expirationRequiredError(expiresIn, expiresAt string) error {
+	if strings.TrimSpace(expiresIn) == "" && strings.TrimSpace(expiresAt) == "" {
+		return fmt.Errorf("exactly one of --%s or --%s is required", flagExpiresIn, flagExpiresAt)
+	}
+	return nil
+}
+
+func bundleConfigErrors(errs []error) error {
+	if len(errs) == 0 {
+		return nil
+	}
+	return &cmdpkg.ConfigurationError{Err: errors.Join(errs...)}
+}
+
+func systemAccountSelectorError(id, name string) error {
 	hasID := strings.TrimSpace(id) != ""
 	hasName := strings.TrimSpace(name) != ""
 	if hasID == hasName {
-		return &cmdpkg.ConfigurationError{
-			Err: fmt.Errorf("exactly one of --%s or --%s is required", flagSystemAccountID, flagSystemAccountName),
-		}
+		return fmt.Errorf("exactly one of --%s or --%s is required", flagSystemAccountID, flagSystemAccountName)
+	}
+	return nil
+}
+
+func validateSystemAccountSelector(id, name string) error {
+	if err := systemAccountSelectorError(id, name); err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
 	}
 	return nil
 }

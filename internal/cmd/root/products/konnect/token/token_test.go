@@ -275,3 +275,57 @@ func TestValidateSystemAccountSelectorRequiresExactlyOneSelector(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCreatePATFlagsBundlesMissingRequired(t *testing.T) {
+	err := validateCreatePATFlags(&patOptions{})
+	var cfgErr *cmdpkg.ConfigurationError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigurationError, got %T: %v", err, err)
+	}
+	for _, want := range []string{
+		"--name is required",
+		"exactly one of --expires-in or --expires-at is required",
+	} {
+		if !strings.Contains(cfgErr.Error(), want) {
+			t.Fatalf("expected error to contain %q, got %q", want, cfgErr.Error())
+		}
+	}
+	if lines := strings.Count(cfgErr.Error(), "\n") + 1; lines != 2 {
+		t.Fatalf("expected 2 bundled errors, got %d: %q", lines, cfgErr.Error())
+	}
+}
+
+func TestValidateCreatePATFlagsReportsOnlyMissing(t *testing.T) {
+	err := validateCreatePATFlags(&patOptions{name: "ci"})
+	var cfgErr *cmdpkg.ConfigurationError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigurationError, got %T: %v", err, err)
+	}
+	if strings.Contains(cfgErr.Error(), "--name is required") {
+		t.Fatalf("did not expect name error, got %q", cfgErr.Error())
+	}
+	if !strings.Contains(cfgErr.Error(), "exactly one of --expires-in or --expires-at is required") {
+		t.Fatalf("expected expiry error, got %q", cfgErr.Error())
+	}
+
+	if err := validateCreatePATFlags(&patOptions{name: "ci", expiresIn: "30d"}); err != nil {
+		t.Fatalf("expected no error when required flags are set, got %v", err)
+	}
+}
+
+func TestValidateCreateSPATFlagsBundlesAllMissing(t *testing.T) {
+	err := validateCreateSPATFlags(&spatOptions{})
+	var cfgErr *cmdpkg.ConfigurationError
+	if !errors.As(err, &cfgErr) {
+		t.Fatalf("expected ConfigurationError, got %T: %v", err, err)
+	}
+	for _, want := range []string{
+		"--name is required",
+		"exactly one of --system-account-id or --system-account-name is required",
+		"exactly one of --expires-in or --expires-at is required",
+	} {
+		if !strings.Contains(cfgErr.Error(), want) {
+			t.Fatalf("expected error to contain %q, got %q", want, cfgErr.Error())
+		}
+	}
+}
