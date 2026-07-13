@@ -1450,13 +1450,11 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 
 	result.Description = portal.GetDescription()
 
-	if authEnabled := portal.GetAuthenticationEnabled(); authEnabled != nil {
-		result.AuthenticationEnabled = authEnabled
-	}
+	authEnabled := portal.GetAuthenticationEnabled()
+	result.AuthenticationEnabled = &authEnabled
 
-	if rbacEnabled := portal.GetRbacEnabled(); rbacEnabled != nil {
-		result.RbacEnabled = rbacEnabled
-	}
+	rbacEnabled := portal.GetRbacEnabled()
+	result.RbacEnabled = &rbacEnabled
 
 	if visibility := portal.GetDefaultAPIVisibility(); visibility != "" {
 		apiVisibility := kkComps.DefaultAPIVisibility(visibility)
@@ -1470,13 +1468,11 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 
 	result.DefaultApplicationAuthStrategyID = portal.GetDefaultApplicationAuthStrategyID()
 
-	if developers := portal.GetAutoApproveDevelopers(); developers != nil {
-		result.AutoApproveDevelopers = developers
-	}
+	developers := portal.GetAutoApproveDevelopers()
+	result.AutoApproveDevelopers = &developers
 
-	if applications := portal.GetAutoApproveApplications(); applications != nil {
-		result.AutoApproveApplications = applications
-	}
+	applications := portal.GetAutoApproveApplications()
+	result.AutoApproveApplications = &applications
 
 	if userLabels := decllabels.GetUserLabels(portal.GetLabels()); len(userLabels) > 0 {
 		result.Labels = decllabels.DenormalizeLabels(userLabels)

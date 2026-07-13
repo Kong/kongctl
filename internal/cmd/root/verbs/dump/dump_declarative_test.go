@@ -64,12 +64,10 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 		},
 	}
 	portal.Description = &description
-	authTrue := true
-	authFalse := false
-	portal.AuthenticationEnabled = &authTrue
-	portal.RbacEnabled = &authTrue
-	portal.AutoApproveDevelopers = &authTrue
-	portal.AutoApproveApplications = &authFalse
+	portal.AuthenticationEnabled = true
+	portal.RbacEnabled = true
+	portal.AutoApproveDevelopers = true
+	portal.AutoApproveApplications = false
 
 	resource := mapPortalToDeclarativeResource(portal)
 
@@ -127,7 +125,7 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected auto approve applications pointer to be set")
 	}
 
-	if *resource.AutoApproveApplications != *portal.AutoApproveApplications {
+	if *resource.AutoApproveApplications != portal.AutoApproveApplications {
 		t.Fatalf("expected auto approve applications to match input")
 	}
 }
@@ -168,7 +166,7 @@ func TestCollectDeclarativePortalsUsesPortalDetails(t *testing.T) {
 							{
 								ID:                    "portal-id",
 								Name:                  "portal-name",
-								AuthenticationEnabled: &listAuthEnabled,
+								AuthenticationEnabled: listAuthEnabled,
 							},
 						},
 					},
@@ -188,7 +186,7 @@ func TestCollectDeclarativePortalsUsesPortalDetails(t *testing.T) {
 				PortalResponse: &kkComps.PortalResponse{
 					ID:                    id,
 					Name:                  "portal-name",
-					AuthenticationEnabled: &detailAuthEnabled,
+					AuthenticationEnabled: detailAuthEnabled,
 				},
 			}, nil
 		},

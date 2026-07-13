@@ -1299,7 +1299,7 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 					AuthStrategyIds:          []string{authStrategyID},
 					CreatedAt:                now,
 					UpdatedAt:                now,
-					Visibility:               nil,
+					Visibility:               kkComps.APIPublicationVisibility(""),
 					AutoApproveRegistrations: false,
 				},
 			},

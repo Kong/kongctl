@@ -2,6 +2,8 @@ module github.com/kong/kongctl
 
 go 1.26.0
 
+replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.41.1-0.20260713151455-ff082f65b79b
+
 require (
 	charm.land/bubbles/v2 v2.1.1
 	charm.land/bubbletea/v2 v2.0.8

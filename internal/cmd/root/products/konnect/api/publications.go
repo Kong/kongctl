@@ -283,8 +283,8 @@ func filterPublicationsByPortal(
 
 func publicationToRecord(publication kkComps.APIPublicationListItem) apiPublicationRecord {
 	visibility := "n/a"
-	if publication.GetVisibility() != nil {
-		visibility = string(*publication.GetVisibility())
+	if publication.GetVisibility() != "" {
+		visibility = string(publication.GetVisibility())
 	}
 
 	authStrategies := "n/a"
@@ -307,8 +307,8 @@ func publicationDetailView(publication *kkComps.APIPublicationListItem) string {
 	}
 
 	visibility := valueNA
-	if publication.GetVisibility() != nil && *publication.GetVisibility() != "" {
-		visibility = string(*publication.GetVisibility())
+	if publication.GetVisibility() != "" {
+		visibility = string(publication.GetVisibility())
 	}
 
 	authStrategies := valueNA

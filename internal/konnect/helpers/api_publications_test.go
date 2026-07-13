@@ -246,10 +246,10 @@ func TestAPIPublicationAPIImplPublishAPIToPortalPreservesExistingVisibilityWhenC
 		t.Fatalf("expected auth_strategy_ids to be null, got %v", authStrategyIDs)
 	}
 
-	if resp == nil || resp.APIPublicationResponse == nil || resp.APIPublicationResponse.Visibility == nil {
+	if resp == nil || resp.APIPublicationResponse == nil || resp.APIPublicationResponse.Visibility == "" {
 		t.Fatalf("expected publication response with visibility, got %#v", resp)
 	}
-	if got := *resp.APIPublicationResponse.Visibility; got != kkComponents.APIPublicationVisibilityPrivate {
+	if got := resp.APIPublicationResponse.Visibility; got != kkComponents.APIPublicationVisibilityPrivate {
 		t.Fatalf("unexpected visibility in response: %s", got)
 	}
 }

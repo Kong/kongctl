@@ -43,10 +43,10 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 		},
 	}
 	existingPortal.Description = &description
-	existingPortal.AuthenticationEnabled = new(authEnabled)
-	existingPortal.RbacEnabled = new(rbacEnabled)
-	existingPortal.AutoApproveDevelopers = new(autoApproveDev)
-	existingPortal.AutoApproveApplications = new(autoApproveApp)
+	existingPortal.AuthenticationEnabled = authEnabled
+	existingPortal.RbacEnabled = rbacEnabled
+	existingPortal.AutoApproveDevelopers = autoApproveDev
+	existingPortal.AutoApproveApplications = autoApproveApp
 
 	// Mock list returns existing portal
 	mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{

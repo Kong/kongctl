@@ -2564,9 +2564,7 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 				AuthStrategyIDs:          p.AuthStrategyIds,
 				AutoApproveRegistrations: p.AutoApproveRegistrations,
 			}
-			if p.Visibility != nil {
-				pub.Visibility = string(*p.Visibility)
-			}
+			pub.Visibility = string(p.Visibility)
 			// AutoApproveRegistrations not available in list response
 			allPublications = append(allPublications, pub)
 		}
@@ -2754,9 +2752,7 @@ func (c *Client) ListAPIDocuments(ctx context.Context, apiID string) ([]APIDocum
 		if d.ParentDocumentID != nil {
 			doc.ParentDocumentID = *d.ParentDocumentID
 		}
-		if d.Status != nil {
-			doc.Status = string(*d.Status)
-		}
+		doc.Status = string(d.Status)
 		allDocuments = append(allDocuments, doc)
 
 		// Recursively add children if any
@@ -2780,9 +2776,7 @@ func (c *Client) addChildDocuments(allDocuments *[]APIDocument, children []kkCom
 		if child.ParentDocumentID != nil {
 			doc.ParentDocumentID = *child.ParentDocumentID
 		}
-		if child.Status != nil {
-			doc.Status = string(*child.Status)
-		}
+		doc.Status = string(child.Status)
 		*allDocuments = append(*allDocuments, doc)
 
 		// Recursively add children
@@ -2872,9 +2866,7 @@ func (c *Client) GetAPIDocument(ctx context.Context, apiID, documentID string) (
 		doc.ParentDocumentID = *resp.APIDocumentResponse.ParentDocumentID
 	}
 
-	if resp.APIDocumentResponse.Status != nil {
-		doc.Status = string(*resp.APIDocumentResponse.Status)
-	}
+	doc.Status = string(resp.APIDocumentResponse.Status)
 
 	return doc, nil
 }

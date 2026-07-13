@@ -319,8 +319,8 @@ func (h apiDocumentsHandler) getSingleDocument(
 		Title: doc.GetTitle(),
 		Slug:  doc.GetSlug(),
 		Status: func() string {
-			if doc.GetStatus() != nil {
-				return string(*doc.GetStatus())
+			if doc.GetStatus() != "" {
+				return string(doc.GetStatus())
 			}
 			return valueNA
 		}(),
@@ -409,8 +409,8 @@ func flattenDocuments(docs []kkComps.APIDocumentSummaryWithChildren) []kkComps.A
 
 func documentSummaryToRecord(doc kkComps.APIDocumentSummaryWithChildren) apiDocumentSummaryRecord {
 	status := valueNA
-	if doc.Status != nil {
-		status = string(*doc.Status)
+	if doc.Status != "" {
+		status = string(doc.Status)
 	}
 
 	parentID := valueNA
@@ -450,8 +450,8 @@ func documentSummaryDetailView(doc *kkComps.APIDocumentSummaryWithChildren, deta
 	const missing = "n/a"
 
 	status := missing
-	if doc.Status != nil && *doc.Status != "" {
-		status = string(*doc.Status)
+	if doc.Status != "" {
+		status = string(doc.Status)
 	}
 
 	parentID := missing
@@ -548,8 +548,8 @@ func apiDocumentDetailToRecord(doc *kkComps.APIDocumentResponse) apiDocumentDeta
 		Title: doc.GetTitle(),
 		Slug:  doc.GetSlug(),
 		Status: func() string {
-			if doc.GetStatus() != nil && *doc.GetStatus() != "" {
-				return string(*doc.GetStatus())
+			if doc.GetStatus() != "" {
+				return string(doc.GetStatus())
 			}
 			return valueNA
 		}(),

@@ -474,56 +474,40 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	}
 
 	if desired.AuthenticationEnabled != nil {
-		if curr := current.GetAuthenticationEnabled(); curr == nil || *curr != *desired.AuthenticationEnabled {
+		if curr := current.GetAuthenticationEnabled(); curr != *desired.AuthenticationEnabled {
 			updates[FieldAuthenticationEnabled] = *desired.AuthenticationEnabled
-			var oldValue any
-			if curr != nil {
-				oldValue = *curr
-			}
 			changedFields[FieldAuthenticationEnabled] = FieldChange{
-				Old: oldValue,
+				Old: curr,
 				New: *desired.AuthenticationEnabled,
 			}
 		}
 	}
 
 	if desired.RbacEnabled != nil {
-		if curr := current.GetRbacEnabled(); curr == nil || *curr != *desired.RbacEnabled {
+		if curr := current.GetRbacEnabled(); curr != *desired.RbacEnabled {
 			updates[FieldRBACEnabled] = *desired.RbacEnabled
-			var oldValue any
-			if curr != nil {
-				oldValue = *curr
-			}
 			changedFields[FieldRBACEnabled] = FieldChange{
-				Old: oldValue,
+				Old: curr,
 				New: *desired.RbacEnabled,
 			}
 		}
 	}
 
 	if desired.AutoApproveDevelopers != nil {
-		if curr := current.GetAutoApproveDevelopers(); curr == nil || *curr != *desired.AutoApproveDevelopers {
+		if curr := current.GetAutoApproveDevelopers(); curr != *desired.AutoApproveDevelopers {
 			updates[FieldAutoApproveDevelopers] = *desired.AutoApproveDevelopers
-			var oldValue any
-			if curr != nil {
-				oldValue = *curr
-			}
 			changedFields[FieldAutoApproveDevelopers] = FieldChange{
-				Old: oldValue,
+				Old: curr,
 				New: *desired.AutoApproveDevelopers,
 			}
 		}
 	}
 
 	if desired.AutoApproveApplications != nil {
-		if curr := current.GetAutoApproveApplications(); curr == nil || *curr != *desired.AutoApproveApplications {
+		if curr := current.GetAutoApproveApplications(); curr != *desired.AutoApproveApplications {
 			updates[FieldAutoApproveApplications] = *desired.AutoApproveApplications
-			var oldValue any
-			if curr != nil {
-				oldValue = *curr
-			}
 			changedFields[FieldAutoApproveApplications] = FieldChange{
-				Old: oldValue,
+				Old: curr,
 				New: *desired.AutoApproveApplications,
 			}
 		}

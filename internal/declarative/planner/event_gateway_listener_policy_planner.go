@@ -642,9 +642,9 @@ func (p *Planner) sniConfigNeedsUpdate(
 	}
 
 	// Compare broker_host_format if specified
-	if desired.BrokerHostFormat != nil && desired.BrokerHostFormat.Type != nil {
+	if desired.BrokerHostFormat != nil {
 		currentFormat := getNestedString(currentConfig, "broker_host_format", "type")
-		if string(*desired.BrokerHostFormat.Type) != currentFormat {
+		if string(desired.BrokerHostFormat.Type) != currentFormat {
 			return true
 		}
 	}

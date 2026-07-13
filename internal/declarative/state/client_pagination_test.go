@@ -612,13 +612,12 @@ func newListAPIVersionsResponse(pageNumber, count int, total float64) *kkOps.Lis
 }
 
 func newListAPIPublicationsResponse(pageNumber, count int, total float64) *kkOps.ListAPIPublicationsResponse {
-	visibility := kkComps.APIPublicationVisibility("public")
 	data := make([]kkComps.APIPublicationListItem, count)
 	for i := range count {
 		data[i] = kkComps.APIPublicationListItem{
 			APIID:      "api-1",
 			PortalID:   fmt.Sprintf("portal-%d-%d", pageNumber, i+1),
-			Visibility: &visibility,
+			Visibility: kkComps.APIPublicationVisibilityPublic,
 		}
 	}
 

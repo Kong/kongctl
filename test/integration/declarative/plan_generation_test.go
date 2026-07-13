@@ -409,10 +409,10 @@ portals:
 
 	authEnabled := true
 	autoApprove := false
-	portal.AuthenticationEnabled = &authEnabled
-	portal.RbacEnabled = &autoApprove
-	portal.AutoApproveDevelopers = &autoApprove
-	portal.AutoApproveApplications = &autoApprove
+	portal.AuthenticationEnabled = authEnabled
+	portal.RbacEnabled = autoApprove
+	portal.AutoApproveDevelopers = autoApprove
+	portal.AutoApproveApplications = autoApprove
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
