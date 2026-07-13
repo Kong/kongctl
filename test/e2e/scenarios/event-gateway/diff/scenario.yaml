@@ -198,7 +198,7 @@ steps:
               fields:
                 action: UPDATE
                 "not_null(changed_fields.enabled.new, fields.enabled)": false
-                "not_null(changed_fields.config.new.allow_plaintext, fields.config.allow_plaintext)": false
+                "not_null(changed_fields.config.new.sni_suffix, fields.config.sni_suffix)": ".updated.example.com"
 
       # Verify Konnect state was NOT modified (diff is read-only)
       - name: 001-verify-state-unchanged
@@ -312,7 +312,7 @@ steps:
               fields:
                 name: "{{ .vars.listenerPolicyName }}"
                 enabled: true
-                "config.allow_plaintext": true
+                "config.sni_suffix": ".example.com"
 
       - name: 007-verify-virtual-cluster-unchanged
         run:
@@ -333,7 +333,7 @@ steps:
               fields:
                 name: "{{ .vars.vcName }}"
                 dns_label: vc-diff
-                acl_mode: passthrough
+                acl_mode: enforce_on_gateway
   - name: 004-diff-sync-mode
     inputOverlayDirs:
       - overlays/004-diff-sync
