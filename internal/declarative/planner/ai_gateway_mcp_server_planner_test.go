@@ -264,6 +264,49 @@ func TestAIGatewayMCPServerPlannerIgnoresAPIDefaults(t *testing.T) {
 	require.Nil(t, changed)
 }
 
+func TestAIGatewayMCPServerPlannerIgnoresDefaultAccessWhenServerOmitsIt(t *testing.T) {
+	server := testAIGatewayMCPServerResourceWithAccess(t)
+	payload, err := server.MutablePayloadMap()
+	require.NoError(t, err)
+	require.Contains(t, payload, FieldAccess)
+
+	var current kkComps.AIGatewayMCPServer
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "server-id",
+		"type": "conversion-only",
+		"name": "support-tools",
+		"display_name": "Support Tools",
+		"enabled": true,
+		"config": {
+			"url": "https://support-tools.example.com",
+			"route": {
+				"paths": ["/support-tools"],
+				"https_redirect_status_code": 426,
+				"preserve_host": false,
+				"protocols": ["http", "https"],
+				"regex_priority": 0,
+				"request_buffering": true,
+				"response_buffering": true,
+				"strip_path": true
+			},
+			"max_request_body_size": 8388608
+		},
+		"tools": [{"name": "lookup-customer", "description": "Look up a customer profile", "method": "GET"}],
+		"policies": [],
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z"
+	}`), &current))
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayMCPServer(
+		state.AIGatewayMCPServer{AIGatewayMCPServer: current},
+		server,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func testAIGatewayMCPServerResource(t *testing.T) resources.AIGatewayMCPServerResource {
 	t.Helper()
 	payload := `{
@@ -273,6 +316,32 @@ func testAIGatewayMCPServerResource(t *testing.T) resources.AIGatewayMCPServerRe
 		"name": "support-tools",
 		"display_name": "Support Tools",
 		"enabled": true,
+		"config": {
+			"url": "https://support-tools.example.com",
+			"route": {"paths": ["/support-tools"]}
+		},
+		"tools": [{"name": "lookup-customer", "description": "Look up a customer profile", "method": "GET"}],
+		"policies": []
+	}`
+	var server resources.AIGatewayMCPServerResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &server))
+	return server
+}
+
+func testAIGatewayMCPServerResourceWithAccess(t *testing.T) resources.AIGatewayMCPServerResource {
+	t.Helper()
+	payload := `{
+		"ref": "support-tools",
+		"ai_gateway": "support-gateway",
+		"type": "conversion-only",
+		"name": "support-tools",
+		"display_name": "Support Tools",
+		"enabled": true,
+		"access": {
+			"acl_attribute_type": "consumer",
+			"acls": [],
+			"default_tool_acls": []
+		},
 		"config": {
 			"url": "https://support-tools.example.com",
 			"route": {"paths": ["/support-tools"]}

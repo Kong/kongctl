@@ -2,6 +2,8 @@ package planner
 
 import (
 	"maps"
+	"slices"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -67,16 +69,29 @@ func normalizeAIGatewayPolicyReferenceList(raw any, aliases map[string]string) a
 			}
 			normalized[i] = policy
 		}
+		sortAIGatewayPolicyReferences(normalized)
 		return normalized
 	case []string:
 		normalized := make([]any, len(policies))
 		for i, policyRef := range policies {
 			normalized[i] = canonicalAIGatewayPolicyReference(policyRef, aliases)
 		}
+		sortAIGatewayPolicyReferences(normalized)
 		return normalized
 	default:
 		return raw
 	}
+}
+
+func sortAIGatewayPolicyReferences(references []any) {
+	for _, reference := range references {
+		if _, ok := reference.(string); !ok {
+			return
+		}
+	}
+	slices.SortStableFunc(references, func(a, b any) int {
+		return strings.Compare(a.(string), b.(string))
+	})
 }
 
 func canonicalAIGatewayPolicyReference(policyRef string, aliases map[string]string) string {

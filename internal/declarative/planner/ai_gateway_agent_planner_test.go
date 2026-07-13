@@ -48,7 +48,7 @@ func TestAIGatewayAgentPlannerUpdatesExistingAgent(t *testing.T) {
 		},
 		AIGatewayAgentsAPI: &testAIGatewayAgentAPI{
 			agents: []kkComps.AIGatewayAgent{
-				testAIGatewayAgent("agent-id", "booking-agent", nil),
+				testAIGatewayAgent(nil),
 			},
 		},
 	})
@@ -120,7 +120,7 @@ func TestAIGatewayAgentPlannerSyncDeletesScopedAgents(t *testing.T) {
 		},
 		AIGatewayAgentsAPI: &testAIGatewayAgentAPI{
 			agents: []kkComps.AIGatewayAgent{
-				testAIGatewayAgent("agent-id", "booking-agent", nil),
+				testAIGatewayAgent(nil),
 			},
 		},
 	})
@@ -183,7 +183,7 @@ func TestAIGatewayAgentPlannerPolicyRefNoopForExistingAgent(t *testing.T) {
 				},
 				AIGatewayAgentsAPI: &testAIGatewayAgentAPI{
 					agents: []kkComps.AIGatewayAgent{
-						testAIGatewayAgent("agent-id", "booking-agent", []string{currentPolicyRef}),
+						testAIGatewayAgent([]string{currentPolicyRef}),
 					},
 				},
 			})
@@ -198,6 +198,40 @@ func TestAIGatewayAgentPlannerPolicyRefNoopForExistingAgent(t *testing.T) {
 			require.Empty(t, plan.Changes)
 		})
 	}
+}
+
+func TestAIGatewayAgentPlannerPolicyRefsNoopWhenResolvedAndReordered(t *testing.T) {
+	policyOne := testAIGatewayPolicyResource(t)
+	policyOne.Ref = "poc-a2a-key-auth"
+	policyOne.Name = "poc-a2a-key-auth"
+	policyOne.DisplayName = "POC A2A Key Auth"
+
+	policyTwo := testAIGatewayPolicyResource(t)
+	policyTwo.Ref = "poc-a2a-rate-limit"
+	policyTwo.Name = "poc-a2a-rate-limit"
+	policyTwo.DisplayName = "POC A2A Rate Limit"
+
+	agent := testAIGatewayAgentResource(t, []string{
+		tags.RefPlaceholderPrefix + "poc-a2a-key-auth#name",
+		tags.RefPlaceholderPrefix + "poc-a2a-rate-limit#name",
+	})
+	current := testAIGatewayAgent([]string{
+		"poc-a2a-rate-limit",
+		"poc-a2a-key-auth",
+	})
+	rs := &resources.ResourceSet{
+		AIGatewayPolicies: []resources.AIGatewayPolicyResource{policyOne, policyTwo},
+	}
+
+	needsUpdate, fields, changed, err := (&Planner{resources: rs}).shouldUpdateAIGatewayAgent(
+		state.AIGatewayAgent{AIGatewayAgent: current},
+		agent,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
 }
 
 func testAIGatewayAgentResourceSet(
@@ -253,11 +287,11 @@ func testAIGatewayAgentResourceWithConfigAndPolicies(
 	return agent
 }
 
-func testAIGatewayAgent(id string, name string, policies []string) kkComps.AIGatewayAgent {
+func testAIGatewayAgent(policies []string) kkComps.AIGatewayAgent {
 	enabled := true
 	return kkComps.AIGatewayAgent{
-		ID:          id,
-		Name:        name,
+		ID:          "agent-id",
+		Name:        "booking-agent",
 		Type:        kkComps.AIGatewayAgentTypeA2a,
 		DisplayName: "Booking Agent",
 		Enabled:     &enabled,

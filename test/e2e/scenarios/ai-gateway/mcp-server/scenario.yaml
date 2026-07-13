@@ -154,6 +154,9 @@ steps:
                 fields.display_name: "{{ .vars.server_display_name }}"
                 fields.config.url: https://support-tools.example.com
                 fields.config.route.paths[0]: /support-tools
+                fields.access.acl_attribute_type: consumer
+                "length(fields.access.acls)": 0
+                "length(fields.access.default_tool_acls)": 0
                 fields.tools[0].annotations.title: "Lookup customer"
                 fields.tools[0].annotations.read_only_hint: true
                 fields.tools[0].parameters[0].name: customer_id
