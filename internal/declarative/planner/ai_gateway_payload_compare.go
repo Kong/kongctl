@@ -349,6 +349,8 @@ func isAIGatewayDefaultValue(key string, value any) bool {
 		return boolValueEqual(value, false)
 	case "name_header", "request_buffering", "response_buffering", "statistics", "strip_path":
 		return boolValueEqual(value, true)
+	case FieldACLAttributeType:
+		return stringValueEqual(value, "consumer")
 	case "https_redirect_status_code":
 		return numberValueEqual(value, 426)
 	case "max_payload_size":
@@ -361,6 +363,8 @@ func isAIGatewayDefaultValue(key string, value any) bool {
 		return stringValueEqual(value, "allow")
 	case "failover_criteria":
 		return stringSliceValueEqual(value, []string{"error", "timeout"})
+	case FieldACLS, FieldDefaultToolACLS:
+		return emptySliceValue(value)
 	case "protocols":
 		return stringSliceValueEqual(value, []string{"http", "https"})
 	case "connect_timeout", "read_timeout", "write_timeout":
@@ -375,6 +379,17 @@ func isAIGatewayDefaultValue(key string, value any) bool {
 		return numberValueEqual(value, 10000)
 	case "weight":
 		return numberValueEqual(value, 100)
+	default:
+		return false
+	}
+}
+
+func emptySliceValue(value any) bool {
+	switch typed := value.(type) {
+	case []any:
+		return len(typed) == 0
+	case []string:
+		return len(typed) == 0
 	default:
 		return false
 	}
