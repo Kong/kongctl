@@ -82,6 +82,27 @@ func (a AIGatewayProviderResource) Validate() error {
 	if a.Config == nil {
 		return fmt.Errorf("config is required for AI Gateway Model Provider %s", a.Ref)
 	}
+	if err := validateAIGatewayProviderAuthConfig(a.Config); err != nil {
+		return fmt.Errorf("invalid config for AI Gateway Model Provider %s: %w", a.Ref, err)
+	}
+	return nil
+}
+
+func validateAIGatewayProviderAuthConfig(config map[string]any) error {
+	auth, ok := config["auth"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	_, hasHeaderName := auth["header_name"]
+	_, hasHeaderValue := auth["header_value"]
+	if hasHeaderName || hasHeaderValue {
+		return fmt.Errorf(
+			"config.auth.header_name and config.auth.header_value are not supported; " +
+				"use config.auth.headers[].name and config.auth.headers[].value",
+		)
+	}
+
 	return nil
 }
 
@@ -215,8 +236,10 @@ func aiGatewayProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("config", explainObject(
 			explainField("auth", explainObject(
 				explainField("type", explainStringNode("basic"), true, true),
-				explainField("header_name", explainStringNode("Authorization"), false, false),
-				explainField("header_value", explainStringNode("Bearer ${OPENAI_API_KEY}"), false, false),
+				explainField("headers", explainArrayOf(explainObject(
+					explainField("name", explainStringNode("Authorization"), true, true),
+					explainField("value", explainStringNode("Bearer ${OPENAI_API_KEY}"), false, true),
+				)), false, true),
 			), true, true),
 		), true, true),
 		explainField("labels", &ExplainNode{
