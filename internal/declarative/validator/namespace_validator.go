@@ -190,54 +190,21 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		defaultNamespaces = []string{rs.DefaultNamespace}
 	}
 
-	managedPortals := make([]resources.PortalResource, 0, len(rs.Portals))
-	for _, portal := range rs.Portals {
-		if portal.IsExternal() {
-			continue
+	type managedResource struct {
+		resourceType string
+		ref          string
+		meta         *resources.KongctlMeta
+	}
+	managed := make([]managedResource, 0)
+	_ = rs.ForEachNamespaceParticipant(func(pt resources.NamespaceParticipant) error {
+		if pt.External {
+			return nil
 		}
-		managedPortals = append(managedPortals, portal)
-	}
+		managed = append(managed, managedResource{string(pt.Type), pt.Ref, *pt.Meta})
+		return nil
+	})
 
-	managedControlPlanes := make([]resources.ControlPlaneResource, 0, len(rs.ControlPlanes))
-	for _, cp := range rs.ControlPlanes {
-		if cp.IsExternal() {
-			continue
-		}
-		managedControlPlanes = append(managedControlPlanes, cp)
-	}
-
-	managedOrganizationTeams := make([]resources.OrganizationTeamResource, 0, len(rs.OrganizationTeams))
-	for _, team := range rs.OrganizationTeams {
-		if team.IsExternal() {
-			continue
-		}
-		managedOrganizationTeams = append(managedOrganizationTeams, team)
-	}
-
-	managedEventGateways := make([]resources.EventGatewayControlPlaneResource, 0, len(rs.EventGatewayControlPlanes))
-	for _, eventGateway := range rs.EventGatewayControlPlanes {
-		if eventGateway.IsExternal() {
-			continue
-		}
-		managedEventGateways = append(managedEventGateways, eventGateway)
-	}
-
-	totalParents := len(managedPortals) +
-		len(rs.ApplicationAuthStrategies) +
-		len(rs.DCRProviders) +
-		len(managedControlPlanes) +
-		len(rs.CatalogServices) +
-		len(rs.AIGateways) +
-		len(rs.APIs) +
-		len(managedEventGateways) +
-		len(rs.Dashboards) +
-		len(managedOrganizationTeams)
-	if rs.Organization != nil {
-		totalParents += len(rs.Organization.Users)
-		totalParents += len(rs.Organization.SystemAccounts)
-	}
-
-	if totalParents == 0 {
+	if len(managed) == 0 {
 		switch req.Mode {
 		case NamespaceRequirementNone:
 			return nil
@@ -307,63 +274,8 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		}
 	}
 
-	for i := range managedPortals {
-		check(string(resources.ResourceTypePortal), managedPortals[i].Ref, managedPortals[i].Kongctl)
-	}
-	for i := range rs.APIs {
-		check(string(resources.ResourceTypeAPI), rs.APIs[i].Ref, rs.APIs[i].Kongctl)
-	}
-	for i := range rs.CatalogServices {
-		check(string(resources.ResourceTypeCatalogService), rs.CatalogServices[i].Ref, rs.CatalogServices[i].Kongctl)
-	}
-	for i := range rs.AIGateways {
-		check(string(resources.ResourceTypeAIGateway), rs.AIGateways[i].Ref, rs.AIGateways[i].Kongctl)
-	}
-	for i := range rs.Dashboards {
-		check(string(resources.ResourceTypeDashboard), rs.Dashboards[i].Ref, rs.Dashboards[i].Kongctl)
-	}
-	for i := range rs.EventGatewayControlPlanes {
-		check(
-			string(resources.ResourceTypeEventGatewayControlPlane),
-			rs.EventGatewayControlPlanes[i].Ref,
-			rs.EventGatewayControlPlanes[i].Kongctl,
-		)
-	}
-	for i := range rs.ApplicationAuthStrategies {
-		check(
-			string(resources.ResourceTypeApplicationAuthStrategy),
-			rs.ApplicationAuthStrategies[i].Ref,
-			rs.ApplicationAuthStrategies[i].Kongctl,
-		)
-	}
-	for i := range rs.DCRProviders {
-		check(string(resources.ResourceTypeDCRProvider), rs.DCRProviders[i].Ref, rs.DCRProviders[i].Kongctl)
-	}
-	for i := range managedControlPlanes {
-		check(string(resources.ResourceTypeControlPlane), managedControlPlanes[i].Ref, managedControlPlanes[i].Kongctl)
-	}
-	for i := range managedOrganizationTeams {
-		check(
-			string(resources.ResourceTypeOrganizationTeam),
-			managedOrganizationTeams[i].Ref,
-			managedOrganizationTeams[i].Kongctl,
-		)
-	}
-	if rs.Organization != nil {
-		for i := range rs.Organization.Users {
-			check(
-				string(resources.ResourceTypeOrganizationUser),
-				rs.Organization.Users[i].Ref,
-				rs.Organization.Users[i].Kongctl,
-			)
-		}
-		for i := range rs.Organization.SystemAccounts {
-			check(
-				string(resources.ResourceTypeOrganizationSystemAccount),
-				rs.Organization.SystemAccounts[i].Ref,
-				rs.Organization.SystemAccounts[i].Kongctl,
-			)
-		}
+	for _, m := range managed {
+		check(m.resourceType, m.ref, m.meta)
 	}
 
 	if len(violations) == 0 {
