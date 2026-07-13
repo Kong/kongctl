@@ -531,7 +531,10 @@ ai_gateways:
 
 AI Gateway Model Providers can also be declared as root resources. Root-level
 model provider declarations must identify the parent AI Gateway with
-`ai_gateway`.
+`ai_gateway`. Basic authentication uses `config.auth.headers`, an array of
+`name` and `value` objects. Header `value` fields and other provider credentials
+are write-only in Konnect. They are sent during create or update but omitted
+from read responses and skipped during diff calculation.
 
 ```yaml
 ai_gateway_model_providers:

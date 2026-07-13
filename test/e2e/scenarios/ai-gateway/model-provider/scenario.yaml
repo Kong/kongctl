@@ -50,6 +50,17 @@ steps:
               fields:
                 "contains(keys(@), 'ai_gateway')": true
                 "contains(keys(@), 'config')": true
+          - select: properties.config.properties.auth.properties
+            expect:
+              fields:
+                "contains(keys(@), 'headers')": true
+                "contains(keys(@), 'header_name')": false
+                "contains(keys(@), 'header_value')": false
+          - select: properties.config.properties.auth.properties.headers.items.properties
+            expect:
+              fields:
+                "contains(keys(@), 'name')": true
+                "contains(keys(@), 'value')": true
       - name: 001-scaffold-ai-gateway-model-provider
         run:
           - scaffold
@@ -62,6 +73,8 @@ steps:
                 "contains(stdout, 'ai_gateway_model_providers:')": true
                 "contains(stdout, 'type: openai')": true
                 "contains(stdout, 'config:')": true
+                "contains(stdout, 'headers:')": true
+                "contains(stdout, 'name: Authorization')": true
 
   - name: 002-plan-apply-create
     commands:
@@ -159,10 +172,15 @@ steps:
             expect:
               fields:
                 "@": gemini
-          - select: "[?name=='support-openai'] | [0].type"
+          - select: "[?name=='support-openai'] | [0]"
             expect:
               fields:
-                "@": openai
+                type: openai
+                config.auth.headers[0].name: Authorization
+          - select: "[?name=='support-openai'] | [0].config.auth.headers[0]"
+            expect:
+              fields:
+                "contains(keys(@), 'value')": false
       - name: 003-list-model-providers
         run:
           - list
