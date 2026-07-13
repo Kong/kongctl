@@ -14,6 +14,14 @@ vars:
   bc2Name: diff-backend-cluster-2
   vcRef: diff-virtual-cluster
   vcName: diff-virtual-cluster
+  clusterPolicyRef: diff-cluster-policy
+  clusterPolicyName: diff-cluster-policy
+  consumePolicyRef: diff-consume-policy
+  consumePolicyName: diff-consume-policy
+  listenerRef: diff-listener
+  listenerName: diff-listener
+  listenerPolicyRef: diff-listener-policy
+  listenerPolicyName: diff-listener-policy
   namespace: event-gateways-diff-test
 
 defaults:
@@ -44,12 +52,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 4
-                by_action.CREATE: 4
+                total_changes: 8
+                by_action.CREATE: 8
           - select: "summary"
             expect:
               fields:
-                applied: 4
+                applied: 8
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='event_gateway' &&
@@ -70,8 +78,32 @@ steps:
               fields:
                 action: CREATE
           - select: >-
+              plan.changes[?resource_type=='event_gateway_listener' &&
+                            resource_ref=='{{ .vars.listenerRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
               plan.changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' &&
                             resource_ref=='diff-produce-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' &&
+                            resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' &&
+                            resource_ref=='{{ .vars.consumePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_listener_policy' &&
+                            resource_ref=='{{ .vars.listenerPolicyRef }}'] | [0]
             expect:
               fields:
                 action: CREATE
@@ -116,8 +148,8 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 3
-                by_action.UPDATE: 2
+                total_changes: 6
+                by_action.UPDATE: 5
                 by_action.CREATE: 1
           - expect:
               fields:
@@ -143,6 +175,30 @@ steps:
                 action: UPDATE
                 "not_null(changed_fields.enabled.new, fields.enabled)": false
                 "not_null(changed_fields.config.new.actions[0].value, fields.config.actions[0].value)": "modified"
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' &&
+                       resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.enabled.new, fields.enabled)": false
+                "not_null(changed_fields.config.new.rules[0].action, fields.config.rules[0].action)": "allow"
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' &&
+                       resource_ref=='{{ .vars.consumePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.enabled.new, fields.enabled)": false
+                "not_null(changed_fields.config.new.actions[0].value, fields.config.actions[0].value)": "modified"
+          - select: >-
+              changes[?resource_type=='event_gateway_listener_policy' &&
+                       resource_ref=='{{ .vars.listenerPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.enabled.new, fields.enabled)": false
+                "not_null(changed_fields.config.new.sni_suffix, fields.config.sni_suffix)": ".updated.example.com"
 
       # Verify Konnect state was NOT modified (diff is read-only)
       - name: 001-verify-state-unchanged
@@ -187,7 +243,78 @@ steps:
               fields:
                 enabled: true
                 "config.actions[0].value": "initial"
-      - name: 004-verify-virtual-cluster-unchanged
+      - name: 004-verify-cluster-policy-unchanged
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.vcName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.clusterPolicyName }}"
+                enabled: true
+                "config.rules[0].action": deny
+
+      - name: 005-verify-consume-policy-unchanged
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.vcName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                enabled: true
+                "config.actions[0].value": initial
+
+      - name: 006-verify-listener-policy-unchanged
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --listener-name
+          - "{{ .vars.listenerName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyName }}"
+                enabled: true
+                "config.sni_suffix": ".example.com"
+
+      - name: 007-verify-virtual-cluster-unchanged
         run:
           - get
           - event-gateway
@@ -206,7 +333,7 @@ steps:
               fields:
                 name: "{{ .vars.vcName }}"
                 dns_label: vc-diff
-                acl_mode: passthrough
+                acl_mode: enforce_on_gateway
   - name: 004-diff-sync-mode
     inputOverlayDirs:
       - overlays/004-diff-sync

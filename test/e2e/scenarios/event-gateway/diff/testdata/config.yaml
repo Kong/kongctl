@@ -28,7 +28,7 @@ event_gateways:
           id: !ref diff-backend-cluster#id
         authentication:
           - type: anonymous
-        acl_mode: passthrough
+        acl_mode: enforce_on_gateway
         dns_label: vc-diff
         produce_policies:
           - ref: diff-produce-policy
@@ -40,3 +40,42 @@ event_gateways:
                 - op: set
                   key: x-diff-test
                   value: initial
+        cluster_policies:
+          - ref: diff-cluster-policy
+            name: diff-cluster-policy
+            type: acls
+            enabled: true
+            config:
+              rules:
+                - action: "deny"
+                  operations:
+                    - name: "describe_configs"
+                  resource_names:
+                    - match: "*"
+                  resource_type: "transactional_id"
+        consume_policies:
+          - ref: diff-consume-policy
+            name: diff-consume-policy
+            type: modify_headers
+            enabled: true
+            config:
+              actions:
+                - op: set
+                  key: x-diff-consume-test
+                  value: initial
+    listeners:
+      - ref: diff-listener
+        name: diff-listener
+        description: "Listener for diff test"
+        ports:
+          - 9092
+        addresses:
+          - localhost
+        policies:
+          - ref: diff-listener-policy
+            name: diff-listener-policy
+            type: forward_to_virtual_cluster
+            enabled: true
+            config:
+              type: sni
+              sni_suffix: ".example.com"
