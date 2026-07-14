@@ -84,8 +84,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/daveshanley/vacuum v0.29.8 h1:V+kwMVZlPlZmTXB2ifMr4H02IQqH95AvyXi8iWEBLwA=
-github.com/daveshanley/vacuum v0.29.8/go.mod h1:GSmZRmdJPztCADNBaKOIAskVfMrHD1HdJwghk9jpkiw=
+github.com/daveshanley/vacuum v0.29.9 h1:aQCF+5u8FB/sN6GNVAmb6pbFphttjFOeLEdbJogdBuQ=
+github.com/daveshanley/vacuum v0.29.9/go.mod h1:GSmZRmdJPztCADNBaKOIAskVfMrHD1HdJwghk9jpkiw=
 github.com/dlclark/regexp2 v1.4.0/go.mod h1:2pZnwuY/m+8K6iRw6wQdMtk+rH5tNGR1i55kozfMjCc=
 github.com/dlclark/regexp2 v1.7.0/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
 github.com/dlclark/regexp2 v1.12.0 h1:0j4c5qQmnC6XOWNjP3PIXURXN2gWx76rd3KvgdPkCz8=
