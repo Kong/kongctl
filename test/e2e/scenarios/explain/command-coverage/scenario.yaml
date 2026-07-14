@@ -253,7 +253,13 @@ steps:
               fields:
                 type.const: model
                 formats.items.properties.type.type: string
-                targets.items.properties.config.properties.type.type: string
+          - select: >-
+              oneOf[0].properties.targets.items.properties.config.oneOf[?properties.type.const=='openai'] | [0]
+            expect:
+              fields:
+                type: object
+                properties.type.type: string
+                properties.type.const: openai
 
   - name: 013-explain-ai-gateway-mcp-servers-nested-yaml
     skipInputs: true
