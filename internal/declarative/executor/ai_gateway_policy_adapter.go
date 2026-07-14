@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -28,12 +27,8 @@ func (a *AIGatewayPolicyAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayPolicyRequest,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Policy create fields: %w", err)
-	}
-	if err := json.Unmarshal(data, create); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Policy create fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway Policy create", fields, create); err != nil {
+		return err
 	}
 	if create.Name == "" || create.Type == "" || create.DisplayName == "" || create.Config == nil {
 		return fmt.Errorf("name, type, display_name, and config are required")
@@ -49,14 +44,7 @@ func (a *AIGatewayPolicyAdapter) MapUpdateFields(
 	update *kkComps.UpdateAIGatewayPolicyRequest,
 	_ map[string]string,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Policy update fields: %w", err)
-	}
-	if err := json.Unmarshal(data, update); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Policy update fields: %w", err)
-	}
-	return nil
+	return mapAIGatewaySDKRequest("AI Gateway Policy update", fields, update)
 }
 
 // Create creates an AI Gateway Policy.

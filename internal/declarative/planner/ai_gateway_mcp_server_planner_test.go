@@ -273,7 +273,7 @@ func TestAIGatewayMCPServerPlannerIgnoresDefaultAccessWhenServerOmitsIt(t *testi
 	var current kkComps.AIGatewayMCPServer
 	require.NoError(t, json.Unmarshal([]byte(`{
 		"id": "server-id",
-		"type": "conversion-only",
+		"type": "conversion-listener",
 		"name": "support-tools",
 		"display_name": "Support Tools",
 		"enabled": true,
@@ -333,14 +333,14 @@ func testAIGatewayMCPServerResourceWithAccess(t *testing.T) resources.AIGatewayM
 	payload := `{
 		"ref": "support-tools",
 		"ai_gateway": "support-gateway",
-		"type": "conversion-only",
+		"type": "conversion-listener",
 		"name": "support-tools",
 		"display_name": "Support Tools",
 		"enabled": true,
 		"access": {
 			"acl_attribute_type": "consumer",
-			"acls": [],
-			"default_tool_acls": []
+			"acls": {"allow": []},
+			"default_tool_acls": {"allow": []}
 		},
 		"config": {
 			"url": "https://support-tools.example.com",

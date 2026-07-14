@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -28,12 +27,8 @@ func (a *AIGatewayMCPServerAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayMCPServerRequest,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway MCP Server create fields: %w", err)
-	}
-	if err := json.Unmarshal(data, create); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway MCP Server create fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway MCP Server create", fields, create); err != nil {
+		return err
 	}
 	if create.AIGatewayMCPServerConversionOnly == nil &&
 		create.AIGatewayMCPServerConversionListener == nil &&
@@ -53,12 +48,8 @@ func (a *AIGatewayMCPServerAdapter) MapUpdateFields(
 	update *kkComps.UpdateAIGatewayMCPServerRequest,
 	_ map[string]string,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway MCP Server update fields: %w", err)
-	}
-	if err := json.Unmarshal(data, update); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway MCP Server update fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway MCP Server update", fields, update); err != nil {
+		return err
 	}
 	if update.AIGatewayMCPServerConversionOnly == nil &&
 		update.AIGatewayMCPServerConversionListener == nil &&

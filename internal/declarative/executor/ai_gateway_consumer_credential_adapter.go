@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -27,12 +26,8 @@ func (a *AIGatewayConsumerCredentialAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayConsumerCredentialRequest,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Consumer Credential create fields: %w", err)
-	}
-	if err := json.Unmarshal(data, create); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Consumer Credential create fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway Consumer Credential create", fields, create); err != nil {
+		return err
 	}
 	if create.Name == "" || create.DisplayName == "" || create.Type == "" {
 		return fmt.Errorf("name, display_name, and type are required")

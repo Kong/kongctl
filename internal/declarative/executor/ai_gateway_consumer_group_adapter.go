@@ -29,12 +29,8 @@ func (a *AIGatewayConsumerGroupAdapter) MapCreateFields(
 	create *kkComps.CreateAIGatewayConsumerGroupRequest,
 ) error {
 	fields = cloneFieldsWithoutAIGatewayConsumerGroupMembership(fields)
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Consumer Group create fields: %w", err)
-	}
-	if err := json.Unmarshal(data, create); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Consumer Group create fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway Consumer Group create", fields, create); err != nil {
+		return err
 	}
 	if create.Name == "" || create.DisplayName == "" {
 		return fmt.Errorf("name and display_name are required")
@@ -51,14 +47,7 @@ func (a *AIGatewayConsumerGroupAdapter) MapUpdateFields(
 	_ map[string]string,
 ) error {
 	fields = cloneFieldsWithoutAIGatewayConsumerGroupMembership(fields)
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Consumer Group update fields: %w", err)
-	}
-	if err := json.Unmarshal(data, update); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Consumer Group update fields: %w", err)
-	}
-	return nil
+	return mapAIGatewaySDKRequest("AI Gateway Consumer Group update", fields, update)
 }
 
 // Create creates an AI Gateway Consumer Group.

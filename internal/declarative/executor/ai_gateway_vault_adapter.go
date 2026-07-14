@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -28,12 +27,8 @@ func (a *AIGatewayVaultAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayVaultRequest,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Vault create fields: %w", err)
-	}
-	if err := json.Unmarshal(data, create); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Vault create fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway Vault create", fields, create); err != nil {
+		return err
 	}
 	if create.KonnectConfigStoreVault == nil &&
 		create.EnvironmentVariableVault == nil &&
@@ -55,12 +50,8 @@ func (a *AIGatewayVaultAdapter) MapUpdateFields(
 	update *kkComps.UpdateAIGatewayVaultRequest,
 	_ map[string]string,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Vault update fields: %w", err)
-	}
-	if err := json.Unmarshal(data, update); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Vault update fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway Vault update", fields, update); err != nil {
+		return err
 	}
 	if update.KonnectConfigStoreVault == nil &&
 		update.EnvironmentVariableVault == nil &&

@@ -45,18 +45,23 @@ steps:
                 type: object
                 title: "kongctl declarative schema: ai_gateway_model_provider"
                 '"x-kongctl-root-key"': ai_gateway_model_providers
-          - select: properties
+          - select: "oneOf[?properties.type.const=='openai'] | [0].properties"
             expect:
               fields:
                 "contains(keys(@), 'ai_gateway')": true
-                "contains(keys(@), 'config')": true
-          - select: properties.config.properties.auth.properties
+          - select: "length(oneOf)"
+            expect:
+              fields:
+                "@": 19
+          - select: >-
+              oneOf[?properties.type.const=='openai'] | [0].properties.config.properties.auth.properties
             expect:
               fields:
                 "contains(keys(@), 'headers')": true
                 "contains(keys(@), 'header_name')": false
                 "contains(keys(@), 'header_value')": false
-          - select: properties.config.properties.auth.properties.headers.items.properties
+          - select: >-
+              oneOf[?properties.type.const=='openai'] | [0].properties.config.properties.auth.properties.headers.items.properties
             expect:
               fields:
                 "contains(keys(@), 'name')": true
@@ -76,7 +81,25 @@ steps:
                 "contains(stdout, 'headers:')": true
                 "contains(stdout, 'name: Authorization')": true
 
-  - name: 002-plan-apply-create
+  - name: 002-reject-legacy-flat-openai-auth
+    inputOverlayDirs:
+      - overlays/000-invalid-flat-auth
+    commands:
+      - name: 000-plan-invalid-flat-openai-auth
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: >-
+            config.auth.header_name and config.auth.header_value are not supported;
+            use config.auth.headers[].name and config.auth.headers[].value
+
+  - name: 003-plan-apply-create
     commands:
       - name: 000-plan-create
         outputFormat: disable
@@ -228,7 +251,7 @@ steps:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
 
-  - name: 003-plan-apply-update
+  - name: 004-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update
     commands:
@@ -301,7 +324,7 @@ steps:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
 
-  - name: 004-dump-round-trip
+  - name: 005-dump-round-trip
     skipInputs: true
     commands:
       - name: 000-dump-ai-gateway-with-model-providers
@@ -372,7 +395,7 @@ steps:
               fields:
                 "@": true
 
-  - name: 005-sync-delete-model-providers
+  - name: 006-sync-delete-model-providers
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:

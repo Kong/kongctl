@@ -369,17 +369,14 @@ func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("type", explainStringNode("a2a"), true, true),
 		explainField("display_name", explainStringNode("Booking Agent"), true, true),
 		explainField(aiGatewayAgentFieldEnabled, explainBoolNode("true"), false, false),
+		explainField("access", aiGatewayAccessExplainNode(false), false, false),
 		explainField(
 			aiGatewayAgentFieldConfig,
 			explainObject(
 				explainField("url", explainStringNode("https://booking-agent.example.com"), true, true),
 				explainField(
 					"route",
-					explainObject(
-						explainField("paths", explainArrayOf(explainStringNode("/booking")), false, false),
-						explainField("hosts", explainArrayOf(explainStringNode("agents.example.com")), false, false),
-						explainField("methods", explainArrayOf(explainStringNode("POST")), false, false),
-					),
+					aiGatewayRouteExplainNode(),
 					false,
 					false,
 				),
@@ -403,12 +400,6 @@ func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			explainArrayOf(explainStringNode("!ref mask-sensitive-data")),
 			false,
 			true,
-		),
-		explainField(
-			"acls",
-			explainObject(explainField("allow", explainArrayOf(explainStringNode("support-user")), false, false)),
-			false,
-			false,
 		),
 		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
 		explainField(

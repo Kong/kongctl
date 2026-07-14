@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -28,12 +27,8 @@ func (a *AIGatewayConsumerAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayConsumerRequest,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Consumer create fields: %w", err)
-	}
-	if err := json.Unmarshal(data, create); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Consumer create fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway Consumer create", fields, create); err != nil {
+		return err
 	}
 	if create.Name == "" || create.DisplayName == "" || create.Type == "" {
 		return fmt.Errorf("name, display_name, and type are required")
@@ -49,14 +44,7 @@ func (a *AIGatewayConsumerAdapter) MapUpdateFields(
 	update *kkComps.UpdateAIGatewayConsumerRequest,
 	_ map[string]string,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Consumer update fields: %w", err)
-	}
-	if err := json.Unmarshal(data, update); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Consumer update fields: %w", err)
-	}
-	return nil
+	return mapAIGatewaySDKRequest("AI Gateway Consumer update", fields, update)
 }
 
 // Create creates an AI Gateway Consumer.
