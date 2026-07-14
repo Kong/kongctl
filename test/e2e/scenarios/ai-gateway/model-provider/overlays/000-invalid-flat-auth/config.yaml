@@ -1,0 +1,18 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-provider-e2e
+
+ai_gateways:
+  - ref: invalid-model-provider-auth-gateway
+    name: invalid-model-provider-auth-gateway
+    display_name: Invalid Model Provider Auth Gateway
+    model_providers:
+      - ref: invalid-openai-provider
+        name: invalid-openai-provider
+        type: openai
+        display_name: Invalid OpenAI Provider
+        config:
+          auth:
+            type: basic
+            header_name: Authorization
+            header_value: Bearer value-that-must-not-be-silently-discarded

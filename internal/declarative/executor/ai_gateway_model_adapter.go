@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -28,12 +27,8 @@ func (a *AIGatewayModelAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayModelRequest,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway model create fields: %w", err)
-	}
-	if err := json.Unmarshal(data, create); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway model create fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway model create", fields, create); err != nil {
+		return err
 	}
 	if create.AIGatewayModelAPI == nil && create.AIGatewayModelModel == nil {
 		return fmt.Errorf("type must be either api or model")
@@ -49,12 +44,8 @@ func (a *AIGatewayModelAdapter) MapUpdateFields(
 	update *kkComps.UpdateAIGatewayModelRequest,
 	_ map[string]string,
 ) error {
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway model update fields: %w", err)
-	}
-	if err := json.Unmarshal(data, update); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway model update fields: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway model update", fields, update); err != nil {
+		return err
 	}
 	if update.AIGatewayModelAPI == nil && update.AIGatewayModelModel == nil {
 		return fmt.Errorf("type must be either api or model")

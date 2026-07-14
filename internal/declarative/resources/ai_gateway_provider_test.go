@@ -1,8 +1,10 @@
 package resources
 
 import (
+	"reflect"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
@@ -74,7 +76,17 @@ func TestAIGatewayProviderExplainNodeUsesBasicAuthHeaders(t *testing.T) {
 	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)
 
-	config, ok := node.property("config")
+	var openAI *ExplainNode
+	for _, branch := range node.OneOf {
+		typeField, ok := branch.property("type")
+		if ok && typeField.Node.Const == "openai" {
+			openAI = branch
+			break
+		}
+	}
+	require.NotNil(t, openAI)
+
+	config, ok := openAI.property("config")
 	require.True(t, ok)
 	auth, ok := config.Node.property("auth")
 	require.True(t, ok)
@@ -87,6 +99,37 @@ func TestAIGatewayProviderExplainNodeUsesBasicAuthHeaders(t *testing.T) {
 	require.True(t, headers.Node.Items.propertyExists("value"))
 	require.False(t, auth.Node.propertyExists("header_name"))
 	require.False(t, auth.Node.propertyExists("header_value"))
+}
+
+func TestAIGatewayProviderExplainNodeCoversSDKProviderUnion(t *testing.T) {
+	t.Parallel()
+
+	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
+	require.NoError(t, err)
+
+	providerTypes := make([]string, 0, len(node.OneOf))
+	for _, branch := range node.OneOf {
+		typeField, ok := branch.property("type")
+		require.True(t, ok)
+		providerType, ok := typeField.Node.Const.(string)
+		require.True(t, ok)
+		providerTypes = append(providerTypes, providerType)
+	}
+
+	expected := []string{
+		"anthropic", "azure", "bedrock", "cerebras", "cohere", "dashscope", "databricks", "deepseek",
+		"gemini", "huggingface", "kimi", "llama2", "mistral", "ollama", "openai", "vercel", "vertex",
+		"vllm", "xai",
+	}
+	require.ElementsMatch(t, expected, providerTypes)
+
+	sdkUnionMembers := 0
+	for field := range reflect.TypeFor[kkComps.CreateAIGatewayModelProviderRequest]().Fields() {
+		if field.Tag.Get("union") == "member" {
+			sdkUnionMembers++
+		}
+	}
+	require.Len(t, providerTypes, sdkUnionMembers)
 }
 
 func TestAIGatewayProviderResourceParentRef(t *testing.T) {

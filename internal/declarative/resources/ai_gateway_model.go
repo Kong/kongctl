@@ -510,16 +510,29 @@ func stripAIGatewayModelServerFields(payload map[string]any) {
 }
 
 func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	targetConfig, err := aiGatewayTargetConfigExplainNode()
+	if err != nil {
+		return nil, err
+	}
+
 	commonFields := []*ExplainField{
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("support-gpt"), true, true),
 		explainField("display_name", explainStringNode("Support GPT"), true, true),
 		explainField("enabled", explainBoolNode("true"), false, true),
-		explainField("acls", &ExplainNode{Kind: explainKindObject}, false, false),
+		explainField("access", aiGatewayAccessExplainNode(true), false, false),
 		explainField("config", explainObject(
 			explainField("route", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
+			explainField("logging", explainObject(
+				explainField("payloads", explainBoolNode("false"), false, false),
+				explainField("statistics", explainBoolNode("true"), false, false),
+			), false, false),
+			explainField("response_streaming", explainStringNode("allow"), false, false),
+			explainField("max_request_body_size", &ExplainNode{Kind: explainKindInteger, Literal: "8388608"}, false, false),
 			explainField("model", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
+			explainField("balancer", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+			explainField("proxy", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
 		), true, true),
 		explainField("formats", explainArrayOf(explainObject(
 			explainField("type", explainStringNode("openai"), true, true),
@@ -531,11 +544,12 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 				Literal:     "existing-provider-name",
 				Description: "AI Gateway Model Provider name in the parent gateway",
 			}, true, true),
-			explainField("config", explainObject(
-				explainField("type", explainStringNode("openai"), true, true),
-			), true, true),
+			explainField("config", targetConfig, true, true),
+			explainField("weight", &ExplainNode{Kind: explainKindInteger, Literal: "100"}, false, false),
+			explainField("semantic_description", explainStringNode("Primary target"), false, false),
+			explainField("allow_auth_override", explainBoolNode("false"), false, false),
 		)), true, true),
-		explainField("policies", explainArrayOf(&ExplainNode{Kind: explainKindObject}), true, false),
+		explainField("policies", explainArrayOf(explainStringNode("policy-name")), false, false),
 		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
 		explainField(
 			"managed_by",
@@ -557,4 +571,79 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	)
 
 	return explainUnionNode(explainObject(modelFields...), explainObject(apiFields...)), nil
+}
+
+func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
+	variants := []struct {
+		name string
+		node func() (*ExplainNode, error)
+	}{
+		{"anthropic", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetAnthropicConfig]("type", "anthropic")
+		}},
+		{"azure", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetAzureConfig]("type", "azure")
+		}},
+		{"bedrock", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetBedrockConfig]("type", "bedrock")
+		}},
+		{"cerebras", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetCerebrasConfig]("type", "cerebras")
+		}},
+		{"cohere", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetCohereConfig]("type", "cohere")
+		}},
+		{"dashscope", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetDashscopeConfig]("type", "dashscope")
+		}},
+		{"databricks", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetDatabricksConfig]("type", "databricks")
+		}},
+		{"deepseek", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetDeepseekConfig]("type", "deepseek")
+		}},
+		{"gemini", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetGeminiConfig]("type", "gemini")
+		}},
+		{"huggingface", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetHuggingfaceConfig]("type", "huggingface")
+		}},
+		{"kimi", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetKimiConfig]("type", "kimi")
+		}},
+		{"llama2", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetLlama2Config]("type", "llama2")
+		}},
+		{"mistral", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetMistralConfig]("type", "mistral")
+		}},
+		{"ollama", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetOllamaConfig]("type", "ollama")
+		}},
+		{"openai", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetOpenaiConfig]("type", "openai")
+		}},
+		{"vercel", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetVercelConfig]("type", "vercel")
+		}},
+		{"vertex", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetVertexConfig]("type", "vertex")
+		}},
+		{"vllm", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetVllmConfig]("type", "vllm")
+		}},
+		{"xai", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetXaiConfig]("type", "xai")
+		}},
+	}
+
+	branches := make([]*ExplainNode, 0, len(variants))
+	for _, variant := range variants {
+		node, err := variant.node()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build %s AI Gateway target config schema: %w", variant.name, err)
+		}
+		branches = append(branches, node)
+	}
+	return explainUnionNode(branches...), nil
 }

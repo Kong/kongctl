@@ -238,6 +238,8 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 	}
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(currentCompare, desiredCompare)
+	pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(desiredCompare, currentCompare)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
 		currentCompare,
 		desiredCompare,
@@ -250,6 +252,47 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 	}
 
 	return true, clonePayloadMap(desiredPayload), changedFields, nil
+}
+
+func pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(payload map[string]any, peer map[string]any) {
+	if _, peerHasAccess := peer[FieldAccess]; peerHasAccess {
+		return
+	}
+	access, ok := payload[FieldAccess].(map[string]any)
+	if !ok {
+		return
+	}
+	for key, value := range access {
+		switch key {
+		case FieldACLAttributeType:
+			if !stringValueEqual(value, "consumer") {
+				return
+			}
+		case FieldACLS, FieldDefaultToolACLS:
+			if !emptyAIGatewayMCPACLs(value) {
+				return
+			}
+		default:
+			return
+		}
+	}
+	delete(payload, FieldAccess)
+}
+
+func emptyAIGatewayMCPACLs(value any) bool {
+	acls, ok := value.(map[string]any)
+	if !ok {
+		return false
+	}
+	for key, entries := range acls {
+		if key != "allow" && key != "deny" {
+			return false
+		}
+		if !emptySliceValue(entries) {
+			return false
+		}
+	}
+	return true
 }
 
 func indexAIGatewayMCPServers(

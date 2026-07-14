@@ -36,10 +36,6 @@ ai_gateways:
         labels:
           team: support
           phase: create
-        access:
-          acl_attribute_type: consumer
-          acls: []
-          default_tool_acls: []
         config:
           url: https://support-tools.example.com
           route:
@@ -50,6 +46,8 @@ ai_gateways:
             description: "Look up a customer profile"
             method: GET
             path: /customers/{customer_id}
+            query:
+              key: !env KONGCTL_E2E_WEATHERAPI_API_KEY
             annotations:
               title: "Lookup customer"
               read_only_hint: true

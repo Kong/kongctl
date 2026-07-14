@@ -86,6 +86,29 @@ ai_gateways:
 	require.Equal(t, "openai-provider", rs.AIGatewayProviders[0].Name)
 }
 
+func TestLoaderRejectsLegacyAIGatewayModelProviderAuthFields(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+    model_providers:
+      - ref: openai-provider
+        name: openai-provider
+        type: openai
+        display_name: OpenAI Provider
+        config:
+          auth:
+            type: basic
+            header_name: Authorization
+            header_value: Bearer token
+`
+
+	_, err := New().LoadFile(writeLoaderTestFile(t, input))
+	require.Error(t, err)
+	require.ErrorContains(t, err, "config.auth.header_name and config.auth.header_value are not supported")
+	require.ErrorContains(t, err, "use config.auth.headers[].name and config.auth.headers[].value")
+}
+
 func TestLoaderRejectsRootLevelEmptyAIGatewayModelProviders(t *testing.T) {
 	input := `ai_gateway_model_providers: []`
 

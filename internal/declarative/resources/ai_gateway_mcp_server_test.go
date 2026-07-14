@@ -45,3 +45,25 @@ func TestAIGatewayMCPServerAllowsAccessFields(t *testing.T) {
 	var resource AIGatewayMCPServerResource
 	require.NoError(t, json.Unmarshal(input, &resource))
 }
+
+func TestAIGatewayMCPServerRejectsAccessForConversionOnly(t *testing.T) {
+	input := []byte(`{
+		"ref": "support-tools",
+		"ai_gateway": "support-gateway",
+		"type": "conversion-only",
+		"name": "support-tools",
+		"display_name": "Support Tools",
+		"access": {
+			"acl_attribute_type": "consumer"
+		},
+		"config": {
+			"url": "https://support-tools.example.com",
+			"route": {"paths": ["/support-tools"]}
+		}
+	}`)
+
+	var resource AIGatewayMCPServerResource
+	err := json.Unmarshal(input, &resource)
+	require.Error(t, err)
+	require.ErrorContains(t, err, `field "access" is not supported when type is "conversion-only"`)
+}

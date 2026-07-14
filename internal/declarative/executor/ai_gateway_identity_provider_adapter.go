@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -31,14 +30,7 @@ func (a *AIGatewayIdentityProviderAdapter) MapCreateFields(
 		return err
 	}
 
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Identity Provider create payload: %w", err)
-	}
-	if err := json.Unmarshal(data, create); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Identity Provider create payload: %w", err)
-	}
-	return nil
+	return mapAIGatewaySDKRequest("AI Gateway Identity Provider create", payload, create)
 }
 
 func (a *AIGatewayIdentityProviderAdapter) MapUpdateFields(
@@ -53,14 +45,7 @@ func (a *AIGatewayIdentityProviderAdapter) MapUpdateFields(
 		return err
 	}
 
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to encode AI Gateway Identity Provider update payload: %w", err)
-	}
-	if err := json.Unmarshal(data, update); err != nil {
-		return fmt.Errorf("failed to decode AI Gateway Identity Provider update payload: %w", err)
-	}
-	return nil
+	return mapAIGatewaySDKRequest("AI Gateway Identity Provider update", payload, update)
 }
 
 func (a *AIGatewayIdentityProviderAdapter) Create(

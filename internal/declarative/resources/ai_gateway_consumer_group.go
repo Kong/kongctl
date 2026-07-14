@@ -383,6 +383,12 @@ func aiGatewayConsumerGroupExplainNode(_ ExplainBuildContext) (*ExplainNode, err
 		explainField("name", explainStringNode("premium-users"), true, true),
 		explainField("display_name", explainStringNode("Premium Users"), true, true),
 		explainField(
+			aiGatewayConsumerGroupFieldConsumers,
+			explainArrayOf(explainStringNode("!ref support-user#name")),
+			false,
+			false,
+		),
+		explainField(
 			aiGatewayConsumerGroupFieldPolicies,
 			explainArrayOf(explainStringNode("!ref mask-sensitive-data")),
 			false,

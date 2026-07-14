@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -173,14 +172,9 @@ func aiGatewayProxyURLsFromField(value any) ([]kkComps.AIGatewayProxyURL, error)
 		return nil, nil
 	}
 
-	data, err := json.Marshal(value)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode AI Gateway proxy_urls: %w", err)
-	}
-
 	var proxyURLs []kkComps.AIGatewayProxyURL
-	if err := json.Unmarshal(data, &proxyURLs); err != nil {
-		return nil, fmt.Errorf("failed to decode AI Gateway proxy_urls: %w", err)
+	if err := mapAIGatewaySDKRequest("AI Gateway proxy_urls", value, &proxyURLs); err != nil {
+		return nil, err
 	}
 	return proxyURLs, nil
 }
