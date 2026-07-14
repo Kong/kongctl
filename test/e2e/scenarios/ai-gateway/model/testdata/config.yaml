@@ -33,7 +33,6 @@ ai_gateways:
         enabled: true
         config:
           route: {}
-          model: {}
         formats:
           - type: openai
         targets:

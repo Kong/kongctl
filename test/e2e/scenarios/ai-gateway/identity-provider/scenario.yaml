@@ -53,6 +53,7 @@ steps:
             expect:
               fields:
                 "contains(keys(@), 'client_secret')": true
+                "contains(keys(@), 'cache_tokens_salt')": true
       - name: 001-scaffold-ai-gateway-identity-provider
         run:
           - scaffold

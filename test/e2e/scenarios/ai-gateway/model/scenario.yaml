@@ -81,6 +81,38 @@ steps:
                 fields.config.balancer.vectordb.type: pgvector
                 fields.config.balancer.vectordb.dimensions: 384
                 fields.config.balancer.vectordb.distance_metric: cosine
+      - name: plan-embedding-config-variants
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/embedding-config-variants.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 7
+                by_action.CREATE: 7
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='semantic-openai'] | [0]
+            expect:
+              fields:
+                fields.config.balancer.embeddings.config.type: openai
+                fields.config.balancer.embeddings.config.upstream_url: https://example.com/openai/embeddings
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='semantic-mistral'] | [0]
+            expect:
+              fields:
+                fields.config.balancer.embeddings.config.type: mistral
+                fields.config.balancer.embeddings.config.format: openai
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='semantic-ollama'] | [0]
+            expect:
+              fields:
+                fields.config.balancer.embeddings.config.type: ollama
+                fields.config.balancer.embeddings.config.upstream_url: https://example.com/ollama/embeddings
       - name: 002-plan-gemini-gcp-environment
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-gcp-environment.json"

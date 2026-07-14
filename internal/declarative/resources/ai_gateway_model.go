@@ -530,7 +530,7 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			), false, false),
 			explainField("response_streaming", explainStringNode("allow"), false, false),
 			explainField("max_request_body_size", &ExplainNode{Kind: explainKindInteger, Literal: "8388608"}, false, false),
-			explainField("model", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
+			explainField("model", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
 			explainField("balancer", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
 			explainField("proxy", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
 		), true, true),

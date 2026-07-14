@@ -21,7 +21,6 @@ ai_gateway_models:
       ownership: external-peer
     config:
       route: {}
-      model: {}
     formats:
       - type: openai
     targets:
