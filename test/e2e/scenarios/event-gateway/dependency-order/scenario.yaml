@@ -1,0 +1,32 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: trace
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-dependent-resources
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 5
+                by_action.CREATE: 5
+          - select: summary
+            expect:
+              fields:
+                applied: 5
+                failed: 0
+                status: success
