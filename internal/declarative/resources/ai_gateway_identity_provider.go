@@ -239,6 +239,7 @@ func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 			explainField("type", explainConstStringNode("openid-connect"), true, true),
 			explainField("config", explainObject(
 				explainField("auth_methods", explainArrayOf(explainStringNode("bearer")), false, true),
+				explainField("cache_tokens_salt", explainStringNode("support-cache-salt"), true, true),
 				explainField("client_id", explainArrayOf(explainStringNode("support-client")), false, true),
 				explainField("client_secret", explainArrayOf(explainStringNode("${OIDC_CLIENT_SECRET}")), false, false),
 				explainField("consumer_claims", explainArrayOf(explainArrayOf(explainStringNode("sub"))), false, false),

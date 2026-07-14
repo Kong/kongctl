@@ -72,7 +72,7 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 		Name:        "support-gpt",
 		Config: kkComps.AIGatewayModelModelConfig{
 			Route: kkComps.AIGatewayRouteConfig{},
-			Model: kkComps.AIGatewayModelModelConfigModel{Alias: &alias},
+			Model: &kkComps.AIGatewayModelModelConfigModel{Alias: &alias},
 		},
 		Formats: []kkComps.AIGatewayModelFormat{
 			{Type: &formatType},

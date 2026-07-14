@@ -29,7 +29,6 @@ ai_gateways:
         enabled: true
         config:
           route: {}
-          model: {}
           balancer:
             algorithm: semantic
             embeddings:

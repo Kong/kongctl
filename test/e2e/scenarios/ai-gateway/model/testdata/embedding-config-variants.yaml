@@ -1,0 +1,128 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-e2e
+
+ai_gateways:
+  - ref: ai-gateway-embedding-config-e2e
+    name: ai-gateway-embedding-config-e2e
+    display_name: "AI Gateway Embedding Config E2E"
+    proxy_urls:
+      - host: ai-gateway-embedding-config-e2e.example.com
+        port: 443
+        protocol: https
+    model_providers:
+      - ref: embedding-openai
+        name: embedding-openai
+        type: openai
+        display_name: "Embedding OpenAI"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: placeholder
+      - ref: embedding-mistral
+        name: embedding-mistral
+        type: mistral
+        display_name: "Embedding Mistral"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: placeholder
+      - ref: embedding-ollama
+        name: embedding-ollama
+        type: ollama
+        display_name: "Embedding Ollama"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: placeholder
+    models:
+      - ref: semantic-openai
+        type: model
+        name: semantic-openai
+        display_name: "Semantic OpenAI"
+        config:
+          route: {}
+          balancer:
+            algorithm: semantic
+            embeddings:
+              provider: embedding-openai
+              name: text-embedding-3-small
+              config:
+                type: openai
+                upstream_url: https://example.com/openai/embeddings
+            vectordb:
+              type: pgvector
+              dimensions: 1536
+              distance_metric: cosine
+        formats:
+          - type: openai
+        targets:
+          - name: gpt-4o-mini
+            provider: embedding-openai
+            config:
+              type: openai
+        capabilities:
+          - generate
+      - ref: semantic-mistral
+        type: model
+        name: semantic-mistral
+        display_name: "Semantic Mistral"
+        config:
+          route: {}
+          balancer:
+            algorithm: semantic
+            embeddings:
+              provider: embedding-mistral
+              name: mistral-embed
+              config:
+                type: mistral
+                upstream_url: https://example.com/mistral/embeddings
+                format: openai
+            vectordb:
+              type: pgvector
+              dimensions: 1024
+              distance_metric: cosine
+        formats:
+          - type: openai
+        targets:
+          - name: mistral-small
+            provider: embedding-mistral
+            config:
+              type: mistral
+              format: openai
+        capabilities:
+          - generate
+      - ref: semantic-ollama
+        type: model
+        name: semantic-ollama
+        display_name: "Semantic Ollama"
+        config:
+          route: {}
+          balancer:
+            algorithm: semantic
+            embeddings:
+              provider: embedding-ollama
+              name: nomic-embed-text
+              config:
+                type: ollama
+                upstream_url: https://example.com/ollama/embeddings
+            vectordb:
+              type: pgvector
+              dimensions: 768
+              distance_metric: cosine
+        formats:
+          - type: openai
+        targets:
+          - name: llama3.2
+            provider: embedding-ollama
+            config:
+              type: ollama
+              upstream_url: https://example.com/ollama/generate
+        capabilities:
+          - generate

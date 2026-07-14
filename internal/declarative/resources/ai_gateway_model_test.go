@@ -66,6 +66,73 @@ func TestAIGatewayModelResourceUnmarshalModelVariant(t *testing.T) {
 	require.NoError(t, model.Validate())
 }
 
+func TestAIGatewayModelResourceAllowsOmittedModelConfig(t *testing.T) {
+	payload := strings.Replace(aiGatewayModelJSON, ",\n    \"model\": {}", "", 1)
+
+	var model AIGatewayModelResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &model))
+	require.NotNil(t, model.AIGatewayModelModel)
+	require.NoError(t, model.Validate())
+}
+
+func TestAIGatewayModelExplainNodeMarksModelConfigOptional(t *testing.T) {
+	node, err := aiGatewayModelExplainNode(ExplainBuildContext{})
+	require.NoError(t, err)
+	require.NotEmpty(t, node.OneOf)
+
+	for _, branch := range node.OneOf {
+		configField := branch.propIndex["config"]
+		require.NotNil(t, configField)
+		modelField := configField.Node.propIndex["model"]
+		require.NotNil(t, modelField)
+		require.False(t, modelField.Required)
+	}
+}
+
+func TestAIGatewayModelResourceSupportsEmbeddingConfigVariants(t *testing.T) {
+	tests := map[string]string{
+		"mistral": `{"type":"mistral","upstream_url":"https://example.com/mistral/embeddings","format":"openai"}`,
+		"ollama":  `{"type":"ollama","upstream_url":"https://example.com/ollama/embeddings"}`,
+		"openai":  `{"type":"openai","upstream_url":"https://example.com/openai/embeddings"}`,
+	}
+
+	for embeddingType, embeddingConfig := range tests {
+		t.Run(embeddingType, func(t *testing.T) {
+			var model AIGatewayModelResource
+			require.NoError(t, json.Unmarshal([]byte(aiGatewaySemanticModelJSON(embeddingConfig)), &model))
+			require.NoError(t, model.Validate())
+
+			payload, err := model.MutablePayloadMap()
+			require.NoError(t, err)
+			config := payload["config"].(map[string]any)
+			balancer := config["balancer"].(map[string]any)
+			embeddings := balancer["embeddings"].(map[string]any)
+			mappedConfig := embeddings["config"].(map[string]any)
+			require.Equal(t, embeddingType, mappedConfig["type"])
+		})
+	}
+}
+
+func TestAIGatewayModelResourceRejectsRemovedEmbeddingConfigVariants(t *testing.T) {
+	for _, embeddingType := range []string{"databricks", "vercel"} {
+		t.Run(embeddingType, func(t *testing.T) {
+			embeddingConfig := `{"type":"` + embeddingType + `","upstream_url":"https://example.com/embeddings"}`
+			var model AIGatewayModelResource
+			err := json.Unmarshal([]byte(aiGatewaySemanticModelJSON(embeddingConfig)), &model)
+			require.Error(t, err)
+		})
+	}
+}
+
+func aiGatewaySemanticModelJSON(embeddingConfig string) string {
+	semanticBalancer := `"balancer":{` +
+		`"algorithm":"semantic",` +
+		`"embeddings":{"provider":"support-embeddings","name":"embed-model","config":` + embeddingConfig + `},` +
+		`"vectordb":{"type":"pgvector","dimensions":1024,"distance_metric":"cosine"}` +
+		`}`
+	return strings.Replace(aiGatewayModelJSON, `"model": {}`, `"model": {},`+semanticBalancer, 1)
+}
+
 func TestAIGatewayTargetConfigExplainNodeCoversSDKUnion(t *testing.T) {
 	t.Parallel()
 
