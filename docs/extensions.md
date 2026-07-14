@@ -276,9 +276,11 @@ Release artifact installs fetch GitHub release metadata and assets over HTTPS.
 Source fallback uses `git clone` over HTTPS.
 
 For the most predictable install experience, publish public release artifacts.
-Private repositories may work through source-clone fallback when local Git
-credentials are configured, but release artifact discovery uses GitHub HTTP
-metadata and should be treated as public-repository oriented for v1.
+Set `GITHUB_TOKEN` or `GH_TOKEN` to install from private repositories: release
+metadata and asset content are then fetched with the token through the GitHub
+release-asset API. Public installs still work without a token, and a
+rate-limited asset API request falls back to the public download URL.
+Source-clone fallback also works when local Git credentials are configured.
 
 Remote installs show a trust warning with the selected source, extension name,
 release or source ref, asset, executable, command paths, and package hashes.

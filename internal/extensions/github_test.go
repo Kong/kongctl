@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -233,6 +234,166 @@ func TestFetchGitHubReleaseAssetUsesAPIURL(t *testing.T) {
 			require.FileExists(t, filepath.Join(fetched.Dir, ManifestFileName))
 		})
 	}
+}
+
+func TestFetchGitHubReleaseAssetWithholdsTokenFromRedirectHost(t *testing.T) {
+	archive := testReleaseTarGzip(t)
+	t.Setenv("GITHUB_TOKEN", "test-token")
+
+	blob := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Empty(t, r.Header.Get("Authorization"), "token must not be sent to the redirect storage host")
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write(archive)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(blob.Close)
+	// Redirect to a different hostname (localhost vs 127.0.0.1) so the client
+	// strips Authorization, matching a real api.github.com -> storage redirect.
+	blobURL := strings.Replace(blob.URL, "127.0.0.1", "localhost", 1)
+
+	var api *httptest.Server
+	api = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/kong/kongctl-ext-foo/releases/latest":
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(githubRelease{
+				TagName: "v1.2.3",
+				Assets: []githubReleaseAsset{
+					{Name: "kongctl-ext-foo.tar.gz", APIURL: api.URL + "/api/assets/1"},
+				},
+			}))
+		case "/api/assets/1":
+			require.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+			http.Redirect(w, r, blobURL+"/blob/kongctl-ext-foo.tar.gz", http.StatusFound)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(api.Close)
+
+	previousAPIBaseURL := githubAPIBaseURL
+	previousHTTPClient := githubHTTPClient
+	githubAPIBaseURL = api.URL
+	githubHTTPClient = api.Client()
+	t.Cleanup(func() {
+		githubAPIBaseURL = previousAPIBaseURL
+		githubHTTPClient = previousHTTPClient
+	})
+
+	fetched, err := FetchGitHubSource(context.Background(), GitHubSource{
+		Owner: "kong",
+		Repo:  "kongctl-ext-foo",
+	}, t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(fetched.Cleanup)
+	require.FileExists(t, filepath.Join(fetched.Dir, ManifestFileName))
+}
+
+func TestFetchGitHubReleaseAssetPublicAPIDownload(t *testing.T) {
+	archive := testReleaseTarGzip(t)
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "")
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/kong/kongctl-ext-foo/releases/latest":
+			require.Empty(t, r.Header.Get("Authorization"))
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(githubRelease{
+				TagName: "v1.2.3",
+				Assets: []githubReleaseAsset{
+					{
+						Name:        "kongctl-ext-foo.tar.gz",
+						DownloadURL: server.URL + "/downloads/kongctl-ext-foo.tar.gz",
+						APIURL:      server.URL + "/api/assets/1",
+					},
+				},
+			}))
+		case "/api/assets/1":
+			require.Empty(t, r.Header.Get("Authorization"))
+			require.Equal(t, "application/octet-stream", r.Header.Get("Accept"))
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write(archive)
+			require.NoError(t, err)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	previousAPIBaseURL := githubAPIBaseURL
+	previousHTTPClient := githubHTTPClient
+	githubAPIBaseURL = server.URL
+	githubHTTPClient = server.Client()
+	t.Cleanup(func() {
+		githubAPIBaseURL = previousAPIBaseURL
+		githubHTTPClient = previousHTTPClient
+	})
+
+	fetched, err := FetchGitHubSource(context.Background(), GitHubSource{
+		Owner: "kong",
+		Repo:  "kongctl-ext-foo",
+	}, t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(fetched.Cleanup)
+	require.FileExists(t, filepath.Join(fetched.Dir, ManifestFileName))
+}
+
+func TestFetchGitHubReleaseAssetFallsBackToBrowserURLOnAPIFailure(t *testing.T) {
+	archive := testReleaseTarGzip(t)
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "")
+
+	var apiHit, browserHit bool
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/kong/kongctl-ext-foo/releases/latest":
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(githubRelease{
+				TagName: "v1.2.3",
+				Assets: []githubReleaseAsset{
+					{
+						Name:        "kongctl-ext-foo.tar.gz",
+						DownloadURL: server.URL + "/downloads/kongctl-ext-foo.tar.gz",
+						APIURL:      server.URL + "/api/assets/1",
+					},
+				},
+			}))
+		case "/api/assets/1":
+			apiHit = true
+			w.WriteHeader(http.StatusTooManyRequests)
+		case "/downloads/kongctl-ext-foo.tar.gz":
+			browserHit = true
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write(archive)
+			require.NoError(t, err)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	previousAPIBaseURL := githubAPIBaseURL
+	previousHTTPClient := githubHTTPClient
+	githubAPIBaseURL = server.URL
+	githubHTTPClient = server.Client()
+	t.Cleanup(func() {
+		githubAPIBaseURL = previousAPIBaseURL
+		githubHTTPClient = previousHTTPClient
+	})
+
+	fetched, err := FetchGitHubSource(context.Background(), GitHubSource{
+		Owner: "kong",
+		Repo:  "kongctl-ext-foo",
+	}, t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(fetched.Cleanup)
+
+	require.True(t, apiHit, "should try the asset API URL first")
+	require.True(t, browserHit, "should fall back to browser_download_url after the API rate limit")
+	require.FileExists(t, filepath.Join(fetched.Dir, ManifestFileName))
 }
 
 func TestFetchGitHubReleaseAssetFallsBackToVPrefixedTag(t *testing.T) {

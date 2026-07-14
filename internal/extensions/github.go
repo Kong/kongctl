@@ -183,7 +183,7 @@ func fetchGitHubReleaseAsset(ctx context.Context, source GitHubSource, tempRoot 
 	}
 
 	archivePath := filepath.Join(workDir, "release-asset")
-	if err := downloadGitHubAsset(ctx, asset.downloadEndpoint(), archivePath); err != nil {
+	if err := downloadReleaseAsset(ctx, asset, archivePath); err != nil {
 		cleanup()
 		return FetchedGitHubSource{}, err
 	}
@@ -446,6 +446,23 @@ func githubAssetNames(assets []githubReleaseAsset) string {
 		names = append(names, asset.Name)
 	}
 	return strings.Join(names, ", ")
+}
+
+// downloadReleaseAsset fetches the asset, preferring the asset API URL. If that
+// fails (for example a public download that hits an API rate limit), it retries
+// the distinct browser_download_url, which stays usable without the API.
+func downloadReleaseAsset(ctx context.Context, asset githubReleaseAsset, target string) error {
+	primary := asset.downloadEndpoint()
+	err := downloadGitHubAsset(ctx, primary, target)
+	if err == nil {
+		return nil
+	}
+	if asset.DownloadURL != "" && asset.DownloadURL != primary {
+		if fallbackErr := downloadGitHubAsset(ctx, asset.DownloadURL, target); fallbackErr == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 func downloadGitHubAsset(ctx context.Context, downloadURL, target string) error {
