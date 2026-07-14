@@ -429,7 +429,32 @@ func dashboardQueryExplainNode() *ExplainNode {
 		dashboardQueryBranch("api_usage", "request_count"),
 		dashboardQueryBranch("llm_usage", "total_tokens"),
 		dashboardQueryBranch("agentic_usage", "request_count"),
-		dashboardQueryBranch("platform_usage", "request_count"),
+		dashboardPlatformQueryBranch(),
+	)
+}
+
+// dashboardPlatformQueryBranch describes the platform_usage query. Its metrics,
+// granularity, and limit differ from the other datasources, so it does not reuse
+// dashboardQueryBranch.
+func dashboardPlatformQueryBranch() *ExplainNode {
+	return explainObject(
+		explainField("datasource", explainConstStringNode("platform_usage"), true, true),
+		explainField("metrics", explainArrayOf(explainStringNode("service_count")), false, true),
+		explainField("dimensions", explainArrayOf(explainStringNode("time")), false, true),
+		explainField("filters", explainArrayOf(dashboardFilterExplainNode()), false, false),
+		explainField(
+			"granularity",
+			&ExplainNode{Kind: explainKindString, Nullable: true, Literal: "daily"},
+			false,
+			false,
+		),
+		explainField("time_range", dashboardTimeRangeExplainNode(), false, false),
+		explainField(
+			"limit",
+			&ExplainNode{Kind: "integer", Nullable: true, Literal: "10"},
+			false,
+			false,
+		),
 	)
 }
 

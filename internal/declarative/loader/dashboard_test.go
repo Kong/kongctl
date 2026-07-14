@@ -152,9 +152,11 @@ analytics:
               query:
                 datasource: platform_usage
                 metrics:
-                  - request_count
+                  - service_count
                 dimensions:
                   - time
+                granularity: daily
+                limit: 10
               chart:
                 type: timeseries_line
                 chart_title: Platform Usage
@@ -164,6 +166,14 @@ analytics:
 	require.NoError(t, err)
 	require.Len(t, rs.Dashboards, 1)
 	require.Len(t, rs.Dashboards[0].Definition.Tiles, 2)
+
+	// platform_usage carries a limit; confirm it decodes and is preserved.
+	platformTile := rs.Dashboards[0].Definition.Tiles[1]
+	require.NotNil(t, platformTile.ChartTile)
+	platformQuery := platformTile.ChartTile.Definition.Query.PlatformQuery
+	require.NotNil(t, platformQuery)
+	require.NotNil(t, platformQuery.Limit)
+	assert.InEpsilon(t, 10, *platformQuery.Limit, 0)
 }
 
 func TestLoaderDashboardDefinitionPresenceFromYAML(t *testing.T) {
