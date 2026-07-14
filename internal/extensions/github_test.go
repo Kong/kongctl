@@ -162,55 +162,77 @@ func TestFetchGitHubSourcePrefersReleaseAsset(t *testing.T) {
 func TestFetchGitHubReleaseAssetUsesAPIURL(t *testing.T) {
 	archive := testReleaseTarGzip(t)
 
-	var server *httptest.Server
-	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/repos/kong/kongctl-ext-foo/releases/latest":
-			w.Header().Set("Content-Type", "application/json")
-			require.NoError(t, json.NewEncoder(w).Encode(githubRelease{
-				TagName: "v1.2.3",
-				Assets: []githubReleaseAsset{
-					{
-						Name:        "kongctl-ext-foo.tar.gz",
-						DownloadURL: server.URL + "/downloads/kongctl-ext-foo.tar.gz",
-						APIURL:      server.URL + "/api/assets/1",
-					},
-				},
+	// The GitHub asset API answers either with a 200 stream or a 302 redirect to
+	// storage; both must work.
+	for _, tc := range []struct {
+		name     string
+		redirect bool
+	}{
+		{name: "direct 200 stream", redirect: false},
+		{name: "302 redirect", redirect: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("GITHUB_TOKEN", "test-token")
+
+			var server *httptest.Server
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/repos/kong/kongctl-ext-foo/releases/latest":
+					require.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+					w.Header().Set("Content-Type", "application/json")
+					require.NoError(t, json.NewEncoder(w).Encode(githubRelease{
+						TagName: "v1.2.3",
+						Assets: []githubReleaseAsset{
+							{
+								Name:        "kongctl-ext-foo.tar.gz",
+								DownloadURL: server.URL + "/downloads/kongctl-ext-foo.tar.gz",
+								APIURL:      server.URL + "/api/assets/1",
+							},
+						},
+					}))
+				case "/api/assets/1":
+					require.Equal(t, "application/octet-stream", r.Header.Get("Accept"))
+					require.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+					if tc.redirect {
+						http.Redirect(w, r, server.URL+"/blob/kongctl-ext-foo.tar.gz", http.StatusFound)
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+					_, err := w.Write(archive)
+					require.NoError(t, err)
+				case "/blob/kongctl-ext-foo.tar.gz":
+					w.WriteHeader(http.StatusOK)
+					_, err := w.Write(archive)
+					require.NoError(t, err)
+				case "/downloads/kongctl-ext-foo.tar.gz":
+					t.Error("download used browser_download_url instead of the asset API URL")
+					http.NotFound(w, r)
+				default:
+					http.NotFound(w, r)
+				}
 			}))
-		case "/api/assets/1":
-			require.Equal(t, "application/octet-stream", r.Header.Get("Accept"))
-			http.Redirect(w, r, server.URL+"/blob/kongctl-ext-foo.tar.gz", http.StatusFound)
-		case "/blob/kongctl-ext-foo.tar.gz":
-			w.WriteHeader(http.StatusOK)
-			_, err := w.Write(archive)
+			t.Cleanup(server.Close)
+
+			previousAPIBaseURL := githubAPIBaseURL
+			previousHTTPClient := githubHTTPClient
+			githubAPIBaseURL = server.URL
+			githubHTTPClient = server.Client()
+			t.Cleanup(func() {
+				githubAPIBaseURL = previousAPIBaseURL
+				githubHTTPClient = previousHTTPClient
+			})
+
+			fetched, err := FetchGitHubSource(context.Background(), GitHubSource{
+				Owner: "kong",
+				Repo:  "kongctl-ext-foo",
+			}, t.TempDir())
 			require.NoError(t, err)
-		case "/downloads/kongctl-ext-foo.tar.gz":
-			t.Error("download used browser_download_url instead of the asset API URL")
-			http.NotFound(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(server.Close)
+			t.Cleanup(fetched.Cleanup)
 
-	previousAPIBaseURL := githubAPIBaseURL
-	previousHTTPClient := githubHTTPClient
-	githubAPIBaseURL = server.URL
-	githubHTTPClient = server.Client()
-	t.Cleanup(func() {
-		githubAPIBaseURL = previousAPIBaseURL
-		githubHTTPClient = previousHTTPClient
-	})
-
-	fetched, err := FetchGitHubSource(context.Background(), GitHubSource{
-		Owner: "kong",
-		Repo:  "kongctl-ext-foo",
-	}, t.TempDir())
-	require.NoError(t, err)
-	t.Cleanup(fetched.Cleanup)
-
-	require.Equal(t, SourceTypeGitHubReleaseAsset, fetched.SourceType)
-	require.FileExists(t, filepath.Join(fetched.Dir, ManifestFileName))
+			require.Equal(t, SourceTypeGitHubReleaseAsset, fetched.SourceType)
+			require.FileExists(t, filepath.Join(fetched.Dir, ManifestFileName))
+		})
+	}
 }
 
 func TestFetchGitHubReleaseAssetFallsBackToVPrefixedTag(t *testing.T) {
