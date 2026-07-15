@@ -1,0 +1,49 @@
+_defaults:
+  kongctl:
+    namespace: event-gateway-dependency-order-test
+
+event_gateways:
+  - ref: event-gateway-dependency-order-test
+    name: event-gateway-dependency-order-test
+
+    backend_clusters:
+      - ref: retail-kafka-cluster
+        name: retail-kafka-cluster
+        bootstrap_servers:
+          - kafka1:9092
+          - kafka2:9092
+          - kafka3:9092
+        authentication:
+          type: anonymous
+        insecure_allow_anonymous_virtual_cluster_auth: true
+        tls:
+          enabled: false
+
+    virtual_clusters:
+      - ref: storefront
+        name: storefront
+        destination:
+          name: retail-kafka-cluster
+        dns_label: storefront
+        acl_mode: enforce_on_gateway
+        authentication:
+          - type: anonymous
+
+    listeners:
+      - ref: storefront-listener
+        name: storefront-listener
+        addresses:
+          - 0.0.0.0
+        ports:
+          - "19092-19095"
+        policies:
+          - ref: storefront-forward
+            type: forward_to_virtual_cluster
+            name: storefront-forward
+            config:
+              type: port_mapping
+              advertised_host: host.docker.internal
+              bootstrap_port: at_start
+              min_broker_id: 0
+              destination:
+                name: storefront

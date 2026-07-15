@@ -333,6 +333,12 @@ func (e *EventGatewayVirtualClusterResourceInfo) GetNormalizedLabels() map[strin
 
 // buildBackendClusterReference constructs BackendClusterReferenceModify from a map or SDK type
 func buildBackendClusterReference(field any, execCtx *ExecutionContext) (kkComps.BackendClusterReferenceModify, error) {
+	if id := resolvedBackendClusterID(execCtx); id != "" {
+		return kkComps.CreateBackendClusterReferenceModifyBackendClusterReferenceByID(
+			kkComps.BackendClusterReferenceByID{ID: id},
+		), nil
+	}
+
 	// If it's already the SDK type, return it directly
 	if bcRef, ok := field.(kkComps.BackendClusterReferenceModify); ok {
 		if bcRef.BackendClusterReferenceByID != nil && util.IsValidUUID(bcRef.BackendClusterReferenceByID.ID) {
@@ -398,6 +404,17 @@ func buildBackendClusterReference(field any, execCtx *ExecutionContext) (kkComps
 
 	return kkComps.BackendClusterReferenceModify{},
 		fmt.Errorf("destination must have either 'id' or 'name' field")
+}
+
+func resolvedBackendClusterID(execCtx *ExecutionContext) string {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return ""
+	}
+	backendClusterRef, ok := execCtx.PlannedChange.References[planner.FieldEventGatewayBackendClusterID]
+	if !ok || !backendClusterRef.HasResolvedID() {
+		return ""
+	}
+	return backendClusterRef.ID
 }
 
 // getBackendClusterIDFromExecutionContext extracts the backend cluster ID from ExecutionContext parameter

@@ -3113,7 +3113,7 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		}
 		// Resolve event gateway backend cluster reference if needed
 		if backendClusterRef, ok := change.References[planner.FieldEventGatewayBackendClusterID]; ok &&
-			backendClusterRef.ID == "" {
+			unresolvedReferenceID(backendClusterRef.ID) {
 			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, change.Parent.ID, backendClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway backend cluster reference: %w", err)
