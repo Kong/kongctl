@@ -31,6 +31,12 @@ type Column struct {
 type pathStep struct {
 	key   *string
 	index *int
+	slice *stringSlice
+}
+
+type stringSlice struct {
+	start *int
+	end   *int
 }
 
 // AddFlags adds custom text-column selection to a command flag set.
@@ -42,7 +48,7 @@ func AddFlags(flags *pflag.FlagSet) {
 		FlagName,
 		nil,
 		"Select text columns as HEADER=.field (repeatable or comma-separated). "+
-			"Supports nested fields, quoted keys, and array indexes.",
+			"Supports nested fields, quoted keys, array indexes, and string slices.",
 	)
 }
 
@@ -238,11 +244,49 @@ func parseBracket(path string, start int) (pathStep, int, error) {
 		}
 		return pathStep{key: &key}, end + 1, nil
 	}
+	if strings.Contains(content, ":") {
+		slice, err := parseStringSlice(content)
+		if err != nil {
+			return pathStep{}, 0, err
+		}
+		return pathStep{slice: &slice}, end + 1, nil
+	}
 	index, err := strconv.Atoi(content)
 	if err != nil || index < 0 {
 		return pathStep{}, 0, fmt.Errorf("invalid array index %q", content)
 	}
 	return pathStep{index: &index}, end + 1, nil
+}
+
+func parseStringSlice(content string) (stringSlice, error) {
+	startValue, endValue, ok := strings.Cut(content, ":")
+	if !ok || strings.Contains(endValue, ":") || (startValue == "" && endValue == "") {
+		return stringSlice{}, fmt.Errorf("invalid string slice %q: expected [start:end]", content)
+	}
+
+	start, err := parseSliceBound(startValue)
+	if err != nil {
+		return stringSlice{}, fmt.Errorf("invalid string slice start %q: %w", startValue, err)
+	}
+	end, err := parseSliceBound(endValue)
+	if err != nil {
+		return stringSlice{}, fmt.Errorf("invalid string slice end %q: %w", endValue, err)
+	}
+	if start != nil && end != nil && *start > *end {
+		return stringSlice{}, fmt.Errorf("invalid string slice %q: start exceeds end", content)
+	}
+	return stringSlice{start: start, end: end}, nil
+}
+
+func parseSliceBound(value string) (*int, error) {
+	if value == "" {
+		return nil, nil
+	}
+	bound, err := strconv.Atoi(value)
+	if err != nil || bound < 0 {
+		return nil, errors.New("slice bound must be a non-negative integer")
+	}
+	return &bound, nil
 }
 
 // Project converts raw structured output into headers and text rows.
@@ -286,6 +330,14 @@ func evaluate(value any, steps []pathStep) any {
 			value = object[*step.key]
 			continue
 		}
+		if step.slice != nil {
+			text, ok := value.(string)
+			if !ok {
+				return nil
+			}
+			value = sliceString(text, *step.slice)
+			continue
+		}
 		array, ok := value.([]any)
 		if !ok || *step.index >= len(array) {
 			return nil
@@ -293,6 +345,19 @@ func evaluate(value any, steps []pathStep) any {
 		value = array[*step.index]
 	}
 	return value
+}
+
+func sliceString(value string, bounds stringSlice) string {
+	runes := []rune(value)
+	start := 0
+	if bounds.start != nil {
+		start = min(*bounds.start, len(runes))
+	}
+	end := len(runes)
+	if bounds.end != nil {
+		end = min(*bounds.end, len(runes))
+	}
+	return string(runes[start:end])
 }
 
 func formatValue(value any) string {

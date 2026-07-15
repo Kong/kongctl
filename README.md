@@ -253,8 +253,10 @@ kongctl get gateway control-planes \
 
 Column definitions use `HEADER=.field` and may be comma-separated or supplied
 by repeating the flag. Paths support nested fields, quoted object keys, and
-numeric array indexes. Missing and `null` values render as blank cells; arrays
-and objects render as compact JSON. Custom columns are available only with
+numeric array indexes. String values can be sliced by character with `[:end]`,
+`[start:]`, or `[start:end]`; for example, `ID=.id[:8]` selects the first eight
+characters of an ID. Missing and `null` values render as blank cells; arrays and
+objects render as compact JSON. Custom columns are available only with
 `--output text` and cannot be combined with `--jq`.
 
 Text cells are limited to 40 display characters and shrink further to fit the

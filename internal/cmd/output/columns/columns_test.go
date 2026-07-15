@@ -37,6 +37,27 @@ func TestProjectCollectionsAsCompactJSON(t *testing.T) {
 	require.Equal(t, `{"enabled":true,"type":"dedicated"}`, rows[0][0])
 }
 
+func TestProjectStringSlices(t *testing.T) {
+	selected, err := Parse([]string{`PREFIX=.id[:8],TAIL=.id[9:],MIDDLE=.id[4:8],UNICODE=.name[:2]`})
+	require.NoError(t, err)
+
+	_, rows, err := Project(map[string]any{
+		"id":   "12345678-abcd",
+		"name": "世界-service",
+	}, selected)
+	require.NoError(t, err)
+	require.Equal(t, [][]string{{"12345678", "abcd", "5678", "世界"}}, rows)
+}
+
+func TestProjectStringSliceRequiresString(t *testing.T) {
+	selected, err := Parse([]string{`VALUE=.items[:1]`})
+	require.NoError(t, err)
+
+	_, rows, err := Project(map[string]any{"items": []any{"one", "two"}}, selected)
+	require.NoError(t, err)
+	require.Equal(t, [][]string{{""}}, rows)
+}
+
 func TestParseRejectsInvalidColumns(t *testing.T) {
 	tests := []string{
 		`NAME`,
@@ -45,6 +66,11 @@ func TestParseRejectsInvalidColumns(t *testing.T) {
 		`NAME=.labels[team]`,
 		`NAME=.name,name=.other`,
 		`NAME=.name,`,
+		`NAME=.name[:]`,
+		`NAME=.name[-1:]`,
+		`NAME=.name[:nope]`,
+		`NAME=.name[1:2:3]`,
+		`NAME=.name[4:2]`,
 	}
 	for _, value := range tests {
 		t.Run(value, func(t *testing.T) {
