@@ -15,6 +15,7 @@ steps:
                 "contains(stdout, '- ref: my-resource')": true
                 "contains(stdout, '# versions:')": true
                 "contains(stdout, 'spec_content')": false
+                "contains(stdout, '# Maturity:')": false
 
   - name: 002-scaffold-api-versions-nested
     skipInputs: true

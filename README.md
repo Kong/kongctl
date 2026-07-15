@@ -234,6 +234,8 @@ backend.
 - **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide
   covering quick start, concepts, YAML tags, CI/CD integration, and best
   practices
+- **[Capability Maturity](docs/maturity.md)** - Policy for GA, Beta, and Tech
+  Preview capabilities
 - **[Installer Contributor Notes](docs/contributor/installer.md)** - Maintainer
   notes for the shell installer and hosted-script sync workflow
 - **[AI Agent Skills](skills/README.md)** - Agent skills for declarative

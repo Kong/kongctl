@@ -1,5 +1,7 @@
 package resources
 
+import "github.com/kong/kongctl/internal/maturity"
+
 // ResourceRegistry provides a central lookup for resource type metadata and iteration.
 // This enables adding new resources without modifying switch statements across the codebase.
 // Adding a new resource:
@@ -11,11 +13,13 @@ package resources
 
 // resourceOps provides operations for a specific resource type within a ResourceSet.
 type resourceOps struct {
-	get     func(rs *ResourceSet) []Resource
-	append  func(dest, src *ResourceSet)
-	forEach func(rs *ResourceSet, fn func(Resource) bool) bool
-	count   func(rs *ResourceSet) int
-	explain ExplainRegistration
+	get               func(rs *ResourceSet) []Resource
+	append            func(dest, src *ResourceSet)
+	forEach           func(rs *ResourceSet, fn func(Resource) bool) bool
+	count             func(rs *ResourceSet) int
+	explain           ExplainRegistration
+	maturity          *maturity.Metadata
+	operationMaturity map[Operation]maturity.Metadata
 }
 
 // registry maps resource types to their operations.
@@ -42,8 +46,9 @@ func registerResourceType[R any, RPtr interface {
 }](rt ResourceType,
 	getSlicePtr func(*ResourceSet) *[]R,
 	explain ExplainRegistration,
+	options ...ResourceRegistrationOption,
 ) {
-	registerResourceTypeWithSliceAccessors[R, RPtr](rt, getSlicePtr, getSlicePtr, explain)
+	registerResourceTypeWithSliceAccessors[R, RPtr](rt, getSlicePtr, getSlicePtr, explain, options...)
 }
 
 func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
@@ -53,8 +58,9 @@ func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
 	getSlicePtr func(*ResourceSet) *[]R,
 	ensureSlicePtr func(*ResourceSet) *[]R,
 	explain ExplainRegistration,
+	options ...ResourceRegistrationOption,
 ) {
-	registry[rt] = resourceOps{
+	ops := resourceOps{
 		get: func(rs *ResourceSet) []Resource {
 			slicePtr := getSlicePtr(rs)
 			if slicePtr == nil {
@@ -101,6 +107,12 @@ func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
 		},
 		explain: explain,
 	}
+	for _, option := range options {
+		if err := option(&ops); err != nil {
+			panic("register resource type " + string(rt) + ": " + err.Error())
+		}
+	}
+	registry[rt] = ops
 }
 
 // sliceToResources converts a typed slice to []Resource using generics.

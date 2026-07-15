@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	capmaturity "github.com/kong/kongctl/internal/maturity"
 )
 
 const (
@@ -68,6 +70,7 @@ type ExplainDoc struct {
 	NestedRelations           []ExplainRelation `json:"nested_relations,omitempty"  yaml:"nested_relations,omitempty"`
 	ParentRelations           []ExplainRelation `json:"parent_relations,omitempty"  yaml:"parent_relations,omitempty"`
 	SupportsKongctl           bool              `json:"supports_kongctl"            yaml:"supports_kongctl"`
+	Maturity                  ExplainMaturity   `json:"maturity"                    yaml:"maturity"`
 	Schema                    *ExplainNode      `json:"-"                           yaml:"-"`
 	nestedFields              map[string]ResourceType
 }
@@ -151,6 +154,7 @@ type JSONSchema struct {
 	XPlacement  *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty" yaml:"x-kongctl-placement,omitempty"`
 	XRoot       *bool                   `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`
 	XNestedDecl *bool                   `json:"x-kongctl-supports-nested-declaration,omitempty" yaml:"x-kongctl-supports-nested-declaration,omitempty"` //nolint:lll
+	XMaturity   *ExplainMaturity        `json:"x-kongctl-maturity,omitempty" yaml:"x-kongctl-maturity,omitempty"`
 }
 
 type ExplainSchemaSubject struct {
@@ -702,6 +706,10 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	parentRelations := nestedRelationsFor(rt)
 
 	resourceClass := explainResourceClass(reg.typ, rootKey, parentRelations, childRelations)
+	maturityMetadata, err := explainMaturityFor(rt)
+	if err != nil {
+		return nil, err
+	}
 
 	doc := &ExplainDoc{
 		ResourceType:              rt,
@@ -714,6 +722,7 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 		NestedRelations:           childRelations,
 		ParentRelations:           parentRelations,
 		SupportsKongctl:           node.propertyExists("kongctl"),
+		Maturity:                  maturityMetadata,
 		Schema:                    node,
 		nestedFields:              nestedFieldMap(childRelations),
 	}
@@ -1240,6 +1249,7 @@ func renderExplainResourceBlock(b *strings.Builder, doc *ExplainDoc) {
 		return
 	}
 	fmt.Fprintln(b, "RESOURCE")
+	fmt.Fprintf(b, "MATURITY: %s\n", doc.Maturity.Level.DisplayName())
 	fmt.Fprintf(b, "RESOURCE CLASS: %s\n", doc.ResourceClass)
 	if doc.RootKey != "" {
 		fmt.Fprintf(b, "ROOT KEY: %s[]\n", doc.RootKey)
@@ -1254,6 +1264,15 @@ func renderExplainResourceBlock(b *strings.Builder, doc *ExplainDoc) {
 	childResources := explainChildResourceNames(doc)
 	if len(childResources) > 0 {
 		fmt.Fprintf(b, "CHILD RESOURCES: %s\n", strings.Join(childResources, ", "))
+	}
+	if len(doc.Maturity.Operations) > 0 {
+		fmt.Fprintln(b, "OPERATION MATURITY:")
+		for _, operation := range Operations() {
+			metadata, ok := doc.Maturity.Operations[string(operation)]
+			if ok {
+				fmt.Fprintf(b, "  %s: %s\n", operation, metadata.Level.DisplayName())
+			}
+		}
 	}
 }
 
@@ -1274,6 +1293,8 @@ func RenderExplainSchema(subject *ExplainSubject) *JSONSchema {
 	schema.Schema = jsonSchemaDraft202012
 	schema.ID = fmt.Sprintf("kongctl://declarative/%s", strings.ReplaceAll(subject.DisplayPath, ".", "/"))
 	schema.Title = fmt.Sprintf("kongctl declarative schema: %s", subject.DisplayPath)
+	maturityMetadata := subject.Doc.Maturity
+	schema.XMaturity = &maturityMetadata
 	if subject.isFieldTarget() {
 		schema.XSubject = &ExplainSchemaSubject{
 			Kind:        "field",
@@ -1425,6 +1446,16 @@ func RenderScaffoldYAML(subject *ExplainSubject) (string, error) {
 	}
 
 	var lines []string
+	if subject.Doc.Maturity.Level != capmaturity.LevelGA {
+		lines = append(lines, "# Maturity: "+subject.Doc.Maturity.Level.DisplayName())
+		for line := range strings.Lines(strings.TrimSpace(subject.Doc.Maturity.Message)) {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				lines = append(lines, "# "+line)
+			}
+		}
+		lines = append(lines, "")
+	}
 	renderScaffoldTrail(linesAppender(&lines), trail, 0)
 	return strings.Join(lines, "\n") + "\n", nil
 }
