@@ -698,7 +698,10 @@ func (s Store) ensureNotLinked(id string) error {
 		return err
 	}
 	if _, err := os.Stat(linkDir); err == nil {
-		return fmt.Errorf("extension %q is linked; unlink it before installing", id)
+		return fmt.Errorf(
+			"extension %q is linked; run `kongctl uninstall %s` before installing",
+			id, id,
+		)
 	} else if err != nil && !os.IsNotExist(err) {
 		return err
 	}
