@@ -41,8 +41,9 @@ var (
 	%[1]s get portal my-portal 
 	# Get all the portals using command aliases
 	%[1]s get ps
-	`, meta.CLIName)),
+		`, meta.CLIName)),
 	)
+	portalDefaultTableHeaders = []string{"NAME", "DESCRIPTION", "ID"}
 )
 
 // Represents a text display record for a Portal
@@ -404,15 +405,21 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				}
 				return portalListDetailView(portal)
 			}
+			record := portalToDisplayRecord(portal)
 			return tableview.RenderForFormat(
 				helper,
 				false,
 				outType,
 				printer,
 				helper.GetStreams(),
-				portalToDisplayRecord(portal),
+				record,
 				portal,
 				"",
+				tableview.WithCustomTable(
+					portalDefaultTableHeaders,
+					[]table.Row{{record.Name, record.Description, record.ID}},
+				),
+				tableview.WithDefaultDescription(),
 				tableview.WithRootLabel(helper.GetCmd().Name()),
 				tableview.WithDetailRenderer(detailFn),
 				tableview.WithDetailHelper(helper),
@@ -434,15 +441,21 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			}
 			return portalResponseDetailView(portalResponse)
 		}
+		record := portalResponseToDisplayRecord(portalResponse)
 		return tableview.RenderForFormat(
 			helper,
 			false,
 			outType,
 			printer,
 			helper.GetStreams(),
-			portalResponseToDisplayRecord(portalResponse),
+			record,
 			portalResponse,
 			"",
+			tableview.WithCustomTable(
+				portalDefaultTableHeaders,
+				[]table.Row{{record.Name, record.Description, record.ID}},
+			),
+			tableview.WithDefaultDescription(),
 			tableview.WithRootLabel(helper.GetCmd().Name()),
 			tableview.WithDetailRenderer(detailFn),
 			tableview.WithDetailHelper(helper),
@@ -479,6 +492,7 @@ func renderPortalList(
 
 	options := []tableview.Option{
 		tableview.WithCustomTable(childView.Headers, childView.Rows),
+		tableview.WithDefaultDescription(),
 		tableview.WithRootLabel(rootLabel),
 		tableview.WithDetailHelper(helper),
 	}
@@ -506,7 +520,7 @@ func buildPortalChildView(portals []kkComps.ListPortalsResponsePortal) tableview
 	tableRows := make([]table.Row, 0, len(portals))
 	for i := range portals {
 		record := portalToDisplayRecord(&portals[i])
-		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+		tableRows = append(tableRows, table.Row{record.Name, record.Description, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -517,7 +531,7 @@ func buildPortalChildView(portals []kkComps.ListPortalsResponsePortal) tableview
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        portalDefaultTableHeaders,
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Portals",

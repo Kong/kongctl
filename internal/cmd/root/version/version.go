@@ -6,6 +6,7 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/columns"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -62,6 +63,7 @@ func NewVersionCmd() *cobra.Command {
 	rv.Flags().Bool(ShowFullFlag, false,
 		i18n.T(fmt.Sprintf("root.%s", ShowFullConfigPath),
 			fmt.Sprintf("True to show the full version information.\n (config path = '%s')", ShowFullConfigPath)))
+	columns.AddFlags(rv.Flags())
 
 	return rv
 }
@@ -106,6 +108,17 @@ func run(helper cmd.Helper) error {
 	outType, err := helper.GetOutputFormat()
 	if err != nil {
 		return err
+	}
+	selected, err := columns.Resolve(helper.GetCmd(), outType)
+	if err != nil {
+		return &cmd.ConfigurationError{Err: err}
+	}
+	if len(selected) > 0 {
+		headers, rows, err := columns.Project(result, selected)
+		if err != nil {
+			return err
+		}
+		return columns.Render(helper.GetStreams().Out, headers, rows, 120)
 	}
 
 	if outType == common.TEXT {

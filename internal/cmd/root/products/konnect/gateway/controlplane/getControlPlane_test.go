@@ -52,6 +52,7 @@ func TestTextDisplayConversion(t *testing.T) {
 			expected: textDisplayRecord{
 				ID:                   "n/a",
 				Name:                 "n/a",
+				ClusterType:          "n/a",
 				Description:          "n/a",
 				Labels:               "n/a",
 				ControlPlaneEndpoint: "n/a",
@@ -68,6 +69,7 @@ func TestTextDisplayConversion(t *testing.T) {
 				Description: "description-field",
 				Config: kkComps.ControlPlaneConfig{
 					ControlPlaneEndpoint: "config-endpoint-field",
+					ClusterType:          kkComps.ControlPlaneClusterTypeClusterTypeControlPlane,
 				},
 				Labels: map[string]string{
 					"label-1-key": "label-1-value",
@@ -79,6 +81,7 @@ func TestTextDisplayConversion(t *testing.T) {
 			expected: textDisplayRecord{
 				ID:                   "id-field",
 				Name:                 "name-field",
+				ClusterType:          string(kkComps.ControlPlaneClusterTypeClusterTypeControlPlane),
 				Description:          "description-field",
 				Labels:               "label-1-key: label-1-value, label-2-key: label-2-value",
 				ControlPlaneEndpoint: "config-endpoint-field",
@@ -101,6 +104,7 @@ func TestTextDisplayConversion(t *testing.T) {
 			expected: textDisplayRecord{
 				ID:                   util.AbbreviateUUID(uuidValue),
 				Name:                 "n/a",
+				ClusterType:          "n/a",
 				Description:          "n/a",
 				Labels:               "n/a",
 				ControlPlaneEndpoint: "n/a",

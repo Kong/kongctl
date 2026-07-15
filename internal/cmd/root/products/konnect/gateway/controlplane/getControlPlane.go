@@ -44,8 +44,9 @@ var (
 	%[1]s get konnect gateway control-plane data-plane-certificates --control-plane-name my-control-plane
 	# Get all the control planes for the authorized user using command aliases
 	%[1]s get k gw cps
-	`, meta.CLIName)),
+		`, meta.CLIName)),
 	)
+	controlPlaneDefaultTableHeaders = []string{"NAME", "TYPE", "ID"}
 )
 
 // Represents a text display record for a Control Plane
@@ -56,6 +57,7 @@ var (
 // the types to a format that prints how we want.
 type textDisplayRecord struct {
 	Name                 string
+	ClusterType          string
 	Description          string
 	Labels               string
 	ControlPlaneEndpoint string
@@ -86,6 +88,11 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 		description = d
 	}
 
+	clusterType := missing
+	if c.Config.ClusterType != "" {
+		clusterType = string(c.Config.ClusterType)
+	}
+
 	labels := missing
 	if len(c.Labels) > 0 {
 		keys := slices.Sorted(maps.Keys(c.Labels))
@@ -109,6 +116,7 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 	return textDisplayRecord{
 		ID:                   id,
 		Name:                 name,
+		ClusterType:          clusterType,
 		Description:          description,
 		Labels:               labels,
 		ControlPlaneEndpoint: controlPlaneEndpoint,
@@ -347,15 +355,20 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 			_, err = fmt.Fprint(helper.GetStreams().Out, rendered)
 			return err
 		}
+		record := controlPlaneToDisplayRecord(cp)
 		return tableview.RenderForFormat(
 			helper,
 			false,
 			outType,
 			printer,
 			helper.GetStreams(),
-			controlPlaneToDisplayRecord(cp),
+			record,
 			cp,
 			"",
+			tableview.WithCustomTable(
+				controlPlaneDefaultTableHeaders,
+				[]table.Row{{record.Name, record.ClusterType, record.ID}},
+			),
 			tableview.WithRootLabel(helper.GetCmd().Name()),
 			tableview.WithDetailContext(common.ViewParentControlPlane, func(int) any {
 				return cp
@@ -421,7 +434,7 @@ func buildControlPlaneChildView(cps []kkComps.ControlPlane) tableview.ChildView 
 	tableRows := make([]table.Row, 0, len(cps))
 	for i := range cps {
 		record := controlPlaneToDisplayRecord(&cps[i])
-		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+		tableRows = append(tableRows, table.Row{record.Name, record.ClusterType, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -432,7 +445,7 @@ func buildControlPlaneChildView(cps []kkComps.ControlPlane) tableview.ChildView 
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"id", "name"},
+		Headers:        controlPlaneDefaultTableHeaders,
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Control Planes",

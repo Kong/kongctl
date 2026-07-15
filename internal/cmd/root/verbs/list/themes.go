@@ -3,6 +3,7 @@ package list
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/table"
@@ -248,13 +249,13 @@ func buildThemeRows(useColor bool, activeName string) themeRowsData {
 			About:     strings.TrimSpace(pal.About),
 		})
 
-		row := table.Row{displayID}
+		row := table.Row{displayID, strconv.FormatBool(active)}
 		row = append(row, rowSamples...)
 		tableRows = append(tableRows, row)
 		palettes = append(palettes, pal)
 	}
 
-	headers := []string{"ID", "Primary", "Secondary"}
+	headers := []string{"NAME", "ACTIVE", "PRIMARY", "SECONDARY"}
 
 	return themeRowsData{
 		headers:   headers,

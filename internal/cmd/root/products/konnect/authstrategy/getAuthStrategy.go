@@ -575,7 +575,7 @@ func buildAuthStrategyChildView(strategies []kkComps.AppAuthStrategy) tableview.
 	tableRows := make([]table.Row, 0, len(strategies))
 	for i := range strategies {
 		record := authStrategyToDisplayRecord(strategies[i])
-		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+		tableRows = append(tableRows, table.Row{record.Name, record.StrategyType, record.Active, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -586,7 +586,7 @@ func buildAuthStrategyChildView(strategies []kkComps.AppAuthStrategy) tableview.
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"id", "name"},
+		Headers:        []string{"NAME", "TYPE", "ACTIVE", "ID"},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "Application Auth Strategies",

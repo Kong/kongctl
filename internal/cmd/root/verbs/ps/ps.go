@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"text/tabwriter"
 	"time"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/columns"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/processes"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -88,6 +88,7 @@ func NewPSCmd() (*cobra.Command, error) {
 	stopCmd.Flags().DurationVar(&c.stopTimeout, "timeout", c.stopTimeout,
 		"How long to wait for graceful process shutdown.")
 	cmdObj.AddCommand(stopCmd)
+	columns.AddFlags(cmdObj.PersistentFlags())
 
 	return cmdObj, nil
 }
@@ -98,6 +99,14 @@ func (c *psCmd) runList(cmdObj *cobra.Command, args []string) error {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf("the ps command does not accept positional arguments"),
 		}
+	}
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
+	}
+	selected, err := columns.Resolve(helper.GetCmd(), outType)
+	if err != nil {
+		return &cmd.ConfigurationError{Err: err}
 	}
 
 	records, err := processes.ListRecords()
@@ -119,11 +128,14 @@ func (c *psCmd) runList(cmdObj *cobra.Command, args []string) error {
 		})
 	}
 
-	outType, err := helper.GetOutputFormat()
-	if err != nil {
-		return err
-	}
 	if outType == common.TEXT {
+		if len(selected) > 0 {
+			headers, rows, err := columns.Project(items, selected)
+			if err != nil {
+				return err
+			}
+			return columns.Render(helper.GetStreams().Out, headers, rows, 120)
+		}
 		return renderListText(helper.GetStreams().Out, items)
 	}
 
@@ -139,6 +151,14 @@ func (c *psCmd) runList(cmdObj *cobra.Command, args []string) error {
 
 func (c *psCmd) runStop(cmdObj *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(cmdObj, args)
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
+	}
+	selected, err := columns.Resolve(helper.GetCmd(), outType)
+	if err != nil {
+		return &cmd.ConfigurationError{Err: err}
+	}
 
 	records, err := processes.ListRecords()
 	if err != nil {
@@ -160,12 +180,16 @@ func (c *psCmd) runStop(cmdObj *cobra.Command, args []string) error {
 		}
 	}
 
-	outType, err := helper.GetOutputFormat()
-	if err != nil {
-		return err
-	}
 	if outType == common.TEXT {
-		if err := renderStopText(helper.GetStreams().Out, results); err != nil {
+		if len(selected) > 0 {
+			headers, rows, err := columns.Project(results, selected)
+			if err != nil {
+				return err
+			}
+			if err := columns.Render(helper.GetStreams().Out, headers, rows, 120); err != nil {
+				return err
+			}
+		} else if err := renderStopText(helper.GetStreams().Out, results); err != nil {
 			return err
 		}
 	} else {
@@ -275,29 +299,11 @@ func renderListText(out io.Writer, items []processListItem) error {
 		return err
 	}
 
-	if _, err := fmt.Fprintln(out, "Detached kongctl processes"); err != nil {
-		return err
+	rows := make([][]string, len(items))
+	for i, item := range items {
+		rows[i] = []string{strconv.Itoa(item.PID), string(item.Status), displayOrDash(item.Kind), displayOrDash(item.Profile)}
 	}
-
-	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, "PID\tSTATUS\tKIND\tPROFILE\tCREATED AT\tLOG FILE"); err != nil {
-		return err
-	}
-	for _, item := range items {
-		if _, err := fmt.Fprintf(
-			tw,
-			"%d\t%s\t%s\t%s\t%s\t%s\n",
-			item.PID,
-			item.Status,
-			displayOrDash(item.Kind),
-			displayOrDash(item.Profile),
-			item.CreatedAt.Format(time.RFC3339),
-			displayOrDash(item.LogFile),
-		); err != nil {
-			return err
-		}
-	}
-	return tw.Flush()
+	return columns.Render(out, []string{"PID", "STATUS", "KIND", "PROFILE"}, rows, 120)
 }
 
 func renderStopText(out io.Writer, results []processStopResult) error {
@@ -309,29 +315,11 @@ func renderStopText(out io.Writer, results []processStopResult) error {
 		return err
 	}
 
-	if _, err := fmt.Fprintln(out, "Detached process stop results"); err != nil {
-		return err
+	rows := make([][]string, len(results))
+	for i, result := range results {
+		rows[i] = []string{strconv.Itoa(result.PID), result.Action, strconv.FormatBool(result.Success)}
 	}
-
-	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, "PID\tKIND\tACTION\tSUCCESS\tDETAIL"); err != nil {
-		return err
-	}
-	for _, result := range results {
-		if _, err := fmt.Fprintf(
-			tw,
-			"%d\t%s\t%s\t%t\t%s\n",
-			result.PID,
-			displayOrDash(result.Kind),
-			result.Action,
-			result.Success,
-			displayOrDash(result.Detail),
-		); err != nil {
-			return err
-		}
-	}
-
-	return tw.Flush()
+	return columns.Render(out, []string{"PID", "ACTION", "SUCCESS"}, rows, 120)
 }
 
 func displayOrDash(value string) string {

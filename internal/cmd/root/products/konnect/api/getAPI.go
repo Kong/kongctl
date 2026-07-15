@@ -445,15 +445,21 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 			if e != nil {
 				return e
 			}
+			record := apiToDisplayRecord(api)
 			return tableview.RenderForFormat(
 				helper,
 				false,
 				outType,
 				printer,
 				helper.GetStreams(),
-				apiToDisplayRecord(api),
+				record,
 				api,
 				"",
+				tableview.WithCustomTable(
+					[]string{"NAME", "DESCRIPTION", "ID"},
+					[]table.Row{{record.Name, record.Description, record.ID}},
+				),
+				tableview.WithDefaultDescription(),
 				tableview.WithRootLabel(helper.GetCmd().Name()),
 				tableview.WithDetailHelper(helper),
 				tableview.WithDetailContext(common.ViewParentAPI, func(index int) any {
@@ -470,15 +476,21 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 			return e
 		}
 
+		record := apiToDisplayRecord(api)
 		return tableview.RenderForFormat(
 			helper,
 			false,
 			outType,
 			printer,
 			helper.GetStreams(),
-			apiToDisplayRecord(api),
+			record,
 			api,
 			"",
+			tableview.WithCustomTable(
+				[]string{"NAME", "DESCRIPTION", "ID"},
+				[]table.Row{{record.Name, record.Description, record.ID}},
+			),
+			tableview.WithDefaultDescription(),
 			tableview.WithRootLabel(helper.GetCmd().Name()),
 			tableview.WithDetailHelper(helper),
 			tableview.WithDetailContext(common.ViewParentAPI, func(index int) any {
@@ -514,6 +526,7 @@ func renderAPIList(
 
 	options := []tableview.Option{
 		tableview.WithCustomTable(childView.Headers, childView.Rows),
+		tableview.WithDefaultDescription(),
 		tableview.WithRootLabel(rootLabel),
 		tableview.WithDetailHelper(helper),
 	}
@@ -541,7 +554,7 @@ func buildAPIChildView(apis []kkComps.APIResponseSchema) tableview.ChildView {
 	tableRows := make([]table.Row, 0, len(apis))
 	for i := range apis {
 		record := apiToDisplayRecord(&apis[i])
-		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+		tableRows = append(tableRows, table.Row{record.Name, record.Description, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -552,7 +565,7 @@ func buildAPIChildView(apis []kkComps.APIResponseSchema) tableview.ChildView {
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        []string{"NAME", "DESCRIPTION", "ID"},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "APIs",

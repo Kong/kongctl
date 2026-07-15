@@ -3,14 +3,15 @@ package auditlogs
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 	"strings"
 
+	"charm.land/bubbles/v2/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/apiutil"
@@ -337,29 +338,20 @@ func renderAuditLogDestinationsOutput(helper cmd.Helper, records []auditLogDesti
 	if err != nil {
 		return err
 	}
-
-	filteredRaw, handled, err := resolveOutputPayload(helper, outType, records)
-	if err != nil {
-		return err
-	}
-	if handled {
-		return nil
-	}
-
 	streams := helper.GetStreams()
-
-	if outType == cmdcommon.TEXT {
-		return renderAuditLogDestinationsText(streams.Out, records)
-	}
-
 	printer, err := cli.Format(outType.String(), streams.Out)
 	if err != nil {
 		return err
 	}
 	defer printer.Flush()
-
-	printer.Print(filteredRaw)
-	return nil
+	rows := make([]table.Row, len(records))
+	for i, record := range records {
+		rows[i] = table.Row{record.Name, record.LogFormat, record.ID}
+	}
+	return tableview.RenderForFormat(
+		helper, false, outType, printer, streams, records, records, "",
+		tableview.WithCustomTable([]string{"NAME", "LOG FORMAT", "ID"}, rows),
+	)
 }
 
 func renderAuditLogDestinationOutput(helper cmd.Helper, record auditLogDestinationRecord) error {
@@ -368,28 +360,18 @@ func renderAuditLogDestinationOutput(helper cmd.Helper, record auditLogDestinati
 		return err
 	}
 
-	filteredRaw, handled, err := resolveOutputPayload(helper, outType, record)
-	if err != nil {
-		return err
-	}
-	if handled {
-		return nil
-	}
-
 	streams := helper.GetStreams()
-
-	if outType == cmdcommon.TEXT {
-		return renderAuditLogDestinationText(streams.Out, record)
-	}
-
 	printer, err := cli.Format(outType.String(), streams.Out)
 	if err != nil {
 		return err
 	}
 	defer printer.Flush()
 
-	printer.Print(filteredRaw)
-	return nil
+	rows := []table.Row{{record.Name, record.LogFormat, record.ID}}
+	return tableview.RenderForFormat(
+		helper, false, outType, printer, streams, record, record, "",
+		tableview.WithCustomTable([]string{"NAME", "LOG FORMAT", "ID"}, rows),
+	)
 }
 
 func renderAuditLogWebhookOutput(helper cmd.Helper, config auditLogWebhookConfig) error {
@@ -398,28 +380,18 @@ func renderAuditLogWebhookOutput(helper cmd.Helper, config auditLogWebhookConfig
 		return err
 	}
 
-	filteredRaw, handled, err := resolveOutputPayload(helper, outType, config)
-	if err != nil {
-		return err
-	}
-	if handled {
-		return nil
-	}
-
 	streams := helper.GetStreams()
-
-	if outType == cmdcommon.TEXT {
-		return renderAuditLogWebhookText(streams.Out, config)
-	}
-
 	printer, err := cli.Format(outType.String(), streams.Out)
 	if err != nil {
 		return err
 	}
 	defer printer.Flush()
 
-	printer.Print(filteredRaw)
-	return nil
+	rows := []table.Row{{formatOptionalBool(config.Enabled), config.LogFormat, config.DestinationID}}
+	return tableview.RenderForFormat(
+		helper, false, outType, printer, streams, config, config, "",
+		tableview.WithCustomTable([]string{"ENABLED", "LOG FORMAT", "DESTINATION ID"}, rows),
+	)
 }
 
 func resolveOutputPayload(
@@ -449,100 +421,6 @@ func resolveOutputPayload(
 	}
 
 	return filteredRaw, handled, nil
-}
-
-func renderAuditLogDestinationsText(out io.Writer, records []auditLogDestinationRecord) error {
-	if len(records) == 0 {
-		_, err := fmt.Fprintln(out, "No Konnect audit-log destinations found.")
-		return err
-	}
-
-	if _, err := fmt.Fprintf(out, "Konnect audit-log destinations (%d)\n\n", len(records)); err != nil {
-		return err
-	}
-
-	for idx, record := range records {
-		if _, err := fmt.Fprintf(out, "Destination %d\n", idx+1); err != nil {
-			return err
-		}
-		if err := writeDestinationFields(out, record); err != nil {
-			return err
-		}
-		if idx < len(records)-1 {
-			if _, err := fmt.Fprintln(out); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func renderAuditLogDestinationText(out io.Writer, record auditLogDestinationRecord) error {
-	if _, err := fmt.Fprintln(out, "Konnect audit-log destination"); err != nil {
-		return err
-	}
-	return writeDestinationFields(out, record)
-}
-
-func writeDestinationFields(out io.Writer, record auditLogDestinationRecord) error {
-	if _, err := fmt.Fprintf(out, "  id: %s\n", displayOrNA(record.ID)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  name: %s\n", displayOrNA(record.Name)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  endpoint: %s\n", displayOrNA(record.Endpoint)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  log format: %s\n", displayOrNA(record.LogFormat)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(
-		out,
-		"  skip ssl verification: %s\n",
-		formatOptionalBool(record.SkipSSLVerification),
-	); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  created at: %s\n", displayOrNA(record.CreatedAt)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  updated at: %s\n", displayOrNA(record.UpdatedAt)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func renderAuditLogWebhookText(out io.Writer, config auditLogWebhookConfig) error {
-	if _, err := fmt.Fprintln(out, "Konnect regional audit-log webhook"); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  enabled: %s\n", formatOptionalBool(config.Enabled)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  endpoint: %s\n", displayOrNA(config.Endpoint)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  log format: %s\n", displayOrNA(config.LogFormat)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(
-		out,
-		"  skip ssl verification: %s\n",
-		formatOptionalBool(config.SkipSSLVerification),
-	); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  destination id: %s\n", displayOrNA(config.DestinationID)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  updated at: %s\n", displayOrNA(config.UpdatedAt)); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func extractDestinationRecords(payload any) []auditLogDestinationRecord {
@@ -738,12 +616,4 @@ func formatOptionalBool(value *bool) string {
 		return "true"
 	}
 	return "false"
-}
-
-func displayOrNA(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "n/a"
-	}
-	return trimmed
 }

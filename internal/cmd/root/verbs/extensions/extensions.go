@@ -16,6 +16,7 @@ import (
 	"charm.land/lipgloss/v2"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/columns"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	extensioncore "github.com/kong/kongctl/internal/extensions"
 	"github.com/kong/kongctl/internal/meta"
@@ -1040,6 +1041,17 @@ func writeCommandResult(helper cmdpkg.Helper, value any, writeText func() error)
 		if err != nil {
 			return err
 		}
+	}
+	selected, err := columns.Resolve(helper.GetCmd(), format)
+	if err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
+	if len(selected) > 0 {
+		headers, rows, err := columns.Project(value, selected)
+		if err != nil {
+			return err
+		}
+		return columns.Render(helper.GetStreams().Out, headers, rows, 120)
 	}
 	//exhaustive:ignore // HELM is unsupported here and falls through to text output.
 	switch format {

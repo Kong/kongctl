@@ -3,7 +3,6 @@ package token
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/jq"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -1151,11 +1151,11 @@ func renderCreateRecord(helper cmdpkg.Helper, record createTokenRecord) error {
 }
 
 func renderGetRecords(helper cmdpkg.Helper, data any) error {
-	cfg, err := helper.GetConfig()
+	outType, err := helper.GetOutputFormat()
 	if err != nil {
 		return err
 	}
-	outType, err := helper.GetOutputFormat()
+	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
 	}
@@ -1163,24 +1163,24 @@ func renderGetRecords(helper cmdpkg.Helper, data any) error {
 	if err != nil {
 		return err
 	}
-	if jq.HasFilter(settings) {
-		if !outputFlagChanged(helper.GetCmd()) {
-			outType = cmdcommon.JSON
-		}
-		filtered, handled, err := jq.ApplyToRaw(data, outType, settings, helper.GetStreams().Out)
-		if err != nil {
-			return cmdpkg.PrepareExecutionErrorWithHelper(helper, "jq filter failed", err)
-		}
-		if handled {
-			return nil
-		}
-		data = filtered
+	if jq.HasFilter(settings) && !outputFlagChanged(helper.GetCmd()) {
+		outType = cmdcommon.JSON
 	}
-	if outType == cmdcommon.TEXT && isEmptyCollection(data) {
-		_, err = fmt.Fprintln(helper.GetStreams().Out, "No resources found.")
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
+	if err != nil {
 		return err
 	}
-	return printStructured(helper, outType, data)
+	defer printer.Flush()
+	return tableview.RenderForFormat(
+		helper,
+		false,
+		outType,
+		printer,
+		helper.GetStreams(),
+		data,
+		data,
+		"",
+	)
 }
 
 func renderDeleteRecord(helper cmdpkg.Helper, record deleteTokenRecord) error {
@@ -1210,16 +1210,6 @@ func printStructured(helper cmdpkg.Helper, outType cmdcommon.OutputFormat, data 
 	defer printer.Flush()
 	printer.Print(data)
 	return nil
-}
-
-func isEmptyCollection(data any) bool {
-	value := reflect.ValueOf(data)
-	if !value.IsValid() {
-		return false
-	}
-	kind := value.Kind()
-	return (kind == reflect.Array || kind == reflect.Chan || kind == reflect.Map || kind == reflect.Slice) &&
-		value.Len() == 0
 }
 
 func outputFlagChanged(cmd *cobra.Command) bool {

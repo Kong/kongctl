@@ -23,6 +23,14 @@ type sampleRecord struct {
 	LocalUpdatedTime string
 }
 
+type labeledRecord struct {
+	Name        string
+	Description string
+	Labels      map[string]string
+	Endpoint    string
+	ID          string
+}
+
 func executeCmd(t *testing.T, model *bubbleModel, cmd tea.Cmd) *bubbleModel {
 	t.Helper()
 	queue := []tea.Cmd{cmd}
@@ -502,7 +510,7 @@ func TestRenderForFormat_EmptyTextOutputWritesNoResourcesFound(t *testing.T) {
 	require.Contains(t, outBuf.String(), "No resources found.")
 }
 
-func TestRenderForFormat_NonEmptyTextOutputCallsPrinter(t *testing.T) {
+func TestRenderForFormat_NonEmptyTextOutputUsesCompactTable(t *testing.T) {
 	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
 	printer := &stubPrinter{}
 
@@ -519,7 +527,61 @@ func TestRenderForFormat_NonEmptyTextOutputCallsPrinter(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotContains(t, outBuf.String(), "No resources found.")
-	require.Len(t, printer.printed, 1, "printer.Print should have been called once")
+	require.Empty(t, printer.printed)
+	require.Contains(t, outBuf.String(), "DISPLAY NAME")
+	require.Contains(t, outBuf.String(), "Test")
+	require.NotContains(t, outBuf.String(), "LOCAL UPDATED TIME")
+}
+
+func TestRenderForFormat_DefaultTextOmitsWideMetadataAndPutsIDLast(t *testing.T) {
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+	record := labeledRecord{
+		Name:        "payments",
+		Description: "a long description",
+		Labels:      map[string]string{"team": "platform"},
+		Endpoint:    "https://example.com/a/long/path",
+		ID:          "12345678-1234-1234-1234-123456789012",
+	}
+
+	err := RenderForFormat(nil, false, cmdCommon.TEXT, nil, streams, record, record, "")
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(outBuf.String()), "\n")
+	require.Len(t, lines, 2)
+	require.Equal(t, "NAME      ID", lines[0])
+	require.Contains(t, lines[1], "payments")
+	require.NotContains(t, outBuf.String(), "LABELS")
+	require.NotContains(t, outBuf.String(), "DESCRIPTION")
+	require.NotContains(t, outBuf.String(), "ENDPOINT")
+}
+
+func TestRenderForFormat_ExplicitDefaultDescriptionIsTruncated(t *testing.T) {
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+	description := strings.Repeat("description ", 8)
+	record := labeledRecord{
+		Name:        "payments",
+		Description: description,
+		ID:          "12345678-1234-1234-1234-123456789012",
+	}
+
+	err := RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		nil,
+		streams,
+		record,
+		record,
+		"",
+		WithCustomTable(
+			[]string{"NAME", "DESCRIPTION", "ID"},
+			[]table.Row{{record.Name, record.Description, record.ID}},
+		),
+		WithDefaultDescription(),
+	)
+	require.NoError(t, err)
+	require.Contains(t, outBuf.String(), "DESCRIPTION")
+	require.Contains(t, outBuf.String(), "…")
+	require.NotContains(t, outBuf.String(), description)
 }
 
 func newMinimalBubbleModel(t *testing.T) *bubbleModel {

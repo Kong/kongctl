@@ -313,7 +313,7 @@ func buildSystemAccountChildView(accounts []kkComps.SystemAccount) tableview.Chi
 	rows := make([]table.Row, 0, len(accounts))
 	for i := range accounts {
 		record := systemAccountToDisplayRecord(&accounts[i])
-		rows = append(rows, table.Row{record.ID, record.Name})
+		rows = append(rows, table.Row{record.Name, record.KonnectManaged, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -324,7 +324,7 @@ func buildSystemAccountChildView(accounts []kkComps.SystemAccount) tableview.Chi
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        []string{"NAME", "MANAGED", "ID"},
 		Rows:           rows,
 		DetailRenderer: detailFn,
 		Title:          "System Accounts",
