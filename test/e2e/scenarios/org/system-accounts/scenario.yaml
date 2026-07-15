@@ -160,27 +160,20 @@ steps:
         outputFormat: text  # List commands output formatted tables
         parseAs: raw        # Parse as {"stdout": "..."} for text validation
         assertions:
-          # Verify both accounts appear in the list output
-          # JMESPath contains() checks if account name is in the text
-          - name: account-1-in-output
+          - name: curated-columns
             expect:
               fields:
+                "starts_with(stdout, 'NAME')": true
+                "contains(stdout, 'MANAGED')": true
                 "contains(stdout, 'ID')": true
-                "contains(stdout, 'NAME')": true
-                "contains(stdout, 'DESCRIPTION')": true
-                "contains(stdout, 'LOCAL CREATED TIME')": true
-                "contains(stdout, 'LOCAL UPDATED TIME')": true
-                "contains(stdout, 'KONNECT MANAGED')": true
+                "contains(stdout, 'DESCRIPTION')": false
+                "contains(stdout, 'LOCAL CREATED TIME')": false
+                "contains(stdout, 'LOCAL UPDATED TIME')": false
+                "contains(stdout, 'KONNECT MANAGED')": false
+          - name: accounts-in-output
+            expect:
+              fields:
                 "contains(stdout, 'e2e-system-account-1')": true
-          - name: account-2-in-output
-            expect:
-              fields:
-                "contains(stdout, 'ID')": true
-                "contains(stdout, 'NAME')": true
-                "contains(stdout, 'DESCRIPTION')": true
-                "contains(stdout, 'LOCAL CREATED TIME')": true
-                "contains(stdout, 'LOCAL UPDATED TIME')": true
-                "contains(stdout, 'KONNECT MANAGED')": true
                 "contains(stdout, 'e2e-system-account-2')": true
 
   - name: 006-list-system-account-by-name
@@ -195,15 +188,15 @@ steps:
         outputFormat: text  # List commands output formatted tables
         parseAs: raw        # Parse as {"stdout": "..."} for text validation
         assertions:
-          # Verify the specific account appears in the filtered list
-          # JMESPath contains() evaluates to true if string is found
-          - name: account-1-in-output
+          - name: curated-columns-and-filtered-account
             expect:
               fields:
+                "starts_with(stdout, 'NAME')": true
+                "contains(stdout, 'MANAGED')": true
                 "contains(stdout, 'ID')": true
-                "contains(stdout, 'NAME')": true
-                "contains(stdout, 'DESCRIPTION')": true
-                "contains(stdout, 'LOCAL CREATED TIME')": true
-                "contains(stdout, 'LOCAL UPDATED TIME')": true
-                "contains(stdout, 'KONNECT MANAGED')": true
+                "contains(stdout, 'DESCRIPTION')": false
+                "contains(stdout, 'LOCAL CREATED TIME')": false
+                "contains(stdout, 'LOCAL UPDATED TIME')": false
+                "contains(stdout, 'KONNECT MANAGED')": false
                 "contains(stdout, 'e2e-system-account-1')": true
+                "contains(stdout, 'e2e-system-account-2')": false
