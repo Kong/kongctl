@@ -110,6 +110,7 @@ resource, plan, or view contracts.
 
 ### MATURITY (REQUIRED)
 
+- Follow the [capability maturity policy](maturity.md).
 - Declarative resources are GA unless their registration includes
   `WithMaturity(...)`.
 - Attach non-GA metadata beside `registerResourceType(...)`, at the highest
