@@ -100,3 +100,10 @@ func TestRenderCapsAndFitsColumns(t *testing.T) {
 	}
 	require.Contains(t, out.String(), "…")
 }
+
+func TestRenderAutoWidthFallsBackForNonTerminalOutput(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAutoWidth(&out, []string{"NAME"}, [][]string{{"payments"}})
+	require.NoError(t, err)
+	require.Equal(t, "NAME\npayments\n", out.String())
+}

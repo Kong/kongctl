@@ -584,6 +584,27 @@ func TestRenderForFormat_ExplicitDefaultDescriptionIsTruncated(t *testing.T) {
 	require.NotContains(t, outBuf.String(), description)
 }
 
+func TestRenderForFormat_ExactCustomTablePreservesColumns(t *testing.T) {
+	streams, _, outBuf, _ := iostreams.NewTestIOStreams()
+
+	err := RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		nil,
+		streams,
+		[]string{"theme"},
+		[]string{"theme"},
+		"",
+		WithExactCustomTable(
+			[]string{"NAME", "ACTIVE", "PRIMARY", "SECONDARY"},
+			[]table.Row{{"konnect", "true", "blue", "green"}},
+		),
+	)
+	require.NoError(t, err)
+	require.Equal(t, "NAME     ACTIVE  PRIMARY  SECONDARY\nkonnect  true    blue     green\n", outBuf.String())
+}
+
 func newMinimalBubbleModel(t *testing.T) *bubbleModel {
 	t.Helper()
 	columns := []table.Column{{Title: "NAME", Width: 12}}

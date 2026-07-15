@@ -1051,7 +1051,7 @@ func writeCommandResult(helper cmdpkg.Helper, value any, writeText func() error)
 		if err != nil {
 			return err
 		}
-		return columns.Render(helper.GetStreams().Out, headers, rows, 120)
+		return columns.RenderAutoWidth(helper.GetStreams().Out, headers, rows)
 	}
 	//exhaustive:ignore // HELM is unsupported here and falls through to text output.
 	switch format {

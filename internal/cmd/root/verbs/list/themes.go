@@ -70,7 +70,7 @@ func runListThemes(helper cmd.Helper) error {
 		rows.display,
 		rows.raw,
 		"Available Themes",
-		tableview.WithCustomTable(rows.headers, rows.tableRows),
+		tableview.WithExactCustomTable(rows.headers, rows.tableRows),
 		tableview.WithPreviewRenderer(newThemePreviewRenderer(rows.palettes)),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)

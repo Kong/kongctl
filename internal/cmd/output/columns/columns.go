@@ -14,6 +14,7 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/term"
 )
 
 const (
@@ -382,6 +383,30 @@ func formatValue(value any) string {
 
 func singleLine(value string) string {
 	return strings.Join(strings.Fields(value), " ")
+}
+
+// RenderAutoWidth detects the output terminal width and falls back to 120
+// columns when the output does not expose a terminal file descriptor.
+func RenderAutoWidth(out io.Writer, headers []string, rows [][]string) error {
+	return Render(out, headers, rows, terminalWidth(out))
+}
+
+func terminalWidth(out io.Writer) int {
+	const defaultWidth = 120
+
+	fdWriter, ok := out.(interface{ Fd() uintptr })
+	if !ok {
+		return defaultWidth
+	}
+	fd := fdWriter.Fd()
+	if fd == ^uintptr(0) {
+		return defaultWidth
+	}
+	width, _, err := term.GetSize(int(fd))
+	if err != nil || width <= 0 {
+		return defaultWidth
+	}
+	return width
 }
 
 // Render writes a plain, aligned table with display-width-aware truncation.

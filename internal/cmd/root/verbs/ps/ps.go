@@ -134,7 +134,7 @@ func (c *psCmd) runList(cmdObj *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-			return columns.Render(helper.GetStreams().Out, headers, rows, 120)
+			return columns.RenderAutoWidth(helper.GetStreams().Out, headers, rows)
 		}
 		return renderListText(helper.GetStreams().Out, items)
 	}
@@ -186,7 +186,7 @@ func (c *psCmd) runStop(cmdObj *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-			if err := columns.Render(helper.GetStreams().Out, headers, rows, 120); err != nil {
+			if err := columns.RenderAutoWidth(helper.GetStreams().Out, headers, rows); err != nil {
 				return err
 			}
 		} else if err := renderStopText(helper.GetStreams().Out, results); err != nil {
@@ -303,7 +303,7 @@ func renderListText(out io.Writer, items []processListItem) error {
 	for i, item := range items {
 		rows[i] = []string{strconv.Itoa(item.PID), string(item.Status), displayOrDash(item.Kind), displayOrDash(item.Profile)}
 	}
-	return columns.Render(out, []string{"PID", "STATUS", "KIND", "PROFILE"}, rows, 120)
+	return columns.RenderAutoWidth(out, []string{"PID", "STATUS", "KIND", "PROFILE"}, rows)
 }
 
 func renderStopText(out io.Writer, results []processStopResult) error {
@@ -319,7 +319,7 @@ func renderStopText(out io.Writer, results []processStopResult) error {
 	for i, result := range results {
 		rows[i] = []string{strconv.Itoa(result.PID), result.Action, strconv.FormatBool(result.Success)}
 	}
-	return columns.Render(out, []string{"PID", "ACTION", "SUCCESS"}, rows, 120)
+	return columns.RenderAutoWidth(out, []string{"PID", "ACTION", "SUCCESS"}, rows)
 }
 
 func displayOrDash(value string) string {

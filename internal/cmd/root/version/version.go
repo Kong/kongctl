@@ -118,7 +118,7 @@ func run(helper cmd.Helper) error {
 		if err != nil {
 			return err
 		}
-		return columns.Render(helper.GetStreams().Out, headers, rows, 120)
+		return columns.RenderAutoWidth(helper.GetStreams().Out, headers, rows)
 	}
 
 	if outType == common.TEXT {

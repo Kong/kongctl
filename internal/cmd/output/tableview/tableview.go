@@ -110,8 +110,9 @@ type config struct {
 
 	previewRenderer PreviewRenderer
 
-	customHeaders []string
-	customRows    []table.Row
+	customHeaders    []string
+	customRows       []table.Row
+	exactCustomTable bool
 
 	includeDefaultDescription bool
 
@@ -428,13 +429,23 @@ func WithDetailHelper(helper cmdpkg.Helper) Option {
 	}
 }
 
-// WithCustomTable overrides the automatically generated table columns and rows
-// for interactive and static text output. JSON and YAML continue to print the
-// original raw value.
+// WithCustomTable supplies table columns and rows for interactive and static
+// text output. Compact default-column curation still applies to static output.
+// JSON and YAML continue to print the original raw value.
 func WithCustomTable(headers []string, rows []table.Row) Option {
 	return func(cfg *config) {
 		cfg.customHeaders = append([]string(nil), headers...)
 		cfg.customRows = append([]table.Row(nil), rows...)
+	}
+}
+
+// WithExactCustomTable supplies an intentionally curated table whose columns
+// must be preserved in static text output.
+func WithExactCustomTable(headers []string, rows []table.Row) Option {
+	return func(cfg *config) {
+		cfg.customHeaders = append([]string(nil), headers...)
+		cfg.customRows = append([]table.Row(nil), rows...)
+		cfg.exactCustomTable = true
 	}
 }
 
@@ -2364,7 +2375,9 @@ func RenderForFormat(
 		} else if len(cfg.customHeaders) > 0 {
 			headers = slices.Clone(cfg.customHeaders)
 			matrix = rowsToMatrix(cfg.customRows)
-			headers, matrix = curateDefaultColumns(headers, matrix, cfg.includeDefaultDescription)
+			if !cfg.exactCustomTable {
+				headers, matrix = curateDefaultColumns(headers, matrix, cfg.includeDefaultDescription)
+			}
 			matrix = abbreviateMatrixIDs(headers, matrix)
 		} else {
 			headers, matrix, err = buildRows(display)
@@ -2378,8 +2391,7 @@ func RenderForFormat(
 		if len(headers) == 0 {
 			return writeStaticMessage(streams.Out, "", "No resources found.")
 		}
-		width, _, _ := resolveTerminal(streams.Out)
-		return columnoutput.Render(streams.Out, headers, matrix, width)
+		return columnoutput.RenderAutoWidth(streams.Out, headers, matrix)
 	case cmdCommon.JSON, cmdCommon.YAML:
 		if printer != nil {
 			printer.Print(raw)
