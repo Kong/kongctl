@@ -309,7 +309,7 @@ func TestRenderExplainText_ResourceSubject(t *testing.T) {
 
 	text := RenderExplainText(subject, false)
 
-	assert.Contains(t, text, "RESOURCE\nRESOURCE CLASS: top-level")
+	assert.Contains(t, text, "RESOURCE\nMATURITY: GA\nRESOURCE CLASS: top-level")
 	assert.Contains(t, text, "ROOT KEY: portals[]")
 	assert.Contains(t, text, "SUPPORTS ROOT: true")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: false")
@@ -347,7 +347,7 @@ func TestRenderExplainText_FieldSubject(t *testing.T) {
 	assert.Contains(t, text, "OPTIONAL: true")
 	assert.Contains(t, text, "RECOMMENDED: yes")
 	assert.Contains(t, text, "DEFAULT FROM: ref")
-	assert.Contains(t, text, "\nRESOURCE\nRESOURCE CLASS: top-level")
+	assert.Contains(t, text, "\nRESOURCE\nMATURITY: GA\nRESOURCE CLASS: top-level")
 	assert.Contains(t, text, "ROOT KEY: portals[]")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: false")
 	assert.Contains(
@@ -369,7 +369,7 @@ func TestRenderExplainText_NestedFieldSubjectPlacement(t *testing.T) {
 	assert.Contains(t, text, "OPTIONAL: false")
 	assert.Contains(t, text, "NESTED YAML PATH: apis[].publications[].portal_id")
 	assert.Contains(t, text, "ROOT YAML PATH: api_publications[].portal_id")
-	assert.Contains(t, text, "\nRESOURCE\nRESOURCE CLASS: child")
+	assert.Contains(t, text, "\nRESOURCE\nMATURITY: GA\nRESOURCE CLASS: child")
 	assert.Contains(t, text, "ROOT KEY: api_publications[]")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: true")
 	assert.Contains(t, text, "ACCEPTS kongctl metadata: no")
@@ -382,7 +382,7 @@ func TestRenderExplainText_NestedChildResourceSummary(t *testing.T) {
 
 	text := RenderExplainText(subject, false)
 
-	assert.Contains(t, text, "RESOURCE\nRESOURCE CLASS: child")
+	assert.Contains(t, text, "RESOURCE\nMATURITY: GA\nRESOURCE CLASS: child")
 	assert.Contains(t, text, "ROOT KEY: portal_pages[]")
 	assert.Contains(t, text, "SUPPORTS ROOT: true")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: true")

@@ -116,7 +116,7 @@ Find more information at:
 // for a single command invocation.
 const NoTelemetryFlagName = "no-telemetry"
 
-const mergedFlagsUsageTemplate = `Usage:{{if .Runnable}}
+const mergedFlagsUsageTemplate = `{{$p := .}}{{$maturity := maturityUsage .}}Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
@@ -127,13 +127,15 @@ Examples:
 {{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
 
 Available Commands:{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
+  {{rpad .Name .NamePadding }} {{maturityDesc $p .}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
 
 {{.Title}}{{range $cmds}}{{if (and (eq .GroupID $group.ID) (or .IsAvailableCommand (eq .Name "help")))}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
+  {{rpad .Name .NamePadding }} {{maturityDesc $p .}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
 
 Additional Commands:{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}
+  {{rpad .Name .NamePadding }} {{maturityDesc $p .}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if $maturity}}
+
+{{$maturity}}{{end}}
 {{if or .HasAvailableLocalFlags .HasAvailableInheritedFlags}}
 
 Flags:
@@ -215,8 +217,7 @@ func newRootCmd() *cobra.Command {
 			if len(args) > 0 {
 				return cmdpkg.UnknownSubcommandError(cmd, args[0])
 			}
-			renderRootOverview(cmd.OutOrStdout(), cmd)
-			return nil
+			return renderRootOverview(cmd.OutOrStdout(), cmd)
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			if err := konnectcommon.ApplyEnvironmentDefaults(cmd.Root(), currConfig); err != nil {
@@ -253,6 +254,8 @@ func newRootCmd() *cobra.Command {
 		Hidden: true,
 	})
 	cobra.AddTemplateFunc("mergedFlagUsages", mergedFlagUsages)
+	cobra.AddTemplateFunc("maturityDesc", maturityCommandDescription)
+	cobra.AddTemplateFunc("maturityUsage", maturityUsage)
 	rootCmd.SetUsageTemplate(mergedFlagsUsageTemplate)
 	rootCmd.SetFlagErrorFunc(rootFlagError)
 
@@ -492,9 +495,9 @@ func installUsageErrorFallbacks(command *cobra.Command) {
 	}
 }
 
-func renderRootOverview(w io.Writer, command *cobra.Command) {
+func renderRootOverview(w io.Writer, command *cobra.Command) error {
 	if w == nil || command == nil {
-		return
+		return nil
 	}
 
 	if long := strings.TrimSpace(command.Long); long != "" {
@@ -506,13 +509,18 @@ func renderRootOverview(w io.Writer, command *cobra.Command) {
 		fmt.Fprintln(w, "Available Commands:")
 		for _, child := range command.Commands() {
 			if child.IsAvailableCommand() || child.Name() == "help" {
-				fmt.Fprintf(w, "  %-*s %s\n", child.NamePadding(), child.Name(), child.Short)
+				description, err := maturityCommandDescription(command, child)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(w, "  %-*s %s\n", child.NamePadding(), child.Name(), description)
 			}
 		}
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, `Use "%s [command] --help" for more information about a command.`, command.CommandPath())
 		fmt.Fprintln(w)
 	}
+	return nil
 }
 
 func rootFlagError(command *cobra.Command, err error) error {

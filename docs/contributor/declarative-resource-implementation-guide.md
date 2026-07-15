@@ -108,6 +108,21 @@ resource, plan, or view contracts.
 - Keep resource links current (`API Specification` and `Example` links), and
   document declarative usage hints (`!ref`, `!file`) where applicable.
 
+### MATURITY (REQUIRED)
+
+- Follow the [capability maturity policy](maturity.md).
+- Declarative resources are GA unless their registration includes
+  `WithMaturity(...)`.
+- Attach non-GA metadata beside `registerResourceType(...)`, at the highest
+  appropriate resource or command ancestor.
+- Use `WithOperationMaturity(...)` only when an operation is less mature than
+  the resource default.
+- Do not duplicate inherited metadata or attempt to raise inherited maturity.
+- Promote a capability by changing or removing its co-located override. Do
+  not add a separate path-keyed maturity catalog.
+- Maturity metadata is discovery-only and must not be copied into declarative
+  configuration, plans, execution results, or telemetry.
+
 ### EXPLAIN AND SCAFFOLD (REQUIRED)
 
 - Every registered resource must support `kongctl explain` and
@@ -1798,6 +1813,8 @@ After implementing new resource:
 - [ ] Plan field constants added to `planner/constants.go`
 - [ ] ResourceSet includes new resource array
 - [ ] Resource type registered via `registerResourceType(...)` in `init()`
+- [ ] Non-GA maturity attached to registration only when required
+- [ ] Operation maturity overrides are narrower than the resource default
 - [ ] Explain registration provided, usually via `AutoExplain[...]`
 - [ ] `kongctl explain` output reviewed for canonical and nested child paths
 - [ ] `kongctl scaffold` output reviewed for helpful commented YAML
