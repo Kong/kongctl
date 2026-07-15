@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const annotationKey = "kongctl/maturity"
+const annotationKey = "kongctl.maturity"
 
 type commandAnnotations struct {
 	Command        *Metadata                      `json:"command,omitempty"`
