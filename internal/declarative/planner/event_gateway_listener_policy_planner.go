@@ -236,8 +236,8 @@ func (p *Planner) planListenerPolicyCreate(
 		},
 	}
 
-	// Add virtual cluster reference if policy config has a destination with ref placeholder
-	p.addVirtualClusterReference(&change, fields)
+	// Add a virtual cluster reference for explicit refs and same-plan by-name destinations.
+	p.addVirtualClusterReference(&change, gatewayRef, fields, plan)
 
 	p.logger.Debug(
 		"Enqueuing listener policy CREATE",
@@ -291,8 +291,8 @@ func (p *Planner) planListenerPolicyUpdate(
 		},
 	}
 
-	// Add virtual cluster reference if policy config has a destination with ref placeholder
-	p.addVirtualClusterReference(&change, updateFields)
+	// Add a virtual cluster reference for explicit refs and same-plan by-name destinations.
+	p.addVirtualClusterReference(&change, gatewayRef, updateFields, plan)
 
 	p.logger.Debug(
 		"Enqueuing listener policy UPDATE",
@@ -760,10 +760,14 @@ func getBoolFromNestedMap(m map[string]any, keys ...string) bool {
 	return false
 }
 
-// addVirtualClusterReference checks if the policy has a virtual cluster destination with a ref placeholder
-// and adds the appropriate reference to the change for runtime resolution.
-func (p *Planner) addVirtualClusterReference(change *PlannedChange, fields map[string]any) {
-	// Check if the policy has a config.destination.id that is a ref placeholder
+// addVirtualClusterReference records explicit refs and dependencies on virtual clusters
+// created by name in the same gateway plan.
+func (p *Planner) addVirtualClusterReference(
+	change *PlannedChange,
+	gatewayRef string,
+	fields map[string]any,
+	plan *Plan,
+) {
 	config, hasConfig := fields[FieldConfig]
 	if !hasConfig {
 		return
@@ -784,34 +788,46 @@ func (p *Planner) addVirtualClusterReference(change *PlannedChange, fields map[s
 		return
 	}
 
-	// Check for id field with ref placeholder
-	id, hasID := destMap[FieldID]
-	if !hasID {
-		return
-	}
+	var (
+		virtualClusterRef  string
+		virtualClusterName string
+	)
 
-	idStr, ok := id.(string)
-	if !ok || !tags.IsRefPlaceholder(idStr) {
-		return
-	}
-
-	// Extract the ref and look up the virtual cluster name
-	var virtualClusterName string
-	if parsedRef, _, parseOK := tags.ParseRefPlaceholder(idStr); parseOK && parsedRef != "" {
-		virtualCluster := p.resources.GetVirtualClusterByRef(parsedRef)
-		if virtualCluster != nil {
-			virtualClusterName = virtualCluster.Name
+	if id, hasID := destMap[FieldID]; hasID {
+		idStr, ok := id.(string)
+		if !ok || !tags.IsRefPlaceholder(idStr) {
+			return
 		}
+		virtualClusterRef = idStr
+		if parsedRef, _, parseOK := tags.ParseRefPlaceholder(idStr); parseOK && parsedRef != "" {
+			virtualCluster := p.resources.GetVirtualClusterByRef(parsedRef)
+			if virtualCluster != nil {
+				virtualClusterName = virtualCluster.Name
+			}
+		}
+	} else if name, hasName := destMap[FieldName].(string); hasName {
+		virtualClusterName = name
+		for _, virtualCluster := range p.resources.GetVirtualClustersForGateway(gatewayRef) {
+			if virtualCluster.Name == name &&
+				planHasCreate(plan, ResourceTypeEventGatewayVirtualCluster, virtualCluster.Ref) {
+				virtualClusterRef = virtualCluster.Ref
+				break
+			}
+		}
+	}
+
+	if virtualClusterRef == "" {
+		return
 	}
 
 	p.logger.Debug(
 		"Adding virtual cluster reference to listener policy",
-		"virtual_cluster_ref", idStr,
+		"virtual_cluster_ref", virtualClusterRef,
 		"virtual_cluster_name", virtualClusterName,
 	)
 
 	change.References[FieldEventGatewayVirtualClusterID] = ReferenceInfo{
-		Ref: idStr,
+		Ref: virtualClusterRef,
 		ID:  resources.UnknownReferenceID,
 		LookupFields: map[string]string{
 			FieldName: virtualClusterName,

@@ -106,22 +106,23 @@ func resolveVirtualClusterDestination(fields map[string]any, execCtx *ExecutionC
 		return
 	}
 
-	id, hasID := destMap[planner.FieldID]
-	if !hasID {
-		return
-	}
-
-	idStr, ok := id.(string)
-	if !ok || !tags.IsRefPlaceholder(idStr) {
-		return
-	}
-
-	// Get the resolved virtual cluster ID from execution context
 	change := *execCtx.PlannedChange
-	if virtualClusterRef, refOK := change.References[planner.FieldEventGatewayVirtualClusterID]; refOK &&
-		virtualClusterRef.HasResolvedID() {
-		destMap[planner.FieldID] = virtualClusterRef.ID
+	virtualClusterRef, refOK := change.References[planner.FieldEventGatewayVirtualClusterID]
+	if !refOK || !virtualClusterRef.HasResolvedID() {
+		return
 	}
+
+	if id, hasID := destMap[planner.FieldID]; hasID {
+		idStr, ok := id.(string)
+		if !ok || !tags.IsRefPlaceholder(idStr) {
+			return
+		}
+	} else if _, hasName := destMap[planner.FieldName]; !hasName {
+		return
+	}
+
+	destMap[planner.FieldID] = virtualClusterRef.ID
+	delete(destMap, planner.FieldName)
 }
 
 // Create creates a new listener policy

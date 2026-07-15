@@ -24,6 +24,38 @@ func TestBuildVirtualClusterAuthentication_ClientCertificate(t *testing.T) {
 	assert.NotNil(t, result[0].VirtualClusterAuthenticationClientCertificate)
 }
 
+func TestBuildBackendClusterReferencePrefersHydratedDependencyID(t *testing.T) {
+	destination := kkComps.CreateBackendClusterReferenceModifyBackendClusterReferenceByName(
+		kkComps.BackendClusterReferenceByName{Name: "backend-name"},
+	)
+	execCtx := &ExecutionContext{PlannedChange: &planner.PlannedChange{
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldEventGatewayBackendClusterID: {
+				Ref: "backend-ref",
+				ID:  "backend-id",
+			},
+		},
+	}}
+
+	result, err := buildBackendClusterReference(destination, execCtx)
+	require.NoError(t, err)
+	require.NotNil(t, result.BackendClusterReferenceByID)
+	assert.Equal(t, "backend-id", result.BackendClusterReferenceByID.ID)
+	assert.Nil(t, result.BackendClusterReferenceByName)
+}
+
+func TestBuildBackendClusterReferenceKeepsNameWithoutPlannedDependency(t *testing.T) {
+	destination := kkComps.CreateBackendClusterReferenceModifyBackendClusterReferenceByName(
+		kkComps.BackendClusterReferenceByName{Name: "backend-name"},
+	)
+
+	result, err := buildBackendClusterReference(destination, nil)
+	require.NoError(t, err)
+	require.NotNil(t, result.BackendClusterReferenceByName)
+	assert.Equal(t, "backend-name", result.BackendClusterReferenceByName.Name)
+	assert.Nil(t, result.BackendClusterReferenceByID)
+}
+
 func TestBuildVirtualClusterAuthentication_FetchKongIdentityPrincipal(t *testing.T) {
 	tests := []struct {
 		name  string

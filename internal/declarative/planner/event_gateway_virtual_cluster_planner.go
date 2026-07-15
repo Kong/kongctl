@@ -459,19 +459,7 @@ func (p *Planner) planVirtualClusterCreate(
 		change.References = make(map[string]ReferenceInfo)
 	}
 
-	// Set backend cluster reference
-	if cluster.Destination.BackendClusterReferenceByID != nil &&
-		tags.IsRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID) {
-		var backendClusterName string
-
-		change.References[FieldEventGatewayBackendClusterID] = ReferenceInfo{
-			Ref: cluster.Destination.BackendClusterReferenceByID.ID,
-			ID:  resources.UnknownReferenceID,
-			LookupFields: map[string]string{
-				FieldName: backendClusterName,
-			},
-		}
-	}
+	p.addBackendClusterReference(&change, gatewayRef, cluster.Destination, plan)
 
 	p.logger.Debug(
 		"Enqueuing virtual cluster CREATE",
@@ -515,28 +503,7 @@ func (p *Planner) planVirtualClusterUpdate(
 		},
 	}
 
-	// Set backend cluster reference if destination uses a ref placeholder
-	if cluster.Destination.BackendClusterReferenceByID != nil &&
-		tags.IsRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID) {
-		var backendClusterName string
-		backendClusterRef, _, ok := tags.ParseRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID)
-		if ok {
-			backendCluster := p.resources.GetBackendClusterByRef(backendClusterRef)
-			if backendCluster != nil {
-				backendClusterName = backendCluster.Name
-			}
-		}
-
-		if change.References == nil {
-			change.References = make(map[string]ReferenceInfo)
-		}
-		change.References[FieldEventGatewayBackendClusterID] = ReferenceInfo{
-			Ref: cluster.Destination.BackendClusterReferenceByID.ID,
-			LookupFields: map[string]string{
-				FieldName: backendClusterName,
-			},
-		}
-	}
+	p.addBackendClusterReference(&change, gatewayRef, cluster.Destination, plan)
 
 	p.logger.Debug(
 		"Enqueuing virtual cluster UPDATE",
@@ -546,6 +513,73 @@ func (p *Planner) planVirtualClusterUpdate(
 		"fields", updateFields,
 	)
 	plan.AddChange(change)
+}
+
+// addBackendClusterReference records dependencies on backend clusters created in the same gateway plan.
+// Explicit !ref destinations are always recorded; by-name destinations are recorded only when the named
+// backend cluster is being created in this plan.
+func (p *Planner) addBackendClusterReference(
+	change *PlannedChange,
+	gatewayRef string,
+	destination components.BackendClusterReferenceModify,
+	plan *Plan,
+) {
+	if change == nil || plan == nil || p.resources == nil {
+		return
+	}
+
+	var (
+		ref  string
+		name string
+	)
+
+	if destination.BackendClusterReferenceByID != nil &&
+		tags.IsRefPlaceholder(destination.BackendClusterReferenceByID.ID) {
+		ref = destination.BackendClusterReferenceByID.ID
+		parsedRef, _, ok := tags.ParseRefPlaceholder(ref)
+		if ok {
+			for _, backendCluster := range p.resources.GetBackendClustersForGateway(gatewayRef) {
+				if backendCluster.Ref == parsedRef {
+					name = backendCluster.Name
+					break
+				}
+			}
+		}
+	} else if destination.BackendClusterReferenceByName != nil {
+		name = destination.BackendClusterReferenceByName.Name
+		for _, backendCluster := range p.resources.GetBackendClustersForGateway(gatewayRef) {
+			if backendCluster.Name == name && planHasCreate(plan, ResourceTypeEventGatewayBackendCluster, backendCluster.Ref) {
+				ref = backendCluster.Ref
+				break
+			}
+		}
+	}
+
+	if ref == "" {
+		return
+	}
+	if change.References == nil {
+		change.References = make(map[string]ReferenceInfo)
+	}
+	change.References[FieldEventGatewayBackendClusterID] = ReferenceInfo{
+		Ref: ref,
+		ID:  resources.UnknownReferenceID,
+		LookupFields: map[string]string{
+			FieldName: name,
+		},
+	}
+}
+
+func planHasCreate(plan *Plan, resourceType, resourceRef string) bool {
+	if plan == nil {
+		return false
+	}
+	for _, change := range plan.Changes {
+		if change.Action == ActionCreate && change.ResourceType == resourceType && change.ResourceRef == resourceRef {
+			return true
+		}
+	}
+	return false
 }
 
 // planVirtualClusterDelete plans a DELETE change for a virtual cluster
