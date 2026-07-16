@@ -3,6 +3,7 @@ package list
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/table"
@@ -69,7 +70,7 @@ func runListThemes(helper cmd.Helper) error {
 		rows.display,
 		rows.raw,
 		"Available Themes",
-		tableview.WithCustomTable(rows.headers, rows.tableRows),
+		tableview.WithExactCustomTable(rows.headers, rows.tableRows),
 		tableview.WithPreviewRenderer(newThemePreviewRenderer(rows.palettes)),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
@@ -248,13 +249,13 @@ func buildThemeRows(useColor bool, activeName string) themeRowsData {
 			About:     strings.TrimSpace(pal.About),
 		})
 
-		row := table.Row{displayID}
+		row := table.Row{displayID, strconv.FormatBool(active)}
 		row = append(row, rowSamples...)
 		tableRows = append(tableRows, row)
 		palettes = append(palettes, pal)
 	}
 
-	headers := []string{"ID", "Primary", "Secondary"}
+	headers := []string{"NAME", "ACTIVE", "PRIMARY", "SECONDARY"}
 
 	return themeRowsData{
 		headers:   headers,

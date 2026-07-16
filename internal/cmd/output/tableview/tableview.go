@@ -31,6 +31,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	columnoutput "github.com/kong/kongctl/internal/cmd/output/columns"
 	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/theme"
@@ -109,8 +110,11 @@ type config struct {
 
 	previewRenderer PreviewRenderer
 
-	customHeaders []string
-	customRows    []table.Row
+	customHeaders    []string
+	customRows       []table.Row
+	exactCustomTable bool
+
+	includeDefaultDescription bool
 
 	childParentType string
 	detailContext   DetailContextProvider
@@ -425,13 +429,32 @@ func WithDetailHelper(helper cmdpkg.Helper) Option {
 	}
 }
 
-// WithCustomTable allows overriding the automatically generated table columns/rows.
-// The provided headers and rows are used only for the interactive table; other formats
-// (text/json/yaml) continue to print the original display value.
+// WithCustomTable supplies table columns and rows for interactive and static
+// text output. Compact default-column curation still applies to static output.
+// JSON and YAML continue to print the original raw value.
 func WithCustomTable(headers []string, rows []table.Row) Option {
 	return func(cfg *config) {
 		cfg.customHeaders = append([]string(nil), headers...)
 		cfg.customRows = append([]table.Row(nil), rows...)
+	}
+}
+
+// WithExactCustomTable supplies an intentionally curated table whose columns
+// must be preserved in static text output.
+func WithExactCustomTable(headers []string, rows []table.Row) Option {
+	return func(cfg *config) {
+		cfg.customHeaders = append([]string(nil), headers...)
+		cfg.customRows = append([]table.Row(nil), rows...)
+		cfg.exactCustomTable = true
+	}
+}
+
+// WithDefaultDescription allows an explicitly provided DESCRIPTION column in
+// the compact default text table. Descriptions remain excluded for other
+// resources.
+func WithDefaultDescription() Option {
+	return func(cfg *config) {
+		cfg.includeDefaultDescription = true
 	}
 }
 
@@ -2269,6 +2292,7 @@ func RenderForFormat(
 	title string,
 	extraOpts ...Option,
 ) error {
+	var selectedColumns []columnoutput.Column
 	if helper != nil {
 		cfg, err := helper.GetConfig()
 		if err != nil {
@@ -2282,6 +2306,16 @@ func RenderForFormat(
 
 		if err := jqoutput.ValidateOutputFormat(outType, settings); err != nil {
 			return err
+		}
+
+		selectedColumns, err = columnoutput.Resolve(helper.GetCmd(), outType)
+		if err != nil {
+			return &cmdpkg.ConfigurationError{Err: err}
+		}
+		if len(selectedColumns) > 0 && jqoutput.HasFilter(settings) {
+			return &cmdpkg.ConfigurationError{
+				Err: fmt.Errorf("--%s cannot be combined with --%s", columnoutput.FlagName, jqoutput.FlagName),
+			}
 		}
 
 		if jqoutput.HasFilter(settings) {
@@ -2324,10 +2358,40 @@ func RenderForFormat(
 			}
 			return writeStaticMessage(out, "", "No resources found.")
 		}
-		if printer != nil {
-			printer.Print(display)
+
+		cfg := config{}
+		for _, opt := range extraOpts {
+			opt(&cfg)
 		}
-		return nil
+
+		var headers []string
+		var matrix [][]string
+		var err error
+		if len(selectedColumns) > 0 {
+			headers, matrix, err = columnoutput.Project(raw, selectedColumns)
+			if err != nil {
+				return cmdpkg.PrepareExecutionErrorWithHelper(helper, "custom column projection failed", err)
+			}
+		} else if len(cfg.customHeaders) > 0 {
+			headers = slices.Clone(cfg.customHeaders)
+			matrix = rowsToMatrix(cfg.customRows)
+			if !cfg.exactCustomTable {
+				headers, matrix = curateDefaultColumns(headers, matrix, cfg.includeDefaultDescription)
+			}
+			matrix = abbreviateMatrixIDs(headers, matrix)
+		} else {
+			headers, matrix, err = buildRows(display)
+			if err != nil {
+				return err
+			}
+			headers, matrix = curateDefaultColumns(headers, matrix, cfg.includeDefaultDescription)
+			matrix = abbreviateMatrixIDs(headers, matrix)
+		}
+
+		if len(headers) == 0 {
+			return writeStaticMessage(streams.Out, "", "No resources found.")
+		}
+		return columnoutput.RenderAutoWidth(streams.Out, headers, matrix)
 	case cmdCommon.JSON, cmdCommon.YAML:
 		if printer != nil {
 			printer.Print(raw)
@@ -2336,6 +2400,170 @@ func RenderForFormat(
 	default:
 		return fmt.Errorf("tableview: unsupported output format %s", outType.String())
 	}
+}
+
+func curateDefaultColumns(
+	headers []string,
+	rows [][]string,
+	includeDescription bool,
+) ([]string, [][]string) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+
+	identityOrder := []string{
+		"NAME", "DISPLAY NAME", "TITLE", "EMAIL", "USERNAME", "VERSION", "DOMAIN", "FINGERPRINT", "PID", "KEY",
+		"FULL NAME", "IMPLEMENTATION", "PORTAL", "RESOURCE", "CATEGORY", "TEAM", "APPLICATION", "API",
+	}
+	byName := make(map[string]int, len(headers))
+	idIndex := -1
+	for i, header := range headers {
+		name := normalizeDefaultHeader(header)
+		if isExcludedDefaultHeader(name, includeDescription) {
+			continue
+		}
+		if _, exists := byName[name]; !exists {
+			byName[name] = i
+		}
+		if name == "ID" {
+			idIndex = i
+		} else if idIndex < 0 && strings.HasSuffix(name, " ID") {
+			idIndex = i
+		}
+	}
+
+	selected := make([]int, 0, 4)
+	appendFirst := func(names []string, limit int) {
+		for _, name := range names {
+			index, ok := byName[name]
+			if !ok || slices.Contains(selected, index) {
+				continue
+			}
+			selected = append(selected, index)
+			if len(selected) >= limit {
+				return
+			}
+		}
+	}
+
+	identityLimit := 1
+	if _, hasName := byName["NAME"]; hasName && len(headers) == 3 {
+		if _, hasDisplayName := byName["DISPLAY NAME"]; hasDisplayName {
+			identityLimit = 2
+		}
+	}
+	if _, hasEmail := byName["EMAIL"]; hasEmail {
+		if _, hasFullName := byName["FULL NAME"]; hasFullName {
+			identityLimit = 2
+		}
+	}
+	if _, hasApplication := byName["APPLICATION"]; hasApplication {
+		if _, hasAPI := byName["API"]; hasAPI {
+			identityLimit = 2
+		}
+	}
+	appendFirst(identityOrder, identityLimit)
+	if includeDescription {
+		if descriptionIndex, ok := byName["DESCRIPTION"]; ok {
+			selected = append(selected, descriptionIndex)
+		}
+	}
+	for i, header := range headers {
+		if len(selected) >= 3 {
+			break
+		}
+		name := normalizeDefaultHeader(header)
+		if isContextDefaultHeader(name) && !slices.Contains(selected, i) {
+			selected = append(selected, i)
+		}
+	}
+	if len(selected) == 0 {
+		for i, header := range headers {
+			if !isExcludedDefaultHeader(normalizeDefaultHeader(header), includeDescription) {
+				selected = append(selected, i)
+				break
+			}
+		}
+	}
+	if idIndex >= 0 && !slices.Contains(selected, idIndex) {
+		if len(selected) == 4 {
+			selected = selected[:3]
+		}
+		selected = append(selected, idIndex)
+	}
+	if len(selected) > 4 {
+		selected = selected[:4]
+	}
+
+	curatedHeaders := make([]string, len(selected))
+	curatedRows := make([][]string, len(rows))
+	for i, index := range selected {
+		curatedHeaders[i] = canonicalDefaultHeader(headers[index])
+	}
+	for rowIndex, row := range rows {
+		curatedRows[rowIndex] = make([]string, len(selected))
+		for columnIndex, sourceIndex := range selected {
+			if sourceIndex < len(row) {
+				curatedRows[rowIndex][columnIndex] = row[sourceIndex]
+			}
+		}
+	}
+	return curatedHeaders, curatedRows
+}
+
+func canonicalDefaultHeader(header string) string {
+	switch normalizeDefaultHeader(header) {
+	case "STRATEGY TYPE", "PROVIDER TYPE":
+		return "TYPE"
+	case "IS SYSTEM TEAM":
+		return "SYSTEM"
+	case "KONNECT MANAGED":
+		return "MANAGED"
+	default:
+		return header
+	}
+}
+
+func isContextDefaultHeader(header string) bool {
+	switch header {
+	case "TYPE", "SPEC TYPE", "STATUS", "STATE", "ACTIVE", "ENABLED", "SYSTEM", "MANAGED", "VISIBILITY",
+		"SUCCESS", "ACTION", "ROLE", "ENTITY TYPE", "REGION", "REGIONS", "VALUE COUNT", "DNS LABEL", "SERVICE",
+		"LOG FORMAT", "PROFILE", "KIND":
+		return true
+	}
+	if strings.Contains(header, "SYSTEM") {
+		return true
+	}
+	for _, suffix := range []string{
+		" TYPE", " STATUS", " STATE", " ACTIVE", " ENABLED", " SYSTEM", " MANAGED", " ROLE", " REGION",
+	} {
+		if strings.HasSuffix(header, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeDefaultHeader(header string) string {
+	return strings.Join(strings.Fields(strings.NewReplacer("_", " ", "-", " ").Replace(strings.ToUpper(header))), " ")
+}
+
+func isExcludedDefaultHeader(header string, includeDescription bool) bool {
+	if header == "" {
+		return true
+	}
+	if includeDescription && header == "DESCRIPTION" {
+		return false
+	}
+	for _, excluded := range []string{
+		"LABEL", "DESCRIPTION", "ABOUT", "CREATED", "UPDATED", "TIME", "DATE", "ENDPOINT", "URL", "CONFIG", "LOG FILE",
+		"DETAIL", "TOKEN", "SECRET",
+	} {
+		if strings.Contains(header, excluded) {
+			return true
+		}
+	}
+	return false
 }
 
 type detailView struct {

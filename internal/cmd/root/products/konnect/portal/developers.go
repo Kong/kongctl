@@ -202,7 +202,7 @@ func (h portalDevelopersHandler) listDevelopers(
 
 	tableRows := make([]table.Row, 0, len(records))
 	for _, record := range records {
-		tableRows = append(tableRows, table.Row{record.ID, record.Email})
+		tableRows = append(tableRows, table.Row{record.Email, record.FullName, record.Status, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -221,7 +221,7 @@ func (h portalDevelopersHandler) listDevelopers(
 		records,
 		developers,
 		"",
-		tableview.WithCustomTable([]string{"ID", "EMAIL"}, tableRows),
+		tableview.WithCustomTable([]string{"EMAIL", "FULL NAME", "STATUS", "ID"}, tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)

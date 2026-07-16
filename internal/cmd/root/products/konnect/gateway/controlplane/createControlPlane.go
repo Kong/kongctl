@@ -8,8 +8,12 @@ import (
 	"strings"
 
 	// kk = Kong Konnect
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/output/columns"
+	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -201,8 +205,22 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		return cmd.PrepareExecutionError("Failed to create Control Plane", e, helper.GetCmd(), attrs...)
 	}
 
-	printer.Print(res.GetControlPlane())
-	return nil
+	controlPlane := res.GetControlPlane()
+	display := controlPlaneToDisplayRecord(controlPlane)
+	return tableview.RenderForFormat(
+		helper,
+		false,
+		outType,
+		printer,
+		helper.GetStreams(),
+		display,
+		controlPlane,
+		"",
+		tableview.WithCustomTable(
+			[]string{"NAME", "ID"},
+			[]table.Row{{display.Name, display.ID}},
+		),
+	)
 }
 
 func (c *createControlPlaneCmd) bindFlags(args []string) error {
@@ -252,7 +270,32 @@ func (c *createControlPlaneCmd) bindFlags(args []string) error {
 }
 
 func (c *createControlPlaneCmd) preRunE(_ *cobra.Command, args []string) error {
-	return c.bindFlags(args)
+	if err := c.bindFlags(args); err != nil {
+		return err
+	}
+	helper := cmd.BuildHelper(c.Command, args)
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
+	}
+	selected, err := columns.Resolve(c.Command, outType)
+	if err != nil {
+		return &cmd.ConfigurationError{Err: err}
+	}
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	settings, err := jqoutput.ResolveSettings(c.Command, cfg)
+	if err != nil {
+		return err
+	}
+	if len(selected) > 0 && jqoutput.HasFilter(settings) {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("--%s cannot be combined with --%s", columns.FlagName, jqoutput.FlagName),
+		}
+	}
+	return nil
 }
 
 func (c *createControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error {
@@ -315,6 +358,7 @@ Provide multiple URLs as a comma-separated list. URLs must be in the format: <pr
 		StringSlice(CreateCpLabelsFlagName, nil, fmt.Sprintf(`Assign metadata labels to the new control plane.
 Labels are specified as [ key=value ] pairs and can be provided in a list.
 - Config path: [ %s ]`, createCpLabelsConfigPath))
+	columns.AddFlags(baseCmd.Flags())
 
 	baseCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		if parentPreRun != nil {

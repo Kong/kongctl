@@ -243,6 +243,28 @@ backend.
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
 - **[Examples](docs/examples/)** - Sample configurations and use cases
 
+## Custom text columns
+
+Commands that return structured tables use a compact set of columns by default.
+You can replace those columns for one invocation with `--columns`:
+
+```shell
+kongctl get gateway control-planes \
+  --columns 'NAME=.name,TYPE=.config.cluster_type,TEAM=.labels["team"]'
+```
+
+Column definitions use `HEADER=.field` and may be comma-separated or supplied
+by repeating the flag. Paths support nested fields, quoted object keys, and
+numeric array indexes. String values can be sliced by character with `[:end]`,
+`[start:]`, or `[start:end]`; for example, `ID=.id[:8]` selects the first eight
+characters of an ID. Missing and `null` values render as blank cells; arrays and
+objects render as compact JSON. Custom columns are available only with
+`--output text` and cannot be combined with `--jq`.
+
+Text cells are limited to 40 display characters and shrink further to fit the
+terminal. JSON and YAML output remain complete and are not affected by text
+column selection.
+
 ## Configuration and Profiles
 
 `kongctl` configuration data is read from `$XDG_CONFIG_HOME/kongctl` and falls back to 

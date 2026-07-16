@@ -157,25 +157,20 @@ steps:
         outputFormat: text  # List commands output formatted tables
         parseAs: raw        # Parse as {"stdout": "..."} for text validation
         assertions:
-          - name: alpha-in-output
+          - name: curated-columns
             expect:
               fields:
+                "starts_with(stdout, 'NAME')": true
+                "contains(stdout, 'SYSTEM')": true
                 "contains(stdout, 'ID')": true
-                "contains(stdout, 'NAME')": true
-                "contains(stdout, 'DESCRIPTION')": true
-                "contains(stdout, 'LOCAL CREATED TIME')": true
-                "contains(stdout, 'LOCAL UPDATED TIME')": true
-                "contains(stdout, 'IS SYSTEM TEAM')": true
+                "contains(stdout, 'DESCRIPTION')": false
+                "contains(stdout, 'LOCAL CREATED TIME')": false
+                "contains(stdout, 'LOCAL UPDATED TIME')": false
+                "contains(stdout, 'IS SYSTEM TEAM')": false
+          - name: teams-in-output
+            expect:
+              fields:
                 "contains(stdout, 'e2e-get-team-alpha')": true
-          - name: beta-in-output
-            expect:
-              fields:
-                "contains(stdout, 'ID')": true
-                "contains(stdout, 'NAME')": true
-                "contains(stdout, 'DESCRIPTION')": true
-                "contains(stdout, 'LOCAL CREATED TIME')": true
-                "contains(stdout, 'LOCAL UPDATED TIME')": true
-                "contains(stdout, 'IS SYSTEM TEAM')": true
                 "contains(stdout, 'e2e-get-team-beta')": true
 
   - name: 006-list-team-by-name-text
@@ -190,19 +185,17 @@ steps:
         outputFormat: text  # List commands output formatted tables
         parseAs: raw        # Parse as {"stdout": "..."} for text validation
         assertions:
-          - name: alpha-in-output
+          - name: curated-columns-and-filtered-team
             expect:
               fields:
+                "starts_with(stdout, 'NAME')": true
+                "contains(stdout, 'SYSTEM')": true
                 "contains(stdout, 'ID')": true
-                "contains(stdout, 'NAME')": true
-                "contains(stdout, 'DESCRIPTION')": true
-                "contains(stdout, 'LOCAL CREATED TIME')": true
-                "contains(stdout, 'LOCAL UPDATED TIME')": true
-                "contains(stdout, 'IS SYSTEM TEAM')": true
+                "contains(stdout, 'DESCRIPTION')": false
+                "contains(stdout, 'LOCAL CREATED TIME')": false
+                "contains(stdout, 'LOCAL UPDATED TIME')": false
+                "contains(stdout, 'IS SYSTEM TEAM')": false
                 "contains(stdout, 'e2e-get-team-alpha')": true
-          - name: beta-not-in-output
-            expect:
-              fields:
                 "contains(stdout, 'e2e-get-team-beta')": false
 
   - name: 007-delete-cleanup

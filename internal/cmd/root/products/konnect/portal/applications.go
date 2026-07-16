@@ -212,7 +212,7 @@ func (h portalApplicationsHandler) listApplications(
 
 	tableRows := make([]table.Row, 0, len(apps))
 	for _, record := range records {
-		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+		tableRows = append(tableRows, table.Row{record.Name, record.Type, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -231,7 +231,7 @@ func (h portalApplicationsHandler) listApplications(
 		records,
 		apps,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithCustomTable([]string{"NAME", "TYPE", "ID"}, tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)

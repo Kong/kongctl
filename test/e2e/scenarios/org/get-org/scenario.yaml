@@ -6,7 +6,7 @@
 # Test flow:
 # 1. Reset org
 # 2. Get org in JSON output mode — assert rendered org fields are present
-# 3. Get org in default text output mode — assert all table headers appear
+# 3. Get org in default text output mode — assert curated table headers
 # 4. Get org in YAML output mode — assert rendered org fields are present
 
 steps:
@@ -50,14 +50,14 @@ steps:
           - select: "@"
             expect:
               fields:
-                "starts_with(stdout, 'ID')": true
-                "contains(stdout, 'NAME')": true
+                "starts_with(stdout, 'NAME')": true
                 "contains(stdout, 'STATE')": true
-                "contains(stdout, 'OWNER ID')": true
-                "contains(stdout, 'LOGIN PATH')": true
-                "contains(stdout, 'RETENTION PERIOD DAYS')": true
-                "contains(stdout, 'LOCAL CREATED TIME')": true
-                "contains(stdout, 'LOCAL UPDATED TIME')": true
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'OWNER ID')": false
+                "contains(stdout, 'LOGIN PATH')": false
+                "contains(stdout, 'RETENTION PERIOD DAYS')": false
+                "contains(stdout, 'LOCAL CREATED TIME')": false
+                "contains(stdout, 'LOCAL UPDATED TIME')": false
 
   - name: 003-get-org-yaml
     skipInputs: true

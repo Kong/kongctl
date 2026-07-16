@@ -383,7 +383,7 @@ func buildDCRProviderChildView(providers []dcrProvider) tableview.ChildView {
 	tableRows := make([]table.Row, 0, len(providers))
 	for i := range providers {
 		record := dcrProviderToDisplayRecord(providers[i])
-		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+		tableRows = append(tableRows, table.Row{record.Name, record.ProviderType, record.Active, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -394,7 +394,7 @@ func buildDCRProviderChildView(providers []dcrProvider) tableview.ChildView {
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"id", "name"},
+		Headers:        []string{"NAME", "TYPE", "ACTIVE", "ID"},
 		Rows:           tableRows,
 		DetailRenderer: detailFn,
 		Title:          "DCR Providers",

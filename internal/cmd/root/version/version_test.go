@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/test/cmd"
 	testConfig "github.com/kong/kongctl/test/config"
+	"github.com/spf13/cobra"
 )
 
 func Test_VersionCmd(t *testing.T) {
@@ -19,6 +20,9 @@ func Test_VersionCmd(t *testing.T) {
 	outputFormat := common.TEXT
 
 	helper := cmd.MockHelper{
+		GetCmdMock: func() *cobra.Command {
+			return &cobra.Command{}
+		},
 		GetOutputFormatMock: func() (common.OutputFormat, error) {
 			return outputFormat, nil
 		},

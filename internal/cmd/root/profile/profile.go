@@ -5,8 +5,9 @@ import (
 	"slices"
 	"strings"
 
+	"charm.land/bubbles/v2/table"
 	"github.com/kong/kongctl/internal/cmd"
-	"github.com/kong/kongctl/internal/cmd/output/jq"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/profile"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -83,44 +84,37 @@ func runGet(helper cmd.Helper) error {
 		}
 	}
 
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	jqSettings, err := jq.ResolveSettings(helper.GetCmd(), cfg)
-	if err != nil {
-		return err
-	}
-	if err := jq.ValidateOutputFormat(outType, jqSettings); err != nil {
-		return err
-	}
-
 	payload, err := profilePayload(args)
 	if err != nil {
 		return err
 	}
-	if jq.HasFilter(jqSettings) {
-		filteredPayload, handled, err := jq.ApplyToRaw(payload, outType, jqSettings, helper.GetStreams().Out)
-		if err != nil {
-			return cmd.PrepareExecutionErrorWithHelper(helper, "jq filter failed", err)
-		}
-		if handled {
-			return nil
-		}
-		payload = filteredPayload
-	}
 
-	p, err := cli.Format(outType.String(),
-		helper.GetStreams().Out)
+	p, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
 	defer p.Flush()
 
-	p.Print(payload)
-
-	return nil
+	names := slices.Clone(profileManager.GetProfiles())
+	slices.Sort(names)
+	if len(args) == 1 {
+		names = []string{strings.TrimSpace(args[0])}
+	}
+	rows := make([]table.Row, len(names))
+	for i, name := range names {
+		rows[i] = table.Row{name}
+	}
+	return tableview.RenderForFormat(
+		helper,
+		false,
+		outType,
+		p,
+		helper.GetStreams(),
+		names,
+		payload,
+		"",
+		tableview.WithCustomTable([]string{"PROFILE"}, rows),
+	)
 }
 
 func profilePayload(args []string) (any, error) {

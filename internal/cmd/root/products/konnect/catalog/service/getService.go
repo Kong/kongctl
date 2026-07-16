@@ -2,23 +2,22 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 
+	"charm.land/bubbles/v2/table"
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
-	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -129,7 +128,7 @@ func (c *getServiceCmd) run(_ *cobra.Command, args []string) error {
 		if listErr != nil {
 			return cmd.PrepareExecutionError("Failed to list catalog services", listErr, helper.GetCmd())
 		}
-		return renderCatalogServices(outFormat, services, streams.Out)
+		return renderCatalogServices(helper, outFormat, services)
 	}
 
 	service, fetchErr := fetchCatalogService(ctx, api, args[0], int64(pageSize))
@@ -142,7 +141,7 @@ func (c *getServiceCmd) run(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return renderCatalogService(outFormat, *service, streams.Out)
+	return renderCatalogService(helper, outFormat, *service)
 }
 
 func listAllCatalogServices(
@@ -222,72 +221,55 @@ func fetchCatalogService(
 	return nil, nil
 }
 
-func renderCatalogServices(format cmdCommon.OutputFormat, services []kkComps.CatalogService, out io.Writer) error {
-	//exhaustive:ignore // HELM is unsupported here and falls through to the default error.
-	switch format {
-	case cmdCommon.JSON:
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		return enc.Encode(services)
-	case cmdCommon.YAML:
-		b, err := yaml.Marshal(services)
-		if err != nil {
-			return err
-		}
-		_, err = out.Write(b)
-		return err
-	case cmdCommon.TEXT:
-		if len(services) == 0 {
-			fmt.Fprintln(out, "No catalog services found")
-			return nil
-		}
-
-		fmt.Fprintf(out, "%-36s  %-30s  %s\n", "ID", "NAME", "DISPLAY NAME")
-		for _, svc := range services {
-			fmt.Fprintf(out, "%-36s  %-30s  %s\n",
-				util.AbbreviateUUID(svc.ID), svc.Name, svc.DisplayName)
-		}
-		return nil
-	default:
-		return fmt.Errorf("unsupported output format")
-	}
+type catalogServiceDisplay struct {
+	Name        string
+	DisplayName string
+	ID          string
 }
 
-func renderCatalogService(format cmdCommon.OutputFormat, svc kkComps.CatalogService, out io.Writer) error {
-	//exhaustive:ignore // HELM is unsupported here and falls through to the default error.
-	switch format {
-	case cmdCommon.JSON:
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		return enc.Encode(svc)
-	case cmdCommon.YAML:
-		b, err := yaml.Marshal(svc)
-		if err != nil {
-			return err
+func renderCatalogServices(helper cmd.Helper, format cmdCommon.OutputFormat, services []kkComps.CatalogService) error {
+	display := make([]catalogServiceDisplay, len(services))
+	rows := make([]table.Row, len(services))
+	for i, service := range services {
+		display[i] = catalogServiceDisplay{
+			Name:        service.Name,
+			DisplayName: service.DisplayName,
+			ID:          service.ID,
 		}
-		_, err = out.Write(b)
-		return err
-	case cmdCommon.TEXT:
-		fmt.Fprintf(out, "Name: %s\n", svc.Name)
-		fmt.Fprintf(out, "Display Name: %s\n", svc.DisplayName)
-		fmt.Fprintf(out, "ID: %s\n", svc.ID)
-		if svc.Description != nil {
-			fmt.Fprintf(out, "Description: %s\n", *svc.Description)
-		} else {
-			fmt.Fprintln(out, "Description: ")
-		}
-		if len(svc.Labels) > 0 {
-			fmt.Fprintf(out, "Labels: %v\n", svc.Labels)
-		} else {
-			fmt.Fprintln(out, "Labels: ")
-		}
-		if svc.CustomFields != nil {
-			fmt.Fprintf(out, "Custom Fields: %v\n", svc.CustomFields)
-		}
-		return nil
-	default:
-		return fmt.Errorf("unsupported output format")
+		rows[i] = table.Row{service.Name, service.DisplayName, service.ID}
 	}
+	return renderCatalogServiceTable(helper, format, display, services, rows)
+}
+
+func renderCatalogService(helper cmd.Helper, format cmdCommon.OutputFormat, service kkComps.CatalogService) error {
+	display := catalogServiceDisplay{Name: service.Name, DisplayName: service.DisplayName, ID: service.ID}
+	rows := []table.Row{{service.Name, service.DisplayName, service.ID}}
+	return renderCatalogServiceTable(helper, format, display, service, rows)
+}
+
+func renderCatalogServiceTable(
+	helper cmd.Helper,
+	format cmdCommon.OutputFormat,
+	display any,
+	raw any,
+	rows []table.Row,
+) error {
+	printer, err := cli.Format(format.String(), helper.GetStreams().Out)
+	if err != nil {
+		return err
+	}
+	defer printer.Flush()
+	return tableview.RenderForFormat(
+		helper,
+		false,
+		format,
+		printer,
+		helper.GetStreams(),
+		display,
+		raw,
+		"",
+		tableview.WithCustomTable([]string{"NAME", "DISPLAY NAME", "ID"}, rows),
+	)
 }
 
 // bindCatalogServiceFlags binds Konnect-specific flags to configuration

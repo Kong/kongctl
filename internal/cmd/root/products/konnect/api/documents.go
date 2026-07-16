@@ -257,7 +257,7 @@ func (h apiDocumentsHandler) listDocuments(
 		flattened,
 		"",
 		tableview.WithTitle("Documents"),
-		tableview.WithCustomTable([]string{"DOCUMENT", "TITLE"}, rows),
+		tableview.WithCustomTable([]string{"ID", "TITLE"}, rows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailContext(common.ViewParentAPIDocument, func(index int) any {
@@ -352,7 +352,7 @@ func (h apiDocumentsHandler) getSingleDocument(
 		[]apiDocumentSummaryRecord{record},
 		doc,
 		"",
-		tableview.WithCustomTable([]string{"DOCUMENT", "TITLE"}, rows),
+		tableview.WithCustomTable([]string{"ID", "TITLE"}, rows),
 		tableview.WithDetailRenderer(func(int) string {
 			return apiDocumentDetailView(detailRecord)
 		}),

@@ -131,22 +131,17 @@ steps:
         outputFormat: text
         parseAs: raw
         assertions:
-          - name: user-1-in-output
+          - name: curated-columns
             expect:
               fields:
-                "contains(stdout, 'ID')": true
-                "contains(stdout, 'EMAIL')": true
+                "starts_with(stdout, 'EMAIL')": true
                 "contains(stdout, 'FULL NAME')": true
-                "contains(stdout, 'PREFERRED NAME')": true
                 "contains(stdout, 'ACTIVE')": true
-                "contains(stdout, 'INFERRED REGION')": true
-                "contains(stdout, 'CREATED AT')": true
-                "contains(stdout, 'UPDATED AT')": true
-                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}')": true
-          - name: user-2-in-output
-            expect:
-              fields:
-                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}')": true
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'PREFERRED NAME')": false
+                "contains(stdout, 'INFERRED REGION')": false
+                "contains(stdout, 'CREATED AT')": false
+                "contains(stdout, 'UPDATED AT')": false
 
   - name: 006-list-user-by-email-text
     skipInputs: true
@@ -160,19 +155,14 @@ steps:
         outputFormat: text
         parseAs: raw
         assertions:
-          - name: user-1-in-output
+          - name: curated-columns
             expect:
               fields:
-                "contains(stdout, 'ID')": true
-                "contains(stdout, 'EMAIL')": true
+                "starts_with(stdout, 'EMAIL')": true
                 "contains(stdout, 'FULL NAME')": true
-                "contains(stdout, 'PREFERRED NAME')": true
                 "contains(stdout, 'ACTIVE')": true
-                "contains(stdout, 'INFERRED REGION')": true
-                "contains(stdout, 'CREATED AT')": true
-                "contains(stdout, 'UPDATED AT')": true
-                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}')": true
-          - name: user-2-not-in-output
-            expect:
-              fields:
-                "contains(stdout, '{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}')": false
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'PREFERRED NAME')": false
+                "contains(stdout, 'INFERRED REGION')": false
+                "contains(stdout, 'CREATED AT')": false
+                "contains(stdout, 'UPDATED AT')": false

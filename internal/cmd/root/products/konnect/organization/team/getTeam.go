@@ -333,7 +333,7 @@ func buildTeamChildView(teams []kkComps.Team) tableview.ChildView {
 	rows := make([]table.Row, 0, len(teams))
 	for i := range teams {
 		record := teamToDisplayRecord(&teams[i])
-		rows = append(rows, table.Row{record.ID, record.Name})
+		rows = append(rows, table.Row{record.Name, record.IsSystemTeam, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -344,7 +344,7 @@ func buildTeamChildView(teams []kkComps.Team) tableview.ChildView {
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"ID", "NAME"},
+		Headers:        []string{"NAME", "SYSTEM", "ID"},
 		Rows:           rows,
 		DetailRenderer: detailFn,
 		Title:          "Teams",

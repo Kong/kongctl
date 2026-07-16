@@ -245,7 +245,7 @@ func (h portalSnippetsHandler) listSnippets(
 
 	tableRows := make([]table.Row, 0, len(records))
 	for _, record := range records {
-		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+		tableRows = append(tableRows, table.Row{record.Name, record.Visibility, record.Status, record.ID})
 	}
 
 	cache := newPortalSnippetDetailCache()
@@ -270,7 +270,7 @@ func (h portalSnippetsHandler) listSnippets(
 		records,
 		snippets,
 		"",
-		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithCustomTable([]string{"NAME", "VISIBILITY", "STATUS", "ID"}, tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),

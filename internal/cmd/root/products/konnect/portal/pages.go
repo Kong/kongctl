@@ -246,7 +246,7 @@ func (h portalPagesHandler) listPages(
 
 	tableRows := make([]table.Row, 0, len(records))
 	for _, record := range records {
-		tableRows = append(tableRows, table.Row{record.ID, record.Title})
+		tableRows = append(tableRows, table.Row{record.Title, record.Visibility, record.Status, record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -269,7 +269,7 @@ func (h portalPagesHandler) listPages(
 		records,
 		pages,
 		"",
-		tableview.WithCustomTable([]string{"ID", "TITLE"}, tableRows),
+		tableview.WithCustomTable([]string{"TITLE", "VISIBILITY", "STATUS", "ID"}, tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
