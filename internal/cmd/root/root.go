@@ -118,7 +118,9 @@ const NoTelemetryFlagName = "no-telemetry"
 
 const mergedFlagsUsageTemplate = `{{$p := .}}{{$maturity := maturityUsage .}}Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
-  {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
+  {{.CommandPath}} [command]{{end}}{{if $maturity}}
+
+{{$maturity}}{{end}}{{if gt (len .Aliases) 0}}
 
 Aliases:
   {{.NameAndAliases}}{{end}}{{if .HasExample}}
@@ -133,9 +135,7 @@ Available Commands:{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help")
   {{rpad .Name .NamePadding }} {{maturityDesc $p .}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
 
 Additional Commands:{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
-  {{rpad .Name .NamePadding }} {{maturityDesc $p .}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if $maturity}}
-
-{{$maturity}}{{end}}
+  {{rpad .Name .NamePadding }} {{maturityDesc $p .}}{{end}}{{end}}{{end}}{{end}}{{end}}
 {{if or .HasAvailableLocalFlags .HasAvailableInheritedFlags}}
 
 Flags:
@@ -785,7 +785,9 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 				logger.Error(executionError.Err.Error(), executionError.Attrs...)
 			}
 		} else {
-			renderCommandError(streams.ErrOut, executedCmd, err)
+			if renderErr := renderCommandError(streams.ErrOut, executedCmd, err); renderErr != nil {
+				renderPlainCommandError(streams.ErrOut, fmt.Errorf("render command error: %w", renderErr))
+			}
 		}
 		closeLogFile()
 		os.Exit(1)
@@ -817,12 +819,12 @@ func closeLogFile() {
 	}
 }
 
-func renderCommandError(w io.Writer, command *cobra.Command, err error) {
+func renderCommandError(w io.Writer, command *cobra.Command, err error) error {
 	if cmdpkg.IsUsageError(err) {
-		renderCommandUsageError(w, command, err)
-		return
+		return renderCommandUsageError(w, command, err)
 	}
 	renderPlainCommandError(w, err)
+	return nil
 }
 
 func renderPlainCommandError(w io.Writer, err error) {
@@ -861,9 +863,15 @@ func flattenJoinedErrors(err error) []error {
 	return nil
 }
 
-func renderCommandUsageError(w io.Writer, command *cobra.Command, err error) {
+func renderCommandUsageError(w io.Writer, command *cobra.Command, err error) error {
 	if w == nil || err == nil {
-		return
+		return nil
+	}
+
+	suggestion := cmdpkg.SuggestionForError(command, err)
+	values, renderErr := maturitySuggestionValues(command, suggestion)
+	if renderErr != nil {
+		return renderErr
 	}
 
 	if leaves := flattenJoinedErrors(err); len(leaves) > 1 {
@@ -882,11 +890,10 @@ func renderCommandUsageError(w io.Writer, command *cobra.Command, err error) {
 		fmt.Fprintf(w, "Error: %s\n", errorText)
 	}
 
-	suggestion := cmdpkg.SuggestionForError(command, err)
-	if len(suggestion.Values) > 0 {
+	if len(values) > 0 {
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, suggestionHeader(suggestion.Kind, len(suggestion.Values)))
-		for _, value := range suggestion.Values {
+		fmt.Fprintln(w, suggestionHeader(suggestion.Kind, len(values)))
+		for _, value := range values {
 			fmt.Fprintf(w, "  %s\n", value)
 		}
 		fmt.Fprintln(w)
@@ -895,6 +902,33 @@ func renderCommandUsageError(w io.Writer, command *cobra.Command, err error) {
 	}
 
 	fmt.Fprintf(w, "Run '%s --help' for usage\n", commandPath(command))
+	return nil
+}
+
+func maturitySuggestionValues(command *cobra.Command, suggestion cmdpkg.Suggestion) ([]string, error) {
+	values := slices.Clone(suggestion.Values)
+	if command == nil || suggestion.Kind != "subcommand" {
+		return values, nil
+	}
+
+	children := make(map[string]*cobra.Command, len(command.Commands()))
+	for _, child := range command.Commands() {
+		children[child.Name()] = child
+	}
+	for i, value := range values {
+		child := children[value]
+		if child == nil {
+			continue
+		}
+		label, err := maturityCommandLabel(command, child)
+		if err != nil {
+			return nil, err
+		}
+		if label != "" {
+			values[i] += " " + label
+		}
+	}
+	return values, nil
 }
 
 func stripCobraSuggestion(message string) string {

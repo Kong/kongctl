@@ -26,8 +26,19 @@ func maturityCommandDescription(parent, child *cobra.Command) (string, error) {
 		return "", nil
 	}
 	description := child.Short
-	if parent == nil {
-		return description, nil
+	label, err := maturityCommandLabel(parent, child)
+	if err != nil {
+		return "", err
+	}
+	if label != "" {
+		description += " " + label
+	}
+	return description, nil
+}
+
+func maturityCommandLabel(parent, child *cobra.Command) (string, error) {
+	if child == nil || parent == nil {
+		return "", nil
 	}
 	parentMaturity, err := maturity.ResolveCommand(parent)
 	if err != nil {
@@ -38,9 +49,9 @@ func maturityCommandDescription(parent, child *cobra.Command) (string, error) {
 		return "", err
 	}
 	if childMaturity.Effective.Level.LessThan(parentMaturity.Effective.Level) {
-		description += " [" + childMaturity.Effective.Level.DisplayName() + "]"
+		return "[" + childMaturity.Effective.Level.DisplayName() + "]", nil
 	}
-	return description, nil
+	return "", nil
 }
 
 func maturityUsage(command *cobra.Command) (string, error) {

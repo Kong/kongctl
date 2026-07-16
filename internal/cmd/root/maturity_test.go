@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/maturity"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -51,6 +52,7 @@ func TestMaturityCommandHelpAndExceptions(t *testing.T) {
 	root.PersistentFlags().String("shared", "", "shared inherited flag")
 	command := &cobra.Command{
 		Use:     "feature <mode>",
+		Aliases: []string{"feat"},
 		Short:   "Feature command",
 		Long:    "Feature command long description.",
 		Example: "  kongctl feature",
@@ -82,6 +84,7 @@ func TestMaturityCommandHelpAndExceptions(t *testing.T) {
 	assert.Contains(t, help, "  <mode>: Tech Preview")
 	assert.Contains(t, help, "  --resources values:\n    Tech Preview: preview_services")
 	assert.NotContains(t, help, "  --shared: Beta")
+	assert.Less(t, bytes.Index([]byte(help), []byte("Maturity:")), bytes.Index([]byte(help), []byte("Aliases:")))
 	assert.Less(t, bytes.Index([]byte(help), []byte("Maturity:")), bytes.Index([]byte(help), []byte("Flags:")))
 }
 
@@ -127,4 +130,17 @@ func TestMaturityRootOverviewLabelsChildren(t *testing.T) {
 	var output bytes.Buffer
 	require.NoError(t, renderRootOverview(&output, root))
 	assert.Contains(t, output.String(), "Preview command [Beta]")
+}
+
+func TestMaturityMissingSubcommandLabelsLowerMaturityChildren(t *testing.T) {
+	root := newMaturityHelpRoot()
+	stable := &cobra.Command{Use: "stable", Short: "Stable command", Run: maturityTestRun}
+	beta := &cobra.Command{Use: "beta", Short: "Beta command", Run: maturityTestRun}
+	require.NoError(t, maturity.AnnotateCommand(beta, maturity.Metadata{Level: maturity.LevelBeta}))
+	root.AddCommand(stable, beta)
+
+	var output bytes.Buffer
+	err := renderCommandUsageError(&output, root, cmdpkg.MissingSubcommandError(root))
+	require.NoError(t, err)
+	assert.Contains(t, output.String(), "Available subcommands:\n  beta [Beta]\n  stable\n")
 }

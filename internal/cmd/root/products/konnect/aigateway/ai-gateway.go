@@ -1,7 +1,10 @@
 package aigateway
 
 import (
+	"fmt"
+
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/maturity"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
@@ -25,6 +28,9 @@ func NewAIGatewayCmd(
 		Short:   aiGatewayShort,
 		Long:    aiGatewayLong,
 		Aliases: []string{"ai-gateways", "aigw", "AIGW"},
+	}
+	if err := maturity.AnnotateCommand(&baseCmd, maturity.Metadata{Level: maturity.LevelBeta}); err != nil {
+		return nil, fmt.Errorf("annotate AI Gateway command maturity: %w", err)
 	}
 
 	if verb == verbs.Get || verb == verbs.List {

@@ -23,10 +23,11 @@ execution output, declarative plan artifacts, or telemetry.
 
 ## Where maturity appears
 
-Command listings append `[Beta]` or `[Tech Preview]` when a child is less
-mature than the command being displayed. Help for a non-GA command includes a
-`Maturity` section. Less-mature flags, arguments, and accepted values on an
-otherwise more-mature command are listed as exceptions in that section.
+Command listings, including missing-subcommand guidance, append `[Beta]` or
+`[Tech Preview]` when a child is less mature than the command being displayed.
+Help for a non-GA command includes a `Maturity` section immediately after
+`Usage`. Less-mature flags, arguments, and accepted values on an otherwise
+more-mature command are listed as exceptions in that section.
 
 `kongctl explain` reports maturity for every declarative resource. Its JSON
 and YAML schemas expose the same information through

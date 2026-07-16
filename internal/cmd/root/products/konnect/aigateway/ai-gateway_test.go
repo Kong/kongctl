@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/maturity"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
@@ -106,6 +107,31 @@ func TestAIGatewayHelpListsModelsOnce(t *testing.T) {
 
 	require.NoError(t, rootCmd.Execute())
 	require.Equal(t, 1, strings.Count(out.String(), "\n  models "))
+}
+
+func TestAIGatewayCommandsAreBeta(t *testing.T) {
+	t.Parallel()
+
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List} {
+		t.Run(verb.String(), func(t *testing.T) {
+			rootCmd, err := NewAIGatewayCmd(
+				verb,
+				func(verbs.VerbValue, *cobra.Command) {},
+				func(*cobra.Command, []string) error { return nil },
+			)
+			require.NoError(t, err)
+
+			resolved, err := maturity.ResolveCommand(rootCmd)
+			require.NoError(t, err)
+			require.Equal(t, maturity.LevelBeta, resolved.Effective.Level)
+
+			for _, child := range rootCmd.Commands() {
+				childResolved, err := maturity.ResolveCommand(child)
+				require.NoError(t, err)
+				require.Equal(t, maturity.LevelBeta, childResolved.Effective.Level, child.Name())
+			}
+		})
+	}
 }
 
 func TestAIGatewayChildHelpDescribesGatewayNameLookup(t *testing.T) {

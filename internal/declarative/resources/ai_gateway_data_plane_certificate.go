@@ -45,6 +45,7 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayDataPlaneCertificateExplainNode),
 		),
+		WithMaturity(aiGatewayMaturity),
 	)
 }
 

@@ -24,6 +24,7 @@ func init() {
 			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "type", "name", "display_name"),
 			WithExplainSchemaBuilder(aiGatewayModelExplainNode),
 		),
+		WithMaturity(aiGatewayMaturity),
 	)
 }
 

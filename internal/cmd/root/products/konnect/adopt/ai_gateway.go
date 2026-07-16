@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/maturity"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/spf13/cobra"
 )
@@ -33,6 +34,9 @@ func NewAIGatewayCmd(
 	cmd.Short = "Adopt an existing Konnect AI Gateway into namespace management"
 	cmd.Long = "Apply the KONGCTL-namespace label to an existing Konnect AI Gateway " +
 		"that is not currently managed by kongctl."
+	if err := maturity.AnnotateCommand(cmd, maturity.Metadata{Level: maturity.LevelBeta}); err != nil {
+		return nil, fmt.Errorf("annotate AI Gateway adopt command maturity: %w", err)
+	}
 	cmd.Args = func(_ *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("exactly one AI Gateway identifier (display name or ID) is required")
