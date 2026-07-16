@@ -61,6 +61,34 @@ func TestResolveExplainSubject_NestedChildResource(t *testing.T) {
 	assert.Equal(t, []ResourceType{ResourceTypeAPI}, subject.AncestorTypes)
 }
 
+func TestResolveExplainSubject_AIGatewayModelsNestedChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway.models")
+	require.NoError(t, err)
+
+	assert.Equal(t, "ai_gateway.models", subject.DisplayPath)
+	assert.Equal(t, ResourceTypeAIGatewayModel, subject.Doc.ResourceType)
+	assert.Equal(t, explainResourceClassChild, subject.Doc.ResourceClass)
+	assert.True(t, subject.Doc.SupportsRoot)
+	assert.True(t, subject.Doc.SupportsNestedDeclaration)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []string{"models"}, subject.FieldPath)
+	assert.Equal(t, []ResourceType{ResourceTypeAIGateway}, subject.AncestorTypes)
+}
+
+func TestResolveExplainSubject_AIGatewayAgentsNestedChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway.agents")
+	require.NoError(t, err)
+
+	assert.Equal(t, "ai_gateway.agents", subject.DisplayPath)
+	assert.Equal(t, ResourceTypeAIGatewayAgent, subject.Doc.ResourceType)
+	assert.Equal(t, explainResourceClassChild, subject.Doc.ResourceClass)
+	assert.True(t, subject.Doc.SupportsRoot)
+	assert.True(t, subject.Doc.SupportsNestedDeclaration)
+	assert.True(t, subject.ResourceTarget)
+	assert.Equal(t, []string{"agents"}, subject.FieldPath)
+	assert.Equal(t, []ResourceType{ResourceTypeAIGateway}, subject.AncestorTypes)
+}
+
 func TestResolveExplainSubject_OrganizationTeamsGroupedResource(t *testing.T) {
 	subject, err := ResolveExplainSubject("organization.teams")
 	require.NoError(t, err)
@@ -311,7 +339,7 @@ func TestRenderExplainText_ResourceSubject(t *testing.T) {
 
 	text := RenderExplainText(subject, false)
 
-	assert.Contains(t, text, "RESOURCE\nMATURITY: GA\nRESOURCE CLASS: top-level")
+	assert.Contains(t, text, "RESOURCE\nMATURITY: ga\nRESOURCE CLASS: top-level")
 	assert.Contains(t, text, "ROOT KEY: portals[]")
 	assert.Contains(t, text, "SUPPORTS ROOT: true")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: false")
@@ -349,7 +377,7 @@ func TestRenderExplainText_FieldSubject(t *testing.T) {
 	assert.Contains(t, text, "OPTIONAL: true")
 	assert.Contains(t, text, "RECOMMENDED: yes")
 	assert.Contains(t, text, "DEFAULT FROM: ref")
-	assert.Contains(t, text, "\nRESOURCE\nMATURITY: GA\nRESOURCE CLASS: top-level")
+	assert.Contains(t, text, "\nRESOURCE\nMATURITY: ga\nRESOURCE CLASS: top-level")
 	assert.Contains(t, text, "ROOT KEY: portals[]")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: false")
 	assert.Contains(
@@ -371,7 +399,7 @@ func TestRenderExplainText_NestedFieldSubjectPlacement(t *testing.T) {
 	assert.Contains(t, text, "OPTIONAL: false")
 	assert.Contains(t, text, "NESTED YAML PATH: apis[].publications[].portal_id")
 	assert.Contains(t, text, "ROOT YAML PATH: api_publications[].portal_id")
-	assert.Contains(t, text, "\nRESOURCE\nMATURITY: GA\nRESOURCE CLASS: child")
+	assert.Contains(t, text, "\nRESOURCE\nMATURITY: ga\nRESOURCE CLASS: child")
 	assert.Contains(t, text, "ROOT KEY: api_publications[]")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: true")
 	assert.Contains(t, text, "ACCEPTS kongctl metadata: no")
@@ -384,7 +412,7 @@ func TestRenderExplainText_NestedChildResourceSummary(t *testing.T) {
 
 	text := RenderExplainText(subject, false)
 
-	assert.Contains(t, text, "RESOURCE\nMATURITY: GA\nRESOURCE CLASS: child")
+	assert.Contains(t, text, "RESOURCE\nMATURITY: ga\nRESOURCE CLASS: child")
 	assert.Contains(t, text, "ROOT KEY: portal_pages[]")
 	assert.Contains(t, text, "SUPPORTS ROOT: true")
 	assert.Contains(t, text, "SUPPORTS NESTED DECLARATION: true")
@@ -555,6 +583,40 @@ func TestRenderScaffoldYAML_NestedChildResource(t *testing.T) {
 	assert.Contains(t, scaffold, "- ref: my-resource")
 	assert.NotContains(t, scaffold, "api: value")
 	assert.NotContains(t, scaffold, "kongctl:")
+}
+
+func TestRenderScaffoldYAML_AIGatewayModelsNestedChildResource(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway.models")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "ai_gateways:")
+	assert.Contains(t, scaffold, "models:")
+	assert.Contains(t, scaffold, "config:")
+	assert.Contains(t, scaffold, "route: {}")
+	assert.Contains(t, scaffold, "model: {}")
+	assert.Contains(t, scaffold, "formats:")
+	assert.Contains(t, scaffold, "- type: openai")
+	assert.Contains(t, scaffold, "targets:")
+	assert.Contains(t, scaffold, "provider: existing-provider-name")
+	assert.Contains(t, scaffold, "type: model")
+	assert.Contains(t, scaffold, "# type: api")
+	assert.NotContains(t, scaffold, "provider: openai")
+	assert.NotContains(t, scaffold, "ai_gateway: value")
+	assert.NotContains(t, scaffold, "kongctl:")
+}
+
+func TestRenderScaffoldYAML_AIGatewayIdentityProviderConsumerClaims(t *testing.T) {
+	subject, err := ResolveExplainSubject("ai_gateway_identity_provider")
+	require.NoError(t, err)
+
+	scaffold, err := RenderScaffoldYAML(subject)
+	require.NoError(t, err)
+
+	assert.Contains(t, scaffold, "consumer_claims:")
+	assert.NotContains(t, scaffold, "consumer_claim:")
 }
 
 func TestRenderScaffoldYAML_NestedSingletonChildResource(t *testing.T) {

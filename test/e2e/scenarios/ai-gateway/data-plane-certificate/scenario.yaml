@@ -1,0 +1,382 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-data-plane-certificate-e2e"
+  gateway_name: "AI Gateway Data Plane Certificate E2E"
+  gateway_ref: "ai-gateway-data-plane-certificate-e2e"
+  cert_ref: "support-data-plane-cert"
+  cert_title: "support-data-plane-cert"
+  cert_description: "Support data plane certificate"
+  cert_rotated_description: "Support data plane certificate rotated"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - metadata
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-data-plane-certificate-json
+        run:
+          - explain
+          - ai_gateway_data_plane_certificate
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                '"x-kongctl-root-key"': ai_gateway_data_plane_certificates
+          - select: "contains(keys(properties), 'ai_gateway')"
+            expect:
+              fields:
+                "@": true
+          - select: "properties.cert.\"x-kongctl-preferred-tag\""
+            expect:
+              fields:
+                "@": "!file"
+      - name: 001-scaffold-ai-gateway-data-plane-certificate
+        run:
+          - scaffold
+          - ai_gateway_data_plane_certificate
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_data_plane_certificates:')": true
+                "contains(stdout, 'ai_gateway: !ref')": true
+                "contains(stdout, 'title:')": true
+                "contains(stdout, 'cert: !file')": true
+
+  - name: 002-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='ai_gateway_data_plane_certificate' &&
+                      resource_ref=='{{ .vars.cert_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                references.ai_gateway_id.ref: "{{ .vars.gateway_ref }}"
+                fields.title: "{{ .vars.cert_title }}"
+                fields.description: "{{ .vars.cert_description }}"
+                "contains(fields.cert, 'MIIB4TCCAYug')": true
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+      - name: 002-list-data-plane-certificates
+        run:
+          - get
+          - ai-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        recordVar:
+          name: certificate_id
+          responsePath: "[?title=='{{ .vars.cert_title }}'] | [0].id"
+        assertions:
+          - select: "[?title=='{{ .vars.cert_title }}'] | [0]"
+            expect:
+              fields:
+                title: "{{ .vars.cert_title }}"
+                description: "{{ .vars.cert_description }}"
+                "contains(cert, 'MIIB4TCCAYug')": true
+      - name: 003-get-data-plane-certificate-by-title
+        run:
+          - get
+          - ai-gateway
+          - data-plane-certificate
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --data-plane-certificate-title
+          - "{{ .vars.cert_title }}"
+          - -o
+          - json
+        assertions:
+          - select: title
+            expect:
+              fields:
+                "@": "{{ .vars.cert_title }}"
+          - select: description
+            expect:
+              fields:
+                "@": "{{ .vars.cert_description }}"
+      - name: 004-get-data-plane-certificate-by-id
+        run:
+          - get
+          - ai-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.certificate_id }}"
+          - -o
+          - json
+        assertions:
+          - select: title
+            expect:
+              fields:
+                "@": "{{ .vars.cert_title }}"
+
+  - name: 003-plan-apply-replace
+    inputOverlayDirs:
+      - overlays/001-rotate-cert
+    commands:
+      - name: 000-plan-replace
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-replace.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 1
+                by_action.DELETE: 1
+                "contains(keys(by_action), 'UPDATE')": false
+          - select: >-
+              changes[?resource_type=='ai_gateway_data_plane_certificate' &&
+                      action=='CREATE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.cert_ref }}"
+                fields.title: "{{ .vars.cert_title }}"
+                fields.description: "{{ .vars.cert_rotated_description }}"
+                "contains(fields.cert, 'MIID5zCCAs+gAwIBAgIUI6Xfj3')": true
+                "length(depends_on)": 1
+          - select: >-
+              changes[?resource_type=='ai_gateway_data_plane_certificate' &&
+                      action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.cert_ref }}"
+                fields.title: "{{ .vars.cert_title }}"
+      - name: 001-apply-replace
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-replace.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-verify-replace
+        run:
+          - get
+          - ai-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.cert_title }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                title: "{{ .vars.cert_title }}"
+                description: "{{ .vars.cert_rotated_description }}"
+                "contains(cert, 'MIID5zCCAs+gAwIBAgIUI6Xfj3')": true
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateway-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-ai-gateway.yaml"
+        assertions:
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] |
+              [0].data_plane_certificates[?title=='{{ .vars.cert_title }}'] | [0]
+            expect:
+              fields:
+                title: "{{ .vars.cert_title }}"
+                description: "{{ .vars.cert_rotated_description }}"
+                "contains(cert, 'MIID5zCCAs+gAwIBAgIUI6Xfj3')": true
+      - name: 001-plan-from-ai-gateway-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-ai-gateway.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 002-dump-root-data-plane-certificates
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_data_plane_certificates"
+          - "--filter-name={{ .vars.cert_title }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_data_plane_certificates[0]"
+            expect:
+              fields:
+                title: "{{ .vars.cert_title }}"
+                description: "{{ .vars.cert_rotated_description }}"
+          - select: "ai_gateway_data_plane_certificates[0].ai_gateway != ''"
+            expect:
+              fields:
+                "@": true
+
+  - name: 005-sync-delete-certificate
+    inputOverlayDirs:
+      - overlays/002-sync-delete-cert
+    commands:
+      - name: 000-sync-delete-certificate
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_data_plane_certificate' &&
+                           action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.cert_title }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-data-plane-certificates-empty
+        run:
+          - get
+          - ai-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 006-sync-delete-gateway
+    inputOverlayDirs:
+      - overlays/003-sync-delete-gateway
+    commands:
+      - name: 000-sync-delete-gateway
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-get-ai-gateways
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?display_name=='{{ .vars.gateway_name }}']"
+            expect:
+              fields:
+                "length(@)": 0

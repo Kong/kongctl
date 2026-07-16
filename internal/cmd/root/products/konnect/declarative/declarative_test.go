@@ -2,6 +2,7 @@ package declarative
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/config"
@@ -18,6 +21,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	utilviper "github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +38,100 @@ func testDeclarativeLogger() *slog.Logger {
 
 func testDeclarativeLoggerTo(w io.Writer) *slog.Logger {
 	return slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{Level: slog.LevelInfo}))
+}
+
+type declarativeAIGatewayConsumerGroupsAPI struct {
+	listCalled bool
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) ListAiGatewayConsumerGroups(
+	context.Context,
+	kkOps.ListAiGatewayConsumerGroupsRequest,
+	...kkOps.Option,
+) (*kkOps.ListAiGatewayConsumerGroupsResponse, error) {
+	d.listCalled = true
+	return &kkOps.ListAiGatewayConsumerGroupsResponse{
+		ListAIGatewayConsumerGroupsResponse: &kkComps.ListAIGatewayConsumerGroupsResponse{},
+	}, nil
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) CreateAiGatewayConsumerGroup(
+	context.Context,
+	string,
+	kkComps.CreateAIGatewayConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.CreateAiGatewayConsumerGroupResponse, error) {
+	return nil, nil
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) GetAiGatewayConsumerGroup(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.GetAiGatewayConsumerGroupResponse, error) {
+	return nil, nil
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) UpdateAiGatewayConsumerGroup(
+	context.Context,
+	kkOps.UpdateAiGatewayConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.UpdateAiGatewayConsumerGroupResponse, error) {
+	return nil, nil
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) DeleteAiGatewayConsumerGroup(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.DeleteAiGatewayConsumerGroupResponse, error) {
+	return nil, nil
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) ListAiGatewayConsumersInConsumerGroup(
+	context.Context,
+	kkOps.ListAiGatewayConsumersInConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.ListAiGatewayConsumersInConsumerGroupResponse, error) {
+	return &kkOps.ListAiGatewayConsumersInConsumerGroupResponse{
+		ListAIGatewayConsumersResponse: &kkComps.ListAIGatewayConsumersResponse{},
+	}, nil
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) AddAiGatewayConsumerToConsumerGroup(
+	context.Context,
+	kkOps.AddAiGatewayConsumerToConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.AddAiGatewayConsumerToConsumerGroupResponse, error) {
+	return nil, nil
+}
+
+func (d *declarativeAIGatewayConsumerGroupsAPI) RemoveAiGatewayConsumerFromConsumerGroup(
+	context.Context,
+	kkOps.RemoveAiGatewayConsumerFromConsumerGroupRequest,
+	...kkOps.Option,
+) (*kkOps.RemoveAiGatewayConsumerFromConsumerGroupResponse, error) {
+	return nil, nil
+}
+
+var _ helpers.AIGatewayConsumerGroupsAPI = (*declarativeAIGatewayConsumerGroupsAPI)(nil)
+
+func TestCreateStateClientWiresAIGatewayConsumerGroupsAPI(t *testing.T) {
+	groupAPI := &declarativeAIGatewayConsumerGroupsAPI{}
+	client := createStateClient(&helpers.MockKonnectSDK{
+		CPAPIFactory: func() helpers.ControlPlaneAPI { return nil },
+		AIGatewayConsumerGroupsFactory: func() helpers.AIGatewayConsumerGroupsAPI {
+			return groupAPI
+		},
+	})
+
+	groups, err := client.ListAIGatewayConsumerGroups(context.Background(), "gateway-id")
+
+	require.NoError(t, err)
+	require.True(t, groupAPI.listCalled)
+	require.Empty(t, groups)
 }
 
 func TestMaxConcurrencyFromCmd(t *testing.T) {

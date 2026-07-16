@@ -213,6 +213,12 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(eventGatewayControlPlaneCmd)
 
+	aiGatewayCmd, err := NewDirectAIGatewayCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(aiGatewayCmd)
+
 	auditLogsCmd, err := NewDirectAuditLogsCmd()
 	if err != nil {
 		return nil, err

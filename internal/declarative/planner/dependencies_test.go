@@ -1138,6 +1138,146 @@ func TestResolveDependenciesWithGroups_RefPlaceholder_ImplicitDep(t *testing.T) 
 	}
 }
 
+func TestResolveDependenciesWithGroups_AIGatewayChildrenSameParentSerialized(t *testing.T) {
+	d := NewDependencyResolver()
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-aigw",
+			ResourceType: ResourceTypeAIGateway,
+			ResourceRef:  "shared-gateway",
+			Action:       ActionCreate,
+		},
+		{
+			ID:           "2-c-openai",
+			ResourceType: ResourceTypeAIGatewayProvider,
+			ResourceRef:  "openai",
+			Action:       ActionCreate,
+			DependsOn:    []string{"1-c-aigw"},
+			References: map[string]ReferenceInfo{
+				FieldAIGatewayID: {Ref: "shared-gateway"},
+			},
+		},
+		{
+			ID:           "3-c-anthropic",
+			ResourceType: ResourceTypeAIGatewayProvider,
+			ResourceRef:  "anthropic",
+			Action:       ActionCreate,
+			DependsOn:    []string{"1-c-aigw"},
+			References: map[string]ReferenceInfo{
+				FieldAIGatewayID: {Ref: "shared-gateway"},
+			},
+		},
+		{
+			ID:           "4-c-model",
+			ResourceType: ResourceTypeAIGatewayModel,
+			ResourceRef:  "support-model",
+			Action:       ActionCreate,
+			DependsOn:    []string{"1-c-aigw"},
+			References: map[string]ReferenceInfo{
+				FieldAIGatewayID: {Ref: "shared-gateway"},
+			},
+		},
+	}
+
+	res, err := d.ResolveDependenciesWithGroups(changes)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedGroups := [][]string{
+		{"1-c-aigw"},
+		{"2-c-openai"},
+		{"3-c-anthropic"},
+		{"4-c-model"},
+	}
+	if !equalNestedSlices(res.ExecutionGroups, expectedGroups) {
+		t.Fatalf("expected serialized AI Gateway child groups %v, got %v", expectedGroups, res.ExecutionGroups)
+	}
+	if !contains(res.FullDepsMap["3-c-anthropic"], "2-c-openai") {
+		t.Errorf("expected second provider to depend on first provider, got %v", res.FullDepsMap["3-c-anthropic"])
+	}
+	if !contains(res.FullDepsMap["4-c-model"], "3-c-anthropic") {
+		t.Errorf("expected model to depend on previous gateway child, got %v", res.FullDepsMap["4-c-model"])
+	}
+}
+
+func TestResolveDependenciesWithGroups_AIGatewayConsumerCredentialsSerializeByGateway(t *testing.T) {
+	d := NewDependencyResolver()
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-user-a-key",
+			ResourceType: ResourceTypeAIGatewayConsumerCredential,
+			ResourceRef:  "user-a-key",
+			Action:       ActionCreate,
+			Parent:       &ParentInfo{Ref: "user-a", ID: "consumer-a-id"},
+			References: map[string]ReferenceInfo{
+				FieldAIGatewayID: {Ref: "shared-gateway"},
+			},
+		},
+		{
+			ID:           "2-c-user-b-key",
+			ResourceType: ResourceTypeAIGatewayConsumerCredential,
+			ResourceRef:  "user-b-key",
+			Action:       ActionCreate,
+			Parent:       &ParentInfo{Ref: "user-b", ID: "consumer-b-id"},
+			References: map[string]ReferenceInfo{
+				FieldAIGatewayID: {Ref: "shared-gateway"},
+			},
+		},
+	}
+
+	res, err := d.ResolveDependenciesWithGroups(changes)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedGroups := [][]string{
+		{"1-c-user-a-key"},
+		{"2-c-user-b-key"},
+	}
+	if !equalNestedSlices(res.ExecutionGroups, expectedGroups) {
+		t.Fatalf("expected AI Gateway credential groups %v, got %v", expectedGroups, res.ExecutionGroups)
+	}
+	if !contains(res.FullDepsMap["2-c-user-b-key"], "1-c-user-a-key") {
+		t.Errorf("expected second credential to depend on first credential, got %v", res.FullDepsMap["2-c-user-b-key"])
+	}
+}
+
+func TestResolveDependenciesWithGroups_AIGatewayChildrenDifferentParentsConcurrent(t *testing.T) {
+	d := NewDependencyResolver()
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-openai",
+			ResourceType: ResourceTypeAIGatewayProvider,
+			ResourceRef:  "openai",
+			Action:       ActionCreate,
+			Parent:       &ParentInfo{Ref: "gateway-a", ID: "gateway-a-id"},
+		},
+		{
+			ID:           "2-c-anthropic",
+			ResourceType: ResourceTypeAIGatewayProvider,
+			ResourceRef:  "anthropic",
+			Action:       ActionCreate,
+			Parent:       &ParentInfo{Ref: "gateway-b", ID: "gateway-b-id"},
+		},
+	}
+
+	res, err := d.ResolveDependenciesWithGroups(changes)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(res.ExecutionGroups) != 1 {
+		t.Fatalf("expected children with different parents in one group, got %v", res.ExecutionGroups)
+	}
+	if !contains(res.ExecutionGroups[0], "1-c-openai") || !contains(res.ExecutionGroups[0], "2-c-anthropic") {
+		t.Fatalf("expected both provider creates in the same group, got %v", res.ExecutionGroups)
+	}
+	if len(res.FullDepsMap) != 0 {
+		t.Fatalf("expected no serialization deps across different gateways, got %v", res.FullDepsMap)
+	}
+}
+
 // ── Helper functions ──────────────────────────────────────────────────────────
 
 // Helper functions
@@ -1147,6 +1287,18 @@ func equalSlices(a, b []string) bool {
 	}
 	for i, v := range a {
 		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func equalNestedSlices(a, b [][]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !equalSlices(a[i], b[i]) {
 			return false
 		}
 	}

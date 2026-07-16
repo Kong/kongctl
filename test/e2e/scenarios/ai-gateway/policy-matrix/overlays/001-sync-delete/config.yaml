@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-policy-matrix-e2e
+
+ai_gateways:
+  - ref: ai-gateway-policy-matrix-e2e
+    name: ai-gateway-policy-matrix-e2e
+    display_name: "AI Gateway Policy Matrix E2E"
+    description: "AI Gateway policy config matrix e2e"
+    proxy_urls:
+      - host: ai-gateway-policy-matrix-e2e.example.com
+        port: 443
+        protocol: https
+    policies: []

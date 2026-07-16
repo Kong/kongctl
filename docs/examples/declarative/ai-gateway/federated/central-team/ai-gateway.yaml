@@ -1,0 +1,52 @@
+_defaults:
+  kongctl:
+    namespace: federated-ai-gateway
+
+ai_gateways:
+  - ref: shared-ai-gateway
+    name: shared-ai-gateway
+    display_name: "Shared Federated AI Gateway"
+    description: "Central AI Gateway owned by the AI platform team"
+    proxy_urls:
+      - host: shared-ai.example.com
+        port: 443
+        protocol: https
+    labels:
+      team: ai-platform
+      ownership: central
+    model_providers:
+      - ref: shared-openai-provider
+        name: shared-openai
+        type: openai
+        display_name: "Shared OpenAI Provider"
+        labels:
+          provider_family: openai
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !env OPENAI_AUTH_HEADER
+      - ref: shared-anthropic-provider
+        name: shared-anthropic
+        type: anthropic
+        display_name: "Shared Anthropic Provider"
+        labels:
+          provider_family: anthropic
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: x-api-key
+                value: !env ANTHROPIC_API_KEY
+    identity_providers:
+      - ref: shared-key-auth
+        name: shared-key-auth
+        type: key-auth
+        display_name: "Shared Key Auth"
+        labels:
+          auth: shared
+        config:
+          key_names:
+            - x-ai-gateway-key
+          hide_credentials: true

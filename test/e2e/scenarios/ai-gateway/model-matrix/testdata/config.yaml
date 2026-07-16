@@ -1,0 +1,352 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-matrix-e2e
+
+ai_gateways:
+  - ref: ai-gateway-model-matrix-e2e
+    name: ai-gateway-model-matrix-e2e
+    display_name: "AI Gateway Model Matrix E2E"
+    description: "AI Gateway model variant matrix e2e"
+    proxy_urls:
+      - host: ai-gateway-model-matrix-e2e.example.com
+        port: 443
+        protocol: https
+    model_providers:
+      - ref: matrix-bedrock
+        name: matrix-bedrock
+        type: bedrock
+        display_name: "Matrix Bedrock"
+        config:
+          auth:
+            type: aws
+            access_key_id: fake-access-key-id
+            secret_access_key: fake-secret-access-key
+      - ref: matrix-azure
+        name: matrix-azure
+        type: azure
+        display_name: "Matrix Azure OpenAI"
+        config:
+          instance: matrix-openai-resource
+          auth:
+            type: basic
+            headers:
+              - name: api-key
+                value: fake-azure-api-key
+            params:
+              - name: api-version
+                value: "2024-06-01"
+                location: query
+      - ref: matrix-gemini
+        name: matrix-gemini
+        type: gemini
+        display_name: "Matrix Gemini"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: x-goog-api-key
+                value: fake-gemini-api-key
+      - ref: matrix-openai
+        name: matrix-openai
+        type: openai
+        display_name: "Matrix OpenAI"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: Bearer fake-openai-api-key
+    models:
+      - ref: matrix-chat-model
+        type: model
+        name: matrix-chat-model
+        display_name: "Matrix Multi Provider Chat"
+        enabled: true
+        formats:
+          - type: openai
+        config:
+          route:
+            paths:
+              - /matrix/chat
+            methods:
+              - POST
+          logging:
+            payloads: true
+            statistics: true
+          model:
+            name_header: true
+          balancer:
+            algorithm: round-robin
+        capabilities:
+          - generate
+        targets:
+          - name: anthropic.claude-3-haiku-20240307-v1:0
+            provider: matrix-bedrock
+            semantic_description: "Fast low-cost support responses"
+            config:
+              type: bedrock
+              region: us-east-1
+              input_cost: 0.8
+              output_cost: 4
+          - name: gpt-4o
+            provider: matrix-azure
+            semantic_description: "General purpose chat completion"
+            config:
+              type: azure
+              deployment_id: gpt-4o
+              api_version: "2024-06-01"
+              upstream_url: https://example.com/openai/deployments/gpt-4o/chat/completions
+              max_tokens: 1024
+              temperature: 1.0
+              input_cost: 5
+              output_cost: 15
+          - name: gemini-2.5-flash
+            provider: matrix-gemini
+            semantic_description: "Low-latency Gemini chat completion"
+            config:
+              type: gemini
+              input_cost: 0.075
+              output_cost: 0.30
+        policies: []
+
+      - ref: matrix-agentic-model
+        type: model
+        name: matrix-agentic-model
+        display_name: "Matrix Agentic Responses"
+        enabled: true
+        formats:
+          - type: openai
+        config:
+          route:
+            paths:
+              - /matrix/responses
+            methods:
+              - POST
+          logging:
+            payloads: true
+            statistics: true
+          model:
+            name_header: true
+          balancer:
+            algorithm: round-robin
+        capabilities:
+          - agentic
+        targets:
+          - name: gpt-4o
+            provider: matrix-openai
+            config:
+              type: openai
+              upstream_url: https://example.com/openai/v1/responses
+        policies: []
+
+      - ref: matrix-embeddings-model
+        type: model
+        name: matrix-embeddings-model
+        display_name: "Matrix Embeddings"
+        enabled: true
+        formats:
+          - type: openai
+        config:
+          route:
+            paths:
+              - /matrix/embeddings
+            methods:
+              - POST
+          logging:
+            payloads: false
+            statistics: true
+          model:
+            name_header: true
+          balancer:
+            algorithm: round-robin
+        capabilities:
+          - embeddings
+        targets:
+          - name: text-embedding-3-large
+            provider: matrix-azure
+            config:
+              type: azure
+              deployment_id: text-embedding-3-large
+              upstream_url: https://example.com/openai/deployments/text-embedding-3-large/embeddings
+              embeddings_dimensions: 3072
+        policies: []
+
+      - ref: matrix-image-model
+        type: model
+        name: matrix-image-model
+        display_name: "Matrix Image Generation"
+        enabled: true
+        formats:
+          - type: openai
+        config:
+          route:
+            paths:
+              - /matrix/images
+            methods:
+              - POST
+          logging:
+            payloads: false
+            statistics: true
+          model:
+            name_header: true
+          balancer:
+            algorithm: round-robin
+        capabilities:
+          - image
+        targets:
+          - name: gpt-image-1-mini
+            provider: matrix-azure
+            config:
+              type: azure
+              deployment_id: gpt-image-1-mini
+              upstream_url: https://example.com/openai/deployments/gpt-image-1-mini/images/generations
+        policies: []
+
+      - ref: matrix-audio-model
+        type: model
+        name: matrix-audio-model
+        display_name: "Matrix Audio Transcription"
+        enabled: true
+        formats:
+          - type: openai
+        config:
+          route:
+            paths:
+              - /matrix/audio
+            methods:
+              - POST
+          logging:
+            payloads: false
+            statistics: false
+          model:
+            name_header: true
+          balancer:
+            algorithm: round-robin
+          max_request_body_size: 26214400
+        capabilities:
+          - audio/transcription
+        targets:
+          - name: whisper
+            provider: matrix-azure
+            config:
+              type: azure
+              deployment_id: whisper
+              upstream_url: https://example.com/openai/deployments/whisper/audio/transcriptions
+        policies: []
+
+      - ref: matrix-batch-api
+        type: api
+        name: matrix-batch-api
+        display_name: "Matrix Batch API"
+        enabled: true
+        formats:
+          - type: openai
+        config:
+          route:
+            paths:
+              - /matrix/batches
+            methods:
+              - POST
+          logging:
+            payloads: false
+            statistics: false
+          model:
+            name_header: true
+          balancer:
+            algorithm: round-robin
+        capabilities:
+          - batches
+        targets:
+          - name: gpt-4o-mini-global-batch
+            provider: matrix-azure
+            config:
+              type: azure
+              deployment_id: gpt-4o-mini-global-batch
+              upstream_url: https://example.com/openai/batches
+        policies: []
+
+      - ref: matrix-native-bedrock
+        type: model
+        name: matrix-native-bedrock
+        display_name: "Matrix Native Bedrock"
+        enabled: true
+        formats:
+          - type: bedrock
+        config:
+          route:
+            paths:
+              - /matrix/native
+            methods:
+              - POST
+          logging:
+            payloads: true
+            statistics: true
+          model:
+            name_header: true
+          balancer:
+            algorithm: round-robin
+        capabilities:
+          - generate
+        targets:
+          - name: anthropic.claude-3-haiku-20240307-v1:0
+            provider: matrix-bedrock
+            config:
+              type: bedrock
+              region: us-east-1
+              input_cost: 0.8
+              output_cost: 4
+        policies: []
+
+      - ref: matrix-semantic-redis
+        type: model
+        name: matrix-semantic-redis
+        display_name: "Matrix Semantic Redis"
+        enabled: true
+        formats:
+          - type: anthropic
+        config:
+          route:
+            paths:
+              - /matrix/semantic
+            methods:
+              - POST
+          logging:
+            payloads: false
+            statistics: true
+          model:
+            name_header: true
+          balancer:
+            algorithm: semantic
+            embeddings:
+              provider: matrix-azure
+              name: text-embedding-3-large
+              config:
+                type: azure
+                deployment_id: text-embedding-3-large
+                upstream_url: https://example.com/openai/deployments/text-embedding-3-large/embeddings
+            vectordb:
+              type: redis
+              dimensions: 3072
+              distance_metric: cosine
+              threshold: 1.5
+              host: redis.example.com
+              port: 6379
+              ssl: false
+        capabilities:
+          - generate
+        targets:
+          - name: anthropic.claude-3-haiku-20240307-v1:0
+            provider: matrix-bedrock
+            semantic_description: "Fast target for direct support questions"
+            config:
+              type: bedrock
+              region: us-east-1
+          - name: gpt-4o
+            provider: matrix-azure
+            semantic_description: "Reasoning target for complex account questions"
+            config:
+              type: azure
+              deployment_id: gpt-4o
+              api_version: "2024-06-01"
+              upstream_url: https://example.com/openai/deployments/gpt-4o/chat/completions
+        policies: []

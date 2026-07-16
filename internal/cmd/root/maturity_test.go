@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/maturity"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -38,12 +39,12 @@ func TestMaturityCommandListingLabelsOnlyLowerChildren(t *testing.T) {
 	inherited.AddCommand(preview)
 
 	rootHelp := renderHelp(t, root)
-	assert.Contains(t, rootHelp, "Beta command [Beta]")
+	assert.Contains(t, rootHelp, "Beta command [beta]")
 	betaHelp := renderHelp(t, beta)
 	assert.Contains(t, betaHelp, "Inherited Beta command")
-	assert.NotContains(t, betaHelp, "Inherited Beta command [Beta]")
+	assert.NotContains(t, betaHelp, "Inherited Beta command [beta]")
 	inheritedHelp := renderHelp(t, inherited)
-	assert.Contains(t, inheritedHelp, "Preview command [Tech Preview]")
+	assert.Contains(t, inheritedHelp, "Preview command [tech preview]")
 }
 
 func TestMaturityCommandHelpAndExceptions(t *testing.T) {
@@ -51,6 +52,7 @@ func TestMaturityCommandHelpAndExceptions(t *testing.T) {
 	root.PersistentFlags().String("shared", "", "shared inherited flag")
 	command := &cobra.Command{
 		Use:     "feature <mode>",
+		Aliases: []string{"feat"},
 		Short:   "Feature command",
 		Long:    "Feature command long description.",
 		Example: "  kongctl feature",
@@ -76,12 +78,13 @@ func TestMaturityCommandHelpAndExceptions(t *testing.T) {
 
 	help := renderHelp(t, command)
 	assert.Equal(t, 1, bytes.Count([]byte(help), []byte("Maturity:")))
-	assert.Contains(t, help, "Maturity:\n  Beta\n  This interface may change before GA.")
+	assert.Contains(t, help, "Maturity:\n  beta\n  This interface may change before GA.")
 	assert.Contains(t, help, "  Learn more: https://example.test/maturity")
-	assert.Contains(t, help, "  --experimental: Tech Preview")
-	assert.Contains(t, help, "  <mode>: Tech Preview")
-	assert.Contains(t, help, "  --resources values:\n    Tech Preview: preview_services")
-	assert.NotContains(t, help, "  --shared: Beta")
+	assert.Contains(t, help, "  --experimental: tech preview")
+	assert.Contains(t, help, "  <mode>: tech preview")
+	assert.Contains(t, help, "  --resources values:\n    tech preview: preview_services")
+	assert.NotContains(t, help, "  --shared: beta")
+	assert.Less(t, bytes.Index([]byte(help), []byte("Maturity:")), bytes.Index([]byte(help), []byte("Aliases:")))
 	assert.Less(t, bytes.Index([]byte(help), []byte("Maturity:")), bytes.Index([]byte(help), []byte("Flags:")))
 }
 
@@ -93,7 +96,7 @@ func TestMaturityGAHelpRemainsUnlabeled(t *testing.T) {
 
 	help := renderHelp(t, command)
 	assert.NotContains(t, help, "Maturity:")
-	assert.NotContains(t, help, "[GA]")
+	assert.NotContains(t, help, "[ga]")
 }
 
 func TestMaturityGACommandLabelsOnlyNarrowExceptions(t *testing.T) {
@@ -109,8 +112,8 @@ func TestMaturityGACommandLabelsOnlyNarrowExceptions(t *testing.T) {
 	))
 
 	help := renderHelp(t, command)
-	assert.Contains(t, help, "Maturity:\n  --resources values:\n    Beta: preview_services")
-	assert.Contains(t, help, "  <mode> values:\n    Tech Preview: preview")
+	assert.Contains(t, help, "Maturity:\n  --resources values:\n    beta: preview_services")
+	assert.Contains(t, help, "  <mode> values:\n    tech preview: preview")
 	assert.NotContains(t, help, "Maturity:\n  GA")
 
 	resolved, err := maturity.ResolveCommand(command)
@@ -126,5 +129,18 @@ func TestMaturityRootOverviewLabelsChildren(t *testing.T) {
 
 	var output bytes.Buffer
 	require.NoError(t, renderRootOverview(&output, root))
-	assert.Contains(t, output.String(), "Preview command [Beta]")
+	assert.Contains(t, output.String(), "Preview command [beta]")
+}
+
+func TestMaturityMissingSubcommandLabelsLowerMaturityChildren(t *testing.T) {
+	root := newMaturityHelpRoot()
+	stable := &cobra.Command{Use: "stable", Short: "Stable command", Run: maturityTestRun}
+	beta := &cobra.Command{Use: "beta", Short: "Beta command", Run: maturityTestRun}
+	require.NoError(t, maturity.AnnotateCommand(beta, maturity.Metadata{Level: maturity.LevelBeta}))
+	root.AddCommand(stable, beta)
+
+	var output bytes.Buffer
+	err := renderCommandUsageError(&output, root, cmdpkg.MissingSubcommandError(root))
+	require.NoError(t, err)
+	assert.Contains(t, output.String(), "Available subcommands:\n  beta [beta]\n  stable\n")
 }

@@ -571,6 +571,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			len(source.DCRProviders) +
 			len(source.ControlPlanes) +
 			len(source.CatalogServices) +
+			len(source.AIGateways) +
 			len(source.APIs) +
 			len(source.EventGatewayControlPlanes) +
 			len(source.Dashboards) +
@@ -712,6 +713,27 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		if rs.CatalogServices[i].Kongctl.Protected == nil {
 			falseVal := false
 			rs.CatalogServices[i].Kongctl.Protected = &falseVal
+		}
+	}
+
+	// Apply defaults to AI Gateways (parent resources)
+	for i := range rs.AIGateways {
+		if rs.AIGateways[i].IsExternal() {
+			if rs.AIGateways[i].Kongctl != nil {
+				return fmt.Errorf("ai_gateway '%s' is marked as external and cannot use kongctl metadata",
+					rs.AIGateways[i].Ref)
+			}
+			continue
+		}
+		if err := assignNamespace(&rs.AIGateways[i].Kongctl, "ai_gateway", rs.AIGateways[i].Ref); err != nil {
+			return err
+		}
+		if rs.AIGateways[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.AIGateways[i].Kongctl.Protected = protectedDefault
+		}
+		if rs.AIGateways[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.AIGateways[i].Kongctl.Protected = &falseVal
 		}
 	}
 
@@ -1014,6 +1036,78 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		cp.DataPlaneCertificates = nil
 	}
 
+	for i := range rs.AIGateways {
+		gateway := &rs.AIGateways[i]
+		for j := range gateway.Providers {
+			provider := gateway.Providers[j]
+			provider.AIGateway = gateway.Ref
+			rs.AIGatewayProviders = append(rs.AIGatewayProviders, provider)
+		}
+		gateway.Providers = nil
+
+		for j := range gateway.Policies {
+			policy := gateway.Policies[j]
+			policy.AIGateway = gateway.Ref
+			rs.AIGatewayPolicies = append(rs.AIGatewayPolicies, policy)
+		}
+		gateway.Policies = nil
+
+		for j := range gateway.IdentityProviders {
+			provider := gateway.IdentityProviders[j]
+			provider.AIGateway = gateway.Ref
+			rs.AIGatewayIdentityProviders = append(rs.AIGatewayIdentityProviders, provider)
+		}
+		gateway.IdentityProviders = nil
+
+		for j := range gateway.Agents {
+			agent := gateway.Agents[j]
+			agent.AIGateway = gateway.Ref
+			rs.AIGatewayAgents = append(rs.AIGatewayAgents, agent)
+		}
+		gateway.Agents = nil
+
+		for j := range gateway.Consumers {
+			consumer := gateway.Consumers[j]
+			consumer.AIGateway = gateway.Ref
+			rs.AIGatewayConsumers = append(rs.AIGatewayConsumers, consumer)
+		}
+		gateway.Consumers = nil
+
+		for j := range gateway.ConsumerGroups {
+			group := gateway.ConsumerGroups[j]
+			group.AIGateway = gateway.Ref
+			rs.AIGatewayConsumerGroups = append(rs.AIGatewayConsumerGroups, group)
+		}
+		gateway.ConsumerGroups = nil
+
+		for j := range gateway.Models {
+			model := gateway.Models[j]
+			model.AIGateway = gateway.Ref
+			rs.AIGatewayModels = append(rs.AIGatewayModels, model)
+		}
+		gateway.Models = nil
+
+		for j := range gateway.MCPServers {
+			server := gateway.MCPServers[j]
+			server.AIGateway = gateway.Ref
+			rs.AIGatewayMCPServers = append(rs.AIGatewayMCPServers, server)
+		}
+		gateway.MCPServers = nil
+
+		for j := range gateway.Vaults {
+			vault := gateway.Vaults[j]
+			vault.AIGateway = gateway.Ref
+			rs.AIGatewayVaults = append(rs.AIGatewayVaults, vault)
+		}
+		gateway.Vaults = nil
+
+		for _, cert := range gateway.DataPlaneCertificates {
+			cert.AIGateway = gateway.Ref
+			rs.AIGatewayDataPlaneCertificates = append(rs.AIGatewayDataPlaneCertificates, cert)
+		}
+		gateway.DataPlaneCertificates = nil
+	}
+
 	for i := range rs.APIs {
 		api := &rs.APIs[i]
 
@@ -1224,6 +1318,16 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.EventGatewayDataPlaneCertificates = append(rs.EventGatewayDataPlaneCertificates, dp)
 		}
 		egw.DataPlaneCertificates = nil
+	}
+
+	for i := range rs.AIGatewayConsumers {
+		consumer := &rs.AIGatewayConsumers[i]
+		for j := range consumer.Credentials {
+			credential := consumer.Credentials[j]
+			credential.AIGatewayConsumer = consumer.Ref
+			rs.AIGatewayConsumerCredentials = append(rs.AIGatewayConsumerCredentials, credential)
+		}
+		consumer.Credentials = nil
 	}
 }
 

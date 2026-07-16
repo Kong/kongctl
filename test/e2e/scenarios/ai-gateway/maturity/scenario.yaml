@@ -1,0 +1,100 @@
+test:
+  requiresPAT: false
+
+steps:
+  - name: 001-command-maturity
+    skipInputs: true
+    commands:
+      - name: 000-get-command-listing
+        run:
+          - get
+          - --help
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'AI Gateways [beta]')": true
+      - name: 001-get-ai-gateway-help
+        run:
+          - get
+          - ai-gateway
+          - --help
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'Maturity:')": true
+                "contains(stdout, 'beta')": true
+      - name: 002-get-ai-gateway-models-help
+        run:
+          - get
+          - ai-gateway
+          - models
+          - --help
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'Maturity:')": true
+                "contains(stdout, 'beta')": true
+      - name: 003-adopt-command-listing
+        run:
+          - adopt
+          - --help
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'AI Gateway into namespace management [beta]')": true
+
+  - name: 002-resource-maturity
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway
+        run:
+          - explain
+          - ai_gateway
+          - -o
+          - json
+        assertions:
+          - select: '"x-kongctl-maturity"'
+            expect:
+              fields:
+                level: beta
+                "length(operations)": 0
+      - name: 001-explain-ai-gateway-model
+        run:
+          - explain
+          - ai_gateway_model
+          - -o
+          - json
+        assertions:
+          - select: '"x-kongctl-maturity"'
+            expect:
+              fields:
+                level: beta
+                "length(operations)": 0
+      - name: 002-scaffold-ai-gateway
+        run:
+          - scaffold
+          - ai_gateway
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "starts_with(stdout, '# Maturity: beta')": true
+      - name: 003-scaffold-ai-gateway-model
+        run:
+          - scaffold
+          - ai_gateway_model
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "starts_with(stdout, '# Maturity: beta')": true

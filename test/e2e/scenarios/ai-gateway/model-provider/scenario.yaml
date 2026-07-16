@@ -1,0 +1,425 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-model-provider-e2e"
+  gateway_ref: "ai-gateway-model-provider-e2e"
+  gateway_name: "AI Gateway Model Provider E2E"
+  azure_provider_ref: "support-azure"
+  azure_provider_name: "support-azure"
+  azure_provider_updated_display_name: "Updated Support Azure OpenAI"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-model-provider-json
+        run:
+          - explain
+          - ai_gateway_model_provider
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway_model_provider"
+                '"x-kongctl-root-key"': ai_gateway_model_providers
+          - select: "oneOf[?properties.type.const=='openai'] | [0].properties"
+            expect:
+              fields:
+                "contains(keys(@), 'ai_gateway')": true
+          - select: "length(oneOf)"
+            expect:
+              fields:
+                "@": 19
+          - select: >-
+              oneOf[?properties.type.const=='openai'] | [0].properties.config.properties.auth.properties
+            expect:
+              fields:
+                "contains(keys(@), 'headers')": true
+                "contains(keys(@), 'header_name')": false
+                "contains(keys(@), 'header_value')": false
+          - select: >-
+              oneOf[?properties.type.const=='openai'] | [0].properties.config.properties.auth.properties.headers.items.properties
+            expect:
+              fields:
+                "contains(keys(@), 'name')": true
+                "contains(keys(@), 'value')": true
+      - name: 001-scaffold-ai-gateway-model-provider
+        run:
+          - scaffold
+          - ai_gateway_model_provider
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_model_providers:')": true
+                "contains(stdout, 'type: openai')": true
+                "contains(stdout, 'config:')": true
+                "contains(stdout, 'headers:')": true
+                "contains(stdout, 'name: Authorization')": true
+
+  - name: 002-reject-legacy-flat-openai-auth
+    inputOverlayDirs:
+      - overlays/000-invalid-flat-auth
+    commands:
+      - name: 000-plan-invalid-flat-openai-auth
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: >-
+            config.auth.header_name and config.auth.header_value are not supported;
+            use config.auth.headers[].name and config.auth.headers[].value
+
+  - name: 003-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 5
+                by_action.CREATE: 5
+          - select: >-
+              length(changes[?resource_type=='ai_gateway_model_provider'])
+            expect:
+              fields:
+                "@": 4
+          - select: >-
+              changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-bedrock'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-bedrock
+                fields.type: bedrock
+                fields.config.auth.type: aws
+                fields.config.auth.access_key_id: fake-access-key-id
+          - select: >-
+              changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-azure'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-azure
+                fields.type: azure
+                fields.config.instance: support-openai-resource
+                fields.config.auth.params[0].value: "2024-06-01"
+          - select: >-
+              changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-gemini'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-gemini
+                fields.type: gemini
+                fields.config.auth.headers[0].name: x-goog-api-key
+          - select: >-
+              changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-openai'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-openai
+                fields.type: openai
+                fields.config.auth.headers[0].name: Authorization
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 5
+                failed: 0
+                status: success
+      - name: 002-get-model-providers
+        run:
+          - get
+          - ai-gateway
+          - model-providers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 4
+          - select: "[?name=='support-bedrock'] | [0].type"
+            expect:
+              fields:
+                "@": bedrock
+          - select: "[?name=='support-azure'] | [0].type"
+            expect:
+              fields:
+                "@": azure
+          - select: "[?name=='support-gemini'] | [0].type"
+            expect:
+              fields:
+                "@": gemini
+          - select: "[?name=='support-openai'] | [0]"
+            expect:
+              fields:
+                type: openai
+                config.auth.headers[0].name: Authorization
+          - select: "[?name=='support-openai'] | [0].config.auth.headers[0]"
+            expect:
+              fields:
+                "contains(keys(@), 'value')": false
+      - name: 003-list-model-providers
+        run:
+          - list
+          - aigw
+          - model-providers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.azure_provider_name }}'] | [0]"
+            expect:
+              fields:
+                type: azure
+                display_name: "Support Azure OpenAI"
+                config.instance: support-openai-resource
+      - name: 004-get-model-provider-by-name
+        run:
+          - get
+          - ai-gateways
+          - model-providers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.azure_provider_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.azure_provider_name }}"
+                type: azure
+                display_name: "Support Azure OpenAI"
+                config.instance: support-openai-resource
+      - name: 005-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 004-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='{{ .vars.azure_provider_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.name: "{{ .vars.azure_provider_name }}"
+                fields.display_name: "{{ .vars.azure_provider_updated_display_name }}"
+                fields.labels.team: platform
+                fields.config.auth.params[0].value: "2024-10-01-preview"
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-verify-update
+        run:
+          - get
+          - ai-gateway
+          - model-provider
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.azure_provider_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: "{{ .vars.azure_provider_updated_display_name }}"
+                labels.team: platform
+                config.auth.params[0].name: api-version
+                config.auth.params[0].location: query
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 005-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateway-with-model-providers
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-ai-gateway.yaml"
+        assertions:
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].model_providers[?name=='support-bedrock'] | [0].type
+            expect:
+              fields:
+                "@": bedrock
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].model_providers[?name=='{{ .vars.azure_provider_name }}'] | [0]
+            expect:
+              fields:
+                type: azure
+                display_name: "{{ .vars.azure_provider_updated_display_name }}"
+                config.instance: support-openai-resource
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].model_providers[?name=='support-gemini'] | [0].type
+            expect:
+              fields:
+                "@": gemini
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].model_providers[?name=='support-openai'] | [0].type
+            expect:
+              fields:
+                "@": openai
+      - name: 001-plan-from-ai-gateway-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-ai-gateway.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 002-dump-root-model-providers
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_model_providers"
+          - "--filter-name={{ .vars.azure_provider_name }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_model_providers[0]"
+            expect:
+              fields:
+                name: "{{ .vars.azure_provider_name }}"
+                type: azure
+                display_name: "{{ .vars.azure_provider_updated_display_name }}"
+                config.instance: support-openai-resource
+          - select: "ai_gateway_model_providers[0].ai_gateway != ''"
+            expect:
+              fields:
+                "@": true
+
+  - name: 006-sync-delete-model-providers
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 000-sync-delete-model-providers
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.DELETE: 4
+          - select: >-
+              length(plan.changes[?resource_type=='ai_gateway_model_provider' && action=='DELETE'])
+            expect:
+              fields:
+                "@": 4
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+                status: success

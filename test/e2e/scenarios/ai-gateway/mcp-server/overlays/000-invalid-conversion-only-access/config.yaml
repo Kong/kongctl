@@ -1,0 +1,20 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-mcp-server-e2e
+
+ai_gateways:
+  - ref: invalid-conversion-only-access-gateway
+    name: invalid-conversion-only-access-gateway
+    display_name: Invalid Conversion-Only Access Gateway
+    mcp_servers:
+      - ref: invalid-conversion-only-access
+        type: conversion-only
+        name: invalid-conversion-only-access
+        display_name: Invalid Conversion-Only Access
+        access:
+          acl_attribute_type: consumer
+        config:
+          url: https://support-tools.example.com
+          route:
+            paths:
+              - /support-tools

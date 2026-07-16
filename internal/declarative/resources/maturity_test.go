@@ -82,8 +82,8 @@ func TestResourceMaturityExplainAndScaffold(t *testing.T) {
 	subject, err := ResolveExplainSubject(string(maturityTestResourceType))
 	require.NoError(t, err)
 	text := RenderExplainText(subject, false)
-	assert.Contains(t, text, "RESOURCE\nMATURITY: Beta\nRESOURCE CLASS:")
-	assert.Contains(t, text, "OPERATION MATURITY:\n  delete: Tech Preview")
+	assert.Contains(t, text, "RESOURCE\nMATURITY: beta\nRESOURCE CLASS:")
+	assert.Contains(t, text, "OPERATION MATURITY:\n  delete: tech preview")
 
 	schema := RenderExplainSchema(subject)
 	require.NotNil(t, schema.XMaturity)
@@ -96,7 +96,7 @@ func TestResourceMaturityExplainAndScaffold(t *testing.T) {
 	scaffold, err := RenderScaffoldYAML(subject)
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(scaffold,
-		"# Maturity: Beta\n# This resource may change before GA.\n\n"))
+		"# Maturity: beta\n# This resource may change before GA.\n\n"))
 }
 
 func TestGAScaffoldAndResourceSerializationExcludeMaturity(t *testing.T) {

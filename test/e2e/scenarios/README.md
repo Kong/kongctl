@@ -11,8 +11,10 @@ Quickstart
 
 - Place a scenario at `test/e2e/scenarios/<suite>/<name>/scenario.yaml`.
 - Run all scenarios only: `make test-e2e-scenarios`.
-- Run a single scenario by exact path:
+- Run all AI Gateway scenarios: `make test-e2e-ai-gateway`.
+- Run a single scenario or directory prefix:
   - `make test-e2e-scenarios SCENARIO=portal/visibility`
+  - `make test-e2e-scenarios SCENARIO=ai-gateway`
   - or `KONGCTL_E2E_SCENARIO=test/e2e/scenarios/portal/visibility/scenario.yaml make test-e2e-scenarios`
 - Save observed output to expected files (bootstrap/update):
   - `KONGCTL_E2E_UPDATE_EXPECT=1 make test-e2e-scenarios SCENARIO=portal/visibility`

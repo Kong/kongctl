@@ -127,6 +127,7 @@ func (d *DependencyResolver) ResolveDependenciesWithGroups(
 	allChanges := make(map[string]bool)                // set of all change IDs
 	changeDetails := make(map[string]string)           // change_id -> description for errors
 	allDepsPerNode := make(map[string]map[string]bool) // change_id -> set of its dependencies
+	previousAIGatewayChildByParent := make(map[string]string)
 
 	for _, change := range changes {
 		id := change.ID
@@ -162,6 +163,12 @@ func (d *DependencyResolver) ResolveDependenciesWithGroups(
 			if parentDep := d.findParentChange(change.Parent.Ref, change.ResourceType, changes); parentDep != "" {
 				addEdge(parentDep)
 			}
+		}
+		if parentKey := aiGatewayChildSerializationParentKey(change); parentKey != "" {
+			if previousID := previousAIGatewayChildByParent[parentKey]; previousID != "" {
+				addEdge(previousID)
+			}
+			previousAIGatewayChildByParent[parentKey] = id
 		}
 	}
 
@@ -222,6 +229,65 @@ func (d *DependencyResolver) ResolveDependenciesWithGroups(
 		ExecutionGroups: executionGroups,
 		FullDepsMap:     fullDepsMap,
 	}, nil
+}
+
+func aiGatewayChildSerializationParentKey(change PlannedChange) string {
+	switch change.ResourceType {
+	case ResourceTypeAIGatewayProvider,
+		ResourceTypeAIGatewayIdentityProvider,
+		ResourceTypeAIGatewayPolicy,
+		ResourceTypeAIGatewayAgent,
+		ResourceTypeAIGatewayConsumer,
+		ResourceTypeAIGatewayConsumerCredential,
+		ResourceTypeAIGatewayConsumerGroup,
+		ResourceTypeAIGatewayModel,
+		ResourceTypeAIGatewayMCPServer,
+		ResourceTypeAIGatewayVault,
+		ResourceTypeAIGatewayDataPlaneCertificate:
+	default:
+		return ""
+	}
+
+	if change.ResourceType == ResourceTypeAIGatewayConsumerCredential {
+		if key := aiGatewayChildSerializationReferenceKey(change); key != "" {
+			return key
+		}
+	}
+
+	if change.Parent != nil {
+		if change.Parent.Ref != "" {
+			return "ref:" + change.Parent.Ref
+		}
+		if !unresolvedReferenceID(change.Parent.ID) {
+			return "id:" + change.Parent.ID
+		}
+	}
+
+	refInfo, ok := change.References[FieldAIGatewayID]
+	if !ok {
+		return ""
+	}
+	if refInfo.Ref != "" {
+		return "ref:" + refInfo.Ref
+	}
+	if !unresolvedReferenceID(refInfo.ID) {
+		return "id:" + refInfo.ID
+	}
+	return ""
+}
+
+func aiGatewayChildSerializationReferenceKey(change PlannedChange) string {
+	refInfo, ok := change.References[FieldAIGatewayID]
+	if !ok {
+		return ""
+	}
+	if refInfo.Ref != "" {
+		return "ref:" + refInfo.Ref
+	}
+	if !unresolvedReferenceID(refInfo.ID) {
+		return "id:" + refInfo.ID
+	}
+	return ""
 }
 
 // findImplicitDependencies finds dependencies based on references
@@ -301,6 +367,19 @@ func (d *DependencyResolver) getParentType(childType string) string {
 		return ResourceTypeAPI
 	case ResourceTypePortalPage:
 		return ResourceTypePortal
+	case ResourceTypeAIGatewayProvider,
+		ResourceTypeAIGatewayIdentityProvider,
+		ResourceTypeAIGatewayPolicy,
+		ResourceTypeAIGatewayAgent,
+		ResourceTypeAIGatewayConsumer,
+		ResourceTypeAIGatewayConsumerGroup,
+		ResourceTypeAIGatewayModel,
+		ResourceTypeAIGatewayMCPServer,
+		ResourceTypeAIGatewayVault,
+		ResourceTypeAIGatewayDataPlaneCertificate:
+		return ResourceTypeAIGateway
+	case ResourceTypeAIGatewayConsumerCredential:
+		return ResourceTypeAIGatewayConsumer
 	default:
 		return ""
 	}

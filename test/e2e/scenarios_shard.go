@@ -102,7 +102,7 @@ func scenarioMatches(scenarioPath, filter string) bool {
 
 	scenarioDir := strings.TrimSuffix(normalizeScenarioPath(scenarioPath), "/scenario.yaml")
 	filterDir := strings.TrimSuffix(normalizeScenarioPath(filter), "/scenario.yaml")
-	return scenarioDir == filterDir
+	return scenarioDir == filterDir || strings.HasPrefix(scenarioDir, filterDir+"/")
 }
 
 func normalizeScenarioPath(path string) string {
@@ -135,7 +135,49 @@ func loadScenarioOrgNames(raw string) ([]string, error) {
 	return names, nil
 }
 
-func writeScenarioShardManifest(artifactsDir string, shard scenarioShard, selected []string) error {
+func shouldValidateScenarioEnvironments(konnectEnv string, shard scenarioShard, allowedEnvs []string) bool {
+	if !shard.Enabled || len(allowedEnvs) == 0 {
+		return false
+	}
+
+	switch strings.TrimSpace(konnectEnv) {
+	case "", "com", "production", "prod":
+		return true
+	default:
+		return false
+	}
+}
+
+func missingAssignedEnvironmentScenarios(
+	scenarios []string,
+	assignments map[string]scenarioAssignment,
+	allowedEnvs []string,
+	validateEnvs bool,
+) []string {
+	if validateEnvs || len(allowedEnvs) == 0 {
+		return nil
+	}
+
+	excluded := make([]string, 0)
+	for _, p := range scenarios {
+		normalizedPath := normalizeScenarioPath(p)
+		assignment := assignments[normalizedPath]
+		if assignment.Environment == "" {
+			continue
+		}
+		if !slices.Contains(allowedEnvs, assignment.Environment) {
+			excluded = append(excluded, p)
+		}
+	}
+	return excluded
+}
+
+func writeScenarioShardManifest(
+	artifactsDir string,
+	shard scenarioShard,
+	selected []string,
+	excluded []string,
+) error {
 	if !shard.Enabled || strings.TrimSpace(artifactsDir) == "" {
 		return nil
 	}
@@ -152,5 +194,18 @@ func writeScenarioShardManifest(artifactsDir string, shard scenarioShard, select
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(b.String()), 0o600)
+	if err := os.WriteFile(path, []byte(b.String()), 0o600); err != nil {
+		return err
+	}
+
+	if len(excluded) == 0 {
+		return nil
+	}
+
+	b.Reset()
+	for _, p := range excluded {
+		fmt.Fprintf(&b, "%s\n", normalizeScenarioPath(p))
+	}
+	excludedPath := filepath.Join(artifactsDir, "excluded-scenarios.txt")
+	return os.WriteFile(excludedPath, []byte(b.String()), 0o600)
 }

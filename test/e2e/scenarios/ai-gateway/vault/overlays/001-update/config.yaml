@@ -1,0 +1,26 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-vault-e2e
+
+ai_gateways:
+  - ref: ai-gateway-vault-e2e
+    display_name: "AI Gateway Vault E2E"
+    description: "AI Gateway Vault e2e"
+    proxy_urls:
+      - host: ai-gateway-vault-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    vaults:
+      - ref: support-env
+        type: env
+        name: support-env
+        description: "Support environment variables updated"
+        labels:
+          team: support
+          phase: update
+        config:
+          prefix: SUPPORT_UPDATED_
+          base64_decode: true

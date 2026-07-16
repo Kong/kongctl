@@ -1,0 +1,149 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-mcp-server-e2e
+
+ai_gateways:
+  - ref: ai-gateway-mcp-e2e
+    name: ai-gateway-mcp-e2e
+    display_name: "AI Gateway MCP Server E2E"
+    description: "AI Gateway MCP Server e2e"
+    proxy_urls:
+      - host: ai-gateway-mcp-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    policies:
+      - ref: mcp-key-auth
+        name: mcp-key-auth
+        type: key-auth
+        display_name: "MCP Key Auth"
+        enabled: true
+        global: false
+        labels:
+          team: support
+          phase: create
+        config:
+          key_names:
+            - apikey
+          hide_credentials: true
+    mcp_servers:
+      - ref: support-tools
+        type: conversion-only
+        name: support-tools
+        display_name: "Support Tools Updated"
+        enabled: false
+        labels:
+          team: support
+          phase: update
+        config:
+          url: https://support-tools-updated.example.com
+          route:
+            paths:
+              - /support-tools
+        tools:
+          - name: lookup-customer
+            description: "Look up an updated customer profile"
+            method: GET
+            path: /customers/{customer_id}
+            query:
+              key: !env KONGCTL_E2E_WEATHERAPI_API_KEY
+            annotations:
+              title: "Lookup customer"
+              read_only_hint: true
+              destructive_hint: false
+            parameters:
+              - name: customer_id
+                in: path
+                description: "Customer identifier"
+                required: true
+                schema:
+                  type: string
+        policies:
+          - mcp-key-auth
+      - ref: context7-passthrough
+        type: passthrough-listener
+        name: context7-passthrough
+        display_name: "POC MCP Server (Context7 passthrough)"
+        enabled: true
+        labels:
+          team: support
+          phase: create
+        tools: []
+        access:
+          acl_attribute_type: oauth_access_token
+          access_token_claim_field: sub
+        config:
+          url: https://mcp.context7.com/mcp
+          route:
+            paths:
+              - /mcp
+            methods:
+              - GET
+              - POST
+        policies: []
+      - ref: support-conversion-listener
+        type: conversion-listener
+        name: support-conversion-listener
+        display_name: "Support Conversion Listener"
+        enabled: true
+        labels:
+          team: support
+          phase: create
+        tools: []
+        access:
+          acl_attribute_type: consumer
+        config:
+          url: https://support-conversion-listener.example.com
+          route:
+            paths:
+              - /support-conversion-listener
+            methods:
+              - GET
+              - POST
+        policies: []
+      - ref: support-listener
+        type: listener
+        name: support-listener
+        display_name: "Support Listener"
+        enabled: true
+        labels:
+          team: support
+          phase: create
+        tools: []
+        access:
+          acl_attribute_type: oauth_access_token
+          access_token_claim_field: sub
+          default_tool_acls:
+            allow:
+              - support-subject
+        config:
+          route:
+            paths:
+              - /support-listener
+            methods:
+              - GET
+              - POST
+        policies: []
+      - ref: support-upstream
+        type: upstream-server
+        name: support-upstream
+        display_name: "Support Upstream Server"
+        enabled: true
+        labels:
+          team: support
+          phase: create
+        tools: []
+        access:
+          acl_attribute_type: consumer
+        config:
+          url: https://support-upstream.example.com/mcp
+          tools_cache_ttl_seconds: 60
+          route:
+            paths:
+              - /support-upstream
+            methods:
+              - GET
+              - POST
+        policies: []

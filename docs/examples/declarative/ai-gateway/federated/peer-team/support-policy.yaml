@@ -1,0 +1,32 @@
+_defaults:
+  kongctl:
+    namespace: federated-ai-gateway
+
+ai_gateway_policies:
+  - ref: peer-mask-sensitive-data
+    ai_gateway: !ref shared-ai-gateway#id
+    name: peer-mask-sensitive-data
+    type: ai-sanitizer
+    display_name: "Peer Mask Sensitive Data"
+    enabled: true
+    global: false
+    labels:
+      team: support-experience
+      ownership: peer
+    config:
+      anonymize:
+        - email
+  - ref: peer-endpoint-key-auth
+    ai_gateway: !ref shared-ai-gateway#id
+    name: peer-endpoint-key-auth
+    type: key-auth
+    display_name: "Peer Endpoint Key Auth"
+    enabled: true
+    global: false
+    labels:
+      team: support-experience
+      ownership: peer
+    config:
+      key_names:
+        - apikey
+      hide_credentials: true

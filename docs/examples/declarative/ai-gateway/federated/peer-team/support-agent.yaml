@@ -1,0 +1,23 @@
+_defaults:
+  kongctl:
+    namespace: federated-ai-gateway
+
+ai_gateway_agents:
+  - ref: peer-support-agent
+    ai_gateway: !ref shared-ai-gateway#id
+    name: peer-support-agent
+    type: a2a
+    display_name: "Peer Support Agent"
+    enabled: true
+    labels:
+      team: support-experience
+      ownership: peer
+    config:
+      url: https://support-agent.example.com
+      route:
+        paths:
+          - /agents/support
+      logging:
+        max_payload_size: 524288
+    policies:
+      - !ref peer-endpoint-key-auth

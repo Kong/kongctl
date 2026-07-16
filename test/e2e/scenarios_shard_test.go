@@ -99,6 +99,24 @@ func TestSelectScenariosFilterIgnoresTrailingSlash(t *testing.T) {
 	}
 }
 
+func TestSelectScenariosFilterMatchesDirectoryPrefix(t *testing.T) {
+	scenarios := []string{
+		"test/e2e/scenarios/ai-gateway/agent/scenario.yaml",
+		"test/e2e/scenarios/ai-gateway/root/scenario.yaml",
+		"test/e2e/scenarios/apis/basic/scenario.yaml",
+	}
+
+	selected := selectScenarios(scenarios, "ai-gateway", scenarioShard{})
+
+	want := []string{
+		"test/e2e/scenarios/ai-gateway/agent/scenario.yaml",
+		"test/e2e/scenarios/ai-gateway/root/scenario.yaml",
+	}
+	if !slices.Equal(selected, want) {
+		t.Fatalf("unexpected filtered scenarios: got %v want %v", selected, want)
+	}
+}
+
 func TestSelectScenariosPinsAssignedEnvironment(t *testing.T) {
 	scenarios := []string{
 		"test/e2e/scenarios/apis/basic/scenario.yaml",
@@ -249,6 +267,62 @@ func TestSelectScenariosFailsForMissingAssignedEnvironment(t *testing.T) {
 	}
 }
 
+func TestShouldValidateScenarioEnvironments(t *testing.T) {
+	shard := scenarioShard{
+		Enabled: true,
+		Index:   0,
+		Total:   1,
+	}
+	allowed := []string{"kongctl-e2e-a"}
+
+	tests := []struct {
+		name       string
+		konnectEnv string
+		shard      scenarioShard
+		allowed    []string
+		want       bool
+	}{
+		{name: "default", konnectEnv: "", shard: shard, allowed: allowed, want: true},
+		{name: "com", konnectEnv: "com", shard: shard, allowed: allowed, want: true},
+		{name: "production alias", konnectEnv: "production", shard: shard, allowed: allowed, want: true},
+		{name: "tech", konnectEnv: "tech", shard: shard, allowed: allowed, want: false},
+		{name: "unsharded", konnectEnv: "com", shard: scenarioShard{}, allowed: allowed, want: false},
+		{name: "no allowed envs", konnectEnv: "com", shard: shard, allowed: nil, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldValidateScenarioEnvironments(tt.konnectEnv, tt.shard, tt.allowed)
+			if got != tt.want {
+				t.Fatalf("shouldValidateScenarioEnvironments() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMissingAssignedEnvironmentScenarios(t *testing.T) {
+	scenarios := []string{
+		"test/e2e/scenarios/apis/basic/scenario.yaml",
+		"test/e2e/scenarios/org/users/scenario.yaml",
+		"test/e2e/scenarios/portal/users/scenario.yaml",
+	}
+
+	got := missingAssignedEnvironmentScenarios(
+		scenarios,
+		map[string]scenarioAssignment{
+			"org/users/scenario.yaml":    {Environment: "kongctl-acceptance"},
+			"portal/users/scenario.yaml": {Environment: "tech-kongctl-acceptance"},
+		},
+		[]string{"tech-kongctl-acceptance"},
+		false,
+	)
+
+	want := []string{"test/e2e/scenarios/org/users/scenario.yaml"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("missingAssignedEnvironmentScenarios() = %v, want %v", got, want)
+	}
+}
+
 func TestLoadScenarioOrgNames(t *testing.T) {
 	got, err := loadScenarioOrgNames(`[
 		{"org_name":"kongctl-e2e-a"},
@@ -276,7 +350,7 @@ func TestWriteScenarioShardManifest(t *testing.T) {
 		Enabled: true,
 		Index:   2,
 		Total:   4,
-	}, selected)
+	}, selected, []string{"test/e2e/scenarios/org/users/scenario.yaml"})
 	if err != nil {
 		t.Fatalf("writeScenarioShardManifest() error = %v", err)
 	}
@@ -296,5 +370,13 @@ func TestWriteScenarioShardManifest(t *testing.T) {
 	}, "\n")
 	if string(data) != want {
 		t.Fatalf("unexpected manifest contents: got %q want %q", string(data), want)
+	}
+
+	excluded, err := os.ReadFile(filepath.Join(dir, "excluded-scenarios.txt"))
+	if err != nil {
+		t.Fatalf("ReadFile() excluded error = %v", err)
+	}
+	if string(excluded) != "org/users/scenario.yaml\n" {
+		t.Fatalf("unexpected excluded manifest contents: %q", string(excluded))
 	}
 }

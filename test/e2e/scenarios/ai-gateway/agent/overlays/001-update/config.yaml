@@ -1,0 +1,47 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-agent-e2e
+
+ai_gateways:
+  - ref: ai-gateway-agent-e2e
+    display_name: "AI Gateway Agent E2E"
+    description: "AI Gateway Agent e2e"
+    proxy_urls:
+      - host: ai-gateway-agent-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    policies:
+      - ref: agent-key-auth
+        name: agent-key-auth
+        type: key-auth
+        display_name: "Agent Key Auth"
+        enabled: true
+        global: false
+        labels:
+          team: support
+          phase: create
+        config:
+          key_names:
+            - apikey
+          hide_credentials: true
+    agents:
+      - ref: booking-agent
+        name: booking-agent
+        type: a2a
+        display_name: "Booking Agent Updated"
+        enabled: true
+        labels:
+          team: support
+          phase: update
+        config:
+          url: https://booking-agent-v2.example.com
+          route:
+            paths:
+              - /booking
+          logging:
+            max_payload_size: 524288
+        policies:
+          - !ref agent-key-auth

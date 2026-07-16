@@ -39,6 +39,45 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate AI Gateways
+	if err := l.validateAIGateways(rs.AIGateways, rs); err != nil {
+		return err
+	}
+
+	if err := l.validateAIGatewayProviders(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayIdentityProviders(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayPolicies(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayAgents(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayConsumers(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayConsumerCredentials(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayConsumerGroups(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayModels(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayMCPServers(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayVaults(rs); err != nil {
+		return err
+	}
+	if err := l.validateAIGatewayDataPlaneCertificates(rs); err != nil {
+		return err
+	}
+
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {
 		return err
@@ -668,6 +707,300 @@ func (l *Loader) validateCatalogServices(
 	}
 
 	return nil
+}
+
+// validateAIGateways validates AI Gateway resources.
+func (l *Loader) validateAIGateways(
+	gateways []resources.AIGatewayResource,
+	rs *resources.ResourceSet,
+) error {
+	displayNamesByNamespace := make(map[string]string)
+
+	for i := range gateways {
+		gateway := &gateways[i]
+
+		if err := gateway.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway %q: %w", gateway.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(gateway.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGateway {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					gateway.GetRef(), existing.GetType())
+			}
+		}
+
+		if gateway.IsExternal() {
+			continue
+		}
+		namespace := resources.GetNamespace(gateway.Kongctl)
+		nameKey := namespace + "\x00" + gateway.DisplayName
+		if existingRef, exists := displayNamesByNamespace[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway display_name '%s' in namespace '%s' (ref: %s conflicts with ref: %s)",
+				gateway.DisplayName,
+				namespace,
+				gateway.GetRef(),
+				existingRef,
+			)
+		}
+		displayNamesByNamespace[nameKey] = gateway.GetRef()
+	}
+
+	return nil
+}
+
+type aiGatewayChildResource[T any] interface {
+	*T
+	resources.ResourceWithParent
+}
+
+func validateAIGatewayChildren[T any, P aiGatewayChildResource[T]](
+	rs *resources.ResourceSet,
+	children []T,
+	resourceType resources.ResourceType,
+	resourceLabel string,
+	uniqueFieldLabel string,
+	uniqueValue func(*T) string,
+) error {
+	namesByGateway := make(map[string]string)
+
+	for i := range children {
+		childPtr := &children[i]
+		child := P(childPtr)
+
+		if err := child.Validate(); err != nil {
+			return fmt.Errorf("invalid %s %q: %w", resourceLabel, child.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(child.GetRef()); found {
+			if existing.GetType() != resourceType {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					child.GetRef(), existing.GetType())
+			}
+		}
+
+		parentRef := child.GetParentRef()
+		if parentRef == nil || parentRef.Ref == "" {
+			return fmt.Errorf("%s %q must specify ai_gateway", resourceLabel, child.GetRef())
+		}
+
+		gatewayRef := resources.NormalizeResourceRef(parentRef.Ref)
+		gateway, found := rs.GetResourceByRef(gatewayRef)
+		if !found {
+			return fmt.Errorf(
+				"%s %q references unknown ai_gateway %q",
+				resourceLabel,
+				child.GetRef(),
+				parentRef.Ref,
+			)
+		}
+		if gateway.GetType() != resources.ResourceTypeAIGateway {
+			return fmt.Errorf(
+				"%s %q references %q which is %s, not ai_gateway",
+				resourceLabel,
+				child.GetRef(),
+				parentRef.Ref,
+				gateway.GetType(),
+			)
+		}
+
+		value := uniqueValue(childPtr)
+		nameKey := gatewayRef + "\x00" + value
+		if existingRef, exists := namesByGateway[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate %s %s %q for ai_gateway %q (ref: %s conflicts with ref: %s)",
+				resourceLabel,
+				uniqueFieldLabel,
+				value,
+				gatewayRef,
+				child.GetRef(),
+				existingRef,
+			)
+		}
+		namesByGateway[nameKey] = child.GetRef()
+	}
+
+	return nil
+}
+
+func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[resources.AIGatewayProviderResource, *resources.AIGatewayProviderResource](
+		rs,
+		rs.AIGatewayProviders,
+		resources.ResourceTypeAIGatewayProvider,
+		"ai_gateway_model_provider",
+		"name",
+		func(provider *resources.AIGatewayProviderResource) string { return provider.Name },
+	)
+}
+
+func (l *Loader) validateAIGatewayIdentityProviders(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[
+		resources.AIGatewayIdentityProviderResource,
+		*resources.AIGatewayIdentityProviderResource,
+	](
+		rs,
+		rs.AIGatewayIdentityProviders,
+		resources.ResourceTypeAIGatewayIdentityProvider,
+		"ai_gateway_identity_provider",
+		"name",
+		func(provider *resources.AIGatewayIdentityProviderResource) string { return provider.Name },
+	)
+}
+
+// validateAIGatewayPolicies validates AI Gateway child policy resources.
+func (l *Loader) validateAIGatewayPolicies(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[resources.AIGatewayPolicyResource, *resources.AIGatewayPolicyResource](
+		rs,
+		rs.AIGatewayPolicies,
+		resources.ResourceTypeAIGatewayPolicy,
+		"ai_gateway_policy",
+		"name",
+		func(policy *resources.AIGatewayPolicyResource) string { return policy.Name },
+	)
+}
+
+// validateAIGatewayAgents validates AI Gateway child Agent resources.
+func (l *Loader) validateAIGatewayAgents(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[resources.AIGatewayAgentResource, *resources.AIGatewayAgentResource](
+		rs,
+		rs.AIGatewayAgents,
+		resources.ResourceTypeAIGatewayAgent,
+		"ai_gateway_agent",
+		"name",
+		func(agent *resources.AIGatewayAgentResource) string { return agent.Name },
+	)
+}
+
+// validateAIGatewayConsumers validates AI Gateway child Consumer resources.
+func (l *Loader) validateAIGatewayConsumers(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[resources.AIGatewayConsumerResource, *resources.AIGatewayConsumerResource](
+		rs,
+		rs.AIGatewayConsumers,
+		resources.ResourceTypeAIGatewayConsumer,
+		"ai_gateway_consumer",
+		"name",
+		func(consumer *resources.AIGatewayConsumerResource) string { return consumer.Name },
+	)
+}
+
+// validateAIGatewayConsumerCredentials validates AI Gateway Consumer child Credential resources.
+func (l *Loader) validateAIGatewayConsumerCredentials(rs *resources.ResourceSet) error {
+	namesByConsumer := make(map[string]string)
+
+	for i := range rs.AIGatewayConsumerCredentials {
+		credential := &rs.AIGatewayConsumerCredentials[i]
+
+		if err := credential.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_consumer_credential %q: %w", credential.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(credential.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAIGatewayConsumerCredential {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					credential.GetRef(), existing.GetType())
+			}
+		}
+
+		consumerRef := resources.NormalizeResourceRef(credential.AIGatewayConsumer)
+		consumer, found := rs.GetResourceByRef(consumerRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_consumer_credential %q references unknown ai_gateway_consumer %q",
+				credential.GetRef(),
+				credential.AIGatewayConsumer,
+			)
+		}
+		if consumer.GetType() != resources.ResourceTypeAIGatewayConsumer {
+			return fmt.Errorf(
+				"ai_gateway_consumer_credential %q references %q which is %s, not ai_gateway_consumer",
+				credential.GetRef(),
+				credential.AIGatewayConsumer,
+				consumer.GetType(),
+			)
+		}
+
+		nameKey := consumerRef + "\x00" + credential.Name
+		if existingRef, exists := namesByConsumer[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_consumer_credential name %q for ai_gateway_consumer %q (ref: %s conflicts with ref: %s)",
+				credential.Name,
+				consumerRef,
+				credential.GetRef(),
+				existingRef,
+			)
+		}
+		namesByConsumer[nameKey] = credential.GetRef()
+	}
+
+	return nil
+}
+
+// validateAIGatewayConsumerGroups validates AI Gateway child Consumer Group resources.
+func (l *Loader) validateAIGatewayConsumerGroups(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[
+		resources.AIGatewayConsumerGroupResource,
+		*resources.AIGatewayConsumerGroupResource,
+	](
+		rs,
+		rs.AIGatewayConsumerGroups,
+		resources.ResourceTypeAIGatewayConsumerGroup,
+		"ai_gateway_consumer_group",
+		"name",
+		func(group *resources.AIGatewayConsumerGroupResource) string { return group.Name },
+	)
+}
+
+// validateAIGatewayModels validates AI Gateway child model resources.
+func (l *Loader) validateAIGatewayModels(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[resources.AIGatewayModelResource, *resources.AIGatewayModelResource](
+		rs,
+		rs.AIGatewayModels,
+		resources.ResourceTypeAIGatewayModel,
+		"ai_gateway_model",
+		"name",
+		func(model *resources.AIGatewayModelResource) string { return model.Name() },
+	)
+}
+
+// validateAIGatewayMCPServers validates AI Gateway child MCP Server resources.
+func (l *Loader) validateAIGatewayMCPServers(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[resources.AIGatewayMCPServerResource, *resources.AIGatewayMCPServerResource](
+		rs,
+		rs.AIGatewayMCPServers,
+		resources.ResourceTypeAIGatewayMCPServer,
+		"ai_gateway_mcp_server",
+		"name",
+		func(server *resources.AIGatewayMCPServerResource) string { return server.Name() },
+	)
+}
+
+// validateAIGatewayVaults validates AI Gateway child Vault resources.
+func (l *Loader) validateAIGatewayVaults(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[resources.AIGatewayVaultResource, *resources.AIGatewayVaultResource](
+		rs,
+		rs.AIGatewayVaults,
+		resources.ResourceTypeAIGatewayVault,
+		"ai_gateway_vault",
+		"name",
+		func(vault *resources.AIGatewayVaultResource) string { return vault.Name() },
+	)
+}
+
+// validateAIGatewayDataPlaneCertificates validates AI Gateway child data plane certificate resources.
+func (l *Loader) validateAIGatewayDataPlaneCertificates(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[
+		resources.AIGatewayDataPlaneCertificateResource,
+		*resources.AIGatewayDataPlaneCertificateResource,
+	](
+		rs,
+		rs.AIGatewayDataPlaneCertificates,
+		resources.ResourceTypeAIGatewayDataPlaneCertificate,
+		"ai_gateway_data_plane_certificate",
+		"title",
+		func(cert *resources.AIGatewayDataPlaneCertificateResource) string { return cert.Title },
+	)
 }
 
 // validateDashboards validates dashboard resources.
@@ -1440,6 +1773,11 @@ func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
 	// Catalog Services
 	for _, service := range rs.CatalogServices {
 		addNamespace(service.Kongctl)
+	}
+
+	// AI Gateways
+	for _, gateway := range rs.AIGateways {
+		addNamespace(gateway.Kongctl)
 	}
 
 	// Dashboards

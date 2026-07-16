@@ -1,0 +1,322 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-identity-provider-e2e"
+  gateway_ref: "ai-gateway-identity-provider-e2e"
+  gateway_name: "AI Gateway Identity Provider E2E"
+  identity_provider_ref: "support-key-auth"
+  identity_provider_name: "support-key-auth"
+  identity_provider_updated_display_name: "Updated Support Key Auth"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-identity-provider-json
+        run:
+          - explain
+          - ai_gateway_identity_provider
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway_identity_provider"
+                '"x-kongctl-root-key"': ai_gateway_identity_providers
+          - select: "oneOf[?properties.type.const=='key-auth'] | [0].properties.config.properties"
+            expect:
+              fields:
+                "contains(keys(@), 'key_names')": true
+          - select: "oneOf[?properties.type.const=='openid-connect'] | [0].properties.config.properties"
+            expect:
+              fields:
+                "contains(keys(@), 'client_secret')": true
+                "contains(keys(@), 'cache_tokens_salt')": true
+      - name: 001-scaffold-ai-gateway-identity-provider
+        run:
+          - scaffold
+          - ai_gateway_identity_provider
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_identity_providers:')": true
+                "contains(stdout, 'type: key-auth')": true
+                "contains(stdout, 'key_names:')": true
+
+  - name: 002-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.identity_provider_name }}"
+                fields.type: key-auth
+                fields.config.key_names[0]: x-support-api-key
+                fields.config.hide_credentials: true
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+      - name: 002-get-identity-providers
+        run:
+          - get
+          - ai-gateway
+          - identity-providers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.identity_provider_name }}'] | [0]"
+            expect:
+              fields:
+                type: key-auth
+                display_name: "Support Key Auth"
+                config.key_names[0]: x-support-api-key
+      - name: 003-list-identity-providers
+        run:
+          - list
+          - aigw
+          - identity-providers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.identity_provider_name }}'] | [0].type"
+            expect:
+              fields:
+                "@": key-auth
+      - name: 004-get-identity-provider-by-name
+        run:
+          - get
+          - ai-gateways
+          - identity-providers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.identity_provider_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.identity_provider_name }}"
+                type: key-auth
+                config.hide_credentials: true
+      - name: 005-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 003-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.display_name: "{{ .vars.identity_provider_updated_display_name }}"
+                fields.config.key_names[1]: apikey
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-verify-update
+        run:
+          - get
+          - ai-gateway
+          - identity-provider
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.identity_provider_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: "{{ .vars.identity_provider_updated_display_name }}"
+                labels.owner: platform
+                config.key_names[1]: apikey
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateway-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-ai-gateway.yaml"
+        assertions:
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].identity_providers[?name=='{{ .vars.identity_provider_name }}'] | [0]
+            expect:
+              fields:
+                type: key-auth
+                display_name: "{{ .vars.identity_provider_updated_display_name }}"
+                config.key_names[1]: apikey
+      - name: 001-plan-from-ai-gateway-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-ai-gateway.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 002-dump-root-identity-providers
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_identity_providers"
+          - "--filter-name={{ .vars.identity_provider_name }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_identity_providers[0]"
+            expect:
+              fields:
+                name: "{{ .vars.identity_provider_name }}"
+                type: key-auth
+                config.key_names[1]: apikey
+          - select: "ai_gateway_identity_providers[0].ai_gateway != ''"
+            expect:
+              fields:
+                "@": true
+
+  - name: 005-sync-delete-identity-provider
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 000-sync-delete-identity-provider
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_identity_provider' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.identity_provider_name }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success

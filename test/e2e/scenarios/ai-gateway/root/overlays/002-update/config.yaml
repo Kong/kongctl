@@ -1,0 +1,15 @@
+ai_gateways:
+  - ref: ai-gateway-root-ref
+    name: ai-gateway-root-api-name
+    display_name: "AI Gateway Root E2E"
+    description: "Updated AI Gateway root e2e description"
+    proxy_urls:
+      - host: "ai-gateway-root-updated.example.com"
+        port: 8443
+        protocol: "https"
+    labels:
+      owner: "platform-eng"
+      lifecycle: "production"
+    kongctl:
+      namespace: "ai-gateway-root-e2e"
+      protected: false

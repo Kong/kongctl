@@ -1,0 +1,658 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-consumer-e2e"
+  gateway_name: "AI Gateway Consumer E2E"
+  gateway_ref: "ai-gateway-consumer-e2e"
+  policy_ref: "mask-sensitive-data"
+  policy_name: "mask-sensitive-data"
+  policy_display_name: "Mask Sensitive Data"
+  consumer_ref: "support-agent"
+  consumer_name: "support-agent"
+  consumer_display_name: "Support Agent"
+  consumer_updated_display_name: "Support Agent Updated"
+  credential_ref: "support-agent-key"
+  credential_name: "support-agent-key"
+  credential_display_name: "Support Agent API Key"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-consumer-json
+        run:
+          - explain
+          - ai_gateway_consumer
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                '"x-kongctl-root-key"': ai_gateway_consumers
+          - select: "contains(keys(properties), 'ai_gateway')"
+            expect:
+              fields:
+                "@": true
+          - select: "contains(keys(properties), 'type')"
+            expect:
+              fields:
+                "@": true
+      - name: 001-scaffold-ai-gateway-consumer
+        run:
+          - scaffold
+          - ai_gateway_consumer
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_consumers:')": true
+                "contains(stdout, 'ai_gateway: !ref')": true
+                "contains(stdout, 'type: api-key')": true
+                "contains(stdout, 'policies:')": true
+      - name: 002-explain-ai-gateway-consumers-nested-json
+        run:
+          - explain
+          - ai_gateway.consumers
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                '"x-kongctl-resource"': ai_gateway_consumer
+                '"x-kongctl-root-key"': ai_gateway_consumers
+      - name: 003-explain-ai-gateway-consumer-credentials-json
+        run:
+          - explain
+          - ai_gateway_consumer_credential
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                '"x-kongctl-root-key"': ai_gateway_consumer_credentials
+          - select: "contains(keys(properties), 'ai_gateway_consumer')"
+            expect:
+              fields:
+                "@": true
+          - select: "contains(keys(properties), 'api_key')"
+            expect:
+              fields:
+                "@": false
+      - name: 004-scaffold-ai-gateway-consumer-credential
+        run:
+          - scaffold
+          - ai_gateway_consumer_credential
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_consumer_credentials:')": true
+                "contains(stdout, 'ai_gateway_consumer: !ref')": true
+                "contains(stdout, 'type: api-key')": true
+      - name: 005-explain-ai-gateway-consumer-credentials-nested-json
+        run:
+          - explain
+          - ai_gateway.consumers.credentials
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                '"x-kongctl-resource"': ai_gateway_consumer_credential
+                '"x-kongctl-root-key"': ai_gateway_consumer_credentials
+
+  - name: 002-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer' && resource_ref=='{{ .vars.consumer_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.consumer_name }}"
+                fields.type: api-key
+                fields.display_name: "{{ .vars.consumer_display_name }}"
+                fields.labels.phase: create
+                fields.policies[0]: "__REF__:{{ .vars.policy_ref }}#id"
+                references."policies.0".ref: "__REF__:{{ .vars.policy_ref }}#name"
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer_credential' && resource_ref=='{{ .vars.credential_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.credential_name }}"
+                fields.type: api-key
+                fields.display_name: "{{ .vars.credential_display_name }}"
+                fields.ttl: 0
+                fields.labels.phase: create
+                parent.ref: "{{ .vars.consumer_ref }}"
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+                status: success
+      - name: 002-list-consumers
+        run:
+          - get
+          - ai-gateway
+          - consumers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        recordVar:
+          name: consumer_id
+          responsePath: "[?name=='{{ .vars.consumer_name }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.consumer_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumer_name }}"
+                type: api-key
+                display_name: "{{ .vars.consumer_display_name }}"
+                labels.phase: create
+                "length(policies)": 1
+      - name: 003-get-consumer-by-name
+        run:
+          - get
+          - ai-gateway
+          - consumer
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.consumer_name }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.consumer_name }}"
+          - select: type
+            expect:
+              fields:
+                "@": api-key
+      - name: 004-get-consumer-by-id
+        run:
+          - get
+          - ai-gateway
+          - consumers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.consumer_id }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.consumer_name }}"
+      - name: 005-list-consumer-credentials
+        run:
+          - get
+          - ai-gateway
+          - credentials
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --consumer-name
+          - "{{ .vars.consumer_name }}"
+          - -o
+          - json
+        recordVar:
+          name: credential_id
+          responsePath: "[?name=='{{ .vars.credential_name }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.credential_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.credential_name }}"
+                type: api-key
+                display_name: "{{ .vars.credential_display_name }}"
+                labels.phase: create
+                ttl: 0
+          - select: "[?name=='{{ .vars.credential_name }}'] | [0].api_key"
+            expect:
+              fields:
+                "@ == null": true
+      - name: 006-get-consumer-credential-by-name
+        run:
+          - get
+          - ai-gateway
+          - credential
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --consumer-name
+          - "{{ .vars.consumer_name }}"
+          - "{{ .vars.credential_name }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.credential_name }}"
+          - select: api_key
+            expect:
+              fields:
+                "@ == null": true
+      - name: 007-get-consumer-credential-by-id
+        run:
+          - get
+          - ai-gateway
+          - credentials
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --consumer-name
+          - "{{ .vars.consumer_name }}"
+          - "{{ .vars.credential_id }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.credential_name }}"
+
+  - name: 003-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer' && resource_ref=='{{ .vars.consumer_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.display_name: "{{ .vars.consumer_updated_display_name }}"
+                fields.labels.phase: update
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-verify-update
+        run:
+          - get
+          - ai-gateway
+          - consumers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.consumer_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: "{{ .vars.consumer_updated_display_name }}"
+                labels.phase: update
+      - name: 003-verify-credential-unchanged
+        run:
+          - get
+          - ai-gateway
+          - credentials
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --consumer-name
+          - "{{ .vars.consumer_name }}"
+          - "{{ .vars.credential_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: "{{ .vars.credential_display_name }}"
+                labels.phase: create
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateway-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-ai-gateway.yaml"
+        assertions:
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].consumers[?name=='{{ .vars.consumer_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.consumer_name }}"
+                type: api-key
+                display_name: "{{ .vars.consumer_updated_display_name }}"
+                "length(policies)": 1
+                "length(credentials)": 1
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].consumers[?name=='{{ .vars.consumer_name }}'] | [0].credentials[?name=='{{ .vars.credential_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.credential_name }}"
+                type: api-key
+                display_name: "{{ .vars.credential_display_name }}"
+                labels.phase: create
+                "api_key == null": true
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].policies[?name=='{{ .vars.policy_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.policy_name }}"
+                display_name: "{{ .vars.policy_display_name }}"
+                type: ai-sanitizer
+                config.anonymize[0]: email
+      - name: 001-plan-from-ai-gateway-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-ai-gateway.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 002-dump-root-consumers
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_consumers"
+          - "--filter-name={{ .vars.consumer_name }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_consumers[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumer_name }}"
+                type: api-key
+                display_name: "{{ .vars.consumer_updated_display_name }}"
+          - select: "ai_gateway_consumers[0].ai_gateway != ''"
+            expect:
+              fields:
+                "@": true
+      - name: 003-dump-root-consumer-credentials
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_consumer_credentials"
+          - "--filter-name={{ .vars.credential_name }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_consumer_credentials[0]"
+            expect:
+              fields:
+                name: "{{ .vars.credential_name }}"
+                type: api-key
+                display_name: "{{ .vars.credential_display_name }}"
+                labels.phase: create
+                "api_key == null": true
+          - select: "ai_gateway_consumer_credentials[0].ai_gateway_consumer != ''"
+            expect:
+              fields:
+                "@": true
+
+  - name: 005-sync-delete-credential
+    inputOverlayDirs:
+      - overlays/002-sync-delete-credential
+    commands:
+      - name: 000-sync-delete-credential
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_consumer_credential' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.credential_name }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-consumer-credentials-empty
+        run:
+          - get
+          - ai-gateway
+          - credentials
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --consumer-name
+          - "{{ .vars.consumer_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 006-sync-delete-consumer
+    inputOverlayDirs:
+      - overlays/002-sync-delete-consumer
+    commands:
+      - name: 000-sync-delete-consumer
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_consumer' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.consumer_name }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-consumers-empty
+        run:
+          - get
+          - ai-gateway
+          - consumers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 007-sync-delete-policy
+    inputOverlayDirs:
+      - overlays/003-sync-delete-policy
+    commands:
+      - name: 000-sync-delete-policy
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_policy' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.policy_name }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-policies-empty
+        run:
+          - get
+          - ai-gateway
+          - policies
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 008-sync-delete-gateway
+    inputOverlayDirs:
+      - overlays/004-sync-delete-gateway
+    commands:
+      - name: 000-sync-delete-gateway
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-get-ai-gateways
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?display_name=='{{ .vars.gateway_name }}']"
+            expect:
+              fields:
+                "length(@)": 0

@@ -45,7 +45,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 		slog.Any("fields", change.Fields))
 
 	// Build customization object
-	var customization kkComps.PortalCustomizationV3
+	var customization kkComps.PortalCustomization
 
 	// Handle theme
 	if themeData, ok := change.Fields[planner.FieldTheme].(map[string]any); ok {
@@ -55,7 +55,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 			theme.Name = &name
 		}
 		if mode, ok := themeData["mode"].(string); ok {
-			modeValue := kkComps.PortalCustomizationV3Mode(mode)
+			modeValue := kkComps.PortalCustomizationMode(mode)
 			theme.Mode = &modeValue
 		}
 

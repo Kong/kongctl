@@ -56,6 +56,151 @@ portal_team_group_mappings:
 	assert.Empty(t, byRef["admins-idp-groups"].Groups)
 }
 
+func TestLoaderFlattensAIGatewayProviders(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+    model_providers:
+      - ref: openai-provider
+        name: openai-provider
+        type: openai
+        display_name: OpenAI Provider
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: Bearer ${OPENAI_API_KEY}
+`), 0o600)
+	require.NoError(t, err)
+
+	rs, err := New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, rs.AIGateways, 1)
+	require.Empty(t, rs.AIGateways[0].Providers)
+	require.Len(t, rs.AIGatewayProviders, 1)
+	require.Equal(t, "customer-support-gateway", rs.AIGatewayProviders[0].AIGateway)
+	require.Equal(t, "openai-provider", rs.AIGatewayProviders[0].Name)
+}
+
+func TestLoaderRejectsLegacyAIGatewayModelProviderAuthFields(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+    model_providers:
+      - ref: openai-provider
+        name: openai-provider
+        type: openai
+        display_name: OpenAI Provider
+        config:
+          auth:
+            type: basic
+            header_name: Authorization
+            header_value: Bearer token
+`
+
+	_, err := New().LoadFile(writeLoaderTestFile(t, input))
+	require.Error(t, err)
+	require.ErrorContains(t, err, "config.auth.header_name and config.auth.header_value are not supported")
+	require.ErrorContains(t, err, "use config.auth.headers[].name and config.auth.headers[].value")
+}
+
+func TestLoaderRejectsRootLevelEmptyAIGatewayModelProviders(t *testing.T) {
+	input := `ai_gateway_model_providers: []`
+
+	_, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ai_gateway_model_providers cannot be empty")
+}
+
+func TestLoaderRejectsLegacyNestedAIGatewayProviders(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+    providers:
+      - ref: openai-provider
+        name: openai-provider
+        type: openai
+        display_name: OpenAI Provider
+        config:
+          auth:
+            type: basic
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ai_gateways.providers is not supported")
+	require.Contains(t, err.Error(), "ai_gateways.model_providers")
+}
+
+func TestLoaderRejectsLegacyRootAIGatewayProviders(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+ai_gateway_providers:
+  - ref: openai-provider
+    ai_gateway: customer-support-gateway
+    name: openai-provider
+    type: openai
+    display_name: OpenAI Provider
+    config:
+      auth:
+        type: basic
+`), 0o600)
+	require.NoError(t, err)
+
+	_, err = New().LoadFile(path)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown field 'ai_gateway_providers'")
+}
+
+func TestLoaderFlattensAIGatewayIdentityProviders(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+ai_gateways:
+  - ref: customer-support-gateway
+    display_name: Customer Support Gateway
+    identity_providers:
+      - ref: support-key-auth
+        name: support-key-auth
+        type: key-auth
+        display_name: Support Key Auth
+        config:
+          key_names:
+            - x-support-api-key
+          hide_credentials: true
+`), 0o600)
+	require.NoError(t, err)
+
+	rs, err := New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, rs.AIGateways, 1)
+	require.Empty(t, rs.AIGateways[0].IdentityProviders)
+	require.Len(t, rs.AIGatewayIdentityProviders, 1)
+	require.Equal(t, "customer-support-gateway", rs.AIGatewayIdentityProviders[0].AIGateway)
+	require.Equal(t, "support-key-auth", rs.AIGatewayIdentityProviders[0].Name)
+}
+
+func TestLoaderRejectsRootLevelEmptyAIGatewayIdentityProviders(t *testing.T) {
+	input := `ai_gateway_identity_providers: []`
+
+	_, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ai_gateway_identity_providers cannot be empty")
+}
+
 func TestLoaderPortalTeamGroupMappingsPortalLevelNestedRejected(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

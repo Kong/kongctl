@@ -1,0 +1,270 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-model-e2e"
+  gateway_ref: "ai-gateway-model-e2e"
+  gateway_name: "AI Gateway Model E2E"
+  provider_ref: "support-openai"
+  model_ref: "support-gpt"
+  model_name: "support-gpt"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 000-plan-semantic-embeddings
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-semantic-embeddings.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/semantic-embeddings.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='support-semantic-router'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-semantic-router
+                fields.config.balancer.algorithm: semantic
+                fields.config.balancer.embeddings.provider: support-huggingface
+                fields.config.balancer.embeddings.name: sentence-transformers/all-MiniLM-L6-v2
+                fields.config.balancer.embeddings.config.type: huggingface
+                fields.config.balancer.embeddings.config.upstream_url: https://example.com/hf/embeddings
+                fields.config.balancer.vectordb.type: pgvector
+                fields.config.balancer.vectordb.dimensions: 384
+                fields.config.balancer.vectordb.distance_metric: cosine
+      - name: 001-diff-semantic-embeddings-preview
+        outputFormat: json
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/semantic-embeddings.yaml"
+          - -o
+          - json
+        assertions:
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='support-semantic-router'] | [0]
+            expect:
+              fields:
+                fields.config.balancer.algorithm: semantic
+                fields.config.balancer.embeddings.provider: support-huggingface
+                fields.config.balancer.embeddings.name: sentence-transformers/all-MiniLM-L6-v2
+                fields.config.balancer.embeddings.config.type: huggingface
+                fields.config.balancer.embeddings.config.upstream_url: https://example.com/hf/embeddings
+                fields.config.balancer.vectordb.type: pgvector
+                fields.config.balancer.vectordb.dimensions: 384
+                fields.config.balancer.vectordb.distance_metric: cosine
+      - name: plan-embedding-config-variants
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/embedding-config-variants.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 7
+                by_action.CREATE: 7
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='semantic-openai'] | [0]
+            expect:
+              fields:
+                fields.config.balancer.embeddings.config.type: openai
+                fields.config.balancer.embeddings.config.upstream_url: https://example.com/openai/embeddings
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='semantic-mistral'] | [0]
+            expect:
+              fields:
+                fields.config.balancer.embeddings.config.type: mistral
+                fields.config.balancer.embeddings.config.upstream_url: https://example.com/mistral/embeddings
+                fields.targets[0].config.format: openai
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='semantic-ollama'] | [0]
+            expect:
+              fields:
+                fields.config.balancer.embeddings.config.type: ollama
+                fields.config.balancer.embeddings.config.upstream_url: https://example.com/ollama/embeddings
+      - name: 002-plan-gemini-gcp-environment
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-gcp-environment.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/gcp-environment.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-gemini-provider'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-gemini-provider
+                fields.type: gemini
+                fields.config.auth.type: gcp
+                fields.config.auth.service_account_json: fake-service-account-json
+                fields.config.auth.use_gcp_service_account: false
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='support-gemini'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-gemini
+                fields.targets[0].name: gemini-1.5-pro
+                fields.targets[0].config.type: gemini
+                fields.targets[0].config.gcp_environment.api_endpoint: us-central1-aiplatform.googleapis.com
+                fields.targets[0].config.gcp_environment.location_id: us-central1
+                fields.targets[0].config.gcp_environment.project_id: support-project
+      - name: 003-diff-gemini-gcp-environment-preview
+        outputFormat: json
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/gcp-environment.yaml"
+          - -o
+          - json
+        assertions:
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='support-gemini'] | [0]
+            expect:
+              fields:
+                fields.targets[0].config.gcp_environment.api_endpoint: us-central1-aiplatform.googleapis.com
+                fields.targets[0].config.gcp_environment.location_id: us-central1
+                fields.targets[0].config.gcp_environment.project_id: support-project
+      - name: 004-apply-gemini-gcp-environment
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-gcp-environment.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+      - name: 005-get-gemini-gcp-environment
+        run:
+          - get
+          - ai-gateway
+          - models
+          - --gateway-name
+          - ai-gateway-model-gcp-environment-e2e
+          - --model-name
+          - support-gemini
+          - -o
+          - json
+        assertions:
+          - select: targets[0].config
+            expect:
+              fields:
+                type: gemini
+                gcp_environment.api_endpoint: us-central1-aiplatform.googleapis.com
+                gcp_environment.location_id: us-central1
+                gcp_environment.project_id: support-project
+      - name: 006-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='{{ .vars.model_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.model_name }}"
+                fields.targets[0].name: gpt-4o
+                fields.targets[1].name: gpt-4o-mini
+      - name: 007-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+      - name: 008-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 002-sync-delete
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 000-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

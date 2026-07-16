@@ -252,6 +252,562 @@ func populateEventGatewayChildren(
 	}
 }
 
+func populateAIGatewayChildren(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gateways []declresources.AIGatewayResource,
+) {
+	if client == nil {
+		return
+	}
+
+	for i := range gateways {
+		gateway := &gateways[i]
+		gatewayID := strings.TrimSpace(gateway.Ref)
+		if gatewayID == "" {
+			continue
+		}
+
+		if providers, err := buildAIGatewayProviders(ctx, logger, client, gatewayID, gateway.DisplayName); err != nil {
+			logWarn(logger, "failed to load AI Gateway Model Providers", gatewayID, gateway.DisplayName, err)
+		} else if len(providers) > 0 {
+			gateway.Providers = providers
+		}
+
+		identityProviders, err := buildAIGatewayIdentityProviders(ctx, logger, client, gatewayID, gateway.DisplayName)
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Identity Providers", gatewayID, gateway.DisplayName, err)
+		} else if len(identityProviders) > 0 {
+			gateway.IdentityProviders = identityProviders
+		}
+
+		policies, err := buildAIGatewayPolicies(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Policies", gatewayID, gateway.DisplayName, err)
+		} else if len(policies) > 0 {
+			gateway.Policies = policies
+		}
+
+		agents, err := buildAIGatewayAgents(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Agents", gatewayID, gateway.DisplayName, err)
+		} else if len(agents) > 0 {
+			gateway.Agents = agents
+		}
+
+		consumers, err := buildAIGatewayConsumers(ctx, client, gatewayID, gateway.DisplayName, "", true)
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Consumers", gatewayID, gateway.DisplayName, err)
+		} else if len(consumers) > 0 {
+			gateway.Consumers = consumers
+		}
+
+		groups, err := buildAIGatewayConsumerGroups(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Consumer Groups", gatewayID, gateway.DisplayName, err)
+		} else if len(groups) > 0 {
+			gateway.ConsumerGroups = groups
+		}
+
+		models, err := buildAIGatewayModels(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway models", gatewayID, gateway.DisplayName, err)
+		} else if len(models) > 0 {
+			gateway.Models = models
+		}
+
+		servers, err := buildAIGatewayMCPServers(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway MCP Servers", gatewayID, gateway.DisplayName, err)
+		} else if len(servers) > 0 {
+			gateway.MCPServers = servers
+		}
+
+		vaults, err := buildAIGatewayVaults(ctx, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Vaults", gatewayID, gateway.DisplayName, err)
+		} else if len(vaults) > 0 {
+			gateway.Vaults = vaults
+		}
+
+		certs, err := buildAIGatewayDataPlaneCertificates(ctx, logger, client, gatewayID, gateway.DisplayName, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway data plane certificates", gatewayID, gateway.DisplayName, err)
+		} else if len(certs) > 0 {
+			gateway.DataPlaneCertificates = certs
+		}
+	}
+}
+
+func buildAIGatewayProviders(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayDisplayName string,
+) ([]declresources.AIGatewayProviderResource, error) {
+	providers, err := client.ListAIGatewayProviders(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(providers) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.AIGatewayProviderResource, 0, len(providers))
+	for _, provider := range providers {
+		if strings.TrimSpace(provider.Name) == "" {
+			logWarn(logger, "AI Gateway Model Provider missing name", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+		if strings.TrimSpace(provider.Type) == "" {
+			logWarn(logger, "AI Gateway Model Provider missing type", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+		if strings.TrimSpace(provider.DisplayName) == "" {
+			logWarn(logger, "AI Gateway Model Provider missing display_name", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+		if provider.Config == nil {
+			logWarn(logger, "AI Gateway Model Provider missing config", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+
+		ref := strings.TrimSpace(provider.ID)
+		if ref == "" {
+			ref = provider.Name
+		}
+
+		results = append(results, declresources.AIGatewayProviderResource{
+			BaseResource: declresources.BaseResource{Ref: ref},
+			Name:         provider.Name,
+			Type:         provider.Type,
+			DisplayName:  provider.DisplayName,
+			Labels:       provider.Labels,
+			ManagedBy:    provider.ManagedBy,
+			Config:       provider.Config,
+		})
+	}
+
+	slices.SortFunc(results, func(a, b declresources.AIGatewayProviderResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return results, nil
+}
+
+func buildAIGatewayIdentityProviders(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayDisplayName string,
+) ([]declresources.AIGatewayIdentityProviderResource, error) {
+	providers, err := client.ListAIGatewayIdentityProviders(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(providers) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.AIGatewayIdentityProviderResource, 0, len(providers))
+	for _, provider := range providers {
+		if strings.TrimSpace(provider.Name) == "" {
+			logWarn(logger, "AI Gateway Identity Provider missing name", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+		if strings.TrimSpace(provider.Type) == "" {
+			logWarn(logger, "AI Gateway Identity Provider missing type", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+		if strings.TrimSpace(provider.DisplayName) == "" {
+			logWarn(logger, "AI Gateway Identity Provider missing display_name", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+		if provider.Config == nil {
+			logWarn(logger, "AI Gateway Identity Provider missing config", gatewayID, gatewayDisplayName, nil)
+			continue
+		}
+
+		ref := strings.TrimSpace(provider.ID)
+		if ref == "" {
+			ref = provider.Name
+		}
+
+		results = append(results, declresources.AIGatewayIdentityProviderResource{
+			BaseResource: declresources.BaseResource{Ref: ref},
+			Name:         provider.Name,
+			Type:         provider.Type,
+			DisplayName:  provider.DisplayName,
+			Labels:       provider.Labels,
+			ManagedBy:    provider.ManagedBy,
+			Config:       provider.Config,
+		})
+	}
+
+	slices.SortFunc(results, func(a, b declresources.AIGatewayIdentityProviderResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return results, nil
+}
+
+func buildAIGatewayPolicies(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayPolicyResource, error) {
+	policies, err := client.ListAIGatewayPolicies(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayPolicyResource, 0, len(policies))
+	for _, policy := range policies {
+		resource, err := declresources.AIGatewayPolicyResourceFromResponse(gatewayRef, policy.AIGatewayPolicy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Policy for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayPolicyResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayAgents(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayAgentResource, error) {
+	agents, err := client.ListAIGatewayAgents(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayAgentResource, 0, len(agents))
+	for _, agent := range agents {
+		resource, err := declresources.AIGatewayAgentResourceFromResponse(
+			gatewayRef,
+			agent.AIGatewayAgent,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Agent for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayAgentResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayConsumers(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+	includeCredentials bool,
+) ([]declresources.AIGatewayConsumerResource, error) {
+	consumers, err := client.ListAIGatewayConsumers(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayConsumerResource, 0, len(consumers))
+	for _, consumer := range consumers {
+		resource, err := declresources.AIGatewayConsumerResourceFromResponse(
+			gatewayRef,
+			consumer.AIGatewayConsumer,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Consumer for gateway %s: %w", gatewayName, err)
+		}
+		if includeCredentials {
+			credentials, err := buildAIGatewayConsumerCredentials(
+				ctx,
+				client,
+				gatewayID,
+				gatewayName,
+				resource.Ref,
+				resource.Name,
+				"",
+			)
+			if err != nil {
+				return nil, err
+			}
+			if len(credentials) > 0 {
+				resource.Credentials = credentials
+			}
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayConsumerResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayConsumerCredentials(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	consumerID string,
+	consumerName string,
+	consumerRef string,
+) ([]declresources.AIGatewayConsumerCredentialResource, error) {
+	credentials, err := client.ListAIGatewayConsumerCredentials(ctx, gatewayID, consumerID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayConsumerCredentialResource, 0, len(credentials))
+	for _, credential := range credentials {
+		resource, err := declresources.AIGatewayConsumerCredentialResourceFromResponse(
+			consumerRef,
+			credential.AIGatewayConsumerCredential,
+		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to map AI Gateway Consumer Credential for gateway %s consumer %s: %w",
+				gatewayName,
+				consumerName,
+				err,
+			)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayConsumerCredentialResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayConsumerGroups(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayConsumerGroupResource, error) {
+	groups, err := client.ListAIGatewayConsumerGroups(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayConsumerGroupResource, 0, len(groups))
+	for _, group := range groups {
+		resource, err := declresources.AIGatewayConsumerGroupResourceFromResponse(
+			gatewayRef,
+			group.AIGatewayConsumerGroup,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Consumer Group for gateway %s: %w", gatewayName, err)
+		}
+		groupID := declresources.AIGatewayConsumerGroupID(group.AIGatewayConsumerGroup)
+		if groupID != "" {
+			consumers, err := client.ListAIGatewayConsumersInConsumerGroup(ctx, gatewayID, groupID)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to list AI Gateway Consumers in Consumer Group %s for gateway %s: %w",
+					groupID,
+					gatewayName,
+					err,
+				)
+			}
+			consumerNames := make([]string, 0, len(consumers))
+			for _, consumer := range consumers {
+				name := declresources.AIGatewayConsumerName(consumer.AIGatewayConsumer)
+				if name != "" {
+					consumerNames = append(consumerNames, name)
+				}
+			}
+			slices.Sort(consumerNames)
+			if len(consumerNames) > 0 {
+				if resource.AdditionalProperties == nil {
+					resource.AdditionalProperties = map[string]any{}
+				}
+				resource.AdditionalProperties["consumers"] = consumerNames
+			}
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayConsumerGroupResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayModels(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayModelResource, error) {
+	models, err := client.ListAIGatewayModels(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayModelResource, 0, len(models))
+	for _, model := range models {
+		resource, err := declresources.AIGatewayModelResourceFromResponse(gatewayRef, model.AIGatewayModel)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway model for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayModelResource) int {
+		if a.Name() == b.Name() {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name(), b.Name())
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayMCPServers(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayMCPServerResource, error) {
+	servers, err := client.ListAIGatewayMCPServers(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayMCPServerResource, 0, len(servers))
+	for _, server := range servers {
+		resource, err := declresources.AIGatewayMCPServerResourceFromResponse(gatewayRef, server.AIGatewayMCPServer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway MCP Server for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayMCPServerResource) int {
+		if a.Name() == b.Name() {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name(), b.Name())
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayVaults(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayVaultResource, error) {
+	vaults, err := client.ListAIGatewayVaults(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayVaultResource, 0, len(vaults))
+	for _, vault := range vaults {
+		resource, err := declresources.AIGatewayVaultResourceFromResponse(gatewayRef, vault.AIGatewayVault)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Vault for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayVaultResource) int {
+		if a.Name() == b.Name() {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name(), b.Name())
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayDataPlaneCertificates(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayDataPlaneCertificateResource, error) {
+	certs, err := client.ListAIGatewayDataPlaneCertificates(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayDataPlaneCertificateResource, 0, len(certs))
+	for _, cert := range certs {
+		if strings.TrimSpace(cert.ID) == "" {
+			logWarn(logger, "AI Gateway data plane certificate missing ID", gatewayID, gatewayName, nil)
+			continue
+		}
+		if strings.TrimSpace(cert.Cert) == "" {
+			logWarn(
+				logger,
+				"AI Gateway data plane certificate missing certificate content",
+				gatewayID,
+				gatewayName,
+				nil,
+			)
+			continue
+		}
+		resource := declresources.AIGatewayDataPlaneCertificateResourceFromResponse(
+			gatewayRef,
+			cert.AIGatewayDataPlaneClientCertificate,
+		)
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayDataPlaneCertificateResource) int {
+		if a.Title == b.Title {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Title, b.Title)
+	})
+
+	return result, nil
+}
+
 func buildEventGatewayDataPlaneCertificates(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -997,8 +1553,8 @@ func buildPortalCustomization(
 
 	ref := buildChildRef("portal-customization", portalID)
 	resource := declresources.PortalCustomizationResource{
-		PortalCustomizationV3: *customization,
-		Ref:                   ref,
+		PortalCustomization: *customization,
+		Ref:                 ref,
 	}
 
 	return &resource, nil

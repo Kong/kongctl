@@ -1,0 +1,466 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-consumer-group-e2e"
+  gateway_name: "AI Gateway Consumer Group E2E"
+  gateway_ref: "ai-gateway-consumer-group-e2e"
+  policy_ref: "mask-sensitive-data"
+  policy_name: "mask-sensitive-data"
+  policy_display_name: "Mask Sensitive Data"
+  consumer_group_ref: "premium-support-users"
+  consumer_group_name: "premium-support-users"
+  consumer_group_display_name: "Premium Support Users"
+  consumer_group_updated_display_name: "Premium Support Users Updated"
+  second_consumer_group_name: "analytics-users"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-consumer-group-json
+        run:
+          - explain
+          - ai_gateway_consumer_group
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                '"x-kongctl-root-key"': ai_gateway_consumer_groups
+          - select: "contains(keys(properties), 'ai_gateway')"
+            expect:
+              fields:
+                "@": true
+      - name: 001-scaffold-ai-gateway-consumer-group
+        run:
+          - scaffold
+          - ai_gateway_consumer_group
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_consumer_groups:')": true
+                "contains(stdout, 'ai_gateway: !ref')": true
+                "contains(stdout, 'policies:')": true
+      - name: 002-explain-ai-gateway-consumer-groups-nested-json
+        run:
+          - explain
+          - ai_gateway.consumer_groups
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                '"x-kongctl-resource"': ai_gateway_consumer_group
+                '"x-kongctl-root-key"': ai_gateway_consumer_groups
+
+  - name: 002-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 6
+                by_action.CREATE: 6
+          - select: "length(changes[?resource_type=='ai_gateway_consumer'])"
+            expect:
+              fields:
+                "@": 2
+          - select: "length(changes[?resource_type=='ai_gateway_consumer_group'])"
+            expect:
+              fields:
+                "@": 2
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer_group' && resource_ref=='{{ .vars.consumer_group_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.consumer_group_name }}"
+                fields.display_name: "{{ .vars.consumer_group_display_name }}"
+                fields.labels.phase: create
+                fields.policies[0]: "__REF__:{{ .vars.policy_ref }}#id"
+                "length(fields.consumers)": 2
+                "contains(fields.consumers, 'support-agent')": true
+                "contains(fields.consumers, 'analytics-agent')": true
+                references."policies.0".ref: "__REF__:{{ .vars.policy_ref }}#name"
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer_group' && resource_ref=='analytics-users'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.second_consumer_group_name }}"
+                fields.consumers[0]: analytics-agent
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 6
+                failed: 0
+                status: success
+      - name: 002-list-consumer-groups
+        run:
+          - get
+          - ai-gateway
+          - consumer-groups
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        recordVar:
+          name: consumer_group_id
+          responsePath: "[?name=='{{ .vars.consumer_group_name }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.consumer_group_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumer_group_name }}"
+                display_name: "{{ .vars.consumer_group_display_name }}"
+                labels.phase: create
+                "length(policies)": 1
+          - select: "[?name=='{{ .vars.second_consumer_group_name }}'] | [0]"
+            expect:
+              fields:
+                display_name: "Analytics Users"
+                labels.phase: create
+      - name: 003-get-consumer-group-by-name
+        run:
+          - get
+          - ai-gateway
+          - consumer-group
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.consumer_group_name }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.consumer_group_name }}"
+      - name: 004-get-consumer-group-by-id
+        run:
+          - get
+          - ai-gateway
+          - consumer-groups
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.consumer_group_id }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.consumer_group_name }}"
+
+  - name: 003-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer_group' && resource_ref=='{{ .vars.consumer_group_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.display_name: "{{ .vars.consumer_group_updated_display_name }}"
+                fields.labels.phase: update
+                "length(fields.consumers)": 1
+                fields.consumers[0]: support-agent
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-verify-update
+        run:
+          - get
+          - ai-gateway
+          - consumer-groups
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.consumer_group_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: "{{ .vars.consumer_group_updated_display_name }}"
+                labels.phase: update
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateway-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-ai-gateway.yaml"
+        assertions:
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].consumer_groups[?name=='{{ .vars.consumer_group_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.consumer_group_name }}"
+                display_name: "{{ .vars.consumer_group_updated_display_name }}"
+                "length(policies)": 1
+                "length(consumers)": 1
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].consumer_groups[?name=='{{ .vars.second_consumer_group_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.second_consumer_group_name }}"
+                "length(consumers)": 1
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].policies[?name=='{{ .vars.policy_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.policy_name }}"
+                display_name: "{{ .vars.policy_display_name }}"
+                type: ai-sanitizer
+                config.anonymize[0]: email
+      - name: 001-plan-from-ai-gateway-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-ai-gateway.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 002-dump-root-consumer-groups
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateway_consumer_groups"
+          - "--filter-name={{ .vars.consumer_group_name }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_consumer_groups[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumer_group_name }}"
+                display_name: "{{ .vars.consumer_group_updated_display_name }}"
+          - select: "ai_gateway_consumer_groups[0].ai_gateway != ''"
+            expect:
+              fields:
+                "@": true
+
+  - name: 005-sync-delete-consumer-group
+    inputOverlayDirs:
+      - overlays/002-sync-delete-consumer-group
+    commands:
+      - name: 000-sync-delete-consumer-group
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: >-
+              length(plan.changes[?resource_type=='ai_gateway_consumer_group' && action=='DELETE' &&
+              resource_ref=='{{ .vars.consumer_group_name }}'])
+            expect:
+              fields:
+                "@": 1
+          - select: >-
+              length(plan.changes[?resource_type=='ai_gateway_consumer_group' && action=='DELETE' &&
+              resource_ref=='{{ .vars.second_consumer_group_name }}'])
+            expect:
+              fields:
+                "@": 1
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+      - name: 001-list-consumer-groups-empty
+        run:
+          - get
+          - ai-gateway
+          - consumer-groups
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 006-sync-delete-policy
+    inputOverlayDirs:
+      - overlays/003-sync-delete-policy
+    commands:
+      - name: 000-sync-delete-policy
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_policy' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.policy_name }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-list-policies-empty
+        run:
+          - get
+          - ai-gateway
+          - policies
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 007-sync-delete-gateway
+    inputOverlayDirs:
+      - overlays/004-sync-delete-gateway
+    commands:
+      - name: 000-sync-delete-gateway
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-get-ai-gateways
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?display_name=='{{ .vars.gateway_name }}']"
+            expect:
+              fields:
+                "length(@)": 0

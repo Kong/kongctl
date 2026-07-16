@@ -15,9 +15,9 @@ func TestLevelValidationAndDisplay(t *testing.T) {
 		level   Level
 		display string
 	}{
-		{LevelGA, "GA"},
-		{LevelBeta, "Beta"},
-		{LevelTechPreview, "Tech Preview"},
+		{LevelGA, "ga"},
+		{LevelBeta, "beta"},
+		{LevelTechPreview, "tech preview"},
 	}
 	for _, tt := range tests {
 		require.NoError(t, Validate(Metadata{Level: tt.level}))

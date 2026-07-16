@@ -2363,10 +2363,14 @@ func assertAvailableSubcommands(t *testing.T, stderr string, command *cobra.Comm
 	if len(subcommands) == 0 {
 		t.Fatalf("expected available subcommands for %s", command.CommandPath())
 	}
+	displayValues, err := maturitySuggestionValues(command, cmdpkg.Suggestion{Kind: "subcommand", Values: subcommands})
+	if err != nil {
+		t.Fatalf("resolve subcommand maturity labels: %v", err)
+	}
 	if !strings.Contains(stderr, "Available subcommands:") {
 		t.Fatalf("expected available subcommands header\nstderr:\n%s", stderr)
 	}
-	for _, subcommand := range subcommands {
+	for _, subcommand := range displayValues {
 		line := fmt.Sprintf("  %s\n", subcommand)
 		if !strings.Contains(stderr, line) {
 			t.Fatalf("expected subcommand %q in stderr\nstderr:\n%s", subcommand, stderr)
@@ -2374,7 +2378,7 @@ func assertAvailableSubcommands(t *testing.T, stderr string, command *cobra.Comm
 	}
 
 	help := fmt.Sprintf("Run '%s --help' for usage", command.CommandPath())
-	lastSubcommandLine := fmt.Sprintf("  %s\n", subcommands[len(subcommands)-1])
+	lastSubcommandLine := fmt.Sprintf("  %s\n", displayValues[len(displayValues)-1])
 	if strings.LastIndex(stderr, help) < strings.LastIndex(stderr, lastSubcommandLine) {
 		t.Fatalf("expected help hint after subcommand list\nstderr:\n%s", stderr)
 	}

@@ -407,12 +407,12 @@ func dashboardTileExplainNode() *ExplainNode {
 func dashboardLayoutExplainNode() *ExplainNode {
 	return explainObject(
 		explainField("position", explainObject(
-			explainField("col", &ExplainNode{Kind: "integer", Literal: "0"}, true, true),
-			explainField("row", &ExplainNode{Kind: "integer", Literal: "0"}, true, true),
+			explainField("col", &ExplainNode{Kind: explainKindInteger, Literal: "0"}, true, true),
+			explainField("row", &ExplainNode{Kind: explainKindInteger, Literal: "0"}, true, true),
 		), true, true),
 		explainField("size", explainObject(
-			explainField("cols", &ExplainNode{Kind: "integer", Literal: "6"}, true, true),
-			explainField("rows", &ExplainNode{Kind: "integer", Literal: "2"}, true, true),
+			explainField("cols", &ExplainNode{Kind: explainKindInteger, Literal: "6"}, true, true),
+			explainField("rows", &ExplainNode{Kind: explainKindInteger, Literal: "2"}, true, true),
 		), true, true),
 	)
 }

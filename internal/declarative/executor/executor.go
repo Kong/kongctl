@@ -22,6 +22,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type (
+	createAIGatewayDataPlaneCertificateRequest = kkComps.CreateAIGatewayDataPlaneCertificateRequest
+	createAIGatewayConsumerCredentialRequest   = kkComps.CreateAIGatewayConsumerCredentialRequest
+)
+
 // Executor handles the execution of declarative configuration plans
 type Executor struct {
 	client   *state.Client
@@ -50,7 +55,34 @@ type Executor struct {
 		kkComps.CreateDcrProviderRequest,
 		kkComps.UpdateDcrProviderRequest,
 	]
-	catalogServiceExecutor                 *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
+	catalogServiceExecutor    *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
+	aiGatewayExecutor         *BaseExecutor[kkComps.CreateAIGatewayRequest, kkComps.UpdateAIGatewayRequest]
+	aiGatewayProviderExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayModelProviderRequest,
+		kkComps.UpdateAIGatewayModelProviderRequest]
+	aiGatewayIdentityProviderExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayIdentityProviderRequest,
+		kkComps.UpdateAIGatewayIdentityProviderRequest]
+	aiGatewayPolicyExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayPolicyRequest,
+		kkComps.UpdateAIGatewayPolicyRequest]
+	aiGatewayAgentExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayAgentRequest,
+		kkComps.UpdateAIGatewayAgentRequest]
+	aiGatewayConsumerExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayConsumerRequest,
+		kkComps.UpdateAIGatewayConsumerRequest]
+	aiGatewayConsumerCredentialExecutor *BaseCreateDeleteExecutor[createAIGatewayConsumerCredentialRequest]
+	aiGatewayConsumerGroupExecutor      *BaseExecutor[
+		kkComps.CreateAIGatewayConsumerGroupRequest,
+		kkComps.UpdateAIGatewayConsumerGroupRequest]
+	aiGatewayModelExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayModelRequest, kkComps.UpdateAIGatewayModelRequest]
+	aiGatewayMCPServerExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayMCPServerRequest, kkComps.UpdateAIGatewayMCPServerRequest]
+	aiGatewayVaultExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayVaultRequest, kkComps.UpdateAIGatewayVaultRequest]
+	aiGatewayDataPlaneCertificateExecutor  *BaseCreateDeleteExecutor[createAIGatewayDataPlaneCertificateRequest]
 	dashboardExecutor                      *BaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest]
 	eventGatewayControlPlaneExecutor       *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 	organizationTeamExecutor               *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
@@ -93,7 +125,7 @@ type Executor struct {
 		kkComps.CreateTLSTrustBundleRequest, kkComps.UpdateTLSTrustBundleRequest]
 
 	// Portal child resource executors
-	portalCustomizationExecutor    *BaseSingletonExecutor[kkComps.PortalCustomizationV3]
+	portalCustomizationExecutor    *BaseSingletonExecutor[kkComps.PortalCustomization]
 	portalAuthSettingsExecutor     *BaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest]
 	portalIntegrationExecutor      *BaseSingletonExecutor[kkComps.PortalIntegrations]
 	portalIdentityProviderExecutor *BaseExecutor[kkComps.CreateIdentityProvider, kkComps.UpdateIdentityProvider]
@@ -224,6 +256,79 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		client,
 		dryRun,
 	)
+	e.aiGatewayExecutor = NewBaseExecutor[kkComps.CreateAIGatewayRequest, kkComps.UpdateAIGatewayRequest](
+		NewAIGatewayAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayProviderExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayModelProviderRequest,
+		kkComps.UpdateAIGatewayModelProviderRequest](
+		NewAIGatewayProviderAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayIdentityProviderExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayIdentityProviderRequest,
+		kkComps.UpdateAIGatewayIdentityProviderRequest](
+		NewAIGatewayIdentityProviderAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayPolicyExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayPolicyRequest,
+		kkComps.UpdateAIGatewayPolicyRequest](
+		NewAIGatewayPolicyAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayAgentExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayAgentRequest,
+		kkComps.UpdateAIGatewayAgentRequest](
+		NewAIGatewayAgentAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayConsumerExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayConsumerRequest,
+		kkComps.UpdateAIGatewayConsumerRequest](
+		NewAIGatewayConsumerAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayConsumerCredentialExecutor = NewBaseCreateDeleteExecutor[createAIGatewayConsumerCredentialRequest](
+		NewAIGatewayConsumerCredentialAdapter(client),
+		dryRun,
+	)
+	e.aiGatewayConsumerGroupExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayConsumerGroupRequest,
+		kkComps.UpdateAIGatewayConsumerGroupRequest](
+		NewAIGatewayConsumerGroupAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayModelExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayModelRequest, kkComps.UpdateAIGatewayModelRequest](
+		NewAIGatewayModelAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayMCPServerExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayMCPServerRequest, kkComps.UpdateAIGatewayMCPServerRequest](
+		NewAIGatewayMCPServerAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayVaultExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayVaultRequest, kkComps.UpdateAIGatewayVaultRequest](
+		NewAIGatewayVaultAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayDataPlaneCertificateExecutor = NewBaseCreateDeleteExecutor[createAIGatewayDataPlaneCertificateRequest](
+		NewAIGatewayDataPlaneCertificateAdapter(client),
+		dryRun,
+	)
 	e.dashboardExecutor = NewBaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest](
 		NewDashboardAdapter(client),
 		client,
@@ -350,7 +455,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 
 	// Initialize portal child resource executors
-	e.portalCustomizationExecutor = NewBaseSingletonExecutor[kkComps.PortalCustomizationV3](
+	e.portalCustomizationExecutor = NewBaseSingletonExecutor[kkComps.PortalCustomization](
 		NewPortalCustomizationAdapter(client),
 		dryRun,
 	)
@@ -872,7 +977,7 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 		return
 	}
 
-	depRefToID := make(map[string]string, len(change.DependsOn))
+	depRefs := make(map[string]createdDependencyReference, len(change.DependsOn))
 	for _, depID := range change.DependsOn {
 		createdID, ok := e.getCreatedResourceID(depID)
 		if !ok || createdID == "" {
@@ -884,16 +989,20 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 			continue
 		}
 
-		depRefToID[depChange.ResourceRef] = createdID
+		depRefs[depChange.ResourceRef] = createdDependencyReference{
+			id:          createdID,
+			resourceRef: depChange.ResourceRef,
+			fields:      depChange.Fields,
+		}
 	}
 
-	if len(depRefToID) == 0 {
+	if len(depRefs) == 0 {
 		return
 	}
 
 	if change.Parent != nil && unresolvedReferenceID(change.Parent.ID) {
-		if id, ok := depRefToID[normalizedRefValue(change.Parent.Ref)]; ok {
-			change.Parent.ID = id
+		if dep, ok := depRefs[normalizedRefValue(change.Parent.Ref)]; ok {
+			change.Parent.ID = dep.id
 		}
 	}
 
@@ -901,11 +1010,12 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 		updated := false
 
 		if unresolvedReferenceID(refInfo.ID) {
-			if id, ok := depRefToID[normalizedRefValue(refInfo.Ref)]; ok {
-				refInfo.ID = id
+			if dep, ok := depRefs[normalizedRefValue(refInfo.Ref)]; ok {
+				resolvedValue := dep.referenceValue(refInfo.Ref)
+				refInfo.ID = resolvedValue
 				updated = true
 				if change.Fields != nil {
-					setResolvedFieldValue(change.Fields, field, id)
+					setResolvedFieldValue(change.Fields, field, resolvedValue)
 				}
 			}
 		}
@@ -921,8 +1031,8 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 				if refInfo.ResolvedIDs[i] != "" {
 					continue
 				}
-				if id, ok := depRefToID[normalizedRefValue(ref)]; ok {
-					refInfo.ResolvedIDs[i] = id
+				if dep, ok := depRefs[normalizedRefValue(ref)]; ok {
+					refInfo.ResolvedIDs[i] = dep.referenceValue(ref)
 					updated = true
 				}
 			}
@@ -932,6 +1042,78 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 			change.References[field] = refInfo
 		}
 	}
+}
+
+type createdDependencyReference struct {
+	id          string
+	resourceRef string
+	fields      map[string]any
+}
+
+func (r createdDependencyReference) referenceValue(ref string) string {
+	field := planner.FieldID
+	if tags.IsRefPlaceholder(ref) {
+		if _, parsedField, ok := tags.ParseRefPlaceholder(ref); ok && parsedField != "" {
+			field = parsedField
+		}
+	}
+
+	switch field {
+	case planner.FieldID, "ID":
+		return r.id
+	case planner.FieldName:
+		if name := common.ExtractResourceName(r.fields); name != "" && name != resources.UnknownReferenceID {
+			return name
+		}
+		if r.resourceRef != "" {
+			return r.resourceRef
+		}
+		return r.id
+	default:
+		if value, ok := stringFieldPathValue(r.fields, field); ok {
+			return value
+		}
+		return r.id
+	}
+}
+
+func stringFieldPathValue(fields map[string]any, fieldPath string) (string, bool) {
+	if fields == nil || fieldPath == "" {
+		return "", false
+	}
+	value, ok := fieldPathValue(fields, strings.Split(fieldPath, "."))
+	if !ok {
+		return "", false
+	}
+	if fieldChange, ok := value.(planner.FieldChange); ok {
+		value = fieldChange.New
+	}
+	switch typed := value.(type) {
+	case string:
+		return typed, true
+	case fmt.Stringer:
+		return typed.String(), true
+	default:
+		return "", false
+	}
+}
+
+func fieldPathValue(current any, segments []string) (any, bool) {
+	if len(segments) == 0 {
+		return current, true
+	}
+	if fieldChange, ok := current.(planner.FieldChange); ok {
+		return fieldPathValue(fieldChange.New, segments)
+	}
+	fields, ok := current.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	next, ok := fields[segments[0]]
+	if !ok {
+		return nil, false
+	}
+	return fieldPathValue(next, segments[1:])
 }
 
 func (e *Executor) getCreatedResourceID(changeID string) (string, bool) {
@@ -1305,6 +1487,19 @@ func (e *Executor) syncResolvedPortalDefaultAuthStrategyID(
 	)
 }
 
+func (e *Executor) syncResolvedAIGatewayID(
+	ctx context.Context,
+	change *planner.PlannedChange,
+) error {
+	return e.syncResolvedRef(
+		ctx,
+		change,
+		planner.FieldAIGatewayID,
+		e.resolveAIGatewayRef,
+		"failed to resolve AI Gateway reference",
+	)
+}
+
 // resolvePortalRef resolves a portal reference to its ID
 func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
 	// First check if the reference already has a resolved ID
@@ -1569,6 +1764,73 @@ func (e *Executor) detachControlPlaneGroupMembers(ctx context.Context, change *p
 	return e.client.RemoveControlPlaneGroupMemberships(ctx, change.ResourceID, normalized)
 }
 
+func (e *Executor) syncAIGatewayConsumerGroupConsumers(
+	ctx context.Context,
+	change *planner.PlannedChange,
+	consumerGroupID string,
+) error {
+	field, ok := change.Fields[planner.FieldConsumers]
+	if !ok {
+		return nil
+	}
+
+	consumers, err := extractStringSliceField(field)
+	if err != nil {
+		return fmt.Errorf("failed to extract AI Gateway Consumer Group consumers: %w", err)
+	}
+
+	gatewayID := aiGatewayIDFromChange(change)
+	if gatewayID == "" {
+		return fmt.Errorf("AI Gateway ID required for Consumer Group membership operations")
+	}
+	if consumerGroupID == "" {
+		consumerGroupID = change.ResourceID
+	}
+	if consumerGroupID == "" {
+		return fmt.Errorf("AI Gateway Consumer Group ID required for membership operations")
+	}
+	if e.dryRun {
+		return nil
+	}
+
+	return e.client.UpsertAIGatewayConsumerGroupConsumers(ctx, gatewayID, consumerGroupID, consumers)
+}
+
+func aiGatewayIDFromChange(change *planner.PlannedChange) string {
+	if change == nil {
+		return ""
+	}
+	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
+		return gatewayRef.ID
+	}
+	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
+		return change.Parent.ID
+	}
+	if id, ok := change.Fields[planner.FieldAIGatewayID].(string); ok && !unresolvedReferenceID(id) {
+		return id
+	}
+	return ""
+}
+
+func extractStringSliceField(field any) ([]string, error) {
+	switch typed := field.(type) {
+	case []string:
+		return append([]string(nil), typed...), nil
+	case []any:
+		values := make([]string, len(typed))
+		for i, value := range typed {
+			stringValue, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("value at index %d must be a string", i)
+			}
+			values[i] = stringValue
+		}
+		return values, nil
+	default:
+		return nil, fmt.Errorf("expected string list, got %T", field)
+	}
+}
+
 func (e *Executor) resolveMemberReference(
 	ctx context.Context,
 	placeholder string,
@@ -1762,6 +2024,59 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 	e.setRef(planner.ResourceTypeEventGatewayControlPlane, refInfo.Ref, gatewayID)
 
 	return gatewayID, nil
+}
+
+// resolveAIGatewayRef resolves an AI Gateway reference to its ID.
+func (e *Executor) resolveAIGatewayRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	if !unresolvedReferenceID(refInfo.ID) {
+		return refInfo.ID, nil
+	}
+
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
+	if id, ok := e.getRefAny(planner.ResourceTypeAIGateway, lookupRef, refInfo.Ref); ok {
+		return id, nil
+	}
+
+	lookupValue := lookupRef
+	lookupByName := false
+	if refInfo.LookupFields != nil {
+		if name := strings.TrimSpace(refInfo.LookupFields[planner.FieldName]); name != "" {
+			lookupValue = name
+			lookupByName = true
+		} else if displayName := strings.TrimSpace(refInfo.LookupFields[planner.FieldDisplayName]); displayName != "" {
+			lookupValue = displayName
+		}
+	}
+
+	var gateway *state.AIGateway
+	var err error
+	if lookupByName {
+		gateway, err = e.client.GetAIGatewayByName(ctx, lookupValue)
+	} else {
+		gateway, err = e.client.GetAIGatewayByDisplayName(ctx, lookupValue)
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to get AI Gateway: %w", err)
+	}
+	if gateway == nil {
+		lookupField := planner.FieldDisplayName
+		if lookupByName {
+			lookupField = planner.FieldName
+		}
+		return "", fmt.Errorf("AI Gateway not found: ref=%s, looked up by %s=%s", refInfo.Ref, lookupField, lookupValue)
+	}
+
+	e.setRef(planner.ResourceTypeAIGateway, lookupRef, gateway.ID)
+	if lookupRef != refInfo.Ref {
+		e.setRef(planner.ResourceTypeAIGateway, refInfo.Ref, gateway.ID)
+	}
+	return gateway.ID, nil
 }
 
 // resolveEventGatewayBackendClusterRef resolves an event gateway reference to its ID
@@ -2250,6 +2565,70 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		return e.apiExecutor.Create(ctx, *change)
 	case planner.ResourceTypeCatalogService:
 		return e.catalogServiceExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGateway:
+		return e.aiGatewayExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayProvider:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayProviderExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayIdentityProvider:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayIdentityProviderExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayPolicy:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayPolicyExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayAgent:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayAgentExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumer:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayConsumerExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerCredential:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayConsumerCredentialExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerGroup:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		id, err := e.aiGatewayConsumerGroupExecutor.Create(ctx, *change)
+		if err != nil {
+			return "", err
+		}
+		if err := e.syncAIGatewayConsumerGroupConsumers(ctx, change, id); err != nil {
+			return "", err
+		}
+		return id, nil
+	case planner.ResourceTypeAIGatewayModel:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayModelExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayMCPServer:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayMCPServerExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayVault:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayVaultExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayDataPlaneCertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayDataPlaneCertificateExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDCRProvider:
@@ -2830,6 +3209,60 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		return e.apiExecutor.Update(ctx, *change)
 	case planner.ResourceTypeCatalogService:
 		return e.catalogServiceExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGateway:
+		return e.aiGatewayExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayProvider:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayProviderExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayIdentityProvider:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayIdentityProviderExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayPolicy:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayPolicyExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayAgent:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayAgentExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumer:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayConsumerExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerGroup:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		id, err := e.aiGatewayConsumerGroupExecutor.Update(ctx, *change)
+		if err != nil {
+			return "", err
+		}
+		if err := e.syncAIGatewayConsumerGroupConsumers(ctx, change, id); err != nil {
+			return "", err
+		}
+		return id, nil
+	case planner.ResourceTypeAIGatewayModel:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayModelExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayMCPServer:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayMCPServerExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayVault:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayVaultExecutor.Update(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Update(ctx, *change)
 	case planner.ResourceTypeAPIDocument:
@@ -3292,6 +3725,63 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		return e.apiExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeCatalogService:
 		return e.catalogServiceExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGateway:
+		return e.aiGatewayExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayProvider:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayProviderExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayIdentityProvider:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayIdentityProviderExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayPolicy:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayPolicyExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayAgent:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayAgentExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumer:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayConsumerExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerCredential:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayConsumerCredentialExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayConsumerGroup:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayConsumerGroupExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayModel:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayModelExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayMCPServer:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayMCPServerExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayVault:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayVaultExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayDataPlaneCertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayDataPlaneCertificateExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAPIVersion:

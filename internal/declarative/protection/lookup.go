@@ -70,6 +70,14 @@ func IsManagedResourceProtected(
 			}
 			return r.NormalizedLabels, err
 		})
+	case resources.ResourceTypeAIGateway:
+		return fetchProtection(resourceName, "AI Gateway", func() (map[string]string, error) {
+			r, err := client.GetAIGatewayByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
+			}
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeApplicationAuthStrategy:
 		return fetchProtection(resourceName, "auth strategy", func() (map[string]string, error) {
 			r, err := client.GetAuthStrategyByName(ctx, resourceName)
@@ -145,7 +153,18 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeEventGatewayProducePolicy,
 		resources.ResourceTypeEventGatewaySchemaRegistry,
 		resources.ResourceTypeEventGatewayStaticKey,
-		resources.ResourceTypeEventGatewayTLSTrustBundle:
+		resources.ResourceTypeEventGatewayTLSTrustBundle,
+		resources.ResourceTypeAIGatewayProvider,
+		resources.ResourceTypeAIGatewayIdentityProvider,
+		resources.ResourceTypeAIGatewayPolicy,
+		resources.ResourceTypeAIGatewayAgent,
+		resources.ResourceTypeAIGatewayConsumer,
+		resources.ResourceTypeAIGatewayConsumerCredential,
+		resources.ResourceTypeAIGatewayConsumerGroup,
+		resources.ResourceTypeAIGatewayModel,
+		resources.ResourceTypeAIGatewayMCPServer,
+		resources.ResourceTypeAIGatewayVault,
+		resources.ResourceTypeAIGatewayDataPlaneCertificate:
 		return false, nil
 	}
 

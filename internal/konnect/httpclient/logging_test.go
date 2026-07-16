@@ -147,6 +147,31 @@ func TestLoggingHTTPClient_TraceLogsBodiesAndRedactsSensitiveFields(t *testing.T
 	assert.Equal(t, redactedValue, responseHeaders["Set-Cookie"])
 }
 
+func TestRedactSensitiveFieldsClonesAndRedactsNestedFields(t *testing.T) {
+	input := map[string]any{
+		"name": "demo",
+		"config": map[string]any{
+			"client_secret": "secret-value",
+			"token_type":    "Bearer",
+		},
+		"credentials": []any{
+			map[string]any{"api_key": "api-key-value"},
+		},
+	}
+
+	redacted := RedactSensitiveFields(input).(map[string]any)
+	config := redacted["config"].(map[string]any)
+	require.Equal(t, redactedValue, config["client_secret"])
+	require.Equal(t, "Bearer", config["token_type"])
+	credentials := redacted["credentials"].([]any)
+	require.Equal(t, redactedValue, credentials[0].(map[string]any)["api_key"])
+
+	originalConfig := input["config"].(map[string]any)
+	require.Equal(t, "secret-value", originalConfig["client_secret"])
+	originalCredentials := input["credentials"].([]any)
+	require.Equal(t, "api-key-value", originalCredentials[0].(map[string]any)["api_key"])
+}
+
 func TestLoggingHTTPClient_NoRequestResponseLogsBelowDebug(t *testing.T) {
 	var logOutput bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logOutput, &slog.HandlerOptions{

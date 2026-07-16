@@ -1,0 +1,190 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: "ai-gateway-model-matrix-e2e"
+  gateway_name: "AI Gateway Model Matrix E2E"
+  model_count: 8
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 13
+                by_action.CREATE: 13
+          - select: "length(changes[?resource_type=='ai_gateway_model_provider'])"
+            expect:
+              fields:
+                "@": 4
+          - select: "length(changes[?resource_type=='ai_gateway_model'])"
+            expect:
+              fields:
+                "@": 8
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-chat-model'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.capabilities[0]: generate
+                fields.config.logging.payloads: true
+                fields.config.route.paths[0]: /matrix/chat
+                fields.targets[0].config.input_cost: 0.8
+                fields.targets[1].config.output_cost: 15
+                fields.targets[2].semantic_description: Low-latency Gemini chat completion
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-agentic-model'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.capabilities[0]: agentic
+                fields.targets[0].config.upstream_url: https://example.com/openai/v1/responses
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-embeddings-model'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.capabilities[0]: embeddings
+                fields.targets[0].config.embeddings_dimensions: 3072
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-image-model'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.capabilities[0]: image
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-audio-model'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.capabilities[0]: audio/transcription
+                fields.config.max_request_body_size: 26214400
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-batch-api'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.type: api
+                fields.capabilities[0]: batches
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-native-bedrock'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.formats[0].type: bedrock
+                fields.targets[0].config.region: us-east-1
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-semantic-redis'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.formats[0].type: anthropic
+                fields.config.balancer.algorithm: semantic
+                fields.config.balancer.embeddings.config.type: azure
+                fields.config.balancer.vectordb.type: redis
+                fields.config.balancer.vectordb.host: redis.example.com
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 13
+                failed: 0
+                status: success
+      - name: 002-get-models
+        run:
+          - get
+          - ai-gateway
+          - models
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 8
+          - select: "[?name=='matrix-batch-api'] | [0]"
+            expect:
+              fields:
+                type: api
+                capabilities[0]: batches
+          - select: "[?name=='matrix-semantic-redis'] | [0]"
+            expect:
+              fields:
+                config.balancer.algorithm: semantic
+                config.balancer.vectordb.type: redis
+                config.balancer.vectordb.host: redis.example.com
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 002-sync-delete
+    inputOverlayDirs:
+      - overlays/001-sync-delete
+    commands:
+      - name: 000-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 8
+                by_action.DELETE: 8
+          - select: summary
+            expect:
+              fields:
+                applied: 8
+                failed: 0
+                status: success

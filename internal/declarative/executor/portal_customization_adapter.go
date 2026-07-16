@@ -21,7 +21,7 @@ func NewPortalCustomizationAdapter(client *state.Client) *PortalCustomizationAda
 
 // MapUpdateFields maps fields to PortalCustomization
 func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields map[string]any,
-	update *kkComps.PortalCustomizationV3,
+	update *kkComps.PortalCustomization,
 ) error {
 	// Handle theme
 	if themeData, ok := fields[planner.FieldTheme].(map[string]any); ok {
@@ -31,7 +31,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 			theme.Name = &name
 		}
 		if mode, ok := themeData["mode"].(string); ok {
-			modeValue := kkComps.PortalCustomizationV3Mode(mode)
+			modeValue := kkComps.PortalCustomizationMode(mode)
 			theme.Mode = &modeValue
 		}
 
@@ -108,7 +108,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 
 // Update updates the portal customization
 func (p *PortalCustomizationAdapter) Update(ctx context.Context, portalID string,
-	req kkComps.PortalCustomizationV3,
+	req kkComps.PortalCustomization,
 ) error {
 	return p.client.UpdatePortalCustomization(ctx, portalID, req)
 }

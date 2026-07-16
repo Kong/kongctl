@@ -310,6 +310,453 @@ control_plane_data_plane_certificates:
    cert: string required # prefer: !file ./certs/data-plane.pem
 ```
 
+## AI Gateways
+
+This section covers the root AI Gateway resource backed by the Konnect
+`/v1/ai-gateways` API, AI Gateway Model Providers, AI Gateway Models, AI
+Gateway Identity Providers, AI Gateway MCP Servers, AI Gateway Agents, AI
+Gateway Consumers, AI Gateway Consumer Credentials, AI Gateway Consumer Groups,
+AI Gateway Vaults, and AI Gateway Data Plane Certificates. Use
+`kongctl explain ai_gateway --output yaml`,
+`kongctl explain ai_gateway_model_provider --output yaml`,
+`kongctl explain ai_gateway_identity_provider --output yaml`,
+`kongctl explain ai_gateway.agents --output yaml`,
+`kongctl explain ai_gateway.consumers --output yaml`,
+`kongctl explain ai_gateway.consumers.credentials --output yaml`,
+`kongctl explain ai_gateway.consumer_groups --output yaml`,
+`kongctl explain ai_gateway.models --output yaml`,
+`kongctl explain ai_gateway.mcp_servers --output yaml`,
+`kongctl explain ai_gateway.vaults --output yaml`, and
+`kongctl explain ai_gateway.data_plane_certificates --output yaml` as the
+authoritative schemas.
+
+The `ref` value is a local declarative identifier used by kongctl for
+references and planning. Use `name` as the stable Konnect API name for the AI
+Gateway. If `name` is omitted, kongctl defaults it from `ref`. Use
+`display_name` for the human-readable name shown in Konnect. AI Gateway Model
+Providers, Identity Providers, Policies, Agents, Consumers, Consumer
+Credentials, Consumer Groups, Models, MCP Servers, and Vaults use their own
+required `name` field as the stable Konnect child name. AI Gateway Data Plane
+Certificates use their
+required `title` field as the stable Konnect child name. Child entries inherit
+management scope from their parent resource and do not accept `kongctl`
+metadata.
+
+For AI Gateway Models, `targets[].provider` must match an AI Gateway
+Model Provider `name` under the parent gateway. The model provider can already
+exist or be declared in the same gateway configuration.
+
+For AI Gateway Agents, Consumers, Consumer Groups, Models, and MCP Servers,
+`policies` entries reference AI Gateway Policies under the same parent gateway.
+Existing Konnect policy names or IDs can be supplied as strings. Declarative
+references should use `!ref <policy-ref>` so the relationship is explicit and
+same-plan policy creates are ordered and resolved.
+
+For AI Gateway Identity Providers, Policies, Agents, Consumers, Consumer
+Groups, MCP Servers, Vaults, and Data Plane Certificates, root-level
+declarations must include `ai_gateway`, while nested declarations inherit the
+parent gateway. AI Gateway
+Consumer Credentials are children of AI Gateway Consumers; root-level
+declarations must include `ai_gateway_consumer`, while nested declarations
+inherit the parent consumer. Omit `identity_providers`, `policies`, `agents`,
+`consumers`, `credentials`, `consumer_groups`, `mcp_servers`, `vaults`, or
+`data_plane_certificates` to leave existing child resources unmanaged during
+sync. Use `identity_providers: []`, `policies: []`, `agents: []`,
+`consumers: []`, `credentials: []`, `consumer_groups: []`, `mcp_servers: []`,
+`vaults: []`, or
+`data_plane_certificates: []` under a specific parent to sync-delete that child
+type. Root-level `ai_gateway_identity_providers: []`,
+`ai_gateway_policies: []`, `ai_gateway_agents: []`,
+`ai_gateway_consumers: []`, `ai_gateway_consumer_credentials: []`,
+`ai_gateway_consumer_groups: []`, `ai_gateway_mcp_servers: []`,
+`ai_gateway_vaults: []`, and `ai_gateway_data_plane_certificates: []` are
+rejected because they do not identify a parent resource.
+
+```yaml
+ai_gateways:
+ - ref: string
+   name: string
+   display_name: string required
+   description: string
+   proxy_urls: array[object]
+     - host: string required
+       port: integer required
+       protocol: string required
+   labels: object [string]string
+     key: value
+   kongctl:
+     namespace: string
+     protected: boolean
+   model_providers:
+     - ref: string
+       name: string required
+       type: string required
+       display_name: string required
+       config: object required
+       labels: object [string]string
+         key: value
+       managed_by: object [string]string
+         key: value
+   identity_providers:
+     - ref: string
+       name: string required
+       type: key-auth # or openid-connect
+       display_name: string required
+       config: object required
+       labels: object [string]string
+         key: value
+       managed_by: object [string]string
+         key: value
+   policies:
+     - ref: string
+       name: string required
+       type: string required
+       display_name: string required
+       enabled: boolean
+       global: boolean
+       config: object required
+       labels: object [string]string
+         key: value
+       managed_by: object [string]string
+         key: value
+   agents:
+    - ref: string
+      name: string required
+      type: a2a # or http
+      display_name: string required
+      enabled: boolean
+      config:
+        url: string required
+        route: object
+        max_request_body_size: integer
+        logging: object
+      policies:
+       - !ref policy-ref
+      acls: object
+      labels: object [string]string
+        key: value
+      managed_by: object [string]string
+        key: value
+   consumers:
+    - ref: string
+      name: string required
+      type: api-key # or oauth
+      display_name: string required
+      custom_id: string
+      policies:
+       - !ref policy-ref
+      labels: object [string]string
+        key: value
+      managed_by: object [string]string
+        key: value
+      credentials:
+       - ref: string
+         name: string required
+         type: api-key
+         display_name: string required
+         ttl: integer
+         labels: object [string]string
+           key: value
+         managed_by: object [string]string
+           key: value
+   consumer_groups:
+    - ref: string
+      name: string required
+      display_name: string required
+      policies:
+       - !ref policy-ref
+      labels: object [string]string
+        key: value
+      managed_by: object [string]string
+        key: value
+   models:
+    - ref: string
+      type: model # or api
+      name: string required
+      display_name: string required
+      enabled: boolean
+      config:
+        route: object required
+        model: object required
+      formats:
+       - type: string required
+      targets:
+       - name: string required
+         provider: string required # provider name in parent AI Gateway
+         config:
+           type: string required
+      policies:
+       - !ref policy-ref
+      capabilities: array[string]
+      labels: object [string]string
+        key: value
+      acls: object
+      managed_by: object
+   mcp_servers:
+    - ref: string
+      type: conversion-only # or conversion-listener, listener,
+                            # passthrough-listener, upstream-server
+      name: string required
+      display_name: string required
+      enabled: boolean
+      config:
+        url: string required
+      tools:
+       - name: string required
+         description: string required
+         method: string required
+         path: string
+      policies:
+       - !ref policy-ref
+      labels: object [string]string
+        key: value
+      acls: object
+      managed_by: object
+   vaults:
+    - ref: string
+      type: env # or konnect, aws, gcp, azure, conjur, hcv
+      name: string required
+      description: string
+      config: object required
+      labels: object [string]string
+        key: value
+      managed_by: object [string]string
+        key: value
+   data_plane_certificates:
+    - ref: string
+      title: string required
+      description: string
+      cert: string required # prefer !file or !env for PEM data
+```
+
+AI Gateway Model Providers can also be declared as root resources. Root-level
+model provider declarations must identify the parent AI Gateway with
+`ai_gateway`. Basic authentication uses `config.auth.headers`, an array of
+`name` and `value` objects. Header `value` fields and other provider credentials
+are write-only in Konnect. They are sent during create or update but omitted
+from read responses and skipped during diff calculation.
+
+```yaml
+ai_gateway_model_providers:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   type: string required
+   display_name: string required
+   config: object required
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Identity Providers can also be declared as root resources.
+Root-level identity provider declarations must identify the parent AI Gateway
+with `ai_gateway`. OpenID Connect `config.client_secret` values are write-only
+in Konnect and are skipped during diff calculation because the API does not
+return the stored secret.
+
+```yaml
+ai_gateway_identity_providers:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   type: key-auth # or openid-connect
+   display_name: string required
+   config: object required
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Policies can also be declared as root resources. Root-level policy
+declarations must identify the parent AI Gateway with `ai_gateway`.
+
+```yaml
+ai_gateway_policies:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   type: string required
+   display_name: string required
+   enabled: boolean
+   global: boolean
+   config: object required
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Agents can also be declared as root resources. Include `ai_gateway`
+to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_agents:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   type: a2a # or http
+   display_name: string required
+   enabled: boolean
+   config:
+     url: string required
+     route: object
+     max_request_body_size: integer
+     logging: object
+   policies:
+    - !ref policy-ref
+   acls: object
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Consumers can also be declared as root resources. Include
+`ai_gateway` to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_consumers:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   type: api-key # or oauth
+   display_name: string required
+   custom_id: string
+   policies:
+    - !ref policy-ref
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Consumer Credentials can also be declared as root resources. Include
+`ai_gateway_consumer` to point at the parent consumer `ref`. Credential
+`api_key` values are write-only in Konnect and are not part of declarative
+diffs; omit `api_key` so Konnect generates the key value.
+
+```yaml
+ai_gateway_consumer_credentials:
+ - ref: string
+   ai_gateway_consumer: string required # AI Gateway Consumer ref
+   name: string required
+   type: api-key
+   display_name: string required
+   ttl: integer
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Consumer Groups can also be declared as root resources. Include
+`ai_gateway` to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_consumer_groups:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   name: string required
+   display_name: string required
+   policies:
+    - !ref policy-ref
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Models can also be declared as root resources. Include
+`ai_gateway` to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_models:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   type: model # or api
+   name: string required
+   display_name: string required
+   enabled: boolean
+   config:
+     route: object required
+     model: object required
+   formats:
+    - type: string required
+   targets:
+    - name: string required
+      provider: string required # provider name in parent AI Gateway
+      config:
+        type: string required
+   policies:
+    - !ref policy-ref
+   capabilities: array[string]
+   labels: object [string]string
+     key: value
+   acls: object
+   managed_by: object
+```
+
+AI Gateway MCP Servers can also be declared as root resources. Include
+`ai_gateway` to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_mcp_servers:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   type: conversion-only # or conversion-listener, listener,
+                         # passthrough-listener, upstream-server
+   name: string required
+   display_name: string required
+   enabled: boolean
+   config:
+     url: string required
+   tools:
+    - name: string required
+      description: string required
+      method: string required
+      path: string
+   policies:
+    - !ref policy-ref
+   labels: object [string]string
+     key: value
+   acls: object
+   managed_by: object
+```
+
+AI Gateway Vaults can also be declared as root resources. Include `ai_gateway`
+to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_vaults:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   type: env # or konnect, aws, gcp, azure, conjur, hcv
+   name: string required
+   description: string
+   config: object required
+   labels: object [string]string
+     key: value
+   managed_by: object [string]string
+     key: value
+```
+
+AI Gateway Data Plane Certificates can also be declared as root resources.
+Include `ai_gateway` to point at the parent gateway `ref`. There is no update
+endpoint for this resource; changing `cert` or `description` for the same
+`title` replaces the certificate with a delete followed by a create.
+
+```yaml
+ai_gateway_data_plane_certificates:
+ - ref: string
+   ai_gateway: string required # AI Gateway ref
+   title: string required
+   description: string
+   cert: string required # prefer !file or !env for PEM data
+```
+
 ## Event Gateways
 
 [API Specification](https://developer.konghq.com/api/konnect/event-gateway/v1/#/operations/create-event-gateway)

@@ -1,3 +1,6 @@
+test:
+  requiresPAT: false
+
 steps:
   - name: 001-explain-portal-json
     skipInputs: true
@@ -68,7 +71,7 @@ steps:
                 "contains(stdout, 'OPTIONAL: false')": true
                 "contains(stdout, 'ROOT YAML PATH: api_publications[].portal_id')": true
                 "contains(stdout, 'RESOURCE')": true
-                "contains(stdout, 'MATURITY: GA')": true
+                "contains(stdout, 'MATURITY: ga')": true
                 "contains(stdout, 'RESOURCE CLASS: child')": true
                 "contains(stdout, 'ROOT KEY: api_publications[]')": true
                 "contains(stdout, 'ACCEPTS kongctl metadata: no')": true
@@ -86,7 +89,7 @@ steps:
           - expect:
               fields:
                 "contains(stdout, 'RESOURCE')": true
-                "contains(stdout, 'MATURITY: GA')": true
+                "contains(stdout, 'MATURITY: ga')": true
                 "contains(stdout, 'RESOURCE CLASS: top-level')": true
                 "contains(stdout, 'ROOT KEY: portals[]')": true
                 "contains(stdout, 'SUPPORTS NESTED DECLARATION: false')": true
@@ -209,3 +212,142 @@ steps:
                 "properties.topic.type": string
                 "properties.condition.type[0]": string
                 "properties.conflict.type[0]": string
+
+  - name: 011-explain-ai-gateway-consumers-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-consumers-yaml
+        run:
+          - explain
+          - ai_gateway.consumers
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.consumers"
+                '"x-kongctl-resource"': ai_gateway_consumer
+                '"x-kongctl-root-key"': ai_gateway_consumers
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: properties
+            expect:
+              fields:
+                type.type: string
+                custom_id.type: string
+                policies.items.type: string
+
+  - name: 012-explain-ai-gateway-models-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-models-yaml
+        run:
+          - explain
+          - ai_gateway.models
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.models"
+                '"x-kongctl-resource"': ai_gateway_model
+                '"x-kongctl-root-key"': ai_gateway_models
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: oneOf[0].properties
+            expect:
+              fields:
+                type.const: model
+                formats.items.properties.type.type: string
+          - select: >-
+              oneOf[0].properties.targets.items.properties.config.oneOf[?properties.type.const=='openai'] | [0]
+            expect:
+              fields:
+                type: object
+                properties.type.type: string
+                properties.type.const: openai
+
+  - name: 013-explain-ai-gateway-mcp-servers-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-mcp-servers-yaml
+        run:
+          - explain
+          - ai_gateway.mcp_servers
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.mcp_servers"
+                '"x-kongctl-resource"': ai_gateway_mcp_server
+                '"x-kongctl-root-key"': ai_gateway_mcp_servers
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: oneOf[0].properties
+            expect:
+              fields:
+                type.const: conversion-only
+                config.properties.url.type: string
+                tools.items.properties.method.type: string
+
+  - name: 014-explain-ai-gateway-vaults-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-vaults-yaml
+        run:
+          - explain
+          - ai_gateway.vaults
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.vaults"
+                '"x-kongctl-resource"': ai_gateway_vault
+                '"x-kongctl-root-key"': ai_gateway_vaults
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: oneOf[0].properties
+            expect:
+              fields:
+                type.const: env
+                config.properties.prefix.type: string
+
+  - name: 015-explain-ai-gateway-data-plane-certificates-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-data-plane-certificates-yaml
+        run:
+          - explain
+          - ai_gateway.data_plane_certificates
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.data_plane_certificates"
+                '"x-kongctl-resource"': ai_gateway_data_plane_certificate
+                '"x-kongctl-root-key"': ai_gateway_data_plane_certificates
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: properties.cert
+            expect:
+              fields:
+                type: string
+                '"x-kongctl-preferred-tag"': "!file"

@@ -1,0 +1,477 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  gateway_ref: "ai-gateway-root-ref"
+  gateway_api_name: "ai-gateway-root-api-name"
+  gateway_name: "AI Gateway Root E2E"
+  gateway_initial_description: "Initial AI Gateway root e2e description"
+  gateway_updated_description: "Updated AI Gateway root e2e description"
+  namespace: "ai-gateway-root-e2e"
+  adopt_gateway_1: "AI Gateway Adopt E2E 1"
+  adopt_gateway_1_slug: "ai-gateway-adopt-e2e-1"
+  adopt_gateway_2: "AI Gateway Adopt E2E 2"
+  adopt_gateway_2_slug: "ai-gateway-adopt-e2e-2"
+  adopt_namespace: "ai-gateway-adopt-e2e"
+  adopt_overwrite_namespace: "ai-gateway-adopt-e2e-overwrite"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_hash
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-json
+        run:
+          - explain
+          - ai_gateway
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway"
+                '"x-kongctl-root-key"': ai_gateways
+                "required[0]": ref
+          - select: "properties.display_name"
+            expect:
+              fields:
+                type: string
+          - select: "contains(keys(properties), 'name')"
+            expect:
+              fields:
+                "@": true
+      - name: 001-scaffold-ai-gateway
+        run:
+          - scaffold
+          - ai_gateway
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateways:')": true
+                "contains(stdout, '- ref: my-resource')": true
+                "contains(stdout, 'name: my-ai-gateway')": true
+                "contains(stdout, 'display_name: My AI Gateway')": true
+                "contains(stdout, 'proxy_urls:')": true
+
+  - name: 002-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: "changes[?resource_type=='ai_gateway' && resource_ref=='{{ .vars.gateway_ref }}'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.gateway_api_name }}"
+                fields.display_name: "{{ .vars.gateway_name }}"
+                fields.description: "{{ .vars.gateway_initial_description }}"
+                fields.proxy_urls[0].host: "ai-gateway-root.example.com"
+                fields.labels.owner: "platform"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'ai_gateway \"{{ .vars.gateway_ref }}\" will be created')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 003-get-ai-gateways
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        recordVar:
+          name: ai_gateway_id
+          responsePath: "[?display_name=='{{ .vars.gateway_name }}'] | [0].id"
+        assertions:
+          - select: "[?display_name=='{{ .vars.gateway_name }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.gateway_name }}"
+                name: "{{ .vars.gateway_api_name }}"
+                description: "{{ .vars.gateway_initial_description }}"
+                labels.owner: "platform"
+                labels.lifecycle: "dev"
+                labels."KONGCTL-namespace": "{{ .vars.namespace }}"
+      - name: 004-list-ai-gateways
+        run:
+          - list
+          - aigw
+          - -o
+          - json
+        assertions:
+          - select: "[?display_name=='{{ .vars.gateway_name }}'] | [0].display_name"
+            expect:
+              fields:
+                "@": "{{ .vars.gateway_name }}"
+      - name: 005-get-by-name
+        run:
+          - get
+          - ai-gateway
+          - "{{ .vars.gateway_api_name }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.gateway_api_name }}"
+          - select: display_name
+            expect:
+              fields:
+                "@": "{{ .vars.gateway_name }}"
+      - name: 006-get-by-display-name
+        run:
+          - get
+          - ai-gateway
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: display_name
+            expect:
+              fields:
+                "@": "{{ .vars.gateway_name }}"
+      - name: 007-get-by-id
+        run:
+          - get
+          - ai-gateway
+          - "{{ .vars.ai_gateway_id }}"
+          - -o
+          - json
+        assertions:
+          - select: display_name
+            expect:
+              fields:
+                "@": "{{ .vars.gateway_name }}"
+
+  - name: 003-plan-apply-update
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: "changes[?resource_type=='ai_gateway' && resource_ref=='{{ .vars.gateway_ref }}'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                fields.name: "{{ .vars.gateway_api_name }}"
+                fields.description: "{{ .vars.gateway_updated_description }}"
+                fields.proxy_urls[0].host: "ai-gateway-root-updated.example.com"
+                fields.labels.owner: "platform-eng"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'ai_gateway \"{{ .vars.gateway_ref }}\" will be updated')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateways
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.gateway_name }}"
+                name: "{{ .vars.gateway_api_name }}"
+                description: "{{ .vars.gateway_updated_description }}"
+                labels.owner: "platform-eng"
+          - select: "contains(keys(ai_gateways[0]), 'name')"
+            expect:
+              fields:
+                "@": true
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 002-dump-filtered
+        run:
+          - dump
+          - declarative
+          - "--resources=aigw"
+          - "--filter-name={{ .vars.gateway_api_name }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "length(ai_gateways)"
+            expect:
+              fields:
+                "@": 1
+
+  - name: 005-sync-delete
+    inputOverlayDirs:
+      - overlays/005-sync-delete
+    commands:
+      - name: 000-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-get-ai-gateways
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?display_name=='{{ .vars.gateway_name }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 006-adopt-existing-ai-gateways
+    inputOverlayDirs:
+      - overlays/006-adopt-cleanup
+    commands:
+      - name: 000-create-ai-gateway-1
+        create:
+          resource: ai_gateway
+          payload:
+            inline:
+              display_name: "{{ .vars.adopt_gateway_1 }}"
+              name: "{{ .vars.adopt_gateway_1_slug }}"
+              description: "Created unmanaged for adoption by display name"
+          recordVar:
+            name: adopt_gateway_1_id
+            responsePath: id
+      - name: 001-create-ai-gateway-2
+        create:
+          resource: ai_gateway
+          payload:
+            inline:
+              display_name: "{{ .vars.adopt_gateway_2 }}"
+              name: "{{ .vars.adopt_gateway_2_slug }}"
+              description: "Created unmanaged for adoption by UUID"
+          recordVar:
+            name: adopt_gateway_2_id
+            responsePath: id
+      - name: 002-adopt-by-display-name
+        run:
+          - adopt
+          - ai-gateway
+          - "{{ .vars.adopt_gateway_1 }}"
+          - --namespace
+          - "{{ .vars.adopt_namespace }}"
+        assertions:
+          - expect:
+              fields:
+                resource_type: ai_gateway
+                namespace: "{{ .vars.adopt_namespace }}"
+                name: "{{ .vars.adopt_gateway_1 }}"
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.adopt_gateway_1_id }}"
+      - name: 003-already-adopted-error
+        run:
+          - adopt
+          - ai-gateway
+          - "{{ .vars.adopt_gateway_1 }}"
+          - --namespace
+          - other-ns
+        expectFailure:
+          exitCode: 1
+          contains: "already has namespace label"
+      - name: 004-overwrite-namespace
+        run:
+          - adopt
+          - aigw
+          - "{{ .vars.adopt_gateway_1 }}"
+          - --namespace
+          - "{{ .vars.adopt_overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                resource_type: ai_gateway
+                namespace: "{{ .vars.adopt_overwrite_namespace }}"
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.adopt_gateway_1_id }}"
+      - name: 005-adopt-by-uuid
+        run:
+          - adopt
+          - ai-gateway
+          - "{{ .vars.adopt_gateway_2_id }}"
+          - --namespace
+          - "{{ .vars.adopt_overwrite_namespace }}"
+        assertions:
+          - expect:
+              fields:
+                resource_type: ai_gateway
+                namespace: "{{ .vars.adopt_overwrite_namespace }}"
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.adopt_gateway_2_id }}"
+      - name: 006-cleanup-adopted
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success

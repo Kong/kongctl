@@ -26,16 +26,27 @@ import (
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
 	// Core APIs
-	PortalAPI               helpers.PortalAPI
-	APIAPI                  helpers.APIAPI
-	AppAuthAPI              helpers.AppAuthStrategiesAPI
-	DCRProviderAPI          helpers.DCRProvidersAPI
-	ControlPlaneAPI         helpers.ControlPlaneAPI
-	GatewayServiceAPI       helpers.GatewayServiceAPI
-	DataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
-	ControlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
-	CatalogServiceAPI       helpers.CatalogServicesAPI
-	DashboardsAPI           helpers.DashboardsAPI
+	PortalAPI                         helpers.PortalAPI
+	APIAPI                            helpers.APIAPI
+	AppAuthAPI                        helpers.AppAuthStrategiesAPI
+	DCRProviderAPI                    helpers.DCRProvidersAPI
+	ControlPlaneAPI                   helpers.ControlPlaneAPI
+	GatewayServiceAPI                 helpers.GatewayServiceAPI
+	DataPlaneCertificateAPI           helpers.DataPlaneCertificateAPI
+	ControlPlaneGroupsAPI             helpers.ControlPlaneGroupsAPI
+	CatalogServiceAPI                 helpers.CatalogServicesAPI
+	AIGatewayAPI                      helpers.AIGatewayAPI
+	AIGatewayProvidersAPI             helpers.AIGatewayProvidersAPI
+	AIGatewayIdentityProvidersAPI     helpers.AIGatewayIdentityProvidersAPI
+	AIGatewayPoliciesAPI              helpers.AIGatewayPoliciesAPI
+	AIGatewayAgentsAPI                helpers.AIGatewayAgentsAPI
+	AIGatewayConsumersAPI             helpers.AIGatewayConsumersAPI
+	AIGatewayConsumerGroupsAPI        helpers.AIGatewayConsumerGroupsAPI
+	AIGatewayModelAPI                 helpers.AIGatewayModelAPI
+	AIGatewayMCPServersAPI            helpers.AIGatewayMCPServersAPI
+	AIGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
+	AIGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
+	DashboardsAPI                     helpers.DashboardsAPI
 
 	// Portal child resource APIs
 	PortalPageAPI             helpers.PortalPageAPI
@@ -88,16 +99,27 @@ type ClientConfig struct {
 // Client wraps Konnect SDK for state management
 type Client struct {
 	// Core APIs
-	portalAPI               helpers.PortalAPI
-	apiAPI                  helpers.APIAPI
-	appAuthAPI              helpers.AppAuthStrategiesAPI
-	dcrProviderAPI          helpers.DCRProvidersAPI
-	controlPlaneAPI         helpers.ControlPlaneAPI
-	gatewayServiceAPI       helpers.GatewayServiceAPI
-	dataPlaneCertificateAPI helpers.DataPlaneCertificateAPI
-	controlPlaneGroupsAPI   helpers.ControlPlaneGroupsAPI
-	catalogServiceAPI       helpers.CatalogServicesAPI
-	dashboardsAPI           helpers.DashboardsAPI
+	portalAPI                         helpers.PortalAPI
+	apiAPI                            helpers.APIAPI
+	appAuthAPI                        helpers.AppAuthStrategiesAPI
+	dcrProviderAPI                    helpers.DCRProvidersAPI
+	controlPlaneAPI                   helpers.ControlPlaneAPI
+	gatewayServiceAPI                 helpers.GatewayServiceAPI
+	dataPlaneCertificateAPI           helpers.DataPlaneCertificateAPI
+	controlPlaneGroupsAPI             helpers.ControlPlaneGroupsAPI
+	catalogServiceAPI                 helpers.CatalogServicesAPI
+	aiGatewayAPI                      helpers.AIGatewayAPI
+	aiGatewayProvidersAPI             helpers.AIGatewayProvidersAPI
+	aiGatewayIdentityProvidersAPI     helpers.AIGatewayIdentityProvidersAPI
+	aiGatewayPoliciesAPI              helpers.AIGatewayPoliciesAPI
+	aiGatewayAgentsAPI                helpers.AIGatewayAgentsAPI
+	aiGatewayConsumersAPI             helpers.AIGatewayConsumersAPI
+	aiGatewayConsumerGroupsAPI        helpers.AIGatewayConsumerGroupsAPI
+	aiGatewayModelAPI                 helpers.AIGatewayModelAPI
+	aiGatewayMCPServersAPI            helpers.AIGatewayMCPServersAPI
+	aiGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
+	aiGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
+	dashboardsAPI                     helpers.DashboardsAPI
 
 	// Portal child resource APIs
 	portalPageAPI             helpers.PortalPageAPI
@@ -151,16 +173,27 @@ type Client struct {
 func NewClient(config ClientConfig) *Client {
 	return &Client{
 		// Core APIs
-		portalAPI:               config.PortalAPI,
-		apiAPI:                  config.APIAPI,
-		appAuthAPI:              config.AppAuthAPI,
-		dcrProviderAPI:          config.DCRProviderAPI,
-		controlPlaneAPI:         config.ControlPlaneAPI,
-		gatewayServiceAPI:       config.GatewayServiceAPI,
-		dataPlaneCertificateAPI: config.DataPlaneCertificateAPI,
-		controlPlaneGroupsAPI:   config.ControlPlaneGroupsAPI,
-		catalogServiceAPI:       config.CatalogServiceAPI,
-		dashboardsAPI:           config.DashboardsAPI,
+		portalAPI:                         config.PortalAPI,
+		apiAPI:                            config.APIAPI,
+		appAuthAPI:                        config.AppAuthAPI,
+		dcrProviderAPI:                    config.DCRProviderAPI,
+		controlPlaneAPI:                   config.ControlPlaneAPI,
+		gatewayServiceAPI:                 config.GatewayServiceAPI,
+		dataPlaneCertificateAPI:           config.DataPlaneCertificateAPI,
+		controlPlaneGroupsAPI:             config.ControlPlaneGroupsAPI,
+		catalogServiceAPI:                 config.CatalogServiceAPI,
+		aiGatewayAPI:                      config.AIGatewayAPI,
+		aiGatewayProvidersAPI:             config.AIGatewayProvidersAPI,
+		aiGatewayIdentityProvidersAPI:     config.AIGatewayIdentityProvidersAPI,
+		aiGatewayPoliciesAPI:              config.AIGatewayPoliciesAPI,
+		aiGatewayAgentsAPI:                config.AIGatewayAgentsAPI,
+		aiGatewayConsumersAPI:             config.AIGatewayConsumersAPI,
+		aiGatewayConsumerGroupsAPI:        config.AIGatewayConsumerGroupsAPI,
+		aiGatewayModelAPI:                 config.AIGatewayModelAPI,
+		aiGatewayMCPServersAPI:            config.AIGatewayMCPServersAPI,
+		aiGatewayVaultsAPI:                config.AIGatewayVaultsAPI,
+		aiGatewayDataPlaneCertificatesAPI: config.AIGatewayDataPlaneCertificatesAPI,
+		dashboardsAPI:                     config.DashboardsAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:             config.PortalPageAPI,
@@ -240,6 +273,95 @@ type GatewayService struct {
 type CatalogService struct {
 	kkComps.CatalogService
 	NormalizedLabels map[string]string
+}
+
+// AIGateway represents a Konnect AI Gateway for internal use.
+type AIGateway struct {
+	kkComps.AIGateway
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayProvider represents a Konnect AI Gateway Model Provider for internal use.
+type AIGatewayProvider struct {
+	ID               string
+	Name             string
+	Type             string
+	DisplayName      string
+	Labels           map[string]string
+	ManagedBy        map[string]string
+	Config           map[string]any
+	CreatedAt        string
+	UpdatedAt        string
+	Raw              map[string]any
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayIdentityProvider represents a Konnect AI Gateway Identity Provider for internal use.
+type AIGatewayIdentityProvider struct {
+	ID               string
+	Name             string
+	Type             string
+	DisplayName      string
+	Labels           map[string]string
+	ManagedBy        map[string]string
+	Config           map[string]any
+	CreatedAt        string
+	UpdatedAt        string
+	Raw              map[string]any
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayPolicy represents a Konnect AI Gateway Policy for internal use.
+type AIGatewayPolicy struct {
+	kkComps.AIGatewayPolicy
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayAgent represents a Konnect AI Gateway Agent for internal use.
+type AIGatewayAgent struct {
+	kkComps.AIGatewayAgent
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayConsumer represents a Konnect AI Gateway Consumer for internal use.
+type AIGatewayConsumer struct {
+	kkComps.AIGatewayConsumer
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayConsumerCredential represents a Konnect AI Gateway Consumer Credential for internal use.
+type AIGatewayConsumerCredential struct {
+	kkComps.AIGatewayConsumerCredential
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayConsumerGroup represents a Konnect AI Gateway Consumer Group for internal use.
+type AIGatewayConsumerGroup struct {
+	kkComps.AIGatewayConsumerGroup
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayModel represents a Konnect AI Gateway model for internal use.
+type AIGatewayModel struct {
+	kkComps.AIGatewayModel
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayMCPServer represents a Konnect AI Gateway MCP Server for internal use.
+type AIGatewayMCPServer struct {
+	kkComps.AIGatewayMCPServer
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayVault represents a Konnect AI Gateway Vault for internal use.
+type AIGatewayVault struct {
+	kkComps.AIGatewayVault
+	NormalizedLabels map[string]string
+}
+
+// AIGatewayDataPlaneCertificate represents a Konnect AI Gateway data plane certificate for internal use.
+type AIGatewayDataPlaneCertificate struct {
+	kkComps.AIGatewayDataPlaneClientCertificate
 }
 
 // Dashboard represents a Konnect Analytics custom dashboard for internal use.
@@ -1610,6 +1732,418 @@ func (c *Client) DeleteCatalogService(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+// ListManagedAIGateways returns all KONGCTL-managed AI Gateways in the specified namespaces.
+// If namespaces is empty, no resources are returned. To get all managed resources, pass []string{"*"}.
+func (c *Client) ListManagedAIGateways(ctx context.Context, namespaces []string) ([]AIGateway, error) {
+	if err := ValidateAPIClient(c.aiGatewayAPI, "AI Gateway API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]AIGateway, *PageMeta, error) {
+		resp, err := c.aiGatewayAPI.ListAiGateways(ctx, &pageSize, &pageNumber)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list AI Gateways", nil)
+		}
+
+		if resp == nil || resp.ListAIGatewaysResponse == nil {
+			return []AIGateway{}, &PageMeta{Total: 0}, nil
+		}
+
+		var filtered []AIGateway
+		for _, gateway := range resp.ListAIGatewaysResponse.Data {
+			normalized := gateway.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			if labels.IsManagedResource(normalized) &&
+				shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+				filtered = append(filtered, AIGateway{
+					AIGateway:        gateway,
+					NormalizedLabels: normalized,
+				})
+			}
+		}
+
+		meta := &PageMeta{Total: resp.ListAIGatewaysResponse.Meta.Page.Total}
+		return filtered, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+// ListAllAIGateways returns all AI Gateways, including non-managed ones.
+func (c *Client) ListAllAIGateways(ctx context.Context) ([]AIGateway, error) {
+	if err := ValidateAPIClient(c.aiGatewayAPI, "AI Gateway API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]AIGateway, *PageMeta, error) {
+		resp, err := c.aiGatewayAPI.ListAiGateways(ctx, &pageSize, &pageNumber)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list AI Gateways", nil)
+		}
+
+		if resp == nil || resp.ListAIGatewaysResponse == nil {
+			return []AIGateway{}, &PageMeta{Total: 0}, nil
+		}
+
+		gateways := make([]AIGateway, 0, len(resp.ListAIGatewaysResponse.Data))
+		for _, gateway := range resp.ListAIGatewaysResponse.Data {
+			normalized := gateway.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+			gateways = append(gateways, AIGateway{
+				AIGateway:        gateway,
+				NormalizedLabels: normalized,
+			})
+		}
+
+		meta := &PageMeta{Total: resp.ListAIGatewaysResponse.Meta.Page.Total}
+		return gateways, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+// GetAIGatewayByDisplayName finds a managed AI Gateway by display name.
+func (c *Client) GetAIGatewayByDisplayName(ctx context.Context, displayName string) (*AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+
+	gateways, err := c.ListManagedAIGateways(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range gateways {
+		if gateways[i].DisplayName == displayName {
+			return &gateways[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// GetAIGatewayByName finds a managed AI Gateway by name.
+func (c *Client) GetAIGatewayByName(ctx context.Context, name string) (*AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+
+	gateways, err := c.ListManagedAIGateways(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range gateways {
+		if gateways[i].Name == name {
+			return &gateways[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// GetAIGatewayByID fetches an AI Gateway by ID.
+func (c *Client) GetAIGatewayByID(ctx context.Context, id string) (*AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+
+	resp, err := c.aiGatewayAPI.GetAiGateway(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "fetch AI Gateway", nil)
+	}
+
+	if resp == nil || resp.AIGateway == nil {
+		return nil, nil
+	}
+
+	normalized := resp.AIGateway.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &AIGateway{
+		AIGateway:        *resp.AIGateway,
+		NormalizedLabels: normalized,
+	}, nil
+}
+
+// CreateAIGateway creates a new AI Gateway with management labels.
+func (c *Client) CreateAIGateway(
+	ctx context.Context,
+	req kkComps.CreateAIGatewayRequest,
+	namespace string,
+) (*kkComps.AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		return nil, fmt.Errorf("AI Gateway name is required")
+	}
+
+	resp, err := c.aiGatewayAPI.CreateAiGateway(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "create AI Gateway", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGateway),
+			ResourceName: req.DisplayName,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AIGateway == nil {
+		return nil, fmt.Errorf("create AI Gateway response missing data")
+	}
+
+	return resp.AIGateway, nil
+}
+
+// UpdateAIGateway updates an existing AI Gateway.
+func (c *Client) UpdateAIGateway(
+	ctx context.Context,
+	id string,
+	req kkComps.UpdateAIGatewayRequest,
+	namespace string,
+) (*kkComps.AIGateway, error) {
+	if c.aiGatewayAPI == nil {
+		return nil, fmt.Errorf("AI Gateway API not configured")
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		return nil, fmt.Errorf("AI Gateway name is required")
+	}
+
+	resp, err := c.aiGatewayAPI.UpdateAiGateway(ctx, id, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "update AI Gateway", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGateway),
+			ResourceName: req.DisplayName,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AIGateway == nil {
+		return nil, fmt.Errorf("update AI Gateway response missing data")
+	}
+
+	return resp.AIGateway, nil
+}
+
+// DeleteAIGateway deletes an AI Gateway by ID.
+func (c *Client) DeleteAIGateway(ctx context.Context, id string) error {
+	if c.aiGatewayAPI == nil {
+		return fmt.Errorf("AI Gateway API not configured")
+	}
+
+	_, err := c.aiGatewayAPI.DeleteAiGateway(ctx, id)
+	if err != nil {
+		return WrapAPIError(err, "delete AI Gateway", nil)
+	}
+
+	return nil
+}
+
+// ListAIGatewayModels lists all models for an AI Gateway.
+func (c *Client) ListAIGatewayModels(ctx context.Context, gatewayID string) ([]AIGatewayModel, error) {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.AIGatewayModel
+	var pageAfter *string
+	pageSize := int64(100)
+
+	for {
+		req := kkOps.ListAiGatewayModelsRequest{
+			GatewayID: gatewayID,
+			PageSize:  &pageSize,
+			PageAfter: pageAfter,
+		}
+
+		resp, err := c.aiGatewayModelAPI.ListAiGatewayModels(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list AI Gateway models", nil)
+		}
+
+		if resp == nil || resp.ListAIGatewayModelsResponse == nil {
+			break
+		}
+
+		allData = append(allData, resp.ListAIGatewayModelsResponse.Data...)
+
+		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayModelsResponse.Meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	models := make([]AIGatewayModel, 0, len(allData))
+	for _, model := range allData {
+		models = append(models, AIGatewayModel{
+			AIGatewayModel:   model,
+			NormalizedLabels: normalizedAIGatewayModelLabels(model),
+		})
+	}
+	return models, nil
+}
+
+// GetAIGatewayModel fetches an AI Gateway model by ID.
+func (c *Client) GetAIGatewayModel(ctx context.Context, gatewayID string, modelID string) (*AIGatewayModel, error) {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.aiGatewayModelAPI.GetAiGatewayModel(ctx, gatewayID, modelID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get AI Gateway model by ID", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGatewayModel),
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AIGatewayModel == nil {
+		return nil, nil
+	}
+
+	return &AIGatewayModel{
+		AIGatewayModel:   *resp.AIGatewayModel,
+		NormalizedLabels: normalizedAIGatewayModelLabels(*resp.AIGatewayModel),
+	}, nil
+}
+
+// GetAIGatewayModelByName finds an AI Gateway model by name within a gateway.
+func (c *Client) GetAIGatewayModelByName(
+	ctx context.Context,
+	gatewayID string,
+	name string,
+) (*AIGatewayModel, error) {
+	models, err := c.ListAIGatewayModels(ctx, gatewayID)
+	if err != nil {
+		return nil, WrapAPIError(err, "list AI Gateway models to find by name", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGatewayModel),
+			ResourceName: name,
+			UseEnhanced:  true,
+		})
+	}
+
+	for i := range models {
+		if resources.AIGatewayModelName(models[i].AIGatewayModel) == name {
+			return &models[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// CreateAIGatewayModel creates a new model under an AI Gateway.
+func (c *Client) CreateAIGatewayModel(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.CreateAIGatewayModelRequest,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.aiGatewayModelAPI.CreateAiGatewayModel(ctx, gatewayID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "create AI Gateway model", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGatewayModel),
+			ResourceName: aiGatewayModelCreateRequestName(req),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AIGatewayModel == nil {
+		return "", fmt.Errorf("create AI Gateway model response missing data")
+	}
+
+	return resources.AIGatewayModelID(*resp.AIGatewayModel), nil
+}
+
+// UpdateAIGatewayModel updates an existing model under an AI Gateway.
+func (c *Client) UpdateAIGatewayModel(
+	ctx context.Context,
+	gatewayID string,
+	modelID string,
+	req kkComps.UpdateAIGatewayModelRequest,
+	namespace string,
+) (string, error) {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.aiGatewayModelAPI.UpdateAiGatewayModel(ctx, kkOps.UpdateAiGatewayModelRequest{
+		GatewayID:                   gatewayID,
+		ModelIDOrName:               modelID,
+		UpdateAIGatewayModelRequest: req,
+	})
+	if err != nil {
+		return "", WrapAPIError(err, "update AI Gateway model", &ErrorWrapperOptions{
+			ResourceType: string(resources.ResourceTypeAIGatewayModel),
+			ResourceName: aiGatewayModelUpdateRequestName(req),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.AIGatewayModel == nil {
+		return "", fmt.Errorf("update AI Gateway model response missing data")
+	}
+
+	return resources.AIGatewayModelID(*resp.AIGatewayModel), nil
+}
+
+// DeleteAIGatewayModel deletes an AI Gateway model by ID.
+func (c *Client) DeleteAIGatewayModel(ctx context.Context, gatewayID string, modelID string) error {
+	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
+		return err
+	}
+
+	_, err := c.aiGatewayModelAPI.DeleteAiGatewayModel(ctx, gatewayID, modelID)
+	if err != nil {
+		return WrapAPIError(err, "delete AI Gateway model", nil)
+	}
+
+	return nil
+}
+
+func normalizedAIGatewayModelLabels(model kkComps.AIGatewayModel) map[string]string {
+	normalized := resources.AIGatewayModelLabels(model)
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+	return normalized
+}
+
+func aiGatewayModelCreateRequestName(req kkComps.CreateAIGatewayModelRequest) string {
+	if req.AIGatewayModelAPI != nil {
+		return req.AIGatewayModelAPI.Name
+	}
+	if req.AIGatewayModelModel != nil {
+		return req.AIGatewayModelModel.Name
+	}
+	return ""
+}
+
+func aiGatewayModelUpdateRequestName(req kkComps.UpdateAIGatewayModelRequest) string {
+	if req.AIGatewayModelAPI != nil {
+		return req.AIGatewayModelAPI.Name
+	}
+	if req.AIGatewayModelModel != nil {
+		return req.AIGatewayModelModel.Name
+	}
+	return ""
 }
 
 // ListManagedDashboards returns all KONGCTL-managed dashboards in the specified namespaces.
@@ -3817,7 +4351,7 @@ func normalizePortalEmailTemplate(t kkComps.EmailTemplate) PortalEmailTemplate {
 func (c *Client) GetPortalCustomization(
 	ctx context.Context,
 	portalID string,
-) (*kkComps.PortalCustomizationV3, error) {
+) (*kkComps.PortalCustomization, error) {
 	if c.portalCustomizationAPI == nil {
 		return nil, fmt.Errorf("portal customization API not configured")
 	}
@@ -3827,18 +4361,18 @@ func (c *Client) GetPortalCustomization(
 		return nil, fmt.Errorf("failed to get portal customization: %w", err)
 	}
 
-	if resp.PortalCustomizationV3 == nil {
+	if resp.PortalCustomization == nil {
 		return nil, fmt.Errorf("no customization data in response")
 	}
 
-	return resp.PortalCustomizationV3, nil
+	return resp.PortalCustomization, nil
 }
 
 // UpdatePortalCustomization updates portal customization settings
 func (c *Client) UpdatePortalCustomization(
 	ctx context.Context,
 	portalID string,
-	customization kkComps.PortalCustomizationV3,
+	customization kkComps.PortalCustomization,
 ) error {
 	if c.portalCustomizationAPI == nil {
 		return fmt.Errorf("portal customization API not configured")
@@ -4724,12 +5258,12 @@ func (c *Client) ListOrganizationUsers(ctx context.Context) ([]OrganizationUser,
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var users []OrganizationUser
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.organizationUsersAPI.ListUsers(ctx, kkOps.ListUsersRequest{
-			PageSize:   new(pageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization users", &ErrorWrapperOptions{
@@ -4763,13 +5297,13 @@ func (c *Client) ListOrganizationUserTeams(
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var memberships []OrganizationUserTeamMembership
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.organizationMembershipAPI.ListUserTeams(ctx, kkOps.ListUserTeamsRequest{
 			UserID:     userID,
-			PageSize:   new(pageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization user teams", &ErrorWrapperOptions{
@@ -4805,13 +5339,13 @@ func (c *Client) ListOrganizationTeamUsers(
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var memberships []OrganizationUserTeamMembership
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.organizationMembershipAPI.ListTeamUsers(ctx, kkOps.ListTeamUsersRequest{
 			TeamID:     teamID,
-			PageSize:   new(pageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization team users", &ErrorWrapperOptions{
@@ -4980,12 +5514,12 @@ func (c *Client) ListOrganizationSystemAccounts(ctx context.Context) ([]Organiza
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var accounts []OrganizationSystemAccount
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.systemAccountAPI.ListSystemAccounts(ctx, kkOps.GetSystemAccountsRequest{
-			PageSize:   new(pageSize),
-			PageNumber: new(pageNumber),
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
 		})
 		if err != nil {
 			return nil, WrapAPIError(err, "list organization system accounts", &ErrorWrapperOptions{
@@ -5019,15 +5553,15 @@ func (c *Client) ListOrganizationSystemAccountTeams(
 		return nil, err
 	}
 
-	const pageSize int64 = 100
+	pageSize := int64(100)
 	var memberships []OrganizationSystemAccountTeamMembership
 	for pageNumber := int64(1); pageNumber <= 10000; pageNumber++ {
 		resp, err := c.systemAccountMembershipAPI.ListSystemAccountTeams(
 			ctx,
 			kkOps.GetSystemAccountsAccountIDTeamsRequest{
 				AccountID:  accountID,
-				PageSize:   new(pageSize),
-				PageNumber: new(pageNumber),
+				PageSize:   &pageSize,
+				PageNumber: &pageNumber,
 			},
 		)
 		if err != nil {
