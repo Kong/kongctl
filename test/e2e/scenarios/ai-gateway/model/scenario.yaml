@@ -106,7 +106,8 @@ steps:
             expect:
               fields:
                 fields.config.balancer.embeddings.config.type: mistral
-                fields.config.balancer.embeddings.config.format: openai
+                fields.config.balancer.embeddings.config.upstream_url: https://example.com/mistral/embeddings
+                fields.targets[0].config.format: openai
           - select: >-
               changes[?resource_type=='ai_gateway_model' && resource_ref=='semantic-ollama'] | [0]
             expect:

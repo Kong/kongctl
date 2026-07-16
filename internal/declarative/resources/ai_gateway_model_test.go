@@ -91,7 +91,7 @@ func TestAIGatewayModelExplainNodeMarksModelConfigOptional(t *testing.T) {
 
 func TestAIGatewayModelResourceSupportsEmbeddingConfigVariants(t *testing.T) {
 	tests := map[string]string{
-		"mistral": `{"type":"mistral","upstream_url":"https://example.com/mistral/embeddings","format":"openai"}`,
+		"mistral": `{"type":"mistral","upstream_url":"https://example.com/mistral/embeddings"}`,
 		"ollama":  `{"type":"ollama","upstream_url":"https://example.com/ollama/embeddings"}`,
 		"openai":  `{"type":"openai","upstream_url":"https://example.com/openai/embeddings"}`,
 	}
@@ -109,6 +109,7 @@ func TestAIGatewayModelResourceSupportsEmbeddingConfigVariants(t *testing.T) {
 			embeddings := balancer["embeddings"].(map[string]any)
 			mappedConfig := embeddings["config"].(map[string]any)
 			require.Equal(t, embeddingType, mappedConfig["type"])
+			require.Equal(t, "https://example.com/"+embeddingType+"/embeddings", mappedConfig["upstream_url"])
 		})
 	}
 }

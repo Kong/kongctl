@@ -83,7 +83,6 @@ ai_gateways:
               config:
                 type: mistral
                 upstream_url: https://example.com/mistral/embeddings
-                format: openai
             vectordb:
               type: pgvector
               dimensions: 1024
