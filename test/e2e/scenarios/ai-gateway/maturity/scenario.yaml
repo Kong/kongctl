@@ -14,7 +14,7 @@ steps:
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'AI Gateways [Beta]')": true
+                "contains(stdout, 'AI Gateways [beta]')": true
       - name: 001-get-ai-gateway-help
         run:
           - get
@@ -26,7 +26,7 @@ steps:
           - expect:
               fields:
                 "contains(stdout, 'Maturity:')": true
-                "contains(stdout, 'Beta')": true
+                "contains(stdout, 'beta')": true
       - name: 002-get-ai-gateway-models-help
         run:
           - get
@@ -39,7 +39,7 @@ steps:
           - expect:
               fields:
                 "contains(stdout, 'Maturity:')": true
-                "contains(stdout, 'Beta')": true
+                "contains(stdout, 'beta')": true
       - name: 003-adopt-command-listing
         run:
           - adopt
@@ -49,7 +49,7 @@ steps:
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'AI Gateway into namespace management [Beta]')": true
+                "contains(stdout, 'AI Gateway into namespace management [beta]')": true
 
   - name: 002-resource-maturity
     skipInputs: true
@@ -87,7 +87,7 @@ steps:
         assertions:
           - expect:
               fields:
-                "starts_with(stdout, '# Maturity: Beta')": true
+                "starts_with(stdout, '# Maturity: beta')": true
       - name: 003-scaffold-ai-gateway-model
         run:
           - scaffold
@@ -97,4 +97,4 @@ steps:
         assertions:
           - expect:
               fields:
-                "starts_with(stdout, '# Maturity: Beta')": true
+                "starts_with(stdout, '# Maturity: beta')": true

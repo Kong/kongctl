@@ -71,7 +71,7 @@ steps:
                 "contains(stdout, 'OPTIONAL: false')": true
                 "contains(stdout, 'ROOT YAML PATH: api_publications[].portal_id')": true
                 "contains(stdout, 'RESOURCE')": true
-                "contains(stdout, 'MATURITY: GA')": true
+                "contains(stdout, 'MATURITY: ga')": true
                 "contains(stdout, 'RESOURCE CLASS: child')": true
                 "contains(stdout, 'ROOT KEY: api_publications[]')": true
                 "contains(stdout, 'ACCEPTS kongctl metadata: no')": true
@@ -89,7 +89,7 @@ steps:
           - expect:
               fields:
                 "contains(stdout, 'RESOURCE')": true
-                "contains(stdout, 'MATURITY: GA')": true
+                "contains(stdout, 'MATURITY: ga')": true
                 "contains(stdout, 'RESOURCE CLASS: top-level')": true
                 "contains(stdout, 'ROOT KEY: portals[]')": true
                 "contains(stdout, 'SUPPORTS NESTED DECLARATION: false')": true

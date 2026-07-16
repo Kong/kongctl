@@ -6,11 +6,11 @@ rest of the CLI.
 
 Supported maturity levels, from most to least mature, are:
 
-- GA
-- Beta
-- Tech Preview
+- ga
+- beta
+- tech preview
 
-An unlabeled capability is GA. Beta and Tech Preview status applies only to
+An unlabeled capability is GA. `beta` and `tech preview` status applies only to
 the command, flag, argument, accepted value, declarative resource, or resource
 operation that carries the label. A non-GA command passes its maturity to its
 subcommands, flags, and arguments unless a narrower capability is explicitly
@@ -23,8 +23,8 @@ execution output, declarative plan artifacts, or telemetry.
 
 ## Where maturity appears
 
-Command listings, including missing-subcommand guidance, append `[Beta]` or
-`[Tech Preview]` when a child is less mature than the command being displayed.
+Command listings, including missing-subcommand guidance, append `[beta]` or
+`[tech preview]` when a child is less mature than the command being displayed.
 Help for a non-GA command includes a `Maturity` section immediately after
 `Usage`. Less-mature flags, arguments, and accepted values on an otherwise
 more-mature command are listed as exceptions in that section.

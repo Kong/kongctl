@@ -61,11 +61,11 @@ func Validate(metadata Metadata) error {
 func (level Level) DisplayName() string {
 	switch level {
 	case LevelGA:
-		return "GA"
+		return "ga"
 	case LevelBeta:
-		return "Beta"
+		return "beta"
 	case LevelTechPreview:
-		return "Tech Preview"
+		return "tech preview"
 	default:
 		return string(level)
 	}
