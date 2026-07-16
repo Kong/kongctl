@@ -79,7 +79,7 @@ func TestStoreInstallLocalRejectsLinkedExtension(t *testing.T) {
 	require.ErrorContains(
 		t,
 		err,
-		"extension \"kong/foo\" is linked; run `kongctl uninstall kong/foo` before installing",
+		"extension \"kong/foo\" is linked; run `kongctl uninstall extension kong/foo` before installing",
 	)
 }
 
