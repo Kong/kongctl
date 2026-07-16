@@ -293,7 +293,7 @@ jobs:
         with:
           distribution: goreleaser
           version: v2.13.3
-          args: release --clean
+          args: release --clean --parallelism=1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
