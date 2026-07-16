@@ -533,7 +533,7 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 				return nil, fmt.Errorf("authentication[%d].algorithm is required for sasl_scram", i)
 			}
 			saslScram := kkComps.VirtualClusterAuthenticationSaslScram{
-				Algorithm: kkComps.Algorithm(algorithm),
+				Algorithm: kkComps.VirtualClusterAuthenticationSaslScramAlgorithm(algorithm),
 			}
 
 			if fetchField, ok := authMap["fetch_kong_identity_principal"]; ok {
@@ -829,7 +829,7 @@ func buildVirtualClusterNamespace(field any) (*kkComps.VirtualClusterNamespace, 
 	}
 
 	namespace := &kkComps.VirtualClusterNamespace{
-		Mode: kkComps.VirtualClusterNamespaceMode(mode),
+		Mode: kkComps.Mode(mode),
 	}
 
 	if prefix, ok := nsMap["prefix"].(string); ok {

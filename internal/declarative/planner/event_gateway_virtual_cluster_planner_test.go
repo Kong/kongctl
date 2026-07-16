@@ -130,7 +130,7 @@ func TestShouldUpdateVirtualClusterDetectsFetchKongIdentityPrincipalChanges(t *t
 	current.Authentication = []components.VirtualClusterAuthenticationSensitiveDataAwareScheme{
 		components.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
 			components.VirtualClusterAuthenticationSaslScram{
-				Algorithm: components.AlgorithmSha256,
+				Algorithm: components.VirtualClusterAuthenticationSaslScramAlgorithmSha256,
 				FetchKongIdentityPrincipal: virtualClusterFetchKongIdentityPrincipal(
 					"identity-directory",
 					"principal-key",
@@ -144,7 +144,7 @@ func TestShouldUpdateVirtualClusterDetectsFetchKongIdentityPrincipalChanges(t *t
 	desired.Authentication = []components.VirtualClusterAuthenticationScheme{
 		components.CreateVirtualClusterAuthenticationSchemeSaslScram(
 			components.VirtualClusterAuthenticationSaslScram{
-				Algorithm: components.AlgorithmSha256,
+				Algorithm: components.VirtualClusterAuthenticationSaslScramAlgorithmSha256,
 				FetchKongIdentityPrincipal: virtualClusterFetchKongIdentityPrincipal(
 					"identity-directory",
 					"different-principal-key",

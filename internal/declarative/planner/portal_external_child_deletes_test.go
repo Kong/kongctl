@@ -333,7 +333,7 @@ func TestPlanPortalTeamRoles_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing
 								RoleName:       "viewer",
 								EntityID:       "api-1",
 								EntityTypeName: "api",
-								EntityRegion:   kkComps.PortalAssignedRoleResponseEntityRegion(region),
+								EntityRegion:   region,
 							},
 						}
 					case "team-b-id":
@@ -343,7 +343,7 @@ func TestPlanPortalTeamRoles_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing
 								RoleName:       "editor",
 								EntityID:       "api-2",
 								EntityTypeName: "api",
-								EntityRegion:   kkComps.PortalAssignedRoleResponseEntityRegion(region),
+								EntityRegion:   region,
 							},
 						}
 					default:

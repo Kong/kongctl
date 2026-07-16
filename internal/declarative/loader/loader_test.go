@@ -1044,8 +1044,8 @@ apis:
 	implementation := rs.APIImplementations[0]
 	assert.Equal(t, "users-api-impl", implementation.GetRef())
 	assert.Equal(t, "users-api", implementation.API)
-	require.NotNil(t, implementation.ServiceReferenceInput)
-	service := implementation.ServiceReferenceInput.GetService()
+	require.NotNil(t, implementation.ServiceReference)
+	service := implementation.ServiceReference.GetService()
 	require.NotNil(t, service)
 	assert.Equal(t, "users-service", service.ID)
 	assert.Equal(t, "users-control-plane", service.ControlPlaneID)
