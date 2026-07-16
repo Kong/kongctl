@@ -397,14 +397,14 @@ func dashboardUnionParseError(sourcePath string, errMsg string) string {
 	case strings.Contains(errMsg, "into any supported union types for Query"):
 		return fmt.Sprintf(
 			"failed to parse YAML in %s: invalid analytics dashboard tile query.datasource; "+
-				"expected one of api_usage, llm_usage, agentic_usage",
+				"expected one of api_usage, llm_usage, agentic_usage, platform_usage",
 			sourcePath,
 		)
 	case strings.Contains(errMsg, "into any supported union types for Chart"):
 		return fmt.Sprintf(
 			"failed to parse YAML in %s: invalid analytics dashboard tile chart.type; "+
 				"expected one of donut, timeseries_line, timeseries_bar, horizontal_bar, vertical_bar, "+
-				"single_value, choropleth_map",
+				"single_value, choropleth_map, top_n",
 			sourcePath,
 		)
 	case strings.Contains(errMsg, "into any supported union types for TimeRange"):
