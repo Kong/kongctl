@@ -4,7 +4,7 @@ This directory contains declarative configuration examples for Konnect AI
 Gateway resources.
 
 - [ai-gateway.yaml](ai-gateway.yaml) defines a root AI Gateway resource with
-  a nested OpenAI provider, env vault, data plane certificate, policy,
+  a nested OpenAI provider, env vault, data plane certificate, policies,
   consumer, agent, consumer group, model that targets that provider, and a
   conversion-only MCP Server.
 - [ai-gateway-remote.yaml](ai-gateway-remote.yaml) is the same full example

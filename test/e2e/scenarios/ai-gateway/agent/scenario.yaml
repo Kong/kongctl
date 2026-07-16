@@ -7,9 +7,9 @@ vars:
   namespace: "ai-gateway-agent-e2e"
   gateway_name: "AI Gateway Agent E2E"
   gateway_ref: "ai-gateway-agent-e2e"
-  policy_ref: "mask-sensitive-data"
-  policy_name: "mask-sensitive-data"
-  policy_display_name: "Mask Sensitive Data"
+  policy_ref: "agent-key-auth"
+  policy_name: "agent-key-auth"
+  policy_display_name: "Agent Key Auth"
   agent_ref: "booking-agent"
   agent_name: "booking-agent"
   agent_display_name: "Booking Agent"
@@ -288,8 +288,9 @@ steps:
               fields:
                 name: "{{ .vars.policy_name }}"
                 display_name: "{{ .vars.policy_display_name }}"
-                type: ai-sanitizer
-                config.anonymize[0]: email
+                type: key-auth
+                config.key_names[0]: apikey
+                config.hide_credentials: true
       - name: 001-plan-from-ai-gateway-dump
         outputFormat: disable
         run:

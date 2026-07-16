@@ -8,9 +8,9 @@ vars:
   namespace: "ai-gateway-mcp-server-e2e"
   gateway_name: "AI Gateway MCP Server E2E"
   gateway_ref: "ai-gateway-mcp-e2e"
-  policy_ref: "mask-sensitive-data"
-  policy_name: "mask-sensitive-data"
-  policy_display_name: "Mask Sensitive Data"
+  policy_ref: "mcp-key-auth"
+  policy_name: "mcp-key-auth"
+  policy_display_name: "MCP Key Auth"
   server_ref: "support-tools"
   server_name: "support-tools"
   server_display_name: "Support Tools"
@@ -167,11 +167,12 @@ steps:
               fields:
                 action: CREATE
                 fields.name: "{{ .vars.policy_name }}"
-                fields.type: ai-sanitizer
+                fields.type: key-auth
                 fields.display_name: "{{ .vars.policy_display_name }}"
                 fields.enabled: true
                 fields.global: false
-                fields.config.anonymize[0]: email
+                fields.config.key_names[0]: apikey
+                fields.config.hide_credentials: true
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.server_ref }}'] | [0]
             expect:
@@ -270,10 +271,11 @@ steps:
               fields:
                 name: "{{ .vars.policy_name }}"
                 display_name: "{{ .vars.policy_display_name }}"
-                type: ai-sanitizer
+                type: key-auth
                 enabled: true
                 global: false
-                config.anonymize[0]: email
+                config.key_names[0]: apikey
+                config.hide_credentials: true
       - name: 003-get-policy-by-name
         run:
           - get
@@ -292,7 +294,7 @@ steps:
           - select: type
             expect:
               fields:
-                "@": ai-sanitizer
+                "@": key-auth
       - name: 004-get-policy-by-id
         run:
           - get
@@ -311,7 +313,7 @@ steps:
           - select: type
             expect:
               fields:
-                "@": ai-sanitizer
+                "@": key-auth
       - name: 005-list-mcp-servers
         run:
           - get
@@ -653,8 +655,9 @@ steps:
               fields:
                 name: "{{ .vars.policy_name }}"
                 display_name: "{{ .vars.policy_display_name }}"
-                type: ai-sanitizer
-                config.anonymize[0]: email
+                type: key-auth
+                config.key_names[0]: apikey
+                config.hide_credentials: true
       - name: 001-plan-from-ai-gateway-dump
         outputFormat: disable
         run:
@@ -701,7 +704,7 @@ steps:
               fields:
                 name: "{{ .vars.policy_name }}"
                 display_name: "{{ .vars.policy_display_name }}"
-                type: ai-sanitizer
+                type: key-auth
           - select: "ai_gateway_policies[0].ai_gateway != ''"
             expect:
               fields:

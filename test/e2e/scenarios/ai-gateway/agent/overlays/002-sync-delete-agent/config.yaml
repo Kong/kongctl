@@ -14,16 +14,17 @@ ai_gateways:
       owner: platform
       lifecycle: dev
     policies:
-      - ref: mask-sensitive-data
-        name: mask-sensitive-data
-        type: ai-sanitizer
-        display_name: "Mask Sensitive Data"
+      - ref: agent-key-auth
+        name: agent-key-auth
+        type: key-auth
+        display_name: "Agent Key Auth"
         enabled: true
         global: false
         labels:
           team: support
           phase: create
         config:
-          anonymize:
-            - email
+          key_names:
+            - apikey
+          hide_credentials: true
     agents: []

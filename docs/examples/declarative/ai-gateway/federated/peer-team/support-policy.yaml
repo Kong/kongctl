@@ -16,3 +16,17 @@ ai_gateway_policies:
     config:
       anonymize:
         - email
+  - ref: peer-endpoint-key-auth
+    ai_gateway: !ref shared-ai-gateway#id
+    name: peer-endpoint-key-auth
+    type: key-auth
+    display_name: "Peer Endpoint Key Auth"
+    enabled: true
+    global: false
+    labels:
+      team: support-experience
+      ownership: peer
+    config:
+      key_names:
+        - apikey
+      hide_credentials: true

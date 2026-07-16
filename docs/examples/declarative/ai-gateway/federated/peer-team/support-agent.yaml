@@ -20,4 +20,4 @@ ai_gateway_agents:
       logging:
         max_payload_size: 524288
     policies:
-      - !ref peer-mask-sensitive-data
+      - !ref peer-endpoint-key-auth

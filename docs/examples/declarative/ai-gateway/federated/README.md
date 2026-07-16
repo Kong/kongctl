@@ -1,9 +1,10 @@
 # Federated AI Gateway Example
 
 This example shows a federated layout for AI Gateway resources where a central
-AI platform team owns the shared AI Gateway and upstream model providers, while a peer
-team owns root-level policies, agents, consumers, consumer groups, models, MCP
-Servers, vaults, and data plane certificates that target the shared gateway.
+AI platform team owns the shared AI Gateway and upstream model providers, while
+a peer team owns root-level policies, agents, consumers, consumer groups,
+models, MCP Servers, vaults, and data plane certificates that target the shared
+gateway.
 
 ## Structure
 
@@ -28,11 +29,12 @@ ai-gateway/federated/
 
 - `central-team/ai-gateway.yaml` defines the shared AI Gateway and two nested
   model providers: OpenAI and Anthropic.
-- `peer-team/support-policy.yaml` defines a standalone `ai_gateway_policies`
-  entry that references the central gateway with `!ref shared-ai-gateway#id`.
+- `peer-team/support-policy.yaml` defines standalone `ai_gateway_policies`
+  entries that reference the central gateway with
+  `!ref shared-ai-gateway#id`.
 - `peer-team/support-agent.yaml` defines a standalone `ai_gateway_agents` entry
   that references the central gateway with `!ref shared-ai-gateway#id` and
-  attaches the policy with an explicit `!ref peer-mask-sensitive-data`.
+  attaches the policy with an explicit `!ref peer-endpoint-key-auth`.
 - `peer-team/support-consumer.yaml` defines a standalone
   `ai_gateway_consumers` entry that references the central gateway with
   `!ref shared-ai-gateway#id` and attaches the policy with an explicit
@@ -47,7 +49,7 @@ ai-gateway/federated/
 - `peer-team/support-mcp-server.yaml` defines a standalone
   `ai_gateway_mcp_servers` entry that references the central gateway with
   `!ref shared-ai-gateway#id` and attaches the policy with an explicit
-  `!ref peer-mask-sensitive-data`.
+  `!ref peer-endpoint-key-auth`.
 - `peer-team/support-vault.yaml` defines a standalone `ai_gateway_vaults` entry
   that references the central gateway with `!ref shared-ai-gateway#id`.
 - `peer-team/support-data-plane-certificate.yaml` defines a standalone
