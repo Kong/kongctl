@@ -67,6 +67,22 @@ func TestStoreLinkLocalRejectsIncompatibleExtension(t *testing.T) {
 	require.ErrorContains(t, err, "extension kong/foo is not compatible")
 }
 
+func TestStoreInstallLocalRejectsLinkedExtension(t *testing.T) {
+	source := writeTestExtension(t)
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+
+	_, err := store.LinkLocal(source, "test-version", time.Unix(100, 0))
+	require.NoError(t, err)
+
+	_, err = store.InstallLocal(source, "test-version", time.Unix(200, 0))
+
+	require.ErrorContains(
+		t,
+		err,
+		"extension \"kong/foo\" is linked; run `kongctl uninstall extension kong/foo` before installing",
+	)
+}
+
 func TestStoreInstallGitHubSourceRecordsRemoteProvenance(t *testing.T) {
 	source := writeTestExtension(t)
 	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
