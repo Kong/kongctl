@@ -642,6 +642,23 @@ func analyticsExplainNode() (*ExplainNode, error) {
 	return autoExplainNode(reflect.TypeFor[AnalyticsResource](), nil, defaultExplainHints(""), nil)
 }
 
+// ExplainResourcePaths returns the canonical resource paths that explain and
+// scaffold accept, sorted. Grouping roots such as organization and analytics are
+// omitted because they only resolve with a child segment.
+func ExplainResourcePaths() []string {
+	types := RegisteredTypes()
+	paths := make([]string, 0, len(types))
+	for _, rt := range types {
+		doc, ok := explainDocByType(rt)
+		if !ok {
+			continue
+		}
+		paths = append(paths, doc.CanonicalAlias)
+	}
+	slices.Sort(paths)
+	return slices.Compact(paths)
+}
+
 func explainDocByAlias(alias string) (*ExplainDoc, bool) {
 	types := RegisteredTypes()
 	slices.SortFunc(types, func(a, b ResourceType) int {

@@ -1422,9 +1422,9 @@ func TestRootErrorUX(t *testing.T) {
 		},
 		{
 			name: "argument validation uses concise help hint",
-			args: []string{"scaffold"},
+			args: []string{"scaffold", "api", "portal"},
 			wantErr: []string{
-				`Error: accepts 1 arg(s), received 0`,
+				`Error: accepts at most 1 arg(s), received 2`,
 				`Run 'kongctl scaffold --help' for usage`,
 			},
 			wantExit:     1,

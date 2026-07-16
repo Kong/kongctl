@@ -56,7 +56,7 @@ func NewExplainCmd() (*cobra.Command, error) {
 		Short:   explainShort,
 		Long:    explainLong,
 		Example: explainExamples,
-		Args:    cobra.ExactArgs(1),
+		Args:    cobra.MaximumNArgs(1),
 		PersistentPreRunE: func(c *cobra.Command, _ []string) error {
 			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
 			return bindExplainFlags(c)
@@ -71,6 +71,11 @@ func NewExplainCmd() (*cobra.Command, error) {
 }
 
 func runExplain(command *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		command.SilenceUsage = true
+		return printAvailableResourcePaths(command)
+	}
+
 	helper := cmdpkg.BuildHelper(command, args)
 	outType, err := helper.GetOutputFormat()
 	if err != nil {
@@ -174,4 +179,25 @@ func shouldResolveExplainJQ(command *cobra.Command, outType cmdcommon.OutputForm
 	}
 	return flags.Changed(jqoutput.FlagName) || flags.Changed(jqoutput.RawOutputFlagName) ||
 		outType == cmdcommon.JSON || outType == cmdcommon.YAML
+}
+
+// printAvailableResourcePaths lists the resource paths explain accepts, so a
+// bare invocation is discoverable instead of an argument error.
+func printAvailableResourcePaths(command *cobra.Command) error {
+	out := command.OutOrStdout()
+	if _, err := fmt.Fprintln(out, "Available resource paths:"); err != nil {
+		return err
+	}
+	for _, path := range resources.ExplainResourcePaths() {
+		if _, err := fmt.Fprintf(out, "  %s\n", path); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(
+		out,
+		"\nRun '%[1]s explain <resource-path>'. Child resources also accept nested paths,\n"+
+			"for example '%[1]s explain api.versions'.\n",
+		meta.CLIName,
+	)
+	return err
 }
