@@ -159,6 +159,7 @@ steps:
               fields:
                 name: "{{ .vars.staticKeyName }}"
                 description: "Updated Static Key description"
+                value: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
   - name: 003-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
