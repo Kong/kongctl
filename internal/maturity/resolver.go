@@ -3,7 +3,6 @@ package maturity
 import (
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -20,13 +19,13 @@ func ResolveCommand(command *cobra.Command) (Resolution, error) {
 	}
 	slices.Reverse(lineage)
 
-	resolved := defaultResolution()
+	resolved := DefaultResolution()
 	for _, current := range lineage {
 		annotations, err := readCommandAnnotations(current)
 		if err != nil {
 			return Resolution{}, err
 		}
-		resolved = resolveDeclaration(resolved, annotations.Command, Source{
+		resolved = ResolveDeclaration(resolved, annotations.Command, Source{
 			Kind: KindCommand,
 			Path: current.CommandPath(),
 		})
@@ -62,7 +61,7 @@ func ResolveFlag(command *cobra.Command, flagName string) (Resolution, error) {
 		return Resolution{}, err
 	}
 	owner := flagOwner(command, flag)
-	return resolveDeclaration(parent, annotations.Flag, Source{
+	return ResolveDeclaration(parent, annotations.Flag, Source{
 		Kind: KindFlag,
 		Path: owner.CommandPath(),
 		Name: flag.Name,
@@ -87,7 +86,7 @@ func ResolveArgument(command *cobra.Command, argumentName string) (Resolution, e
 	if metadata, ok := annotations.Arguments[argumentName]; ok {
 		declared = new(metadata)
 	}
-	return resolveDeclaration(parent, declared, Source{
+	return ResolveDeclaration(parent, declared, Source{
 		Kind: KindArgument,
 		Path: command.CommandPath(),
 		Name: argumentName,
@@ -96,7 +95,11 @@ func ResolveArgument(command *cobra.Command, argumentName string) (Resolution, e
 
 // ResolveFlagValue resolves an accepted flag value against its flag maturity.
 func ResolveFlagValue(command *cobra.Command, flagName, value string) (Resolution, error) {
-	value, err := requiredName(value, "flag value")
+	flagName, err := requiredName(flagName, "flag name")
+	if err != nil {
+		return Resolution{}, err
+	}
+	value, err = requiredName(value, "flag value")
 	if err != nil {
 		return Resolution{}, err
 	}
@@ -104,7 +107,7 @@ func ResolveFlagValue(command *cobra.Command, flagName, value string) (Resolutio
 	if err != nil {
 		return Resolution{}, err
 	}
-	flag := command.Flag(strings.TrimSpace(flagName))
+	flag := command.Flag(flagName)
 	annotations, err := readFlagAnnotations(flag)
 	if err != nil {
 		return Resolution{}, err
@@ -114,7 +117,7 @@ func ResolveFlagValue(command *cobra.Command, flagName, value string) (Resolutio
 		declared = new(metadata)
 	}
 	owner := flagOwner(command, flag)
-	return resolveDeclaration(parent, declared, Source{
+	return ResolveDeclaration(parent, declared, Source{
 		Kind:  KindFlagValue,
 		Path:  owner.CommandPath(),
 		Name:  flag.Name,
@@ -144,7 +147,7 @@ func ResolveArgumentValue(command *cobra.Command, argumentName, value string) (R
 	if metadata, ok := annotations.ArgumentValues[argumentName][value]; ok {
 		declared = new(metadata)
 	}
-	return resolveDeclaration(parent, declared, Source{
+	return ResolveDeclaration(parent, declared, Source{
 		Kind:  KindArgumentValue,
 		Path:  command.CommandPath(),
 		Name:  argumentName,

@@ -73,14 +73,8 @@ func MaturityFor(resourceType ResourceType, operations ...Operation) (capmaturit
 		return capmaturity.Resolution{}, fmt.Errorf("at most one resource operation may be resolved")
 	}
 
-	resolved := capmaturity.Resolution{
-		Effective: capmaturity.Metadata{Level: capmaturity.LevelGA},
-		Source: capmaturity.Source{
-			Kind: capmaturity.KindDefault,
-			Path: "default",
-		},
-	}
-	resolved = resolveResourceMaturity(resolved, ops.maturity, capmaturity.Source{
+	resolved := capmaturity.DefaultResolution()
+	resolved = capmaturity.ResolveDeclaration(resolved, ops.maturity, capmaturity.Source{
 		Kind: capmaturity.KindResource,
 		Path: string(resourceType),
 	})
@@ -97,7 +91,7 @@ func MaturityFor(resourceType ResourceType, operations ...Operation) (capmaturit
 	if metadata, ok := ops.operationMaturity[operation]; ok {
 		declared = new(metadata)
 	}
-	return resolveResourceMaturity(resolved, declared, capmaturity.Source{
+	return capmaturity.ResolveDeclaration(resolved, declared, capmaturity.Source{
 		Kind: capmaturity.KindOperation,
 		Path: string(resourceType),
 		Name: string(operation),
@@ -133,23 +127,6 @@ func explainMaturityFor(resourceType ResourceType) (ExplainMaturity, error) {
 		}
 	}
 	return result, nil
-}
-
-func resolveResourceMaturity(
-	parent capmaturity.Resolution,
-	declared *capmaturity.Metadata,
-	source capmaturity.Source,
-) capmaturity.Resolution {
-	result := capmaturity.Resolution{
-		Declared:  declared,
-		Effective: parent.Effective,
-		Source:    parent.Source,
-	}
-	if declared != nil && (declared.Level == parent.Effective.Level || declared.Level.LessThan(parent.Effective.Level)) {
-		result.Effective = *declared
-		result.Source = source
-	}
-	return result
 }
 
 func validateOperation(operation Operation) error {

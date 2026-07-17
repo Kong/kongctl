@@ -89,14 +89,16 @@ func (level Level) rank() int {
 	}
 }
 
-func defaultResolution() Resolution {
+// DefaultResolution returns the default GA maturity resolution.
+func DefaultResolution() Resolution {
 	return Resolution{
 		Effective: Metadata{Level: LevelGA},
 		Source:    Source{Kind: KindDefault, Path: "default"},
 	}
 }
 
-func resolveDeclaration(parent Resolution, declared *Metadata, source Source) Resolution {
+// ResolveDeclaration resolves declared maturity against the parent resolution.
+func ResolveDeclaration(parent Resolution, declared *Metadata, source Source) Resolution {
 	result := Resolution{
 		Declared:  declared,
 		Effective: parent.Effective,
