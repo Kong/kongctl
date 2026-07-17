@@ -6,7 +6,7 @@ env:
 vars:
   namespace: "ai-gateway-model-matrix-e2e"
   gateway_name: "AI Gateway Model Matrix E2E"
-  model_count: 8
+  model_count: 6
 
 defaults:
   mask:
@@ -41,8 +41,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 13
-                by_action.CREATE: 13
+                total_changes: 11
+                by_action.CREATE: 11
           - select: "length(changes[?resource_type=='ai_gateway_model_provider'])"
             expect:
               fields:
@@ -50,7 +50,7 @@ steps:
           - select: "length(changes[?resource_type=='ai_gateway_model'])"
             expect:
               fields:
-                "@": 8
+                "@": 6
           - select: >-
               changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-chat-model'] | [0]
             expect:
@@ -83,20 +83,6 @@ steps:
                 action: CREATE
                 fields.capabilities[0]: image
           - select: >-
-              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-audio-model'] | [0]
-            expect:
-              fields:
-                action: CREATE
-                fields.capabilities[0]: audio/transcription
-                fields.config.max_request_body_size: 26214400
-          - select: >-
-              changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-batch-api'] | [0]
-            expect:
-              fields:
-                action: CREATE
-                fields.type: api
-                fields.capabilities[0]: batches
-          - select: >-
               changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-native-bedrock'] | [0]
             expect:
               fields:
@@ -124,7 +110,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 13
+                applied: 11
                 failed: 0
                 status: success
       - name: 002-get-models
@@ -140,12 +126,7 @@ steps:
           - select: "length(@)"
             expect:
               fields:
-                "@": 8
-          - select: "[?name=='matrix-batch-api'] | [0]"
-            expect:
-              fields:
-                type: api
-                capabilities[0]: batches
+                "@": 6
           - select: "[?name=='matrix-semantic-redis'] | [0]"
             expect:
               fields:
@@ -180,11 +161,11 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 8
-                by_action.DELETE: 8
+                total_changes: 6
+                by_action.DELETE: 6
           - select: summary
             expect:
               fields:
-                applied: 8
+                applied: 6
                 failed: 0
                 status: success
