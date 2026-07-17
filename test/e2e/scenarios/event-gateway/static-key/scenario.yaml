@@ -126,6 +126,7 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.staticKeyRef }}"
+                "fields.value": "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
       - name: 002-apply-replace
         outputFormat: json
         run:

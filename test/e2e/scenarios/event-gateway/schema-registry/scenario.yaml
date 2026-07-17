@@ -189,6 +189,12 @@ steps:
               fields:
                 name: "{{ .vars.schemaRegistryName }}"
                 description: "Updated Schema Registry description"
+                type: confluent
+                config.endpoint: https://schema-registry-updated.example.com
+                config.schema_type: avro
+                config.timeout_seconds: 60
+                config.authentication.type: basic
+                config.authentication.username: updateduser
   - name: 003-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
