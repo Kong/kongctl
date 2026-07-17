@@ -14,6 +14,22 @@ vars:
   bc2Name: diff-backend-cluster-2
   vcRef: diff-virtual-cluster
   vcName: diff-virtual-cluster
+  schemaRegistryRef: diff-schema-registry-ref
+  schemaRegistryName: diff-schema-registry-name
+  schemaRegistryDesc: "Default Schema Registry description"
+  schemaRegistryUpdatedDesc: "Updated Schema Registry description for diff test"
+  staticKeyRef: diff-static-key-ref
+  staticKeyName: diff-static-key-name
+  staticKeyDesc: "Default Static Key description"
+  staticKeyUpdatedDesc: "Updated Static Key description for diff test"
+  trustBundleRef: diff-tls-trust-bundle-ref
+  trustBundleName: diff-tls-trust-bundle-name
+  trustBundleDesc: "Default TLS Trust Bundle description"
+  trustBundleUpdatedDesc: "Updated TLS Trust Bundle description for diff test"
+  dataplaneCertRef: diff-dataplane-certificate-ref
+  dataplaneCertName: diff-dataplane-certificate-name
+  dataplaneCertDesc: "Default Dataplane Certificate description"
+  dataplaneCertUpdatedDesc: "Updated Dataplane Certificate description for diff test"
   clusterPolicyRef: diff-cluster-policy
   clusterPolicyName: diff-cluster-policy
   consumePolicyRef: diff-consume-policy
@@ -52,12 +68,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 8
-                by_action.CREATE: 8
+                total_changes: 12
+                by_action.CREATE: 12
           - select: "summary"
             expect:
               fields:
-                applied: 8
+                applied: 12
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='event_gateway' &&
@@ -107,6 +123,30 @@ steps:
             expect:
               fields:
                 action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_schema_registry' &&
+                            resource_ref=='{{ .vars.schemaRegistryRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_static_key' &&
+                            resource_ref=='{{ .vars.staticKeyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_tls_trust_bundle' &&
+                            resource_ref=='{{ .vars.trustBundleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_data_plane_certificate' &&
+                            resource_ref=='{{ .vars.dataplaneCertRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
 
   - name: 002-diff-noop
     commands:
@@ -148,12 +188,13 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 6
-                by_action.UPDATE: 5
-                by_action.CREATE: 1
+                total_changes: 11
+                by_action.UPDATE: 8
+                by_action.CREATE: 2
+                by_action.DELETE: 1
           - expect:
               fields:
-                "length(changes[?action=='DELETE'])": 0
+                "length(changes[?action=='DELETE'])": 1
           - select: >-
               changes[?resource_type=='event_gateway' &&
                        resource_ref=='{{ .vars.egwRef }}'] | [0]
@@ -199,6 +240,41 @@ steps:
                 action: UPDATE
                 "not_null(changed_fields.enabled.new, fields.enabled)": false
                 "not_null(changed_fields.config.new.sni_suffix, fields.config.sni_suffix)": ".updated.example.com"
+          - select: >-
+              changes[?resource_type=='event_gateway_schema_registry' &&
+                       resource_ref=='{{ .vars.schemaRegistryRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.schemaRegistryUpdatedDesc }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' &&
+                       action=='DELETE' &&
+                       resource_ref=='{{ .vars.staticKeyName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' &&
+                       action=='CREATE' &&
+                       resource_ref=='{{ .vars.staticKeyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              changes[?resource_type=='event_gateway_tls_trust_bundle' &&
+                       resource_ref=='{{ .vars.trustBundleRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.trustBundleUpdatedDesc }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_data_plane_certificate' &&
+                       resource_ref=='{{ .vars.dataplaneCertRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.dataplaneCertUpdatedDesc }}"
 
       # Verify Konnect state was NOT modified (diff is read-only)
       - name: 001-verify-state-unchanged
@@ -334,6 +410,85 @@ steps:
                 name: "{{ .vars.vcName }}"
                 dns_label: vc-diff
                 acl_mode: enforce_on_gateway
+      - name: 008-verify-schema-registry-unchanged
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.schemaRegistryName }}"
+                description: "{{ .vars.schemaRegistryDesc }}"
+
+      - name: 009-verify-static-key-unchanged
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "{{ .vars.staticKeyDesc }}"
+
+      - name: 010-verify-tls-trust-bundle-unchanged
+        run:
+          - get
+          - event-gateway
+          - tls-trust-bundles
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.trustBundleName }}"
+                description: "{{ .vars.trustBundleDesc }}"
+
+      - name: 011-verify-data-plane-certificate-unchanged
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.dataplaneCertName }}"
+                description: "{{ .vars.dataplaneCertDesc }}"
   - name: 004-diff-sync-mode
     inputOverlayDirs:
       - overlays/004-diff-sync
