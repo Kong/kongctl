@@ -72,7 +72,6 @@ ai_gateways:
               - POST
           logging:
             payloads: true
-            statistics: true
           model:
             name_header: true
           balancer:
@@ -124,7 +123,6 @@ ai_gateways:
               - POST
           logging:
             payloads: true
-            statistics: true
           model:
             name_header: true
           balancer:
@@ -154,7 +152,6 @@ ai_gateways:
               - POST
           logging:
             payloads: false
-            statistics: true
           model:
             name_header: true
           balancer:
@@ -186,7 +183,6 @@ ai_gateways:
               - POST
           logging:
             payloads: false
-            statistics: true
           model:
             name_header: true
           balancer:
@@ -217,7 +213,6 @@ ai_gateways:
               - POST
           logging:
             payloads: false
-            statistics: false
           model:
             name_header: true
           balancer:
@@ -249,7 +244,6 @@ ai_gateways:
               - POST
           logging:
             payloads: false
-            statistics: false
           model:
             name_header: true
           balancer:
@@ -280,7 +274,6 @@ ai_gateways:
               - POST
           logging:
             payloads: true
-            statistics: true
           model:
             name_header: true
           balancer:
@@ -312,7 +305,6 @@ ai_gateways:
               - POST
           logging:
             payloads: false
-            statistics: true
           model:
             name_header: true
           balancer:

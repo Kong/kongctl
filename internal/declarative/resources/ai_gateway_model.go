@@ -527,7 +527,6 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			explainField("route", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
 			explainField("logging", explainObject(
 				explainField("payloads", explainBoolNode("false"), false, false),
-				explainField("statistics", explainBoolNode("true"), false, false),
 			), false, false),
 			explainField("response_streaming", explainStringNode("allow"), false, false),
 			explainField("max_request_body_size", &ExplainNode{Kind: explainKindInteger, Literal: "8388608"}, false, false),
