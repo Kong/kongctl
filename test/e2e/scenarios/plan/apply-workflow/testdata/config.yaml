@@ -7,7 +7,9 @@ portals:
     name: plan-apply-portal
     display_name: "Plan Apply Portal"
     description: "Initial portal for plan apply workflow"
-    authentication_enabled: false
+    authentication_enabled: true
+    rbac_enabled: true
+    auto_approve_developers: true
     default_api_visibility: public
     default_page_visibility: private
 

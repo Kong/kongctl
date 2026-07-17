@@ -86,7 +86,9 @@ steps:
             expect:
               fields:
                 display_name: "{{ .vars.portalName }}"
-                authentication_enabled: false
+                authentication_enabled: true
+                rbac_enabled: true
+                auto_approve_developers: true
       - name: 004-get-apis
         run: ["get", "apis", "-o", "json"]
         assertions:
@@ -159,6 +161,9 @@ steps:
             expect:
               fields:
                 display_name: "{{ .vars.portalUpdatedName }}"
+                authentication_enabled: true
+                rbac_enabled: true
+                auto_approve_developers: true
       - name: 004-get-apis
         run: ["get", "apis", "-o", "json"]
         assertions:
@@ -171,6 +176,31 @@ steps:
               fields:
                 description: "Orders API with updated details"
                 labels.lifecycle: production
+      - name: 005-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+      - name: 006-plan-post-apply
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 003-delete-cleanup
     inputOverlayDirs:
