@@ -7,7 +7,7 @@ portals:
     rbac_enabled: false
     audit_log_webhook:
       ref: e2e-portal-audit-log-webhook-config
-      enabled: false
+      enabled: true
       audit_log_destination_id: !ref e2e-audit-log-destination-updated
 
 audit-logs:
