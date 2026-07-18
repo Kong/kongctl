@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/pflag"
+
+	"github.com/kong/kongctl/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -57,6 +60,13 @@ func (v VerbValue) String() string {
 func NoPositionalArgs(_ *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("unexpected argument %q: use -f/--filename to specify input files", args[0])
+	}
+	return nil
+}
+
+func BindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
+	if f := flags.Lookup(flagName); f != nil {
+		return cfg.BindFlag(configPath, f)
 	}
 	return nil
 }
