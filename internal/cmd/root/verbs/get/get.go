@@ -14,11 +14,13 @@ import (
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -242,7 +244,7 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 		{common.RequestPageSizeFlagName, common.RequestPageSizeConfigPath},
 	}
 	for _, b := range bindings {
-		if err := verbs.BindFlag(cfg, c.Flags(), b.flag, b.configPath); err != nil {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.configPath); err != nil {
 			return err
 		}
 	}
@@ -250,5 +252,12 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 	if err := jq.BindFlags(cfg, c.Flags()); err != nil {
 		return err
 	}
-	return verbs.ValidateColumnFlags(helper, cfg)
+	return columns.ValidateColumnFlags(helper, cfg)
+}
+
+func bindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
+	if f := flags.Lookup(flagName); f != nil {
+		return cfg.BindFlag(configPath, f)
+	}
+	return nil
 }
