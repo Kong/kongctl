@@ -719,7 +719,8 @@ kongctl get portals
 
 Generate plan with debug:
 ```bash
-kongctl plan -f config.yaml --log-level debug --output-file plan.json
+kongctl plan --mode apply -f config.yaml --log-level debug \
+  --output-file plan.json
 ```
 
 Review plan:

@@ -57,7 +57,7 @@ kongctl plan -f ./configs/ --recursive
 
 ```bash
 # Save plan to file for review
-kongctl plan -f config.yaml --output-file plan.json
+kongctl plan --mode apply -f config.yaml --output-file plan.json
 
 # Use saved plan with apply
 kongctl apply --plan plan.json
@@ -150,14 +150,15 @@ kongctl plan -f api-config.yaml
 kongctl apply -f api-config.yaml
 
 # 4. Or save plan for team review
-kongctl plan -f api-config.yaml --output-file proposed-changes.json
+kongctl plan --mode apply -f api-config.yaml \
+  --output-file proposed-changes.json
 ```
 
 ### CI/CD Workflow
 
 ```bash
 # In CI pipeline
-kongctl plan -f ./configs/ --output-file plan.json
+kongctl plan --mode apply -f ./configs/ --output-file plan.json
 
 # Review plan (automated checks)
 ./scripts/validate-plan.sh plan.json

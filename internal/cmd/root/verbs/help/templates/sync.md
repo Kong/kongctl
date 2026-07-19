@@ -162,7 +162,8 @@ Error: Cannot delete protected resources:
 kongctl sync -f environments/dev/ --recursive --auto-approve
 
 # Production - careful sync with review
-kongctl plan -f environments/prod/ --recursive -o prod-plan.json
+kongctl plan --mode sync -f environments/prod/ --recursive \
+  --output-file prod-plan.json
 # ... review plan carefully ...
 kongctl sync --plan prod-plan.json
 ```

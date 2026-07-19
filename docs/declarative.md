@@ -215,7 +215,7 @@ kongctl apply -f config.yaml
 
 ```shell
 # Phase 1: Generate plan artifact
-kongctl plan -f config.yaml --output-file plan.json
+kongctl plan --mode apply -f config.yaml --output-file plan.json
 
 # Phase 2: Execute plan artifact (can be done later)
 kongctl apply --plan plan.json
@@ -1040,7 +1040,8 @@ kongctl apply -f config.yaml --profile prod
 Developer creates plan:
 
 ```shell
-kongctl plan -f config.yaml --output-file proposed-changes.json
+kongctl plan --mode apply -f config.yaml \
+  --output-file proposed-changes.json
 ```
 
 Review changes visually:
@@ -1066,7 +1067,7 @@ kongctl apply --plan proposed-changes.json
 
 ```shell
 # CI/CD Pipeline Stage 1: Plan Generation
-kongctl plan -f production-config.yaml \
+kongctl plan --mode apply -f production-config.yaml \
   --output-file plan-$(date +%Y%m%d-%H%M%S).json
 
 # Stage 2: Manual approval gate

@@ -76,7 +76,7 @@ kongctl apply -f config.yaml --auto-approve
 
 ```bash
 # Generate plan first
-kongctl plan -f config.yaml -o my-plan.json
+kongctl plan --mode apply -f config.yaml --output-file my-plan.json
 
 # Review plan
 cat my-plan.json | jq '.summary'
@@ -214,7 +214,8 @@ kongctl apply -f base/ -f overlays/dev/ --profile dev
 kongctl apply -f base/ -f overlays/staging/ --profile staging
 
 # Production (with plan review)
-kongctl plan -f base/ -f overlays/prod/ -o prod-plan.json
+kongctl plan --mode apply -f base/ -f overlays/prod/ \
+  --output-file prod-plan.json
 # ... review plan ...
 kongctl apply --plan prod-plan.json --profile prod
 ```
@@ -227,7 +228,7 @@ kongctl apply --plan prod-plan.json --profile prod
 set -e
 
 # Generate plan
-kongctl plan -f ./configs/ -o plan.json
+kongctl plan --mode apply -f ./configs/ --output-file plan.json
 
 # Validate plan meets policies
 ./scripts/validate-plan.sh plan.json

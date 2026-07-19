@@ -767,8 +767,8 @@ func declarativePlanExamples() string {
   # Generate a plan using the explicit Konnect target form
   %[1]s plan konnect -f api.yaml
 
-  # Save a plan artifact for review or later execution
-  %[1]s plan -f config.yaml --output-file plan.json`, meta.CLIName))
+  # Save an apply-mode plan artifact for review or later execution
+  %[1]s plan --mode apply -f config.yaml --output-file plan.json`, meta.CLIName))
 }
 
 func declarativeSyncExamples() string {
@@ -840,7 +840,7 @@ func newDeclarativePlanCmd() *cobra.Command {
 		Long: `Generate a plan artifact from declarative configuration files for Konnect.
 
 The plan artifact represents the desired state of Konnect resources and can be used
-for review, approval workflows, or as input to sync operations.
+for review, approval workflows, or as input to the matching execution command.
 
 Konnect is the default target for this command, so "kongctl plan" and
 "kongctl plan konnect" are equivalent.`,
@@ -1980,7 +1980,7 @@ func runApply(command *cobra.Command, args []string) error {
 	command.SetContext(ctx)
 
 	// Validate plan for apply
-	if err := validateApplyPlan(plan, command); err != nil {
+	if err := validateApplyPlan(plan, planFile); err != nil {
 		return err
 	}
 
@@ -2085,20 +2085,22 @@ func validateDeletePlan(plan *planner.Plan) error {
 	return nil
 }
 
-func validateApplyPlan(plan *planner.Plan, command *cobra.Command) error {
+func validateApplyPlan(plan *planner.Plan, planFile string) error {
+	if plan.Metadata.Mode != planner.PlanModeApply {
+		return fmt.Errorf(
+			"plan %q was generated in %q mode and cannot be loaded into the apply command. "+
+				"Generate an apply plan with: kongctl plan --mode apply -f <files> "+
+				"--output-file <plan-file>",
+			planFile,
+			plan.Metadata.Mode,
+		)
+	}
+
 	// Check if plan contains DELETE operations
 	for _, change := range plan.Changes {
 		if change.Action == planner.ActionDelete {
 			return fmt.Errorf("apply command cannot execute plans with DELETE operations. Use 'sync' command instead")
 		}
-	}
-
-	// Warn if plan was generated in sync mode
-	if plan.Metadata.Mode == planner.PlanModeSync {
-		fmt.Fprintf(
-			command.OutOrStderr(),
-			"Warning: Plan was generated in sync mode but apply will skip DELETE operations\n",
-		)
 	}
 
 	return nil

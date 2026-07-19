@@ -274,6 +274,55 @@ func Test_validateDeletePlan(t *testing.T) {
 	}
 }
 
+func Test_validateApplyPlan(t *testing.T) {
+	tests := []struct {
+		name    string
+		mode    planner.PlanMode
+		changes []planner.PlannedChange
+		wantErr string
+	}{
+		{
+			name: "apply mode is accepted",
+			mode: planner.PlanModeApply,
+		},
+		{
+			name: "sync mode is rejected",
+			mode: planner.PlanModeSync,
+			wantErr: `plan "sync-plan.json" was generated in "sync" mode and cannot be loaded into the apply command. ` +
+				"Generate an apply plan with: kongctl plan --mode apply -f <files> --output-file <plan-file>",
+		},
+		{
+			name: "delete mode is rejected",
+			mode: planner.PlanModeDelete,
+			wantErr: `plan "sync-plan.json" was generated in "delete" mode and cannot be loaded into the apply command. ` +
+				"Generate an apply plan with: kongctl plan --mode apply -f <files> --output-file <plan-file>",
+		},
+		{
+			name: "apply mode with delete operations is rejected",
+			mode: planner.PlanModeApply,
+			changes: []planner.PlannedChange{
+				{Action: planner.ActionDelete},
+			},
+			wantErr: "apply command cannot execute plans with DELETE operations. Use 'sync' command instead",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := &planner.Plan{
+				Metadata: planner.PlanMetadata{Mode: tt.mode},
+				Changes:  tt.changes,
+			}
+			err := validateApplyPlan(plan, "sync-plan.json")
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func Test_parsePlanMode(t *testing.T) {
 	tests := []struct {
 		name     string

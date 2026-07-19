@@ -110,7 +110,7 @@ TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)
 PLAN_FILE="plans/plan-${TIMESTAMP}.json"
 
 echo "Generating plan artifact..."
-kongctl plan -f config/ --output-file "$PLAN_FILE"
+kongctl plan --mode apply -f config/ --output-file "$PLAN_FILE"
 
 echo "Plan created: $PLAN_FILE"
 echo ""
@@ -180,7 +180,7 @@ jobs:
       
       - name: Generate Plan
         run: |
-          kongctl plan -f config/ --output-file plan.json
+          kongctl plan --mode apply -f config/ --output-file plan.json
           
       - name: Comment PR
         uses: actions/github-script@v6
@@ -220,7 +220,7 @@ jobs:
 
 Regenerate the plan with current state:
 ```bash
-kongctl plan -f config/ --output-file new-plan.json
+kongctl plan --mode apply -f config/ --output-file new-plan.json
 ```
 
 ### Viewing plan details
