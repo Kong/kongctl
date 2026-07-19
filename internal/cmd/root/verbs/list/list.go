@@ -186,8 +186,5 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 }
 
 func bindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
-	if f := flags.Lookup(flagName); f != nil {
-		return cfg.BindFlag(configPath, f)
-	}
-	return nil
+	return verbs.BindFlag(cfg, flags, flagName, configPath)
 }
