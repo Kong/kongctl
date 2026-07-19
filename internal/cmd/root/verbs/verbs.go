@@ -64,6 +64,7 @@ func NoPositionalArgs(_ *cobra.Command, args []string) error {
 	return nil
 }
 
+// BindFlag binds a flag (if present on the flag set) to the provided config path.
 func BindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
 	if f := flags.Lookup(flagName); f != nil {
 		return cfg.BindFlag(configPath, f)
