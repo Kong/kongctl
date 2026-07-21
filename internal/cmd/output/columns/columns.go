@@ -10,7 +10,10 @@ import (
 	"strings"
 	"unicode"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/jq"
+	"github.com/kong/kongctl/internal/config"
 	"github.com/mattn/go-runewidth"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -51,6 +54,27 @@ func AddFlags(flags *pflag.FlagSet) {
 		"Select text columns as HEADER=.field (repeatable or comma-separated). "+
 			"Supports nested fields, quoted keys, array indexes, and string slices.",
 	)
+}
+
+func ValidateColumnFlags(helper cmdpkg.Helper, cfg config.Hook) error {
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
+	}
+	selected, err := Resolve(helper.GetCmd(), outType)
+	if err != nil {
+		return &cmdpkg.ConfigurationError{Err: err}
+	}
+	settings, err := jq.ResolveSettings(helper.GetCmd(), cfg)
+	if err != nil {
+		return err
+	}
+	if len(selected) > 0 && jq.HasFilter(settings) {
+		return &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf("--%s cannot be combined with --%s", FlagName, jq.FlagName),
+		}
+	}
+	return nil
 }
 
 // Resolve reads and validates custom columns from cmd. An empty result means

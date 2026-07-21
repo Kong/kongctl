@@ -17,6 +17,7 @@ import (
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -166,26 +167,14 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	if f := c.Flags().Lookup(common.BaseURLFlagName); f != nil {
-		if err := cfg.BindFlag(common.BaseURLConfigPath, f); err != nil {
-			return err
-		}
+	bindings := []struct{ flag, configPath string }{
+		{common.BaseURLFlagName, common.BaseURLConfigPath},
+		{common.RegionFlagName, common.RegionConfigPath},
+		{common.PATFlagName, common.PATConfigPath},
+		{common.RequestPageSizeFlagName, common.RequestPageSizeConfigPath},
 	}
-
-	if f := c.Flags().Lookup(common.RegionFlagName); f != nil {
-		if err := cfg.BindFlag(common.RegionConfigPath, f); err != nil {
-			return err
-		}
-	}
-
-	if f := c.Flags().Lookup(common.PATFlagName); f != nil {
-		if err := cfg.BindFlag(common.PATConfigPath, f); err != nil {
-			return err
-		}
-	}
-
-	if f := c.Flags().Lookup(common.RequestPageSizeFlagName); f != nil {
-		if err := cfg.BindFlag(common.RequestPageSizeConfigPath, f); err != nil {
+	for _, b := range bindings {
+		if err := bindFlag(cfg, c.Flags(), b.flag, b.configPath); err != nil {
 			return err
 		}
 	}
@@ -193,26 +182,9 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 	if err := jq.BindFlags(cfg, c.Flags()); err != nil {
 		return err
 	}
-	return validateColumnFlags(helper, cfg)
+	return columns.ValidateColumnFlags(helper, cfg)
 }
 
-func validateColumnFlags(helper cmdpkg.Helper, cfg config.Hook) error {
-	outType, err := helper.GetOutputFormat()
-	if err != nil {
-		return err
-	}
-	selected, err := columns.Resolve(helper.GetCmd(), outType)
-	if err != nil {
-		return &cmdpkg.ConfigurationError{Err: err}
-	}
-	settings, err := jq.ResolveSettings(helper.GetCmd(), cfg)
-	if err != nil {
-		return err
-	}
-	if len(selected) > 0 && jq.HasFilter(settings) {
-		return &cmdpkg.ConfigurationError{
-			Err: fmt.Errorf("--%s cannot be combined with --%s", columns.FlagName, jq.FlagName),
-		}
-	}
-	return nil
+func bindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
+	return verbs.BindFlag(cfg, flags, flagName, configPath)
 }
