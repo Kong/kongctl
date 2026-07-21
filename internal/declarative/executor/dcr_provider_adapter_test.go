@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -30,4 +31,29 @@ func TestDCRProviderAdapterMapUpdateFieldsBuildsHTTPConfigUnion(t *testing.T) {
 	assert.Nil(t, update.DcrConfig.UpdateDcrConfigAuth0InRequest)
 	assert.Equal(t, "https://example.com/v2/dcr", *update.DcrConfig.UpdateDcrConfigHTTPInRequest.DcrBaseURL)
 	assert.Equal(t, "test_api_key", *update.DcrConfig.UpdateDcrConfigHTTPInRequest.APIKey)
+}
+
+func TestDCRProviderAdapterMapUpdateFieldsKeepsHTTPPatchPayloadSparse(t *testing.T) {
+	adapter := NewDCRProviderAdapter(nil)
+	fields := map[string]any{
+		planner.FieldName:                  "http-dcr",
+		planner.FieldDCRProviderUpdateType: "http",
+		planner.FieldDCRProviderConfig: map[string]any{
+			"dcr_base_url": "https://example.com/v2/dcr",
+		},
+	}
+
+	var update kkComps.UpdateDcrProviderRequest
+	err := adapter.MapUpdateFields(t.Context(), &ExecutionContext{Namespace: "test"}, fields, &update, nil)
+	require.NoError(t, err)
+	require.NotNil(t, update.DcrConfig)
+	require.NotNil(t, update.DcrConfig.UpdateDcrConfigHTTPInRequest)
+
+	body, err := json.Marshal(update.DcrConfig.UpdateDcrConfigHTTPInRequest)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"dcr_base_url":"https://example.com/v2/dcr"}`, string(body))
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+	assert.NotContains(t, payload, "allow_multiple_credentials")
 }

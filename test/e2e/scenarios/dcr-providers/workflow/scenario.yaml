@@ -175,6 +175,69 @@ steps:
                 name: "{{ .vars.adoptName }}"
                 namespace: "{{ .vars.namespace }}"
 
+  - name: 003a-update-http-provider-with-unmanaged-credentials-setting
+    commands:
+      - name: 000-plan-http-provider-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-http-provider-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/update-http.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='dcr_provider' && resource_ref=='{{ .vars.httpName }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.dcr_config.disable_event_hooks: true
+                "contains(keys(fields.dcr_config), 'allow_multiple_credentials')": false
+      - name: 001-apply-http-provider-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-http-provider-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-http-provider-after-update
+        run:
+          - get
+          - dcr-provider
+          - "{{ .vars.httpName }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                dcr_config.disable_event_hooks: true
+                dcr_config.allow_multiple_credentials: true
+      - name: 003-plan-http-provider-update-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/update-http.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 004-dump-and-round-trip
     skipInputs: true
     commands:

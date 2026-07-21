@@ -20,6 +20,7 @@ dcr_providers:
     dcr_config:
       dcr_base_url: https://e2e-http.example.com/v1/dcr
       api_key: e2e_http_api_key
+      allow_multiple_credentials: true
     labels:
       team: platform
       provider: http
