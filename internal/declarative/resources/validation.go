@@ -7,9 +7,9 @@ import (
 )
 
 // refPattern defines the allowed pattern for resource refs
-// Allows alphanumeric characters, hyphens, and underscores
-// Must start with a letter or number, and can contain hyphens and underscores
-var refPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
+// Allows alphanumeric characters, periods, hyphens, and underscores
+// Must start with a letter or number, and can contain periods, hyphens, and underscores
+var refPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 
 const (
 	// MaxRefLength is the maximum allowed length for a ref
@@ -38,7 +38,7 @@ func ValidateRef(ref string) error {
 
 	if !refPattern.MatchString(ref) {
 		return fmt.Errorf("ref must start with a letter or number and " +
-			"contain only alphanumeric characters, hyphens, and underscores")
+			"contain only alphanumeric characters, periods, hyphens, and underscores")
 	}
 
 	return nil
