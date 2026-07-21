@@ -328,7 +328,8 @@ func TestExecutor_updatePortal(t *testing.T) {
 				// Mock UpdatePortal
 				m.On("UpdatePortal", mock.Anything, "portal-123", mock.MatchedBy(func(p kkComps.UpdatePortal) bool {
 					return p.Name != nil && *p.Name == "updated-portal" &&
-						p.Description != nil && *p.Description == "Updated description"
+						p.Description != nil && *p.Description == "Updated description" &&
+						p.AuthenticationEnabled == nil
 				})).Return(&kkOps.UpdatePortalResponse{
 					PortalResponse: &kkComps.PortalResponse{
 						ID: "portal-123",
