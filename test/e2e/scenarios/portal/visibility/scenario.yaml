@@ -160,6 +160,11 @@ steps:
 
   - name: 003-mutate-publication-visibility
     inputOverlayOps:
+      - file: "portal.yaml"
+        match: "portals[?ref=='getting-started-portal'] | [0]"
+        set:
+          auto_approve_applications: true
+          default_api_visibility: "private"
       - file: "apis.yaml"
         match: "apis[?ref=='sms'].publications[?ref=='sms-api-to-getting-started'] | [0]"
         set:
@@ -181,6 +186,10 @@ steps:
               fields:
                 action: "UPDATE"
                 "fields.visibility": "private"
+          - select: "plan.changes[?resource_type=='portal']"
+            expect:
+              fields:
+                "length(@)": 0
           - select: summary
             expect:
               fields:
@@ -200,6 +209,12 @@ steps:
                 visibility: "private"
 
   - name: 004-restore-public-visibility
+    inputOverlayOps:
+      - file: "portal.yaml"
+        match: "portals[?ref=='getting-started-portal'] | [0]"
+        set:
+          auto_approve_applications: true
+          default_api_visibility: "private"
     commands:
       - name: 000-apply-restore
         run:
@@ -217,6 +232,10 @@ steps:
               fields:
                 action: "UPDATE"
                 "fields.visibility": "public"
+          - select: "plan.changes[?resource_type=='portal']"
+            expect:
+              fields:
+                "length(@)": 0
           - select: summary
             expect:
               fields:
