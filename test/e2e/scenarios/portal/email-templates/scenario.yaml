@@ -164,7 +164,62 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003-sync-remove-email-template
+  - name: 003-update-disabled-template-content
+    inputOverlayDirs:
+      - overlays/003-update-disabled-content
+    commands:
+      - name: 000-plan-content-only-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-content-only-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_email_template' && resource_ref=='{{ .vars.appTemplateRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.content:
+                  subject: "Your application was approved"
+                  body: "Your application is now ready to use."
+                "contains(keys(fields), 'enabled')": false
+      - name: 001-apply-content-only-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-content-only-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-plan-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-sync-remove-email-template
     inputOverlayDirs:
       - overlays/003-remove
     commands:
@@ -209,7 +264,7 @@ steps:
                 applied: 2
                 failed: 0
 
-  - name: 004-delete-cleanup
+  - name: 005-delete-cleanup
     inputOverlayDirs:
       - overlays/003-remove
     commands:

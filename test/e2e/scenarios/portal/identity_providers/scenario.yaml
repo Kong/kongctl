@@ -301,6 +301,74 @@ steps:
                 applied: 1
                 failed: 0
 
+  - name: 001d-update-enabled-provider-config
+    inputOverlayDirs:
+      - overlays/001-config-only-update
+    commands:
+      - name: 000-plan-config-only-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-config-only-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_identity_provider' && resource_ref=='{{ .vars.providerRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.config.scopes[2]: email
+                "contains(keys(fields), 'enabled')": false
+      - name: 001-apply-config-only-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-config-only-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-provider-after-config-update
+        run:
+          - get
+          - portal
+          - identity-providers
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - select: '[0]'
+            expect:
+              fields:
+                enabled: true
+                config.scopes[2]: email
+      - name: 003-plan-config-update-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 002-plan-apply-root-level-update
     inputOverlayDirs:
       - overlays/002-root-update

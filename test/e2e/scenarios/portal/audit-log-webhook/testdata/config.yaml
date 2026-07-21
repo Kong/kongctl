@@ -17,3 +17,8 @@ audit-logs:
         selector:
           matchFields:
             name: e2e-portal-audit-log-destination
+    - ref: e2e-audit-log-destination-updated
+      _external:
+        selector:
+          matchFields:
+            name: e2e-portal-audit-log-destination-updated

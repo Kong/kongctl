@@ -9,6 +9,9 @@ vars:
   destinationRef: e2e-audit-log-destination
   destinationName: e2e-portal-audit-log-destination
   destinationEndpoint: https://example.com/kongctl-e2e-audit-logs
+  destinationUpdatedRef: e2e-audit-log-destination-updated
+  destinationUpdatedName: e2e-portal-audit-log-destination-updated
+  destinationUpdatedEndpoint: https://example.com/kongctl-e2e-audit-logs-updated
 
 defaults:
   mask:
@@ -41,6 +44,19 @@ steps:
               authorization: Bearer kongctl-e2e-audit-log-webhook
           recordVar:
             name: destinationID
+            responsePath: id
+      - name: 001-create-updated-audit-log-destination
+        create:
+          resource: audit-log-destination
+          payload:
+            inline:
+              name: "{{ .vars.destinationUpdatedName }}"
+              endpoint: "{{ .vars.destinationUpdatedEndpoint }}"
+              log_format: json
+              skip_ssl_verification: true
+              authorization: Bearer kongctl-e2e-audit-log-webhook-updated
+          recordVar:
+            name: destinationUpdatedID
             responsePath: id
 
   - name: 002-apply-portal-audit-log-webhook
@@ -103,7 +119,62 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 004-disable-webhook
+  - name: 004-update-destination
+    inputOverlayDirs:
+      - overlays/004-update-destination
+    commands:
+      - name: 000-plan-update-destination
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update-destination.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_audit_log_webhook' &&
+                      resource_ref=='{{ .vars.webhookRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.audit_log_destination_id: "{{ .vars.destinationUpdatedID }}"
+                references.audit_log_destination_id.ref: "{{ .vars.destinationUpdatedRef }}"
+                "contains(keys(fields), 'enabled')": false
+      - name: 001-apply-update-destination
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update-destination.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-plan-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-disable-webhook
     inputOverlayDirs:
       - overlays/003-disable-webhook
     commands:
@@ -156,7 +227,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-dump-and-plan-round-trip
+  - name: 006-dump-and-plan-round-trip
     inputOverlayDirs:
       - overlays/003-disable-webhook
     commands:
@@ -176,7 +247,7 @@ steps:
             expect:
               fields:
                 enabled: false
-                audit_log_destination_id: "{{ .vars.destinationID }}"
+                audit_log_destination_id: "{{ .vars.destinationUpdatedID }}"
       - name: 001-plan-from-dump
         outputFormat: disable
         run:
@@ -191,7 +262,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 006-sync-remove-webhook
+  - name: 007-sync-remove-webhook
     inputOverlayDirs:
       - overlays/002-remove-webhook
     commands:
@@ -230,7 +301,7 @@ steps:
                 applied: 1
                 failed: 0
 
-  - name: 007-delete-cleanup
+  - name: 008-delete-cleanup
     inputOverlayDirs:
       - overlays/002-remove-webhook
     commands:
@@ -257,3 +328,9 @@ steps:
           expectStatus: 204
           endpointParams:
             destinationId: "{{ .vars.destinationID }}"
+      - name: 002-delete-updated-audit-log-destination
+        delete:
+          resource: audit-log-destination
+          expectStatus: 204
+          endpointParams:
+            destinationId: "{{ .vars.destinationUpdatedID }}"

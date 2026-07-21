@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -102,6 +103,44 @@ func TestPortalIdentityProviderAdapterCreateUpdatesExplicitFalseEnabled(t *testi
 	assert.False(t, *api.updateReq.PortalUpdateIdentityProvider.Enabled)
 	assert.Equal(t, "portal-1", api.updateReq.PortalID)
 	assert.Equal(t, "provider-1", api.updateReq.ID)
+}
+
+func TestPortalIdentityProviderAdapterUpdateKeepsPatchPayloadSparse(t *testing.T) {
+	t.Parallel()
+
+	api := &stubPortalIdentityProviderAPI{}
+	client := state.NewClient(state.ClientConfig{PortalIdentityProviderAPI: api})
+	adapter := NewPortalIdentityProviderAdapter(client)
+	update := kkComps.UpdateIdentityProvider{}
+	config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+		kkComps.OIDCIdentityProviderConfig{
+			IssuerURL: "https://idp.example.test",
+			ClientID:  "client-id",
+		},
+	)
+
+	err := adapter.MapUpdateFields(
+		t.Context(),
+		nil,
+		map[string]any{planner.FieldConfig: config},
+		&update,
+		nil,
+	)
+	require.NoError(t, err)
+
+	execCtx := NewExecutionContext(&planner.PlannedChange{
+		Parent: &planner.ParentInfo{ID: "portal-1"},
+	})
+	_, err = adapter.Update(testContextWithLogger(), "provider-1", update, "default", execCtx)
+	require.NoError(t, err)
+
+	body, err := json.Marshal(api.updateReq.PortalUpdateIdentityProvider)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"config":{"issuer_url":"https://idp.example.test","client_id":"client-id"}}`, string(body))
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+	assert.NotContains(t, payload, planner.FieldEnabled)
 }
 
 func TestPortalIdentityProviderAdapterDeleteUsesResolvedPortalID(t *testing.T) {

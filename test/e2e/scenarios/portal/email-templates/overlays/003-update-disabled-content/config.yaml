@@ -1,0 +1,16 @@
+_defaults:
+  kongctl:
+    namespace: portal-email-templates
+
+portals:
+  - ref: portal-email-templates
+    name: "portal-email-templates"
+    kongctl:
+      namespace: portal-email-templates
+    email_templates:
+      app-registration-approved:
+        ref: app-reg-approved-template
+        enabled: false
+        content:
+          subject: "Your application was approved"
+          body: "Your application is now ready to use."
