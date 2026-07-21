@@ -133,7 +133,7 @@ func TestApplyCommand_RejectsDeletes(t *testing.T) {
 			Version:     "1.0",
 			GeneratedAt: time.Now(),
 			Generator:   "kongctl/test",
-			Mode:        planner.PlanModeSync, // Sync mode supports deletes
+			Mode:        planner.PlanModeApply,
 		},
 		Changes: []planner.PlannedChange{
 			{

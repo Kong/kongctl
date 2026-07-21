@@ -1067,7 +1067,7 @@ kongctl apply --plan proposed-changes.json
 
 ```shell
 # CI/CD Pipeline Stage 1: Plan Generation
-kongctl plan --mode apply -f production-config.yaml \
+kongctl plan --mode sync -f production-config.yaml \
   --output-file plan-$(date +%Y%m%d-%H%M%S).json
 
 # Stage 2: Manual approval gate
