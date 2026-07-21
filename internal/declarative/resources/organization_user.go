@@ -10,12 +10,16 @@ func init() {
 		func(rs *ResourceSet) *[]OrganizationUserTeamMembershipResource {
 			return &rs.OrganizationUserTeamMemberships
 		},
-		AutoExplain[OrganizationUserTeamMembershipResource](),
+		AutoExplain[OrganizationUserTeamMembershipResource](
+			WithExplainRecommendedFields(SchemaFieldUser),
+		),
 	)
 	registerResourceType(
 		ResourceTypeOrganizationUserRole,
 		func(rs *ResourceSet) *[]OrganizationUserRoleResource { return &rs.OrganizationUserRoles },
-		AutoExplain[OrganizationUserRoleResource](),
+		AutoExplain[OrganizationUserRoleResource](
+			WithExplainRecommendedFields(SchemaFieldUser),
+		),
 	)
 }
 
@@ -63,10 +67,10 @@ func (u *OrganizationUserResource) SetKonnectID(id string) {
 	u.konnectID = id
 }
 
-// OrganizationUserTeamMembershipResource is an internal relation resource.
+// OrganizationUserTeamMembershipResource represents an organization user's team assignment.
 type OrganizationUserTeamMembershipResource struct {
 	Ref  string `yaml:"ref"  json:"ref"`
-	User string `yaml:"-"    json:"-"`
+	User string `yaml:"user,omitempty" json:"user,omitempty"`
 	Team string `yaml:"team" json:"team"`
 }
 
@@ -126,7 +130,7 @@ func (r *OrganizationUserTeamMembershipResource) TryMatchKonnectResource(_ any) 
 type OrganizationUserRoleResource struct {
 	Ref string `yaml:"ref" json:"ref"`
 
-	User string `yaml:"-" json:"-"`
+	User string `yaml:"user,omitempty" json:"user,omitempty"`
 
 	RoleName       string `yaml:"role_name"        json:"role_name"`
 	EntityID       string `yaml:"entity_id"        json:"entity_id"`

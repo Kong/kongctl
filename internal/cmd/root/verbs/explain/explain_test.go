@@ -231,6 +231,26 @@ func TestExplainCmd_OrganizationTeamResources(t *testing.T) {
 			path:         "organization.teams.roles",
 			wantResource: "organization_team_role",
 		},
+		{
+			name:         "organization user team membership nested path",
+			path:         "organization.users.teams",
+			wantResource: "organization_user_team_membership",
+		},
+		{
+			name:         "organization user role nested path",
+			path:         "organization.users.roles",
+			wantResource: "organization_user_role",
+		},
+		{
+			name:         "organization system account team membership nested path",
+			path:         "organization.system-accounts.teams",
+			wantResource: "organization_system_account_team_membership",
+		},
+		{
+			name:         "organization system account role nested path",
+			path:         "organization.system-accounts.roles",
+			wantResource: "organization_system_account_role",
+		},
 	}
 
 	for _, tt := range tests {

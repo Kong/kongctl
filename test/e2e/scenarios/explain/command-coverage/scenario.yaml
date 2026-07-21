@@ -351,3 +351,37 @@ steps:
               fields:
                 type: string
                 '"x-kongctl-preferred-tag"': "!file"
+
+  - name: 016-explain-organization-assignments-nested-json
+    skipInputs: true
+    commands:
+      - name: 000-explain-organization-user-role
+        run:
+          - explain
+          - organization.users.roles
+        outputFormat: json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                '"x-kongctl-path"': organization.users.roles
+                '"x-kongctl-resource"': organization_user_role
+                '"x-kongctl-root-key"': organization_user_roles
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+      - name: 001-explain-organization-system-account-membership
+        run:
+          - explain
+          - organization.system-accounts.teams
+        outputFormat: json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                '"x-kongctl-path"': organization.system-accounts.teams
+                '"x-kongctl-resource"': organization_system_account_team_membership
+                '"x-kongctl-root-key"': organization_system_account_team_memberships
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true

@@ -119,6 +119,71 @@ func TestResolveExplainSubject_OrganizationTeamRolesNestedResource(t *testing.T)
 	}, subject.ScaffoldSteps)
 }
 
+func TestResolveExplainSubject_OrganizationAssignmentsNestedResources(t *testing.T) {
+	tests := []struct {
+		path         string
+		resourceType ResourceType
+		parentType   ResourceType
+		steps        []ExplainScaffoldStep
+	}{
+		{
+			path:         "organization.users.teams",
+			resourceType: ResourceTypeOrganizationUserTeamMembership,
+			parentType:   ResourceTypeOrganizationUser,
+			steps: []ExplainScaffoldStep{
+				{Name: "organization"},
+				{Name: "users", Array: true},
+				{Name: "teams", Array: true},
+			},
+		},
+		{
+			path:         "organization.users.roles",
+			resourceType: ResourceTypeOrganizationUserRole,
+			parentType:   ResourceTypeOrganizationUser,
+			steps: []ExplainScaffoldStep{
+				{Name: "organization"},
+				{Name: "users", Array: true},
+				{Name: "roles", Array: true},
+			},
+		},
+		{
+			path:         "organization.system-accounts.teams",
+			resourceType: ResourceTypeOrganizationSystemAccountTeamMembership,
+			parentType:   ResourceTypeOrganizationSystemAccount,
+			steps: []ExplainScaffoldStep{
+				{Name: "organization"},
+				{Name: "system-accounts", Array: true},
+				{Name: "teams", Array: true},
+			},
+		},
+		{
+			path:         "organization.system-accounts.roles",
+			resourceType: ResourceTypeOrganizationSystemAccountRole,
+			parentType:   ResourceTypeOrganizationSystemAccount,
+			steps: []ExplainScaffoldStep{
+				{Name: "organization"},
+				{Name: "system-accounts", Array: true},
+				{Name: "roles", Array: true},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			subject, err := ResolveExplainSubject(tt.path)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.resourceType, subject.Doc.ResourceType)
+			assert.Equal(t, explainResourceClassChild, subject.Doc.ResourceClass)
+			assert.True(t, subject.Doc.SupportsRoot)
+			assert.True(t, subject.Doc.SupportsNestedDeclaration)
+			assert.True(t, subject.ResourceTarget)
+			assert.Equal(t, []ResourceType{tt.parentType}, subject.AncestorTypes)
+			assert.Equal(t, tt.steps, subject.ScaffoldSteps)
+		})
+	}
+}
+
 func TestResolveExplainSubject_NestedSingletonChildResource(t *testing.T) {
 	subject, err := ResolveExplainSubject("portal.auth_settings")
 	require.NoError(t, err)

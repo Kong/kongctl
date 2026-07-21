@@ -691,6 +691,117 @@ organization:
 	assert.Empty(t, rs.Organization.SystemAccounts[0].Roles)
 }
 
+func TestLoader_LoadsRootOrganizationAssignments(t *testing.T) {
+	content := `
+apis:
+  - ref: products-api
+    name: Products API
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Engineering
+  users:
+    - ref: alice
+      email: alice@example.com
+  system-accounts:
+    - ref: ci-bot
+      name: ci-bot
+organization_user_team_memberships:
+  - ref: alice-platform-team
+    user: alice
+    team: platform-team
+organization_user_roles:
+  - ref: alice-products-viewer
+    user: alice
+    role_name: Viewer
+    entity_id: !ref products-api#id
+    entity_type_name: APIs
+    entity_region: us
+organization_system_account_team_memberships:
+  - ref: ci-bot-platform-team
+    system_account: ci-bot
+    team: platform-team
+organization_system_account_roles:
+  - ref: ci-bot-products-viewer
+    system_account: ci-bot
+    role_name: Viewer
+    entity_id: !ref products-api#id
+    entity_type_name: APIs
+    entity_region: us
+`
+
+	dir := t.TempDir()
+	file := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+
+	rs, err := New().LoadFile(file)
+	require.NoError(t, err)
+
+	require.Len(t, rs.OrganizationUserTeamMemberships, 1)
+	assert.Equal(t, "alice", rs.OrganizationUserTeamMemberships[0].User)
+	require.Len(t, rs.OrganizationUserRoles, 1)
+	assert.Equal(t, "alice", rs.OrganizationUserRoles[0].User)
+	require.Len(t, rs.OrganizationSystemAccountTeamMemberships, 1)
+	assert.Equal(t, "ci-bot", rs.OrganizationSystemAccountTeamMemberships[0].SystemAccount)
+	require.Len(t, rs.OrganizationSystemAccountRoles, 1)
+	assert.Equal(t, "ci-bot", rs.OrganizationSystemAccountRoles[0].SystemAccount)
+}
+
+func TestLoader_RejectsRootOrganizationAssignmentWithUnknownSelector(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr string
+	}{
+		{
+			name: "user role",
+			input: `
+organization:
+  users:
+    - ref: alice
+      email: alice@example.com
+organization_user_roles:
+  - ref: bob-viewer
+    user: bob
+    role_name: Viewer
+    entity_id: "*"
+    entity_type_name: APIs
+    entity_region: "*"
+`,
+			wantErr: "references unknown organization user: bob",
+		},
+		{
+			name: "system account role",
+			input: `
+organization:
+  system-accounts:
+    - ref: ci-bot
+      name: ci-bot
+organization_system_account_roles:
+  - ref: deploy-bot-viewer
+    system_account: deploy-bot
+    role_name: Viewer
+    entity_id: "*"
+    entity_type_name: APIs
+    entity_region: "*"
+`,
+			wantErr: "references unknown organization system account: deploy-bot",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, "config.yaml")
+			require.NoError(t, os.WriteFile(file, []byte(tt.input), 0o600))
+
+			_, err := New().LoadFile(file)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
 func TestLoader_ValidatesOrganizationUserRefsAndSelectors(t *testing.T) {
 	tests := []struct {
 		name    string
