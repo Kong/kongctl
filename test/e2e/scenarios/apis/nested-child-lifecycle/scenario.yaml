@@ -334,9 +334,17 @@ steps:
               fields:
                 version: "1.0.0"
                 "spec.type": "oas3"
+      - name: 002-get-version-by-string
+        run: ["get", "api", "versions", "--api-name", "API Nested", "1.0.0", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                version: "1.0.0"
+                "spec.type": "oas3"
                 "spec.content != null": true
                 "contains(spec.content, '/updated')": true
-      - name: 002-get-documents
+      - name: 003-get-documents
         run: ["get", "api", "documents", "--api-name", "API Nested", "-o", "json"]
         assertions:
           - select: "[?title=='New Document'] | [0]"
@@ -349,7 +357,7 @@ steps:
               fields:
                 title: "Child Document"
                 status: "published"
-      - name: 003-get-publications
+      - name: 004-get-publications
         run: ["get", "api", "publications", "--api-name", "API Nested", "-o", "json"]
         assertions:
           - select: "[0]"
