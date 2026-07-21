@@ -16,7 +16,10 @@ func TestExplainAndScaffoldWithNoArgsListResourcePaths(t *testing.T) {
 			for _, want := range []string{
 				"Available resource paths:",
 				"  api\n",
+				"  api.versions\n",
 				"  portal\n",
+				"  portal.pages\n",
+				"  portal.snippets\n",
 				verb + " <resource-path>",
 			} {
 				if !strings.Contains(result.stdout, want) {

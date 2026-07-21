@@ -18,11 +18,31 @@ func TestExplainResourcePathsAllResolve(t *testing.T) {
 	}
 }
 
-func TestExplainResourcePathsOmitsGroupingRoots(t *testing.T) {
-	// organization and analytics only resolve with a child segment, so listing
-	// them bare would advertise a path that errors.
+func TestExplainResourcePathsPrefersNestedPaths(t *testing.T) {
 	paths := ExplainResourcePaths()
+	explainTypeCount := 0
+	for _, resourceType := range RegisteredTypes() {
+		doc, ok := explainDocByType(resourceType)
+		if !ok {
+			continue
+		}
+		explainTypeCount++
+		if len(doc.ParentRelations) > 0 {
+			assert.NotContains(t, paths, doc.CanonicalAlias)
+		}
+	}
+
+	assert.Len(t, paths, explainTypeCount)
 	assert.NotContains(t, paths, "organization")
 	assert.NotContains(t, paths, "analytics")
+	assert.NotContains(t, paths, "api_version")
+	assert.NotContains(t, paths, "portal_page")
+	assert.NotContains(t, paths, "portal_snippet")
 	assert.Contains(t, paths, "api")
+	assert.Contains(t, paths, "api.versions")
+	assert.Contains(t, paths, "portal")
+	assert.Contains(t, paths, "portal.pages")
+	assert.Contains(t, paths, "portal.snippets")
+	assert.Contains(t, paths, "organization.teams")
+	assert.Contains(t, paths, "analytics.dashboards")
 }

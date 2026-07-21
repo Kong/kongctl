@@ -642,9 +642,9 @@ func analyticsExplainNode() (*ExplainNode, error) {
 	return autoExplainNode(reflect.TypeFor[AnalyticsResource](), nil, defaultExplainHints(""), nil)
 }
 
-// ExplainResourcePaths returns the canonical resource paths that explain and
-// scaffold accept, sorted. Grouping roots such as organization and analytics are
-// omitted because they only resolve with a child segment.
+// ExplainResourcePaths returns the preferred resource paths that explain and
+// scaffold accept, sorted. Child resources use their nested path when one is
+// available.
 func ExplainResourcePaths() []string {
 	types := RegisteredTypes()
 	paths := make([]string, 0, len(types))
@@ -653,10 +653,44 @@ func ExplainResourcePaths() []string {
 		if !ok {
 			continue
 		}
-		paths = append(paths, doc.CanonicalAlias)
+		paths = append(paths, preferredExplainResourcePath(doc, make(map[ResourceType]struct{})))
 	}
 	slices.Sort(paths)
 	return slices.Compact(paths)
+}
+
+func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]struct{}) string {
+	//exhaustive:ignore // Only resources with virtual grouping roots need an explicit path.
+	switch doc.ResourceType {
+	case ResourceTypeOrganizationTeam:
+		return "organization." + SchemaFieldTeams
+	case ResourceTypeDashboard:
+		return "analytics.dashboards"
+	}
+
+	if _, ok := visiting[doc.ResourceType]; ok {
+		return ""
+	}
+	visiting[doc.ResourceType] = struct{}{}
+	defer delete(visiting, doc.ResourceType)
+
+	var paths []string
+	for _, relation := range doc.ParentRelations {
+		parentDoc, ok := explainDocByType(ResourceType(relation.ParentType))
+		if !ok {
+			continue
+		}
+		parentPath := preferredExplainResourcePath(parentDoc, visiting)
+		if parentPath != "" {
+			paths = append(paths, parentPath+"."+relation.FieldName)
+		}
+	}
+	if len(paths) == 0 {
+		return doc.CanonicalAlias
+	}
+
+	slices.Sort(paths)
+	return paths[0]
 }
 
 func explainDocByAlias(alias string) (*ExplainDoc, bool) {
