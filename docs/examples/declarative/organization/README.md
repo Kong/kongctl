@@ -19,12 +19,19 @@ organization and must be selected by `name` or `id`.
   `organization_team_roles` declarations.
 - `user-assignments.yaml` - assigns existing organization users to teams and
   direct roles. Users have a local `ref` and are selected by exactly one of
-  `email` or `id`; team memberships and roles also have local refs. kongctl
-  does not create or delete users.
+  `email` or `id`; team memberships and roles also have local refs. Assignments
+  can be nested or declared at the root with
+  `organization_user_team_memberships` and `organization_user_roles`. Root
+  assignments identify their selector with `user`. kongctl does not create or
+  delete users.
 - `system-account-assignments.yaml` - assigns existing organization system
   accounts to teams and direct roles. System accounts have a local `ref` and
   are selected by exactly one of `name` or `id`; team memberships and roles
-  also have local refs. kongctl does not create or delete system accounts.
+  also have local refs. Assignments can be nested or declared at the root with
+  `organization_system_account_team_memberships` and
+  `organization_system_account_roles`. Root assignments identify their
+  selector with `system_account`. kongctl does not create or delete system
+  accounts.
 
 ## Usage
 

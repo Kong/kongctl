@@ -285,7 +285,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	}
 
 	segments := strings.Split(path, ".")
-	if strings.TrimSpace(segments[0]) == "organization" {
+	if strings.TrimSpace(segments[0]) == SchemaFieldOrganization {
 		return resolveOrganizationExplainSubject(path, segments)
 	}
 	if strings.TrimSpace(segments[0]) == "analytics" {
@@ -417,13 +417,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 }
 
 func resolveOrganizationExplainSubject(path string, segments []string) (*ExplainSubject, error) {
-	if len(segments) < 2 || strings.TrimSpace(segments[1]) != SchemaFieldTeams {
+	if len(segments) < 2 {
 		return nil, fmt.Errorf("unsupported resource path %q", path)
-	}
-
-	teamDoc, ok := explainDocByType(ResourceTypeOrganizationTeam)
-	if !ok {
-		return nil, fmt.Errorf("resource type %q does not have explain registration", ResourceTypeOrganizationTeam)
 	}
 
 	organizationNode, err := organizationExplainNode()
@@ -431,38 +426,155 @@ func resolveOrganizationExplainSubject(path string, segments []string) (*Explain
 		return nil, err
 	}
 
+	switch strings.TrimSpace(segments[1]) {
+	case SchemaFieldTeams:
+		teamDoc, ok := explainDocByType(ResourceTypeOrganizationTeam)
+		if !ok {
+			return nil, fmt.Errorf(
+				"resource type %q does not have explain registration",
+				ResourceTypeOrganizationTeam,
+			)
+		}
+		subject := &ExplainSubject{
+			Doc:            teamDoc,
+			Node:           teamDoc.Schema.clone(),
+			DisplayPath:    path,
+			ResourceTarget: true,
+			FieldPath:      []string{SchemaFieldTeams},
+			ScaffoldSteps: []ExplainScaffoldStep{
+				{Name: SchemaFieldOrganization},
+				{Name: SchemaFieldTeams, Array: true},
+			},
+			ScaffoldTrail: []ExplainScaffoldNode{
+				{
+					Step: ExplainScaffoldStep{Name: SchemaFieldOrganization},
+					Node: organizationNode,
+				},
+				{
+					Step: ExplainScaffoldStep{Name: SchemaFieldTeams, Array: true},
+					Node: teamDoc.Schema.clone(),
+				},
+			},
+		}
+		return resolveOrganizationExplainSegments(subject, path, segments[2:])
+	case "users":
+		return resolveOrganizationAssignmentExplainSubject(
+			path,
+			segments,
+			organizationNode,
+			ResourceTypeOrganizationUser,
+		)
+	case "system-accounts":
+		return resolveOrganizationAssignmentExplainSubject(
+			path,
+			segments,
+			organizationNode,
+			ResourceTypeOrganizationSystemAccount,
+		)
+	default:
+		return nil, fmt.Errorf("unsupported resource path %q", path)
+	}
+}
+
+func resolveOrganizationAssignmentExplainSubject(
+	path string,
+	segments []string,
+	organizationNode *ExplainNode,
+	parentType ResourceType,
+) (*ExplainSubject, error) {
+	if len(segments) < 3 {
+		return nil, fmt.Errorf("unsupported resource path %q", path)
+	}
+
+	parentField := strings.TrimSpace(segments[1])
+	assignmentField := strings.TrimSpace(segments[2])
+	var assignmentType ResourceType
+	var parentNode *ExplainNode
+	var err error
+	//exhaustive:ignore // Only virtual organization selector parents are supported here.
+	switch parentType {
+	case ResourceTypeOrganizationUser:
+		parentNode, err = organizationUserExplainNode()
+		switch assignmentField {
+		case SchemaFieldTeams:
+			assignmentType = ResourceTypeOrganizationUserTeamMembership
+		case SchemaFieldRoles:
+			assignmentType = ResourceTypeOrganizationUserRole
+		}
+	case ResourceTypeOrganizationSystemAccount:
+		parentNode, err = organizationSystemAccountExplainNode()
+		switch assignmentField {
+		case SchemaFieldTeams:
+			assignmentType = ResourceTypeOrganizationSystemAccountTeamMembership
+		case SchemaFieldRoles:
+			assignmentType = ResourceTypeOrganizationSystemAccountRole
+		}
+	default:
+		return nil, fmt.Errorf("unsupported resource path %q", path)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if assignmentType == "" {
+		return nil, fmt.Errorf("unsupported resource path %q", path)
+	}
+
+	assignmentDoc, ok := explainDocByType(assignmentType)
+	if !ok {
+		return nil, fmt.Errorf("resource type %q does not have explain registration", assignmentType)
+	}
+
+	parentOmit := SchemaFieldRoles
+	if assignmentField == SchemaFieldRoles {
+		parentOmit = SchemaFieldTeams
+	}
+	parentRefField := SchemaFieldUser
+	if parentType == ResourceTypeOrganizationSystemAccount {
+		parentRefField = SchemaFieldSystemAccount
+	}
 	subject := &ExplainSubject{
-		Doc:            teamDoc,
-		Node:           teamDoc.Schema.clone(),
+		Doc:            assignmentDoc,
+		Node:           assignmentDoc.Schema.clone(),
 		DisplayPath:    path,
 		ResourceTarget: true,
-		FieldPath:      []string{SchemaFieldTeams},
+		FieldPath:      []string{parentField, assignmentField},
 		ScaffoldSteps: []ExplainScaffoldStep{
-			{Name: "organization"},
-			{Name: SchemaFieldTeams, Array: true},
+			{Name: SchemaFieldOrganization},
+			{Name: parentField, Array: true},
+			{Name: assignmentField, Array: true},
 		},
 		ScaffoldTrail: []ExplainScaffoldNode{
 			{
-				Step: ExplainScaffoldStep{Name: "organization"},
+				Step: ExplainScaffoldStep{Name: SchemaFieldOrganization},
 				Node: organizationNode,
 			},
 			{
-				Step: ExplainScaffoldStep{Name: SchemaFieldTeams, Array: true},
-				Node: teamDoc.Schema.clone(),
+				Step: ExplainScaffoldStep{Name: parentField, Array: true},
+				Node: parentNode,
+				Omit: []string{parentOmit},
+			},
+			{
+				Step: ExplainScaffoldStep{Name: assignmentField, Array: true},
+				Node: assignmentDoc.Schema.clone(),
+				Omit: []string{parentRefField},
 			},
 		},
+		ScaffoldOmit:  []string{parentRefField},
+		AncestorTypes: []ResourceType{parentType},
 	}
+	return resolveOrganizationExplainSegments(subject, path, segments[3:])
+}
 
-	if len(segments) == 2 {
-		subject.ScaffoldOmit = scaffoldOmitFields(nil)
-		return subject, nil
-	}
-
-	currentDoc := teamDoc
+func resolveOrganizationExplainSegments(
+	subject *ExplainSubject,
+	path string,
+	segments []string,
+) (*ExplainSubject, error) {
+	currentDoc := subject.Doc
 	currentNode := subject.Node
-	var ancestors []ResourceType
+	ancestors := append([]ResourceType(nil), subject.AncestorTypes...)
 	var relativePath []string
-	for _, rawSegment := range segments[2:] {
+	for _, rawSegment := range segments {
 		segment := strings.TrimSpace(rawSegment)
 		field, ok := currentNode.property(segment)
 		if !ok {
@@ -595,12 +707,12 @@ func applyOrganizationTeamScaffold(subject *ExplainSubject) error {
 	}
 
 	subject.ScaffoldSteps = []ExplainScaffoldStep{
-		{Name: "organization"},
+		{Name: SchemaFieldOrganization},
 		{Name: SchemaFieldTeams, Array: true},
 	}
 	subject.ScaffoldTrail = []ExplainScaffoldNode{
 		{
-			Step: ExplainScaffoldStep{Name: "organization"},
+			Step: ExplainScaffoldStep{Name: SchemaFieldOrganization},
 			Node: organizationNode,
 		},
 		{
@@ -638,8 +750,79 @@ func organizationExplainNode() (*ExplainNode, error) {
 	return autoExplainNode(reflect.TypeFor[OrganizationResource](), nil, defaultExplainHints(""), nil)
 }
 
+func organizationUserExplainNode() (*ExplainNode, error) {
+	hints := defaultExplainHints("")
+	hints["email"] = ExplainFieldHint{Recommended: new(true)}
+	return autoExplainNode(reflect.TypeFor[OrganizationUserResource](), nil, hints, nil)
+}
+
+func organizationSystemAccountExplainNode() (*ExplainNode, error) {
+	hints := defaultExplainHints("")
+	hints["name"] = ExplainFieldHint{Recommended: new(true)}
+	return autoExplainNode(reflect.TypeFor[OrganizationSystemAccountResource](), nil, hints, nil)
+}
+
 func analyticsExplainNode() (*ExplainNode, error) {
 	return autoExplainNode(reflect.TypeFor[AnalyticsResource](), nil, defaultExplainHints(""), nil)
+}
+
+// ExplainResourcePaths returns the preferred resource paths that explain and
+// scaffold accept, sorted. Child resources use their nested path when one is
+// available.
+func ExplainResourcePaths() []string {
+	types := RegisteredTypes()
+	paths := make([]string, 0, len(types))
+	for _, rt := range types {
+		doc, ok := explainDocByType(rt)
+		if !ok {
+			continue
+		}
+		paths = append(paths, preferredExplainResourcePath(doc, make(map[ResourceType]struct{})))
+	}
+	slices.Sort(paths)
+	return slices.Compact(paths)
+}
+
+func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]struct{}) string {
+	//exhaustive:ignore // Only resources with virtual grouping roots need an explicit path.
+	switch doc.ResourceType {
+	case ResourceTypeOrganizationTeam:
+		return "organization." + SchemaFieldTeams
+	case ResourceTypeOrganizationUserTeamMembership:
+		return "organization.users." + SchemaFieldTeams
+	case ResourceTypeOrganizationUserRole:
+		return "organization.users." + SchemaFieldRoles
+	case ResourceTypeOrganizationSystemAccountTeamMembership:
+		return "organization.system-accounts." + SchemaFieldTeams
+	case ResourceTypeOrganizationSystemAccountRole:
+		return "organization.system-accounts." + SchemaFieldRoles
+	case ResourceTypeDashboard:
+		return "analytics.dashboards"
+	}
+
+	if _, ok := visiting[doc.ResourceType]; ok {
+		return ""
+	}
+	visiting[doc.ResourceType] = struct{}{}
+	defer delete(visiting, doc.ResourceType)
+
+	var paths []string
+	for _, relation := range doc.ParentRelations {
+		parentDoc, ok := explainDocByType(ResourceType(relation.ParentType))
+		if !ok {
+			continue
+		}
+		parentPath := preferredExplainResourcePath(parentDoc, visiting)
+		if parentPath != "" {
+			paths = append(paths, parentPath+"."+relation.FieldName)
+		}
+	}
+	if len(paths) == 0 {
+		return doc.CanonicalAlias
+	}
+
+	slices.Sort(paths)
+	return paths[0]
 }
 
 func explainDocByAlias(alias string) (*ExplainDoc, bool) {
@@ -704,7 +887,7 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	aliases = slices.Compact(aliases)
 
 	childRelations := explainNestedRelations(rt, reg.typ)
-	parentRelations := nestedRelationsFor(rt)
+	parentRelations := append(nestedRelationsFor(rt), organizationAssignmentParentRelations(rt)...)
 
 	resourceClass := explainResourceClass(reg.typ, rootKey, parentRelations, childRelations)
 	maturityMetadata, err := explainMaturityFor(rt)
@@ -2015,6 +2198,40 @@ func nestedRelationsFor(target ResourceType) []ExplainRelation {
 		}
 	}
 	return relations
+}
+
+func organizationAssignmentParentRelations(target ResourceType) []ExplainRelation {
+	var parentAlias, fieldName string
+	var parentType ResourceType
+	//exhaustive:ignore // Only assignment resources have virtual organization selector parents.
+	switch target {
+	case ResourceTypeOrganizationUserTeamMembership:
+		parentAlias = "organization.users"
+		parentType = ResourceTypeOrganizationUser
+		fieldName = SchemaFieldTeams
+	case ResourceTypeOrganizationUserRole:
+		parentAlias = "organization.users"
+		parentType = ResourceTypeOrganizationUser
+		fieldName = SchemaFieldRoles
+	case ResourceTypeOrganizationSystemAccountTeamMembership:
+		parentAlias = "organization.system-accounts"
+		parentType = ResourceTypeOrganizationSystemAccount
+		fieldName = SchemaFieldTeams
+	case ResourceTypeOrganizationSystemAccountRole:
+		parentAlias = "organization.system-accounts"
+		parentType = ResourceTypeOrganizationSystemAccount
+		fieldName = SchemaFieldRoles
+	default:
+		return nil
+	}
+
+	return []ExplainRelation{{
+		ParentAlias: parentAlias,
+		ParentType:  string(parentType),
+		FieldName:   fieldName,
+		FieldArray:  true,
+		ChildAlias:  string(target),
+	}}
 }
 
 func explainNestedRelations(parentType ResourceType, parent reflect.Type) []ExplainRelation {

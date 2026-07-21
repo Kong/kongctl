@@ -295,6 +295,30 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentKey:    "team",
 		parentType:   resources.ResourceTypeOrganizationTeam,
 	},
+	{
+		key:          "organization_user_team_memberships",
+		resourceType: resources.ResourceTypeOrganizationUserTeamMembership,
+		parentKey:    resources.SchemaFieldUser,
+		parentType:   resources.ResourceTypeOrganizationUser,
+	},
+	{
+		key:          "organization_user_roles",
+		resourceType: resources.ResourceTypeOrganizationUserRole,
+		parentKey:    resources.SchemaFieldUser,
+		parentType:   resources.ResourceTypeOrganizationUser,
+	},
+	{
+		key:          "organization_system_account_team_memberships",
+		resourceType: resources.ResourceTypeOrganizationSystemAccountTeamMembership,
+		parentKey:    resources.SchemaFieldSystemAccount,
+		parentType:   resources.ResourceTypeOrganizationSystemAccount,
+	},
+	{
+		key:          "organization_system_account_roles",
+		resourceType: resources.ResourceTypeOrganizationSystemAccountRole,
+		parentKey:    resources.SchemaFieldSystemAccount,
+		parentType:   resources.ResourceTypeOrganizationSystemAccount,
+	},
 }
 
 var apiChildCollectionScopes = []childCollectionScope{

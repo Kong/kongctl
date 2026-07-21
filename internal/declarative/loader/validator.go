@@ -142,6 +142,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 
 func (l *Loader) validateOrganizationUsers(rs *resources.ResourceSet) error {
 	if rs.Organization == nil {
+		if len(rs.OrganizationUserTeamMemberships) > 0 || len(rs.OrganizationUserRoles) > 0 {
+			return fmt.Errorf("organization.users must define selectors for root-level user assignments")
+		}
 		return nil
 	}
 
@@ -171,6 +174,13 @@ func (l *Loader) validateOrganizationUsers(rs *resources.ResourceSet) error {
 			return fmt.Errorf("duplicate organization user team membership: %s", membership.GetRef())
 		}
 		assignmentRefs[membership.GetRef()] = true
+		if !userRefs[membership.User] {
+			return fmt.Errorf(
+				"organization_user_team_membership %q references unknown organization user: %s",
+				membership.GetRef(),
+				membership.User,
+			)
+		}
 		if resource, found := rs.GetResourceByRef(membership.Team); !found {
 			return fmt.Errorf("organization_user_team_membership %q references unknown organization_team: %s",
 				membership.GetRef(), membership.Team)
@@ -190,6 +200,13 @@ func (l *Loader) validateOrganizationUsers(rs *resources.ResourceSet) error {
 			return fmt.Errorf("duplicate organization_user_role ref: %s", role.GetRef())
 		}
 		roleRefs[role.GetRef()] = true
+		if !userRefs[role.User] {
+			return fmt.Errorf(
+				"organization_user_role %q references unknown organization user: %s",
+				role.GetRef(),
+				role.User,
+			)
+		}
 		if err := l.validateUserRoleEntityReference(role, rs); err != nil {
 			return err
 		}
@@ -213,6 +230,11 @@ func (l *Loader) validateUserRoleEntityReference(
 
 func (l *Loader) validateOrganizationSystemAccounts(rs *resources.ResourceSet) error {
 	if rs.Organization == nil {
+		if len(rs.OrganizationSystemAccountTeamMemberships) > 0 || len(rs.OrganizationSystemAccountRoles) > 0 {
+			return fmt.Errorf(
+				"organization.system-accounts must define selectors for root-level system account assignments",
+			)
+		}
 		return nil
 	}
 
@@ -254,6 +276,13 @@ func (l *Loader) validateOrganizationSystemAccounts(rs *resources.ResourceSet) e
 			return fmt.Errorf("duplicate organization system account team membership: %s", membership.GetRef())
 		}
 		assignmentRefs[membership.GetRef()] = true
+		if !systemAccountRefs[membership.SystemAccount] {
+			return fmt.Errorf(
+				"organization_system_account_team_membership %q references unknown organization system account: %s",
+				membership.GetRef(),
+				membership.SystemAccount,
+			)
+		}
 		if resource, found := rs.GetResourceByRef(membership.Team); !found {
 			return fmt.Errorf("organization_system_account_team_membership %q references unknown organization_team: %s",
 				membership.GetRef(), membership.Team)
@@ -277,6 +306,13 @@ func (l *Loader) validateOrganizationSystemAccounts(rs *resources.ResourceSet) e
 			return fmt.Errorf("duplicate organization_system_account_role ref: %s", role.GetRef())
 		}
 		roleRefs[role.GetRef()] = true
+		if !systemAccountRefs[role.SystemAccount] {
+			return fmt.Errorf(
+				"organization_system_account_role %q references unknown organization system account: %s",
+				role.GetRef(),
+				role.SystemAccount,
+			)
+		}
 		if err := l.validateSystemAccountRoleEntityReference(role, rs); err != nil {
 			return err
 		}

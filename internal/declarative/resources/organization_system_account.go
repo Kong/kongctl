@@ -10,14 +10,18 @@ func init() {
 		func(rs *ResourceSet) *[]OrganizationSystemAccountTeamMembershipResource {
 			return &rs.OrganizationSystemAccountTeamMemberships
 		},
-		AutoExplain[OrganizationSystemAccountTeamMembershipResource](),
+		AutoExplain[OrganizationSystemAccountTeamMembershipResource](
+			WithExplainRecommendedFields(SchemaFieldSystemAccount),
+		),
 	)
 	registerResourceType(
 		ResourceTypeOrganizationSystemAccountRole,
 		func(rs *ResourceSet) *[]OrganizationSystemAccountRoleResource {
 			return &rs.OrganizationSystemAccountRoles
 		},
-		AutoExplain[OrganizationSystemAccountRoleResource](),
+		AutoExplain[OrganizationSystemAccountRoleResource](
+			WithExplainRecommendedFields(SchemaFieldSystemAccount),
+		),
 	)
 }
 
@@ -65,10 +69,10 @@ func (s *OrganizationSystemAccountResource) SetKonnectID(id string) {
 	s.konnectID = id
 }
 
-// OrganizationSystemAccountTeamMembershipResource is an internal relation resource.
+// OrganizationSystemAccountTeamMembershipResource represents a system account's team assignment.
 type OrganizationSystemAccountTeamMembershipResource struct {
 	Ref           string `yaml:"ref"  json:"ref"`
-	SystemAccount string `yaml:"-"    json:"-"`
+	SystemAccount string `yaml:"system_account,omitempty" json:"system_account,omitempty"`
 	Team          string `yaml:"team" json:"team"`
 }
 
@@ -126,7 +130,7 @@ func (r *OrganizationSystemAccountTeamMembershipResource) TryMatchKonnectResourc
 type OrganizationSystemAccountRoleResource struct {
 	Ref string `yaml:"ref" json:"ref"`
 
-	SystemAccount string `yaml:"-" json:"-"`
+	SystemAccount string `yaml:"system_account,omitempty" json:"system_account,omitempty"`
 
 	RoleName       string `yaml:"role_name"        json:"role_name"`
 	EntityID       string `yaml:"entity_id"        json:"entity_id"`

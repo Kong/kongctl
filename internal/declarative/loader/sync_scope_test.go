@@ -53,6 +53,26 @@ func TestCaptureSyncScopeTracksRootLevelEmptyChildCollections(t *testing.T) {
 	)
 }
 
+func TestCaptureSyncScopeTracksRootLevelEmptyOrganizationAssignmentCollections(t *testing.T) {
+	input := strings.NewReader(`
+organization_user_team_memberships: []
+organization_user_roles: []
+organization_system_account_team_memberships: []
+organization_system_account_roles: []
+`)
+
+	rs, err := New().parseYAML(input, "test.yaml", ".")
+	require.NoError(t, err)
+	require.NotNil(t, rs.SyncScope)
+
+	assert.Equal(t, []resources.ResourceType{
+		resources.ResourceTypeOrganizationSystemAccountRole,
+		resources.ResourceTypeOrganizationSystemAccountTeamMembership,
+		resources.ResourceTypeOrganizationUserRole,
+		resources.ResourceTypeOrganizationUserTeamMembership,
+	}, rs.SyncScope.RootChildCollectionTypes())
+}
+
 func TestCaptureSyncScopeTracksOrganizationAssignments(t *testing.T) {
 	input := strings.NewReader(`
 organization:

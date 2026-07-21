@@ -170,3 +170,59 @@ steps:
                 "contains(stdout, 'data_plane_certificates:')": true
                 "contains(stdout, 'cert: !file ./certs/data-plane.pem')": true
                 "contains(stdout, 'ai_gateway: !ref')": false
+
+  - name: 009-scaffold-organization-assignments
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-organization-user-role-root
+        run:
+          - scaffold
+          - organization_user_role
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'organization_user_roles:')": true
+                "contains(stdout, 'user: value')": true
+                "contains(stdout, 'role_name: viewer')": true
+      - name: 001-scaffold-organization-user-role-nested
+        run:
+          - scaffold
+          - organization.users.roles
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'organization:')": true
+                "contains(stdout, 'users:')": true
+                "contains(stdout, 'email: value')": true
+                "contains(stdout, 'roles:')": true
+                "contains(stdout, 'user: value')": false
+      - name: 002-scaffold-organization-system-account-membership-root
+        run:
+          - scaffold
+          - organization_system_account_team_membership
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'organization_system_account_team_memberships:')": true
+                "contains(stdout, 'system_account: value')": true
+                "contains(stdout, 'team: value')": true
+      - name: 003-scaffold-organization-system-account-membership-nested
+        run:
+          - scaffold
+          - organization.system-accounts.teams
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'organization:')": true
+                "contains(stdout, 'system-accounts:')": true
+                "contains(stdout, 'name: my-resource')": true
+                "contains(stdout, 'teams:')": true
+                "contains(stdout, 'system_account: value')": false

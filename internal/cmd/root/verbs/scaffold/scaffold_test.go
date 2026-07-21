@@ -140,6 +140,74 @@ func TestScaffoldCmd_OrganizationTeamResources(t *testing.T) {
 				"          role_name: viewer",
 			},
 		},
+		{
+			name: "organization user role root alias",
+			path: "organization_user_role",
+			contains: []string{
+				"organization_user_roles:",
+				"  - ref: my-resource",
+				"    user: value",
+				"    role_name: viewer",
+			},
+		},
+		{
+			name: "organization user team membership nested path",
+			path: "organization.users.teams",
+			contains: []string{
+				"organization:",
+				"  users:",
+				"    - ref: my-resource",
+				"      email: value",
+				"      teams:",
+				"        - ref: my-resource",
+				"          team: value",
+			},
+		},
+		{
+			name: "organization user role nested path",
+			path: "organization.users.roles",
+			contains: []string{
+				"organization:",
+				"  users:",
+				"      roles:",
+				"        - ref: my-resource",
+				"          role_name: viewer",
+			},
+		},
+		{
+			name: "organization system account role root alias",
+			path: "organization_system_account_role",
+			contains: []string{
+				"organization_system_account_roles:",
+				"  - ref: my-resource",
+				"    system_account: value",
+				"    role_name: viewer",
+			},
+		},
+		{
+			name: "organization system account team membership nested path",
+			path: "organization.system-accounts.teams",
+			contains: []string{
+				"organization:",
+				"  system-accounts:",
+				"    - ref: my-resource",
+				"      name: my-resource",
+				"      teams:",
+				"        - ref: my-resource",
+				"          team: value",
+			},
+		},
+		{
+			name: "organization system account role nested path",
+			path: "organization.system-accounts.roles",
+			contains: []string{
+				"organization:",
+				"  system-accounts:",
+				"      roles:",
+				"        - ref: my-resource",
+				"          role_name: viewer",
+			},
+		},
 	}
 
 	for _, tt := range tests {
