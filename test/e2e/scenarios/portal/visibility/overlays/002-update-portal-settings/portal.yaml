@@ -1,0 +1,4 @@
+portals:
+  - ref: getting-started-portal
+    auto_approve_applications: true
+    default_api_visibility: "private"

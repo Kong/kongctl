@@ -89,8 +89,82 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 002-mutate-publication-visibility
+  - name: 002-update-portal-settings
     inputOverlayOps:
+      - file: "portal.yaml"
+        match: "portals[?ref=='getting-started-portal'] | [0]"
+        set:
+          auto_approve_applications: true
+          default_api_visibility: "private"
+    commands:
+      - name: 000-plan-portal-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-portal-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal' && resource_ref=='getting-started-portal'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "fields.auto_approve_applications": true
+                "fields.default_api_visibility": "private"
+      - name: 001-apply-portal-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-portal-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-portals-after-update
+        run: ["get", "portals"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                auto_approve_applications: true
+                default_api_visibility: "private"
+      - name: 003-plan-no-op-after-update
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-mutate-publication-visibility
+    inputOverlayOps:
+      - file: "portal.yaml"
+        match: "portals[?ref=='getting-started-portal'] | [0]"
+        set:
+          auto_approve_applications: true
+          default_api_visibility: "private"
       - file: "apis.yaml"
         match: "apis[?ref=='sms'].publications[?ref=='sms-api-to-getting-started'] | [0]"
         set:
@@ -112,6 +186,10 @@ steps:
               fields:
                 action: "UPDATE"
                 "fields.visibility": "private"
+          - select: "plan.changes[?resource_type=='portal']"
+            expect:
+              fields:
+                "length(@)": 0
           - select: summary
             expect:
               fields:
@@ -130,34 +208,13 @@ steps:
               fields:
                 visibility: "private"
 
-  - name: 003-idempotency
-    inputOverlayOps:
-      - file: "apis.yaml"
-        match: "apis[?ref=='sms'].publications[?ref=='sms-api-to-getting-started'] | [0]"
-        set:
-          visibility: "private"
-    commands:
-      - name: 000-plan-no-op
-        outputFormat: disable
-        run:
-          - plan
-          - -f
-          - "{{ .workdir }}/portal.yaml"
-          - -f
-          - "{{ .workdir }}/apis.yaml"
-          - --mode
-          - apply
-        assertions:
-          - select: summary
-            expect:
-              fields:
-                total_changes: 0
-          - select: "changes[?resource_type=='api_publication']"
-            expect:
-              fields:
-                "length(@)": 0
-
   - name: 004-restore-public-visibility
+    inputOverlayOps:
+      - file: "portal.yaml"
+        match: "portals[?ref=='getting-started-portal'] | [0]"
+        set:
+          auto_approve_applications: true
+          default_api_visibility: "private"
     commands:
       - name: 000-apply-restore
         run:
@@ -175,6 +232,10 @@ steps:
               fields:
                 action: "UPDATE"
                 "fields.visibility": "public"
+          - select: "plan.changes[?resource_type=='portal']"
+            expect:
+              fields:
+                "length(@)": 0
           - select: summary
             expect:
               fields:
