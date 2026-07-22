@@ -275,13 +275,13 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 6
-                by_action.UPDATE: 4
+                total_changes: 7
+                by_action.UPDATE: 5
                 by_action.CREATE: 2
           - select: summary
             expect:
               fields:
-                applied: 6
+                applied: 7
                 failed: 0
                 status: success
           - select: "plan.changes[?resource_ref=='api-nested'] | [0]"
@@ -291,6 +291,11 @@ steps:
                 fields.version: "2.0.0"
                 fields.labels.owner: "platform-eng"
                 fields.labels.lifecycle: "stage"
+          - select: "plan.changes[?resource_ref=='api-nested-v1'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                "contains(fields.spec.content, '/updated')": true
           - select: "plan.changes[?resource_ref=='api-nested-v2'] | [0]"
             expect:
               fields:
@@ -328,7 +333,18 @@ steps:
             expect:
               fields:
                 version: "1.0.0"
-      - name: 002-get-documents
+                "spec.type": "oas3"
+      - name: 002-get-version-by-string
+        run: ["get", "api", "versions", "--api-name", "API Nested", "1.0.0", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                version: "1.0.0"
+                "spec.type": "oas3"
+                "spec.content != null": true
+                "contains(spec.content, '/updated')": true
+      - name: 003-get-documents
         run: ["get", "api", "documents", "--api-name", "API Nested", "-o", "json"]
         assertions:
           - select: "[?title=='New Document'] | [0]"
@@ -341,7 +357,7 @@ steps:
               fields:
                 title: "Child Document"
                 status: "published"
-      - name: 003-get-publications
+      - name: 004-get-publications
         run: ["get", "api", "publications", "--api-name", "API Nested", "-o", "json"]
         assertions:
           - select: "[0]"

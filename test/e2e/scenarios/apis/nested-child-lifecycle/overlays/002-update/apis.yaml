@@ -27,7 +27,13 @@ apis:
             info:
               title: API Nested
               version: 1.0.0
-            paths: {}
+            paths:
+              /updated:
+                get:
+                  summary: Updated endpoint
+                  responses:
+                    '200':
+                      description: OK
       - ref: api-nested-v2
         version: "2.0.0"
         publish_status: "published"
