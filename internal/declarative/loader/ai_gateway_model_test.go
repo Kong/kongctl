@@ -52,6 +52,33 @@ func TestLoaderExtractsNestedAIGatewayModels(t *testing.T) {
 	))
 }
 
+func TestLoaderAcceptsDottedAIGatewayModelRef(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    models:
+      - ref: gpt-5.4
+        type: model
+        name: gpt-5.4
+        display_name: GPT 5.4
+        config: {route: {}, model: {}}
+        formats: [{type: openai}]
+        targets: [{name: gpt-4o, provider: support-openai, config: {type: openai}}]
+        policies: []
+        capabilities: [generate]
+`
+
+	rs, err := New().LoadFromSources(
+		[]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}},
+		false,
+	)
+	require.NoError(t, err)
+	require.Len(t, rs.AIGatewayModels, 1)
+	require.Equal(t, "gpt-5.4", rs.AIGatewayModels[0].Ref)
+	require.Equal(t, "gpt-5.4", rs.AIGatewayModels[0].Name())
+}
+
 func TestLoaderValidatesAIGatewayModelParentAndDuplicates(t *testing.T) {
 	rootOnly := `
 ai_gateway_models:

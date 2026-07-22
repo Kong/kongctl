@@ -30,6 +30,11 @@ func TestValidateRef(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "valid ref with period",
+			ref:     "gpt-5.4",
+			wantErr: false,
+		},
+		{
 			name:    "valid ref starting with number",
 			ref:     "123resource",
 			wantErr: false,
@@ -95,8 +100,8 @@ func TestValidateRef(t *testing.T) {
 			errMsg:  "ref must start with a letter or number",
 		},
 		{
-			name:    "ref with dot",
-			ref:     "my.resource",
+			name:    "ref starting with period",
+			ref:     ".myresource",
 			wantErr: true,
 			errMsg:  "ref must start with a letter or number",
 		},
