@@ -130,6 +130,7 @@ steps:
             expect:
               fields:
                 version: "1.0.0"
+                publish_status: "unpublished"
                 "spec.type": "oas3"
       - name: 003-get-version-by-string
         run: ["get", "api", "versions", "--api-name", "API Nested", "1.0.0", "-o", "json"]
@@ -329,10 +330,13 @@ steps:
               fields:
                 version: "2.0.0"
                 "spec.type": "oas3"
+                publish_status: "published"
+                deprecated: false
           - select: "[?version=='1.0.0'] | [0]"
             expect:
               fields:
                 version: "1.0.0"
+                publish_status: "unpublished"
                 "spec.type": "oas3"
       - name: 002-get-version-by-string
         run: ["get", "api", "versions", "--api-name", "API Nested", "1.0.0", "-o", "json"]
