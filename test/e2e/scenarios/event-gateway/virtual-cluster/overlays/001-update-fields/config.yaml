@@ -25,6 +25,10 @@ event_gateways:
       - ref: default-virtual-cluster
         name: default-virtual-cluster
         description: "Virtual Cluster for Test Updated"
+        labels:
+          env: staging
+          team: platform
+          version: v2
         destination:
           id: !ref default-backend-cluster#id
         authentication:

@@ -25,9 +25,12 @@ event_gateways:
       - ref: default-virtual-cluster
         name: default-virtual-cluster
         description: "Virtual Cluster for Test"
+        labels:
+          env: test
+          team: platform
         destination:
           id: !ref default-backend-cluster#id
         authentication:
-         - type: anonymous
+          - type: anonymous
         acl_mode: passthrough
         dns_label: vc-default
