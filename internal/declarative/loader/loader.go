@@ -566,20 +566,11 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	// If this source defines a namespace default without parent resources,
 	// propagate it so sync mode can inspect the correct namespace.
 	if source.DefaultNamespace != "" {
-		parentCount := len(source.Portals) +
-			len(source.ApplicationAuthStrategies) +
-			len(source.DCRProviders) +
-			len(source.ControlPlanes) +
-			len(source.CatalogServices) +
-			len(source.AIGateways) +
-			len(source.APIs) +
-			len(source.EventGatewayControlPlanes) +
-			len(source.Dashboards) +
-			len(source.OrganizationTeams)
-		if source.Organization != nil {
-			parentCount += len(source.Organization.Users)
-			parentCount += len(source.Organization.SystemAccounts)
-		}
+		parentCount := 0
+		_ = source.ForEachNamespaceParticipant(func(resources.NamespaceParticipant) error {
+			parentCount++
+			return nil
+		})
 
 		if parentCount == 0 {
 			accumulated.AddDefaultNamespace(source.DefaultNamespace)
@@ -661,254 +652,37 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		return nil
 	}
 
-	// Apply defaults to portals (parent resources)
-	for i := range rs.Portals {
-		if rs.Portals[i].IsExternal() {
-			if rs.Portals[i].Kongctl != nil {
+	applyProtectedDefault := func(m *resources.KongctlMeta) {
+		if m.Protected == nil && protectedDefault != nil {
+			m.Protected = protectedDefault
+		}
+		if m.Protected == nil {
+			falseVal := false
+			m.Protected = &falseVal
+		}
+	}
+
+	// Apply namespace (and protected, where supported) defaults to every
+	// namespace-bearing parent resource. External resources must not carry
+	// kongctl metadata.
+	return rs.ForEachNamespaceParticipant(func(participant resources.NamespaceParticipant) error {
+		if participant.External {
+			if *participant.Meta != nil {
 				return fmt.Errorf(
-					"portal '%s' is marked as external and cannot use kongctl metadata",
-					rs.Portals[i].Ref,
-				)
-			}
-			continue
-		}
-		if err := assignNamespace(&rs.Portals[i].Kongctl, "portal", rs.Portals[i].Ref); err != nil {
-			return err
-		}
-		// Apply protected default if not set
-		if rs.Portals[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.Portals[i].Kongctl.Protected = protectedDefault
-		}
-		// Ensure protected has a value (false if still nil)
-		if rs.Portals[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.Portals[i].Kongctl.Protected = &falseVal
-		}
-	}
-
-	// Apply defaults to APIs (parent resources)
-	for i := range rs.APIs {
-		if err := assignNamespace(&rs.APIs[i].Kongctl, "api", rs.APIs[i].Ref); err != nil {
-			return err
-		}
-		// Apply protected default if not set
-		if rs.APIs[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.APIs[i].Kongctl.Protected = protectedDefault
-		}
-		// Ensure protected has a value (false if still nil)
-		if rs.APIs[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.APIs[i].Kongctl.Protected = &falseVal
-		}
-	}
-
-	// Apply defaults to CatalogServices (parent resources)
-	for i := range rs.CatalogServices {
-		if err := assignNamespace(&rs.CatalogServices[i].Kongctl, "catalog_service", rs.CatalogServices[i].Ref); err != nil {
-			return err
-		}
-		if rs.CatalogServices[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.CatalogServices[i].Kongctl.Protected = protectedDefault
-		}
-		if rs.CatalogServices[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.CatalogServices[i].Kongctl.Protected = &falseVal
-		}
-	}
-
-	// Apply defaults to AI Gateways (parent resources)
-	for i := range rs.AIGateways {
-		if rs.AIGateways[i].IsExternal() {
-			if rs.AIGateways[i].Kongctl != nil {
-				return fmt.Errorf("ai_gateway '%s' is marked as external and cannot use kongctl metadata",
-					rs.AIGateways[i].Ref)
-			}
-			continue
-		}
-		if err := assignNamespace(&rs.AIGateways[i].Kongctl, "ai_gateway", rs.AIGateways[i].Ref); err != nil {
-			return err
-		}
-		if rs.AIGateways[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.AIGateways[i].Kongctl.Protected = protectedDefault
-		}
-		if rs.AIGateways[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.AIGateways[i].Kongctl.Protected = &falseVal
-		}
-	}
-
-	assignDashboardDefaults := func(dashboard *resources.DashboardResource) error {
-		if err := assignNamespace(&dashboard.Kongctl, "dashboard", dashboard.Ref); err != nil {
-			return err
-		}
-		if dashboard.Kongctl.Protected == nil && protectedDefault != nil {
-			dashboard.Kongctl.Protected = protectedDefault
-		}
-		if dashboard.Kongctl.Protected == nil {
-			falseVal := false
-			dashboard.Kongctl.Protected = &falseVal
-		}
-		return nil
-	}
-
-	// Apply defaults to Dashboards (parent resources)
-	for i := range rs.Dashboards {
-		if err := assignDashboardDefaults(&rs.Dashboards[i]); err != nil {
-			return err
-		}
-	}
-	if rs.Analytics != nil {
-		for i := range rs.Analytics.Dashboards {
-			if err := assignDashboardDefaults(&rs.Analytics.Dashboards[i]); err != nil {
-				return err
-			}
-		}
-	}
-
-	// Apply defaults to ApplicationAuthStrategies (parent resources)
-	for i := range rs.ApplicationAuthStrategies {
-		if err := assignNamespace(&rs.ApplicationAuthStrategies[i].Kongctl,
-			"application_auth_strategy", rs.ApplicationAuthStrategies[i].Ref); err != nil {
-			return err
-		}
-		// Apply protected default if not set
-		if rs.ApplicationAuthStrategies[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.ApplicationAuthStrategies[i].Kongctl.Protected = protectedDefault
-		}
-		// Ensure protected has a value (false if still nil)
-		if rs.ApplicationAuthStrategies[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.ApplicationAuthStrategies[i].Kongctl.Protected = &falseVal
-		}
-	}
-
-	// Apply defaults to DCRProviders (parent resources)
-	for i := range rs.DCRProviders {
-		if err := assignNamespace(&rs.DCRProviders[i].Kongctl, "dcr_provider", rs.DCRProviders[i].Ref); err != nil {
-			return err
-		}
-		// Apply protected default if not set
-		if rs.DCRProviders[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.DCRProviders[i].Kongctl.Protected = protectedDefault
-		}
-		// Ensure protected has a value (false if still nil)
-		if rs.DCRProviders[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.DCRProviders[i].Kongctl.Protected = &falseVal
-		}
-	}
-
-	// Apply defaults to ControlPlanes (parent resources)
-	for i := range rs.ControlPlanes {
-		if rs.ControlPlanes[i].IsExternal() {
-			if rs.ControlPlanes[i].Kongctl != nil {
-				return fmt.Errorf("control_plane '%s' is marked as external and cannot use kongctl metadata",
-					rs.ControlPlanes[i].Ref)
-			}
-			continue
-		}
-		if err := assignNamespace(&rs.ControlPlanes[i].Kongctl, "control_plane", rs.ControlPlanes[i].Ref); err != nil {
-			return err
-		}
-		// Apply protected default if not set
-		if rs.ControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.ControlPlanes[i].Kongctl.Protected = protectedDefault
-		}
-		// Ensure protected has a value (false if still nil)
-		if rs.ControlPlanes[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.ControlPlanes[i].Kongctl.Protected = &falseVal
-		}
-	}
-
-	for i := range rs.EventGatewayControlPlanes {
-		if rs.EventGatewayControlPlanes[i].IsExternal() {
-			if rs.EventGatewayControlPlanes[i].Kongctl != nil {
-				return fmt.Errorf(
-					"event_gateway '%s' is marked as external and cannot use kongctl metadata",
-					rs.EventGatewayControlPlanes[i].Ref,
-				)
-			}
-			continue
-		}
-		if err := assignNamespace(
-			&rs.EventGatewayControlPlanes[i].Kongctl,
-			"event_gateway",
-			rs.EventGatewayControlPlanes[i].Ref,
-		); err != nil {
-			return err
-		}
-		// Apply protected default if not set
-		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.EventGatewayControlPlanes[i].Kongctl.Protected = protectedDefault
-		}
-		// Ensure protected has a value (false if still nil)
-		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.EventGatewayControlPlanes[i].Kongctl.Protected = &falseVal
-		}
-	}
-
-	assignOrganizationTeamDefaults := func(team *resources.OrganizationTeamResource) error {
-		if team.IsExternal() {
-			if team.Kongctl != nil {
-				return fmt.Errorf(
-					"team '%s' is marked as external and cannot use kongctl metadata",
-					team.Ref,
+					"%s '%s' is marked as external and cannot use kongctl metadata",
+					participant.Label, participant.Ref,
 				)
 			}
 			return nil
 		}
-		if err := assignNamespace(&team.Kongctl, "team", team.Ref); err != nil {
+		if err := assignNamespace(participant.Meta, participant.Label, participant.Ref); err != nil {
 			return err
 		}
-		// Apply protected default if not set
-		if team.Kongctl.Protected == nil && protectedDefault != nil {
-			team.Kongctl.Protected = protectedDefault
-		}
-		// Ensure protected has a value (false if still nil)
-		if team.Kongctl.Protected == nil {
-			falseVal := false
-			team.Kongctl.Protected = &falseVal
+		if participant.SupportsProtected {
+			applyProtectedDefault(*participant.Meta)
 		}
 		return nil
-	}
-
-	// Apply namespace defaults to teams
-	for i := range rs.OrganizationTeams {
-		if err := assignOrganizationTeamDefaults(&rs.OrganizationTeams[i]); err != nil {
-			return err
-		}
-	}
-	if rs.Organization != nil {
-		for i := range rs.Organization.Teams {
-			if err := assignOrganizationTeamDefaults(&rs.Organization.Teams[i]); err != nil {
-				return err
-			}
-		}
-		for i := range rs.Organization.Users {
-			if err := assignNamespace(
-				&rs.Organization.Users[i].Kongctl,
-				"organization user",
-				rs.Organization.Users[i].Ref,
-			); err != nil {
-				return err
-			}
-		}
-		for i := range rs.Organization.SystemAccounts {
-			if err := assignNamespace(
-				&rs.Organization.SystemAccounts[i].Kongctl,
-				"organization system account",
-				rs.Organization.SystemAccounts[i].Ref,
-			); err != nil {
-				return err
-			}
-		}
-	}
-
-	// Note: Child resources (API versions, publications, etc.) do not get kongctl metadata
-	// as Konnect doesn't support labels on child resources
-	return nil
+	})
 }
 
 // applyDefaults applies SDK default values to all resources in the set.
