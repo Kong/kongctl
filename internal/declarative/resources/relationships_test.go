@@ -33,3 +33,17 @@ func TestExplainSchemaIncludesRelationshipContract(t *testing.T) {
 	require.Equal(t, []string{"!ref", "!external", "!lookup"}, schema.XRelationship.AcceptedTags)
 	require.Equal(t, []string{"name"}, schema.XRelationship.Selectors)
 }
+
+func TestRelationshipExplainNoteMatchesExternalCapability(t *testing.T) {
+	t.Parallel()
+
+	require.Contains(
+		t,
+		relationshipExplainNote(RelationshipKindAPIForeignKey, true),
+		"use !lookup",
+	)
+	note := relationshipExplainNote(RelationshipKindAPIForeignKey, false)
+	require.Contains(t, note, "use !ref")
+	require.NotContains(t, note, "!lookup")
+	require.NotContains(t, note, "!external")
+}

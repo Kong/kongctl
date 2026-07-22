@@ -42,6 +42,15 @@ func TestExternalTagResolverMapping(t *testing.T) {
 	require.Equal(t, map[string]string{"name": "shared", "display_name": "Shared Gateway"}, lookup.MatchFields)
 }
 
+func TestExternalLookupKeyIsUnambiguous(t *testing.T) {
+	t.Parallel()
+
+	separateSelectors := ExternalLookupKey(map[string]string{"a": "b", "c": "d"})
+	delimitersInValue := ExternalLookupKey(map[string]string{"a": "b,c=d"})
+	require.NotEqual(t, separateSelectors, delimitersInValue)
+	require.Equal(t, separateSelectors, ExternalLookupKey(map[string]string{"c": "d", "a": "b"}))
+}
+
 func TestExternalTagResolverRejectsInvalidValues(t *testing.T) {
 	t.Parallel()
 
@@ -50,6 +59,7 @@ func TestExternalTagResolverRejectsInvalidValues(t *testing.T) {
 		node *yaml.Node
 	}{
 		{name: "missing delimiter", node: &yaml.Node{Kind: yaml.ScalarNode, Value: "shared"}},
+		{name: "invalid node kind", node: &yaml.Node{}},
 		{name: "empty selector", node: &yaml.Node{Kind: yaml.MappingNode}},
 		{name: "id combined", node: &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{
 			{Kind: yaml.ScalarNode, Value: "id"},

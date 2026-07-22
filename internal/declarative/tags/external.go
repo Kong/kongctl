@@ -74,6 +74,8 @@ func (r *ExternalTagResolver) Resolve(node *yaml.Node) (any, error) {
 		}
 	case yaml.DocumentNode, yaml.SequenceNode, yaml.AliasNode:
 		return nil, fmt.Errorf("%s must be used with a field:value scalar or mapping", r.tag)
+	default:
+		return nil, fmt.Errorf("%s cannot resolve unsupported YAML node kind %d", r.tag, node.Kind)
 	}
 
 	if _, hasID := lookup.MatchFields["id"]; hasID && len(lookup.MatchFields) != 1 {
@@ -120,7 +122,7 @@ func ExternalLookupKey(matchFields map[string]string) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		fmt.Fprintf(&b, "%s=%s", field, matchFields[field])
+		fmt.Fprintf(&b, "%q=%q", field, matchFields[field])
 	}
 	return b.String()
 }

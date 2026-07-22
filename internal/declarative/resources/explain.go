@@ -1003,7 +1003,8 @@ func applyRelationshipHints(rt ResourceType, node *ExplainNode) {
 			ScopeField: relationship.ScopeFieldPath,
 			RootOnly:   relationship.RootOnly,
 		}
-		if capability, supported := ExternalResolutionFor(relationship.TargetType); supported {
+		capability, supportsExternal := ExternalResolutionFor(relationship.TargetType)
+		if supportsExternal {
 			metadata.AcceptedTags = []string{"!ref", "!external", "!lookup"}
 			metadata.Selectors = append([]string(nil), capability.Selectors...)
 			if capability.AllowAnyStringSelector {
@@ -1019,10 +1020,19 @@ func applyRelationshipHints(rt ResourceType, node *ExplainNode) {
 		}
 		fieldNode.Notes = append(
 			fieldNode.Notes,
-			fmt.Sprintf("Relationship field (%s); use !external or the equivalent !lookup for an existing remote resource.",
-				relationship.Kind),
+			relationshipExplainNote(relationship.Kind, supportsExternal),
 		)
 	}
+}
+
+func relationshipExplainNote(kind RelationshipKind, supportsExternal bool) string {
+	if supportsExternal {
+		return fmt.Sprintf(
+			"Relationship field (%s); use !lookup or its !external alias for an existing remote resource.",
+			kind,
+		)
+	}
+	return fmt.Sprintf("Relationship field (%s); use !ref to reference a declarative resource.", kind)
 }
 
 func defaultExplainHints(rt ResourceType) map[string]ExplainFieldHint {
