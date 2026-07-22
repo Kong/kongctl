@@ -1,0 +1,111 @@
+test:
+  requiresPAT: false
+
+env:
+  KONGCTL_E2E_KONNECT_PAT: local-plan-mode-validation-token
+
+steps:
+  - name: 000-execution-mode-mismatches
+    skipInputs: true
+    commands:
+      - name: 000-apply-rejects-sync-plan
+        run:
+          - apply
+          - --plan
+          - "{{ .scenario_dir }}/testdata/sync-plan.json"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: 'apply command, which requires "apply" mode'
+
+      - name: 001-apply-rejects-delete-plan
+        run:
+          - apply
+          - --plan
+          - "{{ .scenario_dir }}/testdata/delete-plan.json"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: 'apply command, which requires "apply" mode'
+
+      - name: 002-sync-rejects-apply-plan
+        run:
+          - sync
+          - --plan
+          - "{{ .scenario_dir }}/testdata/apply-plan.json"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: 'sync command, which requires "sync" mode'
+
+      - name: 003-sync-rejects-delete-plan
+        run:
+          - sync
+          - --plan
+          - "{{ .scenario_dir }}/testdata/delete-plan.json"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: 'sync command, which requires "sync" mode'
+
+      - name: 004-delete-rejects-apply-plan
+        run:
+          - delete
+          - --plan
+          - "{{ .scenario_dir }}/testdata/apply-plan.json"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: 'delete command, which requires "delete" mode'
+
+      - name: 005-delete-rejects-sync-plan
+        run:
+          - delete
+          - --plan
+          - "{{ .scenario_dir }}/testdata/sync-plan.json"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: 'delete command, which requires "delete" mode'
+
+  - name: 001-diff-remains-mode-neutral
+    skipInputs: true
+    commands:
+      - name: 000-diff-apply-plan
+        run:
+          - diff
+          - --plan
+          - "{{ .scenario_dir }}/testdata/apply-plan.json"
+          - --output
+          - json
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+
+      - name: 001-diff-sync-plan
+        run:
+          - diff
+          - --plan
+          - "{{ .scenario_dir }}/testdata/sync-plan.json"
+          - --output
+          - json
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+
+      - name: 002-diff-delete-plan
+        run:
+          - diff
+          - --plan
+          - "{{ .scenario_dir }}/testdata/delete-plan.json"
+          - --output
+          - json
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: delete

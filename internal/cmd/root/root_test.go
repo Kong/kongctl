@@ -291,7 +291,8 @@ func TestDeleteHelpUsesDeclarativeExamples(t *testing.T) {
 		"kongctl delete -f config.yaml",
 		"# Preview deletions before executing them",
 		"kongctl delete -f config.yaml --dry-run",
-		"# Execute a reviewed delete plan without prompting",
+		"# Generate and execute a reviewed delete plan without prompting",
+		"kongctl plan --mode delete -f config.yaml --output-file delete-plan.json",
 		"kongctl delete --plan delete-plan.json --auto-approve",
 	} {
 		if !strings.Contains(examples, want) {

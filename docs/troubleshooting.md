@@ -511,8 +511,11 @@ Error: plan is out of date - resource already exists
 
 Regenerate the plan:
 ```bash
-kongctl plan -f config.yaml --output-file new-plan.json
+kongctl plan --mode apply -f config.yaml --output-file new-plan.json
 ```
+
+Use `--mode sync` or `--mode delete` instead when the plan will be executed by
+`kongctl sync --plan` or `kongctl delete --plan`.
 
 Compare old and new plans:
 ```bash

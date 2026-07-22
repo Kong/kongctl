@@ -30,8 +30,8 @@ simple YAML declaration files and a simple state free CLI tool.
 1. **Configuration manifests**: Configuration is expressed as simple YAML files that describe the desired state of your Konnect resources. 
    Configuration files can be split into multiple files and directories for modularity and reuse.
 1. **Plan-Based**: Plans are objects that represent required changes to move a set of resources from one state to another, desired, state. 
-   In `kongctl`, plan artifacts are first class concepts that can be created, stored, reviewed, and applied. Plans are represented as JSON objects
-   and can be generated and stored as files for later application. When running declarative commands, if plans are not provided
+   In `kongctl`, plan artifacts are first class concepts that can be created, stored, reviewed, and executed. Plans are represented as JSON objects
+   and can be generated and stored as files for later execution. When running declarative commands, if plans are not provided
    they are generated implicitly and executed immediately.
 1. **State-Free**: `kongctl` does not use a state file or database to store the current state. The system relies on querying of the 
    online Konnect state in order to calculate plans and apply changes.
@@ -195,7 +195,7 @@ portals:
 
 Plans are central to how `kongctl` manages resource state. Plans are objects which
 define the required steps to move a set of resources from their current state to a
-desired state. Plans can be created, stored, reviewed, and applied at a later time
+desired state. Plans can be created, stored, reviewed, and executed at a later time
 and are stored as JSON files. Plans are not required to be used, 
 but can enable advanced workflows.
 
@@ -220,6 +220,10 @@ kongctl plan --mode apply -f config.yaml --output-file plan.json
 # Phase 2: Execute plan artifact (can be done later)
 kongctl apply --plan plan.json
 ```
+
+Saved plans have strict execution ownership. `apply --plan`, `sync --plan`, and
+`delete --plan` accept only plans generated in `apply`, `sync`, and `delete`
+mode, respectively. `diff --plan` can inspect a plan generated in any mode.
 
 #### Why Use Plan Artifacts?
 
@@ -748,10 +752,10 @@ command usage, flags and options.
 ### plan
 
 Create a plan - a JSON file containing the set of planned changes to a set of resources.
-Plans are generated with either `--mode apply` or `--mode sync`. Apply mode
-creates and updates configured resources only. Sync mode also deletes managed
-resources, but only for resource collections that are explicitly present in the
-input configuration.
+Plans are generated with `--mode apply`, `--mode sync`, or `--mode delete`.
+Apply mode creates and updates configured resources only. Sync mode also deletes
+managed resources, but only for resource collections that are explicitly present
+in the input configuration. Delete mode targets matching resources for deletion.
 
 Generate an apply plan and output to STDOUT:
 
@@ -781,6 +785,7 @@ kongctl apply -f config.yaml
 Apply from saved plan:
 
 ```shell
+kongctl plan --mode apply -f config.yaml --output-file plan.json
 kongctl apply --plan plan.json
 ```
 
@@ -868,7 +873,27 @@ kongctl sync -f config.yaml --auto-approve
 Sync from a plan artifact:
 
 ```shell
+kongctl plan --mode sync -f config.yaml --output-file plan.json
 kongctl sync --plan plan.json
+```
+
+### delete
+
+`delete` removes the resources selected by the supplied declarative
+configuration. Saved delete plans must be generated in delete mode.
+
+Delete directly from config:
+
+```shell
+kongctl delete -f config.yaml
+```
+
+Generate, review, and execute a delete plan:
+
+```shell
+kongctl plan --mode delete -f config.yaml --output-file delete-plan.json
+kongctl diff --plan delete-plan.json
+kongctl delete --plan delete-plan.json
 ```
 
 ### diff
@@ -900,7 +925,8 @@ kongctl diff --plan plan.json
 ```
 
 > Note: `--mode` cannot be used with `--plan` because mode is stored in the
-> plan artifact metadata.
+> plan artifact metadata. Unlike execution commands, `diff --plan` accepts
+> apply-, sync-, and delete-mode plans.
 
 For `UPDATE` actions, text diff shows only the fields that would be
 changed. JSON and YAML outputs expose the same detail in each change's
@@ -1093,7 +1119,7 @@ Review what the previous state included:
 kongctl diff --plan plans/last-known-good.json
 ```
 
-Revert to previous state:
+Execute the previously approved sync-mode plan:
 
 ```shell
 kongctl sync --plan plans/last-known-good.json --auto-approve

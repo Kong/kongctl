@@ -176,8 +176,9 @@ func TestApplyCommand_RejectsDeletes(t *testing.T) {
 
 	// Verify rejection of DELETE operations
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "apply command cannot execute plans with DELETE operations")
-	assert.Contains(t, err.Error(), "Use 'sync' command")
+	assert.Contains(t, err.Error(), `contains "DELETE" action`)
+	assert.Contains(t, err.Error(), "cannot be executed by the apply command")
+	assert.Contains(t, err.Error(), "Allowed actions for apply plans: CREATE, UPDATE, EXTERNAL_TOOL")
 }
 
 func TestApplyCommand_DryRun(t *testing.T) {

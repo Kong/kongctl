@@ -232,29 +232,173 @@ func TestMaxConcurrencyFromCmd(t *testing.T) {
 	})
 }
 
-func Test_validateDeletePlan(t *testing.T) {
+func Test_validateExecutionPlans(t *testing.T) {
 	tests := []struct {
-		name    string
-		mode    planner.PlanMode
-		wantErr bool
-		errMsg  string
+		name      string
+		validate  func(*planner.Plan, string) error
+		mode      planner.PlanMode
+		actions   []planner.ActionType
+		wantError []string
 	}{
 		{
-			name:    "delete mode is accepted",
-			mode:    planner.PlanModeDelete,
-			wantErr: false,
+			name:     "apply accepts create update and external tool actions",
+			validate: validateApplyPlan,
+			mode:     planner.PlanModeApply,
+			actions: []planner.ActionType{
+				planner.ActionCreate,
+				planner.ActionUpdate,
+				planner.ActionExternalTool,
+			},
 		},
 		{
-			name:    "apply mode is rejected",
-			mode:    planner.PlanModeApply,
-			wantErr: true,
-			errMsg:  `delete command requires a plan generated in delete mode, got "apply" mode`,
+			name:     "apply rejects sync mode",
+			validate: validateApplyPlan,
+			mode:     planner.PlanModeSync,
+			wantError: []string{
+				`plan "test-plan.json" was generated in "sync" mode`,
+				`apply command, which requires "apply" mode`,
+				`kongctl plan --mode apply -f <files> --output-file <plan-file>`,
+				`kongctl sync --plan <plan-file>`,
+			},
 		},
 		{
-			name:    "sync mode is rejected",
-			mode:    planner.PlanModeSync,
-			wantErr: true,
-			errMsg:  `delete command requires a plan generated in delete mode, got "sync" mode`,
+			name:     "apply rejects delete mode",
+			validate: validateApplyPlan,
+			mode:     planner.PlanModeDelete,
+			wantError: []string{
+				`plan "test-plan.json" was generated in "delete" mode`,
+				`apply command, which requires "apply" mode`,
+				`kongctl delete --plan <plan-file>`,
+			},
+		},
+		{
+			name:     "apply rejects delete actions",
+			validate: validateApplyPlan,
+			mode:     planner.PlanModeApply,
+			actions:  []planner.ActionType{planner.ActionDelete},
+			wantError: []string{
+				`contains "DELETE" action`,
+				`cannot be executed by the apply command`,
+				`Allowed actions for apply plans: CREATE, UPDATE, EXTERNAL_TOOL`,
+				`kongctl plan --mode apply`,
+			},
+		},
+		{
+			name:     "apply rejects unknown actions",
+			validate: validateApplyPlan,
+			mode:     planner.PlanModeApply,
+			actions:  []planner.ActionType{"REPLACE"},
+			wantError: []string{
+				`contains "REPLACE" action`,
+				`Allowed actions for apply plans: CREATE, UPDATE, EXTERNAL_TOOL`,
+			},
+		},
+		{
+			name:     "sync accepts all supported actions",
+			validate: validateSyncPlan,
+			mode:     planner.PlanModeSync,
+			actions: []planner.ActionType{
+				planner.ActionCreate,
+				planner.ActionUpdate,
+				planner.ActionDelete,
+				planner.ActionExternalTool,
+			},
+		},
+		{
+			name:     "sync rejects apply mode",
+			validate: validateSyncPlan,
+			mode:     planner.PlanModeApply,
+			wantError: []string{
+				`plan "test-plan.json" was generated in "apply" mode`,
+				`sync command, which requires "sync" mode`,
+				`kongctl apply --plan <plan-file>`,
+			},
+		},
+		{
+			name:     "sync rejects delete mode",
+			validate: validateSyncPlan,
+			mode:     planner.PlanModeDelete,
+			wantError: []string{
+				`plan "test-plan.json" was generated in "delete" mode`,
+				`sync command, which requires "sync" mode`,
+				`kongctl delete --plan <plan-file>`,
+			},
+		},
+		{
+			name:     "sync rejects unknown actions",
+			validate: validateSyncPlan,
+			mode:     planner.PlanModeSync,
+			actions:  []planner.ActionType{"REPLACE"},
+			wantError: []string{
+				`contains "REPLACE" action`,
+				`Allowed actions for sync plans: CREATE, UPDATE, DELETE, EXTERNAL_TOOL`,
+			},
+		},
+		{
+			name:     "delete accepts delete actions",
+			validate: validateDeletePlan,
+			mode:     planner.PlanModeDelete,
+			actions:  []planner.ActionType{planner.ActionDelete},
+		},
+		{
+			name:     "delete rejects apply mode",
+			validate: validateDeletePlan,
+			mode:     planner.PlanModeApply,
+			wantError: []string{
+				`plan "test-plan.json" was generated in "apply" mode`,
+				`delete command, which requires "delete" mode`,
+				`kongctl apply --plan <plan-file>`,
+			},
+		},
+		{
+			name:     "delete rejects sync mode",
+			validate: validateDeletePlan,
+			mode:     planner.PlanModeSync,
+			wantError: []string{
+				`plan "test-plan.json" was generated in "sync" mode`,
+				`delete command, which requires "delete" mode`,
+				`kongctl sync --plan <plan-file>`,
+			},
+		},
+		{
+			name:     "delete rejects create actions",
+			validate: validateDeletePlan,
+			mode:     planner.PlanModeDelete,
+			actions:  []planner.ActionType{planner.ActionCreate},
+			wantError: []string{
+				`contains "CREATE" action`,
+				`Allowed actions for delete plans: DELETE`,
+			},
+		},
+		{
+			name:     "delete rejects update actions",
+			validate: validateDeletePlan,
+			mode:     planner.PlanModeDelete,
+			actions:  []planner.ActionType{planner.ActionUpdate},
+			wantError: []string{
+				`contains "UPDATE" action`,
+				`Allowed actions for delete plans: DELETE`,
+			},
+		},
+		{
+			name:     "delete rejects external tool actions",
+			validate: validateDeletePlan,
+			mode:     planner.PlanModeDelete,
+			actions:  []planner.ActionType{planner.ActionExternalTool},
+			wantError: []string{
+				`contains "EXTERNAL_TOOL" action`,
+				`Allowed actions for delete plans: DELETE`,
+			},
+		},
+		{
+			name:     "delete rejects unknown actions",
+			validate: validateDeletePlan,
+			mode:     planner.PlanModeDelete,
+			actions:  []planner.ActionType{"REPLACE"},
+			wantError: []string{
+				`contains "REPLACE" action`,
+				`Allowed actions for delete plans: DELETE`,
+			},
 		},
 	}
 
@@ -262,65 +406,52 @@ func Test_validateDeletePlan(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			plan := &planner.Plan{
 				Metadata: planner.PlanMetadata{Mode: tt.mode},
+				Changes:  make([]planner.PlannedChange, 0, len(tt.actions)),
 			}
-			err := validateDeletePlan(plan)
-			if tt.wantErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errMsg)
-			} else {
+			for _, action := range tt.actions {
+				plan.Changes = append(plan.Changes, planner.PlannedChange{Action: action})
+			}
+
+			err := tt.validate(plan, "test-plan.json")
+			if len(tt.wantError) == 0 {
 				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			for _, expected := range tt.wantError {
+				assert.Contains(t, err.Error(), expected)
 			}
 		})
 	}
 }
 
-func Test_validateApplyPlan(t *testing.T) {
-	tests := []struct {
-		name    string
-		mode    planner.PlanMode
-		changes []planner.PlannedChange
-		wantErr string
-	}{
-		{
-			name: "apply mode is accepted",
-			mode: planner.PlanModeApply,
-		},
-		{
-			name: "sync mode is rejected",
-			mode: planner.PlanModeSync,
-			wantErr: `plan "sync-plan.json" was generated in "sync" mode and cannot be loaded into the apply command. ` +
-				"Generate an apply plan with: kongctl plan --mode apply -f <files> --output-file <plan-file>",
-		},
-		{
-			name: "delete mode is rejected",
-			mode: planner.PlanModeDelete,
-			wantErr: `plan "sync-plan.json" was generated in "delete" mode and cannot be loaded into the apply command. ` +
-				"Generate an apply plan with: kongctl plan --mode apply -f <files> --output-file <plan-file>",
-		},
-		{
-			name: "apply mode with delete operations is rejected",
-			mode: planner.PlanModeApply,
-			changes: []planner.PlannedChange{
-				{Action: planner.ActionDelete},
-			},
-			wantErr: "apply command cannot execute plans with DELETE operations. Use 'sync' command instead",
+func Test_validateExecutionPlanDescribesStdin(t *testing.T) {
+	plan := &planner.Plan{
+		Metadata: planner.PlanMetadata{Mode: planner.PlanModeDelete},
+	}
+
+	err := validateApplyPlan(plan, "-")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `plan from stdin was generated in "delete" mode`)
+	assert.Contains(t, err.Error(), "kongctl delete --plan -")
+}
+
+func Test_validateExecutionPlanDoesNotRecommendInvalidPlanModeCommand(t *testing.T) {
+	plan := &planner.Plan{
+		Metadata: planner.PlanMetadata{Mode: planner.PlanModeApply},
+		Changes: []planner.PlannedChange{
+			{Action: planner.ActionDelete},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			plan := &planner.Plan{
-				Metadata: planner.PlanMetadata{Mode: tt.mode},
-				Changes:  tt.changes,
-			}
-			err := validateApplyPlan(plan, "sync-plan.json")
-			if tt.wantErr != "" {
-				require.EqualError(t, err, tt.wantErr)
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
+	err := validateSyncPlan(plan, "edited-plan.json")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `sync command, which requires "sync" mode`)
+	assert.NotContains(t, err.Error(), "To execute this plan unchanged")
+	assert.NotContains(t, err.Error(), "kongctl apply --plan")
 }
 
 func Test_parsePlanMode(t *testing.T) {
