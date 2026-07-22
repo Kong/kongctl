@@ -103,6 +103,29 @@ func (s *SyncScope) ChildInScope(parentType ResourceType, parentRef string, rt R
 	return ok
 }
 
+// RebindChildParent moves child sync scope from a declarative selector value to
+// its planner-resolved parent ID.
+func (s *SyncScope) RebindChildParent(parentType ResourceType, oldRef, newRef string) {
+	if s == nil || oldRef == "" || newRef == "" || oldRef == newRef {
+		return
+	}
+	byParentRef := s.ChildResourceTypes[parentType]
+	if byParentRef == nil {
+		return
+	}
+	childTypes := byParentRef[oldRef]
+	if childTypes == nil {
+		return
+	}
+	if byParentRef[newRef] == nil {
+		byParentRef[newRef] = make(map[ResourceType]struct{})
+	}
+	for childType := range childTypes {
+		byParentRef[newRef][childType] = struct{}{}
+	}
+	delete(byParentRef, oldRef)
+}
+
 // AddRootChildCollection records an explicit root-level empty child collection.
 // This cannot express a parent and is rejected by sync planning with guidance.
 func (s *SyncScope) AddRootChildCollection(rt ResourceType) {

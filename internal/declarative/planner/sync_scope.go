@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
@@ -348,6 +349,9 @@ func validateParentScopes(scope *resources.SyncScope) error {
 	}
 	for _, child := range scope.ChildScopes() {
 		if !syncRootParentType(child.ParentType) || scope.RootInScope(child.ParentType) {
+			continue
+		}
+		if tags.IsExternalPlaceholder(child.ParentRef) {
 			continue
 		}
 		guidance := "add the parent resource collection or move the child collection under that parent"

@@ -8,12 +8,15 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerExternalResourceType(
 		ResourceTypeControlPlane,
 		func(rs *ResourceSet) *[]ControlPlaneResource { return &rs.ControlPlanes },
 		AutoExplain[ControlPlaneResource](),
+		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
 	)
 }
+
+func (c *ControlPlaneResource) GetExternalBlock() *ExternalBlock { return c.External }
 
 // ControlPlaneGroupMember represents a member entry for a control plane group.
 type ControlPlaneGroupMember struct {

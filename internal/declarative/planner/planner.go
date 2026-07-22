@@ -57,7 +57,8 @@ type Planner struct {
 	changeCount int
 
 	// Cache for managed resources fetched during a single GeneratePlan run.
-	resourceCache *planningResourceCache
+	resourceCache    *planningResourceCache
+	externalResolver *externalLookupResolver
 
 	// For multi-namespace runs, prefer one all-namespace read per resource type
 	// and filter in-memory per namespace to reduce API calls.
@@ -151,7 +152,6 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	if opts.Mode == PlanModeSync {
 		ensurePlanningSyncScope(rs)
-		basePlan.Metadata.SyncScope = syncScopeMetadata(rs.SyncScope)
 		if err := validateSyncScope(rs.SyncScope); err != nil {
 			return nil, err
 		}
@@ -163,6 +163,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		rs,
 	); err != nil {
 		return nil, fmt.Errorf("failed to resolve resource identities: %w", err)
+	}
+	if opts.Mode == PlanModeSync {
+		basePlan.Metadata.SyncScope = syncScopeMetadata(rs.SyncScope)
 	}
 
 	// Initialize resolver with populated ResourceSet
@@ -893,6 +896,23 @@ func (p *Planner) GetDesiredPortalSnippets() []resources.PortalSnippetResource {
 
 // resolveResourceIdentities pre-resolves Konnect IDs for all resources
 func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.ResourceSet) error {
+	p.externalResolver = newExternalLookupResolver(p)
+	if err := p.externalResolver.resolveDeclarations(ctx, rs); err != nil {
+		return fmt.Errorf("failed to resolve external declarations: %w", err)
+	}
+	if err := p.externalResolver.resolveInlineLookups(
+		ctx,
+		rs,
+		resources.ResourceTypeControlPlane,
+		resources.ResourceTypeEventGatewayControlPlane,
+		resources.ResourceTypePortal,
+		resources.ResourceTypeAIGateway,
+		resources.ResourceTypeAuditLogWebhookDestination,
+		resources.ResourceTypeOrganizationTeam,
+	); err != nil {
+		return fmt.Errorf("failed to resolve inline external lookups: %w", err)
+	}
+
 	// Resolve Control Plane identities
 	if err := p.resolveControlPlaneIdentities(ctx, rs.ControlPlanes); err != nil {
 		return fmt.Errorf("failed to resolve control plane identities: %w", err)
@@ -900,6 +920,18 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 
 	if err := p.resolveEventGatewayControlPlaneIdentities(ctx, rs.EventGatewayControlPlanes); err != nil {
 		return fmt.Errorf("failed to resolve Event Gateway identities: %w", err)
+	}
+
+	if err := p.externalResolver.resolveScopedDeclarations(ctx, rs); err != nil {
+		return fmt.Errorf("failed to resolve scoped external declarations: %w", err)
+	}
+	if err := p.externalResolver.resolveInlineLookups(
+		ctx,
+		rs,
+		resources.ResourceTypeGatewayService,
+		resources.ResourceTypeEventGatewayVirtualCluster,
+	); err != nil {
+		return fmt.Errorf("failed to resolve scoped inline external lookups: %w", err)
 	}
 
 	if err := p.resolveGatewayServiceIdentities(ctx, rs.GatewayServices, rs.ControlPlanes); err != nil {
@@ -1114,7 +1146,11 @@ func matchExternalAIGateway(
 	if gateway.External.ID != "" {
 		match := gatewayByID[gateway.External.ID]
 		if match == nil {
-			return nil, fmt.Errorf("external ai_gateway %s: not found with id %s", gateway.GetRef(), gateway.External.ID)
+			return nil, fmt.Errorf(
+				"external ai_gateway %s: not found with id %s",
+				gateway.GetRef(),
+				gateway.External.ID,
+			)
 		}
 		return match, nil
 	}
@@ -1136,7 +1172,10 @@ func matchExternalAIGateway(
 		return singleExternalAIGatewayMatch(gateway.GetRef(), FieldName, name, gatewayByName[name])
 	}
 
-	return nil, fmt.Errorf("external ai_gateway %s: selector supports 'display_name' or 'name' fields", gateway.GetRef())
+	return nil, fmt.Errorf(
+		"external ai_gateway %s: selector supports 'display_name' or 'name' fields",
+		gateway.GetRef(),
+	)
 }
 
 func singleExternalAIGatewayMatch(
@@ -1517,6 +1556,9 @@ func (p *Planner) resolveGatewayServiceIdentities(
 		}
 
 		service.SetResolvedControlPlaneID(cpID)
+		if service.GetKonnectID() != "" {
+			continue
+		}
 
 		if !service.IsExternal() {
 			// Managed services will be resolved when supported; for now record CP ID only.
@@ -1607,6 +1649,16 @@ func (p *Planner) resolveAuditLogWebhookDestinationIdentities(
 	destinations []resources.AuditLogWebhookDestinationResource,
 ) error {
 	if len(destinations) == 0 {
+		return nil
+	}
+	needsLookup := false
+	for i := range destinations {
+		if destinations[i].GetKonnectID() == "" {
+			needsLookup = true
+			break
+		}
+	}
+	if !needsLookup {
 		return nil
 	}
 
@@ -2564,7 +2616,8 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	if hasExternalPortals ||
 		hasExternalEventGateways ||
 		hasExternalAIGateways ||
-		hasExternalOrganizationTeams {
+		hasExternalOrganizationTeams ||
+		(p.externalResolver != nil && p.externalResolver.hasInlineParents) {
 		namespaces = append(namespaces, resources.NamespaceExternal)
 	}
 

@@ -10,12 +10,15 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerExternalResourceType(
 		ResourceTypePortal,
 		func(rs *ResourceSet) *[]PortalResource { return &rs.Portals },
 		AutoExplain[PortalResource](),
+		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
 	)
 }
+
+func (p *PortalResource) GetExternalBlock() *ExternalBlock { return p.External }
 
 // PortalResource represents a portal in declarative configuration
 type PortalResource struct {

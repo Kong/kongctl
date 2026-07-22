@@ -181,6 +181,9 @@ func (l *Loader) validateOrganizationUsers(rs *resources.ResourceSet) error {
 				membership.User,
 			)
 		}
+		if tags.IsExternalPlaceholder(membership.Team) {
+			continue
+		}
 		if resource, found := rs.GetResourceByRef(membership.Team); !found {
 			return fmt.Errorf("organization_user_team_membership %q references unknown organization_team: %s",
 				membership.GetRef(), membership.Team)
@@ -283,6 +286,9 @@ func (l *Loader) validateOrganizationSystemAccounts(rs *resources.ResourceSet) e
 				membership.SystemAccount,
 			)
 		}
+		if tags.IsExternalPlaceholder(membership.Team) {
+			continue
+		}
 		if resource, found := rs.GetResourceByRef(membership.Team); !found {
 			return fmt.Errorf("organization_system_account_team_membership %q references unknown organization_team: %s",
 				membership.GetRef(), membership.Team)
@@ -369,12 +375,14 @@ func (l *Loader) validateOrganizationTeamRoleReferences(
 	role *resources.OrganizationTeamRoleResource,
 	rs *resources.ResourceSet,
 ) error {
-	if resource, found := rs.GetResourceByRef(role.Team); !found {
-		return fmt.Errorf("organization_team_role %q references unknown organization_team: %s",
-			role.GetRef(), role.Team)
-	} else if resource.GetType() != resources.ResourceTypeOrganizationTeam {
-		return fmt.Errorf("organization_team_role %q references %s but expected organization_team: %s",
-			role.GetRef(), resource.GetType(), role.Team)
+	if !tags.IsExternalPlaceholder(role.Team) {
+		if resource, found := rs.GetResourceByRef(role.Team); !found {
+			return fmt.Errorf("organization_team_role %q references unknown organization_team: %s",
+				role.GetRef(), role.Team)
+		} else if resource.GetType() != resources.ResourceTypeOrganizationTeam {
+			return fmt.Errorf("organization_team_role %q references %s but expected organization_team: %s",
+				role.GetRef(), resource.GetType(), role.Team)
+		}
 	}
 
 	if !tags.IsRefPlaceholder(role.EntityID) {
@@ -534,6 +542,10 @@ func (l *Loader) validateControlPlaneDataPlaneCertificates(
 				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 					cert.GetRef(), existing.GetType())
 			}
+		}
+
+		if tags.IsExternalPlaceholder(cert.ControlPlane) {
+			continue
 		}
 
 		if !rs.HasRef(cert.ControlPlane) {
@@ -822,23 +834,27 @@ func validateAIGatewayChildren[T any, P aiGatewayChildResource[T]](
 		}
 
 		gatewayRef := resources.NormalizeResourceRef(parentRef.Ref)
-		gateway, found := rs.GetResourceByRef(gatewayRef)
-		if !found {
-			return fmt.Errorf(
-				"%s %q references unknown ai_gateway %q",
-				resourceLabel,
-				child.GetRef(),
-				parentRef.Ref,
-			)
-		}
-		if gateway.GetType() != resources.ResourceTypeAIGateway {
-			return fmt.Errorf(
-				"%s %q references %q which is %s, not ai_gateway",
-				resourceLabel,
-				child.GetRef(),
-				parentRef.Ref,
-				gateway.GetType(),
-			)
+		if lookup, external := tags.ParseExternalPlaceholder(parentRef.Ref); external {
+			gatewayRef = "external:" + tags.ExternalLookupKey(lookup.MatchFields)
+		} else {
+			gateway, found := rs.GetResourceByRef(gatewayRef)
+			if !found {
+				return fmt.Errorf(
+					"%s %q references unknown ai_gateway %q",
+					resourceLabel,
+					child.GetRef(),
+					parentRef.Ref,
+				)
+			}
+			if gateway.GetType() != resources.ResourceTypeAIGateway {
+				return fmt.Errorf(
+					"%s %q references %q which is %s, not ai_gateway",
+					resourceLabel,
+					child.GetRef(),
+					parentRef.Ref,
+					gateway.GetType(),
+				)
+			}
 		}
 
 		value := uniqueValue(childPtr)
@@ -1636,6 +1652,11 @@ func (l *Loader) validateResourceReferences(resource any, rs *resources.Resource
 		// Skip validation for unresolved reference placeholders
 		if strings.HasPrefix(fieldValue, tags.RefPlaceholderPrefix) {
 			// This will be resolved during planning/execution phase
+			continue
+		}
+		if tags.IsExternalPlaceholder(fieldValue) {
+			// External lookups are validated and resolved by the planner once the
+			// target type and any parent scope are available.
 			continue
 		}
 

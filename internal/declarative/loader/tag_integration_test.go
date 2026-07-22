@@ -6,9 +6,37 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestLoader_ExternalLookupTagAliases(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(`
+apis:
+  - ref: products
+    name: Products
+    publications:
+      - ref: external-publication
+        portal_id: !external name:Shared Portal
+      - ref: lookup-publication
+        portal_id: !lookup {name: Shared Portal}
+`), 0o600))
+
+	rs, err := NewWithBaseDir(tmpDir).LoadFile(configFile)
+	require.NoError(t, err)
+	require.Len(t, rs.APIPublications, 2)
+
+	external, ok := tags.ParseExternalPlaceholder(rs.APIPublications[0].PortalID)
+	require.True(t, ok)
+	lookup, ok := tags.ParseExternalPlaceholder(rs.APIPublications[1].PortalID)
+	require.True(t, ok)
+	require.Equal(t, external.MatchFields, lookup.MatchFields)
+}
 
 func TestLoader_TagProcessing(t *testing.T) {
 	// Create test directory

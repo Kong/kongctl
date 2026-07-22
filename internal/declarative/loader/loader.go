@@ -277,6 +277,8 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	refResolver := tags.NewRefTagResolver(baseDir)
 	registry.Register(fileResolver)
 	registry.Register(refResolver)
+	registry.Register(tags.NewExternalTagResolver("!external"))
+	registry.Register(tags.NewExternalTagResolver("!lookup"))
 	registry.Register(tags.NewEnvTagResolver(tags.EnvTagModeResolve))
 
 	if registry.HasResolvers() {
@@ -290,6 +292,8 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	placeholderRegistry := tags.NewResolverRegistry()
 	placeholderRegistry.Register(fileResolver)
 	placeholderRegistry.Register(refResolver)
+	placeholderRegistry.Register(tags.NewExternalTagResolver("!external"))
+	placeholderRegistry.Register(tags.NewExternalTagResolver("!lookup"))
 	placeholderRegistry.Register(tags.NewEnvTagResolver(tags.EnvTagModePlaceholder))
 
 	placeholderContent, err := placeholderRegistry.Process(rawContent)

@@ -86,6 +86,15 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 	desiredNames := make(map[string]bool)
 	for _, desiredCluster := range desired {
 		if desiredCluster.IsExternal() {
+			if desiredCluster.GetKonnectID() != "" {
+				for _, current := range currentClusters {
+					if current.ID == desiredCluster.GetKonnectID() {
+						desiredNames[current.Name] = true
+						break
+					}
+				}
+				continue
+			}
 			current, err := matchExternalEventGatewayVirtualCluster(&desiredCluster, currentClusters)
 			if err != nil {
 				return err

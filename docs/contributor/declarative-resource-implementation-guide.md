@@ -1736,6 +1736,33 @@ application_auth_strategies:
 3. Planner materializes unresolved placeholders into change references.
 4. Executor resolves references to actual IDs before SDK calls.
 
+### EXTERNAL LOOKUP CONTRACTS
+
+`!external` and `!lookup` are exact aliases. The loader validates their scalar
+or mapping syntax and serializes an opaque placeholder; it never performs
+network access. The planner resolves the placeholder before managed identity
+matching and writes only the resulting ID into the resource and plan.
+
+Resource types that support `_external` or inline lookup targets must:
+
+1. Implement `ExternallyResolvableResource`.
+2. Use `registerExternalResourceType` (or its slice-accessor variant) so the
+   capability is enforced by the generic registration constraint.
+3. Register supported selectors and any parent resource type.
+4. Provide exactly one planner lookup adapter.
+5. Add unit, integration, and E2E coverage for selector, ambiguity, missing
+   scope, caching, and unmanaged lifecycle behavior.
+
+Cross-resource YAML fields use static `RelationshipDescriptor` metadata. Mark
+API schema IDs as `api_foreign_key` and kongctl-added root parent fields as
+`kongctl_parent_selector`. Include the target type, scope field, and root-only
+placement. This metadata drives planner inference and `kongctl explain`; do not
+add field-name switches to individual planners.
+
+Keep execution dependencies separate from relationship metadata. Dependencies
+control operation ordering, while relationship descriptors define the YAML
+field contract and supported reference forms.
+
 ### FIELD COMPARISON
 - **Sparse updates**: Only include changed fields in update request
 - **Nil handling**: Distinguish between "not set" and "empty string"

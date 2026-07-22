@@ -6118,8 +6118,8 @@ func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []
 	return PaginateAll(ctx, lister)
 }
 
-// GetOrganizationTeamByNameUnfiltered finds an organization team by name without requiring kongctl-managed labels.
-func (c *Client) GetOrganizationTeamByNameUnfiltered(ctx context.Context, name string) (*OrganizationTeam, error) {
+// ListAllOrganizationTeams returns organization teams without requiring kongctl-managed labels.
+func (c *Client) ListAllOrganizationTeams(ctx context.Context) ([]OrganizationTeam, error) {
 	if err := ValidateAPIClient(c.organizationTeamAPI, "organization team API"); err != nil {
 		return nil, err
 	}
@@ -6160,7 +6160,12 @@ func (c *Client) GetOrganizationTeamByNameUnfiltered(ctx context.Context, name s
 		return teams, &PageMeta{Total: total}, nil
 	}
 
-	teams, err := PaginateAll(ctx, lister)
+	return PaginateAll(ctx, lister)
+}
+
+// GetOrganizationTeamByNameUnfiltered finds an organization team by name without requiring kongctl-managed labels.
+func (c *Client) GetOrganizationTeamByNameUnfiltered(ctx context.Context, name string) (*OrganizationTeam, error) {
+	teams, err := c.ListAllOrganizationTeams(ctx)
 	if err != nil {
 		return nil, err
 	}

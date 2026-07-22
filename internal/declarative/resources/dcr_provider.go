@@ -119,7 +119,7 @@ func (d *DCRProviderResource) TryMatchKonnectResource(konnectResource any) bool 
 
 func (d DCRProviderResource) ToCreatePayload() map[string]any {
 	payload := map[string]any{
-		"name":          d.Name,
+		SchemaFieldName: d.Name,
 		"provider_type": d.ProviderType,
 		"issuer":        NormalizeDCRProviderIssuer(d.Issuer),
 		"dcr_config":    d.DCRConfig,

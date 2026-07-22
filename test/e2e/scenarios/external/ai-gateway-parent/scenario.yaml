@@ -1,0 +1,104 @@
+baseInputsPath: testdata
+
+vars:
+  gatewayName: External AI Gateway
+  gatewaySlug: external-ai-gateway
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-unmanaged-ai-gateway
+    skipInputs: true
+    commands:
+      - name: 000-create-ai-gateway
+        create:
+          resource: ai_gateway
+          payload:
+            inline:
+              display_name: "{{ .vars.gatewayName }}"
+              name: "{{ .vars.gatewaySlug }}"
+              description: Created outside kongctl declarative management
+          recordVar:
+            name: gatewayID
+            responsePath: id
+
+  - name: 002-apply-external-children
+    commands:
+      - name: 000-apply-providers
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/providers.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: "length(plan.changes[?resource_type=='ai_gateway'])"
+            expect:
+              fields:
+                "@": 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 003-verify-children-and-idempotency
+    commands:
+      - name: 000-get-providers
+        run:
+          - get
+          - ai-gateway
+          - model-providers
+          - --gateway-name
+          - "{{ .vars.gatewayName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+      - name: 001-plan-again
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/providers.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-verify-external-gateway-remains
+    skipInputs: true
+    commands:
+      - name: 000-verify-external-gateway-remains
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?id=='{{ .vars.gatewayID }}']"
+            expect:
+              fields:
+                "length(@)": 1
+
+  - name: 005-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 005-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true

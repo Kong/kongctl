@@ -5,6 +5,5 @@ apis:
     implementations:
       - ref: e2e-api-implementation
         service:
-          control_plane_id: !ref e2e-cp#id
-          id: !ref e2e-gw-svc#id
-
+          control_plane_id: !external name:e2e-cp
+          id: !lookup {name: e2e-gw-svc}

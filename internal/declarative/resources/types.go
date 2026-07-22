@@ -84,6 +84,7 @@ const (
 
 const (
 	SchemaFieldRef               = "ref"
+	SchemaFieldName              = "name"
 	SchemaFieldPortal            = "portal"
 	SchemaFieldOrganization      = "organization"
 	SchemaFieldTeams             = "teams"

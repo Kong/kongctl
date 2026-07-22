@@ -70,7 +70,12 @@ func (p *Planner) planAIGatewayChanges(
 			if desiredGateway.IsExternal() {
 				continue
 			}
-			current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByName, currentByDisplayName)
+			current, exists, err := matchCurrentAIGateway(
+				desiredGateway,
+				currentByID,
+				currentByName,
+				currentByDisplayName,
+			)
 			if err != nil {
 				return err
 			}

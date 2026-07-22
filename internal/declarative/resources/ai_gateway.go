@@ -16,7 +16,7 @@ const (
 var aiGatewayMaturity = maturity.Metadata{Level: maturity.LevelBeta}
 
 func init() {
-	registerResourceType(
+	registerExternalResourceType(
 		ResourceTypeAIGateway,
 		func(rs *ResourceSet) *[]AIGatewayResource { return &rs.AIGateways },
 		AutoExplain[AIGatewayResource](
@@ -24,9 +24,12 @@ func init() {
 			WithExplainRecommendedFields("ref", "name", "display_name"),
 			WithExplainSchemaBuilder(aiGatewayExplainNode),
 		),
+		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName, "display_name"}},
 		WithMaturity(aiGatewayMaturity),
 	)
 }
+
+func (a *AIGatewayResource) GetExternalBlock() *ExternalBlock { return a.External }
 
 // AIGatewayResource represents a Konnect AI Gateway in declarative configuration.
 type AIGatewayResource struct {

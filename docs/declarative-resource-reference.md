@@ -45,12 +45,17 @@ Use YAML tags in field values to load files or reference other resources.
   `VAR#extract.path` and `var`/`extract` map form.
 - `!ref`: Reference another declarative resource by `ref`.
   `resource-ref#field` is supported; the default field is `id`.
+- `!external`: Resolve an existing Konnect resource directly in a relationship
+  field. Supports `field:value` and flat mapping forms.
+- `!lookup`: A friendlier exact alias for `!external`; both use the same
+  planner-time resolver and cache.
 - `!ref` is intended for string fields.
 - `string (uuid)` and `array[string(uuid)]` annotations in this document
   describe API value types. In declarative config, prefer `!ref` and avoid
   literal UUID values.
-- For unmanaged/external resources, prefer `_external.selector` and then
-  reference that resource by `!ref` from other fields.
+- For a one-off unmanaged relationship, use `!external`. Use an `_external`
+  declaration plus `!ref` when the resource needs a reusable declarative ref
+  or owns managed child resources.
 - Large text/spec fields are commonly loaded with `!file`.
 - `!file` paths are resolved relative to the config file and must remain
   within the configured base directory boundary.
@@ -69,6 +74,25 @@ apis:
       - ref: billing-publication
         portal_id: !ref docs-portal
 ```
+
+The target resource type is inferred from the field. Scalar values use
+`field:value` syntax and mapping selectors use AND semantics:
+
+```yaml
+portal_id: !external name:Docs Portal
+ai_gateway: !lookup {name: shared-ai-gateway}
+```
+
+API-native foreign keys such as `portal_id` and kongctl-added root parent
+selectors such as `ai_gateway` retain their established names. They share the
+same relationship resolution behavior. Parent selectors are omitted when the
+child is nested and the parent can be inferred.
+
+Initially, inline lookup targets are the resource types that already support
+`_external`: portals, control planes, gateway services, AI gateways, audit-log
+webhook destinations, organization teams, Event Gateway control planes, and
+Event Gateway virtual clusters. Run `kongctl explain` to see selectors and
+scope requirements for a specific field.
 
 ## Audit Logs
 
