@@ -4,7 +4,7 @@ apis:
     name: External Tag Example API
     publications:
       - ref: external-tag-example-publication
-        portal_id: !external name:Shared Developer Portal
+        portal_id: !lookup {name: Shared Developer Portal}
         visibility: public
 
 # Resolve the same portal through a kongctl-added root parent selector.

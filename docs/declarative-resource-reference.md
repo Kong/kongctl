@@ -45,15 +45,15 @@ Use YAML tags in field values to load files or reference other resources.
   `VAR#extract.path` and `var`/`extract` map form.
 - `!ref`: Reference another declarative resource by `ref`.
   `resource-ref#field` is supported; the default field is `id`.
-- `!external`: Resolve an existing Konnect resource directly in a relationship
+- `!lookup`: Resolve an existing Konnect resource directly in a relationship
   field. Supports `field:value` and flat mapping forms.
-- `!lookup`: A friendlier exact alias for `!external`; both use the same
-  planner-time resolver and cache.
+- `!external`: An exact alias for `!lookup`; both use the same planner-time
+  resolver and cache.
 - `!ref` is intended for string fields.
 - `string (uuid)` and `array[string(uuid)]` annotations in this document
   describe API value types. In declarative config, prefer `!ref` and avoid
   literal UUID values.
-- For a one-off unmanaged relationship, use `!external`. Use an `_external`
+- For a one-off unmanaged relationship, use `!lookup`. Use an `_external`
   declaration plus `!ref` when the resource needs a reusable declarative ref
   or owns managed child resources.
 - Large text/spec fields are commonly loaded with `!file`.
@@ -79,7 +79,7 @@ The target resource type is inferred from the field. Scalar values use
 `field:value` syntax and mapping selectors use AND semantics:
 
 ```yaml
-portal_id: !external name:Docs Portal
+portal_id: !lookup {name: Docs Portal}
 ai_gateway: !lookup {name: shared-ai-gateway}
 ```
 

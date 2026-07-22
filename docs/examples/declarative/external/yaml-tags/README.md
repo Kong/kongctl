@@ -8,11 +8,11 @@ The manifest demonstrates both kinds of relationship field:
 - `portal_id` is a foreign-key field from the Konnect API schema.
 - `portal` is a root-level parent selector added by kongctl.
 
-Both fields use the same planner-time lookup mechanism. `!external` is the
-canonical spelling, while `!lookup` is an equivalent, friendlier alias.
+Both fields use the same planner-time lookup mechanism. Examples use `!lookup`
+consistently. `!external` is also supported as an exact alias.
 
 ```yaml
-portal_id: !external name:Shared Developer Portal
+portal_id: !lookup {name: Shared Developer Portal}
 portal: !lookup {name: Shared Developer Portal}
 ```
 
@@ -20,7 +20,7 @@ Scalar lookups use `field:value` syntax. Mapping lookups can contain multiple
 selectors, all of which must match. A known Konnect ID can be bound directly:
 
 ```yaml
-portal_id: !external {id: 00000000-0000-0000-0000-000000000000}
+portal_id: !lookup {id: 00000000-0000-0000-0000-000000000000}
 ```
 
 The target resource must already exist. It remains externally managed;

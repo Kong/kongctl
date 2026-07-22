@@ -428,8 +428,8 @@ These flags help prevent accidentally operating on unexpected namespaces, especi
 External resources are Konnect objects managed elsewhere but selected by the
 `kongctl` declarative engine for use by managed resources. Use `_external` when
 the object needs a reusable declarative `ref` or managed children. Use the
-`!external` tag to resolve an existing object directly in a relationship field.
-`!lookup` is an equivalent, friendlier alias for `!external`.
+`!lookup` tag to resolve an existing object directly in a relationship field.
+`!external` is an exact alias for `!lookup`.
 
 ```yaml
 # External portal definition - this tells kongctl that this portal
@@ -460,7 +460,7 @@ apis:
     name: Products
     publications:
       - ref: products-publication
-        portal_id: !external name:Shared Developer Portal
+        portal_id: !lookup {name: Shared Developer Portal}
 
 ai_gateway_model_providers:
   - ref: shared-provider
@@ -471,7 +471,7 @@ ai_gateway_model_providers:
     config: {}
 ```
 
-`!external` and `!lookup` are exact aliases. A mapping can contain multiple
+`!lookup` and `!external` are exact aliases. A mapping can contain multiple
 selectors, all of which must match. `id:<uuid>` and `{id: <uuid>}` bind a known
 ID directly and cannot be combined with other selectors. Selector lookups must
 match exactly one resource.
@@ -580,8 +580,8 @@ use cases.
 The supported relationship tags are:
 
 - `!ref`: reference a resource declared in the same configuration.
-- `!external`: resolve an existing remote resource during planning.
-- `!lookup`: exact, friendlier alias for `!external`.
+- `!lookup`: resolve an existing remote resource during planning.
+- `!external`: exact alias for `!lookup`.
 
 `kongctl explain <resource>.<field>` reports the relationship target, whether
 the field is an API foreign key or a kongctl parent selector, supported tags,
