@@ -9,7 +9,7 @@ require (
 	github.com/Kong/sdk-konnect-go v0.44.1-0.20260721150650-f7dbd9f74028
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/ajg/form v1.7.1
+	github.com/ajg/form v1.7.2
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/colorprofile v0.4.3
