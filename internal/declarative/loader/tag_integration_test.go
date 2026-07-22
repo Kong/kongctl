@@ -38,6 +38,25 @@ apis:
 	require.Equal(t, external.MatchFields, lookup.MatchFields)
 }
 
+func TestLoader_RejectsMalformedExternalLookupPlaceholder(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(`
+apis:
+  - ref: products
+    name: Products
+    publications:
+      - ref: products-publication
+        portal_id: "__EXTERNAL__:not-valid-base64"
+`), 0o600))
+
+	_, err := NewWithBaseDir(tmpDir).LoadFile(configFile)
+	require.ErrorContains(t, err, "invalid external lookup placeholder")
+	require.ErrorContains(t, err, "portal_id")
+}
+
 func TestLoader_TagProcessing(t *testing.T) {
 	// Create test directory
 	tmpDir, err := os.MkdirTemp("", "loader-test-*")

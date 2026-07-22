@@ -1655,6 +1655,13 @@ func (l *Loader) validateResourceReferences(resource any, rs *resources.Resource
 			continue
 		}
 		if tags.IsExternalPlaceholder(fieldValue) {
+			if _, ok := tags.ParseExternalPlaceholder(fieldValue); !ok {
+				return fmt.Errorf(
+					"resource %q has invalid external lookup placeholder (field: %s)",
+					refResource.GetRef(),
+					fieldPath,
+				)
+			}
 			// External lookups are validated and resolved by the planner once the
 			// target type and any parent scope are available.
 			continue

@@ -206,6 +206,7 @@ func (r *externalLookupResolver) resolveScopedDeclarations(ctx context.Context, 
 	for i := range rs.ControlPlanes {
 		controlPlaneByRef[rs.ControlPlanes[i].GetRef()] = &rs.ControlPlanes[i]
 	}
+	deckControlPlanes := deckControlPlaneRefs(rs.ControlPlanes)
 	for i := range rs.GatewayServices {
 		service := &rs.GatewayServices[i]
 		if !service.IsExternal() || service.GetKonnectID() != "" {
@@ -215,14 +216,15 @@ func (r *externalLookupResolver) resolveScopedDeclarations(ctx context.Context, 
 		if err != nil {
 			return fmt.Errorf("gateway_service %q: %w", service.GetRef(), err)
 		}
-		if parentID == "" && controlPlaneHasDeck(service, deckControlPlaneRefs(rs.ControlPlanes)) {
+		usesDeck := controlPlaneHasDeck(service, deckControlPlanes)
+		if parentID == "" && usesDeck {
 			continue
 		}
 		id, err := r.resolve(ctx, externalRequest(
 			service.GetType(), service.External, parentID, externalDeclarationSource(service),
 		))
 		if err != nil {
-			if controlPlaneHasDeck(service, deckControlPlaneRefs(rs.ControlPlanes)) {
+			if usesDeck {
 				continue
 			}
 			return err
