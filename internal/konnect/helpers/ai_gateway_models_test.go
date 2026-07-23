@@ -40,7 +40,10 @@ func (c *aiGatewayModelCapturingClient) Do(req *http.Request) (*http.Response, e
 			"name": "support-gpt",
 			"display_name": "Support GPT",
 			"enabled": true,
-			"config": {"route": {}, "model": {"alias": "support-gpt"}},
+			"config": {
+				"route": {"model": {"body": {"model": ["support-gpt"]}}},
+				"model": {"name_header": true}
+			},
 			"formats": [{"type": "openai"}],
 			"targets": [{
 				"name": "gpt-4o-mini",
@@ -65,14 +68,17 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 	}
 
 	formatType := kkComps.AIGatewayModelFormatTypeOpenai
-	alias := "support-gpt"
+	routeModel := kkComps.CreateAIGatewayModelAliasConfigAIGatewayModelAliasConfigBody(
+		kkComps.AIGatewayModelAliasConfigBody{
+			Body: map[string]any{"model": []string{"support-gpt"}},
+		},
+	)
 	targetConfig := kkComps.CreateAIGatewayTargetConfigOpenai(kkComps.AIGatewayTargetOpenaiConfig{})
 	req := kkComps.CreateCreateAIGatewayModelRequestModel(kkComps.AIGatewayModelModel{
 		DisplayName: "Support GPT",
 		Name:        "support-gpt",
 		Config: kkComps.AIGatewayModelModelConfig{
-			Route: kkComps.AIGatewayRouteConfig{},
-			Model: &kkComps.AIGatewayModelModelConfigModel{Alias: &alias},
+			Route: kkComps.AIGatewayModelRouteConfig{Model: &routeModel},
 		},
 		Formats: []kkComps.AIGatewayModelFormat{
 			{Type: &formatType},
@@ -99,6 +105,12 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 	var requestBody map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(client.requestBody, &requestBody))
 	require.Contains(t, requestBody, "targets")
+	var config map[string]any
+	require.NoError(t, json.Unmarshal(requestBody["config"], &config))
+	route := config["route"].(map[string]any)
+	require.Equal(t, map[string]any{
+		"body": map[string]any{"model": []any{"support-gpt"}},
+	}, route["model"])
 	require.JSONEq(
 		t,
 		`[{

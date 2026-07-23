@@ -32,7 +32,11 @@ ai_gateways:
         display_name: "Support GPT"
         enabled: true
         config:
-          route: {}
+          route:
+            model:
+              body:
+                model:
+                  - support-gpt
         formats:
           - type: openai
         targets:
