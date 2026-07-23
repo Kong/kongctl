@@ -111,6 +111,14 @@ func (s *SyncScope) ChildInScope(parentType ResourceType, parentRef string, rt R
 	return ok
 }
 
+// ParentHasChildScope reports whether any child collection is in scope for a parent resource type.
+func (s *SyncScope) ParentHasChildScope(parentType ResourceType) bool {
+	if s == nil {
+		return false
+	}
+	return len(s.ChildResourceTypes[parentType]) > 0
+}
+
 // RebindChildParent moves child sync scope from a declarative selector value to
 // its planner-resolved parent ID.
 func (s *SyncScope) RebindChildParent(parentType ResourceType, oldRef, newRef string) {

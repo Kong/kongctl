@@ -403,6 +403,7 @@ func syncParentTypeSupportsExternal(rt resources.ResourceType) bool {
 	switch rt {
 	case resources.ResourceTypePortal,
 		resources.ResourceTypeControlPlane,
+		resources.ResourceTypeAIGateway,
 		resources.ResourceTypeEventGatewayControlPlane,
 		resources.ResourceTypeOrganizationTeam:
 		return true
@@ -431,7 +432,7 @@ func (p *Planner) shouldPlanRoot(plan *Plan, rt resources.ResourceType) bool {
 	if planAll {
 		return true
 	}
-	return scope.RootInScope(rt)
+	return scope.RootInScope(rt) || scope.ParentHasChildScope(rt)
 }
 
 func (p *Planner) shouldPlanChild(

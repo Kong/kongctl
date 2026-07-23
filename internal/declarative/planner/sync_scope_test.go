@@ -111,6 +111,24 @@ func TestValidateParentScopesAllowsInlineExternalParent(t *testing.T) {
 	))
 }
 
+func TestShouldPlanRootForScopedInlineExternalChildren(t *testing.T) {
+	t.Parallel()
+
+	scope := resources.NewSyncScope()
+	scope.AddChild(
+		resources.ResourceTypeAIGateway,
+		"gateway-id",
+		resources.ResourceTypeAIGatewayProvider,
+	)
+	planner := &Planner{
+		resources: &resources.ResourceSet{SyncScope: scope},
+	}
+	plan := NewPlan("1.0", "test", PlanModeSync)
+
+	require.True(t, planner.shouldPlanRoot(plan, resources.ResourceTypeAIGateway))
+	require.False(t, planner.shouldPlanRoot(plan, resources.ResourceTypePortal))
+}
+
 func TestGeneratePlan_SyncPortalScopeDoesNotListUnscopedRoots(t *testing.T) {
 	ctx := context.Background()
 	mockPortalAPI := new(MockPortalAPI)

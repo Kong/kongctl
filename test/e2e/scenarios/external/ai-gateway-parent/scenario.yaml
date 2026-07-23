@@ -24,12 +24,25 @@ steps:
           recordVar:
             name: gatewayID
             responsePath: id
-
-  - name: 002-apply-external-children
-    commands:
-      - name: 000-apply-providers
+      - name: 001-adopt-ai-gateway
         run:
-          - apply
+          - adopt
+          - ai-gateway
+          - "{{ .vars.gatewayID }}"
+          - --namespace
+          - default
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.gatewayID }}"
+                namespace: default
+                resource_type: ai_gateway
+
+  - name: 002-sync-external-children
+    commands:
+      - name: 000-sync-providers
+        run:
+          - sync
           - -f
           - "{{ .workdir }}/providers.yaml"
           - --auto-approve
@@ -43,6 +56,10 @@ steps:
             expect:
               fields:
                 "@": 0
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
           - select: summary
             expect:
               fields:
@@ -71,14 +88,55 @@ steps:
           - -f
           - "{{ .workdir }}/providers.yaml"
           - --mode
-          - apply
+          - sync
         assertions:
           - select: summary
             expect:
               fields:
                 total_changes: 0
+          - select: "length(changes[?resource_type=='ai_gateway'])"
+            expect:
+              fields:
+                "@": 0
 
-  - name: 004-verify-external-gateway-remains
+  - name: 004-sync-does-not-prune-external-children
+    inputOverlayDirs:
+      - overlays/001-retain-one-provider
+    commands:
+      - name: 000-sync-one-provider
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/providers.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway' ||
+                           resource_type=='ai_gateway_model_provider']
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-providers
+        run:
+          - get
+          - ai-gateway
+          - model-providers
+          - --gateway-name
+          - "{{ .vars.gatewayName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+
+  - name: 005-verify-external-gateway-remains
     skipInputs: true
     commands:
       - name: 000-verify-external-gateway-remains
@@ -93,12 +151,7 @@ steps:
               fields:
                 "length(@)": 1
 
-  - name: 005-reset-org
-    skipInputs: true
-    commands:
-      - resetOrg: true
-
-  - name: 005-cleanup
+  - name: 006-cleanup
     skipInputs: true
     commands:
       - resetOrg: true
