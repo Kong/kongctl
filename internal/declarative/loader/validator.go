@@ -14,6 +14,8 @@ import (
 
 // validateResourceSet validates all resources and checks for ref uniqueness
 func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
+	normalizeOrganizationTeamSelectors(rs)
+
 	// Validate portals
 	if err := l.validatePortals(rs.Portals, rs); err != nil {
 		return err
@@ -138,6 +140,30 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	}
 
 	return nil
+}
+
+func normalizeOrganizationTeamSelectors(rs *resources.ResourceSet) {
+	if rs == nil {
+		return
+	}
+	for i := range rs.OrganizationUserTeamMemberships {
+		rs.OrganizationUserTeamMemberships[i].Team = resources.NormalizeResourceRef(
+			rs.OrganizationUserTeamMemberships[i].Team,
+		)
+	}
+	for i := range rs.OrganizationSystemAccountTeamMemberships {
+		rs.OrganizationSystemAccountTeamMemberships[i].Team = resources.NormalizeResourceRef(
+			rs.OrganizationSystemAccountTeamMemberships[i].Team,
+		)
+	}
+	for i := range rs.OrganizationTeamRoles {
+		role := &rs.OrganizationTeamRoles[i]
+		original := role.Team
+		role.Team = resources.NormalizeResourceRef(role.Team)
+		if rs.SyncScope != nil {
+			rs.SyncScope.RebindChildParent(resources.ResourceTypeOrganizationTeam, original, role.Team)
+		}
+	}
 }
 
 func (l *Loader) validateOrganizationUsers(rs *resources.ResourceSet) error {
@@ -834,7 +860,15 @@ func validateAIGatewayChildren[T any, P aiGatewayChildResource[T]](
 		}
 
 		gatewayRef := resources.NormalizeResourceRef(parentRef.Ref)
-		if lookup, external := tags.ParseExternalPlaceholder(parentRef.Ref); external {
+		if tags.IsExternalPlaceholder(parentRef.Ref) {
+			lookup, ok := tags.ParseExternalPlaceholder(parentRef.Ref)
+			if !ok {
+				return fmt.Errorf(
+					"%s %q has invalid external lookup placeholder in ai_gateway",
+					resourceLabel,
+					child.GetRef(),
+				)
+			}
 			gatewayRef = "external:" + tags.ExternalLookupKey(lookup.MatchFields)
 		} else {
 			gateway, found := rs.GetResourceByRef(gatewayRef)

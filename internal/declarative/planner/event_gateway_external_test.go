@@ -282,6 +282,34 @@ func TestPlanner_ExternalEventGateway_PlansExternalVirtualClusterChildren(t *tes
 	require.Equal(t, virtualClusterID, change.References[FieldEventGatewayVirtualClusterID].ID)
 }
 
+func TestPlanner_PreResolvedExternalVirtualClusterPlansChildren(t *testing.T) {
+	t.Parallel()
+
+	const (
+		gatewayID        = "gateway-123"
+		virtualClusterID = "vc-123"
+	)
+	client := state.NewClient(state.ClientConfig{
+		EGWControlPlaneAPI: &stubExternalEventGatewayControlPlaneAPI{
+			gateways: []kkComps.EventGatewayInfo{{ID: gatewayID, Name: "external-egw"}},
+		},
+		EventGatewayBackendClusterAPI: &stubExternalEventGatewayBackendClusterAPI{},
+		EventGatewayVirtualClusterAPI: &stubExternalEventGatewayVirtualClusterAPI{
+			clusters: []kkComps.VirtualCluster{{ID: virtualClusterID, Name: "external-vc"}},
+		},
+		EventGatewayClusterPolicyAPI: &stubExternalEventGatewayClusterPolicyAPI{},
+	})
+	rs := externalEventGatewayResourceSet()
+	rs.EventGatewayControlPlanes[0].SetKonnectID(gatewayID)
+	rs.EventGatewayControlPlanes[0].VirtualClusters[0].SetKonnectID(virtualClusterID)
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ResourceTypeEventGatewayClusterPolicy, plan.Changes[0].ResourceType)
+	require.Equal(t, virtualClusterID, plan.Changes[0].Parent.ID)
+}
+
 func TestPlanner_ExternalEventGateway_MissingResolvedIDFailsBeforeChildPlanning(t *testing.T) {
 	t.Parallel()
 

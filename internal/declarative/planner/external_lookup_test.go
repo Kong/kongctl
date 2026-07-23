@@ -54,6 +54,22 @@ func TestExternalLookupResolverRejectsUnsupportedPlacement(t *testing.T) {
 	require.ErrorContains(t, err, "does not support external lookup")
 }
 
+func TestExternalLookupResolverSkipsAPIImplementationWithoutService(t *testing.T) {
+	t.Parallel()
+
+	resolver := newExternalLookupResolver(NewPlanner(state.NewClient(state.ClientConfig{}), slog.Default()))
+	rs := &resources.ResourceSet{APIImplementations: []resources.APIImplementationResource{{
+		Ref: "implementation",
+	}}}
+
+	require.NoError(t, resolver.resolveInlineLookups(
+		t.Context(),
+		rs,
+		resources.ResourceTypeControlPlane,
+		resources.ResourceTypeGatewayService,
+	))
+}
+
 func TestEnsureInlineExternalParentBridgesRootChildPlanning(t *testing.T) {
 	t.Parallel()
 

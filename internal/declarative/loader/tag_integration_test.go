@@ -57,6 +57,76 @@ apis:
 	require.ErrorContains(t, err, "portal_id")
 }
 
+func TestLoader_NormalizesOrganizationTeamRefSelectors(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(`
+organization:
+  teams:
+    - ref: platform-team
+      name: Platform Team
+  users:
+    - ref: alice
+      email: alice@example.com
+  system-accounts:
+    - ref: ci-bot
+      name: ci-bot
+organization_user_team_memberships:
+  - ref: alice-platform
+    user: alice
+    team: !ref platform-team#id
+organization_system_account_team_memberships:
+  - ref: ci-bot-platform
+    system_account: ci-bot
+    team: !ref platform-team#id
+organization_team_roles:
+  - ref: platform-api-viewer
+    team: !ref platform-team#id
+    role_name: Viewer
+    entity_id: "*"
+    entity_type_name: APIs
+    entity_region: us
+`), 0o600))
+
+	rs, err := NewWithBaseDir(tmpDir).LoadFile(configFile)
+	require.NoError(t, err)
+	require.Equal(t, "platform-team", rs.OrganizationUserTeamMemberships[0].Team)
+	require.Equal(t, "platform-team", rs.OrganizationSystemAccountTeamMemberships[0].Team)
+	require.Equal(t, "platform-team", rs.OrganizationTeamRoles[0].Team)
+	require.True(t, rs.SyncScope.ChildInScope(
+		resources.ResourceTypeOrganizationTeam,
+		"platform-team",
+		resources.ResourceTypeOrganizationTeamRole,
+	))
+}
+
+func TestLoader_RejectsMalformedAIGatewayParentLookup(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(`
+ai_gateway_model_providers:
+  - ref: external-openai-provider
+    ai_gateway: "__EXTERNAL__:not-valid-base64"
+    name: external-openai-provider
+    type: openai
+    display_name: External OpenAI Provider
+    config:
+      auth:
+        type: basic
+        headers:
+          - name: Authorization
+            value: Bearer fake-openai-api-key
+`), 0o600))
+
+	_, err := NewWithBaseDir(tmpDir).LoadFile(configFile)
+	require.ErrorContains(t, err, "invalid external lookup placeholder")
+	require.ErrorContains(t, err, "ai_gateway")
+}
+
 func TestLoader_TagProcessing(t *testing.T) {
 	// Create test directory
 	tmpDir, err := os.MkdirTemp("", "loader-test-*")
