@@ -685,12 +685,12 @@ ai_gateway_models:
        model: # choose exactly one routing method
          body:
            model:
-            - string
+             - string
          # headers:
          #   X-Model:
-         #    - string
+         #     - string
          # path_aliases:
-         #  - string
+         #   - string
      model:
        name_header: boolean
    formats:

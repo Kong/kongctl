@@ -107,7 +107,8 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 	require.Contains(t, requestBody, "targets")
 	var config map[string]any
 	require.NoError(t, json.Unmarshal(requestBody["config"], &config))
-	route := config["route"].(map[string]any)
+	route, ok := config["route"].(map[string]any)
+	require.True(t, ok)
 	require.Equal(t, map[string]any{
 		"body": map[string]any{"model": []any{"support-gpt"}},
 	}, route["model"])
