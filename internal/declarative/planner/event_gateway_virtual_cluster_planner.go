@@ -4,9 +4,11 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -703,14 +705,13 @@ func (p *Planner) shouldUpdateVirtualCluster(
 		}
 	}
 
-	// Compare labels
-	if desired.Labels != nil {
-		if !compareMaps(current.Labels, desired.Labels) {
-			needsUpdate = true
-			changes[FieldLabels] = FieldChange{
-				Old: current.Labels,
-				New: desired.Labels,
-			}
+	// Compare user labels. Child resources inherit kongctl management metadata
+	// from their parent, so any existing reserved labels are not user-managed.
+	if desired.Labels != nil && labels.CompareUserLabels(current.Labels, desired.Labels) {
+		needsUpdate = true
+		changes[FieldLabels] = FieldChange{
+			Old: labels.GetUserLabels(current.Labels),
+			New: labels.GetUserLabels(desired.Labels),
 		}
 	}
 
@@ -737,12 +738,31 @@ func (p *Planner) shouldUpdateVirtualCluster(
 			updates[FieldTopicAliases] = current.TopicAliases
 		}
 
-		if len(desired.Labels) > 0 {
-			updates[FieldLabels] = desired.Labels
-		}
+		// The update API uses PUT semantics, so omitting labels can clear them.
+		// Always send the effective full set: preserve all current labels when
+		// labels are omitted, or replace user labels while retaining reserved
+		// kongctl labels when labels are explicitly managed.
+		updates[FieldLabels] = buildVirtualClusterUpdateLabels(current.Labels, desired.Labels)
 	}
 
 	return needsUpdate, updates, changes
+}
+
+func buildVirtualClusterUpdateLabels(current, desired map[string]string) map[string]string {
+	if desired == nil {
+		result := make(map[string]string, len(current))
+		maps.Copy(result, current)
+		return result
+	}
+
+	result := make(map[string]string, len(current)+len(desired))
+	for key, value := range current {
+		if labels.IsKongctlLabel(key) {
+			result[key] = value
+		}
+	}
+	maps.Copy(result, labels.GetUserLabels(desired))
+	return result
 }
 
 // compareBackendClusterReferences compares backend cluster references

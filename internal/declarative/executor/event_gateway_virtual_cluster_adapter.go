@@ -6,6 +6,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/util"
@@ -180,11 +181,31 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 		update.TopicAliases = aliases
 	}
 
-	if labels, ok := fieldsToUpdate[planner.FieldLabels].(map[string]string); ok {
-		update.Labels = labels
+	if labelsField, ok := fieldsToUpdate[planner.FieldLabels]; ok {
+		labelsMap, err := extractVirtualClusterLabels(labelsField)
+		if err != nil {
+			return err
+		}
+		update.Labels = labelsMap
 	}
 
 	return nil
+}
+
+func extractVirtualClusterLabels(field any) (map[string]string, error) {
+	switch values := field.(type) {
+	case map[string]string:
+	case map[string]any:
+		for key, value := range values {
+			if _, ok := value.(string); !ok {
+				return nil, fmt.Errorf("labels.%s must be a string", key)
+			}
+		}
+	default:
+		return nil, fmt.Errorf("labels must be an object, got %T", field)
+	}
+
+	return labels.ExtractLabelsFromField(field), nil
 }
 
 // Create creates a new virtual cluster

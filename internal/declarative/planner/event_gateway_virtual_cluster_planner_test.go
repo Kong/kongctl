@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/require"
@@ -123,6 +124,88 @@ func TestShouldUpdateVirtualClusterPreservesOmittedTopicAliasesOnUnrelatedUpdate
 	require.Contains(t, changed, FieldDescription)
 	require.NotContains(t, changed, FieldTopicAliases)
 	require.Equal(t, currentAliases, updates[FieldTopicAliases])
+}
+
+func TestShouldUpdateVirtualClusterPreservesOmittedLabelsOnUnrelatedUpdate(t *testing.T) {
+	current := virtualClusterState(nil)
+	current.Labels = map[string]string{
+		"environment":       "production",
+		labels.NamespaceKey: "legacy-child-namespace",
+	}
+	desired := virtualClusterResource(nil)
+	newDescription := "new description"
+	desired.Description = &newDescription
+
+	needsUpdate, updates, changed := (&Planner{}).shouldUpdateVirtualCluster(current, desired)
+
+	require.True(t, needsUpdate)
+	require.Contains(t, changed, FieldDescription)
+	require.NotContains(t, changed, FieldLabels)
+	require.Equal(t, current.Labels, updates[FieldLabels])
+}
+
+func TestShouldUpdateVirtualClusterPlansEmptyLabelsOnUnrelatedUpdate(t *testing.T) {
+	desired := virtualClusterResource(nil)
+	newDescription := "new description"
+	desired.Description = &newDescription
+
+	needsUpdate, updates, changed := (&Planner{}).shouldUpdateVirtualCluster(
+		virtualClusterState(nil),
+		desired,
+	)
+
+	require.True(t, needsUpdate)
+	require.Contains(t, changed, FieldDescription)
+	require.NotContains(t, changed, FieldLabels)
+	require.NotNil(t, updates[FieldLabels])
+	require.Empty(t, updates[FieldLabels])
+}
+
+func TestShouldUpdateVirtualClusterReplacesUserLabelsAndPreservesReservedLabels(t *testing.T) {
+	current := virtualClusterState(nil)
+	current.Labels = map[string]string{
+		"environment":       "production",
+		"obsolete":          "remove-me",
+		labels.NamespaceKey: "legacy-child-namespace",
+	}
+	desired := virtualClusterResource(nil)
+	desired.Labels = map[string]string{
+		"environment": "staging",
+		"team":        "platform",
+	}
+
+	needsUpdate, updates, changed := (&Planner{}).shouldUpdateVirtualCluster(current, desired)
+
+	require.True(t, needsUpdate)
+	require.Equal(t, map[string]string{
+		"environment": "production",
+		"obsolete":    "remove-me",
+	}, changed[FieldLabels].Old)
+	require.Equal(t, desired.Labels, changed[FieldLabels].New)
+	require.Equal(t, map[string]string{
+		"environment":       "staging",
+		"team":              "platform",
+		labels.NamespaceKey: "legacy-child-namespace",
+	}, updates[FieldLabels])
+}
+
+func TestShouldUpdateVirtualClusterClearsUserLabelsAndPreservesReservedLabels(t *testing.T) {
+	current := virtualClusterState(nil)
+	current.Labels = map[string]string{
+		"environment":       "production",
+		labels.NamespaceKey: "legacy-child-namespace",
+	}
+	desired := virtualClusterResource(nil)
+	desired.Labels = map[string]string{}
+
+	needsUpdate, updates, changed := (&Planner{}).shouldUpdateVirtualCluster(current, desired)
+
+	require.True(t, needsUpdate)
+	require.Equal(t, map[string]string{"environment": "production"}, changed[FieldLabels].Old)
+	require.Nil(t, changed[FieldLabels].New)
+	require.Equal(t, map[string]string{
+		labels.NamespaceKey: "legacy-child-namespace",
+	}, updates[FieldLabels])
 }
 
 func TestShouldUpdateVirtualClusterDetectsFetchKongIdentityPrincipalChanges(t *testing.T) {
