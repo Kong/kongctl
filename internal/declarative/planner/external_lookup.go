@@ -212,9 +212,9 @@ func (r *externalLookupResolver) resolveScopedDeclarations(ctx context.Context, 
 		if !service.IsExternal() || service.GetKonnectID() != "" {
 			continue
 		}
-		parentID, err := resolveScopedParentID(service.ControlPlane, controlPlaneByRef)
+		parentID, err := r.planner.resolveGatewayServiceControlPlaneID(service, controlPlaneByRef)
 		if err != nil {
-			return fmt.Errorf("gateway_service %q: %w", service.GetRef(), err)
+			return err
 		}
 		usesDeck := controlPlaneHasDeck(service, deckControlPlanes)
 		if parentID == "" && usesDeck {

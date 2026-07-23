@@ -71,6 +71,29 @@ func TestEnsureInlineExternalParentBridgesRootChildPlanning(t *testing.T) {
 	require.Len(t, rs.GetAIGatewayProvidersForGateway("gateway-id"), 1)
 }
 
+func TestExternalLookupResolverDefersDeckServiceForNewControlPlane(t *testing.T) {
+	t.Parallel()
+
+	rs := &resources.ResourceSet{
+		ControlPlanes: []resources.ControlPlaneResource{{
+			BaseResource: resources.BaseResource{Ref: "control-plane"},
+			Deck:         &resources.DeckConfig{Files: []string{"kong.yaml"}},
+		}},
+		GatewayServices: []resources.GatewayServiceResource{{
+			Ref:          "gateway-service",
+			ControlPlane: "control-plane",
+			External: &resources.ExternalBlock{Selector: &resources.ExternalSelector{
+				MatchFields: map[string]string{"name": "gateway-service"},
+			}},
+		}},
+	}
+
+	planner := NewPlanner(state.NewClient(state.ClientConfig{}), slog.Default())
+	resolver := newExternalLookupResolver(planner)
+	require.NoError(t, resolver.resolveScopedDeclarations(t.Context(), rs))
+	require.Empty(t, rs.GatewayServices[0].GetKonnectID())
+}
+
 func externalPlaceholder(t *testing.T, tag string) string {
 	t.Helper()
 	value, err := tags.NewExternalTagResolver(tag).Resolve(&yaml.Node{
