@@ -2121,18 +2121,22 @@ func validateExecutionPlan(
 
 	if plan.Metadata.Mode != requiredMode {
 		err := fmt.Errorf(
-			"%s was generated in %q mode and cannot be loaded into the %s command, which requires %q mode. "+
-				"Regenerate it with: kongctl plan --mode %s -f <files> --output-file <plan-file>",
+			"%s was generated in %q mode and cannot be loaded into the %s command, which requires %q mode.\n"+
+				"To use the %s command, regenerate the plan with:\n"+
+				"> kongctl plan --mode %s -f <files> --output-file <plan-file>",
 			planDescription,
 			plan.Metadata.Mode,
 			commandName,
 			requiredMode,
+			commandName,
 			requiredMode,
 		)
 		if executionCommand := executionCommandForPlan(plan); executionCommand != "" {
 			return fmt.Errorf(
-				"%w. To execute this plan unchanged, use: kongctl %s --plan %s",
+				"%w\nTo execute this plan, use the %s command:\n"+
+					"> kongctl %s --plan %s",
 				err,
+				executionCommand,
 				executionCommand,
 				planArgumentForSource(planFile),
 			)
@@ -2144,13 +2148,15 @@ func validateExecutionPlan(
 		if !slices.Contains(allowedActions, change.Action) {
 			return fmt.Errorf(
 				"%s contains %q action, which cannot be executed by the %s command. "+
-					"Allowed actions for %s plans: %s. "+
-					"Regenerate it with: kongctl plan --mode %s -f <files> --output-file <plan-file>",
+					"Allowed actions for %s plans: %s.\n"+
+					"To use the %s command, regenerate the plan with:\n"+
+					"> kongctl plan --mode %s -f <files> --output-file <plan-file>",
 				planDescription,
 				change.Action,
 				commandName,
 				requiredMode,
 				formatPlanActions(allowedActions),
+				commandName,
 				requiredMode,
 			)
 		}

@@ -257,8 +257,10 @@ func Test_validateExecutionPlans(t *testing.T) {
 			wantError: []string{
 				`plan "test-plan.json" was generated in "sync" mode`,
 				`apply command, which requires "apply" mode`,
-				`kongctl plan --mode apply -f <files> --output-file <plan-file>`,
-				`kongctl sync --plan <plan-file>`,
+				"To use the apply command, regenerate the plan with:\n" +
+					"> kongctl plan --mode apply -f <files> --output-file <plan-file>",
+				"To execute this plan, use the sync command:\n" +
+					"> kongctl sync --plan <plan-file>",
 			},
 		},
 		{
@@ -280,7 +282,8 @@ func Test_validateExecutionPlans(t *testing.T) {
 				`contains "DELETE" action`,
 				`cannot be executed by the apply command`,
 				`Allowed actions for apply plans: CREATE, UPDATE, EXTERNAL_TOOL`,
-				`kongctl plan --mode apply`,
+				"To use the apply command, regenerate the plan with:\n" +
+					"> kongctl plan --mode apply",
 			},
 		},
 		{
@@ -435,7 +438,18 @@ func Test_validateExecutionPlanDescribesStdin(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `plan from stdin was generated in "delete" mode`)
-	assert.Contains(t, err.Error(), "kongctl delete --plan -")
+	assert.Contains(
+		t,
+		err.Error(),
+		"To use the apply command, regenerate the plan with:\n"+
+			"> kongctl plan --mode apply -f <files> --output-file <plan-file>",
+	)
+	assert.Contains(
+		t,
+		err.Error(),
+		"To execute this plan, use the delete command:\n"+
+			"> kongctl delete --plan -",
+	)
 }
 
 func Test_validateExecutionPlanDoesNotRecommendInvalidPlanModeCommand(t *testing.T) {
@@ -450,7 +464,7 @@ func Test_validateExecutionPlanDoesNotRecommendInvalidPlanModeCommand(t *testing
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `sync command, which requires "sync" mode`)
-	assert.NotContains(t, err.Error(), "To execute this plan unchanged")
+	assert.NotContains(t, err.Error(), "To execute this plan, use the ")
 	assert.NotContains(t, err.Error(), "kongctl apply --plan")
 }
 
