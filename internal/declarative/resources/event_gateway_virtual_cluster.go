@@ -8,14 +8,19 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerExternalResourceType(
 		ResourceTypeEventGatewayVirtualCluster,
 		func(rs *ResourceSet) *[]EventGatewayVirtualClusterResource { return &rs.EventGatewayVirtualClusters },
 		AutoExplain[EventGatewayVirtualClusterResource](
 			WithExplainSchemaBuilder(eventGatewayVirtualClusterExplainNode),
 		),
+		ExternalResolutionRegistration{
+			ParentType: ResourceTypeEventGatewayControlPlane, AllowAnyStringSelector: true,
+		},
 	)
 }
+
+func (e *EventGatewayVirtualClusterResource) GetExternalBlock() *ExternalBlock { return e.External }
 
 type EventGatewayVirtualClusterResource struct {
 	kkComps.CreateVirtualClusterRequest `       yaml:",inline"                 json:",inline"`

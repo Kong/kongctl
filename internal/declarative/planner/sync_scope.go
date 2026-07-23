@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
@@ -82,6 +83,18 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	addAIGatewayChildScopes(scope, rs)
 	addEventGatewayChildScopes(scope, rs)
 	addOrganizationChildScopes(scope, rs)
+}
+
+func excludeExternalOnlyControlPlaneSyncScope(rs *resources.ResourceSet) {
+	if rs == nil || rs.SyncScope == nil || len(rs.ControlPlanes) == 0 {
+		return
+	}
+	for i := range rs.ControlPlanes {
+		if !rs.ControlPlanes[i].IsExternal() {
+			return
+		}
+	}
+	rs.SyncScope.RemoveRoot(resources.ResourceTypeControlPlane)
 }
 
 func hasOrganizationAssignmentSelectors(rs *resources.ResourceSet) bool {
@@ -350,6 +363,9 @@ func validateParentScopes(scope *resources.SyncScope) error {
 		if !syncRootParentType(child.ParentType) || scope.RootInScope(child.ParentType) {
 			continue
 		}
+		if tags.IsExternalPlaceholder(child.ParentRef) {
+			continue
+		}
 		guidance := "add the parent resource collection or move the child collection under that parent"
 		if syncParentTypeSupportsExternal(child.ParentType) {
 			guidance += "; if the parent is managed elsewhere, declare it with _external in the parent " +
@@ -387,6 +403,7 @@ func syncParentTypeSupportsExternal(rt resources.ResourceType) bool {
 	switch rt {
 	case resources.ResourceTypePortal,
 		resources.ResourceTypeControlPlane,
+		resources.ResourceTypeAIGateway,
 		resources.ResourceTypeEventGatewayControlPlane,
 		resources.ResourceTypeOrganizationTeam:
 		return true
@@ -415,7 +432,7 @@ func (p *Planner) shouldPlanRoot(plan *Plan, rt resources.ResourceType) bool {
 	if planAll {
 		return true
 	}
-	return scope.RootInScope(rt)
+	return scope.RootInScope(rt) || scope.ParentHasChildScope(rt)
 }
 
 func (p *Planner) shouldPlanChild(

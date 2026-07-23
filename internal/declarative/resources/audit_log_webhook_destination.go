@@ -3,7 +3,7 @@ package resources
 import "fmt"
 
 func init() {
-	registerResourceTypeWithSliceAccessors(
+	registerExternalResourceTypeWithSliceAccessors(
 		ResourceTypeAuditLogWebhookDestination,
 		auditLogWebhookDestinationSlice,
 		ensureAuditLogWebhookDestinationSlice,
@@ -11,8 +11,11 @@ func init() {
 			WithExplainAliases("audit-logs.destinations"),
 			WithExplainRecommendedFields("ref", "_external"),
 		),
+		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
 	)
 }
+
+func (d *AuditLogWebhookDestinationResource) GetExternalBlock() *ExternalBlock { return d.External }
 
 func auditLogWebhookDestinationSlice(rs *ResourceSet) *[]AuditLogWebhookDestinationResource {
 	if rs == nil || rs.AuditLogs == nil {

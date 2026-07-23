@@ -1,0 +1,157 @@
+baseInputsPath: testdata
+
+vars:
+  gatewayName: External AI Gateway
+  gatewaySlug: external-ai-gateway
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-unmanaged-ai-gateway
+    skipInputs: true
+    commands:
+      - name: 000-create-ai-gateway
+        create:
+          resource: ai_gateway
+          payload:
+            inline:
+              display_name: "{{ .vars.gatewayName }}"
+              name: "{{ .vars.gatewaySlug }}"
+              description: Created outside kongctl declarative management
+          recordVar:
+            name: gatewayID
+            responsePath: id
+      - name: 001-adopt-ai-gateway
+        run:
+          - adopt
+          - ai-gateway
+          - "{{ .vars.gatewayID }}"
+          - --namespace
+          - default
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.gatewayID }}"
+                namespace: default
+                resource_type: ai_gateway
+
+  - name: 002-sync-external-children
+    commands:
+      - name: 000-sync-providers
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/providers.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: "length(plan.changes[?resource_type=='ai_gateway'])"
+            expect:
+              fields:
+                "@": 0
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 003-verify-children-and-idempotency
+    commands:
+      - name: 000-get-providers
+        run:
+          - get
+          - ai-gateway
+          - model-providers
+          - --gateway-name
+          - "{{ .vars.gatewayName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+      - name: 001-plan-again
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/providers.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "length(changes[?resource_type=='ai_gateway'])"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 004-sync-does-not-prune-external-children
+    inputOverlayDirs:
+      - overlays/001-retain-one-provider
+    commands:
+      - name: 000-sync-one-provider
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/providers.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway' ||
+                           resource_type=='ai_gateway_model_provider']
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-providers
+        run:
+          - get
+          - ai-gateway
+          - model-providers
+          - --gateway-name
+          - "{{ .vars.gatewayName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+
+  - name: 005-verify-external-gateway-remains
+    skipInputs: true
+    commands:
+      - name: 000-verify-external-gateway-remains
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: "[?id=='{{ .vars.gatewayID }}']"
+            expect:
+              fields:
+                "length(@)": 1
+
+  - name: 006-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true

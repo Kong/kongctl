@@ -86,15 +86,35 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 	desiredNames := make(map[string]bool)
 	for _, desiredCluster := range desired {
 		if desiredCluster.IsExternal() {
-			current, err := matchExternalEventGatewayVirtualCluster(&desiredCluster, currentClusters)
-			if err != nil {
-				return err
-			}
-			if !desiredCluster.TryMatchKonnectResource(current) {
-				return fmt.Errorf(
-					"external event_gateway_virtual_cluster %s: failed to bind Konnect resource",
-					desiredCluster.GetRef(),
-				)
+			var current state.EventGatewayVirtualCluster
+			if desiredCluster.GetKonnectID() != "" {
+				found := false
+				for _, candidate := range currentClusters {
+					if candidate.ID == desiredCluster.GetKonnectID() {
+						current = candidate
+						found = true
+						break
+					}
+				}
+				if !found {
+					return fmt.Errorf(
+						"external event_gateway_virtual_cluster %s: resolved Konnect resource %s not found",
+						desiredCluster.GetRef(),
+						desiredCluster.GetKonnectID(),
+					)
+				}
+			} else {
+				matched, err := matchExternalEventGatewayVirtualCluster(&desiredCluster, currentClusters)
+				if err != nil {
+					return err
+				}
+				current = *matched
+				if !desiredCluster.TryMatchKonnectResource(current) {
+					return fmt.Errorf(
+						"external event_gateway_virtual_cluster %s: failed to bind Konnect resource",
+						desiredCluster.GetRef(),
+					)
+				}
 			}
 			if current.Name != "" {
 				desiredCluster.Name = current.Name

@@ -33,12 +33,25 @@ steps:
           recordVar:
             name: gw_svc_id
             responsePath: id
-
-  - name: 002-apply
-    commands:
-      - name: 000-apply
+      - name: 002-adopt-cp
         run:
-          - apply
+          - adopt
+          - control-plane
+          - "{{ .vars.cp_id }}"
+          - --namespace
+          - default
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.cp_id }}"
+                namespace: default
+                resource_type: control_plane
+
+  - name: 002-sync-external-references
+    commands:
+      - name: 000-sync
+        run:
+          - sync
           - -f
           - "{{ .workdir }}/api.yaml"
           - -f
@@ -48,13 +61,20 @@ steps:
           - select: "plan.metadata"
             expect:
               fields:
-                mode: apply
+                mode: sync
           - select: >-
               plan.changes[?resource_type=='api_implementation' && 
                             resource_ref=='e2e-api-implementation'] | [0]
             expect:
              fields:
                 action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='control_plane' ||
+                           resource_type=='gateway_service' ||
+                           resource_type=='_deck']
+            expect:
+              fields:
+                "length(@)": 0
 
   - name: 003-get-implementations
     skipInputs: true
@@ -74,6 +94,39 @@ steps:
               fields:
                 service.control_plane_id: "{{ .vars.cp_id }}"
                 service.id: "{{ .vars.gw_svc_id }}"
+      - name: 001-get-control-plane
+        run:
+          - get
+          - gateway
+          - control-plane
+          - "{{ .vars.cp_id }}"
+          - -o
+          - json
+        assertions:
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.cp_id }}"
+          - select: name
+            expect:
+              fields:
+                "@": e2e-cp
+      - name: 002-get-gateway-service
+        run:
+          - get
+          - gateway
+          - control-plane
+          - services
+          - --control-plane-name
+          - e2e-cp
+          - -o
+          - json
+        assertions:
+          - select: "[?id=='{{ .vars.gw_svc_id }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.gw_svc_id }}"
+                name: e2e-gw-svc
 
   - name: 004-get-implementation-by-id
     skipInputs: true

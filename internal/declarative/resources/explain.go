@@ -113,6 +113,7 @@ type ExplainNode struct {
 	Recommended  bool
 	PreferredTag string
 	RefKind      string
+	Relationship *ExplainRelationship
 	Notes        []string
 	Literal      string
 	Properties   []*ExplainField
@@ -130,32 +131,43 @@ type ExplainField struct {
 }
 
 type JSONSchema struct {
-	Schema      string                  `json:"$schema,omitempty" yaml:"$schema,omitempty"`
-	ID          string                  `json:"$id,omitempty" yaml:"$id,omitempty"`
-	Title       string                  `json:"title,omitempty" yaml:"title,omitempty"`
-	Description string                  `json:"description,omitempty" yaml:"description,omitempty"`
-	Type        any                     `json:"type,omitempty" yaml:"type,omitempty"`
-	Properties  map[string]*JSONSchema  `json:"properties,omitempty" yaml:"properties,omitempty"`
-	Required    []string                `json:"required,omitempty" yaml:"required,omitempty"`
-	Items       *JSONSchema             `json:"items,omitempty" yaml:"items,omitempty"`
-	Additional  any                     `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
-	OneOf       []*JSONSchema           `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
-	Const       any                     `json:"const,omitempty" yaml:"const,omitempty"`
-	Enum        []any                   `json:"enum,omitempty" yaml:"enum,omitempty"`
-	Default     any                     `json:"default,omitempty" yaml:"default,omitempty"`
-	XResource   any                     `json:"x-kongctl-resource,omitempty" yaml:"x-kongctl-resource,omitempty"`
-	XPath       string                  `json:"x-kongctl-path,omitempty" yaml:"x-kongctl-path,omitempty"`
-	XRootKey    string                  `json:"x-kongctl-root-key,omitempty" yaml:"x-kongctl-root-key,omitempty"`
-	XClass      string                  `json:"x-kongctl-resource-class,omitempty" yaml:"x-kongctl-resource-class,omitempty"` //nolint:lll
-	XRefKind    string                  `json:"x-kongctl-ref-kind,omitempty" yaml:"x-kongctl-ref-kind,omitempty"`
-	XTag        string                  `json:"x-kongctl-preferred-tag,omitempty" yaml:"x-kongctl-preferred-tag,omitempty"`
-	XDefault    string                  `json:"x-kongctl-default-from,omitempty" yaml:"x-kongctl-default-from,omitempty"`
-	XNotes      []string                `json:"x-kongctl-notes,omitempty" yaml:"x-kongctl-notes,omitempty"`
-	XSubject    *ExplainSchemaSubject   `json:"x-kongctl-subject,omitempty" yaml:"x-kongctl-subject,omitempty"`
-	XPlacement  *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty" yaml:"x-kongctl-placement,omitempty"`
-	XRoot       *bool                   `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`
-	XNestedDecl *bool                   `json:"x-kongctl-supports-nested-declaration,omitempty" yaml:"x-kongctl-supports-nested-declaration,omitempty"` //nolint:lll
-	XMaturity   *ExplainMaturity        `json:"x-kongctl-maturity,omitempty" yaml:"x-kongctl-maturity,omitempty"`
+	Schema        string                  `json:"$schema,omitempty" yaml:"$schema,omitempty"`
+	ID            string                  `json:"$id,omitempty" yaml:"$id,omitempty"`
+	Title         string                  `json:"title,omitempty" yaml:"title,omitempty"`
+	Description   string                  `json:"description,omitempty" yaml:"description,omitempty"`
+	Type          any                     `json:"type,omitempty" yaml:"type,omitempty"`
+	Properties    map[string]*JSONSchema  `json:"properties,omitempty" yaml:"properties,omitempty"`
+	Required      []string                `json:"required,omitempty" yaml:"required,omitempty"`
+	Items         *JSONSchema             `json:"items,omitempty" yaml:"items,omitempty"`
+	Additional    any                     `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+	OneOf         []*JSONSchema           `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	Const         any                     `json:"const,omitempty" yaml:"const,omitempty"`
+	Enum          []any                   `json:"enum,omitempty" yaml:"enum,omitempty"`
+	Default       any                     `json:"default,omitempty" yaml:"default,omitempty"`
+	XResource     any                     `json:"x-kongctl-resource,omitempty" yaml:"x-kongctl-resource,omitempty"`
+	XPath         string                  `json:"x-kongctl-path,omitempty" yaml:"x-kongctl-path,omitempty"`
+	XRootKey      string                  `json:"x-kongctl-root-key,omitempty" yaml:"x-kongctl-root-key,omitempty"`
+	XClass        string                  `json:"x-kongctl-resource-class,omitempty" yaml:"x-kongctl-resource-class,omitempty"` //nolint:lll
+	XRefKind      string                  `json:"x-kongctl-ref-kind,omitempty" yaml:"x-kongctl-ref-kind,omitempty"`
+	XRelationship *ExplainRelationship    `json:"x-kongctl-relationship,omitempty" yaml:"x-kongctl-relationship,omitempty"`
+	XTag          string                  `json:"x-kongctl-preferred-tag,omitempty" yaml:"x-kongctl-preferred-tag,omitempty"` //nolint:lll
+	XDefault      string                  `json:"x-kongctl-default-from,omitempty" yaml:"x-kongctl-default-from,omitempty"`
+	XNotes        []string                `json:"x-kongctl-notes,omitempty" yaml:"x-kongctl-notes,omitempty"`
+	XSubject      *ExplainSchemaSubject   `json:"x-kongctl-subject,omitempty" yaml:"x-kongctl-subject,omitempty"`
+	XPlacement    *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty" yaml:"x-kongctl-placement,omitempty"`
+	XRoot         *bool                   `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`                             //nolint:lll
+	XNestedDecl   *bool                   `json:"x-kongctl-supports-nested-declaration,omitempty" yaml:"x-kongctl-supports-nested-declaration,omitempty"` //nolint:lll
+	XMaturity     *ExplainMaturity        `json:"x-kongctl-maturity,omitempty" yaml:"x-kongctl-maturity,omitempty"`
+}
+
+// ExplainRelationship describes the user-visible contract of a resource relationship field.
+type ExplainRelationship struct {
+	Target       ResourceType     `json:"target" yaml:"target"`
+	Kind         RelationshipKind `json:"kind" yaml:"kind"`
+	AcceptedTags []string         `json:"accepted_tags,omitempty" yaml:"accepted_tags,omitempty"`
+	Selectors    []string         `json:"selectors,omitempty" yaml:"selectors,omitempty"`
+	ScopeField   string           `json:"scope_field,omitempty" yaml:"scope_field,omitempty"`
+	RootOnly     bool             `json:"root_only,omitempty" yaml:"root_only,omitempty"`
 }
 
 type ExplainSchemaSubject struct {
@@ -182,13 +194,13 @@ var (
 	explainDocCacheMu sync.RWMutex
 
 	recommendedFieldNames = map[string]struct{}{
-		SchemaFieldRef: {},
-		"name":         {},
-		"display_name": {},
-		"description":  {},
-		"version":      {},
-		"slug":         {},
-		"spec":         {},
+		SchemaFieldRef:  {},
+		SchemaFieldName: {},
+		"display_name":  {},
+		"description":   {},
+		"version":       {},
+		"slug":          {},
+		"spec":          {},
 	}
 	fileFieldSamples = map[string]string{
 		"content":            "./content.txt",
@@ -959,6 +971,8 @@ func buildExplainSchema(rt ResourceType, reg ExplainRegistration) (*ExplainNode,
 			return nil, err
 		}
 		if node != nil {
+			applyReferenceHints(rt, node)
+			applyRelationshipHints(rt, node)
 			return node, nil
 		}
 	}
@@ -972,8 +986,53 @@ func buildExplainSchema(rt ResourceType, reg ExplainRegistration) (*ExplainNode,
 	}
 
 	applyReferenceHints(rt, node)
+	applyRelationshipHints(rt, node)
 
 	return node, nil
+}
+
+func applyRelationshipHints(rt ResourceType, node *ExplainNode) {
+	for _, relationship := range RelationshipDescriptorsForType(rt) {
+		fieldNode, ok := node.lookup(strings.Split(relationship.FieldPath, "."))
+		if !ok {
+			continue
+		}
+		metadata := &ExplainRelationship{
+			Target:     relationship.TargetType,
+			Kind:       relationship.Kind,
+			ScopeField: relationship.ScopeFieldPath,
+			RootOnly:   relationship.RootOnly,
+		}
+		capability, supportsExternal := ExternalResolutionFor(relationship.TargetType)
+		if supportsExternal {
+			metadata.AcceptedTags = []string{"!ref", "!external", "!lookup"}
+			metadata.Selectors = append([]string(nil), capability.Selectors...)
+			if capability.AllowAnyStringSelector {
+				metadata.Selectors = []string{"<string field>"}
+			}
+		} else {
+			metadata.AcceptedTags = []string{"!ref"}
+		}
+		fieldNode.Relationship = metadata
+		fieldNode.RefKind = string(relationship.TargetType)
+		if fieldNode.PreferredTag == "" {
+			fieldNode.PreferredTag = "!ref"
+		}
+		fieldNode.Notes = append(
+			fieldNode.Notes,
+			relationshipExplainNote(relationship.Kind, supportsExternal),
+		)
+	}
+}
+
+func relationshipExplainNote(kind RelationshipKind, supportsExternal bool) string {
+	if supportsExternal {
+		return fmt.Sprintf(
+			"Relationship field (%s); use !lookup or its !external alias for an existing remote resource.",
+			kind,
+		)
+	}
+	return fmt.Sprintf("Relationship field (%s); use !ref to reference a declarative resource.", kind)
 }
 
 func defaultExplainHints(rt ResourceType) map[string]ExplainFieldHint {
@@ -2097,6 +2156,12 @@ func (n *ExplainNode) clone() *ExplainNode {
 		Additional:   n.Additional.clone(),
 		propIndex:    make(map[string]*ExplainField),
 	}
+	if n.Relationship != nil {
+		relationship := *n.Relationship
+		relationship.AcceptedTags = append([]string(nil), n.Relationship.AcceptedTags...)
+		relationship.Selectors = append([]string(nil), n.Relationship.Selectors...)
+		cloned.Relationship = &relationship
+	}
 	for _, child := range n.Properties {
 		cloned.addField(child.clone())
 	}
@@ -2112,14 +2177,15 @@ func (n *ExplainNode) toJSONSchema() *JSONSchema {
 	}
 
 	schema := &JSONSchema{
-		Description: n.Description,
-		Default:     n.Default,
-		Const:       n.Const,
-		Enum:        append([]any(nil), n.Enum...),
-		XRefKind:    n.RefKind,
-		XTag:        n.PreferredTag,
-		XDefault:    n.DefaultFrom,
-		XNotes:      append([]string(nil), n.Notes...),
+		Description:   n.Description,
+		Default:       n.Default,
+		Const:         n.Const,
+		Enum:          append([]any(nil), n.Enum...),
+		XRefKind:      n.RefKind,
+		XRelationship: n.Relationship,
+		XTag:          n.PreferredTag,
+		XDefault:      n.DefaultFrom,
+		XNotes:        append([]string(nil), n.Notes...),
 	}
 
 	schema.Type = schemaTypeValue(n.Kind, n.Nullable)

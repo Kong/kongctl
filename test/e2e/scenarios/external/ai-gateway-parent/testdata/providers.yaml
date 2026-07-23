@@ -1,0 +1,24 @@
+ai_gateway_model_providers:
+  - ref: external-openai-provider
+    ai_gateway: !external name:external-ai-gateway
+    name: external-openai-provider
+    type: openai
+    display_name: External OpenAI Provider
+    config:
+      auth:
+        type: basic
+        headers:
+          - name: Authorization
+            value: Bearer fake-openai-api-key
+
+  - ref: lookup-openai-provider
+    ai_gateway: !lookup {name: external-ai-gateway}
+    name: lookup-openai-provider
+    type: openai
+    display_name: Lookup OpenAI Provider
+    config:
+      auth:
+        type: basic
+        headers:
+          - name: Authorization
+            value: Bearer fake-openai-api-key

@@ -11,10 +11,11 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerExternalResourceType(
 		ResourceTypeGatewayService,
 		func(rs *ResourceSet) *[]GatewayServiceResource { return &rs.GatewayServices },
 		AutoExplain[GatewayServiceResource](),
+		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}, ParentType: ResourceTypeControlPlane},
 	)
 }
 
@@ -163,6 +164,11 @@ func (s *GatewayServiceResource) SetDefaults() {
 func (s GatewayServiceResource) GetKonnectID() string {
 	return s.konnectID
 }
+
+// SetKonnectID binds a resolved external or managed service identity.
+func (s *GatewayServiceResource) SetKonnectID(id string) { s.konnectID = id }
+
+func (s *GatewayServiceResource) GetExternalBlock() *ExternalBlock { return s.External }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect lookups.
 func (s GatewayServiceResource) GetKonnectMonikerFilter() string {

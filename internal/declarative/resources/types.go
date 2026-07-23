@@ -84,6 +84,7 @@ const (
 
 const (
 	SchemaFieldRef               = "ref"
+	SchemaFieldName              = "name"
 	SchemaFieldPortal            = "portal"
 	SchemaFieldOrganization      = "organization"
 	SchemaFieldTeams             = "teams"
@@ -522,6 +523,12 @@ func (rs *ResourceSet) GetPortalsByNamespace(namespace string) []PortalResource 
 func (rs *ResourceSet) GetControlPlanesByNamespace(namespace string) []ControlPlaneResource {
 	var filtered []ControlPlaneResource
 	for _, cp := range rs.ControlPlanes {
+		if cp.IsExternal() {
+			if namespace == NamespaceExternal {
+				filtered = append(filtered, cp)
+			}
+			continue
+		}
 		if GetNamespace(cp.Kongctl) == namespace {
 			filtered = append(filtered, cp)
 		}

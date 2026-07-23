@@ -425,8 +425,11 @@ These flags help prevent accidentally operating on unexpected namespaces, especi
 
 ## External Resources and Namespaces
 
-External resources (`_external` pseudo-resource) are references to Konnect objects that are managed elsewhere
-but are "selected" by the `kongctl` declarative engine so they can be referenced by other resources under management.
+External resources are Konnect objects managed elsewhere but selected by the
+`kongctl` declarative engine for use by managed resources. Use `_external` when
+the object needs a reusable declarative `ref` or managed children. Use the
+`!lookup` tag to resolve an existing object directly in a relationship field.
+`!external` is an exact alias for `!lookup`.
 
 ```yaml
 # External portal definition - this tells kongctl that this portal
@@ -445,8 +448,44 @@ Because kongctl does not own those resources:
 - External references do **not** add their namespaces to sync planning. Only namespaces from managed parent
   resources are considered when sync mode calculates deletes.
 - Child resources (portal pages, customizations, etc.) are still planned by resolving the external parent's Konnect ID.
-  Ensure the owning team labels the parent (for example via `kongctl adopt`) so the ID can be resolved, but you do not
-  need to (and cannot) assign a namespace to the external definition itself.
+  You do not need to (and cannot) assign a namespace to the external
+  definition itself.
+
+Inline lookups use either a `field:value` scalar or a mapping. The target type
+is inferred from the relationship field:
+
+```yaml
+apis:
+  - ref: products
+    name: Products
+    publications:
+      - ref: products-publication
+        portal_id: !lookup {name: Shared Developer Portal}
+
+ai_gateway_model_providers:
+  - ref: shared-provider
+    ai_gateway: !lookup {name: shared-ai-gateway}
+    name: openai
+    type: openai
+    display_name: OpenAI
+    config: {}
+```
+
+`!lookup` and `!external` are exact aliases. A mapping can contain multiple
+selectors, all of which must match. `id:<uuid>` and `{id: <uuid>}` bind a known
+ID directly and cannot be combined with other selectors. Selector lookups must
+match exactly one resource.
+
+Some relationship fields, such as `portal_id`, are fields from the Konnect API
+schema. Others, such as `ai_gateway`, are parent selectors added by kongctl for
+root-level child declarations. Their names remain different for compatibility,
+but both accept literal IDs, `!ref`, `!external`, and `!lookup` where supported.
+When a child is nested under its parent, the kongctl parent selector is omitted
+and inferred from the nesting.
+
+Lookups run during planning with the active Konnect profile. Equivalent
+lookups, including `_external` declarations, are cached for that plan. Saved
+plans contain resolved IDs rather than tag placeholders.
 
 ## Resources managed by decK
 
@@ -537,6 +576,16 @@ load content from external files, reference across resources, load values
 from environment variables, and extract specific values from structured
 data. Over time more tags may be added to support various functions and
 use cases.
+
+The supported relationship tags are:
+
+- `!ref`: reference a resource declared in the same configuration.
+- `!lookup`: resolve an existing remote resource during planning.
+- `!external`: exact alias for `!lookup`.
+
+`kongctl explain <resource>.<field>` reports the relationship target, whether
+the field is an API foreign key or a kongctl parent selector, supported tags,
+selectors, and any required scope field.
 
 ### Loading File Content to YAML Fields
 

@@ -38,6 +38,97 @@ func TestGeneratePlan_SyncWithNoScopeDoesNotListResources(t *testing.T) {
 	mockAppAuthAPI.AssertNotCalled(t, "ListAppAuthStrategies", mock.Anything, mock.Anything)
 }
 
+func TestExcludeExternalOnlyControlPlaneSyncScope(t *testing.T) {
+	t.Parallel()
+
+	t.Run("external only", func(t *testing.T) {
+		t.Parallel()
+
+		scope := resources.NewSyncScope()
+		scope.AddRoot(resources.ResourceTypeControlPlane)
+		rs := &resources.ResourceSet{
+			ControlPlanes: []resources.ControlPlaneResource{{
+				BaseResource: resources.BaseResource{Ref: "external"},
+				External:     &resources.ExternalBlock{ID: "control-plane-123"},
+			}},
+			SyncScope: scope,
+		}
+
+		excludeExternalOnlyControlPlaneSyncScope(rs)
+		require.False(t, scope.RootInScope(resources.ResourceTypeControlPlane))
+	})
+
+	t.Run("managed and external", func(t *testing.T) {
+		t.Parallel()
+
+		scope := resources.NewSyncScope()
+		scope.AddRoot(resources.ResourceTypeControlPlane)
+		rs := &resources.ResourceSet{
+			ControlPlanes: []resources.ControlPlaneResource{
+				{BaseResource: resources.BaseResource{Ref: "managed"}},
+				{
+					BaseResource: resources.BaseResource{Ref: "external"},
+					External:     &resources.ExternalBlock{ID: "control-plane-123"},
+				},
+			},
+			SyncScope: scope,
+		}
+
+		excludeExternalOnlyControlPlaneSyncScope(rs)
+		require.True(t, scope.RootInScope(resources.ResourceTypeControlPlane))
+	})
+
+	t.Run("explicit empty collection", func(t *testing.T) {
+		t.Parallel()
+
+		scope := resources.NewSyncScope()
+		scope.AddRoot(resources.ResourceTypeControlPlane)
+		rs := &resources.ResourceSet{SyncScope: scope}
+
+		excludeExternalOnlyControlPlaneSyncScope(rs)
+		require.True(t, scope.RootInScope(resources.ResourceTypeControlPlane))
+	})
+}
+
+func TestValidateParentScopesAllowsInlineExternalParent(t *testing.T) {
+	t.Parallel()
+
+	placeholder := externalPlaceholder(t, "!external")
+	scope := resources.NewSyncScope()
+	scope.AddChild(resources.ResourceTypeAIGateway, placeholder, resources.ResourceTypeAIGatewayProvider)
+	require.NoError(t, validateParentScopes(scope))
+
+	scope.RebindChildParent(resources.ResourceTypeAIGateway, placeholder, "gateway-id")
+	require.True(t, scope.ChildInScope(
+		resources.ResourceTypeAIGateway,
+		"gateway-id",
+		resources.ResourceTypeAIGatewayProvider,
+	))
+	require.False(t, scope.ChildInScope(
+		resources.ResourceTypeAIGateway,
+		placeholder,
+		resources.ResourceTypeAIGatewayProvider,
+	))
+}
+
+func TestShouldPlanRootForScopedInlineExternalChildren(t *testing.T) {
+	t.Parallel()
+
+	scope := resources.NewSyncScope()
+	scope.AddChild(
+		resources.ResourceTypeAIGateway,
+		"gateway-id",
+		resources.ResourceTypeAIGatewayProvider,
+	)
+	planner := &Planner{
+		resources: &resources.ResourceSet{SyncScope: scope},
+	}
+	plan := NewPlan("1.0", "test", PlanModeSync)
+
+	require.True(t, planner.shouldPlanRoot(plan, resources.ResourceTypeAIGateway))
+	require.False(t, planner.shouldPlanRoot(plan, resources.ResourceTypePortal))
+}
+
 func TestGeneratePlan_SyncPortalScopeDoesNotListUnscopedRoots(t *testing.T) {
 	ctx := context.Background()
 	mockPortalAPI := new(MockPortalAPI)

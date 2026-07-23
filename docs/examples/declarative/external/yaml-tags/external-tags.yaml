@@ -1,0 +1,22 @@
+# Resolve an existing portal in an API-native foreign-key field.
+apis:
+  - ref: external-tag-example-api
+    name: External Tag Example API
+    publications:
+      - ref: external-tag-example-publication
+        portal_id: !lookup name:Shared Developer Portal
+        visibility: public
+
+# Resolve the same portal through a kongctl-added root parent selector.
+portal_pages:
+  - ref: external-tag-example-page
+    portal: !lookup name:Shared Developer Portal
+    slug: external-tag-example
+    title: External Tag Example
+    description: Page attached to an externally managed portal
+    visibility: public
+    status: published
+    content: |
+      # External lookup tags
+
+      This page was attached to an existing portal using `!lookup`.

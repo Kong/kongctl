@@ -20,6 +20,15 @@ type resourceOps struct {
 	explain           ExplainRegistration
 	maturity          *maturity.Metadata
 	operationMaturity map[Operation]maturity.Metadata
+	external          *ExternalResolutionRegistration
+}
+
+// ExternalResolutionRegistration describes the selectors and scope supported
+// by a resource type's external lookup adapter.
+type ExternalResolutionRegistration struct {
+	Selectors              []string
+	ParentType             ResourceType
+	AllowAnyStringSelector bool
 }
 
 // registry maps resource types to their operations.
@@ -49,6 +58,37 @@ func registerResourceType[R any, RPtr interface {
 	options ...ResourceRegistrationOption,
 ) {
 	registerResourceTypeWithSliceAccessors[R, RPtr](rt, getSlicePtr, getSlicePtr, explain, options...)
+}
+
+func registerExternalResourceType[R any, RPtr interface {
+	*R
+	ExternallyResolvableResource
+}](rt ResourceType,
+	getSlicePtr func(*ResourceSet) *[]R,
+	explain ExplainRegistration,
+	external ExternalResolutionRegistration,
+	options ...ResourceRegistrationOption,
+) {
+	registerResourceTypeWithSliceAccessors[R, RPtr](rt, getSlicePtr, getSlicePtr, explain, options...)
+	ops := registry[rt]
+	ops.external = &external
+	registry[rt] = ops
+}
+
+func registerExternalResourceTypeWithSliceAccessors[R any, RPtr interface {
+	*R
+	ExternallyResolvableResource
+}](rt ResourceType,
+	getSlicePtr func(*ResourceSet) *[]R,
+	ensureSlicePtr func(*ResourceSet) *[]R,
+	explain ExplainRegistration,
+	external ExternalResolutionRegistration,
+	options ...ResourceRegistrationOption,
+) {
+	registerResourceTypeWithSliceAccessors[R, RPtr](rt, getSlicePtr, ensureSlicePtr, explain, options...)
+	ops := registry[rt]
+	ops.external = &external
+	registry[rt] = ops
 }
 
 func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
@@ -208,4 +248,26 @@ func RegisteredTypes() []ResourceType {
 		types = append(types, rt)
 	}
 	return types
+}
+
+// ExternalResolutionFor returns external lookup capability metadata.
+func ExternalResolutionFor(rt ResourceType) (ExternalResolutionRegistration, bool) {
+	ops, ok := registry[rt]
+	if !ok || ops.external == nil {
+		return ExternalResolutionRegistration{}, false
+	}
+	result := *ops.external
+	result.Selectors = append([]string(nil), result.Selectors...)
+	return result, true
+}
+
+// ExternalResolvableTypes returns all resource types with the external capability contract.
+func ExternalResolvableTypes() []ResourceType {
+	result := make([]ResourceType, 0)
+	for rt, ops := range registry {
+		if ops.external != nil {
+			result = append(result, rt)
+		}
+	}
+	return result
 }

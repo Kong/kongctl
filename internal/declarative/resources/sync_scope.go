@@ -68,6 +68,14 @@ func (s *SyncScope) RootInScope(rt ResourceType) bool {
 	return ok
 }
 
+// RemoveRoot removes a top-level resource collection from sync scope.
+func (s *SyncScope) RemoveRoot(rt ResourceType) {
+	if s == nil {
+		return
+	}
+	delete(s.RootResourceTypes, rt)
+}
+
 // AddChild marks a child resource collection as in scope for one parent ref.
 func (s *SyncScope) AddChild(parentType ResourceType, parentRef string, rt ResourceType) {
 	parentRef = NormalizeResourceRef(parentRef)
@@ -101,6 +109,37 @@ func (s *SyncScope) ChildInScope(parentType ResourceType, parentRef string, rt R
 	}
 	_, ok = byChildType[rt]
 	return ok
+}
+
+// ParentHasChildScope reports whether any child collection is in scope for a parent resource type.
+func (s *SyncScope) ParentHasChildScope(parentType ResourceType) bool {
+	if s == nil {
+		return false
+	}
+	return len(s.ChildResourceTypes[parentType]) > 0
+}
+
+// RebindChildParent moves child sync scope from a declarative selector value to
+// its planner-resolved parent ID.
+func (s *SyncScope) RebindChildParent(parentType ResourceType, oldRef, newRef string) {
+	if s == nil || oldRef == "" || newRef == "" || oldRef == newRef {
+		return
+	}
+	byParentRef := s.ChildResourceTypes[parentType]
+	if byParentRef == nil {
+		return
+	}
+	childTypes := byParentRef[oldRef]
+	if childTypes == nil {
+		return
+	}
+	if byParentRef[newRef] == nil {
+		byParentRef[newRef] = make(map[ResourceType]struct{})
+	}
+	for childType := range childTypes {
+		byParentRef[newRef][childType] = struct{}{}
+	}
+	delete(byParentRef, oldRef)
 }
 
 // AddRootChildCollection records an explicit root-level empty child collection.

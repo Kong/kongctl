@@ -8,12 +8,15 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerExternalResourceType(
 		ResourceTypeOrganizationTeam,
 		func(rs *ResourceSet) *[]OrganizationTeamResource { return &rs.OrganizationTeams },
 		AutoExplain[OrganizationTeamResource](),
+		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
 	)
 }
+
+func (t *OrganizationTeamResource) GetExternalBlock() *ExternalBlock { return t.External }
 
 // OrganizationTeamResource represents a team in declarative configuration
 type OrganizationTeamResource struct {

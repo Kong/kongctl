@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 	"reflect"
-	"unicode"
+	"strings"
 )
 
 // ExternalBlock marks a resource as externally managed
@@ -47,16 +47,6 @@ func (e *ExternalBlock) Validate() error {
 	return nil
 }
 
-// capitalizeFirst capitalizes the first character of a string
-func capitalizeFirst(s string) string {
-	if len(s) == 0 {
-		return s
-	}
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
-}
-
 // Match checks if the given Konnect resource matches this selector
 func (s *ExternalSelector) Match(konnectResource any) bool {
 	if s == nil || len(s.MatchFields) == 0 {
@@ -64,32 +54,68 @@ func (s *ExternalSelector) Match(konnectResource any) bool {
 	}
 
 	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Pointer {
-		v = v.Elem()
-	}
-
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	// Check all match fields
 	for fieldName, expectedValue := range s.MatchFields {
-		// Convert field name to title case for reflection (e.g., "name" -> "Name")
-		titleFieldName := capitalizeFirst(fieldName)
-		field := v.FieldByName(titleFieldName)
-
-		// Try embedded structs if direct field not found
-		if !field.IsValid() {
-			// Look in embedded Portal struct
-			if portalField := v.FieldByName("Portal"); portalField.IsValid() && portalField.Kind() == reflect.Struct {
-				field = portalField.FieldByName(titleFieldName)
-			}
-		}
-
-		if !field.IsValid() || field.Kind() != reflect.String || field.String() != expectedValue {
+		field, ok := externalSelectorStringField(v, fieldName)
+		if !ok || field != expectedValue {
 			return false
 		}
 	}
 
 	return true
+}
+
+func externalSelectorStringField(value reflect.Value, selectorName string) (string, bool) {
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
+		if value.IsNil() {
+			return "", false
+		}
+		value = value.Elem()
+	}
+	if !value.IsValid() || value.Kind() != reflect.Struct {
+		return "", false
+	}
+
+	valueType := value.Type()
+	for i := range value.NumField() {
+		structField := valueType.Field(i)
+		if structField.PkgPath != "" {
+			continue
+		}
+		fieldValue := value.Field(i)
+		if externalSelectorFieldMatches(structField, selectorName) {
+			return externalSelectorStringValue(fieldValue)
+		}
+		if structField.Anonymous {
+			if result, ok := externalSelectorStringField(fieldValue, selectorName); ok {
+				return result, true
+			}
+		}
+	}
+	return "", false
+}
+
+func externalSelectorStringValue(value reflect.Value) (string, bool) {
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
+		if value.IsNil() {
+			return "", false
+		}
+		value = value.Elem()
+	}
+	if !value.IsValid() || value.Kind() != reflect.String {
+		return "", false
+	}
+	return value.String(), true
+}
+
+func externalSelectorFieldMatches(field reflect.StructField, selectorName string) bool {
+	if strings.EqualFold(field.Name, selectorName) {
+		return true
+	}
+	for _, tagName := range []string{"json", "yaml"} {
+		name, _, _ := strings.Cut(field.Tag.Get(tagName), ",")
+		if name != "" && name != "-" && name == selectorName {
+			return true
+		}
+	}
+	return false
 }

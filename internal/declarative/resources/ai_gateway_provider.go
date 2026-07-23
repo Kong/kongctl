@@ -6,7 +6,6 @@ import (
 )
 
 const (
-	aiGatewayProviderFieldName        = "name"
 	aiGatewayProviderFieldType        = "type"
 	aiGatewayProviderFieldDisplayName = "display_name"
 	aiGatewayProviderFieldLabels      = "labels"
@@ -154,7 +153,7 @@ func (a AIGatewayProviderResource) GetReferenceFieldMappings() map[string]string
 
 func (a AIGatewayProviderResource) PayloadMap() (map[string]any, error) {
 	payload := map[string]any{
-		aiGatewayProviderFieldName:        a.Name,
+		SchemaFieldName:                   a.Name,
 		aiGatewayProviderFieldType:        a.Type,
 		aiGatewayProviderFieldDisplayName: a.DisplayName,
 		aiGatewayProviderFieldConfig:      a.Config,

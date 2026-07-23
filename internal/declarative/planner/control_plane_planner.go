@@ -36,12 +36,16 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 		return nil
 	}
 
-	currentControlPlanes, err := p.planner.listManagedControlPlanes(ctx, []string{namespace})
-	if err != nil {
-		if state.IsAPIClientError(err) {
-			return nil
+	var currentControlPlanes []state.ControlPlane
+	if namespace != resources.NamespaceExternal {
+		var err error
+		currentControlPlanes, err = p.planner.listManagedControlPlanes(ctx, []string{namespace})
+		if err != nil {
+			if state.IsAPIClientError(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to list current control planes in namespace %s: %w", namespace, err)
 		}
-		return fmt.Errorf("failed to list current control planes in namespace %s: %w", namespace, err)
 	}
 
 	currentByName := make(map[string]state.ControlPlane)

@@ -44,6 +44,14 @@ type ReferenceMapping interface {
 	GetReferenceFieldMappings() map[string]string
 }
 
+// ExternallyResolvableResource is the compile-time contract for resource types
+// that may bind an existing Konnect object through _external or an inline lookup.
+type ExternallyResolvableResource interface {
+	Resource
+	GetExternalBlock() *ExternalBlock
+	SetKonnectID(string)
+}
+
 // ResourceWithParent represents resources that have a parent
 type ResourceWithParent interface {
 	Resource

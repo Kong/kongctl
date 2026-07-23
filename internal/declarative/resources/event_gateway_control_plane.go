@@ -7,14 +7,17 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerExternalResourceType(
 		ResourceTypeEventGatewayControlPlane,
 		func(rs *ResourceSet) *[]EventGatewayControlPlaneResource { return &rs.EventGatewayControlPlanes },
 		AutoExplain[EventGatewayControlPlaneResource](
 			WithExplainAliases("egw"),
 		),
+		ExternalResolutionRegistration{AllowAnyStringSelector: true},
 	)
 }
+
+func (e *EventGatewayControlPlaneResource) GetExternalBlock() *ExternalBlock { return e.External }
 
 type EventGatewayControlPlaneResource struct {
 	BaseResource

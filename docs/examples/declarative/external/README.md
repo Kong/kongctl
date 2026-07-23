@@ -14,6 +14,9 @@ in your configuration files.
 
 ```
 external/
+├── yaml-tags/         # Inline !lookup examples
+│   ├── external-tags.yaml
+│   └── README.md
 ├── platform/          # Platform team manages the shared portal
 │   ├── portal.yaml     # Portal definition with pages and customization
 │   ├── api.yaml        # Platform API published to their portal
@@ -31,6 +34,10 @@ external/
 │   └── docs/           # API documentation
 └── README.md           # This file
 ```
+
+For a smaller example that resolves existing resources directly in
+relationship fields, see [`yaml-tags/`](yaml-tags/). It uses the standard
+`!lookup` spelling without declaring a reusable `_external` resource.
 
 ## Key Concepts
 

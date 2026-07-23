@@ -44,5 +44,5 @@ apis:
 
     publications:
       - ref: test-api-publication
-        portal_id: !ref shared-portal#id
+        portal_id: !external name:Platform Shared Portal
         visibility: "public"
