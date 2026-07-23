@@ -455,6 +455,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// Resolve dependencies and calculate execution order.
 	// Inject additional dependency constraints that span resource planners.
 	adjustControlPlaneGroupDeleteDependencies(basePlan.Changes)
+	adjustControlPlaneAPIImplementationDeleteDependencies(basePlan.Changes, rs)
 	adjustAuthStrategyDeleteDependencies(basePlan.Changes)
 	adjustDCRProviderDeleteDependencies(basePlan.Changes)
 
@@ -597,6 +598,67 @@ func adjustControlPlaneGroupDeleteDependencies(changes []PlannedChange) {
 				memberChange := &changes[memberIdx]
 				memberChange.DependsOn = appendDependsOn(memberChange.DependsOn, groupChange.ID)
 			}
+		}
+	}
+}
+
+// adjustControlPlaneAPIImplementationDeleteDependencies ensures control plane
+// DELETE changes execute after API implementation relationships are removed.
+func adjustControlPlaneAPIImplementationDeleteDependencies(changes []PlannedChange, rs *resources.ResourceSet) {
+	controlPlaneDeletes := make(map[string]*PlannedChange)
+	apiDeletes := make(map[string]*PlannedChange)
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete {
+			continue
+		}
+		switch change.ResourceType {
+		case ResourceTypeControlPlane:
+			if change.ResourceID != "" {
+				controlPlaneDeletes[change.ResourceID] = change
+			}
+			if change.ResourceRef != "" {
+				controlPlaneDeletes[change.ResourceRef] = change
+			}
+		case ResourceTypeAPI:
+			if change.ResourceRef != "" {
+				apiDeletes[change.ResourceRef] = change
+			}
+		}
+	}
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete || change.ResourceType != ResourceTypeAPIImplementation {
+			continue
+		}
+		service, ok := change.Fields[FieldService].(map[string]any)
+		if !ok {
+			continue
+		}
+		controlPlaneID, _ := service[FieldControlPlaneID].(string)
+		if controlPlaneDelete := controlPlaneDeletes[controlPlaneID]; controlPlaneDelete != nil {
+			controlPlaneDelete.DependsOn = appendDependsOn(controlPlaneDelete.DependsOn, change.ID)
+		}
+	}
+
+	if rs == nil {
+		return
+	}
+	for i := range rs.APIImplementations {
+		implementation := &rs.APIImplementations[i]
+		if implementation.ServiceReference == nil {
+			continue
+		}
+		service := implementation.ServiceReference.GetService()
+		if service == nil {
+			continue
+		}
+		controlPlaneDelete := controlPlaneDeletes[normalizeControlPlaneRef(service.ControlPlaneID)]
+		apiDelete := apiDeletes[resources.NormalizeResourceRef(implementation.API)]
+		if controlPlaneDelete != nil && apiDelete != nil {
+			controlPlaneDelete.DependsOn = appendDependsOn(controlPlaneDelete.DependsOn, apiDelete.ID)
 		}
 	}
 }
