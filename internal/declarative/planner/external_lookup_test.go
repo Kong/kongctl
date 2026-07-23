@@ -94,6 +94,20 @@ func TestExternalLookupResolverDefersDeckServiceForNewControlPlane(t *testing.T)
 	require.Empty(t, rs.GatewayServices[0].GetKonnectID())
 }
 
+func TestExternalControlPlaneContributesOnlyExternalNamespace(t *testing.T) {
+	t.Parallel()
+
+	planner := &Planner{}
+	rs := &resources.ResourceSet{
+		ControlPlanes: []resources.ControlPlaneResource{{
+			BaseResource: resources.BaseResource{Ref: "external-control-plane"},
+			External:     &resources.ExternalBlock{ID: "control-plane-123"},
+		}},
+	}
+
+	require.Equal(t, []string{resources.NamespaceExternal}, planner.getResourceNamespaces(rs))
+}
+
 func externalPlaceholder(t *testing.T, tag string) string {
 	t.Helper()
 	value, err := tags.NewExternalTagResolver(tag).Resolve(&yaml.Node{

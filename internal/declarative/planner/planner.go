@@ -152,6 +152,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	if opts.Mode == PlanModeSync {
 		ensurePlanningSyncScope(rs)
+		excludeExternalOnlyControlPlaneSyncScope(rs)
 		if err := validateSyncScope(rs.SyncScope); err != nil {
 			return nil, err
 		}
@@ -2523,6 +2524,7 @@ func (p *Planner) resolveAuthStrategyIdentities(
 func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	namespaceSet := make(map[string]bool)
 	hasExternalPortals := false
+	hasExternalControlPlanes := false
 	hasExternalEventGateways := false
 	hasExternalAIGateways := false
 	hasExternalOrganizationTeams := false
@@ -2538,6 +2540,10 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	}
 
 	for _, cp := range rs.ControlPlanes {
+		if cp.IsExternal() {
+			hasExternalControlPlanes = true
+			continue
+		}
 		ns := resources.GetNamespace(cp.Kongctl)
 		namespaceSet[ns] = true
 	}
@@ -2614,6 +2620,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	sort.Strings(namespaces)
 
 	if hasExternalPortals ||
+		hasExternalControlPlanes ||
 		hasExternalEventGateways ||
 		hasExternalAIGateways ||
 		hasExternalOrganizationTeams ||

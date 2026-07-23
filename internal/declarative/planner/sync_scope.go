@@ -85,6 +85,18 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	addOrganizationChildScopes(scope, rs)
 }
 
+func excludeExternalOnlyControlPlaneSyncScope(rs *resources.ResourceSet) {
+	if rs == nil || rs.SyncScope == nil || len(rs.ControlPlanes) == 0 {
+		return
+	}
+	for i := range rs.ControlPlanes {
+		if !rs.ControlPlanes[i].IsExternal() {
+			return
+		}
+	}
+	rs.SyncScope.RemoveRoot(resources.ResourceTypeControlPlane)
+}
+
 func hasOrganizationAssignmentSelectors(rs *resources.ResourceSet) bool {
 	return rs != nil && rs.Organization != nil &&
 		(len(rs.Organization.Users) > 0 || len(rs.Organization.SystemAccounts) > 0)

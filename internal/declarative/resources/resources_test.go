@@ -54,6 +54,31 @@ func TestGetPortalsByNamespaceIncludesExternalsWhenRequested(t *testing.T) {
 	require.Equal(t, "page-2", externalPages[0].Ref)
 }
 
+func TestGetControlPlanesByNamespaceIncludesExternalsWhenRequested(t *testing.T) {
+	t.Parallel()
+
+	team := "team-one"
+	rs := &ResourceSet{
+		ControlPlanes: []ControlPlaneResource{
+			{
+				BaseResource: BaseResource{Ref: "managed", Kongctl: namespaceMeta(team)},
+			},
+			{
+				BaseResource: BaseResource{Ref: "external"},
+				External:     &ExternalBlock{ID: "control-plane-123"},
+			},
+		},
+	}
+
+	managed := rs.GetControlPlanesByNamespace(team)
+	require.Len(t, managed, 1)
+	require.Equal(t, "managed", managed[0].Ref)
+
+	external := rs.GetControlPlanesByNamespace(NamespaceExternal)
+	require.Len(t, external, 1)
+	require.Equal(t, "external", external[0].Ref)
+}
+
 func TestGetEventGatewayControlPlanesByNamespaceIncludesExternalsWhenRequested(t *testing.T) {
 	team := "team-one"
 	rs := &ResourceSet{

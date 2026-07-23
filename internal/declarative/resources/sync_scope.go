@@ -68,6 +68,14 @@ func (s *SyncScope) RootInScope(rt ResourceType) bool {
 	return ok
 }
 
+// RemoveRoot removes a top-level resource collection from sync scope.
+func (s *SyncScope) RemoveRoot(rt ResourceType) {
+	if s == nil {
+		return
+	}
+	delete(s.RootResourceTypes, rt)
+}
+
 // AddChild marks a child resource collection as in scope for one parent ref.
 func (s *SyncScope) AddChild(parentType ResourceType, parentRef string, rt ResourceType) {
 	parentRef = NormalizeResourceRef(parentRef)

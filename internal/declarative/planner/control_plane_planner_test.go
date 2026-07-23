@@ -339,6 +339,29 @@ func TestControlPlanePlanner_PlanDeleteSync(t *testing.T) {
 	assert.Equal(t, "cp-delete", plan.Changes[0].ResourceRef)
 }
 
+func TestControlPlanePlanner_ExternalNamespaceDoesNotListOrReconcile(t *testing.T) {
+	t.Parallel()
+
+	mockAPI := helpers.NewMockControlPlaneAPI(t)
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{ControlPlaneAPI: mockAPI}),
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		resources: &resources.ResourceSet{
+			ControlPlanes: []resources.ControlPlaneResource{{
+				BaseResource: resources.BaseResource{Ref: "external"},
+				External:     &resources.ExternalBlock{ID: "control-plane-123"},
+			}},
+		},
+	}
+	planner.genericPlanner = NewGenericPlanner(planner)
+
+	plan := NewPlan("1.0", "test", PlanModeSync)
+	err := NewControlPlanePlanner(NewBasePlanner(planner)).
+		PlanChanges(t.Context(), NewConfig(resources.NamespaceExternal), plan)
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+}
+
 func TestControlPlanePlanner_PlanDeleteMembersDependOnGroupDelete(t *testing.T) {
 	planner := &Planner{
 		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
