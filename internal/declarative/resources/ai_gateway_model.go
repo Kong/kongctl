@@ -670,16 +670,29 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 }
 
 func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
+	headerModel := explainObject(explainField(
+		"X-Model",
+		explainArrayOf(explainStringNode("support-gpt")),
+		false,
+		true,
+	))
+	headerModel.Additional = explainArrayOf(explainStringNode("support-gpt"))
+
 	routeModel := explainUnionNode(
 		explainObject(explainField(
 			"body",
-			&ExplainNode{Kind: explainKindObject, Additional: explainArrayOf(explainStringNode("support-gpt"))},
+			explainObject(explainField(
+				"model",
+				explainArrayOf(explainStringNode("support-gpt")),
+				true,
+				true,
+			)),
 			true,
 			true,
 		)),
 		explainObject(explainField(
 			"headers",
-			&ExplainNode{Kind: explainKindObject, Additional: explainArrayOf(explainStringNode("support-gpt"))},
+			headerModel,
 			true,
 			true,
 		)),
