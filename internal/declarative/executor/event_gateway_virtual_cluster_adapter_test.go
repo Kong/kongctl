@@ -290,6 +290,45 @@ func TestEventGatewayVirtualClusterAdapterMapUpdateFieldsTopicAliasesEmptyFromPl
 	require.Empty(t, update.TopicAliases)
 }
 
+func TestEventGatewayVirtualClusterAdapterMapUpdateFieldsLabelsFromPlanJSON(t *testing.T) {
+	var update kkComps.UpdateVirtualClusterRequest
+	err := (&EventGatewayVirtualClusterAdapter{}).MapUpdateFields(
+		context.Background(),
+		nil,
+		map[string]any{
+			planner.FieldLabels: map[string]any{
+				"environment": "staging",
+				"team":        "platform",
+			},
+		},
+		&update,
+		nil,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{
+		"environment": "staging",
+		"team":        "platform",
+	}, update.Labels)
+}
+
+func TestEventGatewayVirtualClusterAdapterMapUpdateFieldsRejectsInvalidLabels(t *testing.T) {
+	var update kkComps.UpdateVirtualClusterRequest
+	err := (&EventGatewayVirtualClusterAdapter{}).MapUpdateFields(
+		context.Background(),
+		nil,
+		map[string]any{
+			planner.FieldLabels: map[string]any{
+				"environment": 42,
+			},
+		},
+		&update,
+		nil,
+	)
+
+	require.EqualError(t, err, "labels.environment must be a string")
+}
+
 func TestBuildVirtualClusterTopicAliasesTyped(t *testing.T) {
 	condition := "context.auth.type == 'anonymous'"
 	typedAliases := []kkComps.VirtualClusterTopicAlias{{

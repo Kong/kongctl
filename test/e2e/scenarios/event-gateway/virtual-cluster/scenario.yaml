@@ -61,6 +61,8 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.vcRef }}"
+                fields.labels.env: test
+                fields.labels.team: platform
       - name: 002-apply-create
         outputFormat: json
         run:
@@ -119,6 +121,8 @@ steps:
                 description: "Virtual Cluster for Test"
                 acl_mode: passthrough
                 dns_label: vc-default
+                labels.env: test
+                labels.team: platform
       - name: 005-get-vc-by-name
         run:
           - get
@@ -186,6 +190,9 @@ steps:
               fields:
                 action: UPDATE
                 resource_ref: "{{ .vars.vcRef }}"
+                fields.labels.env: staging
+                fields.labels.team: platform
+                fields.labels.version: v2
       - name: 002-apply-update
         outputFormat: json
         run:
@@ -220,6 +227,9 @@ steps:
                 description: "Virtual Cluster for Test Updated"
                 acl_mode: enforce_on_gateway
                 dns_label: vc-default-updated
+                labels.env: staging
+                labels.team: platform
+                labels.version: v2
                 "authentication[0].type": sasl_plain
       - name: 004-idempotency-check
         outputFormat: disable
