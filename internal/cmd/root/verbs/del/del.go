@@ -33,7 +33,7 @@ var (
 
 Deletes all resources defined in the declarative configuration files from Konnect.
 This is equivalent to running:
-  kongctl plan --mode delete -f <files> | kongctl sync --plan -`))
+  kongctl plan --mode delete -f <files> | kongctl delete --plan -`))
 )
 
 func NewDeleteCmd() (*cobra.Command, error) {

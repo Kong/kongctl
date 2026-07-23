@@ -188,7 +188,7 @@ func TestApplyCmd_Flags(t *testing.T) {
 	// Test flags on konnect subcommand
 	planFlag := konnectCmd.Flags().Lookup("plan")
 	assert.NotNil(t, planFlag, "Should have --plan flag")
-	assert.Equal(t, "Path to existing plan file", planFlag.Usage)
+	assert.Equal(t, "Path to existing apply-mode plan file", planFlag.Usage)
 	assert.Equal(t, "", planFlag.DefValue)
 
 	autoApproveFlag := konnectCmd.Flags().Lookup("auto-approve")

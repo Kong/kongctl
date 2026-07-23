@@ -767,8 +767,8 @@ func declarativePlanExamples() string {
   # Generate a plan using the explicit Konnect target form
   %[1]s plan konnect -f api.yaml
 
-  # Save a plan artifact for review or later execution
-  %[1]s plan -f config.yaml --output-file plan.json`, meta.CLIName))
+  # Save an apply-mode plan artifact for review or later execution
+  %[1]s plan --mode apply -f config.yaml --output-file plan.json`, meta.CLIName))
 }
 
 func declarativeSyncExamples() string {
@@ -778,7 +778,8 @@ func declarativeSyncExamples() string {
   # Synchronize using the explicit Konnect target form
   %[1]s sync konnect -f api.yaml
 
-  # Execute a reviewed plan without prompting
+  # Generate and execute a reviewed sync plan without prompting
+  %[1]s plan --mode sync -f config.yaml --output-file plan.json
   %[1]s sync --plan plan.json --auto-approve`, meta.CLIName))
 }
 
@@ -817,7 +818,8 @@ func declarativeApplyExamples() string {
     -f https://get.konghq.com/api.yaml \
     -s ./kongctl-example
 
-  # Apply from a pre-generated plan
+  # Generate and apply a reviewed apply plan
+  %[1]s plan --mode apply -f config.yaml --output-file plan.json
   %[1]s apply --plan plan.json`, meta.CLIName))
 }
 
@@ -828,7 +830,8 @@ func declarativeDeleteExamples() string {
   # Preview deletions before executing them
   %[1]s delete -f config.yaml --dry-run
 
-  # Execute a reviewed delete plan without prompting
+  # Generate and execute a reviewed delete plan without prompting
+  %[1]s plan --mode delete -f config.yaml --output-file delete-plan.json
   %[1]s delete --plan delete-plan.json --auto-approve`, meta.CLIName))
 }
 
@@ -840,7 +843,7 @@ func newDeclarativePlanCmd() *cobra.Command {
 		Long: `Generate a plan artifact from declarative configuration files for Konnect.
 
 The plan artifact represents the desired state of Konnect resources and can be used
-for review, approval workflows, or as input to sync operations.
+for review, approval workflows, or as input to the matching execution command.
 
 Konnect is the default target for this command, so "kongctl plan" and
 "kongctl plan konnect" are equivalent.`,
@@ -1766,7 +1769,7 @@ Konnect is the default target for this command, so "kongctl sync" and
 	addSaveDirFlag(cmd)
 	addRemoteFileAuthFlag(cmd)
 	addBaseDirFlag(cmd)
-	cmd.Flags().String("plan", "", "Path to existing plan file")
+	cmd.Flags().String("plan", "", "Path to existing sync-mode plan file")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying them")
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
@@ -1980,7 +1983,7 @@ func runApply(command *cobra.Command, args []string) error {
 	command.SetContext(ctx)
 
 	// Validate plan for apply
-	if err := validateApplyPlan(plan, command); err != nil {
+	if err := validateApplyPlan(plan, planFile); err != nil {
 		return err
 	}
 
@@ -2074,34 +2077,156 @@ func runApply(command *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateDeletePlan(plan *planner.Plan) error {
-	if plan.Metadata.Mode != planner.PlanModeDelete {
-		return fmt.Errorf(
-			"delete command requires a plan generated in delete mode, got %q mode. "+
-				"Generate a delete plan with: kongctl plan --mode delete -f <files>",
-			plan.Metadata.Mode,
-		)
-	}
-	return nil
+func validateApplyPlan(plan *planner.Plan, planFile string) error {
+	return validateExecutionPlan(
+		plan,
+		planFile,
+		"apply",
+		planner.PlanModeApply,
+		allowedActionsForPlanMode(planner.PlanModeApply),
+	)
 }
 
-func validateApplyPlan(plan *planner.Plan, command *cobra.Command) error {
-	// Check if plan contains DELETE operations
+func validateSyncPlan(plan *planner.Plan, planFile string) error {
+	return validateExecutionPlan(
+		plan,
+		planFile,
+		"sync",
+		planner.PlanModeSync,
+		allowedActionsForPlanMode(planner.PlanModeSync),
+	)
+}
+
+func validateDeletePlan(plan *planner.Plan, planFile string) error {
+	return validateExecutionPlan(
+		plan,
+		planFile,
+		"delete",
+		planner.PlanModeDelete,
+		allowedActionsForPlanMode(planner.PlanModeDelete),
+	)
+}
+
+func validateExecutionPlan(
+	plan *planner.Plan,
+	planFile string,
+	commandName string,
+	requiredMode planner.PlanMode,
+	allowedActions []planner.ActionType,
+) error {
+	planDescription := describePlanSource(planFile)
+	if plan == nil {
+		return fmt.Errorf("%s could not be loaded for the %s command", planDescription, commandName)
+	}
+
+	if plan.Metadata.Mode != requiredMode {
+		err := fmt.Errorf(
+			"%s was generated in %q mode and cannot be loaded into the %s command, which requires %q mode.\n"+
+				"To use the %s command, regenerate the plan with:\n"+
+				"> kongctl plan --mode %s -f <files> --output-file <plan-file>",
+			planDescription,
+			plan.Metadata.Mode,
+			commandName,
+			requiredMode,
+			commandName,
+			requiredMode,
+		)
+		if executionCommand := executionCommandForPlan(plan); executionCommand != "" {
+			return fmt.Errorf(
+				"%w\nTo execute this plan, use the %s command:\n"+
+					"> kongctl %s --plan %s",
+				err,
+				executionCommand,
+				executionCommand,
+				planArgumentForSource(planFile),
+			)
+		}
+		return err
+	}
+
 	for _, change := range plan.Changes {
-		if change.Action == planner.ActionDelete {
-			return fmt.Errorf("apply command cannot execute plans with DELETE operations. Use 'sync' command instead")
+		if !slices.Contains(allowedActions, change.Action) {
+			return fmt.Errorf(
+				"%s contains %q action, which cannot be executed by the %s command. "+
+					"Allowed actions for %s plans: %s.\n"+
+					"To use the %s command, regenerate the plan with:\n"+
+					"> kongctl plan --mode %s -f <files> --output-file <plan-file>",
+				planDescription,
+				change.Action,
+				commandName,
+				requiredMode,
+				formatPlanActions(allowedActions),
+				commandName,
+				requiredMode,
+			)
 		}
 	}
 
-	// Warn if plan was generated in sync mode
-	if plan.Metadata.Mode == planner.PlanModeSync {
-		fmt.Fprintf(
-			command.OutOrStderr(),
-			"Warning: Plan was generated in sync mode but apply will skip DELETE operations\n",
-		)
-	}
-
 	return nil
+}
+
+func describePlanSource(planFile string) string {
+	switch planFile {
+	case "":
+		return "generated plan"
+	case "-":
+		return "plan from stdin"
+	default:
+		return fmt.Sprintf("plan %q", planFile)
+	}
+}
+
+func planArgumentForSource(planFile string) string {
+	if planFile == "-" {
+		return "-"
+	}
+	return "<plan-file>"
+}
+
+func allowedActionsForPlanMode(mode planner.PlanMode) []planner.ActionType {
+	switch mode {
+	case planner.PlanModeApply:
+		return []planner.ActionType{
+			planner.ActionCreate,
+			planner.ActionUpdate,
+			planner.ActionExternalTool,
+		}
+	case planner.PlanModeSync:
+		return []planner.ActionType{
+			planner.ActionCreate,
+			planner.ActionUpdate,
+			planner.ActionDelete,
+			planner.ActionExternalTool,
+		}
+	case planner.PlanModeDelete:
+		return []planner.ActionType{planner.ActionDelete}
+	default:
+		return nil
+	}
+}
+
+func executionCommandForPlan(plan *planner.Plan) string {
+	if plan == nil {
+		return ""
+	}
+	allowedActions := allowedActionsForPlanMode(plan.Metadata.Mode)
+	if allowedActions == nil {
+		return ""
+	}
+	for _, change := range plan.Changes {
+		if !slices.Contains(allowedActions, change.Action) {
+			return ""
+		}
+	}
+	return string(plan.Metadata.Mode)
+}
+
+func formatPlanActions(actions []planner.ActionType) string {
+	formatted := make([]string, 0, len(actions))
+	for _, action := range actions {
+		formatted = append(formatted, string(action))
+	}
+	return strings.Join(formatted, ", ")
 }
 
 // Displays an output for the execution of an apply or sync command.
@@ -2282,7 +2407,7 @@ Konnect is the default target for this command, so "kongctl apply" and
 	addSaveDirFlag(cmd)
 	addRemoteFileAuthFlag(cmd)
 	addBaseDirFlag(cmd)
-	cmd.Flags().String("plan", "", "Path to existing plan file")
+	cmd.Flags().String("plan", "", "Path to existing apply-mode plan file")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying")
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
@@ -2306,7 +2431,7 @@ in Konnect are skipped with a warning. Child resources are removed via
 cascade deletion.
 
 This is equivalent to running:
-  kongctl plan --mode delete -f <files> | kongctl sync --plan -`,
+  kongctl plan --mode delete -f <files> | kongctl delete --plan -`,
 		RunE: runDelete,
 	}
 
@@ -2318,7 +2443,7 @@ This is equivalent to running:
 	addSaveDirFlag(cmd)
 	addRemoteFileAuthFlag(cmd)
 	addBaseDirFlag(cmd)
-	cmd.Flags().String("plan", "", "Path to existing delete plan file")
+	cmd.Flags().String("plan", "", "Path to existing delete-mode plan file")
 	cmd.Flags().Bool("dry-run", false, "Preview deletions without executing them")
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
@@ -2466,7 +2591,7 @@ func runDelete(command *cobra.Command, args []string) error {
 	command.SetContext(ctx)
 
 	// Validate that the plan was generated in delete mode
-	if err := validateDeletePlan(plan); err != nil {
+	if err := validateDeletePlan(plan, planFile); err != nil {
 		return err
 	}
 
@@ -2715,6 +2840,11 @@ func runSync(command *cobra.Command, args []string) error {
 		ctx = context.WithValue(ctx, planFileKey, planFile)
 	}
 	command.SetContext(ctx)
+
+	// Validate plan mode and actions before handling an empty plan or executing changes.
+	if err := validateSyncPlan(plan, planFile); err != nil {
+		return err
+	}
 
 	// Check if plan is empty (no changes needed)
 	if plan.IsEmpty() {

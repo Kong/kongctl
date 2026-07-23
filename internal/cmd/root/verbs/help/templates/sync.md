@@ -23,7 +23,7 @@ kongctl sync [flags]
 - `-s, --remote-file-save-dir` (string): Save remote URL sources into a local directory before loading
 - `-F, --remote-file-save-force`: Overwrite existing files when saving with `--remote-file-save-dir`
 - `--remote-file-auth` (string): Remote URL authentication mode: `auto` or `none`
-- `--plan` (string): Path to a pre-generated plan file
+- `--plan` (string): Path to a pre-generated sync-mode plan file
 - `-r, --recursive`: Process directories recursively
 
 ### Execution Flags
@@ -162,7 +162,8 @@ Error: Cannot delete protected resources:
 kongctl sync -f environments/dev/ --recursive --auto-approve
 
 # Production - careful sync with review
-kongctl plan -f environments/prod/ --recursive -o prod-plan.json
+kongctl plan --mode sync -f environments/prod/ --recursive \
+  --output-file prod-plan.json
 # ... review plan carefully ...
 kongctl sync --plan prod-plan.json
 ```
