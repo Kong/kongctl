@@ -179,6 +179,7 @@ func TestAIGatewayModelPlannerIgnoresAPIDefaults(t *testing.T) {
 		"enabled": true,
 		"config": {
 			"route": {
+				"model": {"body": {"model": ["support-gpt"]}},
 				"https_redirect_status_code": 426,
 				"preserve_host": false,
 				"protocols": ["http", "https"],
@@ -188,7 +189,6 @@ func TestAIGatewayModelPlannerIgnoresAPIDefaults(t *testing.T) {
 				"strip_path": true
 			},
 			"model": {
-				"alias": "support-gpt",
 				"name_header": true
 			},
 			"response_streaming": "allow",
@@ -247,6 +247,7 @@ func TestAIGatewayModelPlannerIgnoresTargetOrderAndAPIDefaults(t *testing.T) {
 		"enabled": true,
 		"config": {
 			"route": {
+				"model": {"body": {"model": ["support-gpt"]}},
 				"https_redirect_status_code": 426,
 				"preserve_host": false,
 				"protocols": ["https", "http"],
@@ -256,7 +257,6 @@ func TestAIGatewayModelPlannerIgnoresTargetOrderAndAPIDefaults(t *testing.T) {
 				"strip_path": true
 			},
 			"model": {
-				"alias": "support-gpt",
 				"name_header": true,
 				"failover_criteria": ["timeout", "error"],
 				"connect_timeout": 60000,

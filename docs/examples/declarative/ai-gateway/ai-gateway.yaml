@@ -129,7 +129,11 @@ ai_gateways:
         display_name: "Customer Support GPT"
         enabled: true
         config:
-          route: {}
+          route:
+            model:
+              body:
+                model:
+                  - customer-support-gpt
         formats:
           - type: openai
         targets:

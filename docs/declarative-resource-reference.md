@@ -681,8 +681,18 @@ ai_gateway_models:
    display_name: string required
    enabled: boolean
    config:
-     route: object required
-     model: object required
+     route:
+       model: # choose exactly one routing method
+         body:
+           model:
+             - string
+         # headers:
+         #   X-Model:
+         #     - string
+         # path_aliases:
+         #   - string
+     model:
+       name_header: boolean
    formats:
     - type: string required
    targets:

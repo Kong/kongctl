@@ -130,8 +130,12 @@ steps:
               fields:
                 "contains(stdout, 'ai_gateways:')": true
                 "contains(stdout, 'models:')": true
-                "contains(stdout, 'route: {}')": true
-                "contains(stdout, 'model: {}')": true
+                "contains(stdout, '# oneOf option: body')": true
+                "contains(stdout, 'body:')": true
+                "contains(stdout, '- support-gpt')": true
+                "contains(stdout, '# X-Model:')": true
+                "contains(stdout, 'route: {}')": false
+                "contains(stdout, 'model: {}')": false
                 "contains(stdout, '- type: openai')": true
                 "contains(stdout, 'targets:')": true
                 "contains(stdout, 'provider: existing-provider-name')": true

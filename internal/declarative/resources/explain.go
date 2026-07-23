@@ -1773,7 +1773,7 @@ func renderScaffoldField(write scaffoldWriter, depth int, field *ExplainField, o
 	}
 
 	node := scaffoldActiveNode(field.Node)
-	if node.Kind == explainKindObject && node.Additional == nil && node.Literal == "" {
+	if node.Kind == explainKindObject && (node.Additional == nil || len(node.Properties) > 0) && node.Literal == "" {
 		write(indent + commentPrefix + field.Name + ":")
 		renderCommentedBlock(write, depth+1, field.Node, omit, comment)
 		return

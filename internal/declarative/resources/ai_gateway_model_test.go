@@ -73,6 +73,69 @@ func TestAIGatewayModelResourceAllowsOmittedModelConfig(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(payload), &model))
 	require.NotNil(t, model.AIGatewayModelModel)
 	require.NoError(t, model.Validate())
+	require.Equal(t, map[string]any{
+		"body": map[string]any{"model": []any{"support-gpt"}},
+	}, aiGatewayRouteModelPayload(t, model))
+}
+
+func TestAIGatewayModelResourceSupportsRouteModelVariants(t *testing.T) {
+	tests := map[string]map[string]any{
+		`{"body":{"model":["support-gpt"]}}`: {
+			"body": map[string]any{"model": []any{"support-gpt"}},
+		},
+		`{"headers":{"X-Model":["support-gpt"]}}`: {
+			"headers": map[string]any{"X-Model": []any{"support-gpt"}},
+		},
+		`{"path_aliases":["support-gpt"]}`: {
+			"path_aliases": []any{"support-gpt"},
+		},
+	}
+
+	for routeModel, expected := range tests {
+		t.Run(routeModel, func(t *testing.T) {
+			payload := strings.Replace(aiGatewayModelJSON, `"route": {}`, `"route": {"model": `+routeModel+`}`, 1)
+			var model AIGatewayModelResource
+			require.NoError(t, json.Unmarshal([]byte(payload), &model))
+			require.Equal(t, expected, aiGatewayRouteModelPayload(t, model))
+		})
+	}
+}
+
+func TestAIGatewayModelResourceMigratesLegacyAliasToRouteModel(t *testing.T) {
+	payload := strings.Replace(
+		aiGatewayModelJSON,
+		`"model": {}`,
+		`"model": {"alias": "legacy-support", "name_header": false}`,
+		1,
+	)
+
+	var model AIGatewayModelResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &model))
+	require.Equal(t, map[string]any{
+		"body": map[string]any{"model": []any{"legacy-support"}},
+	}, aiGatewayRouteModelPayload(t, model))
+	require.NotNil(t, model.AIGatewayModelModel.Config.Model)
+	require.NotNil(t, model.AIGatewayModelModel.Config.Model.NameHeader)
+	require.False(t, *model.AIGatewayModelModel.Config.Model.NameHeader)
+}
+
+func TestAIGatewayModelResourceRejectsLegacyAliasWithRouteModel(t *testing.T) {
+	payload := strings.Replace(
+		aiGatewayModelJSON,
+		`"route": {}`,
+		`"route": {"model": {"path_aliases": ["support-gpt"]}}`,
+		1,
+	)
+	payload = strings.Replace(
+		payload,
+		`"model": {}`,
+		`"model": {"alias": "support-gpt"}`,
+		1,
+	)
+
+	var model AIGatewayModelResource
+	err := json.Unmarshal([]byte(payload), &model)
+	require.ErrorContains(t, err, "cannot specify both config.model.alias and config.route.model")
 }
 
 func TestAIGatewayModelExplainNodeMarksModelConfigOptional(t *testing.T) {
@@ -80,13 +143,35 @@ func TestAIGatewayModelExplainNodeMarksModelConfigOptional(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, node.OneOf)
 
+	modelConfigBranches := 0
 	for _, branch := range node.OneOf {
 		configField := branch.propIndex["config"]
 		require.NotNil(t, configField)
-		modelField := configField.Node.propIndex["model"]
-		require.NotNil(t, modelField)
-		require.False(t, modelField.Required)
+		if modelField := configField.Node.propIndex["model"]; modelField != nil {
+			modelConfigBranches++
+			require.False(t, modelField.Required)
+		}
+
+		routeField := configField.Node.propIndex["route"]
+		require.NotNil(t, routeField)
+		routeModelField := routeField.Node.propIndex["model"]
+		require.NotNil(t, routeModelField)
+		require.Len(t, routeModelField.Node.OneOf, 3)
 	}
+	require.Equal(t, 1, modelConfigBranches)
+}
+
+func aiGatewayRouteModelPayload(t *testing.T, model AIGatewayModelResource) map[string]any {
+	t.Helper()
+	payload, err := model.MutablePayloadMap()
+	require.NoError(t, err)
+	config, ok := payload["config"].(map[string]any)
+	require.True(t, ok)
+	route, ok := config["route"].(map[string]any)
+	require.True(t, ok)
+	routeModel, ok := route["model"].(map[string]any)
+	require.True(t, ok)
+	return routeModel
 }
 
 func TestAIGatewayModelResourceSupportsEmbeddingConfigVariants(t *testing.T) {

@@ -351,9 +351,9 @@ func aiGatewayDetailView(gateway *kkComps.AIGateway) string {
 		description = strings.TrimSpace(*gateway.Description)
 	}
 
-	configHash := aiGatewayMissingValue
-	if gateway.ConfigHash != nil {
-		configHash = valueOrMissing(*gateway.ConfigHash)
+	configVersion := aiGatewayMissingValue
+	if gateway.ConfigVersion != nil {
+		configVersion = valueOrMissing(*gateway.ConfigVersion)
 	}
 
 	createdAt := aiGatewayMissingValue
@@ -376,7 +376,7 @@ func aiGatewayDetailView(gateway *kkComps.AIGateway) string {
 		valueOrMissing(gateway.Endpoints.Configuration),
 		valueOrMissing(gateway.Endpoints.Telemetry),
 	)
-	fmt.Fprintf(&b, "config_hash: %s\n", configHash)
+	fmt.Fprintf(&b, "config_version: %s\n", configVersion)
 	fmt.Fprintf(&b, "labels: %s\n", formatLabelPairs(gateway.Labels, aiGatewayMissingValue))
 	fmt.Fprintf(&b, "%s: %s\n", aiGatewayFieldCreatedAt, createdAt)
 	fmt.Fprintf(&b, "%s: %s\n", aiGatewayFieldUpdatedAt, updatedAt)

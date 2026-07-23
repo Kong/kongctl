@@ -24,7 +24,7 @@ defaults:
       - id
       - created_at
       - updated_at
-      - config_hash
+      - config_version
       - endpoints
       - resource_id
       - change_id
