@@ -372,12 +372,9 @@ type Dashboard struct {
 
 // APIVersion represents an API version for internal use
 type APIVersion struct {
-	ID            string
-	Version       string
-	PublishStatus string
-	Deprecated    bool
-	SunsetDate    string
-	Spec          string // API version spec content for content comparison
+	ID      string
+	Version string
+	Spec    string // API version spec content for content comparison
 }
 
 // APIPublication represents an API publication for internal use
@@ -2415,11 +2412,7 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 			version := APIVersion{
 				ID:      v.ID,
 				Version: v.Version,
-				// Other fields not available in list response - use defaults
-				PublishStatus: "",
-				Deprecated:    false,
-				SunsetDate:    "",
-				Spec:          "",
+				Spec:    "",
 			}
 			allVersions = append(allVersions, version)
 		}

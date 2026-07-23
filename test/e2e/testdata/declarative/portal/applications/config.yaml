@@ -54,7 +54,6 @@ apis:
     versions:
       - ref: auto-applied-api-v1
         version: "1.0.0"
-        publish_status: "unpublished"
         spec:
           content: |
             openapi: 3.0.0

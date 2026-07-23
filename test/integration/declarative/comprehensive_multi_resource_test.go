@@ -75,13 +75,13 @@ apis:
     version: "1.0.0"
     versions:
       - ref: users-api-v1
-        name: "v1"
+        version: "v1"
         gateway_service:
           control_plane_id: production-cp
           id: "550e8400-e29b-41d4-a716-446655440000"
         spec: !file ./specs/users-api-spec.json
       - ref: users-api-v2
-        name: "v2"
+        version: "v2"
         gateway_service:
           control_plane_id: production-cp
           id: "550e8400-e29b-41d4-a716-446655440001"
@@ -161,7 +161,7 @@ apis:
 api_versions:
   - ref: payment-api-v2
     api: payment-api
-    name: "v2"
+    version: "v2"
     gateway_service:
       control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
       id: "550e8400-e29b-41d4-a716-446655440001"
@@ -280,7 +280,7 @@ apis:
       team: !file ./metadata.yaml#api_specs.users.info.contact.name
     versions:
       - ref: users-api-v1
-        name: "v1"
+        version: "v1"
         gateway_service:
           control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
           id: "550e8400-e29b-41d4-a716-446655440001"

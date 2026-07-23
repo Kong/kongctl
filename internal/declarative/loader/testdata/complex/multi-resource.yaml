@@ -90,9 +90,7 @@ apis:
     
     versions:
       - ref: test-api-v1
-        name: "v1.0.0"
         version: "v1"
-        publish_status: "published"
         
     publications:
       - ref: test-api-pub
@@ -113,9 +111,7 @@ apis:
     
     versions:
       - ref: prod-api-v1
-        name: "v1.0.0"
         version: "v1"
-        publish_status: "published"
         
     publications:
       - ref: prod-api-pub

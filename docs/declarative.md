@@ -296,7 +296,7 @@ apis:
     name: "Users API"
     versions:
       - ref: v1
-        name: "v1.0.0"
+        version: "v1.0.0"
         spec: !file ./specs/users-v1.yaml
     publications:
       - ref: public
@@ -314,7 +314,7 @@ apis:
 api_versions:
   - ref: v1
     api: users-api
-    name: "v1.0.0"
+    version: "v1.0.0"
     spec: !file ./specs/users-v1.yaml
 
 api_publications:

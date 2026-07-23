@@ -27,9 +27,7 @@ apis:
     
     versions:
       - ref: my-api-v1
-        name: "v1.0.0"
         version: "v1"
-        publish_status: "published"
         
     publications:
       - ref: my-api-pub

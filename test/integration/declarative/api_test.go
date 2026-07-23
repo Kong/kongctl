@@ -314,9 +314,7 @@ apis:
     version: "1.0.0"
     versions:
       - ref: v1
-        name: "v1.0.0"
-        deprecated: false
-        publish_status: "published"
+        version: "v1.0.0"
     publications:
       - ref: my-api-pub
         portal_id: dev-portal
@@ -567,8 +565,7 @@ apis:
 api_versions:
   - ref: v1
     api: my-api
-    name: "v1.0.0"
-    deprecated: false
+    version: "v1.0.0"
 `
 	err = os.WriteFile(versionFile, []byte(versionContent), 0o600)
 	require.NoError(t, err)
