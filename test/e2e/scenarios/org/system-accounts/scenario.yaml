@@ -176,6 +176,29 @@ steps:
                 "contains(stdout, 'e2e-system-account-1')": true
                 "contains(stdout, 'e2e-system-account-2')": true
 
+      - name: 001-list-custom-columns
+        run:
+          - list
+          - org
+          - system-account
+          - --columns
+          - ACCT_NAME=.name,ACCT_ID=.id[:8]
+        outputFormat: text  # List commands output formatted tables
+        parseAs: raw        # Parse as {"stdout": "..."} for text validation
+        assertions:
+          - name: custom-columns-present
+            expect:
+              fields:
+                "starts_with(stdout, 'ACCT_NAME')": true
+                "contains(stdout, 'ACCT_ID')": true
+                "contains(stdout, 'MANAGED')": false
+                "contains(stdout, 'DESCRIPTION')": false
+          - name: custom-columns-value
+            expect:
+              fields:
+                "contains(stdout, 'e2e-system-account-1')": true
+                "contains(stdout, '{{ .vars.account_1_id | trunc 8 }}')": true
+
   - name: 006-list-system-account-by-name
     skipInputs: true
     commands:
