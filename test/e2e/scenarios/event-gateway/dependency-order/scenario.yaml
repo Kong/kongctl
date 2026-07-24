@@ -30,3 +30,79 @@ steps:
                 applied: 5
                 failed: 0
                 status: success
+
+  - name: 002-verify-resources-created
+    skipInputs: true
+    commands:
+      - name: 001-verify-virtual-cluster
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - event-gateway-dependency-order-test
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0].name"
+            expect:
+              fields:
+                "@": storefront
+      - name: 002-verify-listener
+        run:
+          - get
+          - event-gateway
+          - listeners
+          - --gateway-name
+          - event-gateway-dependency-order-test
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0].name"
+            expect:
+              fields:
+                "@": storefront-listener
+      - name: 003-verify-listener-policy
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - event-gateway-dependency-order-test
+          - --listener-name
+          - storefront-listener
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0].name"
+            expect:
+              fields:
+                "@": storefront-forward
+
+  - name: 003-idempotency-check
+    commands:
+      - name: 001-plan-no-op
+        outputFormat: json
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
