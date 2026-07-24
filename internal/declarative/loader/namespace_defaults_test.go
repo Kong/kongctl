@@ -269,7 +269,6 @@ apis:
     name: "API 1"
     versions:
       - ref: v1
-        name: "v1.0.0"
         version: "1.0.0"
         spec:
           openapi: 3.0.0

@@ -17,6 +17,37 @@ func TestNew(t *testing.T) {
 	assert.NotNil(t, loader)
 }
 
+func TestLoaderRejectsUnsupportedAPIVersionFields(t *testing.T) {
+	tests := []struct {
+		name  string
+		field string
+	}{
+		{name: "name", field: `name: "v1"`},
+		{name: "description", field: `description: "Version one"`},
+		{name: "publish_status", field: `publish_status: "published"`},
+		{name: "deprecated", field: "deprecated: false"},
+		{name: "sunset_date", field: `sunset_date: "2026-12-31"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := strings.ReplaceAll(`
+apis:
+  - ref: api-1
+    name: API 1
+    versions:
+      - ref: api-1-v1
+        version: "1.0.0"
+$FIELD
+`, "$FIELD", "        "+tt.field)
+
+			_, err := New().LoadFile(writeLoaderTestFile(t, input))
+			require.Error(t, err)
+			require.ErrorContains(t, err, "unknown field '"+tt.name+"'")
+		})
+	}
+}
+
 func TestLoaderPortalTeamGroupMappingsNestedAndRoot(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

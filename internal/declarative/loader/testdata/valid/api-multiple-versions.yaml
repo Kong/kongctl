@@ -6,11 +6,7 @@ apis:
     
     versions:
       - ref: api-v1
-        name: "v1.0.0"
         version: "1.0.0"
-        publish_status: "published"
       
       - ref: api-v2
-        name: "v2.0.0"
         version: "2.0.0"
-        publish_status: "published"

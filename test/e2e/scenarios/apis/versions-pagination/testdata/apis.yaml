@@ -10,8 +10,6 @@ apis:
     versions:
       - ref: api-pagination-v1
         version: "1.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -21,8 +19,6 @@ apis:
             paths: {}
       - ref: api-pagination-v2
         version: "2.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -32,8 +28,6 @@ apis:
             paths: {}
       - ref: api-pagination-v3
         version: "3.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -43,8 +37,6 @@ apis:
             paths: {}
       - ref: api-pagination-v4
         version: "4.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -54,8 +46,6 @@ apis:
             paths: {}
       - ref: api-pagination-v5
         version: "5.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -65,8 +55,6 @@ apis:
             paths: {}
       - ref: api-pagination-v6
         version: "6.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -76,8 +64,6 @@ apis:
             paths: {}
       - ref: api-pagination-v7
         version: "7.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -87,8 +73,6 @@ apis:
             paths: {}
       - ref: api-pagination-v8
         version: "8.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -98,8 +82,6 @@ apis:
             paths: {}
       - ref: api-pagination-v9
         version: "9.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -109,8 +91,6 @@ apis:
             paths: {}
       - ref: api-pagination-v10
         version: "10.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
@@ -120,8 +100,6 @@ apis:
             paths: {}
       - ref: api-pagination-v11
         version: "11.0.0"
-        publish_status: "published"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0

@@ -880,8 +880,6 @@ func (p *Planner) planAPIVersionCreate(
 			FieldContent: *version.Spec.Content,
 		}
 	}
-	// Note: PublishStatus, Deprecated, SunsetDate are not supported by the SDK create operation
-
 	parentInfo := &ParentInfo{Ref: apiRef}
 	if apiID != "" {
 		parentInfo.ID = apiID

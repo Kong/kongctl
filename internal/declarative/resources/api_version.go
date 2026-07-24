@@ -125,16 +125,11 @@ func (v APIVersionResource) GetParentRef() *ResourceRef {
 func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields
 	var temp struct {
-		Ref           string `json:"ref"`
-		API           string `json:"api,omitempty"`
-		Name          string `json:"name,omitempty"`
-		Description   string `json:"description,omitempty"`
-		Version       string `json:"version"`
-		PublishStatus string `json:"publish_status,omitempty"`
-		Deprecated    bool   `json:"deprecated,omitempty"`
-		SunsetDate    string `json:"sunset_date,omitempty"`
-		Kongctl       any    `json:"kongctl,omitempty"`
-		Spec          any    `json:"spec,omitempty"`
+		Ref     string `json:"ref"`
+		API     string `json:"api,omitempty"`
+		Version string `json:"version"`
+		Kongctl any    `json:"kongctl,omitempty"`
+		Spec    any    `json:"spec,omitempty"`
 	}
 
 	// Use a decoder with DisallowUnknownFields to catch typos
@@ -157,16 +152,6 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 	// Map to SDK fields embedded in CreateAPIVersionRequest
 	sdkData := map[string]any{
 		"version": temp.Version,
-	}
-
-	if temp.PublishStatus != "" {
-		sdkData["publish_status"] = temp.PublishStatus
-	}
-	if temp.Deprecated {
-		sdkData["deprecated"] = temp.Deprecated
-	}
-	if temp.SunsetDate != "" {
-		sdkData["sunset_date"] = temp.SunsetDate
 	}
 
 	// Handle spec field - it could be a string, a map, or a wrapped object

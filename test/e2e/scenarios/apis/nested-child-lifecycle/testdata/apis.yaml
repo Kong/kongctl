@@ -18,8 +18,6 @@ apis:
     versions:
       - ref: api-nested-v1
         version: "1.0.0"
-        publish_status: "unpublished"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0

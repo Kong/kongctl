@@ -19,7 +19,6 @@ apis:
     versions:
       - ref: customer-api-v1
         version: "1.0.0"
-        deprecated: false
         spec:
           content: |
             openapi: 3.0.0
