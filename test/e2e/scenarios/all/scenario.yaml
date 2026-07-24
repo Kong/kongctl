@@ -30,6 +30,7 @@ vars:
   eventGatewayName: all-event-gateway
 
 defaults:
+  maxConcurrency: 1
   mask:
     dropKeys:
       - id
