@@ -94,7 +94,7 @@ steps:
   - name: 003-idempotency-check
     commands:
       - name: 001-plan-no-op
-        outputFormat: json
+        outputFormat: disable
         run:
           - plan
           - -f
