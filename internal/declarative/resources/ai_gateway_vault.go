@@ -77,10 +77,13 @@ func (a AIGatewayVaultResource) GetParentRef() *ResourceRef {
 }
 
 func (a AIGatewayVaultResource) GetReferenceFieldMappings() map[string]string {
-	if a.AIGateway == "" {
-		return nil
+	mappings := map[string]string{
+		SchemaFieldConfig + "." + SchemaFieldConfigStoreID: string(ResourceTypeAIGatewayConfigStore),
 	}
-	return map[string]string{SchemaFieldAIGateway: string(ResourceTypeAIGateway)}
+	if a.AIGateway != "" {
+		mappings[SchemaFieldAIGateway] = string(ResourceTypeAIGateway)
+	}
+	return mappings
 }
 
 func (a AIGatewayVaultResource) Validate() error {
@@ -412,7 +415,7 @@ func aiGatewayVaultExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("konnect"), true, true),
 			explainField("config", explainObject(
-				explainField("config_store_id", explainStringNode("config-store-id"), true, true),
+				explainField("config_store_id", aiGatewayConfigStoreIDExplainNode(), true, true),
 			), true, true),
 		)...),
 		explainObject(append(
@@ -447,4 +450,16 @@ func aiGatewayVaultExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			explainField("config", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
 		)...),
 	), nil
+}
+
+func aiGatewayConfigStoreIDExplainNode() *ExplainNode {
+	node := explainStringNode("config-store-id")
+	node.RefKind = string(ResourceTypeAIGatewayConfigStore)
+	node.PreferredTag = "!ref"
+	node.Relationship = &ExplainRelationship{
+		Target:       ResourceTypeAIGatewayConfigStore,
+		Kind:         RelationshipKindAPIForeignKey,
+		AcceptedTags: []string{"!ref"},
+	}
+	return node
 }

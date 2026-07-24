@@ -324,6 +324,13 @@ func populateAIGatewayChildren(
 			gateway.MCPServers = servers
 		}
 
+		configStores, err := buildAIGatewayConfigStores(ctx, client, gatewayID, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway Config Stores", gatewayID, gateway.DisplayName, err)
+		} else if len(configStores) > 0 {
+			gateway.ConfigStores = configStores
+		}
+
 		vaults, err := buildAIGatewayVaults(ctx, client, gatewayID, gateway.DisplayName, "")
 		if err != nil {
 			logWarn(logger, "failed to load AI Gateway Vaults", gatewayID, gateway.DisplayName, err)
@@ -760,6 +767,32 @@ func buildAIGatewayVaults(
 		return cmp.Compare(a.Name(), b.Name())
 	})
 
+	return result, nil
+}
+
+func buildAIGatewayConfigStores(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayRef string,
+) ([]declresources.AIGatewayConfigStoreResource, error) {
+	stores, err := client.ListAIGatewayConfigStores(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayConfigStoreResource, 0, len(stores))
+	for _, store := range stores {
+		result = append(
+			result,
+			declresources.AIGatewayConfigStoreResourceFromResponse(gatewayRef, store.AIGatewayConfigStore),
+		)
+	}
+	slices.SortFunc(result, func(a, b declresources.AIGatewayConfigStoreResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
 	return result, nil
 }
 

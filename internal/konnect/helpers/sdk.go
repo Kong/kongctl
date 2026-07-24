@@ -31,6 +31,7 @@ type SDKAPI interface {
 	GetAIGatewayConsumerGroupsAPI() AIGatewayConsumerGroupsAPI
 	GetAIGatewayModelAPI() AIGatewayModelAPI
 	GetAIGatewayMCPServersAPI() AIGatewayMCPServersAPI
+	GetAIGatewayConfigStoresAPI() AIGatewayConfigStoresAPI
 	GetAIGatewayVaultsAPI() AIGatewayVaultsAPI
 	GetAIGatewayNodesAPI() AIGatewayNodesAPI
 	GetAIGatewayDataPlaneCertificatesAPI() AIGatewayDataPlaneCertificatesAPI
@@ -217,6 +218,14 @@ func (k *KonnectSDK) GetAIGatewayMCPServersAPI() AIGatewayMCPServersAPI {
 	}
 
 	return &AIGatewayMCPServersAPIImpl{SDK: k.SDK}
+}
+
+// GetAIGatewayConfigStoresAPI returns the AI Gateway Config Stores API.
+func (k *KonnectSDK) GetAIGatewayConfigStoresAPI() AIGatewayConfigStoresAPI {
+	if k.SDK == nil || k.SDK.AIGatewayConfigStores == nil {
+		return nil
+	}
+	return &AIGatewayConfigStoresAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the AIGatewayVaultsAPI interface.

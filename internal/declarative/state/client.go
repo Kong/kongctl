@@ -44,6 +44,7 @@ type ClientConfig struct {
 	AIGatewayConsumerGroupsAPI        helpers.AIGatewayConsumerGroupsAPI
 	AIGatewayModelAPI                 helpers.AIGatewayModelAPI
 	AIGatewayMCPServersAPI            helpers.AIGatewayMCPServersAPI
+	AIGatewayConfigStoresAPI          helpers.AIGatewayConfigStoresAPI
 	AIGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
 	AIGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
 	DashboardsAPI                     helpers.DashboardsAPI
@@ -117,6 +118,7 @@ type Client struct {
 	aiGatewayConsumerGroupsAPI        helpers.AIGatewayConsumerGroupsAPI
 	aiGatewayModelAPI                 helpers.AIGatewayModelAPI
 	aiGatewayMCPServersAPI            helpers.AIGatewayMCPServersAPI
+	aiGatewayConfigStoresAPI          helpers.AIGatewayConfigStoresAPI
 	aiGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
 	aiGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
 	dashboardsAPI                     helpers.DashboardsAPI
@@ -191,6 +193,7 @@ func NewClient(config ClientConfig) *Client {
 		aiGatewayConsumerGroupsAPI:        config.AIGatewayConsumerGroupsAPI,
 		aiGatewayModelAPI:                 config.AIGatewayModelAPI,
 		aiGatewayMCPServersAPI:            config.AIGatewayMCPServersAPI,
+		aiGatewayConfigStoresAPI:          config.AIGatewayConfigStoresAPI,
 		aiGatewayVaultsAPI:                config.AIGatewayVaultsAPI,
 		aiGatewayDataPlaneCertificatesAPI: config.AIGatewayDataPlaneCertificatesAPI,
 		dashboardsAPI:                     config.DashboardsAPI,
@@ -351,6 +354,11 @@ type AIGatewayModel struct {
 type AIGatewayMCPServer struct {
 	kkComps.AIGatewayMCPServer
 	NormalizedLabels map[string]string
+}
+
+// AIGatewayConfigStore represents a Konnect AI Gateway Config Store for internal use.
+type AIGatewayConfigStore struct {
+	kkComps.AIGatewayConfigStore
 }
 
 // AIGatewayVault represents a Konnect AI Gateway Vault for internal use.

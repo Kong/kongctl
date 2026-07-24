@@ -227,6 +227,11 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 }
 
 func (r *ReferenceResolver) getResourceTypeForChangeField(change PlannedChange, fieldName string) string {
+	for _, descriptor := range resources.RelationshipDescriptorsForType(resources.ResourceType(change.ResourceType)) {
+		if descriptor.FieldPath == fieldName {
+			return string(descriptor.TargetType)
+		}
+	}
 	if fieldName == FieldEntityID {
 		entityTypeName, _ := change.Fields[FieldEntityTypeName].(string)
 		if resourceType, ok := resources.RoleEntityResourceType(entityTypeName); ok {

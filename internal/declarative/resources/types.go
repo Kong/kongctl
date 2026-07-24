@@ -27,6 +27,7 @@ const (
 	ResourceTypeAIGatewayConsumerGroup                  ResourceType = "ai_gateway_consumer_group"
 	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
 	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
+	ResourceTypeAIGatewayConfigStore                    ResourceType = "ai_gateway_config_store"
 	ResourceTypeAIGatewayVault                          ResourceType = "ai_gateway_vault"
 	ResourceTypeAIGatewayDataPlaneCertificate           ResourceType = "ai_gateway_data_plane_certificate"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
@@ -93,6 +94,9 @@ const (
 	SchemaFieldSystemAccount     = "system_account"
 	SchemaFieldAIGateway         = "ai_gateway"
 	SchemaFieldAIGatewayConsumer = "ai_gateway_consumer"
+	SchemaFieldDisplayName       = "display_name"
+	SchemaFieldConfig            = "config"
+	SchemaFieldConfigStoreID     = "config_store_id"
 	SchemaFieldKongctl           = "kongctl"
 	SchemaFieldID                = "id"
 	SchemaFieldCreatedAt         = "created_at"
@@ -137,6 +141,7 @@ type ResourceSet struct {
 	AIGatewayConsumerGroups           []AIGatewayConsumerGroupResource           `yaml:"ai_gateway_consumer_groups,omitempty"                    json:"ai_gateway_consumer_groups,omitempty"`             //nolint:lll
 	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
 	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
+	AIGatewayConfigStores             []AIGatewayConfigStoreResource             `yaml:"ai_gateway_config_stores,omitempty"                       json:"ai_gateway_config_stores,omitempty"`              //nolint:lll
 	AIGatewayVaults                   []AIGatewayVaultResource                   `yaml:"ai_gateway_vaults,omitempty"                              json:"ai_gateway_vaults,omitempty"`                     //nolint:lll
 	AIGatewayDataPlaneCertificates    []AIGatewayDataPlaneCertificateResource    `yaml:"ai_gateway_data_plane_certificates,omitempty"              json:"ai_gateway_data_plane_certificates,omitempty"`   //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
@@ -467,6 +472,16 @@ func (rs *ResourceSet) GetAIGatewayVaultByRef(ref string) *AIGatewayVaultResourc
 	return nil
 }
 
+// GetAIGatewayConfigStoreByRef returns an AI Gateway Config Store resource by its ref.
+func (rs *ResourceSet) GetAIGatewayConfigStoreByRef(ref string) *AIGatewayConfigStoreResource {
+	for i := range rs.AIGatewayConfigStores {
+		if rs.AIGatewayConfigStores[i].GetRef() == ref {
+			return &rs.AIGatewayConfigStores[i]
+		}
+	}
+	return nil
+}
+
 // GetAIGatewayDataPlaneCertificateByRef returns an AI Gateway data plane certificate
 // resource by its ref from any namespace.
 func (rs *ResourceSet) GetAIGatewayDataPlaneCertificateByRef(
@@ -749,6 +764,25 @@ func (rs *ResourceSet) GetAIGatewayVaultsByNamespace(namespace string) []AIGatew
 			}
 			if GetNamespace(gateway.Kongctl) == namespace {
 				filtered = append(filtered, vault)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetAIGatewayConfigStoresByNamespace returns AI Gateway Config Stores from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayConfigStoresByNamespace(namespace string) []AIGatewayConfigStoreResource {
+	var filtered []AIGatewayConfigStoreResource
+	for _, store := range rs.AIGatewayConfigStores {
+		if gateway := rs.GetAIGatewayByRef(store.AIGateway); gateway != nil {
+			if gateway.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, store)
+				}
+				continue
+			}
+			if GetNamespace(gateway.Kongctl) == namespace {
+				filtered = append(filtered, store)
 			}
 		}
 	}
@@ -1844,6 +1878,17 @@ func (rs *ResourceSet) GetAIGatewayVaultsForGateway(gatewayRef string) []AIGatew
 		}
 	}
 	return vaults
+}
+
+// GetAIGatewayConfigStoresForGateway returns all AI Gateway Config Stores for a gateway ref.
+func (rs *ResourceSet) GetAIGatewayConfigStoresForGateway(gatewayRef string) []AIGatewayConfigStoreResource {
+	var stores []AIGatewayConfigStoreResource
+	for _, store := range rs.AIGatewayConfigStores {
+		if NormalizeResourceRef(store.AIGateway) == gatewayRef {
+			stores = append(stores, store)
+		}
+	}
+	return stores
 }
 
 // GetAIGatewayDataPlaneCertificatesForGateway returns all AI Gateway data plane

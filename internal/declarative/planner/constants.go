@@ -57,26 +57,27 @@ const (
 
 // Common plan field identifiers.
 const (
-	FieldNamespace   = "namespace"
-	FieldContent     = "content"
-	FieldTitle       = "title"
-	FieldStatus      = "status"
-	FieldAttributes  = "attributes"
-	FieldType        = "type"
-	FieldConfig      = "config"
-	FieldConfigs     = "configs"
-	FieldConsumers   = "consumers"
-	FieldEnabled     = "enabled"
-	FieldVersion     = "version"
-	FieldSpec        = "spec"
-	FieldSlug        = "slug"
-	FieldValue       = "value"
-	FieldMetadata    = "metadata"
-	FieldDataURL     = "data_url"
-	FieldDeckBaseDir = "deck_base_dir"
-	FieldFlags       = "flags"
-	FieldFiles       = "files"
-	FieldDefinition  = "definition"
+	FieldNamespace     = "namespace"
+	FieldContent       = "content"
+	FieldTitle         = "title"
+	FieldStatus        = "status"
+	FieldAttributes    = "attributes"
+	FieldType          = "type"
+	FieldConfig        = "config"
+	FieldConfigStoreID = "config_store_id"
+	FieldConfigs       = "configs"
+	FieldConsumers     = "consumers"
+	FieldEnabled       = "enabled"
+	FieldVersion       = "version"
+	FieldSpec          = "spec"
+	FieldSlug          = "slug"
+	FieldValue         = "value"
+	FieldMetadata      = "metadata"
+	FieldDataURL       = "data_url"
+	FieldDeckBaseDir   = "deck_base_dir"
+	FieldFlags         = "flags"
+	FieldFiles         = "files"
+	FieldDefinition    = "definition"
 )
 
 // Common relationship and reference field identifiers.
@@ -221,6 +222,7 @@ const (
 	ResourceTypeAIGatewayConsumerGroup           = string(resources.ResourceTypeAIGatewayConsumerGroup)
 	ResourceTypeAIGatewayModel                   = string(resources.ResourceTypeAIGatewayModel)
 	ResourceTypeAIGatewayMCPServer               = string(resources.ResourceTypeAIGatewayMCPServer)
+	ResourceTypeAIGatewayConfigStore             = string(resources.ResourceTypeAIGatewayConfigStore)
 	ResourceTypeAIGatewayVault                   = string(resources.ResourceTypeAIGatewayVault)
 	ResourceTypeAIGatewayDataPlaneCertificate    = string(resources.ResourceTypeAIGatewayDataPlaneCertificate)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)

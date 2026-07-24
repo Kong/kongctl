@@ -80,6 +80,8 @@ type Executor struct {
 		kkComps.CreateAIGatewayModelRequest, kkComps.UpdateAIGatewayModelRequest]
 	aiGatewayMCPServerExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayMCPServerRequest, kkComps.UpdateAIGatewayMCPServerRequest]
+	aiGatewayConfigStoreExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayConfigStoreRequest, kkComps.UpdateAIGatewayConfigStoreRequest]
 	aiGatewayVaultExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayVaultRequest, kkComps.UpdateAIGatewayVaultRequest]
 	aiGatewayDataPlaneCertificateExecutor  *BaseCreateDeleteExecutor[createAIGatewayDataPlaneCertificateRequest]
@@ -322,6 +324,12 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.aiGatewayVaultExecutor = NewBaseExecutor[
 		kkComps.CreateAIGatewayVaultRequest, kkComps.UpdateAIGatewayVaultRequest](
 		NewAIGatewayVaultAdapter(client),
+		client,
+		dryRun,
+	)
+	e.aiGatewayConfigStoreExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayConfigStoreRequest, kkComps.UpdateAIGatewayConfigStoreRequest](
+		NewAIGatewayConfigStoreAdapter(client),
 		client,
 		dryRun,
 	)
@@ -2619,6 +2627,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayMCPServerExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayConfigStore:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayConfigStoreExecutor.Create(ctx, *change)
 	case planner.ResourceTypeAIGatewayVault:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
@@ -3258,6 +3271,11 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayMCPServerExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayConfigStore:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayConfigStoreExecutor.Update(ctx, *change)
 	case planner.ResourceTypeAIGatewayVault:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
@@ -3772,6 +3790,11 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			return err
 		}
 		return e.aiGatewayMCPServerExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayConfigStore:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayConfigStoreExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayVault:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return err

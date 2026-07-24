@@ -568,6 +568,36 @@ existing webhook while retaining the portal, declare `audit_log_webhook: {}`.
 `audit_log_webhook: null` is rejected because null is not a reset or delete
 signal.
 
+## AI Gateway Config Stores and Vaults
+
+AI Gateway Config Stores can back Konnect Vaults declared under the same
+gateway. Use `!ref <config-store-ref>#id` for the Vault's
+`config.config_store_id` so kongctl orders creation and supplies the remote
+Config Store ID:
+
+```yaml
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    config_stores:
+      - ref: support-config-store
+        name: support-config-store
+        display_name: Support-Config-Store
+    vaults:
+      - ref: support-secrets
+        name: support-secrets
+        type: konnect
+        config:
+          config_store_id: !ref support-config-store#id
+```
+
+Config Store resources manage the store, but not the secrets it contains. See
+the [Config Store and Vault example][config-store-vault-example] for a model
+provider that consumes a populated secret with a Vault reference.
+
+[config-store-vault-example]:
+  examples/declarative/ai-gateway/config-store-vault.yaml
+
 
 ## YAML Tags
 

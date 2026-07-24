@@ -1,0 +1,17 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-config-store-e2e
+
+ai_gateways:
+  - ref: ai-gateway-config-store-e2e
+    display_name: AI Gateway Config Store E2E
+    config_stores:
+      - ref: support-store
+        name: support-store
+        display_name: Support-Store
+    vaults:
+      - ref: support-vault
+        type: konnect
+        name: support-vault
+        config:
+          config_store_id: !ref support-store#id

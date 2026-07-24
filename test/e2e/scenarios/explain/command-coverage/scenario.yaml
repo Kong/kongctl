@@ -300,6 +300,32 @@ steps:
                 config.properties.url.type: string
                 tools.items.properties.method.type: string
 
+  - name: 014-explain-ai-gateway-config-stores-nested-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-ai-gateway-config-stores-yaml
+        run:
+          - explain
+          - ai_gateway.config_stores
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: ai_gateway.config_stores"
+                '"x-kongctl-resource"': ai_gateway_config_store
+                '"x-kongctl-root-key"': ai_gateway_config_stores
+                '"x-kongctl-resource-class"': child
+                '"x-kongctl-supports-root"': true
+                '"x-kongctl-supports-nested-declaration"': true
+          - select: properties
+            expect:
+              fields:
+                name.type: string
+                display_name.type: string
+
   - name: 014-explain-ai-gateway-vaults-nested-yaml
     skipInputs: true
     commands:
