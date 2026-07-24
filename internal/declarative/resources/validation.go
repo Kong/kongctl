@@ -6,9 +6,8 @@ import (
 	"strings"
 )
 
-// refPattern defines the allowed pattern for resource refs
-// Allows alphanumeric characters, periods, hyphens, and underscores
-// Must start with a letter or number, and can contain periods, hyphens, and underscores
+// refPattern matches refs that start with a letter or number and contain only
+// alphanumeric characters, periods, hyphens, and underscores.
 var refPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 
 const (
@@ -24,7 +23,7 @@ func ValidateRef(ref string) error {
 		return fmt.Errorf("ref cannot be empty")
 	}
 
-	if len(ref) < MinRefLength || len(ref) > MaxRefLength {
+	if len(ref) > MaxRefLength {
 		return fmt.Errorf("ref must be between %d and %d characters long", MinRefLength, MaxRefLength)
 	}
 
