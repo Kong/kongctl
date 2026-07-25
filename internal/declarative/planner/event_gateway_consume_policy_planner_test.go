@@ -354,3 +354,48 @@ func TestPrepareConsumePolicyParentRefsResolvesExistingSchemaValidationParent(t 
 		prepared[1].EventGatewayParsedRecordDecryptFieldsPolicyCreate.ParentPolicyID,
 	)
 }
+
+func TestPrepareConsumePolicyParentRefsResolvesSkipRecordParent(t *testing.T) {
+	parent := consumePolicyResourceFromJSON(t, `{
+		"ref": "schema-validation",
+		"type": "schema_validation",
+		"name": "schema-validation",
+		"config": {
+			"type": "json"
+		}
+	}`)
+	child := consumePolicyResourceFromJSON(t, `{
+		"ref": "skip-record",
+		"type": "skip_record",
+		"name": "skip-record",
+		"parent_policy_id": "__REF__:schema-validation#id",
+		"condition": "record.value != null"
+	}`)
+
+	parentName := "schema-validation"
+	currentByName := map[string]state.EventGatewayConsumePolicyInfo{
+		parentName: {
+			EventGatewayPolicy: kkComps.EventGatewayPolicy{
+				ID:   "schema-validation-id",
+				Name: &parentName,
+				Type: "schema_validation",
+			},
+		},
+	}
+
+	p := &Planner{}
+	prepared, err := p.prepareConsumePolicyParentRefs(
+		[]resources.EventGatewayConsumePolicyResource{parent, child},
+		currentByName,
+	)
+
+	require.NoError(t, err)
+	require.Len(t, prepared, 2)
+	require.NotNil(t, prepared[1].EventGatewaySkipRecordPolicyCreate)
+	require.NotNil(t, prepared[1].EventGatewaySkipRecordPolicyCreate.ParentPolicyID)
+	require.Equal(
+		t,
+		"schema-validation-id",
+		*prepared[1].EventGatewaySkipRecordPolicyCreate.ParentPolicyID,
+	)
+}

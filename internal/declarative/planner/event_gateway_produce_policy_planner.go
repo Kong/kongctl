@@ -593,22 +593,33 @@ func producePolicyIsSchemaValidation(policy resources.EventGatewayProducePolicyR
 }
 
 func producePolicyParentPolicyID(policy resources.EventGatewayProducePolicyResource) string {
-	if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate == nil {
+	switch {
+	case policy.EventGatewayModifyHeadersPolicyCreate != nil:
+		if id := policy.EventGatewayModifyHeadersPolicyCreate.ParentPolicyID; id != nil {
+			return *id
+		}
+		return ""
+	case policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil:
+		return policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.ParentPolicyID
+	default:
 		return ""
 	}
-	return policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.ParentPolicyID
 }
 
 func producePolicyWithParentPolicyID(
 	policy resources.EventGatewayProducePolicyResource,
 	parentPolicyID string,
 ) resources.EventGatewayProducePolicyResource {
-	if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate == nil {
-		return policy
+	switch {
+	case policy.EventGatewayModifyHeadersPolicyCreate != nil:
+		variant := *policy.EventGatewayModifyHeadersPolicyCreate
+		variant.ParentPolicyID = &parentPolicyID
+		policy.EventGatewayModifyHeadersPolicyCreate = &variant
+	case policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil:
+		variant := *policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate
+		variant.ParentPolicyID = parentPolicyID
+		policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate = &variant
 	}
-	variant := *policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate
-	variant.ParentPolicyID = parentPolicyID
-	policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate = &variant
 	return policy
 }
 
