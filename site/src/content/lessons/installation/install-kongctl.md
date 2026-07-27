@@ -57,13 +57,28 @@ Its first line will resemble:
 
 ## Connect to Konnect
 
+Choose one of these authentication methods.
+
+### Browser-based login flow
+
 Start the browser-based login flow:
 
 ```shell
 kongctl login
 ```
 
-Follow the terminal instructions, then verify that kongctl can read your user
+Follow the terminal instructions to finish signing in.
+
+### Personal access token (PAT)
+
+Set your Konnect personal access token as an environment variable. Replace
+`<personal-access-token>` with your token:
+
+```shell
+export KONGCTL_DEFAULT_KONNECT_PAT="<personal-access-token>"
+```
+
+After either authentication flow, verify that kongctl can read your user
 record:
 
 ```shell

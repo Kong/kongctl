@@ -53,6 +53,23 @@ test("copies terminal commands without a prompt", async ({ context, page }) => {
   ).toBeVisible();
 });
 
+test("offers browser and PAT authentication flows", async ({ page }) => {
+  await page.goto("installation/install-kongctl/");
+
+  await expect(
+    page.getByRole("heading", { name: "Browser-based login flow" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Personal access token (PAT)" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      'export KONGCTL_DEFAULT_KONNECT_PAT="<personal-access-token>"',
+      { exact: true },
+    ),
+  ).toBeVisible();
+});
+
 test("keeps the lesson outline in a desktop right rail", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("installation/install-kongctl/");
