@@ -24,6 +24,4 @@ func TestAIGatewayConfigStorePresentation(t *testing.T) {
 	require.Equal(t, "support-store", record.Name)
 	require.Equal(t, displayName, record.DisplayName)
 	require.Contains(t, aiGatewayConfigStoreDetailView(store), "display_name: Support-Store")
-	require.Equal(t, &store, findAIGatewayConfigStoreByNameOrID([]kkComps.AIGatewayConfigStore{store}, "support-store"))
-	require.Equal(t, &store, findAIGatewayConfigStoreByNameOrID([]kkComps.AIGatewayConfigStore{store}, store.ID))
 }

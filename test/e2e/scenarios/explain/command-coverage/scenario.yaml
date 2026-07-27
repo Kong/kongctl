@@ -326,7 +326,7 @@ steps:
                 name.type: string
                 display_name.type: string
 
-  - name: 014-explain-ai-gateway-vaults-nested-yaml
+  - name: 015-explain-ai-gateway-vaults-nested-yaml
     skipInputs: true
     commands:
       - name: 000-explain-ai-gateway-vaults-yaml
@@ -352,7 +352,7 @@ steps:
                 type.const: env
                 config.properties.prefix.type: string
 
-  - name: 015-explain-ai-gateway-data-plane-certificates-nested-yaml
+  - name: 016-explain-ai-gateway-data-plane-certificates-nested-yaml
     skipInputs: true
     commands:
       - name: 000-explain-ai-gateway-data-plane-certificates-yaml
@@ -378,7 +378,7 @@ steps:
                 type: string
                 '"x-kongctl-preferred-tag"': "!file"
 
-  - name: 016-explain-organization-assignments-nested-json
+  - name: 017-explain-organization-assignments-nested-json
     skipInputs: true
     commands:
       - name: 000-explain-organization-user-role

@@ -169,7 +169,7 @@ func (h aiGatewayConfigStoresHandler) run(args []string) error {
 		identifier = storeName
 	}
 	if identifier != "" {
-		return h.getSingle(helper, api, gatewayID, identifier, outType, printer, cfg)
+		return h.getSingle(helper, api, gatewayID, identifier, outType, printer)
 	}
 	return h.list(helper, api, gatewayID, outType, printer, cfg)
 }
@@ -224,21 +224,8 @@ func (h aiGatewayConfigStoresHandler) getSingle(
 	identifier string,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
-	cfg config.Hook,
 ) error {
-	storeIdentifier := identifier
-	if !util.IsValidUUID(identifier) {
-		stores, err := fetchAIGatewayConfigStores(helper, api, gatewayID, cfg)
-		if err != nil {
-			return err
-		}
-		match := findAIGatewayConfigStoreByNameOrID(stores, identifier)
-		if match == nil {
-			return &cmd.ConfigurationError{Err: fmt.Errorf("AI Gateway Config Store %q not found", identifier)}
-		}
-		storeIdentifier = match.ID
-	}
-	res, err := api.GetAiGatewayConfigStore(helper.GetContext(), gatewayID, storeIdentifier)
+	res, err := api.GetAiGatewayConfigStore(helper.GetContext(), gatewayID, identifier)
 	if err != nil {
 		return cmd.PrepareExecutionError(
 			"Failed to get AI Gateway Config Store",
@@ -251,7 +238,7 @@ func (h aiGatewayConfigStoresHandler) getSingle(
 	if store == nil {
 		return &cmd.ExecutionError{
 			Msg: "AI Gateway Config Store response was empty",
-			Err: fmt.Errorf("no Config Store returned for id or name %s", storeIdentifier),
+			Err: fmt.Errorf("no Config Store returned for id or name %s", identifier),
 		}
 	}
 	record := aiGatewayConfigStoreToRecord(*store)
@@ -345,18 +332,6 @@ func aiGatewayConfigStoreRows(
 		rows = append(rows, table.Row{record.ID, record.Name, record.DisplayName, record.LocalUpdatedTime})
 	}
 	return records, rows
-}
-
-func findAIGatewayConfigStoreByNameOrID(
-	stores []kkComps.AIGatewayConfigStore,
-	identifier string,
-) *kkComps.AIGatewayConfigStore {
-	for i := range stores {
-		if stores[i].ID == identifier || stores[i].Name == identifier {
-			return &stores[i]
-		}
-	}
-	return nil
 }
 
 func aiGatewayConfigStoreDetailView(store kkComps.AIGatewayConfigStore) string {
