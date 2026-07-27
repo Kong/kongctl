@@ -113,6 +113,7 @@ func (c *Client) UpdateAIGatewayConfigStore(
 	if err != nil {
 		return "", WrapAPIError(err, "update AI Gateway Config Store", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeAIGatewayConfigStore),
+			ResourceName: configStoreID,
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})

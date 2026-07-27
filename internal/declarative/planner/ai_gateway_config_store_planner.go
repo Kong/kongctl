@@ -130,7 +130,15 @@ func (p *Planner) planAIGatewayConfigStoreCreate(
 	dependsOn []string,
 	plan *Plan,
 ) {
-	fields, _ := store.MutablePayloadMap()
+	fields, err := store.MutablePayloadMap()
+	if err != nil {
+		plan.AddWarning(
+			store.GetRef(),
+			fmt.Sprintf("failed to build AI Gateway Config Store create payload: %s", err),
+		)
+		return
+	}
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayConfigStore, store.Ref),
 		ResourceType: ResourceTypeAIGatewayConfigStore,
