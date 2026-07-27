@@ -43,7 +43,7 @@ const curriculum = await loadCurriculum();
         {
           curriculum.chapters.map((chapter) => (
             <li>
-              <a href={chapter.url}>
+              <a href={chapter.navigationUrl}>
                 <span class="lesson-index">
                   {String(chapter.order).padStart(2, "0")}
                 </span>

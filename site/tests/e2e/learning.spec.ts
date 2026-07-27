@@ -17,10 +17,10 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
   await expect(curriculum.locator(".curriculum-chapters > li")).toHaveCount(2);
   await expect(
     curriculum.getByRole("link", { name: /Installation/ }),
-  ).toBeVisible();
+  ).toHaveAttribute("href", "/kongctl/installation/install-kongctl/");
   await expect(
     curriculum.getByRole("link", { name: /Declarative Configuration/ }),
-  ).toBeVisible();
+  ).toHaveAttribute("href", "/kongctl/declarative-configuration/concepts/");
 });
 
 test("filters the chapter navigation by lesson title", async ({ page }) => {

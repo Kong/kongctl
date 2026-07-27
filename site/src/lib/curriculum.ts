@@ -29,6 +29,7 @@ export interface Chapter {
   description: string;
   id: string;
   lessons: Lesson[];
+  navigationUrl: string;
   order: number;
   title: string;
   url: string;
@@ -109,10 +110,12 @@ export async function loadCurriculum(): Promise<Curriculum> {
       orders.add(lesson.entry.data.order);
     }
 
+    const url = pageUrl(chapter.id);
     return {
       ...chapter,
       lessons,
-      url: pageUrl(chapter.id),
+      navigationUrl: lessons.length === 1 ? lessons[0].url : url,
+      url,
     };
   });
 

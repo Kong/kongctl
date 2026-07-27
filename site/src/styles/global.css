@@ -442,6 +442,10 @@ progress::-moz-progress-bar {
   padding: clamp(2rem, 6vw, 5.5rem) 0 5rem;
 }
 
+.home-page {
+  padding-top: clamp(2rem, 4vw, 4rem);
+}
+
 .eyebrow {
   margin-bottom: 0.9rem;
   color: var(--text-link);
@@ -453,7 +457,6 @@ progress::-moz-progress-bar {
 
 .hero {
   max-width: 56rem;
-  padding-top: clamp(1rem, 7vh, 5rem);
 }
 
 .hero h1 {
@@ -503,7 +506,7 @@ progress::-moz-progress-bar {
 
 .curriculum-section {
   max-width: 55rem;
-  margin-top: clamp(4rem, 10vh, 8rem);
+  margin-top: clamp(3rem, 5vh, 4rem);
 }
 
 .section-heading {
