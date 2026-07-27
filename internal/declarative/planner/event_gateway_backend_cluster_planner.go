@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"slices"
 
 	"github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -554,14 +555,23 @@ func compareTLSSettings(a, b any) bool {
 		return false
 	}
 
-	// Compare TLSVersions
-	if len(tlsA.TLSVersions) != len(tlsB.TLSVersions) {
-		return false
-	}
-	for i := range tlsA.TLSVersions {
-		if tlsA.TLSVersions[i] != tlsB.TLSVersions[i] {
-			return false
+	// The API materializes its supported TLS versions when the field is omitted.
+	currentTLSVersions := tlsA.TLSVersions
+	if currentTLSVersions == nil {
+		currentTLSVersions = []components.TLSVersions{
+			components.TLSVersionsTls12,
+			components.TLSVersionsTls13,
 		}
+	}
+	desiredTLSVersions := tlsB.TLSVersions
+	if desiredTLSVersions == nil {
+		desiredTLSVersions = []components.TLSVersions{
+			components.TLSVersionsTls12,
+			components.TLSVersionsTls13,
+		}
+	}
+	if !slices.Equal(currentTLSVersions, desiredTLSVersions) {
+		return false
 	}
 
 	return true
