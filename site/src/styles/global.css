@@ -501,63 +501,23 @@ progress::-moz-progress-bar {
   color: var(--text-primary);
 }
 
-.chapter-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+.curriculum-section {
+  max-width: 55rem;
   margin-top: clamp(4rem, 10vh, 8rem);
 }
 
 .section-heading {
-  grid-column: 1 / -1;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .section-heading h2 {
   margin-bottom: 0;
 }
 
-.chapter-card {
-  min-height: 15rem;
-  padding: 1.4rem;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  text-decoration: none;
-  transition:
-    border-color 160ms ease,
-    transform 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.chapter-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--text-link);
-  box-shadow: var(--shadow);
-}
-
-.chapter-card-top {
-  display: flex;
-  justify-content: space-between;
-  color: var(--text-link);
-  font:
-    700 0.8rem "Roboto Mono Variable",
-    monospace;
-}
-
-.chapter-card h3 {
-  margin: 3rem 0 0.65rem;
-  font-size: 1.35rem;
-}
-
-.chapter-card p {
-  min-height: 3rem;
-}
-
 .lesson-total {
   color: var(--text-tertiary);
   font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .breadcrumbs {
@@ -949,10 +909,6 @@ progress::-moz-progress-bar {
     border: 0;
     background: rgb(0 20 8 / 58%);
   }
-
-  .chapter-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 580px) {
@@ -990,7 +946,7 @@ progress::-moz-progress-bar {
     width: 100%;
   }
 
-  .chapter-grid {
+  .curriculum-section {
     margin-top: 4rem;
   }
 

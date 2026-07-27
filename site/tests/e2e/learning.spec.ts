@@ -8,6 +8,21 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
+test("presents the home curriculum as a chapter list", async ({ page }) => {
+  const curriculum = page.locator(".curriculum-section");
+
+  await expect(
+    curriculum.getByRole("heading", { name: "Curriculum" }),
+  ).toBeVisible();
+  await expect(curriculum.locator(".curriculum-chapters > li")).toHaveCount(2);
+  await expect(
+    curriculum.getByRole("link", { name: /Installation/ }),
+  ).toBeVisible();
+  await expect(
+    curriculum.getByRole("link", { name: /Declarative Configuration/ }),
+  ).toBeVisible();
+});
+
 test("filters the chapter navigation by lesson title", async ({ page }) => {
   await page.getByPlaceholder("Find a lesson").fill("declarative");
 

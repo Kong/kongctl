@@ -35,31 +35,34 @@ const curriculum = await loadCurriculum();
       </div>
     </section>
 
-    <section class="chapter-grid" aria-labelledby="chapters-heading">
+    <section class="curriculum-section" aria-labelledby="chapters-heading">
       <div class="section-heading">
-        <p class="eyebrow">Guide contents</p>
-        <h2 id="chapters-heading">Two chapters to get moving</h2>
+        <h2 id="chapters-heading">Curriculum</h2>
       </div>
-      {
-        curriculum.chapters.map((chapter, index) => (
-          <a class="chapter-card" href={chapter.url}>
-            <div class="chapter-card-top">
-              <span class="chapter-number">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <span class="card-arrow" aria-hidden="true">
-                ↗
-              </span>
-            </div>
-            <h3>{chapter.title}</h3>
-            <p>{chapter.description}</p>
-            <span class="lesson-total">
-              {chapter.lessons.length}{" "}
-              {chapter.lessons.length === 1 ? "lesson" : "lessons"}
-            </span>
-          </a>
-        ))
-      }
+      <ol class="chapter-lessons curriculum-chapters">
+        {
+          curriculum.chapters.map((chapter) => (
+            <li>
+              <a href={chapter.url}>
+                <span class="lesson-index">
+                  {String(chapter.order).padStart(2, "0")}
+                </span>
+                <span class="lesson-card-copy">
+                  <strong>{chapter.title}</strong>
+                  <span>{chapter.description}</span>
+                </span>
+                <span class="lesson-total">
+                  {chapter.lessons.length}{" "}
+                  {chapter.lessons.length === 1 ? "lesson" : "lessons"}
+                </span>
+                <span class="card-arrow" aria-hidden="true">
+                  →
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ol>
     </section>
   </div>
 </BookShell>
