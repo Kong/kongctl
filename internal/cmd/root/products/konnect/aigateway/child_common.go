@@ -69,6 +69,12 @@ const (
 	aiGatewayMCPServerIDConfigPath   = "konnect.ai-gateway.mcp-server.id"
 	aiGatewayMCPServerNameConfigPath = "konnect.ai-gateway.mcp-server.name"
 
+	aiGatewayConfigStoreIDFlagName   = "config-store-id"
+	aiGatewayConfigStoreNameFlagName = "config-store-name"
+
+	aiGatewayConfigStoreIDConfigPath   = "konnect.ai-gateway.config-store.id"
+	aiGatewayConfigStoreNameConfigPath = "konnect.ai-gateway.config-store.name"
+
 	aiGatewayVaultIDFlagName   = "vault-id"
 	aiGatewayVaultNameFlagName = "vault-name"
 
@@ -265,6 +271,15 @@ var (
 		nameHelp: "The name of the AI Gateway Vault to retrieve.",
 	}
 
+	aiGatewayConfigStoreFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayConfigStoreIDFlagName,
+		idPath:   aiGatewayConfigStoreIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Config Store to retrieve.",
+		nameFlag: aiGatewayConfigStoreNameFlagName,
+		namePath: aiGatewayConfigStoreNameConfigPath,
+		nameHelp: "The name of the AI Gateway Config Store to retrieve.",
+	}
+
 	aiGatewayDataPlaneCertificateFlags = pairedAIGatewayFlags{
 		idFlag:   aiGatewayDataPlaneCertificateIDFlagName,
 		idPath:   aiGatewayDataPlaneCertificateIDConfigPath,
@@ -405,6 +420,18 @@ func bindAIGatewayMCPServerFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayMCPServerIdentifiers(cfg config.Hook) (id string, name string) {
 	return getPairedAIGatewayIdentifiers(cfg, aiGatewayMCPServerIDConfigPath, aiGatewayMCPServerNameConfigPath)
+}
+
+func addAIGatewayConfigStoreFlags(c *cobra.Command) {
+	addPairedAIGatewayFlags(c, aiGatewayConfigStoreFlags)
+}
+
+func bindAIGatewayConfigStoreFlags(c *cobra.Command, args []string) error {
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayConfigStoreFlags)...)
+}
+
+func getAIGatewayConfigStoreIdentifiers(cfg config.Hook) (id string, name string) {
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayConfigStoreIDConfigPath, aiGatewayConfigStoreNameConfigPath)
 }
 
 func addAIGatewayVaultFlags(c *cobra.Command) {

@@ -136,6 +136,15 @@ func mapAIGatewayScenarioCreatePayloads(t *testing.T, resourceSet *resources.Res
 		var request kkComps.CreateAIGatewayVaultRequest
 		require.NoError(t, executor.NewAIGatewayVaultAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request))
 	}
+	for _, resource := range resourceSet.AIGatewayConfigStores {
+		fields, err := resource.MutablePayloadMap()
+		require.NoError(t, err)
+		var request kkComps.CreateAIGatewayConfigStoreRequest
+		require.NoError(
+			t,
+			executor.NewAIGatewayConfigStoreAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request),
+		)
+	}
 	for _, resource := range resourceSet.AIGatewayDataPlaneCertificates {
 		var request kkComps.CreateAIGatewayDataPlaneCertificateRequest
 		require.NoError(

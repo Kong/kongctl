@@ -73,6 +73,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayMCPServers(rs); err != nil {
 		return err
 	}
+	if err := l.validateAIGatewayConfigStores(rs); err != nil {
+		return err
+	}
 	if err := l.validateAIGatewayVaults(rs); err != nil {
 		return err
 	}
@@ -1071,6 +1074,21 @@ func (l *Loader) validateAIGatewayVaults(rs *resources.ResourceSet) error {
 		"ai_gateway_vault",
 		"name",
 		func(vault *resources.AIGatewayVaultResource) string { return vault.Name() },
+	)
+}
+
+// validateAIGatewayConfigStores validates AI Gateway child Config Store resources.
+func (l *Loader) validateAIGatewayConfigStores(rs *resources.ResourceSet) error {
+	return validateAIGatewayChildren[
+		resources.AIGatewayConfigStoreResource,
+		*resources.AIGatewayConfigStoreResource,
+	](
+		rs,
+		rs.AIGatewayConfigStores,
+		resources.ResourceTypeAIGatewayConfigStore,
+		"ai_gateway_config_store",
+		resources.SchemaFieldName,
+		func(store *resources.AIGatewayConfigStoreResource) string { return store.Name },
 	)
 }
 

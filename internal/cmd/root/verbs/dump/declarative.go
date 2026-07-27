@@ -62,6 +62,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"ai_gateway_consumer_groups":         {},
 	"ai_gateway_models":                  {},
 	"ai_gateway_mcp_servers":             {},
+	"ai_gateway_config_stores":           {},
 	"ai_gateway_vaults":                  {},
 	"ai_gateway_data_plane_certificates": {},
 	"organization.teams":                 {},
@@ -99,7 +100,8 @@ func newDeclarativeCmd() *cobra.Command {
 			resourceAnalyticsDashboards+", event_gateways, ai_gateways, ai_gateway_model_providers, "+
 			"ai_gateway_identity_providers, ai_gateway_policies, ai_gateway_agents, ai_gateway_consumers, "+
 			"ai_gateway_consumer_credentials, ai_gateway_consumer_groups, ai_gateway_models, "+
-			"ai_gateway_mcp_servers, ai_gateway_vaults, ai_gateway_data_plane_certificates, organization.teams).")
+			"ai_gateway_mcp_servers, ai_gateway_config_stores, ai_gateway_vaults, "+
+			"ai_gateway_data_plane_certificates, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -223,6 +225,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		slices.Contains(opts.resources, "ai_gateway_consumer_groups") ||
 		slices.Contains(opts.resources, "ai_gateway_models") ||
 		slices.Contains(opts.resources, "ai_gateway_mcp_servers") ||
+		slices.Contains(opts.resources, "ai_gateway_config_stores") ||
 		slices.Contains(opts.resources, "ai_gateway_vaults") ||
 		slices.Contains(opts.resources, "ai_gateway_data_plane_certificates") {
 		stateClient = declstate.NewClient(declstate.ClientConfig{
@@ -244,6 +247,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			AIGatewayConsumerGroupsAPI:          sdk.GetAIGatewayConsumerGroupsAPI(),
 			AIGatewayModelAPI:                   sdk.GetAIGatewayModelAPI(),
 			AIGatewayMCPServersAPI:              sdk.GetAIGatewayMCPServersAPI(),
+			AIGatewayConfigStoresAPI:            sdk.GetAIGatewayConfigStoresAPI(),
 			AIGatewayVaultsAPI:                  sdk.GetAIGatewayVaultsAPI(),
 			AIGatewayDataPlaneCertificatesAPI:   sdk.GetAIGatewayDataPlaneCertificatesAPI(),
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
@@ -512,6 +516,18 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.AIGatewayVaults = append(resourceSet.AIGatewayVaults, vaults...)
+		case "ai_gateway_config_stores":
+			stores, err := collectDeclarativeAIGatewayConfigStores(
+				ctx,
+				stateClient,
+				sdk.GetAIGatewayAPI(),
+				requestPageSize,
+				opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.AIGatewayConfigStores = append(resourceSet.AIGatewayConfigStores, stores...)
 		case "ai_gateway_data_plane_certificates":
 			certs, err := collectDeclarativeAIGatewayDataPlaneCertificates(
 				ctx,
@@ -1315,6 +1331,40 @@ func collectDeclarativeAIGatewayVaults(
 	})
 
 	return vaults, nil
+}
+
+func collectDeclarativeAIGatewayConfigStores(
+	ctx context.Context,
+	client *declstate.Client,
+	aiGatewayClient helpers.AIGatewayAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.AIGatewayConfigStoreResource, error) {
+	if client == nil {
+		return nil, fmt.Errorf("AI Gateway Config Stores API client is not configured")
+	}
+	gateways, err := collectDeclarativeAIGateways(ctx, aiGatewayClient, requestPageSize, filterOptions{})
+	if err != nil {
+		return nil, err
+	}
+	var stores []declresources.AIGatewayConfigStoreResource
+	for _, gateway := range gateways {
+		gatewayStores, err := buildAIGatewayConfigStores(ctx, client, gateway.Ref, gateway.Ref)
+		if err != nil {
+			return nil, err
+		}
+		stores = append(stores, gatewayStores...)
+	}
+	stores = filterByNameOrID(stores, filter, func(r declresources.AIGatewayConfigStoreResource) (string, string) {
+		return r.Name, r.Ref
+	})
+	slices.SortFunc(stores, func(a, b declresources.AIGatewayConfigStoreResource) int {
+		if a.AIGateway == b.AIGateway {
+			return cmp.Compare(a.Name, b.Name)
+		}
+		return cmp.Compare(a.AIGateway, b.AIGateway)
+	})
+	return stores, nil
 }
 
 func collectDeclarativeAIGatewayDataPlaneCertificates(

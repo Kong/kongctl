@@ -122,6 +122,7 @@ var aiGatewayChildTypes = []ResourceType{
 	ResourceTypeAIGatewayConsumerGroup,
 	ResourceTypeAIGatewayModel,
 	ResourceTypeAIGatewayMCPServer,
+	ResourceTypeAIGatewayConfigStore,
 	ResourceTypeAIGatewayVault,
 	ResourceTypeAIGatewayDataPlaneCertificate,
 }
@@ -160,6 +161,14 @@ func init() {
 			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
 		}}
 	}
+	relationshipDescriptors[ResourceTypeAIGatewayVault] = append(
+		relationshipDescriptors[ResourceTypeAIGatewayVault],
+		RelationshipDescriptor{
+			FieldPath:  SchemaFieldConfig + "." + SchemaFieldConfigStoreID,
+			TargetType: ResourceTypeAIGatewayConfigStore,
+			Kind:       RelationshipKindAPIForeignKey,
+		},
+	)
 	for _, resourceType := range portalChildTypes {
 		relationshipDescriptors[resourceType] = []RelationshipDescriptor{{
 			FieldPath: SchemaFieldPortal, TargetType: ResourceTypePortal,

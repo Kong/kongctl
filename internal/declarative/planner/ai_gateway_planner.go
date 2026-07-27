@@ -159,6 +159,27 @@ func (p *Planner) planAIGatewayChanges(
 			}
 		}
 
+		configStores := p.resources.GetAIGatewayConfigStoresForGateway(desiredGateway.Ref)
+		if p.shouldPlanChild(
+			plan,
+			resources.ResourceTypeAIGateway,
+			desiredGateway.Ref,
+			resources.ResourceTypeAIGatewayConfigStore,
+		) && (len(configStores) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayConfigStoreChanges(
+				ctx,
+				namespace,
+				desiredGateway.Ref,
+				desiredGateway.DisplayName,
+				gatewayID,
+				gatewayChangeID,
+				configStores,
+				plan,
+			); err != nil {
+				return err
+			}
+		}
+
 		vaults := p.resources.GetAIGatewayVaultsForGateway(desiredGateway.Ref)
 		if p.shouldPlanChild(
 			plan,
@@ -402,6 +423,27 @@ func (p *Planner) planExternalAIGatewayChildren(
 			desiredGateway.GetRef(),
 		))
 		return nil
+	}
+
+	configStores := p.resources.GetAIGatewayConfigStoresForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayConfigStore,
+	) && len(configStores) > 0 {
+		if err := p.planAIGatewayConfigStoreChanges(
+			ctx,
+			namespace,
+			desiredGateway.Ref,
+			desiredGateway.DisplayName,
+			gatewayID,
+			"",
+			configStores,
+			plan,
+		); err != nil {
+			return err
+		}
 	}
 
 	vaults := p.resources.GetAIGatewayVaultsForGateway(desiredGateway.Ref)

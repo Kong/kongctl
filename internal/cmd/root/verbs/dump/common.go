@@ -182,6 +182,9 @@ func mapResourceName(name string) string {
 		return "ai_gateway_models"
 	case "ai-gateway-mcp-server", "ai-gateway-mcp-servers", "ai_gateway_mcp_server", "ai_gateway_mcp_servers":
 		return "ai_gateway_mcp_servers"
+	case "ai-gateway-config-store", "ai-gateway-config-stores",
+		"ai_gateway_config_store", "ai_gateway_config_stores", "aigw-config-store":
+		return "ai_gateway_config_stores"
 	case "ai-gateway-vault", "ai-gateway-vaults", "ai_gateway_vault", "ai_gateway_vaults":
 		return "ai_gateway_vaults"
 	case "ai-gateway-data-plane-certificate", "ai-gateway-data-plane-certificates",

@@ -1,0 +1,35 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-config-store-example
+
+ai_gateways:
+  - ref: customer-support-ai-gateway
+    name: customer-support-ai-gateway
+    display_name: "Customer Support AI Gateway"
+    description: "AI Gateway using a Konnect Config Store for provider secrets"
+    proxy_urls:
+      - host: support-ai.example.com
+        port: 443
+        protocol: https
+    config_stores:
+      - ref: support-config-store
+        name: support-config-store
+        display_name: Support-Config-Store
+    vaults:
+      - ref: support-secrets
+        name: support-secrets
+        type: konnect
+        description: "Konnect Vault backed by the support Config Store"
+        config:
+          config_store_id: !ref support-config-store#id
+    model_providers:
+      - ref: openai-provider
+        name: openai-provider
+        type: openai
+        display_name: "OpenAI Provider"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: "{vault://support-secrets/openai-auth-header}"

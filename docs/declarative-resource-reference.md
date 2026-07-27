@@ -340,7 +340,8 @@ This section covers the root AI Gateway resource backed by the Konnect
 `/v1/ai-gateways` API, AI Gateway Model Providers, AI Gateway Models, AI
 Gateway Identity Providers, AI Gateway MCP Servers, AI Gateway Agents, AI
 Gateway Consumers, AI Gateway Consumer Credentials, AI Gateway Consumer Groups,
-AI Gateway Vaults, and AI Gateway Data Plane Certificates. Use
+AI Gateway Config Stores, AI Gateway Vaults, and AI Gateway Data Plane
+Certificates. Use
 `kongctl explain ai_gateway --output yaml`,
 `kongctl explain ai_gateway_model_provider --output yaml`,
 `kongctl explain ai_gateway_identity_provider --output yaml`,
@@ -350,6 +351,7 @@ AI Gateway Vaults, and AI Gateway Data Plane Certificates. Use
 `kongctl explain ai_gateway.consumer_groups --output yaml`,
 `kongctl explain ai_gateway.models --output yaml`,
 `kongctl explain ai_gateway.mcp_servers --output yaml`,
+`kongctl explain ai_gateway.config_stores --output yaml`,
 `kongctl explain ai_gateway.vaults --output yaml`, and
 `kongctl explain ai_gateway.data_plane_certificates --output yaml` as the
 authoritative schemas.
@@ -359,10 +361,11 @@ references and planning. Use `name` as the stable Konnect API name for the AI
 Gateway. If `name` is omitted, kongctl defaults it from `ref`. Use
 `display_name` for the human-readable name shown in Konnect. AI Gateway Model
 Providers, Identity Providers, Policies, Agents, Consumers, Consumer
-Credentials, Consumer Groups, Models, MCP Servers, and Vaults use their own
-required `name` field as the stable Konnect child name. AI Gateway Data Plane
-Certificates use their
-required `title` field as the stable Konnect child name. Child entries inherit
+Credentials, Consumer Groups, Models, MCP Servers, Config Stores, and Vaults
+use their own required `name` field as the stable Konnect child name. Config
+Store names are immutable after creation. AI Gateway Data Plane Certificates
+use their required `title` field as the stable Konnect child name. Child entries
+inherit
 management scope from their parent resource and do not accept `kongctl`
 metadata.
 
@@ -377,7 +380,8 @@ references should use `!ref <policy-ref>` so the relationship is explicit and
 same-plan policy creates are ordered and resolved.
 
 For AI Gateway Identity Providers, Policies, Agents, Consumers, Consumer
-Groups, MCP Servers, Vaults, and Data Plane Certificates, root-level
+Groups, MCP Servers, Config Stores, Vaults, and Data Plane Certificates,
+root-level
 declarations must include `ai_gateway`, while nested declarations inherit the
 parent gateway. AI Gateway
 Consumer Credentials are children of AI Gateway Consumers; root-level
@@ -387,14 +391,15 @@ inherit the parent consumer. Omit `identity_providers`, `policies`, `agents`,
 `data_plane_certificates` to leave existing child resources unmanaged during
 sync. Use `identity_providers: []`, `policies: []`, `agents: []`,
 `consumers: []`, `credentials: []`, `consumer_groups: []`, `mcp_servers: []`,
-`vaults: []`, or
+`config_stores: []`, `vaults: []`, or
 `data_plane_certificates: []` under a specific parent to sync-delete that child
 type. Root-level `ai_gateway_identity_providers: []`,
 `ai_gateway_policies: []`, `ai_gateway_agents: []`,
 `ai_gateway_consumers: []`, `ai_gateway_consumer_credentials: []`,
 `ai_gateway_consumer_groups: []`, `ai_gateway_mcp_servers: []`,
-`ai_gateway_vaults: []`, and `ai_gateway_data_plane_certificates: []` are
-rejected because they do not identify a parent resource.
+`ai_gateway_config_stores: []`, `ai_gateway_vaults: []`, and
+`ai_gateway_data_plane_certificates: []` are rejected because they do not
+identify a parent resource.
 
 ```yaml
 ai_gateways:
@@ -758,6 +763,36 @@ ai_gateway_mcp_servers:
      key: value
    acls: object
    managed_by: object
+```
+
+AI Gateway Config Stores can also be declared as root resources. Include
+`ai_gateway` to point at the parent gateway `ref`.
+
+```yaml
+ai_gateway_config_stores:
+ - ref: support-store
+   ai_gateway: support-gateway
+   name: support-store
+   display_name: Support-Store
+```
+
+Use `kongctl get ai-gateway config-stores --gateway-id <id>` (or
+`--gateway-name <name>`) to list Config Stores. Add a Config Store ID or name
+as the final argument to retrieve one store. Text, JSON, and YAML output are
+supported.
+
+Konnect Vaults can reference a Config Store declared in the same configuration.
+The reference is resolved to the Config Store API ID and orders its creation
+before the Vault:
+
+```yaml
+ai_gateway_vaults:
+ - ref: support-vault
+   ai_gateway: support-gateway
+   type: konnect
+   name: support-vault
+   config:
+     config_store_id: !ref support-store#id
 ```
 
 AI Gateway Vaults can also be declared as root resources. Include `ai_gateway`

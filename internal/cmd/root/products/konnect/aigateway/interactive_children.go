@@ -29,6 +29,7 @@ func init() {
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumerGroups, loadAIGatewayConsumerGroups)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldModels, loadAIGatewayModels)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldMCPServers, loadAIGatewayMCPServers)
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConfigStores, loadAIGatewayConfigStores)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldVaults, loadAIGatewayVaults)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldNodes, loadAIGatewayNodes)
 	tableview.RegisterChildLoader(
@@ -346,6 +347,34 @@ func loadAIGatewayVaults(_ context.Context, helper cmd.Helper, parent any) (tabl
 		return tableview.ChildView{}, err
 	}
 	return buildAIGatewayVaultChildView(vaults), nil
+}
+
+func loadAIGatewayConfigStores(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	configStoreAPI := sdk.GetAIGatewayConfigStoresAPI()
+	if configStoreAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Config Stores client is not available")
+	}
+	stores, err := fetchAIGatewayConfigStores(helper, configStoreAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayConfigStoreChildView(stores), nil
 }
 
 func loadAIGatewayNodes(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

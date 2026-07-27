@@ -34,6 +34,26 @@ func TestExplainSchemaIncludesRelationshipContract(t *testing.T) {
 	require.Equal(t, []string{"name"}, schema.XRelationship.Selectors)
 }
 
+func TestAIGatewayVaultExplainIncludesConfigStoreRelationship(t *testing.T) {
+	t.Parallel()
+
+	subject, err := ResolveExplainSubject("ai_gateway_vault")
+	require.NoError(t, err)
+	schema := RenderExplainSchema(subject)
+	var configStore *JSONSchema
+	for _, variant := range schema.OneOf {
+		if variant.Properties["type"].Const == "konnect" {
+			configStore = variant.Properties["config"].Properties[SchemaFieldConfigStoreID]
+			break
+		}
+	}
+	require.NotNil(t, configStore)
+	require.Equal(t, string(ResourceTypeAIGatewayConfigStore), configStore.XRefKind)
+	require.Equal(t, "!ref", configStore.XTag)
+	require.Equal(t, ResourceTypeAIGatewayConfigStore, configStore.XRelationship.Target)
+	require.Equal(t, RelationshipKindAPIForeignKey, configStore.XRelationship.Kind)
+}
+
 func TestRelationshipExplainNoteMatchesExternalCapability(t *testing.T) {
 	t.Parallel()
 

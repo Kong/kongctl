@@ -43,7 +43,8 @@ type AIGatewayResource struct {
 	Consumers             []AIGatewayConsumerResource             `yaml:"consumers,omitempty" json:"consumers,omitempty"`
 	ConsumerGroups        []AIGatewayConsumerGroupResource        `yaml:"consumer_groups,omitempty" json:"consumer_groups,omitempty"` //nolint:lll
 	Models                []AIGatewayModelResource                `yaml:"models,omitempty"    json:"models,omitempty"`
-	MCPServers            []AIGatewayMCPServerResource            `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"` //nolint:lll
+	MCPServers            []AIGatewayMCPServerResource            `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`     //nolint:lll
+	ConfigStores          []AIGatewayConfigStoreResource          `yaml:"config_stores,omitempty" json:"config_stores,omitempty"` //nolint:lll
 	Vaults                []AIGatewayVaultResource                `yaml:"vaults,omitempty" json:"vaults,omitempty"`
 	DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
 }
@@ -73,7 +74,8 @@ type aiGatewayAlias struct {
 	Consumers             []AIGatewayConsumerResource             `json:"consumers,omitempty"   yaml:"consumers,omitempty"`
 	ConsumerGroups        []AIGatewayConsumerGroupResource        `json:"consumer_groups,omitempty" yaml:"consumer_groups,omitempty"` //nolint:lll
 	Models                []AIGatewayModelResource                `json:"models,omitempty"      yaml:"models,omitempty"`
-	MCPServers            []AIGatewayMCPServerResource            `json:"mcp_servers,omitempty" yaml:"mcp_servers,omitempty"` //nolint:lll
+	MCPServers            []AIGatewayMCPServerResource            `json:"mcp_servers,omitempty" yaml:"mcp_servers,omitempty"`     //nolint:lll
+	ConfigStores          []AIGatewayConfigStoreResource          `json:"config_stores,omitempty" yaml:"config_stores,omitempty"` //nolint:lll
 	Vaults                []AIGatewayVaultResource                `json:"vaults,omitempty"      yaml:"vaults,omitempty"`
 	DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `json:"data_plane_certificates,omitempty" yaml:"data_plane_certificates,omitempty"` //nolint:lll
 }
@@ -96,6 +98,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		ConsumerGroups:        a.ConsumerGroups,
 		Models:                a.Models,
 		MCPServers:            a.MCPServers,
+		ConfigStores:          a.ConfigStores,
 		Vaults:                a.Vaults,
 		DataPlaneCertificates: a.DataPlaneCertificates,
 	}
@@ -133,6 +136,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		ConsumerGroups        []AIGatewayConsumerGroupResource        `yaml:"consumer_groups,omitempty"`
 		Models                []AIGatewayModelResource                `yaml:"models,omitempty"`
 		MCPServers            []AIGatewayMCPServerResource            `yaml:"mcp_servers,omitempty"`
+		ConfigStores          []AIGatewayConfigStoreResource          `yaml:"config_stores,omitempty"`
 		Vaults                []AIGatewayVaultResource                `yaml:"vaults,omitempty"`
 		DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty"`
 	}
@@ -160,6 +164,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	a.ConsumerGroups = raw.ConsumerGroups
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
+	a.ConfigStores = raw.ConfigStores
 	a.Vaults = raw.Vaults
 	a.DataPlaneCertificates = raw.DataPlaneCertificates
 
@@ -198,6 +203,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		ConsumerGroups        []AIGatewayConsumerGroupResource        `json:"consumer_groups,omitempty"`
 		Models                []AIGatewayModelResource                `json:"models,omitempty"`
 		MCPServers            []AIGatewayMCPServerResource            `json:"mcp_servers,omitempty"`
+		ConfigStores          []AIGatewayConfigStoreResource          `json:"config_stores,omitempty"`
 		Vaults                []AIGatewayVaultResource                `json:"vaults,omitempty"`
 		DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `json:"data_plane_certificates,omitempty"`
 	}
@@ -225,6 +231,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	a.ConsumerGroups = raw.ConsumerGroups
 	a.Models = raw.Models
 	a.MCPServers = raw.MCPServers
+	a.ConfigStores = raw.ConfigStores
 	a.Vaults = raw.Vaults
 	a.DataPlaneCertificates = raw.DataPlaneCertificates
 
@@ -310,6 +317,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	for i := range a.MCPServers {
 		a.MCPServers[i].SetDefaults()
 	}
+	for i := range a.ConfigStores {
+		a.ConfigStores[i].SetDefaults()
+	}
 	for i := range a.Vaults {
 		a.Vaults[i].SetDefaults()
 	}
@@ -365,6 +375,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("consumer_groups", explainArrayOf(aiGatewayConsumerGroupInlineExplainNode()), false, false),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 		explainField("mcp_servers", explainArrayOf(aiGatewayMCPServerInlineExplainNode()), false, false),
+		explainField("config_stores", explainArrayOf(aiGatewayConfigStoreInlineExplainNode()), false, false),
 		explainField("vaults", explainArrayOf(aiGatewayVaultInlineExplainNode()), false, false),
 		explainField(
 			"data_plane_certificates",

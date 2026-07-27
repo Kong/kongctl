@@ -86,6 +86,12 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
+		key:          "ai_gateway_config_stores",
+		resourceType: resources.ResourceTypeAIGatewayConfigStore,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "ai_gateway_vaults",
 		resourceType: resources.ResourceTypeAIGatewayVault,
 		parentKey:    resources.SchemaFieldAIGateway,
@@ -440,6 +446,11 @@ var aiGatewayChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
+		key:          "config_stores",
+		resourceType: resources.ResourceTypeAIGatewayConfigStore,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "vaults",
 		resourceType: resources.ResourceTypeAIGatewayVault,
 		parentType:   resources.ResourceTypeAIGateway,
@@ -588,6 +599,9 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 		}
 		if entry.resourceType == resources.ResourceTypeAIGatewayMCPServer {
 			return fmt.Errorf("%s cannot be empty because each MCP Server must declare an ai_gateway parent", entry.key)
+		}
+		if entry.resourceType == resources.ResourceTypeAIGatewayConfigStore {
+			return fmt.Errorf("%s cannot be empty because each Config Store must declare an ai_gateway parent", entry.key)
 		}
 		if entry.resourceType == resources.ResourceTypeAIGatewayVault {
 			return fmt.Errorf("%s cannot be empty because each Vault must declare an ai_gateway parent", entry.key)

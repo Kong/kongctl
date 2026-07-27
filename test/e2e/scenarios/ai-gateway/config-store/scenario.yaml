@@ -1,0 +1,206 @@
+baseInputsPath: testdata
+
+vars:
+  namespace: ai-gateway-config-store-e2e
+  gateway_name: AI Gateway Config Store E2E
+  store_name: support-store
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-and-scaffold
+    skipInputs: true
+    commands:
+      - name: 000-explain
+        run: [explain, ai_gateway_config_store, -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                '"x-kongctl-root-key"': ai_gateway_config_stores
+      - name: 001-scaffold
+        run: [scaffold, ai_gateway_config_store]
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_config_stores:')": true
+                "contains(stdout, 'ai_gateway: !ref')": true
+      - name: 002-explain-nested
+        run: [explain, ai_gateway.config_stores, -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                '"x-kongctl-root-key"': ai_gateway_config_stores
+
+  - name: 002-create-and-read
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+      - name: 001-apply
+        outputFormat: json
+        run: [apply, --plan, "{{ .workdir }}/plan-create.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+      - name: 002-list
+        run:
+          - get
+          - ai-gateway
+          - config-stores
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        recordVar:
+          name: store_id
+          responsePath: "[?name=='{{ .vars.store_name }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.store_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.store_name }}"
+                display_name: Support-Store
+      - name: 003-get-by-name
+        run:
+          - get
+          - ai-gateway
+          - config-store
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.store_name }}"
+          - -o
+          - yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.store_name }}"
+      - name: 004-get-by-id
+        run:
+          - get
+          - ai-gateway
+          - config-stores
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.store_id }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.store_name }}"
+
+  - name: 003-update-and-dump
+    inputOverlayDirs: [overlays/001-update]
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+      - name: 001-apply-update
+        outputFormat: json
+        run: [apply, --plan, "{{ .workdir }}/plan-update.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-diff
+        outputFormat: text
+        parseAs: raw
+        run: [diff, -f, "{{ .workdir }}/config.yaml"]
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+      - name: 003-dump-root
+        skipInputs: true
+        run:
+          - dump
+          - declarative
+          - --resources=ai_gateway_config_stores
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "ai_gateway_config_stores[?name=='{{ .vars.store_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.store_name }}"
+                display_name: Support-Store-Updated
+
+  - name: 004-sync-delete-vault
+    inputOverlayDirs: [overlays/002-sync-delete-vault]
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 005-sync-delete-store
+    inputOverlayDirs: [overlays/003-sync-delete-store]
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 006-sync-delete-gateway
+    inputOverlayDirs: [overlays/004-sync-delete-gateway]
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
