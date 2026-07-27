@@ -1,6 +1,6 @@
 ---
 title: Install kongctl
-summary: Install the CLI, verify it, and connect it to your Konnect account.
+summary: Install the CLI and verify that it runs.
 order: 1
 related:
   - label: Complete kongctl installation documentation
@@ -11,12 +11,12 @@ related:
 
 ## Goal
 
-You will install `kongctl`, confirm that it runs, and authenticate with
-Konnect.
+You will install `kongctl` and confirm that the CLI runs.
 
 ## Prerequisites
 
-You need a Kong Konnect account to authenticate after the installation.
+You need a supported operating system and permission to install local
+software.
 
 ## Install kongctl
 
@@ -54,35 +54,3 @@ Its first line will resemble:
 ```text
 1.x.x (<commit> : <build-date>)
 ```
-
-## Connect to Konnect
-
-Choose one of these authentication methods.
-
-### Browser-based login flow
-
-Start the browser-based login flow:
-
-```shell
-kongctl login
-```
-
-Follow the terminal instructions to finish signing in.
-
-### Personal access token (PAT)
-
-Set your Konnect personal access token as an environment variable. Replace
-`<personal-access-token>` with your token:
-
-```shell
-export KONGCTL_DEFAULT_KONNECT_PAT="<personal-access-token>"
-```
-
-After either authentication flow, verify that kongctl can read your user
-record:
-
-```shell
-kongctl get me
-```
-
-You now have an authenticated kongctl installation.

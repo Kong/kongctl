@@ -17,7 +17,7 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
   await expect(curriculum.locator(".curriculum-chapters > li")).toHaveCount(3);
   await expect(
     curriculum.getByRole("link", { name: /Installation/ }),
-  ).toHaveAttribute("href", "/kongctl/installation/install-kongctl/");
+  ).toHaveAttribute("href", "/kongctl/installation/");
   await expect(
     curriculum.getByRole("link", { name: /kongctl Configuration/ }),
   ).toHaveAttribute("href", "/kongctl/kongctl-configuration/profiles/");
@@ -57,7 +57,7 @@ test("copies terminal commands without a prompt", async ({ context, page }) => {
 });
 
 test("offers browser and PAT authentication flows", async ({ page }) => {
-  await page.goto("installation/install-kongctl/");
+  await page.goto("installation/authenticate/");
 
   await expect(
     page.getByRole("heading", { name: "Browser-based login flow" }),
@@ -68,6 +68,23 @@ test("offers browser and PAT authentication flows", async ({ page }) => {
   await expect(
     page.getByText(
       'export KONGCTL_DEFAULT_KONNECT_PAT="<personal-access-token>"',
+      { exact: true },
+    ),
+  ).toBeVisible();
+});
+
+test("verifies Konnect access and demonstrates output formats", async ({
+  page,
+}) => {
+  await page.goto("installation/authenticate/");
+
+  await expect(page.getByText("kongctl get me", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("kongctl get organization", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "kongctl get me -o text\nkongctl get me -o json\nkongctl get me -o yaml",
       { exact: true },
     ),
   ).toBeVisible();
@@ -92,17 +109,17 @@ test("keeps the lesson outline in a desktop right rail", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("persists explicit completion and continues to the next chapter", async ({
+test("persists explicit completion and continues to the next lesson", async ({
   page,
 }) => {
   await page.goto("installation/install-kongctl/");
   await page.getByRole("link", { name: "Mark complete and continue" }).click();
 
-  await expect(page).toHaveURL(/\/kongctl\/kongctl-configuration\/profiles\/$/);
-  await expect(page.getByText("1 of 3", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/kongctl\/installation\/authenticate\/$/);
+  await expect(page.getByText("1 of 4", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("1 of 3", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 4", { exact: true })).toBeVisible();
 });
 
 test("persists a chosen color theme", async ({ page }) => {
