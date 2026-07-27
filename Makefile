@@ -59,6 +59,18 @@ mod:
 build: mod
 	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o kongctl
 
+.PHONY: site-dev site-build site-check site-test-e2e
+site-dev:
+	ASTRO_TELEMETRY_DISABLED=1 npm --prefix site run dev
+site-build:
+	ASTRO_TELEMETRY_DISABLED=1 npm --prefix site run build
+site-check:
+	ASTRO_TELEMETRY_DISABLED=1 npm --prefix site run check
+	ASTRO_TELEMETRY_DISABLED=1 npm --prefix site test
+	ASTRO_TELEMETRY_DISABLED=1 npm --prefix site run build
+site-test-e2e:
+	ASTRO_TELEMETRY_DISABLED=1 npm --prefix site run test:e2e
+
 .PHONY: build-ci
 build-ci:
 	CGO_ENABLED=0 go build -mod=readonly -ldflags "$(LDFLAGS)" -o kongctl

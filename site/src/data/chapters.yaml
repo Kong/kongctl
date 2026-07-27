@@ -1,0 +1,8 @@
+- id: installation
+  title: Installation
+  description: How to get kongctl up and running.
+  order: 1
+- id: declarative-configuration
+  title: Declarative Configuration
+  description: Learn the concepts behind managing Konnect with configuration.
+  order: 2

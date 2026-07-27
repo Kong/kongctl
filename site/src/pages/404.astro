@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { pageUrl } from "../lib/urls";
+---
+
+<BaseLayout
+  title="Page not found"
+  description="The requested Learn kongctl page was not found."
+>
+  <main class="not-found">
+    <p class="eyebrow">404</p>
+    <h1>That lesson is not here.</h1>
+    <p>Return to the guide index and choose another lesson.</p>
+    <a class="button primary" href={pageUrl()}>Back to Learn kongctl</a>
+  </main>
+</BaseLayout>

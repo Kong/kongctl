@@ -1,0 +1,57 @@
+---
+import "@fontsource-variable/funnel-sans";
+import "@fontsource-variable/roboto-mono";
+import "../styles/global.css";
+
+interface Props {
+  description: string;
+  title: string;
+}
+
+const { description, title } = Astro.props;
+const pageTitle = title === "Learn kongctl" ? title : `${title} | Learn kongctl`;
+const canonical = Astro.site
+  ? new URL(Astro.url.pathname, Astro.site)
+  : Astro.url;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#001408" />
+    <link rel="canonical" href={canonical} />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%23001408%22/><text y=%22.82em%22 x=%22.17em%22 font-size=%2272%22 fill=%22%23ccff00%22>K</text></svg>"
+    />
+    <title>{pageTitle}</title>
+    <script is:inline>
+      (() => {
+        try {
+          const saved = localStorage.getItem("kongctl-learn-theme");
+          const theme =
+            saved === "light" || saved === "dark"
+              ? saved
+              : matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.dataset.theme = theme;
+        } catch {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to lesson content</a>
+    <slot />
+    <script>
+      import { initializeSite } from "../scripts/site";
+
+      initializeSite();
+    </script>
+  </body>
+</html>
