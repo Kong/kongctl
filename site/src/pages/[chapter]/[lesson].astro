@@ -58,53 +58,57 @@ const continueUrl = next?.url ?? pageUrl();
       <p>{lesson.entry.data.summary}</p>
     </header>
 
-    <PageOutline {headings} />
+    <div class="lesson-layout">
+      <PageOutline {headings} />
 
-    <article class="lesson-body">
-      <Content />
-    </article>
+      <div class="lesson-column">
+        <article class="lesson-body">
+          <Content />
+        </article>
 
-    {
-      lesson.entry.data.related && (
-        <aside class="related-links" aria-labelledby="go-deeper-heading">
-          <p class="eyebrow">Reference material</p>
-          <h2 id="go-deeper-heading">Go deeper</h2>
-          <ul>
-            {lesson.entry.data.related.map((link) => (
-              <li>
-                <a href={link.url}>
-                  <span>{link.label}</span>
-                  <span aria-hidden="true">↗</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </aside>
-      )
-    }
+        {
+          lesson.entry.data.related && (
+            <aside class="related-links" aria-labelledby="go-deeper-heading">
+              <p class="eyebrow">Reference material</p>
+              <h2 id="go-deeper-heading">Go deeper</h2>
+              <ul>
+                {lesson.entry.data.related.map((link) => (
+                  <li>
+                    <a href={link.url}>
+                      <span>{link.label}</span>
+                      <span aria-hidden="true">↗</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )
+        }
 
-    <nav class="lesson-pagination" aria-label="Lesson navigation">
-      {
-        previous ? (
-          <a class="pagination-link previous" href={previous.url}>
-            <span aria-hidden="true">←</span>
-            <span>
-              <small>Previous</small>
-              {previous.entry.data.title}
-            </span>
+        <nav class="lesson-pagination" aria-label="Lesson navigation">
+          {
+            previous ? (
+              <a class="pagination-link previous" href={previous.url}>
+                <span aria-hidden="true">←</span>
+                <span>
+                  <small>Previous</small>
+                  {previous.entry.data.title}
+                </span>
+              </a>
+            ) : (
+              <span />
+            )
+          }
+          <a
+            class="button primary complete-button"
+            href={continueUrl}
+            data-complete-and-continue={lesson.key}
+          >
+            {next ? "Mark complete and continue" : "Complete the guide"}
+            <span aria-hidden="true">→</span>
           </a>
-        ) : (
-          <span />
-        )
-      }
-      <a
-        class="button primary complete-button"
-        href={continueUrl}
-        data-complete-and-continue={lesson.key}
-      >
-        {next ? "Mark complete and continue" : "Complete the guide"}
-        <span aria-hidden="true">→</span>
-      </a>
-    </nav>
+        </nav>
+      </div>
+    </div>
   </div>
 </BookShell>

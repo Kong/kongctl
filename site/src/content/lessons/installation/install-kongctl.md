@@ -9,15 +9,18 @@ related:
     url: https://github.com/Kong/kongctl/releases
 ---
 
-## Outcome
+## Goal
 
 You will install `kongctl`, confirm that it runs, and authenticate with
 Konnect.
 
-## Before you begin
+## Prerequisites
 
-You need a Kong Konnect account. Choose the installation command for your
-operating system.
+You need a Kong Konnect account to authenticate after the installation.
+
+## Install kongctl
+
+Choose the installation command for your operating system.
 
 ### macOS with Homebrew
 

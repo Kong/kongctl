@@ -38,6 +38,25 @@ test("copies terminal commands without a prompt", async ({ context, page }) => {
   ).toBeVisible();
 });
 
+test("keeps the lesson outline in a desktop right rail", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("installation/install-kongctl/");
+
+  const outline = page.getByRole("navigation", { name: "On this page" });
+  const article = page.locator(".lesson-body");
+  const outlineBox = await outline.boundingBox();
+  const articleBox = await article.boundingBox();
+
+  expect(outlineBox).not.toBeNull();
+  expect(articleBox).not.toBeNull();
+  expect(outlineBox!.x).toBeGreaterThan(articleBox!.x + articleBox!.width);
+  await expect(outline).toHaveCSS("position", "sticky");
+  await expect(outline.getByRole("link", { name: "Goal" })).toBeVisible();
+  await expect(
+    outline.getByRole("link", { name: "Prerequisites" }),
+  ).toBeVisible();
+});
+
 test("persists explicit completion and continues to the next chapter", async ({
   page,
 }) => {

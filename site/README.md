@@ -67,8 +67,8 @@ directory.
 
 Keep lessons short and use this sequence where it fits:
 
-1. **Outcome**: State what the learner will accomplish.
-2. **Before you begin**: Identify access, authentication, and local tools.
+1. **Goal**: State what the learner will accomplish.
+2. **Prerequisites**: Identify access, authentication, and local tools.
 3. **Do it**: Explain the action and immediately show the command or input.
 4. **Check it worked**: Give a verification command and expected result.
 5. **Go deeper**: Use `related` links for the complete documentation.

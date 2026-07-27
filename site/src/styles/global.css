@@ -645,12 +645,30 @@ progress::-moz-progress-bar {
   height: 1.35rem;
 }
 
+.lesson-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 50rem) minmax(12rem, 16rem);
+  align-items: start;
+  gap: clamp(2rem, 4vw, 4rem);
+}
+
+.lesson-column {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
 .page-outline {
-  max-width: 50rem;
-  margin-bottom: 2.5rem;
-  padding: 1rem 1.1rem;
-  border-left: 3px solid var(--brand);
-  background: color-mix(in srgb, var(--brand) 8%, transparent);
+  position: sticky;
+  top: calc(var(--header-height) + 1.5rem);
+  grid-column: 2;
+  grid-row: 1;
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--brand);
+  border-radius: 0.65rem;
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow);
 }
 
 .page-outline > span {
@@ -661,21 +679,22 @@ progress::-moz-progress-bar {
 }
 
 .page-outline ol {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 1.2rem;
-  margin: 0.65rem 0 0;
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.8rem 0 0;
   padding: 0;
   list-style: none;
 }
 
 .page-outline a {
+  display: block;
   font-size: 0.87rem;
+  line-height: 1.35;
 }
 
-.page-outline .nested::before {
-  content: "↳ ";
-  color: var(--text-tertiary);
+.page-outline .nested {
+  padding-left: 0.85rem;
+  border-left: 1px solid var(--border-strong);
 }
 
 .lesson-body {
@@ -864,6 +883,20 @@ progress::-moz-progress-bar {
   display: none !important;
 }
 
+@media (max-width: 1100px) {
+  .lesson-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page-outline {
+    position: static;
+    width: min(100%, 50rem);
+    margin-bottom: 2.5rem;
+    box-shadow: none;
+  }
+}
+
 @media (max-width: 860px) {
   .site-shell {
     display: block;
@@ -979,10 +1012,6 @@ progress::-moz-progress-bar {
 
   .lesson-pagination .complete-button {
     width: 100%;
-  }
-
-  .page-outline ol {
-    display: grid;
   }
 }
 

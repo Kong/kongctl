@@ -9,7 +9,7 @@ related:
     url: https://developer.konghq.com/kongctl/supported-resources/
 ---
 
-## Outcome
+## Goal
 
 You will describe a Konnect API in YAML and preview the changes kongctl would
 make. The preview does not modify Konnect.
