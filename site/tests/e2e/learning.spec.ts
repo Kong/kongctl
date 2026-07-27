@@ -14,10 +14,13 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
   await expect(
     curriculum.getByRole("heading", { name: "Curriculum" }),
   ).toBeVisible();
-  await expect(curriculum.locator(".curriculum-chapters > li")).toHaveCount(2);
+  await expect(curriculum.locator(".curriculum-chapters > li")).toHaveCount(3);
   await expect(
     curriculum.getByRole("link", { name: /Installation/ }),
   ).toHaveAttribute("href", "/kongctl/installation/install-kongctl/");
+  await expect(
+    curriculum.getByRole("link", { name: /kongctl Configuration/ }),
+  ).toHaveAttribute("href", "/kongctl/kongctl-configuration/profiles/");
   await expect(
     curriculum.getByRole("link", { name: /Declarative Configuration/ }),
   ).toHaveAttribute("href", "/kongctl/declarative-configuration/concepts/");
@@ -95,13 +98,11 @@ test("persists explicit completion and continues to the next chapter", async ({
   await page.goto("installation/install-kongctl/");
   await page.getByRole("link", { name: "Mark complete and continue" }).click();
 
-  await expect(page).toHaveURL(
-    /\/kongctl\/declarative-configuration\/concepts\/$/,
-  );
-  await expect(page.getByText("1 of 2", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/kongctl\/kongctl-configuration\/profiles\/$/);
+  await expect(page.getByText("1 of 3", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("1 of 2", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 3", { exact: true })).toBeVisible();
 });
 
 test("persists a chosen color theme", async ({ page }) => {

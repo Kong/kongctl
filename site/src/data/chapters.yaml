@@ -2,7 +2,11 @@
   title: Installation
   description: How to get kongctl up and running.
   order: 1
+- id: kongctl-configuration
+  title: kongctl Configuration
+  description: Configure profiles, authentication, and reusable CLI settings.
+  order: 2
 - id: declarative-configuration
   title: Declarative Configuration
   description: Learn the concepts behind managing Konnect with configuration.
-  order: 2
+  order: 3
