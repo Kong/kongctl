@@ -20,6 +20,44 @@ Quickstart
   - `KONGCTL_E2E_UPDATE_EXPECT=1 make test-e2e-scenarios SCENARIO=portal/visibility`
 - Artifacts: set `KONGCTL_E2E_ARTIFACTS_DIR=/tmp/kongctl-e2e` to choose a folder; otherwise a temp dir is created and printed at the end.
 
+Scenario Maturity
+
+Scenarios are stable by default. Use the `test.maturity` field for scenarios
+covering beta product areas:
+
+```yaml
+test:
+  maturity: beta
+```
+
+Supported values are `stable` and `beta`. Unknown values fail scenario
+preflight.
+
+`KONGCTL_E2E_BETA_MODE` controls beta scenario execution:
+
+- `fail` runs beta scenarios and treats failures as fatal. This is the default
+  for local and ordinary manually dispatched runs.
+- `warn` runs beta scenarios but reports their failures as advisory. Stable
+  failures remain fatal. Required pull request, merge queue, trusted fork, and
+  main-branch runs use this mode.
+- `skip` skips beta scenarios before executing their steps.
+
+Examples:
+
+```sh
+KONGCTL_E2E_BETA_MODE=warn make test-e2e-ai-gateway
+KONGCTL_E2E_BETA_MODE=skip make test-e2e-scenarios
+```
+
+Warned beta failures preserve normal command artifacts and add a structured
+record under `beta-failures/`. The harness then performs a best-effort captured
+organization reset before continuing. Cleanup failures are reported as
+additional warnings without replacing the original scenario error.
+
+CI continues to use `scenario-results.txt` as the shard result artifact. It
+adds `beta_failed_count` and a `[beta_failed]` section alongside the existing
+passed, failed, and skipped results.
+
 Key Concepts
 
 - Scenario: Top-level test definition. Sets defaults for masking and retries.
@@ -42,6 +80,7 @@ Schema (YAML)
 - env: map of environment variables to pass to kongctl
 - vars: free-form variables usable in templates (e.g., for selectors or overlay files)
 - test:
+  - maturity: optional stable|beta classification; defaults to stable
   - enabledByEnvVar: optional opt-in env gate for the scenario
   - assignedEnvironment: optional GitHub Actions environment / matrix org
     name. When set, CI runs the scenario only in the matching matrix job.

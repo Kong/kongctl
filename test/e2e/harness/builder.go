@@ -142,6 +142,11 @@ func ensureRunDir() (string, error) {
 	return d, nil
 }
 
+// ArtifactsDir returns the shared E2E run artifact directory.
+func ArtifactsDir() (string, error) {
+	return ensureRunDir()
+}
+
 func copyFile(src, dst string) error {
 	fi, err := os.Stat(src)
 	if err != nil {

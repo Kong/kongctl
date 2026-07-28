@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kong/kongctl/test/e2e/harness"
 	"github.com/kong/kongctl/test/e2e/harness/scenario"
 )
 
@@ -96,11 +97,35 @@ func Test_Scenarios(t *testing.T) {
 		return
 	}
 
+	betaMode, err := scenario.BetaModeFromEnv()
+	if err != nil {
+		t.Fatalf("invalid beta scenario configuration: %v", err)
+	}
+
 	for _, p := range selected {
 		t.Run(p, func(t *testing.T) {
-			if err := scenario.Run(t, p); err != nil {
+			maturity, err := scenario.Run(t, p, betaMode)
+			if err == nil {
+				return
+			}
+			if !scenario.IsAdvisoryFailure(maturity, betaMode) {
 				t.Fatalf("scenario failed: %v", err)
 			}
+
+			harness.Warnf("Beta scenario failed: %s: %v", normalizeScenarioPath(p), err)
+			_, recordErr := scenario.RecordAdvisoryFailure(p, maturity, betaMode, err, nil)
+			cleanupErr := harness.ResetOrgWithCapture("after_beta_failure")
+			if cleanupErr != nil {
+				harness.Warnf("Beta scenario cleanup failed: %s: %v", normalizeScenarioPath(p), cleanupErr)
+			}
+			if recordErr != nil {
+				t.Fatalf("record beta scenario advisory failure: %v (original failure: %v)", recordErr, err)
+			}
+			artifactPath, recordErr := scenario.RecordAdvisoryFailure(p, maturity, betaMode, err, cleanupErr)
+			if recordErr != nil {
+				t.Fatalf("update beta scenario advisory failure: %v (original failure: %v)", recordErr, err)
+			}
+			t.Logf("beta scenario failure recorded at %s", artifactPath)
 		})
 	}
 }

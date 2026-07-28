@@ -39,18 +39,26 @@ func checkAndStopAfter(stepName, cmdName, stopAfterSpec string, isLastCmdInStep 
 }
 
 // Run executes the scenario using the e2e harness.
-func Run(t *testing.T, scenarioPath string) error {
+func Run(t *testing.T, scenarioPath string, betaMode BetaMode) (Maturity, error) {
 	t.Helper()
 	s, err := Load(scenarioPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	if reason := skipScenarioReason(s); reason != "" {
-		t.Skip(reason)
-		return nil
+	preflight, err := preflightScenario(s, betaMode)
+	if err != nil {
+		return "", err
+	}
+	if preflight.SkipReason != "" {
+		t.Skip(preflight.SkipReason)
+		return preflight.Maturity, nil
 	}
 
+	return preflight.Maturity, runScenario(t, scenarioPath, s)
+}
+
+func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 	harness.RequireBinary(t)
 	if scenarioRequiresPAT(s) {
 		_ = harness.RequirePAT(t, "e2e")

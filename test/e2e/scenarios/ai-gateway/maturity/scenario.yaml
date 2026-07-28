@@ -1,4 +1,5 @@
 test:
+  maturity: beta
   requiresPAT: false
 
 steps:

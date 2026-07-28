@@ -25,6 +25,7 @@ type ScenarioTest struct {
 	RequiredEnvVars     []string `yaml:"requiredEnvVars"`
 	RequiresPAT         *bool    `yaml:"requiresPAT"`
 	AssignedEnvironment string   `yaml:"assignedEnvironment"`
+	Maturity            string   `yaml:"maturity"`
 	Info                string   `yaml:"info"`
 }
 

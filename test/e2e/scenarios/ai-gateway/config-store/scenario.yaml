@@ -1,5 +1,8 @@
 baseInputsPath: testdata
 
+test:
+  maturity: beta
+
 vars:
   namespace: ai-gateway-config-store-e2e
   gateway_name: AI Gateway Config Store E2E

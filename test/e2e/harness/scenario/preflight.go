@@ -8,6 +8,99 @@ import (
 	"strings"
 )
 
+const BetaModeEnvName = "KONGCTL_E2E_BETA_MODE"
+
+type Maturity string
+
+const (
+	MaturityStable Maturity = "stable"
+	MaturityBeta   Maturity = "beta"
+)
+
+type BetaMode string
+
+const (
+	BetaModeFail BetaMode = "fail"
+	BetaModeWarn BetaMode = "warn"
+	BetaModeSkip BetaMode = "skip"
+)
+
+type scenarioPreflight struct {
+	Maturity   Maturity
+	SkipReason string
+}
+
+func BetaModeFromEnv() (BetaMode, error) {
+	return parseBetaMode(os.Getenv(BetaModeEnvName))
+}
+
+func parseBetaMode(value string) (BetaMode, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return BetaModeFail, nil
+	}
+
+	mode := BetaMode(value)
+	switch mode {
+	case BetaModeFail, BetaModeWarn, BetaModeSkip:
+		return mode, nil
+	default:
+		return "", fmt.Errorf(
+			"invalid %s value %q: supported values are %q, %q, and %q",
+			BetaModeEnvName,
+			value,
+			BetaModeFail,
+			BetaModeWarn,
+			BetaModeSkip,
+		)
+	}
+}
+
+func scenarioMaturity(s Scenario) (Maturity, error) {
+	value := strings.TrimSpace(s.Test.Maturity)
+	if value == "" {
+		return MaturityStable, nil
+	}
+
+	maturity := Maturity(value)
+	switch maturity {
+	case MaturityStable, MaturityBeta:
+		return maturity, nil
+	default:
+		return "", fmt.Errorf(
+			"invalid scenario maturity %q: supported values are %q and %q",
+			value,
+			MaturityStable,
+			MaturityBeta,
+		)
+	}
+}
+
+func IsAdvisoryFailure(maturity Maturity, mode BetaMode) bool {
+	return maturity == MaturityBeta && mode == BetaModeWarn
+}
+
+func preflightScenario(s Scenario, mode BetaMode) (scenarioPreflight, error) {
+	maturity, err := scenarioMaturity(s)
+	if err != nil {
+		return scenarioPreflight{}, err
+	}
+	if _, err := parseBetaMode(string(mode)); err != nil {
+		return scenarioPreflight{}, err
+	}
+	if maturity == MaturityBeta && mode == BetaModeSkip {
+		return scenarioPreflight{
+			Maturity:   maturity,
+			SkipReason: "skipping: beta scenario disabled by KONGCTL_E2E_BETA_MODE=skip",
+		}, nil
+	}
+
+	return scenarioPreflight{
+		Maturity:   maturity,
+		SkipReason: skipScenarioReason(s),
+	}, nil
+}
+
 // skipScenarioReason applies scenario-level preflight checks declared in scenario.yaml.
 // This keeps optional, external-dependency scenarios (like Gmail-backed flows) from
 // running by default unless explicitly opted in and configured.
