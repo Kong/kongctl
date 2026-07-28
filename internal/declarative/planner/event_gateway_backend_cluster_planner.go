@@ -540,41 +540,32 @@ func compareTLSSettings(a, b any) bool {
 		return reflect.DeepEqual(a, b)
 	}
 
-	// Compare Enabled
 	if tlsA.Enabled != tlsB.Enabled {
 		return false
 	}
 
-	// Compare InsecureSkipVerify
 	if !compareBoolPtrs(tlsA.InsecureSkipVerify, tlsB.InsecureSkipVerify) {
 		return false
 	}
 
-	// Compare CaBundle
 	if !compareStringPtrs(tlsA.CaBundle, tlsB.CaBundle) {
 		return false
 	}
 
 	// The API materializes its supported TLS versions when the field is omitted.
+	apiDefaultTLSVersions := []components.TLSVersions{
+		components.TLSVersionsTls12,
+		components.TLSVersionsTls13,
+	}
 	currentTLSVersions := tlsA.TLSVersions
 	if currentTLSVersions == nil {
-		currentTLSVersions = []components.TLSVersions{
-			components.TLSVersionsTls12,
-			components.TLSVersionsTls13,
-		}
+		currentTLSVersions = apiDefaultTLSVersions
 	}
 	desiredTLSVersions := tlsB.TLSVersions
 	if desiredTLSVersions == nil {
-		desiredTLSVersions = []components.TLSVersions{
-			components.TLSVersionsTls12,
-			components.TLSVersionsTls13,
-		}
+		desiredTLSVersions = apiDefaultTLSVersions
 	}
-	if !slices.Equal(currentTLSVersions, desiredTLSVersions) {
-		return false
-	}
-
-	return true
+	return slices.Equal(currentTLSVersions, desiredTLSVersions)
 }
 
 func compareStringPtrs(a, b *string) bool {
