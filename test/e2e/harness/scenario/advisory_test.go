@@ -12,9 +12,9 @@ import (
 
 func TestRecordAdvisoryFailure(t *testing.T) {
 	artifactsDir := t.TempDir()
-	t.Setenv("KONGCTL_E2E_ARTIFACTS_DIR", artifactsDir)
 
-	path, err := RecordAdvisoryFailure(
+	path, err := recordAdvisoryFailureAt(
+		artifactsDir,
 		"test/e2e/scenarios/ai-gateway/model/scenario.yaml",
 		MaturityBeta,
 		BetaModeWarn,
@@ -51,15 +51,22 @@ func TestRecordAdvisoryFailure(t *testing.T) {
 
 func TestRecordAdvisoryFailureOverwritesInitialRecord(t *testing.T) {
 	artifactsDir := t.TempDir()
-	t.Setenv("KONGCTL_E2E_ARTIFACTS_DIR", artifactsDir)
 	scenarioErr := errors.New("scenario failed")
 	scenarioPath := "test/e2e/scenarios/ai-gateway/model/scenario.yaml"
 
-	path, err := RecordAdvisoryFailure(scenarioPath, MaturityBeta, BetaModeWarn, scenarioErr, nil)
+	path, err := recordAdvisoryFailureAt(
+		artifactsDir,
+		scenarioPath,
+		MaturityBeta,
+		BetaModeWarn,
+		scenarioErr,
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("write initial advisory: %v", err)
 	}
-	if _, err := RecordAdvisoryFailure(
+	if _, err := recordAdvisoryFailureAt(
+		artifactsDir,
 		scenarioPath,
 		MaturityBeta,
 		BetaModeWarn,
@@ -83,12 +90,20 @@ func TestRecordAdvisoryFailureOverwritesInitialRecord(t *testing.T) {
 }
 
 func TestRecordAdvisoryFailureRejectsInvalidInputs(t *testing.T) {
-	t.Setenv("KONGCTL_E2E_ARTIFACTS_DIR", t.TempDir())
+	artifactsDir := t.TempDir()
 
-	if _, err := RecordAdvisoryFailure("scenario.yaml", MaturityBeta, BetaModeWarn, nil, nil); err == nil {
+	if _, err := recordAdvisoryFailureAt(
+		artifactsDir,
+		"scenario.yaml",
+		MaturityBeta,
+		BetaModeWarn,
+		nil,
+		nil,
+	); err == nil {
 		t.Fatal("RecordAdvisoryFailure(nil error) error = nil, want error")
 	}
-	if _, err := RecordAdvisoryFailure(
+	if _, err := recordAdvisoryFailureAt(
+		artifactsDir,
 		"../../scenario.yaml",
 		MaturityBeta,
 		BetaModeWarn,

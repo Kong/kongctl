@@ -27,17 +27,34 @@ func RecordAdvisoryFailure(
 	scenarioErr error,
 	cleanupErr error,
 ) (string, error) {
-	if scenarioErr == nil {
-		return "", fmt.Errorf("scenario error is required")
-	}
-
-	scenarioName, err := advisoryScenarioName(scenarioPath)
-	if err != nil {
-		return "", err
-	}
 	artifactsDir, err := harness.ArtifactsDir()
 	if err != nil {
 		return "", fmt.Errorf("resolve artifacts directory: %w", err)
+	}
+	return recordAdvisoryFailureAt(
+		artifactsDir,
+		scenarioPath,
+		maturity,
+		mode,
+		scenarioErr,
+		cleanupErr,
+	)
+}
+
+func recordAdvisoryFailureAt(
+	artifactsDir string,
+	scenarioPath string,
+	maturity Maturity,
+	mode BetaMode,
+	scenarioErr error,
+	cleanupErr error,
+) (string, error) {
+	if scenarioErr == nil {
+		return "", fmt.Errorf("scenario error is required")
+	}
+	scenarioName, err := advisoryScenarioName(scenarioPath)
+	if err != nil {
+		return "", err
 	}
 
 	record := AdvisoryFailure{
