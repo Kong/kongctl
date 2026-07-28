@@ -155,7 +155,7 @@ func (rs *ResourceSet) forEachOrganizationTeamParticipant(fn func(NamespaceParti
 	team := func(t *OrganizationTeamResource) error {
 		return fn(NamespaceParticipant{
 			Type: ResourceTypeOrganizationTeam, Ref: t.Ref, External: t.IsExternal(),
-			SupportsProtected: true, Label: "team", Meta: &t.Kongctl,
+			SupportsProtected: true, Label: string(ResourceTypeTeam), Meta: &t.Kongctl,
 		})
 	}
 	for i := range rs.OrganizationTeams {
