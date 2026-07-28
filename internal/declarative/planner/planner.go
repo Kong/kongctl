@@ -2591,86 +2591,28 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	hasExternalAIGateways := false
 	hasExternalOrganizationTeams := false
 
-	// Extract namespaces from parent resources
-	for _, portal := range rs.Portals {
-		if portal.IsExternal() {
-			hasExternalPortals = true
-			continue
+	// External portals, control planes, event gateways, AI gateways, and
+	// organization teams all map to the external namespace instead of
+	// contributing their own.
+	_ = rs.ForEachNamespaceParticipant(func(pt resources.NamespaceParticipant) error {
+		if pt.External {
+			switch pt.Type { //nolint:exhaustive // only external-capable types set pt.External
+			case resources.ResourceTypePortal:
+				hasExternalPortals = true
+			case resources.ResourceTypeControlPlane:
+				hasExternalControlPlanes = true
+			case resources.ResourceTypeEventGatewayControlPlane:
+				hasExternalEventGateways = true
+			case resources.ResourceTypeAIGateway:
+				hasExternalAIGateways = true
+			case resources.ResourceTypeOrganizationTeam:
+				hasExternalOrganizationTeams = true
+			}
+			return nil
 		}
-		ns := resources.GetNamespace(portal.Kongctl)
-		namespaceSet[ns] = true
-	}
-
-	for _, cp := range rs.ControlPlanes {
-		if cp.IsExternal() {
-			hasExternalControlPlanes = true
-			continue
-		}
-		ns := resources.GetNamespace(cp.Kongctl)
-		namespaceSet[ns] = true
-	}
-
-	for _, svc := range rs.CatalogServices {
-		ns := resources.GetNamespace(svc.Kongctl)
-		namespaceSet[ns] = true
-	}
-
-	for _, gateway := range rs.AIGateways {
-		if gateway.IsExternal() {
-			hasExternalAIGateways = true
-			continue
-		}
-		ns := resources.GetNamespace(gateway.Kongctl)
-		namespaceSet[ns] = true
-	}
-
-	for _, dashboard := range rs.Dashboards {
-		ns := resources.GetNamespace(dashboard.Kongctl)
-		namespaceSet[ns] = true
-	}
-
-	for _, api := range rs.APIs {
-		ns := resources.GetNamespace(api.Kongctl)
-		namespaceSet[ns] = true
-	}
-
-	for _, strategy := range rs.ApplicationAuthStrategies {
-		ns := resources.GetNamespace(strategy.Kongctl)
-		namespaceSet[ns] = true
-	}
-
-	for _, provider := range rs.DCRProviders {
-		ns := resources.GetNamespace(provider.Kongctl)
-		namespaceSet[ns] = true
-	}
-
-	for _, cp := range rs.EventGatewayControlPlanes {
-		if cp.IsExternal() {
-			hasExternalEventGateways = true
-			continue
-		}
-		ns := resources.GetNamespace(cp.Kongctl)
-		namespaceSet[ns] = true
-	}
-
-	for _, team := range rs.OrganizationTeams {
-		if team.IsExternal() {
-			hasExternalOrganizationTeams = true
-			continue
-		}
-		ns := resources.GetNamespace(team.Kongctl)
-		namespaceSet[ns] = true
-	}
-	if rs.Organization != nil {
-		for _, user := range rs.Organization.Users {
-			ns := resources.GetNamespace(user.Kongctl)
-			namespaceSet[ns] = true
-		}
-		for _, systemAccount := range rs.Organization.SystemAccounts {
-			ns := resources.GetNamespace(systemAccount.Kongctl)
-			namespaceSet[ns] = true
-		}
-	}
+		namespaceSet[resources.GetNamespace(*pt.Meta)] = true
+		return nil
+	})
 
 	// Convert set to sorted slice for consistent ordering
 	namespaces := make([]string, 0, len(namespaceSet))
