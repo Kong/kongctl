@@ -64,6 +64,7 @@ env:
 
 # The E2E target orgs are shared stateful environments. Queue full workflow
 # runs so PR, merge queue, manual, and debounced main runs never overlap.
+# The gate below skips superseded PR runs before expensive work starts.
 concurrency:
   group: kongctl-e2e-global
   queue: max
@@ -73,11 +74,13 @@ jobs:
     name: "E2E Gate: Decide"
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       pull-requests: read
     outputs:
       required: ${{ steps.detect.outputs.required }}
       is_fork: ${{ steps.detect.outputs.is_fork }}
+      superseded: ${{ steps.detect.outputs.superseded }}
       trusted_e2e_required: ${{ steps.detect.outputs.trusted_e2e_required }}
       run_shards: ${{ steps.detect.outputs.run_shards }}
       beta_mode: ${{ steps.detect.outputs.beta_mode }}
@@ -237,6 +240,7 @@ jobs:
           MAIN_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || '' }}
           TRUSTED_PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number || '' }}
           TRUSTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.trusted_head_sha || '' }}
+          PULL_REQUEST_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           PULL_REQUEST_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || '' }}
           PULL_REQUEST_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
           GH_TOKEN: ${{ github.token }}
@@ -247,6 +251,7 @@ jobs:
           checkout_repository="${GITHUB_REPOSITORY}"
           checkout_ref="${GITHUB_SHA}"
           is_fork=false
+          superseded=false
           beta_mode=warn
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && \
             [ "${DISPATCH_SOURCE}" != "main-debounce" ] && \
@@ -272,6 +277,7 @@ jobs:
               echo "run_shards=${run_shards}"
               echo "beta_mode=${beta_mode}"
               echo "is_fork=${is_fork}"
+              echo "superseded=${superseded}"
               echo "trusted_e2e_required=${trusted_e2e_required}"
               echo "status_sha=${status_sha}"
               echo "checkout_repository=${checkout_repository}"
@@ -279,6 +285,68 @@ jobs:
               echo "trusted_pr_number=${TRUSTED_PR_NUMBER}"
             } >> "${GITHUB_OUTPUT}"
           }
+
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            pr_api="/repos/${GITHUB_REPOSITORY}/pulls/${PULL_REQUEST_NUMBER}"
+            current_head_sha=""
+            if ! current_head_sha="$(gh api "${pr_api}" --jq '.head.sha')"; then
+              echo "::warning::Unable to query the current head for PR #${PULL_REQUEST_NUMBER}; continuing this run."
+            elif [ "${PULL_REQUEST_HEAD_SHA}" != "${current_head_sha}" ]; then
+              superseded=true
+              emit_outputs false false false
+              echo "Skipping stale PR #${PULL_REQUEST_NUMBER} commit ${PULL_REQUEST_HEAD_SHA}; current head is ${current_head_sha}."
+              exit 0
+            fi
+
+            newer_run_id=""
+            page=1
+            while [ -z "${newer_run_id}" ]; do
+              runs_json=""
+              if ! runs_json="$(
+                gh api \
+                  --method GET \
+                  "/repos/${GITHUB_REPOSITORY}/actions/workflows/e2e.yaml/runs" \
+                  -f event=pull_request \
+                  -f per_page=100 \
+                  -f page="${page}"
+              )"; then
+                echo "::warning::Unable to query E2E workflow runs; continuing this run."
+                break
+              fi
+
+              newer_run_id="$(
+                jq -r \
+                  --argjson run_id "${GITHUB_RUN_ID}" \
+                  --argjson pr_number "${PULL_REQUEST_NUMBER}" \
+                  '[
+                    .workflow_runs[] |
+                    select(.id > $run_id) |
+                    select(
+                      .status == "queued" or
+                      .status == "in_progress" or
+                      .status == "requested" or
+                      .status == "waiting" or
+                      .status == "pending"
+                    ) |
+                    select(any(.pull_requests[]?; .number == $pr_number))
+                  ][0].id // empty' \
+                  <<< "${runs_json}"
+              )"
+
+              run_count="$(jq '.workflow_runs | length' <<< "${runs_json}")"
+              oldest_run_id="$(jq '.workflow_runs[-1].id // 0' <<< "${runs_json}")"
+              if [ "${run_count}" -lt 100 ] || [ "${oldest_run_id}" -le "${GITHUB_RUN_ID}" ]; then
+                break
+              fi
+              page=$((page + 1))
+            done
+            if [ -n "${newer_run_id}" ]; then
+              superseded=true
+              emit_outputs false false false
+              echo "Skipping duplicate PR #${PULL_REQUEST_NUMBER} run ${GITHUB_RUN_ID}; newer run ${newer_run_id} is waiting."
+              exit 0
+            fi
+          fi
 
           if [ -n "${TRUSTED_PR_NUMBER}" ] || [ -n "${TRUSTED_HEAD_SHA}" ]; then
             if [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
@@ -1208,6 +1276,7 @@ jobs:
           E2E_NEEDED_RESULT: ${{ needs.e2e-needed.result }}
           E2E_REQUIRED: ${{ needs.e2e-needed.outputs.required }}
           E2E_RUN_SHARDS: ${{ needs.e2e-needed.outputs.run_shards }}
+          E2E_SUPERSEDED: ${{ needs.e2e-needed.outputs.superseded }}
           E2E_TRUSTED_REQUIRED: ${{ needs.e2e-needed.outputs.trusted_e2e_required }}
           E2E_VERIFY_RESULT: ${{ needs.e2e-verify.result }}
           TRUSTED_DISPATCH: ${{ github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number != '' && 'true' || 'false' }}
@@ -1232,6 +1301,7 @@ jobs:
             const neededResult = process.env.E2E_NEEDED_RESULT;
             const required = process.env.E2E_REQUIRED === 'true';
             const runShards = process.env.E2E_RUN_SHARDS === 'true';
+            const superseded = process.env.E2E_SUPERSEDED === 'true';
             const trustedE2ERequired = process.env.E2E_TRUSTED_REQUIRED === 'true';
             const verifyResult = process.env.E2E_VERIFY_RESULT;
             const trustedDispatch = process.env.TRUSTED_DISPATCH === 'true';
@@ -1250,6 +1320,8 @@ jobs:
               state = 'failure';
               description = `E2E Needed concluded ${neededResult}.`;
               failureMessage = description;
+            } else if (superseded) {
+              description = 'E2E skipped because a newer PR run superseded this run.';
             } else if (required && runShards && verifyResult !== 'success') {
               state = 'failure';
               description = `E2E required but E2E Verify concluded ${verifyResult}.`;
@@ -1268,7 +1340,9 @@ jobs:
             core.setOutput('status_sha', statusSha);
             core.setOutput('trusted_pr_number', trustedPRNumber || '');
 
-            if (forkPullRequest) {
+            if (superseded) {
+              core.info('Skipping E2E Required status update for superseded pull request run.');
+            } else if (forkPullRequest) {
               core.warning('Skipping E2E Required status update for fork pull request.');
             } else if (eventName === 'pull_request' || eventName === 'merge_group' || trustedDispatch) {
               await github.rest.repos.createCommitStatus({
