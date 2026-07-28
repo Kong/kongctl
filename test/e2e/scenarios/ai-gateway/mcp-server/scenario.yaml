@@ -1,5 +1,8 @@
 baseInputsPath: testdata
 
+test:
+  maturity: beta
+
 env:
   KONGCTL_LOG_LEVEL: info
   KONGCTL_E2E_WEATHERAPI_API_KEY: fake-weather-api-key

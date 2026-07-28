@@ -80,6 +80,7 @@ jobs:
       is_fork: ${{ steps.detect.outputs.is_fork }}
       trusted_e2e_required: ${{ steps.detect.outputs.trusted_e2e_required }}
       run_shards: ${{ steps.detect.outputs.run_shards }}
+      beta_mode: ${{ steps.detect.outputs.beta_mode }}
       konnect_environment: ${{ steps.target.outputs.konnect_environment }}
       konnect_base_url: ${{ steps.target.outputs.konnect_base_url }}
       konnect_base_auth_url: ${{ steps.target.outputs.konnect_base_auth_url }}
@@ -246,6 +247,13 @@ jobs:
           checkout_repository="${GITHUB_REPOSITORY}"
           checkout_ref="${GITHUB_SHA}"
           is_fork=false
+          beta_mode=warn
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && \
+            [ "${DISPATCH_SOURCE}" != "main-debounce" ] && \
+            [ -z "${TRUSTED_PR_NUMBER}" ] && \
+            [ -z "${TRUSTED_HEAD_SHA}" ]; then
+            beta_mode=fail
+          fi
 
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ -n "${PULL_REQUEST_HEAD_SHA}" ]; then
             status_sha="${PULL_REQUEST_HEAD_SHA}"
@@ -262,6 +270,7 @@ jobs:
             {
               echo "required=${required}"
               echo "run_shards=${run_shards}"
+              echo "beta_mode=${beta_mode}"
               echo "is_fork=${is_fork}"
               echo "trusted_e2e_required=${trusted_e2e_required}"
               echo "status_sha=${status_sha}"
@@ -566,6 +575,7 @@ jobs:
       KONGCTL_E2E_BIN: ${{ github.workspace }}/kongctl
       KONGCTL_E2E_TEST_BIN: ${{ github.workspace }}/e2e.test
       KONGCTL_E2E_TEST_TIMEOUT: ${{ vars.KONGCTL_E2E_TEST_TIMEOUT || '55m' }}
+      KONGCTL_E2E_BETA_MODE: ${{ needs.e2e-needed.outputs.beta_mode }}
       KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
       KONGCTL_E2E_KONNECT_ENV: ${{ needs.e2e-needed.outputs.konnect_environment }}
       KONGCTL_E2E_KONNECT_BASE_URL: ${{ needs.e2e-needed.outputs.konnect_base_url }}
@@ -728,13 +738,7 @@ jobs:
           mkdir -p "${ART_DIR}"
           export KONGCTL_E2E_ARTIFACTS_DIR="${ART_DIR}"
 
-          extract_results() {
-            local status="$1"
-            local output_file="$2"
-
-            sed -n "s/^[[:space:]]*--- ${status}: Test_Scenarios\/\(.*\) (.*/\1/p" "${ART_DIR}/run.log" | \
-              sed 's#^test/e2e/scenarios/##' | sort > "${output_file}"
-          }
+          source "${GITHUB_WORKSPACE}/test/e2e/harness/ci/results.sh"
 
           run_started_at="$(date +%s)"
           set +e
@@ -745,17 +749,23 @@ jobs:
           run_finished_at="$(date +%s)"
 
           passed_file="$(mktemp)"
+          passed_raw_file="$(mktemp)"
           failed_file="$(mktemp)"
           skipped_file="$(mktemp)"
+          beta_failed_file="$(mktemp)"
 
-          extract_results "PASS" "${passed_file}"
-          extract_results "FAIL" "${failed_file}"
-          extract_results "SKIP" "${skipped_file}"
+          e2e_extract_go_results "${ART_DIR}/run.log" "PASS" "${passed_raw_file}"
+          e2e_extract_go_results "${ART_DIR}/run.log" "FAIL" "${failed_file}"
+          e2e_extract_go_results "${ART_DIR}/run.log" "SKIP" "${skipped_file}"
+          e2e_extract_beta_failures "${ART_DIR}" "${beta_failed_file}"
+          e2e_subtract_results "${passed_raw_file}" "${beta_failed_file}" "${passed_file}"
+          e2e_emit_beta_annotations "${ART_DIR}"
 
           passed_count="$(wc -l < "${passed_file}" | tr -d ' ')"
           failed_count="$(wc -l < "${failed_file}" | tr -d ' ')"
           skipped_count="$(wc -l < "${skipped_file}" | tr -d ' ')"
-          observed_count="$((passed_count + failed_count + skipped_count))"
+          beta_failed_count="$(wc -l < "${beta_failed_file}" | tr -d ' ')"
+          observed_count="$((passed_count + failed_count + skipped_count + beta_failed_count))"
           duration_seconds="$((run_finished_at - run_started_at))"
 
           {
@@ -768,6 +778,7 @@ jobs:
             printf 'passed_count=%s\n' "${passed_count}"
             printf 'failed_count=%s\n' "${failed_count}"
             printf 'skipped_count=%s\n' "${skipped_count}"
+            printf 'beta_failed_count=%s\n' "${beta_failed_count}"
             printf 'observed_count=%s\n' "${observed_count}"
             printf '\n[passed]\n'
             cat "${passed_file}"
@@ -775,6 +786,8 @@ jobs:
             cat "${failed_file}"
             printf '\n[skipped]\n'
             cat "${skipped_file}"
+            printf '\n[beta_failed]\n'
+            cat "${beta_failed_file}"
           } > "${ART_DIR}/scenario-results.txt"
 
           echo "E2E artifacts: ${ART_DIR}"
@@ -847,11 +860,14 @@ jobs:
           set -euo pipefail
 
           summary_file="${GITHUB_STEP_SUMMARY:-}"
+          source "${GITHUB_WORKSPACE}/test/e2e/harness/ci/results.sh"
           summary_rows="$(mktemp)"
           failed_rows="$(mktemp)"
+          beta_failed_rows="$(mktemp)"
           nonzero_exit_rows="$(mktemp)"
           expected="$(mktemp)"
           actual="$(mktemp)"
+          observed_scenarios="$(mktemp)"
           excluded="$(mktemp)"
           indices="$(mktemp)"
           records="$(mktemp)"
@@ -861,6 +877,7 @@ jobs:
           passed_total=0
           failed_total=0
           skipped_total=0
+          beta_failed_total=0
           observed_total=0
           duration_total=0
           nonzero_exit_total=0
@@ -888,6 +905,7 @@ jobs:
           fi
 
           : > "${actual}"
+          : > "${observed_scenarios}"
           : > "${excluded}"
           : > "${indices}"
           : > "${records}"
@@ -896,6 +914,7 @@ jobs:
           : > "${latest_totals}"
           : > "${summary_rows}"
           : > "${failed_rows}"
+          : > "${beta_failed_rows}"
           : > "${nonzero_exit_rows}"
 
           for manifest in "${manifests[@]}"; do
@@ -930,13 +949,15 @@ jobs:
             passed_count="$(sed -n 's/^passed_count=//p' "${results}")"
             failed_count="$(sed -n 's/^failed_count=//p' "${results}")"
             skipped_count="$(sed -n 's/^skipped_count=//p' "${results}")"
+            beta_failed_count="$(sed -n 's/^beta_failed_count=//p' "${results}")"
             observed_count="$(sed -n 's/^observed_count=//p' "${results}")"
             if [ -z "${exit_code}" ] || [ -z "${duration_seconds}" ] || [ -z "${passed_count}" ] || \
-              [ -z "${failed_count}" ] || [ -z "${skipped_count}" ] || [ -z "${observed_count}" ]; then
+              [ -z "${failed_count}" ] || [ -z "${skipped_count}" ] || \
+              [ -z "${beta_failed_count}" ] || [ -z "${observed_count}" ]; then
               fail "Malformed scenario results: ${results}"
             fi
 
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
               "${run_attempt}" \
               "${index}" \
               "${total}" \
@@ -945,6 +966,7 @@ jobs:
               "${passed_count}" \
               "${failed_count}" \
               "${skipped_count}" \
+              "${beta_failed_count}" \
               "${observed_count}" \
               "${exit_code}" \
               "${duration_seconds}" \
@@ -966,7 +988,8 @@ jobs:
             awk -F'\t' -v total="${total}" '$3 == total && !seen[$2]++ { print }' > "${selected_records}"
 
           while IFS=$'\t' read -r run_attempt index shard_total org_name scenario_rows \
-            passed_count failed_count skipped_count observed_count exit_code duration_seconds manifest results; do
+            passed_count failed_count skipped_count beta_failed_count observed_count exit_code duration_seconds \
+            manifest results; do
             if [ -z "${index}" ]; then
               continue
             fi
@@ -974,7 +997,7 @@ jobs:
             printf '%s\n' "${index}" >> "${indices}"
             tail -n +4 "${manifest}" | sed '/^$/d' >> "${actual}"
 
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
               "${index}" \
               "${run_attempt}" \
               "${org_name}" \
@@ -982,12 +1005,14 @@ jobs:
               "${passed_count}" \
               "${failed_count}" \
               "${skipped_count}" \
+              "${beta_failed_count}" \
               "${exit_code}" \
               "${duration_seconds}" >> "${summary_rows}"
 
             passed_total="$((passed_total + passed_count))"
             failed_total="$((failed_total + failed_count))"
             skipped_total="$((skipped_total + skipped_count))"
+            beta_failed_total="$((beta_failed_total + beta_failed_count))"
             observed_total="$((observed_total + observed_count))"
             duration_total="$((duration_total + duration_seconds))"
             if [ "${exit_code}" -ne 0 ]; then
@@ -1006,6 +1031,18 @@ jobs:
             ' "${results}" | while IFS= read -r scenario_name; do
               printf '%s\t%s\n' "${org_name}" "${scenario_name}" >> "${failed_rows}"
             done
+            awk '
+              /^\[beta_failed\]$/ { section="beta_failed"; next }
+              /^\[/ { section=""; next }
+              section == "beta_failed" && NF { print }
+            ' "${results}" | while IFS= read -r scenario_name; do
+              printf '%s\t%s\n' "${org_name}" "${scenario_name}" >> "${beta_failed_rows}"
+            done
+            awk '
+              /^\[(passed|failed|skipped|beta_failed)\]$/ { section="result"; next }
+              /^\[/ { section=""; next }
+              section == "result" && NF { print }
+            ' "${results}" >> "${observed_scenarios}"
           done < "${selected_records}"
 
           sort -u "${excluded}" -o "${excluded}"
@@ -1045,27 +1082,45 @@ jobs:
             fail "Scenario coverage mismatch across shard manifests."
           fi
 
+          result_coverage_error="$(e2e_result_coverage_error "${actual}" "${observed_scenarios}")"
+          if [ -n "${result_coverage_error}" ]; then
+            fail "${result_coverage_error}"
+          fi
+
           scenario_count="$(wc -l < "${actual}" | tr -d ' ')"
+          if [ "${observed_total}" -ne "${scenario_count}" ]; then
+            fail "Observed result count ${observed_total} does not match assigned scenario count ${scenario_count}."
+          fi
+
+          result_status="passed"
+          if [ "${failed_total}" -gt 0 ] || [ "${nonzero_exit_total}" -gt 0 ]; then
+            result_status="failed"
+          elif [ "${beta_failed_total}" -gt 0 ]; then
+            result_status="passed with beta warnings"
+          fi
+
           if [ -n "${summary_file}" ]; then
             {
               echo "## E2E Results"
               echo
-              echo "- Status: $([ "${failed_total}" -eq 0 ] && [ "${nonzero_exit_total}" -eq 0 ] && echo passed || echo failed)"
+              echo "- Status: ${result_status}"
               echo "- Selected shard layout attempt: ${latest_attempt}"
               echo "- Shards: ${total}"
               echo "- Assigned scenarios: ${scenario_count}"
               echo "- Passed: ${passed_total}"
               echo "- Failed: ${failed_total}"
               echo "- Skipped: ${skipped_total}"
+              echo "- Beta failed: ${beta_failed_total}"
               echo "- Shards with non-zero exit: ${nonzero_exit_total}"
               echo "- Observed results: ${observed_total}"
               echo "- Total shard runtime: ${duration_total}s"
               echo
-              echo "| Shard | Attempt | Org | Assigned | Passed | Failed | Skipped | Exit | Duration |"
-              echo "| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |"
+              echo "| Shard | Attempt | Org | Assigned | Passed | Failed | Skipped | Beta failed | Exit | Duration |"
+              echo "| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
             } >> "${summary_file}"
-            while IFS=$'\t' read -r index run_attempt org_name assigned_count passed_count failed_count skipped_count exit_code duration_seconds; do
-              printf '| %s | %s | %s | %s | %s | %s | %s | %s | %ss |\n' \
+            while IFS=$'\t' read -r index run_attempt org_name assigned_count passed_count failed_count \
+              skipped_count beta_failed_count exit_code duration_seconds; do
+              printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %ss |\n' \
                 "${index}" \
                 "${run_attempt}" \
                 "${org_name}" \
@@ -1073,6 +1128,7 @@ jobs:
                 "${passed_count}" \
                 "${failed_count}" \
                 "${skipped_count}" \
+                "${beta_failed_count}" \
                 "${exit_code}" \
                 "${duration_seconds}" >> "${summary_file}"
             done < <(sort -n "${summary_rows}")
@@ -1087,6 +1143,18 @@ jobs:
               while IFS=$'\t' read -r org_name scenario_name; do
                 printf '| %s | %s |\n' "${org_name}" "${scenario_name}" >> "${summary_file}"
               done < "${failed_rows}"
+            fi
+            if [ "${beta_failed_total}" -gt 0 ]; then
+              {
+                echo
+                echo "### Beta Failures"
+                echo
+                echo "| Org | Scenario |"
+                echo "| --- | --- |"
+              } >> "${summary_file}"
+              while IFS=$'\t' read -r org_name scenario_name; do
+                printf '| %s | %s |\n' "${org_name}" "${scenario_name}" >> "${summary_file}"
+              done < "${beta_failed_rows}"
             fi
             if [ "${nonzero_exit_total}" -gt 0 ]; then
               {
@@ -1106,16 +1174,7 @@ jobs:
             fi
           fi
 
-          failure_reason=""
-          if [ "${failed_total}" -gt 0 ]; then
-            failure_reason="${failed_total} scenario(s) failed"
-          fi
-          if [ "${nonzero_exit_total}" -gt 0 ]; then
-            if [ -n "${failure_reason}" ]; then
-              failure_reason="${failure_reason}; "
-            fi
-            failure_reason="${failure_reason}${nonzero_exit_total} shard(s) exited non-zero"
-          fi
+          failure_reason="$(e2e_blocking_failure_reason "${failed_total}" "${nonzero_exit_total}")"
           if [ -n "${failure_reason}" ]; then
             fail "E2E verification failed: ${failure_reason}."
           fi

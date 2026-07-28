@@ -142,6 +142,17 @@ func ensureRunDir() (string, error) {
 	return d, nil
 }
 
+// ArtifactsDir returns the shared E2E run artifact directory.
+func ArtifactsDir() (string, error) {
+	if base := os.Getenv("KONGCTL_E2E_ARTIFACTS_DIR"); base != "" {
+		if err := os.MkdirAll(base, 0o755); err != nil {
+			return "", err
+		}
+		return base, nil
+	}
+	return ensureRunDir()
+}
+
 func copyFile(src, dst string) error {
 	fi, err := os.Stat(src)
 	if err != nil {

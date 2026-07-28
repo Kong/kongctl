@@ -2,7 +2,162 @@
 
 package scenario
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestScenarioMaturity(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		want    Maturity
+		wantErr bool
+	}{
+		{name: "omitted defaults stable", want: MaturityStable},
+		{name: "stable", value: "stable", want: MaturityStable},
+		{name: "beta", value: "beta", want: MaturityBeta},
+		{name: "whitespace trimmed", value: " beta ", want: MaturityBeta},
+		{name: "unknown", value: "experimental", wantErr: true},
+		{name: "case sensitive", value: "Beta", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := scenarioMaturity(Scenario{Test: ScenarioTest{Maturity: tt.value}})
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("scenarioMaturity() error = nil, want error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("scenarioMaturity() error = %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("scenarioMaturity() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseBetaMode(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		want    BetaMode
+		wantErr bool
+	}{
+		{name: "omitted defaults fail", want: BetaModeFail},
+		{name: "fail", value: "fail", want: BetaModeFail},
+		{name: "warn", value: "warn", want: BetaModeWarn},
+		{name: "skip", value: "skip", want: BetaModeSkip},
+		{name: "whitespace trimmed", value: " warn ", want: BetaModeWarn},
+		{name: "unknown", value: "ignore", wantErr: true},
+		{name: "case sensitive", value: "WARN", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseBetaMode(tt.value)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("parseBetaMode() error = nil, want error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseBetaMode() error = %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("parseBetaMode() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPreflightScenarioBetaModes(t *testing.T) {
+	beta := Scenario{Test: ScenarioTest{Maturity: string(MaturityBeta)}}
+
+	for _, mode := range []BetaMode{BetaModeFail, BetaModeWarn} {
+		got, err := preflightScenario(beta, mode)
+		if err != nil {
+			t.Fatalf("preflightScenario(beta, %q) error = %v", mode, err)
+		}
+		if got.Maturity != MaturityBeta || got.SkipReason != "" {
+			t.Fatalf("preflightScenario(beta, %q) = %+v, want runnable beta", mode, got)
+		}
+	}
+
+	got, err := preflightScenario(beta, BetaModeSkip)
+	if err != nil {
+		t.Fatalf("preflightScenario(beta, skip) error = %v", err)
+	}
+	if got.Maturity != MaturityBeta || got.SkipReason == "" {
+		t.Fatalf("preflightScenario(beta, skip) = %+v, want skipped beta", got)
+	}
+
+	stable, err := preflightScenario(Scenario{}, BetaModeSkip)
+	if err != nil {
+		t.Fatalf("preflightScenario(stable, skip) error = %v", err)
+	}
+	if stable.Maturity != MaturityStable || stable.SkipReason != "" {
+		t.Fatalf("preflightScenario(stable, skip) = %+v, want runnable stable", stable)
+	}
+}
+
+func TestRunSkipsBetaBeforeHarnessInitialization(t *testing.T) {
+	scenarioPath := filepath.Join(t.TempDir(), "scenario.yaml")
+	if err := os.WriteFile(scenarioPath, []byte("test:\n  maturity: beta\n"), 0o600); err != nil {
+		t.Fatalf("write scenario: %v", err)
+	}
+	t.Setenv("KONGCTL_E2E_BIN", filepath.Join(t.TempDir(), "missing-kongctl"))
+
+	returned := false
+	t.Run("beta", func(t *testing.T) {
+		_, _ = Run(t, scenarioPath, BetaModeSkip)
+		returned = true
+	})
+	if returned {
+		t.Fatal("Run() returned normally, want beta scenario skipped before harness initialization")
+	}
+}
+
+func TestPreflightScenarioValidatesMaturityBeforeSkipGates(t *testing.T) {
+	disabled := false
+	_, err := preflightScenario(Scenario{
+		Test: ScenarioTest{
+			Enabled:  &disabled,
+			Maturity: "experimental",
+		},
+	}, BetaModeWarn)
+	if err == nil {
+		t.Fatal("preflightScenario() error = nil, want invalid maturity error")
+	}
+}
+
+func TestIsAdvisoryFailure(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		maturity Maturity
+		mode     BetaMode
+		want     bool
+	}{
+		{name: "stable fail", maturity: MaturityStable, mode: BetaModeFail},
+		{name: "stable warn", maturity: MaturityStable, mode: BetaModeWarn},
+		{name: "stable skip", maturity: MaturityStable, mode: BetaModeSkip},
+		{name: "beta fail", maturity: MaturityBeta, mode: BetaModeFail},
+		{name: "beta warn", maturity: MaturityBeta, mode: BetaModeWarn, want: true},
+		{name: "beta skip", maturity: MaturityBeta, mode: BetaModeSkip},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsAdvisoryFailure(tt.maturity, tt.mode); got != tt.want {
+				t.Fatalf("IsAdvisoryFailure(%q, %q) = %v, want %v", tt.maturity, tt.mode, got, tt.want)
+			}
+		})
+	}
+}
 
 func TestMissingEnvVars(t *testing.T) {
 	t.Setenv("KONGCTL_TEST_ENV_A", "1")
