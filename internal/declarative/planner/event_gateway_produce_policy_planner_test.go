@@ -481,3 +481,51 @@ func TestPrepareProducePolicyParentRefsResolvesExistingSchemaValidationParent(t 
 		prepared[1].EventGatewayParsedRecordEncryptFieldsPolicyCreate.ParentPolicyID,
 	)
 }
+
+func TestPrepareProducePolicyParentRefsResolvesModifyHeadersParent(t *testing.T) {
+	parent := producePolicyResourceFromJSON(t, `{
+		"ref": "schema-validation",
+		"type": "schema_validation",
+		"name": "schema-validation",
+		"config": {
+			"type": "json"
+		}
+	}`)
+	child := producePolicyResourceFromJSON(t, `{
+		"ref": "modify-headers",
+		"type": "modify_headers",
+		"name": "modify-headers",
+		"parent_policy_id": "__REF__:schema-validation#id",
+		"config": {
+			"actions": [
+				{"op": "set", "key": "x-tenant", "value": "acme"}
+			]
+		}
+	}`)
+
+	currentByName := map[string]state.EventGatewayVirtualClusterProducePolicyInfo{
+		"schema-validation": {
+			EventGatewayPolicy: kkComps.EventGatewayPolicy{
+				ID:   "schema-validation-id",
+				Name: new("schema-validation"),
+				Type: "schema_validation",
+			},
+		},
+	}
+
+	p := newTestPlanner()
+	prepared, err := p.prepareProducePolicyParentRefs(
+		[]resources.EventGatewayProducePolicyResource{parent, child},
+		currentByName,
+	)
+
+	require.NoError(t, err)
+	require.Len(t, prepared, 2)
+	require.NotNil(t, prepared[1].EventGatewayModifyHeadersPolicyCreate)
+	require.NotNil(t, prepared[1].EventGatewayModifyHeadersPolicyCreate.ParentPolicyID)
+	require.Equal(
+		t,
+		"schema-validation-id",
+		*prepared[1].EventGatewayModifyHeadersPolicyCreate.ParentPolicyID,
+	)
+}

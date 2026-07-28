@@ -575,22 +575,42 @@ func consumePolicyIsSchemaValidation(policy resources.EventGatewayConsumePolicyR
 }
 
 func consumePolicyParentPolicyID(policy resources.EventGatewayConsumePolicyResource) string {
-	if policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate == nil {
+	switch {
+	case policy.EventGatewayModifyHeadersPolicyCreate != nil:
+		if id := policy.EventGatewayModifyHeadersPolicyCreate.ParentPolicyID; id != nil {
+			return *id
+		}
+		return ""
+	case policy.EventGatewaySkipRecordPolicyCreate != nil:
+		if id := policy.EventGatewaySkipRecordPolicyCreate.ParentPolicyID; id != nil {
+			return *id
+		}
+		return ""
+	case policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil:
+		return policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate.ParentPolicyID
+	default:
 		return ""
 	}
-	return policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate.ParentPolicyID
 }
 
 func consumePolicyWithParentPolicyID(
 	policy resources.EventGatewayConsumePolicyResource,
 	parentPolicyID string,
 ) resources.EventGatewayConsumePolicyResource {
-	if policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate == nil {
-		return policy
+	switch {
+	case policy.EventGatewayModifyHeadersPolicyCreate != nil:
+		variant := *policy.EventGatewayModifyHeadersPolicyCreate
+		variant.ParentPolicyID = &parentPolicyID
+		policy.EventGatewayModifyHeadersPolicyCreate = &variant
+	case policy.EventGatewaySkipRecordPolicyCreate != nil:
+		variant := *policy.EventGatewaySkipRecordPolicyCreate
+		variant.ParentPolicyID = &parentPolicyID
+		policy.EventGatewaySkipRecordPolicyCreate = &variant
+	case policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil:
+		variant := *policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate
+		variant.ParentPolicyID = parentPolicyID
+		policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate = &variant
 	}
-	variant := *policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate
-	variant.ParentPolicyID = parentPolicyID
-	policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate = &variant
 	return policy
 }
 
