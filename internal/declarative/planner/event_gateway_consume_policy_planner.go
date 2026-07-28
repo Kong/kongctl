@@ -576,6 +576,11 @@ func consumePolicyIsSchemaValidation(policy resources.EventGatewayConsumePolicyR
 
 func consumePolicyParentPolicyID(policy resources.EventGatewayConsumePolicyResource) string {
 	switch {
+	case policy.EventGatewayModifyHeadersPolicyCreate != nil:
+		if id := policy.EventGatewayModifyHeadersPolicyCreate.ParentPolicyID; id != nil {
+			return *id
+		}
+		return ""
 	case policy.EventGatewaySkipRecordPolicyCreate != nil:
 		if id := policy.EventGatewaySkipRecordPolicyCreate.ParentPolicyID; id != nil {
 			return *id
@@ -593,6 +598,10 @@ func consumePolicyWithParentPolicyID(
 	parentPolicyID string,
 ) resources.EventGatewayConsumePolicyResource {
 	switch {
+	case policy.EventGatewayModifyHeadersPolicyCreate != nil:
+		variant := *policy.EventGatewayModifyHeadersPolicyCreate
+		variant.ParentPolicyID = &parentPolicyID
+		policy.EventGatewayModifyHeadersPolicyCreate = &variant
 	case policy.EventGatewaySkipRecordPolicyCreate != nil:
 		variant := *policy.EventGatewaySkipRecordPolicyCreate
 		variant.ParentPolicyID = &parentPolicyID

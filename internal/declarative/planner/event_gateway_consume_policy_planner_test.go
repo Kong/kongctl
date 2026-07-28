@@ -399,3 +399,53 @@ func TestPrepareConsumePolicyParentRefsResolvesSkipRecordParent(t *testing.T) {
 		*prepared[1].EventGatewaySkipRecordPolicyCreate.ParentPolicyID,
 	)
 }
+
+func TestPrepareConsumePolicyParentRefsResolvesModifyHeadersParent(t *testing.T) {
+	parent := consumePolicyResourceFromJSON(t, `{
+		"ref": "schema-validation",
+		"type": "schema_validation",
+		"name": "schema-validation",
+		"config": {
+			"type": "json"
+		}
+	}`)
+	child := consumePolicyResourceFromJSON(t, `{
+		"ref": "modify-headers",
+		"type": "modify_headers",
+		"name": "modify-headers",
+		"parent_policy_id": "__REF__:schema-validation#id",
+		"condition": "record.value != null",
+		"config": {
+			"actions": [
+				{"op": "set", "key": "x-tenant", "value": "acme"}
+			]
+		}
+	}`)
+
+	parentName := "schema-validation"
+	currentByName := map[string]state.EventGatewayConsumePolicyInfo{
+		parentName: {
+			EventGatewayPolicy: kkComps.EventGatewayPolicy{
+				ID:   "schema-validation-id",
+				Name: &parentName,
+				Type: "schema_validation",
+			},
+		},
+	}
+
+	p := &Planner{}
+	prepared, err := p.prepareConsumePolicyParentRefs(
+		[]resources.EventGatewayConsumePolicyResource{parent, child},
+		currentByName,
+	)
+
+	require.NoError(t, err)
+	require.Len(t, prepared, 2)
+	require.NotNil(t, prepared[1].EventGatewayModifyHeadersPolicyCreate)
+	require.NotNil(t, prepared[1].EventGatewayModifyHeadersPolicyCreate.ParentPolicyID)
+	require.Equal(
+		t,
+		"schema-validation-id",
+		*prepared[1].EventGatewayModifyHeadersPolicyCreate.ParentPolicyID,
+	)
+}
