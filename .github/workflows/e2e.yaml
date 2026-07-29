@@ -1,13 +1,17 @@
-name: E2E
+name: E2E / Scenario Suite
 run-name: >-
-  E2E ${{
+  ${{
     github.event_name == 'workflow_dispatch' &&
     inputs.trusted_pr_number != '' &&
-    format('trusted PR {0} {1}', inputs.trusted_pr_number, inputs.trusted_head_sha) ||
+    format('PR #{0} · trusted scenarios · {1}', inputs.trusted_pr_number, inputs.trusted_head_sha) ||
     github.event_name == 'workflow_dispatch' &&
     inputs.dispatch_source == 'main-debounce' &&
-    format('main debounce {0}', inputs.main_sha) ||
-    github.ref_name
+    format('main · scenarios · debounced · {0}', inputs.main_sha) ||
+    github.event_name == 'pull_request' &&
+    format('PR #{0} · scenarios · {1}', github.event.pull_request.number, github.event.action) ||
+    github.event_name == 'merge_group' &&
+    format('Merge queue · scenarios · {0}', github.ref_name) ||
+    format('Manual · scenarios · {0}', inputs.konnect_environment)
   }}
 permissions:
   contents: read
@@ -71,7 +75,7 @@ concurrency:
 
 jobs:
   e2e-needed:
-    name: "E2E Gate: Decide"
+    name: Determine scenario requirement
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -104,7 +108,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve Konnect target
+      - name: Select Konnect environment and organizations
         id: target
         shell: bash
         env:
@@ -230,7 +234,7 @@ jobs:
           echo "konnect_machine_client_id=${konnect_machine_client_id}" >> "${GITHUB_OUTPUT}"
           echo "orgs_json=${orgs_json}" >> "${GITHUB_OUTPUT}"
 
-      - name: Detect whether E2E is required
+      - name: Decide whether scenario suite is required
         id: detect
         shell: bash
         env:
@@ -469,7 +473,7 @@ jobs:
           echo "E2E not required for this change set."
 
   e2e-harness:
-    name: E2E Harness
+    name: Test scenario harness
     needs:
       - e2e-needed
     if: needs.e2e-needed.outputs.run_shards == 'true'
@@ -534,12 +538,12 @@ jobs:
             go mod edit -replace=github.com/Kong/sdk-konnect-go=./.private/sdk-konnect-go-internal
           fi
 
-      - name: Run E2E harness tests
+      - name: Test scenario harness
         run: |
           go test -count=1 -tags=e2e ./test/e2e/harness/...
 
   e2e-build:
-    name: E2E Build
+    name: Build scenario executables
     needs:
       - e2e-needed
     if: needs.e2e-needed.outputs.run_shards == 'true'
@@ -607,10 +611,10 @@ jobs:
       - name: Build kongctl
         run: make build-ci
 
-      - name: Build E2E test binary
+      - name: Build scenario test binary
         run: go test -c -tags=e2e -o e2e.test ./test/e2e
 
-      - name: Upload E2E binaries
+      - name: Upload scenario executables
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-binaries-${{ github.run_id }}
@@ -619,7 +623,7 @@ jobs:
             ${{ github.workspace }}/e2e.test
 
   e2e:
-    name: E2E (${{ matrix.org_name }})
+    name: Run scenarios — ${{ matrix.org_name }}
     needs:
       - e2e-needed
       - e2e-harness
@@ -708,7 +712,7 @@ jobs:
       - name: Setup deck
         uses: kong/setup-deck@6ea0a466ee5826ddb531cbe851ba8e5a77a0e041 # v1.7.1
 
-      - name: Download E2E binaries
+      - name: Download scenario executables
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: e2e-binaries-${{ github.run_id }}
@@ -798,7 +802,7 @@ jobs:
       #   run: |
       #     echo "Skipping E2E (no 'run-e2e' label)." && exit 0
 
-      - name: Run E2E scenario tests (Konnect)
+      - name: Run assigned Konnect scenarios
         run: |
           set -euo pipefail
 
@@ -884,7 +888,7 @@ jobs:
           sudo chown -R "${USER}:${USER}" "${CAP_DIR}" 2>/dev/null || true
           ls -lh "${CAP_DIR}" || true
 
-      - name: Upload E2E artifacts
+      - name: Upload scenario results and diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -892,7 +896,7 @@ jobs:
           path: ${{ env.KONGCTL_E2E_ARTIFACTS_DIR }}
 
   e2e-verify:
-    name: E2E Shard Verification
+    name: Verify scenario results and coverage
     needs:
       - e2e-needed
       - e2e
@@ -913,7 +917,7 @@ jobs:
           repository: ${{ needs.e2e-needed.outputs.checkout_repository }}
           ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
 
-      - name: Download workflow artifacts
+      - name: Download shard results
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           github-token: ${{ github.token }}
@@ -922,7 +926,7 @@ jobs:
           pattern: e2e-artifacts-${{ github.run_id }}-*
           path: ${{ github.workspace }}/.downloaded-artifacts
 
-      - name: Verify shard coverage
+      - name: Verify scenario coverage and results
         shell: bash
         run: |
           set -euo pipefail
@@ -1249,7 +1253,7 @@ jobs:
           echo "Verified ${scenario_count} scenarios across ${total} shards."
 
   e2e-required:
-    name: "E2E Gate: Report Result"
+    name: Publish “E2E Required”
     needs:
       - e2e-needed
       - e2e-verify
@@ -1269,7 +1273,7 @@ jobs:
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
-      - name: Report E2E Required outcome
+      - name: Publish “E2E Required” status
         id: report
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -1377,7 +1381,7 @@ jobs:
             core.info(description);
 
   trusted-e2e-result-comment:
-    name: "E2E Gate: Update Trusted PR Comment"
+    name: Update trusted-run PR comment
     needs:
       - e2e-required
     if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number != '' }}
@@ -1393,7 +1397,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Update trusted E2E comment
+      - name: Update trusted-run PR comment
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           E2E_REQUIRED_STATE: ${{ needs.e2e-required.outputs.state || 'failure' }}

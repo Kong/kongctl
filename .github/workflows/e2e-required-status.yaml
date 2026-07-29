@@ -1,4 +1,5 @@
-name: E2E Gate
+name: E2E / Required Status
+run-name: "PR #${{ github.event.pull_request.number }} · required status · ${{ github.event.action }}"
 
 on:
   pull_request_target:
@@ -23,7 +24,7 @@ concurrency:
 
 jobs:
   e2e-required-status:
-    name: "E2E Gate: Initialize Status"
+    name: Initialize “E2E Required”
     runs-on: ubuntu-latest
     outputs:
       required: ${{ steps.status.outputs.required }}
@@ -36,7 +37,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Initialize E2E Required status
+      - name: Initialize “E2E Required” status
         id: status
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -83,7 +84,7 @@ jobs:
             core.info(description);
 
   trusted-e2e-required-comment:
-    name: "E2E Gate: Request Trusted Run"
+    name: Request trusted run for fork PR
     needs:
       - e2e-required-status
     if: >-
@@ -102,7 +103,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Request trusted E2E run
+      - name: Post trusted-run instructions
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PR_NUMBER: ${{ needs.e2e-required-status.outputs.pr_number }}

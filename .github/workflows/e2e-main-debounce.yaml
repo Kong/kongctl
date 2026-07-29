@@ -1,5 +1,5 @@
-name: E2E Main Debounce
-run-name: E2E Main Debounce, sha:${{ github.sha }}
+name: E2E / Main Scheduler
+run-name: main · schedule scenarios · ${{ github.sha }}
 
 on:
   push:
@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   dispatch:
-    name: Dispatch E2E After Quiet Period
+    name: Schedule latest-main scenario run
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -40,10 +40,10 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Wait for quiet period
+      - name: Wait 15 minutes for main to settle
         run: sleep 900
 
-      - name: Dispatch E2E for latest main
+      - name: Dispatch latest-main scenario run
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -61,7 +61,7 @@ jobs:
             -f status=queued \
             -f branch="${GITHUB_REF_NAME}" \
             -f per_page=100 \
-            --jq '.workflow_runs[] | select(.display_title | startswith("E2E main debounce ")) | .id' |
+            --jq '.workflow_runs[] | select(.display_title | startswith("main · scenarios · debounced · ")) | .id' |
             while IFS= read -r run_id; do
               if [ -n "${run_id}" ]; then
                 echo "Canceling older queued debounced E2E run ${run_id}."

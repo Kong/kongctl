@@ -369,8 +369,8 @@ steps:
 
 ### CI Notes
 
-The E2E GitHub Actions workflow scales wall-clock time by running one matrix
-job per Konnect org. Each job gets:
+The `E2E / Scenario Suite` GitHub Actions workflow scales wall-clock time by
+running one matrix job per Konnect org. Each job gets:
 
 - one environment-scoped PAT
 - the Konnect environment selector from workflow dispatch or repository
@@ -394,10 +394,24 @@ workflow does not expand shard jobs, does not use the `default` org fallback,
 and does not receive Konnect or Gmail secrets.
 
 The status named `E2E Required` is the merge gate. It is a commit status, not
-one of the workflow job names. For fork PRs, an `E2E Gate` workflow initializes
-that status and posts an updatable PR comment with the exact SHA and trusted
-workflow command. The trusted workflow dispatch later updates the same commit
-status and comment with the pass or fail result.
+one of the workflow job names. For fork PRs, the
+`E2E / Required Status` workflow initializes that status and posts an
+updatable PR comment with the exact SHA and trusted workflow command. The
+trusted `E2E / Scenario Suite` dispatch later updates the same commit status
+and comment with the pass or fail result.
+
+GitHub displays the E2E checks using this hierarchy:
+
+1. The workflow name is the section on the checks screen.
+2. The job name is a check row within that section.
+3. The step name is an operation visible after opening a job.
+4. `E2E Required` is the protected commit-status context used as the merge
+   gate.
+
+Multiple PR events can still create multiple workflow sections. The distinct
+workflow, run, job, and step names clarify those sections without changing
+trigger or deduplication behavior. Main-branch scheduling appears in Actions
+as `E2E / Main Scheduler`.
 
 For the maintainer runbook, see
 `docs/contributor/forked-pr-e2e.md`.
