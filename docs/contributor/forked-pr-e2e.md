@@ -14,10 +14,10 @@ after the PR is out of draft and review comments are resolved.
 2. Approve the pending fork workflows in the PR.
 
    This lets the normal unprivileged `Checks` and `CI Test` workflows run. The
-   fork-triggered `E2E` workflow may also start, but it should only run the
-   gate path. It should not expand the secret-backed E2E shard jobs, should not
-   use the `default` org fallback, and should not receive Konnect or Gmail
-   secrets.
+   fork-triggered `E2E / Scenario Suite` workflow may also start, but it
+   should only run the gate path. It should not expand the secret-backed E2E
+   shard jobs, should not use the `default` org fallback, and should not
+   receive Konnect or Gmail secrets.
 
 3. Confirm the exact PR head SHA that was reviewed.
 
@@ -28,7 +28,7 @@ after the PR is out of draft and review comments are resolved.
      --jq .headRefOid
    ```
 
-4. Run the trusted E2E workflow from the base repository.
+4. Run the trusted `E2E / Scenario Suite` workflow from the base repository.
 
    ```shell
    gh workflow run e2e.yaml \
@@ -38,7 +38,7 @@ after the PR is out of draft and review comments are resolved.
      -f trusted_head_sha=<full-sha>
    ```
 
-5. Wait for the trusted E2E workflow to finish.
+5. Wait for the trusted `E2E / Scenario Suite` workflow to finish.
 
    The trusted run updates the `E2E Required` commit status on the reviewed
    SHA and updates the trusted E2E PR comment with the result and workflow
@@ -55,13 +55,20 @@ after the PR is out of draft and review comments are resolved.
 workflow job name.
 
 For fork PRs, the PR may still show fork workflows waiting for approval, or a
-fork-triggered `E2E` workflow that skipped the real shard jobs. Those are not
-the trusted E2E result. The canonical fork E2E result is the trusted
-`workflow_dispatch` run from `main`, reflected by:
+fork-triggered `E2E / Scenario Suite` workflow that skipped the real shard
+jobs. Those are not the trusted E2E result. The canonical fork E2E result is
+the trusted `workflow_dispatch` run from `main`, reflected by:
 
 - the `E2E Required` commit status on the reviewed SHA
 - the trusted E2E PR comment
 - the linked trusted E2E workflow run
+
+GitHub displays the workflow name as a checks-screen section, each job name as
+a row in that section, and each step name inside its opened job.
+`E2E Required` is separate: it is the protected commit-status context used as
+the merge gate. Multiple PR events can still create multiple workflow
+sections; the distinct names clarify those runs without changing trigger or
+deduplication behavior.
 
 If `E2E Required` becomes pending again after a trusted run, check whether the
 PR head SHA changed, or whether the PR was closed, reopened, or synchronized
