@@ -91,6 +91,10 @@ steps:
               fields:
                 name: "{{ .vars.bcRef }}"
                 description: "First Backend Cluster for Test"
+                bootstrap_servers:
+                  - "egw-backend-1.example.com:9092"
+                  - "egw-backend-2.example.com:9092"
+                authentication.type: anonymous
       - name: 004-record-egw-id
         run: ["get", "event-gateways", "-o", "json"]
         recordVar:
