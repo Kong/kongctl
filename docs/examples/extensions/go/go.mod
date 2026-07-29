@@ -5,8 +5,8 @@ go 1.26.0
 require github.com/kong/kongctl v1.8.0
 
 require (
-	github.com/Kong/sdk-konnect-go v0.47.1-0.20260723143911-2f5828c84e03 // indirect
-	github.com/ajg/form v1.7.2 // indirect
+	github.com/Kong/sdk-konnect-go v0.48.1-0.20260724182613-828706c8981f // indirect
+	github.com/ajg/form v1.8.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
@@ -16,7 +16,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/itchyny/gojq v0.12.19 // indirect
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
-	github.com/mattn/go-isatty v0.0.22 // indirect
+	github.com/mattn/go-isatty v0.0.23 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
