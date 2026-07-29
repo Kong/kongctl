@@ -61,7 +61,7 @@ jobs:
             -f status=queued \
             -f branch="${GITHUB_REF_NAME}" \
             -f per_page=100 \
-            --jq '.workflow_runs[] | select(.display_title | startswith("E2E main debounce ")) | .id' |
+            --jq '.workflow_runs[] | select(.display_title | startswith("main · scenarios · debounced · ")) | .id' |
             while IFS= read -r run_id; do
               if [ -n "${run_id}" ]; then
                 echo "Canceling older queued debounced E2E run ${run_id}."
