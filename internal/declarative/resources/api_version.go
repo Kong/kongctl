@@ -62,7 +62,7 @@ func (v APIVersionResource) GetMoniker() string {
 
 // GetDependencies returns references to other resources this API version depends on
 func (v APIVersionResource) GetDependencies() []ResourceRef {
-	deps := []ResourceRef{}
+	var deps []ResourceRef
 	if v.API != "" {
 		// Dependency on parent API when defined at root level
 		deps = append(deps, ResourceRef{Kind: ResourceTypeAPI, Ref: v.API})
@@ -156,31 +156,36 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 
 	// Handle spec field - it could be a string, a map, or a wrapped object
 	if temp.Spec != nil {
-		var specContent string
+		marshalSpec := func(v any) (string, error) {
+			specJSON, err := json.Marshal(v)
+			if err != nil {
+				return "", fmt.Errorf("failed to marshal spec to JSON: %w", err)
+			}
+			return string(specJSON), nil
+		}
 
-		// Check if it's already in the SDK format with content field
-		if specMap, ok := temp.Spec.(map[string]any); ok {
-			if content, hasContent := specMap["content"].(string); hasContent {
-				// Already in correct format
+		var (
+			specContent string
+			err         error
+		)
+
+		switch spec := temp.Spec.(type) {
+		case string:
+			specContent = spec
+		case map[string]any:
+			if content, ok := spec["content"].(string); ok {
 				specContent = content
 			} else {
-				// It's a raw OpenAPI spec object, convert to JSON string
-				specJSON, err := json.Marshal(temp.Spec)
+				specContent, err = marshalSpec(spec)
 				if err != nil {
-					return fmt.Errorf("failed to marshal spec to JSON: %w", err)
+					return err
 				}
-				specContent = string(specJSON)
 			}
-		} else if specStr, ok := temp.Spec.(string); ok {
-			// It's already a string
-			specContent = specStr
-		} else {
-			// Unknown format, try to marshal it
-			specJSON, err := json.Marshal(temp.Spec)
+		default:
+			specContent, err = marshalSpec(temp.Spec)
 			if err != nil {
-				return fmt.Errorf("failed to marshal spec to JSON: %w", err)
+				return err
 			}
-			specContent = string(specJSON)
 		}
 
 		// Normalize spec to JSON before storing
@@ -201,9 +206,5 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 	}
 
 	// Unmarshal into the embedded SDK type
-	if err := json.Unmarshal(sdkBytes, &v.CreateAPIVersionRequest); err != nil {
-		return err
-	}
-
-	return nil
+	return json.Unmarshal(sdkBytes, &v.CreateAPIVersionRequest)
 }

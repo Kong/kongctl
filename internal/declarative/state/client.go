@@ -2420,7 +2420,6 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 			version := APIVersion{
 				ID:      v.ID,
 				Version: v.Version,
-				Spec:    "",
 			}
 			allVersions = append(allVersions, version)
 		}
