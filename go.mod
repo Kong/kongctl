@@ -27,7 +27,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.24
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.16.0
-	github.com/oapi-codegen/oapi-codegen/v2 v2.7.2
+	github.com/oapi-codegen/oapi-codegen/v2 v2.8.0
 	github.com/oapi-codegen/runtime v1.6.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/segmentio/cli v0.8.1
@@ -107,7 +107,7 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/speakeasy-api/jsonpath v0.6.3 // indirect
-	github.com/speakeasy-api/openapi v1.19.2 // indirect
+	github.com/speakeasy-api/openapi v1.24.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spyzhov/ajson v0.8.0 // indirect
