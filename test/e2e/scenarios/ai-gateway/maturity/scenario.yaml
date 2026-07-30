@@ -1,5 +1,4 @@
 test:
-  maturity: beta
   requiresPAT: false
 
 steps:
@@ -15,7 +14,7 @@ steps:
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'AI Gateways [beta]')": true
+                "contains(stdout, 'AI Gateways [beta]')": false
       - name: 001-get-ai-gateway-help
         run:
           - get
@@ -26,8 +25,7 @@ steps:
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'Maturity:')": true
-                "contains(stdout, 'beta')": true
+                "contains(stdout, 'Maturity:')": false
       - name: 002-get-ai-gateway-models-help
         run:
           - get
@@ -39,8 +37,7 @@ steps:
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'Maturity:')": true
-                "contains(stdout, 'beta')": true
+                "contains(stdout, 'Maturity:')": false
       - name: 003-adopt-command-listing
         run:
           - adopt
@@ -50,7 +47,7 @@ steps:
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'AI Gateway into namespace management [beta]')": true
+                "contains(stdout, 'AI Gateway into namespace management [beta]')": false
 
   - name: 002-resource-maturity
     skipInputs: true
@@ -65,7 +62,7 @@ steps:
           - select: '"x-kongctl-maturity"'
             expect:
               fields:
-                level: beta
+                level: ga
                 "length(operations)": 0
       - name: 001-explain-ai-gateway-model
         run:
@@ -77,7 +74,7 @@ steps:
           - select: '"x-kongctl-maturity"'
             expect:
               fields:
-                level: beta
+                level: ga
                 "length(operations)": 0
       - name: 002-scaffold-ai-gateway
         run:
@@ -88,7 +85,7 @@ steps:
         assertions:
           - expect:
               fields:
-                "starts_with(stdout, '# Maturity: beta')": true
+                "starts_with(stdout, '# Maturity:')": false
       - name: 003-scaffold-ai-gateway-model
         run:
           - scaffold
@@ -98,4 +95,4 @@ steps:
         assertions:
           - expect:
               fields:
-                "starts_with(stdout, '# Maturity: beta')": true
+                "starts_with(stdout, '# Maturity:')": false

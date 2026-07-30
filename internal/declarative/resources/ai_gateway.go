@@ -5,15 +5,12 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/maturity"
 )
 
 const (
 	aiGatewayModelProvidersField  = "model_providers"
 	aiGatewayLegacyProvidersField = "providers"
 )
-
-var aiGatewayMaturity = maturity.Metadata{Level: maturity.LevelBeta}
 
 func init() {
 	registerExternalResourceType(
@@ -25,7 +22,6 @@ func init() {
 			WithExplainSchemaBuilder(aiGatewayExplainNode),
 		),
 		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName, "display_name"}},
-		WithMaturity(aiGatewayMaturity),
 	)
 }
 
