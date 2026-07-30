@@ -540,9 +540,11 @@ func TestKonnectKubernetesRequiresNamespace(t *testing.T) {
 		assert.Equal(t, runtimeKubernetes, cfg.Runtime)
 		assert.Empty(t, cfg.Namespace)
 
-		if cfg.Runtime == runtimeKubernetes && cfg.Namespace == "" {
-			assert.True(t, true, "should require namespace for kubernetes")
-		}
+		// Assert against the validation runKonnect actually performs, rather
+		// than restating the condition here.
+		err = validateRuntimeNamespace(cfg)
+		require.Error(t, err, "kubernetes runtime without a namespace should fail validation")
+		assert.Contains(t, err.Error(), "--namespace")
 	})
 
 	t.Run("kubernetes with namespace does not error", func(t *testing.T) {
@@ -558,8 +560,8 @@ func TestKonnectKubernetesRequiresNamespace(t *testing.T) {
 		assert.Equal(t, runtimeKubernetes, cfg.Runtime)
 		assert.Equal(t, "kong", cfg.Namespace)
 
-		needsError := cfg.Runtime == runtimeKubernetes && cfg.Namespace == ""
-		assert.False(t, needsError, "should not require error when namespace is set")
+		assert.NoError(t, validateRuntimeNamespace(cfg),
+			"kubernetes runtime with a namespace should pass validation")
 	})
 
 	t.Run("docker without namespace does not error", func(t *testing.T) {

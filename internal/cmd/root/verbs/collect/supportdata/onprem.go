@@ -166,8 +166,8 @@ func runOnPrem(
 	collectorCfg := buildOnPremConfig(cfg, commonFlags, flags)
 
 	// Validate namespace requirement for Kubernetes runtime
-	if collectorCfg.Runtime == runtimeKubernetes && collectorCfg.Namespace == "" {
-		return fmt.Errorf("--namespace is required when runtime is kubernetes")
+	if err := validateRuntimeNamespace(collectorCfg); err != nil {
+		return err
 	}
 
 	// Resolve the output format before collecting so an invalid format fails

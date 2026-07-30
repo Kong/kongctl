@@ -103,6 +103,29 @@ Use for self-signed or private-CA deployments.
 - Config path: [ %s ]`, configCACertPath))
 }
 
+// validateRuntimeNamespace returns an error when the Kubernetes runtime is
+// selected without a namespace, which is required to locate pods.
+func validateRuntimeNamespace(collectorCfg *collector.Config) error {
+	if collectorCfg.Runtime == runtimeKubernetes && collectorCfg.Namespace == "" {
+		return fmt.Errorf("--namespace is required when runtime is kubernetes")
+	}
+	return nil
+}
+
+// applyLogsSince sets the per-runtime log window from a single user-supplied
+// value. Docker accepts RFC3339 and Unix timestamps in addition to durations,
+// so a value that is not a Go duration is still passed through to it.
+// Kubernetes only understands a second count, so it is reset rather than left
+// holding a stale value from an earlier configuration layer.
+func applyLogsSince(since string, collectorCfg *collector.Config) {
+	collectorCfg.DockerLogsSince = since
+	if d, err := time.ParseDuration(since); err == nil {
+		collectorCfg.K8sLogsSinceSeconds = int64(d.Seconds())
+		return
+	}
+	collectorCfg.K8sLogsSinceSeconds = 0
+}
+
 // ApplyCommonConfig applies common configuration from config file to collector config.
 func ApplyCommonConfig(cfg config.Hook, collectorCfg *collector.Config) {
 	if dir := cfg.GetString(configOutputDir); dir != "" {
@@ -115,10 +138,7 @@ func ApplyCommonConfig(cfg config.Hook, collectorCfg *collector.Config) {
 		collectorCfg.LineLimit = int64(limit)
 	}
 	if since := cfg.GetString(configLogsSince); since != "" {
-		collectorCfg.DockerLogsSince = since
-		if d, err := time.ParseDuration(since); err == nil {
-			collectorCfg.K8sLogsSinceSeconds = int64(d.Seconds())
-		}
+		applyLogsSince(since, collectorCfg)
 	}
 	if terms := cfg.GetStringSlice(configRedactTerms); len(terms) > 0 {
 		collectorCfg.RedactTerms = terms
@@ -159,10 +179,7 @@ func ApplyCommonFlags(flags *CommonFlags, collectorCfg *collector.Config) {
 		collectorCfg.LineLimit = flags.LineLimit
 	}
 	if flags.LogsSince != "" {
-		collectorCfg.DockerLogsSince = flags.LogsSince
-		if d, err := time.ParseDuration(flags.LogsSince); err == nil {
-			collectorCfg.K8sLogsSinceSeconds = int64(d.Seconds())
-		}
+		applyLogsSince(flags.LogsSince, collectorCfg)
 	}
 	if len(flags.RedactTerms) > 0 {
 		collectorCfg.RedactTerms = flags.RedactTerms

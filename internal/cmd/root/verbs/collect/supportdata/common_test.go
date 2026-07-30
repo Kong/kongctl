@@ -52,6 +52,8 @@ func TestCommonFlagRegistration(t *testing.T) {
 		{"redact", "redact", "stringSlice"},
 		{"disable-kdd", "disable-kdd", "bool"},
 		{"dump-workspaces", "dump-workspaces", "bool"},
+		{"tls-skip-verify", "tls-skip-verify", "bool"},
+		{"ca-cert", "ca-cert", "string"},
 	}
 
 	for _, tt := range tests {
@@ -76,6 +78,8 @@ func TestCommonFlagDefaults(t *testing.T) {
 	assert.Nil(t, flags.RedactTerms)
 	assert.False(t, flags.DisableKDD)
 	assert.False(t, flags.DumpWorkspaces)
+	assert.False(t, flags.TLSSkipVerify)
+	assert.Equal(t, "", flags.CACertPath)
 }
 
 func TestApplyCommonFlags_LogsSince(t *testing.T) {
@@ -127,6 +131,31 @@ func TestApplyCommonFlags_LogsSince(t *testing.T) {
 			assert.Equal(t, tt.wantK8sLogsSinceSeconds, cfg.K8sLogsSinceSeconds)
 		})
 	}
+}
+
+// An invalid --logs-since must not leave a Kubernetes window set by an earlier
+// configuration layer in place, or the two runtimes silently diverge.
+func TestApplyCommonFlags_LogsSinceDoesNotLeakAcrossLayers(t *testing.T) {
+	cfg := collector.DefaultConfig()
+
+	// Layer 1: config supplies a valid duration.
+	mock := newMockConfig()
+	mock.GetStringMock = func(key string) string {
+		if key == configLogsSince {
+			return "10m"
+		}
+		return ""
+	}
+	ApplyCommonConfig(mock, cfg)
+	require.Equal(t, int64(600), cfg.K8sLogsSinceSeconds, "precondition")
+
+	// Layer 2: a flag overrides it with a value Docker accepts but which is
+	// not a Go duration, such as an RFC3339 timestamp.
+	ApplyCommonFlags(&CommonFlags{LogsSince: "2026-07-01T00:00:00Z"}, cfg)
+
+	assert.Equal(t, "2026-07-01T00:00:00Z", cfg.DockerLogsSince)
+	assert.Equal(t, int64(0), cfg.K8sLogsSinceSeconds,
+		"stale window from the config layer must not survive the flag override")
 }
 
 func TestApplyCommonFlags_AutoSanitize(t *testing.T) {
