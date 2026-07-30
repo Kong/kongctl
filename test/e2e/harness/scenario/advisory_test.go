@@ -15,7 +15,7 @@ func TestRecordAdvisoryFailure(t *testing.T) {
 
 	path, err := recordAdvisoryFailureAt(
 		artifactsDir,
-		"test/e2e/scenarios/ai-gateway/model/scenario.yaml",
+		"test/e2e/scenarios/preview/model/scenario.yaml",
 		MaturityBeta,
 		BetaModeWarn,
 		errors.New("model scenario failed"),
@@ -25,7 +25,7 @@ func TestRecordAdvisoryFailure(t *testing.T) {
 		t.Fatalf("RecordAdvisoryFailure() error = %v", err)
 	}
 
-	wantPath := filepath.Join(artifactsDir, "beta-failures", "ai-gateway", "model", "failure.json")
+	wantPath := filepath.Join(artifactsDir, "beta-failures", "preview", "model", "failure.json")
 	if path != wantPath {
 		t.Fatalf("RecordAdvisoryFailure() path = %q, want %q", path, wantPath)
 	}
@@ -38,8 +38,8 @@ func TestRecordAdvisoryFailure(t *testing.T) {
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("parse advisory artifact: %v", err)
 	}
-	if got.Scenario != "ai-gateway/model/scenario.yaml" {
-		t.Fatalf("scenario = %q, want ai-gateway/model/scenario.yaml", got.Scenario)
+	if got.Scenario != "preview/model/scenario.yaml" {
+		t.Fatalf("scenario = %q, want preview/model/scenario.yaml", got.Scenario)
 	}
 	if got.Maturity != MaturityBeta || got.Mode != BetaModeWarn {
 		t.Fatalf("policy = %q/%q, want beta/warn", got.Maturity, got.Mode)
@@ -52,7 +52,7 @@ func TestRecordAdvisoryFailure(t *testing.T) {
 func TestRecordAdvisoryFailureOverwritesInitialRecord(t *testing.T) {
 	artifactsDir := t.TempDir()
 	scenarioErr := errors.New("scenario failed")
-	scenarioPath := "test/e2e/scenarios/ai-gateway/model/scenario.yaml"
+	scenarioPath := "test/e2e/scenarios/preview/model/scenario.yaml"
 
 	path, err := recordAdvisoryFailureAt(
 		artifactsDir,

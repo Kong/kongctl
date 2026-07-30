@@ -153,12 +153,11 @@ elif args[:1] == ["explain"]:
         "api.versions": ["ref", "version", "spec"],
         "api.documents": ["ref", "content", "title", "slug"],
     }[subject]
-    maturity = "beta" if subject == "ai_gateway" else "ga"
     print(json.dumps({
         "type": "object",
         "title": f"kongctl declarative schema: {subject}",
         "x-kongctl-root-key": roots[subject],
-        "x-kongctl-maturity": {"level": maturity},
+        "x-kongctl-maturity": {"level": "ga"},
         "required": ["ref"],
         "properties": {field: {"type": "string"} for field in properties},
     }))
@@ -186,9 +185,7 @@ elif args[:1] == ["scaffold"]:
     description: Example description
     # cluster_type: value
 """,
-        "ai_gateway": """# Maturity: beta
-
-ai_gateways:
+        "ai_gateway": """ai_gateways:
   - ref: my-resource
     name: my-ai-gateway
     display_name: My AI Gateway

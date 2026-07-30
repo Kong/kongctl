@@ -22,13 +22,13 @@ type adoptAIGatewayAPIStub struct {
 	updateID   string
 }
 
-func TestAIGatewayAdoptCommandIsBeta(t *testing.T) {
+func TestAIGatewayAdoptCommandIsGA(t *testing.T) {
 	command, err := NewAIGatewayCmd(verbs.Adopt, nil, nil, nil)
 	require.NoError(t, err)
 
 	resolved, err := maturity.ResolveCommand(command)
 	require.NoError(t, err)
-	assert.Equal(t, maturity.LevelBeta, resolved.Effective.Level)
+	assert.Equal(t, maturity.LevelGA, resolved.Effective.Level)
 }
 
 func (s *adoptAIGatewayAPIStub) ListAiGateways(

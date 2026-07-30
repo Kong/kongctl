@@ -1268,7 +1268,7 @@ prepare_resource "portal" "portal" "portals" "ga" "smoke-portal-${resource_token
   "kongctl smoke portal" name display_name description
 prepare_resource "control_plane" "control_plane" "control_planes" "ga" "smoke-cp-${resource_token}" \
   "Smoke Control Plane ${resource_token}" "kongctl smoke control plane" name description cluster_type
-prepare_resource "ai_gateway" "ai_gateway" "ai_gateways" "beta" "smoke-aigw-${resource_token}" \
+prepare_resource "ai_gateway" "ai_gateway" "ai_gateways" "ga" "smoke-aigw-${resource_token}" \
   "Smoke AI Gateway ${resource_token}" "kongctl smoke AI gateway" name display_name description
 
 resource_registry=(api portal control_plane ai_gateway)

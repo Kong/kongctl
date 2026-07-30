@@ -32,7 +32,6 @@ func init() {
 			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "name", "type", "display_name", "config"),
 			WithExplainSchemaBuilder(aiGatewayAuthStrategyExplainNode),
 		),
-		WithMaturity(aiGatewayMaturity),
 		WithExternalUnsupportedReason("scoped AI Gateway auth strategy lookup is planned for domain enablement"),
 	)
 }

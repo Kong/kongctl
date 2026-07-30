@@ -45,7 +45,7 @@ preflight.
 Examples:
 
 ```sh
-KONGCTL_E2E_BETA_MODE=warn make test-e2e-ai-gateway
+KONGCTL_E2E_BETA_MODE=warn make test-e2e-scenarios
 KONGCTL_E2E_BETA_MODE=skip make test-e2e-scenarios
 ```
 
