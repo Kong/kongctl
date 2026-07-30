@@ -795,6 +795,9 @@ func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
 		{"openai", func() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetOpenaiConfig]("type", "openai")
 		}},
+		{"sagemaker", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetSagemakerConfig]("type", "sagemaker")
+		}},
 		{"vercel", func() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetVercelConfig]("type", "vercel")
 		}},

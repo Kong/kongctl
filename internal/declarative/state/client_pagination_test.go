@@ -686,8 +686,8 @@ func newListPortalTeamsResponse(pageNumber, count int, total float64) *kkOps.Lis
 	data := make([]kkComps.PortalTeamResponse, count)
 	for i := range count {
 		data[i] = kkComps.PortalTeamResponse{
-			ID:                 new(fmt.Sprintf("team-%d-%d", pageNumber, i+1)),
-			Name:               new(fmt.Sprintf("team-%d-%d", pageNumber, i+1)),
+			ID:                 fmt.Sprintf("team-%d-%d", pageNumber, i+1),
+			Name:               fmt.Sprintf("team-%d-%d", pageNumber, i+1),
 			CanOwnApplications: new(true),
 		}
 	}

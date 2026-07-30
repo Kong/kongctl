@@ -9,18 +9,15 @@ import (
 )
 
 func TestPortalTeamDetailView_UsesAPIFieldLabels(t *testing.T) {
-	id := "team-id"
-	name := "Developers"
-	description := "Portal developer team"
 	createdAt := time.Date(2026, time.April, 25, 12, 0, 0, 0, time.UTC)
 	updatedAt := createdAt.Add(time.Hour)
 
 	detail := portalTeamDetailView(kkComps.PortalTeamResponse{
-		ID:          &id,
-		Name:        &name,
-		Description: &description,
-		CreatedAt:   &createdAt,
-		UpdatedAt:   &updatedAt,
+		ID:          "team-id",
+		Name:        "Developers",
+		Description: "Portal developer team",
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
 	})
 
 	for _, expected := range []string{

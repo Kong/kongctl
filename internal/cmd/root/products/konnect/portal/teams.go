@@ -245,9 +245,8 @@ func (h portalTeamsHandler) getSingleTeam(
 				Err: fmt.Errorf("team %q not found", identifier),
 			}
 		}
-		if match.GetID() != nil {
-			teamID = *match.GetID()
-		} else {
+		teamID = match.GetID()
+		if teamID == "" {
 			return &cmd.ConfigurationError{
 				Err: fmt.Errorf("team %q does not have an ID", identifier),
 			}
@@ -326,11 +325,11 @@ func fetchPortalTeams(
 func findTeamByName(teams []kkComps.PortalTeamResponse, identifier string) *kkComps.PortalTeamResponse {
 	lowered := strings.ToLower(identifier)
 	for _, team := range teams {
-		if team.GetID() != nil && strings.ToLower(*team.GetID()) == lowered {
+		if strings.ToLower(team.GetID()) == lowered {
 			teamCopy := team
 			return &teamCopy
 		}
-		if team.GetName() != nil && strings.ToLower(*team.GetName()) == lowered {
+		if strings.ToLower(team.GetName()) == lowered {
 			teamCopy := team
 			return &teamCopy
 		}
@@ -339,17 +338,24 @@ func findTeamByName(teams []kkComps.PortalTeamResponse, identifier string) *kkCo
 }
 
 func portalTeamSummaryToRecord(team kkComps.PortalTeamResponse) portalTeamSummaryRecord {
-	id := optionalPtr(team.GetID())
+	id := stringOrNA(team.GetID())
 	if id != valueNA {
 		id = util.AbbreviateUUID(id)
 	}
 	return portalTeamSummaryRecord{
 		ID:               id,
-		Name:             optionalPtr(team.GetName()),
-		Description:      optionalPtr(team.GetDescription()),
-		LocalCreatedTime: formatTimePtr(team.GetCreatedAt()),
-		LocalUpdatedTime: formatTimePtr(team.GetUpdatedAt()),
+		Name:             stringOrNA(team.GetName()),
+		Description:      stringOrNA(team.GetDescription()),
+		LocalCreatedTime: formatTime(team.GetCreatedAt()),
+		LocalUpdatedTime: formatTime(team.GetUpdatedAt()),
 	}
+}
+
+func stringOrNA(value string) string {
+	if value == "" {
+		return valueNA
+	}
+	return value
 }
 
 func optionalPtr(value *string) string {
@@ -368,15 +374,15 @@ func formatTimePtr(value *time.Time) string {
 
 func portalTeamDetailView(team kkComps.PortalTeamResponse) string {
 	var b strings.Builder
-	id := optionalPtr(team.GetID())
+	id := stringOrNA(team.GetID())
 	if id != valueNA {
 		id = util.AbbreviateUUID(id)
 	}
-	fmt.Fprintf(&b, "name: %s\n", optionalPtr(team.GetName()))
+	fmt.Fprintf(&b, "name: %s\n", stringOrNA(team.GetName()))
 	fmt.Fprintf(&b, "id: %s\n", id)
-	fmt.Fprintf(&b, "description: %s\n", optionalPtr(team.GetDescription()))
-	fmt.Fprintf(&b, "created_at: %s\n", formatTimePtr(team.GetCreatedAt()))
-	fmt.Fprintf(&b, "updated_at: %s\n", formatTimePtr(team.GetUpdatedAt()))
+	fmt.Fprintf(&b, "description: %s\n", stringOrNA(team.GetDescription()))
+	fmt.Fprintf(&b, "created_at: %s\n", formatTime(team.GetCreatedAt()))
+	fmt.Fprintf(&b, "updated_at: %s\n", formatTime(team.GetUpdatedAt()))
 
 	return b.String()
 }
