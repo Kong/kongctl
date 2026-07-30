@@ -60,8 +60,8 @@ related:
 chapter ID in `src/data/chapters.yaml`.
 
 To add a chapter, add its ID, title, description, and order to
-`src/data/chapters.yaml`, then add at least one lesson in the matching
-directory.
+`src/data/chapters.yaml`. A chapter can remain empty while its curriculum is
+being planned; its page displays “Lessons coming soon.”
 
 ## Write a hands-on lesson
 
@@ -70,7 +70,7 @@ Keep lessons short and use this sequence where it fits:
 1. **Goal**: State what the learner will accomplish.
 2. **Prerequisites**: Identify access, authentication, and local tools.
 3. **Do it**: Explain the action and immediately show the command or input.
-4. **Check it worked**: Give a verification command and expected result.
+4. **Verify**: Give a verification command and expected result.
 5. **Go deeper**: Use `related` links for the complete documentation.
 
 Use fenced `shell`, `bash`, `sh`, or `zsh` blocks for commands:
@@ -95,6 +95,13 @@ Use angle-bracket placeholders such as `<path>` only when the surrounding
 text tells the learner to replace them. Never include real credentials or
 secrets. Explain effects before commands that create or modify resources, and
 put an explicit warning before destructive commands.
+
+Link every reference to a
+[Kong Konnect account](https://konghq.com/products/kong-konnect/register) to
+the product registration page.
+
+Format `kongctl` as inline code whenever it appears in prose. Leave it
+unformatted in titles, navigation labels, URLs, and command blocks.
 
 The site cannot observe the learner's terminal. “Mark complete and continue”
 is therefore an explicit learner confirmation, not automated command

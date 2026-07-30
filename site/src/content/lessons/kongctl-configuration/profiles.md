@@ -1,57 +1,52 @@
 ---
-title: Profiles and configuration
-summary: Understand how profiles group settings and shape environment variables.
+title: Configuration Profiles
+summary: Understand how profiles group settings and credentials.
 order: 1
 ---
 
 ## Goal
 
-You will understand the default kongctl profile and recognize how a profile
-name appears in environment variables.
+You will understand `kongctl` profiles, the default profile, and how to select
+profiles.
 
 ## What is a profile?
 
-Every kongctl command runs with a profile: a named collection of settings and
-credentials. If you do not select one, kongctl uses the `default` profile.
+Every `kongctl` command runs with a profile: a named collection of settings
+and credentials. If you do not select one, `kongctl` uses the `default`
+profile.
 
-Profiles let you keep settings for different teams or environments separate.
-Browser login credentials are also stored for the active profile.
+Profiles let you organize configurations and credentials to match your desired
+workflow. You may have different profiles for different environments or
+machines, or maybe for different product areas or jobs to be done.
 
 ## Inspect your profiles
 
-List the profiles kongctl can use:
+List the profiles `kongctl` can use:
 
 ```shell
 kongctl get profiles
 ```
 
-The output includes the profile used so far:
+The output lists available profiles. By default there will be one, the
+`default` profile. You will learn to create a profile in a subsequent lesson.
 
 ```text
 PROFILE
 default
 ```
 
-## Decode the PAT variable
-
-The PAT variable from installation follows kongctl's configuration pattern:
-
-```text
-KONGCTL_<PROFILE>_<CONFIGURATION_PATH>
-```
-
-In `KONGCTL_DEFAULT_KONNECT_PAT`, `DEFAULT` selects the `default` profile and
-`KONNECT_PAT` identifies the setting.
-
 ## Select a profile explicitly
 
-Run a command with the default profile named explicitly:
+Every command can accept a `--profile` flag to set the profile for that
+command invocation.
 
 ```shell
 kongctl get me --profile default
 ```
 
-You can also select it for the current shell:
+The profile can also be specified by an environment variable,
+`KONGCTL_PROFILE`. In `kongctl`, flags take precedence over environment
+variables.
 
 ```shell
 export KONGCTL_PROFILE=default

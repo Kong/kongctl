@@ -1,21 +1,22 @@
 ---
-title: Authenticate with Konnect
+title: Konnect Authentication
 summary: Choose an authentication method and verify access to your account.
 order: 2
 ---
 
 ## Goal
 
-You will authenticate kongctl, verify access to your user and organization,
-and compare its output formats.
+You will authenticate `kongctl`, verify access to your organization and any
+available user identity, and compare command output formats.
 
 ## Prerequisites
 
-You need an installed kongctl CLI and a Kong Konnect account.
+Complete [Install kongctl](../install-kongctl/) first. You also need a
+[Kong Konnect account](https://konghq.com/products/kong-konnect/register).
 
 ## Choose an authentication method
 
-Use either browser-based login or a personal access token.
+Use either browser-based login or an access token.
 
 ### Browser-based login flow
 
@@ -27,31 +28,35 @@ kongctl login
 
 Follow the terminal instructions to finish signing in.
 
-### Personal access token (PAT)
+### Access token
 
-Set your Konnect personal access token as an environment variable. Replace
-`<personal-access-token>` with your token:
+Use either a personal access token (PAT) or a system account access token
+(SPAT). Set the token as an environment variable, replacing `<access-token>`
+with your token:
 
 ```shell
-export KONGCTL_DEFAULT_KONNECT_PAT="<personal-access-token>"
+export KONGCTL_DEFAULT_KONNECT_PAT="<access-token>"
 ```
 
-## Verify your access
+## Verify
 
-Confirm kongctl can read your Konnect user:
+Check whether the authenticated identity has an associated Konnect user:
 
 ```shell
 kongctl get me
 ```
 
-Then confirm it can read your organization:
+Browser login and PAT authentication return user information. This command is
+expected to fail with a SPAT because a system account does not have a user
+identity.
+
+Confirm `kongctl` can read your organization:
 
 ```shell
 kongctl get organization
 ```
 
-Both commands should return information from the Konnect account you used to
-authenticate.
+This command works with browser login, a PAT, or a SPAT.
 
 ## Compare output formats
 
@@ -59,9 +64,9 @@ The `-o` flag presents the same resource in text, JSON, or YAML. Run each
 command and compare the results:
 
 ```shell
-kongctl get me -o text
-kongctl get me -o json
-kongctl get me -o yaml
+kongctl get organization -o text
+kongctl get organization -o json
+kongctl get organization -o yaml
 ```
 
 Text is optimized for reading in a terminal. JSON and YAML preserve structured

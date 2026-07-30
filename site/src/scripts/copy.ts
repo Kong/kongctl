@@ -1,13 +1,13 @@
 const languageLabels: Record<string, string> = {
-  bash: "Terminal",
-  console: "Terminal",
-  json: "JSON",
-  sh: "Terminal",
-  shell: "Terminal",
-  text: "Expected output",
+  bash: "Run this...",
+  console: "Run this...",
+  json: "Expected output",
+  sh: "Run this...",
+  shell: "Run this...",
+  text: "Example output",
   yaml: "YAML",
   yml: "YAML",
-  zsh: "Terminal",
+  zsh: "Run this...",
 };
 
 export async function copyText(

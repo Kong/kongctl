@@ -23,7 +23,9 @@ echo second</code></pre>
     });
 
     initializeCodeBlocks();
-    expect(document.querySelector(".code-label")?.textContent).toBe("Terminal");
+    expect(document.querySelector(".code-label")?.textContent).toBe(
+      "Run this...",
+    );
 
     document.querySelector<HTMLButtonElement>("[data-copy-button]")?.click();
     await vi.waitFor(() => {
@@ -34,9 +36,21 @@ echo second</code></pre>
     });
   });
 
-  it("labels text fences as expected output", () => {
+  it("labels text fences as example output", () => {
     document.body.innerHTML = `
       <pre class="astro-code" data-language="text"><code>version output</code></pre>
+    `;
+
+    initializeCodeBlocks();
+
+    expect(document.querySelector(".code-label")?.textContent).toBe(
+      "Example output",
+    );
+  });
+
+  it("labels JSON fences as expected output", () => {
+    document.body.innerHTML = `
+      <pre class="astro-code" data-language="json"><code>{"name":"example"}</code></pre>
     `;
 
     initializeCodeBlocks();

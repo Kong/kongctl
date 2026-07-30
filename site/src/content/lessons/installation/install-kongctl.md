@@ -1,5 +1,5 @@
 ---
-title: Install kongctl
+title: Installation
 summary: Install the CLI and verify that it runs.
 order: 1
 related:
@@ -37,18 +37,18 @@ installs without `sudo`.
 curl -fsSL https://get.konghq.com/kongctl | sh
 ```
 
-> On Windows, download the matching archive from the kongctl releases page
+> On Windows, download the matching archive from the `kongctl` releases page
 > linked below.
 
-## Check it worked
+## Verify
 
-Ask kongctl for its detailed version information:
+Ask `kongctl` for its detailed version information:
 
 ```shell
 kongctl version --full
 ```
 
-The output should identify a released kongctl version, commit, and build date.
+The output should identify a released `kongctl` version, commit, and build date.
 Its first line will resemble:
 
 ```text

@@ -416,6 +416,11 @@ progress::-moz-progress-bar {
   font-size: 0.68rem;
 }
 
+.lesson-link.current .completion-mark:not(.complete) {
+  border-color: var(--text-link);
+  background: var(--text-link);
+}
+
 .completion-mark.complete {
   border-color: var(--brand);
   background: var(--brand);
@@ -536,8 +541,7 @@ progress::-moz-progress-bar {
   color: var(--text-secondary);
 }
 
-.chapter-header,
-.lesson-header {
+.chapter-header {
   max-width: 50rem;
   margin-bottom: 3rem;
 }
@@ -548,11 +552,19 @@ progress::-moz-progress-bar {
   font-size: clamp(2.3rem, 5vw, 4.2rem);
 }
 
-.chapter-header > p:last-child,
-.lesson-header > p:last-child {
+.chapter-header > p:last-child {
   max-width: 42rem;
   font-size: 1.2rem;
   line-height: 1.55;
+}
+
+.lesson-header {
+  max-width: 50rem;
+  margin-bottom: 0.75rem;
+}
+
+.lesson-header h1 {
+  margin-bottom: 0;
 }
 
 .chapter-lessons {
@@ -560,6 +572,15 @@ progress::-moz-progress-bar {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.chapter-empty {
+  max-width: 55rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: 0.65rem;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
 }
 
 .chapter-lessons li + li {
@@ -671,6 +692,10 @@ progress::-moz-progress-bar {
   scroll-margin-top: calc(var(--header-height) + 1.5rem);
 }
 
+.lesson-body > h2:first-child {
+  margin-top: 1.5rem;
+}
+
 .lesson-body h3 {
   margin: 2.4rem 0 0.8rem;
   scroll-margin-top: calc(var(--header-height) + 1.5rem);
@@ -689,6 +714,44 @@ progress::-moz-progress-bar {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   font-size: 0.88em;
+}
+
+.lesson-body table {
+  width: 100%;
+  margin: 1.35rem 0 1.7rem;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.6rem;
+  border-spacing: 0;
+  background: var(--bg-secondary);
+  text-align: left;
+}
+
+.lesson-body th,
+.lesson-body td {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+}
+
+.lesson-body th {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.lesson-body th + th,
+.lesson-body td + td {
+  border-left: 1px solid var(--border);
+}
+
+.lesson-body tbody tr + tr td {
+  border-top: 1px solid var(--border);
+}
+
+.lesson-body td code {
+  white-space: nowrap;
 }
 
 .lesson-body blockquote {
@@ -942,6 +1005,16 @@ progress::-moz-progress-bar {
   .page {
     width: min(100% - 2rem, 70rem);
     padding-top: 2rem;
+  }
+
+  .lesson-body th,
+  .lesson-body td {
+    padding: 0.65rem 0.7rem;
+  }
+
+  .lesson-body td code {
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .hero-actions,
