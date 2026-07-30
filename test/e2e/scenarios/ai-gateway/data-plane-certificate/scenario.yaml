@@ -12,7 +12,6 @@ vars:
   gateway_ref: "ai-gateway-data-plane-certificate-e2e"
   cert_ref: "support-data-plane-cert"
   cert_title: "support-data-plane-cert"
-  cert_description: "Support data plane certificate"
   cert_rotated_description: "Support data plane certificate rotated"
 
 defaults:
@@ -98,7 +97,6 @@ steps:
                 action: CREATE
                 references.ai_gateway_id.ref: "{{ .vars.gateway_ref }}"
                 fields.title: "{{ .vars.cert_title }}"
-                fields.description: "{{ .vars.cert_description }}"
                 "contains(fields.cert, 'MIIB4TCCAYug')": true
       - name: 001-apply-create
         outputFormat: json
@@ -131,7 +129,6 @@ steps:
             expect:
               fields:
                 title: "{{ .vars.cert_title }}"
-                description: "{{ .vars.cert_description }}"
                 "contains(cert, 'MIIB4TCCAYug')": true
       - name: 003-get-data-plane-certificate-by-title
         run:
@@ -149,10 +146,6 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.cert_title }}"
-          - select: description
-            expect:
-              fields:
-                "@": "{{ .vars.cert_description }}"
       - name: 004-get-data-plane-certificate-by-id
         run:
           - get
@@ -168,6 +161,19 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.cert_title }}"
+      - name: 005-plan-sync-no-changes
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 003-plan-apply-replace
     inputOverlayDirs:

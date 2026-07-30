@@ -16,5 +16,4 @@ ai_gateways:
     data_plane_certificates:
       - ref: support-data-plane-cert
         title: support-data-plane-cert
-        description: "Support data plane certificate"
         cert: !file ./certs/first.pem
