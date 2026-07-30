@@ -279,8 +279,8 @@ func TestPlanPortalTeams_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing.T) 
 			PortalTeamAPI: &stubExternalPortalTeamAPI{
 				listPortalTeamsFn: func() []kkComps.PortalTeamResponse {
 					return []kkComps.PortalTeamResponse{
-						{ID: new("team-a-id"), Name: new("team-a")},
-						{ID: new("team-b-id"), Name: new("team-b")},
+						{ID: "team-a-id", Name: "team-a"},
+						{ID: "team-b-id", Name: "team-b"},
 					}
 				},
 			},
@@ -318,8 +318,8 @@ func TestPlanPortalTeamRoles_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing
 			PortalTeamAPI: &stubExternalPortalTeamAPI{
 				listPortalTeamsFn: func() []kkComps.PortalTeamResponse {
 					return []kkComps.PortalTeamResponse{
-						{ID: new("team-a-id"), Name: new("team-a")},
-						{ID: new("team-b-id"), Name: new("team-b")},
+						{ID: "team-a-id", Name: "team-a"},
+						{ID: "team-b-id", Name: "team-b"},
 					}
 				},
 			},

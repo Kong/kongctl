@@ -240,6 +240,14 @@ func aiGatewayProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		aiGatewayProviderExplainBranch("llama2", aiGatewayProviderBasicConfigExplainNode()),
 		aiGatewayProviderExplainBranch("mistral", aiGatewayProviderBasicConfigExplainNode()),
 		aiGatewayProviderExplainBranch("ollama", aiGatewayProviderBasicConfigExplainNode()),
+		aiGatewayProviderExplainBranch("sagemaker", explainObject(
+			explainField(
+				"auth",
+				explainUnionNode(aiGatewayProviderBasicAuthExplainNode(), aiGatewayProviderSagemakerAuthExplainNode()),
+				true,
+				true,
+			),
+		)),
 		aiGatewayProviderExplainBranch("vercel", aiGatewayProviderBasicConfigExplainNode()),
 		aiGatewayProviderExplainBranch("vllm", aiGatewayProviderBasicConfigExplainNode()),
 		aiGatewayProviderExplainBranch("xai", aiGatewayProviderBasicConfigExplainNode()),
@@ -325,6 +333,17 @@ func aiGatewayProviderAWSAuthExplainNode() *ExplainNode {
 		explainField("role_session_name", explainStringNode("kong-ai-gateway"), false, false),
 		explainField("sts_endpoint_url", explainStringNode("https://sts.amazonaws.com"), false, false),
 		explainField("batch_role_arn", explainStringNode("arn:aws:iam::123456789012:role/batch"), false, false),
+	)
+}
+
+func aiGatewayProviderSagemakerAuthExplainNode() *ExplainNode {
+	return explainObject(
+		explainField("type", explainConstStringNode("sagemaker"), true, true),
+		explainField("aws", explainObject(
+			explainField("access_key_id", explainStringNode("${AWS_ACCESS_KEY_ID}"), false, true),
+			explainField("secret_access_key", explainStringNode("${AWS_SECRET_ACCESS_KEY}"), false, false),
+			explainField("session_token", explainStringNode("${AWS_SESSION_TOKEN}"), false, false),
+		), false, true),
 	)
 }
 

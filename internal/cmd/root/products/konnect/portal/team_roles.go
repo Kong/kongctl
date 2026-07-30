@@ -199,13 +199,13 @@ func (h portalTeamRolesHandler) run(args []string) error {
 	switch {
 	case teamNameFlag != "":
 		match := findTeamByName(teams, teamNameFlag)
-		if match == nil || match.GetID() == nil {
+		if match == nil || match.GetID() == "" {
 			return &cmd.ConfigurationError{
 				Err: fmt.Errorf("team %q not found", teamNameFlag),
 			}
 		}
-		teamID = *match.GetID()
-		teamName = optionalPtr(match.GetName())
+		teamID = match.GetID()
+		teamName = stringOrNA(match.GetName())
 	case teamIDFlag != "":
 		teamID = teamIDFlag
 	default:
@@ -227,8 +227,8 @@ func (h portalTeamRolesHandler) run(args []string) error {
 				teamName = teamID
 			} else {
 				for _, t := range teams {
-					if t.GetID() != nil && *t.GetID() == teamID {
-						teamName = optionalPtr(t.GetName())
+					if t.GetID() == teamID {
+						teamName = stringOrNA(t.GetName())
 						break
 					}
 				}
@@ -238,14 +238,11 @@ func (h portalTeamRolesHandler) run(args []string) error {
 		records = append(records, roleResponsesToRecords(teamName, teamID, roles)...)
 	} else {
 		for _, team := range teams {
-			teamIDValue := ""
-			if team.GetID() != nil {
-				teamIDValue = *team.GetID()
-			}
+			teamIDValue := team.GetID()
 			if teamIDValue == "" {
 				continue
 			}
-			teamDisplayName := optionalPtr(team.GetName())
+			teamDisplayName := stringOrNA(team.GetName())
 			roles, err := fetchPortalTeamRoles(helper, roleAPI, portalID, teamIDValue, cfg)
 			if err != nil {
 				return err

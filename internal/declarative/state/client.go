@@ -4927,21 +4927,11 @@ func (c *Client) ListPortalTeams(ctx context.Context, portalID string) ([]Portal
 		// Process teams
 		for _, t := range resp.ListPortalTeamsResponse.Data {
 			team := PortalTeam{
-				ID:   "",
-				Name: "",
+				ID:                 t.ID,
+				Name:               t.Name,
+				Description:        t.Description,
+				CanOwnApplications: t.CanOwnApplications,
 			}
-
-			// Handle optional pointer fields from SDK
-			if t.ID != nil {
-				team.ID = *t.ID
-			}
-			if t.Name != nil {
-				team.Name = *t.Name
-			}
-			if t.Description != nil {
-				team.Description = *t.Description
-			}
-			team.CanOwnApplications = t.CanOwnApplications
 
 			allTeams = append(allTeams, team)
 		}
@@ -4982,12 +4972,7 @@ func (c *Client) CreatePortalTeam(
 		return "", fmt.Errorf("no response data from create portal team")
 	}
 
-	teamID := ""
-	if resp.PortalTeamResponse.ID != nil {
-		teamID = *resp.PortalTeamResponse.ID
-	}
-
-	return teamID, nil
+	return resp.PortalTeamResponse.ID, nil
 }
 
 // UpdatePortalTeam updates a portal team

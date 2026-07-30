@@ -589,10 +589,7 @@ func loadPortalTeamRoles(_ context.Context, helper cmd.Helper, parent any) (tabl
 
 	records := make([]portalTeamRoleRecord, 0)
 	for _, team := range teams {
-		teamID := ""
-		if team.GetID() != nil {
-			teamID = *team.GetID()
-		}
+		teamID := team.GetID()
 		if teamID == "" {
 			continue
 		}
@@ -600,7 +597,7 @@ func loadPortalTeamRoles(_ context.Context, helper cmd.Helper, parent any) (tabl
 		if err != nil {
 			return tableview.ChildView{}, err
 		}
-		teamName := optionalPtr(team.GetName())
+		teamName := stringOrNA(team.GetName())
 		records = append(records, roleResponsesToRecords(teamName, teamID, roles)...)
 	}
 
@@ -685,14 +682,11 @@ func portalTeamIdentifiersFromParent(parent any) (string, string, string, error)
 
 	switch p := parent.(type) {
 	case *portalTeamContext:
-		teamID := ""
-		if p.team.GetID() != nil {
-			teamID = strings.TrimSpace(*p.team.GetID())
-		}
+		teamID := strings.TrimSpace(p.team.GetID())
 		if teamID == "" {
 			return "", "", "", fmt.Errorf("portal team identifier is missing")
 		}
-		teamName := optionalPtr(p.team.GetName())
+		teamName := stringOrNA(p.team.GetName())
 		return strings.TrimSpace(p.portalID), teamID, teamName, nil
 	default:
 		return "", "", "", fmt.Errorf("unexpected parent type %T", parent)

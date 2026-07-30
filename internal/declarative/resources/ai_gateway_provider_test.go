@@ -118,8 +118,8 @@ func TestAIGatewayProviderExplainNodeCoversSDKProviderUnion(t *testing.T) {
 
 	expected := []string{
 		"anthropic", "azure", "bedrock", "cerebras", "cohere", "dashscope", "databricks", "deepseek",
-		"gemini", "huggingface", "kimi", "llama2", "mistral", "ollama", "openai", "vercel", "vertex",
-		"vllm", "xai",
+		"gemini", "huggingface", "kimi", "llama2", "mistral", "ollama", "openai", "sagemaker", "vercel",
+		"vertex", "vllm", "xai",
 	}
 	require.ElementsMatch(t, expected, providerTypes)
 

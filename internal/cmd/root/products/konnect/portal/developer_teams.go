@@ -190,13 +190,13 @@ func (h portalDeveloperTeamsHandler) run(args []string) error {
 			return err
 		}
 		match := findTeamByName(teams, teamNameFlag)
-		if match == nil || match.GetID() == nil {
+		if match == nil || match.GetID() == "" {
 			return &cmd.ConfigurationError{
 				Err: fmt.Errorf("team %q not found", teamNameFlag),
 			}
 		}
-		teamID = *match.GetID()
-		teamName = optionalPtr(match.GetName())
+		teamID = match.GetID()
+		teamName = stringOrNA(match.GetName())
 	case teamIDFlag != "":
 		teamID = teamIDFlag
 	default:
