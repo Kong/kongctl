@@ -44,7 +44,27 @@ func TestAIGatewayDataPlaneCertificatePlannerNoopsMatchingTitleCertAndDescriptio
 		},
 		AIGatewayDataPlaneCertificatesAPI: &testAIGatewayDataPlaneCertificateAPI{
 			certs: []kkComps.AIGatewayDataPlaneClientCertificate{
-				testAIGatewayDataPlaneCertificate("cert-id", "support-data-plane-cert", "first-cert", "Support cert"),
+				testAIGatewayDataPlaneCertificate("Support cert"),
+			},
+		},
+	})
+	rs := testAIGatewayDataPlaneCertificateResourceSet(cert, nil)
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+}
+
+func TestAIGatewayDataPlaneCertificatePlannerNoopsEmptyRemoteDescriptionWhenDesiredOmitted(t *testing.T) {
+	cert := testAIGatewayDataPlaneCertificateResource()
+	cert.Description = nil
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayDataPlaneCertificatesAPI: &testAIGatewayDataPlaneCertificateAPI{
+			certs: []kkComps.AIGatewayDataPlaneClientCertificate{
+				testAIGatewayDataPlaneCertificate(""),
 			},
 		},
 	})
@@ -66,7 +86,7 @@ func TestAIGatewayDataPlaneCertificatePlannerReplacesChangedCertificate(t *testi
 		},
 		AIGatewayDataPlaneCertificatesAPI: &testAIGatewayDataPlaneCertificateAPI{
 			certs: []kkComps.AIGatewayDataPlaneClientCertificate{
-				testAIGatewayDataPlaneCertificate("cert-id", "support-data-plane-cert", "first-cert", "Support cert"),
+				testAIGatewayDataPlaneCertificate("Support cert"),
 			},
 		},
 	})
@@ -102,7 +122,7 @@ func TestAIGatewayDataPlaneCertificatePlannerSyncDeletesScopedCertificates(t *te
 		},
 		AIGatewayDataPlaneCertificatesAPI: &testAIGatewayDataPlaneCertificateAPI{
 			certs: []kkComps.AIGatewayDataPlaneClientCertificate{
-				testAIGatewayDataPlaneCertificate("cert-id", "support-data-plane-cert", "first-cert", "Support cert"),
+				testAIGatewayDataPlaneCertificate("Support cert"),
 			},
 		},
 	})
@@ -160,16 +180,11 @@ func testAIGatewayDataPlaneCertificateResource() resources.AIGatewayDataPlaneCer
 	}
 }
 
-func testAIGatewayDataPlaneCertificate(
-	id string,
-	title string,
-	cert string,
-	description string,
-) kkComps.AIGatewayDataPlaneClientCertificate {
+func testAIGatewayDataPlaneCertificate(description string) kkComps.AIGatewayDataPlaneClientCertificate {
 	return kkComps.AIGatewayDataPlaneClientCertificate{
-		ID:          id,
-		Title:       title,
-		Cert:        cert,
+		ID:          "cert-id",
+		Title:       "support-data-plane-cert",
+		Cert:        "first-cert",
 		Description: &description,
 	}
 }

@@ -203,7 +203,7 @@ func shouldReplaceAIGatewayDataPlaneCertificate(
 	if current.Cert != desired.Cert {
 		changedFields[FieldCert] = FieldChange{Old: current.Cert, New: desired.Cert}
 	}
-	if descriptionPlanValue(current.Description) != descriptionPlanValue(desired.Description) {
+	if getString(current.Description) != getString(desired.Description) {
 		changedFields[FieldDescription] = FieldChange{
 			Old: descriptionPlanValue(current.Description),
 			New: descriptionPlanValue(desired.Description),
