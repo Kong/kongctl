@@ -355,6 +355,11 @@ steps:
                 labels:
                   env: staging
                   team: payments
+                type: forward_to_virtual_cluster
+                config:
+                  type: sni
+                  advertised_port: 9092
+                  sni_suffix: ".example.com"
   - name: 005-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
