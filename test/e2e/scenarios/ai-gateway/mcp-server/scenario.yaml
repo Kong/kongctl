@@ -794,6 +794,10 @@ steps:
           - -o
           - json
         stdin: |
+          _defaults:
+            kongctl:
+              namespace: {{ .vars.namespace }}
+
           ai_gateway_mcp_servers:
             - ref: {{ .vars.lookup_listener_ref }}
               ai_gateway: !lookup {id: "{{ .vars.gateway_id }}"}
