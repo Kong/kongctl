@@ -125,6 +125,8 @@ ai_gateways:
             methods:
               - GET
               - POST
+          server:
+            label: team:support
         policies: []
       - ref: support-upstream
         type: upstream-server

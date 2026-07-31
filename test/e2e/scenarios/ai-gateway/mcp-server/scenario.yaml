@@ -30,6 +30,8 @@ vars:
   upstream_server_ref: "support-upstream"
   upstream_server_name: "support-upstream"
   upstream_server_display_name: "Support Upstream Server"
+  lookup_listener_ref: "lookup-listener"
+  lookup_listener_name: "lookup-listener"
 
 defaults:
   mask:
@@ -184,6 +186,8 @@ steps:
                 fields.name: "{{ .vars.server_name }}"
                 fields.type: conversion-only
                 fields.display_name: "{{ .vars.server_display_name }}"
+                fields.labels.team: support
+                fields.labels.phase: create
                 fields.config.url: https://support-tools.example.com
                 fields.config.route.paths[0]: /support-tools
                 fields.tools[0].annotations.title: "Lookup customer"
@@ -201,6 +205,8 @@ steps:
                 fields.name: "{{ .vars.passthrough_server_name }}"
                 fields.type: passthrough-listener
                 fields.display_name: "{{ .vars.passthrough_server_display_name }}"
+                fields.labels.team: support
+                fields.labels.phase: create
                 fields.config.url: https://mcp.context7.com/mcp
                 fields.config.route.paths[0]: /mcp
                 fields.config.route.methods[0]: GET
@@ -215,6 +221,8 @@ steps:
                 fields.name: "{{ .vars.conversion_listener_server_name }}"
                 fields.type: conversion-listener
                 fields.display_name: "{{ .vars.conversion_listener_server_display_name }}"
+                fields.labels.team: support
+                fields.labels.phase: create
                 fields.config.url: https://support-conversion-listener.example.com
                 fields.config.route.paths[0]: /support-conversion-listener
                 fields.access.acl_attribute_type: consumer
@@ -226,7 +234,10 @@ steps:
                 fields.name: "{{ .vars.listener_server_name }}"
                 fields.type: listener
                 fields.display_name: "{{ .vars.listener_server_display_name }}"
+                fields.labels.team: support
+                fields.labels.phase: create
                 fields.config.route.paths[0]: /support-listener
+                fields.config.server.label: team:support
                 fields.access.acl_attribute_type: oauth_access_token
                 fields.access.access_token_claim_field: sub
                 fields.access.default_tool_acls.allow[0]: support-subject
@@ -238,6 +249,8 @@ steps:
                 fields.name: "{{ .vars.upstream_server_name }}"
                 fields.type: upstream-server
                 fields.display_name: "{{ .vars.upstream_server_display_name }}"
+                fields.labels.team: support
+                fields.labels.phase: create
                 fields.config.url: https://support-upstream.example.com/mcp
                 fields.config.tools_cache_ttl_seconds: 60
                 fields.config.route.paths[0]: /support-upstream
@@ -337,6 +350,8 @@ steps:
                 display_name: "{{ .vars.server_display_name }}"
                 type: conversion-only
                 enabled: true
+                labels.team: support
+                labels.phase: create
                 config.url: https://support-tools.example.com
                 config.route.paths[0]: /support-tools
                 tools[0].name: lookup-customer
@@ -354,6 +369,8 @@ steps:
                 display_name: "{{ .vars.passthrough_server_display_name }}"
                 type: passthrough-listener
                 enabled: true
+                labels.team: support
+                labels.phase: create
                 config.url: https://mcp.context7.com/mcp
                 config.route.paths[0]: /mcp
                 config.route.methods[0]: GET
@@ -368,6 +385,8 @@ steps:
                 display_name: "{{ .vars.conversion_listener_server_display_name }}"
                 type: conversion-listener
                 enabled: true
+                labels.team: support
+                labels.phase: create
                 config.url: https://support-conversion-listener.example.com
                 config.route.paths[0]: /support-conversion-listener
                 access:
@@ -379,7 +398,10 @@ steps:
                 display_name: "{{ .vars.listener_server_display_name }}"
                 type: listener
                 enabled: true
+                labels.team: support
+                labels.phase: create
                 config.route.paths[0]: /support-listener
+                config.server.label: team:support
                 access:
                   acl_attribute_type: oauth_access_token
                   access_token_claim_field: sub
@@ -393,6 +415,8 @@ steps:
                 display_name: "{{ .vars.upstream_server_display_name }}"
                 type: upstream-server
                 enabled: true
+                labels.team: support
+                labels.phase: create
                 config.url: https://support-upstream.example.com/mcp
                 config.tools_cache_ttl_seconds: 60
                 config.route.paths[0]: /support-upstream
@@ -413,6 +437,7 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.server_name }}"
+
       - name: 007-get-passthrough-mcp-server-by-name
         run:
           - get
@@ -468,7 +493,10 @@ steps:
               fields:
                 name: "{{ .vars.listener_server_name }}"
                 type: listener
+                labels.team: support
+                labels.phase: create
                 config.route.paths[0]: /support-listener
+                config.server.label: team:support
                 access:
                   acl_attribute_type: oauth_access_token
                   access_token_claim_field: sub
@@ -509,7 +537,6 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.server_name }}"
-
   - name: 004-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update
@@ -527,8 +554,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 1
-                by_action.UPDATE: 1
+                total_changes: 2
+                by_action.UPDATE: 2
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.server_ref }}'] | [0]
             expect:
@@ -538,6 +565,14 @@ steps:
                 fields.enabled: false
                 fields.labels.phase: update
                 fields.tools[0].query.key: __ENV__:KONGCTL_E2E_WEATHERAPI_API_KEY
+          - select: >-
+              changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.listener_server_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.labels.phase: update
+                "contains(keys(fields.labels), 'team')": false
+                fields.config.server.label: phase:update
       - name: 001-apply-update
         outputFormat: json
         run:
@@ -549,7 +584,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
       - name: 002-verify-update
         run:
@@ -573,7 +608,24 @@ steps:
                 tools[0].annotations.title: "Lookup customer"
                 tools[0].parameters[0].name: customer_id
                 tools[0].query.key: fake-weather-api-key
-      - name: 003-diff-no-changes
+      - name: 003-verify-listener-label-update
+        run:
+          - get
+          - ai-gateway
+          - mcp-servers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.listener_server_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                labels.phase: update
+                "contains(keys(labels), 'team')": false
+                config.server.label: phase:update
+      - name: 004-diff-no-changes
         outputFormat: text
         parseAs: raw
         run:
@@ -637,6 +689,9 @@ steps:
                 name: "{{ .vars.listener_server_name }}"
                 display_name: "{{ .vars.listener_server_display_name }}"
                 type: listener
+                labels.phase: update
+                "contains(keys(labels), 'team')": false
+                config.server.label: phase:update
                 access:
                   acl_attribute_type: oauth_access_token
                   access_token_claim_field: sub
@@ -713,7 +768,85 @@ steps:
               fields:
                 "@": true
 
-  - name: 006-sync-delete-mcp-server
+  - name: 006-apply-root-listener-by-id-lookup
+    skipInputs: true
+    commands:
+      - name: 000-get-ai-gateway-id
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        recordVar:
+          name: gateway_id
+          responsePath: "[?name=='{{ .vars.gateway_ref }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.gateway_ref }}'] | [0].id != null"
+            expect:
+              fields:
+                "@": true
+      - name: 001-apply-root-listener-by-id-lookup
+        run:
+          - apply
+          - -f
+          - "-"
+          - --auto-approve
+          - -o
+          - json
+        stdin: |
+          _defaults:
+            kongctl:
+              namespace: {{ .vars.namespace }}
+
+          ai_gateway_mcp_servers:
+            - ref: {{ .vars.lookup_listener_ref }}
+              ai_gateway: !lookup {id: "{{ .vars.gateway_id }}"}
+              type: listener
+              name: {{ .vars.lookup_listener_name }}
+              display_name: "Lookup Listener"
+              config:
+                route:
+                  paths:
+                    - /lookup-listener
+                server:
+                  label: team:support
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.lookup_listener_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.type: listener
+                fields.config.server.label: team:support
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-verify-root-listener-by-id-lookup
+        run:
+          - get
+          - ai-gateway
+          - mcp-server
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.lookup_listener_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: listener
+                config.server.label: team:support
+
+  - name: 007-sync-delete-mcp-server
     inputOverlayDirs:
       - overlays/002-sync-delete-mcp
     commands:
@@ -728,8 +861,8 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 5
-                by_action.DELETE: 5
+                total_changes: 6
+                by_action.DELETE: 6
           - select: >-
               plan.changes[?resource_type=='ai_gateway_mcp_server' && action=='DELETE' && resource_ref=='{{ .vars.server_name }}'] | [0]
             expect:
@@ -755,10 +888,15 @@ steps:
             expect:
               fields:
                 resource_ref: "{{ .vars.upstream_server_name }}"
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_mcp_server' && action=='DELETE' && resource_ref=='{{ .vars.lookup_listener_name }}'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.lookup_listener_name }}"
           - select: summary
             expect:
               fields:
-                applied: 5
+                applied: 6
                 failed: 0
                 status: success
       - name: 001-list-mcp-servers-empty
@@ -776,7 +914,7 @@ steps:
               fields:
                 "@": 0
 
-  - name: 007-sync-delete-policy
+  - name: 008-sync-delete-policy
     inputOverlayDirs:
       - overlays/003-sync-delete-policy
     commands:
@@ -819,7 +957,7 @@ steps:
               fields:
                 "@": 0
 
-  - name: 008-sync-delete-gateway
+  - name: 009-sync-delete-gateway
     inputOverlayDirs:
       - overlays/004-sync-delete-gateway
     commands:

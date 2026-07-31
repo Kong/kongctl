@@ -109,8 +109,7 @@ ai_gateways:
         display_name: "Support Listener"
         enabled: true
         labels:
-          team: support
-          phase: create
+          phase: update
         tools: []
         access:
           acl_attribute_type: oauth_access_token
@@ -125,6 +124,8 @@ ai_gateways:
             methods:
               - GET
               - POST
+          server:
+            label: phase:update
         policies: []
       - ref: support-upstream
         type: upstream-server
