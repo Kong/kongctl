@@ -366,12 +366,12 @@ func TestBuildKonnectConfig_RuntimeFlags(t *testing.T) {
 			return ""
 		}
 		commonFlags := &CommonFlags{}
-		flags := &konnectFlags{Runtime: "vm"}
+		flags := &konnectFlags{Runtime: runtimeVM}
 
 		cfg, err := buildKonnectConfig(mock, commonFlags, flags)
 		require.NoError(t, err)
 
-		assert.Equal(t, "vm", cfg.Runtime,
+		assert.Equal(t, runtimeVM, cfg.Runtime,
 			"flag should override config for runtime")
 	})
 

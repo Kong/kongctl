@@ -33,6 +33,7 @@ const (
 const (
 	runtimeKubernetes = "kubernetes"
 	runtimeDocker     = "docker"
+	runtimeVM         = "vm"
 )
 
 // CommonFlags holds flags shared between konnect and on-prem targets.

@@ -178,7 +178,7 @@ func TestBuildOnPremConfig_AllFlags(t *testing.T) {
 		DumpWorkspaces: true,
 	}
 	flags := &onPremFlags{
-		Runtime:      "vm",
+		Runtime:      runtimeVM,
 		KongAddr:     "http://my-kong:8001",
 		RBACHeaders:  []string{"Kong-Admin-Token:token123"},
 		PrefixDir:    "/opt/kong",
@@ -189,7 +189,7 @@ func TestBuildOnPremConfig_AllFlags(t *testing.T) {
 	cfg := buildOnPremConfig(mock, commonFlags, flags)
 
 	// On-prem specific fields
-	assert.Equal(t, "vm", cfg.Runtime)
+	assert.Equal(t, runtimeVM, cfg.Runtime)
 	assert.Equal(t, "http://my-kong:8001", cfg.KongAddr)
 	assert.Equal(t, []string{"Kong-Admin-Token:token123"}, cfg.RBACHeaders)
 	assert.Equal(t, "/opt/kong", cfg.PrefixDir)
