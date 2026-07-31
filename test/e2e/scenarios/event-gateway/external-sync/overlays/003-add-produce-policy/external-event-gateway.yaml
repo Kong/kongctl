@@ -1,0 +1,28 @@
+event_gateways:
+  - ref: external-sync-event-gateway
+    _external:
+      selector:
+        matchFields:
+          name: "external-sync-event-gateway"
+    virtual_clusters:
+      - ref: external-sync-virtual-cluster
+        _external:
+          selector:
+            matchFields:
+              name: "external-sync-virtual-cluster"
+        produce_policies:
+          - ref: external-sync-produce-policy
+            name: external-sync-produce-policy
+            description: "External sync produce policy"
+            type: modify_headers
+            enabled: true
+            labels:
+              env: staging
+              team: payments
+            config:
+              actions:
+                - op: set
+                  key: x-producer-id
+                  value: "${client_id}"
+                - op: remove
+                  key: x-original-header
