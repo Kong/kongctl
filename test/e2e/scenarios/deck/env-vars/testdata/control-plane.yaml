@@ -4,3 +4,8 @@ control_planes:
     description: "E2E control plane for deck environment variables"
     cluster_type: "CLUSTER_TYPE_SERVERLESS"
     cloud_gateway: false
+    _deck:
+      files:
+        - "gateway-service-with-env.yaml"
+      flags:
+        - "--analytics=false"
