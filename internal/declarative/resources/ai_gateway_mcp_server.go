@@ -550,7 +550,6 @@ func aiGatewayMCPServerConfigExplainNode() *ExplainNode {
 		explainField("route", aiGatewayRouteExplainNode(), false, false),
 		explainField("logging", explainObject(
 			explainField("payloads", explainBoolNode("false"), false, false),
-			explainField("statistics", explainBoolNode("true"), false, false),
 			explainField("audits", explainBoolNode("false"), false, false),
 		), false, false),
 		explainField("max_request_body_size", &ExplainNode{Kind: explainKindInteger, Literal: "8388608"}, false, false),
