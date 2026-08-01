@@ -107,3 +107,13 @@ func TestRenderAutoWidthFallsBackForNonTerminalOutput(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "NAME\npayments\n", out.String())
 }
+
+func TestCalculateWidthsConfiguredMinimumCannotLowerLegacyFloor(t *testing.T) {
+	widths := calculateWidths(
+		[]string{"NAME", "DESCRIPTION"},
+		[][]string{{"payments", "Payment service"}},
+		1,
+		[]int{1, 1},
+	)
+	require.Equal(t, []int{3, 3}, widths)
+}

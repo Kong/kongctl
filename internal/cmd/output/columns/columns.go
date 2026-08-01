@@ -498,7 +498,7 @@ func calculateWidths(headers []string, rows [][]string, available int, configure
 		if i >= len(configuredMinimums) || configuredMinimums[i] <= 0 {
 			continue
 		}
-		minimums[i] = min(MaxColumnWidth, configuredMinimums[i])
+		minimums[i] = max(minimums[i], min(MaxColumnWidth, configuredMinimums[i]))
 		widths[i] = max(widths[i], minimums[i])
 	}
 	for tableWidth(widths) > available {
