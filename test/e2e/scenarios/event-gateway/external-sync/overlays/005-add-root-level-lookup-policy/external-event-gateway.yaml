@@ -2,8 +2,8 @@ event_gateway_virtual_cluster_cluster_policies:
   - ref: "{{ .vars.lookup_cluster_policy_ref }}"
     name: "{{ .vars.lookup_cluster_policy_name }}"
     description: "{{ .vars.lookup_cluster_policy_description }}"
-    event_gateway: !lookup {name: external-sync-event-gateway}
-    virtual_cluster: !lookup {name: external-sync-virtual-cluster}
+    event_gateway: !lookup {name: "{{ .vars.egw_name }}"}
+    virtual_cluster: !lookup {name: "{{ .vars.virtual_cluster_name }}"}
     type: acls
     enabled: true
     config:
