@@ -395,9 +395,7 @@ func findDataPlaneCertByName(
 
 func dataPlaneCertToRecord(cert kkComps.EventGatewayDataPlaneCertificate) dataPlaneCertSummaryRecord {
 	id := cert.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 

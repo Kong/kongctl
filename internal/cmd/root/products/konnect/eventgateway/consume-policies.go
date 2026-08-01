@@ -487,9 +487,7 @@ func findConsumePolicyByName(
 
 func consumePolicyToRecord(policy kkComps.EventGatewayPolicy) consumePolicySummaryRecord {
 	recordID := policy.ID
-	if recordID != "" {
-		recordID = util.AbbreviateUUID(recordID)
-	} else {
+	if recordID == "" {
 		recordID = valueNA
 	}
 
@@ -521,9 +519,7 @@ func consumePolicyToRecord(policy kkComps.EventGatewayPolicy) consumePolicySumma
 
 func consumePolicyWithConfigToRecord(policy consumePolicyWithConfig) consumePolicySummaryRecord {
 	id := policy.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 

@@ -32,6 +32,13 @@ type Column struct {
 	steps  []pathStep
 }
 
+// RenderOptions configures static table width allocation.
+type RenderOptions struct {
+	// MinimumWidths prevents selected columns from shrinking below the
+	// corresponding display width. Missing entries use the legacy minimum.
+	MinimumWidths []int
+}
+
 type pathStep struct {
 	key   *string
 	index *int
@@ -412,7 +419,16 @@ func singleLine(value string) string {
 // RenderAutoWidth detects the output terminal width and falls back to 120
 // columns when the output does not expose a terminal file descriptor.
 func RenderAutoWidth(out io.Writer, headers []string, rows [][]string) error {
-	return Render(out, headers, rows, terminalWidth(out))
+	return RenderAutoWidthWithOptions(out, headers, rows, RenderOptions{})
+}
+
+func RenderAutoWidthWithOptions(
+	out io.Writer,
+	headers []string,
+	rows [][]string,
+	options RenderOptions,
+) error {
+	return RenderWithOptions(out, headers, rows, terminalWidth(out), options)
 }
 
 func terminalWidth(out io.Writer) int {
@@ -435,6 +451,16 @@ func terminalWidth(out io.Writer) int {
 
 // Render writes a plain, aligned table with display-width-aware truncation.
 func Render(out io.Writer, headers []string, rows [][]string, availableWidth int) error {
+	return RenderWithOptions(out, headers, rows, availableWidth, RenderOptions{})
+}
+
+func RenderWithOptions(
+	out io.Writer,
+	headers []string,
+	rows [][]string,
+	availableWidth int,
+	options RenderOptions,
+) error {
 	if out == nil {
 		return errors.New("column output stream is unavailable")
 	}
@@ -444,7 +470,7 @@ func Render(out io.Writer, headers []string, rows [][]string, availableWidth int
 	if availableWidth <= 0 {
 		availableWidth = 120
 	}
-	widths := calculateWidths(headers, rows, availableWidth)
+	widths := calculateWidths(headers, rows, availableWidth, options.MinimumWidths)
 	if err := writeRow(out, headers, widths); err != nil {
 		return err
 	}
@@ -456,7 +482,7 @@ func Render(out io.Writer, headers []string, rows [][]string, availableWidth int
 	return nil
 }
 
-func calculateWidths(headers []string, rows [][]string, available int) []int {
+func calculateWidths(headers []string, rows [][]string, available int, configuredMinimums []int) []int {
 	widths := make([]int, len(headers))
 	minimums := make([]int, len(headers))
 	for i, header := range headers {
@@ -467,6 +493,13 @@ func calculateWidths(headers []string, rows [][]string, available int) []int {
 		for i := 0; i < len(headers) && i < len(row); i++ {
 			widths[i] = min(MaxColumnWidth, max(widths[i], runewidth.StringWidth(singleLine(row[i]))))
 		}
+	}
+	for i := range minimums {
+		if i >= len(configuredMinimums) || configuredMinimums[i] <= 0 {
+			continue
+		}
+		minimums[i] = min(MaxColumnWidth, configuredMinimums[i])
+		widths[i] = max(widths[i], minimums[i])
 	}
 	for tableWidth(widths) > available {
 		widest := -1

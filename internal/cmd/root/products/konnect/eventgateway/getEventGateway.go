@@ -68,7 +68,7 @@ func eventGatewayControlPlaneToDisplayRecord(e *kkComps.EventGatewayInfo) textDi
 
 	var id, name string
 	if e.ID != "" {
-		id = util.AbbreviateUUID(e.ID)
+		id = e.ID
 	} else {
 		id = missing
 	}

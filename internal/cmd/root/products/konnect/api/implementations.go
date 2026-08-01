@@ -16,7 +16,6 @@ import (
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -292,15 +291,15 @@ func implementationToRecord(implementation kkComps.APIImplementationListItem) ap
 	controlPlaneID := "n/a"
 	if svc := entity.GetService(); svc != nil {
 		if id := svc.GetID(); id != "" {
-			serviceID = util.AbbreviateUUID(id)
+			serviceID = id
 		}
 		if cp := svc.GetControlPlaneID(); cp != "" {
-			controlPlaneID = util.AbbreviateUUID(cp)
+			controlPlaneID = cp
 		}
 	}
 
 	return apiImplementationRecord{
-		ImplementationID: util.AbbreviateUUID(entity.GetID()),
+		ImplementationID: entity.GetID(),
 		ServiceID:        serviceID,
 		ControlPlaneID:   controlPlaneID,
 		LocalCreatedTime: entity.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),

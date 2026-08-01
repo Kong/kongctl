@@ -362,7 +362,7 @@ func portalApplicationSummaryToRecord(app kkComps.Application) portalApplication
 		}
 		strategy := key.GetAuthStrategy()
 		return portalApplicationSummaryRecord{
-			ID:                util.AbbreviateUUID(key.GetID()),
+			ID:                key.GetID(),
 			Name:              key.GetName(),
 			Type:              "key-auth",
 			AuthStrategy:      stringPtrOrNA(strategy.GetName()),
@@ -386,7 +386,7 @@ func portalApplicationSummaryToRecord(app kkComps.Application) portalApplication
 		}
 		strategy := client.GetAuthStrategy()
 		return portalApplicationSummaryRecord{
-			ID:                util.AbbreviateUUID(client.GetID()),
+			ID:                client.GetID(),
 			Name:              client.GetName(),
 			Type:              "client-credentials",
 			AuthStrategy:      stringPtrOrNA(strategy.GetName()),
@@ -413,7 +413,7 @@ func portalApplicationDetailToRecord(app *kkComps.GetApplicationResponse) portal
 		key := app.KeyAuthApplication
 		strategy := key.GetAuthStrategy()
 		return portalApplicationDetailRecord{
-			ID:                util.AbbreviateUUID(key.GetID()),
+			ID:                key.GetID(),
 			Name:              key.GetName(),
 			Type:              "key-auth",
 			AuthStrategy:      stringPtrOrNA(strategy.GetName()),
@@ -430,7 +430,7 @@ func portalApplicationDetailToRecord(app *kkComps.GetApplicationResponse) portal
 		client := app.ClientCredentialsApplication
 		strategy := client.GetAuthStrategy()
 		return portalApplicationDetailRecord{
-			ID:                util.AbbreviateUUID(client.GetID()),
+			ID:                client.GetID(),
 			Name:              client.GetName(),
 			Type:              "client-credentials",
 			AuthStrategy:      stringPtrOrNA(strategy.GetName()),

@@ -61,7 +61,7 @@ func portalToDisplayRecord(p *kkComps.ListPortalsResponsePortal) textDisplayReco
 
 	var id, name string
 	if p.GetID() != "" {
-		id = util.AbbreviateUUID(p.GetID())
+		id = p.GetID()
 	} else {
 		id = missing
 	}
@@ -98,7 +98,7 @@ func portalResponseToDisplayRecord(p *kkComps.PortalResponse) textDisplayRecord 
 
 	var id, name string
 	if p.ID != "" {
-		id = util.AbbreviateUUID(p.ID)
+		id = p.ID
 	} else {
 		id = missing
 	}

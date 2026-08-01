@@ -449,9 +449,7 @@ func findVirtualClusterByName(clusters []kkComps.VirtualCluster, identifier stri
 
 func virtualClusterToRecord(cluster kkComps.VirtualCluster) virtualClusterSummaryRecord {
 	id := cluster.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 

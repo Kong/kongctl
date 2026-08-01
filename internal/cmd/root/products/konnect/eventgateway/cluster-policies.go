@@ -482,9 +482,7 @@ func makeClusterPolicySummaryRecord(
 	createdAt, updatedAt time.Time,
 ) clusterPolicySummaryRecord {
 	recordID := id
-	if recordID != "" {
-		recordID = util.AbbreviateUUID(recordID)
-	} else {
+	if recordID == "" {
 		recordID = valueNA
 	}
 

@@ -15,6 +15,7 @@ import (
 	"github.com/kong/kongctl/internal/build"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+	textoutput "github.com/kong/kongctl/internal/cmd/output/text"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/api"
@@ -226,6 +227,15 @@ func newRootCmd() *cobra.Command {
 			if err := validateOutputFormat(cmd); err != nil {
 				return &cmdpkg.ConfigurationError{Err: err}
 			}
+			configuredOutput := common.DefaultOutputFormat
+			if currConfig != nil {
+				if value := strings.TrimSpace(currConfig.GetString(common.OutputConfigPath)); value != "" {
+					configuredOutput = value
+				}
+			}
+			if _, err := textoutput.Resolve(cmd, currConfig, configuredOutput); err != nil {
+				return &cmdpkg.ConfigurationError{Err: err}
+			}
 			ctx := context.WithValue(cmd.Context(), config.ConfigKey, currConfig)
 			ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
@@ -276,6 +286,7 @@ func newRootCmd() *cobra.Command {
 	// in the pFlag library
 	rootCmd.PersistentFlags().VarP(outputFormat, common.OutputFlagName, common.OutputFlagShort,
 		outputFlagUsage(outputFormat.Allowed))
+	textoutput.AddFlags(rootCmd.PersistentFlags())
 
 	rootCmd.PersistentFlags().Var(logLevel, common.LogLevelFlagName,
 		fmt.Sprintf(`Configures the logging level. Execution logs are written to STDERR.
@@ -605,6 +616,7 @@ func init() {
 func bindFlags(config config.Hook) {
 	f := rootCmd.Flags().Lookup(common.OutputFlagName)
 	util.CheckError(config.BindFlag(common.OutputConfigPath, f))
+	util.CheckError(textoutput.BindFlags(config, rootCmd.PersistentFlags()))
 
 	f = rootCmd.Flags().Lookup(common.LogLevelFlagName)
 	util.CheckError(config.BindFlag(common.LogLevelConfigPath, f))

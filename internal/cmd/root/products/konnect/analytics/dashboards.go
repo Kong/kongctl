@@ -18,7 +18,6 @@ import (
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -71,7 +70,7 @@ func dashboardToDisplayRecord(dashboard kkComps.DashboardResponse) dashboardDisp
 	}
 
 	if dashboard.ID != nil && strings.TrimSpace(*dashboard.ID) != "" {
-		record.ID = util.AbbreviateUUID(*dashboard.ID)
+		record.ID = *dashboard.ID
 	}
 	if strings.TrimSpace(dashboard.Name) != "" {
 		record.Name = dashboard.Name

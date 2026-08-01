@@ -382,7 +382,7 @@ func aiGatewayVaultToRecord(vault kkComps.AIGatewayVault) aiGatewayVaultRecord {
 		LocalUpdatedTime: aiGatewayMissingValue,
 	}
 	if id := declresources.AIGatewayVaultID(vault); id != "" {
-		record.ID = util.AbbreviateUUID(id)
+		record.ID = id
 	}
 	if updatedAt := declresources.AIGatewayVaultUpdatedAt(vault); !updatedAt.IsZero() {
 		record.LocalUpdatedTime = updatedAt.In(time.Local).Format("2006-01-02 15:04:05")

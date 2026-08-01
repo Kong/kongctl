@@ -293,7 +293,7 @@ func buildUserChildView(users []kkComps.User) tableview.ChildView {
 	rows := make([]table.Row, 0, len(users))
 	for i := range users {
 		record := userToDisplayRecord(&users[i])
-		rows = append(rows, table.Row{util.AbbreviateUUID(record.ID), record.Email, record.FullName})
+		rows = append(rows, table.Row{record.ID, record.Email, record.FullName})
 	}
 
 	return tableview.ChildView{

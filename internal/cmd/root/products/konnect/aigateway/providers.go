@@ -403,7 +403,7 @@ func aiGatewayProviderToDisplayRecord(provider kkComps.AIGatewayModelProvider) a
 
 	id := aiGatewayProviderStringFieldFromRaw(raw, aiGatewayFieldID)
 	if id != "" {
-		id = util.AbbreviateUUID(id)
+		id = strings.TrimSpace(id)
 	} else {
 		id = aiGatewayMissingValue
 	}

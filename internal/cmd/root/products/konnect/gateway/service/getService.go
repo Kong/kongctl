@@ -57,7 +57,7 @@ func serviceToDisplayRecord(s *kkComps.ServiceOutput) textDisplayRecord {
 
 	id := missing
 	if s.ID != nil {
-		id = util.AbbreviateUUID(*s.ID)
+		id = *s.ID
 	}
 
 	enabled := missing

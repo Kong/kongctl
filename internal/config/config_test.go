@@ -85,3 +85,18 @@ func TestBuildProfiledConfig_ProfileHTTPTransportEnv(t *testing.T) {
 		t.Fatalf("expected http-recycle-connections-on-error to be %q, got %q", "1", got)
 	}
 }
+
+func TestBuildProfiledConfig_ProfileTextOutputEnv(t *testing.T) {
+	t.Setenv("KONGCTL_DEFAULT_TEXT_LAYOUT", "auto")
+	t.Setenv("KONGCTL_DEFAULT_TEXT_ID_FORMAT", "full")
+
+	mainv := utilviper.NewViper("nonexistent.yaml")
+	cfg := BuildProfiledConfig("default", "nonexistent.yaml", mainv)
+
+	if got := cfg.GetString("text.layout"); got != "auto" {
+		t.Fatalf("expected text.layout to be %q, got %q", "auto", got)
+	}
+	if got := cfg.GetString("text.id-format"); got != "full" {
+		t.Fatalf("expected text.id-format to be %q, got %q", "full", got)
+	}
+}

@@ -388,9 +388,7 @@ func findTLSTrustBundleByName(
 
 func tlsTrustBundleToRecord(tb kkComps.TLSTrustBundle) tlsTrustBundleSummaryRecord {
 	id := tb.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 

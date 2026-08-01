@@ -375,9 +375,7 @@ func findListenerByName(listeners []kkComps.EventGatewayListener, name string) *
 
 func listenerToRecord(listener kkComps.EventGatewayListener) listenerSummaryRecord {
 	id := listener.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 

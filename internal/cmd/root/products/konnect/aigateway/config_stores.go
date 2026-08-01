@@ -16,7 +16,6 @@ import (
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/kong/kongctl/internal/util/pagination"
@@ -307,7 +306,7 @@ func fetchAIGatewayConfigStores(
 
 func aiGatewayConfigStoreToRecord(store kkComps.AIGatewayConfigStore) aiGatewayConfigStoreRecord {
 	record := aiGatewayConfigStoreRecord{
-		ID:               util.AbbreviateUUID(store.ID),
+		ID:               store.ID,
 		Name:             valueOrMissing(store.Name),
 		DisplayName:      aiGatewayMissingValue,
 		LocalUpdatedTime: aiGatewayMissingValue,

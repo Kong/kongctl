@@ -531,9 +531,7 @@ func makeListenerPolicySummaryRecord(
 	createdAt, updatedAt time.Time,
 ) listenerPolicySummaryRecord {
 	recordID := id
-	if recordID != "" {
-		recordID = util.AbbreviateUUID(recordID)
-	} else {
+	if recordID == "" {
 		recordID = valueNA
 	}
 

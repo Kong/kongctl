@@ -239,7 +239,7 @@ func renderConsumers(
 	for i := range consumers {
 		record := consumerToDisplayRecord(&consumers[i])
 		records = append(records, record)
-		rows = append(rows, table.Row{util.AbbreviateUUID(record.ID), record.Username})
+		rows = append(rows, table.Row{record.ID, record.Username})
 	}
 
 	detailFn := func(index int) string {
@@ -302,7 +302,7 @@ func consumerToDisplayRecord(consumer *kkComps.Consumer) consumerDisplayRecord {
 	tags := consumer.GetTags()
 
 	return consumerDisplayRecord{
-		ID:               util.AbbreviateUUID(id),
+		ID:               id,
 		Username:         username,
 		CustomID:         customID,
 		TagCount:         len(tags),

@@ -518,7 +518,7 @@ func portalApplicationRegistrationSummaryToRecord(
 	}
 
 	return portalApplicationRegistrationSummaryRecord{
-		ID:               util.AbbreviateUUID(reg.GetID()),
+		ID:               reg.GetID(),
 		Status:           string(reg.GetStatus()),
 		Application:      application,
 		API:              apiLabel,
@@ -543,7 +543,7 @@ func portalApplicationRegistrationDetailRecordFromResponse(
 	}
 
 	return portalApplicationRegistrationDetailRecord{
-		ID:               util.AbbreviateUUID(res.GetID()),
+		ID:               res.GetID(),
 		Status:           string(res.GetStatus()),
 		Application:      app.GetName(),
 		ApplicationID:    app.GetID(),

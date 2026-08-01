@@ -75,7 +75,7 @@ func systemAccountToDisplayRecord(s *kkComps.SystemAccount) textDisplayRecord {
 	}
 
 	if id := s.GetID(); id != nil && *id != "" {
-		record.ID = util.AbbreviateUUID(*id)
+		record.ID = *id
 	}
 
 	if name := s.GetName(); name != nil && *name != "" {

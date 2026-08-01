@@ -570,11 +570,11 @@ func portalPageDetailView(record portalPageDetailRecord) string {
 func portalPageSummaryToRecord(page kkComps.PortalPageInfo) portalPageSummaryRecord {
 	parentID := valueNA
 	if parent := page.GetParentPageID(); parent != nil && *parent != "" {
-		parentID = util.AbbreviateUUID(*parent)
+		parentID = *parent
 	}
 
 	return portalPageSummaryRecord{
-		ID:               util.AbbreviateUUID(page.GetID()),
+		ID:               page.GetID(),
 		Title:            page.GetTitle(),
 		Slug:             normalizePortalPageSlugValue(page.GetSlug()),
 		Visibility:       string(page.GetVisibility()),
@@ -589,11 +589,11 @@ func portalPageSummaryToRecord(page kkComps.PortalPageInfo) portalPageSummaryRec
 func portalPageDetailToRecord(page *kkComps.PortalPageResponse) portalPageDetailRecord {
 	parentID := valueNA
 	if parent := page.GetParentPageID(); parent != nil && *parent != "" {
-		parentID = util.AbbreviateUUID(*parent)
+		parentID = *parent
 	}
 
 	record := portalPageDetailRecord{
-		ID:               util.AbbreviateUUID(page.GetID()),
+		ID:               page.GetID(),
 		Title:            page.GetTitle(),
 		Slug:             normalizePortalPageSlugValue(page.GetSlug()),
 		Visibility:       string(page.GetVisibility()),

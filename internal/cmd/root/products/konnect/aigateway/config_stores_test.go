@@ -20,7 +20,7 @@ func TestAIGatewayConfigStorePresentation(t *testing.T) {
 	}
 
 	record := aiGatewayConfigStoreToRecord(store)
-	require.Equal(t, "1111…", record.ID)
+	require.Equal(t, store.ID, record.ID)
 	require.Equal(t, "support-store", record.Name)
 	require.Equal(t, displayName, record.DisplayName)
 	require.Contains(t, aiGatewayConfigStoreDetailView(store), "display_name: Support-Store")

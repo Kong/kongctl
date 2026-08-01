@@ -387,7 +387,7 @@ func aiGatewayModelToRecord(model kkComps.AIGatewayModel) aiGatewayModelRecord {
 		LocalUpdatedTime: aiGatewayMissingValue,
 	}
 	if id := declresources.AIGatewayModelID(model); id != "" {
-		record.ID = util.AbbreviateUUID(id)
+		record.ID = id
 	}
 	if enabled := declresources.AIGatewayModelEnabled(model); enabled != nil {
 		record.Enabled = fmt.Sprintf("%t", *enabled)

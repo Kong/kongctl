@@ -29,7 +29,6 @@ import (
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -95,14 +94,14 @@ func TestTextDisplayConversion(t *testing.T) {
 			},
 		},
 		{
-			name: "uuid truncated",
+			name: "uuid retained for formatter",
 			input: kkComps.ControlPlane{
 				ID:        uuidValue,
 				CreatedAt: timeValue,
 				UpdatedAt: timeValue,
 			},
 			expected: textDisplayRecord{
-				ID:                   util.AbbreviateUUID(uuidValue),
+				ID:                   uuidValue,
 				Name:                 "n/a",
 				ClusterType:          "n/a",
 				Description:          "n/a",

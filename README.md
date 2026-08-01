@@ -265,6 +265,54 @@ Text cells are limited to 40 display characters and shrink further to fit the
 terminal. JSON and YAML output remain complete and are not affected by text
 column selection.
 
+### Text table layout and IDs
+
+Static text tables use a compact layout and abbreviated UUIDs by default. Both
+behaviors can be configured for each profile:
+
+```yaml
+default:
+  text:
+    layout: auto
+    id-format: full
+```
+
+`text.layout` accepts the following values:
+
+- `compact` keeps the default curated columns.
+- `auto` starts with the compact columns and adds safe display columns when
+  stdout is a TTY with enough room. Piped or redirected output remains compact.
+- `wide` includes all eligible display columns regardless of terminal width.
+
+Automatic and wide layouts keep the compact columns first. They do not add
+label maps, configuration fields, raw helper fields, log-file paths, or fields
+that may contain details, tokens, or secrets.
+
+`text.id-format` accepts `compact` or `full`. Full mode preserves complete UUIDs
+in semantic ID columns, such as `ID`, `OWNER UUID`, and `RESOURCE IDENTIFIER`.
+Other columns shrink first, so a table may exceed the terminal width rather
+than truncate a UUID.
+
+Override profile settings for one command with `--text-layout` and
+`--text-id-format`:
+
+```shell
+kongctl get apis --output text --text-layout wide --text-id-format full
+```
+
+The equivalent environment variables follow the normal profile convention:
+
+```shell
+KONGCTL_DEFAULT_TEXT_LAYOUT=auto \
+KONGCTL_DEFAULT_TEXT_ID_FORMAT=full \
+kongctl get apis
+```
+
+Explicit `--columns` definitions take precedence over both text settings, then
+command-line text flags take precedence over profile or environment values.
+JSON and YAML ignore profile text settings. Explicit text-formatting flags
+cannot be combined with JSON or YAML output.
+
 ## Configuration and Profiles
 
 `kongctl` configuration data is read from `$XDG_CONFIG_HOME/kongctl` and falls back to 

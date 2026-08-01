@@ -151,7 +151,7 @@ func authStrategyToDisplayRecord(strategy kkComps.AppAuthStrategy) textDisplayRe
 
 	if info.rawParent != nil {
 		if info.id != "" {
-			record.ID = util.AbbreviateUUID(info.id)
+			record.ID = info.id
 		}
 		if strings.TrimSpace(info.name) != "" {
 			record.Name = info.name

@@ -244,7 +244,7 @@ func (h apiVersionsHandler) listVersions(
 	for _, summary := range summaries {
 		record := versionSummaryToRecord(summary)
 		displayRecords = append(displayRecords, record)
-		rows = append(rows, table.Row{summary.GetVersion(), util.AbbreviateUUID(record.ID)})
+		rows = append(rows, table.Row{summary.GetVersion(), record.ID})
 	}
 
 	detailFn := func(index int) string {
@@ -332,7 +332,7 @@ func (h apiVersionsHandler) getSingleVersion(
 	cache.Set(record.RawID, record)
 
 	rows := []table.Row{
-		{record.Version, util.AbbreviateUUID(record.ID)},
+		{record.Version, record.ID},
 	}
 
 	display := any(record)
@@ -442,7 +442,7 @@ func versionDetailToRecord(version *kkComps.APIVersionResponse) apiVersionDetail
 	}
 
 	return apiVersionDetailRecord{
-		ID:       util.AbbreviateUUID(version.GetID()),
+		ID:       version.GetID(),
 		RawID:    strings.TrimSpace(version.GetID()),
 		Version:  version.GetVersion(),
 		SpecType: specType,
