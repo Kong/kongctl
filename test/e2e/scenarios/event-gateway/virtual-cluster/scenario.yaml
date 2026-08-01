@@ -368,8 +368,8 @@ steps:
                 labels.team: gateway
   - name: 004b-root-level-update
     inputOverlayDirs:
-      - overlays/003-root-level-declaration
       - overlays/003b-root-level-update
+    commands:
       - name: 001-plan-update
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-root-level-update.json"
