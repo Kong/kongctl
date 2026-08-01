@@ -220,7 +220,7 @@ steps:
               fields:
                 "@": 0
 
-  - name: 003-sync-with-declarative-cluster-policy
+  - name: 006-sync-with-declarative-cluster-policy
     inputOverlayDirs:
       - overlays/002-add-cluster-policy
     commands:
@@ -272,7 +272,7 @@ steps:
                 name: "{{ .vars.cluster_policy_name }}"
                 description: "External sync cluster policy"
 
-  - name: 004-sync-idempotency
+  - name: 007-sync-idempotency
     inputOverlayDirs:
       - overlays/002-add-cluster-policy
     commands:
@@ -288,7 +288,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-sync-remove-declarative-cluster-policy
+  - name: 008-sync-remove-declarative-cluster-policy
     commands:
       - name: 000-sync-no-deletions
         run:
@@ -324,7 +324,7 @@ steps:
               fields:
                 name: "{{ .vars.cluster_policy_name }}"
 
-  - name: 006-sync-with-declarative-produce-policy
+  - name: 009-sync-with-declarative-produce-policy
     inputOverlayDirs:
       - overlays/003-add-produce-policy
     commands:
@@ -376,7 +376,7 @@ steps:
                 name: "{{ .vars.produce_policy_name }}"
                 description: "{{ .vars.produce_policy_description }}"
 
-  - name: 007-sync-with-declarative-consume-policy
+  - name: 010-sync-with-declarative-consume-policy
     inputOverlayDirs:
       - overlays/004-add-consume-policy
     commands:
@@ -428,7 +428,7 @@ steps:
                 name: "{{ .vars.consume_policy_name }}"
                 description: "{{ .vars.consume_policy_description }}"
 
-  - name: 008-idempotency-all-declarative-policies
+  - name: 011-idempotency-all-declarative-policies
     inputOverlayDirs:
       - overlays/002-add-cluster-policy
       - overlays/003-add-produce-policy
@@ -450,7 +450,7 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 009-cleanup-declarative-policies
+  - name: 012-cleanup-declarative-policies
     commands:
       - name: 000-sync-no-deletions
         run:
