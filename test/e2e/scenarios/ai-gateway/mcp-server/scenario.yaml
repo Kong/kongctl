@@ -116,6 +116,17 @@ steps:
                 query.type: object
                 request_body.type: object
                 responses.type: object
+          - select: >-
+              oneOf[?properties.type.const=='conversion-listener'] | [0].properties.config.properties.logging.properties
+            expect:
+              fields:
+                audits.type: boolean
+                payloads.type: boolean
+          - select: >-
+              contains(keys(oneOf[?properties.type.const=='conversion-listener'] | [0].properties.config.properties.logging.properties), 'statistics')
+            expect:
+              fields:
+                "@": false
       - name: 003-scaffold-ai-gateway-mcp-server
         run:
           - scaffold
@@ -224,6 +235,8 @@ steps:
                 fields.labels.team: support
                 fields.labels.phase: create
                 fields.config.url: https://support-conversion-listener.example.com
+                fields.config.logging.audits: false
+                fields.config.logging.payloads: false
                 fields.config.route.paths[0]: /support-conversion-listener
                 fields.access.acl_attribute_type: consumer
           - select: >-
@@ -388,6 +401,8 @@ steps:
                 labels.team: support
                 labels.phase: create
                 config.url: https://support-conversion-listener.example.com
+                config.logging.audits: false
+                config.logging.payloads: false
                 config.route.paths[0]: /support-conversion-listener
                 access:
                   acl_attribute_type: consumer
@@ -474,6 +489,8 @@ steps:
               fields:
                 name: "{{ .vars.conversion_listener_server_name }}"
                 type: conversion-listener
+                config.logging.audits: false
+                config.logging.payloads: false
                 config.route.paths[0]: /support-conversion-listener
                 access:
                   acl_attribute_type: consumer
@@ -680,6 +697,8 @@ steps:
                 name: "{{ .vars.conversion_listener_server_name }}"
                 display_name: "{{ .vars.conversion_listener_server_display_name }}"
                 type: conversion-listener
+                config.logging.audits: false
+                config.logging.payloads: false
                 access:
                   acl_attribute_type: consumer
           - select: >-

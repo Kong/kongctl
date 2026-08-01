@@ -96,6 +96,9 @@ ai_gateways:
           acl_attribute_type: consumer
         config:
           url: https://support-conversion-listener.example.com
+          logging:
+            audits: false
+            payloads: false
           route:
             paths:
               - /support-conversion-listener
