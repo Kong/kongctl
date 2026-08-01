@@ -434,8 +434,8 @@ func dashboardQueryExplainNode() *ExplainNode {
 	)
 }
 
-// dashboardPlatformQueryBranch describes the platform_usage query. Its metrics,
-// granularity, and limit differ from the other datasources, so it does not reuse
+// dashboardPlatformQueryBranch describes the platform_usage query. Its metrics
+// and granularity differ from the other datasources, so it does not reuse
 // dashboardQueryBranch.
 func dashboardPlatformQueryBranch() *ExplainNode {
 	return explainObject(
@@ -450,12 +450,7 @@ func dashboardPlatformQueryBranch() *ExplainNode {
 			false,
 		),
 		explainField("time_range", dashboardTimeRangeExplainNode(), false, false),
-		explainField(
-			"limit",
-			&ExplainNode{Kind: "integer", Nullable: true, Literal: "10"},
-			false,
-			false,
-		),
+		explainField("limit", dashboardQueryLimitExplainNode(), false, false),
 	)
 }
 
@@ -472,7 +467,12 @@ func dashboardQueryBranch(datasource string, metric string) *ExplainNode {
 			false,
 		),
 		explainField("time_range", dashboardTimeRangeExplainNode(), false, false),
+		explainField("limit", dashboardQueryLimitExplainNode(), false, false),
 	)
+}
+
+func dashboardQueryLimitExplainNode() *ExplainNode {
+	return &ExplainNode{Kind: "number", Nullable: true, Literal: "50"}
 }
 
 func dashboardChartExplainNode() *ExplainNode {
