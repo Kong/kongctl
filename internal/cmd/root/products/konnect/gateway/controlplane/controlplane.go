@@ -5,6 +5,7 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumer"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/dataplanecertificate"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/route"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/service"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -82,6 +83,7 @@ func addControlPlaneChildCommands(
 		func(*cobra.Command, []string) error,
 	) (*cobra.Command, error){
 		dataplanecertificate.NewDataPlaneCertificateCmd,
+		plugin.NewPluginCmd,
 		service.NewServiceCmd,
 		route.NewRouteCmd,
 		consumer.NewConsumerCmd,

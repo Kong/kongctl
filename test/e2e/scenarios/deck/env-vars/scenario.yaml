@@ -48,4 +48,39 @@ steps:
             expect:
               fields:
                 "length(@)": 1
+      - name: 001-get-gateway-plugins
+        run:
+          - get
+          - gw
+          - cp
+          - plugins
+          - --control-plane-name
+          - "e2e-deck-env-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='rate-limiting'] | [0]"
+            expect:
+              fields:
+                name: "rate-limiting"
+                "config.minute": 11
 
+  - name: 003-delete-cleanup
+    commands:
+      - name: 000-delete
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.DELETE: 1
