@@ -16,7 +16,7 @@ event_gateways:
           type: anonymous
         tls:
           enabled: true
-          skip_verify: false
+          insecure_skip_verify: false
           tls_versions:
             - tls12
             - tls13
