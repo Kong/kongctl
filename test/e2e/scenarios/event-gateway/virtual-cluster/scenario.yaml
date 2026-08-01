@@ -364,6 +364,90 @@ steps:
                 description: "Virtual Cluster for Test"
                 acl_mode: passthrough
                 dns_label: vc-default
+                labels.env: staging
+                labels.team: gateway
+  - name: 004b-root-level-update
+    inputOverlayDirs:
+      - overlays/003b-root-level-update
+    commands:
+      - name: 001-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.vcRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.vcRef }}"
+                fields.description: "Virtual Cluster for Test Updated"
+                fields.labels.env: production
+                fields.labels.team: gateway
+      - name: 002-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-level-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-update
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.vcRef }}"
+                description: "Virtual Cluster for Test Updated"
+                acl_mode: passthrough
+                dns_label: vc-default
+                labels.env: production
+                labels.team: gateway
+      - name: 004-idempotency-check
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level-update-idempotency.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 005-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration

@@ -1,0 +1,18 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-vc-comprehensive-test
+
+event_gateway_virtual_clusters:
+  - ref: default-virtual-cluster
+    name: default-virtual-cluster
+    event_gateway: egw-cp-for-bc-vc-test
+    description: "Virtual Cluster for Test Updated"
+    labels:
+      env: production
+      team: gateway
+    destination:
+      id: !ref default-backend-cluster#id
+    authentication:
+      - type: anonymous
+    acl_mode: passthrough
+    dns_label: vc-default
