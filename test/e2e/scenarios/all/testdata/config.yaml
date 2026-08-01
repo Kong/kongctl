@@ -433,7 +433,6 @@ event_gateways:
             type: forward_to_virtual_cluster
             description: Listener policy for all resources
             enabled: true
-            condition: "${ssl_sni} == \"all.example.com\""
             labels:
               suite: all
             config:

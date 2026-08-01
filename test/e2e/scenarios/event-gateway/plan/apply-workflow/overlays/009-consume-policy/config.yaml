@@ -82,7 +82,6 @@ event_gateways:
             type: forward_to_virtual_cluster
             description: "Plan Apply Listener 1 Policy 1"
             enabled: true
-            condition: "${ssl_sni} == \"example.com\""
             labels:
               env: staging
               team: payments

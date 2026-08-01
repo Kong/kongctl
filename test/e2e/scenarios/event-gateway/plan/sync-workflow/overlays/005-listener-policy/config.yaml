@@ -44,7 +44,6 @@ event_gateways:
           type: forward_to_virtual_cluster
           description: "Plan Sync Listener 1 Policy 1"
           enabled: true
-          condition: "${ssl_sni} == \"example.com\""
           labels:
             env: staging
             team: payments
@@ -53,4 +52,3 @@ event_gateways:
             destination:
               id: !ref plan-sync-virtual-cluster#id
             advertised_host: "example.com"
-    
