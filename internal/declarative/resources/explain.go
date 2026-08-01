@@ -44,6 +44,7 @@ type ExplainFieldHint struct {
 	PreferredTag string
 	RefKind      string
 	Notes        []string
+	LoadOpaque   bool
 }
 
 type ExplainBuildContext struct {
@@ -121,6 +122,8 @@ type ExplainNode struct {
 	Items        *ExplainNode
 	Additional   *ExplainNode
 	OneOf        []*ExplainNode
+	truncated    bool
+	loadOpaque   bool
 }
 
 type ExplainField struct {
@@ -133,6 +136,8 @@ type ExplainField struct {
 type JSONSchema struct {
 	Schema        string                  `json:"$schema,omitempty" yaml:"$schema,omitempty"`
 	ID            string                  `json:"$id,omitempty" yaml:"$id,omitempty"`
+	Ref           string                  `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Defs          map[string]*JSONSchema  `json:"$defs,omitempty" yaml:"$defs,omitempty"`
 	Title         string                  `json:"title,omitempty" yaml:"title,omitempty"`
 	Description   string                  `json:"description,omitempty" yaml:"description,omitempty"`
 	Type          any                     `json:"type,omitempty" yaml:"type,omitempty"`
@@ -287,6 +292,7 @@ func mergeExplainFieldHint(base ExplainFieldHint, override ExplainFieldHint) Exp
 	if len(override.Notes) > 0 {
 		result.Notes = append([]string(nil), override.Notes...)
 	}
+	result.LoadOpaque = result.LoadOpaque || override.LoadOpaque
 	return result
 }
 
@@ -1098,6 +1104,17 @@ func autoExplainNode(
 			if !field.IsExported() {
 				continue
 			}
+			if field.Tag.Get("additionalProperties") == "true" {
+				additionalType := derefExplainType(field.Type)
+				if additionalType.Kind() == reflect.Map {
+					additional, err := autoExplainValueNode(additionalType.Elem(), path, hints, stack)
+					if err != nil {
+						return nil, err
+					}
+					node.Additional = additional
+				}
+				continue
+			}
 
 			yamlName, yamlInline, yamlOmit, skip := explainFieldName(field, "yaml")
 			if skip {
@@ -1300,6 +1317,7 @@ func recursiveExplainNode(typ reflect.Type) *ExplainNode {
 	return &ExplainNode{
 		Kind:        explainKindObject,
 		Description: fmt.Sprintf("Recursive %s object", snakeCase(typ.Name())),
+		truncated:   true,
 		Notes: []string{
 			"schema recursion truncated after the first expansion",
 		},
@@ -1337,6 +1355,7 @@ func applyExplainFieldHint(node *ExplainNode, hint ExplainFieldHint) {
 	if len(hint.Notes) > 0 {
 		node.Notes = append([]string(nil), hint.Notes...)
 	}
+	node.loadOpaque = node.loadOpaque || hint.LoadOpaque
 }
 
 func explainLiteralFor(node *ExplainNode, name string) string {
@@ -2154,6 +2173,8 @@ func (n *ExplainNode) clone() *ExplainNode {
 		Literal:      n.Literal,
 		Items:        n.Items.clone(),
 		Additional:   n.Additional.clone(),
+		truncated:    n.truncated,
+		loadOpaque:   n.loadOpaque,
 		propIndex:    make(map[string]*ExplainField),
 	}
 	if n.Relationship != nil {

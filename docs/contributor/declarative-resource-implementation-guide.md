@@ -140,6 +140,24 @@ resource, plan, or view contracts.
   declarative engine supports both, for example `api_version` and
   `api.versions`.
 
+The explain registry also provides the runtime load schema. The loader renders
+a full-document, shape-oriented schema from every registered resource and
+validates processed YAML before decoding embedded SDK request structs. Objects
+are closed by default, map fields remain open, and union discriminators select
+the accepted branch fields. This prevents generated SDK unmarshallers from
+silently discarding unknown declarative keys.
+
+Custom explain builders must therefore describe the raw accepted declarative
+shape, not only the eventual SDK payload. When a field intentionally accepts an
+opaque value that is normalized by a custom unmarshaller, set `LoadOpaque` on
+its `ExplainFieldHint`. Use this narrowly: it disables shape traversal only for
+that field while retaining its explain and scaffold representation.
+
+Load validation runs against the placeholder-preserving `!env` representation
+before environment values are resolved. Error formatting must identify the
+declarative path without including input values, because an invalid field may
+contain a secret.
+
 ### SYNC SCOPE (REQUIRED)
 
 `sync` uses explicit manifest scope. Do not treat omitted configuration as a

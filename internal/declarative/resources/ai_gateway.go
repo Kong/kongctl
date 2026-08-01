@@ -355,6 +355,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return explainObject(
 		explainResourceRefField(),
 		explainKongctlField(),
+		explainExternalField(),
 		explainField("name", explainStringNode("my-ai-gateway"), false, true),
 		explainField("display_name", explainStringNode("My AI Gateway"), true, true),
 		explainField("description", &ExplainNode{Kind: explainKindString, Nullable: true}, false, false),
@@ -384,6 +385,18 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 		),
 	), nil
+}
+
+func explainExternalField() *ExplainField {
+	return explainField("_external", explainObject(
+		explainField("id", explainStringNode("00000000-0000-0000-0000-000000000000"), false, false),
+		explainField("selector", explainObject(
+			explainField("matchFields", &ExplainNode{
+				Kind:       explainKindObject,
+				Additional: explainStringNode("value"),
+			}, true, true),
+		), false, false),
+	), false, false)
 }
 
 func aiGatewayProviderInlineExplainNode() *ExplainNode {

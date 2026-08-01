@@ -95,7 +95,6 @@ apis:
     publications:
       - ref: test-api-pub
         portal_id: test-portal
-        publish_status: "published"
         auth_strategy_ids: ["oauth-strategy"]
         
     implementations:
@@ -116,7 +115,6 @@ apis:
     publications:
       - ref: prod-api-pub
         portal_id: prod-portal
-        publish_status: "published"
         auth_strategy_ids: ["key-auth-strategy"]
         
     implementations:

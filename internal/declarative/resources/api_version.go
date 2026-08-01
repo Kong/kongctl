@@ -20,6 +20,7 @@ func init() {
 			WithExplainFieldHint("spec", ExplainFieldHint{
 				Literal:      "!file ./specs/api.yaml",
 				PreferredTag: "!file",
+				LoadOpaque:   true,
 			}),
 			// Override the generic "content" !file guidance for this nested field so
 			// it does not steer users toward the double-wrapping spec.content form.

@@ -32,7 +32,6 @@ apis:
     publications:
       - ref: my-api-pub
         portal_id: test-portal
-        publish_status: "published"
         auth_strategy_ids: ["oauth-strategy"]
         
     implementations:

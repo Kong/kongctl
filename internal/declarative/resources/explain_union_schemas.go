@@ -370,6 +370,7 @@ func apiImplementationExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField(SchemaFieldRef, explainStringNode("my-resource"), true, true),
 		explainField("api", explainStringNode("my-api"), false, false),
 		explainField("type", explainConstStringNode("service"), false, true),
+		explainField("implementation_url", explainStringNode("https://api.example.com"), false, false),
 		explainField("service", explainObject(
 			explainRefField("id", ResourceTypeGatewayService, true),
 			explainRefField("control_plane_id", ResourceTypeControlPlane, true),
@@ -570,6 +571,7 @@ func applicationAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, er
 	}
 	explainSetConstStringField(keyAuth, "strategy_type", "key_auth")
 	explainSetPathRequired(keyAuth, []string{"configs", "key-auth", "key_names"})
+	explainAddPropertyAlias(keyAuth, []string{"configs"}, "key-auth", "key_auth")
 
 	oidc, err := autoExplainConcreteNode[kkComps.AppAuthStrategyOpenIDConnectRequest](hints)
 	if err != nil {
@@ -579,12 +581,40 @@ func applicationAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, er
 	explainSetPathRequired(oidc, []string{"configs", "openid-connect", "credential_claim"})
 	explainSetPathRequired(oidc, []string{"configs", "openid-connect", "scopes"})
 	explainSetPathRequired(oidc, []string{"configs", "openid-connect", "auth_methods"})
+	explainAddPropertyAlias(oidc, []string{"configs"}, "openid-connect", "openid_connect")
 
 	common := []*ExplainField{explainResourceRefField(), explainKongctlField()}
 	return explainUnionNode(
 		explainWithCommonFields(keyAuth, common...),
 		explainWithCommonFields(oidc, common...),
 	), nil
+}
+
+func explainAddPropertyAlias(node *ExplainNode, path []string, source, alias string) {
+	target := node
+	for _, segment := range path {
+		field, ok := target.property(segment)
+		if !ok {
+			return
+		}
+		target = field.Node
+	}
+	explainAddDirectPropertyAlias(target, source, alias)
+}
+
+func explainAddDirectPropertyAlias(node *ExplainNode, source, alias string) {
+	if node == nil {
+		return
+	}
+	if field, ok := node.property(source); ok && !node.propertyExists(alias) {
+		cloned := field.clone()
+		cloned.Name = alias
+		cloned.Required = false
+		node.addField(cloned)
+	}
+	for _, branch := range node.OneOf {
+		explainAddDirectPropertyAlias(branch, source, alias)
+	}
 }
 
 func eventGatewayVirtualClusterExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
