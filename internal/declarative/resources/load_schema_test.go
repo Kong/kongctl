@@ -95,3 +95,34 @@ func TestRenderShapeSchemaRetainsScalarTypesOnlyForUnionBranches(t *testing.T) {
 	ordinaryScalar := renderShapeSchema(&ExplainNode{Kind: explainKindString})
 	assert.Nil(t, ordinaryScalar.Type)
 }
+
+func TestRenderLoadSchemaRetainsKnownRejectedFieldDiagnostics(t *testing.T) {
+	schema, err := RenderLoadSchema(LoadSchemaProfileShape)
+	require.NoError(t, err)
+
+	mcpServer := schema.Defs[string(ResourceTypeAIGatewayMCPServer)]
+	require.NotNil(t, mcpServer)
+	var conversionOnly *JSONSchema
+	for _, branch := range mcpServer.OneOf {
+		if branch.Properties["type"].Const == "conversion-only" {
+			conversionOnly = branch
+			break
+		}
+	}
+	require.NotNil(t, conversionOnly)
+	assert.NotContains(t, conversionOnly.Properties, "access")
+	assert.Equal(
+		t,
+		aiGatewayMCPServerConversionOnlyAccessMessage,
+		conversionOnly.LoadRejectedFieldMessage("access"),
+	)
+
+	portalAuthSettings := schema.Defs[string(ResourceTypePortalAuthSettings)]
+	require.NotNil(t, portalAuthSettings)
+	assert.NotContains(t, portalAuthSettings.Properties, "oidc_auth_enabled")
+	assert.Equal(
+		t,
+		"portal_auth_settings "+PortalAuthSettingsDeprecatedFieldMessage("oidc_auth_enabled"),
+		portalAuthSettings.LoadRejectedFieldMessage("oidc_auth_enabled"),
+	)
+}

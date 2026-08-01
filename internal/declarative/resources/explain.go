@@ -124,6 +124,7 @@ type ExplainNode struct {
 	OneOf        []*ExplainNode
 	truncated    bool
 	loadOpaque   bool
+	loadRejected map[string]string
 }
 
 type ExplainField struct {
@@ -163,6 +164,16 @@ type JSONSchema struct {
 	XRoot         *bool                   `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`                             //nolint:lll
 	XNestedDecl   *bool                   `json:"x-kongctl-supports-nested-declaration,omitempty" yaml:"x-kongctl-supports-nested-declaration,omitempty"` //nolint:lll
 	XMaturity     *ExplainMaturity        `json:"x-kongctl-maturity,omitempty" yaml:"x-kongctl-maturity,omitempty"`
+	loadRejected  map[string]string
+}
+
+// LoadRejectedFieldMessage returns load-only guidance for a recognized field
+// that is intentionally excluded from the accepted schema.
+func (s *JSONSchema) LoadRejectedFieldMessage(name string) string {
+	if s == nil {
+		return ""
+	}
+	return s.loadRejected[name]
 }
 
 // ExplainRelationship describes the user-visible contract of a resource relationship field.
@@ -2118,6 +2129,16 @@ func (n *ExplainNode) addField(field *ExplainField) {
 	n.propIndex[field.Name] = field
 }
 
+func (n *ExplainNode) rejectLoadField(name, message string) {
+	if n == nil || name == "" || message == "" {
+		return
+	}
+	if n.loadRejected == nil {
+		n.loadRejected = make(map[string]string)
+	}
+	n.loadRejected[name] = message
+}
+
 func (n *ExplainNode) lookup(path []string) (*ExplainNode, bool) {
 	current := n
 	for _, segment := range path {
@@ -2175,6 +2196,7 @@ func (n *ExplainNode) clone() *ExplainNode {
 		Additional:   n.Additional.clone(),
 		truncated:    n.truncated,
 		loadOpaque:   n.loadOpaque,
+		loadRejected: maps.Clone(n.loadRejected),
 		propIndex:    make(map[string]*ExplainField),
 	}
 	if n.Relationship != nil {

@@ -1422,9 +1422,9 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		}
 		if deprecatedField := deprecatedPortalAuthSettingsField(settings); deprecatedField != "" {
 			return fmt.Errorf(
-				"portal_auth_settings %q uses deprecated field %q; move identity provider configuration to identity_providers",
+				"portal_auth_settings %q %s",
 				settings.GetRef(),
-				deprecatedField,
+				resources.PortalAuthSettingsDeprecatedFieldMessage(deprecatedField),
 			)
 		}
 		for j := i + 1; j < len(rs.PortalAuthSettings); j++ {

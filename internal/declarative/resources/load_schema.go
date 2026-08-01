@@ -86,7 +86,7 @@ func renderShapeSchema(node *ExplainNode) *JSONSchema {
 		return &JSONSchema{}
 	}
 
-	schema := &JSONSchema{}
+	schema := &JSONSchema{loadRejected: maps.Clone(node.loadRejected)}
 
 	if len(node.OneOf) > 0 {
 		if node.Kind == explainKindObject || node.Kind == explainKindArray {

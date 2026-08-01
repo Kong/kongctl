@@ -118,6 +118,15 @@ func formatDeclarativeSchemaError(
 		})
 		unknown := unknownFields[0]
 		path := declarativePath(unknown.location)
+		containerPath := unknown.location[:len(unknown.location)-1]
+		if message := declarativeRejectedFieldMessageAt(
+			schema,
+			document,
+			containerPath,
+			unknown.field,
+		); message != "" {
+			return errors.New(message)
+		}
 		if strings.HasSuffix(path, ".config.auth.header_name") ||
 			strings.HasSuffix(path, ".config.auth.header_value") {
 			return errors.New(
@@ -133,7 +142,6 @@ func formatDeclarativeSchemaError(
 				"apis[].spec_content is not supported in declarative configuration; use versions[].spec instead",
 			)
 		}
-		containerPath := unknown.location[:len(unknown.location)-1]
 		candidates := declarativeSchemaPropertiesAt(schema, document, containerPath)
 		if suggestion := suggestDeclarativeField(unknown.field, candidates); suggestion != "" {
 			return fmt.Errorf(
@@ -298,6 +306,46 @@ func declarativeSchemaPropertiesAt(
 	document any,
 	path []string,
 ) []string {
+	currentSchema := declarativeSchemaAt(root, document, path)
+	if currentSchema == nil {
+		return nil
+	}
+	properties := make(map[string]struct{})
+	for name := range currentSchema.Properties {
+		properties[name] = struct{}{}
+	}
+	for _, branch := range currentSchema.OneOf {
+		branch = resolveDeclarativeSchemaRef(root, branch)
+		for name := range branch.Properties {
+			properties[name] = struct{}{}
+		}
+	}
+	result := make([]string, 0, len(properties))
+	for name := range properties {
+		result = append(result, name)
+	}
+	slices.Sort(result)
+	return result
+}
+
+func declarativeRejectedFieldMessageAt(
+	root *resources.JSONSchema,
+	document any,
+	path []string,
+	field string,
+) string {
+	schema := declarativeSchemaAt(root, document, path)
+	if schema == nil {
+		return ""
+	}
+	return schema.LoadRejectedFieldMessage(field)
+}
+
+func declarativeSchemaAt(
+	root *resources.JSONSchema,
+	document any,
+	path []string,
+) *resources.JSONSchema {
 	currentSchema := root
 	currentValue := document
 	for _, token := range path {
@@ -323,25 +371,7 @@ func declarativeSchemaPropertiesAt(
 	}
 
 	currentSchema = selectDeclarativeSchema(root, currentSchema, currentValue, "")
-	if currentSchema == nil {
-		return nil
-	}
-	properties := make(map[string]struct{})
-	for name := range currentSchema.Properties {
-		properties[name] = struct{}{}
-	}
-	for _, branch := range currentSchema.OneOf {
-		branch = resolveDeclarativeSchemaRef(root, branch)
-		for name := range branch.Properties {
-			properties[name] = struct{}{}
-		}
-	}
-	result := make([]string, 0, len(properties))
-	for name := range properties {
-		result = append(result, name)
-	}
-	slices.Sort(result)
-	return result
+	return currentSchema
 }
 
 func selectDeclarativeSchema(

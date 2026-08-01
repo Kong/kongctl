@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -109,6 +110,69 @@ application_auth_strategies:
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "unknown field 'openid_connect'")
 	assert.ErrorContains(t, err, "application_auth_strategies[0].configs.openid_connect")
+}
+
+func TestDeclarativeLoadSchemaReportsKnownRejectedUnionField(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: example-gateway
+    name: Example Gateway
+    display_name: Example Gateway
+    mcp_servers:
+      - ref: example-server
+        type: conversion-only
+        name: Example Server
+        display_name: Example Server
+        access:
+          acl_attribute_type: consumer
+        config:
+          url: https://example.com
+`
+
+	_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.Error(t, err)
+	assert.EqualError(
+		t,
+		err,
+		`AI Gateway MCP Server field "access" is not supported when type is "conversion-only"`,
+	)
+}
+
+func TestDeclarativeLoadSchemaReportsDeprecatedPortalAuthSettingsFields(t *testing.T) {
+	tests := []struct {
+		field string
+		value string
+	}{
+		{field: "oidc_auth_enabled", value: "true"},
+		{field: "saml_auth_enabled", value: "true"},
+		{field: "oidc_team_mapping_enabled", value: "true"},
+		{field: "oidc_issuer", value: "https://issuer.example.com"},
+		{field: "oidc_client_id", value: "client-id"},
+		{field: "oidc_client_secret", value: "must-not-appear-in-errors"},
+		{field: "oidc_scopes", value: "[openid, profile]"},
+		{field: "oidc_claim_mappings", value: "{name: name, email: email}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.field, func(t *testing.T) {
+			input := fmt.Sprintf(`
+portals:
+  - ref: example-portal
+    name: Example Portal
+    display_name: Example Portal
+    auth_settings:
+      ref: example-auth-settings
+      basic_auth_enabled: true
+      %s: %s
+`, tt.field, tt.value)
+
+			_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+			require.Error(t, err)
+			assert.ErrorContains(t, err, fmt.Sprintf("uses deprecated field %q", tt.field))
+			assert.ErrorContains(t, err, "move identity provider configuration to identity_providers")
+			assert.NotContains(t, err.Error(), tt.value)
+		})
+	}
 }
 
 func TestDeclarativeLoadSchemaValidatesScalarSelectedUnionBranches(t *testing.T) {
