@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"maps"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/attributes"
@@ -490,6 +491,12 @@ func canonicalizeAttributesForCompare(attrs map[string]any) any {
 	canonical := make(map[string]any, len(attrs))
 	for key, value := range attrs {
 		if value == nil {
+			continue
+		}
+		if values, ok := value.([]string); ok {
+			values = slices.Clone(values)
+			slices.Sort(values)
+			canonical[key] = values
 			continue
 		}
 		canonical[key] = value

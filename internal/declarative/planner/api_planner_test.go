@@ -174,6 +174,62 @@ func TestShouldUpdateAPITreatsNulledAttributesAsEqualToAbsentKeys(t *testing.T) 
 	assert.Empty(t, changedFields)
 }
 
+func TestShouldUpdateAPIComparesAttributeValuesAsSortedMultisets(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		current     []string
+		desired     []string
+		needsUpdate bool
+	}{
+		{
+			name:        "reordered values are equivalent",
+			current:     []string{"mobile", "web"},
+			desired:     []string{"web", "mobile"},
+			needsUpdate: false,
+		},
+		{
+			name:        "different values require an update",
+			current:     []string{"mobile", "web"},
+			desired:     []string{"mobile", "service"},
+			needsUpdate: true,
+		},
+		{
+			name:        "duplicate counts remain significant",
+			current:     []string{"mobile", "web"},
+			desired:     []string{"mobile", "web", "web"},
+			needsUpdate: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			current := state.API{
+				APIResponseSchema: kkComps.APIResponseSchema{
+					Attributes: map[string][]string{"domains": tc.current},
+				},
+			}
+			desired := resources.APIResource{
+				CreateAPIRequest: kkComps.CreateAPIRequest{
+					Name:       "Simple API",
+					Attributes: map[string]any{"domains": tc.desired},
+				},
+				BaseResource: resources.BaseResource{Ref: "simple-api"},
+			}
+
+			needsUpdate, updateFields, changedFields := (&Planner{}).shouldUpdateAPI(current, desired)
+			require.Equal(t, tc.needsUpdate, needsUpdate)
+			if !tc.needsUpdate {
+				assert.Empty(t, updateFields)
+				assert.Empty(t, changedFields)
+			}
+		})
+	}
+}
+
 func TestShouldUpdateAPIPublicationResolvesAuthStrategyRefs(t *testing.T) {
 	t.Parallel()
 

@@ -390,7 +390,10 @@ steps:
                 applied: 1
                 failed: 0
                 status: success
-          - select: "plan.changes[?resource_ref=='api-nested-v1'] | [0]"
+          - select: >-
+              plan.changes[?resource_type=='api_version' &&
+                           action=='DELETE' &&
+                           fields.version=='1.0.0'] | [0]
             expect:
               fields:
                 action: DELETE
