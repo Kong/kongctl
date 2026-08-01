@@ -75,7 +75,80 @@ steps:
               fields:
                 namespace: "{{ .vars.namespace }}"
 
-      - name: 001-plan-from-dump
+      - name: 001-dump-to-output-file
+        outputFormat: disable
+        run:
+          - dump
+          - declarative
+          - "--resources=analytics.dashboards"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+          - --output-file
+          - "{{ .workdir }}/dump-via-flag.yaml"
+
+      - name: 002-verify-output-file-contents
+        exec:
+          - cat
+          - "{{ .workdir }}/dump-via-flag.yaml"
+        parseAs: yaml
+        assertions:
+          - name: analytics-dashboards-key-present
+            select: analytics.dashboards
+            expect:
+              fields:
+                "length(@)": 2
+          - name: traffic-dashboard-in-file
+            select: "analytics.dashboards[?name=='{{ .vars.dashboardAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.dashboardAlphaName }}"
+          - name: default-namespace-in-file
+            select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 003-dump-to-tilde-path
+        outputFormat: disable
+        run:
+          - dump
+          - declarative
+          - "--resources=analytics.dashboards"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+          - --output-file
+          - ~/kongctl-e2e-tilde-test.yaml
+
+      - name: 004-verify-tilde-file-contents
+        exec:
+          - bash
+          - -c
+          - cat ~/kongctl-e2e-tilde-test.yaml
+        parseAs: yaml
+        assertions:
+          - name: analytics-dashboards-key-present
+            select: analytics.dashboards
+            expect:
+              fields:
+                "length(@)": 2
+          - name: traffic-dashboard-in-tilde-file
+            select: "analytics.dashboards[?name=='{{ .vars.dashboardAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.dashboardAlphaName }}"
+          - name: default-namespace-in-tilde-file
+            select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 005-cleanup-tilde-file
+        exec:
+          - bash
+          - -c
+          - rm -f ~/kongctl-e2e-tilde-test.yaml
+
+      - name: 006-plan-from-dump
         outputFormat: disable
         run:
           - plan
@@ -89,10 +162,10 @@ steps:
               fields:
                 total_changes: 0
 
-      - name: 002-reset-before-round-trip
+      - name: 007-reset-before-round-trip
         resetOrg: true
 
-      - name: 003-sync-dumped-config
+      - name: 008-sync-dumped-config
         outputFormat: json
         run:
           - sync
