@@ -368,7 +368,58 @@ steps:
                 "length(auth_strategy_ids)": 1
                 "auth_strategy_ids[0] != null": true
 
-  - name: 004-sync-delete
+  - name: 004-sync-delete-one-version
+    inputOverlayDirs:
+      - overlays/003-sync-delete-v1
+    commands:
+      - name: 000-sync-delete-v1
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_ref=='api-nested-v1'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                resource_type: api_version
+      - name: 001-get-versions
+        run: ["get", "api", "versions", "--api-name", "API Nested", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[?version=='2.0.0'] | [0]"
+            expect:
+              fields:
+                version: "2.0.0"
+          - select: "[?version=='1.0.0']"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 002-get-api-still-exists
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='API Nested'] | [0]"
+            expect:
+              fields:
+                name: "API Nested"
+                "length(id) > `0`": true
+
+  - name: 005-sync-delete
     inputOverlayDirs:
       - overlays/003-sync-delete
     commands:
@@ -398,7 +449,7 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 005-final-reset
+  - name: 006-final-reset
     skipInputs: true
     commands:
       - resetOrg: true
