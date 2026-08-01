@@ -467,7 +467,7 @@ func aiGatewayConsumerCredentialToRecord(
 		LocalUpdatedTime: aiGatewayMissingValue,
 	}
 	if id := declresources.AIGatewayConsumerCredentialID(credential); id != "" {
-		record.ID = util.AbbreviateUUID(id)
+		record.ID = id
 	}
 	if credential.TTL != nil {
 		record.TTL = fmt.Sprintf("%d", *credential.TTL)

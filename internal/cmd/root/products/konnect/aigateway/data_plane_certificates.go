@@ -408,7 +408,7 @@ func aiGatewayDataPlaneCertificateToRecord(
 		LocalUpdatedTime: aiGatewayMissingValue,
 	}
 	if id := declresources.AIGatewayDataPlaneCertificateID(cert); id != "" {
-		record.ID = util.AbbreviateUUID(id)
+		record.ID = id
 	}
 	if cert.Description != nil {
 		record.Description = valueOrMissing(*cert.Description)

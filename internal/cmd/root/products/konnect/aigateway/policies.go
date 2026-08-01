@@ -18,7 +18,6 @@ import (
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/kong/kongctl/internal/util/pagination"
@@ -366,7 +365,7 @@ func aiGatewayPolicyToRecord(policy kkComps.AIGatewayPolicy) aiGatewayPolicyReco
 		LocalUpdatedTime: aiGatewayMissingValue,
 	}
 	if id := declresources.AIGatewayPolicyID(policy); id != "" {
-		record.ID = util.AbbreviateUUID(id)
+		record.ID = id
 	}
 	if enabled := declresources.AIGatewayPolicyEnabled(policy); enabled != nil {
 		record.Enabled = fmt.Sprintf("%t", *enabled)

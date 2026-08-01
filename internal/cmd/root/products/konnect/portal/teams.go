@@ -339,9 +339,6 @@ func findTeamByName(teams []kkComps.PortalTeamResponse, identifier string) *kkCo
 
 func portalTeamSummaryToRecord(team kkComps.PortalTeamResponse) portalTeamSummaryRecord {
 	id := stringOrNA(team.GetID())
-	if id != valueNA {
-		id = util.AbbreviateUUID(id)
-	}
 	return portalTeamSummaryRecord{
 		ID:               id,
 		Name:             stringOrNA(team.GetName()),

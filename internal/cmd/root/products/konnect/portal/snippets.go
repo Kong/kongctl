@@ -416,7 +416,7 @@ func findSnippetByNameOrTitle(snippets []kkComps.PortalSnippetInfo, identifier s
 
 func portalSnippetSummaryToRecord(snippet kkComps.PortalSnippetInfo) portalSnippetSummaryRecord {
 	return portalSnippetSummaryRecord{
-		ID:               util.AbbreviateUUID(snippet.GetID()),
+		ID:               snippet.GetID(),
 		Name:             snippet.GetName(),
 		Title:            snippet.GetTitle(),
 		Visibility:       string(snippet.GetVisibility()),
@@ -430,7 +430,7 @@ func portalSnippetSummaryToRecord(snippet kkComps.PortalSnippetInfo) portalSnipp
 func portalSnippetDetailToRecord(snippet *kkComps.PortalSnippetResponse) portalSnippetDetailRecord {
 	content := normalizePortalPageContent(snippet.GetContent())
 	record := portalSnippetDetailRecord{
-		ID:               util.AbbreviateUUID(snippet.GetID()),
+		ID:               snippet.GetID(),
 		Name:             snippet.GetName(),
 		Title:            optionalString(snippet.GetTitle()),
 		Visibility:       string(snippet.GetVisibility()),

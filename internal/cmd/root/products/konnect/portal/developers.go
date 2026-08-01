@@ -332,7 +332,7 @@ func findDeveloperByEmailOrID(developers []kkComps.PortalDeveloper, identifier s
 
 func portalDeveloperSummaryToRecord(developer kkComps.PortalDeveloper) portalDeveloperSummaryRecord {
 	return portalDeveloperSummaryRecord{
-		ID:               util.AbbreviateUUID(developer.GetID()),
+		ID:               developer.GetID(),
 		Email:            developer.GetEmail(),
 		FullName:         developer.GetFullName(),
 		Status:           string(developer.GetStatus()),

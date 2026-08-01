@@ -69,7 +69,7 @@ func organizationToDisplayRecord(org *kkComps.MeOrganization) textDisplayRecord 
 	}
 
 	if id := org.GetID(); id != nil && *id != "" {
-		record.ID = util.AbbreviateUUID(*id)
+		record.ID = *id
 	}
 
 	if name := org.GetName(); name != nil && *name != "" {
@@ -81,7 +81,7 @@ func organizationToDisplayRecord(org *kkComps.MeOrganization) textDisplayRecord 
 	}
 
 	if ownerID := org.GetOwnerID(); ownerID != nil && *ownerID != "" {
-		record.OwnerID = util.AbbreviateUUID(*ownerID)
+		record.OwnerID = *ownerID
 	}
 
 	if loginPath := org.GetLoginPath(); loginPath != nil && *loginPath != "" {

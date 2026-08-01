@@ -10,7 +10,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -49,7 +48,7 @@ func userToDisplayRecord(u *kkComps.User) textDisplayRecord {
 	var id, email, fullName, preferredName, active, inferredRegion string
 
 	if u.ID != nil && *u.ID != "" {
-		id = util.AbbreviateUUID(*u.ID)
+		id = *u.ID
 	} else {
 		id = missing
 	}

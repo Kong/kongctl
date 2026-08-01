@@ -308,7 +308,7 @@ func fetchPortalTeamDevelopers(
 func portalTeamDeveloperSummaryToRecord(dev kkComps.BasicDeveloper) portalTeamDeveloperRecord {
 	id := valueNA
 	if dev.GetID() != nil && *dev.GetID() != "" {
-		id = util.AbbreviateUUID(*dev.GetID())
+		id = *dev.GetID()
 	}
 
 	return portalTeamDeveloperRecord{

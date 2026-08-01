@@ -13,8 +13,13 @@ import (
 
 	cmd "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	columnoutput "github.com/kong/kongctl/internal/cmd/output/columns"
+	textoutput "github.com/kong/kongctl/internal/cmd/output/text"
+	configpkg "github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/theme"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type sampleRecord struct {
@@ -552,6 +557,175 @@ func TestRenderForFormat_DefaultTextOmitsWideMetadataAndPutsIDLast(t *testing.T)
 	require.NotContains(t, outBuf.String(), "LABELS")
 	require.NotContains(t, outBuf.String(), "DESCRIPTION")
 	require.NotContains(t, outBuf.String(), "ENDPOINT")
+}
+
+func TestSelectLayoutColumns(t *testing.T) {
+	compactHeaders := []string{"NAME", "ID"}
+	compactRows := [][]string{{"payments", "12345678-1234-1234-1234-123456789012"}}
+	sources := []staticTableSource{{
+		headers: []string{"ID", "NAME", "DESCRIPTION", "LABELS", "CREATED AT", "STATUS"},
+		rows: [][]string{{
+			"12345678-1234-1234-1234-123456789012",
+			"payments",
+			"Payment API",
+			"team: platform",
+			"2026-07-31",
+			"active",
+		}},
+	}}
+
+	t.Run("compact", func(t *testing.T) {
+		headers, rows := selectLayoutColumns(
+			compactHeaders,
+			compactRows,
+			sources,
+			textoutput.Settings{Layout: textoutput.LayoutCompact, IDFormat: textoutput.IDFormatCompact},
+			200,
+			true,
+		)
+		require.Equal(t, compactHeaders, headers)
+		require.Equal(t, compactRows, rows)
+	})
+
+	t.Run("non tty auto falls back to compact", func(t *testing.T) {
+		headers, _ := selectLayoutColumns(
+			compactHeaders,
+			compactRows,
+			sources,
+			textoutput.Settings{Layout: textoutput.LayoutAuto, IDFormat: textoutput.IDFormatCompact},
+			200,
+			false,
+		)
+		require.Equal(t, compactHeaders, headers)
+	})
+
+	t.Run("auto adds a declaration order prefix at readable boundaries", func(t *testing.T) {
+		settings := textoutput.Settings{Layout: textoutput.LayoutAuto, IDFormat: textoutput.IDFormatCompact}
+		headers, _ := selectLayoutColumns(compactHeaders, compactRows, sources, settings, 26, true)
+		require.Equal(t, []string{"NAME", "ID"}, headers)
+
+		headers, _ = selectLayoutColumns(compactHeaders, compactRows, sources, settings, 27, true)
+		require.Equal(t, []string{"NAME", "ID", "DESCRIPTION"}, headers)
+
+		headers, _ = selectLayoutColumns(compactHeaders, compactRows, sources, settings, 39, true)
+		require.Equal(t, []string{"NAME", "ID", "DESCRIPTION", "CREATED AT"}, headers)
+	})
+
+	t.Run("wide includes every safe field with compact columns first", func(t *testing.T) {
+		headers, _ := selectLayoutColumns(
+			compactHeaders,
+			compactRows,
+			sources,
+			textoutput.Settings{Layout: textoutput.LayoutWide, IDFormat: textoutput.IDFormatCompact},
+			10,
+			false,
+		)
+		require.Equal(
+			t,
+			[]string{"NAME", "ID", "DESCRIPTION", "CREATED AT", "STATUS"},
+			headers,
+		)
+	})
+}
+
+func TestBuildConfiguredStaticTableFullIDsAreProtected(t *testing.T) {
+	uuid := "12345678-1234-1234-1234-123456789012"
+	display := []struct {
+		Name string
+		ID   string
+	}{{Name: "a very long resource name", ID: uuid}}
+
+	headers, rows, minimums, err := buildConfiguredStaticTable(
+		display,
+		config{},
+		textoutput.Settings{Layout: textoutput.LayoutCompact, IDFormat: textoutput.IDFormatFull},
+		&strings.Builder{},
+	)
+	require.NoError(t, err)
+	require.Equal(t, []string{"NAME", "ID"}, headers)
+	require.Equal(t, uuid, rows[0][1])
+	require.Equal(t, len(uuid), minimums[1])
+
+	var output strings.Builder
+	err = columnoutput.RenderWithOptions(
+		&output,
+		headers,
+		rows,
+		20,
+		columnoutput.RenderOptions{MinimumWidths: minimums},
+	)
+	require.NoError(t, err)
+	require.Contains(t, output.String(), uuid)
+	require.NotContains(t, output.String(), "1234…")
+}
+
+func TestBuildConfiguredStaticTableWideUsesSafeDisplayFields(t *testing.T) {
+	record := labeledRecord{
+		Name:        "payments",
+		Description: "Payment API",
+		Labels:      map[string]string{"team": "platform"},
+		Endpoint:    "https://example.test/payments",
+		ID:          "12345678-1234-1234-1234-123456789012",
+	}
+	cfg := config{
+		customHeaders: []string{"NAME", "ID"},
+		customRows:    []table.Row{{record.Name, record.ID}},
+	}
+
+	headers, rows, _, err := buildConfiguredStaticTable(
+		[]labeledRecord{record},
+		cfg,
+		textoutput.Settings{Layout: textoutput.LayoutWide, IDFormat: textoutput.IDFormatCompact},
+		&strings.Builder{},
+	)
+	require.NoError(t, err)
+	require.Equal(t, []string{"NAME", "ID", "DESCRIPTION", "ENDPOINT"}, headers)
+	require.Equal(t, "1234…", rows[0][1])
+}
+
+func TestFormatMatrixIDsRecognizesSemanticHeaders(t *testing.T) {
+	uuid := "12345678-1234-1234-1234-123456789012"
+	headers := []string{"ID", "OWNER UUID", "RESOURCE UID", "EXTERNAL IDENTIFIER", "CUSTOM ID"}
+	rows := [][]string{{uuid, uuid, uuid, uuid, "not-a-uuid"}}
+
+	compact := formatMatrixIDs(headers, rows, textoutput.IDFormatCompact)
+	require.Equal(t, []string{"1234…", "1234…", "1234…", "1234…", "not-a-uuid"}, compact[0])
+
+	full := formatMatrixIDs(headers, rows, textoutput.IDFormatFull)
+	require.Equal(t, rows, full)
+}
+
+func TestRenderForFormatCustomColumnSliceOverridesFullIDSetting(t *testing.T) {
+	mainConfig := viper.New()
+	mainConfig.Set("default", map[string]any{
+		"text": map[string]any{"layout": "wide", "id-format": "full"},
+	})
+	cfg := configpkg.BuildProfiledConfig("default", "config.yaml", mainConfig)
+	command := &cobra.Command{Use: "get"}
+	columnoutput.AddFlags(command.Flags())
+	require.NoError(t, command.Flags().Set(columnoutput.FlagName, "ID=.id[:8]"))
+	command.SetContext(context.WithValue(t.Context(), configpkg.ConfigKey, cfg))
+	helper := cmd.BuildHelper(command, nil)
+	streams, _, output, _ := iostreams.NewTestIOStreams()
+	raw := struct {
+		ID string `json:"id"`
+	}{ID: "12345678-1234-1234-1234-123456789012"}
+
+	err := RenderForFormat(helper, false, cmdCommon.TEXT, nil, streams, raw, raw, "")
+	require.NoError(t, err)
+	require.Equal(t, "ID\n12345678\n", output.String())
+}
+
+func TestRenderForFormatStructuredOutputRemainsRaw(t *testing.T) {
+	printer := &stubPrinter{}
+	streams := iostreams.NewTestIOStreamsOnly()
+	raw := struct {
+		ID string `json:"id"`
+	}{ID: "12345678-1234-1234-1234-123456789012"}
+
+	err := RenderForFormat(nil, false, cmdCommon.JSON, printer, streams, raw, raw, "")
+	require.NoError(t, err)
+	require.Equal(t, []any{raw}, printer.printed)
 }
 
 func TestRenderForFormat_ExplicitDefaultDescriptionIsTruncated(t *testing.T) {

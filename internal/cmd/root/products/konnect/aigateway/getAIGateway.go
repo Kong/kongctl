@@ -71,7 +71,7 @@ func aiGatewayToDisplayRecord(gateway kkComps.AIGateway) aiGatewayDisplayRecord 
 	}
 
 	if strings.TrimSpace(gateway.ID) != "" {
-		record.ID = util.AbbreviateUUID(gateway.ID)
+		record.ID = gateway.ID
 	}
 	if strings.TrimSpace(gateway.DisplayName) != "" {
 		record.DisplayName = gateway.DisplayName

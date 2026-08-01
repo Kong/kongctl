@@ -495,9 +495,7 @@ func findProducePolicyByName(
 
 func producePolicyToRecord(policy kkComps.EventGatewayPolicy) producePolicySummaryRecord {
 	id := policy.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 
@@ -609,9 +607,7 @@ func producePolicyWithConfigDetailView(policy *producePolicyWithConfig) string {
 
 func producePolicyWithConfigToRecord(policy producePolicyWithConfig) producePolicySummaryRecord {
 	id := policy.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 

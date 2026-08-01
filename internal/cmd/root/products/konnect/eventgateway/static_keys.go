@@ -384,9 +384,7 @@ func findStaticKeyByName(
 
 func staticKeyToRecord(sk kkComps.EventGatewayStaticKey) staticKeySummaryRecord {
 	id := sk.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 

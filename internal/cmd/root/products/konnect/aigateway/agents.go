@@ -18,7 +18,6 @@ import (
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/kong/kongctl/internal/util/pagination"
@@ -369,7 +368,7 @@ func aiGatewayAgentToRecord(agent kkComps.AIGatewayAgent) aiGatewayAgentRecord {
 		record.Enabled = fmt.Sprintf("%t", *enabled)
 	}
 	if id := declresources.AIGatewayAgentID(agent); id != "" {
-		record.ID = util.AbbreviateUUID(id)
+		record.ID = id
 	}
 	if updatedAt := declresources.AIGatewayAgentUpdatedAt(agent); !updatedAt.IsZero() {
 		record.LocalUpdatedTime = updatedAt.In(time.Local).Format("2006-01-02 15:04:05")

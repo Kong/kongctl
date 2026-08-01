@@ -440,9 +440,7 @@ func findSchemaRegistryByName(
 
 func schemaRegistryToRecord(sr schemaRegistryEntry) schemaRegistrySummaryRecord {
 	id := sr.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 

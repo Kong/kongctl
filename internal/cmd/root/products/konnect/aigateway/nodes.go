@@ -17,7 +17,6 @@ import (
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/kong/kongctl/internal/util/pagination"
@@ -345,7 +344,7 @@ func aiGatewayNodeToRecord(node kkComps.AIGatewayDataPlaneNode) aiGatewayNodeRec
 		LocalUpdatedTime: aiGatewayMissingValue,
 	}
 	if id := aiGatewayNodeID(node); id != "" {
-		record.ID = util.AbbreviateUUID(id)
+		record.ID = id
 	}
 	if updatedAt := aiGatewayNodeUpdatedAt(node); !updatedAt.IsZero() {
 		record.LocalUpdatedTime = updatedAt.In(time.Local).Format("2006-01-02 15:04:05")

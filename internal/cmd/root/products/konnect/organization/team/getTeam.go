@@ -78,7 +78,7 @@ func teamToDisplayRecord(s *kkComps.Team) textDisplayRecord {
 	}
 
 	if id := s.GetID(); id != nil && *id != "" {
-		record.ID = util.AbbreviateUUID(*id)
+		record.ID = *id
 	}
 
 	if name := s.GetName(); name != nil && *name != "" {

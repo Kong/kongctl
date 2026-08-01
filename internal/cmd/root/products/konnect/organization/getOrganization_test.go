@@ -55,10 +55,10 @@ func TestOrganizationToDisplayRecord(t *testing.T) {
 				UpdatedAt:           &now,
 			},
 			expected: textDisplayRecord{
-				ID:                  "1234…",
+				ID:                  id,
 				Name:                name,
 				State:               string(state),
-				OwnerID:             "abcd…",
+				OwnerID:             ownerID,
 				LoginPath:           loginPath,
 				RetentionPeriodDays: "30",
 				LocalCreatedTime:    now.In(time.Local).Format("2006-01-02 15:04:05"),

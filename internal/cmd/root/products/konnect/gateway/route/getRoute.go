@@ -93,7 +93,7 @@ func jsonRouteToDisplayRecord(r *kkComps.RouteJSON) textDisplayRecord {
 
 	id := missing
 	if r.ID != nil {
-		id = util.AbbreviateUUID(*r.ID)
+		id = *r.ID
 	}
 
 	return textDisplayRecord{

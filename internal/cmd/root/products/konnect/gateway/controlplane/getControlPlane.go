@@ -72,7 +72,7 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 
 	var id, name string
 	if c.ID != "" {
-		id = util.AbbreviateUUID(c.ID)
+		id = c.ID
 	} else {
 		id = missing
 	}

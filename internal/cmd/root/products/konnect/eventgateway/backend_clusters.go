@@ -405,9 +405,7 @@ func findClusterByName(clusters []kkComps.BackendCluster, identifier string) *kk
 
 func backendClusterToRecord(cluster kkComps.BackendCluster) backendClusterSummaryRecord {
 	id := cluster.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
+	if id == "" {
 		id = valueNA
 	}
 

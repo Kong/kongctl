@@ -315,7 +315,7 @@ func (h apiDocumentsHandler) getSingleDocument(
 	}
 
 	record := apiDocumentSummaryRecord{
-		ID:    util.AbbreviateUUID(doc.GetID()),
+		ID:    doc.GetID(),
 		Title: doc.GetTitle(),
 		Slug:  doc.GetSlug(),
 		Status: func() string {
@@ -326,7 +326,7 @@ func (h apiDocumentsHandler) getSingleDocument(
 		}(),
 		ParentDocumentID: func() string {
 			if doc.GetParentDocumentID() != nil && *doc.GetParentDocumentID() != "" {
-				return util.AbbreviateUUID(*doc.GetParentDocumentID())
+				return *doc.GetParentDocumentID()
 			}
 			return valueNA
 		}(),
@@ -419,7 +419,7 @@ func documentSummaryToRecord(doc kkComps.APIDocumentSummaryWithChildren) apiDocu
 	}
 
 	return apiDocumentSummaryRecord{
-		ID:               util.AbbreviateUUID(doc.ID),
+		ID:               doc.ID,
 		Title:            doc.Title,
 		Slug:             doc.Slug,
 		Status:           status,
@@ -537,13 +537,13 @@ func apiDocumentDetailToRecord(doc *kkComps.APIDocumentResponse) apiDocumentDeta
 
 	parentID := valueNA
 	if doc.GetParentDocumentID() != nil && *doc.GetParentDocumentID() != "" {
-		parentID = util.AbbreviateUUID(*doc.GetParentDocumentID())
+		parentID = *doc.GetParentDocumentID()
 	}
 
 	content := normalizeAPIDocumentContent(doc.GetContent())
 
 	return apiDocumentDetailRecord{
-		ID:    util.AbbreviateUUID(doc.GetID()),
+		ID:    doc.GetID(),
 		RawID: strings.TrimSpace(doc.GetID()),
 		Title: doc.GetTitle(),
 		Slug:  doc.GetSlug(),

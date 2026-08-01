@@ -15,7 +15,6 @@ import (
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -284,9 +283,6 @@ func roleResponsesToRecords(
 	records := make([]portalTeamRoleRecord, 0, len(roles))
 	for _, role := range roles {
 		entityID := optionalStringValue(role.GetEntityID())
-		if util.IsValidUUID(entityID) {
-			entityID = util.AbbreviateUUID(entityID)
-		}
 		records = append(records, portalTeamRoleRecord{
 			Team:           teamName,
 			TeamID:         teamID,

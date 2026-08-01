@@ -18,7 +18,6 @@ import (
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -128,7 +127,7 @@ func dcrProviderToDisplayRecord(provider dcrProvider) textDisplayRecord {
 	}
 
 	if strings.TrimSpace(provider.ID) != "" {
-		record.ID = util.AbbreviateUUID(provider.ID)
+		record.ID = provider.ID
 	}
 	if strings.TrimSpace(provider.Name) != "" {
 		record.Name = provider.Name

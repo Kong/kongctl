@@ -18,7 +18,6 @@ import (
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/kong/kongctl/internal/util/pagination"
@@ -362,7 +361,7 @@ func aiGatewayMCPServerToRecord(server kkComps.AIGatewayMCPServer) aiGatewayMCPS
 		LocalUpdatedTime: aiGatewayMissingValue,
 	}
 	if id := declresources.AIGatewayMCPServerID(server); id != "" {
-		record.ID = util.AbbreviateUUID(id)
+		record.ID = id
 	}
 	if enabled := declresources.AIGatewayMCPServerEnabled(server); enabled != nil {
 		record.Enabled = fmt.Sprintf("%t", *enabled)

@@ -389,7 +389,7 @@ func aiGatewayIdentityProviderToDisplayRecord(
 
 	id := aiGatewayIdentityProviderStringFieldFromRaw(raw, aiGatewayFieldID)
 	if id != "" {
-		id = util.AbbreviateUUID(id)
+		id = strings.TrimSpace(id)
 	} else {
 		id = aiGatewayMissingValue
 	}

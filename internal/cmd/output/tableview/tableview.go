@@ -33,11 +33,14 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	columnoutput "github.com/kong/kongctl/internal/cmd/output/columns"
 	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
+	textoutput "github.com/kong/kongctl/internal/cmd/output/text"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/theme"
 	"github.com/muesli/termenv"
 	"github.com/segmentio/cli"
 )
+
+const defaultNameHeader = "NAME"
 
 type fdProvider interface {
 	Fd() uintptr
@@ -2293,6 +2296,10 @@ func RenderForFormat(
 	extraOpts ...Option,
 ) error {
 	var selectedColumns []columnoutput.Column
+	textSettings := textoutput.Settings{
+		Layout:   textoutput.DefaultLayout,
+		IDFormat: textoutput.DefaultIDFormat,
+	}
 	if helper != nil {
 		cfg, err := helper.GetConfig()
 		if err != nil {
@@ -2316,6 +2323,11 @@ func RenderForFormat(
 			return &cmdpkg.ConfigurationError{
 				Err: fmt.Errorf("--%s cannot be combined with --%s", columnoutput.FlagName, jqoutput.FlagName),
 			}
+		}
+
+		textSettings, err = textoutput.Resolve(helper.GetCmd(), cfg, outType.String())
+		if err != nil {
+			return &cmdpkg.ConfigurationError{Err: err}
 		}
 
 		if jqoutput.HasFilter(settings) {
@@ -2366,32 +2378,34 @@ func RenderForFormat(
 
 		var headers []string
 		var matrix [][]string
+		minimumWidths := []int(nil)
 		var err error
 		if len(selectedColumns) > 0 {
 			headers, matrix, err = columnoutput.Project(raw, selectedColumns)
 			if err != nil {
 				return cmdpkg.PrepareExecutionErrorWithHelper(helper, "custom column projection failed", err)
 			}
-		} else if len(cfg.customHeaders) > 0 {
-			headers = slices.Clone(cfg.customHeaders)
-			matrix = rowsToMatrix(cfg.customRows)
-			if !cfg.exactCustomTable {
-				headers, matrix = curateDefaultColumns(headers, matrix, cfg.includeDefaultDescription)
-			}
-			matrix = abbreviateMatrixIDs(headers, matrix)
 		} else {
-			headers, matrix, err = buildRows(display)
+			headers, matrix, minimumWidths, err = buildConfiguredStaticTable(
+				display,
+				cfg,
+				textSettings,
+				streams.Out,
+			)
 			if err != nil {
 				return err
 			}
-			headers, matrix = curateDefaultColumns(headers, matrix, cfg.includeDefaultDescription)
-			matrix = abbreviateMatrixIDs(headers, matrix)
 		}
 
 		if len(headers) == 0 {
 			return writeStaticMessage(streams.Out, "", "No resources found.")
 		}
-		return columnoutput.RenderAutoWidth(streams.Out, headers, matrix)
+		return columnoutput.RenderAutoWidthWithOptions(
+			streams.Out,
+			headers,
+			matrix,
+			columnoutput.RenderOptions{MinimumWidths: minimumWidths},
+		)
 	case cmdCommon.JSON, cmdCommon.YAML:
 		if printer != nil {
 			printer.Print(raw)
@@ -2400,6 +2414,223 @@ func RenderForFormat(
 	default:
 		return fmt.Errorf("tableview: unsupported output format %s", outType.String())
 	}
+}
+
+type staticTableSource struct {
+	headers []string
+	rows    [][]string
+}
+
+func buildConfiguredStaticTable(
+	display any,
+	cfg config,
+	settings textoutput.Settings,
+	out io.Writer,
+) ([]string, [][]string, []int, error) {
+	if cfg.exactCustomTable {
+		headers := slices.Clone(cfg.customHeaders)
+		matrix := formatMatrixIDs(headers, rowsToMatrix(cfg.customRows), settings.IDFormat)
+		return headers, matrix, fullIDMinimumWidths(headers, matrix, settings.IDFormat), nil
+	}
+
+	var displayHeaders []string
+	var displayRows [][]string
+	var err error
+	if display != nil {
+		displayHeaders, displayRows, err = buildRows(display)
+		if err != nil {
+			if len(cfg.customHeaders) == 0 {
+				return nil, nil, nil, err
+			}
+			displayHeaders = nil
+			displayRows = nil
+		}
+	}
+
+	var baseHeaders []string
+	var baseRows [][]string
+	if len(cfg.customHeaders) > 0 {
+		baseHeaders = slices.Clone(cfg.customHeaders)
+		baseRows = rowsToMatrix(cfg.customRows)
+	} else {
+		baseHeaders = slices.Clone(displayHeaders)
+		baseRows = cloneMatrix(displayRows)
+	}
+
+	compactHeaders, compactRows := curateDefaultColumns(
+		baseHeaders,
+		baseRows,
+		cfg.includeDefaultDescription,
+	)
+	sources := []staticTableSource{{headers: displayHeaders, rows: displayRows}}
+	if len(cfg.customHeaders) > 0 {
+		sources = append(sources, staticTableSource{headers: baseHeaders, rows: baseRows})
+	}
+
+	termWidth, _, isTTY := resolveTerminal(out)
+	headers, rows := selectLayoutColumns(
+		compactHeaders,
+		compactRows,
+		sources,
+		settings,
+		termWidth,
+		isTTY,
+	)
+	rows = formatMatrixIDs(headers, rows, settings.IDFormat)
+
+	minimums := fullIDMinimumWidths(headers, rows, settings.IDFormat)
+	if settings.Layout == textoutput.LayoutAuto && isTTY {
+		minimums = mergeMinimumWidths(minimums, readableMinimumWidths(headers))
+	}
+	return headers, rows, minimums, nil
+}
+
+func selectLayoutColumns(
+	compactHeaders []string,
+	compactRows [][]string,
+	sources []staticTableSource,
+	settings textoutput.Settings,
+	terminalWidth int,
+	isTTY bool,
+) ([]string, [][]string) {
+	headers := slices.Clone(compactHeaders)
+	rows := cloneMatrix(compactRows)
+	if settings.Layout == textoutput.LayoutCompact ||
+		(settings.Layout == textoutput.LayoutAuto && !isTTY) {
+		return headers, rows
+	}
+
+	seen := make(map[string]struct{}, len(headers))
+	for _, header := range headers {
+		seen[normalizeDefaultHeader(header)] = struct{}{}
+	}
+
+	for _, source := range sources {
+		if len(source.rows) != len(rows) {
+			continue
+		}
+		for columnIndex, sourceHeader := range source.headers {
+			header := canonicalDefaultHeader(sourceHeader)
+			key := normalizeDefaultHeader(header)
+			if !isEligibleWideHeader(key) {
+				continue
+			}
+			if _, exists := seen[key]; exists {
+				continue
+			}
+
+			candidateMinimum := readableColumnMinimum(header)
+			if settings.IDFormat == textoutput.IDFormatFull && isIDHeaderKey(normalizeHeaderKey(header)) {
+				candidateMinimum = max(candidateMinimum, sourceUUIDWidth(source.rows, columnIndex))
+			}
+			currentMinimums := readableMinimumWidths(headers)
+			if settings.IDFormat == textoutput.IDFormatFull {
+				currentMinimums = mergeMinimumWidths(
+					currentMinimums,
+					fullIDMinimumWidths(headers, rows, settings.IDFormat),
+				)
+			}
+			if settings.Layout == textoutput.LayoutAuto &&
+				staticTableWidth(append(currentMinimums, candidateMinimum)) > terminalWidth {
+				return headers, rows
+			}
+
+			headers = append(headers, header)
+			for rowIndex := range rows {
+				value := ""
+				if columnIndex < len(source.rows[rowIndex]) {
+					value = source.rows[rowIndex][columnIndex]
+				}
+				rows[rowIndex] = append(rows[rowIndex], value)
+			}
+			seen[key] = struct{}{}
+		}
+	}
+	return headers, rows
+}
+
+func staticTableWidth(widths []int) int {
+	return 2*max(0, len(widths)-1) + sum(widths)
+}
+
+func isEligibleWideHeader(header string) bool {
+	if header == "" || header == "LABEL" || header == "LABELS" ||
+		header == "CONFIG" || header == "LOG FILE" || strings.HasPrefix(header, "RAW ") {
+		return false
+	}
+	for field := range strings.FieldsSeq(header) {
+		switch field {
+		case "DETAIL", "TOKEN", "SECRET":
+			return false
+		}
+	}
+	return true
+}
+
+func readableMinimumWidths(headers []string) []int {
+	minimums := make([]int, len(headers))
+	for i, header := range headers {
+		minimums[i] = readableColumnMinimum(header)
+	}
+	return minimums
+}
+
+func readableColumnMinimum(header string) int {
+	return min(columnoutput.MaxColumnWidth, max(6, runewidth.StringWidth(header)))
+}
+
+func sourceUUIDWidth(rows [][]string, columnIndex int) int {
+	width := 0
+	for _, row := range rows {
+		if columnIndex >= len(row) {
+			continue
+		}
+		value := strings.TrimSpace(row[columnIndex])
+		if isLikelyUUID(value) {
+			width = max(width, runewidth.StringWidth(value))
+		}
+	}
+	return width
+}
+
+func formatMatrixIDs(headers []string, rows [][]string, idFormat textoutput.IDFormat) [][]string {
+	if idFormat == textoutput.IDFormatCompact {
+		return abbreviateMatrixIDs(headers, rows)
+	}
+	return cloneMatrix(rows)
+}
+
+func fullIDMinimumWidths(headers []string, rows [][]string, idFormat textoutput.IDFormat) []int {
+	minimums := make([]int, len(headers))
+	if idFormat != textoutput.IDFormatFull {
+		return minimums
+	}
+	for _, index := range identifyIDColumns(headers) {
+		minimums[index] = sourceUUIDWidth(rows, index)
+	}
+	return minimums
+}
+
+func mergeMinimumWidths(left, right []int) []int {
+	length := max(len(left), len(right))
+	merged := make([]int, length)
+	for i := range length {
+		if i < len(left) {
+			merged[i] = left[i]
+		}
+		if i < len(right) {
+			merged[i] = max(merged[i], right[i])
+		}
+	}
+	return merged
+}
+
+func cloneMatrix(rows [][]string) [][]string {
+	cloned := make([][]string, len(rows))
+	for i, row := range rows {
+		cloned[i] = slices.Clone(row)
+	}
+	return cloned
 }
 
 func curateDefaultColumns(
@@ -2412,7 +2643,7 @@ func curateDefaultColumns(
 	}
 
 	identityOrder := []string{
-		"NAME", "DISPLAY NAME", "TITLE", "EMAIL", "USERNAME", "VERSION", "DOMAIN", "FINGERPRINT", "PID", "KEY",
+		defaultNameHeader, "DISPLAY NAME", "TITLE", "EMAIL", "USERNAME", "VERSION", "DOMAIN", "FINGERPRINT", "PID", "KEY",
 		"FULL NAME", "IMPLEMENTATION", "PORTAL", "RESOURCE", "CATEGORY", "TEAM", "APPLICATION", "API",
 	}
 	byName := make(map[string]int, len(headers))
@@ -2447,7 +2678,7 @@ func curateDefaultColumns(
 	}
 
 	identityLimit := 1
-	if _, hasName := byName["NAME"]; hasName && len(headers) == 3 {
+	if _, hasName := byName[defaultNameHeader]; hasName && len(headers) == 3 {
 		if _, hasDisplayName := byName["DISPLAY NAME"]; hasDisplayName {
 			identityLimit = 2
 		}

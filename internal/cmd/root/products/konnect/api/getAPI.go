@@ -62,7 +62,7 @@ func apiToDisplayRecord(a *kkComps.APIResponseSchema) textDisplayRecord {
 
 	var id, name string
 	if a.ID != "" {
-		id = util.AbbreviateUUID(a.ID)
+		id = a.ID
 	} else {
 		id = missing
 	}
