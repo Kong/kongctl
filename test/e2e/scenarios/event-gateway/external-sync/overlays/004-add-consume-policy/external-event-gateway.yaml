@@ -1,0 +1,26 @@
+event_gateways:
+  - ref: external-sync-event-gateway
+    _external:
+      selector:
+        matchFields:
+          name: "external-sync-event-gateway"
+    virtual_clusters:
+      - ref: external-sync-virtual-cluster
+        _external:
+          selector:
+            matchFields:
+              name: "external-sync-virtual-cluster"
+        consume_policies:
+          - ref: external-sync-consume-policy
+            name: external-sync-consume-policy
+            description: "External sync consume policy"
+            type: modify_headers
+            enabled: true
+            labels:
+              env: staging
+              team: payments
+            config:
+              actions:
+                - op: set
+                  key: x-env
+                  value: staging

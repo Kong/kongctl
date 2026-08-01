@@ -9,6 +9,12 @@ vars:
   virtual_cluster_name: external-sync-virtual-cluster
   cluster_policy_ref: external-sync-cluster-policy
   cluster_policy_name: external-sync-cluster-policy
+  produce_policy_ref: external-sync-produce-policy
+  produce_policy_name: external-sync-produce-policy
+  produce_policy_description: External sync produce policy
+  consume_policy_ref: external-sync-consume-policy
+  consume_policy_name: external-sync-consume-policy
+  consume_policy_description: External sync consume policy
 
 defaults:
   mask:
@@ -210,3 +216,216 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.cluster_policy_name }}"
+
+  - name: 006-sync-with-declarative-produce-policy
+    inputOverlayDirs:
+      - overlays/003-add-produce-policy
+    commands:
+      - name: 000-sync-add-produce-policy
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' &&
+              resource_ref=='{{ .vars.produce_policy_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.produce_policy_ref }}"
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-produce-policies
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtual_cluster_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.produce_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.produce_policy_name }}"
+                description: "{{ .vars.produce_policy_description }}"
+
+  - name: 007-sync-with-declarative-consume-policy
+    inputOverlayDirs:
+      - overlays/004-add-consume-policy
+    commands:
+      - name: 000-sync-add-consume-policy
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' &&
+              resource_ref=='{{ .vars.consume_policy_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.consume_policy_ref }}"
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-consume-policies
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtual_cluster_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.consume_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.consume_policy_name }}"
+                description: "{{ .vars.consume_policy_description }}"
+
+  - name: 008-idempotency-all-declarative-policies
+    inputOverlayDirs:
+      - overlays/002-add-cluster-policy
+      - overlays/003-add-produce-policy
+      - overlays/004-add-consume-policy
+    commands:
+      - name: 000-sync-no-changes
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --dry-run
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 009-cleanup-declarative-policies
+    commands:
+      - name: 000-sync-no-deletions
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-cluster-policies-after-cleanup
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtual_cluster_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?name=='{{ .vars.cluster_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.cluster_policy_name }}"
+                description: "External sync cluster policy"
+
+      - name: 002-get-produce-policies-after-cleanup
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtual_cluster_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?name=='{{ .vars.produce_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.produce_policy_name }}"
+                description: "{{ .vars.produce_policy_description }}"
+
+      - name: 003-get-consume-policies-after-cleanup
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtual_cluster_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?name=='{{ .vars.consume_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.consume_policy_name }}"
+                description: "{{ .vars.consume_policy_description }}"
