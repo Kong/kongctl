@@ -55,7 +55,7 @@ steps:
           - select: "length(oneOf)"
             expect:
               fields:
-                "@": 19
+                "@": 20
           - select: >-
               oneOf[?properties.type.const=='openai'] | [0].properties.config.properties.auth.properties
             expect:
