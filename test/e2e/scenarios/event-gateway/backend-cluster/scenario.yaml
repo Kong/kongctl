@@ -162,6 +162,20 @@ steps:
             expect:
               fields:
                 "length(@)": 2
+      - name: 008-idempotency-check
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-idempotency.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 002-plan-update
     inputOverlayDirs:
       - overlays/001-update-fields
