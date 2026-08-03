@@ -724,6 +724,11 @@ steps:
             expect:
               fields:
                 "@": 2
+          - select: "[?type=='schema_validation'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: schema_validation
           - select: "[?type=='skip_record'] | [0]"
             expect:
               fields:
