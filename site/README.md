@@ -91,6 +91,35 @@ Put output in a separate `text` block:
 ```
 ````
 
+Code block labels default from the fence language. Override one block with
+`label="..."`:
+
+````markdown
+```shell label="Command syntax"
+kongctl plan --mode <mode> -f <input-configuration-files>
+```
+````
+
+Use `label=false` to keep the Copy button without displaying a label:
+
+````markdown
+```shell label=false
+kongctl apply --plan <apply-plan>
+```
+````
+
+For a long block, use `rows=<number>` to limit how many rows are visible. The
+code area scrolls vertically when it contains more rows; the toolbar remains
+visible.
+
+````markdown
+```yaml rows=8
+ai_gateways:
+  - ref: my-aigw
+    name: my-aigw
+```
+````
+
 Use angle-bracket placeholders such as `<path>` only when the surrounding
 text tells the learner to replace them. Never include real credentials or
 secrets. Explain effects before commands that create or modify resources, and

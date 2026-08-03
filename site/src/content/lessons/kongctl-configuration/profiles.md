@@ -6,8 +6,9 @@ order: 1
 
 ## Goal
 
-You will understand `kongctl` profiles, the default profile, and how to select
-profiles.
+The following sections are about configuring the `kongctl` CLI itself.
+In this lesson you will understand configuration profiles, the default profile,
+and how to create and select profiles.
 
 ## What is a profile?
 

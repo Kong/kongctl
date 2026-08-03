@@ -785,6 +785,10 @@ progress::-moz-progress-bar {
   color: #cdd4cb;
 }
 
+.code-toolbar-label-hidden {
+  justify-content: flex-end;
+}
+
 .code-label {
   font:
     650 0.72rem "Roboto Mono Variable",
@@ -829,6 +833,12 @@ progress::-moz-progress-bar {
   background: var(--bg-code) !important;
   font-size: 0.89rem;
   line-height: 1.65;
+}
+
+.code-shell pre.astro-code[data-code-rows] {
+  box-sizing: content-box;
+  max-height: var(--code-max-height);
+  overflow-y: auto;
 }
 
 .related-links {

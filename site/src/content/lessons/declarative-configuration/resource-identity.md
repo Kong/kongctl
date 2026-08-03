@@ -1,7 +1,7 @@
 ---
 title: Resource Identity
 summary: Understand ref, ID, and name fields in declarative configuration.
-order: 2
+order: 3
 related:
   - label: Declarative resource reference
     url: https://developer.konghq.com/kongctl/supported-resources/

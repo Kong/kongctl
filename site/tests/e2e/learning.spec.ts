@@ -19,19 +19,26 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
     "href",
     "/kongctl/installation/",
   );
-  const configuration = curriculum.locator(
+  const usingKongctl = curriculum.locator(
     ".curriculum-chapters > li:nth-child(2)",
   );
   await expect(
-    configuration.getByText("Configuration", { exact: true }),
+    usingKongctl.getByText("Using kongctl", { exact: true }),
+  ).toBeVisible();
+  await expect(usingKongctl.getByRole("link")).toHaveAttribute(
+    "href",
+    "/kongctl/using-kongctl/",
+  );
+  const configuration = curriculum.locator(
+    ".curriculum-chapters > li:nth-child(3)",
+  );
+  await expect(
+    configuration.getByText("CLI Configuration", { exact: true }),
   ).toBeVisible();
   await expect(configuration.getByRole("link")).toHaveAttribute(
     "href",
     "/kongctl/kongctl-configuration/",
   );
-  await expect(
-    curriculum.getByRole("link", { name: /Using kongctl/ }),
-  ).toHaveAttribute("href", "/kongctl/using-kongctl/");
   await expect(
     curriculum.getByRole("link", { name: /Declarative Configuration/ }),
   ).toHaveAttribute("href", "/kongctl/declarative-configuration/");
@@ -267,12 +274,14 @@ test("presents the declarative configuration journey", async ({ page }) => {
   await expect(
     lessons.getByRole("link", { name: /Plan-Based Configuration/ }),
   ).toBeVisible();
+  await expect(lessons.getByRole("link", { name: /Metadata/ })).toBeVisible();
   await expect(
     lessons.getByRole("link", { name: /Resource Identity/ }),
   ).toBeVisible();
-  await expect(
-    lessons.getByRole("link", { name: /kongctl Metadata/ }),
-  ).toBeVisible();
+  await expect(lessons.locator(":scope > li").nth(1)).toContainText("Metadata");
+  await expect(lessons.locator(":scope > li").nth(2)).toContainText(
+    "Resource Identity",
+  );
   await expect(lessons.getByRole("link", { name: /YAML Tags/ })).toBeVisible();
   await expect(
     lessons.getByRole("link", { name: /Getting Started/ }),
@@ -286,7 +295,23 @@ test("presents the declarative configuration journey", async ({ page }) => {
 test("explains plan modes and mode-matched execution", async ({ page }) => {
   await page.goto("declarative-configuration/plan-based-configuration/");
   const lesson = page.locator(".lesson-body");
+  const planSyntax = page
+    .locator(".code-shell")
+    .filter({ hasText: "kongctl plan --mode <mode>" });
+  const examplePlan = page
+    .locator(".code-shell")
+    .filter({ hasText: '"generator": "kongctl/1.8.0"' });
 
+  await expect(
+    planSyntax.getByText("Command syntax", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    examplePlan.getByText("example plan", { exact: true }),
+  ).toBeVisible();
+  await expect(examplePlan.locator("pre")).toHaveAttribute(
+    "data-code-rows",
+    "8",
+  );
   await expect(
     lesson.getByRole("cell", { name: "apply" }).first(),
   ).toBeVisible();
@@ -297,10 +322,7 @@ test("explains plan modes and mode-matched execution", async ({ page }) => {
     lesson.getByRole("cell", { name: "delete" }).first(),
   ).toBeVisible();
   await expect(
-    page.getByText(
-      "kongctl plan --mode apply -f ai-gateway.yaml --output-file plan.json\nkongctl apply --plan plan.json",
-      { exact: true },
-    ),
+    page.getByText("kongctl apply --plan plan.json", { exact: true }),
   ).toBeVisible();
   await expect(lesson).toContainText(
     "rejects a plan when the execution command does not match its mode",
@@ -318,9 +340,10 @@ test("explains declarative identity, metadata, and YAML tags", async ({
     page.getByText("ai_gateway: !ref my-aigw#id", { exact: true }),
   ).toBeVisible();
 
-  await page.goto("declarative-configuration/kongctl-metadata/");
+  await page.goto("declarative-configuration/metadata/");
   await expect(page.locator(".lesson-body")).toContainText("aigw-learning");
-  await expect(page.locator(".lesson-body")).toContainText("protected: true");
+  await expect(page.locator(".lesson-body")).toContainText("KONGCTL-namespace");
+  await expect(page.locator(".lesson-body")).toContainText("KONGCTL-protected");
 
   await page.goto("declarative-configuration/yaml-tags/");
   await expect(page.locator(".lesson-body")).toContainText("!lookup");

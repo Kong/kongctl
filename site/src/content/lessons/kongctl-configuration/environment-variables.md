@@ -26,7 +26,7 @@ with underscores. Examples from the previous lesson's `default` profile:
 | `konnect.page-size` | `KONGCTL_DEFAULT_KONNECT_PAGE_SIZE` |
 | `konnect.pat`       | `KONGCTL_DEFAULT_KONNECT_PAT`       |
 
-The access token variable from installation now reads naturally:
+The access token variable shown in the installation lesson now makes more sense:
 `KONGCTL_DEFAULT_KONNECT_PAT` sets `konnect.pat` for the `default` profile.
 It accepts either a personal access token (PAT) or a system account access
 token (SPAT).

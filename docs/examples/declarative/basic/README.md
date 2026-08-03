@@ -5,6 +5,7 @@ This directory contains minimal examples with only required fields for each reso
 ## Files
 
 - `api.yaml` - Minimal API configuration
+- `ai-gateway.yaml` - Minimal AI Gateway configuration
 - `portal.yaml` - Minimal Portal configuration  
 - `app_auth_strategy.yaml` - Minimal Application Auth Strategy configuration
 

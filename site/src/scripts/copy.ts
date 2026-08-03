@@ -24,7 +24,14 @@ function codeText(pre: HTMLPreElement): string {
   return pre.querySelector("code")?.textContent ?? pre.textContent ?? "";
 }
 
-function blockLabel(pre: HTMLPreElement): string {
+function blockLabel(pre: HTMLPreElement): string | undefined {
+  if (pre.dataset.codeLabelHidden === "true") {
+    return undefined;
+  }
+  if (pre.dataset.codeLabel !== undefined) {
+    return pre.dataset.codeLabel;
+  }
+
   const language = pre.dataset.language?.toLowerCase() ?? "code";
   return languageLabels[language] ?? language.toUpperCase();
 }
@@ -42,9 +49,10 @@ export function initializeCodeBlocks(root: ParentNode = document): void {
     const toolbar = document.createElement("div");
     toolbar.className = "code-toolbar";
 
-    const label = document.createElement("span");
-    label.className = "code-label";
-    label.textContent = blockLabel(pre);
+    const labelText = blockLabel(pre);
+    if (labelText === undefined) {
+      toolbar.classList.add("code-toolbar-label-hidden");
+    }
 
     const status = document.createElement("span");
     status.className = "sr-only";
@@ -80,7 +88,13 @@ export function initializeCodeBlocks(root: ParentNode = document): void {
       }, 1800);
     });
 
-    toolbar.append(label, status, button);
+    if (labelText !== undefined) {
+      const label = document.createElement("span");
+      label.className = "code-label";
+      label.textContent = labelText;
+      toolbar.append(label);
+    }
+    toolbar.append(status, button);
     pre.before(shell);
     shell.append(toolbar, pre);
   });

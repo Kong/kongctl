@@ -60,6 +60,30 @@ echo second</code></pre>
     );
   });
 
+  it("uses a per-block label override", () => {
+    document.body.innerHTML = `
+      <pre class="astro-code" data-language="shell" data-code-label="Command syntax"><code>kongctl plan --mode &lt;mode&gt;</code></pre>
+    `;
+
+    initializeCodeBlocks();
+
+    expect(document.querySelector(".code-label")?.textContent).toBe(
+      "Command syntax",
+    );
+  });
+
+  it("can hide a block label without hiding Copy", () => {
+    document.body.innerHTML = `
+      <pre class="astro-code" data-language="shell" data-code-label-hidden="true"><code>kongctl apply --plan &lt;plan&gt;</code></pre>
+    `;
+
+    initializeCodeBlocks();
+
+    expect(document.querySelector(".code-label")).toBeNull();
+    expect(document.querySelector("[data-copy-button]")).not.toBeNull();
+    expect(document.querySelector(".code-toolbar-label-hidden")).not.toBeNull();
+  });
+
   it("reports unavailable clipboard access", async () => {
     await expect(copyText("command", undefined)).rejects.toThrow(
       "Clipboard access is unavailable",

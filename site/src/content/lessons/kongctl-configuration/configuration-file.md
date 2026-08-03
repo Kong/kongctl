@@ -18,8 +18,8 @@ settings by profile.
   `~/.config/kongctl/config.yaml`.
 
 The installation routines do not create this file. The first `kongctl` command
-creates it when it is missing and writes an initial `default` profile. Until
-then, `kongctl` can start with its built-in defaults.
+creates it when it is missing and writes an initial `default` profile. Otherwise
+`kongctl` does not write to this file.
 
 Print the path for your current environment:
 
@@ -65,4 +65,4 @@ After saving the file, list the profiles `kongctl` found:
 kongctl get profiles
 ```
 
-The example file produces `default` and `team-a` profiles.
+The example command should show `default` and `team-a` profiles.

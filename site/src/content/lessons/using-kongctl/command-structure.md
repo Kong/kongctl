@@ -31,10 +31,10 @@ kongctl get konnect apis
 kongctl get apis
 ```
 
-The long-term goal for `kongctl` is to provide functionality across Kong
-products and projects, including on-premises runtimes. The `konnect` product
-leaves room for future non-Konnect commands, while Konnect remains the CLI's
-initial primary use case.
+> The long-term goal for `kongctl` is to provide functionality across Kong
+> products and projects, including on-premises runtimes. The `konnect` product
+> leaves room for future non-Konnect commands, while Konnect remains the CLI's
+> initial primary use case.
 
 ## Discover commands with help
 
