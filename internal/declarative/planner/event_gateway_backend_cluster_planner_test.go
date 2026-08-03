@@ -83,3 +83,52 @@ func TestCompareTLSSettingsPreservesExplicitVersions(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareTLSSettingsTreatsOmittedInsecureSkipVerifyAsFalse(t *testing.T) {
+	falseValue := false
+	trueValue := true
+
+	tests := []struct {
+		name     string
+		current  *bool
+		desired  *bool
+		expected bool
+	}{
+		{
+			name:     "service materializes false",
+			current:  &falseValue,
+			expected: true,
+		},
+		{
+			name:     "desired explicitly sets false",
+			desired:  &falseValue,
+			expected: true,
+		},
+		{
+			name:     "matching true values",
+			current:  &trueValue,
+			desired:  &trueValue,
+			expected: true,
+		},
+		{
+			name:     "service true differs from omitted desired value",
+			current:  &trueValue,
+			expected: false,
+		},
+		{
+			name:     "service false differs from desired true",
+			current:  &falseValue,
+			desired:  &trueValue,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			current := components.BackendClusterTLS{InsecureSkipVerify: tt.current}
+			desired := components.BackendClusterTLS{InsecureSkipVerify: tt.desired}
+
+			require.Equal(t, tt.expected, compareTLSSettings(current, desired))
+		})
+	}
+}
