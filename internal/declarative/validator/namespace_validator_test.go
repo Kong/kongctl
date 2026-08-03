@@ -97,10 +97,9 @@ func TestValidateNamespace(t *testing.T) {
 			errMsg:    "must consist of lowercase alphanumeric",
 		},
 		{
-			name:      "double hyphen",
-			namespace: "my--namespace",
-			wantErr:   true,
-			errMsg:    "cannot contain consecutive hyphens",
+			name:      "consecutive hyphens",
+			namespace: "team--service---prod",
+			wantErr:   false,
 		},
 		{
 			name:      "exceeds max length",
@@ -254,6 +253,14 @@ func TestParseNamespaceRequirementSlice(t *testing.T) {
 			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"foo"}},
 		},
 		{
+			name:  "namespace with consecutive hyphens",
+			input: []string{"team--service--prod"},
+			expect: NamespaceRequirement{
+				Mode:              NamespaceRequirementSpecific,
+				AllowedNamespaces: []string{"team--service--prod"},
+			},
+		},
+		{
 			name:  "multiple namespaces",
 			input: []string{"foo", "bar", "baz"},
 			expect: NamespaceRequirement{
@@ -367,6 +374,14 @@ func TestParseNamespaceRequirement(t *testing.T) {
 			name:   "specific namespace",
 			input:  "team-alpha",
 			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"team-alpha"}},
+		},
+		{
+			name:  "specific namespace with consecutive hyphens",
+			input: "team--service--prod",
+			expect: NamespaceRequirement{
+				Mode:              NamespaceRequirementSpecific,
+				AllowedNamespaces: []string{"team--service--prod"},
+			},
 		},
 		{
 			name:    "invalid namespace",

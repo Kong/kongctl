@@ -359,6 +359,10 @@ apis:
       protected: false
 ```
 
+A namespace must contain 1–63 lowercase alphanumeric characters or hyphens
+and must start and end with an alphanumeric character. Consecutive hyphens are
+permitted and are preserved exactly.
+
 ### File-Level Defaults
 
 Use `_defaults` to set default values for all resources in a file:
