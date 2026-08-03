@@ -276,8 +276,8 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	placeholderRegistry := tags.NewResolverRegistry()
 	placeholderRegistry.Register(fileResolver)
 	placeholderRegistry.Register(refResolver)
-	placeholderRegistry.Register(tags.NewExternalTagResolver("!external"))
-	placeholderRegistry.Register(tags.NewExternalTagResolver("!lookup"))
+	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagExternal))
+	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagLookup))
 	placeholderRegistry.Register(tags.NewEnvTagResolver(tags.EnvTagModePlaceholder))
 
 	placeholderContent, err := placeholderRegistry.Process(rawContent)
@@ -293,8 +293,8 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	registry := l.getTagRegistry()
 	registry.Register(fileResolver)
 	registry.Register(refResolver)
-	registry.Register(tags.NewExternalTagResolver("!external"))
-	registry.Register(tags.NewExternalTagResolver("!lookup"))
+	registry.Register(tags.NewExternalTagResolver(tags.TagExternal))
+	registry.Register(tags.NewExternalTagResolver(tags.TagLookup))
 	registry.Register(tags.NewEnvTagResolver(tags.EnvTagModeResolve))
 	if registry.HasResolvers() {
 		processedContent, err := registry.Process(rawContent)

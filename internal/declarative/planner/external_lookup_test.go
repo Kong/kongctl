@@ -2,7 +2,9 @@ package planner
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
+	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -52,6 +54,75 @@ func TestExternalLookupResolverRejectsUnsupportedPlacement(t *testing.T) {
 		Source:       "api_publication products field portal_id",
 	})
 	require.ErrorContains(t, err, "does not support external lookup")
+}
+
+func TestExternalLookupResolverRedactsNestedEnvSelectorErrors(t *testing.T) {
+	t.Setenv("PORTAL_LOOKUP_NAME", "secret-portal-name")
+
+	portalAPI := &MockPortalAPI{}
+	portalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.ListPortalsResponsePortal{},
+			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 0}},
+		},
+	}, nil).Once()
+
+	rs := &resources.ResourceSet{APIPublications: []resources.APIPublicationResource{{
+		Ref:      "publication",
+		PortalID: nestedEnvExternalPlaceholder(t, tags.TagLookup, "PORTAL_LOOKUP_NAME"),
+	}}}
+	resolver := newExternalLookupResolver(NewPlanner(
+		state.NewClient(state.ClientConfig{PortalAPI: portalAPI}),
+		slog.Default(),
+	))
+
+	err := resolver.resolveInlineLookups(t.Context(), rs, resources.ResourceTypePortal)
+	require.ErrorContains(t, err, `"name"="[redacted from !env]"`)
+	require.NotContains(t, err.Error(), "secret-portal-name")
+	portalAPI.AssertExpectations(t)
+}
+
+func TestExternalLookupResolverSavedPlanRetainsResolvedID(t *testing.T) {
+	t.Setenv("PORTAL_LOOKUP_NAME", "Shared Portal")
+
+	portalAPI := &MockPortalAPI{}
+	portalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.ListPortalsResponsePortal{newListPortal("portal-id", "Shared Portal", nil)},
+			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+		},
+	}, nil).Once()
+
+	rs := &resources.ResourceSet{APIPublications: []resources.APIPublicationResource{{
+		Ref:      "publication",
+		PortalID: nestedEnvExternalPlaceholder(t, tags.TagExternal, "PORTAL_LOOKUP_NAME"),
+	}}}
+	resolver := newExternalLookupResolver(NewPlanner(
+		state.NewClient(state.ClientConfig{PortalAPI: portalAPI}),
+		slog.Default(),
+	))
+	require.NoError(t, resolver.resolveInlineLookups(t.Context(), rs, resources.ResourceTypePortal))
+	require.Equal(t, "portal-id", rs.APIPublications[0].PortalID)
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	plan.AddChange(PlannedChange{
+		ID:           "1:c:api_publication:publication",
+		ResourceType: ResourceTypeAPIPublication,
+		ResourceRef:  "publication",
+		Action:       ActionCreate,
+		Fields:       map[string]any{FieldPortalID: rs.APIPublications[0].PortalID},
+	})
+	payload, err := json.Marshal(plan)
+	require.NoError(t, err)
+	require.NotContains(t, string(payload), "Shared Portal")
+	require.NotContains(t, string(payload), tags.EnvPlaceholderPrefix)
+	require.NotContains(t, string(payload), tags.ExternalPlaceholderPrefix)
+
+	t.Setenv("PORTAL_LOOKUP_NAME", "Different Portal")
+	var savedPlan Plan
+	require.NoError(t, json.Unmarshal(payload, &savedPlan))
+	require.Equal(t, "portal-id", savedPlan.Changes[0].Fields[FieldPortalID])
+	portalAPI.AssertExpectations(t)
 }
 
 func TestExternalLookupResolverSkipsAPIImplementationWithoutService(t *testing.T) {
@@ -135,4 +206,18 @@ func externalPlaceholder(t *testing.T, tag string) string {
 	})
 	require.NoError(t, err)
 	return value.(string)
+}
+
+func nestedEnvExternalPlaceholder(t *testing.T, tag string, variable string) string {
+	t.Helper()
+	var doc yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(
+		"value: "+tag+" {name: !env "+variable+"}\n",
+	), &doc))
+	value, err := tags.NewExternalTagResolver(tag).Resolve(doc.Content[0].Content[1])
+	require.NoError(t, err)
+	placeholder, ok := value.(string)
+	require.True(t, ok)
+	require.True(t, strings.HasPrefix(placeholder, tags.ExternalPlaceholderPrefix))
+	return placeholder
 }

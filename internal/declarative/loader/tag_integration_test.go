@@ -38,6 +38,58 @@ apis:
 	require.Equal(t, external.MatchFields, lookup.MatchFields)
 }
 
+func TestLoader_NestedEnvExternalLookupTags(t *testing.T) {
+	t.Setenv("BLOCK_PORTAL_NAME", "Block Portal")
+	t.Setenv("FLOW_PORTAL_NAME", "Flow Portal")
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(`
+apis:
+  - ref: products
+    name: Products
+    publications:
+      - ref: block-publication
+        portal_id: !lookup
+          name: !env BLOCK_PORTAL_NAME
+      - ref: flow-publication
+        portal_id: !external {name: !env FLOW_PORTAL_NAME}
+`), 0o600))
+
+	rs, err := NewWithBaseDir(tmpDir).LoadFile(configFile)
+	require.NoError(t, err)
+	require.Len(t, rs.APIPublications, 2)
+	require.False(t, rs.HasEnvSources())
+
+	blockLookup, ok := tags.ParseExternalPlaceholder(rs.APIPublications[0].PortalID)
+	require.True(t, ok)
+	require.Equal(t, map[string]string{"name": "Block Portal"}, blockLookup.MatchFields)
+	require.Equal(t, []string{"name"}, blockLookup.SensitiveFields)
+
+	flowLookup, ok := tags.ParseExternalPlaceholder(rs.APIPublications[1].PortalID)
+	require.True(t, ok)
+	require.Equal(t, map[string]string{"name": "Flow Portal"}, flowLookup.MatchFields)
+	require.Equal(t, []string{"name"}, flowLookup.SensitiveFields)
+}
+
+func TestLoader_RejectsUnsupportedNestedTagWithSource(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(`
+apis:
+  - ref: products
+    name: Products
+    publications:
+      - ref: products-publication
+        portal_id: !lookup {name: !ref portal-name}
+`), 0o600))
+
+	_, err := NewWithBaseDir(tmpDir).LoadFile(configFile)
+	require.ErrorContains(t, err, configFile)
+	require.ErrorContains(t, err, "nested YAML tag !ref is not supported inside !lookup")
+	require.ErrorContains(t, err, "line 7, column")
+}
+
 func TestLoader_RejectsMalformedExternalLookupPlaceholder(t *testing.T) {
 	t.Parallel()
 

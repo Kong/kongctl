@@ -42,6 +42,75 @@ func TestExternalTagResolverMapping(t *testing.T) {
 	require.Equal(t, map[string]string{"name": "shared", "display_name": "Shared Gateway"}, lookup.MatchFields)
 }
 
+func TestExternalTagResolverNestedEnvSelector(t *testing.T) {
+	t.Setenv("EXTERNAL_SELECTOR", "Shared Portal")
+
+	var doc yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte("value: !lookup {name: !env EXTERNAL_SELECTOR}\n"), &doc))
+	node := doc.Content[0].Content[1]
+
+	value, err := NewExternalTagResolver(TagLookup).Resolve(node)
+	require.NoError(t, err)
+	lookup, ok := ParseExternalPlaceholder(value.(string))
+	require.True(t, ok)
+	require.Equal(t, map[string]string{"name": "Shared Portal"}, lookup.MatchFields)
+	require.Equal(t, []string{"name"}, lookup.SensitiveFields)
+	require.Equal(
+		t,
+		`"name"="[redacted from !env]"`,
+		ExternalLookupDisplayKey(lookup.MatchFields, lookup.SensitiveFields),
+	)
+}
+
+func TestExternalTagResolverNestedEnvMapExtraction(t *testing.T) {
+	t.Setenv("EXTERNAL_SELECTOR_DOCUMENT", "portal:\n  name: Shared Portal\n")
+
+	var doc yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`value: !external
+  name: !env
+    var: EXTERNAL_SELECTOR_DOCUMENT
+    extract: portal.name
+`), &doc))
+	node := doc.Content[0].Content[1]
+
+	value, err := NewExternalTagResolver(TagExternal).Resolve(node)
+	require.NoError(t, err)
+	lookup, ok := ParseExternalPlaceholder(value.(string))
+	require.True(t, ok)
+	require.Equal(t, map[string]string{"name": "Shared Portal"}, lookup.MatchFields)
+	require.Equal(t, []string{"name"}, lookup.SensitiveFields)
+}
+
+func TestExternalTagResolverRejectsInvalidNestedEnvSelector(t *testing.T) {
+	t.Run("unset", func(t *testing.T) {
+		var doc yaml.Node
+		require.NoError(t, yaml.Unmarshal([]byte("value: !lookup {name: !env UNSET_EXTERNAL_SELECTOR}\n"), &doc))
+
+		_, err := NewExternalTagResolver(TagLookup).Resolve(doc.Content[0].Content[1])
+		require.ErrorContains(t, err, "environment variable not set: UNSET_EXTERNAL_SELECTOR")
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		t.Setenv("EMPTY_EXTERNAL_SELECTOR", "")
+		var doc yaml.Node
+		require.NoError(t, yaml.Unmarshal([]byte("value: !lookup {name: !env EMPTY_EXTERNAL_SELECTOR}\n"), &doc))
+
+		_, err := NewExternalTagResolver(TagLookup).Resolve(doc.Content[0].Content[1])
+		require.ErrorContains(t, err, "mapping keys and values cannot be empty")
+	})
+
+	t.Run("non-string extraction", func(t *testing.T) {
+		t.Setenv("NON_STRING_EXTERNAL_SELECTOR", "portal:\n  enabled: true\n")
+		var doc yaml.Node
+		require.NoError(t, yaml.Unmarshal([]byte(
+			"value: !lookup {name: !env NON_STRING_EXTERNAL_SELECTOR#portal.enabled}\n",
+		), &doc))
+
+		_, err := NewExternalTagResolver(TagLookup).Resolve(doc.Content[0].Content[1])
+		require.ErrorContains(t, err, "!env value must resolve to a string")
+	})
+}
+
 func TestExternalLookupKeyIsUnambiguous(t *testing.T) {
 	t.Parallel()
 

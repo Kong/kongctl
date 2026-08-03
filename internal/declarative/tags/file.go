@@ -55,7 +55,7 @@ func NewFileTagResolver(baseDir string, rootDir string) *FileTagResolver {
 
 // Tag returns the YAML tag this resolver handles
 func (f *FileTagResolver) Tag() string {
-	return "!file"
+	return TagFile
 }
 
 // Resolve processes a YAML node with the !file tag

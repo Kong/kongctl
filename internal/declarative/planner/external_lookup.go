@@ -15,10 +15,11 @@ import (
 )
 
 type externalLookupRequest struct {
-	ResourceType resources.ResourceType
-	MatchFields  map[string]string
-	ParentID     string
-	Source       string
+	ResourceType    resources.ResourceType
+	MatchFields     map[string]string
+	SensitiveFields []string
+	ParentID        string
+	Source          string
 }
 
 type externalLookupCacheEntry struct {
@@ -296,10 +297,11 @@ func (r *externalLookupResolver) resolveInlineLookups(
 				source += fmt.Sprintf(" (line %d, column %d)", lookup.Line, lookup.Column)
 			}
 			id, err := r.resolve(ctx, externalLookupRequest{
-				ResourceType: targetType,
-				MatchFields:  lookup.MatchFields,
-				ParentID:     parentID,
-				Source:       source,
+				ResourceType:    targetType,
+				MatchFields:     lookup.MatchFields,
+				SensitiveFields: lookup.SensitiveFields,
+				ParentID:        parentID,
+				Source:          source,
 			})
 			if err != nil {
 				resolutionErr = err
@@ -492,13 +494,19 @@ func matchExternalCandidates[T any](
 	}
 	if len(matches) == 0 {
 		return "", fmt.Errorf(
-			"%s: no %s matched selector {%s}", req.Source, req.ResourceType, tags.ExternalLookupKey(req.MatchFields),
+			"%s: no %s matched selector {%s}",
+			req.Source,
+			req.ResourceType,
+			tags.ExternalLookupDisplayKey(req.MatchFields, req.SensitiveFields),
 		)
 	}
 	if len(matches) > 1 {
 		return "", fmt.Errorf(
 			"%s: selector {%s} matched %d %s resources",
-			req.Source, tags.ExternalLookupKey(req.MatchFields), len(matches), req.ResourceType,
+			req.Source,
+			tags.ExternalLookupDisplayKey(req.MatchFields, req.SensitiveFields),
+			len(matches),
+			req.ResourceType,
 		)
 	}
 	return matches[0], nil
@@ -604,13 +612,19 @@ func (r *externalLookupResolver) lookupEventGatewayVirtualCluster(
 func singleExternalID(req externalLookupRequest, matches []string) (string, error) {
 	if len(matches) == 0 {
 		return "", fmt.Errorf(
-			"%s: no %s matched selector {%s}", req.Source, req.ResourceType, tags.ExternalLookupKey(req.MatchFields),
+			"%s: no %s matched selector {%s}",
+			req.Source,
+			req.ResourceType,
+			tags.ExternalLookupDisplayKey(req.MatchFields, req.SensitiveFields),
 		)
 	}
 	if len(matches) > 1 {
 		return "", fmt.Errorf(
 			"%s: selector {%s} matched %d %s resources",
-			req.Source, tags.ExternalLookupKey(req.MatchFields), len(matches), req.ResourceType,
+			req.Source,
+			tags.ExternalLookupDisplayKey(req.MatchFields, req.SensitiveFields),
+			len(matches),
+			req.ResourceType,
 		)
 	}
 	return matches[0], nil

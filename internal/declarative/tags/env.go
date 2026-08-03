@@ -34,7 +34,7 @@ func NewEnvTagResolver(mode EnvTagMode) *EnvTagResolver {
 
 // Tag returns the YAML tag this resolver handles.
 func (r *EnvTagResolver) Tag() string {
-	return "!env"
+	return TagEnv
 }
 
 // Resolve processes a YAML node with the !env tag.

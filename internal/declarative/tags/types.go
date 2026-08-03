@@ -4,6 +4,19 @@ package tags
 //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 import "gopkg.in/yaml.v3"
 
+const (
+	// TagEnv identifies environment-backed values.
+	TagEnv = "!env"
+	// TagExternal identifies planner-time external lookups.
+	TagExternal = "!external"
+	// TagFile identifies file-backed values.
+	TagFile = "!file"
+	// TagLookup identifies the alias for planner-time external lookups.
+	TagLookup = "!lookup"
+	// TagRef identifies declarative resource references.
+	TagRef = "!ref"
+)
+
 // TagResolver processes custom YAML tags
 type TagResolver interface {
 	// Tag returns the YAML tag this resolver handles (e.g., "!file")

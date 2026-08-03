@@ -24,7 +24,7 @@ func NewRefTagResolver(baseDir string) *RefTagResolver {
 
 // Tag returns the YAML tag this resolver handles
 func (r *RefTagResolver) Tag() string {
-	return "!ref"
+	return TagRef
 }
 
 // Resolve processes a YAML node with the !ref tag
