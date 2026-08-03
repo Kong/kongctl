@@ -251,9 +251,6 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 		}
 	}
 
-	// Process custom tags if needed
-	registry := l.getTagRegistry()
-
 	// Update base directory based on source file location
 	baseDir := l.baseDir
 	if sourcePath != "stdin" && sourcePath != "" {
@@ -271,24 +268,11 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 		tagRootDir = strings.TrimSpace(rootDir)
 	}
 
-	// Always register/update resolvers with correct base directory
-	// This ensures each file gets the correct base directory for relative paths.
+	// Build the placeholder-preserving representation first. Schema validation
+	// runs against this representation so resolved environment values cannot be
+	// included in validation errors.
 	fileResolver := tags.NewFileTagResolver(baseDir, tagRootDir)
 	refResolver := tags.NewRefTagResolver(baseDir)
-	registry.Register(fileResolver)
-	registry.Register(refResolver)
-	registry.Register(tags.NewExternalTagResolver("!external"))
-	registry.Register(tags.NewExternalTagResolver("!lookup"))
-	registry.Register(tags.NewEnvTagResolver(tags.EnvTagModeResolve))
-
-	if registry.HasResolvers() {
-		processedContent, err := registry.Process(rawContent)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process tags in %s: %w", sourcePath, err)
-		}
-		content = processedContent
-	}
-
 	placeholderRegistry := tags.NewResolverRegistry()
 	placeholderRegistry.Register(fileResolver)
 	placeholderRegistry.Register(refResolver)
@@ -298,7 +282,26 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 
 	placeholderContent, err := placeholderRegistry.Process(rawContent)
 	if err != nil {
-		return nil, fmt.Errorf("failed to preserve !env tags in %s: %w", sourcePath, err)
+		return nil, fmt.Errorf("failed to process placeholder tags in %s: %w", sourcePath, err)
+	}
+	if err := validateDeclarativeDocumentShape(placeholderContent, sourcePath); err != nil {
+		return nil, err
+	}
+
+	// Resolve environment-backed values only after the placeholder document has
+	// passed schema validation.
+	registry := l.getTagRegistry()
+	registry.Register(fileResolver)
+	registry.Register(refResolver)
+	registry.Register(tags.NewExternalTagResolver("!external"))
+	registry.Register(tags.NewExternalTagResolver("!lookup"))
+	registry.Register(tags.NewEnvTagResolver(tags.EnvTagModeResolve))
+	if registry.HasResolvers() {
+		processedContent, err := registry.Process(rawContent)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process tags in %s: %w", sourcePath, err)
+		}
+		content = processedContent
 	}
 
 	parseErr := yaml.UnmarshalStrict(content, &temp)

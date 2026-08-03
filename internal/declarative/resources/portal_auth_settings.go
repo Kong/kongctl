@@ -35,10 +35,20 @@ func portalAuthSettingsExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		"oidc_scopes",
 		"oidc_claim_mappings",
 	} {
+		node.rejectLoadField(field, "portal_auth_settings "+PortalAuthSettingsDeprecatedFieldMessage(field))
 		explainRemoveField(node, field)
 	}
 
 	return node, nil
+}
+
+// PortalAuthSettingsDeprecatedFieldMessage returns the shared migration
+// guidance for an unsupported legacy portal authentication field.
+func PortalAuthSettingsDeprecatedFieldMessage(field string) string {
+	return fmt.Sprintf(
+		"uses deprecated field %q; move identity provider configuration to identity_providers",
+		field,
+	)
 }
 
 // PortalAuthSettingsResource represents portal authentication settings (singleton child).

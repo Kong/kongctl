@@ -1547,21 +1547,22 @@ func TestLoader_LoadFile_UnknownFields(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name:          "misspelled labels field with suggestion",
-			file:          "invalid/unknown-field-portal.yaml",
-			expectedError: "unknown field 'lables' in testdata/invalid/unknown-field-portal.yaml. Did you mean 'labels'?",
+			name: "misspelled labels field with suggestion",
+			file: "invalid/unknown-field-portal.yaml",
+			expectedError: "unknown field 'lables' at portals[0].lables in " +
+				"testdata/invalid/unknown-field-portal.yaml. Did you mean 'labels'?",
 		},
 		{
 			name: "unknown field with no suggestion",
 			file: "invalid/unknown-field-no-suggestion.yaml",
-			expectedError: "unknown field 'completely_unknown_field' in " +
+			expectedError: "unknown field 'completely_unknown_field' at portals[0].completely_unknown_field in " +
 				"testdata/invalid/unknown-field-no-suggestion.yaml. " +
 				"Please check the field name against the schema",
 		},
 		{
 			name: "misspelled strategy_type field",
 			file: "invalid/unknown-field-auth.yaml",
-			expectedError: "unknown field 'strategytype' in " +
+			expectedError: "unknown field 'strategytype' at application_auth_strategies[0].strategytype in " +
 				"testdata/invalid/unknown-field-auth.yaml. Did you mean 'strategy_type'?",
 		},
 	}

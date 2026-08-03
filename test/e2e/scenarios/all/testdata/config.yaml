@@ -349,7 +349,7 @@ event_gateways:
           type: anonymous
         tls:
           enabled: true
-          skip_verify: false
+          insecure_skip_verify: false
           tls_versions:
             - tls12
             - tls13
@@ -433,7 +433,6 @@ event_gateways:
             type: forward_to_virtual_cluster
             description: Listener policy for all resources
             enabled: true
-            condition: "${ssl_sni} == \"all.example.com\""
             labels:
               suite: all
             config:

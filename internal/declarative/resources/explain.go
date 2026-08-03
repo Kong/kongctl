@@ -44,6 +44,7 @@ type ExplainFieldHint struct {
 	PreferredTag string
 	RefKind      string
 	Notes        []string
+	LoadOpaque   bool
 }
 
 type ExplainBuildContext struct {
@@ -121,6 +122,9 @@ type ExplainNode struct {
 	Items        *ExplainNode
 	Additional   *ExplainNode
 	OneOf        []*ExplainNode
+	truncated    bool
+	loadOpaque   bool
+	loadRejected map[string]string
 }
 
 type ExplainField struct {
@@ -133,6 +137,8 @@ type ExplainField struct {
 type JSONSchema struct {
 	Schema        string                  `json:"$schema,omitempty" yaml:"$schema,omitempty"`
 	ID            string                  `json:"$id,omitempty" yaml:"$id,omitempty"`
+	Ref           string                  `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Defs          map[string]*JSONSchema  `json:"$defs,omitempty" yaml:"$defs,omitempty"`
 	Title         string                  `json:"title,omitempty" yaml:"title,omitempty"`
 	Description   string                  `json:"description,omitempty" yaml:"description,omitempty"`
 	Type          any                     `json:"type,omitempty" yaml:"type,omitempty"`
@@ -158,6 +164,16 @@ type JSONSchema struct {
 	XRoot         *bool                   `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`                             //nolint:lll
 	XNestedDecl   *bool                   `json:"x-kongctl-supports-nested-declaration,omitempty" yaml:"x-kongctl-supports-nested-declaration,omitempty"` //nolint:lll
 	XMaturity     *ExplainMaturity        `json:"x-kongctl-maturity,omitempty" yaml:"x-kongctl-maturity,omitempty"`
+	loadRejected  map[string]string
+}
+
+// LoadRejectedFieldMessage returns load-only guidance for a recognized field
+// that is intentionally excluded from the accepted schema.
+func (s *JSONSchema) LoadRejectedFieldMessage(name string) string {
+	if s == nil {
+		return ""
+	}
+	return s.loadRejected[name]
 }
 
 // ExplainRelationship describes the user-visible contract of a resource relationship field.
@@ -287,6 +303,7 @@ func mergeExplainFieldHint(base ExplainFieldHint, override ExplainFieldHint) Exp
 	if len(override.Notes) > 0 {
 		result.Notes = append([]string(nil), override.Notes...)
 	}
+	result.LoadOpaque = result.LoadOpaque || override.LoadOpaque
 	return result
 }
 
@@ -1098,6 +1115,17 @@ func autoExplainNode(
 			if !field.IsExported() {
 				continue
 			}
+			if field.Tag.Get("additionalProperties") == "true" {
+				additionalType := derefExplainType(field.Type)
+				if additionalType.Kind() == reflect.Map {
+					additional, err := autoExplainValueNode(additionalType.Elem(), path, hints, stack)
+					if err != nil {
+						return nil, err
+					}
+					node.Additional = additional
+				}
+				continue
+			}
 
 			yamlName, yamlInline, yamlOmit, skip := explainFieldName(field, "yaml")
 			if skip {
@@ -1300,6 +1328,7 @@ func recursiveExplainNode(typ reflect.Type) *ExplainNode {
 	return &ExplainNode{
 		Kind:        explainKindObject,
 		Description: fmt.Sprintf("Recursive %s object", snakeCase(typ.Name())),
+		truncated:   true,
 		Notes: []string{
 			"schema recursion truncated after the first expansion",
 		},
@@ -1337,6 +1366,7 @@ func applyExplainFieldHint(node *ExplainNode, hint ExplainFieldHint) {
 	if len(hint.Notes) > 0 {
 		node.Notes = append([]string(nil), hint.Notes...)
 	}
+	node.loadOpaque = node.loadOpaque || hint.LoadOpaque
 }
 
 func explainLiteralFor(node *ExplainNode, name string) string {
@@ -2099,6 +2129,16 @@ func (n *ExplainNode) addField(field *ExplainField) {
 	n.propIndex[field.Name] = field
 }
 
+func (n *ExplainNode) rejectLoadField(name, message string) {
+	if n == nil || name == "" || message == "" {
+		return
+	}
+	if n.loadRejected == nil {
+		n.loadRejected = make(map[string]string)
+	}
+	n.loadRejected[name] = message
+}
+
 func (n *ExplainNode) lookup(path []string) (*ExplainNode, bool) {
 	current := n
 	for _, segment := range path {
@@ -2154,6 +2194,9 @@ func (n *ExplainNode) clone() *ExplainNode {
 		Literal:      n.Literal,
 		Items:        n.Items.clone(),
 		Additional:   n.Additional.clone(),
+		truncated:    n.truncated,
+		loadOpaque:   n.loadOpaque,
+		loadRejected: maps.Clone(n.loadRejected),
 		propIndex:    make(map[string]*ExplainField),
 	}
 	if n.Relationship != nil {

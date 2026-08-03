@@ -2,6 +2,7 @@ package resources
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -9,6 +10,9 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/util"
 )
+
+const aiGatewayMCPServerConversionOnlyAccessMessage = `AI Gateway MCP Server field "access" is not supported ` +
+	`when type is "conversion-only"`
 
 const (
 	aiGatewayMCPServerFieldID          = "id"
@@ -322,7 +326,7 @@ func rejectUnsupportedAIGatewayMCPServerAccess(raw map[string]json.RawMessage) e
 		return fmt.Errorf("invalid AI Gateway MCP Server type: %w", err)
 	}
 	if serverType == "conversion-only" {
-		return fmt.Errorf(`AI Gateway MCP Server field "access" is not supported when type is "conversion-only"`)
+		return errors.New(aiGatewayMCPServerConversionOnlyAccessMessage)
 	}
 	return nil
 }
@@ -512,11 +516,13 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		slices.Clone(commonFields),
 		explainField("access", aiGatewayMCPServerAccessExplainNode(), false, false),
 	)
+	conversionOnly := explainObject(append(
+		slices.Clone(commonFields),
+		explainField("type", explainConstStringNode("conversion-only"), true, true),
+	)...)
+	conversionOnly.rejectLoadField("access", aiGatewayMCPServerConversionOnlyAccessMessage)
 	return explainUnionNode(
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("conversion-only"), true, true),
-		)...),
+		conversionOnly,
 		explainObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("conversion-listener"), true, true),

@@ -36,7 +36,6 @@ apis:
     publications:
       - ref: main-pub
         portal_id: main-portal
-        publish_status: published
 `,
 			wantErr: false,
 		},
@@ -55,7 +54,6 @@ apis:
     publications:
       - ref: main-pub
         portal_id: nonexistent-portal
-        publish_status: published
 `,
 			wantErr:     true,
 			expectedErr: `references unknown portal: nonexistent-portal`,
@@ -112,10 +110,8 @@ apis:
     publications:
       - ref: main-pub
         portal_id: main-portal
-        publish_status: published
       - ref: invalid-pub
         portal_id: nonexistent-portal
-        publish_status: published
 `,
 			wantErr:     true,
 			expectedErr: `references unknown portal: nonexistent-portal`,
@@ -146,10 +142,8 @@ apis:
     publications:
       - ref: main-pub
         portal_id: main-portal
-        publish_status: published
       - ref: dev-pub
         portal_id: dev-portal
-        publish_status: unpublished
     implementations:
       - ref: users-impl-external
         implementation_url: "https://api.example.com"
@@ -191,7 +185,6 @@ api_publications:
   - ref: main-pub
     api: users-api
     portal_id: main-portal
-    publish_status: published
 
 api_implementations:
   - ref: users-impl
