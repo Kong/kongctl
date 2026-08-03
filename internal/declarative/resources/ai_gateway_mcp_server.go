@@ -161,13 +161,14 @@ func (a *AIGatewayMCPServerResource) TryMatchKonnectResource(konnectResource any
 	if name == "" {
 		return false
 	}
-	if id := AIGatewayMCPServerID(konnectResource); id != "" && (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") {
+	id := AIGatewayMCPServerID(konnectResource)
+	if id != "" && (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") {
 		if a.Ref == id || a.GetKonnectID() == id {
 			a.SetKonnectID(id)
 			return true
 		}
 	}
-	if id := AIGatewayMCPServerID(konnectResource); id != "" && AIGatewayMCPServerName(konnectResource) == name {
+	if id != "" && AIGatewayMCPServerName(konnectResource) == name {
 		a.SetKonnectID(id)
 		return true
 	}
