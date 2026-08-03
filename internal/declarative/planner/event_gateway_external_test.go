@@ -282,6 +282,66 @@ func TestPlanner_ExternalEventGateway_PlansExternalVirtualClusterChildren(t *tes
 	require.Equal(t, virtualClusterID, change.References[FieldEventGatewayVirtualClusterID].ID)
 }
 
+func TestPlanner_SyncInlineExternalVirtualClusterPlansRootPolicy(t *testing.T) {
+	t.Parallel()
+
+	const (
+		gatewayID        = "gateway-123"
+		virtualClusterID = "vc-123"
+		policyRef        = "lookup-cluster-policy"
+	)
+	policyName := "Lookup Cluster Policy"
+	enabled := true
+	client := state.NewClient(state.ClientConfig{
+		EGWControlPlaneAPI: &stubExternalEventGatewayControlPlaneAPI{
+			gateways: []kkComps.EventGatewayInfo{{ID: gatewayID, Name: "external-egw"}},
+		},
+		EventGatewayVirtualClusterAPI: &stubExternalEventGatewayVirtualClusterAPI{
+			clusters: []kkComps.VirtualCluster{{ID: virtualClusterID, Name: "external-vc"}},
+		},
+		EventGatewayClusterPolicyAPI: &stubExternalEventGatewayClusterPolicyAPI{},
+	})
+	rs := &resources.ResourceSet{
+		EventGatewayClusterPolicies: []resources.EventGatewayClusterPolicyResource{{
+			Ref:            policyRef,
+			EventGateway:   namedExternalPlaceholder(t, "!lookup", "external-egw"),
+			VirtualCluster: namedExternalPlaceholder(t, "!lookup", "external-vc"),
+			EventGatewayClusterPolicyModify: kkComps.CreateEventGatewayClusterPolicyModifyAcls(
+				kkComps.EventGatewayACLsPolicy{
+					Name:    &policyName,
+					Enabled: &enabled,
+					Config:  kkComps.EventGatewayACLPolicyConfig{},
+				},
+			),
+		}},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	change := plan.Changes[0]
+	require.Equal(t, ActionCreate, change.Action)
+	require.Equal(t, ResourceTypeEventGatewayClusterPolicy, change.ResourceType)
+	require.Equal(t, policyRef, change.ResourceRef)
+	require.Equal(t, virtualClusterID, change.Parent.Ref)
+	require.Equal(t, virtualClusterID, change.Parent.ID)
+	require.Equal(t, gatewayID, change.References[FieldEventGatewayID].ID)
+	require.Equal(t, virtualClusterID, change.References[FieldEventGatewayVirtualClusterID].ID)
+	require.NotNil(t, plan.Metadata.SyncScope)
+	require.ElementsMatch(t, []PlanSyncChildScope{
+		{
+			ParentType:   ResourceTypeEventGatewayControlPlane,
+			ParentRef:    gatewayID,
+			ResourceType: ResourceTypeEventGatewayVirtualCluster,
+		},
+		{
+			ParentType:   ResourceTypeEventGatewayVirtualCluster,
+			ParentRef:    virtualClusterID,
+			ResourceType: ResourceTypeEventGatewayClusterPolicy,
+		},
+	}, plan.Metadata.SyncScope.ChildResourceTypes)
+}
+
 func TestPlanner_PreResolvedExternalVirtualClusterPlansChildren(t *testing.T) {
 	t.Parallel()
 
