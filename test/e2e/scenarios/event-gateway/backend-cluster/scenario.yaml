@@ -329,7 +329,7 @@ steps:
             expect:
               fields:
                 total_changes: 0
-  - name: 003-sync-delete
+  - name: 005-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
