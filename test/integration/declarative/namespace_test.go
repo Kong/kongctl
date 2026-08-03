@@ -40,13 +40,13 @@ apis:
     name: "Team API"
     description: "API for team operations"
     kongctl:
-      namespace: team-alpha
+      namespace: team--service--prod
 portals:
   - ref: team-portal
     name: "Team Portal"
     description: "Portal for team"
     kongctl:
-      namespace: team-alpha
+      namespace: team--service--prod
 `
 
 	err := os.WriteFile(configFile, []byte(configContent), 0o600)
@@ -62,11 +62,11 @@ portals:
 	// Verify namespace was parsed correctly
 	require.NotNil(t, resourceSet.APIs[0].Kongctl)
 	require.NotNil(t, resourceSet.APIs[0].Kongctl.Namespace)
-	assert.Equal(t, "team-alpha", *resourceSet.APIs[0].Kongctl.Namespace)
+	assert.Equal(t, "team--service--prod", *resourceSet.APIs[0].Kongctl.Namespace)
 
 	require.NotNil(t, resourceSet.Portals[0].Kongctl)
 	require.NotNil(t, resourceSet.Portals[0].Kongctl.Namespace)
-	assert.Equal(t, "team-alpha", *resourceSet.Portals[0].Kongctl.Namespace)
+	assert.Equal(t, "team--service--prod", *resourceSet.Portals[0].Kongctl.Namespace)
 
 	// Debug: print loaded resources
 	t.Logf("Loaded %d APIs, %d Portals", len(resourceSet.APIs), len(resourceSet.Portals))
@@ -81,7 +81,7 @@ portals:
 			APIResponseSchema: &kkComps.APIResponseSchema{
 				ID:     "mock-api",
 				Name:   "mock-api",
-				Labels: map[string]string{labels.NamespaceKey: "team-alpha"},
+				Labels: map[string]string{labels.NamespaceKey: "team--service--prod"},
 			},
 		}, nil).Maybe()
 	mockPortalAPI := GetMockPortalAPI(ctx, t)
@@ -107,7 +107,7 @@ portals:
 			APIResponseSchema: &kkComps.APIResponseSchema{
 				ID:          "alpha-1",
 				Name:        "alpha-1",
-				Labels:      map[string]string{labels.NamespaceKey: "team-alpha"},
+				Labels:      map[string]string{labels.NamespaceKey: "team--service--prod"},
 				Description: stringPtr("alpha api"),
 			},
 		}, nil).Maybe()
@@ -132,7 +132,7 @@ portals:
 			APIResponseSchema: &kkComps.APIResponseSchema{
 				ID:     "api-protected",
 				Name:   "Protected Alpha API",
-				Labels: map[string]string{labels.NamespaceKey: "team-alpha", labels.ProtectedKey: "true"},
+				Labels: map[string]string{labels.NamespaceKey: "team--service--prod", labels.ProtectedKey: "true"},
 			},
 		}, nil).Maybe()
 
@@ -142,7 +142,7 @@ portals:
 		if api.Labels == nil {
 			return false
 		}
-		return api.Labels[labels.NamespaceKey] == "team-alpha"
+		return api.Labels[labels.NamespaceKey] == "team--service--prod"
 	})).Return(&kkOps.CreateAPIResponse{
 		StatusCode: 201,
 		APIResponseSchema: &kkComps.APIResponseSchema{
@@ -150,7 +150,7 @@ portals:
 			Name:        "Team API",
 			Description: stringPtr("API for team operations"),
 			Labels: map[string]string{
-				labels.NamespaceKey: "team-alpha",
+				labels.NamespaceKey: "team--service--prod",
 			},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -165,7 +165,7 @@ portals:
 		}
 		// Portal.Labels is a map[string]*string, need to dereference
 		if nsLabel, ok := portal.Labels[labels.NamespaceKey]; ok && nsLabel != nil {
-			return *nsLabel == "team-alpha"
+			return *nsLabel == "team--service--prod"
 		}
 		return false
 	})).Return(&kkOps.CreatePortalResponse{
@@ -239,7 +239,7 @@ portals:
 
 	// Verify both changes have namespace set
 	for _, change := range plan.Changes {
-		assert.Equal(t, "team-alpha", change.Namespace)
+		assert.Equal(t, "team--service--prod", change.Namespace)
 		assert.Equal(t, planner.ActionCreate, change.Action)
 	}
 
@@ -759,17 +759,6 @@ apis:
 			expectError: "exceeds maximum length of 63 characters",
 		},
 		{
-			name: "invalid namespace with double hyphen",
-			yaml: `
-apis:
-  - ref: api1
-    name: "API 1"
-    kongctl:
-      namespace: team--alpha
-`,
-			expectError: "cannot contain consecutive hyphens",
-		},
-		{
 			name: "empty namespace explicitly set",
 			yaml: `
 apis:
@@ -888,7 +877,7 @@ organization:
 		t.Run(tc.name, func(t *testing.T) {
 			configFile := writeNamespaceRegressionConfig(t, tc.yaml)
 
-			err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile)
+			err := executeDeclarativeNamespaceCommand(t, "-f", configFile)
 
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "failed to load configuration")
@@ -899,6 +888,22 @@ organization:
 }
 
 func TestNamespace_CommandRequirementCoversOrganizationTeams(t *testing.T) {
+	t.Run("specific namespace accepts consecutive hyphens", func(t *testing.T) {
+		configFile := writeNamespaceRegressionConfig(t, `
+_defaults:
+  kongctl:
+    namespace: ns--a
+organization:
+  teams:
+    - ref: repro-team
+      name: repro-team
+`)
+
+		err := executeDeclarativeNamespaceCommand(t, "-f", configFile, "--require-namespace", "ns--a")
+
+		require.NoError(t, err)
+	})
+
 	t.Run("specific namespace reports team mismatch", func(t *testing.T) {
 		configFile := writeNamespaceRegressionConfig(t, `
 _defaults:
@@ -910,7 +915,7 @@ organization:
       name: repro-team
 `)
 
-		err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile, "--require-namespace", "ns-b")
+		err := executeDeclarativeNamespaceCommand(t, "-f", configFile, "--require-namespace", "ns-b")
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "organization_team 'repro-team': uses namespace 'ns-a'")
@@ -927,7 +932,7 @@ organization:
         namespace: ns-a
 `)
 
-		err := executeDeclarativeNamespaceCommand(t, "plan", "-f", configFile, "--require-any-namespace")
+		err := executeDeclarativeNamespaceCommand(t, "-f", configFile, "--require-any-namespace")
 
 		require.NoError(t, err)
 	})
@@ -1113,10 +1118,10 @@ func writeNamespaceRegressionConfig(t *testing.T, content string) string {
 	return configFile
 }
 
-func executeDeclarativeNamespaceCommand(t *testing.T, verb string, args ...string) error {
+func executeDeclarativeNamespaceCommand(t *testing.T, args ...string) error {
 	t.Helper()
 
-	cmd, err := declarative.NewDeclarativeCmd(verbs.VerbValue(verb))
+	cmd, err := declarative.NewDeclarativeCmd(verbs.Plan)
 	require.NoError(t, err)
 	cmd.SetContext(SetupTestContext(t))
 

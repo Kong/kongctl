@@ -159,11 +159,6 @@ func (v *NamespaceValidator) ValidateNamespace(namespace string) error {
 		return fmt.Errorf("namespace '%s' is reserved and cannot be used", namespace)
 	}
 
-	// Additional validation: no double hyphens
-	if strings.Contains(namespace, "--") {
-		return fmt.Errorf("namespace '%s' is invalid: cannot contain consecutive hyphens", namespace)
-	}
-
 	return nil
 }
 
