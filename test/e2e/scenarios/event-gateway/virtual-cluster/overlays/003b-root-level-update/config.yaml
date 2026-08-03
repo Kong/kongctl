@@ -25,9 +25,9 @@ event_gateway_virtual_clusters:
   - ref: default-virtual-cluster
     name: default-virtual-cluster
     event_gateway: egw-cp-for-bc-vc-test
-    description: "Virtual Cluster for Test"
+    description: "Virtual Cluster for Test Updated"
     labels:
-      env: staging
+      env: production
       team: gateway
     destination:
       id: !ref default-backend-cluster#id
