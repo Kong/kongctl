@@ -224,3 +224,67 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "unsupported URL scheme"
+
+  - name: 015-invalid-ref-with-space
+    inputOverlayDirs:
+      - overlays/015-invalid-ref-with-space
+    commands:
+      - name: 000-plan-ref-space
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "ref cannot contain spaces"
+
+  - name: 016-invalid-ref-with-colon
+    inputOverlayDirs:
+      - overlays/016-invalid-ref-with-colon
+    commands:
+      - name: 000-plan-ref-colon
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "ref cannot contain colons"
+
+  - name: 017-invalid-ref-too-long
+    inputOverlayDirs:
+      - overlays/017-invalid-ref-too-long
+    commands:
+      - name: 000-plan-ref-too-long
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "ref must be between"
+
+  - name: 018-invalid-ref-starts-with-hyphen
+    inputOverlayDirs:
+      - overlays/018-invalid-ref-starts-with-hyphen
+    commands:
+      - name: 000-plan-ref-starts-with-hyphen
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "ref must start with a letter or number"
