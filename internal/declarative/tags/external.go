@@ -58,10 +58,10 @@ func (r *ExternalTagResolver) Resolve(node *yaml.Node) (any, error) {
 			key := node.Content[i]
 			value := node.Content[i+1]
 			if key.Kind != yaml.ScalarNode {
-				return nil, fmt.Errorf("%s mapping keys and values must be strings", r.tag)
+				return nil, fmt.Errorf("%s mapping keys must be strings", r.tag)
 			}
 			if key.Tag != "" && key.Tag != "!!str" {
-				return nil, fmt.Errorf("%s mapping keys and values must be strings", r.tag)
+				return nil, fmt.Errorf("%s mapping keys must be strings", r.tag)
 			}
 			field := strings.TrimSpace(key.Value)
 			match, sensitive, err := resolveExternalSelectorValue(value)

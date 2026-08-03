@@ -124,12 +124,29 @@ func TestExternalTagResolverRejectsInvalidValues(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		node *yaml.Node
+		name    string
+		node    *yaml.Node
+		wantErr string
 	}{
 		{name: "missing delimiter", node: &yaml.Node{Kind: yaml.ScalarNode, Value: "shared"}},
 		{name: "invalid node kind", node: &yaml.Node{}},
 		{name: "empty selector", node: &yaml.Node{Kind: yaml.MappingNode}},
+		{
+			name: "non-scalar key",
+			node: &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{
+				{Kind: yaml.MappingNode},
+				{Kind: yaml.ScalarNode, Tag: "!!str", Value: "shared"},
+			}},
+			wantErr: "mapping keys must be strings",
+		},
+		{
+			name: "non-string key",
+			node: &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{
+				{Kind: yaml.ScalarNode, Tag: "!!int", Value: "123"},
+				{Kind: yaml.ScalarNode, Tag: "!!str", Value: "shared"},
+			}},
+			wantErr: "mapping keys must be strings",
+		},
 		{name: "id combined", node: &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{
 			{Kind: yaml.ScalarNode, Value: "id"},
 			{Kind: yaml.ScalarNode, Value: "123"},
@@ -147,6 +164,9 @@ func TestExternalTagResolverRejectsInvalidValues(t *testing.T) {
 			t.Parallel()
 			_, err := NewExternalTagResolver("!external").Resolve(tt.node)
 			require.Error(t, err)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
 		})
 	}
 }
