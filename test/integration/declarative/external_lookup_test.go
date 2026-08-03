@@ -43,3 +43,39 @@ gateway_services:
 	require.Equal(t, map[string]string{"name": "Shared Portal"}, publicationLookup.MatchFields)
 	require.Equal(t, map[string]string{"name": "Shared Control Plane"}, parentLookup.MatchFields)
 }
+
+func TestNestedEnvExternalLookupTags(t *testing.T) {
+	t.Setenv("BLOCK_PORTAL_NAME", "Block Portal")
+	t.Setenv("FLOW_CONTROL_PLANE_NAME", "Flow Control Plane")
+
+	configFile := filepath.Join(t.TempDir(), "nested-external-lookups.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(`
+apis:
+  - ref: products
+    name: Products
+    publications:
+      - ref: products-publication
+        portal_id: !lookup
+          name: !env BLOCK_PORTAL_NAME
+
+gateway_services:
+  - ref: billing-service
+    control_plane: !external {name: !env FLOW_CONTROL_PLANE_NAME}
+    _external:
+      id: service-id
+`), 0o600))
+
+	rs, err := loader.New().LoadFile(configFile)
+	require.NoError(t, err)
+	require.False(t, rs.HasEnvSources())
+
+	publicationLookup, ok := tags.ParseExternalPlaceholder(rs.APIPublications[0].PortalID)
+	require.True(t, ok)
+	require.Equal(t, map[string]string{"name": "Block Portal"}, publicationLookup.MatchFields)
+	require.Equal(t, []string{"name"}, publicationLookup.SensitiveFields)
+
+	parentLookup, ok := tags.ParseExternalPlaceholder(rs.GatewayServices[0].ControlPlane)
+	require.True(t, ok)
+	require.Equal(t, map[string]string{"name": "Flow Control Plane"}, parentLookup.MatchFields)
+	require.Equal(t, []string{"name"}, parentLookup.SensitiveFields)
+}

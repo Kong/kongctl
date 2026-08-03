@@ -617,6 +617,50 @@ The supported relationship tags are:
 the field is an API foreign key or a kongctl parent selector, supported tags,
 selectors, and any required scope field.
 
+### Nested YAML Tags
+
+Nested tags are supported only for combinations whose resolution order and
+security behavior are defined explicitly. `!env` may be used as a direct
+mapping selector value inside `!lookup` or `!external`:
+
+```yaml
+# Block mapping syntax
+portal_id: !lookup
+  name: !env PORTAL_NAME
+
+# Compact flow syntax
+control_plane: !external {name: !env CONTROL_PLANE_NAME}
+```
+
+Both scalar and map forms of the nested `!env` tag are supported. Multiple
+lookup selectors may use `!env`, subject to the selectors supported by the
+target resource. The existing rule that `id` cannot be combined with other
+selectors still applies.
+
+The current nested-tag support matrix is:
+
+| Outer tag | Inner tag | Status |
+|---|---|---|
+| `!lookup` / `!external` | `!env` | Direct mapping values only |
+| `!lookup` / `!external` | `!file`, `!ref`, lookup tags | Unsupported |
+| `!env`, `!file`, `!ref` | Any custom tag | Unsupported |
+
+The scalar `field:value` lookup form cannot contain a nested YAML tag; use a
+mapping form instead. Tags are also rejected in mapping keys, nested lookup
+objects, and control fields such as `var`, `extract`, or `path`.
+
+Nested `!file` values are not enabled because the permitted value types and
+disclosure behavior have not been defined. Nested `!ref` values are not
+enabled because references resolve after resources load, while remote lookups
+must resolve during planning. A tag contained in data loaded by `!file`
+continues to be treated as file content and is not processed recursively.
+
+For a supported nested `!env`, the environment value is read before the
+planner performs the remote lookup. Diagnostics redact that selector value.
+After a match is found, only the resolved resource ID is written to the plan.
+Saved-plan execution does not read the environment variable again or repeat
+the lookup, even if the environment later changes.
+
 ### Loading File Content to YAML Fields
 
 Load the entire content of a file as a string:
@@ -776,6 +820,9 @@ A runnable example is available in
   calculate changes.
 - Saved plan files preserve the deferred `!env` reference instead of the
   resolved plaintext value.
+- The exception is `!env` nested inside `!lookup` or `!external`: it is a
+  planner-only selector input, so the saved plan retains the resolved resource
+  ID and does not defer that environment value to execution.
 - During execution, `kongctl` performs a fresh environment lookup for each
   deferred `!env` value instead of reusing the value observed during
   planning.

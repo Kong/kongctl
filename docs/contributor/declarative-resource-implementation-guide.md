@@ -1769,6 +1769,20 @@ or mapping syntax and serializes an opaque placeholder; it never performs
 network access. The planner resolves the placeholder before managed identity
 matching and writes only the resulting ID into the resource and plan.
 
+Nested tag composition is controlled by an explicit allowlist in the tag
+resolver. Currently, only `!env` as a direct mapping selector value inside
+`!external` or `!lookup` is supported. The external resolver must resolve that
+child concretely in both loader passes, mark its selector field as sensitive,
+and carry the sensitivity marker in its opaque placeholder. Planner cache keys
+use the real selector while user-facing diagnostics use a redacted form.
+
+Do not add a nested combination based only on compatible YAML node shapes.
+Define its resolution phase, allowed locations and result type, behavior in
+both loader representations, diagnostic disclosure policy, and saved-plan
+semantics first. Tags in control fields such as `var`, `extract`, and `path`
+remain unsupported unless the allowlist and documentation explicitly say
+otherwise.
+
 Resource types that support `_external` or inline lookup targets must:
 
 1. Implement `ExternallyResolvableResource`.

@@ -1,9 +1,11 @@
 package tags
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 )
 
@@ -160,4 +162,59 @@ func TestResolverRegistry_InvalidYAML(t *testing.T) {
 	_, err := registry.Process([]byte(invalidYAML))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse YAML")
+}
+
+func TestResolverRegistry_NestedTagSupportMatrix(t *testing.T) {
+	t.Setenv("NESTED_SELECTOR", "Shared Portal")
+
+	tags := []string{TagLookup, TagExternal, TagEnv, TagFile, TagRef}
+	for _, outerTag := range tags {
+		for _, innerTag := range tags {
+			name := fmt.Sprintf("%s contains %s", outerTag, innerTag)
+			t.Run(name, func(t *testing.T) {
+				registry := NewResolverRegistry()
+				registry.Register(NewExternalTagResolver(TagLookup))
+				registry.Register(NewExternalTagResolver(TagExternal))
+				registry.Register(NewEnvTagResolver(EnvTagModeResolve))
+				registry.Register(NewFileTagResolver(t.TempDir(), t.TempDir()))
+				registry.Register(NewRefTagResolver("."))
+
+				input := fmt.Sprintf("value: %s {name: %s NESTED_SELECTOR}\n", outerTag, innerTag)
+				_, err := registry.Process([]byte(input))
+				if (outerTag == TagLookup || outerTag == TagExternal) && innerTag == TagEnv {
+					require.NoError(t, err)
+					return
+				}
+
+				require.ErrorContains(t, err, "nested YAML tag "+innerTag+" is not supported inside "+outerTag)
+				require.ErrorContains(t, err, "line 1, column")
+			})
+		}
+	}
+}
+
+func TestResolverRegistry_RejectsNestedEnvOutsideDirectLookupSelector(t *testing.T) {
+	t.Setenv("NESTED_SELECTOR", "Shared Portal")
+
+	registry := NewResolverRegistry()
+	registry.Register(NewExternalTagResolver(TagLookup))
+	registry.Register(NewEnvTagResolver(EnvTagModeResolve))
+
+	_, err := registry.Process([]byte("value: !lookup {name: {nested: !env NESTED_SELECTOR}}\n"))
+	require.ErrorContains(
+		t,
+		err,
+		"nested YAML tag !env is only supported in direct mapping selector values inside !lookup",
+	)
+	require.ErrorContains(t, err, "line 1, column")
+}
+
+func TestResolverRegistry_RejectsNestedTagInEnvControlField(t *testing.T) {
+	registry := NewResolverRegistry()
+	registry.Register(NewExternalTagResolver(TagLookup))
+	registry.Register(NewEnvTagResolver(EnvTagModeResolve))
+
+	_, err := registry.Process([]byte("value: !lookup {name: !env {var: !env VARIABLE_NAME}}\n"))
+	require.ErrorContains(t, err, "nested YAML tag !env is not supported inside !env")
+	require.ErrorContains(t, err, "line 1, column")
 }

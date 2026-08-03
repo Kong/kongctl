@@ -60,6 +60,31 @@ Use YAML tags in field values to load files or reference other resources.
 - `!file` paths are resolved relative to the config file and must remain
   within the configured base directory boundary.
 
+Nested tag composition is opt-in. The only supported combination is `!env`
+as a direct mapping selector value inside `!lookup` or `!external`:
+
+```yaml
+portal_id: !lookup
+  name: !env PORTAL_NAME
+
+control_plane: !external {name: !env CONTROL_PLANE_NAME}
+```
+
+| Outer tag | Supported inner tags |
+|---|---|
+| `!lookup` / `!external` | `!env` in direct mapping values |
+| `!env`, `!file`, `!ref` | None |
+
+`!file`, `!ref`, and nested lookup tags are not supported inside lookup tags.
+Tags are not supported in mapping keys or control fields such as `var`,
+`extract`, and `path`. Use mapping lookup syntax for composition; tags cannot
+be interpolated into the scalar `field:value` form.
+
+Nested environment values are used only for planner-time lookup and are
+redacted from diagnostics. A saved plan contains the resolved ID, so execution
+does not reread the variable or repeat the lookup. This differs from ordinary
+`!env` fields, which remain deferred until execution.
+
 ```yaml
 portals:
   - ref: docs-portal

@@ -2,6 +2,7 @@ package tags
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -73,6 +74,10 @@ func (r *ResolverRegistry) processNode(node *yaml.Node) error {
 		r.mu.RUnlock()
 
 		if exists {
+			if err := validateNestedTags(node); err != nil {
+				return err
+			}
+
 			// Resolve the tag
 			resolved, err := resolver.Resolve(node)
 			if err != nil {
@@ -123,6 +128,100 @@ func (r *ResolverRegistry) processNode(node *yaml.Node) error {
 	}
 
 	return nil
+}
+
+type nestedTagLocation int
+
+const (
+	nestedTagLocationDirectMappingValue nestedTagLocation = iota
+	nestedTagLocationOther
+)
+
+var supportedNestedTags = map[string]map[string]nestedTagLocation{
+	TagExternal: {TagEnv: nestedTagLocationDirectMappingValue},
+	TagLookup:   {TagEnv: nestedTagLocationDirectMappingValue},
+}
+
+func validateNestedTags(outer *yaml.Node) error {
+	return validateNestedContent(outer, outer.Tag, true)
+}
+
+func validateNestedContent(node *yaml.Node, outerTag string, direct bool) error {
+	if node == nil {
+		return nil
+	}
+
+	switch node.Kind {
+	case yaml.DocumentNode, yaml.SequenceNode:
+		for _, child := range node.Content {
+			if err := validateNestedChild(child, outerTag, nestedTagLocationOther); err != nil {
+				return err
+			}
+		}
+	case yaml.MappingNode:
+		for i := 0; i < len(node.Content); i += 2 {
+			key := node.Content[i]
+			if err := validateNestedChild(key, outerTag, nestedTagLocationOther); err != nil {
+				return err
+			}
+			if i+1 >= len(node.Content) {
+				continue
+			}
+
+			location := nestedTagLocationOther
+			if direct {
+				location = nestedTagLocationDirectMappingValue
+			}
+			if err := validateNestedChild(node.Content[i+1], outerTag, location); err != nil {
+				return err
+			}
+		}
+	case yaml.ScalarNode, yaml.AliasNode:
+		return nil
+	}
+
+	return nil
+}
+
+func validateNestedChild(child *yaml.Node, outerTag string, location nestedTagLocation) error {
+	if child == nil {
+		return nil
+	}
+
+	if isCustomTag(child.Tag) {
+		allowedLocation, ok := supportedNestedTags[outerTag][child.Tag]
+		if !ok {
+			return nestedTagError(
+				child,
+				"nested YAML tag %s is not supported inside %s",
+				child.Tag,
+				outerTag,
+			)
+		}
+		if location != allowedLocation {
+			return nestedTagError(
+				child,
+				"nested YAML tag %s is only supported in direct mapping selector values inside %s",
+				child.Tag,
+				outerTag,
+			)
+		}
+		return validateNestedTags(child)
+	}
+
+	return validateNestedContent(child, outerTag, false)
+}
+
+func isCustomTag(tag string) bool {
+	return len(tag) > 1 && tag[0] == '!' && tag[1] != '!'
+}
+
+func nestedTagError(node *yaml.Node, format string, args ...any) error {
+	message := fmt.Sprintf(format, args...)
+	if node.Line > 0 {
+		return fmt.Errorf("%s at line %d, column %d", message, node.Line, node.Column)
+	}
+	return errors.New(message)
 }
 
 // replaceNodeWithValue replaces a node's content with the resolved value

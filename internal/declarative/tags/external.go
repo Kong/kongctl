@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
@@ -15,9 +15,10 @@ const ExternalPlaceholderPrefix = "__EXTERNAL__:"
 
 // ExternalLookup describes a lookup parsed from !external or !lookup.
 type ExternalLookup struct {
-	MatchFields map[string]string `json:"match_fields"`
-	Line        int               `json:"line,omitempty"`
-	Column      int               `json:"column,omitempty"`
+	MatchFields     map[string]string `json:"match_fields"`
+	SensitiveFields []string          `json:"sensitive_fields,omitempty"`
+	Line            int               `json:"line,omitempty"`
+	Column          int               `json:"column,omitempty"`
 }
 
 // ExternalTagResolver converts external lookup tags into planner-time placeholders.
@@ -56,18 +57,24 @@ func (r *ExternalTagResolver) Resolve(node *yaml.Node) (any, error) {
 			}
 			key := node.Content[i]
 			value := node.Content[i+1]
-			if key.Kind != yaml.ScalarNode || value.Kind != yaml.ScalarNode {
-				return nil, fmt.Errorf("%s mapping keys and values must be strings", r.tag)
+			if key.Kind != yaml.ScalarNode {
+				return nil, fmt.Errorf("%s mapping keys must be strings", r.tag)
 			}
-			if (key.Tag != "" && key.Tag != "!!str") || (value.Tag != "" && value.Tag != "!!str") {
-				return nil, fmt.Errorf("%s mapping keys and values must be strings", r.tag)
+			if key.Tag != "" && key.Tag != "!!str" {
+				return nil, fmt.Errorf("%s mapping keys must be strings", r.tag)
 			}
 			field := strings.TrimSpace(key.Value)
-			match := strings.TrimSpace(value.Value)
+			match, sensitive, err := resolveExternalSelectorValue(value)
+			if err != nil {
+				return nil, fmt.Errorf("%s selector %q: %w", r.tag, field, err)
+			}
 			if field == "" || match == "" {
 				return nil, fmt.Errorf("%s mapping keys and values cannot be empty", r.tag)
 			}
 			lookup.MatchFields[field] = match
+			if sensitive {
+				lookup.SensitiveFields = append(lookup.SensitiveFields, field)
+			}
 		}
 		if len(lookup.MatchFields) == 0 {
 			return nil, fmt.Errorf("%s mapping must contain at least one selector", r.tag)
@@ -81,12 +88,32 @@ func (r *ExternalTagResolver) Resolve(node *yaml.Node) (any, error) {
 	if _, hasID := lookup.MatchFields["id"]; hasID && len(lookup.MatchFields) != 1 {
 		return nil, fmt.Errorf("%s id cannot be combined with other selectors", r.tag)
 	}
+	slices.Sort(lookup.SensitiveFields)
 
 	payload, err := json.Marshal(lookup)
 	if err != nil {
 		return nil, fmt.Errorf("encode external lookup: %w", err)
 	}
 	return ExternalPlaceholderPrefix + base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func resolveExternalSelectorValue(node *yaml.Node) (string, bool, error) {
+	if node.Tag == TagEnv {
+		resolved, err := NewEnvTagResolver(EnvTagModeResolve).Resolve(node)
+		if err != nil {
+			return "", true, fmt.Errorf("failed to resolve nested %s: %w", TagEnv, err)
+		}
+		value, ok := resolved.(string)
+		if !ok {
+			return "", true, fmt.Errorf("nested %s value must resolve to a string", TagEnv)
+		}
+		return strings.TrimSpace(value), true, nil
+	}
+
+	if node.Kind != yaml.ScalarNode || (node.Tag != "" && node.Tag != "!!str") {
+		return "", false, fmt.Errorf("mapping value must be a string")
+	}
+	return strings.TrimSpace(node.Value), false, nil
 }
 
 // IsExternalPlaceholder reports whether a string contains a planner-time lookup.
@@ -116,7 +143,7 @@ func ExternalLookupKey(matchFields map[string]string) string {
 	for field := range matchFields {
 		fields = append(fields, field)
 	}
-	sort.Strings(fields)
+	slices.Sort(fields)
 	var b strings.Builder
 	for i, field := range fields {
 		if i > 0 {
@@ -125,4 +152,17 @@ func ExternalLookupKey(matchFields map[string]string) string {
 		fmt.Fprintf(&b, "%q=%q", field, matchFields[field])
 	}
 	return b.String()
+}
+
+// ExternalLookupDisplayKey returns a selector representation suitable for diagnostics.
+func ExternalLookupDisplayKey(matchFields map[string]string, sensitiveFields []string) string {
+	displayFields := make(map[string]string, len(matchFields))
+	for field, value := range matchFields {
+		if slices.Contains(sensitiveFields, field) {
+			displayFields[field] = "[redacted from !env]"
+			continue
+		}
+		displayFields[field] = value
+	}
+	return ExternalLookupKey(displayFields)
 }
