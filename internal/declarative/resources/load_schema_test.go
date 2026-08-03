@@ -1,11 +1,18 @@
 package resources
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type nullableLoadSchemaFixture struct {
+	Slice  *[]string                  `yaml:"slice,omitempty"`
+	Array  *[1]string                 `yaml:"array,omitempty"`
+	Nested *nullableLoadSchemaFixture `yaml:"nested,omitempty"`
+}
 
 func TestRenderLoadSchemaComposesRegisteredResources(t *testing.T) {
 	schema, err := RenderLoadSchema(LoadSchemaProfileShape)
@@ -41,6 +48,15 @@ func TestRenderLoadSchemaClosesObjectsAndKeepsMapsOpen(t *testing.T) {
 	require.NotNil(t, proxyURLs)
 	require.NotNil(t, proxyURLs.Items)
 	assert.False(t, proxyURLs.Items.Additional.(bool))
+}
+
+func TestReflectLoadSchemaPreservesPointerNullability(t *testing.T) {
+	schema := reflectLoadSchema(reflect.TypeFor[nullableLoadSchemaFixture](), nil)
+
+	assert.Equal(t, []string{explainKindArray, jsonNullLiteral}, schema.Properties["slice"].Type)
+	assert.Equal(t, []string{explainKindArray, jsonNullLiteral}, schema.Properties["array"].Type)
+	assert.Equal(t, []string{explainKindObject, jsonNullLiteral}, schema.Properties["nested"].Type)
+	assert.True(t, schema.Properties["nested"].Additional.(bool))
 }
 
 func TestRenderLoadSchemaRetainsOnlyUnionDiscriminatorScalars(t *testing.T) {

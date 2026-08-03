@@ -282,7 +282,7 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 
 	placeholderContent, err := placeholderRegistry.Process(rawContent)
 	if err != nil {
-		return nil, fmt.Errorf("failed to preserve !env tags in %s: %w", sourcePath, err)
+		return nil, fmt.Errorf("failed to process placeholder tags in %s: %w", sourcePath, err)
 	}
 	if err := validateDeclarativeDocumentShape(placeholderContent, sourcePath); err != nil {
 		return nil, err

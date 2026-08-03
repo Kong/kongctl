@@ -200,7 +200,7 @@ func reflectLoadSchema(typ reflect.Type, stack []reflect.Type) *JSONSchema {
 	}
 
 	if slices.Contains(stack, typ) {
-		return &JSONSchema{Type: explainKindObject, Additional: true}
+		return &JSONSchema{Type: schemaTypeValue(explainKindObject, nullable), Additional: true}
 	}
 
 	switch typ.Kind() {
@@ -238,7 +238,7 @@ func reflectLoadSchema(typ reflect.Type, stack []reflect.Type) *JSONSchema {
 		return schema
 	case reflect.Slice, reflect.Array:
 		return &JSONSchema{
-			Type:  schemaTypeValue(explainKindArray, false),
+			Type:  schemaTypeValue(explainKindArray, nullable),
 			Items: reflectLoadSchema(typ.Elem(), stack),
 		}
 	case reflect.Map:
