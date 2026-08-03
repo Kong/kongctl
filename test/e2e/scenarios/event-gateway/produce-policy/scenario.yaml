@@ -739,12 +739,16 @@ steps:
             expect:
               fields:
                 "@": 2
+          - select: "[?type=='schema_validation'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.svPolicyName }}"
+                type: schema_validation
           - select: "[?type=='modify_headers'] | [0]"
             expect:
               fields:
                 name: chained-modify-headers-policy-name-for-test
                 type: modify_headers
-          - select: "length([?type=='modify_headers'] | [0].parent_policy_id) > `0`"
             expect:
               fields:
                 "@": true
