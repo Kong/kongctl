@@ -30,6 +30,13 @@ func TestGatewayCoreEntityCommandsAreNestedUnderControlPlane(t *testing.T) {
 	}
 }
 
+func TestGatewayCommandAliases(t *testing.T) {
+	cmd, err := NewGatewayCmd(verbs.Get, nil, nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, cmd.Aliases, "api-gateway")
+}
+
 func TestGatewayCoreEntitySiblingPathsFail(t *testing.T) {
 	for _, name := range []string{"services", "routes", "consumers"} {
 		t.Run(name, func(t *testing.T) {
