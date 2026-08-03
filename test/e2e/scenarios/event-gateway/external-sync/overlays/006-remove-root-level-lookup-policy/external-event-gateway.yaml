@@ -1,1 +1,13 @@
-event_gateway_virtual_cluster_cluster_policies: []
+event_gateways:
+  - ref: "{{ .vars.egw_name }}"
+    _external:
+      selector:
+        matchFields:
+          name: "{{ .vars.egw_name }}"
+    virtual_clusters:
+      - ref: "{{ .vars.virtual_cluster_name }}"
+        _external:
+          selector:
+            matchFields:
+              name: "{{ .vars.virtual_cluster_name }}"
+        cluster_policies: []

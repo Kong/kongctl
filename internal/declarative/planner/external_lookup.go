@@ -32,7 +32,14 @@ type externalLookupAdapter func(context.Context, externalLookupRequest) (string,
 type inlineExternalParent struct {
 	resourceType resources.ResourceType
 	id           string
+	ref          string
 	parentID     string
+	parentRef    string
+}
+
+type inlineLookupParent struct {
+	id  string
+	ref string
 }
 
 // externalLookupResolver owns all remote identity lookups for one plan generation.
@@ -287,7 +294,7 @@ func (r *externalLookupResolver) resolveInlineLookups(
 				continue
 			}
 
-			parentID, err := r.inlineLookupParentID(rs, resource, relationship)
+			parent, err := r.inlineLookupParent(rs, resource, relationship)
 			if err != nil {
 				resolutionErr = fmt.Errorf("%s %q field %s: %w", resource.GetType(), resource.GetRef(), fieldPath, err)
 				return false
@@ -300,27 +307,33 @@ func (r *externalLookupResolver) resolveInlineLookups(
 				ResourceType:    targetType,
 				MatchFields:     lookup.MatchFields,
 				SensitiveFields: lookup.SensitiveFields,
-				ParentID:        parentID,
+				ParentID:        parent.id,
 				Source:          source,
 			})
 			if err != nil {
 				resolutionErr = err
 				return false
 			}
-			if err := setStringFieldByPath(resource, fieldPath, id); err != nil {
-				resolutionErr = fmt.Errorf("%s: bind resolved ID: %w", source, err)
+			resolvedRef := id
+			if relationship.Kind == resources.RelationshipKindKongctlParentSelector {
+				resolvedRef = inlineExternalResourceRef(rs, targetType, id)
+			}
+			if err := setStringFieldByPath(resource, fieldPath, resolvedRef); err != nil {
+				resolutionErr = fmt.Errorf("%s: bind resolved external reference: %w", source, err)
 				return false
 			}
 			if relationship.Kind == resources.RelationshipKindKongctlParentSelector {
 				r.hasInlineParents = true
 				if rs.SyncScope != nil {
-					rs.SyncScope.RebindChildParent(targetType, value, id)
+					rs.SyncScope.RebindChildParent(targetType, value, resolvedRef)
 				}
-				key := string(targetType) + "|" + id
+				key := string(targetType) + "|" + resolvedRef
 				inlineParents[key] = inlineExternalParent{
 					resourceType: targetType,
 					id:           id,
-					parentID:     parentID,
+					ref:          resolvedRef,
+					parentID:     parent.id,
+					parentRef:    parent.ref,
 				}
 			}
 		}
@@ -330,7 +343,7 @@ func (r *externalLookupResolver) resolveInlineLookups(
 		return resolutionErr
 	}
 	for _, parent := range inlineParents {
-		if err := ensureInlineExternalParent(rs, parent); err != nil {
+		if err := ensureInlineExternalTraversal(rs, parent); err != nil {
 			return err
 		}
 	}
@@ -338,13 +351,25 @@ func (r *externalLookupResolver) resolveInlineLookups(
 }
 
 func ensureInlineExternalParent(rs *resources.ResourceSet, parent inlineExternalParent) error {
-	if existing, ok := rs.GetResourceByRef(parent.id); ok {
+	if parent.ref == "" {
+		parent.ref = parent.id
+	}
+	if existing, ok := rs.GetResourceByRef(parent.ref); ok {
 		if existing.GetType() != parent.resourceType {
 			return fmt.Errorf(
-				"resolved external ID %q is already used as ref by %s, expected %s",
-				parent.id,
+				"resolved external ref %q is already used by %s, expected %s",
+				parent.ref,
 				existing.GetType(),
 				parent.resourceType,
+			)
+		}
+		if existing.GetKonnectID() != "" && existing.GetKonnectID() != parent.id {
+			return fmt.Errorf(
+				"resolved external %s %q has Konnect ID %q, expected %q",
+				parent.resourceType,
+				parent.ref,
+				existing.GetKonnectID(),
+				parent.id,
 			)
 		}
 		return nil
@@ -356,25 +381,25 @@ func ensureInlineExternalParent(rs *resources.ResourceSet, parent inlineExternal
 	switch parent.resourceType {
 	case resources.ResourceTypePortal:
 		rs.Portals = append(rs.Portals, resources.PortalResource{
-			BaseResource: resources.BaseResource{Ref: parent.id},
+			BaseResource: resources.BaseResource{Ref: parent.ref},
 			External:     external,
 		})
 		rs.Portals[len(rs.Portals)-1].SetKonnectID(parent.id)
 	case resources.ResourceTypeControlPlane:
 		rs.ControlPlanes = append(rs.ControlPlanes, resources.ControlPlaneResource{
-			BaseResource: resources.BaseResource{Ref: parent.id},
+			BaseResource: resources.BaseResource{Ref: parent.ref},
 			External:     external,
 		})
 		rs.ControlPlanes[len(rs.ControlPlanes)-1].SetKonnectID(parent.id)
 	case resources.ResourceTypeAIGateway:
 		rs.AIGateways = append(rs.AIGateways, resources.AIGatewayResource{
-			BaseResource: resources.BaseResource{Ref: parent.id},
+			BaseResource: resources.BaseResource{Ref: parent.ref},
 			External:     external,
 		})
 		rs.AIGateways[len(rs.AIGateways)-1].SetKonnectID(parent.id)
 	case resources.ResourceTypeOrganizationTeam:
 		rs.OrganizationTeams = append(rs.OrganizationTeams, resources.OrganizationTeamResource{
-			BaseResource: resources.BaseResource{Ref: parent.id},
+			BaseResource: resources.BaseResource{Ref: parent.ref},
 			External:     external,
 		})
 		rs.OrganizationTeams[len(rs.OrganizationTeams)-1].SetKonnectID(parent.id)
@@ -382,7 +407,7 @@ func ensureInlineExternalParent(rs *resources.ResourceSet, parent inlineExternal
 		rs.EventGatewayControlPlanes = append(
 			rs.EventGatewayControlPlanes,
 			resources.EventGatewayControlPlaneResource{
-				BaseResource: resources.BaseResource{Ref: parent.id},
+				BaseResource: resources.BaseResource{Ref: parent.ref},
 				External:     external,
 			},
 		)
@@ -391,8 +416,8 @@ func ensureInlineExternalParent(rs *resources.ResourceSet, parent inlineExternal
 		rs.EventGatewayVirtualClusters = append(
 			rs.EventGatewayVirtualClusters,
 			resources.EventGatewayVirtualClusterResource{
-				Ref:          parent.id,
-				EventGateway: parent.parentID,
+				Ref:          parent.ref,
+				EventGateway: parent.parentRef,
 				External:     external,
 			},
 		)
@@ -403,50 +428,175 @@ func ensureInlineExternalParent(rs *resources.ResourceSet, parent inlineExternal
 	return nil
 }
 
-func (r *externalLookupResolver) inlineLookupParentID(
+func ensureInlineExternalTraversal(rs *resources.ResourceSet, parent inlineExternalParent) error {
+	capability, ok := resources.ExternalResolutionFor(parent.resourceType)
+	if !ok {
+		return fmt.Errorf("cannot materialize inline external parent for unregistered type %s", parent.resourceType)
+	}
+	if capability.ParentType != "" {
+		if parent.parentID == "" || parent.parentRef == "" {
+			return fmt.Errorf(
+				"cannot materialize inline external %s %q without resolved %s scope",
+				parent.resourceType,
+				parent.ref,
+				capability.ParentType,
+			)
+		}
+		ancestor, ok := rs.GetResourceByRef(parent.parentRef)
+		if ok && ancestor.GetType() != capability.ParentType {
+			return fmt.Errorf(
+				"inline external %s %q has %s ancestor %q, expected %s",
+				parent.resourceType,
+				parent.ref,
+				ancestor.GetType(),
+				parent.parentRef,
+				capability.ParentType,
+			)
+		}
+		if ok && ancestor.GetKonnectID() != "" && ancestor.GetKonnectID() != parent.parentID {
+			return fmt.Errorf(
+				"inline external %s %q ancestor %q has Konnect ID %q, expected %q",
+				parent.resourceType,
+				parent.ref,
+				parent.parentRef,
+				ancestor.GetKonnectID(),
+				parent.parentID,
+			)
+		}
+		if !ok {
+			if err := ensureInlineExternalParent(rs, inlineExternalParent{
+				resourceType: capability.ParentType,
+				id:           parent.parentID,
+				ref:          parent.parentRef,
+			}); err != nil {
+				return fmt.Errorf("materialize inline external ancestor: %w", err)
+			}
+		}
+	}
+
+	if err := ensureInlineExternalParent(rs, parent); err != nil {
+		return err
+	}
+	if capability.ParentType != "" && rs.SyncScope != nil {
+		rs.SyncScope.AddChild(capability.ParentType, parent.parentRef, parent.resourceType)
+	}
+	return validateInlineExternalTraversal(rs, parent, capability)
+}
+
+func validateInlineExternalTraversal(
+	rs *resources.ResourceSet,
+	parent inlineExternalParent,
+	capability resources.ExternalResolutionRegistration,
+) error {
+	target, ok := rs.GetResourceByRef(parent.ref)
+	if !ok || target.GetType() != parent.resourceType || target.GetKonnectID() != parent.id {
+		return fmt.Errorf(
+			"inline external %s %q was not materialized with Konnect ID %q",
+			parent.resourceType,
+			parent.ref,
+			parent.id,
+		)
+	}
+	if capability.ParentType == "" {
+		return nil
+	}
+	ancestor, ok := rs.GetResourceByRef(parent.parentRef)
+	if !ok || ancestor.GetType() != capability.ParentType || ancestor.GetKonnectID() != parent.parentID {
+		return fmt.Errorf(
+			"inline external %s %q has no materialized %s ancestor %q",
+			parent.resourceType,
+			parent.ref,
+			capability.ParentType,
+			parent.parentRef,
+		)
+	}
+	if rs.SyncScope != nil && !rs.SyncScope.ChildInScope(
+		capability.ParentType,
+		parent.parentRef,
+		parent.resourceType,
+	) {
+		return fmt.Errorf(
+			"inline external %s %q is not reachable from %s %q in sync scope",
+			parent.resourceType,
+			parent.ref,
+			capability.ParentType,
+			parent.parentRef,
+		)
+	}
+	return nil
+}
+
+func inlineExternalResourceRef(
+	rs *resources.ResourceSet,
+	resourceType resources.ResourceType,
+	id string,
+) string {
+	var ref string
+	rs.ForEachResource(func(resource resources.Resource) bool {
+		if resource.GetType() == resourceType && resource.GetKonnectID() == id {
+			ref = resource.GetRef()
+			return false
+		}
+		return true
+	})
+	if ref != "" {
+		return ref
+	}
+	return id
+}
+
+func (r *externalLookupResolver) inlineLookupParent(
 	rs *resources.ResourceSet,
 	resource resources.Resource,
 	relationship resources.RelationshipDescriptor,
-) (string, error) {
+) (inlineLookupParent, error) {
 	targetType := relationship.TargetType
 	capability, _ := resources.ExternalResolutionFor(targetType)
 	if capability.ParentType == "" {
-		return "", nil
+		return inlineLookupParent{}, nil
 	}
 
 	if relationship.ScopeFieldPath == "" {
-		return "", fmt.Errorf("no parent-scope field registered for %s", targetType)
+		return inlineLookupParent{}, fmt.Errorf("no parent-scope field registered for %s", targetType)
 	}
 	parentValue, err := stringFieldByPath(resource, relationship.ScopeFieldPath)
 	if err != nil {
-		return "", fmt.Errorf("lookup requires companion %s: %w", relationship.ScopeFieldPath, err)
+		return inlineLookupParent{}, fmt.Errorf("lookup requires companion %s: %w", relationship.ScopeFieldPath, err)
 	}
 
 	if tags.IsExternalPlaceholder(parentValue) {
-		return "", fmt.Errorf("parent lookup must be resolved before child lookup")
+		return inlineLookupParent{}, fmt.Errorf("parent lookup must be resolved before child lookup")
 	}
 	if util.IsValidUUID(parentValue) {
-		return parentValue, nil
+		return inlineLookupParent{
+			id:  parentValue,
+			ref: inlineExternalResourceRef(rs, capability.ParentType, parentValue),
+		}, nil
 	}
 	parentRef := parentValue
 	if tags.IsRefPlaceholder(parentValue) {
 		ref, field, ok := tags.ParseRefPlaceholder(parentValue)
 		if !ok || field != FieldID {
-			return "", fmt.Errorf("invalid parent reference %q", parentValue)
+			return inlineLookupParent{}, fmt.Errorf("invalid parent reference %q", parentValue)
 		}
 		parentRef = ref
 	}
 	parent, ok := rs.GetResourceByRef(parentRef)
 	if !ok {
-		return "", fmt.Errorf("parent resource %q not found", parentValue)
+		return inlineLookupParent{}, fmt.Errorf("parent resource %q not found", parentValue)
 	}
 	if parent.GetType() != capability.ParentType {
-		return "", fmt.Errorf("parent %q is %s, expected %s", parentValue, parent.GetType(), capability.ParentType)
+		return inlineLookupParent{}, fmt.Errorf(
+			"parent %q is %s, expected %s",
+			parentValue,
+			parent.GetType(),
+			capability.ParentType,
+		)
 	}
 	if parent.GetKonnectID() == "" {
-		return "", fmt.Errorf("parent resource %q does not have a resolved Konnect ID", parentValue)
+		return inlineLookupParent{}, fmt.Errorf("parent resource %q does not have a resolved Konnect ID", parentValue)
 	}
-	return parent.GetKonnectID(), nil
+	return inlineLookupParent{id: parent.GetKonnectID(), ref: parent.GetRef()}, nil
 }
 
 func deckControlPlaneRefs(controlPlanes []resources.ControlPlaneResource) map[string]bool {

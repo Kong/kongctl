@@ -158,6 +158,110 @@ func TestEnsureInlineExternalParentBridgesRootChildPlanning(t *testing.T) {
 	require.Len(t, rs.GetAIGatewayProvidersForGateway("gateway-id"), 1)
 }
 
+func TestEnsureInlineExternalTraversalBridgesScopedParent(t *testing.T) {
+	t.Parallel()
+
+	const (
+		gatewayRef       = "external-gateway"
+		gatewayID        = "gateway-id"
+		virtualClusterID = "virtual-cluster-id"
+	)
+	rs := &resources.ResourceSet{
+		EventGatewayControlPlanes: []resources.EventGatewayControlPlaneResource{{
+			BaseResource: resources.BaseResource{Ref: gatewayRef},
+			External:     &resources.ExternalBlock{ID: gatewayID},
+		}},
+		SyncScope: resources.NewSyncScope(),
+	}
+	rs.EventGatewayControlPlanes[0].SetKonnectID(gatewayID)
+
+	require.NoError(t, ensureInlineExternalTraversal(rs, inlineExternalParent{
+		resourceType: resources.ResourceTypeEventGatewayVirtualCluster,
+		id:           virtualClusterID,
+		ref:          virtualClusterID,
+		parentID:     gatewayID,
+		parentRef:    gatewayRef,
+	}))
+	require.Len(t, rs.EventGatewayControlPlanes, 1)
+	require.Len(t, rs.EventGatewayVirtualClusters, 1)
+	require.Equal(t, gatewayRef, rs.EventGatewayVirtualClusters[0].EventGateway)
+	require.True(t, rs.SyncScope.ChildInScope(
+		resources.ResourceTypeEventGatewayControlPlane,
+		gatewayRef,
+		resources.ResourceTypeEventGatewayVirtualCluster,
+	))
+}
+
+func TestEnsureInlineExternalTraversalMaterializesLiteralIDAncestor(t *testing.T) {
+	t.Parallel()
+
+	rs := &resources.ResourceSet{SyncScope: resources.NewSyncScope()}
+	require.NoError(t, ensureInlineExternalTraversal(rs, inlineExternalParent{
+		resourceType: resources.ResourceTypeEventGatewayVirtualCluster,
+		id:           "virtual-cluster-id",
+		ref:          "virtual-cluster-id",
+		parentID:     "gateway-id",
+		parentRef:    "gateway-id",
+	}))
+	require.Len(t, rs.EventGatewayControlPlanes, 1)
+	require.Equal(t, "gateway-id", rs.EventGatewayControlPlanes[0].GetKonnectID())
+	require.Len(t, rs.EventGatewayVirtualClusters, 1)
+	require.Equal(t, "gateway-id", rs.EventGatewayVirtualClusters[0].EventGateway)
+}
+
+func TestEnsureInlineExternalTraversalReusesResolvedTarget(t *testing.T) {
+	t.Parallel()
+
+	rs := &resources.ResourceSet{
+		EventGatewayControlPlanes: []resources.EventGatewayControlPlaneResource{{
+			BaseResource: resources.BaseResource{Ref: "gateway-ref"},
+			External:     &resources.ExternalBlock{ID: "gateway-id"},
+		}},
+		EventGatewayVirtualClusters: []resources.EventGatewayVirtualClusterResource{{
+			Ref:          "virtual-cluster-ref",
+			EventGateway: "gateway-ref",
+			External:     &resources.ExternalBlock{ID: "virtual-cluster-id"},
+		}},
+		SyncScope: resources.NewSyncScope(),
+	}
+	rs.EventGatewayControlPlanes[0].SetKonnectID("gateway-id")
+	rs.EventGatewayVirtualClusters[0].SetKonnectID("virtual-cluster-id")
+
+	require.Equal(t, "virtual-cluster-ref", inlineExternalResourceRef(
+		rs,
+		resources.ResourceTypeEventGatewayVirtualCluster,
+		"virtual-cluster-id",
+	))
+	require.NoError(t, ensureInlineExternalTraversal(rs, inlineExternalParent{
+		resourceType: resources.ResourceTypeEventGatewayVirtualCluster,
+		id:           "virtual-cluster-id",
+		ref:          "virtual-cluster-ref",
+		parentID:     "gateway-id",
+		parentRef:    "gateway-ref",
+	}))
+	require.Len(t, rs.EventGatewayControlPlanes, 1)
+	require.Len(t, rs.EventGatewayVirtualClusters, 1)
+}
+
+func TestEnsureInlineExternalTraversalRejectsWrongAncestorType(t *testing.T) {
+	t.Parallel()
+
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{{
+			BaseResource: resources.BaseResource{Ref: "ancestor"},
+		}},
+		SyncScope: resources.NewSyncScope(),
+	}
+	err := ensureInlineExternalTraversal(rs, inlineExternalParent{
+		resourceType: resources.ResourceTypeEventGatewayVirtualCluster,
+		id:           "virtual-cluster-id",
+		ref:          "virtual-cluster-id",
+		parentID:     "gateway-id",
+		parentRef:    "ancestor",
+	})
+	require.ErrorContains(t, err, "has portal ancestor")
+}
+
 func TestExternalLookupResolverDefersDeckServiceForNewControlPlane(t *testing.T) {
 	t.Parallel()
 
@@ -196,12 +300,16 @@ func TestExternalControlPlaneContributesOnlyExternalNamespace(t *testing.T) {
 }
 
 func externalPlaceholder(t *testing.T, tag string) string {
+	return namedExternalPlaceholder(t, tag, "Shared Portal")
+}
+
+func namedExternalPlaceholder(t *testing.T, tag, name string) string {
 	t.Helper()
 	value, err := tags.NewExternalTagResolver(tag).Resolve(&yaml.Node{
 		Kind: yaml.MappingNode,
 		Content: []*yaml.Node{
 			{Kind: yaml.ScalarNode, Value: "name"},
-			{Kind: yaml.ScalarNode, Value: "Shared Portal"},
+			{Kind: yaml.ScalarNode, Value: name},
 		},
 	})
 	require.NoError(t, err)

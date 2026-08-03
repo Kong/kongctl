@@ -169,11 +169,11 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 005-cleanup-lookup-root-level-cluster-policy
+  - name: 005-sync-omit-lookup-root-level-cluster-policy
     inputOverlayDirs:
       - overlays/006-remove-root-level-lookup-policy
     commands:
-      - name: 000-sync-delete-lookup-cluster-policy
+      - name: 000-sync-no-deletions
         run:
           - sync
           - -f
@@ -183,26 +183,17 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 1
-                by_action.DELETE: 1
+                total_changes: 0
           - select: >-
-              plan.changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' &&
-              resource_ref=='{{ .vars.lookup_cluster_policy_ref }}'] | [0]
+              plan.changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && action=='DELETE']
             expect:
               fields:
-                action: DELETE
-                resource_ref: "{{ .vars.lookup_cluster_policy_ref }}"
+                "length(@)": 0
           - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
             expect:
               fields:
                 "length(@)": 0
-          - select: summary
-            expect:
-              fields:
-                applied: 1
-                failed: 0
-
-      - name: 001-get-cluster-policies-after-lookup-cleanup
+      - name: 001-get-cluster-policies-after-lookup-omission
         run:
           - get
           - event-gateway
@@ -215,10 +206,11 @@ steps:
           - -o
           - json
         assertions:
-          - select: "length(@)"
+          - select: "[?name=='{{ .vars.lookup_cluster_policy_name }}'] | [0]"
             expect:
               fields:
-                "@": 0
+                name: "{{ .vars.lookup_cluster_policy_name }}"
+                description: "{{ .vars.lookup_cluster_policy_description }}"
 
   - name: 006-sync-with-declarative-cluster-policy
     inputOverlayDirs:
@@ -484,12 +476,17 @@ steps:
           - select: "length(@)"
             expect:
               fields:
-                "@": 1
+                "@": 2
           - select: "[?name=='{{ .vars.cluster_policy_name }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.cluster_policy_name }}"
                 description: "External sync cluster policy"
+          - select: "[?name=='{{ .vars.lookup_cluster_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.lookup_cluster_policy_name }}"
+                description: "{{ .vars.lookup_cluster_policy_description }}"
 
       - name: 002-get-produce-policies-after-cleanup
         run:
