@@ -544,7 +544,8 @@ func compareTLSSettings(a, b any) bool {
 		return false
 	}
 
-	if !compareBoolPtrs(tlsA.InsecureSkipVerify, tlsB.InsecureSkipVerify) {
+	// The API materializes false when insecure_skip_verify is omitted.
+	if boolValueOrDefault(tlsA.InsecureSkipVerify, false) != boolValueOrDefault(tlsB.InsecureSkipVerify, false) {
 		return false
 	}
 
@@ -566,6 +567,13 @@ func compareTLSSettings(a, b any) bool {
 		desiredTLSVersions = apiDefaultTLSVersions
 	}
 	return slices.Equal(currentTLSVersions, desiredTLSVersions)
+}
+
+func boolValueOrDefault(value *bool, defaultValue bool) bool {
+	if value == nil {
+		return defaultValue
+	}
+	return *value
 }
 
 func compareStringPtrs(a, b *string) bool {
