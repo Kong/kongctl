@@ -15,8 +15,10 @@ func TestAPIGatewayAliasCommandPaths(t *testing.T) {
 		name string
 		path []string
 	}{
-		{name: "Konnect-first", path: []string{"api-gateway", "control-planes"}},
-		{name: "explicit Konnect", path: []string{"konnect", "api-gateway", "control-planes"}},
+		{name: "Konnect-first api-gateway", path: []string{"api-gateway", "control-planes"}},
+		{name: "explicit Konnect api-gateway", path: []string{"konnect", "api-gateway", "control-planes"}},
+		{name: "Konnect-first apigw", path: []string{"apigw", "control-planes"}},
+		{name: "explicit Konnect apigw", path: []string{"konnect", "apigw", "control-planes"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			resolved, remaining, err := cmd.Find(test.path)

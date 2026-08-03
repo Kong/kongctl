@@ -27,7 +27,7 @@ func NewGatewayCmd(verb verbs.VerbValue,
 		Use:     gatewayUse,
 		Short:   gatewayShort,
 		Long:    gatewayLong,
-		Aliases: []string{"gw", "GW", "api-gateway"},
+		Aliases: []string{"gw", "GW", "api-gateway", "apigw"},
 	}
 	cmdpkg.ConfigureRequiresSubcommand(cmd)
 
