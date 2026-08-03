@@ -249,6 +249,86 @@ steps:
                 tls.tls_versions:
                   - "tls12"
                   - "tls13"
+  - name: 004-update-tls-fields
+    inputOverlayDirs:
+      - overlays/003-update-tls-fields
+    commands:
+      - name: 001-plan-tls-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update-tls.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.bcRef }}"
+                "not_null(changed_fields.tls.new.insecure_skip_verify, fields.tls.insecure_skip_verify)": true
+      - name: 002-apply-tls-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update-tls.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-tls-update
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+                tls.enabled: true
+                tls.insecure_skip_verify: true
+                tls.tls_versions:
+                  - "tls12"
+                  - "tls13"
+      - name: 004-idempotency-check
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update-tls-idempotency.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 003-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
