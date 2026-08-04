@@ -57,12 +57,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 10
-                by_action.CREATE: 10
+                total_changes: 11
+                by_action.CREATE: 11
           - select: "summary"
             expect:
               fields:
-                applied: 10
+                applied: 11
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='portal' &&
@@ -253,12 +253,18 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 6
-                by_action.DELETE: 6
+                total_changes: 7
+                by_action.DELETE: 7
           - expect:
               fields:
                 "length(changes[?action=='CREATE'])": 0
                 "length(changes[?action=='UPDATE'])": 0
+          - select: >-
+              changes[?resource_type=='ai_gateway' &&
+                       resource_ref=='diff-ai-gateway'] | [0]
+            expect:
+              fields:
+                action: DELETE
           - select: >-
               changes[?resource_type=='control_plane' &&
                        resource_ref=='{{ .vars.cpName }}'] | [0]
