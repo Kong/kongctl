@@ -72,3 +72,19 @@ organization:
       description: "Backend team for diff coverage (updated)"
       labels:
         department: engineering
+
+ai_gateways:
+  - ref: diff-ai-gateway
+    name: diff-ai-gateway-name
+    display_name: "Diff AI Gateway"
+    description: "AI Gateway for diff coverage (updated)"
+    proxy_urls:
+      - host: "diff-ai-gateway-updated.example.com"
+        port: 443
+        protocol: "https"
+    labels:
+      owner: platform-eng
+      lifecycle: dev
+    kongctl:
+      namespace: team-commerce
+      protected: false
