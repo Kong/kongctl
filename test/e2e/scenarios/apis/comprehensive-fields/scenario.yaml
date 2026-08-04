@@ -92,6 +92,19 @@ steps:
               fields:
                 "length(@)": 1
                 "[?@=='dev'] | length(@)": 1
+      - name: 005-plan-no-op-after-create
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 002-apply-update
     inputOverlayDirs:
@@ -168,6 +181,19 @@ steps:
                 "length(@)": 2
                 "[?@=='staging'] | length(@)": 1
                 "[?@=='prod'] | length(@)": 1
+      - name: 004-plan-no-op-after-update
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 003-sync-delete
     inputOverlayDirs:
