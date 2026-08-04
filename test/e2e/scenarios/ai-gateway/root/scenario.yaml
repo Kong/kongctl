@@ -474,11 +474,13 @@ steps:
               fields:
                 name: "{{ .vars.adopt_gateway_1_slug }}"
                 display_name: "{{ .vars.adopt_gateway_1 }}"
+                kongctl.namespace: "{{ .vars.adopt_overwrite_namespace }}"
           - select: "ai_gateways[?display_name=='{{ .vars.adopt_gateway_2 }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.adopt_gateway_2_slug }}"
                 display_name: "{{ .vars.adopt_gateway_2 }}"
+                kongctl.namespace: "{{ .vars.adopt_overwrite_namespace }}"
           - select: "_defaults.kongctl"
             expect:
               fields:
