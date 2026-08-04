@@ -459,7 +459,46 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.adopt_gateway_2_id }}"
-      - name: 006-cleanup-adopted
+      - name: 006-dump-adopted-ai-gateways
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - "--default-namespace={{ .vars.adopt_overwrite_namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/adopt-dump.yaml"
+        assertions:
+          - select: "ai_gateways[?display_name=='{{ .vars.adopt_gateway_1 }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.adopt_gateway_1_slug }}"
+                display_name: "{{ .vars.adopt_gateway_1 }}"
+                kongctl.namespace: "{{ .vars.adopt_overwrite_namespace }}"
+          - select: "ai_gateways[?display_name=='{{ .vars.adopt_gateway_2 }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.adopt_gateway_2_slug }}"
+                display_name: "{{ .vars.adopt_gateway_2 }}"
+                kongctl.namespace: "{{ .vars.adopt_overwrite_namespace }}"
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.adopt_overwrite_namespace }}"
+      - name: 007-plan-adopted-round-trip
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/adopt-dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 008-cleanup-adopted
         outputFormat: json
         run:
           - sync
