@@ -752,7 +752,68 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 011-sync-delete-root-level
+  - name: 011-sync-delete-chained-skip-record
+    inputOverlayDirs:
+      - overlays/006-schema-validation-policy
+    commands:
+      - name: 001-plan-sync-delete-chained-skip-record
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete-chained-skip-record.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='chained-skip-record-policy-name-for-test'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: chained-skip-record-policy-name-for-test
+      - name: 002-sync-delete-chained-skip-record
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete-chained-skip-record.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-chained-skip-record-delete
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: schema_validation
+
+  - name: 012-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:
