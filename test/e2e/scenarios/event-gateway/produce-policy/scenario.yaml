@@ -680,7 +680,155 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 009-schema-validation-sync-delete
+  - name: 009-chained-modify-headers-policy
+    inputOverlayDirs:
+      - overlays/008-chained-modify-headers-policy
+    commands:
+      - name: 001-plan-chained-modify-headers
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-chained-modify-headers.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='chained-modify-headers-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: chained-modify-headers-policy
+      - name: 002-apply-chained-modify-headers
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-chained-modify-headers.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-chained-modify-headers
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+          - select: "[?type=='schema_validation'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.svPolicyName }}"
+                type: schema_validation
+          - select: "[?type=='modify_headers'] | [0]"
+            expect:
+              fields:
+                name: chained-modify-headers-policy-name-for-test
+                type: modify_headers
+          - select: "length([?type=='modify_headers'] | [0].parent_policy_id) > `0`"
+            expect:
+              fields:
+                "@": true
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 010-sync-delete-chained-modify-headers
+    inputOverlayDirs:
+      - overlays/006-update-schema-validation
+    commands:
+      - name: 001-plan-sync-delete-chained-modify-headers
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete-chained-modify-headers.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='chained-modify-headers-policy-name-for-test'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: chained-modify-headers-policy-name-for-test
+      - name: 002-sync-delete-chained-modify-headers
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete-chained-modify-headers.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-chained-modify-headers-delete
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.svPolicyName }}"
+                type: schema_validation
+
+  - name: 011-schema-validation-sync-delete
     inputOverlayDirs:
       - overlays/007-sync-delete-schema-validation
     commands:
