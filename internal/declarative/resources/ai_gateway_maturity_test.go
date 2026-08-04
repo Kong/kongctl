@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAIGatewayResourcesAreBeta(t *testing.T) {
+func TestAIGatewayResourcesAreGA(t *testing.T) {
 	resourceTypes := []ResourceType{
 		ResourceTypeAIGateway,
 		ResourceTypeAIGatewayProvider,
@@ -29,21 +29,21 @@ func TestAIGatewayResourcesAreBeta(t *testing.T) {
 		t.Run(string(resourceType), func(t *testing.T) {
 			resolved, err := MaturityFor(resourceType)
 			require.NoError(t, err)
-			assert.Equal(t, maturity.LevelBeta, resolved.Effective.Level)
-			assert.Equal(t, maturity.KindResource, resolved.Source.Kind)
+			assert.Equal(t, maturity.LevelGA, resolved.Effective.Level)
+			assert.Equal(t, maturity.KindDefault, resolved.Source.Kind)
 
 			for _, operation := range Operations() {
 				operationResolved, err := MaturityFor(resourceType, operation)
 				require.NoError(t, err)
-				assert.Equal(t, maturity.LevelBeta, operationResolved.Effective.Level, operation)
-				assert.Equal(t, maturity.KindResource, operationResolved.Source.Kind, operation)
+				assert.Equal(t, maturity.LevelGA, operationResolved.Effective.Level, operation)
+				assert.Equal(t, maturity.KindDefault, operationResolved.Source.Kind, operation)
 			}
 
 			subject, err := ResolveExplainSubject(string(resourceType))
 			require.NoError(t, err)
 			schema := RenderExplainSchema(subject)
 			require.NotNil(t, schema.XMaturity)
-			assert.Equal(t, maturity.LevelBeta, schema.XMaturity.Level)
+			assert.Equal(t, maturity.LevelGA, schema.XMaturity.Level)
 		})
 	}
 }

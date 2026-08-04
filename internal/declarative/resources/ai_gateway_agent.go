@@ -44,7 +44,6 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayAgentExplainNode),
 		),
-		WithMaturity(aiGatewayMaturity),
 	)
 }
 

@@ -1,8 +1,5 @@
 baseInputsPath: testdata
 
-test:
-  maturity: beta
-
 env:
   KONGCTL_LOG_LEVEL: info
 
