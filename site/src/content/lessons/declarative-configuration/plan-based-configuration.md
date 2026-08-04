@@ -14,7 +14,7 @@ manages the state of resources. In this lesson you will understand how
 `kongctl` turns desired state into a plan document and the different execution
 _modes_.
 
-> _Note:_ The next few sections are informative. The information is key
+> _Note:_ The next few sections are purely informative. The information is key
 > to understanding the `kongctl` declarative configuration system.
 > Once you reach _The Getting Started_ lesson, you will begin to run
 > commands with functioning configurations.
