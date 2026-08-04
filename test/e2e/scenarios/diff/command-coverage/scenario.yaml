@@ -28,6 +28,8 @@ vars:
   teamRef: diff-backend-team
   teamName: diff-backend-team-name
   teamUpdatedDesc: "Backend team for diff coverage (updated)"
+  aiGatewayRef: diff-ai-gateway
+  aiGatewayName: diff-ai-gateway-name
 
 defaults:
   mask:
@@ -174,7 +176,7 @@ steps:
                 "length(changes[?action=='DELETE'])": 0
           - select: >-
               changes[?resource_type=='ai_gateway' &&
-                       resource_ref=='diff-ai-gateway'] | [0]
+                       resource_ref=='{{ .vars.aiGatewayRef }}'] | [0]
             expect:
               fields:
                 action: UPDATE
@@ -261,7 +263,7 @@ steps:
                 "length(changes[?action=='UPDATE'])": 0
           - select: >-
               changes[?resource_type=='ai_gateway' &&
-                       resource_ref=='diff-ai-gateway'] | [0]
+                       resource_ref=='{{ .vars.aiGatewayName }}'] | [0]
             expect:
               fields:
                 action: DELETE
@@ -326,7 +328,7 @@ steps:
                 by_action.DELETE: 2
           - select: >-
               changes[?resource_type=='ai_gateway' &&
-                       resource_ref=='diff-ai-gateway'] | [0]
+                       resource_ref=='{{ .vars.aiGatewayRef }}'] | [0]
             expect:
               fields:
                 action: UPDATE
@@ -474,8 +476,8 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 7
-                by_action.DELETE: 7
+                total_changes: 8
+                by_action.DELETE: 8
           - select: summary
             expect:
               fields:
