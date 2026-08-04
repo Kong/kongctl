@@ -152,3 +152,22 @@ func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderOmitsLoginPath
 		t.Fatalf("expected enabled to be omitted from portal create body, got %v", requestBody["enabled"])
 	}
 }
+
+func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderRejectsMissingPortalAuthSettings(t *testing.T) {
+	t.Parallel()
+
+	api := &PortalIdentityProviderAPIImpl{SDK: &kkSDK.SDK{}}
+	_, err := api.CreatePortalIdentityProvider(t.Context(), "portal-123", kkComps.CreateIdentityProvider{})
+	if err == nil {
+		t.Fatal("expected missing portal auth settings API to return an error")
+	}
+}
+
+func TestKonnectSDKGetPortalIdentityProviderAPIRejectsMissingPortalAuthSettings(t *testing.T) {
+	t.Parallel()
+
+	sdk := &KonnectSDK{SDK: &kkSDK.SDK{}}
+	if api := sdk.GetPortalIdentityProviderAPI(); api != nil {
+		t.Fatalf("expected nil portal identity provider API, got %#v", api)
+	}
+}

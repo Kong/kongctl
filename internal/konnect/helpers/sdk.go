@@ -394,7 +394,7 @@ func (k *KonnectSDK) GetPortalIntegrationsAPI() PortalIntegrationsAPI {
 
 // Returns the implementation of the PortalIdentityProviderAPI interface
 func (k *KonnectSDK) GetPortalIdentityProviderAPI() PortalIdentityProviderAPI {
-	if k.SDK == nil {
+	if k.SDK == nil || k.SDK.PortalAuthSettings == nil {
 		return nil
 	}
 

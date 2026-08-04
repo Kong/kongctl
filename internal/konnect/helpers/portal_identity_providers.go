@@ -78,8 +78,8 @@ func (p *PortalIdentityProviderAPIImpl) CreatePortalIdentityProvider(
 	request kkComps.CreateIdentityProvider,
 	opts ...kkOps.Option,
 ) (*kkOps.CreatePortalIdentityProviderResponse, error) {
-	if p.SDK == nil {
-		return nil, fmt.Errorf("SDK is nil")
+	if p.SDK == nil || p.SDK.PortalAuthSettings == nil {
+		return nil, fmt.Errorf("SDK portal auth settings API is nil")
 	}
 	portalRequest, err := createPortalIdentityProviderRequest(request)
 	if err != nil {
