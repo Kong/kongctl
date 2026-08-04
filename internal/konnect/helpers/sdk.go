@@ -398,13 +398,7 @@ func (k *KonnectSDK) GetPortalIdentityProviderAPI() PortalIdentityProviderAPI {
 		return nil
 	}
 
-	return &PortalIdentityProviderAPIImpl{
-		SDK:         k.SDK,
-		BaseURL:     k.BaseURL,
-		Token:       k.Token,
-		TokenSource: k.TokenSource,
-		HTTPClient:  k.HTTPClient,
-	}
+	return &PortalIdentityProviderAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the PortalCustomizationAPI interface
