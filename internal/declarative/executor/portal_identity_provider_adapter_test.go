@@ -15,10 +15,11 @@ import (
 )
 
 type stubPortalIdentityProviderAPI struct {
-	createReq kkComps.CreateIdentityProvider
-	updateReq kkOps.UpdatePortalIdentityProviderRequest
-	getResp   *kkOps.GetPortalIdentityProviderResponse
-	deleteReq struct {
+	createReq   kkComps.CreateIdentityProvider
+	updateReq   kkOps.UpdatePortalIdentityProviderRequest
+	updateCalls int
+	getResp     *kkOps.GetPortalIdentityProviderResponse
+	deleteReq   struct {
 		portalID string
 		id       string
 	}
@@ -62,6 +63,7 @@ func (s *stubPortalIdentityProviderAPI) UpdatePortalIdentityProvider(
 	request kkOps.UpdatePortalIdentityProviderRequest,
 	_ ...kkOps.Option,
 ) (*kkOps.UpdatePortalIdentityProviderResponse, error) {
+	s.updateCalls++
 	s.updateReq = request
 	return &kkOps.UpdatePortalIdentityProviderResponse{}, nil
 }
@@ -79,7 +81,7 @@ func (s *stubPortalIdentityProviderAPI) DeletePortalIdentityProvider(
 
 var _ helpers.PortalIdentityProviderAPI = (*stubPortalIdentityProviderAPI)(nil)
 
-func TestPortalIdentityProviderAdapterCreateUpdatesExplicitFalseEnabled(t *testing.T) {
+func TestPortalIdentityProviderAdapterCreatePreservesExplicitFalseWithoutUpdate(t *testing.T) {
 	t.Parallel()
 
 	api := &stubPortalIdentityProviderAPI{}
@@ -99,10 +101,9 @@ func TestPortalIdentityProviderAdapterCreateUpdatesExplicitFalseEnabled(t *testi
 	require.NoError(t, err)
 	assert.Equal(t, "provider-1", id)
 
-	require.NotNil(t, api.updateReq.PortalUpdateIdentityProvider.Enabled)
-	assert.False(t, *api.updateReq.PortalUpdateIdentityProvider.Enabled)
-	assert.Equal(t, "portal-1", api.updateReq.PortalID)
-	assert.Equal(t, "provider-1", api.updateReq.ID)
+	require.NotNil(t, api.createReq.Enabled)
+	assert.False(t, *api.createReq.Enabled)
+	assert.Zero(t, api.updateCalls)
 }
 
 func TestPortalIdentityProviderAdapterUpdateKeepsPatchPayloadSparse(t *testing.T) {

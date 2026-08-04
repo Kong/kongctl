@@ -77,24 +77,9 @@ func (p *PortalIdentityProviderAdapter) Create(
 		return "", err
 	}
 
-	enabled := req.Enabled
-
 	id, err := p.client.CreatePortalIdentityProvider(ctx, portalID, req, namespace)
 	if err != nil {
 		return "", err
-	}
-
-	if enabled != nil {
-		update := kkComps.UpdateIdentityProvider{Enabled: enabled}
-		if err := p.client.UpdatePortalIdentityProvider(
-			ctx,
-			portalID,
-			id,
-			update,
-			namespace,
-		); err != nil {
-			return "", err
-		}
 	}
 
 	return id, nil
