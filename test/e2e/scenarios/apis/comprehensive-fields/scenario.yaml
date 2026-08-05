@@ -205,7 +205,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003-sync-delete
+  - name: 004-sync-delete
     inputOverlayDirs:
       - overlays/003-sync-delete
     commands:
