@@ -210,6 +210,8 @@ func TestPortalIdentityProviderAPIImplRejectsMissingPortalAuthSettings(t *testin
 			t.Parallel()
 			if err := tt.call(); err == nil {
 				t.Fatal("expected missing portal auth settings API to return an error")
+			} else if err.Error() != "SDK portal auth settings API is nil" {
+				t.Fatalf("unexpected error: %v", err)
 			}
 		})
 	}
