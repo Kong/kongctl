@@ -422,9 +422,7 @@ test("works through the AI Gateway declarative lifecycle", async ({
     page.getByText("kongctl delete -f ai-gateway.yaml", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText('kongctl get ai-gateway "My AI Gateway" -o text', {
-      exact: true,
-    }),
+    page.getByText("kongctl list ai-gateways", { exact: true }),
   ).toBeVisible();
 });
 

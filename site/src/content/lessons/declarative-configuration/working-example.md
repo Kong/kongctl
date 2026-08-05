@@ -23,13 +23,13 @@ sure the active profile can create _AI Gateway 2.0_ resources.
 
 Create and enter a working directory:
 
-```shell
+```shell label="run this..."
 mkdir -p aigw && cd aigw
 ```
 
 Write the desired state to `ai-gateway.yaml`:
 
-```shell
+```shell label="run this..."
 cat > ai-gateway.yaml <<'YAML'
 _defaults:
   kongctl:
@@ -51,22 +51,44 @@ The quoted heredoc writes the YAML exactly as shown. It replaces an existing
 
 ## Apply and inspect
 
-Preview the apply-mode plan:
+Preview what an `apply` will do:
 
-```shell
+```shell label="run this..."
 kongctl diff --mode apply -f ai-gateway.yaml
 ```
 
-Review the planned `CREATE`, then apply it:
+You should see the planned AI Gateway create:
 
-```shell
+```text label="diff output example"
+Plan: 1 to add, 0 to change
+
+=== Namespace: aigw-learning ===
++ [1:c:ai_gateway:my-aigw] ai_gateway "my-aigw" will be created
+  name: "my-aigw"
+  display_name: "My AI Gateway"
+  proxy_urls: [{aigw.example.com 443 https}]
+  protection: disabled
+```
+
+Apply the changes. Internally, this recreates the plan and then asks for
+confirmation before executing it:
+
+```shell label="apply the configuration"
 kongctl apply -f ai-gateway.yaml
 ```
 
-`kongctl apply` creates an apply-mode plan internally, asks for confirmation,
-and then creates the AI Gateway. Inspect its live values:
+You should see similar output on successful execution:
 
-```shell
+```text label="applied changes"
+...
+Executing changes:
+[1/1] [namespace: aigw-learning] Creating ai_gateway: my-aigw... ✓
+...
+```
+
+Use the `get` verb to inspect the new AI Gateway:
+
+```shell label="get ai-gateway"
 kongctl get ai-gateway "My AI Gateway" -o yaml
 ```
 
@@ -104,10 +126,11 @@ Confirm that the plan contains an `UPDATE`, then apply it:
 kongctl apply -f ai-gateway.yaml
 ```
 
-Inspect the updated live values:
+Inspect the updated live values as JSON and use the built-in `jq` filter to
+show only the `description` field:
 
 ```shell
-kongctl get ai-gateway "My AI Gateway" -o yaml
+kongctl get ai-gateway "My AI Gateway" -o json --jq '.description'
 ```
 
 The diff contains an `UPDATE`. The final command shows the new description in
@@ -204,12 +227,14 @@ kongctl delete -f ai-gateway.yaml
 ```
 
 `kongctl delete` creates a delete-mode plan internally and asks for
-confirmation before executing it. Verify that the AI Gateway is gone:
+confirmation before executing it.
+
+Verify that the tutorial AI Gateways no longer appear:
 
 ```shell
-kongctl get ai-gateway "My AI Gateway" -o text
+kongctl list ai-gateways
 ```
 
-The final command reports that the resource was not found. Delete mode targets
-the resources represented by the input; it does not delete every resource in
-the namespace.
+> _Note:_ The list may contain unrelated AI Gateways. Delete mode targets the
+> resources represented by the input; it does not delete every resource in the
+> namespace.
