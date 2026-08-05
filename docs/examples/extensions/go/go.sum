@@ -1,7 +1,7 @@
-github.com/Kong/sdk-konnect-go v0.51.1-0.20260730144113-cbbe6dd140b1 h1:LMryeXhrSS4hm2pZKqKYp+aXcqQm8HrfkPnK0EE24Tc=
-github.com/Kong/sdk-konnect-go v0.51.1-0.20260730144113-cbbe6dd140b1/go.mod h1:rDWJcOR3KBkB4Mmrc+2RThAzlNZmcvGVdGpESfgTK9A=
-github.com/ajg/form v1.8.0 h1:kuvZgwcyDPMm4iFbTQUlg5W3leb5KcL+0lq+8FlvbJ0=
-github.com/ajg/form v1.8.0/go.mod h1:HL757PzLyNkj5AIfptT6L+iGNeXTlnrr/oDePGc/y7Q=
+github.com/Kong/sdk-konnect-go v0.51.2-0.20260803181245-b21f2210627b h1:9IpyBHUh8CpnyqKLB6Nr3VJVqE/H/fYPvSPl2GwUEhY=
+github.com/Kong/sdk-konnect-go v0.51.2-0.20260803181245-b21f2210627b/go.mod h1:rDWJcOR3KBkB4Mmrc+2RThAzlNZmcvGVdGpESfgTK9A=
+github.com/ajg/form v1.9.0 h1:S01Z5HQq9ukm7hu1Kd7iWDN+e5mtLo+Xo3Uj+aj2UZc=
+github.com/ajg/form v1.9.0/go.mod h1:HL757PzLyNkj5AIfptT6L+iGNeXTlnrr/oDePGc/y7Q=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
 github.com/alecthomas/assert/v2 v2.11.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/chroma/v2 v2.27.0 h1:FodwmyOBgJULFYmDqibcp9pvfDLWdtPRh9v/r5BXYZs=
