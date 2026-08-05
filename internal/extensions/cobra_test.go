@@ -1,7 +1,11 @@
 package extensions
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
@@ -53,6 +57,135 @@ command_paths:
 	err := RegisterCommands(root, NewStore(t.TempDir()), []Extension{ext})
 
 	require.ErrorContains(t, err, "collides with existing command")
+}
+
+func TestRegisterCommandsAddsHiddenRecoveryStubForUnavailableExtension(t *testing.T) {
+	root := testRootCommand()
+	ext := mustExtension(t, `
+schema_version: 1
+publisher: kong
+name: foo
+runtime:
+  command: kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+    summary: Get Foo resources
+`)
+	ext.Health = unhealthy(
+		ExtensionHealthUnavailable,
+		"linked_source_unavailable",
+		"linked source is unavailable",
+		"restore the source or uninstall the extension",
+	)
+	require.NoError(t, RegisterCommands(root, NewStore(t.TempDir()), []Extension{ext}))
+
+	command, _, err := root.Find([]string{"get", "foo"})
+	require.NoError(t, err)
+	require.True(t, command.Hidden)
+
+	root.SetArgs([]string{"get", "foo"})
+	err = root.Execute()
+	require.ErrorContains(t, err, `extension "kong/foo": linked source is unavailable`)
+}
+
+func TestUnavailableExtensionCachedHelpExplainsRecovery(t *testing.T) {
+	root := testRootCommand()
+	ext := mustExtension(t, `
+schema_version: 1
+publisher: kong
+name: foo
+runtime:
+  command: kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+    summary: Get Foo resources
+`)
+	ext.Health = unhealthy(
+		ExtensionHealthUnavailable,
+		"linked_source_unavailable",
+		"linked source is unavailable",
+		"restore the source or uninstall the extension",
+	)
+	require.NoError(t, RegisterCommands(root, NewStore(t.TempDir()), []Extension{ext}))
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"get", "foo", "--help"})
+
+	require.NoError(t, root.Execute())
+	require.Contains(t, out.String(), "Status: unavailable")
+	require.Contains(t, out.String(), "restore the source or uninstall the extension")
+}
+
+func TestRegisterInstalledCommandsIsolatesACommandCollision(t *testing.T) {
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	badSource := t.TempDir()
+	badManifest := []byte(`schema_version: 1
+publisher: kong
+name: bad
+runtime:
+  command: kongctl-ext-bad
+command_paths:
+  - path:
+      - name: get
+      - name: bad
+  - path:
+      - name: get
+      - name: apis
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(badSource, ManifestFileName), badManifest, 0o600))
+	badRuntime := filepath.Join(badSource, "kongctl-ext-bad")
+	require.NoError(t, os.WriteFile(badRuntime, []byte("#!/bin/sh\n"), 0o600))
+	require.NoError(t, os.Chmod(badRuntime, 0o700))
+	_, err := store.LinkLocal(badSource, "dev", time.Unix(100, 0))
+	require.NoError(t, err)
+
+	goodSource := t.TempDir()
+	writeManifest(t, goodSource, "good", openBuiltInRootGet, "good")
+	goodRuntime := filepath.Join(goodSource, "kongctl-ext-good")
+	require.NoError(t, os.WriteFile(goodRuntime, []byte("#!/bin/sh\n"), 0o600))
+	require.NoError(t, os.Chmod(goodRuntime, 0o700))
+	_, err = store.LinkLocal(goodSource, "dev", time.Unix(100, 0))
+	require.NoError(t, err)
+
+	root := testRootCommand()
+	require.NoError(t, RegisterInstalledCommands(root, store))
+	getCommand, _, err := root.Find([]string{"get"})
+	require.NoError(t, err)
+	require.Nil(t, findChildByName(getCommand, "bad"), "colliding extension must not be partially registered")
+	require.NotNil(t, findChildByName(getCommand, "good"), "healthy extensions must still be registered")
+	require.NotNil(t, findChildByName(getCommand, "apis"), "built-in command must remain authoritative")
+}
+
+func TestRegisterInstalledCommandsDisablesBothCrossExtensionCollisions(t *testing.T) {
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	for _, name := range []string{"one", "two"} {
+		source := t.TempDir()
+		writeManifest(t, source, name, openBuiltInRootGet, "shared")
+		runtimePath := filepath.Join(source, "kongctl-ext-"+name)
+		require.NoError(t, os.WriteFile(runtimePath, []byte("#!/bin/sh\n"), 0o600))
+		require.NoError(t, os.Chmod(runtimePath, 0o700))
+		_, err := store.LinkLocal(source, "dev", time.Unix(100, 0))
+		require.NoError(t, err)
+	}
+
+	root := testRootCommand()
+	require.NoError(t, RegisterInstalledCommands(root, store))
+	getCommand, _, err := root.Find([]string{"get"})
+	require.NoError(t, err)
+	require.Nil(t, findChildByName(getCommand, "shared"))
+
+	extensions, err := store.List()
+	require.NoError(t, err)
+	extensions = MarkCommandConflicts(root, extensions)
+	require.Len(t, extensions, 2)
+	for _, ext := range extensions {
+		require.Equal(t, ExtensionHealthConflict, ext.Health.Status)
+		require.Equal(t, "command_conflict", ext.Health.Diagnostics[0].Code)
+	}
 }
 
 func TestSplitExtensionArgsConsumesHostFlagsBeforeTerminator(t *testing.T) {

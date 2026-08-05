@@ -275,6 +275,7 @@ func (s Store) installDirectory(
 	ext := Extension{
 		ID:           id,
 		InstallType:  InstallTypeInstalled,
+		Health:       ExtensionHealth{Status: ExtensionHealthReady},
 		Manifest:     manifest,
 		CommandPaths: manifest.CommandPaths,
 		PackageDir:   packageDir,
@@ -364,6 +365,7 @@ func (s Store) LinkLocal(source, cliVersion string, now time.Time) (Extension, e
 	ext := Extension{
 		ID:           id,
 		InstallType:  InstallTypeLinked,
+		Health:       ExtensionHealth{Status: ExtensionHealthReady},
 		Manifest:     manifest,
 		CommandPaths: manifest.CommandPaths,
 		LinkedDir:    sourceRoot,
@@ -392,6 +394,7 @@ func LoadLocalExtension(source string, installType InstallType) (Extension, erro
 	ext := Extension{
 		ID:           id,
 		InstallType:  installType,
+		Health:       ExtensionHealth{Status: ExtensionHealthReady},
 		Manifest:     manifest,
 		CommandPaths: manifest.CommandPaths,
 	}
@@ -482,6 +485,27 @@ func (s Store) List() ([]Extension, error) {
 		}
 		return 0
 	})
+	for i := 0; i < len(extensions); {
+		j := i + 1
+		for j < len(extensions) && extensions[j].ID == extensions[i].ID {
+			j++
+		}
+		if j-i > 1 {
+			for index := i; index < j; index++ {
+				remediation := fmt.Sprintf(
+					"run `kongctl uninstall extension %s` to remove both records, then install or link it again",
+					extensions[index].ID,
+				)
+				extensions[index].Health = unhealthy(
+					ExtensionHealthConflict,
+					"duplicate_install_state",
+					"both installed and linked state exist for this extension id",
+					remediation,
+				)
+			}
+		}
+		i = j
+	}
 	return extensions, nil
 }
 
@@ -489,21 +513,30 @@ func (s Store) Get(id string) (Extension, error) {
 	if err := ValidateExtensionID(id); err != nil {
 		return Extension{}, err
 	}
-	linked, err := s.loadLinked(id)
-	if err == nil {
+	linked, linkedErr := s.loadLinked(id)
+	installed, installedErr := s.loadInstalled(id)
+	if linkedErr == nil && installedErr == nil {
+		linked.Health = unhealthy(
+			ExtensionHealthConflict,
+			"duplicate_install_state",
+			"both installed and linked state exist for this extension id",
+			fmt.Sprintf("run `kongctl uninstall extension %s` to remove both records, then install or link it again", id),
+		)
 		return linked, nil
 	}
-	if !os.IsNotExist(err) {
-		return Extension{}, err
+	if linkedErr == nil {
+		return linked, nil
 	}
-	installed, err := s.loadInstalled(id)
-	if err == nil {
+	if !os.IsNotExist(linkedErr) {
+		return Extension{}, linkedErr
+	}
+	if installedErr == nil {
 		return installed, nil
 	}
-	if os.IsNotExist(err) {
+	if os.IsNotExist(installedErr) {
 		return Extension{}, fmt.Errorf("extension %q is not installed or linked", id)
 	}
-	return Extension{}, err
+	return Extension{}, installedErr
 }
 
 func (s Store) VerifyInstalledRuntime(ext Extension) (string, error) {
@@ -600,6 +633,9 @@ func (s Store) walkExtensionState(root string, load func(string) (Extension, err
 				continue
 			}
 			id := ExtensionID(publisher.Name(), name.Name())
+			if ValidateExtensionID(id) != nil {
+				continue
+			}
 			ext, err := load(id)
 			if err != nil {
 				return nil, err
@@ -615,20 +651,65 @@ func (s Store) loadInstalled(id string) (Extension, error) {
 	if err != nil {
 		return Extension{}, err
 	}
+	if _, err := os.Stat(installDir); err != nil {
+		return Extension{}, err
+	}
+	cache, cacheErr := s.loadCommandCache(id, InstallTypeInstalled)
 	var state InstallState
 	if err := readJSON(filepath.Join(installDir, installStateName), &state); err != nil {
-		return Extension{}, err
+		return degradedExtension(id, InstallTypeInstalled, cache, ExtensionHealthDamaged,
+			"install_state_invalid", fmt.Sprintf("cannot read install state: %v", err),
+			"reinstall or uninstall this extension"), nil
 	}
-	manifest, _, err := LoadManifestFile(filepath.Join(packageDir, ManifestFileName))
-	if err != nil {
-		return Extension{}, err
+	if state.SchemaVersion != stateSchemaVersion {
+		return degradedExtension(id, InstallTypeInstalled, cache, ExtensionHealthDamaged,
+			"install_state_invalid", fmt.Sprintf("unsupported install state schema_version %d", state.SchemaVersion),
+			"reinstall or uninstall this extension"), nil
 	}
 	if state.ID != id {
-		return Extension{}, fmt.Errorf("install state id %q does not match path id %q", state.ID, id)
+		return degradedExtension(id, InstallTypeInstalled, cache, ExtensionHealthDamaged,
+			"install_identity_mismatch", fmt.Sprintf("install state id %q does not match path id %q", state.ID, id),
+			"reinstall or uninstall this extension"), nil
+	}
+	manifest, manifestBytes, err := LoadManifestFile(filepath.Join(packageDir, ManifestFileName))
+	if err != nil {
+		ext := degradedExtension(id, InstallTypeInstalled, cache, ExtensionHealthDamaged,
+			"installed_manifest_invalid", fmt.Sprintf("cannot load installed manifest: %v", err),
+			"reinstall, upgrade, or uninstall this extension")
+		ext.PackageDir = packageDir
+		ext.Install = &state
+		return ext, nil
+	}
+	if ExtensionID(manifest.Publisher, manifest.Name) != id || hashBytes(manifestBytes) != state.ManifestHash {
+		ext := degradedExtension(id, InstallTypeInstalled, cache, ExtensionHealthDamaged,
+			"installed_manifest_modified", "the installed manifest no longer matches the install record",
+			"reinstall, upgrade, or uninstall this extension")
+		ext.PackageDir = packageDir
+		ext.Install = &state
+		return ext, nil
+	}
+	if _, err := ResolveRuntime(packageDir, manifest.Runtime.Command); err != nil {
+		ext := degradedExtension(id, InstallTypeInstalled, cache, ExtensionHealthDamaged,
+			"installed_runtime_invalid", fmt.Sprintf("cannot use installed runtime: %v", err),
+			"reinstall, upgrade, or uninstall this extension")
+		ext.Manifest = manifest
+		ext.CommandPaths = manifest.CommandPaths
+		ext.PackageDir = packageDir
+		ext.Install = &state
+		if cacheErr != nil {
+			_ = s.writeCommandCache(id, ext, time.Now())
+		}
+		return ext, nil
+	}
+	if cacheErr != nil {
+		_ = s.writeCommandCache(id, Extension{
+			ID: id, InstallType: InstallTypeInstalled, Manifest: manifest, CommandPaths: manifest.CommandPaths,
+		}, time.Now())
 	}
 	return Extension{
 		ID:           id,
 		InstallType:  InstallTypeInstalled,
+		Health:       manifestHealth(manifest),
 		Manifest:     manifest,
 		CommandPaths: manifest.CommandPaths,
 		PackageDir:   packageDir,
@@ -641,25 +722,157 @@ func (s Store) loadLinked(id string) (Extension, error) {
 	if err != nil {
 		return Extension{}, err
 	}
+	if _, err := os.Stat(linkDir); err != nil {
+		return Extension{}, err
+	}
+	cache, cacheErr := s.loadCommandCache(id, InstallTypeLinked)
 	var state LinkState
 	if err := readJSON(filepath.Join(linkDir, linkStateName), &state); err != nil {
-		return Extension{}, err
+		return degradedExtension(id, InstallTypeLinked, cache, ExtensionHealthInvalid,
+			"link_state_invalid", fmt.Sprintf("cannot read link state: %v", err),
+			fmt.Sprintf("re-link the extension or run `kongctl uninstall extension %s`", id)), nil
+	}
+	if state.SchemaVersion != stateSchemaVersion {
+		ext := degradedExtension(id, InstallTypeLinked, cache, ExtensionHealthInvalid,
+			"link_state_invalid", fmt.Sprintf("unsupported link state schema_version %d", state.SchemaVersion),
+			fmt.Sprintf("re-link the extension or run `kongctl uninstall extension %s`", id))
+		ext.LinkedDir = state.Path
+		ext.Link = &state
+		return ext, nil
+	}
+	if state.ID != id {
+		ext := degradedExtension(id, InstallTypeLinked, cache, ExtensionHealthInvalid,
+			"link_identity_mismatch", fmt.Sprintf("link state id %q does not match path id %q", state.ID, id),
+			fmt.Sprintf("re-link the extension or run `kongctl uninstall extension %s`", id))
+		ext.LinkedDir = state.Path
+		ext.Link = &state
+		return ext, nil
 	}
 	manifest, _, err := LoadManifestFile(filepath.Join(state.Path, ManifestFileName))
 	if err != nil {
-		return Extension{}, err
+		status := ExtensionHealthInvalid
+		code := "linked_manifest_invalid"
+		if os.IsNotExist(err) || os.IsPermission(err) {
+			status = ExtensionHealthUnavailable
+			code = "linked_source_unavailable"
+		}
+		ext := degradedExtension(id, InstallTypeLinked, cache, status, code,
+			fmt.Sprintf("cannot load linked manifest from %q: %v", state.Path, err),
+			fmt.Sprintf("restore the source, re-link it, or run `kongctl uninstall extension %s`", id))
+		ext.LinkedDir = state.Path
+		ext.Link = &state
+		return ext, nil
 	}
-	if state.ID != id {
-		return Extension{}, fmt.Errorf("link state id %q does not match path id %q", state.ID, id)
+	if ExtensionID(manifest.Publisher, manifest.Name) != id {
+		ext := degradedExtension(id, InstallTypeLinked, cache, ExtensionHealthInvalid,
+			"linked_identity_mismatch",
+			fmt.Sprintf("linked manifest declares %q instead of %q", ExtensionID(manifest.Publisher, manifest.Name), id),
+			fmt.Sprintf("restore the original identity, re-link it, or run `kongctl uninstall extension %s`", id))
+		ext.LinkedDir = state.Path
+		ext.Link = &state
+		return ext, nil
+	}
+	if _, err := ResolveRuntime(state.Path, manifest.Runtime.Command); err != nil {
+		status := ExtensionHealthInvalid
+		code := "linked_runtime_invalid"
+		if os.IsNotExist(err) || os.IsPermission(err) {
+			status = ExtensionHealthUnavailable
+			code = "linked_runtime_unavailable"
+		}
+		ext := Extension{
+			ID: id, InstallType: InstallTypeLinked, Manifest: manifest, CommandPaths: manifest.CommandPaths,
+			LinkedDir: state.Path, Link: &state,
+			Health: unhealthy(status, code, fmt.Sprintf("cannot use linked runtime: %v", err),
+				fmt.Sprintf("restore or rebuild the runtime, re-link it, or run `kongctl uninstall extension %s`", id)),
+		}
+		return ext, nil
+	}
+	if cacheErr != nil {
+		_ = s.writeCommandCache(id, Extension{
+			ID: id, InstallType: InstallTypeLinked, Manifest: manifest, CommandPaths: manifest.CommandPaths,
+		}, time.Now())
 	}
 	return Extension{
 		ID:           id,
 		InstallType:  InstallTypeLinked,
+		Health:       manifestHealth(manifest),
 		Manifest:     manifest,
 		CommandPaths: manifest.CommandPaths,
 		LinkedDir:    state.Path,
 		Link:         &state,
 	}, nil
+}
+
+func (s Store) loadCommandCache(id string, installType InstallType) (*CommandCache, error) {
+	var cacheDir string
+	var err error
+	switch installType {
+	case InstallTypeInstalled:
+		cacheDir, _, err = s.installPaths(id)
+	case InstallTypeLinked:
+		cacheDir, err = s.linkDir(id)
+	default:
+		err = fmt.Errorf("unsupported extension install type %q", installType)
+	}
+	if err != nil {
+		return nil, err
+	}
+	var cache CommandCache
+	if err := readJSON(filepath.Join(cacheDir, commandsCacheName), &cache); err != nil {
+		return nil, err
+	}
+	if cache.SchemaVersion != stateSchemaVersion || cache.ID != id || cache.InstallType != installType {
+		return nil, fmt.Errorf("command cache metadata does not match extension %q", id)
+	}
+	if err := NormalizeAndValidateManifest(&cache.Manifest); err != nil {
+		return nil, fmt.Errorf("invalid command cache manifest: %w", err)
+	}
+	if ExtensionID(cache.Manifest.Publisher, cache.Manifest.Name) != id {
+		return nil, fmt.Errorf("command cache manifest identity does not match extension %q", id)
+	}
+	cache.CommandPaths = cache.Manifest.CommandPaths
+	return &cache, nil
+}
+
+func degradedExtension(
+	id string,
+	installType InstallType,
+	cache *CommandCache,
+	status ExtensionHealthStatus,
+	code, message, remediation string,
+) Extension {
+	ext := Extension{
+		ID:          id,
+		InstallType: installType,
+		Health:      unhealthy(status, code, message, remediation),
+	}
+	if cache != nil {
+		ext.Manifest = cache.Manifest
+		ext.CommandPaths = cache.CommandPaths
+	}
+	return ext
+}
+
+func unhealthy(status ExtensionHealthStatus, code, message, remediation string) ExtensionHealth {
+	return ExtensionHealth{
+		Status: status,
+		Diagnostics: []ExtensionDiagnostic{{
+			Code: code, Message: message, Remediation: remediation,
+		}},
+	}
+}
+
+func manifestHealth(manifest Manifest) ExtensionHealth {
+	result, err := CheckCompatibility(manifest, meta.CLIVersion())
+	if err == nil && !result.Compatible {
+		return unhealthy(
+			ExtensionHealthIncompatible,
+			"extension_incompatible",
+			fmt.Sprintf("requires kongctl %s; current version is %s", result.Constraint, result.CurrentVersion),
+			"upgrade the extension or use a compatible kongctl version",
+		)
+	}
+	return ExtensionHealth{Status: ExtensionHealthReady}
 }
 
 func (s Store) installPaths(id string) (string, string, error) {

@@ -121,10 +121,41 @@ func (s Store) Dispatch(
 	if err := EnsureCompatible(ext.Manifest, runtimeCLIVersion(buildInfo)); err != nil {
 		return err
 	}
+	if ext.InstallType == InstallTypeLinked {
+		latest, err := s.loadLinked(ext.ID)
+		if err != nil {
+			return fmt.Errorf("reload linked extension %q: %w", ext.ID, err)
+		}
+		if err := latest.HealthError(); err != nil {
+			return err
+		}
+		matched := false
+		for _, candidate := range latest.CommandPaths {
+			if candidate.ID == contribution.ID && slices.Equal(CommandPathNames(candidate), CommandPathNames(contribution)) {
+				contribution = candidate
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return fmt.Errorf(
+				"extension %q command metadata changed during invocation; rerun the command",
+				ext.ID,
+			)
+		}
+		ext = latest
+	}
+	if err := EnsureCompatible(ext.Manifest, runtimeCLIVersion(buildInfo)); err != nil {
+		return err
+	}
 
 	runtimePath, err := s.ResolveRuntime(ext)
 	if err != nil {
-		return err
+		remediation := "reinstall, upgrade, or uninstall the extension"
+		if ext.InstallType == InstallTypeLinked {
+			remediation = "restore or rebuild the linked runtime, re-link it, or uninstall the extension"
+		}
+		return fmt.Errorf("extension %q runtime is unavailable: %w; %s", ext.ID, err, remediation)
 	}
 
 	contributionID := contribution.ID

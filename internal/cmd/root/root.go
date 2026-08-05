@@ -821,7 +821,12 @@ func registerExtensions() error {
 	if err != nil {
 		return err
 	}
-	return extensioncore.RegisterInstalledCommands(rootCmd, store)
+	if err := extensioncore.RegisterInstalledCommands(rootCmd, store); err != nil {
+		if streams != nil && streams.ErrOut != nil {
+			fmt.Fprintf(streams.ErrOut, "warning: extension commands are unavailable: %v\n", err)
+		}
+	}
+	return nil
 }
 
 func closeLogFile() {

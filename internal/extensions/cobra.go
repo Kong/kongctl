@@ -3,6 +3,7 @@ package extensions
 import (
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,7 +35,82 @@ func RegisterInstalledCommands(root *cobra.Command, store Store) error {
 	if err != nil {
 		return err
 	}
-	return RegisterCommands(root, store, extensions)
+	extensions = MarkCommandConflicts(root, extensions)
+	for _, ready := range []bool{true, false} {
+		for _, ext := range extensions {
+			if ext.Health.Status == ExtensionHealthConflict || ext.IsReady() != ready {
+				continue
+			}
+			// Extension state may become stale independently of the host binary.
+			// Keep registration failures scoped so built-ins and recovery remain available.
+			if ValidateExtensionCommands(root, ext) != nil {
+				continue
+			}
+			_ = RegisterCommands(root, store, []Extension{ext})
+		}
+	}
+	return nil
+}
+
+func MarkCommandConflicts(root *cobra.Command, extensions []Extension) []Extension {
+	result := append([]Extension(nil), extensions...)
+	conflicts := map[string]string{}
+	claims := map[string]map[string]struct{}{}
+	for _, ext := range result {
+		if !ext.IsReady() {
+			continue
+		}
+		if err := ValidateExtensionCommands(root, ext); err != nil {
+			conflicts[ext.ID] = err.Error()
+			continue
+		}
+		for _, contribution := range ext.CommandPaths {
+			start := 0
+			parent := ""
+			if IsOpenBuiltInRoot(contribution.Path[0].Name) {
+				start = 1
+				parent = contribution.Path[0].Name
+			}
+			for index := start; index < len(contribution.Path); index++ {
+				segment := contribution.Path[index]
+				for _, token := range append([]string{segment.Name}, segment.Aliases...) {
+					key := parent + "\x00" + token
+					if claims[key] == nil {
+						claims[key] = map[string]struct{}{}
+					}
+					claims[key][ext.ID] = struct{}{}
+				}
+				if parent == "" {
+					parent = segment.Name
+				} else {
+					parent += " " + segment.Name
+				}
+			}
+		}
+	}
+	for _, owners := range claims {
+		if len(owners) < 2 {
+			continue
+		}
+		ids := slices.Sorted(maps.Keys(owners))
+		message := "command path collides between extensions " + strings.Join(ids, ", ")
+		for _, id := range ids {
+			conflicts[id] = message
+		}
+	}
+	for index := range result {
+		message, ok := conflicts[result[index].ID]
+		if !ok {
+			continue
+		}
+		result[index].Health = unhealthy(
+			ExtensionHealthConflict,
+			"command_conflict",
+			message,
+			"upgrade, reinstall, re-link, or uninstall one of the conflicting extensions",
+		)
+	}
+	return result
 }
 
 func RegisterCommands(root *cobra.Command, store Store, extensions []Extension) error {
@@ -179,6 +255,7 @@ func newSyntheticCommand(
 	command := &cobra.Command{
 		Use:     segment.Name,
 		Aliases: append([]string(nil), segment.Aliases...),
+		Hidden:  !ext.IsReady(),
 		Short:   extensionShort(ext.ID, contribution),
 		Long:    extensionLong(ext.ID, contribution),
 		Example: strings.Join(contribution.Examples, "\n"),
@@ -203,6 +280,7 @@ func configureTerminalCommand(command *cobra.Command, ext Extension, contributio
 	command.Example = strings.Join(contribution.Examples, "\n")
 	command.DisableFlagParsing = true
 	command.SilenceUsage = true
+	command.Hidden = !ext.IsReady()
 	ensureExtensionHostFlags(command)
 	if command.Annotations == nil {
 		command.Annotations = map[string]string{}
@@ -222,6 +300,15 @@ func runExtensionCommand(
 	ext Extension,
 	contribution CommandPath,
 ) error {
+	if !ext.IsReady() {
+		if slices.Contains(args, "--help") || slices.Contains(args, "-h") {
+			if err := PrintExtensionHelp(command.OutOrStdout(), ext.ID, contribution); err != nil {
+				return err
+			}
+			return printExtensionHealth(command.OutOrStdout(), ext)
+		}
+		return ext.HealthError()
+	}
 	helper := cmdpkg.BuildHelper(command, args)
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -252,6 +339,26 @@ func runExtensionCommand(
 		split.Remaining,
 		split.ProfileOverride,
 	)
+}
+
+func printExtensionHealth(w io.Writer, ext Extension) error {
+	if ext.IsReady() {
+		return nil
+	}
+	if _, err := fmt.Fprintf(w, "\nStatus: %s\n", ext.Health.Status); err != nil {
+		return err
+	}
+	for _, diagnostic := range ext.Health.Diagnostics {
+		if _, err := fmt.Fprintf(w, "Reason: %s\n", diagnostic.Message); err != nil {
+			return err
+		}
+		if diagnostic.Remediation != "" {
+			if _, err := fmt.Fprintf(w, "Next: %s\n", diagnostic.Remediation); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func SplitExtensionArgs(command *cobra.Command, args []string, cfg config.Hook) (SplitArgsResult, error) {

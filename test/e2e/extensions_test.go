@@ -25,8 +25,20 @@ const (
 type extensionRecord struct {
 	ID           string                 `json:"id"`
 	InstallType  string                 `json:"install_type"`
+	Health       extensionHealth        `json:"health"`
 	CommandPaths []extensionCommandPath `json:"command_paths"`
 	Install      *extensionInstallState `json:"install,omitempty"`
+}
+
+type extensionHealth struct {
+	Status      string                `json:"status"`
+	Diagnostics []extensionDiagnostic `json:"diagnostics"`
+}
+
+type extensionDiagnostic struct {
+	Code        string `json:"code"`
+	Message     string `json:"message"`
+	Remediation string `json:"remediation"`
 }
 
 type extensionCommandPath struct {
@@ -227,6 +239,55 @@ func TestE2E_ExtensionsGoSDKOutput(t *testing.T) {
 	runKongctlJSON(t, cli, &uninstall, "uninstall", "extension", goExtensionID, "--remove-data")
 }
 
+func TestE2E_ExtensionsMissingLinkedSourceRemainsRecoverable(t *testing.T) {
+	cli := newExtensionCLI(t)
+	fixtureDir := prepareScriptExtensionFixture(t, cli)
+
+	var linked extensionRecord
+	runKongctlJSON(t, cli, &linked, "link", "extension", fixtureDir)
+	var runtimeCtx extensionRuntimeContext
+	runKongctlJSON(t, cli, &runtimeCtx, "get", "e2e-script")
+	dataDir := runtimeCtx.Resolved.ExtensionDataDir
+	if dataDir == "" {
+		t.Fatal("linked extension did not receive a data directory")
+	}
+
+	movedDir := fixtureDir + "-moved"
+	requireNoError(t, os.Rename(fixtureDir, movedDir), "move linked extension source")
+
+	res, err := cli.Run(context.Background(), "--help")
+	requireNoCommandError(t, res, err, "run help with unavailable linked extension")
+	res, err = cli.Run(context.Background(), "version")
+	requireNoCommandError(t, res, err, "run built-in command with unavailable linked extension")
+
+	var listed []extensionRecord
+	runKongctlJSON(t, cli, &listed, "list", "extensions")
+	broken := requireExtensionRecord(t, listed, scriptExtensionID)
+	requireEqual(t, "unavailable", broken.Health.Status, "missing source health")
+	requireEqual(t, "linked_source_unavailable", broken.Health.Diagnostics[0].Code, "missing source diagnostic")
+
+	res, err = cli.Run(context.Background(), "get", "e2e-script")
+	if err == nil {
+		t.Fatal("unavailable linked extension command unexpectedly succeeded")
+	}
+	if !strings.Contains(res.Stderr, scriptExtensionID) || !strings.Contains(res.Stderr, "restore") {
+		t.Fatalf("missing actionable extension diagnostic:\n%s", res.Stderr)
+	}
+
+	runKongctlJSON(t, cli, &linked, "link", "extension", movedDir)
+	runKongctlJSON(t, cli, &runtimeCtx, "get", "e2e-script")
+	requireNoError(t, os.RemoveAll(movedDir), "delete re-linked extension source")
+
+	var uninstall map[string]any
+	runKongctlJSON(t, cli, &uninstall, "uninstall", "extension", scriptExtensionID)
+	if removed, _ := uninstall["removed_link"].(bool); !removed {
+		t.Fatalf("uninstall did not report removed link state: %+v", uninstall)
+	}
+	if _, err := os.Stat(dataDir); err != nil {
+		t.Fatalf("extension data was not preserved: %v", err)
+	}
+}
+
 func TestE2E_ExtensionsRemoteReleaseLifecycle(t *testing.T) {
 	repo := strings.TrimSpace(os.Getenv("KONGCTL_E2E_EXTENSION_REMOTE_REPO"))
 	oldTag := strings.TrimSpace(os.Getenv("KONGCTL_E2E_EXTENSION_REMOTE_OLD_TAG"))
@@ -382,6 +443,17 @@ func requireExtensionListed(t *testing.T, extensions []extensionRecord, id strin
 		}
 	}
 	t.Fatalf("extension %s not listed in %+v", id, extensions)
+}
+
+func requireExtensionRecord(t *testing.T, extensions []extensionRecord, id string) extensionRecord {
+	t.Helper()
+	for _, ext := range extensions {
+		if ext.ID == id {
+			return ext
+		}
+	}
+	t.Fatalf("extension %s not found in %+v", id, extensions)
+	return extensionRecord{}
 }
 
 func requireInstallSource(t *testing.T, ext extensionRecord) extensionSourceState {
