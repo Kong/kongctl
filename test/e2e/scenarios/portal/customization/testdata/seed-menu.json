@@ -1,0 +1,33 @@
+{
+  "menu": {
+    "main": [
+      {
+        "path": "/seed-main",
+        "title": "Seed Main",
+        "external": false,
+        "visibility": "public"
+      }
+    ],
+    "footer_sections": [
+      {
+        "title": "Seed Section",
+        "items": [
+          {
+            "path": "/seed-section",
+            "title": "Seed Section Item",
+            "external": false,
+            "visibility": "public"
+          }
+        ]
+      }
+    ],
+    "footer_bottom": [
+      {
+        "path": "/seed-bottom",
+        "title": "Seed Bottom",
+        "external": false,
+        "visibility": "public"
+      }
+    ]
+  }
+}

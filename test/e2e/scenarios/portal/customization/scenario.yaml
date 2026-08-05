@@ -165,9 +165,103 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-delete-cleanup
+  - name: 005-seed-all-menu-lists
     inputOverlayDirs:
       - overlays/003-update
+    commands:
+      - name: 000-record-portal-id
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - "{{ .vars.portalRef }}"
+        recordVar:
+          name: portalID
+          responsePath: id
+      - name: 001-seed-menu-lists
+        outputFormat: json
+        run:
+          - api
+          - patch
+          - "/v3/portals/{{ .vars.portalID }}/customization"
+          - --body-file
+          - "{{ .workdir }}/seed-menu.json"
+      - name: 002-verify-seeded-menu-lists
+        outputFormat: json
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portalID }}/customization"
+        assertions:
+          - select: menu
+            expect:
+              fields:
+                "length(main)": 1
+                "length(footer_sections)": 1
+                "length(footer_bottom)": 1
+
+  - name: 006-clear-menu-lists
+    inputOverlayDirs:
+      - overlays/006-clear-menu
+    commands:
+      - name: 000-plan-clear-menu-lists
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-clear-menu-lists.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+      - name: 001-apply-clear-menu-lists
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-clear-menu-lists.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-verify-menu-lists-cleared-in-konnect
+        outputFormat: json
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portalID }}/customization"
+        assertions:
+          - select: menu
+            expect:
+              fields:
+                "length(main)": 0
+                "length(footer_sections)": 0
+                "length(footer_bottom)": 0
+      - name: 003-plan-after-clear-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 007-delete-cleanup
+    inputOverlayDirs:
+      - overlays/006-clear-menu
     commands:
       - name: 000-delete
         outputFormat: json
