@@ -77,12 +77,7 @@ func (p *PortalIdentityProviderAdapter) Create(
 		return "", err
 	}
 
-	id, err := p.client.CreatePortalIdentityProvider(ctx, portalID, req, namespace)
-	if err != nil {
-		return "", err
-	}
-
-	return id, nil
+	return p.client.CreatePortalIdentityProvider(ctx, portalID, req, namespace)
 }
 
 // Update updates an existing portal identity provider.

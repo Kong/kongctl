@@ -9,6 +9,7 @@ import (
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
 type portalIdentityProviderCapturingClient struct {
@@ -160,6 +161,59 @@ func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderRejectsMissing
 	_, err := api.CreatePortalIdentityProvider(t.Context(), "portal-123", kkComps.CreateIdentityProvider{})
 	if err == nil {
 		t.Fatal("expected missing portal auth settings API to return an error")
+	}
+}
+
+func TestPortalIdentityProviderAPIImplRejectsMissingPortalAuthSettings(t *testing.T) {
+	t.Parallel()
+
+	api := &PortalIdentityProviderAPIImpl{SDK: &kkSDK.SDK{}}
+	tests := []struct {
+		name string
+		call func() error
+	}{
+		{
+			name: "list",
+			call: func() error {
+				_, err := api.ListPortalIdentityProviders(t.Context(), kkOps.GetPortalIdentityProvidersRequest{})
+				return err
+			},
+		},
+		{
+			name: "get",
+			call: func() error {
+				_, err := api.GetPortalIdentityProvider(t.Context(), "portal-123", "provider-123")
+				return err
+			},
+		},
+		{
+			name: "update",
+			call: func() error {
+				_, err := api.UpdatePortalIdentityProvider(
+					t.Context(),
+					kkOps.UpdatePortalIdentityProviderRequest{},
+				)
+				return err
+			},
+		},
+		{
+			name: "delete",
+			call: func() error {
+				_, err := api.DeletePortalIdentityProvider(t.Context(), "portal-123", "provider-123")
+				return err
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if err := tt.call(); err == nil {
+				t.Fatal("expected missing portal auth settings API to return an error")
+			} else if err.Error() != "SDK portal auth settings API is nil" {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 

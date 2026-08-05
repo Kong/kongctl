@@ -52,8 +52,8 @@ func (p *PortalIdentityProviderAPIImpl) ListPortalIdentityProviders(
 	request kkOps.GetPortalIdentityProvidersRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.GetPortalIdentityProvidersResponse, error) {
-	if p.SDK == nil {
-		return nil, fmt.Errorf("SDK is nil")
+	if p.SDK == nil || p.SDK.PortalAuthSettings == nil {
+		return nil, fmt.Errorf("SDK portal auth settings API is nil")
 	}
 	return p.SDK.PortalAuthSettings.GetPortalIdentityProviders(ctx, request.PortalID, request.Filter, opts...)
 }
@@ -65,8 +65,8 @@ func (p *PortalIdentityProviderAPIImpl) GetPortalIdentityProvider(
 	id string,
 	opts ...kkOps.Option,
 ) (*kkOps.GetPortalIdentityProviderResponse, error) {
-	if p.SDK == nil {
-		return nil, fmt.Errorf("SDK is nil")
+	if p.SDK == nil || p.SDK.PortalAuthSettings == nil {
+		return nil, fmt.Errorf("SDK portal auth settings API is nil")
 	}
 	return p.SDK.PortalAuthSettings.GetPortalIdentityProvider(ctx, portalID, id, opts...)
 }
@@ -94,8 +94,8 @@ func (p *PortalIdentityProviderAPIImpl) UpdatePortalIdentityProvider(
 	request kkOps.UpdatePortalIdentityProviderRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.UpdatePortalIdentityProviderResponse, error) {
-	if p.SDK == nil {
-		return nil, fmt.Errorf("SDK is nil")
+	if p.SDK == nil || p.SDK.PortalAuthSettings == nil {
+		return nil, fmt.Errorf("SDK portal auth settings API is nil")
 	}
 	return p.SDK.PortalAuthSettings.UpdatePortalIdentityProvider(ctx, request, opts...)
 }
@@ -107,8 +107,8 @@ func (p *PortalIdentityProviderAPIImpl) DeletePortalIdentityProvider(
 	id string,
 	opts ...kkOps.Option,
 ) (*kkOps.DeletePortalIdentityProviderResponse, error) {
-	if p.SDK == nil {
-		return nil, fmt.Errorf("SDK is nil")
+	if p.SDK == nil || p.SDK.PortalAuthSettings == nil {
+		return nil, fmt.Errorf("SDK portal auth settings API is nil")
 	}
 	return p.SDK.PortalAuthSettings.DeletePortalIdentityProvider(ctx, portalID, id, opts...)
 }
