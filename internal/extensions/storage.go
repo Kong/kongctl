@@ -692,8 +692,13 @@ func (s Store) loadInstalled(id string) (Extension, error) {
 		ext := degradedExtension(id, InstallTypeInstalled, cache, ExtensionHealthDamaged,
 			"installed_runtime_invalid", fmt.Sprintf("cannot use installed runtime: %v", err),
 			"reinstall, upgrade, or uninstall this extension")
+		ext.Manifest = manifest
+		ext.CommandPaths = manifest.CommandPaths
 		ext.PackageDir = packageDir
 		ext.Install = &state
+		if cacheErr != nil {
+			_ = s.writeCommandCache(id, ext, time.Now())
+		}
 		return ext, nil
 	}
 	if cacheErr != nil {

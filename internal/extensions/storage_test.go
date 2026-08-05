@@ -292,6 +292,7 @@ func TestStoreListKeepsDamagedInstalledRuntimeRecoverable(t *testing.T) {
 	result, err := store.InstallLocal(source, "test-version", time.Unix(100, 0))
 	require.NoError(t, err)
 	require.NoError(t, os.Remove(filepath.Join(result.Extension.PackageDir, "kongctl-ext-foo")))
+	require.NoError(t, os.Remove(filepath.Join(filepath.Dir(result.Extension.PackageDir), commandsCacheName)))
 
 	extensions, err := store.List()
 	require.NoError(t, err)
@@ -299,6 +300,9 @@ func TestStoreListKeepsDamagedInstalledRuntimeRecoverable(t *testing.T) {
 	require.Equal(t, ExtensionHealthDamaged, extensions[0].Health.Status)
 	require.Equal(t, "installed_runtime_invalid", extensions[0].Health.Diagnostics[0].Code)
 	require.NotEmpty(t, extensions[0].CommandPaths)
+	cache, err := store.loadCommandCache("kong/foo", InstallTypeInstalled)
+	require.NoError(t, err)
+	require.NotEmpty(t, cache.CommandPaths)
 
 	uninstalled, err := store.Uninstall("kong/foo", false)
 	require.NoError(t, err)
