@@ -169,7 +169,43 @@ steps:
                 "[?@=='staging'] | length(@)": 1
                 "[?@=='prod'] | length(@)": 1
 
-  - name: 003-sync-delete
+  - name: 003-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-apis
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "apis[?name=='API Top Level'] | [0].attributes"
+            expect:
+              fields:
+                "length(domains)": 2
+                "domains[?@=='web'] | length(@)": 1
+                "domains[?@=='mobile'] | length(@)": 1
+                "length(environments)": 2
+                "environments[?@=='staging'] | length(@)": 1
+                "environments[?@=='prod'] | length(@)": 1
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-sync-delete
     inputOverlayDirs:
       - overlays/003-sync-delete
     commands:
