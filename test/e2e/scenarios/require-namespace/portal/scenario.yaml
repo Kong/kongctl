@@ -117,3 +117,59 @@ steps:
             expect:
               fields:
                 namespace: good-namespace
+
+  - name: 007-sync-comma-separated-multi-namespace-pass
+    inputOverlayDirs:
+      - overlays/002-sync-with-namespaces
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+          - --require-namespace
+          - good-namespace,other-namespace
+        assertions:
+          - select: >-
+              plan.changes[0]
+            expect:
+              fields:
+                namespace: good-namespace
+
+  - name: 008-sync-comma-separated-multi-namespace-fail
+    inputOverlayDirs:
+      - overlays/002-sync-with-namespaces
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+          - --require-namespace
+          - ns-alpha,ns-beta
+        expectFailure:
+          exitCode: 1
+          contains: "namespace enforcement"
+
+  - name: 009-sync-repeated-flag-multi-namespace-pass
+    inputOverlayDirs:
+      - overlays/002-sync-with-namespaces
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+          - --require-namespace
+          - other-namespace
+          - --require-namespace
+          - good-namespace
+        assertions:
+          - select: >-
+              plan.changes[0]
+            expect:
+              fields:
+                namespace: good-namespace
