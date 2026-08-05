@@ -254,6 +254,49 @@ kongctl uninstall extension kong/foo
 Linked extensions and local path installs are not upgraded. Re-link or reinstall
 them from the local source path.
 
+### Recovering Broken Extensions
+
+An extension problem does not prevent built-in commands or `kongctl --help`
+from running. Use the lifecycle commands to inspect and recover extension
+state:
+
+```sh
+kongctl list extensions
+kongctl get extension kong/foo
+kongctl uninstall extension kong/foo
+```
+
+If a linked working tree is moved, re-link the same extension from its new
+location. This replaces the old link after the new source has been validated:
+
+```sh
+kongctl link extension ../new/path/to/foo
+```
+
+If the working tree was deleted or is temporarily unavailable, `kongctl`
+reports the link as `unavailable`. Restore it at the recorded path, re-link it,
+or uninstall the link. A missing or invalid manifest and a missing or
+non-executable runtime are reported against that extension instead of aborting
+CLI startup.
+
+`kongctl` keeps a validated command metadata cache for help and recovery. The
+cache never authorizes execution when the live linked source is unavailable or
+invalid. Broken cached commands are omitted from normal help and completion,
+but invoking an exact previously linked command produces an actionable
+extension-specific diagnostic.
+
+Installed extension packages are host-managed. If their manifest, runtime, or
+install record is missing or modified, reinstall or upgrade the extension.
+Runtime integrity mismatches are never accepted automatically.
+
+Uninstall removes only the managed install or link record by default. It never
+deletes a linked working tree, and it preserves the extension-owned data
+directory. Delete that data explicitly when it is no longer needed:
+
+```sh
+kongctl uninstall extension kong/foo --remove-data
+```
+
 ## GitHub Installs
 
 GitHub repositories do not need a `kongctl-*` prefix. Use a clear repository

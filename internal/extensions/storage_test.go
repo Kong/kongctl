@@ -41,7 +41,7 @@ func TestStoreLinkLocalRefreshesManifestFromSource(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, InstallTypeLinked, linked.InstallType)
 
-	writeManifest(t, source, "kong", "foo", "list", "foo")
+	writeManifest(t, source, "foo", "list", "foo")
 	reloaded, err := store.Get("kong/foo")
 	require.NoError(t, err)
 	require.Equal(t, "list foo", CommandPathString(reloaded.CommandPaths[0]))
@@ -161,20 +161,164 @@ func TestStoreUninstallPreservesDataByDefault(t *testing.T) {
 	require.FileExists(t, filepath.Join(dataDir, "state.json"))
 }
 
+func TestStoreListKeepsMissingLinkedSourceRecoverable(t *testing.T) {
+	source := writeTestExtension(t)
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	_, err := store.LinkLocal(source, "test-version", time.Unix(100, 0))
+	require.NoError(t, err)
+
+	require.NoError(t, os.RemoveAll(source))
+
+	extensions, err := store.List()
+	require.NoError(t, err)
+	require.Len(t, extensions, 1)
+	ext := extensions[0]
+	require.Equal(t, "kong/foo", ext.ID)
+	require.Equal(t, ExtensionHealthUnavailable, ext.Health.Status)
+	require.Equal(t, "linked_source_unavailable", ext.Health.Diagnostics[0].Code)
+	require.NotEmpty(t, ext.CommandPaths, "last-known-good commands should remain available for recovery")
+
+	result, err := store.Uninstall("kong/foo", false)
+	require.NoError(t, err)
+	require.True(t, result.RemovedLink)
+	require.False(t, result.RemovedData)
+}
+
+func TestStoreListKeepsInvalidLinkedManifestRecoverable(t *testing.T) {
+	source := writeTestExtension(t)
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	_, err := store.LinkLocal(source, "test-version", time.Unix(100, 0))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(source, ManifestFileName), []byte("not: [valid"), 0o600))
+
+	extensions, err := store.List()
+	require.NoError(t, err)
+	require.Len(t, extensions, 1)
+	require.Equal(t, ExtensionHealthInvalid, extensions[0].Health.Status)
+	require.Equal(t, "linked_manifest_invalid", extensions[0].Health.Diagnostics[0].Code)
+	require.NotEmpty(t, extensions[0].CommandPaths)
+}
+
+func TestStoreListRepairsCorruptLinkedCommandCache(t *testing.T) {
+	source := writeTestExtension(t)
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	_, err := store.LinkLocal(source, "test-version", time.Unix(100, 0))
+	require.NoError(t, err)
+	linkDir, err := store.linkDir("kong/foo")
+	require.NoError(t, err)
+	cachePath := filepath.Join(linkDir, commandsCacheName)
+	require.NoError(t, os.WriteFile(cachePath, []byte("{"), 0o600))
+
+	extensions, err := store.List()
+	require.NoError(t, err)
+	require.Len(t, extensions, 1)
+	require.True(t, extensions[0].IsReady())
+
+	cache, err := store.loadCommandCache("kong/foo", InstallTypeLinked)
+	require.NoError(t, err)
+	require.Equal(t, "kong/foo", cache.ID)
+}
+
+func TestStoreUninstallBrokenLinkPreservesExistingData(t *testing.T) {
+	source := writeTestExtension(t)
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	_, err := store.LinkLocal(source, "test-version", time.Unix(100, 0))
+	require.NoError(t, err)
+	dataDir, err := store.DataDir("kong/foo")
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(dataDir, 0o700))
+	dataPath := filepath.Join(dataDir, "state.json")
+	require.NoError(t, os.WriteFile(dataPath, []byte("{}"), 0o600))
+	require.NoError(t, os.RemoveAll(source))
+
+	result, err := store.Uninstall("kong/foo", false)
+	require.NoError(t, err)
+	require.True(t, result.RemovedLink)
+	require.False(t, result.RemovedData)
+	require.FileExists(t, dataPath)
+}
+
+func TestStoreListReportsCorruptLinkStateWithoutFailing(t *testing.T) {
+	source := writeTestExtension(t)
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	_, err := store.LinkLocal(source, "test-version", time.Unix(100, 0))
+	require.NoError(t, err)
+	linkDir, err := store.linkDir("kong/foo")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(linkDir, linkStateName), []byte("{"), 0o600))
+
+	extensions, err := store.List()
+	require.NoError(t, err)
+	require.Len(t, extensions, 1)
+	require.Equal(t, ExtensionHealthInvalid, extensions[0].Health.Status)
+	require.Equal(t, "link_state_invalid", extensions[0].Health.Diagnostics[0].Code)
+
+	result, err := store.Uninstall("kong/foo", false)
+	require.NoError(t, err)
+	require.True(t, result.RemovedLink)
+}
+
+func TestStoreListReportsDuplicateInstalledAndLinkedState(t *testing.T) {
+	source := writeTestExtension(t)
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	_, err := store.InstallLocal(source, "test-version", time.Unix(100, 0))
+	require.NoError(t, err)
+	linkDir, err := store.linkDir("kong/foo")
+	require.NoError(t, err)
+	state := LinkState{
+		SchemaVersion: stateSchemaVersion,
+		ID:            "kong/foo",
+		Path:          source,
+	}
+	require.NoError(t, writeJSON(filepath.Join(linkDir, linkStateName), state))
+
+	extensions, err := store.List()
+	require.NoError(t, err)
+	require.Len(t, extensions, 2)
+	for _, ext := range extensions {
+		require.Equal(t, ExtensionHealthConflict, ext.Health.Status)
+		require.Equal(t, "duplicate_install_state", ext.Health.Diagnostics[0].Code)
+	}
+
+	result, err := store.Uninstall("kong/foo", false)
+	require.NoError(t, err)
+	require.True(t, result.RemovedInstall)
+	require.True(t, result.RemovedLink)
+}
+
+func TestStoreListKeepsDamagedInstalledRuntimeRecoverable(t *testing.T) {
+	source := writeTestExtension(t)
+	store := NewStore(filepath.Join(t.TempDir(), "extensions"))
+	result, err := store.InstallLocal(source, "test-version", time.Unix(100, 0))
+	require.NoError(t, err)
+	require.NoError(t, os.Remove(filepath.Join(result.Extension.PackageDir, "kongctl-ext-foo")))
+
+	extensions, err := store.List()
+	require.NoError(t, err)
+	require.Len(t, extensions, 1)
+	require.Equal(t, ExtensionHealthDamaged, extensions[0].Health.Status)
+	require.Equal(t, "installed_runtime_invalid", extensions[0].Health.Diagnostics[0].Code)
+	require.NotEmpty(t, extensions[0].CommandPaths)
+
+	uninstalled, err := store.Uninstall("kong/foo", false)
+	require.NoError(t, err)
+	require.True(t, uninstalled.RemovedInstall)
+}
+
 func writeTestExtension(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	writeManifest(t, root, "kong", "foo", "get", "foo")
+	writeManifest(t, root, "foo", openBuiltInRootGet, "foo")
 	runtime := filepath.Join(root, "kongctl-ext-foo")
 	require.NoError(t, os.WriteFile(runtime, []byte("#!/bin/sh\necho ok\n"), 0o600))
 	require.NoError(t, os.Chmod(runtime, 0o755))
 	return root
 }
 
-func writeManifest(t *testing.T, root, publisher, name, verb, resource string) {
+func writeManifest(t *testing.T, root, name, verb, resource string) {
 	t.Helper()
 	manifest := []byte(`schema_version: 1
-publisher: ` + publisher + `
+publisher: kong
 name: ` + name + `
 version: 0.1.0
 runtime:

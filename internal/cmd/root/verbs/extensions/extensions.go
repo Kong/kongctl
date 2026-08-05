@@ -339,6 +339,7 @@ func runListExtensions(command *cobra.Command, args []string) error {
 	if err != nil {
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to list extensions", err)
 	}
+	extensions = extensioncore.MarkCommandConflicts(command.Root(), extensions)
 	version, err := cliVersion(helper)
 	if err != nil {
 		return err
@@ -357,6 +358,14 @@ func runGetExtension(command *cobra.Command, args []string, id string) error {
 	ext, err := store.Get(id)
 	if err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
+	}
+	if extensions, listErr := store.List(); listErr == nil {
+		for _, candidate := range extensioncore.MarkCommandConflicts(command.Root(), extensions) {
+			if candidate.ID == id && candidate.Health.Status == extensioncore.ExtensionHealthConflict {
+				ext.Health = candidate.Health
+				break
+			}
+		}
 	}
 	version, err := cliVersion(helper)
 	if err != nil {
@@ -447,6 +456,12 @@ func runUpgradeAllExtensions(command *cobra.Command, args []string, opts upgrade
 }
 
 func upgradeAllSkipReason(ext extensioncore.Extension) string {
+	if !ext.IsReady() {
+		if err := ext.HealthError(); err != nil {
+			return err.Error()
+		}
+		return "extension is not ready"
+	}
 	if ext.InstallType == extensioncore.InstallTypeLinked {
 		return "linked extension; linked extensions read directly from the linked working tree"
 	}
@@ -1140,7 +1155,11 @@ func writeListSummary(w io.Writer, extensions []extensioncore.Extension, cliVers
 		}
 		icon := ui.success.Render("✓")
 		compatibilityStatus := extensionListCompatibilityStatus(ext, cliVersion)
-		if compatibilityStatus != "" {
+		healthStatus := ""
+		if !ext.IsReady() {
+			healthStatus = string(ext.Health.Status)
+		}
+		if compatibilityStatus != "" || healthStatus != "" {
 			icon = ui.warning.Render("!")
 		}
 		fields := []string{
@@ -1152,8 +1171,15 @@ func writeListSummary(w io.Writer, extensions []extensioncore.Extension, cliVers
 		if compatibilityStatus != "" {
 			fields = append(fields, ui.warning.Render(compatibilityStatus))
 		}
+		if healthStatus != "" {
+			fields = append(fields, ui.warning.Render(healthStatus))
+		}
 		if _, err := fmt.Fprintln(w, strings.Join(fields, "  ")); err != nil {
 			return err
+		}
+		for _, diagnostic := range ext.Health.Diagnostics {
+			writeOptionalField(w, ui, "Issue", diagnostic.Message)
+			writeOptionalField(w, ui, "Next", diagnostic.Remediation)
 		}
 		writeCommands(w, ui, ext.CommandPaths)
 	}
@@ -1168,6 +1194,15 @@ func writeExtensionSummary(w io.Writer, ext extensioncore.Extension, cliVersion 
 	writeField(w, ui, "Name", ext.Manifest.Name)
 	writeField(w, ui, "Publisher", ext.Manifest.Publisher)
 	writeField(w, ui, "Type", string(ext.InstallType))
+	status := ext.Health.Status
+	if status == "" {
+		status = extensioncore.ExtensionHealthReady
+	}
+	writeField(w, ui, "Status", string(status))
+	for _, diagnostic := range ext.Health.Diagnostics {
+		writeOptionalField(w, ui, "Issue", diagnostic.Message)
+		writeOptionalField(w, ui, "Next", diagnostic.Remediation)
+	}
 	writeOptionalField(w, ui, "Version", extensionDisplayVersion(ext))
 	writeOptionalField(w, ui, "Summary", ext.Manifest.Summary)
 	writeCompatibilityFields(w, ui, ext, cliVersion)
@@ -1195,6 +1230,12 @@ func writeUninstallSummary(w io.Writer, result extensioncore.UninstallResult) er
 		result.ID,
 	); err != nil {
 		return err
+	}
+	if result.RemovedInstall {
+		writeField(w, ui, "Install", "removed")
+	}
+	if result.RemovedLink {
+		writeField(w, ui, "Link", "removed")
 	}
 	if result.RemovedData {
 		writeField(w, ui, "Data", "removed")

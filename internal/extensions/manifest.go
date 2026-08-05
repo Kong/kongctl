@@ -17,6 +17,7 @@ import (
 const (
 	ManifestFileName   = "kongctl-extension.yaml"
 	ManifestSchemaV1   = 1
+	openBuiltInRootGet = "get"
 	MaxManifestBytes   = 256 * 1024
 	maxCommandPaths    = 64
 	maxPathSegments    = 8
@@ -43,7 +44,7 @@ var (
 		"command_paths",
 	}
 
-	openBuiltInRoots = []string{"get", "list"}
+	openBuiltInRoots = []string{openBuiltInRootGet, "list"}
 
 	closedBuiltInRoots = []string{
 		"add",
@@ -125,14 +126,59 @@ type Flag struct {
 }
 
 type Extension struct {
-	ID           string        `json:"id"`
-	InstallType  InstallType   `json:"install_type"`
-	Manifest     Manifest      `json:"manifest"`
-	CommandPaths []CommandPath `json:"command_paths"`
-	PackageDir   string        `json:"package_dir,omitempty"`
-	LinkedDir    string        `json:"linked_dir,omitempty"`
-	Install      *InstallState `json:"install,omitempty"`
-	Link         *LinkState    `json:"link,omitempty"`
+	ID           string          `json:"id"`
+	InstallType  InstallType     `json:"install_type"`
+	Health       ExtensionHealth `json:"health"`
+	Manifest     Manifest        `json:"manifest"`
+	CommandPaths []CommandPath   `json:"command_paths"`
+	PackageDir   string          `json:"package_dir,omitempty"`
+	LinkedDir    string          `json:"linked_dir,omitempty"`
+	Install      *InstallState   `json:"install,omitempty"`
+	Link         *LinkState      `json:"link,omitempty"`
+}
+
+type ExtensionHealth struct {
+	Status      ExtensionHealthStatus `json:"status"`
+	Diagnostics []ExtensionDiagnostic `json:"diagnostics,omitempty"`
+}
+
+type ExtensionDiagnostic struct {
+	Code        string `json:"code"`
+	Message     string `json:"message"`
+	Remediation string `json:"remediation,omitempty"`
+}
+
+type ExtensionHealthStatus string
+
+const (
+	ExtensionHealthReady        ExtensionHealthStatus = "ready"
+	ExtensionHealthUnavailable  ExtensionHealthStatus = "unavailable"
+	ExtensionHealthInvalid      ExtensionHealthStatus = "invalid"
+	ExtensionHealthDamaged      ExtensionHealthStatus = "damaged"
+	ExtensionHealthIncompatible ExtensionHealthStatus = "incompatible"
+	ExtensionHealthConflict     ExtensionHealthStatus = "conflict"
+)
+
+func (e Extension) IsReady() bool {
+	return e.Health.Status == "" || e.Health.Status == ExtensionHealthReady
+}
+
+func (e Extension) HealthError() error {
+	if e.IsReady() {
+		return nil
+	}
+	if len(e.Health.Diagnostics) == 0 {
+		return fmt.Errorf("extension %q is %s", e.ID, e.Health.Status)
+	}
+	diagnostic := e.Health.Diagnostics[0]
+	message := strings.TrimSpace(diagnostic.Message)
+	if message == "" {
+		message = fmt.Sprintf("extension is %s", e.Health.Status)
+	}
+	if remediation := strings.TrimSpace(diagnostic.Remediation); remediation != "" {
+		return fmt.Errorf("extension %q: %s; %s", e.ID, message, remediation)
+	}
+	return fmt.Errorf("extension %q: %s", e.ID, message)
 }
 
 type InstallType string

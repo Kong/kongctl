@@ -254,6 +254,39 @@ func TestWriteExtensionSummaryShowsUnknownCompatibilityForDevelopmentVersion(t *
 	require.Contains(t, plain, "  Current kongctl: dev\n")
 }
 
+func TestWriteListSummaryShowsUnavailableExtensionRecovery(t *testing.T) {
+	ext := testRemoteCandidate()
+	ext.InstallType = extensions.InstallTypeLinked
+	ext.LinkedDir = "/missing/extension"
+	ext.Health = extensions.ExtensionHealth{
+		Status: extensions.ExtensionHealthUnavailable,
+		Diagnostics: []extensions.ExtensionDiagnostic{{
+			Code:        "linked_source_unavailable",
+			Message:     "linked source is unavailable",
+			Remediation: "restore the source or uninstall the extension",
+		}},
+	}
+	var out bytes.Buffer
+
+	require.NoError(t, writeListSummary(&out, []extensions.Extension{ext}, "0.20.0"))
+	require.Contains(t, out.String(), "unavailable")
+	require.Contains(t, out.String(), "linked source is unavailable")
+	require.Contains(t, out.String(), "restore the source or uninstall the extension")
+}
+
+func TestWriteUninstallSummaryReportsRemovedStateAndPreservedData(t *testing.T) {
+	var out bytes.Buffer
+
+	require.NoError(t, writeUninstallSummary(&out, extensions.UninstallResult{
+		ID:          "kong/foo",
+		RemovedLink: true,
+	}))
+	require.Contains(t, out.String(), "Link:")
+	require.Contains(t, out.String(), "removed")
+	require.Contains(t, out.String(), "Data:")
+	require.Contains(t, out.String(), "preserved")
+}
+
 func TestUpgradeExtensionCommandSupportsUpgradeAll(t *testing.T) {
 	cmd := newUpgradeExtensionCmd()
 
