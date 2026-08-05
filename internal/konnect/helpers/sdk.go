@@ -407,7 +407,13 @@ func (k *KonnectSDK) GetPortalCustomizationAPI() PortalCustomizationAPI {
 		return nil
 	}
 
-	return &PortalCustomizationAPIImpl{SDK: k.SDK}
+	return &PortalCustomizationAPIImpl{
+		SDK:         k.SDK,
+		BaseURL:     k.BaseURL,
+		Token:       k.Token,
+		TokenSource: k.TokenSource,
+		HTTPClient:  k.HTTPClient,
+	}
 }
 
 // Returns the implementation of the PortalCustomDomainAPI interface

@@ -1311,32 +1311,20 @@ func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]any {
 
 	// Add main menu items
 	if menu.Main != nil {
-		var mainMenuItems []map[string]any
+		mainMenuItems := make([]map[string]any, 0, len(menu.Main))
 		for _, item := range menu.Main {
-			menuItem := map[string]any{
-				"path":          item.Path,
-				FieldTitle:      item.Title,
-				"external":      item.External,
-				FieldVisibility: string(item.Visibility),
-			}
-			mainMenuItems = append(mainMenuItems, menuItem)
+			mainMenuItems = append(mainMenuItems, buildPortalMenuItemFields(item))
 		}
-		menuFields["main"] = mainMenuItems
+		menuFields[FieldMenuMain] = mainMenuItems
 	}
 
 	// Add footer sections
 	if menu.FooterSections != nil {
-		var footerSections []map[string]any
+		footerSections := make([]map[string]any, 0, len(menu.FooterSections))
 		for _, section := range menu.FooterSections {
-			var items []map[string]any
+			items := make([]map[string]any, 0, len(section.Items))
 			for _, item := range section.Items {
-				menuItem := map[string]any{
-					"path":          item.Path,
-					FieldTitle:      item.Title,
-					"external":      item.External,
-					FieldVisibility: string(item.Visibility),
-				}
-				items = append(items, menuItem)
+				items = append(items, buildPortalMenuItemFields(item))
 			}
 			sectionMap := map[string]any{
 				FieldTitle: section.Title,
@@ -1344,10 +1332,28 @@ func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]any {
 			}
 			footerSections = append(footerSections, sectionMap)
 		}
-		menuFields["footer_sections"] = footerSections
+		menuFields[FieldMenuFooterSections] = footerSections
+	}
+
+	// Add bottom footer menu items
+	if menu.FooterBottom != nil {
+		footerBottomItems := make([]map[string]any, 0, len(menu.FooterBottom))
+		for _, item := range menu.FooterBottom {
+			footerBottomItems = append(footerBottomItems, buildPortalMenuItemFields(item))
+		}
+		menuFields[FieldMenuFooterBottom] = footerBottomItems
 	}
 
 	return menuFields
+}
+
+func buildPortalMenuItemFields(item kkComps.PortalMenuItem) map[string]any {
+	return map[string]any{
+		"path":          item.Path,
+		FieldTitle:      item.Title,
+		"external":      item.External,
+		FieldVisibility: string(item.Visibility),
+	}
 }
 
 func (p *Planner) buildSpecRendererFields(specRenderer *kkComps.SpecRenderer) map[string]any {
@@ -1417,18 +1423,8 @@ func (p *Planner) compareMenu(current, desired *kkComps.Menu) bool {
 		return false
 	}
 
-	// Compare main menu items
-	if len(current.Main) != len(desired.Main) {
+	if !comparePortalMenuItems(current.Main, desired.Main) {
 		return false
-	}
-	for i, currentItem := range current.Main {
-		desiredItem := desired.Main[i]
-		if currentItem.Path != desiredItem.Path ||
-			currentItem.Title != desiredItem.Title ||
-			currentItem.External != desiredItem.External ||
-			currentItem.Visibility != desiredItem.Visibility {
-			return false
-		}
 	}
 
 	// Compare footer sections
@@ -1443,14 +1439,26 @@ func (p *Planner) compareMenu(current, desired *kkComps.Menu) bool {
 		}
 
 		// Compare items in section
-		for j, currentItem := range currentSection.Items {
-			desiredItem := desiredSection.Items[j]
-			if currentItem.Path != desiredItem.Path ||
-				currentItem.Title != desiredItem.Title ||
-				currentItem.External != desiredItem.External ||
-				currentItem.Visibility != desiredItem.Visibility {
-				return false
-			}
+		if !comparePortalMenuItems(currentSection.Items, desiredSection.Items) {
+			return false
+		}
+	}
+
+	return comparePortalMenuItems(current.FooterBottom, desired.FooterBottom)
+}
+
+func comparePortalMenuItems(current, desired []kkComps.PortalMenuItem) bool {
+	if len(current) != len(desired) {
+		return false
+	}
+
+	for i, currentItem := range current {
+		desiredItem := desired[i]
+		if currentItem.Path != desiredItem.Path ||
+			currentItem.Title != desiredItem.Title ||
+			currentItem.External != desiredItem.External ||
+			currentItem.Visibility != desiredItem.Visibility {
+			return false
 		}
 	}
 

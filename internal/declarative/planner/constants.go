@@ -172,6 +172,13 @@ const (
 	FieldTryItUI               = "try_it_ui"
 )
 
+// Common portal customization menu plan field identifiers.
+const (
+	FieldMenuMain           = "main"
+	FieldMenuFooterSections = "footer_sections"
+	FieldMenuFooterBottom   = "footer_bottom"
+)
+
 // Common gateway and event-gateway plan field identifiers.
 const (
 	FieldACLMode                                    = "acl_mode"

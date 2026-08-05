@@ -128,6 +128,54 @@ func TestPortalCustomizationAdapterMapUpdateFieldsMenuFooterSections_AnySlice(t 
 	assert.Equal(t, "Privacy", update.Menu.FooterSections[0].Items[0].Title)
 }
 
+func TestPortalCustomizationAdapterMapUpdateFieldsPreservesEmptyMenuListsFromPlanJSON(t *testing.T) {
+	adapter := NewPortalCustomizationAdapter(nil)
+	fields := map[string]any{
+		planner.FieldMenu: map[string]any{
+			planner.FieldMenuMain:           []any{},
+			planner.FieldMenuFooterSections: []any{},
+			planner.FieldMenuFooterBottom:   []any{},
+		},
+	}
+	var update kkComps.PortalCustomization
+
+	err := adapter.MapUpdateFields(context.Background(), fields, &update)
+
+	require.NoError(t, err)
+	require.NotNil(t, update.Menu)
+	assert.NotNil(t, update.Menu.Main)
+	assert.Empty(t, update.Menu.Main)
+	assert.NotNil(t, update.Menu.FooterSections)
+	assert.Empty(t, update.Menu.FooterSections)
+	assert.NotNil(t, update.Menu.FooterBottom)
+	assert.Empty(t, update.Menu.FooterBottom)
+}
+
+func TestPortalCustomizationAdapterMapUpdateFieldsMenuFooterBottom(t *testing.T) {
+	adapter := NewPortalCustomizationAdapter(nil)
+	fields := map[string]any{
+		planner.FieldMenu: map[string]any{
+			planner.FieldMenuFooterBottom: []any{
+				map[string]any{
+					"path":                  "/terms",
+					planner.FieldTitle:      "Terms",
+					planner.FieldVisibility: "public",
+					"external":              false,
+				},
+			},
+		},
+	}
+	var update kkComps.PortalCustomization
+
+	err := adapter.MapUpdateFields(context.Background(), fields, &update)
+
+	require.NoError(t, err)
+	require.NotNil(t, update.Menu)
+	require.Len(t, update.Menu.FooterBottom, 1)
+	assert.Equal(t, "/terms", update.Menu.FooterBottom[0].Path)
+	assert.Equal(t, "Terms", update.Menu.FooterBottom[0].Title)
+}
+
 func TestPortalCustomizationAdapterMapUpdateFieldsSpecRendererAndRobots(t *testing.T) {
 	adapter := NewPortalCustomizationAdapter(nil)
 	fields := map[string]any{
