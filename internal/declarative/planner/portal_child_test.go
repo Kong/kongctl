@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"testing"
 	"time"
@@ -537,6 +538,56 @@ func TestBuildAllCustomizationFieldsIncludesSpecRendererAndRobots(t *testing.T) 
 	assert.Equal(t, true, specRenderer[FieldHideDeprecated])
 	assert.Equal(t, false, specRenderer[FieldAllowCustomServerURLs])
 	assert.Equal(t, "User-agent: *", fields[FieldRobots])
+}
+
+func TestBuildAllCustomizationFieldsPreservesEmptyMenuArrays(t *testing.T) {
+	planner := NewPlanner(nil, slog.Default())
+
+	fields := planner.buildAllCustomizationFields(resources.PortalCustomizationResource{
+		PortalCustomization: kkComps.PortalCustomization{
+			Menu: &kkComps.Menu{
+				Main:           []kkComps.PortalMenuItem{},
+				FooterSections: []kkComps.PortalFooterMenuSection{},
+				FooterBottom:   []kkComps.PortalMenuItem{},
+			},
+		},
+	})
+
+	serialized, err := json.Marshal(fields)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+		"menu": {
+			"main": [],
+			"footer_sections": [],
+			"footer_bottom": []
+		}
+	}`, string(serialized))
+}
+
+func TestShouldUpdatePortalCustomizationDetectsFooterBottomDrift(t *testing.T) {
+	planner := NewPlanner(nil, slog.Default())
+	current := &kkComps.PortalCustomization{
+		Menu: &kkComps.Menu{
+			FooterBottom: []kkComps.PortalMenuItem{{
+				Path:       "/terms",
+				Title:      "Terms",
+				Visibility: kkComps.PortalMenuItemVisibilityPublic,
+			}},
+		},
+	}
+	desired := resources.PortalCustomizationResource{
+		PortalCustomization: kkComps.PortalCustomization{
+			Menu: &kkComps.Menu{FooterBottom: []kkComps.PortalMenuItem{}},
+		},
+	}
+
+	needsUpdate, updates, changedFields := planner.shouldUpdatePortalCustomization(current, desired)
+
+	require.True(t, needsUpdate)
+	menuFields, ok := updates[FieldMenu].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, []map[string]any{}, menuFields[FieldMenuFooterBottom])
+	assert.Contains(t, changedFields, FieldMenu)
 }
 
 func TestPlanPortalTeamGroupMappingsSkipsUnconfiguredPortalAuthSettingsAPI(t *testing.T) {

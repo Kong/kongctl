@@ -61,11 +61,14 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 	if menuData, ok := fields[planner.FieldMenu].(map[string]any); ok {
 		menu := &kkComps.Menu{}
 
-		if mainItems := toAnySlice(menuData["main"]); mainItems != nil {
+		if mainItems := toAnySlice(menuData[planner.FieldMenuMain]); mainItems != nil {
 			menu.Main = mapPortalMenuItems(mainItems)
 		}
-		if footerItems := toAnySlice(menuData["footer_sections"]); footerItems != nil {
+		if footerItems := toAnySlice(menuData[planner.FieldMenuFooterSections]); footerItems != nil {
 			menu.FooterSections = mapFooterSections(footerItems)
+		}
+		if footerBottomItems := toAnySlice(menuData[planner.FieldMenuFooterBottom]); footerBottomItems != nil {
+			menu.FooterBottom = mapPortalMenuItems(footerBottomItems)
 		}
 
 		update.Menu = menu
@@ -134,7 +137,7 @@ func toAnySlice(v any) []any {
 }
 
 func mapPortalMenuItems(raw []any) []kkComps.PortalMenuItem {
-	var items []kkComps.PortalMenuItem
+	items := make([]kkComps.PortalMenuItem, 0, len(raw))
 	for _, entry := range raw {
 		itemMap, ok := entry.(map[string]any)
 		if !ok {
@@ -156,7 +159,7 @@ func mapPortalMenuItems(raw []any) []kkComps.PortalMenuItem {
 }
 
 func mapFooterSections(raw []any) []kkComps.PortalFooterMenuSection {
-	var sections []kkComps.PortalFooterMenuSection
+	sections := make([]kkComps.PortalFooterMenuSection, 0, len(raw))
 	for _, entry := range raw {
 		sectionMap, ok := entry.(map[string]any)
 		if !ok {

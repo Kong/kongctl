@@ -207,7 +207,7 @@ func (a *APIPublicationAPIImpl) publishAPIToPortalWithMergedPayload(
 		ctx,
 		http.MethodPut,
 		path,
-		map[string]string{"Content-Type": "application/json"},
+		map[string]string{contentTypeHeader: applicationJSONContent},
 		bytes.NewReader(payload),
 	)
 	if err != nil {
@@ -215,7 +215,7 @@ func (a *APIPublicationAPIImpl) publishAPIToPortalWithMergedPayload(
 	}
 
 	response := &kkOps.PublishAPIToPortalResponse{
-		ContentType: result.Header.Get("Content-Type"),
+		ContentType: result.Header.Get(contentTypeHeader),
 		StatusCode:  result.StatusCode,
 		RawResponse: &http.Response{
 			StatusCode: result.StatusCode,
