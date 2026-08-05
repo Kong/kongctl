@@ -63,19 +63,19 @@ steps:
           exitCode: 1
           contains: "failed to extract 'portal.tagline'"
 
-  # - name: 004-circular-ref
-  #   inputOverlayDirs:
-  #     - overlays/004-circular-ref
-  #   commands:
-  #     - name: 000-apply-circular-ref
-  #       run:
-  #         - apply
-  #         - -f
-  #         - "{{ .workdir }}/config.yaml"
-  #         - --auto-approve
-  #       expectFailure:
-  #         exitCode: 1
-  #         contains: "circular reference"
+  - name: 004-circular-ref
+    inputOverlayDirs:
+      - overlays/004-circular-ref
+    commands:
+      - name: 000-apply-circular-ref
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "circular reference"
 
   - name: 005-oversized-file
     inputOverlayDirs:
