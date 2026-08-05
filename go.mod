@@ -23,7 +23,7 @@ require (
 	github.com/kong/go-apiops v0.4.5
 	github.com/lrstanley/bubbletint/v2 v2.0.2
 	github.com/lucasb-eyer/go-colorful v1.4.0
-	github.com/mattn/go-isatty v0.0.23
+	github.com/mattn/go-isatty v0.0.24
 	github.com/mattn/go-runewidth v0.0.24
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.16.0
