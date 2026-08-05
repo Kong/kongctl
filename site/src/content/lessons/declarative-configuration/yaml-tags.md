@@ -14,8 +14,8 @@ values.
 
 ## Extend YAML values
 
-Tags let a configuration load data or resolve a relationship without copying
-the final value into the YAML.
+YAML Tags allow you to load external data or express relationships within the
+configuration without hardcoding the values directly into the YAML.
 
 | Tag         | Purpose                                                |
 | ----------- | ------------------------------------------------------ |
@@ -25,9 +25,53 @@ the final value into the YAML.
 | `!file`     | Load a local file or a value within a structured file. |
 | `!env`      | Read a value from an environment variable.             |
 
-## Recognize tag syntax
+## YAML tag syntax
 
-Reference the ID of a declared AI Gateway:
+A tag is attached to a YAML value. It tells `kongctl` how to resolve the input
+that follows the tag before using the result as the field value:
+
+```yaml label="Tag anatomy"
+target_field: !<tag> <tag-input>
+```
+
+### Select a field or load the whole value
+
+Use `#` to select a field from a referenced resource or structured value. The
+text before `#` identifies the source, and the text after it identifies the
+field or dotted path:
+
+```yaml label="Selecting values"
+ai_gateway: !ref my-aigw#id
+title: !file ./specs/openapi.yaml#info.title
+token: !env APP_CONFIG#credentials.token
+```
+
+For `!ref`, omitting `#<field>` selects `id` by default. For `!file`, omitting
+`#<path>` loads the entire resolved file value. YAML and JSON files load as
+structured values, while text files load as their complete content.
+
+### Compact and full mapping forms
+
+Some tags accept either a compact scalar or a full YAML mapping. These `!file`
+values are equivalent:
+
+```yaml label="Equivalent file tags"
+# Compact scalar form
+display_name: !file ./metadata.yaml#portal.display_name
+
+# Full mapping form
+display_name: !file
+  path: ./metadata.yaml
+  extract: portal.display_name
+```
+
+The `!env` mapping form uses `var` and optional `extract` fields. A `!lookup`
+mapping contains the fields used to find the resource and can use YAML's
+inline flow style or block style.
+
+## Example YAML tags
+
+Reference the ID of an AI Gateway declared in the same input configuration:
 
 ```yaml
 ai_gateway: !ref my-aigw#id
@@ -36,7 +80,7 @@ ai_gateway: !ref my-aigw#id
 Find an AI Gateway already present in Konnect:
 
 ```yaml
-ai_gateway: !lookup { name: shared-aigw }
+ai_gateway: !lookup { name: shared-aigw-name }
 ```
 
 Load a certificate from a file:

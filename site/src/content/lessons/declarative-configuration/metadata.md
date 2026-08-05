@@ -16,11 +16,33 @@ configuration behavior, and how it is stored on Konnect resources.
 
 Currently the following metadata items can be specified:
 
-- `namespace: <string>`: Groups declaratively managed resources into a
-  reconciliation scope, determining which resources `kongctl` considers
-  together when planning changes.
-- `protected: <bool>`: Prevents `kongctl` from deleting a resource through
-  declarative operations until protection is removed.
+<dl class="definition-cards">
+  <div class="definition-card">
+    <dt>
+      <code>namespace</code>
+      <span class="definition-type">string</span>
+    </dt>
+    <dd>
+      Groups declaratively managed resources into a reconciliation scope,
+      determining which resources <code>kongctl</code> considers together when
+      planning changes.
+    </dd>
+  </div>
+  <div class="definition-card">
+    <dt>
+      <code>protected</code>
+      <span class="definition-type">boolean</span>
+    </dt>
+    <dd>
+      Prevents <code>kongctl</code> from deleting a resource through declarative
+      operations until protection is removed.
+    </dd>
+  </div>
+</dl>
+
+> _Note:_ Specifying metadata is completely _optional_. When you do not
+> specify any metadata, defaults are used. The `namespace` default value is
+> `default`, and the `protected` default value is `false`.
 
 The `kongctl` block allows you to specify the metadata for a
 given resource:
@@ -78,10 +100,14 @@ labels:
 This label preserves the namespace on the remote resource so a later plan can
 identify its management scope. The presence of `KONGCTL-namespace` is also how
 the current implementation recognizes a declaratively managed resource.
-Resources use the `default` namespace when no namespace is specified.
+_Resources use the `default` namespace when no namespace is specified._
 
 Namespaces are reconciliation boundaries, not access controls. Konnect
 authorization determines what a user can change.
+
+For stricter automation, planning flags such as
+`--require-namespace=aigw-learning` can reject configurations outside an
+expected namespace.
 
 ## Protect important resources
 
@@ -89,7 +115,3 @@ Set `protected: true` on a parent resource to prevent `kongctl` from deleting
 it accidentally. Protected resources carry the `KONGCTL-protected: "true"`
 label. Set `protected: false` and apply the change before a declarative
 operation can delete that resource.
-
-For stricter automation, planning flags such as
-`--require-namespace=aigw-learning` can reject configurations outside an
-expected namespace.

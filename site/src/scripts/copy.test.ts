@@ -26,6 +26,7 @@ echo second</code></pre>
     expect(document.querySelector(".code-label")?.textContent).toBe(
       "Run this...",
     );
+    expect(document.querySelector("[data-code-expand-button]")).toBeNull();
 
     document.querySelector<HTMLButtonElement>("[data-copy-button]")?.click();
     await vi.waitFor(() => {
@@ -82,6 +83,33 @@ echo second</code></pre>
     expect(document.querySelector(".code-label")).toBeNull();
     expect(document.querySelector("[data-copy-button]")).not.toBeNull();
     expect(document.querySelector(".code-toolbar-label-hidden")).not.toBeNull();
+  });
+
+  it("expands and collapses a row-limited block", () => {
+    document.body.innerHTML = `
+      <pre class="astro-code" data-language="json" data-code-rows="8"><code>{"name":"example"}</code></pre>
+    `;
+
+    initializeCodeBlocks();
+
+    const pre = document.querySelector<HTMLPreElement>("pre");
+    const button = document.querySelector<HTMLButtonElement>(
+      "[data-code-expand-button]",
+    );
+
+    expect(button?.textContent).toBe("Expand");
+    expect(button?.getAttribute("aria-expanded")).toBe("false");
+    expect(button?.getAttribute("aria-controls")).toBe(pre?.id);
+
+    button?.click();
+    expect(pre?.dataset.codeExpanded).toBe("true");
+    expect(button?.textContent).toBe("Collapse");
+    expect(button?.getAttribute("aria-expanded")).toBe("true");
+
+    button?.click();
+    expect(pre?.dataset.codeExpanded).toBe("false");
+    expect(button?.textContent).toBe("Expand");
+    expect(button?.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("reports unavailable clipboard access", async () => {

@@ -16,7 +16,7 @@ _modes_.
 
 > _Note:_ The next few sections are purely informative. The information is key
 > to understanding the `kongctl` declarative configuration system.
-> Once you reach _The Getting Started_ lesson, you will begin to run
+> Once you reach the _Working Example_ lesson, you will begin to run
 > commands with functioning configurations.
 
 ## Describe the desired state

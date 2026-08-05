@@ -16,11 +16,40 @@ configuration and connects related resources.
 
 A resource can have several identifiers:
 
-- `ref` identifies it within the files loaded by one `kongctl` command.
-- `id` is usually a UUID assigned by Konnect.
-- `name` is a Konnect field whose uniqueness rules depend on the resource.
+<table>
+  <thead>
+    <tr>
+      <th scope="col">Identifier</th>
+      <th scope="col">Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ref</code></td>
+      <td>
+        <code>kongctl</code> local identifier, never sent to Konnect. Must be
+        unique across the entire set of declarative input files per command.
+      </td>
+    </tr>
+    <tr>
+      <td><code>id</code></td>
+      <td>
+        Common Konnect UUID field used to identify resources in URL routes,
+        for example <code>ai-gateways/&lt;id&gt;/models</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><code>name</code></td>
+      <td>
+        Common Konnect field with resource-specific uniqueness rules. Not all
+        Konnect resources have a <code>name</code>, and not all
+        <code>name</code> fields have uniqueness constraints.
+      </td>
+    </tr>
+  </tbody>
+</table>
 
-Every declarative resource requires a `ref`:
+Every declarative resource requires a unique `ref` identifier:
 
 ```yaml
 ai_gateways:
@@ -29,13 +58,12 @@ ai_gateways:
     display_name: My AI Gateway
 ```
 
-The `ref` must be unique across the complete input configuration. It is used
-while loading and planning, but is not written to Konnect.
+## Cross-resource references with `ref`
 
-## Connect resources with ref
+The `ref` field lets resources relate to each other within a configuration.
 
-The `!ref` tag reads a field from another declared resource. This relationship
-targets the Konnect ID that will belong to `my-aigw`:
+The `!ref` YAML tag reads a field from another declared resource. This
+relationship targets the Konnect ID that will belong to `my-aigw`:
 
 ```yaml
 ai_gateway_models:
@@ -43,5 +71,5 @@ ai_gateway_models:
     ai_gateway: !ref my-aigw#id
 ```
 
-`kongctl` uses references to order dependent operations and replace the tag
-with the correct remote value.
+`kongctl` uses these references to order dependent operations and establish
+relationships within Konnect.

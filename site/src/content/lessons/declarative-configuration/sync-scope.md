@@ -64,9 +64,9 @@ ai_gateways:
     models: []
 ```
 
-The empty list must be nested so `kongctl` knows which AI Gateway owns the
-collection. A root-level `ai_gateway_models: []` is rejected because no model
-entry provides an `ai_gateway` parent identity.
+> _IMPORTANT:_ The empty child list must be nested so `kongctl` knows which AI
+> Gateway owns the collection. A root-level `ai_gateway_models: []` is rejected
+> because no model entry provides an `ai_gateway` parent identity.
 
 ## Preview desired zero
 
@@ -92,5 +92,7 @@ kongctl plan \
 kongctl diff --plan sync-plan.json
 ```
 
-> **Do not execute this plan unless you intend to delete the learning AI
-> Gateway.** Creating and inspecting the plan does not change Konnect.
+If the namespace still contains managed AI Gateways, the plan includes their
+deletion. If you completed the Working Example first, it reports no changes
+because that lesson already removed its resources. Creating and inspecting the
+plan does not change Konnect.

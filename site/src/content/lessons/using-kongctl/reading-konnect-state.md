@@ -73,6 +73,12 @@ kongctl view
 
 Use the on-screen keys to navigate resources and press `q` to exit.
 
+> _Note:_ If the default color theme does not show text clearly in your
+> terminal, cycle through the available themes by pressing `t` and `T`. Once
+> you find a desirable theme, configure it permanently by setting
+> `<profile>.color-theme: <theme-name>`. See the next chapter for CLI
+> configuration options.
+
 ## Imperative vs declarative
 
 The commands in this lesson are imperative read-only commands. `kongctl`

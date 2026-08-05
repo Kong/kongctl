@@ -765,6 +765,46 @@ progress::-moz-progress-bar {
   margin-bottom: 0;
 }
 
+.definition-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+  margin: 1.35rem 0 1.7rem;
+}
+
+.definition-card {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--bg-secondary);
+}
+
+.definition-card dt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.definition-card dd {
+  margin: 0.75rem 0 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.definition-type {
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  font:
+    650 0.68rem "Roboto Mono Variable",
+    monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .code-shell {
   margin: 1.35rem 0 1.7rem;
   overflow: hidden;
@@ -797,7 +837,14 @@ progress::-moz-progress-bar {
   text-transform: uppercase;
 }
 
-.copy-button {
+.code-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.copy-button,
+.expand-button {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -810,12 +857,14 @@ progress::-moz-progress-bar {
   cursor: pointer;
 }
 
-.copy-button:hover {
+.copy-button:hover,
+.expand-button:hover {
   border-color: var(--brand);
   color: var(--brand);
 }
 
-.copy-button svg {
+.copy-button svg,
+.expand-button svg {
   width: 0.85rem;
   height: 0.85rem;
   fill: none;
@@ -823,6 +872,14 @@ progress::-moz-progress-bar {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.25;
+}
+
+.expand-button svg {
+  transition: transform 150ms ease;
+}
+
+.expand-button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
 }
 
 .code-shell pre.astro-code {
@@ -839,6 +896,10 @@ progress::-moz-progress-bar {
   box-sizing: content-box;
   max-height: var(--code-max-height);
   overflow-y: auto;
+}
+
+.code-shell pre.astro-code[data-code-rows][data-code-expanded="true"] {
+  max-height: none;
 }
 
 .related-links {

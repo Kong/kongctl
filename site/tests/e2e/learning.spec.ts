@@ -270,7 +270,7 @@ test("presents the declarative configuration journey", async ({ page }) => {
   await page.goto("declarative-configuration/");
   const lessons = page.locator(".chapter-lessons");
 
-  await expect(lessons.locator(":scope > li")).toHaveCount(7);
+  await expect(lessons.locator(":scope > li")).toHaveCount(8);
   await expect(
     lessons.getByRole("link", { name: /Plan-Based Configuration/ }),
   ).toBeVisible();
@@ -284,9 +284,12 @@ test("presents the declarative configuration journey", async ({ page }) => {
   );
   await expect(lessons.getByRole("link", { name: /YAML Tags/ })).toBeVisible();
   await expect(
-    lessons.getByRole("link", { name: /Getting Started/ }),
+    lessons.getByRole("link", { name: /Working Example/ }),
   ).toBeVisible();
   await expect(lessons.getByRole("link", { name: /Sync Scope/ })).toBeVisible();
+  await expect(
+    lessons.getByRole("link", { name: /Adopt Existing Resources/ }),
+  ).toBeVisible();
   await expect(
     lessons.getByRole("link", { name: /Discovering Declarative Schemas/ }),
   ).toBeVisible();
@@ -312,6 +315,16 @@ test("explains plan modes and mode-matched execution", async ({ page }) => {
     "data-code-rows",
     "8",
   );
+  const expandButton = examplePlan.locator("[data-code-expand-button]");
+  await expect(expandButton).toBeVisible();
+  await expect(expandButton).toHaveAccessibleName("Expand");
+  await expandButton.click();
+  await expect(expandButton).toHaveAttribute("aria-expanded", "true");
+  await expect(expandButton).toHaveAccessibleName("Collapse");
+  await expect(examplePlan.locator("pre")).toHaveCSS("max-height", "none");
+  await expandButton.click();
+  await expect(expandButton).toHaveAttribute("aria-expanded", "false");
+  await expect(expandButton).toHaveAccessibleName("Expand");
   await expect(
     lesson.getByRole("cell", { name: "apply" }).first(),
   ).toBeVisible();
@@ -333,34 +346,63 @@ test("explains declarative identity, metadata, and YAML tags", async ({
   page,
 }) => {
   await page.goto("declarative-configuration/resource-identity/");
+  await expect(
+    page.getByRole("cell", { name: "ref", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "id", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "name", exact: true }),
+  ).toBeVisible();
   await expect(page.locator(".lesson-body")).toContainText(
-    "The ref must be unique",
+    "Every declarative resource requires a unique ref identifier",
   );
   await expect(
     page.getByText("ai_gateway: !ref my-aigw#id", { exact: true }),
   ).toBeVisible();
 
   await page.goto("declarative-configuration/metadata/");
+  await expect(page.locator(".definition-card")).toHaveCount(2);
+  await expect(
+    page.locator(".definition-card").first().getByText("string"),
+  ).toBeVisible();
+  await expect(
+    page.locator(".definition-card").last().getByText("boolean"),
+  ).toBeVisible();
   await expect(page.locator(".lesson-body")).toContainText("aigw-learning");
   await expect(page.locator(".lesson-body")).toContainText("KONGCTL-namespace");
   await expect(page.locator(".lesson-body")).toContainText("KONGCTL-protected");
 
   await page.goto("declarative-configuration/yaml-tags/");
+  await expect(
+    page.getByText("target_field: !tag tag-input", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("title: !file ./specs/openapi.yaml#info.title", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".lesson-body")).toContainText(
+    "omitting #<field> selects id by default",
+  );
+  await expect(page.locator(".lesson-body")).toContainText("Full mapping form");
   await expect(page.locator(".lesson-body")).toContainText("!lookup");
   await expect(page.locator(".lesson-body")).toContainText("!file");
   await expect(page.locator(".lesson-body")).toContainText("!env");
 });
 
-test("creates and applies the first AI Gateway configuration", async ({
+test("works through the AI Gateway declarative lifecycle", async ({
   context,
   page,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("declarative-configuration/getting-started/");
+  await page.goto("declarative-configuration/working-example/");
 
   const heredoc = page
     .locator(".code-shell")
-    .filter({ hasText: "cat > ai-gateway.yaml <<'YAML'" });
+    .filter({ hasText: "cat > ai-gateway.yaml <<'YAML'" })
+    .first();
   await expect(heredoc).toBeVisible();
   await heredoc.getByRole("button", { name: "Copy" }).click();
   await expect
@@ -370,10 +412,14 @@ test("creates and applies the first AI Gateway configuration", async ({
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toContain("\nYAML");
   await expect(
-    page.getByText("kongctl diff --plan plan.json", { exact: true }),
+    page
+      .getByText("kongctl diff --mode apply -f ai-gateway.yaml", {
+        exact: true,
+      })
+      .first(),
   ).toBeVisible();
   await expect(
-    page.getByText("kongctl apply --plan plan.json", { exact: true }),
+    page.getByText("kongctl delete -f ai-gateway.yaml", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText('kongctl get ai-gateway "My AI Gateway" -o text', {

@@ -9,6 +9,7 @@ const languageLabels: Record<string, string> = {
   yml: "YAML",
   zsh: "Run this...",
 };
+let nextCodeBlockId = 0;
 
 export async function copyText(
   text: string,
@@ -36,12 +37,55 @@ function blockLabel(pre: HTMLPreElement): string | undefined {
   return languageLabels[language] ?? language.toUpperCase();
 }
 
+function ensureCodeBlockId(pre: HTMLPreElement): void {
+  if (pre.id) {
+    return;
+  }
+
+  let id: string;
+  do {
+    nextCodeBlockId += 1;
+    id = `code-block-${nextCodeBlockId}`;
+  } while (document.getElementById(id));
+  pre.id = id;
+}
+
+function createExpandButton(pre: HTMLPreElement): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.className = "expand-button";
+  button.type = "button";
+  button.dataset.codeExpandButton = "";
+  button.setAttribute("aria-expanded", "false");
+  button.setAttribute("aria-controls", pre.id);
+  button.innerHTML =
+    '<svg aria-hidden="true" viewBox="0 0 16 16"><path d="m3.25 6 4.75 4 4.75-4"></path></svg><span data-expand-label>Expand</span>';
+
+  button.addEventListener("click", () => {
+    const expanded = pre.dataset.codeExpanded !== "true";
+    const label = button.querySelector<HTMLElement>("[data-expand-label]");
+
+    pre.dataset.codeExpanded = String(expanded);
+    button.setAttribute("aria-expanded", String(expanded));
+    if (label) {
+      label.textContent = expanded ? "Collapse" : "Expand";
+    }
+    if (!expanded) {
+      pre.scrollTop = 0;
+    }
+  });
+
+  return button;
+}
+
 export function initializeCodeBlocks(root: ParentNode = document): void {
   root.querySelectorAll<HTMLPreElement>("pre.astro-code").forEach((pre) => {
     if (pre.dataset.copyEnhanced === "true") {
       return;
     }
     pre.dataset.copyEnhanced = "true";
+    if (pre.dataset.codeRows !== undefined) {
+      ensureCodeBlockId(pre);
+    }
 
     const shell = document.createElement("div");
     shell.className = "code-shell";
@@ -88,13 +132,20 @@ export function initializeCodeBlocks(root: ParentNode = document): void {
       }, 1800);
     });
 
+    const actions = document.createElement("div");
+    actions.className = "code-actions";
+    if (pre.dataset.codeRows !== undefined) {
+      actions.append(createExpandButton(pre));
+    }
+    actions.append(button);
+
     if (labelText !== undefined) {
       const label = document.createElement("span");
       label.className = "code-label";
       label.textContent = labelText;
       toolbar.append(label);
     }
-    toolbar.append(status, button);
+    toolbar.append(status, actions);
     pre.before(shell);
     shell.append(toolbar, pre);
   });

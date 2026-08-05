@@ -110,7 +110,7 @@ kongctl apply --plan <apply-plan>
 
 For a long block, use `rows=<number>` to limit how many rows are visible. The
 code area scrolls vertically when it contains more rows; the toolbar remains
-visible.
+visible and provides an Expand button to reveal the complete block.
 
 ````markdown
 ```yaml rows=8

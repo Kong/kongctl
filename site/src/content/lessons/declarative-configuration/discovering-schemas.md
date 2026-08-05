@@ -1,7 +1,7 @@
 ---
 title: Discovering Declarative Schemas
 summary: Explore supported resources and generate starter YAML.
-order: 7
+order: 8
 related:
   - label: Declarative resource reference
     url: https://developer.konghq.com/kongctl/supported-resources/
@@ -11,6 +11,11 @@ related:
 
 You will use `kongctl` to discover supported declarative resources, inspect
 their fields, and generate starter YAML.
+
+> _Note:_ This chapter shows how `kongctl` self describes the resources it
+> supports. Human users _may_ find this useful, but the real power use case
+> is coding agents which can use the CLI itself as the basis for generating
+> declarative configurations.
 
 ## List supported resources
 
