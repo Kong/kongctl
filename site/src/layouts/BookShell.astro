@@ -1,0 +1,194 @@
+---
+import logoDark from "../../../brand/logo/dark/Kong-Logotype.svg";
+import logoLight from "../../../brand/logo/light/Kong-Logotype.svg";
+
+import type { Curriculum } from "../lib/curriculum";
+import { pageUrl } from "../lib/urls";
+import BaseLayout from "./BaseLayout.astro";
+
+interface Props {
+  currentChapterId?: string;
+  currentLessonKey?: string;
+  curriculum: Curriculum;
+  description: string;
+  title: string;
+}
+
+const {
+  currentChapterId,
+  currentLessonKey,
+  curriculum,
+  description,
+  title,
+} = Astro.props;
+
+const learningData = JSON.stringify({
+  currentLessonKey,
+  lessons: curriculum.lessons.map((lesson) => ({
+    chapterId: lesson.chapterId,
+    key: lesson.key,
+    url: lesson.url,
+  })),
+}).replaceAll("<", "\\u003c");
+---
+
+<BaseLayout {description} {title}>
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href={pageUrl()} aria-label="Learn kongctl home">
+        <span class="brand-logos">
+          <img
+            class="brand-logo logo-light"
+            src={logoLight.src}
+            alt="Kong"
+            width="116"
+            height="37"
+          />
+          <img
+            class="brand-logo logo-dark"
+            src={logoDark.src}
+            alt=""
+            width="116"
+            height="37"
+          />
+        </span>
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span class="brand-title">Learn kongctl</span>
+      </a>
+
+      <div class="header-actions">
+        <a
+          class="header-link"
+          href="https://developer.konghq.com/kongctl/"
+          >Full documentation <span aria-hidden="true">↗</span></a
+        >
+        <button
+          class="icon-button"
+          type="button"
+          data-theme-toggle
+          aria-label="Switch color theme"
+          title="Switch color theme"
+        >
+          <span aria-hidden="true" data-theme-icon>◐</span>
+        </button>
+        <button
+          class="icon-button nav-toggle"
+          type="button"
+          data-nav-toggle
+          aria-controls="guide-navigation"
+          aria-expanded="false"
+        >
+          <span class="sr-only">Open guide navigation</span>
+          <span aria-hidden="true">☰</span>
+        </button>
+      </div>
+    </header>
+
+    <aside class="sidebar" id="guide-navigation" data-sidebar>
+      <div class="sidebar-inner">
+        <div class="progress-card" data-progress-root>
+          <div class="progress-heading">
+            <span>Your progress</span>
+            <strong data-progress-text>0 of {curriculum.lessons.length}</strong>
+          </div>
+          <progress
+            max={curriculum.lessons.length}
+            value="0"
+            data-progress-bar
+          ></progress>
+          <a class="resume-link" href={pageUrl()} data-resume-link hidden>
+            Resume learning <span aria-hidden="true">→</span>
+          </a>
+          <button class="reset-progress" type="button" data-reset-progress hidden>
+            Reset progress
+          </button>
+        </div>
+
+        <label class="lesson-filter">
+          <span class="sr-only">Filter lessons</span>
+          <span aria-hidden="true">⌕</span>
+          <input
+            type="search"
+            placeholder="Find a lesson"
+            autocomplete="off"
+            data-lesson-filter
+          />
+        </label>
+
+        <nav aria-label="Guide chapters">
+          {
+            curriculum.chapters.map((chapter) => (
+              <section class="nav-chapter" data-nav-chapter>
+                <a
+                  class:list={[
+                    "chapter-link",
+                    { current: currentChapterId === chapter.id },
+                  ]}
+                  href={chapter.navigationUrl}
+                >
+                  <span>{chapter.title}</span>
+                  <span
+                    class="chapter-count"
+                    data-chapter-count={chapter.id}
+                  >
+                    0/{chapter.lessons.length}
+                  </span>
+                </a>
+                <ol>
+                  {chapter.lessons.map((lesson) => (
+                    <li
+                      data-lesson-item
+                      data-search={`${lesson.entry.data.title} ${lesson.entry.data.summary}`.toLowerCase()}
+                    >
+                      <a
+                        class:list={[
+                          "lesson-link",
+                          { current: currentLessonKey === lesson.key },
+                        ]}
+                        href={lesson.url}
+                        aria-current={
+                          currentLessonKey === lesson.key ? "page" : undefined
+                        }
+                      >
+                        <span
+                          class="completion-mark"
+                          data-progress-key={lesson.key}
+                          aria-hidden="true"
+                        >
+                          ✓
+                        </span>
+                        <span>{lesson.entry.data.title}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ))
+          }
+          <p class="filter-empty" data-filter-empty hidden>
+            No lesson titles match.
+          </p>
+        </nav>
+      </div>
+    </aside>
+
+    <button
+      class="sidebar-backdrop"
+      type="button"
+      data-sidebar-backdrop
+      aria-label="Close guide navigation"
+      hidden
+    ></button>
+
+    <main class="main-content" id="main-content">
+      <slot />
+    </main>
+  </div>
+
+  <script
+    id="learning-data"
+    type="application/json"
+    is:inline
+    set:html={learningData}
+  />
+</BaseLayout>

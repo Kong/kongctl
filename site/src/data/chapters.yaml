@@ -1,0 +1,24 @@
+- id: installation
+  title: Setup
+  description: How to get kongctl up and running.
+  order: 1
+- id: using-kongctl
+  title: Using kongctl
+  description: Learn the command structure and inspect live Konnect resources.
+  order: 2
+- id: kongctl-configuration
+  title: CLI Configuration
+  description: Configure profiles, authentication, and reusable CLI settings.
+  order: 3
+- id: declarative-configuration
+  title: Declarative Configuration
+  description: Learn the concepts behind managing Konnect with configuration.
+  order: 4
+- id: federated-api-platform-management
+  title: Federated Management
+  description: Enable self-service with shared resources and clear ownership.
+  order: 5
+- id: extensions
+  title: Extensions
+  description: Install, build, and publish additional kongctl commands.
+  order: 6

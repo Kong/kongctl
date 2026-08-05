@@ -1,0 +1,113 @@
+---
+import { render } from "astro:content";
+
+import PageOutline from "../../components/PageOutline.astro";
+import BookShell from "../../layouts/BookShell.astro";
+import type { Curriculum, Lesson } from "../../lib/curriculum";
+import {
+  adjacentLessons,
+  loadCurriculum,
+} from "../../lib/curriculum";
+import { pageUrl } from "../../lib/urls";
+
+interface Props {
+  curriculum: Curriculum;
+  lesson: Lesson;
+}
+
+export async function getStaticPaths() {
+  const curriculum = await loadCurriculum();
+  return curriculum.lessons.map((lesson) => ({
+    params: { chapter: lesson.chapterId, lesson: lesson.slug },
+    props: { curriculum, lesson },
+  }));
+}
+
+const { curriculum, lesson } = Astro.props;
+const chapter = curriculum.chapters.find(
+  (candidate) => candidate.id === lesson.chapterId,
+);
+if (!chapter) {
+  throw new Error(`Missing chapter for lesson "${lesson.key}"`);
+}
+
+const { Content, headings } = await render(lesson.entry);
+const { previous, next } = adjacentLessons(curriculum, lesson.key);
+const continueUrl = next?.url ?? pageUrl();
+---
+
+<BookShell
+  {curriculum}
+  currentChapterId={chapter.id}
+  currentLessonKey={lesson.key}
+  title={lesson.entry.data.title}
+  description={lesson.entry.data.summary}
+>
+  <div class="page lesson-page">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href={pageUrl()}>Guide</a>
+      <span aria-hidden="true">/</span>
+      <a href={chapter.url}>{chapter.title}</a>
+      <span aria-hidden="true">/</span>
+      <span>{lesson.entry.data.title}</span>
+    </nav>
+
+    <header class="lesson-header">
+      <p class="eyebrow">{chapter.title}</p>
+      <h1>{lesson.entry.data.title}</h1>
+    </header>
+
+    <div class="lesson-layout">
+      <PageOutline {headings} />
+
+      <div class="lesson-column">
+        <article class="lesson-body">
+          <Content />
+        </article>
+
+        {
+          lesson.entry.data.related && (
+            <aside class="related-links" aria-labelledby="go-deeper-heading">
+              <p class="eyebrow">Reference material</p>
+              <h2 id="go-deeper-heading">Go deeper</h2>
+              <ul>
+                {lesson.entry.data.related.map((link) => (
+                  <li>
+                    <a href={link.url}>
+                      <span>{link.label}</span>
+                      <span aria-hidden="true">↗</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )
+        }
+
+        <nav class="lesson-pagination" aria-label="Lesson navigation">
+          {
+            previous ? (
+              <a class="pagination-link previous" href={previous.url}>
+                <span aria-hidden="true">←</span>
+                <span>
+                  <small>Previous</small>
+                  {previous.entry.data.title}
+                </span>
+              </a>
+            ) : (
+              <span />
+            )
+          }
+          <a
+            class="button primary complete-button"
+            href={continueUrl}
+            data-complete-and-continue={lesson.key}
+          >
+            {next ? "Mark complete and continue" : "Complete the guide"}
+            <span aria-hidden="true">→</span>
+          </a>
+        </nav>
+      </div>
+    </div>
+  </div>
+</BookShell>
