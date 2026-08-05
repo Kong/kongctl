@@ -25,6 +25,28 @@ steps:
             expect:
               fields:
                 action: CREATE
+      - name: 001-001-verify-create-fields
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - kongctl-e2e-cp
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "kongctl-e2e-cp"
+          - select: description
+            expect:
+              fields:
+                "@": "Test Control Plane for E2E testing via kongctl"
+          - select: config.cluster_type
+            expect:
+              fields:
+                "@": "CLUSTER_TYPE_CONTROL_PLANE"
 
   - name: 002-apply-update
     inputOverlayDirs:
