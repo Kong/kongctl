@@ -19,9 +19,13 @@ type portalCustomizationCapturingClient struct {
 
 func (c *portalCustomizationCapturingClient) Do(req *http.Request) (*http.Response, error) {
 	c.request = req
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		return nil, err
+	body, readErr := io.ReadAll(req.Body)
+	closeErr := req.Body.Close()
+	if readErr != nil {
+		return nil, readErr
+	}
+	if closeErr != nil {
+		return nil, closeErr
 	}
 	c.body = body
 
