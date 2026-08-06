@@ -10,9 +10,9 @@ vars:
   namespace: "ai-gateway-agent-e2e"
   gateway_name: "AI Gateway Agent E2E"
   gateway_ref: "ai-gateway-agent-e2e"
-  policy_ref: "agent-key-auth"
-  policy_name: "agent-key-auth"
-  policy_display_name: "Agent Key Auth"
+  identity_provider_ref: "agent-key-auth"
+  identity_provider_name: "agent-key-auth"
+  identity_provider_display_name: "Agent Key Auth"
   agent_ref: "booking-agent"
   agent_name: "booking-agent"
   agent_display_name: "Booking Agent"
@@ -72,7 +72,7 @@ steps:
                 "contains(stdout, 'ai_gateway: !ref')": true
                 "contains(stdout, 'type: a2a')": true
                 "contains(stdout, 'config:')": true
-                "contains(stdout, 'policies:')": true
+                "contains(stdout, 'identity_providers:')": true
       - name: 002-explain-ai-gateway-agents-nested-json
         run:
           - explain
@@ -119,8 +119,8 @@ steps:
                 fields.enabled: true
                 fields.config.url: https://booking-agent.example.com
                 fields.labels.phase: create
-                fields.policies[0]: "__REF__:{{ .vars.policy_ref }}#id"
-                references."policies.0".ref: "__REF__:{{ .vars.policy_ref }}#name"
+                fields.access.identity_providers[0]: "__REF__:{{ .vars.identity_provider_ref }}#id"
+                references."access.identity_providers.0".ref: "__REF__:{{ .vars.identity_provider_ref }}#name"
       - name: 001-apply-create
         outputFormat: json
         run:
@@ -156,7 +156,7 @@ steps:
                 display_name: "{{ .vars.agent_display_name }}"
                 enabled: true
                 labels.phase: create
-                "length(policies)": 1
+                "length(access.identity_providers)": 1
       - name: 003-get-agent-by-name
         run:
           - get
@@ -284,13 +284,13 @@ steps:
                 type: a2a
                 display_name: "{{ .vars.agent_updated_display_name }}"
                 config.url: https://booking-agent-v2.example.com
-                "length(policies)": 1
+                "length(access.identity_providers)": 1
           - select: >-
-              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].policies[?name=='{{ .vars.policy_name }}'] | [0]
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].identity_providers[?name=='{{ .vars.identity_provider_name }}'] | [0]
             expect:
               fields:
-                name: "{{ .vars.policy_name }}"
-                display_name: "{{ .vars.policy_display_name }}"
+                name: "{{ .vars.identity_provider_name }}"
+                display_name: "{{ .vars.identity_provider_display_name }}"
                 type: key-auth
                 config.key_names[0]: apikey
                 config.hide_credentials: true
@@ -371,11 +371,11 @@ steps:
               fields:
                 "@": 0
 
-  - name: 006-sync-delete-policy
+  - name: 006-sync-delete-identity-provider
     inputOverlayDirs:
-      - overlays/003-sync-delete-policy
+      - overlays/003-sync-delete-identity-provider
     commands:
-      - name: 000-sync-delete-policy
+      - name: 000-sync-delete-identity-provider
         outputFormat: json
         run:
           - sync
@@ -389,21 +389,21 @@ steps:
                 total_changes: 1
                 by_action.DELETE: 1
           - select: >-
-              plan.changes[?resource_type=='ai_gateway_policy' && action=='DELETE'] | [0]
+              plan.changes[?resource_type=='ai_gateway_identity_provider' && action=='DELETE'] | [0]
             expect:
               fields:
-                resource_ref: "{{ .vars.policy_name }}"
+                resource_ref: "{{ .vars.identity_provider_name }}"
           - select: summary
             expect:
               fields:
                 applied: 1
                 failed: 0
                 status: success
-      - name: 001-list-policies-empty
+      - name: 001-list-identity-providers-empty
         run:
           - get
           - ai-gateway
-          - policies
+          - identity-providers
           - --gateway-name
           - "{{ .vars.gateway_name }}"
           - -o

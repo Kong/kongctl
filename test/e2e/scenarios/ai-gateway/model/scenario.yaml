@@ -148,6 +148,8 @@ steps:
               fields:
                 action: CREATE
                 fields.name: support-gemini
+                fields.config.route.model.header_param: x-model
+                fields.config.route.model.values[0]: support-gemini
                 fields.targets[0].name: gemini-1.5-pro
                 fields.targets[0].config.type: gemini
                 fields.targets[0].config.gcp_environment.api_endpoint: us-central1-aiplatform.googleapis.com
@@ -202,6 +204,11 @@ steps:
                 gcp_environment.api_endpoint: us-central1-aiplatform.googleapis.com
                 gcp_environment.location_id: us-central1
                 gcp_environment.project_id: support-project
+          - select: config.route.model
+            expect:
+              fields:
+                header_param: x-model
+                values[0]: support-gemini
       - name: 006-plan-create
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-create.json"
@@ -223,6 +230,8 @@ steps:
               fields:
                 action: CREATE
                 fields.name: "{{ .vars.model_name }}"
+                fields.config.route.model.body_param: model
+                fields.config.route.model.values[0]: "{{ .vars.model_name }}"
                 fields.targets[0].name: gpt-4o
                 fields.targets[1].name: gpt-4o-mini
       - name: 007-apply-create

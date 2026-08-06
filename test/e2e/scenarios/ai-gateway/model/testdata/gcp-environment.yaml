@@ -27,7 +27,11 @@ ai_gateways:
         display_name: "Support Gemini"
         enabled: true
         config:
-          route: {}
+          route:
+            model:
+              header_param: x-model
+              values:
+                - support-gemini
         formats:
           - type: openai
         targets:

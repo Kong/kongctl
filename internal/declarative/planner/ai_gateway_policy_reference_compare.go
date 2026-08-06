@@ -29,6 +29,39 @@ func normalizeAIGatewayPolicyReferencesForComparison(
 	return currentCompare, desiredCompare
 }
 
+func normalizeAIGatewayIdentityProviderReferencesForComparison(
+	currentPayload map[string]any,
+	desiredPayload map[string]any,
+	rs *resources.ResourceSet,
+) (map[string]any, map[string]any) {
+	currentCompare := clonePayloadMap(currentPayload)
+	desiredCompare := clonePayloadMap(desiredPayload)
+
+	currentAccess, currentOK := currentCompare[FieldAccess].(map[string]any)
+	desiredAccess, desiredOK := desiredCompare[FieldAccess].(map[string]any)
+	if !currentOK || !desiredOK {
+		return currentCompare, desiredCompare
+	}
+	_, currentHasProviders := currentAccess[FieldIdentityProviders]
+	_, desiredHasProviders := desiredAccess[FieldIdentityProviders]
+	if !currentHasProviders || !desiredHasProviders {
+		return currentCompare, desiredCompare
+	}
+
+	aliases := aiGatewayIdentityProviderReferenceAliases(rs)
+	currentAccess = clonePayloadMap(currentAccess)
+	desiredAccess = clonePayloadMap(desiredAccess)
+	currentAccess[FieldIdentityProviders] = normalizeAIGatewayPolicyReferenceList(
+		currentAccess[FieldIdentityProviders], aliases,
+	)
+	desiredAccess[FieldIdentityProviders] = normalizeAIGatewayPolicyReferenceList(
+		desiredAccess[FieldIdentityProviders], aliases,
+	)
+	currentCompare[FieldAccess] = currentAccess
+	desiredCompare[FieldAccess] = desiredAccess
+	return currentCompare, desiredCompare
+}
+
 func clonePayloadMap(payload map[string]any) map[string]any {
 	if payload == nil {
 		return nil
@@ -50,6 +83,26 @@ func aiGatewayPolicyReferenceAliases(rs *resources.ResourceSet) map[string]strin
 			continue
 		}
 		for _, alias := range []string{policy.Ref, policy.Name, policy.GetKonnectID()} {
+			if alias != "" {
+				aliases[alias] = canonical
+			}
+		}
+	}
+	return aliases
+}
+
+func aiGatewayIdentityProviderReferenceAliases(rs *resources.ResourceSet) map[string]string {
+	aliases := make(map[string]string)
+	if rs == nil {
+		return aliases
+	}
+
+	for _, provider := range rs.AIGatewayIdentityProviders {
+		canonical := firstNonEmpty(provider.Ref, provider.Name, provider.GetKonnectID())
+		if canonical == "" {
+			continue
+		}
+		for _, alias := range []string{provider.Ref, provider.Name, provider.GetKonnectID()} {
 			if alias != "" {
 				aliases[alias] = canonical
 			}

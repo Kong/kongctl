@@ -19,6 +19,18 @@ func TestRelationshipDescriptorsDistinguishFieldOrigins(t *testing.T) {
 		FieldPath: SchemaFieldAIGateway, TargetType: ResourceTypeAIGateway,
 		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
 	})
+	require.Contains(t, model, RelationshipDescriptor{
+		FieldPath:  SchemaFieldAccess + "." + SchemaFieldIdentityProviders,
+		TargetType: ResourceTypeAIGatewayIdentityProvider,
+		Kind:       RelationshipKindAPIForeignKey, ScopeFieldPath: SchemaFieldAIGateway,
+	})
+
+	agent := RelationshipDescriptorsForType(ResourceTypeAIGatewayAgent)
+	require.Contains(t, agent, RelationshipDescriptor{
+		FieldPath:  SchemaFieldAccess + "." + SchemaFieldIdentityProviders,
+		TargetType: ResourceTypeAIGatewayIdentityProvider,
+		Kind:       RelationshipKindAPIForeignKey, ScopeFieldPath: SchemaFieldAIGateway,
+	})
 }
 
 func TestExplainSchemaIncludesRelationshipContract(t *testing.T) {

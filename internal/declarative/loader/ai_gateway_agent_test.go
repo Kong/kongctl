@@ -20,6 +20,14 @@ ai_gateways:
         config:
           anonymize:
             - email
+    identity_providers:
+      - ref: support-key-auth
+        name: support-key-auth
+        type: key-auth
+        display_name: Support Key Auth
+        config:
+          key_names:
+            - apikey
     agents:
       - ref: booking-agent
         name: booking-agent
@@ -29,6 +37,9 @@ ai_gateways:
           url: https://booking-agent.example.com
         policies:
           - !ref mask-sensitive-data
+        access:
+          identity_providers:
+            - !ref support-key-auth
 `
 
 func TestLoaderExtractsNestedAIGatewayAgents(t *testing.T) {
@@ -47,6 +58,11 @@ func TestLoaderExtractsNestedAIGatewayAgents(t *testing.T) {
 		t,
 		[]string{tags.RefPlaceholderPrefix + "mask-sensitive-data#id"},
 		rs.AIGatewayAgents[0].Policies,
+	)
+	require.Equal(
+		t,
+		[]string{tags.RefPlaceholderPrefix + "support-key-auth#id"},
+		rs.AIGatewayAgents[0].Access.IdentityProviders,
 	)
 	require.True(t, rs.SyncScope.ChildInScope(
 		resources.ResourceTypeAIGateway,
