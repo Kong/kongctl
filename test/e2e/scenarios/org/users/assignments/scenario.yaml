@@ -254,6 +254,43 @@ steps:
             expect:
               fields:
                 "length(teams)": 1
+          - select: >-
+              organization.users[?roles[?entity_id!='*' &&
+                                          role_name=='Viewer' &&
+                                          entity_type_name=='APIs' &&
+                                          entity_region=='us']] | [0]
+            expect:
+              fields:
+                "starts_with(ref, 'user-')": true
+                "length(teams)": 1
+                "length(roles)": 1
+          - select: >-
+              {
+                actual: (organization.users[?roles[?entity_id!='*' &&
+                                                   role_name=='Viewer' &&
+                                                   entity_type_name=='APIs' &&
+                                                   entity_region=='us']] |
+                         [0].teams[0].team),
+                expected: (organization.teams[?name=='{{ .vars.teamName }}'] |
+                           [0].ref)
+              }
+            expect:
+              fields:
+                "actual == expected": true
+          - select: >-
+              organization.users[?roles[?entity_id!='*' &&
+                                          role_name=='Viewer' &&
+                                          entity_type_name=='APIs' &&
+                                          entity_region=='us']] |
+              [0].roles[?entity_id!='*' &&
+                         role_name=='Viewer' &&
+                         entity_type_name=='APIs' &&
+                         entity_region=='us'] | [0]
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
           - select: organization.users
             expect:
               fields:
