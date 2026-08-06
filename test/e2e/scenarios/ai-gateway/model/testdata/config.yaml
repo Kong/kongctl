@@ -34,9 +34,9 @@ ai_gateways:
         config:
           route:
             model:
-              body:
-                model:
-                  - support-gpt
+              body_param: model
+              values:
+                - support-gpt
         formats:
           - type: openai
         targets:

@@ -124,8 +124,9 @@ ai_gateways:
               - /agents/support
           logging:
             max_payload_size: 524288
-        policies:
-          - !ref endpoint-key-auth#name
+        access:
+          identity_providers:
+            - !ref support-key-auth
     consumer_groups:
       - ref: premium-support-users
         name: premium-support-users

@@ -19,5 +19,6 @@ ai_gateway_agents:
           - /agents/support
       logging:
         max_payload_size: 524288
-    policies:
-      - !ref peer-endpoint-key-auth
+    access:
+      identity_providers:
+        - !ref shared-key-auth
