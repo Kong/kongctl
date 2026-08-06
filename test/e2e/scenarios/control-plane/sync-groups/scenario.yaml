@@ -23,7 +23,23 @@ steps:
             expect:
               fields:
                 total_changes: 3
-      - name: 002-record-staging-id
+      - name: 002-verify-runtime-proxy-urls
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - groups-prod-runtime
+          - -o
+          - json
+        assertions:
+          - select: "config.proxy_urls[0]"
+            expect:
+              fields:
+                host: "groups-prod.example.com"
+                port: 443
+                protocol: "https"
+      - name: 003-record-staging-id
         run:
           - get
           - konnect
