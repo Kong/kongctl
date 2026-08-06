@@ -211,8 +211,8 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.teamName }}"
-                "length(roles)": 0
-          - select: "organization['system-accounts'][?ref=='{{ .vars.systemAccountName }}'] | [0]"
+          - select: >-
+              organization."system-accounts"[?ref=='{{ .vars.systemAccountName }}'] | [0]
             expect:
               fields:
                 ref: "{{ .vars.systemAccountName }}"
@@ -220,7 +220,7 @@ steps:
                 "length(teams)": 1
                 "length(roles)": 1
           - select: >-
-              organization['system-accounts'][?ref=='{{ .vars.systemAccountName }}'] |
+              organization."system-accounts"[?ref=='{{ .vars.systemAccountName }}'] |
               [0].roles[0]
             expect:
               fields:
@@ -230,7 +230,7 @@ steps:
           - select: "@"
             expect:
               fields:
-                "organization['system-accounts'][?ref=='{{ .vars.systemAccountName }}'][0].teams[0].team == organization.teams[?name=='{{ .vars.teamName }}'][0].ref": true
+                "organization.\"system-accounts\"[?ref=='{{ .vars.systemAccountName }}'][0].teams[0].team == organization.teams[?name=='{{ .vars.teamName }}'][0].ref": true
 
   - name: 003-cleanup
     inputOverlayDirs:

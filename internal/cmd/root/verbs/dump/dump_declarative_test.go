@@ -1,17 +1,186 @@
 package dump
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"log/slog"
 	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 
+	"github.com/kong/kongctl/internal/config"
 	decllabels "github.com/kong/kongctl/internal/declarative/labels"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+	cmdtest "github.com/kong/kongctl/test/cmd"
+	configtest "github.com/kong/kongctl/test/config"
 	"sigs.k8s.io/yaml"
 )
+
+type runDumpOrganizationTeamAPIStub struct {
+	list func(context.Context, kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error)
+}
+
+func (s runDumpOrganizationTeamAPIStub) ListOrganizationTeams(
+	ctx context.Context,
+	request kkOps.ListTeamsRequest,
+) (*kkOps.ListTeamsResponse, error) {
+	return s.list(ctx, request)
+}
+
+func (runDumpOrganizationTeamAPIStub) GetOrganizationTeam(
+	context.Context,
+	string,
+) (*kkOps.GetTeamResponse, error) {
+	return nil, nil
+}
+
+func (runDumpOrganizationTeamAPIStub) CreateOrganizationTeam(
+	context.Context,
+	*kkComps.CreateTeam,
+) (*kkOps.CreateTeamResponse, error) {
+	return nil, nil
+}
+
+func (runDumpOrganizationTeamAPIStub) UpdateOrganizationTeam(
+	context.Context,
+	string,
+	*kkComps.UpdateTeam,
+) (*kkOps.UpdateTeamResponse, error) {
+	return nil, nil
+}
+
+func (runDumpOrganizationTeamAPIStub) DeleteOrganizationTeam(
+	context.Context,
+	string,
+) (*kkOps.DeleteTeamResponse, error) {
+	return nil, nil
+}
+
+func TestRunDeclarativeDumpIncludesSystemAccountAssignments(t *testing.T) {
+	teamID := "team-123"
+	teamName := "team-one"
+	accountID := "sa-123"
+	accountName := "system-account-one"
+	roleID := "role-123"
+	roleName := "Viewer"
+	entityID := "*"
+	entityTypeName := "APIs"
+	entityRegion := kkComps.AssignedRoleEntityRegion("us")
+
+	sdk := &helpers.MockKonnectSDK{
+		CPAPIFactory: func() helpers.ControlPlaneAPI { return nil },
+		OrganizationTeamFactory: func() helpers.OrganizationTeamAPI {
+			return runDumpOrganizationTeamAPIStub{
+				list: func(context.Context, kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error) {
+					return &kkOps.ListTeamsResponse{
+						TeamCollection: &kkComps.TeamCollection{
+							Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+							Data: []kkComps.Team{{ID: &teamID, Name: &teamName}},
+						},
+					}, nil
+				},
+			}
+		},
+		SystemAccountFactory: func() helpers.SystemAccountAPI {
+			return &stubDumpSystemAccountAPI{
+				list: func(context.Context, kkOps.GetSystemAccountsRequest) (*kkOps.GetSystemAccountsResponse, error) {
+					return &kkOps.GetSystemAccountsResponse{
+						SystemAccountCollection: &kkComps.SystemAccountCollection{
+							Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+							Data: []kkComps.SystemAccount{{ID: &accountID, Name: &accountName}},
+						},
+					}, nil
+				},
+			}
+		},
+		SystemAccountTeamMembershipFactory: func() helpers.SystemAccountTeamMembershipAPI {
+			return &stubDumpSystemAccountMembershipAPI{
+				list: func(
+					context.Context,
+					kkOps.GetSystemAccountsAccountIDTeamsRequest,
+					...kkOps.Option,
+				) (*kkOps.GetSystemAccountsAccountIDTeamsResponse, error) {
+					return &kkOps.GetSystemAccountsAccountIDTeamsResponse{
+						TeamCollection: &kkComps.TeamCollection{
+							Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+							Data: []kkComps.Team{{ID: &teamID, Name: &teamName}},
+						},
+					}, nil
+				},
+			}
+		},
+		SystemAccountRolesFactory: func() helpers.SystemAccountRolesAPI {
+			return &stubDumpSystemAccountRolesAPI{
+				list: func(
+					context.Context,
+					string,
+					*kkOps.GetSystemAccountsAccountIDAssignedRolesQueryParamFilter,
+					...kkOps.Option,
+				) (*kkOps.GetSystemAccountsAccountIDAssignedRolesResponse, error) {
+					return &kkOps.GetSystemAccountsAccountIDAssignedRolesResponse{
+						AssignedRoleCollection: &kkComps.AssignedRoleCollection{
+							Data: []kkComps.AssignedRole{{
+								ID:             &roleID,
+								RoleName:       &roleName,
+								EntityID:       &entityID,
+								EntityTypeName: &entityTypeName,
+								EntityRegion:   &entityRegion,
+							}},
+						},
+					}, nil
+				},
+			}
+		},
+	}
+
+	var output bytes.Buffer
+	helper := &cmdtest.MockHelper{
+		GetStreamsMock: func() *iostreams.IOStreams {
+			return &iostreams.IOStreams{Out: &output}
+		},
+		GetConfigMock: func() (config.Hook, error) {
+			return &configtest.MockConfigHook{}, nil
+		},
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, nil)), nil
+		},
+		GetContextMock: func() context.Context { return t.Context() },
+		GetKonnectSDKMock: func(config.Hook, *slog.Logger) (helpers.SDKAPI, error) {
+			return sdk, nil
+		},
+	}
+
+	err := runDeclarativeDump(helper, declarativeOptions{
+		resources:             []string{"organization.teams"},
+		includeChildResources: true,
+	})
+	if err != nil {
+		t.Fatalf("runDeclarativeDump() error = %v", err)
+	}
+
+	var got declarativeDumpOutput
+	if err := yaml.Unmarshal(output.Bytes(), &got); err != nil {
+		t.Fatalf("unmarshal declarative dump: %v", err)
+	}
+	if got.Organization == nil || len(got.Organization.SystemAccounts) != 1 {
+		t.Fatalf("expected one organization system account, got %#v", got.Organization)
+	}
+	account := got.Organization.SystemAccounts[0]
+	if account.Ref != accountName || len(account.Teams) != 1 || len(account.Roles) != 1 {
+		t.Fatalf("unexpected system account assignments: %#v", account)
+	}
+	if account.Teams[0].Team != teamID {
+		t.Fatalf("expected team membership %q, got %q", teamID, account.Teams[0].Team)
+	}
+	if account.Roles[0].RoleName != roleName {
+		t.Fatalf("expected role %q, got %q", roleName, account.Roles[0].RoleName)
+	}
+}
 
 func requireKongctlMeta(
 	t *testing.T,

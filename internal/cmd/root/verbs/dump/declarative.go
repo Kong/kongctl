@@ -285,6 +285,9 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			OrganizationTeamRolesAPI:            sdk.GetOrganizationTeamRolesAPI(),
 			OrganizationUsersAPI:                sdk.GetOrganizationUsersAPI(),
 			OrganizationMembershipAPI:           sdk.GetOrganizationTeamMembershipAPI(),
+			SystemAccountAPI:                    sdk.GetSystemAccountAPI(),
+			SystemAccountRolesAPI:               sdk.GetSystemAccountRolesAPI(),
+			SystemAccountMembershipAPI:          sdk.GetSystemAccountTeamMembershipAPI(),
 		})
 	}
 
