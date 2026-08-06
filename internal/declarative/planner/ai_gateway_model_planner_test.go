@@ -179,7 +179,7 @@ func TestAIGatewayModelPlannerIgnoresAPIDefaults(t *testing.T) {
 		"enabled": true,
 		"config": {
 			"route": {
-				"model": {"body": {"model": ["support-gpt"]}},
+				"model": {"body_param": "model", "values": ["support-gpt"]},
 				"https_redirect_status_code": 426,
 				"preserve_host": false,
 				"protocols": ["http", "https"],
@@ -247,7 +247,7 @@ func TestAIGatewayModelPlannerIgnoresTargetOrderAndAPIDefaults(t *testing.T) {
 		"enabled": true,
 		"config": {
 			"route": {
-				"model": {"body": {"model": ["support-gpt"]}},
+				"model": {"body_param": "model", "values": ["support-gpt"]},
 				"https_redirect_status_code": 426,
 				"preserve_host": false,
 				"protocols": ["https", "http"],

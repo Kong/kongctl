@@ -169,6 +169,17 @@ func init() {
 			Kind:       RelationshipKindAPIForeignKey,
 		},
 	)
+	for _, resourceType := range []ResourceType{ResourceTypeAIGatewayAgent, ResourceTypeAIGatewayModel} {
+		relationshipDescriptors[resourceType] = append(
+			relationshipDescriptors[resourceType],
+			RelationshipDescriptor{
+				FieldPath:      SchemaFieldAccess + "." + SchemaFieldIdentityProviders,
+				TargetType:     ResourceTypeAIGatewayIdentityProvider,
+				Kind:           RelationshipKindAPIForeignKey,
+				ScopeFieldPath: SchemaFieldAIGateway,
+			},
+		)
+	}
 	for _, resourceType := range portalChildTypes {
 		relationshipDescriptors[resourceType] = []RelationshipDescriptor{{
 			FieldPath: SchemaFieldPortal, TargetType: ResourceTypePortal,

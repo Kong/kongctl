@@ -661,7 +661,10 @@ ai_gateway_agents:
      logging: object
    policies:
     - !ref policy-ref
-   acls: object
+   access:
+     acls: object
+     identity_providers:
+      - !ref identity-provider-ref
    labels: object [string]string
      key: value
    managed_by: object [string]string
@@ -736,15 +739,16 @@ ai_gateway_models:
    enabled: boolean
    config:
      route:
-       model: # choose exactly one routing method
-         body:
-           model:
-             - string
-         # headers:
-         #   X-Model:
-         #     - string
-         # path_aliases:
-         #   - string
+       model: # choose exactly one selector parameter
+         body_param: model
+         values:
+          - string
+         # header_param: X-Model
+         # values:
+         #  - string
+         # path_param: model
+         # values:
+         #  - string
      model:
        name_header: boolean
    formats:
@@ -759,7 +763,10 @@ ai_gateway_models:
    capabilities: array[string]
    labels: object [string]string
      key: value
-   acls: object
+   access:
+     acls: object
+     identity_providers:
+      - !ref identity-provider-ref
    managed_by: object
 ```
 

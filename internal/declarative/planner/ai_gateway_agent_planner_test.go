@@ -169,6 +169,66 @@ func TestAIGatewayAgentPlannerDependsOnPolicyCreate(t *testing.T) {
 	require.Equal(t, tags.RefPlaceholderPrefix+"mask-sensitive-data#name", agentCreate.References[FieldPolicies+".0"].Ref)
 }
 
+func TestAIGatewayAgentPlannerDependsOnIdentityProviderCreate(t *testing.T) {
+	agent := testAIGatewayAgentResource(t, nil)
+	agent.Access = &kkComps.AIGatewayAgentAccess{
+		IdentityProviders: []string{tags.RefPlaceholderPrefix + "support-key-auth#id"},
+	}
+	identityProvider := resources.AIGatewayIdentityProviderResource{
+		BaseResource: resources.BaseResource{Ref: "support-key-auth"},
+		AIGateway:    "support-gateway",
+		Name:         "support-key-auth",
+		Type:         "key-auth",
+		DisplayName:  "Support Key Auth",
+		Config:       map[string]any{"key_names": []any{"apikey"}},
+	}
+	rs := &resources.ResourceSet{
+		AIGateways:                 []resources.AIGatewayResource{testAIGatewayResource()},
+		AIGatewayIdentityProviders: []resources.AIGatewayIdentityProviderResource{identityProvider},
+		AIGatewayAgents:            []resources.AIGatewayAgentResource{agent},
+	}
+
+	plan, err := NewPlanner(
+		state.NewClient(state.ClientConfig{AIGatewayAPI: &testAIGatewayAPI{}}),
+		slog.Default(),
+	).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+
+	providerCreate := findAIGatewayModelTestChange(
+		t, plan, ResourceTypeAIGatewayIdentityProvider, "support-key-auth",
+	)
+	agentCreate := findAIGatewayModelTestChange(t, plan, ResourceTypeAIGatewayAgent, "booking-agent")
+	field := FieldAccess + "." + FieldIdentityProviders + ".0"
+	require.Contains(t, agentCreate.DependsOn, providerCreate.ID)
+	require.Equal(t, resources.UnknownReferenceID, agentCreate.References[field].ID)
+	require.Equal(t, tags.RefPlaceholderPrefix+"support-key-auth#name", agentCreate.References[field].Ref)
+}
+
+func TestAIGatewayAgentPlannerIdentityProviderRefNoopForExistingAgent(t *testing.T) {
+	agent := testAIGatewayAgentResource(t, nil)
+	agent.Access = &kkComps.AIGatewayAgentAccess{
+		IdentityProviders: []string{tags.RefPlaceholderPrefix + "support-key-auth#id"},
+	}
+	current := testAIGatewayAgent(nil)
+	current.Access = &kkComps.AIGatewayAgentAccess{IdentityProviders: []string{"support-key-auth"}}
+	rs := &resources.ResourceSet{
+		AIGatewayIdentityProviders: []resources.AIGatewayIdentityProviderResource{{
+			BaseResource: resources.BaseResource{Ref: "support-key-auth"},
+			Name:         "support-key-auth",
+		}},
+	}
+
+	needsUpdate, fields, changed, err := (&Planner{resources: rs}).shouldUpdateAIGatewayAgent(
+		state.AIGatewayAgent{AIGatewayAgent: current},
+		agent,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func TestAIGatewayAgentPlannerPolicyRefNoopForExistingAgent(t *testing.T) {
 	for _, currentPolicyRef := range []string{"policy-id", "mask-sensitive-data"} {
 		t.Run(currentPolicyRef, func(t *testing.T) {
