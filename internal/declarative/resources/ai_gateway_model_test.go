@@ -75,8 +75,10 @@ func TestAIGatewayModelResourceAllowsOmittedModelConfig(t *testing.T) {
 	require.NoError(t, model.Validate())
 	mutable, err := model.MutablePayloadMap()
 	require.NoError(t, err)
-	config := mutable["config"].(map[string]any)
-	route := config["route"].(map[string]any)
+	config, ok := mutable["config"].(map[string]any)
+	require.True(t, ok)
+	route, ok := config["route"].(map[string]any)
+	require.True(t, ok)
 	require.NotContains(t, route, "model")
 }
 
