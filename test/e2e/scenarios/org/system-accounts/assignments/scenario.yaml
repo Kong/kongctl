@@ -197,6 +197,43 @@ steps:
               fields:
                 name: "{{ .vars.teamName }}"
 
+      - name: 007-dump-team-with-system-accounts
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources=organization.teams
+          - --include-child-resources
+          - --filter-name
+          - "{{ .vars.teamName }}"
+        assertions:
+          - select: "organization.teams[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamName }}"
+                "length(roles)": 0
+          - select: "organization['system-accounts'][?ref=='{{ .vars.systemAccountName }}'] | [0]"
+            expect:
+              fields:
+                ref: "{{ .vars.systemAccountName }}"
+                name: "{{ .vars.systemAccountName }}"
+                "length(teams)": 1
+                "length(roles)": 1
+          - select: >-
+              organization['system-accounts'][?ref=='{{ .vars.systemAccountName }}'] |
+              [0].roles[0]
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+          - select: >-
+              organization['system-accounts'][?ref=='{{ .vars.systemAccountName }}'] |
+              [0].teams[0]
+            expect:
+              fields:
+                team: "{{ .vars.teamRef }}"
+
   - name: 003-cleanup
     inputOverlayDirs:
       - overlays/002-cleanup

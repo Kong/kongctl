@@ -1385,6 +1385,103 @@ func collectOrganizationUsersFromTeamMemberships(
 	return users
 }
 
+func collectOrganizationSystemAccountsFromTeamMemberships(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	teams []declresources.OrganizationTeamResource,
+) []declresources.OrganizationSystemAccountResource {
+	if client == nil || len(teams) == 0 {
+		return nil
+	}
+
+	teamsByID := make(map[string]struct{}, len(teams))
+	for _, team := range teams {
+		if team.Ref != "" {
+			teamsByID[team.Ref] = struct{}{}
+		}
+	}
+	if len(teamsByID) == 0 {
+		return nil
+	}
+
+	accounts, err := client.ListOrganizationSystemAccounts(ctx)
+	if err != nil {
+		logWarn(logger, "failed to load organization system accounts", "", "", err)
+		return nil
+	}
+
+	results := make([]declresources.OrganizationSystemAccountResource, 0, len(accounts))
+	for _, account := range accounts {
+		memberships, err := client.ListOrganizationSystemAccountTeams(ctx, account.ID)
+		if err != nil {
+			logWarn(logger, "failed to load organization system account teams", account.ID, account.Name, err)
+			continue
+		}
+
+		accountRef := strings.TrimSpace(account.Name)
+		if err := declresources.ValidateRef(accountRef); err != nil {
+			if account.ID != "" {
+				accountRef = buildChildRef("system-account", account.ID)
+			} else {
+				accountRef = buildChildRef("system-account", account.Name)
+			}
+		}
+
+		accountTeams := make([]declresources.OrganizationSystemAccountTeamMembershipResource, 0, len(memberships))
+		for _, membership := range memberships {
+			if _, ok := teamsByID[membership.TeamID]; !ok {
+				continue
+			}
+			accountTeams = append(accountTeams, declresources.OrganizationSystemAccountTeamMembershipResource{
+				Ref:           buildChildRef("system-account-team", accountRef, membership.TeamID),
+				SystemAccount: accountRef,
+				Team:          membership.TeamID,
+			})
+		}
+		if len(accountTeams) == 0 {
+			continue
+		}
+
+		accountRes := declresources.OrganizationSystemAccountResource{
+			Ref:   accountRef,
+			Name:  account.Name,
+			Teams: accountTeams,
+		}
+		accountRes.SetKonnectID(account.ID)
+
+		roles, err := client.ListOrganizationSystemAccountRoles(ctx, account.ID)
+		if err != nil {
+			logWarn(logger, "failed to load organization system account roles", account.ID, account.Name, err)
+		} else if len(roles) > 0 {
+			accountRes.Roles = make([]declresources.OrganizationSystemAccountRoleResource, 0, len(roles))
+			for _, role := range roles {
+				accountRes.Roles = append(accountRes.Roles, declresources.OrganizationSystemAccountRoleResource{
+					Ref:            role.ID,
+					RoleName:       role.RoleName,
+					EntityID:       role.EntityID,
+					EntityTypeName: role.EntityTypeName,
+					EntityRegion:   role.EntityRegion,
+				})
+			}
+		}
+
+		slices.SortFunc(accountRes.Teams, func(a, b declresources.OrganizationSystemAccountTeamMembershipResource) int {
+			return cmp.Compare(a.Ref, b.Ref)
+		})
+		slices.SortFunc(accountRes.Roles, func(a, b declresources.OrganizationSystemAccountRoleResource) int {
+			return strings.Compare(a.Ref, b.Ref)
+		})
+		results = append(results, accountRes)
+	}
+
+	slices.SortFunc(results, func(a, b declresources.OrganizationSystemAccountResource) int {
+		return strings.Compare(a.Ref, b.Ref)
+	})
+
+	return results
+}
+
 func buildPortalAuthSettings(
 	ctx context.Context,
 	client *declstate.Client,

@@ -6,6 +6,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	declstate "github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/require"
 )
@@ -640,4 +641,175 @@ func TestBuildPortalAuditLogWebhook_OnlyIncludesConfiguredWebhooks(t *testing.T)
 			require.Equal(t, tt.wantDestinationID, resource.AuditLogDestinationID)
 		})
 	}
+}
+
+type stubDumpSystemAccountAPI struct {
+	list func(context.Context, kkOps.GetSystemAccountsRequest) (*kkOps.GetSystemAccountsResponse, error)
+}
+
+func (s stubDumpSystemAccountAPI) ListSystemAccounts(
+	ctx context.Context,
+	request kkOps.GetSystemAccountsRequest,
+) (*kkOps.GetSystemAccountsResponse, error) {
+	return s.list(ctx, request)
+}
+
+func (s stubDumpSystemAccountAPI) GetSystemAccount(
+	context.Context,
+	string,
+) (*kkOps.GetSystemAccountsIDResponse, error) {
+	return nil, nil
+}
+
+type stubDumpSystemAccountMembershipAPI struct {
+	list func(
+		context.Context,
+		kkOps.GetSystemAccountsAccountIDTeamsRequest,
+		...kkOps.Option,
+	) (*kkOps.GetSystemAccountsAccountIDTeamsResponse, error)
+}
+
+func (s stubDumpSystemAccountMembershipAPI) ListSystemAccountTeams(
+	ctx context.Context,
+	request kkOps.GetSystemAccountsAccountIDTeamsRequest,
+	opts ...kkOps.Option,
+) (*kkOps.GetSystemAccountsAccountIDTeamsResponse, error) {
+	return s.list(ctx, request, opts...)
+}
+
+func (s stubDumpSystemAccountMembershipAPI) AddSystemAccountToTeam(
+	context.Context,
+	string,
+	*kkComps.AddSystemAccountToTeam,
+	...kkOps.Option,
+) (*kkOps.PostTeamsTeamIDSystemAccountsResponse, error) {
+	return nil, nil
+}
+
+func (s stubDumpSystemAccountMembershipAPI) RemoveSystemAccountFromTeam(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.DeleteTeamsTeamIDSystemAccountsAccountIDResponse, error) {
+	return nil, nil
+}
+
+type stubDumpSystemAccountRolesAPI struct {
+	list func(
+		context.Context,
+		string,
+		*kkOps.GetSystemAccountsAccountIDAssignedRolesQueryParamFilter,
+		...kkOps.Option,
+	) (*kkOps.GetSystemAccountsAccountIDAssignedRolesResponse, error)
+}
+
+func (s stubDumpSystemAccountRolesAPI) ListSystemAccountRoles(
+	ctx context.Context,
+	accountID string,
+	filter *kkOps.GetSystemAccountsAccountIDAssignedRolesQueryParamFilter,
+	opts ...kkOps.Option,
+) (*kkOps.GetSystemAccountsAccountIDAssignedRolesResponse, error) {
+	return s.list(ctx, accountID, filter, opts...)
+}
+
+func (s stubDumpSystemAccountRolesAPI) AssignSystemAccountRole(
+	context.Context,
+	string,
+	*kkComps.AssignRole,
+	...kkOps.Option,
+) (*kkOps.PostSystemAccountsAccountIDAssignedRolesResponse, error) {
+	return nil, nil
+}
+
+func (s stubDumpSystemAccountRolesAPI) RemoveSystemAccountRole(
+	context.Context,
+	string,
+	string,
+	...kkOps.Option,
+) (*kkOps.DeleteSystemAccountsAccountIDAssignedRolesRoleIDResponse, error) {
+	return nil, nil
+}
+
+func TestCollectOrganizationSystemAccountsFromTeamMemberships(t *testing.T) {
+	t.Parallel()
+
+	accountID := "sa-123"
+	accountName := "system-account-one"
+	teamID := "team-123"
+	teamName := "team-one"
+	roleID := "role-123"
+	roleName := "Viewer"
+	entityID := "*"
+	entityTypeName := "APIs"
+	entityRegion := "us"
+
+	client := declstate.NewClient(declstate.ClientConfig{
+		SystemAccountAPI: &stubDumpSystemAccountAPI{
+			list: func(context.Context, kkOps.GetSystemAccountsRequest) (*kkOps.GetSystemAccountsResponse, error) {
+				return &kkOps.GetSystemAccountsResponse{
+					SystemAccountCollection: &kkComps.SystemAccountCollection{
+						Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+						Data: []kkComps.SystemAccount{{ID: &accountID, Name: &accountName}},
+					},
+				}, nil
+			},
+		},
+		SystemAccountMembershipAPI: &stubDumpSystemAccountMembershipAPI{
+			list: func(
+				context.Context,
+				kkOps.GetSystemAccountsAccountIDTeamsRequest,
+				...kkOps.Option,
+			) (*kkOps.GetSystemAccountsAccountIDTeamsResponse, error) {
+				return &kkOps.GetSystemAccountsAccountIDTeamsResponse{
+					TeamCollection: &kkComps.TeamCollection{
+						Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+						Data: []kkComps.Team{{ID: &teamID, Name: &teamName}},
+					},
+				}, nil
+			},
+		},
+		SystemAccountRolesAPI: &stubDumpSystemAccountRolesAPI{
+			list: func(
+				context.Context,
+				string,
+				*kkOps.GetSystemAccountsAccountIDAssignedRolesQueryParamFilter,
+				...kkOps.Option,
+			) (*kkOps.GetSystemAccountsAccountIDAssignedRolesResponse, error) {
+				region := kkComps.AssignedRoleEntityRegion(entityRegion)
+				return &kkOps.GetSystemAccountsAccountIDAssignedRolesResponse{
+					AssignedRoleCollection: &kkComps.AssignedRoleCollection{
+						Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+						Data: []kkComps.AssignedRole{
+							{
+								ID:             &roleID,
+								RoleName:       &roleName,
+								EntityID:       &entityID,
+								EntityTypeName: &entityTypeName,
+								EntityRegion:   &region,
+							},
+						},
+					},
+				}, nil
+			},
+		},
+	})
+
+	got := collectOrganizationSystemAccountsFromTeamMemberships(
+		t.Context(),
+		nil,
+		client,
+		[]declresources.OrganizationTeamResource{{BaseResource: declresources.BaseResource{Ref: teamID}}},
+	)
+
+	require.Len(t, got, 1)
+	require.Equal(t, accountName, got[0].Ref)
+	require.Equal(t, accountName, got[0].Name)
+	require.Len(t, got[0].Teams, 1)
+	require.Equal(t, accountName, got[0].Teams[0].SystemAccount)
+	require.Equal(t, teamID, got[0].Teams[0].Team)
+	require.Len(t, got[0].Roles, 1)
+	require.Equal(t, roleName, got[0].Roles[0].RoleName)
+	require.Equal(t, entityTypeName, got[0].Roles[0].EntityTypeName)
+	require.Equal(t, entityRegion, got[0].Roles[0].EntityRegion)
 }

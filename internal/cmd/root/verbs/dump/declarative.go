@@ -564,6 +564,10 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 					resourceSet.Organization.Users,
 					collectOrganizationUsersFromTeamMemberships(ctx, logger, stateClient, teams)...,
 				)
+				resourceSet.Organization.SystemAccounts = append(
+					resourceSet.Organization.SystemAccounts,
+					collectOrganizationSystemAccountsFromTeamMemberships(ctx, logger, stateClient, teams)...,
+				)
 			}
 		}
 	}
