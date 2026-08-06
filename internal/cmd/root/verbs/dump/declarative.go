@@ -285,6 +285,9 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			OrganizationTeamRolesAPI:            sdk.GetOrganizationTeamRolesAPI(),
 			OrganizationUsersAPI:                sdk.GetOrganizationUsersAPI(),
 			OrganizationMembershipAPI:           sdk.GetOrganizationTeamMembershipAPI(),
+			SystemAccountAPI:                    sdk.GetSystemAccountAPI(),
+			SystemAccountRolesAPI:               sdk.GetSystemAccountRolesAPI(),
+			SystemAccountMembershipAPI:          sdk.GetSystemAccountTeamMembershipAPI(),
 		})
 	}
 
@@ -563,6 +566,10 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				resourceSet.Organization.Users = append(
 					resourceSet.Organization.Users,
 					collectOrganizationUsersFromTeamMemberships(ctx, logger, stateClient, teams)...,
+				)
+				resourceSet.Organization.SystemAccounts = append(
+					resourceSet.Organization.SystemAccounts,
+					collectOrganizationSystemAccountsFromTeamMemberships(ctx, logger, stateClient, teams)...,
 				)
 			}
 		}
