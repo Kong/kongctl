@@ -227,12 +227,10 @@ steps:
                 role_name: Viewer
                 entity_type_name: APIs
                 entity_region: us
-          - select: >-
-              organization['system-accounts'][?ref=='{{ .vars.systemAccountName }}'] |
-              [0].teams[0]
+          - select: "@"
             expect:
               fields:
-                team: "{{ .vars.teamRef }}"
+                "organization['system-accounts'][?ref=='{{ .vars.systemAccountName }}'][0].teams[0].team == organization.teams[?name=='{{ .vars.teamName }}'][0].ref": true
 
   - name: 003-cleanup
     inputOverlayDirs:
