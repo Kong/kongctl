@@ -24,8 +24,8 @@ func normalizeAIGatewayPolicyReferencesForComparison(
 	}
 
 	aliases := aiGatewayPolicyReferenceAliases(rs)
-	currentCompare[FieldPolicies] = normalizeAIGatewayPolicyReferenceList(currentCompare[FieldPolicies], aliases)
-	desiredCompare[FieldPolicies] = normalizeAIGatewayPolicyReferenceList(desiredCompare[FieldPolicies], aliases)
+	currentCompare[FieldPolicies] = normalizeAIGatewayReferenceList(currentCompare[FieldPolicies], aliases)
+	desiredCompare[FieldPolicies] = normalizeAIGatewayReferenceList(desiredCompare[FieldPolicies], aliases)
 	return currentCompare, desiredCompare
 }
 
@@ -51,10 +51,10 @@ func normalizeAIGatewayIdentityProviderReferencesForComparison(
 	aliases := aiGatewayIdentityProviderReferenceAliases(rs)
 	currentAccess = clonePayloadMap(currentAccess)
 	desiredAccess = clonePayloadMap(desiredAccess)
-	currentAccess[FieldIdentityProviders] = normalizeAIGatewayPolicyReferenceList(
+	currentAccess[FieldIdentityProviders] = normalizeAIGatewayReferenceList(
 		currentAccess[FieldIdentityProviders], aliases,
 	)
-	desiredAccess[FieldIdentityProviders] = normalizeAIGatewayPolicyReferenceList(
+	desiredAccess[FieldIdentityProviders] = normalizeAIGatewayReferenceList(
 		desiredAccess[FieldIdentityProviders], aliases,
 	)
 	currentCompare[FieldAccess] = currentAccess
@@ -111,32 +111,32 @@ func aiGatewayIdentityProviderReferenceAliases(rs *resources.ResourceSet) map[st
 	return aliases
 }
 
-func normalizeAIGatewayPolicyReferenceList(raw any, aliases map[string]string) any {
-	switch policies := raw.(type) {
+func normalizeAIGatewayReferenceList(raw any, aliases map[string]string) any {
+	switch references := raw.(type) {
 	case []any:
-		normalized := make([]any, len(policies))
-		for i, policy := range policies {
-			if policyRef, ok := policy.(string); ok {
-				normalized[i] = canonicalAIGatewayPolicyReference(policyRef, aliases)
+		normalized := make([]any, len(references))
+		for i, reference := range references {
+			if referenceValue, ok := reference.(string); ok {
+				normalized[i] = canonicalAIGatewayReference(referenceValue, aliases)
 				continue
 			}
-			normalized[i] = policy
+			normalized[i] = reference
 		}
-		sortAIGatewayPolicyReferences(normalized)
+		sortAIGatewayReferences(normalized)
 		return normalized
 	case []string:
-		normalized := make([]any, len(policies))
-		for i, policyRef := range policies {
-			normalized[i] = canonicalAIGatewayPolicyReference(policyRef, aliases)
+		normalized := make([]any, len(references))
+		for i, reference := range references {
+			normalized[i] = canonicalAIGatewayReference(reference, aliases)
 		}
-		sortAIGatewayPolicyReferences(normalized)
+		sortAIGatewayReferences(normalized)
 		return normalized
 	default:
 		return raw
 	}
 }
 
-func sortAIGatewayPolicyReferences(references []any) {
+func sortAIGatewayReferences(references []any) {
 	for _, reference := range references {
 		if _, ok := reference.(string); !ok {
 			return
@@ -147,14 +147,14 @@ func sortAIGatewayPolicyReferences(references []any) {
 	})
 }
 
-func canonicalAIGatewayPolicyReference(policyRef string, aliases map[string]string) string {
-	if parsedRef, _, ok := tags.ParseRefPlaceholder(policyRef); ok {
-		policyRef = parsedRef
+func canonicalAIGatewayReference(reference string, aliases map[string]string) string {
+	if parsedRef, _, ok := tags.ParseRefPlaceholder(reference); ok {
+		reference = parsedRef
 	}
-	if canonical := aliases[policyRef]; canonical != "" {
+	if canonical := aliases[reference]; canonical != "" {
 		return canonical
 	}
-	return policyRef
+	return reference
 }
 
 func firstNonEmpty(values ...string) string {
