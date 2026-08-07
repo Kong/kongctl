@@ -132,6 +132,53 @@ func TestAIGatewayProviderExplainNodeCoversSDKProviderUnion(t *testing.T) {
 	require.Len(t, providerTypes, sdkUnionMembers)
 }
 
+func TestAIGatewayProviderExplainNodeUsesProviderSpecificGoogleAuth(t *testing.T) {
+	t.Parallel()
+
+	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
+	require.NoError(t, err)
+
+	geminiAuth := aiGatewayProviderAuthExplainBranch(t, node, "gemini", "gcp")
+	require.True(t, geminiAuth.propertyExists("metadata_url"))
+	require.True(t, geminiAuth.propertyExists("oauth_token_url"))
+
+	vertexAuth := aiGatewayProviderAuthExplainBranch(t, node, "vertex", "vertex")
+	require.True(t, vertexAuth.propertyExists("service_account_json"))
+	require.True(t, vertexAuth.propertyExists("use_gcp_service_account"))
+	require.False(t, vertexAuth.propertyExists("metadata_url"))
+	require.False(t, vertexAuth.propertyExists("oauth_token_url"))
+}
+
+func aiGatewayProviderAuthExplainBranch(
+	t *testing.T,
+	node *ExplainNode,
+	providerType string,
+	authType string,
+) *ExplainNode {
+	t.Helper()
+
+	for _, provider := range node.OneOf {
+		typeField, ok := provider.property("type")
+		if !ok || typeField.Node.Const != providerType {
+			continue
+		}
+		config, ok := provider.property("config")
+		require.True(t, ok)
+		auth, ok := config.Node.property("auth")
+		require.True(t, ok)
+		for _, authBranch := range auth.Node.OneOf {
+			authTypeField, ok := authBranch.property("type")
+			if ok && authTypeField.Node.Const == authType {
+				return authBranch
+			}
+		}
+		require.Failf(t, "missing auth explain branch", "provider %q does not have auth type %q", providerType, authType)
+	}
+
+	require.Failf(t, "missing provider explain branch", "provider type %q was not found", providerType)
+	return nil
+}
+
 func TestAIGatewayProviderResourceParentRef(t *testing.T) {
 	t.Parallel()
 
