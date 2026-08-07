@@ -622,7 +622,10 @@ AI Gateway Identity Providers can also be declared as root resources.
 Root-level identity provider declarations must identify the parent AI Gateway
 with `ai_gateway`. OpenID Connect `config.client_secret` values are write-only
 in Konnect and are skipped during diff calculation because the API does not
-return the stored secret.
+return the stored secret. The `config` object documents the supported shorthand
+fields but also accepts additional Kong Gateway plugin configuration fields for
+advanced use cases. Additional fields are passed through to Konnect, which
+validates their names and values.
 
 ```yaml
 ai_gateway_identity_providers:

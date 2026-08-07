@@ -131,6 +131,73 @@ ai_gateway_model_providers:
 	require.NoError(t, err)
 }
 
+func TestDeclarativeLoadSchemaAcceptsAdditionalIdentityProviderConfigProperties(t *testing.T) {
+	tests := []struct {
+		name         string
+		providerType string
+		configYAML   string
+		field        string
+	}{
+		{
+			name:         "key auth",
+			providerType: "key-auth",
+			configYAML: `
+      hide_credentials: true
+      realm: Support API
+`,
+			field: "realm",
+		},
+		{
+			name:         "OpenID Connect",
+			providerType: "openid-connect",
+			configYAML: `
+      auth_methods: [bearer]
+      cache_tokens_salt: support-cache-salt
+      credential_claim: [sub]
+`,
+			field: "credential_claim",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := fmt.Sprintf(`
+ai_gateway_identity_providers:
+  - ref: support-idp
+    ai_gateway: ai-quickstart
+    name: support-idp
+    display_name: Support Identity Provider
+    type: %s
+    config:%s
+`, tt.providerType, tt.configYAML)
+
+			resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+			require.NoError(t, err)
+			require.Len(t, resourceSet.AIGatewayIdentityProviders, 1)
+			require.Contains(t, resourceSet.AIGatewayIdentityProviders[0].Config, tt.field)
+		})
+	}
+}
+
+func TestDeclarativeLoadSchemaKeepsIdentityProviderResourceClosed(t *testing.T) {
+	input := `
+ai_gateway_identity_providers:
+  - ref: support-key-auth
+    ai_gateway: ai-quickstart
+    name: support-key-auth
+    display_name: Support Key Auth
+    type: key-auth
+    config:
+      realm: Support API
+    unexpected: value
+`
+
+	_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "unknown field 'unexpected'")
+	assert.ErrorContains(t, err, "ai_gateway_identity_providers[0].unexpected")
+}
+
 func TestDeclarativeLoadSchemaReportsKnownRejectedUnionField(t *testing.T) {
 	input := `
 ai_gateways:
