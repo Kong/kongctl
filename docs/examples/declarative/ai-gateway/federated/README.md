@@ -50,8 +50,8 @@ ai-gateway/federated/
   and attaches the policy with an explicit `!ref peer-mask-sensitive-data`.
 - `peer-team/support-mcp-server.yaml` defines a standalone
   `ai_gateway_mcp_servers` entry that references the central gateway with
-  `!ref shared-ai-gateway#id` and attaches the policy with an explicit
-  `!ref peer-endpoint-key-auth`.
+  `!ref shared-ai-gateway#id` and attaches the central identity provider with
+  an explicit `!ref shared-key-auth`.
 - `peer-team/support-vault.yaml` defines a standalone `ai_gateway_vaults` entry
   that references the central gateway with `!ref shared-ai-gateway#id`.
 - `peer-team/support-data-plane-certificate.yaml` defines a standalone

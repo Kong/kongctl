@@ -245,6 +245,11 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 		desiredCompare,
 		p.resources,
 	)
+	currentCompare, desiredCompare = normalizeAIGatewayIdentityProviderReferencesForComparison(
+		currentCompare,
+		desiredCompare,
+		p.resources,
+	)
 
 	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {

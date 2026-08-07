@@ -76,19 +76,6 @@ ai_gateways:
         config:
           anonymize:
             - email
-      - ref: endpoint-key-auth
-        name: endpoint-key-auth
-        type: key-auth
-        display_name: "Endpoint Key Auth"
-        enabled: true
-        global: false
-        labels:
-          team: support
-          purpose: endpoint-authentication
-        config:
-          key_names:
-            - apikey
-          hide_credentials: true
     consumers:
       - ref: support-agent
         name: support-agent
@@ -157,7 +144,7 @@ ai_gateways:
           - generate
     mcp_servers:
       - ref: customer-support-tools
-        type: conversion-only
+        type: conversion-listener
         name: customer-support-tools
         display_name: "Customer Support Tools"
         enabled: true
@@ -174,5 +161,7 @@ ai_gateways:
             description: "Look up a customer profile"
             method: GET
             path: /customers/{customer_id}
-        policies:
-          - !ref endpoint-key-auth#name
+        access:
+          acl_attribute_type: consumer
+          identity_providers:
+            - !ref support-key-auth
