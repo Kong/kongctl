@@ -32,7 +32,6 @@ func (a *AIGatewayConsumerCredentialAdapter) MapCreateFields(
 	if create.Name == "" || create.DisplayName == "" || create.Type == "" {
 		return fmt.Errorf("name, display_name, and type are required")
 	}
-	create.APIKey = nil
 	return nil
 }
 

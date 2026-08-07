@@ -1,5 +1,8 @@
 baseInputsPath: testdata
 
+env:
+  KONGCTL_E2E_EXTERNAL_AI_PROVIDER_KEY: fake-openai-api-key
+
 vars:
   gatewayName: External AI Gateway
   gatewaySlug: external-ai-gateway

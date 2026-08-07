@@ -80,7 +80,7 @@ event_gateways:
           authentication:
             type: basic
             username: testuser
-            password: testpassword
+            password: !secret {source: !env KONGCTL_E2E_SCHEMA_REGISTRY_PASSWORD}
     listeners:
       - ref: plan-apply-listener
         name: plan-apply-listener

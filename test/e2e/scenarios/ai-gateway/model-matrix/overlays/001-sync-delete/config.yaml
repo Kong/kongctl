@@ -20,7 +20,7 @@ ai_gateways:
           auth:
             type: aws
             access_key_id: fake-access-key-id
-            secret_access_key: fake-secret-access-key
+            secret_access_key: !secret {source: !env KONGCTL_E2E_MODEL_MATRIX_BEDROCK_SECRET}
       - ref: matrix-azure
         name: matrix-azure
         type: azure
@@ -31,7 +31,7 @@ ai_gateways:
             type: basic
             headers:
               - name: api-key
-                value: fake-azure-api-key
+                value: !secret {source: !env KONGCTL_E2E_MODEL_MATRIX_AZURE_KEY}
             params:
               - name: api-version
                 value: "2024-06-01"
@@ -45,7 +45,7 @@ ai_gateways:
             type: basic
             headers:
               - name: x-goog-api-key
-                value: fake-gemini-api-key
+                value: !secret {source: !env KONGCTL_E2E_MODEL_MATRIX_GEMINI_KEY}
       - ref: matrix-openai
         name: matrix-openai
         type: openai
@@ -55,5 +55,6 @@ ai_gateways:
             type: basic
             headers:
               - name: Authorization
-                value: Bearer fake-openai-api-key
+                value: !secret
+                  parts: ["Bearer ", !env KONGCTL_E2E_MODEL_MATRIX_OPENAI_KEY]
     models: []

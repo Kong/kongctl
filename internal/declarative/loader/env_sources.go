@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/secrets"
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
@@ -28,6 +29,9 @@ func (l *Loader) collectDeferredEnvSources(actual, placeholder *resources.Resour
 				return fmt.Errorf("!env tags are not supported on resource refs")
 			case "/kongctl/namespace":
 				return fmt.Errorf("!env tags are not supported on kongctl.namespace")
+			}
+			if _, ok := secrets.Match(resource.GetType(), path); ok {
+				return nil
 			}
 
 			actual.AddEnvSource(resourceRef, path, placeholder)

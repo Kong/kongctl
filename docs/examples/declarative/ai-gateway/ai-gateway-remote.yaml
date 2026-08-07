@@ -24,7 +24,10 @@ ai_gateways:
             type: basic
             headers:
               - name: Authorization
-                value: "Bearer do-not-put-secrets-in-plain-text-files"
+                value: !secret
+                  parts:
+                    - "Bearer "
+                    - !env OPENAI_API_KEY
     identity_providers:
       - ref: support-key-auth
         name: support-key-auth

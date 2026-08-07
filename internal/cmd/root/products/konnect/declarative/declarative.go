@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -77,11 +78,43 @@ const (
 	maxConcurrencyFlagName = "max-concurrency"
 	// maxConcurrencyConfigPath is the config path backing the max concurrency flag
 	maxConcurrencyConfigPath = "konnect.declarative." + maxConcurrencyFlagName
+	writeSecretFlagName      = "write-secret"
+	writeSecretsFlagName     = "write-secrets"
 
 	defaultRemoteFileAuthHost = "cloud.konghq.com"
 )
 
 const diffFieldRedactedValue = "[REDACTED]"
+
+func addSecretWriteFlags(command *cobra.Command) {
+	command.Flags().StringArray(writeSecretFlagName, nil,
+		"Write configured secrets selected by [resource-type:]resource-ref[#field] (repeatable)")
+	command.Flags().Bool(writeSecretsFlagName, false,
+		"Write all configured, supported write-only secrets")
+}
+
+func secretWriteOptions(command *cobra.Command) ([]string, bool, error) {
+	selectors, err := command.Flags().GetStringArray(writeSecretFlagName)
+	if err != nil {
+		return nil, false, err
+	}
+	all, err := command.Flags().GetBool(writeSecretsFlagName)
+	if err != nil {
+		return nil, false, err
+	}
+	return selectors, all, nil
+}
+
+func rejectPlanSecretWriteFlags(command *cobra.Command, planFile string) error {
+	if planFile == "" {
+		return nil
+	}
+	if command.Flags().Changed(writeSecretFlagName) || command.Flags().Changed(writeSecretsFlagName) {
+		return fmt.Errorf("--%s and --%s cannot be used together with --plan; "+
+			"secret writes are already recorded in the plan artifact", writeSecretFlagName, writeSecretsFlagName)
+	}
+	return nil
+}
 
 func parseDeclarativeSources(filenames []string) ([]loader.Source, error) {
 	sources, err := loader.ParseSources(filenames)
@@ -860,6 +893,7 @@ Konnect is the default target for this command, so "kongctl plan" and
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
 	cmd.Flags().String("mode", "sync", "Plan generation mode (sync|apply|delete)")
+	addSecretWriteFlags(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -895,10 +929,18 @@ func runPlan(command *cobra.Command, args []string) error {
 	recursive, _ := command.Flags().GetBool("recursive")
 	mode, _ := command.Flags().GetString("mode")
 	outputFile, _ := command.Flags().GetString("output-file")
+	writeSecretSelectors, writeSecrets, err := secretWriteOptions(command)
+	if err != nil {
+		return err
+	}
 
 	planMode, err := parsePlanMode(mode)
 	if err != nil {
 		return err
+	}
+	if planMode == planner.PlanModeDelete && (writeSecrets || len(writeSecretSelectors) > 0) {
+		return fmt.Errorf("--%s and --%s are not supported in delete mode",
+			writeSecretFlagName, writeSecretsFlagName)
 	}
 
 	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Plan, planMode)
@@ -1037,9 +1079,11 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	// Generate plan
 	opts := planner.Options{
-		Mode:      planMode,
-		Generator: generator,
-		Deck:      deckOpts,
+		Mode:                 planMode,
+		Generator:            generator,
+		Deck:                 deckOpts,
+		WriteSecretSelectors: writeSecretSelectors,
+		WriteSecrets:         writeSecrets,
 	}
 	plan, err := p.GeneratePlan(ctx, resourceSet, opts)
 	if err != nil {
@@ -1215,6 +1259,13 @@ func runDiff(command *cobra.Command, args []string) error {
 	command.SetContext(ctx)
 
 	planFile, _ := command.Flags().GetString("plan")
+	if err := rejectPlanSecretWriteFlags(command, planFile); err != nil {
+		return err
+	}
+	writeSecretSelectors, writeSecrets, err := secretWriteOptions(command)
+	if err != nil {
+		return err
+	}
 	if command.Flags().Changed("mode") && planFile != "" {
 		return fmt.Errorf("--mode cannot be used together with --plan; plan mode is read from the plan artifact")
 	}
@@ -1292,9 +1343,11 @@ func runDiff(command *cobra.Command, args []string) error {
 			return err
 		}
 		opts := planner.Options{
-			Mode:      planMode,
-			Generator: generator,
-			Deck:      deckOpts,
+			Mode:                 planMode,
+			Generator:            generator,
+			Deck:                 deckOpts,
+			WriteSecretSelectors: writeSecretSelectors,
+			WriteSecrets:         writeSecrets,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -1336,6 +1389,13 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 
 	// Handle empty plan
 	if plan.IsEmpty() {
+		if len(plan.Warnings) > 0 {
+			fmt.Fprintln(out, "Warnings:")
+			for _, warning := range plan.Warnings {
+				fmt.Fprintf(out, "  ⚠ [%s] %s\n", warning.ChangeID, warning.Message)
+			}
+			fmt.Fprintln(out)
+		}
 		fmt.Fprintln(out, "No changes detected. Konnect is up to date.")
 		return nil
 	}
@@ -1355,6 +1415,9 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	}
 	if externalToolCount > 0 {
 		summaryParts = append(summaryParts, fmt.Sprintf("%d external tool step", externalToolCount))
+	}
+	if plan.Summary.SecretWrites > 0 {
+		summaryParts = append(summaryParts, fmt.Sprintf("%d secret write", plan.Summary.SecretWrites))
 	}
 	fmt.Fprintf(out, "Plan: %s\n\n", strings.Join(summaryParts, ", "))
 
@@ -1483,6 +1546,11 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 				}
 			}
 
+			for _, secretWrite := range change.SecretWrites {
+				fmt.Fprintf(out, "  %s: write requested (current value unavailable; deferred source)\n",
+					pointerToDisplayField(secretWrite.Field))
+			}
+
 			// Show dependencies
 			if len(change.DependsOn) > 0 {
 				fmt.Fprintf(out, "  depends on: %v\n", change.DependsOn)
@@ -1525,6 +1593,22 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	}
 
 	return nil
+}
+
+func pointerToDisplayField(pointer string) string {
+	parts := planner.DecodeJSONPointer(pointer)
+	var result strings.Builder
+	for _, part := range parts {
+		if _, err := strconv.Atoi(part); err == nil {
+			fmt.Fprintf(&result, "[%s]", part)
+			continue
+		}
+		if result.Len() > 0 {
+			result.WriteByte('.')
+		}
+		result.WriteString(part)
+	}
+	return result.String()
 }
 
 func displayFieldChanges(
@@ -1774,6 +1858,7 @@ Konnect is the default target for this command, so "kongctl sync" and
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addSecretWriteFlags(cmd)
 	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
@@ -1808,6 +1893,7 @@ Konnect is the default target for this command, so "kongctl diff" and
 	cmd.Flags().String("mode", "sync", "Diff mode (sync|apply|delete)")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
+	addSecretWriteFlags(cmd)
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -1847,6 +1933,13 @@ func runApply(command *cobra.Command, args []string) error {
 	command.SetContext(ctx)
 
 	planFile, _ := command.Flags().GetString("plan")
+	if err := rejectPlanSecretWriteFlags(command, planFile); err != nil {
+		return err
+	}
+	writeSecretSelectors, writeSecrets, err := secretWriteOptions(command)
+	if err != nil {
+		return err
+	}
 	dryRun, _ := command.Flags().GetBool("dry-run")
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
@@ -1964,9 +2057,11 @@ func runApply(command *cobra.Command, args []string) error {
 
 		// Generate plan in apply mode
 		opts := planner.Options{
-			Mode:      planner.PlanModeApply,
-			Generator: generator,
-			Deck:      deckOpts,
+			Mode:                 planner.PlanModeApply,
+			Generator:            generator,
+			Deck:                 deckOpts,
+			WriteSecretSelectors: writeSecretSelectors,
+			WriteSecrets:         writeSecrets,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -1990,7 +2085,7 @@ func runApply(command *cobra.Command, args []string) error {
 	// Check if plan is empty (no changes needed)
 	if plan.IsEmpty() {
 		if outputFormat == textOutputFormat {
-			fmt.Fprintln(command.OutOrStderr(), "No changes needed. Resources match configuration.")
+			common.DisplayPlanSummary(plan, command.OutOrStderr())
 			return nil
 		}
 		// Use consistent output format with empty result
@@ -2412,6 +2507,7 @@ Konnect is the default target for this command, so "kongctl apply" and
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addSecretWriteFlags(cmd)
 	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
 
@@ -2689,6 +2785,13 @@ func runSync(command *cobra.Command, args []string) error {
 	command.SetContext(ctx)
 
 	planFile, _ := command.Flags().GetString("plan")
+	if err := rejectPlanSecretWriteFlags(command, planFile); err != nil {
+		return err
+	}
+	writeSecretSelectors, writeSecrets, err := secretWriteOptions(command)
+	if err != nil {
+		return err
+	}
 	dryRun, _ := command.Flags().GetBool("dry-run")
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
@@ -2823,9 +2926,11 @@ func runSync(command *cobra.Command, args []string) error {
 
 		// Generate plan in sync mode
 		opts := planner.Options{
-			Mode:      planner.PlanModeSync,
-			Generator: generator,
-			Deck:      deckOpts,
+			Mode:                 planner.PlanModeSync,
+			Generator:            generator,
+			Deck:                 deckOpts,
+			WriteSecretSelectors: writeSecretSelectors,
+			WriteSecrets:         writeSecrets,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -2849,7 +2954,7 @@ func runSync(command *cobra.Command, args []string) error {
 	// Check if plan is empty (no changes needed)
 	if plan.IsEmpty() {
 		if outputFormat == textOutputFormat {
-			fmt.Fprintln(command.OutOrStderr(), "No changes needed. Resources match configuration.")
+			common.DisplayPlanSummary(plan, command.OutOrStderr())
 			return nil
 		}
 		// Use consistent output format with empty result

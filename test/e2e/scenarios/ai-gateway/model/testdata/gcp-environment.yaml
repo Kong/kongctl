@@ -18,7 +18,7 @@ ai_gateways:
         config:
           auth:
             type: gcp
-            service_account_json: "fake-service-account-json"
+            service_account_json: !secret {source: !env KONGCTL_E2E_MODEL_GCP_SERVICE_ACCOUNT}
             use_gcp_service_account: false
     models:
       - ref: support-gemini

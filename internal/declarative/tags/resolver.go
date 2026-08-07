@@ -130,16 +130,17 @@ func (r *ResolverRegistry) processNode(node *yaml.Node) error {
 	return nil
 }
 
-type nestedTagLocation int
+type nestedTagLocation uint8
 
 const (
-	nestedTagLocationDirectMappingValue nestedTagLocation = iota
+	nestedTagLocationDirectMappingValue nestedTagLocation = 1 << iota
 	nestedTagLocationOther
 )
 
 var supportedNestedTags = map[string]map[string]nestedTagLocation{
 	TagExternal: {TagEnv: nestedTagLocationDirectMappingValue},
 	TagLookup:   {TagEnv: nestedTagLocationDirectMappingValue},
+	TagSecret:   {TagEnv: nestedTagLocationDirectMappingValue | nestedTagLocationOther},
 }
 
 func validateNestedTags(outer *yaml.Node) error {
@@ -198,7 +199,7 @@ func validateNestedChild(child *yaml.Node, outerTag string, location nestedTagLo
 				outerTag,
 			)
 		}
-		if location != allowedLocation {
+		if allowedLocation&location == 0 {
 			return nestedTagError(
 				child,
 				"nested YAML tag %s is only supported in direct mapping selector values inside %s",

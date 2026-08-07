@@ -104,7 +104,10 @@ ai_gateways:
             type: basic
             headers:
               - name: Authorization
-                value: Bearer ${OPENAI_API_KEY}
+                value: !secret
+                  parts:
+                    - "Bearer "
+                    - !env OPENAI_API_KEY
 `), 0o600)
 	require.NoError(t, err)
 

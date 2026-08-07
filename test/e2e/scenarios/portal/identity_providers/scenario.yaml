@@ -66,6 +66,8 @@ steps:
       - name: 000-plan-identity-providers
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-identity-providers.json"
+        env:
+          KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET: ""
         run:
           - plan
           - -f
@@ -79,6 +81,7 @@ steps:
                 total_changes: 5
                 by_action.CREATE: 3
                 by_action.UPDATE: 2
+                secret_writes: 1
           - select: >-
               changes[?resource_type=='portal_identity_provider' && resource_ref=='{{ .vars.providerRef }}'] | [0].fields
             expect:
@@ -87,6 +90,14 @@ steps:
                 enabled: true
                 config.client_id: __ENV__:KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
                 config.issuer_url: __ENV__:KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+                "contains(keys(config), 'client_secret')": false
+          - select: >-
+              changes[?resource_type=='portal_identity_provider' && resource_ref=='{{ .vars.providerRef }}'] | [0]
+            expect:
+              fields:
+                secret_writes[0].field: /config/client_secret
+                secret_writes[0].expression.parts[0].source.kind: env
+                secret_writes[0].expression.parts[0].source.reference: KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET
           - select: >-
               changes[?resource_type=='portal_team' && resource_ref=='{{ .vars.teamRef }}'] | [0]
             expect:
@@ -425,6 +436,51 @@ steps:
                 enabled: false
                 config.client_id: "{{ .vars.updateClientID }}"
                 config.claim_mappings.name: full_name
+
+  - name: 002a-plan-and-apply-secret-only-update
+    inputOverlayDirs:
+      - overlays/002-root-update
+    commands:
+      - name: 000-plan-secret-only-update-without-value
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-secret-only-update.json"
+        env:
+          KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_SECRET: ""
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - --write-secret
+          - "{{ .vars.providerRef }}#config.client_secret"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                secret_writes: 1
+          - select: >-
+              changes[?resource_type=='portal_identity_provider' && resource_ref=='{{ .vars.providerRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                secret_writes[0].field: /config/client_secret
+                secret_writes[0].expression.parts[0].source.reference: KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_SECRET
+      - name: 001-apply-secret-only-update-with-execution-value
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-secret-only-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
 
   - name: 003-dump-and-plan-round-trip
     skipInputs: true

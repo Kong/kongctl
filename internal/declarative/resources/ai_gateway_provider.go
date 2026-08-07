@@ -310,7 +310,7 @@ func aiGatewayProviderBasicAuthExplainNode() *ExplainNode {
 		explainField("type", explainConstStringNode("basic"), true, true),
 		explainField("headers", explainArrayOf(explainObject(
 			explainField("name", explainStringNode("Authorization"), true, true),
-			explainField("value", explainStringNode("Bearer ${MODEL_PROVIDER_API_KEY}"), false, true),
+			explainField("value", explainSecretEnvCompositionNode("Bearer ", "MODEL_PROVIDER_API_KEY"), false, true),
 		)), false, true),
 		explainField("params", explainArrayOf(explainObject(
 			explainField("name", explainStringNode("api-version"), true, true),
@@ -328,7 +328,7 @@ func aiGatewayProviderAWSAuthExplainNode() *ExplainNode {
 	return explainObject(
 		explainField("type", explainConstStringNode("aws"), true, true),
 		explainField("access_key_id", explainStringNode("${AWS_ACCESS_KEY_ID}"), false, true),
-		explainField("secret_access_key", explainStringNode("${AWS_SECRET_ACCESS_KEY}"), false, false),
+		explainField("secret_access_key", explainSecretEnvNode("AWS_SECRET_ACCESS_KEY"), false, false),
 		explainField("assume_role_arn", explainStringNode("arn:aws:iam::123456789012:role/model-provider"), false, false),
 		explainField("role_session_name", explainStringNode("kong-ai-gateway"), false, false),
 		explainField("sts_endpoint_url", explainStringNode("https://sts.amazonaws.com"), false, false),
@@ -341,7 +341,7 @@ func aiGatewayProviderSagemakerAuthExplainNode() *ExplainNode {
 		explainField("type", explainConstStringNode("sagemaker"), true, true),
 		explainField("aws", explainObject(
 			explainField("access_key_id", explainStringNode("${AWS_ACCESS_KEY_ID}"), false, true),
-			explainField("secret_access_key", explainStringNode("${AWS_SECRET_ACCESS_KEY}"), false, false),
+			explainField("secret_access_key", explainSecretEnvNode("AWS_SECRET_ACCESS_KEY"), false, false),
 			explainField("session_token", explainStringNode("${AWS_SESSION_TOKEN}"), false, false),
 		), false, true),
 	)
@@ -351,7 +351,7 @@ func aiGatewayProviderAzureAuthExplainNode() *ExplainNode {
 	return explainObject(
 		explainField("type", explainConstStringNode("azure"), true, true),
 		explainField("client_id", explainStringNode("${AZURE_CLIENT_ID}"), false, true),
-		explainField("client_secret", explainStringNode("${AZURE_CLIENT_SECRET}"), false, false),
+		explainField("client_secret", explainSecretEnvNode("AZURE_CLIENT_SECRET"), false, false),
 		explainField("tenant_id", explainStringNode("${AZURE_TENANT_ID}"), false, true),
 		explainField("use_managed_identity", explainBoolNode("true"), false, true),
 	)
@@ -360,7 +360,7 @@ func aiGatewayProviderAzureAuthExplainNode() *ExplainNode {
 func aiGatewayProviderGCPAuthExplainNode() *ExplainNode {
 	return explainObject(
 		explainField("type", explainConstStringNode("gcp"), true, true),
-		explainField("service_account_json", explainStringNode("${GCP_SERVICE_ACCOUNT_JSON}"), false, false),
+		explainField("service_account_json", explainSecretEnvNode("GCP_SERVICE_ACCOUNT_JSON"), false, false),
 		explainField("metadata_url", explainStringNode("https://metadata.google.internal"), false, false),
 		explainField("oauth_token_url", explainStringNode("https://oauth2.googleapis.com/token"), false, false),
 		explainField("use_gcp_service_account", explainBoolNode("true"), false, true),

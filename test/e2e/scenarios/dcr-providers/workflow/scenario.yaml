@@ -2,6 +2,9 @@ baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_DCR_OKTA_TOKEN: e2e_okta_token
+  KONGCTL_E2E_DCR_HTTP_API_KEY: e2e_http_api_key
+  KONGCTL_E2E_DCR_SYNC_HTTP_API_KEY: e2e_sync_http_api_key
 
 vars:
   namespace: dcr-workflow

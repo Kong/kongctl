@@ -368,6 +368,11 @@ func decodeJSONPointer(path string) []string {
 	return segments
 }
 
+// DecodeJSONPointer converts an RFC 6901 JSON pointer into path segments.
+func DecodeJSONPointer(path string) []string {
+	return decodeJSONPointer(path)
+}
+
 func firstNumericSegment(segments []string) (int, bool) {
 	for _, segment := range segments {
 		index, err := strconv.Atoi(segment)
