@@ -219,6 +219,22 @@ func TestAIGatewayModelPlannerIgnoresAPIDefaults(t *testing.T) {
 	require.Nil(t, changed)
 }
 
+func TestNormalizeAIGatewayModelSelectorPrunesEmptyRoute(t *testing.T) {
+	current := map[string]any{
+		FieldConfig: map[string]any{
+			FieldRoute: map[string]any{
+				FieldModel: map[string]any{"body_param": "model"},
+			},
+		},
+	}
+	desired := map[string]any{FieldConfig: map[string]any{}}
+
+	current, desired = normalizeAIGatewayPayloadsForComparison(current, desired)
+	current, desired = normalizeAIGatewayModelSelectorForComparison(current, desired)
+
+	require.Equal(t, desired, current)
+}
+
 func TestAIGatewayModelPlannerIgnoresTargetOrderAndAPIDefaults(t *testing.T) {
 	var model resources.AIGatewayModelResource
 	require.NoError(t, json.Unmarshal([]byte(`{
