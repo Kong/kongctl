@@ -227,7 +227,7 @@ func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 		explainObject(append(
 			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("key-auth"), true, true),
-			explainField("config", explainObject(
+			explainField("config", aiGatewayIdentityProviderConfigExplainNode(
 				explainField("hide_credentials", explainBoolNode("true"), false, true),
 				explainField("key_in_body", explainBoolNode("false"), false, false),
 				explainField("key_in_header", explainBoolNode("true"), false, false),
@@ -238,7 +238,7 @@ func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 		explainObject(append(
 			slices.Clone(commonFields),
 			explainField("type", explainConstStringNode("openid-connect"), true, true),
-			explainField("config", explainObject(
+			explainField("config", aiGatewayIdentityProviderConfigExplainNode(
 				explainField("auth_methods", explainArrayOf(explainStringNode("bearer")), false, true),
 				explainField("cache_tokens_salt", explainStringNode("support-cache-salt"), true, true),
 				explainField("client_id", explainArrayOf(explainStringNode("support-client")), false, true),
@@ -251,6 +251,12 @@ func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 			), true, true),
 		)...),
 	), nil
+}
+
+func aiGatewayIdentityProviderConfigExplainNode(fields ...*ExplainField) *ExplainNode {
+	node := explainObject(fields...)
+	node.Additional = &ExplainNode{}
+	return node
 }
 
 func aiGatewayIdentityProviderInlineExplainNode() *ExplainNode {

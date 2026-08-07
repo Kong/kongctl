@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"encoding/json"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -40,4 +41,32 @@ func TestAIGatewayIdentityProviderAdapterRejectsMissingOpenIDConnectCacheTokensS
 	var request kkComps.CreateAIGatewayIdentityProviderRequest
 	err := NewAIGatewayIdentityProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
 	require.Error(t, err)
+}
+
+func TestAIGatewayIdentityProviderAdapterPreservesAdditionalOpenIDConnectConfigProperties(t *testing.T) {
+	fields := map[string]any{
+		planner.FieldName:        "support-oidc",
+		planner.FieldType:        "openid-connect",
+		planner.FieldDisplayName: "Support OIDC",
+		planner.FieldConfig: map[string]any{
+			"auth_methods":      []string{"bearer"},
+			"cache_tokens_salt": "support-cache-salt",
+			"credential_claim":  []string{"sub"},
+		},
+	}
+
+	var request kkComps.CreateAIGatewayIdentityProviderRequest
+	err := NewAIGatewayIdentityProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
+	require.NoError(t, err)
+	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect)
+	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect.Config)
+	require.Contains(t, request.AIGatewayIdentityProviderOpenIDConnect.Config.AdditionalProperties, "credential_claim")
+
+	data, err := json.Marshal(request)
+	require.NoError(t, err)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(data, &payload))
+	config, ok := payload[planner.FieldConfig].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, []any{"sub"}, config["credential_claim"])
 }
