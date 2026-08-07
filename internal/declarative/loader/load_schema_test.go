@@ -112,6 +112,25 @@ application_auth_strategies:
 	assert.ErrorContains(t, err, "application_auth_strategies[0].configs.openid_connect")
 }
 
+func TestDeclarativeLoadSchemaAcceptsVertexServiceAccountAuth(t *testing.T) {
+	t.Setenv("GCP_SERVICE_ACCOUNT_JSON", `{"type":"service_account"}`)
+	input := `
+ai_gateway_model_providers:
+  - ref: vertex-prod
+    name: vertex-prod
+    display_name: Google Vertex Prod
+    ai_gateway: ai-quickstart
+    type: vertex
+    config:
+      auth:
+        type: vertex
+        service_account_json: !env GCP_SERVICE_ACCOUNT_JSON
+`
+
+	_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.NoError(t, err)
+}
+
 func TestDeclarativeLoadSchemaReportsKnownRejectedUnionField(t *testing.T) {
 	input := `
 ai_gateways:
