@@ -296,6 +296,7 @@ func normalizeAIGatewayModelSelectorForComparison(
 		return currentPayload, desiredPayload
 	}
 	delete(currentRoute, FieldModel)
+	pruneEmptyContainersMissingFromPeer(currentPayload, desiredPayload)
 	return currentPayload, desiredPayload
 }
 
