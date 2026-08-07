@@ -404,6 +404,13 @@ Existing Konnect policy names or IDs can be supplied as strings. Declarative
 references should use `!ref <policy-ref>` so the relationship is explicit and
 same-plan policy creates are ordered and resolved.
 
+For AI Gateway Agents, Models, and MCP Servers, authentication is configured
+through AI Gateway Identity Providers. Reference providers from
+`access.identity_providers` with `!ref <identity-provider-ref>` so same-plan
+provider creates are ordered and resolved. MCP Server `access` also supports
+OAuth access-token claim selection and protected-resource metadata. The
+`conversion-only` MCP Server type does not support `access`.
+
 For AI Gateway Identity Providers, Policies, Agents, Consumers, Consumer
 Groups, MCP Servers, Config Stores, Vaults, and Data Plane Certificates,
 root-level
@@ -544,7 +551,14 @@ ai_gateways:
       capabilities: array[string]
       labels: object [string]string
         key: value
-      acls: object
+      access:
+        acl_attribute_type: consumer # or oauth_access_token
+        access_token_claim_field: string # required for oauth_access_token
+        acls: object
+        default_tool_acls: object
+        identity_providers:
+         - !ref identity-provider-ref
+        metadata: object
       managed_by: object
    mcp_servers:
     - ref: string
@@ -793,7 +807,19 @@ ai_gateway_mcp_servers:
     - !ref policy-ref
    labels: object [string]string
      key: value
-   acls: object
+   access:
+     acl_attribute_type: consumer # or oauth_access_token
+     access_token_claim_field: string # required for oauth_access_token
+     acls: object
+     default_tool_acls: object
+     identity_providers:
+      - !ref identity-provider-ref
+     metadata:
+       discovery_endpoint: string
+       endpoint: string
+       authorization_servers: array[string]
+       resource: string
+       scopes_supported: array[string]
    managed_by: object
 ```
 

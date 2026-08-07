@@ -14,13 +14,11 @@ ai_gateways:
     labels:
       owner: platform
       lifecycle: dev
-    policies:
+    identity_providers:
       - ref: mcp-key-auth
         name: mcp-key-auth
         type: key-auth
         display_name: "MCP Key Auth"
-        enabled: true
-        global: false
         labels:
           team: support
           phase: create
@@ -60,8 +58,7 @@ ai_gateways:
                 required: true
                 schema:
                   type: string
-        policies:
-          - mcp-key-auth
+        policies: []
       - ref: context7-passthrough
         type: passthrough-listener
         name: context7-passthrough
@@ -94,6 +91,8 @@ ai_gateways:
         tools: []
         access:
           acl_attribute_type: consumer
+          identity_providers:
+            - !ref mcp-key-auth
         config:
           url: https://support-conversion-listener.example.com
           logging:

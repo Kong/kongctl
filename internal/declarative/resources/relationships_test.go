@@ -31,6 +31,13 @@ func TestRelationshipDescriptorsDistinguishFieldOrigins(t *testing.T) {
 		TargetType: ResourceTypeAIGatewayIdentityProvider,
 		Kind:       RelationshipKindAPIForeignKey, ScopeFieldPath: SchemaFieldAIGateway,
 	})
+
+	mcpServer := RelationshipDescriptorsForType(ResourceTypeAIGatewayMCPServer)
+	require.Contains(t, mcpServer, RelationshipDescriptor{
+		FieldPath:  SchemaFieldAccess + "." + SchemaFieldIdentityProviders,
+		TargetType: ResourceTypeAIGatewayIdentityProvider,
+		Kind:       RelationshipKindAPIForeignKey, ScopeFieldPath: SchemaFieldAIGateway,
+	})
 }
 
 func TestExplainSchemaIncludesRelationshipContract(t *testing.T) {

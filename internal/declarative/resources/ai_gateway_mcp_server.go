@@ -549,6 +549,19 @@ func aiGatewayMCPServerAccessExplainNode() *ExplainNode {
 		explainField("access_token_claim_field", explainStringNode("sub"), false, false),
 		explainField("acls", aiGatewayMCPACLsExplainNode(), false, false),
 		explainField("default_tool_acls", aiGatewayMCPACLsExplainNode(), false, false),
+		explainField(
+			SchemaFieldIdentityProviders,
+			explainArrayOf(explainStringNode("identity-provider-name")),
+			false,
+			false,
+		),
+		explainField("metadata", explainObject(
+			explainField("discovery_endpoint", explainStringNode("/.well-known/oauth-protected-resource"), false, false),
+			explainField("endpoint", explainStringNode("https://mcp.example.com"), false, false),
+			explainField("authorization_servers", explainArrayOf(explainStringNode("https://idp.example.com")), false, false),
+			explainField("resource", explainStringNode("https://mcp.example.com"), false, false),
+			explainField("scopes_supported", explainArrayOf(explainStringNode("mcp:read")), false, false),
+		), false, false),
 	)
 }
 

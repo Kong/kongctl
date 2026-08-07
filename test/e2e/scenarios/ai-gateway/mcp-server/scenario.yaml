@@ -11,9 +11,9 @@ vars:
   namespace: "ai-gateway-mcp-server-e2e"
   gateway_name: "AI Gateway MCP Server E2E"
   gateway_ref: "ai-gateway-mcp-e2e"
-  policy_ref: "mcp-key-auth"
-  policy_name: "mcp-key-auth"
-  policy_display_name: "MCP Key Auth"
+  identity_provider_ref: "mcp-key-auth"
+  identity_provider_name: "mcp-key-auth"
+  identity_provider_display_name: "MCP Key Auth"
   server_ref: "support-tools"
   server_name: "support-tools"
   server_display_name: "Support Tools"
@@ -54,10 +54,10 @@ steps:
   - name: 001-explain-and-scaffold
     skipInputs: true
     commands:
-      - name: 000-explain-ai-gateway-policy-json
+      - name: 000-explain-ai-gateway-identity-provider-json
         run:
           - explain
-          - ai_gateway_policy
+          - ai_gateway_identity_provider
           - -o
           - json
         assertions:
@@ -65,23 +65,23 @@ steps:
             expect:
               fields:
                 type: object
-                title: "kongctl declarative schema: ai_gateway_policy"
-                '"x-kongctl-root-key"': ai_gateway_policies
-          - select: "contains(keys(properties), 'ai_gateway')"
+                title: "kongctl declarative schema: ai_gateway_identity_provider"
+                '"x-kongctl-root-key"': ai_gateway_identity_providers
+          - select: "contains(keys(oneOf[?properties.type.const=='key-auth'] | [0].properties), 'ai_gateway')"
             expect:
               fields:
                 "@": true
-      - name: 001-scaffold-ai-gateway-policy
+      - name: 001-scaffold-ai-gateway-identity-provider
         run:
           - scaffold
-          - ai_gateway_policy
+          - ai_gateway_identity_provider
         outputFormat: disable
         parseAs: raw
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'ai_gateway_policies:')": true
-                "contains(stdout, 'type: ai-sanitizer')": true
+                "contains(stdout, 'ai_gateway_identity_providers:')": true
+                "contains(stdout, 'type: key-auth')": true
                 "contains(stdout, 'ai_gateway: !ref')": true
       - name: 002-explain-ai-gateway-mcp-server-json
         run:
@@ -104,6 +104,8 @@ steps:
             expect:
               fields:
                 access.properties.acl_attribute_type.type: string
+                access.properties.identity_providers.type: array
+                access.properties.metadata.type: object
                 type.const: passthrough-listener
           - select: "contains(keys(oneOf[?properties.type.const=='conversion-only'] | [0].properties), 'access')"
             expect:
@@ -178,15 +180,13 @@ steps:
                 total_changes: 7
                 by_action.CREATE: 7
           - select: >-
-              changes[?resource_type=='ai_gateway_policy' && resource_ref=='{{ .vars.policy_ref }}'] | [0]
+              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}'] | [0]
             expect:
               fields:
                 action: CREATE
-                fields.name: "{{ .vars.policy_name }}"
+                fields.name: "{{ .vars.identity_provider_name }}"
                 fields.type: key-auth
-                fields.display_name: "{{ .vars.policy_display_name }}"
-                fields.enabled: true
-                fields.global: false
+                fields.display_name: "{{ .vars.identity_provider_display_name }}"
                 fields.config.key_names[0]: apikey
                 fields.config.hide_credentials: true
           - select: >-
@@ -207,7 +207,6 @@ steps:
                 fields.tools[0].parameters[0].in: path
                 fields.tools[0].parameters[0].schema.type: string
                 fields.tools[0].query.key: __ENV__:KONGCTL_E2E_WEATHERAPI_API_KEY
-                fields.policies[0]: "{{ .vars.policy_name }}"
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.passthrough_server_ref }}'] | [0]
             expect:
@@ -239,6 +238,8 @@ steps:
                 fields.config.logging.payloads: false
                 fields.config.route.paths[0]: /support-conversion-listener
                 fields.access.acl_attribute_type: consumer
+                fields.access.identity_providers[0]: "__REF__:{{ .vars.identity_provider_ref }}#id"
+                references."access.identity_providers.0".ref: "__REF__:{{ .vars.identity_provider_ref }}#id"
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.listener_server_ref }}'] | [0]
             expect:
@@ -282,63 +283,61 @@ steps:
                 applied: 7
                 failed: 0
                 status: success
-      - name: 002-list-policies
+      - name: 002-list-identity-providers
         run:
           - get
           - ai-gateway
-          - policies
+          - identity-providers
           - --gateway-name
           - "{{ .vars.gateway_name }}"
           - -o
           - json
         recordVar:
-          name: policy_id
-          responsePath: "[?name=='{{ .vars.policy_name }}'] | [0].id"
+          name: identity_provider_id
+          responsePath: "[?name=='{{ .vars.identity_provider_name }}'] | [0].id"
         assertions:
-          - select: "[?name=='{{ .vars.policy_name }}'] | [0]"
+          - select: "[?name=='{{ .vars.identity_provider_name }}'] | [0]"
             expect:
               fields:
-                name: "{{ .vars.policy_name }}"
-                display_name: "{{ .vars.policy_display_name }}"
+                name: "{{ .vars.identity_provider_name }}"
+                display_name: "{{ .vars.identity_provider_display_name }}"
                 type: key-auth
-                enabled: true
-                global: false
                 config.key_names[0]: apikey
                 config.hide_credentials: true
-      - name: 003-get-policy-by-name
+      - name: 003-get-identity-provider-by-name
         run:
           - get
           - ai-gateway
-          - policies
+          - identity-providers
           - --gateway-name
           - "{{ .vars.gateway_name }}"
-          - "{{ .vars.policy_name }}"
+          - "{{ .vars.identity_provider_name }}"
           - -o
           - json
         assertions:
           - select: name
             expect:
               fields:
-                "@": "{{ .vars.policy_name }}"
+                "@": "{{ .vars.identity_provider_name }}"
           - select: type
             expect:
               fields:
                 "@": key-auth
-      - name: 004-get-policy-by-id
+      - name: 004-get-identity-provider-by-id
         run:
           - get
           - ai-gateway
-          - policies
+          - identity-providers
           - --gateway-name
           - "{{ .vars.gateway_name }}"
-          - "{{ .vars.policy_id }}"
+          - "{{ .vars.identity_provider_id }}"
           - -o
           - json
         assertions:
           - select: name
             expect:
               fields:
-                "@": "{{ .vars.policy_name }}"
+                "@": "{{ .vars.identity_provider_name }}"
           - select: type
             expect:
               fields:
@@ -374,7 +373,6 @@ steps:
                 tools[0].parameters[0].in: path
                 tools[0].parameters[0].schema.type: string
                 tools[0].query.key: fake-weather-api-key
-                policies[0]: "{{ .vars.policy_name }}"
           - select: "[?name=='{{ .vars.passthrough_server_name }}'] | [0]"
             expect:
               fields:
@@ -404,8 +402,8 @@ steps:
                 config.logging.audits: false
                 config.logging.payloads: false
                 config.route.paths[0]: /support-conversion-listener
-                access:
-                  acl_attribute_type: consumer
+                access.acl_attribute_type: consumer
+                access.identity_providers[0]: "{{ .vars.identity_provider_name }}"
           - select: "[?name=='{{ .vars.listener_server_name }}'] | [0]"
             expect:
               fields:
@@ -492,8 +490,8 @@ steps:
                 config.logging.audits: false
                 config.logging.payloads: false
                 config.route.paths[0]: /support-conversion-listener
-                access:
-                  acl_attribute_type: consumer
+                access.acl_attribute_type: consumer
+                access.identity_providers[0]: "{{ .vars.identity_provider_name }}"
       - name: 009-get-listener-mcp-server-by-name
         run:
           - get
@@ -676,7 +674,6 @@ steps:
                 name: "{{ .vars.server_name }}"
                 display_name: "{{ .vars.server_updated_display_name }}"
                 type: conversion-only
-                policies[0]: "{{ .vars.policy_name }}"
                 tools[0].annotations.title: "Lookup customer"
                 tools[0].parameters[0].name: customer_id
                 tools[0].query.key: fake-weather-api-key
@@ -699,8 +696,8 @@ steps:
                 type: conversion-listener
                 config.logging.audits: false
                 config.logging.payloads: false
-                access:
-                  acl_attribute_type: consumer
+                access.acl_attribute_type: consumer
+                access.identity_providers[0]: "{{ .vars.identity_provider_name }}"
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.listener_server_name }}'] | [0]
             expect:
@@ -727,11 +724,11 @@ steps:
                 access:
                   acl_attribute_type: consumer
           - select: >-
-              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].policies[?name=='{{ .vars.policy_name }}'] | [0]
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].identity_providers[?name=='{{ .vars.identity_provider_name }}'] | [0]
             expect:
               fields:
-                name: "{{ .vars.policy_name }}"
-                display_name: "{{ .vars.policy_display_name }}"
+                name: "{{ .vars.identity_provider_name }}"
+                display_name: "{{ .vars.identity_provider_display_name }}"
                 type: key-auth
                 config.key_names[0]: apikey
                 config.hide_credentials: true
@@ -766,23 +763,23 @@ steps:
             expect:
               fields:
                 "@": true
-      - name: 003-dump-root-policies
+      - name: 003-dump-root-identity-providers
         run:
           - dump
           - declarative
-          - "--resources=ai_gateway_policies"
-          - "--filter-name={{ .vars.policy_name }}"
+          - "--resources=ai_gateway_identity_providers"
+          - "--filter-name={{ .vars.identity_provider_name }}"
           - "--default-namespace={{ .vars.namespace }}"
         outputFormat: none
         parseAs: yaml
         assertions:
-          - select: "ai_gateway_policies[0]"
+          - select: "ai_gateway_identity_providers[0]"
             expect:
               fields:
-                name: "{{ .vars.policy_name }}"
-                display_name: "{{ .vars.policy_display_name }}"
+                name: "{{ .vars.identity_provider_name }}"
+                display_name: "{{ .vars.identity_provider_display_name }}"
                 type: key-auth
-          - select: "ai_gateway_policies[0].ai_gateway != ''"
+          - select: "ai_gateway_identity_providers[0].ai_gateway != ''"
             expect:
               fields:
                 "@": true
@@ -933,11 +930,11 @@ steps:
               fields:
                 "@": 0
 
-  - name: 008-sync-delete-policy
+  - name: 008-sync-delete-identity-provider
     inputOverlayDirs:
-      - overlays/003-sync-delete-policy
+      - overlays/003-sync-delete-identity-provider
     commands:
-      - name: 000-sync-delete-policy
+      - name: 000-sync-delete-identity-provider
         outputFormat: json
         run:
           - sync
@@ -951,21 +948,21 @@ steps:
                 total_changes: 1
                 by_action.DELETE: 1
           - select: >-
-              plan.changes[?resource_type=='ai_gateway_policy' && action=='DELETE'] | [0]
+              plan.changes[?resource_type=='ai_gateway_identity_provider' && action=='DELETE'] | [0]
             expect:
               fields:
-                resource_ref: "{{ .vars.policy_name }}"
+                resource_ref: "{{ .vars.identity_provider_name }}"
           - select: summary
             expect:
               fields:
                 applied: 1
                 failed: 0
                 status: success
-      - name: 001-list-policies-empty
+      - name: 001-list-identity-providers-empty
         run:
           - get
           - ai-gateway
-          - policies
+          - identity-providers
           - --gateway-name
           - "{{ .vars.gateway_name }}"
           - -o
