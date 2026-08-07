@@ -2,6 +2,7 @@ baseInputsPath: ./testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_DUMP_DCR_API_KEY: e2e_dump_dcr_token
 
 vars:
   namespace: dump-dcr-provider-e2e

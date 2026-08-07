@@ -24,11 +24,16 @@ Gateway resources.
   Servers, vaults, and data plane certificates that reference the shared
   gateway.
 
-Set `OPENAI_AUTH_HEADER` to the full upstream authorization header value
-before applying `ai-gateway.yaml` or the federated example, for example
-`Bearer ...`.
+Set `OPENAI_AUTH_HEADER` to the full upstream authorization header value before
+applying `ai-gateway.yaml` or the federated example. Set `OPENAI_API_KEY` to
+only the token when using `ai-gateway-remote.yaml`; its `!secret` composition
+adds the `Bearer ` prefix.
 
 Before applying `config-store-vault.yaml`, add a secret named
 `openai-auth-header` to `support-config-store`. Its value should be the full
 OpenAI authorization header, for example `Bearer ...`. Config Store resources
 manage the store itself, but do not manage the secrets it contains.
+Set `OPENAI_VAULT_REFERENCE` to
+`{vault://support-secrets/openai-auth-header}` so the write-only header field
+uses the required deferred declaration without putting credential material in
+the environment.

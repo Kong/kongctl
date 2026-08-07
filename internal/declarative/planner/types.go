@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -75,6 +76,13 @@ type PlannedChange struct {
 	Protection            any                      `json:"protection,omitempty"` // bool or ProtectionChange
 	Namespace             string                   `json:"namespace"`
 	DependsOn             []string                 `json:"depends_on,omitempty"`
+	SecretWrites          []SecretWriteIntent      `json:"secret_writes,omitempty"`
+}
+
+// SecretWriteIntent records a write-only field and its deferred value expression.
+type SecretWriteIntent struct {
+	Field      string                `json:"field"`
+	Expression tags.SecretExpression `json:"expression"`
 }
 
 // PostResolutionTarget represents a resource that must be resolved after a change executes.
@@ -159,6 +167,7 @@ type PlanSummary struct {
 	ByResource        map[string]int                      `json:"by_resource"`
 	ByExternalTools   map[string][]ExternalToolDependency `json:"by_external_tools,omitempty"`
 	ProtectionChanges *ProtectionSummary                  `json:"protection_changes,omitempty"`
+	SecretWrites      int                                 `json:"secret_writes,omitempty"`
 }
 
 // ProtectionSummary tracks protection changes
@@ -258,6 +267,7 @@ func (p *Plan) UpdateSummary() {
 	p.Summary.ByAction = make(map[ActionType]int)
 	p.Summary.ByResource = make(map[string]int)
 	p.Summary.ByExternalTools = nil
+	p.Summary.SecretWrites = 0
 	protectionSummary := &ProtectionSummary{}
 	var externalTools map[string][]ExternalToolDependency
 
@@ -265,6 +275,7 @@ func (p *Plan) UpdateSummary() {
 	for _, change := range p.Changes {
 		p.Summary.ByAction[change.Action]++
 		p.Summary.ByResource[change.ResourceType]++
+		p.Summary.SecretWrites += len(change.SecretWrites)
 		if change.Action == ActionExternalTool {
 			dependency := externalToolDependencyFromChange(change)
 			if externalTools == nil {

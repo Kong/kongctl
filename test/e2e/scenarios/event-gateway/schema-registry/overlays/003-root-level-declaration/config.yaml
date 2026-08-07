@@ -20,4 +20,4 @@ event_gateway_schema_registries:
       authentication:
         type: basic
         username: rootuser
-        password: rootpassword
+        password: !secret {source: !env KONGCTL_E2E_SCHEMA_REGISTRY_PASSWORD}

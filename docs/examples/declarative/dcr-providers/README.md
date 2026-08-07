@@ -22,6 +22,11 @@ Preview the change set:
 kongctl diff -f dcr-providers.yaml
 ```
 
+Set the `OKTA_DCR_TOKEN`, `HTTP_DCR_API_KEY`,
+`AUTH0_INITIAL_CLIENT_SECRET`, `AZURE_AD_INITIAL_CLIENT_SECRET`, and
+`CURITY_INITIAL_CLIENT_SECRET` variables before execution. Planning validates
+their deferred `!secret` declarations without reading the values.
+
 Apply the configuration:
 
 ```bash
@@ -49,12 +54,13 @@ kongctl delete -f dcr-providers.yaml --auto-approve
 ## Notes
 
 DCR provider `dcr_config` values usually include provider credentials such as
-tokens, client IDs, client secrets, or API keys. Replace the placeholder values
-in this example before applying it to a real Konnect organization.
+tokens, client IDs, client secrets, or API keys. Write-only credentials use
+`!secret` with deferred environment sources in this example.
 
 Some DCR provider configuration fields are write-only. Konnect may omit
 secrets such as `dcr_token`, `api_key`, and `initial_client_secret` from get
-and list responses.
+and list responses. Use `--write-secret` or `--write-secrets` when explicitly
+rotating those fields on existing providers.
 
 Azure AD DCR uses the Azure v1 issuer format. The issuer should look like:
 

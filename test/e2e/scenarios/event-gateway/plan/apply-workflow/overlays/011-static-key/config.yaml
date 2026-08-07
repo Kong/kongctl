@@ -80,7 +80,7 @@ event_gateways:
           authentication:
             type: basic
             username: testuser
-            password: testpassword
+            password: !secret {source: !env KONGCTL_E2E_SCHEMA_REGISTRY_PASSWORD}
     static_keys:
       - ref: plan-apply-static-key
         name: plan-apply-static-key-name

@@ -267,6 +267,14 @@ func (e *Executor) validatePlanPayloads(ctx context.Context, plan *planner.Plan)
 			)
 		}
 		change = validationChange(change)
+		if err := injectSecretWriteValidationPlaceholders(&change); err != nil {
+			return fmt.Errorf(
+				"incompatible plan change %d (%q): %w",
+				i,
+				change.ID,
+				err,
+			)
+		}
 		if change.ResourceType == planner.ResourceTypeDeck {
 			continue
 		}

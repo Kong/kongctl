@@ -5,6 +5,8 @@ test:
 
 env:
   KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_MODEL_PROVIDER_KEY: placeholder
+  KONGCTL_E2E_MODEL_GCP_SERVICE_ACCOUNT: fake-service-account-json
 
 vars:
   namespace: "ai-gateway-model-e2e"

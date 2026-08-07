@@ -5,6 +5,10 @@ test:
 
 env:
   KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_MODEL_PROVIDER_BEDROCK_SECRET: fake-secret-access-key
+  KONGCTL_E2E_MODEL_PROVIDER_AZURE_KEY: fake-azure-api-key
+  KONGCTL_E2E_MODEL_PROVIDER_GEMINI_KEY: fake-gemini-api-key
+  KONGCTL_E2E_MODEL_PROVIDER_OPENAI_KEY: fake-openai-api-key
 
 vars:
   namespace: "ai-gateway-model-provider-e2e"

@@ -43,6 +43,9 @@ Use YAML tags in field values to load files or reference other resources.
   `path`/`extract` map form.
 - `!env`: Load string content from an environment variable. Supports
   `VAR#extract.path` and `var`/`extract` map form.
+- `!secret`: Declare a sensitive deferred value on a reviewed write-only
+  field. Supports `source: !env VAR` and ordered `parts` containing strings
+  and `!env` sources.
 - `!ref`: Reference another declarative resource by `ref`.
   `resource-ref#field` is supported; the default field is `id`.
 - `!lookup`: Resolve an existing Konnect resource directly in a relationship
@@ -60,8 +63,9 @@ Use YAML tags in field values to load files or reference other resources.
 - `!file` paths are resolved relative to the config file and must remain
   within the configured base directory boundary.
 
-Nested tag composition is opt-in. The only supported combination is `!env`
-as a direct mapping selector value inside `!lookup` or `!external`:
+Nested tag composition is opt-in. `!env` can supply a direct mapping selector
+value inside `!lookup` or `!external`, and can supply deferred source values
+inside `!secret`:
 
 ```yaml
 portal_id: !lookup
@@ -73,6 +77,7 @@ control_plane: !external {name: !env CONTROL_PLANE_NAME}
 | Outer tag | Supported inner tags |
 |---|---|
 | `!lookup` / `!external` | `!env` in direct mapping values |
+| `!secret` | `!env` as `source` or a `parts` element |
 | `!env`, `!file`, `!ref` | None |
 
 `!file`, `!ref`, and nested lookup tags are not supported inside lookup tags.
@@ -601,8 +606,9 @@ AI Gateway Model Providers can also be declared as root resources. Root-level
 model provider declarations must identify the parent AI Gateway with
 `ai_gateway`. Basic authentication uses `config.auth.headers`, an array of
 `name` and `value` objects. Header `value` fields and other provider credentials
-are write-only in Konnect. They are sent during create or update but omitted
-from read responses and skipped during diff calculation.
+are write-only in Konnect. Declare them with `!secret`; creates send them once,
+while updates require `--write-secret` or `--write-secrets` during plan
+generation.
 
 ```yaml
 ai_gateway_model_providers:
@@ -714,8 +720,9 @@ ai_gateway_consumers:
 
 AI Gateway Consumer Credentials can also be declared as root resources. Include
 `ai_gateway_consumer` to point at the parent consumer `ref`. Credential
-`api_key` values are write-only in Konnect and are not part of declarative
-diffs; omit `api_key` so Konnect generates the key value.
+`api_key` values are write-only and create-only. Omit `api_key` so Konnect
+generates it, or use `!secret` to provide it when creating the credential.
+Selecting `api_key` on an existing credential is an error.
 
 ```yaml
 ai_gateway_consumer_credentials:
@@ -724,6 +731,7 @@ ai_gateway_consumer_credentials:
    name: string required
    type: api-key
    display_name: string required
+   api_key: string # optional; requires !secret and is create-only
    ttl: integer
    labels: object [string]string
      key: value

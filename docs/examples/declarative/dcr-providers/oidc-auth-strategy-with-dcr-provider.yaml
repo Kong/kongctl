@@ -13,7 +13,7 @@ dcr_providers:
     provider_type: okta
     issuer: https://my-issuer.okta.com/default
     dcr_config:
-      dcr_token: replace-with-okta-dcr-token
+      dcr_token: !secret {source: !env OKTA_DCR_TOKEN}
     labels:
       provider: okta
       environment: example
