@@ -274,7 +274,7 @@ func secretResourceFields(resource resources.Resource) (map[string]any, error) {
 }
 
 func mergeSecretContextFields(contextFields, plannedFields map[string]any) map[string]any {
-	merged := make(map[string]any, len(contextFields)+len(plannedFields))
+	merged := make(map[string]any)
 	maps.Copy(merged, contextFields)
 	maps.Copy(merged, plannedFields)
 	return merged
