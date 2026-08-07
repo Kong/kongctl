@@ -269,7 +269,7 @@ func aiGatewayProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			explainField("instance", explainStringNode("kong-az-east"), true, true),
 		)),
 		aiGatewayProviderExplainBranch("gemini", aiGatewayProviderGCPConfigExplainNode()),
-		aiGatewayProviderExplainBranch("vertex", aiGatewayProviderGCPConfigExplainNode()),
+		aiGatewayProviderExplainBranch("vertex", aiGatewayProviderVertexConfigExplainNode()),
 	), nil
 }
 
@@ -300,6 +300,15 @@ func aiGatewayProviderGCPConfigExplainNode() *ExplainNode {
 	return explainObject(explainField(
 		"auth",
 		explainUnionNode(aiGatewayProviderBasicAuthExplainNode(), aiGatewayProviderGCPAuthExplainNode()),
+		true,
+		true,
+	))
+}
+
+func aiGatewayProviderVertexConfigExplainNode() *ExplainNode {
+	return explainObject(explainField(
+		"auth",
+		explainUnionNode(aiGatewayProviderBasicAuthExplainNode(), aiGatewayProviderVertexAuthExplainNode()),
 		true,
 		true,
 	))
@@ -363,6 +372,14 @@ func aiGatewayProviderGCPAuthExplainNode() *ExplainNode {
 		explainField("service_account_json", explainStringNode("${GCP_SERVICE_ACCOUNT_JSON}"), false, false),
 		explainField("metadata_url", explainStringNode("https://metadata.google.internal"), false, false),
 		explainField("oauth_token_url", explainStringNode("https://oauth2.googleapis.com/token"), false, false),
+		explainField("use_gcp_service_account", explainBoolNode("true"), false, true),
+	)
+}
+
+func aiGatewayProviderVertexAuthExplainNode() *ExplainNode {
+	return explainObject(
+		explainField("type", explainConstStringNode("vertex"), true, true),
+		explainField("service_account_json", explainStringNode("${GCP_SERVICE_ACCOUNT_JSON}"), false, false),
 		explainField("use_gcp_service_account", explainBoolNode("true"), false, true),
 	)
 }
