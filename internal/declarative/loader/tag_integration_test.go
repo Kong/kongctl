@@ -171,7 +171,7 @@ ai_gateway_model_providers:
         type: basic
         headers:
           - name: Authorization
-            value: Bearer fake-openai-api-key
+            value: !secret {source: !env TEST_OPENAI_API_KEY}
 `), 0o600))
 
 	_, err := NewWithBaseDir(tmpDir).LoadFile(configFile)
@@ -450,11 +450,15 @@ dcr_providers:
 
 	dcrConfig := rs.DCRProviders[0].DCRConfig
 	assert.Equal(t, "https://dcr.example.test/register", dcrConfig["dcr_base_url"])
-	assert.Equal(t, "api-key-from-env", dcrConfig["api_key"])
+	assert.Equal(t, "__ENV__:DCR_API_KEY", dcrConfig["api_key"])
 
 	envSources := rs.GetEnvSources("env-dcr")
 	assert.Equal(t, "__ENV__:DCR_BASE_URL", envSources["/dcr_config/dcr_base_url"])
-	assert.Equal(t, "__ENV__:DCR_API_KEY", envSources["/dcr_config/api_key"])
+	assert.NotContains(t, envSources, "/dcr_config/api_key")
+	secretSource := rs.GetSecretSources("env-dcr")["/dcr_config/api_key"]
+	assert.True(t, secretSource.DeprecatedBareEnv)
+	require.Len(t, secretSource.Expression.Parts, 1)
+	assert.Equal(t, "DCR_API_KEY", secretSource.Expression.Parts[0].Source.Reference)
 }
 
 func TestLoader_EnvTagIntegration_DCRProviderBoolConfigRejectsString(t *testing.T) {
@@ -481,7 +485,7 @@ dcr_providers:
 	assert.Contains(t, err.Error(), "dcr_config.disable_event_hooks must be a boolean")
 }
 
-func TestLoader_EnvTagIntegration_DCRProviderDynamicConfigRejectsNonStringEnvValue(t *testing.T) {
+func TestLoader_EnvTagIntegration_DCRProviderSecretDefersNonStringValidation(t *testing.T) {
 	t.Setenv("DCR_SETTINGS", "api_key_enabled: true")
 
 	tmpDir := t.TempDir()
@@ -500,9 +504,11 @@ dcr_providers:
 	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
 
 	loader := NewWithBaseDir(tmpDir)
-	_, err := loader.LoadFile(mainFile)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "!env value must resolve to a string")
+	rs, err := loader.LoadFile(mainFile)
+	require.NoError(t, err)
+	secretSource := rs.GetSecretSources("env-dcr")["/dcr_config/api_key"]
+	require.Len(t, secretSource.Expression.Parts, 1)
+	assert.Equal(t, "api_key_enabled", secretSource.Expression.Parts[0].Source.Extract)
 }
 
 func TestLoader_EnvTagStringOnlyFields(t *testing.T) {
@@ -625,12 +631,15 @@ portals:
 	assert.Equal(t, "https://example.okta.test/oauth2/default", config.OIDCIdentityProviderConfig.IssuerURL)
 	assert.Equal(t, "client-id-from-env", config.OIDCIdentityProviderConfig.ClientID)
 	require.NotNil(t, config.OIDCIdentityProviderConfig.ClientSecret)
-	assert.Equal(t, "client-secret-from-env", *config.OIDCIdentityProviderConfig.ClientSecret)
+	assert.Equal(t, "__ENV__:IDP_CLIENT_SECRET", *config.OIDCIdentityProviderConfig.ClientSecret)
 
 	envSources := rs.GetEnvSources("env-portal-idp")
 	assert.Equal(t, "__ENV__:IDP_ISSUER_URL", envSources["/config/issuer_url"])
 	assert.Equal(t, "__ENV__:IDP_CLIENT_ID", envSources["/config/client_id"])
-	assert.Equal(t, "__ENV__:IDP_CLIENT_SECRET", envSources["/config/client_secret"])
+	assert.NotContains(t, envSources, "/config/client_secret")
+	secretSource := rs.GetSecretSources("env-portal-idp")["/config/client_secret"]
+	assert.True(t, secretSource.DeprecatedBareEnv)
+	assert.Equal(t, "IDP_CLIENT_SECRET", secretSource.Expression.Parts[0].Source.Reference)
 }
 
 func TestLoader_ControlPlaneDataPlaneCertificateTags(t *testing.T) {

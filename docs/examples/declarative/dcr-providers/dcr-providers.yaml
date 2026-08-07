@@ -12,7 +12,7 @@ dcr_providers:
     provider_type: okta
     issuer: https://my-issuer.okta.com/default
     dcr_config:
-      dcr_token: replace-with-okta-dcr-token
+      dcr_token: !secret {source: !env OKTA_DCR_TOKEN}
     labels:
       provider: okta
       environment: example
@@ -24,7 +24,7 @@ dcr_providers:
     issuer: https://my-issuer-server.example.com
     dcr_config:
       dcr_base_url: https://my-http-dcr-server.example.com/v1/dcr
-      api_key: replace_with_http_dcr_api_key
+      api_key: !secret {source: !env HTTP_DCR_API_KEY}
     labels:
       provider: http
       environment: example
@@ -36,7 +36,7 @@ dcr_providers:
     issuer: https://my-issuer.auth0.com/api/v2/
     dcr_config:
       initial_client_id: auth0_initial_client_id
-      initial_client_secret: auth0_initial_client_secret
+      initial_client_secret: !secret {source: !env AUTH0_INITIAL_CLIENT_SECRET}
     labels:
       provider: auth0
       environment: example
@@ -48,7 +48,7 @@ dcr_providers:
     issuer: https://sts.windows.net/03640e99-6c96-4817-b392-b9336037a8e2
     dcr_config:
       initial_client_id: azure_ad_initial_client_id
-      initial_client_secret: azure_ad_initial_client_secret
+      initial_client_secret: !secret {source: !env AZURE_AD_INITIAL_CLIENT_SECRET}
     labels:
       provider: azureAd
       environment: example
@@ -60,7 +60,7 @@ dcr_providers:
     issuer: https://my-curity-instance.example.com/oauth/v2/oauth-anonymous/.well-known/openid-configuration
     dcr_config:
       initial_client_id: curity_initial_client_id
-      initial_client_secret: curity_initial_client_secret
+      initial_client_secret: !secret {source: !env CURITY_INITIAL_CLIENT_SECRET}
     labels:
       provider: curity
       environment: example

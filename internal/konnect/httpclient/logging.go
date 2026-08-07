@@ -57,24 +57,25 @@ var plainTextRedactionPatterns = []redactionPattern{
 }
 
 var sensitiveExactFieldKeys = map[string]struct{}{
-	"access_token":        {},
-	"refresh_token":       {},
-	"id_token":            {},
-	"token":               {},
-	"api_key":             {},
-	"apikey":              {},
-	"x_api_key":           {},
-	"secret":              {},
-	"password":            {},
-	"authorization":       {},
-	"cookie":              {},
-	"credential":          {},
-	"private_key":         {},
-	"passphrase":          {},
-	"client_secret":       {},
-	"set_cookie":          {},
-	"konnectaccesstoken":  {},
-	"konnectrefreshtoken": {},
+	"access_token":         {},
+	"refresh_token":        {},
+	"id_token":             {},
+	"token":                {},
+	"api_key":              {},
+	"apikey":               {},
+	"x_api_key":            {},
+	"secret":               {},
+	"password":             {},
+	"authorization":        {},
+	"cookie":               {},
+	"credential":           {},
+	"private_key":          {},
+	"passphrase":           {},
+	"client_secret":        {},
+	"service_account_json": {},
+	"set_cookie":           {},
+	"konnectaccesstoken":   {},
+	"konnectrefreshtoken":  {},
 }
 
 var nonSensitiveTokenFieldKeys = map[string]struct{}{
@@ -554,18 +555,24 @@ func redactJSONValue(value any) any {
 }
 
 func redactSensitiveValue(value any) any {
+	return redactSensitiveValueAt(value, "", false)
+}
+
+func redactSensitiveValueAt(value any, parentKey string, insideConfig bool) any {
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, nested := range typed {
-			if isSensitiveFieldKey(key) {
+			normalizedKey := normalizeKey(key)
+			if isSensitiveFieldKey(key) || (insideConfig && normalizedKey == "key") ||
+				(normalizeKey(parentKey) == "headers" && normalizedKey == "value") {
 				typed[key] = redactedValue
 				continue
 			}
-			typed[key] = redactJSONValue(nested)
+			typed[key] = redactSensitiveValueAt(nested, key, insideConfig || normalizedKey == "config")
 		}
 	case []any:
 		for idx, nested := range typed {
-			typed[idx] = redactJSONValue(nested)
+			typed[idx] = redactSensitiveValueAt(nested, parentKey, insideConfig)
 		}
 	}
 	return value

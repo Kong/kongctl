@@ -102,6 +102,10 @@ func TestAIGatewayProviderScaffoldMapsToSDKRequest(t *testing.T) {
 	require.True(t, ok)
 	delete(fields, resources.SchemaFieldRef)
 	delete(fields, resources.SchemaFieldAIGateway)
+	config := fields[planner.FieldConfig].(map[string]any)
+	auth := config["auth"].(map[string]any)
+	headers := auth["headers"].([]any)
+	headers[0].(map[string]any)["value"] = "Bearer test-api-key"
 
 	var request kkComps.CreateAIGatewayModelProviderRequest
 	require.NoError(t, NewAIGatewayProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request))
@@ -109,7 +113,7 @@ func TestAIGatewayProviderScaffoldMapsToSDKRequest(t *testing.T) {
 	require.Equal(t, "Authorization", request.AIGatewayModelProviderOpenai.Config.Auth.Headers[0].Name)
 	require.Equal(
 		t,
-		"Bearer ${MODEL_PROVIDER_API_KEY}",
+		"Bearer test-api-key",
 		*request.AIGatewayModelProviderOpenai.Config.Auth.Headers[0].Value,
 	)
 }

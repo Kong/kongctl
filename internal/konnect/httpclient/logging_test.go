@@ -157,6 +157,14 @@ func TestRedactSensitiveFieldsClonesAndRedactsNestedFields(t *testing.T) {
 		"credentials": []any{
 			map[string]any{"api_key": "api-key-value"},
 		},
+		"provider": map[string]any{
+			"config": map[string]any{
+				"auth": map[string]any{
+					"headers": []any{map[string]any{"name": "X-Custom", "value": "opaque-value"}},
+					"key":     "vault-key-value",
+				},
+			},
+		},
 	}
 
 	redacted := RedactSensitiveFields(input).(map[string]any)
@@ -165,6 +173,10 @@ func TestRedactSensitiveFieldsClonesAndRedactsNestedFields(t *testing.T) {
 	require.Equal(t, "Bearer", config["token_type"])
 	credentials := redacted["credentials"].([]any)
 	require.Equal(t, redactedValue, credentials[0].(map[string]any)["api_key"])
+	provider := redacted["provider"].(map[string]any)
+	auth := provider["config"].(map[string]any)["auth"].(map[string]any)
+	require.Equal(t, redactedValue, auth["headers"].([]any)[0].(map[string]any)["value"])
+	require.Equal(t, redactedValue, auth["key"])
 
 	originalConfig := input["config"].(map[string]any)
 	require.Equal(t, "secret-value", originalConfig["client_secret"])

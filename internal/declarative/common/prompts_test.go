@@ -229,6 +229,18 @@ func TestDisplayPlanSummary(t *testing.T) {
 			},
 		},
 		{
+			name: "empty plan with warning",
+			plan: &planner.Plan{
+				Summary:  planner.PlanSummary{},
+				Warnings: []planner.PlanWarning{{ChangeID: "secret-resource", Message: "safe warning"}},
+			},
+			expected: []string{
+				"No changes detected. Configuration matches current state.",
+				"WARNINGS",
+				"safe warning",
+			},
+		},
+		{
 			name: "plan with duplicate dependencies deduplicated",
 			plan: &planner.Plan{
 				Summary: planner.PlanSummary{

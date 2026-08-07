@@ -90,6 +90,20 @@ func explainStringNode(literal string) *ExplainNode {
 	return &ExplainNode{Kind: explainKindString, Literal: literal}
 }
 
+func explainSecretEnvNode(reference string) *ExplainNode {
+	node := explainStringNode("!secret {source: !env " + reference + "}")
+	node.PreferredTag = "!secret"
+	node.Notes = []string{"write-only secret; literal and eager !file values are rejected"}
+	return node
+}
+
+func explainSecretEnvCompositionNode(prefix, reference string) *ExplainNode {
+	node := explainStringNode("!secret {parts: [\"" + prefix + "\", !env " + reference + "]}")
+	node.PreferredTag = "!secret"
+	node.Notes = []string{"write-only secret; literal parts are public plan metadata"}
+	return node
+}
+
 func explainBoolNode(literal string) *ExplainNode {
 	return &ExplainNode{Kind: "boolean", Literal: literal}
 }
@@ -647,6 +661,11 @@ func eventGatewaySchemaRegistryExplainNode(_ ExplainBuildContext) (*ExplainNode,
 		return nil, err
 	}
 	explainSetConstStringField(confluent, "type", "confluent")
+	explainReplacePath(
+		confluent,
+		[]string{"config", "authentication", "password"},
+		explainSecretEnvNode("SCHEMA_REGISTRY_PASSWORD"),
+	)
 	return explainUnionNode(explainWithCommonFields(
 		confluent,
 		explainResourceRefField(),
@@ -797,6 +816,7 @@ func portalIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, err
 	if err != nil {
 		return nil, err
 	}
+	explainReplacePath(oidc, []string{"client_secret"}, explainSecretEnvNode("PORTAL_OIDC_CLIENT_SECRET"))
 	saml, err := autoExplainConcreteNode[kkComps.SAMLIdentityProviderConfigInput](nil)
 	if err != nil {
 		return nil, err

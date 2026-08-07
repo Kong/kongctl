@@ -9,7 +9,7 @@ dcr_providers:
     issuer: https://all-dcr-issuer.example.com
     dcr_config:
       dcr_base_url: https://all-dcr.example.com/v1/dcr
-      api_key: all_dcr_api_key
+      api_key: !secret {source: !env KONGCTL_E2E_ALL_DCR_API_KEY}
     labels:
       suite: all
       resource: dcr-provider
@@ -413,7 +413,7 @@ event_gateways:
           authentication:
             type: basic
             username: all-user
-            password: all-password
+            password: !secret {source: !env KONGCTL_E2E_ALL_SCHEMA_PASSWORD}
     static_keys:
       - ref: all-event-static-key
         name: all-event-static-key

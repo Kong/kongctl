@@ -9,7 +9,7 @@ dcr_providers:
     issuer: https://e2e-http-issuer.example.com
     dcr_config:
       dcr_base_url: https://e2e-http.example.com/v1/dcr
-      api_key: e2e_http_api_key
+      api_key: !secret {source: !env KONGCTL_E2E_DCR_HTTP_API_KEY}
       disable_event_hooks: true
     labels:
       team: platform

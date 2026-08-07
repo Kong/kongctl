@@ -18,4 +18,4 @@ event_gateways:
           authentication:
             type: basic
             username: updateduser
-            password: updatedpassword
+            password: !secret {source: !env KONGCTL_E2E_SCHEMA_REGISTRY_PASSWORD}

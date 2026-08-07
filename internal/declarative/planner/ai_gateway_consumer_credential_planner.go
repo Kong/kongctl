@@ -280,6 +280,7 @@ func shouldReplaceAIGatewayConsumerCredential(
 			err,
 		)
 	}
+	delete(desiredPayload, FieldAPIKey)
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
 	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
