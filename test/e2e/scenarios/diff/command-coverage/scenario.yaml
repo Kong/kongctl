@@ -99,6 +99,12 @@ steps:
                 action: CREATE
                 fields.status: published
                 namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway' &&
+                            resource_ref=='{{ .vars.aiGatewayRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
 
       - name: 001-get-portals
         run: ["get", "portals"]
