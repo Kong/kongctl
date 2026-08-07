@@ -17,7 +17,7 @@ portals:
         config:
           issuer_url: !env PORTAL_IDP_ISSUER_URL
           client_id: !env PORTAL_IDP_CLIENT_ID
-          client_secret: !env PORTAL_IDP_CLIENT_SECRET
+          client_secret: !secret {source: !env PORTAL_IDP_CLIENT_SECRET}
           scopes:
             - openid
             - profile

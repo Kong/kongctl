@@ -30,7 +30,8 @@ func TestAIGatewayConsumerCredentialAdapterMapCreateFields(t *testing.T) {
 	require.Equal(t, map[string]string{"team": "support"}, req.Labels)
 	require.NotNil(t, req.TTL)
 	require.Equal(t, int64(60), *req.TTL)
-	require.Nil(t, req.APIKey)
+	require.NotNil(t, req.APIKey)
+	require.Equal(t, "secret-value", *req.APIKey)
 }
 
 func TestAIGatewayConsumerCredentialAdapterMapCreateFieldsRequiresType(t *testing.T) {

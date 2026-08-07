@@ -21,9 +21,11 @@ import (
 
 // Options configures plan generation behavior
 type Options struct {
-	Mode      PlanMode
-	Generator string
-	Deck      DeckOptions
+	Mode                 PlanMode
+	Generator            string
+	Deck                 DeckOptions
+	WriteSecretSelectors []string
+	WriteSecrets         bool
 }
 
 const (
@@ -412,6 +414,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		opts,
 	); err != nil {
 		return nil, err
+	}
+
+	if err := p.applySecretWriteIntents(ctx, basePlan, rs, opts); err != nil {
+		return nil, fmt.Errorf("failed to plan secret writes: %w", err)
 	}
 
 	// Update the base plan summary after merging all namespace changes

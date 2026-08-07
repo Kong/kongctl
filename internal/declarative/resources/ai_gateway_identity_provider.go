@@ -251,10 +251,10 @@ func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 		"support-cache-salt",
 	)
 	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "client_id"}, "support-client")
-	setExplainLiteral(
+	explainReplacePath(
 		openIDConnect,
 		[]string{aiGatewayIdentityProviderFieldConfig, "client_secret"},
-		"${OIDC_CLIENT_SECRET}",
+		explainArrayOf(explainSecretEnvNode("OIDC_CLIENT_SECRET")),
 	)
 	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "consumer_claims"}, "sub")
 	setExplainLiteral(

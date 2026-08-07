@@ -163,6 +163,8 @@ type Executor struct {
 	konnectBaseURL     string
 	executionMode      planner.PlanMode
 	planBaseDir        string
+	secretMu           sync.Mutex
+	resolvedSecrets    map[string]map[string]string
 }
 
 // DefaultMaxConcurrency is the default --max-concurrency value.
@@ -213,6 +215,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		konnectBaseURL:     opts.KonnectBaseURL,
 		executionMode:      opts.Mode,
 		planBaseDir:        strings.TrimSpace(opts.PlanBaseDir),
+		resolvedSecrets:    make(map[string]map[string]string),
 	}
 
 	e.concurrency = DefaultMaxConcurrency
@@ -612,6 +615,13 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		DryRun: e.dryRun,
 	}
 
+	if err := e.preflightSecretWrites(plan); err != nil {
+		result.Errors = append(result.Errors, ExecutionError{Error: err.Error()})
+		result.FailureCount++
+		return result
+	}
+	defer e.clearResolvedSecrets()
+
 	// Notify reporter of execution start
 	if e.reporter != nil {
 		e.reporter.StartExecution(plan)
@@ -797,9 +807,16 @@ func withExecutorChangeHTTPLogContext(ctx context.Context, change *planner.Plann
 func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change *planner.PlannedChange,
 	plan *planner.Plan,
 ) error {
+	reportChange := change
+	executionChange, err := cloneChangeForExecution(change)
+	if err != nil {
+		return err
+	}
+	change = executionChange
+
 	// Notify reporter of change start
 	if e.reporter != nil {
-		e.reporter.StartChange(*change)
+		e.reporter.StartChange(*reportChange)
 	}
 
 	resourceName := change.ResourceRef
@@ -822,9 +839,27 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		e.mu.Unlock()
 
 		if e.reporter != nil {
-			e.reporter.CompleteChange(*change, err)
+			e.reporter.CompleteChange(*reportChange, err)
 		}
 
+		return err
+	}
+	if err := e.injectResolvedSecretWrites(change); err != nil {
+		execError := ExecutionError{
+			ChangeID:     change.ID,
+			ResourceType: change.ResourceType,
+			ResourceName: resourceName,
+			ResourceRef:  change.ResourceRef,
+			Action:       string(change.Action),
+			Error:        err.Error(),
+		}
+		e.mu.Lock()
+		result.Errors = append(result.Errors, execError)
+		result.FailureCount++
+		e.mu.Unlock()
+		if e.reporter != nil {
+			e.reporter.CompleteChange(*reportChange, err)
+		}
 		return err
 	}
 
@@ -868,7 +903,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 		// Notify reporter
 		if e.reporter != nil {
-			e.reporter.CompleteChange(*change, err)
+			e.reporter.CompleteChange(*reportChange, err)
 		}
 
 		return err
@@ -890,48 +925,48 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		e.mu.Unlock()
 
 		if e.reporter != nil {
-			e.reporter.SkipChange(*change, "dry-run mode")
+			e.reporter.SkipChange(*reportChange, "dry-run mode")
 		}
 
 		return nil
 	}
 
 	// Execute the actual change
-	var err error
+	var executionErr error
 	var resourceID string
 
 	switch change.Action {
 	case planner.ActionCreate:
 		if change.ResourceType == planner.ResourceTypeDeck {
-			err = e.executeDeckStep(ctx, change, plan)
+			executionErr = e.executeDeckStep(ctx, change, plan)
 		} else {
-			resourceID, err = e.createResource(ctx, change)
+			resourceID, executionErr = e.createResource(ctx, change)
 		}
 	case planner.ActionExternalTool:
 		if change.ResourceType != planner.ResourceTypeDeck {
-			err = fmt.Errorf("external tool action is only supported for %s resources", planner.ResourceTypeDeck)
+			executionErr = fmt.Errorf("external tool action is only supported for %s resources", planner.ResourceTypeDeck)
 		} else {
-			err = e.executeDeckStep(ctx, change, plan)
+			executionErr = e.executeDeckStep(ctx, change, plan)
 		}
 	case planner.ActionUpdate:
-		resourceID, err = e.updateResource(ctx, change)
+		resourceID, executionErr = e.updateResource(ctx, change)
 	case planner.ActionDelete:
-		err = e.deleteResource(ctx, change)
+		executionErr = e.deleteResource(ctx, change)
 		resourceID = change.ResourceID
 	default:
-		err = fmt.Errorf("unknown action: %s", change.Action)
+		executionErr = fmt.Errorf("unknown action: %s", change.Action)
 	}
 
 	// Record result
 	e.mu.Lock()
-	if err != nil {
+	if executionErr != nil {
 		execError := ExecutionError{
 			ChangeID:     change.ID,
 			ResourceType: change.ResourceType,
 			ResourceName: resourceName,
 			ResourceRef:  change.ResourceRef,
 			Action:       string(change.Action),
-			Error:        err.Error(),
+			Error:        executionErr.Error(),
 		}
 		result.Errors = append(result.Errors, execError)
 		result.FailureCount++
@@ -962,10 +997,10 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 	// Notify reporter
 	if e.reporter != nil {
-		e.reporter.CompleteChange(*change, err)
+		e.reporter.CompleteChange(*reportChange, executionErr)
 	}
 
-	return err
+	return executionErr
 }
 
 // hydrateKnownReferenceIDs fills unresolved parent/reference IDs in-place using

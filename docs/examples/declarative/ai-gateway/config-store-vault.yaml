@@ -32,4 +32,4 @@ ai_gateways:
             type: basic
             headers:
               - name: Authorization
-                value: "{vault://support-secrets/openai-auth-header}"
+                value: !secret {source: !env OPENAI_VAULT_REFERENCE}

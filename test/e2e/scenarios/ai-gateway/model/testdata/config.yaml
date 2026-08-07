@@ -24,7 +24,7 @@ ai_gateways:
             type: basic
             headers:
               - name: Authorization
-                value: placeholder
+                value: !secret {source: !env KONGCTL_E2E_MODEL_PROVIDER_KEY}
     models:
       - ref: support-gpt
         type: model

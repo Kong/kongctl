@@ -18,7 +18,7 @@ portal_identity_providers:
     config:
       issuer_url: !env KONGCTL_E2E_PORTAL_IDP_UPDATE_ISSUER_URL
       client_id: !env KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_ID
-      client_secret: !env KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_SECRET
+      client_secret: !secret {source: !env KONGCTL_E2E_PORTAL_IDP_UPDATE_CLIENT_SECRET}
       scopes:
         - openid
         - email

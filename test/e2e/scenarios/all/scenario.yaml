@@ -2,6 +2,8 @@ baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_ALL_DCR_API_KEY: all_dcr_api_key
+  KONGCTL_E2E_ALL_SCHEMA_PASSWORD: all-password
 
 test:
   enabledByEnvVar: KONGCTL_E2E_RUN_PORTAL_IDENTITY_PROVIDERS

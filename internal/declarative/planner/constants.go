@@ -74,6 +74,7 @@ const (
 	FieldSpec          = "spec"
 	FieldSlug          = "slug"
 	FieldValue         = "value"
+	FieldAPIKey        = "api_key"
 	FieldMetadata      = "metadata"
 	FieldDataURL       = "data_url"
 	FieldDeckBaseDir   = "deck_base_dir"

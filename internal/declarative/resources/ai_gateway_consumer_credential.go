@@ -104,9 +104,6 @@ func (a AIGatewayConsumerCredentialResource) Validate() error {
 	if a.DisplayName == "" {
 		return fmt.Errorf("display_name is required for AI Gateway Consumer Credential %s", a.Ref)
 	}
-	if a.APIKey != nil {
-		return fmt.Errorf("api_key is not supported for AI Gateway Consumer Credential %s", a.Ref)
-	}
 	return nil
 }
 
@@ -154,9 +151,7 @@ func (a *AIGatewayConsumerCredentialResource) TryMatchKonnectResource(konnectRes
 }
 
 func (a AIGatewayConsumerCredentialResource) CreateRequest() kkComps.CreateAIGatewayConsumerCredentialRequest {
-	req := a.CreateAIGatewayConsumerCredentialRequest
-	req.APIKey = nil
-	return req
+	return a.CreateAIGatewayConsumerCredentialRequest
 }
 
 func (a AIGatewayConsumerCredentialResource) PayloadMap() (map[string]any, error) {
@@ -164,7 +159,6 @@ func (a AIGatewayConsumerCredentialResource) PayloadMap() (map[string]any, error
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayConsumerCredentialUnsupportedFields(payload)
 	return payload, nil
 }
 
@@ -289,7 +283,7 @@ func AIGatewayConsumerCredentialMutablePayloadMap(
 		return nil, err
 	}
 	stripAIGatewayConsumerCredentialServerFields(payload)
-	stripAIGatewayConsumerCredentialUnsupportedFields(payload)
+	stripAIGatewayConsumerCredentialWriteOnlyFields(payload)
 	return payload, nil
 }
 
@@ -327,7 +321,7 @@ func stripAIGatewayConsumerCredentialServerFields(payload map[string]any) {
 	delete(payload, aiGatewayConsumerCredentialFieldUpdatedAt)
 }
 
-func stripAIGatewayConsumerCredentialUnsupportedFields(payload map[string]any) {
+func stripAIGatewayConsumerCredentialWriteOnlyFields(payload map[string]any) {
 	delete(payload, aiGatewayConsumerCredentialFieldAPIKey)
 }
 
@@ -349,6 +343,7 @@ func aiGatewayConsumerCredentialExplainNode(_ ExplainBuildContext) (*ExplainNode
 		explainField("name", explainStringNode("support-user-key"), true, true),
 		explainField("type", explainStringNode("api-key"), true, true),
 		explainField("display_name", explainStringNode("Support User API Key"), true, true),
+		explainField("api_key", explainSecretEnvNode("AI_GATEWAY_CONSUMER_API_KEY"), false, false),
 		explainField(aiGatewayConsumerCredentialFieldTTL, &ExplainNode{Kind: "integer", Literal: "0"}, false, true),
 		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
 		explainField(

@@ -24,7 +24,7 @@ ai_gateways:
             type: basic
             headers:
               - name: Authorization
-                value: !env OPENAI_AUTH_HEADER
+                value: !secret {source: !env OPENAI_AUTH_HEADER}
     identity_providers:
       - ref: support-key-auth
         name: support-key-auth

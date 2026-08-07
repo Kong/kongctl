@@ -128,7 +128,7 @@ event_gateways:
           authentication:
             type: basic
             username: testuser
-            password: "${env[\"KAFKA_PASSWORD\"]}"
+            password: !secret {source: !env KONGCTL_E2E_SCHEMA_REGISTRY_PASSWORD}
     static_keys:
       - ref: default-static-key
         name: default-static-key-name-for-dump-test
