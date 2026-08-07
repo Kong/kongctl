@@ -254,9 +254,7 @@ func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 }
 
 func aiGatewayIdentityProviderConfigExplainNode(fields ...*ExplainField) *ExplainNode {
-	node := explainObject(fields...)
-	node.Additional = &ExplainNode{}
-	return node
+	return explainOpenObject(fields...)
 }
 
 func aiGatewayIdentityProviderInlineExplainNode() *ExplainNode {

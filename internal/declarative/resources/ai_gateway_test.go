@@ -23,6 +23,9 @@ func TestAIGatewayResourceMarshalIncludesName(t *testing.T) {
 				{Host: "proxy.example.com", Port: 443, Protocol: "https"},
 			},
 			Labels: map[string]string{"owner": "platform"},
+			AdditionalProperties: map[string]any{
+				"future_gateway_field": "gateway-value",
+			},
 		},
 	}
 
@@ -49,6 +52,7 @@ func requireAIGatewaySerializedPayload(t *testing.T, payload map[string]any) {
 	require.Equal(t, "AI Gateway", payload["display_name"])
 	require.Equal(t, "AI Gateway description", payload["description"])
 	require.Equal(t, map[string]any{"owner": "platform"}, payload["labels"])
+	require.Equal(t, "gateway-value", payload["future_gateway_field"])
 	require.NotContains(t, payload, "additionalProperties")
 
 	proxyURLs, ok := payload["proxy_urls"].([]any)

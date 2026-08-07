@@ -363,7 +363,7 @@ func aiGatewayAgentStringField(value any, key string) string {
 }
 
 func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	return explainObject(
+	return explainOpenObject(
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("booking-agent"), true, true),

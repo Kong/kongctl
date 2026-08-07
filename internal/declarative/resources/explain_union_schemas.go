@@ -82,6 +82,12 @@ func explainObject(fields ...*ExplainField) *ExplainNode {
 	return node
 }
 
+func explainOpenObject(fields ...*ExplainField) *ExplainNode {
+	node := explainObject(fields...)
+	node.Additional = &ExplainNode{}
+	return node
+}
+
 func explainField(name string, node *ExplainNode, required, recommended bool) *ExplainField {
 	return &ExplainField{Name: name, Node: node, Required: required, Recommended: recommended}
 }
