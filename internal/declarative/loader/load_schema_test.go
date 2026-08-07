@@ -179,6 +179,58 @@ ai_gateway_identity_providers:
 	}
 }
 
+func TestDeclarativeLoadSchemaAcceptsAllSDKOpenAIGatewayProperties(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    future_gateway_field: gateway-value
+    agents:
+      - ref: booking-agent
+        name: booking-agent
+        type: a2a
+        display_name: Booking Agent
+        config:
+          url: https://booking-agent.example.com
+        future_agent_field: agent-value
+    consumers:
+      - ref: support-user
+        name: support-user
+        type: api-key
+        display_name: Support User
+        future_consumer_field: consumer-value
+    consumer_groups:
+      - ref: premium-users
+        name: premium-users
+        display_name: Premium Users
+        future_consumer_group_field: consumer-group-value
+    mcp_servers:
+      - ref: support-tools
+        type: conversion-only
+        name: support-tools
+        display_name: Support Tools
+        config:
+          url: https://support-tools.example.com
+        future_mcp_server_field: mcp-server-value
+`
+
+	resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.NoError(t, err)
+	require.Equal(t, "gateway-value", resourceSet.AIGateways[0].AdditionalProperties["future_gateway_field"])
+	require.NotContains(t, resourceSet.AIGateways[0].AdditionalProperties, "ref")
+	require.NotContains(t, resourceSet.AIGateways[0].AdditionalProperties, "agents")
+	require.Equal(t, "agent-value", resourceSet.AIGatewayAgents[0].AdditionalProperties["future_agent_field"])
+	require.Equal(t, "consumer-value", resourceSet.AIGatewayConsumers[0].AdditionalProperties["future_consumer_field"])
+	require.Equal(
+		t,
+		"consumer-group-value",
+		resourceSet.AIGatewayConsumerGroups[0].AdditionalProperties["future_consumer_group_field"],
+	)
+	mcpServer := resourceSet.AIGatewayMCPServers[0].AIGatewayMCPServerConversionOnly
+	require.NotNil(t, mcpServer)
+	require.Equal(t, "mcp-server-value", mcpServer.AdditionalProperties["future_mcp_server_field"])
+}
+
 func TestDeclarativeLoadSchemaKeepsIdentityProviderResourceClosed(t *testing.T) {
 	input := `
 ai_gateway_identity_providers:
@@ -217,11 +269,7 @@ ai_gateways:
 
 	_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
 	require.Error(t, err)
-	assert.EqualError(
-		t,
-		err,
-		`AI Gateway MCP Server field "access" is not supported when type is "conversion-only"`,
-	)
+	assert.ErrorContains(t, err, `AI Gateway MCP Server field "access" is not supported when type is "conversion-only"`)
 }
 
 func TestDeclarativeLoadSchemaReportsDeprecatedPortalAuthSettingsFields(t *testing.T) {

@@ -350,7 +350,7 @@ func aiGatewayConsumerStringField(value any, key string) string {
 }
 
 func aiGatewayConsumerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	return explainObject(
+	return explainOpenObject(
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("support-user"), true, true),

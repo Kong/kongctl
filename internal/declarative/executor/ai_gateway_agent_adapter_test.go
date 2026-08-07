@@ -22,6 +22,7 @@ func TestAIGatewayAgentAdapterMapCreateFields(t *testing.T) {
 		},
 		planner.FieldPolicies: []string{"mask-sensitive-data"},
 		planner.FieldLabels:   map[string]string{"team": "support"},
+		"future_agent_field":  "agent-value",
 	}
 
 	var req kkComps.CreateAIGatewayAgentRequest
@@ -32,6 +33,7 @@ func TestAIGatewayAgentAdapterMapCreateFields(t *testing.T) {
 	require.Equal(t, "https://booking-agent.example.com", req.Config.URL)
 	require.Equal(t, []string{"mask-sensitive-data"}, req.Policies)
 	require.Equal(t, map[string]string{"team": "support"}, req.Labels)
+	require.Equal(t, "agent-value", req.AdditionalProperties["future_agent_field"])
 }
 
 func TestAIGatewayAgentAdapterMapCreateFieldsRequiresConfigURL(t *testing.T) {

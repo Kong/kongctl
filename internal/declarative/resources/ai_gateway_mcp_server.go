@@ -517,26 +517,26 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		slices.Clone(commonFields),
 		explainField("access", aiGatewayMCPServerAccessExplainNode(), false, false),
 	)
-	conversionOnly := explainObject(append(
+	conversionOnly := explainOpenObject(append(
 		slices.Clone(commonFields),
 		explainField("type", explainConstStringNode("conversion-only"), true, true),
 	)...)
 	conversionOnly.rejectLoadField("access", aiGatewayMCPServerConversionOnlyAccessMessage)
 	return explainUnionNode(
 		conversionOnly,
-		explainObject(append(
+		explainOpenObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("conversion-listener"), true, true),
 		)...),
-		explainObject(append(
+		explainOpenObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("listener"), true, true),
 		)...),
-		explainObject(append(
+		explainOpenObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("passthrough-listener"), true, true),
 		)...),
-		explainObject(append(
+		explainOpenObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("upstream-server"), true, true),
 		)...),

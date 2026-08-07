@@ -21,6 +21,9 @@ func TestAIGatewayPlannerCreateUsesExplicitNameNotRef(t *testing.T) {
 			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
 				Name:        "support-gateway",
 				DisplayName: "Support Gateway",
+				AdditionalProperties: map[string]any{
+					"future_gateway_field": "gateway-value",
+				},
 			},
 		}},
 	}
@@ -35,6 +38,46 @@ func TestAIGatewayPlannerCreateUsesExplicitNameNotRef(t *testing.T) {
 	require.Equal(t, "local-support-gateway", change.ResourceRef)
 	require.Equal(t, "support-gateway", change.Fields[FieldName])
 	require.Equal(t, "Support Gateway", change.Fields[FieldDisplayName])
+	require.Equal(t, "gateway-value", change.Fields["future_gateway_field"])
+}
+
+func TestAIGatewayPlannerUpdatesAdditionalProperties(t *testing.T) {
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{{
+				ID:          "gateway-id",
+				Name:        "support-gateway",
+				DisplayName: "Support Gateway",
+				Labels:      map[string]string{labels.NamespaceKey: "default"},
+				AdditionalProperties: map[string]any{
+					"future_gateway_field": "old-value",
+				},
+			}},
+		},
+	})
+	resourceSet := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{Ref: "support-gateway"},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "support-gateway",
+				DisplayName: "Support Gateway",
+				AdditionalProperties: map[string]any{
+					"future_gateway_field": "new-value",
+				},
+			},
+		}},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), resourceSet, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ActionUpdate, plan.Changes[0].Action)
+	require.Equal(t, "new-value", plan.Changes[0].Fields["future_gateway_field"])
+	require.Equal(
+		t,
+		FieldChange{Old: "old-value", New: "new-value"},
+		plan.Changes[0].ChangedFields["future_gateway_field"],
+	)
 }
 
 func TestAIGatewayPlannerMatchesByNameBeforeDisplayName(t *testing.T) {

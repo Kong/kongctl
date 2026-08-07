@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -1636,10 +1637,11 @@ func mapAIGatewayToDeclarativeResource(gateway kkComps.AIGateway) declresources.
 	result := declresources.AIGatewayResource{
 		BaseResource: declresources.BaseResource{Ref: gateway.ID},
 		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
-			Name:        gateway.Name,
-			DisplayName: gateway.DisplayName,
-			Description: gateway.Description,
-			ProxyUrls:   gateway.ProxyUrls,
+			Name:                 gateway.Name,
+			DisplayName:          gateway.DisplayName,
+			Description:          gateway.Description,
+			ProxyUrls:            gateway.ProxyUrls,
+			AdditionalProperties: maps.Clone(gateway.AdditionalProperties),
 		},
 	}
 
