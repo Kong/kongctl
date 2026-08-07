@@ -1,0 +1,166 @@
+baseInputsPath: ./testdata
+
+test:
+  maturity: beta
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: dump-ai-gateways-e2e
+  gatewayRef: dump-ai-gateway
+  gatewayName: dump-ai-gateway
+  gatewayDisplayName: E2E Dump AI Gateway
+  gatewayDescription: E2E Dump AI Gateway description
+  policyName: dump-ai-gateway-policy
+  policyDisplayName: E2E Dump AI Gateway Policy
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - config_version
+      - endpoints
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-sync-bootstrap
+    commands:
+      - name: 000-sync-bootstrap
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - name: ai-gateway-created
+            select: >-
+              plan.changes[?resource_type=='ai_gateway' &&
+                           resource_ref=='{{ .vars.gatewayRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.gatewayName }}"
+                fields.display_name: "{{ .vars.gatewayDisplayName }}"
+                fields.description: "{{ .vars.gatewayDescription }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+
+  - name: 002-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-ai-gateways
+        run:
+          - dump
+          - declarative
+          - "--resources=ai_gateways"
+          - --include-child-resources
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - name: ai-gateways-key-present
+            select: ai_gateways
+            expect:
+              fields:
+                "length(@)": 1
+          - name: ai-gateway-present
+            select: "ai_gateways[?display_name=='{{ .vars.gatewayDisplayName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.gatewayName }}"
+                display_name: "{{ .vars.gatewayDisplayName }}"
+                description: "{{ .vars.gatewayDescription }}"
+          - name: ai-gateway-policy-present
+            select: >-
+              ai_gateways[?display_name=='{{ .vars.gatewayDisplayName }}'] | [0].policies[?name=='{{ .vars.policyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.policyName }}"
+                display_name: "{{ .vars.policyDisplayName }}"
+                type: ai-prompt-guard
+                enabled: true
+          - name: default-namespace-present
+            select: _defaults.kongctl
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 002-reset-before-round-trip
+        resetOrg: true
+
+      - name: 003-sync-dumped-config
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+
+  - name: 003-reset-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
