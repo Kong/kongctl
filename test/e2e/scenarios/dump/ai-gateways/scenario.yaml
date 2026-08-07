@@ -124,8 +124,29 @@ steps:
               fields:
                 total_changes: 0
 
-      - name: 002-reset-before-round-trip
-        resetOrg: true
+      - name: 002-delete-before-round-trip
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
 
       - name: 003-sync-dumped-config
         outputFormat: json
