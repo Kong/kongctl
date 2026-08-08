@@ -1373,13 +1373,13 @@ func collectOrganizationUsersFromTeamMemberships(
 				})
 			}
 			slices.SortFunc(user.Roles, func(a, b declresources.OrganizationUserRoleResource) int {
-				return strings.Compare(a.Ref, b.Ref)
+				return cmp.Compare(a.Ref, b.Ref)
 			})
 		}
 		users = append(users, *user)
 	}
 	slices.SortFunc(users, func(a, b declresources.OrganizationUserResource) int {
-		return strings.Compare(a.Ref, b.Ref)
+		return cmp.Compare(a.Ref, b.Ref)
 	})
 
 	return users
@@ -1470,13 +1470,13 @@ func collectOrganizationSystemAccountsFromTeamMemberships(
 			return cmp.Compare(a.Ref, b.Ref)
 		})
 		slices.SortFunc(accountRes.Roles, func(a, b declresources.OrganizationSystemAccountRoleResource) int {
-			return strings.Compare(a.Ref, b.Ref)
+			return cmp.Compare(a.Ref, b.Ref)
 		})
 		results = append(results, accountRes)
 	}
 
 	slices.SortFunc(results, func(a, b declresources.OrganizationSystemAccountResource) int {
-		return strings.Compare(a.Ref, b.Ref)
+		return cmp.Compare(a.Ref, b.Ref)
 	})
 
 	return results
