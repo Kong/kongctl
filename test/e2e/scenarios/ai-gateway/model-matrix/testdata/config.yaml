@@ -73,7 +73,7 @@ ai_gateways:
           logging:
             payloads: true
           model:
-            name_header: true
+            name_header: false
           balancer:
             algorithm: round-robin
         capabilities:

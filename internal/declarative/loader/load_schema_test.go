@@ -131,6 +131,54 @@ ai_gateway_model_providers:
 	require.NoError(t, err)
 }
 
+func TestDeclarativeLoadSchemaHandlesNestedAIGatewayModelNameHeaderByType(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    name: support-gateway
+    display_name: Support Gateway
+    models:
+      - ref: support-model
+        type: model
+        name: support-model
+        display_name: Support Model
+        formats:
+          - type: openai
+        config:
+          route: {}
+          model:
+            name_header: false
+        capabilities:
+          - generate
+        targets:
+          - name: gpt-4o
+            provider: support-openai
+            config:
+              type: openai
+`
+
+	t.Run("model", func(t *testing.T) {
+		resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+		require.NoError(t, err)
+		require.Len(t, resourceSet.AIGatewayModels, 1)
+		model := resourceSet.AIGatewayModels[0].AIGatewayModelModel
+		require.NotNil(t, model)
+		require.NotNil(t, model.Config.Model)
+		require.NotNil(t, model.Config.Model.NameHeader)
+		require.False(t, *model.Config.Model.NameHeader)
+	})
+
+	t.Run("api", func(t *testing.T) {
+		apiInput := strings.Replace(input, "type: model", "type: api", 1)
+		_, err := New().parseYAML(strings.NewReader(apiInput), "manifest.yaml", ".")
+		require.EqualError(
+			t,
+			err,
+			`AI Gateway model field "config.model" is only supported when type is "model"`,
+		)
+	})
+}
+
 func TestDeclarativeLoadSchemaAcceptsAdditionalIdentityProviderConfigProperties(t *testing.T) {
 	tests := []struct {
 		name         string
