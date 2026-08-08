@@ -80,6 +80,41 @@ func TestAIGatewayPlannerUpdatesAdditionalProperties(t *testing.T) {
 	)
 }
 
+func TestAIGatewayPlannerPreservesUndeclaredAdditionalPropertiesOnUpdate(t *testing.T) {
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{{
+				ID:          "gateway-id",
+				Name:        "support-gateway",
+				DisplayName: "Support Gateway",
+				Labels:      map[string]string{labels.NamespaceKey: "default"},
+				AdditionalProperties: map[string]any{
+					"security_extension": map[string]any{"enforced": true},
+				},
+			}},
+		},
+	})
+	resourceSet := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{Ref: "support-gateway"},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "support-gateway",
+				DisplayName: "Updated Support Gateway",
+			},
+		}},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), resourceSet, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(
+		t,
+		map[string]any{"enforced": true},
+		plan.Changes[0].Fields["security_extension"],
+	)
+	require.NotContains(t, plan.Changes[0].ChangedFields, "security_extension")
+}
+
 func TestAIGatewayPlannerMatchesByNameBeforeDisplayName(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{

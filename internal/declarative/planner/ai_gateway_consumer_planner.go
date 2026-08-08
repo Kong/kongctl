@@ -330,6 +330,12 @@ func (p *Planner) shouldUpdateAIGatewayConsumer(
 	}
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	updateFields := preserveAIGatewayOpenProperties(
+		current.AdditionalProperties,
+		currentPayload,
+		currentCompare,
+		desiredPayload,
+	)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
 		currentCompare,
 		desiredCompare,
@@ -341,7 +347,7 @@ func (p *Planner) shouldUpdateAIGatewayConsumer(
 		return false, nil, nil, nil
 	}
 
-	return true, clonePayloadMap(desiredPayload), changedFields, nil
+	return true, updateFields, changedFields, nil
 }
 
 func indexAIGatewayConsumers(

@@ -400,6 +400,23 @@ func AIGatewayMCPServerMutablePayloadMap(server kkComps.AIGatewayMCPServer) (map
 	return payload, nil
 }
 
+func AIGatewayMCPServerAdditionalProperties(server kkComps.AIGatewayMCPServer) map[string]any {
+	switch {
+	case server.AIGatewayMCPServerAIGatewayMCPServerConversionOnly != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerConversionOnly.AdditionalProperties
+	case server.AIGatewayMCPServerAIGatewayMCPServerConversionListener != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerConversionListener.AdditionalProperties
+	case server.AIGatewayMCPServerAIGatewayMCPServerListener != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerListener.AdditionalProperties
+	case server.AIGatewayMCPServerAIGatewayMCPServerPassthroughListener != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerPassthroughListener.AdditionalProperties
+	case server.AIGatewayMCPServerAIGatewayMCPServerUpstreamServer != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerUpstreamServer.AdditionalProperties
+	default:
+		return nil
+	}
+}
+
 func AIGatewayMCPServerResourceFromResponse(
 	gatewayRef string,
 	server kkComps.AIGatewayMCPServer,

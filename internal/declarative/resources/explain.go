@@ -1383,7 +1383,7 @@ func explainLiteralFor(node *ExplainNode, name string) string {
 		switch name {
 		case SchemaFieldRef:
 			return "my-resource"
-		case "name":
+		case SchemaFieldName:
 			return "my-resource"
 		case "display_name":
 			return "My Resource"

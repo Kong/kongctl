@@ -65,6 +65,44 @@ func TestAIGatewayAgentPlannerUpdatesExistingAgent(t *testing.T) {
 	require.Contains(t, change.ChangedFields, FieldDisplayName)
 }
 
+func TestAIGatewayAgentPlannerPreservesUndeclaredOpenPropertiesOnUpdate(t *testing.T) {
+	agent := testAIGatewayAgentResource(t, nil)
+	agent.DisplayName = "Booking Agent Updated"
+	current := testAIGatewayAgent(nil)
+	current.AdditionalProperties = map[string]any{
+		"security_extension": map[string]any{"enforced": true},
+	}
+
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayAgent(
+		state.AIGatewayAgent{AIGatewayAgent: current},
+		agent,
+	)
+
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	require.Contains(t, changed, FieldDisplayName)
+	require.NotContains(t, changed, "security_extension")
+	require.Equal(t, current.AdditionalProperties["security_extension"], fields["security_extension"])
+}
+
+func TestAIGatewayAgentPlannerDoesNotTreatUndeclaredOpenPropertiesAsDrift(t *testing.T) {
+	agent := testAIGatewayAgentResource(t, nil)
+	current := testAIGatewayAgent(nil)
+	current.AdditionalProperties = map[string]any{
+		"security_extension": map[string]any{"enforced": true},
+	}
+
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayAgent(
+		state.AIGatewayAgent{AIGatewayAgent: current},
+		agent,
+	)
+
+	require.NoError(t, err)
+	require.False(t, needsUpdate)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func TestAIGatewayAgentPlannerIgnoresAPIDefaults(t *testing.T) {
 	agent := testAIGatewayAgentResourceWithConfig(t, `{
 		"url": "https://booking-agent.example.com",

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAIGatewayIdentityProviderExplainRequiresOpenIDConnectCacheTokensSalt(t *testing.T) {
+func TestAIGatewayIdentityProviderExplainRequiresOpenIDConnectAPIFields(t *testing.T) {
 	node, err := aiGatewayIdentityProviderExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)
 
@@ -17,6 +17,9 @@ func TestAIGatewayIdentityProviderExplainRequiresOpenIDConnectCacheTokensSalt(t 
 	cacheTokensSalt := configField.Node.propIndex["cache_tokens_salt"]
 	require.NotNil(t, cacheTokensSalt)
 	require.True(t, cacheTokensSalt.Required)
+	issuer := configField.Node.propIndex["issuer"]
+	require.NotNil(t, issuer)
+	require.True(t, issuer.Required)
 }
 
 func TestAIGatewayIdentityProviderExplainAllowsAdditionalConfigProperties(t *testing.T) {

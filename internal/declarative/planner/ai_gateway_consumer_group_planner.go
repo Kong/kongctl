@@ -304,6 +304,12 @@ func (p *Planner) shouldUpdateAIGatewayConsumerGroup(
 	resources.StripAIGatewayConsumerGroupMembershipFields(desiredPayload)
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	updateFields := preserveAIGatewayOpenProperties(
+		current.AdditionalProperties,
+		currentPayload,
+		currentCompare,
+		desiredPayload,
+	)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
 		currentCompare,
 		desiredCompare,
@@ -324,7 +330,6 @@ func (p *Planner) shouldUpdateAIGatewayConsumerGroup(
 		return false, nil, nil, nil
 	}
 
-	updateFields := clonePayloadMap(desiredPayload)
 	if managesConsumers {
 		updateFields[FieldConsumers] = normalizedAIGatewayConsumerGroupConsumers(desiredConsumers)
 	}

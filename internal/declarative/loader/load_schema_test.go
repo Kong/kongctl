@@ -154,6 +154,7 @@ func TestDeclarativeLoadSchemaAcceptsAdditionalIdentityProviderConfigProperties(
       auth_methods: [bearer]
       cache_tokens_salt: support-cache-salt
       credential_claim: [sub]
+      issuer: https://issuer.example.com
 `,
 			field: "credential_claim",
 		},
@@ -175,6 +176,76 @@ ai_gateway_identity_providers:
 			require.NoError(t, err)
 			require.Len(t, resourceSet.AIGatewayIdentityProviders, 1)
 			require.Contains(t, resourceSet.AIGatewayIdentityProviders[0].Config, tt.field)
+		})
+	}
+}
+
+func TestDeclarativeLoadSchemaAcceptsIdentityProviderAccessControlFields(t *testing.T) {
+	input := `
+ai_gateway_identity_providers:
+  - ref: support-oidc
+    ai_gateway: ai-quickstart
+    name: support-oidc
+    display_name: Support OIDC
+    type: openid-connect
+    config:
+      auth_methods: [bearer]
+      cache_tokens_salt: support-cache-salt
+      issuer: https://issuer.example.com
+      consumer_groups_claim: [groups]
+      consumer_groups_optional: false
+      upstream_headers_claims: [sub]
+      upstream_headers_names: [x-consumer-subject]
+`
+
+	resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.NoError(t, err)
+	require.Len(t, resourceSet.AIGatewayIdentityProviders, 1)
+	config := resourceSet.AIGatewayIdentityProviders[0].Config
+	require.Equal(t, []any{"groups"}, config["consumer_groups_claim"])
+	require.Equal(t, false, config["consumer_groups_optional"])
+	require.Equal(t, []any{"sub"}, config["upstream_headers_claims"])
+	require.Equal(t, []any{"x-consumer-subject"}, config["upstream_headers_names"])
+}
+
+func TestLoaderRequiresOpenIDConnectAPIFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		configYAML string
+		wantError  string
+	}{
+		{
+			name: "issuer",
+			configYAML: `
+      cache_tokens_salt: support-cache-salt`,
+			wantError: "config.issuer is required",
+		},
+		{
+			name: "cache tokens salt",
+			configYAML: `
+      issuer: https://issuer.example.com`,
+			wantError: "config.cache_tokens_salt is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := fmt.Sprintf(`
+ai_gateways:
+  - ref: ai-quickstart
+    name: ai-quickstart
+    display_name: AI Quickstart
+ai_gateway_identity_providers:
+  - ref: support-oidc
+    ai_gateway: ai-quickstart
+    name: support-oidc
+    display_name: Support OIDC
+    type: openid-connect
+    config:%s
+`, tt.configYAML)
+
+			_, err := New().LoadFile(writeLoaderTestFile(t, input))
+			require.ErrorContains(t, err, tt.wantError)
 		})
 	}
 }
