@@ -3,6 +3,7 @@ package resources
 import (
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -387,6 +388,19 @@ func TestAutoExplainInlineSDKUnionUsesPayloadFields(t *testing.T) {
 	assert.True(t, node.OneOf[0].propertyExists("service"))
 	assert.True(t, node.OneOf[0].propertyExists("ref"))
 	assert.False(t, node.OneOf[0].propertyExists("service_reference"))
+}
+
+func TestAutoExplainSDKUnionRetainsPrivateStringDiscriminator(t *testing.T) {
+	node, err := autoExplainConcreteNode[kkComps.SchemaRegistryConfluent](nil)
+	require.NoError(t, err)
+
+	authentication, ok := node.lookup([]string{"config", "authentication"})
+	require.True(t, ok)
+	require.Len(t, authentication.OneOf, 1)
+	typeField, ok := authentication.OneOf[0].property("type")
+	require.True(t, ok)
+	require.True(t, typeField.Required)
+	require.Equal(t, "basic", typeField.Node.Const)
 }
 
 func TestRenderExplainText_AnalyticsDashboardAllowedValues(t *testing.T) {
