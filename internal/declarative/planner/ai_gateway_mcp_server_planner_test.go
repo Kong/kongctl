@@ -14,6 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
 
@@ -307,6 +308,78 @@ func TestAIGatewayMCPServerPlannerIgnoresDefaultAccessWhenServerOmitsIt(t *testi
 	require.Nil(t, changed)
 }
 
+func TestAIGatewayMCPServerPlannerDependsOnIdentityProviderCreate(t *testing.T) {
+	server := testAIGatewayMCPServerResourceWithIdentityProvider(t)
+	identityProvider := resources.AIGatewayIdentityProviderResource{
+		BaseResource: resources.BaseResource{Ref: "support-key-auth"},
+		AIGateway:    "support-gateway",
+		Name:         "support-key-auth",
+		Type:         "key-auth",
+		DisplayName:  "Support Key Auth",
+		Config:       map[string]any{"key_names": []any{"apikey"}},
+	}
+	rs := &resources.ResourceSet{
+		AIGateways:                 []resources.AIGatewayResource{testAIGatewayResource()},
+		AIGatewayIdentityProviders: []resources.AIGatewayIdentityProviderResource{identityProvider},
+		AIGatewayMCPServers:        []resources.AIGatewayMCPServerResource{server},
+	}
+
+	plan, err := NewPlanner(
+		state.NewClient(state.ClientConfig{AIGatewayAPI: &testAIGatewayAPI{}}),
+		slog.Default(),
+	).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+
+	providerCreate := findAIGatewayModelTestChange(
+		t, plan, ResourceTypeAIGatewayIdentityProvider, "support-key-auth",
+	)
+	serverCreate := findAIGatewayModelTestChange(t, plan, ResourceTypeAIGatewayMCPServer, "support-tools")
+	field := FieldAccess + "." + FieldIdentityProviders + ".0"
+	require.Contains(t, serverCreate.DependsOn, providerCreate.ID)
+	require.Equal(t, resources.UnknownReferenceID, serverCreate.References[field].ID)
+	require.Equal(t, tags.RefPlaceholderPrefix+"support-key-auth#id", serverCreate.References[field].Ref)
+}
+
+func TestAIGatewayMCPServerPlannerIdentityProviderRefNoopForExistingServer(t *testing.T) {
+	desired := testAIGatewayMCPServerResourceWithIdentityProvider(t)
+	var current kkComps.AIGatewayMCPServer
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "server-id",
+		"type": "conversion-listener",
+		"name": "support-tools",
+		"display_name": "Support Tools",
+		"enabled": true,
+		"access": {
+			"acl_attribute_type": "consumer",
+			"identity_providers": ["support-key-auth"]
+		},
+		"config": {
+			"url": "https://support-tools.example.com",
+			"route": {"paths": ["/support-tools"]}
+		},
+		"tools": [{"name": "lookup-customer", "description": "Look up a customer profile", "method": "GET"}],
+		"policies": [],
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z"
+	}`), &current))
+	rs := &resources.ResourceSet{
+		AIGatewayIdentityProviders: []resources.AIGatewayIdentityProviderResource{{
+			BaseResource: resources.BaseResource{Ref: "support-key-auth"},
+			Name:         "support-key-auth",
+		}},
+	}
+
+	needsUpdate, fields, changed, err := (&Planner{resources: rs}).shouldUpdateAIGatewayMCPServer(
+		state.AIGatewayMCPServer{AIGatewayMCPServer: current},
+		desired,
+	)
+
+	require.NoError(t, err)
+	require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func testAIGatewayMCPServerResource(t *testing.T) resources.AIGatewayMCPServerResource {
 	t.Helper()
 	payload := `{
@@ -341,6 +414,31 @@ func testAIGatewayMCPServerResourceWithAccess(t *testing.T) resources.AIGatewayM
 			"acl_attribute_type": "consumer",
 			"acls": {"allow": []},
 			"default_tool_acls": {"allow": []}
+		},
+		"config": {
+			"url": "https://support-tools.example.com",
+			"route": {"paths": ["/support-tools"]}
+		},
+		"tools": [{"name": "lookup-customer", "description": "Look up a customer profile", "method": "GET"}],
+		"policies": []
+	}`
+	var server resources.AIGatewayMCPServerResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &server))
+	return server
+}
+
+func testAIGatewayMCPServerResourceWithIdentityProvider(t *testing.T) resources.AIGatewayMCPServerResource {
+	t.Helper()
+	payload := `{
+		"ref": "support-tools",
+		"ai_gateway": "support-gateway",
+		"type": "conversion-listener",
+		"name": "support-tools",
+		"display_name": "Support Tools",
+		"enabled": true,
+		"access": {
+			"acl_attribute_type": "consumer",
+			"identity_providers": ["` + tags.RefPlaceholderPrefix + `support-key-auth#id"]
 		},
 		"config": {
 			"url": "https://support-tools.example.com",

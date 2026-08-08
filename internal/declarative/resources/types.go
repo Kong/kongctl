@@ -95,6 +95,8 @@ const (
 	SchemaFieldAIGateway         = "ai_gateway"
 	SchemaFieldAIGatewayConsumer = "ai_gateway_consumer"
 	SchemaFieldDisplayName       = "display_name"
+	SchemaFieldAccess            = "access"
+	SchemaFieldIdentityProviders = "identity_providers"
 	SchemaFieldConfig            = "config"
 	SchemaFieldConfigStoreID     = "config_store_id"
 	SchemaFieldKongctl           = "kongctl"

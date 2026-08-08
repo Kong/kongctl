@@ -400,6 +400,23 @@ func AIGatewayMCPServerMutablePayloadMap(server kkComps.AIGatewayMCPServer) (map
 	return payload, nil
 }
 
+func AIGatewayMCPServerAdditionalProperties(server kkComps.AIGatewayMCPServer) map[string]any {
+	switch {
+	case server.AIGatewayMCPServerAIGatewayMCPServerConversionOnly != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerConversionOnly.AdditionalProperties
+	case server.AIGatewayMCPServerAIGatewayMCPServerConversionListener != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerConversionListener.AdditionalProperties
+	case server.AIGatewayMCPServerAIGatewayMCPServerListener != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerListener.AdditionalProperties
+	case server.AIGatewayMCPServerAIGatewayMCPServerPassthroughListener != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerPassthroughListener.AdditionalProperties
+	case server.AIGatewayMCPServerAIGatewayMCPServerUpstreamServer != nil:
+		return server.AIGatewayMCPServerAIGatewayMCPServerUpstreamServer.AdditionalProperties
+	default:
+		return nil
+	}
+}
+
 func AIGatewayMCPServerResourceFromResponse(
 	gatewayRef string,
 	server kkComps.AIGatewayMCPServer,
@@ -517,26 +534,26 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		slices.Clone(commonFields),
 		explainField("access", aiGatewayMCPServerAccessExplainNode(), false, false),
 	)
-	conversionOnly := explainObject(append(
+	conversionOnly := explainOpenObject(append(
 		slices.Clone(commonFields),
 		explainField("type", explainConstStringNode("conversion-only"), true, true),
 	)...)
 	conversionOnly.rejectLoadField("access", aiGatewayMCPServerConversionOnlyAccessMessage)
 	return explainUnionNode(
 		conversionOnly,
-		explainObject(append(
+		explainOpenObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("conversion-listener"), true, true),
 		)...),
-		explainObject(append(
+		explainOpenObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("listener"), true, true),
 		)...),
-		explainObject(append(
+		explainOpenObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("passthrough-listener"), true, true),
 		)...),
-		explainObject(append(
+		explainOpenObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("upstream-server"), true, true),
 		)...),
@@ -549,6 +566,19 @@ func aiGatewayMCPServerAccessExplainNode() *ExplainNode {
 		explainField("access_token_claim_field", explainStringNode("sub"), false, false),
 		explainField("acls", aiGatewayMCPACLsExplainNode(), false, false),
 		explainField("default_tool_acls", aiGatewayMCPACLsExplainNode(), false, false),
+		explainField(
+			SchemaFieldIdentityProviders,
+			explainArrayOf(explainStringNode("identity-provider-name")),
+			false,
+			false,
+		),
+		explainField("metadata", explainObject(
+			explainField("discovery_endpoint", explainStringNode("/.well-known/oauth-protected-resource"), false, false),
+			explainField("endpoint", explainStringNode("https://mcp.example.com"), false, false),
+			explainField("authorization_servers", explainArrayOf(explainStringNode("https://idp.example.com")), false, false),
+			explainField("resource", explainStringNode("https://mcp.example.com"), false, false),
+			explainField("scopes_supported", explainArrayOf(explainStringNode("mcp:read")), false, false),
+		), false, false),
 	)
 }
 

@@ -5,7 +5,7 @@ _defaults:
 ai_gateway_mcp_servers:
   - ref: peer-support-tools
     ai_gateway: !ref shared-ai-gateway#id
-    type: conversion-only
+    type: conversion-listener
     name: peer-support-tools
     display_name: "Peer Support Tools"
     enabled: true
@@ -22,5 +22,7 @@ ai_gateway_mcp_servers:
         description: "Look up a customer profile"
         method: GET
         path: /customers/{customer_id}
-    policies:
-      - !ref peer-endpoint-key-auth
+    access:
+      acl_attribute_type: consumer
+      identity_providers:
+        - !ref shared-key-auth

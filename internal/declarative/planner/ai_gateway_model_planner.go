@@ -253,7 +253,13 @@ func (p *Planner) shouldUpdateAIGatewayModel(
 	}
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	currentCompare, desiredCompare = normalizeAIGatewayModelSelectorForComparison(currentCompare, desiredCompare)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
+		currentCompare,
+		desiredCompare,
+		p.resources,
+	)
+	currentCompare, desiredCompare = normalizeAIGatewayIdentityProviderReferencesForComparison(
 		currentCompare,
 		desiredCompare,
 		p.resources,
@@ -265,6 +271,33 @@ func (p *Planner) shouldUpdateAIGatewayModel(
 	}
 
 	return true, clonePayloadMap(desiredPayload), changedFields, nil
+}
+
+func normalizeAIGatewayModelSelectorForComparison(
+	currentPayload map[string]any,
+	desiredPayload map[string]any,
+) (map[string]any, map[string]any) {
+	desiredConfig, ok := desiredPayload[FieldConfig].(map[string]any)
+	if !ok {
+		return currentPayload, desiredPayload
+	}
+	if desiredRoute, ok := desiredConfig[FieldRoute].(map[string]any); ok {
+		if _, configured := desiredRoute[FieldModel]; configured {
+			return currentPayload, desiredPayload
+		}
+	}
+
+	currentConfig, ok := currentPayload[FieldConfig].(map[string]any)
+	if !ok {
+		return currentPayload, desiredPayload
+	}
+	currentRoute, ok := currentConfig[FieldRoute].(map[string]any)
+	if !ok {
+		return currentPayload, desiredPayload
+	}
+	delete(currentRoute, FieldModel)
+	pruneEmptyContainersMissingFromPeer(currentPayload, desiredPayload)
+	return currentPayload, desiredPayload
 }
 
 func indexAIGatewayModels(

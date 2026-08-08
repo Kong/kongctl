@@ -54,6 +54,9 @@ func explainConstDiscriminator(typ reflect.Type) (string, string, bool) {
 		return "", "", false
 	}
 	for field := range typ.Fields() {
+		if derefExplainType(field.Type).Kind() != reflect.String {
+			continue
+		}
 		value := field.Tag.Get("const")
 		if value == "" {
 			continue
@@ -79,6 +82,12 @@ func explainObject(fields ...*ExplainField) *ExplainNode {
 	for _, field := range fields {
 		node.addField(field)
 	}
+	return node
+}
+
+func explainOpenObject(fields ...*ExplainField) *ExplainNode {
+	node := explainObject(fields...)
+	node.Additional = &ExplainNode{}
 	return node
 }
 

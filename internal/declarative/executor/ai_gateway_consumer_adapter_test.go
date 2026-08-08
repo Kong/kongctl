@@ -19,6 +19,7 @@ func TestAIGatewayConsumerAdapterMapCreateFields(t *testing.T) {
 		planner.FieldDisplayName: "Support User",
 		planner.FieldPolicies:    []string{"mask-sensitive-data"},
 		planner.FieldLabels:      map[string]string{"team": "support"},
+		"future_consumer_field":  "consumer-value",
 	}
 
 	var req kkComps.CreateAIGatewayConsumerRequest
@@ -28,6 +29,7 @@ func TestAIGatewayConsumerAdapterMapCreateFields(t *testing.T) {
 	require.Equal(t, "Support User", req.DisplayName)
 	require.Equal(t, []string{"mask-sensitive-data"}, req.Policies)
 	require.Equal(t, map[string]string{"team": "support"}, req.Labels)
+	require.Equal(t, "consumer-value", req.AdditionalProperties["future_consumer_field"])
 }
 
 func TestAIGatewayConsumerAdapterMapCreateFieldsRequiresType(t *testing.T) {

@@ -3,16 +3,19 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
+	"strings"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 const (
-	aiGatewayIdentityProviderFieldName        = "name"
-	aiGatewayIdentityProviderFieldType        = "type"
-	aiGatewayIdentityProviderFieldDisplayName = "display_name"
-	aiGatewayIdentityProviderFieldLabels      = "labels"
-	aiGatewayIdentityProviderFieldManagedBy   = "managed_by"
-	aiGatewayIdentityProviderFieldConfig      = "config"
+	aiGatewayIdentityProviderFieldName         = "name"
+	aiGatewayIdentityProviderFieldType         = "type"
+	aiGatewayIdentityProviderFieldDisplayName  = "display_name"
+	aiGatewayIdentityProviderFieldLabels       = "labels"
+	aiGatewayIdentityProviderFieldManagedBy    = "managed_by"
+	aiGatewayIdentityProviderFieldConfig       = "config"
+	aiGatewayIdentityProviderTypeOpenIDConnect = "openid-connect"
 )
 
 func init() {
@@ -83,6 +86,17 @@ func (a AIGatewayIdentityProviderResource) Validate() error {
 	}
 	if a.Config == nil {
 		return fmt.Errorf("config is required for AI Gateway Identity Provider %s", a.Ref)
+	}
+	if a.Type == aiGatewayIdentityProviderTypeOpenIDConnect {
+		if issuer, ok := a.Config["issuer"].(string); !ok || strings.TrimSpace(issuer) == "" {
+			return fmt.Errorf("config.issuer is required for OpenID Connect AI Gateway Identity Provider %s", a.Ref)
+		}
+		if salt, ok := a.Config["cache_tokens_salt"].(string); !ok || strings.TrimSpace(salt) == "" {
+			return fmt.Errorf(
+				"config.cache_tokens_salt is required for OpenID Connect AI Gateway Identity Provider %s",
+				a.Ref,
+			)
+		}
 	}
 	return nil
 }
@@ -208,49 +222,104 @@ func (a *AIGatewayIdentityProviderResource) UnmarshalJSON(data []byte) error {
 }
 
 func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	commonFields := []*ExplainField{
-		explainResourceRefField(),
-		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
-		explainField("name", explainStringNode("support-key-auth"), true, true),
-		explainField("display_name", explainStringNode("Support Key Auth"), true, true),
-		explainField("labels", &ExplainNode{
-			Kind:       explainKindObject,
-			Additional: explainStringNode("value"),
-		}, false, false),
-		explainField("managed_by", &ExplainNode{
-			Kind:       explainKindObject,
-			Additional: explainStringNode("kongctl"),
-		}, false, false),
+	keyAuthSDK, err := autoExplainConcreteNode[kkComps.AIGatewayIdentityProviderKeyAuth](nil)
+	if err != nil {
+		return nil, err
+	}
+	keyAuth := aiGatewayIdentityProviderSDKExplainBranch(
+		keyAuthSDK,
+		"key-auth",
+		"support-key-auth",
+		"Support Key Auth",
+	)
+	openIDConnectSDK, err := autoExplainConcreteNode[kkComps.AIGatewayIdentityProviderOpenIDConnect](nil)
+	if err != nil {
+		return nil, err
+	}
+	openIDConnect := aiGatewayIdentityProviderSDKExplainBranch(
+		openIDConnectSDK,
+		aiGatewayIdentityProviderTypeOpenIDConnect,
+		"support-oidc",
+		"Support OIDC",
+	)
+
+	setExplainLiteral(keyAuth, []string{aiGatewayIdentityProviderFieldConfig, "key_names"}, "apikey")
+	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "auth_methods"}, "bearer")
+	setExplainLiteral(
+		openIDConnect,
+		[]string{aiGatewayIdentityProviderFieldConfig, "cache_tokens_salt"},
+		"support-cache-salt",
+	)
+	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "client_id"}, "support-client")
+	setExplainLiteral(
+		openIDConnect,
+		[]string{aiGatewayIdentityProviderFieldConfig, "client_secret"},
+		"${OIDC_CLIENT_SECRET}",
+	)
+	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "consumer_claims"}, "sub")
+	setExplainLiteral(
+		openIDConnect,
+		[]string{aiGatewayIdentityProviderFieldConfig, "consumer_groups_claim"},
+		"groups",
+	)
+	setExplainLiteral(
+		openIDConnect,
+		[]string{aiGatewayIdentityProviderFieldConfig, "issuer"},
+		"https://issuer.example.com",
+	)
+	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "scopes"}, "openid")
+
+	config, ok := openIDConnect.lookup([]string{aiGatewayIdentityProviderFieldConfig})
+	if ok {
+		// These are supported OpenID Connect plugin fields that the API accepts
+		// through the SDK config's additionalProperties contract.
+		config.addField(explainField(
+			"upstream_headers_claims",
+			explainArrayOf(explainStringNode("sub")),
+			false,
+			false,
+		))
+		config.addField(explainField(
+			"upstream_headers_names",
+			explainArrayOf(explainStringNode("x-consumer-subject")),
+			false,
+			false,
+		))
 	}
 
-	return explainUnionNode(
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("key-auth"), true, true),
-			explainField("config", explainObject(
-				explainField("hide_credentials", explainBoolNode("true"), false, true),
-				explainField("key_in_body", explainBoolNode("false"), false, false),
-				explainField("key_in_header", explainBoolNode("true"), false, false),
-				explainField("key_in_query", explainBoolNode("true"), false, false),
-				explainField("key_names", explainArrayOf(explainStringNode("apikey")), false, true),
-			), true, true),
-		)...),
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("openid-connect"), true, true),
-			explainField("config", explainObject(
-				explainField("auth_methods", explainArrayOf(explainStringNode("bearer")), false, true),
-				explainField("cache_tokens_salt", explainStringNode("support-cache-salt"), true, true),
-				explainField("client_id", explainArrayOf(explainStringNode("support-client")), false, true),
-				explainField("client_secret", explainArrayOf(explainStringNode("${OIDC_CLIENT_SECRET}")), false, false),
-				explainField("consumer_claims", explainArrayOf(explainArrayOf(explainStringNode("sub"))), false, false),
-				explainField("consumer_optional", explainBoolNode("false"), false, false),
-				explainField("issuer", explainStringNode("https://issuer.example.com"), false, true),
-				explainField("scopes", explainArrayOf(explainStringNode("openid")), false, false),
-				explainField("ssl_verify", explainBoolNode("true"), false, false),
-			), true, true),
-		)...),
-	), nil
+	return explainUnionNode(keyAuth, openIDConnect), nil
+}
+
+func aiGatewayIdentityProviderSDKExplainBranch(
+	branch *ExplainNode,
+	providerType string,
+	name string,
+	displayName string,
+) *ExplainNode {
+	branch = explainWithCommonFields(
+		branch,
+		explainResourceRefField(),
+		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
+	)
+	explainSetConstStringField(branch, aiGatewayIdentityProviderFieldType, providerType)
+	explainSetPathRequired(branch, []string{aiGatewayIdentityProviderFieldConfig})
+	if providerType == aiGatewayIdentityProviderTypeOpenIDConnect {
+		explainSetPathRequired(branch, []string{aiGatewayIdentityProviderFieldConfig, "issuer"})
+	}
+	setExplainLiteral(branch, []string{aiGatewayIdentityProviderFieldName}, name)
+	setExplainLiteral(branch, []string{aiGatewayIdentityProviderFieldDisplayName}, displayName)
+	return branch
+}
+
+func setExplainLiteral(node *ExplainNode, path []string, literal string) {
+	target, ok := node.lookup(path)
+	if !ok {
+		return
+	}
+	for target.Kind == explainKindArray && target.Items != nil {
+		target = target.Items
+	}
+	target.Literal = literal
 }
 
 func aiGatewayIdentityProviderInlineExplainNode() *ExplainNode {

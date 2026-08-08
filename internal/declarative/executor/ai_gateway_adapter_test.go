@@ -26,6 +26,7 @@ func TestAIGatewayAdapterMapCreateFieldsUsesNameAndDisplayName(t *testing.T) {
 		planner.FieldLabels: map[string]any{
 			"team": "support",
 		},
+		"future_gateway_field": "gateway-value",
 	}
 
 	var req kkComps.CreateAIGatewayRequest
@@ -38,6 +39,7 @@ func TestAIGatewayAdapterMapCreateFieldsUsesNameAndDisplayName(t *testing.T) {
 	assert.Equal(t, "support", req.Labels["team"])
 	assert.Equal(t, "ai-gateway-example", req.Labels[labels.NamespaceKey])
 	assert.Equal(t, labels.TrueValue, req.Labels[labels.ProtectedKey])
+	assert.Equal(t, "gateway-value", req.AdditionalProperties["future_gateway_field"])
 }
 
 func TestAIGatewayAdapterMapUpdateFieldsPreservesCurrentName(t *testing.T) {
@@ -49,6 +51,10 @@ func TestAIGatewayAdapterMapUpdateFieldsPreservesCurrentName(t *testing.T) {
 	fields := map[string]any{
 		planner.FieldName:        "support-gateway",
 		planner.FieldDisplayName: "Customer Support AI Gateway Renamed",
+		planner.FieldCurrentLabels: map[string]any{
+			labels.NamespaceKey: "ai-gateway-example",
+		},
+		"future_gateway_field": "updated-value",
 	}
 
 	var req kkComps.UpdateAIGatewayRequest
@@ -59,4 +65,6 @@ func TestAIGatewayAdapterMapUpdateFieldsPreservesCurrentName(t *testing.T) {
 	assert.Equal(t, "support-gateway", req.Name)
 	assert.Equal(t, "Customer Support AI Gateway Renamed", req.DisplayName)
 	assert.Equal(t, "ai-gateway-example", req.Labels[labels.NamespaceKey])
+	assert.Equal(t, "updated-value", req.AdditionalProperties["future_gateway_field"])
+	assert.NotContains(t, req.AdditionalProperties, planner.FieldCurrentLabels)
 }

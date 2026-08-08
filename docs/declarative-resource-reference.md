@@ -404,6 +404,13 @@ Existing Konnect policy names or IDs can be supplied as strings. Declarative
 references should use `!ref <policy-ref>` so the relationship is explicit and
 same-plan policy creates are ordered and resolved.
 
+For AI Gateway Agents, Models, and MCP Servers, authentication is configured
+through AI Gateway Identity Providers. Reference providers from
+`access.identity_providers` with `!ref <identity-provider-ref>` so same-plan
+provider creates are ordered and resolved. MCP Server `access` also supports
+OAuth access-token claim selection and protected-resource metadata. The
+`conversion-only` MCP Server type does not support `access`.
+
 For AI Gateway Identity Providers, Policies, Agents, Consumers, Consumer
 Groups, MCP Servers, Config Stores, Vaults, and Data Plane Certificates,
 root-level
@@ -544,7 +551,14 @@ ai_gateways:
       capabilities: array[string]
       labels: object [string]string
         key: value
-      acls: object
+      access:
+        acl_attribute_type: consumer # or oauth_access_token
+        access_token_claim_field: string # required for oauth_access_token
+        acls: object
+        default_tool_acls: object
+        identity_providers:
+         - !ref identity-provider-ref
+        metadata: object
       managed_by: object
    mcp_servers:
     - ref: string
@@ -608,7 +622,15 @@ AI Gateway Identity Providers can also be declared as root resources.
 Root-level identity provider declarations must identify the parent AI Gateway
 with `ai_gateway`. OpenID Connect `config.client_secret` values are write-only
 in Konnect and are skipped during diff calculation because the API does not
-return the stored secret.
+return the stored secret. The `config` object documents the supported shorthand
+fields but also accepts additional Kong Gateway plugin configuration fields for
+advanced use cases. Additional fields are passed through to Konnect, which
+validates their names and values. Access-control fields include
+`consumer_groups_claim` and `consumer_groups_optional`; upstream claim mapping
+can use `upstream_headers_claims` and `upstream_headers_names`. Because the API
+updates identity providers with PUT, kongctl merges fields returned by Konnect
+that are omitted from the declarative config into the update body. This keeps
+an unrelated update from removing existing access-control configuration.
 
 ```yaml
 ai_gateway_identity_providers:
@@ -661,7 +683,10 @@ ai_gateway_agents:
      logging: object
    policies:
     - !ref policy-ref
-   acls: object
+   access:
+     acls: object
+     identity_providers:
+      - !ref identity-provider-ref
    labels: object [string]string
      key: value
    managed_by: object [string]string
@@ -736,15 +761,16 @@ ai_gateway_models:
    enabled: boolean
    config:
      route:
-       model: # choose exactly one routing method
-         body:
-           model:
-             - string
-         # headers:
-         #   X-Model:
-         #     - string
-         # path_aliases:
-         #   - string
+       model: # choose exactly one selector parameter
+         body_param: model
+         values:
+          - string
+         # header_param: X-Model
+         # values:
+         #  - string
+         # path_param: model
+         # values:
+         #  - string
      model:
        name_header: boolean
    formats:
@@ -759,7 +785,10 @@ ai_gateway_models:
    capabilities: array[string]
    labels: object [string]string
      key: value
-   acls: object
+   access:
+     acls: object
+     identity_providers:
+      - !ref identity-provider-ref
    managed_by: object
 ```
 
@@ -786,7 +815,19 @@ ai_gateway_mcp_servers:
     - !ref policy-ref
    labels: object [string]string
      key: value
-   acls: object
+   access:
+     acl_attribute_type: consumer # or oauth_access_token
+     access_token_claim_field: string # required for oauth_access_token
+     acls: object
+     default_tool_acls: object
+     identity_providers:
+      - !ref identity-provider-ref
+     metadata:
+       discovery_endpoint: string
+       endpoint: string
+       authorization_servers: array[string]
+       resource: string
+       scopes_supported: array[string]
    managed_by: object
 ```
 

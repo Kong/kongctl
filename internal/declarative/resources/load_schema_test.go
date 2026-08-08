@@ -112,6 +112,26 @@ func TestRenderShapeSchemaRetainsScalarTypesOnlyForUnionBranches(t *testing.T) {
 	assert.Nil(t, ordinaryScalar.Type)
 }
 
+func TestRenderShapeSchemaDoesNotRequireOptionalConstFields(t *testing.T) {
+	schema := renderShapeSchema(explainUnionNode(
+		explainObject(
+			explainField("type", explainConstStringNode("vertex"), true, true),
+			explainField(
+				"use_gcp_service_account",
+				&ExplainNode{Kind: "boolean", Const: true},
+				false,
+				false,
+			),
+		),
+		explainObject(explainField("type", explainConstStringNode("basic"), true, true)),
+	))
+
+	require.Len(t, schema.OneOf, 2)
+	assert.Contains(t, schema.OneOf[0].Required, "type")
+	assert.NotContains(t, schema.OneOf[0].Required, "use_gcp_service_account")
+	assert.Equal(t, true, schema.OneOf[0].Properties["use_gcp_service_account"].Const)
+}
+
 func TestRenderLoadSchemaRetainsKnownRejectedFieldDiagnostics(t *testing.T) {
 	schema, err := RenderLoadSchema(LoadSchemaProfileShape)
 	require.NoError(t, err)

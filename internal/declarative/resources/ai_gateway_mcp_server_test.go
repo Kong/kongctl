@@ -35,6 +35,11 @@ func TestAIGatewayMCPServerAllowsAccessFields(t *testing.T) {
 		"access": {
 			"acl_attribute_type": "oauth_access_token",
 			"access_token_claim_field": "sub",
+			"identity_providers": ["support-oidc"],
+			"metadata": {
+				"authorization_servers": ["https://idp.example.com"],
+				"resource": "https://mcp.example.com"
+			},
 			"default_tool_acls": {
 				"allow": ["support-subject"]
 			}
@@ -44,6 +49,11 @@ func TestAIGatewayMCPServerAllowsAccessFields(t *testing.T) {
 
 	var resource AIGatewayMCPServerResource
 	require.NoError(t, json.Unmarshal(input, &resource))
+	payload, err := resource.PayloadMap()
+	require.NoError(t, err)
+	access := payload[SchemaFieldAccess].(map[string]any)
+	require.Equal(t, []any{"support-oidc"}, access[SchemaFieldIdentityProviders])
+	require.Equal(t, "https://mcp.example.com", access["metadata"].(map[string]any)["resource"])
 }
 
 func TestAIGatewayMCPServerRejectsAccessForConversionOnly(t *testing.T) {

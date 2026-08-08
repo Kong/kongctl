@@ -341,11 +341,13 @@ func normalizeAIGatewayRouteModel(raw map[string]json.RawMessage) error {
 		}
 		return nil
 	}
+	if !hasLegacyAlias {
+		return nil
+	}
 
 	routeModel, err := json.Marshal(map[string]any{
-		"body": map[string]any{
-			"model": []string{alias},
-		},
+		"body_param": "model",
+		"values":     []string{alias},
 	})
 	if err != nil {
 		return err
@@ -399,48 +401,49 @@ func setAIGatewayRouteModel(
 	return nil
 }
 
-func decodeAIGatewayRouteModel(raw json.RawMessage) (kkComps.AIGatewayModelAliasConfig, error) {
+func decodeAIGatewayRouteModel(raw json.RawMessage) (kkComps.AIGatewayModelSelectorConfig, error) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &fields); err != nil {
-		return kkComps.AIGatewayModelAliasConfig{},
+		return kkComps.AIGatewayModelSelectorConfig{},
 			fmt.Errorf("failed to decode AI Gateway config.route.model: %w", err)
 	}
-	if len(fields) != 1 {
-		return kkComps.AIGatewayModelAliasConfig{},
-			fmt.Errorf("AI Gateway config.route.model must specify exactly one routing method")
+
+	selectorCount := 0
+	for _, field := range []string{"body_param", "header_param", "path_param"} {
+		if _, ok := fields[field]; ok {
+			selectorCount++
+		}
+	}
+	if selectorCount != 1 {
+		return kkComps.AIGatewayModelSelectorConfig{},
+			fmt.Errorf("AI Gateway config.route.model must specify exactly one selector parameter")
 	}
 
-	if value, ok := fields["body"]; ok {
-		var body map[string]any
-		if err := json.Unmarshal(value, &body); err != nil {
-			return kkComps.AIGatewayModelAliasConfig{},
-				fmt.Errorf("failed to decode AI Gateway config.route.model.body: %w", err)
+	if _, ok := fields["body_param"]; ok {
+		var body kkComps.AIGatewayModelSelectorConfigBody
+		if err := json.Unmarshal(raw, &body); err != nil {
+			return kkComps.AIGatewayModelSelectorConfig{},
+				fmt.Errorf("failed to decode AI Gateway config.route.model body selector: %w", err)
 		}
-		return kkComps.CreateAIGatewayModelAliasConfigAIGatewayModelAliasConfigBody(
-			kkComps.AIGatewayModelAliasConfigBody{Body: body},
-		), nil
+		return kkComps.CreateAIGatewayModelSelectorConfigAIGatewayModelSelectorConfigBody(body), nil
 	}
-	if value, ok := fields["headers"]; ok {
-		var headers map[string]any
-		if err := json.Unmarshal(value, &headers); err != nil {
-			return kkComps.AIGatewayModelAliasConfig{},
-				fmt.Errorf("failed to decode AI Gateway config.route.model.headers: %w", err)
+	if _, ok := fields["header_param"]; ok {
+		var headers kkComps.AIGatewayModelSelectorConfigHeaders
+		if err := json.Unmarshal(raw, &headers); err != nil {
+			return kkComps.AIGatewayModelSelectorConfig{},
+				fmt.Errorf("failed to decode AI Gateway config.route.model header selector: %w", err)
 		}
-		return kkComps.CreateAIGatewayModelAliasConfigAIGatewayModelAliasConfigHeaders(
-			kkComps.AIGatewayModelAliasConfigHeaders{Headers: headers},
-		), nil
+		return kkComps.CreateAIGatewayModelSelectorConfigAIGatewayModelSelectorConfigHeaders(headers), nil
 	}
-	if value, ok := fields["path_aliases"]; ok {
-		var pathAliases []string
-		if err := json.Unmarshal(value, &pathAliases); err != nil {
-			return kkComps.AIGatewayModelAliasConfig{},
-				fmt.Errorf("failed to decode AI Gateway config.route.model.path_aliases: %w", err)
+	if _, ok := fields["path_param"]; ok {
+		var path kkComps.AIGatewayModelSelectorConfigPath
+		if err := json.Unmarshal(raw, &path); err != nil {
+			return kkComps.AIGatewayModelSelectorConfig{},
+				fmt.Errorf("failed to decode AI Gateway config.route.model path selector: %w", err)
 		}
-		return kkComps.CreateAIGatewayModelAliasConfigAIGatewayModelAliasConfigPath(
-			kkComps.AIGatewayModelAliasConfigPath{PathAliases: pathAliases},
-		), nil
+		return kkComps.CreateAIGatewayModelSelectorConfigAIGatewayModelSelectorConfigPath(path), nil
 	}
-	return kkComps.AIGatewayModelAliasConfig{},
+	return kkComps.AIGatewayModelSelectorConfig{},
 		fmt.Errorf("AI Gateway config.route.model has an unsupported routing method")
 }
 
@@ -620,6 +623,11 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	apiConfig := aiGatewayModelConfigExplainNode(false)
+	apiConfig.rejectLoadField(
+		"model",
+		`AI Gateway model field "config.model" is only supported when type is "model"`,
+	)
 
 	commonFields := []*ExplainField{
 		explainResourceRefField(),
@@ -661,7 +669,7 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	)
 	apiFields := append(
 		slices.Clone(commonFields),
-		explainField("config", aiGatewayModelConfigExplainNode(false), true, true),
+		explainField("config", apiConfig, true, true),
 		explainField("type", explainConstStringNode("api"), true, true),
 		explainField("capabilities", explainArrayOf(explainStringNode("files")), true, true),
 	)
@@ -670,38 +678,19 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 }
 
 func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
-	headerModel := explainObject(explainField(
-		"X-Model",
-		explainArrayOf(explainStringNode("support-gpt")),
-		false,
-		true,
-	))
-	headerModel.Additional = explainArrayOf(explainStringNode("support-gpt"))
-
 	routeModel := explainUnionNode(
-		explainObject(explainField(
-			"body",
-			explainObject(explainField(
-				"model",
-				explainArrayOf(explainStringNode("support-gpt")),
-				true,
-				true,
-			)),
-			true,
-			true,
-		)),
-		explainObject(explainField(
-			"headers",
-			headerModel,
-			true,
-			true,
-		)),
-		explainObject(explainField(
-			"path_aliases",
-			explainArrayOf(explainStringNode("support-gpt")),
-			true,
-			true,
-		)),
+		explainObject(
+			explainField("body_param", explainStringNode("model"), true, true),
+			explainField("values", explainArrayOf(explainStringNode("support-gpt")), true, true),
+		),
+		explainObject(
+			explainField("header_param", explainStringNode("X-Model"), true, true),
+			explainField("values", explainArrayOf(explainStringNode("support-gpt")), true, true),
+		),
+		explainObject(
+			explainField("path_param", explainStringNode("model"), true, true),
+			explainField("values", explainArrayOf(explainStringNode("support-gpt")), true, true),
+		),
 	)
 	route := explainObject(
 		explainField("headers", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),

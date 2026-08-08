@@ -13,6 +13,9 @@ vars:
   identity_provider_ref: "support-key-auth"
   identity_provider_name: "support-key-auth"
   identity_provider_updated_display_name: "Updated Support Key Auth"
+  oidc_identity_provider_ref: "support-oidc"
+  oidc_identity_provider_name: "support-oidc"
+  oidc_identity_provider_updated_display_name: "Updated Support OIDC"
 
 defaults:
   mask:
@@ -57,6 +60,10 @@ steps:
               fields:
                 "contains(keys(@), 'client_secret')": true
                 "contains(keys(@), 'cache_tokens_salt')": true
+                "contains(keys(@), 'consumer_groups_claim')": true
+                "contains(keys(@), 'consumer_groups_optional')": true
+                "contains(keys(@), 'upstream_headers_claims')": true
+                "contains(keys(@), 'upstream_headers_names')": true
       - name: 001-scaffold-ai-gateway-identity-provider
         run:
           - scaffold
@@ -85,8 +92,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 2
-                by_action.CREATE: 2
+                total_changes: 3
+                by_action.CREATE: 3
           - select: >-
               changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}'] | [0]
             expect:
@@ -96,6 +103,16 @@ steps:
                 fields.type: key-auth
                 fields.config.key_names[0]: x-support-api-key
                 fields.config.hide_credentials: true
+          - select: >-
+              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.oidc_identity_provider_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.type: openid-connect
+                fields.config.consumer_groups_claim[0]: groups
+                fields.config.consumer_groups_optional: false
+                fields.config.upstream_headers_claims[0]: sub
+                fields.config.upstream_headers_names[0]: x-consumer-subject
       - name: 001-apply-create
         outputFormat: json
         run:
@@ -107,7 +124,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 3
                 failed: 0
                 status: success
       - name: 002-get-identity-providers
@@ -140,6 +157,25 @@ steps:
             expect:
               fields:
                 "@": key-auth
+      - name: 003a-get-oidc-security-config
+        run:
+          - get
+          - ai-gateway
+          - identity-provider
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.oidc_identity_provider_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: openid-connect
+                config.consumer_groups_claim[0]: groups
+                config.consumer_groups_optional: false
+                config.upstream_headers_claims[0]: sub
+                config.upstream_headers_names[0]: x-consumer-subject
       - name: 004-get-identity-provider-by-name
         run:
           - get
@@ -187,8 +223,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 1
-                by_action.UPDATE: 1
+                total_changes: 2
+                by_action.UPDATE: 2
           - select: >-
               changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}'] | [0]
             expect:
@@ -196,6 +232,16 @@ steps:
                 action: UPDATE
                 fields.display_name: "{{ .vars.identity_provider_updated_display_name }}"
                 fields.config.key_names[1]: apikey
+          - select: >-
+              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.oidc_identity_provider_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.display_name: "{{ .vars.oidc_identity_provider_updated_display_name }}"
+                fields.config.consumer_groups_claim[0]: groups
+                fields.config.consumer_groups_optional: false
+                fields.config.upstream_headers_claims[0]: sub
+                fields.config.upstream_headers_names[0]: x-consumer-subject
       - name: 001-apply-update
         outputFormat: json
         run:
@@ -207,7 +253,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
                 status: success
       - name: 002-verify-update
@@ -227,6 +273,25 @@ steps:
                 display_name: "{{ .vars.identity_provider_updated_display_name }}"
                 labels.owner: platform
                 config.key_names[1]: apikey
+      - name: 002a-verify-oidc-security-config-survives-put
+        run:
+          - get
+          - ai-gateway
+          - identity-provider
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.oidc_identity_provider_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: "{{ .vars.oidc_identity_provider_updated_display_name }}"
+                config.consumer_groups_claim[0]: groups
+                config.consumer_groups_optional: false
+                config.upstream_headers_claims[0]: sub
+                config.upstream_headers_names[0]: x-consumer-subject
       - name: 003-diff-no-changes
         outputFormat: text
         parseAs: raw
@@ -261,6 +326,13 @@ steps:
                 type: key-auth
                 display_name: "{{ .vars.identity_provider_updated_display_name }}"
                 config.key_names[1]: apikey
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].identity_providers[?name=='{{ .vars.oidc_identity_provider_name }}'] | [0]
+            expect:
+              fields:
+                type: openid-connect
+                config.consumer_groups_claim[0]: groups
+                config.upstream_headers_names[0]: x-consumer-subject
       - name: 001-plan-from-ai-gateway-dump
         outputFormat: disable
         run:
@@ -310,16 +382,21 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 1
-                by_action.DELETE: 1
+                total_changes: 2
+                by_action.DELETE: 2
           - select: >-
-              plan.changes[?resource_type=='ai_gateway_identity_provider' && action=='DELETE'] | [0]
+              plan.changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}' && action=='DELETE'] | [0]
             expect:
               fields:
                 resource_ref: "{{ .vars.identity_provider_name }}"
+          - select: >-
+              plan.changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.oidc_identity_provider_ref }}' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: "{{ .vars.oidc_identity_provider_name }}"
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
                 status: success
