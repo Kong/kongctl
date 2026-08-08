@@ -623,6 +623,11 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	apiConfig := aiGatewayModelConfigExplainNode(false)
+	apiConfig.rejectLoadField(
+		"model",
+		`AI Gateway model field "config.model" is only supported when type is "model"`,
+	)
 
 	commonFields := []*ExplainField{
 		explainResourceRefField(),
@@ -664,7 +669,7 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	)
 	apiFields := append(
 		slices.Clone(commonFields),
-		explainField("config", aiGatewayModelConfigExplainNode(false), true, true),
+		explainField("config", apiConfig, true, true),
 		explainField("type", explainConstStringNode("api"), true, true),
 		explainField("capabilities", explainArrayOf(explainStringNode("files")), true, true),
 	)
