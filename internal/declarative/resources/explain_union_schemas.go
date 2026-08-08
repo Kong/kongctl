@@ -54,6 +54,9 @@ func explainConstDiscriminator(typ reflect.Type) (string, string, bool) {
 		return "", "", false
 	}
 	for field := range typ.Fields() {
+		if !field.IsExported() || derefExplainType(field.Type).Kind() != reflect.String {
+			continue
+		}
 		value := field.Tag.Get("const")
 		if value == "" {
 			continue

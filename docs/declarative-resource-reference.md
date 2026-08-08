@@ -625,7 +625,12 @@ in Konnect and are skipped during diff calculation because the API does not
 return the stored secret. The `config` object documents the supported shorthand
 fields but also accepts additional Kong Gateway plugin configuration fields for
 advanced use cases. Additional fields are passed through to Konnect, which
-validates their names and values.
+validates their names and values. Access-control fields include
+`consumer_groups_claim` and `consumer_groups_optional`; upstream claim mapping
+can use `upstream_headers_claims` and `upstream_headers_names`. Because the API
+updates identity providers with PUT, kongctl merges fields returned by Konnect
+that are omitted from the declarative config into the update body. This keeps
+an unrelated update from removing existing access-control configuration.
 
 ```yaml
 ai_gateway_identity_providers:

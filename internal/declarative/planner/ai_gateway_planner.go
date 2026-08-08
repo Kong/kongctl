@@ -813,6 +813,11 @@ func (p *Planner) planAIGatewayUpdate(
 	namespace, _ := aiGatewayNamespaceAndProtection(desired)
 	fields := make(map[string]any)
 	maps.Copy(fields, updateFields)
+	for key, value := range current.AdditionalProperties {
+		if _, declared := desired.AdditionalProperties[key]; !declared {
+			fields[key] = value
+		}
+	}
 	fields[FieldName] = desired.Name
 	if fields[FieldName] == "" {
 		fields[FieldName] = desired.GetRef()

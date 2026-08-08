@@ -151,3 +151,80 @@ func TestAIGatewayIdentityProviderChangedFieldsScrubClientSecret(t *testing.T) {
 	require.True(t, needsUpdate)
 	require.NotContains(t, changedFields[FieldConfig].New, "client_secret")
 }
+
+func TestAIGatewayIdentityProviderUpdatePreservesUndeclaredSecurityConfig(t *testing.T) {
+	t.Parallel()
+
+	current := state.AIGatewayIdentityProvider{
+		Name:        "support-oidc",
+		Type:        "openid-connect",
+		DisplayName: "Support OIDC",
+		Labels:      map[string]string{"owner": "security"},
+		ManagedBy:   map[string]string{"terraform": "legacy"},
+		Config: map[string]any{
+			"auth_methods":             []any{"bearer"},
+			"cache_tokens_salt":        "support-cache-salt",
+			"consumer_groups_claim":    []any{"groups"},
+			"consumer_groups_optional": false,
+			"upstream_headers_claims":  []any{"sub"},
+			"upstream_headers_names":   []any{"x-consumer-subject"},
+		},
+	}
+	desired := resources.AIGatewayIdentityProviderResource{
+		Name:        "support-oidc",
+		Type:        "openid-connect",
+		DisplayName: "Updated Support OIDC",
+		Config: map[string]any{
+			"auth_methods":      []any{"bearer"},
+			"cache_tokens_salt": "support-cache-salt",
+		},
+	}
+
+	needsUpdate, fields, changedFields, err := shouldUpdateAIGatewayIdentityProvider(current, desired)
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	require.Contains(t, changedFields, FieldDisplayName)
+	require.NotContains(t, changedFields, FieldConfig)
+	require.Equal(t, current.Config, fields[FieldConfig])
+	require.Equal(t, current.Labels, fields[FieldLabels])
+	require.Equal(t, current.ManagedBy, fields[FieldManagedBy])
+}
+
+func TestAIGatewayIdentityProviderUpdateOverlaysDeclaredSecurityConfig(t *testing.T) {
+	t.Parallel()
+
+	current := state.AIGatewayIdentityProvider{
+		Name:        "support-oidc",
+		Type:        "openid-connect",
+		DisplayName: "Support OIDC",
+		Config: map[string]any{
+			"cache_tokens_salt":       "support-cache-salt",
+			"consumer_groups_claim":   []any{"groups"},
+			"upstream_headers_claims": []any{"sub"},
+			"nested_extension": map[string]any{
+				"preserved": true,
+				"managed":   "old",
+			},
+		},
+	}
+	desired := resources.AIGatewayIdentityProviderResource{
+		Name:        "support-oidc",
+		Type:        "openid-connect",
+		DisplayName: "Support OIDC",
+		Config: map[string]any{
+			"cache_tokens_salt":     "support-cache-salt",
+			"consumer_groups_claim": []any{"roles"},
+			"nested_extension": map[string]any{
+				"managed": "new",
+			},
+		},
+	}
+
+	needsUpdate, fields, _, err := shouldUpdateAIGatewayIdentityProvider(current, desired)
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	config := fields[FieldConfig].(map[string]any)
+	require.Equal(t, []any{"roles"}, config["consumer_groups_claim"])
+	require.Equal(t, []any{"sub"}, config["upstream_headers_claims"])
+	require.Equal(t, map[string]any{"preserved": true, "managed": "new"}, config["nested_extension"])
+}

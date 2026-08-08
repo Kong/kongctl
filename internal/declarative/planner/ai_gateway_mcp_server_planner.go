@@ -238,6 +238,12 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 	}
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	updateFields := preserveAIGatewayOpenProperties(
+		resources.AIGatewayMCPServerAdditionalProperties(current.AIGatewayMCPServer),
+		currentPayload,
+		currentCompare,
+		desiredPayload,
+	)
 	pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(currentCompare, desiredCompare)
 	pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(desiredCompare, currentCompare)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
@@ -256,7 +262,7 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 		return false, nil, nil, nil
 	}
 
-	return true, clonePayloadMap(desiredPayload), changedFields, nil
+	return true, updateFields, changedFields, nil
 }
 
 func pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(payload map[string]any, peer map[string]any) {
