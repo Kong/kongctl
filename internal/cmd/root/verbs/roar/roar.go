@@ -870,8 +870,13 @@ func ShouldRenderAnimation(noAnimate bool, terminal TerminalCapabilities) bool {
 	return shouldRenderAnimation(noAnimate, terminal)
 }
 
-func CanRenderFrameWidth(terminal TerminalCapabilities) bool {
-	return canRenderOutputWidth(terminal, art.KongRoarAnimationWidth)
+// CanRenderFrame reports whether the terminal can display the full static Kong
+// frame. It requires a measured size large enough in both dimensions, matching
+// the animation gate, so short or unmeasurable terminals fall back to a smaller
+// banner instead of rendering a frame that overflows the screen.
+func CanRenderFrame(terminal TerminalCapabilities) bool {
+	return terminal.width >= art.KongRoarAnimationWidth &&
+		terminal.height >= art.KongRoarAnimationHeight
 }
 
 func canRenderOutputWidth(terminal terminalCapabilities, width int) bool {

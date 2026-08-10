@@ -1030,3 +1030,37 @@ func containsBraillePattern(s string) bool {
 	}
 	return false
 }
+
+func TestCanRenderFrameRequiresMeasuredSpace(t *testing.T) {
+	tests := []struct {
+		name     string
+		terminal terminalCapabilities
+		want     bool
+	}{
+		{
+			name:     "fits",
+			terminal: terminalCapabilities{width: art.KongRoarAnimationWidth, height: art.KongRoarAnimationHeight},
+			want:     true,
+		},
+		{
+			name:     "too short",
+			terminal: terminalCapabilities{width: 120, height: art.KongRoarAnimationHeight - 1},
+		},
+		{
+			name:     "too narrow",
+			terminal: terminalCapabilities{width: art.KongRoarAnimationWidth - 1, height: 40},
+		},
+		{
+			name:     "unknown size",
+			terminal: terminalCapabilities{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CanRenderFrame(tt.terminal); got != tt.want {
+				t.Fatalf("CanRenderFrame = %t, want %t", got, tt.want)
+			}
+		})
+	}
+}

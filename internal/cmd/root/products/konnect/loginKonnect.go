@@ -329,7 +329,7 @@ func displayStaticLoginBanner(streams *iostreams.IOStreams) error {
 	}
 
 	terminal := loginTerminalData(streams.Out)
-	if roarcmd.CanRenderFrameWidth(terminal) {
+	if roarcmd.CanRenderFrame(terminal) {
 		useNativeColor := roarcmd.ShouldUseNativeAnimationColor(roarcmd.NativeColorValue, terminal)
 		return roarcmd.RenderStaticFrame(streams.Out, nil, useNativeColor)
 	}
