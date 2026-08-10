@@ -70,7 +70,6 @@ steps:
                 status: success
 
   - name: 002-dump-and-round-trip
-    skipInputs: true
     commands:
       - name: 000-dump-ai-gateways
         run:
@@ -139,12 +138,12 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 2
-                by_action.DELETE: 2
+                total_changes: 1
+                by_action.DELETE: 1
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 1
                 failed: 0
                 status: success
 
