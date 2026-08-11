@@ -620,6 +620,23 @@ func TestRoarRunFallsBackToClimberInNarrowTerminal(t *testing.T) {
 	}
 }
 
+func TestRoarRunSkipsClimberWhenTerminalIsTooShort(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+	streams, _, out, errOut := iostreams.NewTestIOStreams()
+	stubTerminalData(t, terminalCapabilities{width: 60, height: 30, isTTY: true})
+
+	if err := runRoarForTest(t, streams); err != nil {
+		t.Fatalf("roar run: %v", err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("expected no banner output for short terminal, got:\n%s", out.String())
+	}
+	if errOut.Len() != 0 {
+		t.Fatalf("expected no stderr output, got:\n%s", errOut.String())
+	}
+}
+
 func TestRoarRunReportsTooNarrowTerminal(t *testing.T) {
 	t.Setenv("TERM", "xterm-256color")
 	t.Setenv("LC_ALL", "en_US.UTF-8")

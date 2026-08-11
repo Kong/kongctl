@@ -165,7 +165,7 @@ func TestDisplayStaticLoginBannerFallsBackToClimberInNarrowTerminal(t *testing.T
 	t.Setenv("LC_ALL", "en_US.UTF-8")
 	streams, _, out, _ := iostreams.NewTestIOStreams()
 	stubLoginTerminals(t, true, true)
-	stubLoginTerminalData(t, roarcmd.NewTerminalCapabilities(79, art.KongRoarAnimationHeight, true))
+	stubLoginTerminalData(t, roarcmd.NewTerminalCapabilities(79, 40, true))
 
 	if err := displayStaticLoginBanner(streams); err != nil {
 		t.Fatalf("displayStaticLoginBanner: %v", err)
@@ -176,6 +176,43 @@ func TestDisplayStaticLoginBannerFallsBackToClimberInNarrowTerminal(t *testing.T
 	}
 	if got := maxLineWidth(output); got != 48 {
 		t.Fatalf("login banner width = %d, want 48\noutput:\n%s", got, output)
+	}
+}
+
+func TestDisplayStaticLoginBannerSkipsImageWhenTerminalCannotFitFallback(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+	tests := []struct {
+		name     string
+		terminal roarcmd.TerminalCapabilities
+	}{
+		{
+			name:     "short terminal",
+			terminal: roarcmd.NewTerminalCapabilities(art.KongRoarAnimationWidth, 21, true),
+		},
+		{
+			name:     "fallback is taller than terminal",
+			terminal: roarcmd.NewTerminalCapabilities(79, art.KongRoarAnimationHeight, true),
+		},
+		{
+			name:     "unknown size",
+			terminal: roarcmd.NewTerminalCapabilities(0, 0, true),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			streams, _, out, _ := iostreams.NewTestIOStreams()
+			stubLoginTerminals(t, true, true)
+			stubLoginTerminalData(t, tt.terminal)
+
+			if err := displayStaticLoginBanner(streams); err != nil {
+				t.Fatalf("displayStaticLoginBanner: %v", err)
+			}
+			if out.Len() != 0 {
+				t.Fatalf("expected no image output, got:\n%s", out.String())
+			}
+		})
 	}
 }
 
