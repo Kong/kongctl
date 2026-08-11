@@ -350,10 +350,15 @@ func TestPrintExtensionHelpShowsAllHostFlagsByDefault(t *testing.T) {
 	contribution := CommandPath{Usage: "kongctl get foo", Summary: "Get foo"}
 	require.NoError(t, PrintExtensionHelp(&buf, "kong/foo", contribution))
 	out := buf.String()
-	require.Contains(t, out, "\nHost Flags:")
-	for _, name := range HostFlagNames() {
-		require.Contains(t, out, "--"+name)
-	}
+	expected := "\nHost Flags:\n" +
+		"  -o, --output string\tOutput format: text, json, or yaml\n" +
+		"  --jq string\tFilter JSON or YAML output using a jq expression\n" +
+		"  -r, --jq-raw-output\tOutput string jq results without JSON quotes\n" +
+		"  --jq-color string\tColor mode for jq output: auto, always, or never\n" +
+		"  --jq-color-theme string\tColor theme for jq output\n" +
+		"  -p, --profile string\tConfiguration profile to use\n" +
+		"  --color-theme string\tkongctl color theme\n"
+	require.Contains(t, out, expected)
 }
 
 func TestPrintExtensionHelpHidesHostFlagsSection(t *testing.T) {
