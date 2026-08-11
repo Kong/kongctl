@@ -1,0 +1,71 @@
+---
+import BookShell from "../../layouts/BookShell.astro";
+import type { Chapter, Curriculum } from "../../lib/curriculum";
+import { loadCurriculum } from "../../lib/curriculum";
+
+interface Props {
+  chapter: Chapter;
+  curriculum: Curriculum;
+}
+
+export async function getStaticPaths() {
+  const curriculum = await loadCurriculum();
+  return curriculum.chapters.map((chapter) => ({
+    params: { chapter: chapter.id },
+    props: { chapter, curriculum },
+  }));
+}
+
+const { chapter, curriculum } = Astro.props;
+---
+
+<BookShell
+  {curriculum}
+  currentChapterId={chapter.id}
+  title={chapter.title}
+  description={chapter.description}
+>
+  <div class="page chapter-page">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href={import.meta.env.BASE_URL}>Guide</a>
+      <span aria-hidden="true">/</span>
+      <span>{chapter.title}</span>
+    </nav>
+
+    <header class="chapter-header">
+      <p class="eyebrow">Chapter {chapter.order}</p>
+      <h1>{chapter.title}</h1>
+      <p>{chapter.description}</p>
+    </header>
+
+    {
+      chapter.lessons.length > 0 ? (
+        <ol class="chapter-lessons">
+          {chapter.lessons.map((lesson, index) => (
+            <li>
+              <a href={lesson.url}>
+                <span class="lesson-index">{String(index + 1).padStart(2, "0")}</span>
+                <span class="lesson-card-copy">
+                  <strong>{lesson.entry.data.title}</strong>
+                  <span>{lesson.entry.data.summary}</span>
+                </span>
+                <span
+                  class="completion-mark card-completion"
+                  data-progress-key={lesson.key}
+                  aria-hidden="true"
+                >
+                  ✓
+                </span>
+                <span class="card-arrow" aria-hidden="true">
+                  →
+                </span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p class="chapter-empty">Lessons coming soon.</p>
+      )
+    }
+  </div>
+</BookShell>

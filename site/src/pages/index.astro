@@ -1,0 +1,67 @@
+---
+import BookShell from "../layouts/BookShell.astro";
+import { loadCurriculum } from "../lib/curriculum";
+
+const curriculum = await loadCurriculum();
+---
+
+<BookShell
+  {curriculum}
+  title="Learn kongctl"
+  description="A short, hands-on guide to managing Kong Konnect with kongctl."
+>
+  <div class="page home-page">
+    <section class="hero">
+      <p class="eyebrow">A hands-on field guide</p>
+      <h1>Learn kongctl by using it.</h1>
+      <p class="hero-copy">
+        Short lessons. Real commands.
+      </p>
+      <div class="hero-actions">
+        <a
+          class="button primary"
+          href={curriculum.lessons[0]?.url}
+          data-start-link
+        >
+          Start learning <span aria-hidden="true">→</span>
+        </a>
+        <a
+          class="button secondary"
+          href="https://developer.konghq.com/kongctl/"
+        >
+          Read the full docs <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="curriculum-section" aria-labelledby="chapters-heading">
+      <div class="section-heading">
+        <h2 id="chapters-heading">Curriculum</h2>
+      </div>
+      <ol class="chapter-lessons curriculum-chapters">
+        {
+          curriculum.chapters.map((chapter) => (
+            <li>
+              <a href={chapter.navigationUrl}>
+                <span class="lesson-index">
+                  {String(chapter.order).padStart(2, "0")}
+                </span>
+                <span class="lesson-card-copy">
+                  <strong>{chapter.title}</strong>
+                  <span>{chapter.description}</span>
+                </span>
+                <span class="lesson-total">
+                  {chapter.lessons.length}{" "}
+                  {chapter.lessons.length === 1 ? "lesson" : "lessons"}
+                </span>
+                <span class="card-arrow" aria-hidden="true">
+                  →
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+  </div>
+</BookShell>

@@ -1,0 +1,5 @@
+ai_gateways:
+  - ref: basic-ai-gateway
+    name: basic-ai-gateway
+    display_name: "Basic AI Gateway"
+    description: "AI Gateway created from kongctl"
