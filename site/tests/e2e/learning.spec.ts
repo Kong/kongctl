@@ -61,44 +61,128 @@ test("presents the federated management journey", async ({ page }) => {
       name: "Federated Management",
     }),
   ).toBeVisible();
-  await expect(lessons.locator(":scope > li")).toHaveCount(6);
+  await expect(lessons.locator(":scope > li")).toHaveCount(10);
   await expect(
-    lessons.getByRole("link", { name: /Why Federate\?/ }),
+    lessons.getByRole("link", { name: /Federated Management/ }),
+  ).toBeVisible();
+  await expect(
+    lessons.getByRole("link", { name: /AI Gateway 2.0 Beta Steps/ }),
   ).toBeVisible();
   await expect(
     lessons.getByRole("link", { name: /Ownership Boundaries/ }),
   ).toBeVisible();
   await expect(
-    lessons.getByRole("link", { name: /Shared Declarative Loads/ }),
+    lessons.getByRole("link", { name: /Initial Configuration Setup/ }),
   ).toBeVisible();
   await expect(
-    lessons.getByRole("link", { name: /External Resources/ }),
+    lessons.getByRole("link", { name: /Run a Data Plane/ }),
   ).toBeVisible();
   await expect(
-    lessons.getByRole("link", { name: /Relationship Lookups/ }),
+    lessons.getByRole("link", { name: /Federate Engineering/ }),
   ).toBeVisible();
   await expect(
-    lessons.getByRole("link", { name: /A Self-Service Workflow/ }),
+    lessons.getByRole("link", { name: /Federate Product/ }),
   ).toBeVisible();
+  await expect(
+    lessons.getByRole("link", { name: /Independent Team Changes/ }),
+  ).toBeVisible();
+  await expect(
+    lessons.getByRole("link", { name: /Route Team Requests/ }),
+  ).toBeVisible();
+  await expect(lessons.getByRole("link", { name: /Clean Up/ })).toBeVisible();
+
+  await page.goto("federated-api-platform-management/ai-gateway-2-beta-steps/");
+  const lesson = page.locator(".lesson-body");
+  await expect(lesson).toContainText("prerelease-aigw-2");
+  await expect(lesson).toContainText(
+    "KONGCTL_DEFAULT_KONNECT_ENVIRONMENT=tech",
+  );
+  await expect(lesson).toContainText("kongctl login");
+  await expect(lesson).toContainText("KONGCTL_DEFAULT_KONNECT_PAT");
 });
 
-test("explains federated references and external resources", async ({
+test("walks satellite teams into independent configuration", async ({
   page,
 }) => {
-  await page.goto("federated-api-platform-management/shared-loads/");
+  await page.goto(
+    "federated-api-platform-management/initial-configuration-setup/",
+  );
   await expect(
-    page.getByText("!ref shared-ai-gateway#id", { exact: false }),
+    page.getByText("!ref platform-aigw#id", { exact: false }).first(),
   ).toBeVisible();
   await expect(page.getByText("--recursive", { exact: false })).toBeVisible();
+  await expect(page.locator(".lesson-body")).toContainText("Engineering");
+  await expect(page.locator(".lesson-body")).toContainText("Product");
+  await expect(page.locator(".lesson-body")).toContainText("/engineering");
+  await expect(page.locator(".lesson-body")).toContainText("/product");
+  await expect(page.locator(".lesson-body")).toContainText("body_param: model");
 
-  await page.goto("federated-api-platform-management/external-resources/");
-  await expect(page.locator(".lesson-body")).toContainText("_external");
+  await page.goto("federated-api-platform-management/run-a-data-plane/");
+  await expect(page.locator(".lesson-body")).toContainText(
+    "data_plane_certificates",
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    "KONG_CLUSTER_CONTROL_PLANE=${AIGW_CONTROL_PLANE}:443",
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    "KONG_CLUSTER_CERT=/etc/kong/certs/data-plane.crt",
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    '--group-add "$(id -g)"',
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    "kongctl get ai-gateway nodes",
+  );
+
+  await page.goto("federated-api-platform-management/federate-engineering/");
+  await expect(page.locator(".lesson-body")).toContainText("!lookup");
   await expect(
-    page.getByText("external-shared-ai-gateway", { exact: false }).first(),
+    page.getByText("kongctl apply -f engineering/model.yaml", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".lesson-body")).toContainText(
+    "No changes needed. Resources match configuration.",
+  );
+
+  await page.goto("federated-api-platform-management/federate-product/");
+  await expect(page.locator(".lesson-body")).toContainText("!lookup");
+  await expect(
+    page.getByText("kongctl apply -f product/model.yaml", { exact: true }),
   ).toBeVisible();
 
-  await page.goto("federated-api-platform-management/relationship-lookups/");
-  await expect(page.locator(".lesson-body")).toContainText("!lookup");
+  await page.goto("federated-api-platform-management/independent-changes/");
+  await expect(page.locator(".lesson-body")).toContainText(
+    "engineering-code-reviewer",
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    "/engineering/code-review",
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    "one CREATE for engineering-code-reviewer",
+  );
+
+  await page.goto("federated-api-platform-management/route-team-requests/");
+  await expect(page.locator(".lesson-body")).toContainText(
+    "${AIGW_PROXY_URL}/product/chat/completions",
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    '"model": "product-assistant"',
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    "${AIGW_PROXY_URL}/engineering/code-review/chat/completions",
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    '"model": "engineering-code-reviewer"',
+  );
+
+  await page.goto("federated-api-platform-management/clean-up/");
+  await expect(page.locator(".lesson-body")).toContainText(
+    "docker stop federated-aigw-dp",
+  );
+  await expect(page.locator(".lesson-body")).toContainText(
+    "kongctl delete -f platform/ai-gateway.yaml",
+  );
 });
 
 test("presents the extension developer journey", async ({ page }) => {

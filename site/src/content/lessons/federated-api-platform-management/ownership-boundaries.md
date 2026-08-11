@@ -1,47 +1,48 @@
 ---
 title: Ownership Boundaries
-summary: Organize team-owned resources without losing shared guardrails.
-order: 2
+summary: Give the Platform, Engineering, and Product teams separate files.
+order: 3
 related:
-  - label: Declarative configuration documentation
-    url: https://developer.konghq.com/kongctl/declarative/
+  - label: Metadata lesson
+    url: https://kong.github.io/kongctl/declarative-configuration/metadata/
 ---
 
 ## Goal
 
-You will identify where team ownership appears in a federated declarative
-configuration.
+You will create a `kongctl` project that separates team resource ownership.
 
-## Separate configurations by owner
+## Create the workspace
 
-Keep resources near the team that changes and reviews them. A simple
-repository layout makes the boundary visible:
+Start outside the `aigw` directory from the previous chapter. Create and enter
+a new workspace:
 
-```text
-federated/
-├── central-team/
+```shell label="Run this..."
+mkdir -p federated-aigw/platform \
+  federated-aigw/engineering \
+  federated-aigw/product && cd federated-aigw
+```
+
+The chapter will build this structure one file at a time:
+
+```text label="Workspace"
+federated-aigw/
+├── platform/
 │   └── ai-gateway.yaml
-└── peer-team/
-    ├── support-model.yaml
-    └── support-policy.yaml
+├── engineering/
+│   └── model.yaml
+└── product/
+    └── model.yaml
 ```
 
-The directory is an organizational boundary. The declarative namespace tells
-`kongctl` which managed resources belong to a reconciliation scope:
+Each directory represents a configuration owned and reviewed by a different
+team. In practice, these directories could be separate repositories.
 
-```yaml
-_defaults:
-  kongctl:
-    namespace: federated-ai-gateway
-```
+## Define boundaries
 
-Labels can record additional ownership information in Konnect:
+`kongctl` metadata can help you set boundaries between resources.
+`namespace` and `labels` provide metadata and behavior support for
+segementing resources, while `ref` and `lookup` features allow
+you to create resource relationships across those boundaries.
 
-```yaml
-labels:
-  team: support-experience
-  ownership: peer
-```
-
-Namespaces control declarative planning scope; they do not grant permissions.
-Use Konnect authorization to control what each team is allowed to change.
+We will start with a fully local configuration and move to a distributed
+one later in the lesson.

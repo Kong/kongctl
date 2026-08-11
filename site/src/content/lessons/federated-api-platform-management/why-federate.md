@@ -1,38 +1,41 @@
 ---
-title: Why Federate?
-summary: Balance a shared platform with independent team ownership.
+title: Federated Management
+summary: Share a platform while teams manage their own AI Gateway resources.
 order: 1
 related:
-  - label: Federated AI Gateway example
-    url: https://github.com/Kong/kongctl/tree/main/docs/examples/declarative/ai-gateway/federated
+  - label: Declarative configuration documentation
+    url: https://developer.konghq.com/kongctl/declarative/
 ---
 
 ## Goal
 
-You will understand how federated management separates platform ownership
-from the resources that product teams manage.
+You will understand the federated example that you will build throughout this
+chapter.
 
-## One platform, many owners
+## Targeted Governance
 
-A central platform team can provide shared capabilities, standards, and
-guardrails without becoming the operator for every team-owned resource.
-Product teams can then manage their resources through self-service workflows.
+Federated management breaks up ownership of a platform enabling self-service
+while maintaining central control over critical components.
+A central team provides shared core components, capabilities and guardrails.
+Satellite teams use those capabilities to manage the resources needed for
+their work.
 
-In the example used throughout this chapter:
+This chapter builds one shared AI Gateway with three owners:
 
-- A platform team owns a shared AI Gateway and model providers.
-- Peer teams own models, policies, consumers, agents, and other resources.
-- Team configurations refer to the shared gateway instead of redefining it.
+| Owner       | Owns                                  |
+| ----------- | ------------------------------------- |
+| Platform    | The AI Gateway and an OpenAI Provider |
+| Engineering | An Engineering Assistant Model        |
+| Product     | A Product Assistant Model             |
 
-This creates a deliberate ownership boundary: the platform team manages the
-shared foundation, while peer teams control the resources needed for their
-work.
+The Platform team controls the shared foundation. Engineering and Product can
+plan and apply their models without redefining or taking ownership of the AI
+Gateway.
 
-## What `kongctl` contributes
+## Simple deployment to federated
 
-Declarative configuration gives each team a reviewable description of its
-resources. Namespaces, references, external resources, and lookups let those
-descriptions connect without requiring one team to own every configuration
-file.
+You will first create all three configurations in a single unit and
+then break them apart into satellite configurations
 
-The rest of this chapter introduces each of those building blocks.
+This is a small AI Gateway specific example, but the same ownership pattern
+can extend across the entire Konnect API Platform of resources.
