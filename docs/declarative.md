@@ -1113,6 +1113,25 @@ kongctl dump tf-import --resources=api --include-child-resources
 kongctl dump declarative --resources=portal,api --default-namespace=team-alpha
 ```
 
+Add `--skip-defaults` to omit values that equal defaults declared by the
+Konnect API SDK:
+
+```shell
+kongctl dump declarative --resources=portal,api \
+  --include-child-resources --skip-defaults > konnect.yaml
+```
+
+This option makes dumps smaller while preserving non-default values. It
+applies to parent and nested child resources. Only literal API defaults from
+the generated SDK are omitted; kongctl conveniences such as deriving `name`
+from `ref` are not considered API defaults and remain in the output when
+present. Explicit `null` values are also preserved.
+
+Without `--skip-defaults`, dump behavior and output are unchanged. Default
+discovery and YAML filtering are not run. The option affects only
+`dump declarative`; it does not change `plan`, `apply`, `diff`, or
+`dump tf-import` behavior.
+
 For custom dashboards created in the Konnect UI, adopt the dashboard first,
 then dump it with the same namespace:
 

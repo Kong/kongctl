@@ -1,0 +1,1739 @@
+sdk_version: v0.51.2-0.20260803181245-b21f2210627b
+schema_version: 1
+resources:
+  - resource_type: ai_gateway
+    defaults:
+      - path: agents.config.logging.max_payload_size
+        type: integer
+        value: 1048576
+        source: sdk
+      - path: agents.config.logging.payloads
+        type: boolean
+        value: false
+        source: sdk
+      - path: agents.config.max_request_body_size
+        type: integer
+        value: 8388608
+        source: sdk
+      - path: agents.config.route.https_redirect_status_code
+        type: integer
+        value: 426
+        source: sdk
+      - path: agents.config.route.preserve_host
+        type: boolean
+        value: false
+        source: sdk
+      - path: agents.config.route.regex_priority
+        type: integer
+        value: 0
+        source: sdk
+      - path: agents.config.route.request_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: agents.config.route.response_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: agents.config.route.strip_path
+        type: boolean
+        value: true
+        source: sdk
+      - path: agents.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: consumers.credentials.ttl
+        type: integer
+        value: 0
+        source: sdk
+      - path: mcp_servers.access.acl_attribute_type
+        type: string
+        value: consumer
+        source: sdk
+      - path: mcp_servers.config.logging.audits
+        type: boolean
+        value: false
+        source: sdk
+      - path: mcp_servers.config.logging.payloads
+        type: boolean
+        value: false
+        source: sdk
+      - path: mcp_servers.config.max_request_body_size
+        type: integer
+        value: 8388608
+        source: sdk
+      - path: mcp_servers.config.proxy.proxy_scheme
+        type: string
+        value: http
+        source: sdk
+      - path: mcp_servers.config.route.https_redirect_status_code
+        type: integer
+        value: 426
+        source: sdk
+      - path: mcp_servers.config.route.preserve_host
+        type: boolean
+        value: false
+        source: sdk
+      - path: mcp_servers.config.route.regex_priority
+        type: integer
+        value: 0
+        source: sdk
+      - path: mcp_servers.config.route.request_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.config.route.response_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.config.route.strip_path
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.config.server.forward_client_headers
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.config.server.preserve_upstream_tool_names
+        type: boolean
+        value: false
+        source: sdk
+      - path: mcp_servers.config.server.session.managed
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.config.server.session.redis.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.config.server.session.session_ttl
+        type: integer
+        value: 86400
+        source: sdk
+      - path: mcp_servers.config.server.timeout
+        type: integer
+        value: 10000
+        source: sdk
+      - path: mcp_servers.config.server.tools_list_auth.access_token_header
+        type: string
+        value: Authorization
+        source: sdk
+      - path: mcp_servers.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.connect_timeout
+        type: integer
+        value: 60000
+        source: sdk
+      - path: models.config.balancer.embeddings.allow_auth_override
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.config.balancer.embeddings.config.api_version
+        type: string
+        value: "2023-05-15"
+        source: sdk
+      - path: models.config.balancer.embeddings.config.embeddings_normalize
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.config.balancer.embeddings.config.use_cache
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.config.balancer.embeddings.config.wait_for_model
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.config.balancer.fail_timeout
+        type: integer
+        value: 10000
+        source: sdk
+      - path: models.config.balancer.hash_on_header
+        type: string
+        value: X-Kong-LLM-Request-ID
+        source: sdk
+      - path: models.config.balancer.latency_strategy
+        type: string
+        value: tpot
+        source: sdk
+      - path: models.config.balancer.max_fails
+        type: integer
+        value: 0
+        source: sdk
+      - path: models.config.balancer.read_timeout
+        type: integer
+        value: 60000
+        source: sdk
+      - path: models.config.balancer.retries
+        type: integer
+        value: 5
+        source: sdk
+      - path: models.config.balancer.slots
+        type: integer
+        value: 10000
+        source: sdk
+      - path: models.config.balancer.tokens_count_strategy
+        type: string
+        value: total-tokens
+        source: sdk
+      - path: models.config.balancer.vectordb.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.vectordb.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: models.config.balancer.vectordb.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: models.config.balancer.vectordb.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: models.config.balancer.vectordb.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: models.config.balancer.vectordb.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.config.balancer.vectordb.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: models.config.balancer.vectordb.database
+        type: string
+        value: kong-pgvector
+        source: sdk
+      - path: models.config.balancer.vectordb.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: models.config.balancer.vectordb.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: models.config.balancer.vectordb.port
+        type: integer
+        value: 5432
+        source: sdk
+      - path: models.config.balancer.vectordb.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: models.config.balancer.vectordb.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: models.config.balancer.vectordb.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: models.config.balancer.vectordb.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: models.config.balancer.vectordb.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.vectordb.ssl.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.vectordb.ssl.required
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.vectordb.ssl.verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.vectordb.ssl.version
+        type: string
+        value: tlsv1_2
+        source: sdk
+      - path: models.config.balancer.vectordb.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.vectordb.timeout
+        type: number
+        value: 5000
+        source: sdk
+      - path: models.config.balancer.vectordb.user
+        type: string
+        value: postgres
+        source: sdk
+      - path: models.config.balancer.write_timeout
+        type: integer
+        value: 60000
+        source: sdk
+      - path: models.config.logging.payloads
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.config.max_request_body_size
+        type: integer
+        value: 8388608
+        source: sdk
+      - path: models.config.model.name_header
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.proxy.proxy_scheme
+        type: string
+        value: http
+        source: sdk
+      - path: models.config.response_streaming
+        type: string
+        value: allow
+        source: sdk
+      - path: models.config.route.https_redirect_status_code
+        type: integer
+        value: 426
+        source: sdk
+      - path: models.config.route.preserve_host
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.config.route.regex_priority
+        type: integer
+        value: 0
+        source: sdk
+      - path: models.config.route.request_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.route.response_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.route.strip_path
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.targets.allow_auth_override
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.targets.config.api_version
+        type: string
+        value: "2023-05-15"
+        source: sdk
+      - path: models.targets.config.api_version
+        type: string
+        value: v2
+        source: sdk
+      - path: models.targets.config.embedding_input_type
+        type: string
+        value: classification
+        source: sdk
+      - path: models.targets.config.embeddings_normalize
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.targets.config.international
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.targets.config.use_cache
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.targets.config.version
+        type: string
+        value: "2023-06-01"
+        source: sdk
+      - path: models.targets.config.wait_for_model
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.targets.weight
+        type: integer
+        value: 100
+        source: sdk
+      - path: policies.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: policies.global
+        type: boolean
+        value: false
+        source: sdk
+      - path: vaults.config.api_token_file
+        type: string
+        value: /run/secrets/kubernetes.io/serviceaccount/token
+        source: sdk
+      - path: vaults.config.credentials_prefix
+        type: string
+        value: AZURE
+        source: sdk
+      - path: vaults.config.kv
+        type: string
+        value: v1
+        source: sdk
+      - path: vaults.config.login_path
+        type: string
+        value: /v1/auth/aws/login
+        source: sdk
+      - path: vaults.config.login_path
+        type: string
+        value: /v1/auth/azure/login
+        source: sdk
+      - path: vaults.config.login_path
+        type: string
+        value: /v1/auth/gcp/login
+        source: sdk
+      - path: vaults.config.mount
+        type: string
+        value: secret
+        source: sdk
+      - path: vaults.config.neg_ttl
+        type: integer
+        value: 0
+        source: sdk
+      - path: vaults.config.path
+        type: string
+        value: approle
+        source: sdk
+      - path: vaults.config.path
+        type: string
+        value: kubernetes
+        source: sdk
+      - path: vaults.config.protocol
+        type: string
+        value: https
+        source: sdk
+      - path: vaults.config.response_wrapping
+        type: boolean
+        value: false
+        source: sdk
+      - path: vaults.config.resurrect_ttl
+        type: integer
+        value: 100000000
+        source: sdk
+      - path: vaults.config.role_session_name
+        type: string
+        value: KongVault
+        source: sdk
+      - path: vaults.config.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: vaults.config.ttl
+        type: integer
+        value: 0
+        source: sdk
+      - path: vaults.config.type
+        type: string
+        value: secrets
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_agent
+    defaults:
+      - path: config.logging.max_payload_size
+        type: integer
+        value: 1048576
+        source: sdk
+      - path: config.logging.payloads
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.max_request_body_size
+        type: integer
+        value: 8388608
+        source: sdk
+      - path: config.route.https_redirect_status_code
+        type: integer
+        value: 426
+        source: sdk
+      - path: config.route.preserve_host
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.route.regex_priority
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.route.request_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.route.response_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.route.strip_path
+        type: boolean
+        value: true
+        source: sdk
+      - path: enabled
+        type: boolean
+        value: true
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_config_store
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_consumer
+    defaults:
+      - path: credentials.ttl
+        type: integer
+        value: 0
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_consumer_credential
+    defaults:
+      - path: ttl
+        type: integer
+        value: 0
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_consumer_group
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_data_plane_certificate
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_identity_provider
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_mcp_server
+    defaults:
+      - path: access.acl_attribute_type
+        type: string
+        value: consumer
+        source: sdk
+      - path: config.logging.audits
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.logging.payloads
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.max_request_body_size
+        type: integer
+        value: 8388608
+        source: sdk
+      - path: config.proxy.proxy_scheme
+        type: string
+        value: http
+        source: sdk
+      - path: config.route.https_redirect_status_code
+        type: integer
+        value: 426
+        source: sdk
+      - path: config.route.preserve_host
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.route.regex_priority
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.route.request_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.route.response_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.route.strip_path
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.server.forward_client_headers
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.server.preserve_upstream_tool_names
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.server.session.managed
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.server.session.redis.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.server.session.redis.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: config.server.session.redis.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: config.server.session.redis.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: config.server.session.redis.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: config.server.session.redis.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.server.session.redis.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.server.session.redis.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: config.server.session.redis.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: config.server.session.redis.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: config.server.session.redis.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: config.server.session.redis.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: config.server.session.redis.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: config.server.session.redis.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.server.session.redis.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.server.session.session_ttl
+        type: integer
+        value: 86400
+        source: sdk
+      - path: config.server.timeout
+        type: integer
+        value: 10000
+        source: sdk
+      - path: config.server.tools_list_auth.access_token_header
+        type: string
+        value: Authorization
+        source: sdk
+      - path: enabled
+        type: boolean
+        value: true
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_model
+    defaults:
+      - path: config.balancer.connect_timeout
+        type: integer
+        value: 60000
+        source: sdk
+      - path: config.balancer.embeddings.allow_auth_override
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.balancer.embeddings.config.api_version
+        type: string
+        value: "2023-05-15"
+        source: sdk
+      - path: config.balancer.embeddings.config.embeddings_normalize
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.balancer.embeddings.config.use_cache
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.balancer.embeddings.config.wait_for_model
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.balancer.fail_timeout
+        type: integer
+        value: 10000
+        source: sdk
+      - path: config.balancer.hash_on_header
+        type: string
+        value: X-Kong-LLM-Request-ID
+        source: sdk
+      - path: config.balancer.latency_strategy
+        type: string
+        value: tpot
+        source: sdk
+      - path: config.balancer.max_fails
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.balancer.read_timeout
+        type: integer
+        value: 60000
+        source: sdk
+      - path: config.balancer.retries
+        type: integer
+        value: 5
+        source: sdk
+      - path: config.balancer.slots
+        type: integer
+        value: 10000
+        source: sdk
+      - path: config.balancer.tokens_count_strategy
+        type: string
+        value: total-tokens
+        source: sdk
+      - path: config.balancer.vectordb.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.vectordb.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: config.balancer.vectordb.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: config.balancer.vectordb.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: config.balancer.vectordb.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: config.balancer.vectordb.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.balancer.vectordb.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.balancer.vectordb.database
+        type: string
+        value: kong-pgvector
+        source: sdk
+      - path: config.balancer.vectordb.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: config.balancer.vectordb.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: config.balancer.vectordb.port
+        type: integer
+        value: 5432
+        source: sdk
+      - path: config.balancer.vectordb.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: config.balancer.vectordb.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: config.balancer.vectordb.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: config.balancer.vectordb.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: config.balancer.vectordb.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.vectordb.ssl.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.vectordb.ssl.required
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.vectordb.ssl.verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.vectordb.ssl.version
+        type: string
+        value: tlsv1_2
+        source: sdk
+      - path: config.balancer.vectordb.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.vectordb.timeout
+        type: number
+        value: 5000
+        source: sdk
+      - path: config.balancer.vectordb.user
+        type: string
+        value: postgres
+        source: sdk
+      - path: config.balancer.write_timeout
+        type: integer
+        value: 60000
+        source: sdk
+      - path: config.logging.payloads
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.max_request_body_size
+        type: integer
+        value: 8388608
+        source: sdk
+      - path: config.model.name_header
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.proxy.proxy_scheme
+        type: string
+        value: http
+        source: sdk
+      - path: config.response_streaming
+        type: string
+        value: allow
+        source: sdk
+      - path: config.route.https_redirect_status_code
+        type: integer
+        value: 426
+        source: sdk
+      - path: config.route.preserve_host
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.route.regex_priority
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.route.request_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.route.response_buffering
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.route.strip_path
+        type: boolean
+        value: true
+        source: sdk
+      - path: enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: targets.allow_auth_override
+        type: boolean
+        value: false
+        source: sdk
+      - path: targets.config.api_version
+        type: string
+        value: "2023-05-15"
+        source: sdk
+      - path: targets.config.api_version
+        type: string
+        value: v2
+        source: sdk
+      - path: targets.config.embedding_input_type
+        type: string
+        value: classification
+        source: sdk
+      - path: targets.config.embeddings_normalize
+        type: boolean
+        value: false
+        source: sdk
+      - path: targets.config.international
+        type: boolean
+        value: true
+        source: sdk
+      - path: targets.config.use_cache
+        type: boolean
+        value: false
+        source: sdk
+      - path: targets.config.version
+        type: string
+        value: "2023-06-01"
+        source: sdk
+      - path: targets.config.wait_for_model
+        type: boolean
+        value: false
+        source: sdk
+      - path: targets.weight
+        type: integer
+        value: 100
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_model_provider
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_policy
+    defaults:
+      - path: enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: global
+        type: boolean
+        value: false
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_vault
+    defaults:
+      - path: config.api_token_file
+        type: string
+        value: /run/secrets/kubernetes.io/serviceaccount/token
+        source: sdk
+      - path: config.credentials_prefix
+        type: string
+        value: AZURE
+        source: sdk
+      - path: config.kv
+        type: string
+        value: v1
+        source: sdk
+      - path: config.login_path
+        type: string
+        value: /v1/auth/aws/login
+        source: sdk
+      - path: config.login_path
+        type: string
+        value: /v1/auth/azure/login
+        source: sdk
+      - path: config.login_path
+        type: string
+        value: /v1/auth/gcp/login
+        source: sdk
+      - path: config.mount
+        type: string
+        value: secret
+        source: sdk
+      - path: config.neg_ttl
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.path
+        type: string
+        value: approle
+        source: sdk
+      - path: config.path
+        type: string
+        value: kubernetes
+        source: sdk
+      - path: config.protocol
+        type: string
+        value: https
+        source: sdk
+      - path: config.response_wrapping
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.resurrect_ttl
+        type: integer
+        value: 100000000
+        source: sdk
+      - path: config.role_session_name
+        type: string
+        value: KongVault
+        source: sdk
+      - path: config.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.ttl
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.type
+        type: string
+        value: secrets
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: api
+    defaults:
+      - path: documents.status
+        type: string
+        value: unpublished
+        source: sdk
+      - path: publications.visibility
+        type: string
+        value: private
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: api_document
+    defaults:
+      - path: status
+        type: string
+        value: unpublished
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: api_implementation
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: api_publication
+    defaults:
+      - path: visibility
+        type: string
+        value: private
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: api_version
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: application_auth_strategy
+    defaults:
+      - path: principals.enabled
+        type: boolean
+        value: false
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: audit_log_webhook_destination
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: catalog_service
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: control_plane
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: control_plane_data_plane_certificate
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: dashboard
+    defaults:
+      - path: definition.tiles.definition.query.limit
+        type: number
+        value: 50
+        source: sdk
+      - path: definition.tiles.definition.query.time_range.time_range
+        type: string
+        value: 1h
+        source: sdk
+      - path: definition.tiles.definition.query.time_range.time_range
+        type: string
+        value: 30d
+        source: sdk
+      - path: definition.tiles.definition.query.time_range.tz
+        type: string
+        value: Etc/UTC
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: dcr_provider
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway
+    defaults:
+      - path: backend_clusters.description
+        type: string
+        value: ""
+        source: sdk
+      - path: backend_clusters.insecure_allow_anonymous_virtual_cluster_auth
+        type: boolean
+        value: false
+        source: sdk
+      - path: backend_clusters.metadata_update_interval_seconds
+        type: integer
+        value: 60
+        source: sdk
+      - path: listeners.description
+        type: string
+        value: ""
+        source: sdk
+      - path: listeners.policies.config.allow_plaintext
+        type: boolean
+        value: false
+        source: sdk
+      - path: listeners.policies.config.bootstrap_port
+        type: string
+        value: at_start
+        source: sdk
+      - path: listeners.policies.config.broker_host_format.type
+        type: string
+        value: per_cluster_suffix
+        source: sdk
+      - path: listeners.policies.config.min_broker_id
+        type: integer
+        value: 0
+        source: sdk
+      - path: listeners.policies.config.versions.max
+        type: string
+        value: TLSv1.3
+        source: sdk
+      - path: listeners.policies.config.versions.min
+        type: string
+        value: TLSv1.2
+        source: sdk
+      - path: listeners.policies.description
+        type: string
+        value: ""
+        source: sdk
+      - path: listeners.policies.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: schema_registries.config.timeout_seconds
+        type: integer
+        value: 10
+        source: sdk
+      - path: schema_registries.description
+        type: string
+        value: ""
+        source: sdk
+      - path: static_keys.description
+        type: string
+        value: ""
+        source: sdk
+      - path: tls_trust_bundles.description
+        type: string
+        value: ""
+        source: sdk
+      - path: virtual_clusters.authentication.jwks.cache_expiration
+        type: string
+        value: 1h
+        source: sdk
+      - path: virtual_clusters.authentication.jwks.timeout
+        type: string
+        value: 10s
+        source: sdk
+      - path: virtual_clusters.cluster_policies.condition
+        type: string
+        value: ""
+        source: sdk
+      - path: virtual_clusters.cluster_policies.description
+        type: string
+        value: ""
+        source: sdk
+      - path: virtual_clusters.cluster_policies.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: virtual_clusters.consume_policies.condition
+        type: string
+        value: ""
+        source: sdk
+      - path: virtual_clusters.consume_policies.description
+        type: string
+        value: ""
+        source: sdk
+      - path: virtual_clusters.consume_policies.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: virtual_clusters.description
+        type: string
+        value: ""
+        source: sdk
+      - path: virtual_clusters.namespace.additional.topics.conflict
+        type: string
+        value: warn
+        source: sdk
+      - path: virtual_clusters.produce_policies.condition
+        type: string
+        value: ""
+        source: sdk
+      - path: virtual_clusters.produce_policies.description
+        type: string
+        value: ""
+        source: sdk
+      - path: virtual_clusters.produce_policies.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: virtual_clusters.topic_aliases.condition
+        type: string
+        value: ""
+        source: sdk
+      - path: virtual_clusters.topic_aliases.conflict
+        type: string
+        value: warn
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_backend_cluster
+    defaults:
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+      - path: insecure_allow_anonymous_virtual_cluster_auth
+        type: boolean
+        value: false
+        source: sdk
+      - path: metadata_update_interval_seconds
+        type: integer
+        value: 60
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_data_plane_certificate
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_listener
+    defaults:
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+      - path: policies.config.allow_plaintext
+        type: boolean
+        value: false
+        source: sdk
+      - path: policies.config.bootstrap_port
+        type: string
+        value: at_start
+        source: sdk
+      - path: policies.config.broker_host_format.type
+        type: string
+        value: per_cluster_suffix
+        source: sdk
+      - path: policies.config.min_broker_id
+        type: integer
+        value: 0
+        source: sdk
+      - path: policies.config.versions.max
+        type: string
+        value: TLSv1.3
+        source: sdk
+      - path: policies.config.versions.min
+        type: string
+        value: TLSv1.2
+        source: sdk
+      - path: policies.description
+        type: string
+        value: ""
+        source: sdk
+      - path: policies.enabled
+        type: boolean
+        value: true
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_listener_policy
+    defaults:
+      - path: config.allow_plaintext
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.bootstrap_port
+        type: string
+        value: at_start
+        source: sdk
+      - path: config.broker_host_format.type
+        type: string
+        value: per_cluster_suffix
+        source: sdk
+      - path: config.min_broker_id
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.versions.max
+        type: string
+        value: TLSv1.3
+        source: sdk
+      - path: config.versions.min
+        type: string
+        value: TLSv1.2
+        source: sdk
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+      - path: enabled
+        type: boolean
+        value: true
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_schema_registry
+    defaults:
+      - path: config.timeout_seconds
+        type: integer
+        value: 10
+        source: sdk
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_static_key
+    defaults:
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_tls_trust_bundle
+    defaults:
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_virtual_cluster
+    defaults:
+      - path: authentication.jwks.cache_expiration
+        type: string
+        value: 1h
+        source: sdk
+      - path: authentication.jwks.timeout
+        type: string
+        value: 10s
+        source: sdk
+      - path: cluster_policies.condition
+        type: string
+        value: ""
+        source: sdk
+      - path: cluster_policies.description
+        type: string
+        value: ""
+        source: sdk
+      - path: cluster_policies.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: consume_policies.condition
+        type: string
+        value: ""
+        source: sdk
+      - path: consume_policies.description
+        type: string
+        value: ""
+        source: sdk
+      - path: consume_policies.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+      - path: namespace.additional.topics.conflict
+        type: string
+        value: warn
+        source: sdk
+      - path: produce_policies.condition
+        type: string
+        value: ""
+        source: sdk
+      - path: produce_policies.description
+        type: string
+        value: ""
+        source: sdk
+      - path: produce_policies.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: topic_aliases.condition
+        type: string
+        value: ""
+        source: sdk
+      - path: topic_aliases.conflict
+        type: string
+        value: warn
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_virtual_cluster_cluster_policy
+    defaults:
+      - path: condition
+        type: string
+        value: ""
+        source: sdk
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+      - path: enabled
+        type: boolean
+        value: true
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_virtual_cluster_consume_policy
+    defaults:
+      - path: condition
+        type: string
+        value: ""
+        source: sdk
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+      - path: enabled
+        type: boolean
+        value: true
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: event_gateway_virtual_cluster_produce_policy
+    defaults:
+      - path: condition
+        type: string
+        value: ""
+        source: sdk
+      - path: description
+        type: string
+        value: ""
+        source: sdk
+      - path: enabled
+        type: boolean
+        value: true
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: gateway_service
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: organization_system_account_role
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: organization_system_account_team_membership
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: organization_team
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: organization_team_role
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: organization_user_role
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: organization_user_team_membership
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal
+    defaults:
+      - path: auth_settings.oidc_claim_mappings.email
+        type: string
+        value: email
+        source: sdk
+      - path: auth_settings.oidc_claim_mappings.groups
+        type: string
+        value: groups
+        source: sdk
+      - path: auth_settings.oidc_claim_mappings.name
+        type: string
+        value: name
+        source: sdk
+      - path: authentication_enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: auto_approve_applications
+        type: boolean
+        value: false
+        source: sdk
+      - path: auto_approve_developers
+        type: boolean
+        value: false
+        source: sdk
+      - path: custom_domain.ssl.skip_ca_check
+        type: boolean
+        value: false
+        source: sdk
+      - path: customization.spec_renderer.allow_custom_server_urls
+        type: boolean
+        value: true
+        source: sdk
+      - path: customization.spec_renderer.hide_deprecated
+        type: boolean
+        value: false
+        source: sdk
+      - path: customization.spec_renderer.hide_internal
+        type: boolean
+        value: false
+        source: sdk
+      - path: customization.spec_renderer.infinite_scroll
+        type: boolean
+        value: true
+        source: sdk
+      - path: customization.spec_renderer.show_schemas
+        type: boolean
+        value: true
+        source: sdk
+      - path: customization.spec_renderer.try_it_insomnia
+        type: boolean
+        value: true
+        source: sdk
+      - path: customization.spec_renderer.try_it_ui
+        type: boolean
+        value: true
+        source: sdk
+      - path: identity_providers.config.claim_mappings.email
+        type: string
+        value: email
+        source: sdk
+      - path: identity_providers.config.claim_mappings.groups
+        type: string
+        value: groups
+        source: sdk
+      - path: identity_providers.config.claim_mappings.name
+        type: string
+        value: name
+        source: sdk
+      - path: identity_providers.enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: notifications_developer_pii_visibility_enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: rbac_enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: sipr_enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: teams.can_own_applications
+        type: boolean
+        value: false
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: portal_asset_favicon
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_asset_logo
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_audit_log_webhook
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_auth_settings
+    defaults:
+      - path: oidc_claim_mappings.email
+        type: string
+        value: email
+        source: sdk
+      - path: oidc_claim_mappings.groups
+        type: string
+        value: groups
+        source: sdk
+      - path: oidc_claim_mappings.name
+        type: string
+        value: name
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: portal_custom_domain
+    defaults:
+      - path: ssl.skip_ca_check
+        type: boolean
+        value: false
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: portal_customization
+    defaults:
+      - path: spec_renderer.allow_custom_server_urls
+        type: boolean
+        value: true
+        source: sdk
+      - path: spec_renderer.hide_deprecated
+        type: boolean
+        value: false
+        source: sdk
+      - path: spec_renderer.hide_internal
+        type: boolean
+        value: false
+        source: sdk
+      - path: spec_renderer.infinite_scroll
+        type: boolean
+        value: true
+        source: sdk
+      - path: spec_renderer.show_schemas
+        type: boolean
+        value: true
+        source: sdk
+      - path: spec_renderer.try_it_insomnia
+        type: boolean
+        value: true
+        source: sdk
+      - path: spec_renderer.try_it_ui
+        type: boolean
+        value: true
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: portal_email_config
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_email_template
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_identity_provider
+    defaults:
+      - path: config.claim_mappings.email
+        type: string
+        value: email
+        source: sdk
+      - path: config.claim_mappings.groups
+        type: string
+        value: groups
+        source: sdk
+      - path: config.claim_mappings.name
+        type: string
+        value: name
+        source: sdk
+      - path: enabled
+        type: boolean
+        value: false
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: portal_integration
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_ip_allow_list
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_page
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_snippet
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_team
+    defaults:
+      - path: can_own_applications
+        type: boolean
+        value: false
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: portal_team_group_mapping
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: portal_team_role
+    defaults: []
+    overrides: []
+    exclusions: []
