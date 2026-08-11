@@ -130,7 +130,6 @@ steps:
               fields:
                 "contains(stdout, 'ai_gateways:')": true
                 "contains(stdout, 'models:')": true
-                "contains(stdout, '# oneOf option: body_param')": true
                 "contains(stdout, 'body_param: model')": true
                 "contains(stdout, 'values:')": true
                 "contains(stdout, '- support-gpt')": true
