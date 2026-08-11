@@ -344,3 +344,44 @@ func (h *testHook) GetPath() string {
 func (h *testHook) InConfig(string) bool {
 	return false
 }
+
+func TestPrintExtensionHelpShowsAllHostFlagsByDefault(t *testing.T) {
+	var buf bytes.Buffer
+	contribution := CommandPath{Usage: "kongctl get foo", Summary: "Get foo"}
+	require.NoError(t, PrintExtensionHelp(&buf, "kong/foo", contribution))
+	out := buf.String()
+	expected := "\nHost Flags:\n" +
+		"  -o, --output string\tOutput format: text, json, or yaml\n" +
+		"  --jq string\tFilter JSON or YAML output using a jq expression\n" +
+		"  -r, --jq-raw-output\tOutput string jq results without JSON quotes\n" +
+		"  --jq-color string\tColor mode for jq output: auto, always, or never\n" +
+		"  --jq-color-theme string\tColor theme for jq output\n" +
+		"  -p, --profile string\tConfiguration profile to use\n" +
+		"  --color-theme string\tkongctl color theme\n"
+	require.Contains(t, out, expected)
+}
+
+func TestPrintExtensionHelpHidesHostFlagsSection(t *testing.T) {
+	var buf bytes.Buffer
+	contribution := CommandPath{
+		Usage: "kongctl get foo", Summary: "Get foo",
+		HostFlags: &HostFlags{Hidden: true},
+	}
+	require.NoError(t, PrintExtensionHelp(&buf, "kong/foo", contribution))
+	require.NotContains(t, buf.String(), "Host Flags:")
+}
+
+func TestPrintExtensionHelpShowsOnlySelectedHostFlags(t *testing.T) {
+	var buf bytes.Buffer
+	contribution := CommandPath{
+		Usage: "kongctl get foo", Summary: "Get foo",
+		HostFlags: &HostFlags{Only: []string{cmdcommon.OutputFlagName, cmdcommon.ProfileFlagName}},
+	}
+	require.NoError(t, PrintExtensionHelp(&buf, "kong/foo", contribution))
+	out := buf.String()
+	require.Contains(t, out, "Host Flags:")
+	require.Contains(t, out, "--output")
+	require.Contains(t, out, "--profile")
+	require.NotContains(t, out, "--jq")
+	require.NotContains(t, out, "--color-theme")
+}

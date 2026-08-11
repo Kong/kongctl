@@ -513,7 +513,7 @@ func PrintExtensionHelp(w io.Writer, extensionID string, contribution CommandPat
 			}
 		}
 	}
-	if err := printExtensionHostFlags(w); err != nil {
+	if err := printExtensionHostFlags(w, contribution.HostFlags); err != nil {
 		return err
 	}
 	if len(contribution.Examples) > 0 {
@@ -529,24 +529,54 @@ func PrintExtensionHelp(w io.Writer, extensionID string, contribution CommandPat
 	return nil
 }
 
-func printExtensionHostFlags(w io.Writer) error {
-	hostFlags := []struct {
-		flag        string
-		description string
-	}{
-		{"-o, --output string", "Output format: text, json, or yaml"},
-		{"--jq string", "Filter JSON or YAML output using a jq expression"},
-		{"-r, --jq-raw-output", "Output string jq results without JSON quotes"},
-		{"--jq-color string", "Color mode for jq output: auto, always, or never"},
-		{"--jq-color-theme string", "Color theme for jq output"},
-		{"-p, --profile string", "Configuration profile to use"},
-		{"--color-theme string", "kongctl color theme"},
+// extensionHostFlags is the ordered set of host flags kongctl exposes to
+// extension commands. Names key the manifest host_flags.only allow-list, so
+// they reference the shared flag-name constants rather than raw literals.
+var extensionHostFlags = []struct {
+	name        string
+	display     string
+	description string
+}{
+	{cmdcommon.OutputFlagName, "-o, --output string", "Output format: text, json, or yaml"},
+	{jqoutput.FlagName, "--jq string", "Filter JSON or YAML output using a jq expression"},
+	{jqoutput.RawOutputFlagName, "-r, --jq-raw-output", "Output string jq results without JSON quotes"},
+	{jqoutput.ColorFlagName, "--jq-color string", "Color mode for jq output: auto, always, or never"},
+	{jqoutput.ColorThemeFlagName, "--jq-color-theme string", "Color theme for jq output"},
+	{cmdcommon.ProfileFlagName, "-p, --profile string", "Configuration profile to use"},
+	{cmdcommon.ColorThemeFlagName, "--color-theme string", "kongctl color theme"},
+}
+
+// HostFlagNames returns the canonical host flag names in display order.
+func HostFlagNames() []string {
+	names := make([]string, len(extensionHostFlags))
+	for i, hostFlag := range extensionHostFlags {
+		names[i] = hostFlag.name
+	}
+	return names
+}
+
+// IsHostFlagName reports whether name is a recognized host flag.
+func IsHostFlagName(name string) bool {
+	for _, hostFlag := range extensionHostFlags {
+		if hostFlag.name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func printExtensionHostFlags(w io.Writer, visibility *HostFlags) error {
+	if visibility != nil && visibility.Hidden {
+		return nil
 	}
 	if _, err := fmt.Fprintln(w, "\nHost Flags:"); err != nil {
 		return err
 	}
-	for _, hostFlag := range hostFlags {
-		if _, err := fmt.Fprintf(w, "  %s\t%s\n", hostFlag.flag, hostFlag.description); err != nil {
+	for _, hostFlag := range extensionHostFlags {
+		if visibility != nil && len(visibility.Only) > 0 && !slices.Contains(visibility.Only, hostFlag.name) {
+			continue
+		}
+		if _, err := fmt.Fprintf(w, "  %s\t%s\n", hostFlag.display, hostFlag.description); err != nil {
 			return err
 		}
 	}

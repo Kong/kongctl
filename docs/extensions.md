@@ -143,6 +143,33 @@ kongctl get foo -- --output raw
 Inside the extension, read `remaining_args` from the runtime context, or parse
 the process arguments passed to the executable.
 
+## Host Flags
+
+Extension command help lists the host `kongctl` flags a command inherits, such
+as `--output` and `--profile`. When a command ignores some of them, a
+contribution can trim the section with `host_flags`:
+
+```yaml
+command_paths:
+  - path:
+      - name: convert
+      - name: ai-gateway
+    host_flags:
+      hidden: true            # drop the Host Flags section entirely
+  - path:
+      - name: get
+      - name: report
+    host_flags:
+      only: [output, profile] # list only these host flags
+```
+
+Omit `host_flags` to list every host flag, which is the default. `hidden` and
+`only` cannot be set together. Valid host flag names are `output`, `jq`,
+`jq-raw-output`, `jq-color`, `jq-color-theme`, `profile`, and `color-theme`.
+
+This controls help output only. Hidden host flags are still recognized and
+applied when the command runs.
+
 ## Runtime Context
 
 When `kongctl` runs an extension, it writes a `context.json` file and sets:

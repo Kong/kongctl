@@ -166,3 +166,96 @@ func TestParseManifestRejectsOversizedManifest(t *testing.T) {
 
 	require.Error(t, err)
 }
+
+func TestParseManifestNormalizesHostFlagsOnly(t *testing.T) {
+	manifest, err := ParseManifest([]byte(`
+schema_version: 1
+publisher: kong
+name: foo
+runtime:
+  command: bin/kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+    host_flags:
+      only: [OUTPUT, " profile "]
+`))
+
+	require.NoError(t, err)
+	require.Equal(t, []string{"output", "profile"}, manifest.CommandPaths[0].HostFlags.Only)
+}
+
+func TestParseManifestHidesHostFlags(t *testing.T) {
+	manifest, err := ParseManifest([]byte(`
+schema_version: 1
+publisher: kong
+name: foo
+runtime:
+  command: bin/kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+    host_flags:
+      hidden: true
+`))
+
+	require.NoError(t, err)
+	require.True(t, manifest.CommandPaths[0].HostFlags.Hidden)
+}
+
+func TestParseManifestRejectsUnknownHostFlag(t *testing.T) {
+	_, err := ParseManifest([]byte(`
+schema_version: 1
+publisher: kong
+name: foo
+runtime:
+  command: bin/kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+    host_flags:
+      only: [not-a-flag]
+`))
+
+	require.ErrorContains(t, err, "unknown host flag")
+}
+
+func TestParseManifestRejectsHiddenAndOnlyHostFlags(t *testing.T) {
+	_, err := ParseManifest([]byte(`
+schema_version: 1
+publisher: kong
+name: foo
+runtime:
+  command: bin/kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+    host_flags:
+      hidden: true
+      only: [output]
+`))
+
+	require.ErrorContains(t, err, "hidden and only cannot be set together")
+}
+
+func TestParseManifestRejectsEmptyHostFlagsOnly(t *testing.T) {
+	_, err := ParseManifest([]byte(`
+schema_version: 1
+publisher: kong
+name: foo
+runtime:
+  command: bin/kongctl-ext-foo
+command_paths:
+  - path:
+      - name: get
+      - name: foo
+    host_flags:
+      only: []
+`))
+
+	require.ErrorContains(t, err, "at least one host flag")
+}

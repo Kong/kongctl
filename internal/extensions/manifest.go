@@ -105,6 +105,15 @@ type CommandPath struct {
 	Examples    []string      `json:"examples,omitempty"    yaml:"examples,omitempty"`
 	Args        []Argument    `json:"args,omitempty"        yaml:"args,omitempty"`
 	Flags       []Flag        `json:"flags,omitempty"       yaml:"flags,omitempty"`
+	HostFlags   *HostFlags    `json:"host_flags,omitempty"  yaml:"host_flags,omitempty"`
+}
+
+// HostFlags controls which host flags a command contribution lists in its
+// generated help. When nil, help lists every host flag. Hidden drops the
+// section entirely; Only restricts it to the named host flags.
+type HostFlags struct {
+	Hidden bool     `json:"hidden,omitempty" yaml:"hidden,omitempty"`
+	Only   []string `json:"only,omitempty"   yaml:"only,omitempty"`
 }
 
 type PathSegment struct {
@@ -523,7 +532,34 @@ func normalizeAndValidateCommandPath(extensionID string, path *CommandPath) erro
 			return fmt.Errorf("flags[%d]: %w", i, err)
 		}
 	}
+	if err := normalizeHostFlags(path.HostFlags); err != nil {
+		return fmt.Errorf("host_flags: %w", err)
+	}
 
+	return nil
+}
+
+func normalizeHostFlags(hostFlags *HostFlags) error {
+	if hostFlags == nil {
+		return nil
+	}
+	if hostFlags.Hidden && len(hostFlags.Only) > 0 {
+		return errors.New("hidden and only cannot be set together")
+	}
+	if hostFlags.Only != nil && len(hostFlags.Only) == 0 {
+		return errors.New("only must list at least one host flag; use hidden: true to hide all host flags")
+	}
+	if len(hostFlags.Only) > maxMetadataEntries {
+		return fmt.Errorf("only must contain %d entries or fewer", maxMetadataEntries)
+	}
+	for i := range hostFlags.Only {
+		name := strings.TrimSpace(strings.ToLower(hostFlags.Only[i]))
+		if !IsHostFlagName(name) {
+			return fmt.Errorf("only[%d]: unknown host flag %q; valid host flags are %s",
+				i, hostFlags.Only[i], strings.Join(HostFlagNames(), ", "))
+		}
+		hostFlags.Only[i] = name
+	}
 	return nil
 }
 
