@@ -50,6 +50,13 @@ func TestLoaderExtractsIssue1499NestedAIGatewayMCPServers(t *testing.T) {
 ai_gateways:
   - ref: poc-default-ai-gateway
     display_name: POC Default AI Gateway
+    identity_providers:
+      - ref: poc-key-auth
+        name: poc-key-auth
+        type: key-auth
+        display_name: POC Key Auth
+        config:
+          key_names: [apikey]
     mcp_servers:
       - ref: poc-mcp-conversion
         type: conversion-only
@@ -95,6 +102,8 @@ ai_gateways:
         tools: []
         access:
           acl_attribute_type: consumer
+          identity_providers:
+            - !ref poc-key-auth
         config:
           url: https://httpbin.konghq.com/anything
           route:
@@ -142,6 +151,14 @@ ai_gateways:
 	require.Equal(t, "conversion-only", byRef["poc-mcp-conversion"].MCPServerType())
 	require.Equal(t, "passthrough-listener", byRef["poc-mcp-server"].MCPServerType())
 	require.Equal(t, "conversion-listener", byRef["poc-mcp-conversion-listener"].MCPServerType())
+	conversionListenerPayload, err := byRef["poc-mcp-conversion-listener"].PayloadMap()
+	require.NoError(t, err)
+	conversionListenerAccess := conversionListenerPayload["access"].(map[string]any)
+	require.Equal(
+		t,
+		[]any{tags.RefPlaceholderPrefix + "poc-key-auth#id"},
+		conversionListenerAccess["identity_providers"],
+	)
 	require.Equal(t, "listener", byRef["poc-mcp-listener"].MCPServerType())
 	require.Equal(t, "upstream-server", byRef["poc-mcp-upstream"].MCPServerType())
 }

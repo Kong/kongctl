@@ -61,6 +61,7 @@ steps:
                 action: CREATE
                 fields.capabilities[0]: generate
                 fields.config.logging.payloads: true
+                fields.config.model.name_header: false
                 fields.config.route.paths[0]: /matrix/chat
                 fields.targets[0].config.input_cost: 0.8
                 fields.targets[1].config.output_cost: 15
@@ -136,6 +137,10 @@ steps:
                 config.balancer.algorithm: semantic
                 config.balancer.vectordb.type: redis
                 config.balancer.vectordb.host: redis.example.com
+          - select: "[?name=='matrix-chat-model'] | [0]"
+            expect:
+              fields:
+                config.model.name_header: false
       - name: 003-diff-no-changes
         outputFormat: text
         parseAs: raw

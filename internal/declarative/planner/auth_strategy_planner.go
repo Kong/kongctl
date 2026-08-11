@@ -12,6 +12,8 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
+const authStrategyConfigOpenIDConnect = "openid-connect"
+
 // authStrategyPlannerImpl implements planning logic for auth strategy resources
 type authStrategyPlannerImpl struct {
 	*BasePlanner
@@ -274,7 +276,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			}
 
 			fields[FieldConfigs] = map[string]any{
-				"openid-connect": oidcConfig,
+				authStrategyConfigOpenIDConnect: oidcConfig,
 			}
 			if providerID := strategy.GetDCRProviderID(); providerID != "" {
 				fields[FieldDCRProviderID] = providerID
@@ -439,7 +441,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 			// Get current OIDC config
 			var currentOIDC map[string]any
 			if current.Configs != nil {
-				if oidc, ok := current.Configs["openid-connect"].(map[string]any); ok {
+				if oidc, ok := current.Configs[authStrategyConfigOpenIDConnect].(map[string]any); ok {
 					currentOIDC = oidc
 				}
 			}
@@ -490,12 +492,12 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 
 			if hasUpdates {
 				newConfigs := map[string]any{
-					"openid-connect": oidcUpdates,
+					authStrategyConfigOpenIDConnect: oidcUpdates,
 				}
 				updateFields[FieldConfigs] = newConfigs
 				changedFields[FieldConfigs] = FieldChange{
 					Old: map[string]any{
-						"openid-connect": oidcOldValues,
+						authStrategyConfigOpenIDConnect: oidcOldValues,
 					},
 					New: newConfigs,
 				}

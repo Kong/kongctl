@@ -24,4 +24,12 @@ ai_gateways:
             - x-support-api-key
             - apikey
           hide_credentials: true
-
+      - ref: support-oidc
+        name: support-oidc
+        type: openid-connect
+        display_name: "Updated Support OIDC"
+        config:
+          auth_methods:
+            - bearer
+          cache_tokens_salt: support-oidc-cache-salt-000001
+          issuer: https://issuer.example.com

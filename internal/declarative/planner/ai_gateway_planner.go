@@ -667,6 +667,13 @@ func (p *Planner) shouldUpdateAIGateway(
 ) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
+	for key, desiredValue := range desired.AdditionalProperties {
+		currentValue, found := current.AdditionalProperties[key]
+		if !found || !reflect.DeepEqual(currentValue, desiredValue) {
+			updates[key] = desiredValue
+			changedFields[key] = FieldChange{Old: currentValue, New: desiredValue}
+		}
+	}
 
 	if current.Name != desired.Name {
 		updates[FieldName] = desired.Name
@@ -806,6 +813,11 @@ func (p *Planner) planAIGatewayUpdate(
 	namespace, _ := aiGatewayNamespaceAndProtection(desired)
 	fields := make(map[string]any)
 	maps.Copy(fields, updateFields)
+	for key, value := range current.AdditionalProperties {
+		if _, declared := desired.AdditionalProperties[key]; !declared {
+			fields[key] = value
+		}
+	}
 	fields[FieldName] = desired.Name
 	if fields[FieldName] == "" {
 		fields[FieldName] = desired.GetRef()
@@ -859,10 +871,12 @@ func (p *Planner) planAIGatewayDelete(current state.AIGateway, plan *Plan) {
 }
 
 func extractAIGatewayFields(resource resources.AIGatewayResource) map[string]any {
-	fields := map[string]any{
-		FieldName:        resource.Name,
-		FieldDisplayName: resource.DisplayName,
+	fields := maps.Clone(resource.AdditionalProperties)
+	if fields == nil {
+		fields = make(map[string]any)
 	}
+	fields[FieldName] = resource.Name
+	fields[FieldDisplayName] = resource.DisplayName
 	if resource.Description != nil {
 		fields[FieldDescription] = *resource.Description
 	}

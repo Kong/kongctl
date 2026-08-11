@@ -112,6 +112,263 @@ application_auth_strategies:
 	assert.ErrorContains(t, err, "application_auth_strategies[0].configs.openid_connect")
 }
 
+func TestDeclarativeLoadSchemaAcceptsVertexServiceAccountAuth(t *testing.T) {
+	t.Setenv("GCP_SERVICE_ACCOUNT_JSON", `{"type":"service_account"}`)
+	input := `
+ai_gateway_model_providers:
+  - ref: vertex-prod
+    name: vertex-prod
+    display_name: Google Vertex Prod
+    ai_gateway: ai-quickstart
+    type: vertex
+    config:
+      auth:
+        type: vertex
+        service_account_json: !env GCP_SERVICE_ACCOUNT_JSON
+`
+
+	_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.NoError(t, err)
+}
+
+func TestDeclarativeLoadSchemaHandlesNestedAIGatewayModelNameHeaderByType(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    name: support-gateway
+    display_name: Support Gateway
+    models:
+      - ref: support-model
+        type: model
+        name: support-model
+        display_name: Support Model
+        formats:
+          - type: openai
+        config:
+          route: {}
+          model:
+            name_header: false
+        capabilities:
+          - generate
+        targets:
+          - name: gpt-4o
+            provider: support-openai
+            config:
+              type: openai
+`
+
+	t.Run("model", func(t *testing.T) {
+		resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+		require.NoError(t, err)
+		require.Len(t, resourceSet.AIGatewayModels, 1)
+		model := resourceSet.AIGatewayModels[0].AIGatewayModelModel
+		require.NotNil(t, model)
+		require.NotNil(t, model.Config.Model)
+		require.NotNil(t, model.Config.Model.NameHeader)
+		require.False(t, *model.Config.Model.NameHeader)
+	})
+
+	t.Run("api", func(t *testing.T) {
+		apiInput := strings.Replace(input, "type: model", "type: api", 1)
+		_, err := New().parseYAML(strings.NewReader(apiInput), "manifest.yaml", ".")
+		require.EqualError(
+			t,
+			err,
+			`AI Gateway model field "config.model" is only supported when type is "model"`,
+		)
+	})
+}
+
+func TestDeclarativeLoadSchemaAcceptsAdditionalIdentityProviderConfigProperties(t *testing.T) {
+	tests := []struct {
+		name         string
+		providerType string
+		configYAML   string
+		field        string
+	}{
+		{
+			name:         "key auth",
+			providerType: "key-auth",
+			configYAML: `
+      hide_credentials: true
+      realm: Support API
+`,
+			field: "realm",
+		},
+		{
+			name:         "OpenID Connect",
+			providerType: "openid-connect",
+			configYAML: `
+      auth_methods: [bearer]
+      cache_tokens_salt: support-cache-salt
+      credential_claim: [sub]
+      issuer: https://issuer.example.com
+`,
+			field: "credential_claim",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := fmt.Sprintf(`
+ai_gateway_identity_providers:
+  - ref: support-idp
+    ai_gateway: ai-quickstart
+    name: support-idp
+    display_name: Support Identity Provider
+    type: %s
+    config:%s
+`, tt.providerType, tt.configYAML)
+
+			resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+			require.NoError(t, err)
+			require.Len(t, resourceSet.AIGatewayIdentityProviders, 1)
+			require.Contains(t, resourceSet.AIGatewayIdentityProviders[0].Config, tt.field)
+		})
+	}
+}
+
+func TestDeclarativeLoadSchemaAcceptsIdentityProviderAccessControlFields(t *testing.T) {
+	input := `
+ai_gateway_identity_providers:
+  - ref: support-oidc
+    ai_gateway: ai-quickstart
+    name: support-oidc
+    display_name: Support OIDC
+    type: openid-connect
+    config:
+      auth_methods: [bearer]
+      cache_tokens_salt: support-cache-salt
+      issuer: https://issuer.example.com
+      consumer_groups_claim: [groups]
+      consumer_groups_optional: false
+      upstream_headers_claims: [sub]
+      upstream_headers_names: [x-consumer-subject]
+`
+
+	resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.NoError(t, err)
+	require.Len(t, resourceSet.AIGatewayIdentityProviders, 1)
+	config := resourceSet.AIGatewayIdentityProviders[0].Config
+	require.Equal(t, []any{"groups"}, config["consumer_groups_claim"])
+	require.Equal(t, false, config["consumer_groups_optional"])
+	require.Equal(t, []any{"sub"}, config["upstream_headers_claims"])
+	require.Equal(t, []any{"x-consumer-subject"}, config["upstream_headers_names"])
+}
+
+func TestLoaderRequiresOpenIDConnectAPIFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		configYAML string
+		wantError  string
+	}{
+		{
+			name: "issuer",
+			configYAML: `
+      cache_tokens_salt: support-cache-salt`,
+			wantError: "config.issuer is required",
+		},
+		{
+			name: "cache tokens salt",
+			configYAML: `
+      issuer: https://issuer.example.com`,
+			wantError: "config.cache_tokens_salt is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := fmt.Sprintf(`
+ai_gateways:
+  - ref: ai-quickstart
+    name: ai-quickstart
+    display_name: AI Quickstart
+ai_gateway_identity_providers:
+  - ref: support-oidc
+    ai_gateway: ai-quickstart
+    name: support-oidc
+    display_name: Support OIDC
+    type: openid-connect
+    config:%s
+`, tt.configYAML)
+
+			_, err := New().LoadFile(writeLoaderTestFile(t, input))
+			require.ErrorContains(t, err, tt.wantError)
+		})
+	}
+}
+
+func TestDeclarativeLoadSchemaAcceptsAllSDKOpenAIGatewayProperties(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    future_gateway_field: gateway-value
+    agents:
+      - ref: booking-agent
+        name: booking-agent
+        type: a2a
+        display_name: Booking Agent
+        config:
+          url: https://booking-agent.example.com
+        future_agent_field: agent-value
+    consumers:
+      - ref: support-user
+        name: support-user
+        type: api-key
+        display_name: Support User
+        future_consumer_field: consumer-value
+    consumer_groups:
+      - ref: premium-users
+        name: premium-users
+        display_name: Premium Users
+        future_consumer_group_field: consumer-group-value
+    mcp_servers:
+      - ref: support-tools
+        type: conversion-only
+        name: support-tools
+        display_name: Support Tools
+        config:
+          url: https://support-tools.example.com
+        future_mcp_server_field: mcp-server-value
+`
+
+	resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.NoError(t, err)
+	require.Equal(t, "gateway-value", resourceSet.AIGateways[0].AdditionalProperties["future_gateway_field"])
+	require.NotContains(t, resourceSet.AIGateways[0].AdditionalProperties, "ref")
+	require.NotContains(t, resourceSet.AIGateways[0].AdditionalProperties, "agents")
+	require.Equal(t, "agent-value", resourceSet.AIGatewayAgents[0].AdditionalProperties["future_agent_field"])
+	require.Equal(t, "consumer-value", resourceSet.AIGatewayConsumers[0].AdditionalProperties["future_consumer_field"])
+	require.Equal(
+		t,
+		"consumer-group-value",
+		resourceSet.AIGatewayConsumerGroups[0].AdditionalProperties["future_consumer_group_field"],
+	)
+	mcpServer := resourceSet.AIGatewayMCPServers[0].AIGatewayMCPServerConversionOnly
+	require.NotNil(t, mcpServer)
+	require.Equal(t, "mcp-server-value", mcpServer.AdditionalProperties["future_mcp_server_field"])
+}
+
+func TestDeclarativeLoadSchemaKeepsIdentityProviderResourceClosed(t *testing.T) {
+	input := `
+ai_gateway_identity_providers:
+  - ref: support-key-auth
+    ai_gateway: ai-quickstart
+    name: support-key-auth
+    display_name: Support Key Auth
+    type: key-auth
+    config:
+      realm: Support API
+    unexpected: value
+`
+
+	_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "unknown field 'unexpected'")
+	assert.ErrorContains(t, err, "ai_gateway_identity_providers[0].unexpected")
+}
+
 func TestDeclarativeLoadSchemaReportsKnownRejectedUnionField(t *testing.T) {
 	input := `
 ai_gateways:
@@ -131,11 +388,7 @@ ai_gateways:
 
 	_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
 	require.Error(t, err)
-	assert.EqualError(
-		t,
-		err,
-		`AI Gateway MCP Server field "access" is not supported when type is "conversion-only"`,
-	)
+	assert.ErrorContains(t, err, `AI Gateway MCP Server field "access" is not supported when type is "conversion-only"`)
 }
 
 func TestDeclarativeLoadSchemaReportsDeprecatedPortalAuthSettingsFields(t *testing.T) {

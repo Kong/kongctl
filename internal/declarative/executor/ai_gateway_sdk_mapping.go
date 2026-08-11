@@ -57,6 +57,7 @@ func aiGatewaySDKBody(payload any) any {
 	body := maps.Clone(fields)
 	delete(body, planner.FieldAIGatewayID)
 	delete(body, planner.FieldAIGatewayConsumerID)
+	delete(body, planner.FieldCurrentLabels)
 	return body
 }
 

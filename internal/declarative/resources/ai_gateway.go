@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/maturity"
@@ -50,12 +51,16 @@ type AIGatewayResource struct {
 }
 
 func (a AIGatewayResource) MarshalJSON() ([]byte, error) {
-	return json.Marshal(a.aiGatewayAlias())
+	payload, err := a.aiGatewayDeclarativePayload()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(payload)
 }
 
 // MarshalYAML ensures YAML output mirrors the custom JSON encoding.
 func (a AIGatewayResource) MarshalYAML() (any, error) {
-	return a.aiGatewayAlias(), nil
+	return a.aiGatewayDeclarativePayload()
 }
 
 type aiGatewayAlias struct {
@@ -104,6 +109,19 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 	}
 }
 
+func (a AIGatewayResource) aiGatewayDeclarativePayload() (map[string]any, error) {
+	payload := maps.Clone(a.AdditionalProperties)
+	if payload == nil {
+		payload = make(map[string]any)
+	}
+	fields, err := marshalObjectToMap(a.aiGatewayAlias(), "AI Gateway declarative payload")
+	if err != nil {
+		return nil, err
+	}
+	maps.Copy(payload, fields)
+	return payload, nil
+}
+
 // UnmarshalYAML decodes AI Gateway fields explicitly because the SDK request
 // type only carries JSON tags.
 func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
@@ -117,6 +135,10 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 			aiGatewayLegacyProvidersField,
 			aiGatewayModelProvidersField,
 		)
+	}
+	request, err := aiGatewayRequestFromDeclarativeFields(fields)
+	if err != nil {
+		return err
 	}
 
 	var raw struct {
@@ -149,13 +171,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Kongctl: raw.Kongctl,
 	}
 	a.External = raw.External
-	a.CreateAIGatewayRequest = kkComps.CreateAIGatewayRequest{
-		Name:        raw.Name,
-		DisplayName: raw.DisplayName,
-		Description: raw.Description,
-		ProxyUrls:   raw.ProxyURLs,
-		Labels:      raw.Labels,
-	}
+	a.CreateAIGatewayRequest = request
 	a.Providers = raw.Providers
 	a.IdentityProviders = raw.IdentityProviders
 	a.Policies = raw.Policies
@@ -174,7 +190,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 // UnmarshalJSON decodes AI Gateways explicitly because YAML loading goes
 // through JSON tags and the embedded SDK request type has a custom unmarshaler.
 func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
-	var fields map[string]json.RawMessage
+	var fields map[string]any
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
 	}
@@ -184,6 +200,10 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 			aiGatewayLegacyProvidersField,
 			aiGatewayModelProvidersField,
 		)
+	}
+	request, err := aiGatewayRequestFromDeclarativeFields(fields)
+	if err != nil {
+		return err
 	}
 
 	var raw struct {
@@ -216,13 +236,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Kongctl: raw.Kongctl,
 	}
 	a.External = raw.External
-	a.CreateAIGatewayRequest = kkComps.CreateAIGatewayRequest{
-		Name:        raw.Name,
-		DisplayName: raw.DisplayName,
-		Description: raw.Description,
-		ProxyUrls:   raw.ProxyURLs,
-		Labels:      raw.Labels,
-	}
+	a.CreateAIGatewayRequest = request
 	a.Providers = raw.Providers
 	a.IdentityProviders = raw.IdentityProviders
 	a.Policies = raw.Policies
@@ -236,6 +250,38 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	a.DataPlaneCertificates = raw.DataPlaneCertificates
 
 	return nil
+}
+
+func aiGatewayRequestFromDeclarativeFields(fields map[string]any) (kkComps.CreateAIGatewayRequest, error) {
+	payload := maps.Clone(fields)
+	for _, field := range []string{
+		SchemaFieldRef,
+		SchemaFieldKongctl,
+		"_external",
+		aiGatewayModelProvidersField,
+		SchemaFieldIdentityProviders,
+		"policies",
+		"agents",
+		"consumers",
+		"consumer_groups",
+		"models",
+		"mcp_servers",
+		"config_stores",
+		"vaults",
+		"data_plane_certificates",
+	} {
+		delete(payload, field)
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return kkComps.CreateAIGatewayRequest{}, fmt.Errorf("failed to encode AI Gateway request fields: %w", err)
+	}
+	var request kkComps.CreateAIGatewayRequest
+	if err := json.Unmarshal(data, &request); err != nil {
+		return kkComps.CreateAIGatewayRequest{}, fmt.Errorf("failed to decode AI Gateway request fields: %w", err)
+	}
+	return request, nil
 }
 
 // GetType returns the resource type.
@@ -352,7 +398,7 @@ func (a *AIGatewayResource) TryMatchKonnectResource(konnectResource any) bool {
 }
 
 func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	return explainObject(
+	return explainOpenObject(
 		explainResourceRefField(),
 		explainKongctlField(),
 		explainExternalField(),
@@ -369,7 +415,12 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			Additional: explainStringNode("value"),
 		}, false, false),
 		explainField("model_providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
-		explainField("identity_providers", explainArrayOf(aiGatewayIdentityProviderInlineExplainNode()), false, false),
+		explainField(
+			SchemaFieldIdentityProviders,
+			explainArrayOf(aiGatewayIdentityProviderInlineExplainNode()),
+			false,
+			false,
+		),
 		explainField("policies", explainArrayOf(aiGatewayPolicyInlineExplainNode()), false, false),
 		explainField("agents", explainArrayOf(aiGatewayAgentInlineExplainNode()), false, false),
 		explainField("consumers", explainArrayOf(aiGatewayConsumerInlineExplainNode()), false, false),

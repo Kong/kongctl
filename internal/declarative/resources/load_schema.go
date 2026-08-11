@@ -158,7 +158,7 @@ func loadSchemaBranchSelectors(branch *ExplainNode, branches []*ExplainNode) []s
 
 	selectors := make([]string, 0)
 	for _, field := range branch.Properties {
-		if field.Node != nil && field.Node.Const != nil {
+		if field.Required && field.Node != nil && field.Node.Const != nil {
 			selectors = append(selectors, field.Name)
 		}
 	}

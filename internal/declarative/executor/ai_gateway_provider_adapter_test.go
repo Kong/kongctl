@@ -53,6 +53,30 @@ func TestAIGatewayProviderAdapterMapCreateFieldsBuildsSDKUnion(t *testing.T) {
 	}`, string(data))
 }
 
+func TestAIGatewayProviderAdapterMapsVertexServiceAccountAuth(t *testing.T) {
+	t.Parallel()
+
+	serviceAccountJSON := `{"type":"service_account"}`
+	fields := map[string]any{
+		planner.FieldName:        "vertex-prod",
+		planner.FieldType:        "vertex",
+		planner.FieldDisplayName: "Google Vertex Prod",
+		planner.FieldConfig: map[string]any{
+			"auth": map[string]any{
+				"type":                 "vertex",
+				"service_account_json": serviceAccountJSON,
+			},
+		},
+	}
+
+	var request kkComps.CreateAIGatewayModelProviderRequest
+	require.NoError(t, NewAIGatewayProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request))
+	require.NotNil(t, request.AIGatewayModelProviderVertex)
+	vertexAuth := request.AIGatewayModelProviderVertex.Config.Auth.AIGatewayModelProviderConfigAuthVertex
+	require.NotNil(t, vertexAuth)
+	require.Equal(t, serviceAccountJSON, *vertexAuth.ServiceAccountJSON)
+}
+
 func TestAIGatewayProviderAdapterRejectsFieldsDiscardedBySDK(t *testing.T) {
 	t.Parallel()
 

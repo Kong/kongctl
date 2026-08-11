@@ -307,8 +307,23 @@ func shouldUpdateAIGatewayIdentityProvider(
 		return false, updateFields, changedFields, nil
 	}
 
-	updateFields = extractAIGatewayIdentityProviderFields(desired)
+	updateFields = extractAIGatewayIdentityProviderUpdateFields(current, desired)
 	return true, updateFields, changedFields, nil
+}
+
+func extractAIGatewayIdentityProviderUpdateFields(
+	current state.AIGatewayIdentityProvider,
+	desired resources.AIGatewayIdentityProviderResource,
+) map[string]any {
+	fields := extractAIGatewayIdentityProviderFields(desired)
+	fields[FieldConfig] = mergeAIGatewayIdentityProviderConfig(current.Config, desired.Config)
+	if desired.Labels == nil && current.Labels != nil {
+		fields[FieldLabels] = current.Labels
+	}
+	if desired.ManagedBy == nil && current.ManagedBy != nil {
+		fields[FieldManagedBy] = current.ManagedBy
+	}
+	return fields
 }
 
 func extractAIGatewayIdentityProviderFields(provider resources.AIGatewayIdentityProviderResource) map[string]any {
@@ -341,9 +356,37 @@ func projectAIGatewayIdentityProviderConfigForComparison(currentCompare map[stri
 		return
 	}
 	for key := range currentCompare {
-		if _, declared := desiredCompare[key]; !declared {
+		desiredValue, declared := desiredCompare[key]
+		if !declared {
 			delete(currentCompare, key)
+			continue
 		}
+		currentMap, currentIsMap := currentCompare[key].(map[string]any)
+		desiredMap, desiredIsMap := desiredValue.(map[string]any)
+		if currentIsMap && desiredIsMap {
+			projectAIGatewayIdentityProviderConfigForComparison(currentMap, desiredMap)
+		}
+	}
+}
+
+func mergeAIGatewayIdentityProviderConfig(current, desired map[string]any) map[string]any {
+	merged := normalizeIdentityProviderConfigForCompare(current)
+	if merged == nil {
+		merged = make(map[string]any)
+	}
+	mergeAIGatewayIdentityProviderConfigValues(merged, normalizeIdentityProviderConfigForCompare(desired))
+	return merged
+}
+
+func mergeAIGatewayIdentityProviderConfigValues(current, desired map[string]any) {
+	for key, desiredValue := range desired {
+		currentMap, currentIsMap := current[key].(map[string]any)
+		desiredMap, desiredIsMap := desiredValue.(map[string]any)
+		if currentIsMap && desiredIsMap {
+			mergeAIGatewayIdentityProviderConfigValues(currentMap, desiredMap)
+			continue
+		}
+		current[key] = desiredValue
 	}
 }
 

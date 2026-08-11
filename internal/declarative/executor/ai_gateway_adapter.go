@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -28,19 +27,11 @@ func (a *AIGatewayAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayRequest,
 ) error {
-	create.DisplayName, _ = fields[planner.FieldDisplayName].(string)
-	create.Name, _ = fields[planner.FieldName].(string)
+	if err := mapAIGatewaySDKRequest("AI Gateway create", fields, create); err != nil {
+		return err
+	}
 	if create.Name == "" {
 		return fmt.Errorf("AI Gateway name is required")
-	}
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
-
-	if value, ok := fields[planner.FieldProxyURLs]; ok {
-		proxyURLs, err := aiGatewayProxyURLsFromField(value)
-		if err != nil {
-			return err
-		}
-		create.ProxyUrls = proxyURLs
 	}
 
 	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
@@ -57,24 +48,11 @@ func (a *AIGatewayAdapter) MapUpdateFields(
 	update *kkComps.UpdateAIGatewayRequest,
 	currentLabels map[string]string,
 ) error {
-	update.DisplayName, _ = fields[planner.FieldDisplayName].(string)
-	update.Name, _ = fields[planner.FieldName].(string)
+	if err := mapAIGatewaySDKRequest("AI Gateway update", fields, update); err != nil {
+		return err
+	}
 	if update.Name == "" {
 		return fmt.Errorf("AI Gateway name is required")
-	}
-
-	if value, ok := fields[planner.FieldDescription]; ok {
-		if desc, ok := value.(string); ok {
-			update.Description = &desc
-		}
-	}
-
-	if value, ok := fields[planner.FieldProxyURLs]; ok {
-		proxyURLs, err := aiGatewayProxyURLsFromField(value)
-		if err != nil {
-			return err
-		}
-		update.ProxyUrls = proxyURLs
 	}
 
 	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
@@ -162,21 +140,6 @@ func (a *AIGatewayAdapter) RequiredFields() []string {
 // SupportsUpdate indicates update support.
 func (a *AIGatewayAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func aiGatewayProxyURLsFromField(value any) ([]kkComps.AIGatewayProxyURL, error) {
-	if proxyURLs, ok := value.([]kkComps.AIGatewayProxyURL); ok {
-		return proxyURLs, nil
-	}
-	if value == nil {
-		return nil, nil
-	}
-
-	var proxyURLs []kkComps.AIGatewayProxyURL
-	if err := mapAIGatewaySDKRequest("AI Gateway proxy_urls", value, &proxyURLs); err != nil {
-		return nil, err
-	}
-	return proxyURLs, nil
 }
 
 type aiGatewayResourceInfo struct {

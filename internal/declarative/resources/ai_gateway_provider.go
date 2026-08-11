@@ -3,6 +3,10 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 const (
@@ -227,142 +231,141 @@ func (a *AIGatewayProviderResource) UnmarshalJSON(data []byte) error {
 }
 
 func aiGatewayProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	return explainUnionNode(
-		aiGatewayProviderExplainBranch("openai", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("anthropic", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("cerebras", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("cohere", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("dashscope", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("databricks", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("deepseek", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("huggingface", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("kimi", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("llama2", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("mistral", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("ollama", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("sagemaker", explainObject(
-			explainField(
-				"auth",
-				explainUnionNode(aiGatewayProviderBasicAuthExplainNode(), aiGatewayProviderSagemakerAuthExplainNode()),
-				true,
-				true,
-			),
-		)),
-		aiGatewayProviderExplainBranch("vercel", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("vllm", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("xai", aiGatewayProviderBasicConfigExplainNode()),
-		aiGatewayProviderExplainBranch("bedrock", explainObject(
-			explainField(
-				"auth",
-				explainUnionNode(aiGatewayProviderBasicAuthExplainNode(), aiGatewayProviderAWSAuthExplainNode()),
-				true,
-				true,
-			),
-		)),
-		aiGatewayProviderExplainBranch("azure", explainObject(
-			explainField(
-				"auth",
-				explainUnionNode(aiGatewayProviderBasicAuthExplainNode(), aiGatewayProviderAzureAuthExplainNode()),
-				true,
-				true,
-			),
-			explainField("instance", explainStringNode("kong-az-east"), true, true),
-		)),
-		aiGatewayProviderExplainBranch("gemini", aiGatewayProviderGCPConfigExplainNode()),
-		aiGatewayProviderExplainBranch("vertex", aiGatewayProviderGCPConfigExplainNode()),
-	), nil
+	sdkUnion, ok, err := autoExplainSDKUnionNode(
+		reflect.TypeFor[kkComps.CreateAIGatewayModelProviderRequest](),
+		nil,
+		defaultExplainHints(""),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("SDK AI Gateway Model Provider request is no longer a union")
+	}
+
+	providerTypes := aiGatewayModelProviderSDKUnionTypes()
+	if len(sdkUnion.OneOf) != len(providerTypes) {
+		return nil, fmt.Errorf(
+			"SDK AI Gateway Model Provider branch count changed: got %d schemas and %d union members",
+			len(sdkUnion.OneOf),
+			len(providerTypes),
+		)
+	}
+
+	branches := make([]*ExplainNode, 0, len(sdkUnion.OneOf))
+	for i, branch := range sdkUnion.OneOf {
+		providerType := providerTypes[i]
+		configured, err := aiGatewayProviderSDKExplainBranch(
+			branch,
+			providerType,
+			aiGatewayModelProviderAuthTypes(providerType)...,
+		)
+		if err != nil {
+			return nil, err
+		}
+		branches = append(branches, configured)
+	}
+
+	// Keep OpenAI as the primary scaffold while retaining SDK order for every
+	// other branch.
+	for i, branch := range branches {
+		typeField, ok := branch.property(aiGatewayProviderFieldType)
+		if ok && typeField.Node.Const == "openai" {
+			branches[0], branches[i] = branches[i], branches[0]
+			break
+		}
+	}
+	return explainUnionNode(branches...), nil
 }
 
-func aiGatewayProviderExplainBranch(providerType string, config *ExplainNode) *ExplainNode {
-	return explainObject(
+func aiGatewayModelProviderSDKUnionTypes() []string {
+	typ := reflect.TypeFor[kkComps.CreateAIGatewayModelProviderRequest]()
+	providerTypes := make([]string, 0, typ.NumField())
+	for field := range typ.Fields() {
+		if field.Tag.Get("union") != "member" {
+			continue
+		}
+		providerTypes = append(
+			providerTypes,
+			strings.ToLower(strings.TrimPrefix(field.Name, "AIGatewayModelProvider")),
+		)
+	}
+	return providerTypes
+}
+
+func aiGatewayModelProviderAuthTypes(providerType string) []string {
+	switch providerType {
+	case "azure", "vertex":
+		return []string{"basic", providerType}
+	case "bedrock":
+		return []string{"basic", "aws"}
+	case "gemini":
+		return []string{"basic", "gcp"}
+	case "sagemaker":
+		return []string{"basic", "sagemaker"}
+	default:
+		return []string{"basic"}
+	}
+}
+
+func aiGatewayProviderSDKExplainBranch(
+	branch *ExplainNode,
+	providerType string,
+	authTypes ...string,
+) (*ExplainNode, error) {
+	branch = explainWithCommonFields(
+		branch,
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
-		explainField("name", explainStringNode(providerType+"-provider"), true, true),
-		explainField("type", explainConstStringNode(providerType), true, true),
-		explainField("display_name", explainStringNode("AI Model Provider"), true, true),
-		explainField("config", config, true, true),
-		explainField("labels", &ExplainNode{
-			Kind:       explainKindObject,
-			Additional: explainStringNode("value"),
-		}, false, false),
-		explainField("managed_by", &ExplainNode{
-			Kind:       explainKindObject,
-			Additional: explainStringNode("kongctl"),
-		}, false, false),
 	)
+	explainSetConstStringField(branch, aiGatewayProviderFieldType, providerType)
+	setExplainLiteral(branch, []string{SchemaFieldName}, providerType+"-provider")
+	setExplainLiteral(branch, []string{aiGatewayProviderFieldDisplayName}, "AI Model Provider")
+
+	auth, ok := branch.lookup([]string{aiGatewayProviderFieldConfig, "auth"})
+	if !ok {
+		return nil, fmt.Errorf("SDK AI Gateway Model Provider %s schema has no config.auth field", providerType)
+	}
+	if len(auth.OneOf) == 0 {
+		if len(authTypes) != 1 {
+			return nil, fmt.Errorf("SDK AI Gateway Model Provider %s auth schema is not a union", providerType)
+		}
+		explainSetConstStringField(auth, "type", authTypes[0])
+		configureAIGatewayProviderAuthExplain(auth)
+		return branch, nil
+	}
+	if len(auth.OneOf) != len(authTypes) {
+		return nil, fmt.Errorf(
+			"SDK AI Gateway Model Provider %s auth branch count changed: got %d, configured %d",
+			providerType,
+			len(auth.OneOf),
+			len(authTypes),
+		)
+	}
+	for i, authType := range authTypes {
+		explainSetConstStringField(auth.OneOf[i], "type", authType)
+		configureAIGatewayProviderAuthExplain(auth.OneOf[i])
+	}
+	return branch, nil
 }
 
-func aiGatewayProviderBasicConfigExplainNode() *ExplainNode {
-	return explainObject(explainField("auth", aiGatewayProviderBasicAuthExplainNode(), true, true))
-}
-
-func aiGatewayProviderGCPConfigExplainNode() *ExplainNode {
-	return explainObject(explainField(
-		"auth",
-		explainUnionNode(aiGatewayProviderBasicAuthExplainNode(), aiGatewayProviderGCPAuthExplainNode()),
-		true,
-		true,
-	))
-}
-
-func aiGatewayProviderBasicAuthExplainNode() *ExplainNode {
-	return explainObject(
-		explainField("type", explainConstStringNode("basic"), true, true),
-		explainField("headers", explainArrayOf(explainObject(
-			explainField("name", explainStringNode("Authorization"), true, true),
-			explainField("value", explainStringNode("Bearer ${MODEL_PROVIDER_API_KEY}"), false, true),
-		)), false, true),
-		explainField("params", explainArrayOf(explainObject(
-			explainField("name", explainStringNode("api-version"), true, true),
-			explainField("value", explainStringNode("2024-06-01"), false, true),
-			explainField("location", &ExplainNode{
-				Kind:    explainKindString,
-				Enum:    []any{"body", "query"},
-				Literal: "query",
-			}, false, true),
-		)), false, false),
-	)
-}
-
-func aiGatewayProviderAWSAuthExplainNode() *ExplainNode {
-	return explainObject(
-		explainField("type", explainConstStringNode("aws"), true, true),
-		explainField("access_key_id", explainStringNode("${AWS_ACCESS_KEY_ID}"), false, true),
-		explainField("secret_access_key", explainStringNode("${AWS_SECRET_ACCESS_KEY}"), false, false),
-		explainField("assume_role_arn", explainStringNode("arn:aws:iam::123456789012:role/model-provider"), false, false),
-		explainField("role_session_name", explainStringNode("kong-ai-gateway"), false, false),
-		explainField("sts_endpoint_url", explainStringNode("https://sts.amazonaws.com"), false, false),
-		explainField("batch_role_arn", explainStringNode("arn:aws:iam::123456789012:role/batch"), false, false),
-	)
-}
-
-func aiGatewayProviderSagemakerAuthExplainNode() *ExplainNode {
-	return explainObject(
-		explainField("type", explainConstStringNode("sagemaker"), true, true),
-		explainField("aws", explainObject(
-			explainField("access_key_id", explainStringNode("${AWS_ACCESS_KEY_ID}"), false, true),
-			explainField("secret_access_key", explainStringNode("${AWS_SECRET_ACCESS_KEY}"), false, false),
-			explainField("session_token", explainStringNode("${AWS_SESSION_TOKEN}"), false, false),
-		), false, true),
-	)
-}
-
-func aiGatewayProviderAzureAuthExplainNode() *ExplainNode {
-	return explainObject(
-		explainField("type", explainConstStringNode("azure"), true, true),
-		explainField("client_id", explainStringNode("${AZURE_CLIENT_ID}"), false, true),
-		explainField("client_secret", explainStringNode("${AZURE_CLIENT_SECRET}"), false, false),
-		explainField("tenant_id", explainStringNode("${AZURE_TENANT_ID}"), false, true),
-		explainField("use_managed_identity", explainBoolNode("true"), false, true),
-	)
-}
-
-func aiGatewayProviderGCPAuthExplainNode() *ExplainNode {
-	return explainObject(
-		explainField("type", explainConstStringNode("gcp"), true, true),
-		explainField("service_account_json", explainStringNode("${GCP_SERVICE_ACCOUNT_JSON}"), false, false),
-		explainField("metadata_url", explainStringNode("https://metadata.google.internal"), false, false),
-		explainField("oauth_token_url", explainStringNode("https://oauth2.googleapis.com/token"), false, false),
-		explainField("use_gcp_service_account", explainBoolNode("true"), false, true),
-	)
+func configureAIGatewayProviderAuthExplain(auth *ExplainNode) {
+	if providerType, ok := auth.property(aiGatewayProviderFieldType); ok && providerType.Node.Const == "vertex" {
+		explainReplaceField(auth, explainField(
+			"use_gcp_service_account",
+			&ExplainNode{Kind: "boolean", Const: true, Literal: "true"},
+			false,
+			true,
+		))
+	}
+	if headers, ok := auth.property("headers"); ok {
+		headers.Recommended = true
+		if value, exists := headers.Node.Items.property("value"); exists {
+			value.Recommended = true
+		}
+		setExplainLiteral(auth, []string{"headers", SchemaFieldName}, "Authorization")
+		setExplainLiteral(auth, []string{"headers", "value"}, "Bearer ${MODEL_PROVIDER_API_KEY}")
+	}
+	setExplainLiteral(auth, []string{"service_account_json"}, "${GCP_SERVICE_ACCOUNT_JSON}")
 }

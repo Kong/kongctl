@@ -550,6 +550,7 @@ func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
 			decllabels.ProtectedKey: decllabels.TrueValue,
 			"owner":                 "platform",
 		},
+		AdditionalProperties: map[string]any{"future_gateway_field": "gateway-value"},
 	}
 
 	resource := mapAIGatewayToDeclarativeResource(gateway)
@@ -577,6 +578,9 @@ func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
 	}
 	if resource.Kongctl.Protected == nil || !*resource.Kongctl.Protected {
 		t.Fatalf("expected protected metadata to be preserved, got %#v", resource.Kongctl)
+	}
+	if resource.AdditionalProperties["future_gateway_field"] != "gateway-value" {
+		t.Fatalf("expected additional properties to be preserved, got %#v", resource.AdditionalProperties)
 	}
 }
 

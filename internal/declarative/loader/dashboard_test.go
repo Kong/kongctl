@@ -170,7 +170,8 @@ analytics:
 	// platform_usage carries a limit; confirm it decodes and is preserved.
 	platformTile := rs.Dashboards[0].Definition.Tiles[1]
 	require.NotNil(t, platformTile.ChartTile)
-	platformQuery := platformTile.ChartTile.Definition.Query.PlatformQuery
+	require.NotNil(t, platformTile.ChartTile.Definition.ChartTileDefinition)
+	platformQuery := platformTile.ChartTile.Definition.ChartTileDefinition.Query.PlatformQuery
 	require.NotNil(t, platformQuery)
 	require.NotNil(t, platformQuery.Limit)
 	assert.InEpsilon(t, 10, *platformQuery.Limit, 0)

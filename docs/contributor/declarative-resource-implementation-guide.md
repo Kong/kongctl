@@ -153,6 +153,17 @@ opaque value that is normalized by a custom unmarshaller, set `LoadOpaque` on
 its `ExplainFieldHint`. Use this narrowly: it disables shape traversal only for
 that field while retaining its explain and scaffold representation.
 
+`WithExplainSchemaBuilder` is a full schema replacement; it is not merged with
+the reflected declarative or SDK type. Prefer deriving concrete SDK request
+branches with `autoExplainConcreteNode` and applying small kongctl-specific
+overlays for `ref`, parent selectors, nested children, examples, and
+recommended fields. A full replacement must document why derivation is not
+possible and include recursive parity tests for SDK property names, required
+fields, object and array shapes, union branches, and `additionalProperties`.
+Intentional differences must be encoded as a named allowlist so an SDK update
+fails with an actionable drift test instead of silently changing load-time
+validation.
+
 When kongctl recognizes a field but intentionally rejects it, register the
 field with `ExplainNode.rejectLoadField` on the relevant object or union branch.
 This keeps the field out of explain and scaffold output while allowing the

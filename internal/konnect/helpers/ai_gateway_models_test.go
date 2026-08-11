@@ -41,7 +41,7 @@ func (c *aiGatewayModelCapturingClient) Do(req *http.Request) (*http.Response, e
 			"display_name": "Support GPT",
 			"enabled": true,
 			"config": {
-				"route": {"model": {"body": {"model": ["support-gpt"]}}},
+				"route": {"model": {"body_param": "model", "values": ["support-gpt"]}},
 				"model": {"name_header": true}
 			},
 			"formats": [{"type": "openai"}],
@@ -68,11 +68,11 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 	}
 
 	formatType := kkComps.AIGatewayModelFormatTypeOpenai
-	routeModel := kkComps.CreateAIGatewayModelAliasConfigAIGatewayModelAliasConfigBody(
-		kkComps.AIGatewayModelAliasConfigBody{
-			Body: map[string]any{"model": []string{"support-gpt"}},
-		},
-	)
+	bodyParam := "model"
+	routeModel := kkComps.AIGatewayModelSelectorConfig{
+		BodyParam: &bodyParam,
+		Values:    []string{"support-gpt"},
+	}
 	targetConfig := kkComps.CreateAIGatewayTargetConfigOpenai(kkComps.AIGatewayTargetOpenaiConfig{})
 	req := kkComps.CreateCreateAIGatewayModelRequestModel(kkComps.AIGatewayModelModel{
 		DisplayName: "Support GPT",
@@ -110,7 +110,8 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 	route, ok := config["route"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, map[string]any{
-		"body": map[string]any{"model": []any{"support-gpt"}},
+		"body_param": "model",
+		"values":     []any{"support-gpt"},
 	}, route["model"])
 	require.JSONEq(
 		t,
