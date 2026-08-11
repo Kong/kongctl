@@ -118,7 +118,7 @@ func TestRenderShapeSchemaDoesNotRequireOptionalConstFields(t *testing.T) {
 			explainField("type", explainConstStringNode("vertex"), true, true),
 			explainField(
 				"use_gcp_service_account",
-				&ExplainNode{Kind: "boolean", Const: true},
+				&ExplainNode{Kind: explainKindBoolean, Const: true},
 				false,
 				false,
 			),

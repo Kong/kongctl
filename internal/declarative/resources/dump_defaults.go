@@ -301,7 +301,7 @@ func parseDumpDefault(field reflect.StructField) (*dumpDefault, error) {
 			return nil, fmt.Errorf("parse default for %s: %w", field.Name, err)
 		}
 		result.value = value
-		result.typ = "boolean"
+		result.typ = explainKindBoolean
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		value, err := strconv.ParseInt(raw, 10, typ.Bits())
 		if err != nil {
@@ -400,7 +400,7 @@ func dumpDefaultFromOverride(typ reflect.Type, value any) (*dumpDefault, error) 
 		result.typ = "string"
 	case reflect.Bool:
 		result.value = converted.Bool()
-		result.typ = "boolean"
+		result.typ = explainKindBoolean
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		result.value = converted.Int()
 		result.typ = "integer"

@@ -132,7 +132,7 @@ func retainLoadSchemaBranchType(schema *JSONSchema, node *ExplainNode) {
 		return
 	}
 	switch node.Kind {
-	case explainKindString, explainKindInteger, "number", "boolean", jsonNullLiteral:
+	case explainKindString, explainKindInteger, "number", explainKindBoolean, jsonNullLiteral:
 		schema.Type = schemaTypeValue(node.Kind, node.Nullable)
 	}
 }
