@@ -75,7 +75,7 @@ test("presents the federated management journey", async ({ page }) => {
     lessons.getByRole("link", { name: /Initial Configuration Setup/ }),
   ).toBeVisible();
   await expect(
-    lessons.getByRole("link", { name: /Run a Data Plane/ }),
+    lessons.getByRole("link", { name: /Run a Dataplane/ }),
   ).toBeVisible();
   await expect(
     lessons.getByRole("link", { name: /Federate Engineering/ }),
@@ -110,7 +110,7 @@ test("walks satellite teams into independent configuration", async ({
   await expect(
     page.getByText("!ref platform-aigw#id", { exact: false }).first(),
   ).toBeVisible();
-  await expect(page.getByText("--recursive", { exact: false })).toBeVisible();
+  await expect(page.locator(".lesson-body")).toContainText("--recursive");
   await expect(page.locator(".lesson-body")).toContainText("Engineering");
   await expect(page.locator(".lesson-body")).toContainText("Product");
   await expect(page.locator(".lesson-body")).toContainText("/engineering");
@@ -639,10 +639,10 @@ test("persists explicit completion and continues to the next lesson", async ({
   await page.getByRole("link", { name: "Mark complete and continue" }).click();
 
   await expect(page).toHaveURL(/\/kongctl\/installation\/authenticate\/$/);
-  await expect(page.getByText("1 of 28", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 32", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("1 of 28", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 32", { exact: true })).toBeVisible();
 });
 
 test("persists a chosen color theme", async ({ page }) => {
