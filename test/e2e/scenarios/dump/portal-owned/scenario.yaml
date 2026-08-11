@@ -110,6 +110,47 @@ steps:
               fields:
                 total_changes: 0
 
+      - name: 002-dump-skip-defaults
+        run:
+          - dump
+          - declarative
+          - "--resources=portals,apis,application_auth_strategies"
+          - --include-child-resources
+          - --skip-defaults
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-skip-defaults.yaml"
+        assertions:
+          - select: "portals[?name=='My First Portal'] | [0]"
+            expect:
+              fields:
+                authentication_enabled: false
+                rbac_enabled: null
+                auto_approve_developers: null
+                auto_approve_applications: null
+          - select: "portals[?name=='My First Portal'] | [0].teams[?name=='Platform Team'] | [0]"
+            expect:
+              fields:
+                can_own_applications: null
+          - select: "apis[?name=='SMS API'] | [0].publications[0]"
+            expect:
+              fields:
+                visibility: public
+
+      - name: 003-plan-from-skip-defaults-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-skip-defaults.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 003-delete-cleanup
     commands:
       - name: 000-delete

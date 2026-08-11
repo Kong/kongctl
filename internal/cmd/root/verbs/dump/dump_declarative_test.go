@@ -61,6 +61,16 @@ func (runDumpOrganizationTeamAPIStub) DeleteOrganizationTeam(
 	return nil, nil
 }
 
+func TestDeclarativeDumpHasSkipDefaultsFlag(t *testing.T) {
+	flag := newDeclarativeCmd().Flags().Lookup("skip-defaults")
+	if flag == nil {
+		t.Fatal("expected --skip-defaults flag")
+	}
+	if flag.DefValue != "false" {
+		t.Fatalf("--skip-defaults default = %q, want false", flag.DefValue)
+	}
+}
+
 func TestRunDeclarativeDumpIncludesSystemAccountAssignments(t *testing.T) {
 	teamID := "team-123"
 	teamName := "team-one"
@@ -179,6 +189,66 @@ func TestRunDeclarativeDumpIncludesSystemAccountAssignments(t *testing.T) {
 	}
 	if account.Roles[0].RoleName != roleName {
 		t.Fatalf("expected role %q, got %q", roleName, account.Roles[0].RoleName)
+	}
+}
+
+func TestRunDeclarativeDumpSkipDefaults(t *testing.T) {
+	for _, test := range []struct {
+		name         string
+		skipDefaults bool
+		wantAuth     bool
+	}{
+		{name: "default output unchanged", wantAuth: true},
+		{name: "API default omitted", skipDefaults: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			authenticationEnabled := true
+			api := &portalPaginationStub{
+				t: t,
+				listPortalsFunc: func(
+					_ context.Context,
+					request kkOps.ListPortalsRequest,
+				) (*kkOps.ListPortalsResponse, error) {
+					if request.PageNumber != nil && *request.PageNumber > 1 {
+						return &kkOps.ListPortalsResponse{
+							ListPortalsResponse: &kkComps.ListPortalsResponse{},
+						}, nil
+					}
+					return &kkOps.ListPortalsResponse{ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.ListPortalsResponsePortal{{ID: "portal-id", Name: "developer-portal"}},
+					}}, nil
+				},
+				getPortalFunc: func(context.Context, string) (*kkOps.GetPortalResponse, error) {
+					return &kkOps.GetPortalResponse{PortalResponse: &kkComps.PortalResponse{
+						ID:                    "portal-id",
+						Name:                  "developer-portal",
+						AuthenticationEnabled: &authenticationEnabled,
+					}}, nil
+				},
+			}
+			sdk := &helpers.MockKonnectSDK{PortalFactory: func() helpers.PortalAPI { return api }}
+			var output bytes.Buffer
+			helper := &cmdtest.MockHelper{
+				GetStreamsMock: func() *iostreams.IOStreams { return &iostreams.IOStreams{Out: &output} },
+				GetConfigMock:  func() (config.Hook, error) { return &configtest.MockConfigHook{}, nil },
+				GetLoggerMock: func() (*slog.Logger, error) {
+					return slog.New(slog.NewTextHandler(io.Discard, nil)), nil
+				},
+				GetContextMock:    func() context.Context { return t.Context() },
+				GetKonnectSDKMock: func(config.Hook, *slog.Logger) (helpers.SDKAPI, error) { return sdk, nil },
+			}
+
+			err := runDeclarativeDump(helper, declarativeOptions{
+				resources:    []string{"portals"},
+				skipDefaults: test.skipDefaults,
+			})
+			if err != nil {
+				t.Fatalf("runDeclarativeDump() error = %v", err)
+			}
+			if got := strings.Contains(output.String(), "authentication_enabled: true"); got != test.wantAuth {
+				t.Fatalf("authentication_enabled presence = %v, want %v\n%s", got, test.wantAuth, output.String())
+			}
+		})
 	}
 }
 

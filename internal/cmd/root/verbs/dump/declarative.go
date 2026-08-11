@@ -31,6 +31,7 @@ type declarativeOptions struct {
 	outputFile            string
 	defaultNamespace      string
 	includeChildResources bool
+	skipDefaults          bool
 	filter                filterOptions
 }
 
@@ -40,6 +41,7 @@ type DeclarativeDumpOptions struct {
 	OutputFile            string
 	DefaultNamespace      string
 	IncludeChildResources bool
+	SkipDefaults          bool
 	FilterName            string
 	FilterID              string
 }
@@ -106,6 +108,8 @@ func newDeclarativeCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
 		"Include child resources in the dump.")
+	cmd.Flags().BoolVar(&opts.skipDefaults, "skip-defaults", false,
+		"Omit fields whose values match defaults declared by the Konnect API.")
 
 	cmd.Flags().StringVar(&opts.outputFile, "output-file", "",
 		"File to write the output to. If not specified, output is written to stdout.")
@@ -183,6 +187,7 @@ func RunDeclarativeDump(helper cmdpkg.Helper, opts DeclarativeDumpOptions) error
 		outputFile:            strings.TrimSpace(opts.OutputFile),
 		defaultNamespace:      strings.TrimSpace(opts.DefaultNamespace),
 		includeChildResources: opts.IncludeChildResources,
+		skipDefaults:          opts.SkipDefaults,
 		filter: filterOptions{
 			name: strings.TrimSpace(opts.FilterName),
 			id:   strings.TrimSpace(opts.FilterID),
@@ -585,6 +590,12 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 	yamlBytes, err := yaml.Marshal(output)
 	if err != nil {
 		return fmt.Errorf("failed to marshal declarative configuration: %w", err)
+	}
+	if opts.skipDefaults {
+		yamlBytes, err = declresources.OmitAPIDefaults(yamlBytes)
+		if err != nil {
+			return fmt.Errorf("failed to omit API defaults: %w", err)
+		}
 	}
 
 	if len(yamlBytes) == 0 {

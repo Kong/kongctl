@@ -18,6 +18,7 @@ type resourceOps struct {
 	forEach           func(rs *ResourceSet, fn func(Resource) bool) bool
 	count             func(rs *ResourceSet) int
 	explain           ExplainRegistration
+	dumpDefaultRules  map[string]dumpDefaultRule
 	maturity          *maturity.Metadata
 	operationMaturity map[Operation]maturity.Metadata
 	external          *ExternalResolutionRegistration

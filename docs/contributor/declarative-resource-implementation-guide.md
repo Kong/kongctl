@@ -166,6 +166,46 @@ before environment values are resolved. Error formatting must identify the
 declarative path without including input values, because an invalid field may
 contain a secret.
 
+### DUMP DEFAULT OMISSION
+
+`kongctl dump declarative --skip-defaults` derives its runtime default index
+lazily from `default` tags on SDK fields reachable from `ResourceSet`. Adding a
+registered resource to `ResourceSet` and embedding its generated SDK request
+types therefore opts the resource and its nested children into default
+omission automatically. No separate production catalog is maintained or
+loaded. The entire reflection and YAML-walk path is bypassed when the flag is
+absent.
+
+Only literal API defaults are eligible. Do not add tags for kongctl-derived
+conveniences such as `SetDefaults` behavior or deriving `name` from `ref`.
+Those values are client behavior, not an API contract. Explicit YAML `null`
+values and fields without SDK default metadata are preserved.
+
+The reviewed catalog at
+`internal/declarative/resources/testdata/dump_defaults_inventory.yaml` is a
+golden test artifact, not a runtime data source. It makes SDK dependency
+changes reviewable by listing each registered resource, field path, type,
+value, and source. `TestDumpDefaultInventory` runs with the normal unit suite
+and fails when the SDK version, reachable resources, or default tags change.
+After reviewing such a diff, regenerate it with:
+
+```shell
+UPDATE_GOLDEN=1 go test ./internal/declarative/resources \
+  -run TestDumpDefaultInventory
+```
+
+If SDK metadata is missing or unsafe, add exactly one documented registration
+rule beside the resource's `registerResourceType` call:
+
+- `WithDumpDefaultOverride(path, value, reason)` supplies a reviewed literal
+  API default.
+- `WithDumpDefaultExclusion(path, reason)` keeps an SDK-tagged field in dumps.
+
+Rules for the same resource path are mutually exclusive; duplicate rules fail
+resource registration. Every rule requires a reason and appears in the golden
+inventory. Remove a rule when the SDK metadata becomes authoritative, then
+regenerate and review the inventory.
+
 ### SYNC SCOPE (REQUIRED)
 
 `sync` uses explicit manifest scope. Do not treat omitted configuration as a
