@@ -761,10 +761,10 @@ ai_gateway_models:
    enabled: boolean
    config:
      route:
-       model: # choose exactly one selector parameter
+       model: # selector fields are optional
          body_param: model
          values:
-          - string
+           - string
          # header_param: X-Model
          # values:
          #  - string
@@ -788,7 +788,7 @@ ai_gateway_models:
    access:
      acls: object
      identity_providers:
-      - !ref identity-provider-ref
+       - !ref identity-provider-ref
    managed_by: object
 ```
 
