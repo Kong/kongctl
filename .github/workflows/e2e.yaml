@@ -67,10 +67,29 @@ env:
   DO_NOT_TRACK: "1"
 
 # The E2E target orgs are shared stateful environments. Queue full workflow
-# runs so PR, merge queue, manual, and debounced main runs never overlap.
+# runs per Konnect environment so runs sharing an environment never overlap.
+# Keep this selection aligned with the e2e-needed target selection below.
 # The gate below skips superseded PR runs before expensive work starts.
 concurrency:
-  group: kongctl-e2e-global
+  group: >-
+    kongctl-e2e-${{
+      (
+        inputs.konnect_environment == 'tech' ||
+        (
+          github.event_name == 'pull_request' &&
+          contains(github.event.pull_request.labels.*.name, 'konnect-env:tech')
+        ) ||
+        (
+          (
+            inputs.konnect_environment == '' ||
+            inputs.konnect_environment == 'auto'
+          ) &&
+          vars.KONGCTL_E2E_KONNECT_ENV == 'tech'
+        )
+      ) &&
+      'tech' ||
+      'com'
+    }}
   queue: max
 
 jobs:
