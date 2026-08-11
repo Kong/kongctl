@@ -40,11 +40,6 @@ For complete documentation and guides, see the documentation on the Kong Develop
 
 [https://developer.konghq.com/kongctl/](https://developer.konghq.com/kongctl/)
 
-For a short, hands-on introduction with commands you can run, use the learning
-guide:
-
-[https://kong.github.io/kongctl/](https://kong.github.io/kongctl/)
-
 ## Installation
 
 ### Shell installer
