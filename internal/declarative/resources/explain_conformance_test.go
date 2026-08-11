@@ -123,7 +123,7 @@ func TestAIGatewayIdentityProviderExplainBranchesTrackSDKRequestShapes(t *testin
 	require.NoError(t, err)
 
 	allowOverlay := func(path, name string) bool {
-		if path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway) {
+		if path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway || name == "type") {
 			return true
 		}
 		return path == "config" && (name == "upstream_headers_claims" || name == "upstream_headers_names")
@@ -145,10 +145,10 @@ func TestAIGatewayModelProviderExplainBranchesTrackSDKRequestShapes(t *testing.T
 	require.NoError(t, err)
 
 	allowOverlay := func(path, name string) bool {
-		if path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway) {
+		if path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway || name == "type") {
 			return true
 		}
-		return path == "config.auth" && name == "use_gcp_service_account"
+		return path == "config.auth" && (name == "type" || name == "use_gcp_service_account")
 	}
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderAnthropic](t, node, "anthropic", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderAzure](t, node, "azure", allowOverlay)

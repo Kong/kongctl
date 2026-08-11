@@ -111,7 +111,6 @@ func (a *AIGatewayModelResource) SetDefaults() {
 			a.AIGatewayModelAPI.Enabled = &enabled
 		}
 		a.Type = kkComps.CreateAIGatewayModelRequestTypeAPI
-		a.AIGatewayModelAPI.Type = kkComps.AIGatewayModelAPITypeAPI
 	}
 	if a.AIGatewayModelModel != nil {
 		if a.AIGatewayModelModel.Name == "" {
@@ -124,7 +123,6 @@ func (a *AIGatewayModelResource) SetDefaults() {
 			a.AIGatewayModelModel.Enabled = &enabled
 		}
 		a.Type = kkComps.CreateAIGatewayModelRequestTypeModel
-		a.AIGatewayModelModel.Type = kkComps.AIGatewayModelModelTypeModel
 	}
 }
 
@@ -402,49 +400,12 @@ func setAIGatewayRouteModel(
 }
 
 func decodeAIGatewayRouteModel(raw json.RawMessage) (kkComps.AIGatewayModelSelectorConfig, error) {
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &fields); err != nil {
+	var selector kkComps.AIGatewayModelSelectorConfig
+	if err := json.Unmarshal(raw, &selector); err != nil {
 		return kkComps.AIGatewayModelSelectorConfig{},
 			fmt.Errorf("failed to decode AI Gateway config.route.model: %w", err)
 	}
-
-	selectorCount := 0
-	for _, field := range []string{"body_param", "header_param", "path_param"} {
-		if _, ok := fields[field]; ok {
-			selectorCount++
-		}
-	}
-	if selectorCount != 1 {
-		return kkComps.AIGatewayModelSelectorConfig{},
-			fmt.Errorf("AI Gateway config.route.model must specify exactly one selector parameter")
-	}
-
-	if _, ok := fields["body_param"]; ok {
-		var body kkComps.AIGatewayModelSelectorConfigBody
-		if err := json.Unmarshal(raw, &body); err != nil {
-			return kkComps.AIGatewayModelSelectorConfig{},
-				fmt.Errorf("failed to decode AI Gateway config.route.model body selector: %w", err)
-		}
-		return kkComps.CreateAIGatewayModelSelectorConfigAIGatewayModelSelectorConfigBody(body), nil
-	}
-	if _, ok := fields["header_param"]; ok {
-		var headers kkComps.AIGatewayModelSelectorConfigHeaders
-		if err := json.Unmarshal(raw, &headers); err != nil {
-			return kkComps.AIGatewayModelSelectorConfig{},
-				fmt.Errorf("failed to decode AI Gateway config.route.model header selector: %w", err)
-		}
-		return kkComps.CreateAIGatewayModelSelectorConfigAIGatewayModelSelectorConfigHeaders(headers), nil
-	}
-	if _, ok := fields["path_param"]; ok {
-		var path kkComps.AIGatewayModelSelectorConfigPath
-		if err := json.Unmarshal(raw, &path); err != nil {
-			return kkComps.AIGatewayModelSelectorConfig{},
-				fmt.Errorf("failed to decode AI Gateway config.route.model path selector: %w", err)
-		}
-		return kkComps.CreateAIGatewayModelSelectorConfigAIGatewayModelSelectorConfigPath(path), nil
-	}
-	return kkComps.AIGatewayModelSelectorConfig{},
-		fmt.Errorf("AI Gateway config.route.model has an unsupported routing method")
+	return selector, nil
 }
 
 func rawStringField(raw map[string]json.RawMessage, field string) (string, bool, error) {
@@ -678,19 +639,11 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 }
 
 func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
-	routeModel := explainUnionNode(
-		explainObject(
-			explainField("body_param", explainStringNode("model"), true, true),
-			explainField("values", explainArrayOf(explainStringNode("support-gpt")), true, true),
-		),
-		explainObject(
-			explainField("header_param", explainStringNode("X-Model"), true, true),
-			explainField("values", explainArrayOf(explainStringNode("support-gpt")), true, true),
-		),
-		explainObject(
-			explainField("path_param", explainStringNode("model"), true, true),
-			explainField("values", explainArrayOf(explainStringNode("support-gpt")), true, true),
-		),
+	routeModel := explainObject(
+		explainField("body_param", explainStringNode("model"), false, true),
+		explainField("header_param", explainStringNode("X-Model"), false, false),
+		explainField("path_param", explainStringNode("model"), false, false),
+		explainField("values", explainArrayOf(explainStringNode("support-gpt")), false, true),
 	)
 	route := explainObject(
 		explainField("headers", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),

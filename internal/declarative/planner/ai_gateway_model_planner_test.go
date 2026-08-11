@@ -453,7 +453,6 @@ func testAIGatewayModel(id string, name string) kkComps.AIGatewayModel {
 			ID:          id,
 			Name:        name,
 			DisplayName: name,
-			Type:        kkComps.AIGatewayModelModelAIGatewayModelTypeModel,
 		},
 	}
 }

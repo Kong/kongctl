@@ -96,6 +96,10 @@ func TestAIGatewayModelResourceSupportsRouteModelVariants(t *testing.T) {
 			"path_param": "model",
 			"values":     []any{"support-gpt"},
 		},
+		`{"values":["support-gpt"]}`: {
+			"values": []any{"support-gpt"},
+		},
+		`{}`: {},
 	}
 
 	for routeModel, expected := range tests {
@@ -164,7 +168,11 @@ func TestAIGatewayModelExplainNodeMarksModelConfigOptional(t *testing.T) {
 		require.NotNil(t, routeField)
 		routeModelField := routeField.Node.propIndex["model"]
 		require.NotNil(t, routeModelField)
-		require.Len(t, routeModelField.Node.OneOf, 3)
+		require.Empty(t, routeModelField.Node.OneOf)
+		require.Contains(t, routeModelField.Node.propIndex, "body_param")
+		require.Contains(t, routeModelField.Node.propIndex, "header_param")
+		require.Contains(t, routeModelField.Node.propIndex, "path_param")
+		require.Contains(t, routeModelField.Node.propIndex, "values")
 	}
 	require.Equal(t, 1, modelConfigBranches)
 }

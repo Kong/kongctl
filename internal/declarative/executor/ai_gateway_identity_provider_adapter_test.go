@@ -60,7 +60,7 @@ func TestAIGatewayIdentityProviderAdapterPreservesAdditionalOpenIDConnectConfigP
 	require.NoError(t, err)
 	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect)
 	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect.Config)
-	require.Contains(t, request.AIGatewayIdentityProviderOpenIDConnect.Config.AdditionalProperties, "credential_claim")
+	require.Equal(t, []string{"sub"}, request.AIGatewayIdentityProviderOpenIDConnect.Config.CredentialClaim)
 
 	data, err := json.Marshal(request)
 	require.NoError(t, err)
