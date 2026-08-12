@@ -64,7 +64,7 @@ func loadOrganizationTeamRolesForTeam(_ context.Context, helper cmd.Helper, pare
 	if err != nil {
 		return tableview.ChildView{}, err
 	}
-	if team.ID == nil || *team.ID == "" {
+	if team.ID == "" {
 		return tableview.ChildView{}, fmt.Errorf("team ID is required to load roles")
 	}
 
@@ -83,23 +83,23 @@ func loadOrganizationTeamRolesForTeam(_ context.Context, helper cmd.Helper, pare
 		return tableview.ChildView{}, err
 	}
 
-	roles, err := fetchOrganizationTeamRoles(helper, sdk.GetOrganizationTeamRolesAPI(), *team.ID)
+	roles, err := fetchOrganizationTeamRoles(helper, sdk.GetOrganizationTeamRolesAPI(), team.ID)
 	if err != nil {
 		return tableview.ChildView{}, err
 	}
 
-	return buildOrganizationTeamRolesChildView(*team.ID, roles), nil
+	return buildOrganizationTeamRolesChildView(team.ID, roles), nil
 }
 
-func teamFromParent(parent any) (*kkComps.Team, error) {
+func teamFromParent(parent any) (*kkComps.TeamResponse, error) {
 	if parent == nil {
 		return nil, fmt.Errorf("team parent is nil")
 	}
 
 	switch team := parent.(type) {
-	case *kkComps.Team:
+	case *kkComps.TeamResponse:
 		return team, nil
-	case kkComps.Team:
+	case kkComps.TeamResponse:
 		return &team, nil
 	default:
 		return nil, fmt.Errorf("unexpected parent type %T", parent)

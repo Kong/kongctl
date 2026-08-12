@@ -61,7 +61,7 @@ type textDisplayRecord struct {
 	IsSystemTeam     string
 }
 
-func teamToDisplayRecord(s *kkComps.Team) textDisplayRecord {
+func teamToDisplayRecord(s *kkComps.TeamResponse) textDisplayRecord {
 	const missing = "n/a"
 
 	record := textDisplayRecord{
@@ -77,12 +77,12 @@ func teamToDisplayRecord(s *kkComps.Team) textDisplayRecord {
 		return record
 	}
 
-	if id := s.GetID(); id != nil && *id != "" {
-		record.ID = *id
+	if id := s.GetID(); id != "" {
+		record.ID = id
 	}
 
-	if name := s.GetName(); name != nil && *name != "" {
-		record.Name = *name
+	if name := s.GetName(); name != "" {
+		record.Name = name
 	}
 
 	if description := s.GetDescription(); description != nil && *description != "" {
@@ -93,11 +93,11 @@ func teamToDisplayRecord(s *kkComps.Team) textDisplayRecord {
 		record.IsSystemTeam = fmt.Sprintf("%t", *isSystemTeam)
 	}
 
-	if createdAt := s.GetCreatedAt(); createdAt != nil {
+	if createdAt := s.GetCreatedAt(); !createdAt.IsZero() {
 		record.LocalCreatedTime = createdAt.In(time.Local).Format("2006-01-02 15:04:05")
 	}
 
-	if updatedAt := s.GetUpdatedAt(); updatedAt != nil {
+	if updatedAt := s.GetUpdatedAt(); !updatedAt.IsZero() {
 		record.LocalUpdatedTime = updatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	}
 
@@ -109,7 +109,7 @@ func renderTeamsList(
 	rootLabel string,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
-	teams []kkComps.Team,
+	teams []kkComps.TeamResponse,
 ) error {
 	displayRecords := make([]textDisplayRecord, 0, len(teams))
 	for i := range teams {
@@ -181,7 +181,7 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 		id := helper.GetArgs()[0]
 		isUUID := util.IsValidUUID(id)
 
-		var team *kkComps.Team
+		var team *kkComps.TeamResponse
 
 		if !isUUID {
 			// multiple teams can have the same name, so we list by name
@@ -217,26 +217,26 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 	return fmt.Errorf("too many arguments")
 }
 
-func runGet(id string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper) (*kkComps.Team, error) {
+func runGet(id string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper) (*kkComps.TeamResponse, error) {
 	res, err := kkClient.GetOrganizationTeam(helper.GetContext(), id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
 		return nil, cmd.PrepareExecutionError("Failed to get Team", err, helper.GetCmd(), attrs...)
 	}
 
-	return res.GetTeam(), nil
+	return res.GetTeamResponse(), nil
 }
 
 func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 	cfg config.Hook, skipSystemTeams bool,
-) ([]kkComps.Team, error) {
+) ([]kkComps.TeamResponse, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 	if requestPageSize < 1 {
 		requestPageSize = int64(common.DefaultRequestPageSize)
 	}
 
-	var allData []kkComps.Team
+	var allData []kkComps.TeamResponse
 	var totalFetched int
 
 	for {
@@ -251,7 +251,7 @@ func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 			return nil, cmd.PrepareExecutionError("Failed to list Teams", err, helper.GetCmd(), attrs...)
 		}
 
-		data := res.GetTeamCollection().Data
+		data := res.GetTeamCollectionResponse().Data
 		totalFetched += len(data)
 
 		// Filter out system teams if flag is set
@@ -262,7 +262,7 @@ func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 			allData = append(allData, team)
 		}
 
-		totalItems := res.GetTeamCollection().Meta.Page.Total
+		totalItems := res.GetTeamCollectionResponse().Meta.Page.Total
 		if totalFetched >= int(totalItems) {
 			break
 		}
@@ -275,14 +275,14 @@ func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 
 func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 	cfg config.Hook, skipSystemTeams bool,
-) ([]kkComps.Team, error) {
+) ([]kkComps.TeamResponse, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 	if requestPageSize < 1 {
 		requestPageSize = int64(common.DefaultRequestPageSize)
 	}
 
-	var allData []kkComps.Team
+	var allData []kkComps.TeamResponse
 	var totalFetched int
 
 	for {
@@ -302,7 +302,7 @@ func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd
 			return nil, cmd.PrepareExecutionError("Failed to list OrganizationTeams", err, helper.GetCmd(), attrs...)
 		}
 
-		data := res.GetTeamCollection().Data
+		data := res.GetTeamCollectionResponse().Data
 		totalFetched += len(data)
 
 		// Filter out system teams if flag is set
@@ -313,7 +313,7 @@ func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd
 			allData = append(allData, team)
 		}
 
-		totalItems := res.GetTeamCollection().Meta.Page.Total
+		totalItems := res.GetTeamCollectionResponse().Meta.Page.Total
 
 		if totalFetched >= int(totalItems) {
 			break
@@ -329,7 +329,7 @@ func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd
 	return nil, fmt.Errorf("organization_team with name %s not found", name)
 }
 
-func buildTeamChildView(teams []kkComps.Team) tableview.ChildView {
+func buildTeamChildView(teams []kkComps.TeamResponse) tableview.ChildView {
 	rows := make([]table.Row, 0, len(teams))
 	for i := range teams {
 		record := teamToDisplayRecord(&teams[i])
@@ -358,7 +358,7 @@ func buildTeamChildView(teams []kkComps.Team) tableview.ChildView {
 	}
 }
 
-func teamDetailView(team *kkComps.Team) string {
+func teamDetailView(team *kkComps.TeamResponse) string {
 	if team == nil {
 		return ""
 	}
@@ -366,13 +366,13 @@ func teamDetailView(team *kkComps.Team) string {
 	const missing = "n/a"
 
 	id := missing
-	if value := team.GetID(); value != nil && *value != "" {
-		id = util.AbbreviateUUID(*value)
+	if value := team.GetID(); value != "" {
+		id = util.AbbreviateUUID(value)
 	}
 
 	name := missing
-	if value := team.GetName(); value != nil && *value != "" {
-		name = *value
+	if value := team.GetName(); value != "" {
+		name = value
 	}
 
 	description := missing
@@ -386,12 +386,12 @@ func teamDetailView(team *kkComps.Team) string {
 	}
 
 	createdAt := missing
-	if value := team.GetCreatedAt(); value != nil {
+	if value := team.GetCreatedAt(); !value.IsZero() {
 		createdAt = value.In(time.Local).Format("2006-01-02 15:04:05")
 	}
 
 	updatedAt := missing
-	if value := team.GetUpdatedAt(); value != nil {
+	if value := team.GetUpdatedAt(); !value.IsZero() {
 		updatedAt = value.In(time.Local).Format("2006-01-02 15:04:05")
 	}
 

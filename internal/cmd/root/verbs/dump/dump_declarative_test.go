@@ -89,9 +89,9 @@ func TestRunDeclarativeDumpIncludesSystemAccountAssignments(t *testing.T) {
 			return runDumpOrganizationTeamAPIStub{
 				list: func(context.Context, kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error) {
 					return &kkOps.ListTeamsResponse{
-						TeamCollection: &kkComps.TeamCollection{
+						TeamCollectionResponse: &kkComps.TeamCollectionResponse{
 							Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
-							Data: []kkComps.Team{{ID: &teamID, Name: &teamName}},
+							Data: []kkComps.TeamResponse{{ID: teamID, Name: teamName}},
 						},
 					}, nil
 				},

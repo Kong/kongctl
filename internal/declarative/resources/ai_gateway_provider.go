@@ -124,6 +124,11 @@ func (a *AIGatewayProviderResource) SetDefaults() {
 	if a.DisplayName == "" {
 		a.DisplayName = a.Name
 	}
+	if a.Type == "azure" && a.Config != nil {
+		if service, ok := a.Config["service"]; !ok || service == nil {
+			a.Config["service"] = "azure-openai"
+		}
+	}
 }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup.

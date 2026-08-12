@@ -110,10 +110,10 @@ func (h organizationTeamRolesHandler) run(args []string) error {
 		if len(teams) != 1 {
 			return fmt.Errorf("organization team name %q matched %d teams; use --team-id", teamName, len(teams))
 		}
-		if teams[0].ID == nil || *teams[0].ID == "" {
+		if teams[0].ID == "" {
 			return fmt.Errorf("organization team %q has no ID", teamName)
 		}
-		teamID = *teams[0].ID
+		teamID = teams[0].ID
 	}
 
 	roles, err := fetchOrganizationTeamRoles(helper, sdk.GetOrganizationTeamRolesAPI(), teamID)

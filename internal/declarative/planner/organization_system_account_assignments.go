@@ -7,7 +7,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountAssignmentChanges(
@@ -58,7 +57,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 
 	scopedTeamIDs := make(map[string]bool)
 	for _, team := range currentByName {
-		if id := util.GetString(team.ID); id != "" {
+		if id := team.ID; id != "" {
 			scopedTeamIDs[id] = true
 		}
 	}

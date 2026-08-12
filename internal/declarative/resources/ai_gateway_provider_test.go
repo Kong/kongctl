@@ -9,6 +9,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAIGatewayProviderResourceSetDefaultsAddsAzureService(t *testing.T) {
+	provider := AIGatewayProviderResource{
+		Name: "azure-provider",
+		Type: "azure",
+		Config: map[string]any{
+			"instance": "example",
+		},
+	}
+
+	provider.SetDefaults()
+
+	require.Equal(t, "azure-openai", provider.Config["service"])
+}
+
 func TestAIGatewayProviderResourceValidateRequiresName(t *testing.T) {
 	t.Parallel()
 
