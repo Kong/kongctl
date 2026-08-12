@@ -354,7 +354,7 @@ func configureAIGatewayProviderAuthExplain(auth *ExplainNode) {
 	if providerType, ok := auth.property(aiGatewayProviderFieldType); ok && providerType.Node.Const == "vertex" {
 		explainReplaceField(auth, explainField(
 			"use_gcp_service_account",
-			&ExplainNode{Kind: "boolean", Const: true, Literal: "true"},
+			&ExplainNode{Kind: explainKindBoolean, Const: true, Literal: "true"},
 			false,
 			true,
 		))

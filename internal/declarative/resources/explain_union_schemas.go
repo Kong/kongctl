@@ -100,7 +100,7 @@ func explainStringNode(literal string) *ExplainNode {
 }
 
 func explainBoolNode(literal string) *ExplainNode {
-	return &ExplainNode{Kind: "boolean", Literal: literal}
+	return &ExplainNode{Kind: explainKindBoolean, Literal: literal}
 }
 
 func explainConstStringNode(value string) *ExplainNode {
@@ -131,7 +131,7 @@ func stringsForResourceRef(kind ResourceType) string {
 
 func explainKongctlField() *ExplainField {
 	return explainField("kongctl", explainObject(
-		explainField("protected", &ExplainNode{Kind: "boolean", Nullable: true, Literal: "false"}, false, false),
+		explainField("protected", &ExplainNode{Kind: explainKindBoolean, Nullable: true, Literal: "false"}, false, false),
 		explainField(
 			"namespace",
 			&ExplainNode{Kind: explainKindString, Nullable: true, Literal: "default"},
@@ -510,7 +510,7 @@ func dashboardChartBranch(chartType string, stacked bool, decimalPoints bool) *E
 	if stacked {
 		fields = append(fields, explainField(
 			"stacked",
-			&ExplainNode{Kind: "boolean", Nullable: true, Literal: "false"},
+			&ExplainNode{Kind: explainKindBoolean, Nullable: true, Literal: "false"},
 			false,
 			false,
 		))

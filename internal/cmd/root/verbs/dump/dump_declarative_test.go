@@ -65,6 +65,7 @@ func TestDeclarativeDumpHasSkipDefaultsFlag(t *testing.T) {
 	flag := newDeclarativeCmd().Flags().Lookup("skip-defaults")
 	if flag == nil {
 		t.Fatal("expected --skip-defaults flag")
+		return
 	}
 	if flag.DefValue != "false" {
 		t.Fatalf("--skip-defaults default = %q, want false", flag.DefValue)
