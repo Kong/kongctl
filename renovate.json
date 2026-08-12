@@ -15,6 +15,16 @@
       ]
     },
     {
+      "description": "Hold TypeScript 7 until Astro supports its programmatic API",
+      "allowedVersions": "<7.0.0",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "typescript"
+      ]
+    },
+    {
       "description": "Hold lipgloss upgrades until manually approved",
       "matchPackageNames": [
         "github.com/charmbracelet/lipgloss"
