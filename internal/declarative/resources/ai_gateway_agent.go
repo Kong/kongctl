@@ -375,12 +375,14 @@ func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			aiGatewayAgentFieldConfig,
 			explainObject(
 				explainField("url", explainStringNode("https://booking-agent.example.com"), true, true),
+				explainField("upstream", aiGatewayUpstreamExplainNode(), false, false),
 				explainField(
 					"route",
 					aiGatewayRouteExplainNode(),
 					false,
 					false,
 				),
+				explainField("proxy", aiGatewayProxyExplainNode(), false, false),
 				explainField("max_request_body_size", &ExplainNode{Kind: explainKindInteger, Literal: "1048576"}, false, false),
 				explainField(
 					"logging",
@@ -410,4 +412,42 @@ func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 		),
 	), nil
+}
+
+func aiGatewayUpstreamExplainNode() *ExplainNode {
+	return explainObject(explainField(
+		"auth",
+		explainUnionNode(explainObject(
+			explainField("type", explainConstStringNode("aws"), true, true),
+			explainField("access_key_id", explainStringNode("AKIAIOSFODNN7EXAMPLE"), false, false),
+			explainField("secret_access_key", explainStringNode("secret"), false, false),
+			explainField("session_token", explainStringNode("session-token"), false, false),
+			explainField("region", explainStringNode("us-east-1"), false, false),
+			explainField("assume_role_arn", explainStringNode("arn:aws:iam::123456789012:role/example"), false, false),
+			explainField("role_session_name", explainStringNode("kong-ai-gateway"), false, false),
+			explainField("sts_endpoint_url", explainStringNode("https://sts.us-east-1.amazonaws.com"), false, false),
+		)),
+		false,
+		false,
+	))
+}
+
+func aiGatewayProxyExplainNode() *ExplainNode {
+	proxyAddress := func() *ExplainNode {
+		return explainObject(
+			explainField("host", explainStringNode("proxy.example.com"), false, false),
+			explainField("port", &ExplainNode{Kind: explainKindInteger, Literal: "8080"}, false, false),
+		)
+	}
+
+	return explainObject(
+		explainField("http_proxy", proxyAddress(), false, false),
+		explainField("https_proxy", proxyAddress(), false, false),
+		explainField("proxy_scheme", explainConstStringNode("http"), false, false),
+		explainField("auth", explainObject(
+			explainField("username", explainStringNode("proxy-user"), false, false),
+			explainField("password", explainStringNode("proxy-password"), false, false),
+		), false, false),
+		explainField("no_proxy", explainStringNode("localhost,127.0.0.1"), false, false),
+	)
 }

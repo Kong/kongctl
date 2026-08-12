@@ -89,13 +89,13 @@ func adoptTeam(
 	if existing := team.Labels; existing != nil && !overwriteNamespace {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
-				Err: fmt.Errorf("team %q already has namespace label %q", util.GetString(team.Name), currentNamespace),
+				Err: fmt.Errorf("team %q already has namespace label %q", team.Name, currentNamespace),
 			}
 		}
 	}
 
 	updateReq := kkComps.UpdateTeam{
-		Name:        team.Name,
+		Name:        new(team.Name),
 		Description: team.Description,
 		Labels:      adoptCommon.PointerLabelMap(team.Labels, namespace),
 	}
@@ -108,7 +108,7 @@ func adoptTeam(
 		return nil, cmdpkg.PrepareExecutionError("failed to update organization_team", err, helper.GetCmd(), attrs...)
 	}
 
-	updated := resp.GetTeam()
+	updated := resp.GetTeamResponse()
 	if updated == nil {
 		return nil, fmt.Errorf("update organization_team response missing team data")
 	}
@@ -122,8 +122,8 @@ func adoptTeam(
 
 	return &adoptCommon.AdoptResult{
 		ResourceType: "organization_team",
-		ID:           util.GetString(updated.ID),
-		Name:         util.GetString(updated.Name),
+		ID:           updated.ID,
+		Name:         updated.Name,
 		Namespace:    ns,
 	}, nil
 }
@@ -133,7 +133,7 @@ func resolveTeam(
 	teamAPI helpers.OrganizationTeamAPI,
 	_ config.Hook,
 	identifier string,
-) (*kkComps.Team, error) {
+) (*kkComps.TeamResponse, error) {
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	if !util.IsValidUUID(identifier) {
@@ -147,7 +147,7 @@ func resolveTeam(
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
 		return nil, cmdpkg.PrepareExecutionError("failed to retrieve organization_team", err, helper.GetCmd(), attrs...)
 	}
-	team := resp.GetTeam()
+	team := resp.GetTeamResponse()
 	if team == nil {
 		return nil, fmt.Errorf("organization_team %s not found", identifier)
 	}

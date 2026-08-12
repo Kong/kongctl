@@ -66,8 +66,8 @@ func (s *organizationTeamAPIStub) ListOrganizationTeams(
 		return s.listOrganizationTeams(ctx, req)
 	}
 	return &kkOps.ListTeamsResponse{
-		TeamCollection: &kkComps.TeamCollection{
-			Data: []kkComps.Team{},
+		TeamCollectionResponse: &kkComps.TeamCollectionResponse{
+			Data: []kkComps.TeamResponse{},
 			Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 0}},
 		},
 	}, nil
@@ -455,7 +455,7 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 		namespace,
 		nil,
 		map[string]state.OrganizationTeam{
-			teamName: {Team: kkComps.Team{ID: &teamIDValue, Name: &teamNameValue}},
+			teamName: {TeamResponse: kkComps.TeamResponse{ID: teamIDValue, Name: teamNameValue}},
 		},
 		plan,
 	)
@@ -525,7 +525,7 @@ func TestOrganizationSystemAccountTeamMembershipSyncDeletesScopedTeamForSelector
 		namespace,
 		nil,
 		map[string]state.OrganizationTeam{
-			teamName: {Team: kkComps.Team{ID: &teamIDValue, Name: &teamNameValue}},
+			teamName: {TeamResponse: kkComps.TeamResponse{ID: teamIDValue, Name: teamNameValue}},
 		},
 		plan,
 	)

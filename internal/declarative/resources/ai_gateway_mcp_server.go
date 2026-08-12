@@ -592,7 +592,8 @@ func aiGatewayMCPServerConfigExplainNode() *ExplainNode {
 		explainField("max_request_body_size", &ExplainNode{Kind: explainKindInteger, Literal: "8388608"}, false, false),
 		explainField("server", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
 		explainField("url", explainStringNode("https://support-tools.example.com"), false, true),
-		explainField("proxy", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField("upstream", aiGatewayUpstreamExplainNode(), false, false),
+		explainField("proxy", aiGatewayProxyExplainNode(), false, false),
 		explainField("tools_cache_ttl_seconds", &ExplainNode{Kind: explainKindInteger, Literal: "60"}, false, false),
 	)
 }

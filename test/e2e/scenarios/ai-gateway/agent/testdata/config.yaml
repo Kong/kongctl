@@ -36,6 +36,16 @@ ai_gateways:
           phase: create
         config:
           url: https://booking-agent.example.com
+          upstream:
+            auth:
+              type: aws
+              access_key_id: fake-agent-access-key
+              secret_access_key: fake-agent-secret-key
+              session_token: fake-agent-session-token
+              region: us-east-1
+          proxy:
+            proxy_scheme: http
+            no_proxy: localhost,127.0.0.1
           route:
             paths:
               - /booking

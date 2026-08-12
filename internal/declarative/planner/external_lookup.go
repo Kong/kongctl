@@ -730,8 +730,8 @@ func (r *externalLookupResolver) lookupOrganizationTeam(
 	}
 	matches := make([]string, 0, 1)
 	for _, team := range teams {
-		if team.Name != nil && *team.Name == req.MatchFields[FieldName] && team.ID != nil && *team.ID != "" {
-			matches = append(matches, *team.ID)
+		if team.Name == req.MatchFields[FieldName] && team.ID != "" {
+			matches = append(matches, team.ID)
 		}
 	}
 	return singleExternalID(req, matches)

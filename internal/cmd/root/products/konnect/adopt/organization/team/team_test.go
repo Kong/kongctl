@@ -18,7 +18,7 @@ var (
 
 type teamAPIStub struct {
 	t          *testing.T
-	team       *kkComps.Team
+	team       *kkComps.TeamResponse
 	lastUpdate *kkComps.UpdateTeam
 	updateCall int
 }
@@ -35,10 +35,10 @@ func (c *teamAPIStub) GetOrganizationTeam(
 	_ context.Context,
 	id string,
 ) (*kkOps.GetTeamResponse, error) {
-	if id != *c.team.ID {
+	if id != c.team.ID {
 		c.t.Fatalf("unexpected team id: %s", id)
 	}
-	return &kkOps.GetTeamResponse{Team: c.team}, nil
+	return &kkOps.GetTeamResponse{TeamResponse: c.team}, nil
 }
 
 func (c *teamAPIStub) CreateOrganizationTeam(
@@ -54,14 +54,14 @@ func (c *teamAPIStub) UpdateOrganizationTeam(
 	id string,
 	team *kkComps.UpdateTeam,
 ) (*kkOps.UpdateTeamResponse, error) {
-	if id != *c.team.ID {
+	if id != c.team.ID {
 		c.t.Fatalf("unexpected team id: %s", id)
 	}
 	c.updateCall++
 	c.lastUpdate = team
 
 	resp := &kkOps.UpdateTeamResponse{
-		Team: &kkComps.Team{
+		TeamResponse: &kkComps.TeamResponse{
 			ID:     c.team.ID,
 			Name:   c.team.Name,
 			Labels: labels.NormalizeLabels(team.Labels),
@@ -84,9 +84,9 @@ func TestAdoptTeamAssignsNamespaceLabel(t *testing.T) {
 
 	stub := &teamAPIStub{
 		t: t,
-		team: &kkComps.Team{
-			ID:     &testTeamID,
-			Name:   &testTeamName,
+		team: &kkComps.TeamResponse{
+			ID:     testTeamID,
+			Name:   testTeamName,
 			Labels: map[string]string{"env": "prod"},
 		},
 	}
@@ -112,9 +112,9 @@ func TestAdoptTeamRejectsExistingNamespace(t *testing.T) {
 
 	stub := &teamAPIStub{
 		t: t,
-		team: &kkComps.Team{
-			ID:     &testTeamID,
-			Name:   &testTeamName,
+		team: &kkComps.TeamResponse{
+			ID:     testTeamID,
+			Name:   testTeamName,
 			Labels: map[string]string{labels.NamespaceKey: "existing"},
 		},
 	}
@@ -134,9 +134,9 @@ func TestAdoptTeamWithExistingLabels(t *testing.T) {
 
 	stub := &teamAPIStub{
 		t: t,
-		team: &kkComps.Team{
-			ID:   &testTeamID,
-			Name: &testTeamName,
+		team: &kkComps.TeamResponse{
+			ID:   testTeamID,
+			Name: testTeamName,
 			Labels: map[string]string{
 				"env":       "prod",
 				"region":    "us-west",
@@ -169,9 +169,9 @@ func TestAdoptTeamOverwritesExistingNamespace(t *testing.T) {
 
 	stub := &teamAPIStub{
 		t: t,
-		team: &kkComps.Team{
-			ID:   &testTeamID,
-			Name: &testTeamName,
+		team: &kkComps.TeamResponse{
+			ID:   testTeamID,
+			Name: testTeamName,
 			Labels: map[string]string{
 				"env":               "prod",
 				labels.NamespaceKey: "existing",
@@ -210,9 +210,9 @@ func TestResolveTeamValidUUID(t *testing.T) {
 
 	stub := &teamAPIStub{
 		t: t,
-		team: &kkComps.Team{
-			ID:     &testTeamID,
-			Name:   &testTeamName,
+		team: &kkComps.TeamResponse{
+			ID:     testTeamID,
+			Name:   testTeamName,
 			Labels: map[string]string{},
 		},
 	}
@@ -220,8 +220,8 @@ func TestResolveTeamValidUUID(t *testing.T) {
 	team, err := resolveTeam(helper, stub, nil, testTeamID)
 	assert.NoError(t, err)
 	assert.NotNil(t, team)
-	assert.Equal(t, testTeamID, *team.ID)
-	assert.Equal(t, testTeamName, *team.Name)
+	assert.Equal(t, testTeamID, team.ID)
+	assert.Equal(t, testTeamName, team.Name)
 
 	helper.AssertExpectations(t)
 }
