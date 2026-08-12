@@ -620,6 +620,23 @@ func TestRoarRunFallsBackToClimberInNarrowTerminal(t *testing.T) {
 	}
 }
 
+func TestRoarRunSkipsClimberWhenTerminalIsTooShort(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+	streams, _, out, errOut := iostreams.NewTestIOStreams()
+	stubTerminalData(t, terminalCapabilities{width: 60, height: 30, isTTY: true})
+
+	if err := runRoarForTest(t, streams); err != nil {
+		t.Fatalf("roar run: %v", err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("expected no banner output for short terminal, got:\n%s", out.String())
+	}
+	if errOut.Len() != 0 {
+		t.Fatalf("expected no stderr output, got:\n%s", errOut.String())
+	}
+}
+
 func TestRoarRunReportsTooNarrowTerminal(t *testing.T) {
 	t.Setenv("TERM", "xterm-256color")
 	t.Setenv("LC_ALL", "en_US.UTF-8")
@@ -1029,4 +1046,38 @@ func containsBraillePattern(s string) bool {
 		}
 	}
 	return false
+}
+
+func TestCanRenderFrameRequiresMeasuredSpace(t *testing.T) {
+	tests := []struct {
+		name     string
+		terminal terminalCapabilities
+		want     bool
+	}{
+		{
+			name:     "fits",
+			terminal: terminalCapabilities{width: art.KongRoarAnimationWidth, height: art.KongRoarAnimationHeight},
+			want:     true,
+		},
+		{
+			name:     "too short",
+			terminal: terminalCapabilities{width: 120, height: art.KongRoarAnimationHeight - 1},
+		},
+		{
+			name:     "too narrow",
+			terminal: terminalCapabilities{width: art.KongRoarAnimationWidth - 1, height: 40},
+		},
+		{
+			name:     "unknown size",
+			terminal: terminalCapabilities{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CanRenderFrame(tt.terminal); got != tt.want {
+				t.Fatalf("CanRenderFrame = %t, want %t", got, tt.want)
+			}
+		})
+	}
 }

@@ -271,7 +271,7 @@ func (c *roarCmd) run(command *cobra.Command, _ []string) error {
 	if err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
-	if !rendered {
+	if !rendered && !canRenderOutputWidth(terminal, fallbackWidth) {
 		writeNarrowTerminalMessage(streams.ErrOut)
 	}
 	return nil
@@ -372,10 +372,23 @@ func renderRoarBanner(out io.Writer, width int, bannerType art.KongBannerType, b
 }
 
 func RenderFallbackClimber(out io.Writer, terminal TerminalCapabilities, bannerColor color.Color) (bool, error) {
-	if !canRenderOutputWidth(terminal, fallbackWidth) {
+	if terminal.width <= 0 || terminal.height <= 0 || !canRenderOutputWidth(terminal, fallbackWidth) {
 		return false, nil
 	}
-	return true, renderRoarBanner(out, fallbackWidth, autoBannerType(), bannerColor)
+
+	var banner bytes.Buffer
+	if err := renderRoarBanner(&banner, fallbackWidth, autoBannerType(), bannerColor); err != nil {
+		return false, err
+	}
+	if terminal.height < strings.Count(banner.String(), "\n") {
+		return false, nil
+	}
+	if out == nil {
+		return true, nil
+	}
+
+	_, err := io.Copy(out, &banner)
+	return true, err
 }
 
 func renderRoarStaticFrame(out io.Writer, bannerColor color.Color, useNativeColor bool) error {
@@ -870,8 +883,13 @@ func ShouldRenderAnimation(noAnimate bool, terminal TerminalCapabilities) bool {
 	return shouldRenderAnimation(noAnimate, terminal)
 }
 
-func CanRenderFrameWidth(terminal TerminalCapabilities) bool {
-	return canRenderOutputWidth(terminal, art.KongRoarAnimationWidth)
+// CanRenderFrame reports whether the terminal can display the full static Kong
+// frame. It requires a measured size large enough in both dimensions, matching
+// the animation gate, so short or unmeasurable terminals fall back to a smaller
+// banner instead of rendering a frame that overflows the screen.
+func CanRenderFrame(terminal TerminalCapabilities) bool {
+	return terminal.width >= art.KongRoarAnimationWidth &&
+		terminal.height >= art.KongRoarAnimationHeight
 }
 
 func canRenderOutputWidth(terminal terminalCapabilities, width int) bool {
