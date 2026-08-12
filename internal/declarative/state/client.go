@@ -495,8 +495,7 @@ type EventGatewayVirtualCluster struct {
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
-// Team represents a normalized team for internal use
-// I think this should be OrganizationTeam
+// OrganizationTeam represents a normalized organization team for internal use.
 type OrganizationTeam struct {
 	kkComps.TeamResponse
 	NormalizedLabels map[string]string // Non-pointer labels
