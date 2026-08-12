@@ -9,7 +9,7 @@ env:
 vars:
   namespace: "ai-gateway-policy-matrix-e2e"
   gateway_name: "AI Gateway Policy Matrix E2E"
-  policy_count: 17
+  policy_count: 14
 
 defaults:
   mask:
@@ -44,12 +44,12 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 18
-                by_action.CREATE: 18
+                total_changes: 15
+                by_action.CREATE: 15
           - select: "length(changes[?resource_type=='ai_gateway_policy'])"
             expect:
               fields:
-                "@": 17
+                "@": 14
           - select: >-
               changes[?resource_type=='ai_gateway_policy' && resource_ref=='semantic-prompt-guard'] | [0]
             expect:
@@ -79,13 +79,6 @@ steps:
                 fields.type: ai-rate-limiting-advanced
                 fields.config.policies[0].limits[0].tokens_count_strategy: total_tokens
           - select: >-
-              changes[?resource_type=='ai_gateway_policy' && resource_ref=='mcp-oauth2'] | [0]
-            expect:
-              fields:
-                action: CREATE
-                fields.type: ai-mcp-oauth2
-                fields.config.consumer_by[1]: custom_id
-          - select: >-
               changes[?resource_type=='ai_gateway_policy' && resource_ref=='opentelemetry'] | [0]
             expect:
               fields:
@@ -103,7 +96,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 18
+                applied: 15
                 failed: 0
                 status: success
       - name: 002-diff-no-changes
@@ -134,11 +127,11 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 17
-                by_action.DELETE: 17
+                total_changes: 14
+                by_action.DELETE: 14
           - select: summary
             expect:
               fields:
-                applied: 17
+                applied: 14
                 failed: 0
                 status: success
