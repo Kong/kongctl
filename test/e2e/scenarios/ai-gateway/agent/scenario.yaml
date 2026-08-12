@@ -118,6 +118,9 @@ steps:
                 fields.display_name: "{{ .vars.agent_display_name }}"
                 fields.enabled: true
                 fields.config.url: https://booking-agent.example.com
+                fields.config.upstream.auth.type: aws
+                fields.config.upstream.auth.region: us-east-1
+                fields.config.proxy.proxy_scheme: http
                 fields.labels.phase: create
                 fields.access.identity_providers[0]: "__REF__:{{ .vars.identity_provider_ref }}#id"
                 references."access.identity_providers.0".ref: "__REF__:{{ .vars.identity_provider_ref }}#name"
@@ -156,6 +159,9 @@ steps:
                 display_name: "{{ .vars.agent_display_name }}"
                 enabled: true
                 labels.phase: create
+                config.upstream.auth.type: aws
+                config.upstream.auth.region: us-east-1
+                config.proxy.proxy_scheme: http
                 "length(access.identity_providers)": 1
       - name: 003-get-agent-by-name
         run:

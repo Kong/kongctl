@@ -254,6 +254,8 @@ func (p *Planner) shouldUpdateAIGatewayAgent(
 	}
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	currentCompare = scrubAIGatewayUpstreamWriteOnlyFields(currentCompare).(map[string]any)
+	desiredCompare = scrubAIGatewayUpstreamWriteOnlyFields(desiredCompare).(map[string]any)
 	updateFields := preserveAIGatewayOpenProperties(
 		current.AdditionalProperties,
 		currentPayload,

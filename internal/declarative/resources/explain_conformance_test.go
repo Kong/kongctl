@@ -140,6 +140,30 @@ func TestAIGatewayIdentityProviderExplainBranchesTrackSDKRequestShapes(t *testin
 	)
 }
 
+func TestAIGatewayAgentConfigExplainTracksSDKRequestShape(t *testing.T) {
+	node, err := aiGatewayAgentExplainNode(ExplainBuildContext{})
+	require.NoError(t, err)
+	config, ok := node.property(aiGatewayAgentFieldConfig)
+	require.True(t, ok)
+
+	allowOverlay := func(path, name string) bool {
+		return path == "logging" && name == "statistics"
+	}
+	assertCustomExplainDeeplySupportsSDKShape[kkComps.Config](t, config.Node, allowOverlay)
+}
+
+func TestAIGatewayMCPServerConfigExplainIncludesUpstreamAuthentication(t *testing.T) {
+	config := aiGatewayMCPServerConfigExplainNode()
+	upstream, ok := config.property("upstream")
+	require.True(t, ok)
+	auth, ok := upstream.Node.property("auth")
+	require.True(t, ok)
+	require.Len(t, auth.Node.OneOf, 1)
+	authType, ok := auth.Node.OneOf[0].property("type")
+	require.True(t, ok)
+	require.Equal(t, "aws", authType.Node.Const)
+}
+
 func TestAIGatewayModelProviderExplainBranchesTrackSDKRequestShapes(t *testing.T) {
 	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)

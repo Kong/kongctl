@@ -148,6 +148,45 @@ func TestAIGatewayAgentPlannerIgnoresAPIDefaults(t *testing.T) {
 	require.Nil(t, changed)
 }
 
+func TestAIGatewayAgentPlannerIgnoresRedactedUpstreamCredentials(t *testing.T) {
+	agent := testAIGatewayAgentResourceWithConfig(t, `{
+		"url": "https://booking-agent.example.com",
+		"upstream": {"auth": {
+			"type": "aws",
+			"access_key_id": "access-key",
+			"secret_access_key": "secret-key",
+			"session_token": "session-token",
+			"region": "us-east-1"
+		}}
+	}`)
+	var current kkComps.AIGatewayAgent
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "agent-id",
+		"name": "booking-agent",
+		"type": "a2a",
+		"display_name": "Booking Agent",
+		"enabled": true,
+		"config": {
+			"url": "https://booking-agent.example.com",
+			"upstream": {"auth": {
+				"type": "aws",
+				"access_key_id": "access-key",
+				"region": "us-east-1"
+			}}
+		}
+	}`), &current))
+
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayAgent(
+		state.AIGatewayAgent{AIGatewayAgent: current},
+		agent,
+	)
+
+	require.NoError(t, err)
+	require.False(t, needsUpdate)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
 func TestAIGatewayAgentPlannerSyncDeletesScopedAgents(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
@@ -393,7 +432,7 @@ func testAIGatewayAgent(policies []string) kkComps.AIGatewayAgent {
 		Type:        kkComps.TypeA2a,
 		DisplayName: "Booking Agent",
 		Enabled:     &enabled,
-		Config: kkComps.Config{
+		Config: kkComps.AIGatewayAgentConfig{
 			URL: "https://booking-agent.example.com",
 		},
 		Policies: policies,
