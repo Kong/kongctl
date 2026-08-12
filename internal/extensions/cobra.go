@@ -532,11 +532,13 @@ func PrintExtensionHelp(w io.Writer, extensionID string, contribution CommandPat
 // extensionHostFlags is the ordered set of host flags kongctl exposes to
 // extension commands. Names key the manifest host_flags.only allow-list, so
 // they reference the shared flag-name constants rather than raw literals.
-var extensionHostFlags = []struct {
+type hostFlagEntry struct {
 	name        string
 	display     string
 	description string
-}{
+}
+
+var extensionHostFlags = []hostFlagEntry{
 	{cmdcommon.OutputFlagName, "-o, --output string", "Output format: text, json, or yaml"},
 	{jqoutput.FlagName, "--jq string", "Filter JSON or YAML output using a jq expression"},
 	{jqoutput.RawOutputFlagName, "-r, --jq-raw-output", "Output string jq results without JSON quotes"},
@@ -557,12 +559,9 @@ func HostFlagNames() []string {
 
 // IsHostFlagName reports whether name is a recognized host flag.
 func IsHostFlagName(name string) bool {
-	for _, hostFlag := range extensionHostFlags {
-		if hostFlag.name == name {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(extensionHostFlags, func(hostFlag hostFlagEntry) bool {
+		return hostFlag.name == name
+	})
 }
 
 func printExtensionHostFlags(w io.Writer, visibility *HostFlags) error {
@@ -572,8 +571,9 @@ func printExtensionHostFlags(w io.Writer, visibility *HostFlags) error {
 	if _, err := fmt.Fprintln(w, "\nHost Flags:"); err != nil {
 		return err
 	}
+	filter := visibility != nil && len(visibility.Only) > 0
 	for _, hostFlag := range extensionHostFlags {
-		if visibility != nil && len(visibility.Only) > 0 && !slices.Contains(visibility.Only, hostFlag.name) {
+		if filter && !slices.Contains(visibility.Only, hostFlag.name) {
 			continue
 		}
 		if _, err := fmt.Fprintf(w, "  %s\t%s\n", hostFlag.display, hostFlag.description); err != nil {
