@@ -36,6 +36,19 @@ ai_gateways:
               - name: api-version
                 value: "2024-06-01"
                 location: query
+      - ref: matrix-foundry
+        name: matrix-foundry
+        type: azure
+        display_name: "Matrix Azure AI Foundry"
+        config:
+          service: azure-foundry
+          foundry:
+            resource: matrix-foundry-resource
+          auth:
+            type: basic
+            headers:
+              - name: api-key
+                value: fake-foundry-api-key
       - ref: matrix-gemini
         name: matrix-gemini
         type: gemini

@@ -36,6 +36,19 @@ ai_gateways:
               - name: api-version
                 value: "2024-06-01"
                 location: query
+      - ref: matrix-foundry
+        name: matrix-foundry
+        type: azure
+        display_name: "Matrix Azure AI Foundry"
+        config:
+          service: azure-foundry
+          foundry:
+            resource: matrix-foundry-resource
+          auth:
+            type: basic
+            headers:
+              - name: api-key
+                value: fake-foundry-api-key
       - ref: matrix-gemini
         name: matrix-gemini
         type: gemini
@@ -99,6 +112,12 @@ ai_gateways:
               temperature: 1.0
               input_cost: 5
               output_cost: 15
+          - name: claude-sonnet-4-5
+            provider: matrix-foundry
+            semantic_description: "Azure AI Foundry Anthropic completion"
+            config:
+              type: azure
+              foundry_path_prefix: /anthropic/v1
           - name: gemini-2.5-flash
             provider: matrix-gemini
             semantic_description: "Low-latency Gemini chat completion"

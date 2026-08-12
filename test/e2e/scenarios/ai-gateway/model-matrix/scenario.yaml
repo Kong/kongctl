@@ -44,12 +44,12 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 11
-                by_action.CREATE: 11
+                total_changes: 12
+                by_action.CREATE: 12
           - select: "length(changes[?resource_type=='ai_gateway_model_provider'])"
             expect:
               fields:
-                "@": 4
+                "@": 5
           - select: "length(changes[?resource_type=='ai_gateway_model'])"
             expect:
               fields:
@@ -65,7 +65,10 @@ steps:
                 fields.config.route.paths[0]: /matrix/chat
                 fields.targets[0].config.input_cost: 0.8
                 fields.targets[1].config.output_cost: 15
-                fields.targets[2].semantic_description: Low-latency Gemini chat completion
+                fields.targets[2].config.foundry_path_prefix: /anthropic/v1
+                fields.targets[2].semantic_description: Azure AI Foundry Anthropic completion
+                "contains(keys(fields.targets[2].config), 'deployment_id')": false
+                fields.targets[3].semantic_description: Low-latency Gemini chat completion
           - select: >-
               changes[?resource_type=='ai_gateway_model' && resource_ref=='matrix-agentic-model'] | [0]
             expect:
@@ -114,7 +117,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 11
+                applied: 12
                 failed: 0
                 status: success
       - name: 002-get-models
@@ -141,6 +144,8 @@ steps:
             expect:
               fields:
                 config.model.name_header: false
+                targets[1].provider: matrix-foundry
+                targets[1].config.type: azure
       - name: 003-diff-no-changes
         outputFormat: text
         parseAs: raw
