@@ -25,7 +25,7 @@
     "@astrojs/check": "0.9.10",
     "@playwright/test": "1.62.1",
     "@types/node": "24.13.3",
-    "jsdom": "26.1.0",
+    "jsdom": "30.0.1",
     "prettier": "3.9.6",
     "prettier-plugin-astro": "0.14.1",
     "typescript": "5.9.3",
