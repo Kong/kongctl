@@ -71,10 +71,20 @@ on:
 permissions:
   actions: read
   contents: read
+  id-token: write
   issues: read
 checkout:
   fetch-depth: 0
-engine: copilot
+engine:
+  id: claude
+  auth:
+    type: github-oidc
+    provider: anthropic
+    federation-rule-id: fdrl_01Y3KFTKUynh4mumc1tNKArZ
+    organization-id: 4ce7a6d3-9549-4842-bd51-1def5eba611b
+    service-account-id: svac_017oc62PsXm82aqHWzHYgjfM
+    workspace-id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
+model: claude-opus-4-6
 strict: true
 timeout-minutes: 20
 network:

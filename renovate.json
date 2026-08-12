@@ -4,7 +4,8 @@
     "Kong/public-shared-renovate"
   ],
   "ignorePaths": [
-    ".github/workflows/*.lock.yml"
+    ".github/workflows/*.lock.yml",
+    ".github/workflows/agentics-maintenance.yml"
   ],
   "packageRules": [
     {
@@ -45,11 +46,12 @@
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Batch gh-aw updates weekly after a short aging period to reduce daily churn",
+      "description": "Batch gh-aw toolchain updates weekly while generated workflows remain compiler-owned",
       "matchManagers": ["github-actions"],
-      "matchPackageNames": ["github/gh-aw"],
-      "internalChecksFilter": "strict",
-      "minimumReleaseAge": "3 days",
+      "matchPackageNames": ["github/gh-aw", "github/gh-aw-actions"],
+      "groupName": "gh-aw toolchain",
+      "groupSlug": "gh-aw-toolchain",
+      "minimumReleaseAge": "0 days",
       "schedule": ["every weekend"],
       "updateNotScheduled": false
     }
