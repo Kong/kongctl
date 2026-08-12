@@ -3,6 +3,7 @@ on:
   schedule: daily
 permissions:
   contents: read
+  id-token: write
   issues: read
   pull-requests: read
 imports:
@@ -19,7 +20,16 @@ safe-outputs:
     labels:
     - refactoring
 description: Analyzes recently modified code and creates issues summarizing simplifications that improve clarity, consistency, and maintainability while preserving functionality
-engine: copilot
+engine:
+  id: claude
+  auth:
+    type: github-oidc
+    provider: anthropic
+    federation-rule-id: fdrl_01Y3KFTKUynh4mumc1tNKArZ
+    organization-id: 4ce7a6d3-9549-4842-bd51-1def5eba611b
+    service-account-id: svac_017oc62PsXm82aqHWzHYgjfM
+    workspace-id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
+model: claude-opus-4-6
 name: Code Simplifier
 source: githubnext/agentics/workflows/code-simplifier.md@eb7950f37d350af6fa09d19827c4883e72947221
 strict: true

@@ -9,12 +9,20 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  id-token: write
   issues: read
 checkout:
   fetch-depth: 0
 engine:
-  id: copilot
-  model: claude-opus-4.6
+  id: claude
+  auth:
+    type: github-oidc
+    provider: anthropic
+    federation-rule-id: fdrl_01Y3KFTKUynh4mumc1tNKArZ
+    organization-id: 4ce7a6d3-9549-4842-bd51-1def5eba611b
+    service-account-id: svac_017oc62PsXm82aqHWzHYgjfM
+    workspace-id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
+model: claude-opus-4-6
 features:
   action-mode: "action"
 strict: true
@@ -400,8 +408,8 @@ described below, then include them in the final report decision.
 - Workspace: `${{ github.workspace }}`
 - Run URL: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
 - Run seed: `${{ github.run_id }}`
-- Agent engine: `copilot`
-- Agent model: `claude-opus-4.6`
+- Agent engine: `claude`
+- Agent model: `claude-opus-4-6`
 - Runtime version env: `GH_AW_VERSION` when available.
 - Built binary: `./kongctl`
 - Auth env file: `/tmp/gh-aw/kongctl-feature-user-agent/auth.env`
@@ -704,9 +712,9 @@ discovery or run-seeded selection instructions.
 Write the replay prompt after the selected workflow is known and before
 workflow-specific tool or `kongctl` execution begins. Include:
 
-- Agent runtime target: engine `copilot`, model `claude-opus-4.6` or the
-  `COPILOT_MODEL` value when available, `GH_AW_VERSION` when available, and the
-  run URL for traceability.
+- Agent runtime target: engine `claude`, model `claude-opus-4-6` or the
+  `ANTHROPIC_MODEL` value when available, `GH_AW_VERSION` when available, and
+  the run URL for traceability.
 - The selected workflow title, advertised source, user intent, and expected
   behavior.
 - The exact bounded task to perform against `./kongctl`, including safe command
