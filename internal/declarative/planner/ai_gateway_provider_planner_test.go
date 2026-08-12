@@ -53,6 +53,26 @@ func TestAIGatewayProviderConfigChangedIgnoresWriteOnlyValues(t *testing.T) {
 	require.False(t, aiGatewayProviderConfigChanged(current, desired))
 }
 
+func TestAIGatewayProviderConfigChangedIgnoresAzureFoundryDomainDefault(t *testing.T) {
+	t.Parallel()
+
+	current := map[string]any{
+		FieldService: "azure-foundry",
+		FieldFoundry: map[string]any{
+			FieldResource: "support-foundry",
+			FieldDomain:   "services.ai.azure.com",
+		},
+	}
+	desired := map[string]any{
+		FieldService: "azure-foundry",
+		FieldFoundry: map[string]any{
+			FieldResource: "support-foundry",
+		},
+	}
+
+	require.False(t, aiGatewayProviderConfigChanged(current, desired))
+}
+
 func TestAIGatewayProviderMatchPrefersIDOverName(t *testing.T) {
 	t.Parallel()
 

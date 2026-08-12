@@ -375,6 +375,8 @@ func isAIGatewayDefaultValue(key string, value any) bool {
 		return boolValueEqual(value, true)
 	case FieldACLAttributeType:
 		return stringValueEqual(value, "consumer")
+	case FieldDomain:
+		return stringValueEqual(value, "services.ai.azure.com")
 	case "https_redirect_status_code":
 		return numberValueEqual(value, 426)
 	case "max_payload_size":

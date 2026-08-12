@@ -80,6 +80,9 @@ const (
 	FieldFlags         = "flags"
 	FieldFiles         = "files"
 	FieldDefinition    = "definition"
+	FieldDomain        = "domain"
+	FieldFoundry       = "foundry"
+	FieldResource      = "resource"
 )
 
 // Common relationship and reference field identifiers.
