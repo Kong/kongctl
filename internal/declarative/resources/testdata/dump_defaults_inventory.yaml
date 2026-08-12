@@ -1,4 +1,4 @@
-sdk_version: v0.51.2-0.20260803181245-b21f2210627b
+sdk_version: v0.56.1-0.20260811124831-fcc1ac56d742
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -46,10 +46,6 @@ resources:
       - path: consumers.credentials.ttl
         type: integer
         value: 0
-        source: sdk
-      - path: mcp_servers.access.acl_attribute_type
-        type: string
-        value: consumer
         source: sdk
       - path: mcp_servers.config.logging.audits
         type: boolean
@@ -495,6 +491,10 @@ resources:
         type: string
         value: secrets
         source: sdk
+      - path: vaults.description
+        type: string
+        value: ""
+        source: sdk
     overrides: []
     exclusions: []
   - resource_type: ai_gateway_agent
@@ -575,10 +575,6 @@ resources:
     exclusions: []
   - resource_type: ai_gateway_mcp_server
     defaults:
-      - path: access.acl_attribute_type
-        type: string
-        value: consumer
-        source: sdk
       - path: config.logging.audits
         type: boolean
         value: false
@@ -1038,6 +1034,10 @@ resources:
       - path: config.type
         type: string
         value: secrets
+        source: sdk
+      - path: description
+        type: string
+        value: ""
         source: sdk
     overrides: []
     exclusions: []
