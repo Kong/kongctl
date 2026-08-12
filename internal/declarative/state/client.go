@@ -498,7 +498,7 @@ type EventGatewayVirtualCluster struct {
 // Team represents a normalized team for internal use
 // I think this should be OrganizationTeam
 type OrganizationTeam struct {
-	kkComps.Team
+	kkComps.TeamResponse
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -6074,13 +6074,13 @@ func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []
 			return nil, nil, WrapAPIError(err, "list teams", nil)
 		}
 
-		if resp.TeamCollection == nil {
+		if resp.TeamCollectionResponse == nil {
 			return []OrganizationTeam{}, &PageMeta{Total: 0}, nil
 		}
 
 		var filtered []OrganizationTeam
 
-		for _, t := range resp.TeamCollection.Data {
+		for _, t := range resp.TeamCollectionResponse.Data {
 			normalized := t.Labels
 			if normalized == nil {
 				normalized = make(map[string]string)
@@ -6089,13 +6089,13 @@ func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []
 			if labels.IsManagedResource(normalized) &&
 				shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
 				filtered = append(filtered, OrganizationTeam{
-					Team:             t,
+					TeamResponse:     t,
 					NormalizedLabels: normalized,
 				})
 			}
 		}
 
-		meta := &PageMeta{Total: resp.TeamCollection.Meta.Page.Total}
+		meta := &PageMeta{Total: resp.TeamCollectionResponse.Meta.Page.Total}
 
 		return filtered, meta, nil
 	}
@@ -6120,26 +6120,26 @@ func (c *Client) ListAllOrganizationTeams(ctx context.Context) ([]OrganizationTe
 			return nil, nil, WrapAPIError(err, "list teams", nil)
 		}
 
-		if resp.TeamCollection == nil {
+		if resp.TeamCollectionResponse == nil {
 			return []OrganizationTeam{}, &PageMeta{Total: 0}, nil
 		}
 
-		teams := make([]OrganizationTeam, 0, len(resp.TeamCollection.Data))
-		for _, t := range resp.TeamCollection.Data {
+		teams := make([]OrganizationTeam, 0, len(resp.TeamCollectionResponse.Data))
+		for _, t := range resp.TeamCollectionResponse.Data {
 			normalized := t.Labels
 			if normalized == nil {
 				normalized = make(map[string]string)
 			}
 
 			teams = append(teams, OrganizationTeam{
-				Team:             t,
+				TeamResponse:     t,
 				NormalizedLabels: normalized,
 			})
 		}
 
 		total := 0.0
-		if resp.TeamCollection.Meta != nil {
-			total = resp.TeamCollection.Meta.Page.Total
+		if resp.TeamCollectionResponse.Meta != nil {
+			total = resp.TeamCollectionResponse.Meta.Page.Total
 		}
 
 		return teams, &PageMeta{Total: total}, nil
@@ -6156,7 +6156,7 @@ func (c *Client) GetOrganizationTeamByNameUnfiltered(ctx context.Context, name s
 	}
 
 	for _, t := range teams {
-		if t.Name != nil && *t.Name == name {
+		if t.Name == name {
 			return &t, nil
 		}
 	}
@@ -6173,7 +6173,7 @@ func (c *Client) GetOrganizationTeamByName(ctx context.Context, name string) (*O
 	}
 
 	for _, t := range teams {
-		if t.Name != nil && *t.Name == name {
+		if t.Name == name {
 			return &t, nil
 		}
 	}
@@ -6191,17 +6191,17 @@ func (c *Client) GetOrganizationTeamByID(ctx context.Context, id string) (*Organ
 		})
 	}
 
-	if resp.Team == nil {
+	if resp.TeamResponse == nil {
 		return nil, nil
 	}
 
-	normalized := resp.Team.Labels
+	normalized := resp.TeamResponse.Labels
 	if normalized == nil {
 		normalized = make(map[string]string)
 	}
 
 	team := &OrganizationTeam{
-		Team:             *resp.Team,
+		TeamResponse:     *resp.TeamResponse,
 		NormalizedLabels: normalized,
 	}
 
@@ -6221,15 +6221,15 @@ func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.Creat
 		})
 	}
 
-	if err := ValidateResponse(resp.Team, "create organization team"); err != nil {
+	if err := ValidateResponse(resp.TeamResponse, "create organization team"); err != nil {
 		return "", err
 	}
 
-	if resp.Team.ID == nil {
-		return "", NewResponseValidationError("create organization team", "Team.ID")
+	if resp.TeamResponse.ID == "" {
+		return "", NewResponseValidationError("create organization team", "TeamResponse.ID")
 	}
 
-	return *resp.Team.ID, nil
+	return resp.TeamResponse.ID, nil
 }
 
 func (c *Client) UpdateOrganizationTeam(ctx context.Context, teamID string,
@@ -6245,15 +6245,15 @@ func (c *Client) UpdateOrganizationTeam(ctx context.Context, teamID string,
 		})
 	}
 
-	if err := ValidateResponse(resp.Team, "update organization team"); err != nil {
+	if err := ValidateResponse(resp.TeamResponse, "update organization team"); err != nil {
 		return "", err
 	}
 
-	if resp.Team.ID == nil {
-		return "", NewResponseValidationError("update organization team", "Team.ID")
+	if resp.TeamResponse.ID == "" {
+		return "", NewResponseValidationError("update organization team", "TeamResponse.ID")
 	}
 
-	return *resp.Team.ID, nil
+	return resp.TeamResponse.ID, nil
 }
 
 func (c *Client) DeleteOrganizationTeam(ctx context.Context, teamID string) error {

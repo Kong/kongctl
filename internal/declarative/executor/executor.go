@@ -1617,11 +1617,11 @@ func (e *Executor) resolveOrganizationTeamRef(ctx context.Context, refInfo plann
 		return "", fmt.Errorf("organization team not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
 	}
 
-	if team.ID == nil {
+	if team.ID == "" {
 		return "", fmt.Errorf("organization team %s has no ID", lookupValue)
 	}
 
-	return *team.ID, nil
+	return team.ID, nil
 }
 
 func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {

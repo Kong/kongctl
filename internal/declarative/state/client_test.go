@@ -760,18 +760,18 @@ func TestGetOrganizationTeamByNameUnfilteredFindsUnmanagedTeam(t *testing.T) {
 			) (*kkOps.ListTeamsResponse, error) {
 				if req.PageNumber == nil || *req.PageNumber != 1 {
 					return &kkOps.ListTeamsResponse{
-						TeamCollection: &kkComps.TeamCollection{
+						TeamCollectionResponse: &kkComps.TeamCollectionResponse{
 							Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
 						},
 					}, nil
 				}
 
 				return &kkOps.ListTeamsResponse{
-					TeamCollection: &kkComps.TeamCollection{
-						Data: []kkComps.Team{
+					TeamCollectionResponse: &kkComps.TeamCollectionResponse{
+						Data: []kkComps.TeamResponse{
 							{
-								ID:     &teamID,
-								Name:   &teamName,
+								ID:     teamID,
+								Name:   teamName,
 								Labels: map[string]string{"owner": "external"},
 							},
 						},
@@ -790,7 +790,7 @@ func TestGetOrganizationTeamByNameUnfilteredFindsUnmanagedTeam(t *testing.T) {
 		t.Fatal("GetOrganizationTeamByNameUnfiltered() returned nil team")
 		return
 	}
-	if team.ID == nil || *team.ID != teamID {
+	if team.ID != teamID {
 		t.Fatalf("GetOrganizationTeamByNameUnfiltered() ID = %v, want %s", team.ID, teamID)
 	}
 }

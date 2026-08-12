@@ -146,11 +146,11 @@ type OrganizationTeamResourceInfo struct {
 }
 
 func (c *OrganizationTeamResourceInfo) GetID() string {
-	return *c.team.ID
+	return c.team.ID
 }
 
 func (c *OrganizationTeamResourceInfo) GetName() string {
-	return *c.team.Name
+	return c.team.Name
 }
 
 func (c *OrganizationTeamResourceInfo) GetLabels() map[string]string {

@@ -1466,11 +1466,11 @@ func collectDeclarativeOrganizationTeams(
 			return false, fmt.Errorf("failed to list teams: %w", err)
 		}
 
-		if resp == nil || resp.TeamCollection == nil || len(resp.TeamCollection.Data) == 0 {
+		if resp == nil || resp.TeamCollectionResponse == nil || len(resp.TeamCollectionResponse.Data) == 0 {
 			return false, nil
 		}
 
-		for _, team := range resp.TeamCollection.Data {
+		for _, team := range resp.TeamCollectionResponse.Data {
 			if team.SystemTeam != nil && *team.SystemTeam {
 				// skip system teams from declarative dump
 				// these can't be updated by users anyway
@@ -1482,7 +1482,7 @@ func collectDeclarativeOrganizationTeams(
 		params := paginationParams{
 			pageSize:   requestPageSize,
 			pageNumber: pageNumber,
-			totalItems: resp.TeamCollection.Meta.Page.Total,
+			totalItems: resp.TeamCollectionResponse.Meta.Page.Total,
 		}
 
 		return params.hasMorePages(), nil
@@ -1678,11 +1678,11 @@ func mapAIGatewayToDeclarativeResource(gateway kkComps.AIGateway) declresources.
 	return result
 }
 
-func mapOrganizationTeamToDeclarativeResource(team kkComps.Team) declresources.OrganizationTeamResource {
+func mapOrganizationTeamToDeclarativeResource(team kkComps.TeamResponse) declresources.OrganizationTeamResource {
 	result := declresources.OrganizationTeamResource{
-		BaseResource: declresources.BaseResource{Ref: getString(team.ID)},
+		BaseResource: declresources.BaseResource{Ref: team.ID},
 		CreateTeam: kkComps.CreateTeam{
-			Name:        getString(team.Name),
+			Name:        team.Name,
 			Description: team.Description,
 		},
 	}

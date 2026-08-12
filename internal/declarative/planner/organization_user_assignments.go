@@ -7,7 +7,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (t *OrganizationTeamPlannerImpl) planOrganizationUserAssignmentChanges(
@@ -49,7 +48,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 	}
 	scopedTeamIDs := make(map[string]bool)
 	for _, team := range currentByName {
-		if id := util.GetString(team.ID); id != "" {
+		if id := team.ID; id != "" {
 			scopedTeamIDs[id] = true
 		}
 	}
@@ -418,7 +417,7 @@ func (t *OrganizationTeamPlannerImpl) resolveOrganizationTeamForAssignment(
 			teamID = team.External.ID
 		}
 		if current, ok := currentByName[teamName]; ok && teamID == "" {
-			teamID = util.GetString(current.ID)
+			teamID = current.ID
 		}
 		return team, teamID, teamName
 	}

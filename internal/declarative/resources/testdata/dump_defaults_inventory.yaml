@@ -1,4 +1,4 @@
-sdk_version: v0.56.1-0.20260811124831-fcc1ac56d742
+sdk_version: v0.57.1-0.20260812123804-d44c3d124e6e
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -190,6 +190,10 @@ resources:
       - path: models.config.balancer.embeddings.config.embeddings_normalize
         type: boolean
         value: false
+        source: sdk
+      - path: models.config.balancer.embeddings.config.foundry_path_prefix
+        type: string
+        value: /openai/v1
         source: sdk
       - path: models.config.balancer.embeddings.config.use_cache
         type: boolean
@@ -394,6 +398,10 @@ resources:
       - path: models.targets.config.embeddings_normalize
         type: boolean
         value: false
+        source: sdk
+      - path: models.targets.config.foundry_path_prefix
+        type: string
+        value: /openai/v1
         source: sdk
       - path: models.targets.config.international
         type: boolean
@@ -723,6 +731,10 @@ resources:
         type: boolean
         value: false
         source: sdk
+      - path: config.balancer.embeddings.config.foundry_path_prefix
+        type: string
+        value: /openai/v1
+        source: sdk
       - path: config.balancer.embeddings.config.use_cache
         type: boolean
         value: false
@@ -926,6 +938,10 @@ resources:
       - path: targets.config.embeddings_normalize
         type: boolean
         value: false
+        source: sdk
+      - path: targets.config.foundry_path_prefix
+        type: string
+        value: /openai/v1
         source: sdk
       - path: targets.config.international
         type: boolean

@@ -2354,8 +2354,8 @@ func (p *Planner) resolveOrganizationTeamIdentities(
 			}
 
 			team.SetKonnectID(team.External.ID)
-			if konnectTeam.Name != nil && *konnectTeam.Name != "" {
-				team.Name = *konnectTeam.Name
+			if konnectTeam.Name != "" {
+				team.Name = konnectTeam.Name
 			}
 			continue
 		}
@@ -2374,11 +2374,11 @@ func (p *Planner) resolveOrganizationTeamIdentities(
 		if err != nil {
 			return fmt.Errorf("failed to get external organization team %s by name: %w", team.GetRef(), err)
 		}
-		if konnectTeam == nil || konnectTeam.ID == nil || *konnectTeam.ID == "" {
+		if konnectTeam == nil || konnectTeam.ID == "" {
 			return fmt.Errorf("external organization team not found with name: %s", name)
 		}
 
-		team.SetKonnectID(*konnectTeam.ID)
+		team.SetKonnectID(konnectTeam.ID)
 		team.Name = name
 	}
 
