@@ -238,6 +238,8 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 	}
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	currentCompare = scrubAIGatewayUpstreamWriteOnlyFields(currentCompare).(map[string]any)
+	desiredCompare = scrubAIGatewayUpstreamWriteOnlyFields(desiredCompare).(map[string]any)
 	updateFields := preserveAIGatewayOpenProperties(
 		resources.AIGatewayMCPServerAdditionalProperties(current.AIGatewayMCPServer),
 		currentPayload,

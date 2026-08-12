@@ -349,7 +349,7 @@ func scrubAIGatewayProviderSecretFields(value any) any {
 
 func isAIGatewayProviderSecretField(key string) bool {
 	switch strings.ToLower(key) {
-	case "value", "client_secret", "secret_access_key", "service_account_json":
+	case "value", "client_secret", "secret_access_key", "session_token", "service_account_json":
 		return true
 	default:
 		return false

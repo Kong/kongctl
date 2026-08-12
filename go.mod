@@ -6,7 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.1.1
 	charm.land/bubbletea/v2 v2.0.8
 	charm.land/lipgloss/v2 v2.0.5
-	github.com/Kong/sdk-konnect-go v0.57.1-0.20260812123804-d44c3d124e6e
+	github.com/Kong/sdk-konnect-go v0.58.1-0.20260812143634-bc0fa40bef6e
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ajg/form v1.9.0

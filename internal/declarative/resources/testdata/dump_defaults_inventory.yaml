@@ -1,4 +1,4 @@
-sdk_version: v0.57.1-0.20260812123804-d44c3d124e6e
+sdk_version: v0.58.1-0.20260812143634-bc0fa40bef6e
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -14,6 +14,10 @@ resources:
       - path: agents.config.max_request_body_size
         type: integer
         value: 8388608
+        source: sdk
+      - path: agents.config.proxy.proxy_scheme
+        type: string
+        value: http
         source: sdk
       - path: agents.config.route.https_redirect_status_code
         type: integer
@@ -518,6 +522,10 @@ resources:
       - path: config.max_request_body_size
         type: integer
         value: 8388608
+        source: sdk
+      - path: config.proxy.proxy_scheme
+        type: string
+        value: http
         source: sdk
       - path: config.route.https_redirect_status_code
         type: integer

@@ -79,6 +79,30 @@ func normalizeAIGatewayJSONMap(payload map[string]any) map[string]any {
 	return normalized
 }
 
+func scrubAIGatewayUpstreamWriteOnlyFields(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(typed))
+		for key, child := range typed {
+			switch strings.ToLower(key) {
+			case "secret_access_key", "session_token":
+				continue
+			default:
+				result[key] = scrubAIGatewayUpstreamWriteOnlyFields(child)
+			}
+		}
+		return result
+	case []any:
+		result := make([]any, len(typed))
+		for i := range typed {
+			result[i] = scrubAIGatewayUpstreamWriteOnlyFields(typed[i])
+		}
+		return result
+	default:
+		return value
+	}
+}
+
 func pruneNilValues(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:
