@@ -10,6 +10,8 @@ import (
 )
 
 func TestAIGatewayProviderResourceSetDefaultsAddsAzureService(t *testing.T) {
+	t.Parallel()
+
 	provider := AIGatewayProviderResource{
 		Name: "azure-provider",
 		Type: "azure",
