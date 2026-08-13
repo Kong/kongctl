@@ -461,6 +461,43 @@ dcr_providers:
 	assert.Equal(t, "DCR_API_KEY", secretSource.Expression.Parts[0].Source.Reference)
 }
 
+func TestLoader_EnvTagIntegration_OrganizationSelectors(t *testing.T) {
+	t.Setenv("ORGANIZATION_USER_EMAIL", "user@example.test")
+	t.Setenv("ORGANIZATION_SYSTEM_ACCOUNT_NAME", "automation-account")
+	t.Setenv("ORGANIZATION_TEAM_NAME", "Environment Team")
+
+	tmpDir := t.TempDir()
+	mainContent := `
+organization:
+  teams:
+    - ref: environment-team
+      name: !env ORGANIZATION_TEAM_NAME
+  users:
+    - ref: environment-user
+      email: !env ORGANIZATION_USER_EMAIL
+  system-accounts:
+    - ref: environment-system-account
+      name: !env ORGANIZATION_SYSTEM_ACCOUNT_NAME
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	rs, err := NewWithBaseDir(tmpDir).LoadFile(mainFile)
+	require.NoError(t, err)
+	require.NotNil(t, rs.Organization)
+	require.Len(t, rs.Organization.Users, 1)
+	require.Len(t, rs.Organization.SystemAccounts, 1)
+	require.Len(t, rs.OrganizationTeams, 1)
+
+	assert.Equal(t, "user@example.test", rs.Organization.Users[0].Email)
+	assert.Equal(t, "automation-account", rs.Organization.SystemAccounts[0].Name)
+	assert.Equal(t, "Environment Team", rs.OrganizationTeams[0].Name)
+	assert.Empty(t, rs.GetEnvSources("environment-user"))
+	assert.Empty(t, rs.GetEnvSources("environment-system-account"))
+	assert.Equal(t, "__ENV__:ORGANIZATION_TEAM_NAME", rs.GetEnvSources("environment-team")["/name"])
+}
+
 func TestLoader_EnvTagIntegration_DCRProviderBoolConfigRejectsString(t *testing.T) {
 	t.Setenv("DCR_DISABLE_EVENT_HOOKS", "true")
 

@@ -17,12 +17,40 @@ func resolveDefaultEnvPlaceholders(defaults *resources.FileDefaults) error {
 }
 
 func resolveOrdinaryEnvPlaceholders(rs *resources.ResourceSet) error {
+	if err := resolveOrganizationSelectorEnvPlaceholders(rs); err != nil {
+		return err
+	}
 	return visitResourceSetResources(rs, func(resource resources.Resource) error {
 		return resolveEnvPlaceholders(reflect.ValueOf(resource), nil, func(path string) bool {
 			_, isSecret := secrets.Match(resource.GetType(), path)
 			return !isSecret
 		})
 	})
+}
+
+func resolveOrganizationSelectorEnvPlaceholders(rs *resources.ResourceSet) error {
+	if rs == nil || rs.Organization == nil {
+		return nil
+	}
+	for i := range rs.Organization.Users {
+		if err := resolveEnvPlaceholders(
+			reflect.ValueOf(&rs.Organization.Users[i]),
+			nil,
+			func(string) bool { return true },
+		); err != nil {
+			return err
+		}
+	}
+	for i := range rs.Organization.SystemAccounts {
+		if err := resolveEnvPlaceholders(
+			reflect.ValueOf(&rs.Organization.SystemAccounts[i]),
+			nil,
+			func(string) bool { return true },
+		); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func resolveEnvPlaceholders(value reflect.Value, path []string, shouldResolve func(string) bool) error {
