@@ -41,9 +41,38 @@ steps:
               fields:
                 "@": "groups-shared-group"
 
-  - name: 003-plan-idempotent
+  - name: 003-verify-members-after-apply
+    skipInputs: true
     commands:
-      - name: 003-plan
+      - name: 000-record-prod-id
+        run: ["get", "konnect", "gateway", "control-plane", "groups-prod-runtime", "-o", "json"]
+        recordVar:
+          name: prodRuntimeID
+          responsePath: id
+      - name: 001-record-staging-id
+        run: ["get", "konnect", "gateway", "control-plane", "groups-staging-runtime", "-o", "json"]
+        recordVar:
+          name: stagingRuntimeID
+          responsePath: id
+      - name: 002-dump-group-members
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+          - "--filter-name=groups-shared-group"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "control_planes[?name=='groups-shared-group'] | [0].members"
+            expect:
+              fields:
+                "length(@)": 2
+                "length([?id=='{{ .vars.prodRuntimeID }}'])": 1
+                "length([?id=='{{ .vars.stagingRuntimeID }}'])": 1
+
+  - name: 004-plan-idempotent
+    commands:
+      - name: 004-plan
         outputFormat: disable
         run:
           - plan
@@ -57,7 +86,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 004-delete-cleanup
+  - name: 005-delete-cleanup
     commands:
       - name: 000-delete
         maxConcurrency: 1
@@ -81,3 +110,18 @@ steps:
               fields:
                 failed: 0
                 status: success
+      - name: 001-verify-deleted
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='groups-prod-runtime']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='groups-staging-runtime']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='groups-shared-group']"
+            expect:
+              fields:
+                "length(@)": 0
