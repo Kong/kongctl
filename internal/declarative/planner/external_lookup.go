@@ -691,22 +691,7 @@ func (r *externalLookupResolver) lookupAIGateway(ctx context.Context, req extern
 	if err != nil {
 		return "", fmt.Errorf("%s: list AI Gateways: %w", req.Source, err)
 	}
-	matches := make([]string, 0, 1)
-	for _, item := range items {
-		matched := true
-		for field, value := range req.MatchFields {
-			switch field {
-			case FieldName:
-				matched = matched && item.Name == value
-			case FieldDisplayName:
-				matched = matched && item.DisplayName == value
-			}
-		}
-		if matched {
-			matches = append(matches, item.ID)
-		}
-	}
-	return singleExternalID(req, matches)
+	return matchExternalCandidates(req, items, func(item state.AIGateway) string { return item.ID })
 }
 
 func (r *externalLookupResolver) lookupAuditLogWebhookDestination(
@@ -728,13 +713,7 @@ func (r *externalLookupResolver) lookupOrganizationTeam(
 	if err != nil {
 		return "", fmt.Errorf("%s: list organization teams: %w", req.Source, err)
 	}
-	matches := make([]string, 0, 1)
-	for _, team := range teams {
-		if team.Name == req.MatchFields[FieldName] && team.ID != "" {
-			matches = append(matches, team.ID)
-		}
-	}
-	return singleExternalID(req, matches)
+	return matchExternalCandidates(req, teams, func(item state.OrganizationTeam) string { return item.ID })
 }
 
 func (r *externalLookupResolver) lookupEventGatewayControlPlane(
@@ -757,27 +736,6 @@ func (r *externalLookupResolver) lookupEventGatewayVirtualCluster(
 		return "", fmt.Errorf("%s: list Event Gateway virtual clusters: %w", req.Source, err)
 	}
 	return matchExternalCandidates(req, items, func(item state.EventGatewayVirtualCluster) string { return item.ID })
-}
-
-func singleExternalID(req externalLookupRequest, matches []string) (string, error) {
-	if len(matches) == 0 {
-		return "", fmt.Errorf(
-			"%s: no %s matched selector {%s}",
-			req.Source,
-			req.ResourceType,
-			tags.ExternalLookupDisplayKey(req.MatchFields, req.SensitiveFields),
-		)
-	}
-	if len(matches) > 1 {
-		return "", fmt.Errorf(
-			"%s: selector {%s} matched %d %s resources",
-			req.Source,
-			tags.ExternalLookupDisplayKey(req.MatchFields, req.SensitiveFields),
-			len(matches),
-			req.ResourceType,
-		)
-	}
-	return matches[0], nil
 }
 
 func setStringFieldByPath(resource resources.Resource, path, value string) error {
