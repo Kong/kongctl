@@ -368,6 +368,47 @@ steps:
                 "length(auth_strategy_ids)": 1
                 "auth_strategy_ids[0] != null": true
 
+  - name: 003b-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-apis
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "apis[?name=='API Nested'] | [0]"
+            expect:
+              fields:
+                name: "API Nested"
+                version: "2.0.0"
+                "starts_with(slug, 'api-nested')": true
+                kongctl.namespace: "apis-nested"
+                "length(versions)": 2
+                "versions[?version=='1.0.0'] | length(@)": 1
+                "versions[?version=='2.0.0'] | length(@)": 1
+                "length(documents) >= `1`": true
+                "documents[?title=='Root Document'] | length(@)": 1
+                "length(publications)": 1
+                "publications[0].visibility": "public"
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 004-sync-delete-one-version
     inputOverlayDirs:
       - overlays/003-sync-delete-v1
