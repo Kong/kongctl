@@ -363,12 +363,8 @@ func teamDetailView(team *kkComps.TeamResponse) string {
 		return ""
 	}
 
-	const missing = "n/a"
 	record := teamToDisplayRecord(team)
-	id := record.ID
-	if id != missing {
-		id = util.AbbreviateUUID(id)
-	}
+	id := util.AbbreviateUUID(record.ID)
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "id: %s\n", id)

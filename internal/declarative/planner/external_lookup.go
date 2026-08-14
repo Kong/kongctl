@@ -713,6 +713,7 @@ func (r *externalLookupResolver) lookupOrganizationTeam(
 	if err != nil {
 		return "", fmt.Errorf("%s: list organization teams: %w", req.Source, err)
 	}
+	teams = slices.DeleteFunc(teams, func(team state.OrganizationTeam) bool { return team.ID == "" })
 	return matchExternalCandidates(req, teams, func(item state.OrganizationTeam) string { return item.ID })
 }
 
