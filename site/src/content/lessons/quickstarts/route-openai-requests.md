@@ -13,8 +13,8 @@ related:
 
 ## Goal
 
-You will use `kongctl` to create an AI Gateway, register a local data plane,
-and configure an OpenAI model provider. You will then send an
+You will use `kongctl` to create an AI Gateway, launch a local data plane in
+Docker, and configure an OpenAI model provider. You will then send an
 OpenAI-compatible chat request through the local Kong AI Gateway proxy.
 
 The provider adds your OpenAI credential before forwarding the request. The
@@ -29,7 +29,7 @@ Before you begin, you need:
 - `kongctl` installed and authenticated. Complete
   [Konnect Authentication](../../installation/authenticate/) first.
 - A running [Docker](https://docs.docker.com/get-started/get-docker/) daemon.
-- OpenSSL and curl available in your terminal.
+- `openssl` and `curl` available in your terminal.
 - An [OpenAI API key](https://platform.openai.com/api-keys) with access to
   `gpt-4.1-nano` and available API quota.
 
