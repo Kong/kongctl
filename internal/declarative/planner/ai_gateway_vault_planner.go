@@ -260,7 +260,7 @@ func scrubAIGatewayVaultWriteOnlyFields(value any) any {
 
 func isAIGatewayVaultWriteOnlyField(key string) bool {
 	switch strings.ToLower(key) {
-	case "api_key", "client_secret", "key", "secret_access_key", "secret_id", "token":
+	case FieldAPIKey, FieldClientSecret, "key", "secret_access_key", "secret_id", "token":
 		return true
 	default:
 		return false
