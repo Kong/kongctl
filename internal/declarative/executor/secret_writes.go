@@ -114,6 +114,9 @@ func setSecretValue(current any, segments []string, value string) error {
 		}
 		next, ok := typed[segments[0]]
 		if !ok || next == nil {
+			if _, err := strconv.Atoi(segments[1]); err == nil {
+				return fmt.Errorf("array container %q is missing", segments[0])
+			}
 			next = map[string]any{}
 			typed[segments[0]] = next
 		}

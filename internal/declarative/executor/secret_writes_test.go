@@ -1,11 +1,15 @@
 package executor
 
 import (
+	"context"
+	"encoding/json"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,6 +55,107 @@ func TestSecretWritePreflightRejectsInvalidTargetBeforeExecution(t *testing.T) {
 
 	err := (&Executor{}).preflightSecretWrites(plan)
 	require.ErrorContains(t, err, "array index")
+}
+
+func TestSecretWritePreflightRejectsMissingArrayContainer(t *testing.T) {
+	t.Setenv("SECRET", "value")
+	plan := secretExecutionPlan(secretExecutionIntent("/config/client_secret/0", "SECRET"))
+
+	err := (&Executor{}).preflightSecretWrites(plan)
+	require.ErrorContains(t, err, "array container \"client_secret\" is missing")
+}
+
+func TestSecretWritePreflightPreservesAndPopulatesArrayShape(t *testing.T) {
+	t.Setenv("FIRST_SECRET", "first")
+	t.Setenv("SECOND_SECRET", "second")
+	plan := secretExecutionPlan(
+		secretExecutionIntent("/config/client_secret/0", "FIRST_SECRET"),
+		secretExecutionIntent("/config/client_secret/1", "SECOND_SECRET"),
+	)
+	plan.Changes[0].Fields[planner.FieldConfig] = map[string]any{
+		"client_id":     []any{"first-client", "second-client"},
+		"client_secret": []any{nil, nil},
+	}
+	executor := &Executor{}
+
+	require.NoError(t, executor.preflightSecretWrites(plan))
+	change, err := cloneChangeForExecution(&plan.Changes[0])
+	require.NoError(t, err)
+	require.NoError(t, executor.injectResolvedSecretWrites(change))
+
+	config := change.Fields[planner.FieldConfig].(map[string]any)
+	assert.Equal(t, []any{"first-client", "second-client"}, config["client_id"])
+	assert.Equal(t, []any{"first", "second"}, config["client_secret"])
+	original := plan.Changes[0].Fields[planner.FieldConfig].(map[string]any)
+	assert.Equal(t, []any{nil, nil}, original["client_secret"])
+}
+
+func TestAIGatewayIdentityProviderAdapterMapsInjectedClientSecrets(t *testing.T) {
+	t.Setenv("FIRST_SECRET", "first")
+	t.Setenv("SECOND_SECRET", "second")
+	plan := secretExecutionPlan(
+		secretExecutionIntent("/config/client_secret/0", "FIRST_SECRET"),
+		secretExecutionIntent("/config/client_secret/1", "SECOND_SECRET"),
+	)
+	plan.Changes[0].Fields = map[string]any{
+		planner.FieldName:        "support-oidc",
+		planner.FieldType:        "openid-connect",
+		planner.FieldDisplayName: "Support OIDC",
+		planner.FieldConfig: map[string]any{
+			"cache_tokens_salt": "support-cache-salt",
+			"client_id":         []any{"first-client", "second-client"},
+			"client_secret":     []any{nil, nil},
+		},
+	}
+	executor := &Executor{}
+
+	require.NoError(t, executor.preflightSecretWrites(plan))
+	change, err := cloneChangeForExecution(&plan.Changes[0])
+	require.NoError(t, err)
+	require.NoError(t, executor.injectResolvedSecretWrites(change))
+
+	var request kkComps.UpdateAIGatewayIdentityProviderRequest
+	err = NewAIGatewayIdentityProviderAdapter(nil).MapUpdateFields(
+		t.Context(), nil, change.Fields, &request, nil,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect)
+	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect.Config)
+	assert.Equal(
+		t,
+		[]string{"first", "second"},
+		request.AIGatewayIdentityProviderOpenIDConnect.Config.ClientSecret,
+	)
+}
+
+func TestResolvedSecretDoesNotReachPlanReporterOrExecutionResult(t *testing.T) {
+	const sentinel = "resolved-secret-sentinel"
+	t.Setenv("SECRET", sentinel)
+	reporter := &MockProgressReporter{}
+	reporter.On("StartExecution", mock.Anything).Return()
+	reporter.On("StartChange", mock.Anything).Return()
+	reporter.On("SkipChange", mock.Anything, "dry-run mode").Return()
+	reporter.On("FinishExecution", mock.Anything).Return()
+	plan := secretExecutionPlan(secretExecutionIntent("/config/secret", "SECRET"))
+	plan.Changes[0].ResourceType = planner.ResourceTypePortal
+	plan.Changes[0].ResourceRef = "portal"
+	plan.Changes[0].Action = planner.ActionCreate
+	plan.ExecutionOrder = []string{plan.Changes[0].ID}
+
+	result := New(nil, reporter, true).Execute(context.Background(), plan)
+
+	require.Zero(t, result.FailureCount)
+	require.Len(t, reporter.StartChangeCalls, 1)
+	require.Len(t, reporter.SkipChangeCalls, 1)
+	observable := struct {
+		Plan         *planner.Plan
+		StartChanges []planner.PlannedChange
+		SkipChanges  []planner.PlannedChange
+		Result       *ExecutionResult
+	}{plan, reporter.StartChangeCalls, reporter.SkipChangeCalls, result}
+	data, err := json.Marshal(observable)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), sentinel)
 }
 
 func TestSecretWritePreflightRejectsEmptySourceAndComposesPrivately(t *testing.T) {
