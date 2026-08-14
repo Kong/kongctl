@@ -14,54 +14,73 @@ func (l *Loader) collectSecretSources(actual, placeholder *resources.ResourceSet
 		return nil
 	}
 
-	return visitResourceSetResources(placeholder, func(resource resources.Resource) error {
+	if err := visitResourceSetResources(placeholder, func(resource resources.Resource) error {
 		resourceRef := resource.GetRef()
-		return walkConfiguredStrings(reflect.ValueOf(resource), nil, func(path, value string) error {
+		return walkConfiguredStrings(reflect.ValueOf(resource), nil, func(path, value string) (bool, error) {
 			capability, supported := secrets.Match(resource.GetType(), path)
 			if tags.IsSecretPlaceholder(value) {
 				if !supported {
-					return fmt.Errorf(
+					return false, fmt.Errorf(
 						"resource %s %q field %s is not a reviewed write-only field and cannot use !secret",
 						resource.GetType(), resourceRef, path,
 					)
 				}
 				if !capability.Create {
-					return fmt.Errorf(
+					return false, fmt.Errorf(
 						"resource %s %q field %s does not support secret writes on create",
 						resource.GetType(), resourceRef, path,
 					)
 				}
 				expression, err := tags.ParseSecretPlaceholder(value)
 				if err != nil {
-					return fmt.Errorf("resource %s %q field %s has an invalid !secret declaration: %w",
+					return false, fmt.Errorf("resource %s %q field %s has an invalid !secret declaration: %w",
 						resource.GetType(), resourceRef, path, err)
 				}
 				actual.AddSecretSource(resourceRef, path, expression, false)
-				return nil
+				return true, nil
 			}
 
 			if !supported || value == "" {
-				return nil
+				return false, nil
 			}
 			if tags.IsEnvPlaceholder(value) {
 				expression, err := tags.SecretExpressionFromEnvPlaceholder(value)
 				if err != nil {
-					return fmt.Errorf("resource %s %q field %s has an invalid !env declaration: %w",
+					return false, fmt.Errorf("resource %s %q field %s has an invalid !env declaration: %w",
 						resource.GetType(), resourceRef, path, err)
 				}
 				actual.AddSecretSource(resourceRef, path, expression, true)
-				return nil
+				return false, nil
+			}
+			if secrets.IsVaultReference(value) {
+				return false, nil
 			}
 
-			return fmt.Errorf(
+			return false, fmt.Errorf(
 				"resource %s %q field %s is write-only and requires !secret with a deferred source",
 				resource.GetType(), resourceRef, path,
 			)
 		})
+	}); err != nil {
+		return err
+	}
+
+	return walkConfiguredStrings(reflect.ValueOf(placeholder), nil, func(path, value string) (bool, error) {
+		if tags.IsSecretPlaceholder(value) {
+			return false, fmt.Errorf(
+				"field %s is not a reviewed write-only field and cannot use !secret",
+				path,
+			)
+		}
+		return false, nil
 	})
 }
 
-func walkConfiguredStrings(value reflect.Value, path []string, visit func(string, string) error) error {
+func walkConfiguredStrings(
+	value reflect.Value,
+	path []string,
+	visit func(string, string) (bool, error),
+) error {
 	if !value.IsValid() {
 		return nil
 	}
@@ -75,7 +94,15 @@ func walkConfiguredStrings(value reflect.Value, path []string, visit func(string
 	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.String:
-		return visit(pointerPath(path), value.String())
+		clearValue, err := visit(pointerPath(path), value.String())
+		if err != nil || !clearValue {
+			return err
+		}
+		if !value.CanSet() {
+			return fmt.Errorf("cannot clear processed !secret placeholder at %s", pointerPath(path))
+		}
+		value.SetString("")
+		return nil
 	case reflect.Struct:
 		valueType := value.Type()
 		for i := range value.NumField() {
@@ -97,13 +124,16 @@ func walkConfiguredStrings(value reflect.Value, path []string, visit func(string
 		}
 	case reflect.Map:
 		for _, key := range value.MapKeys() {
+			mapValue := reflect.New(value.Type().Elem()).Elem()
+			mapValue.Set(value.MapIndex(key))
 			if err := walkConfiguredStrings(
-				value.MapIndex(key),
+				mapValue,
 				append(path, fmt.Sprintf("%v", key.Interface())),
 				visit,
 			); err != nil {
 				return err
 			}
+			value.SetMapIndex(key, mapValue)
 		}
 	case reflect.Slice, reflect.Array:
 		for i := range value.Len() {
@@ -113,7 +143,14 @@ func walkConfiguredStrings(value reflect.Value, path []string, visit func(string
 		}
 	case reflect.Interface:
 		if !value.IsNil() {
-			return walkConfiguredStrings(value.Elem(), path, visit)
+			interfaceValue := reflect.New(value.Elem().Type()).Elem()
+			interfaceValue.Set(value.Elem())
+			if err := walkConfiguredStrings(interfaceValue, path, visit); err != nil {
+				return err
+			}
+			if value.CanSet() {
+				value.Set(interfaceValue)
+			}
 		}
 	}
 	return nil

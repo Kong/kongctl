@@ -863,12 +863,20 @@ them from `get` or `list` responses. Common examples include:
 - Event Gateway schema registry authentication `password`
 - AI Gateway Consumer Credential `api_key`
 
-Write-only fields must use `!secret`. Literal values and eager `!file` values
-are rejected because they could enter a saved plan:
+Secret material in write-only fields must use `!secret`. Literal values and
+eager `!file` values are rejected because they could enter a saved plan:
 
 ```yaml
 client_secret: !secret
   source: !env PORTAL_OIDC_CLIENT_SECRET
+```
+
+Recognized Konnect vault references can be written literally because they
+identify secret material without containing it. They remain visible in plans,
+and Konnect resolves them when applying the configuration:
+
+```yaml
+value: "{vault://support-secrets/openai-auth-header}"
 ```
 
 `!secret` can also compose public decorations with one or more deferred

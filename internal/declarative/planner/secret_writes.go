@@ -376,10 +376,33 @@ func stripDeclaredSecretPaths(
 	change *PlannedChange,
 	declarations map[string]resources.SecretSourceDeclaration,
 ) {
+	paths := make([][]string, 0, len(declarations))
 	for field := range declarations {
-		removeSecretPath(change.Fields, decodeJSONPointer(field))
-		removeSecretChangedPath(change.ChangedFields, decodeJSONPointer(field))
+		paths = append(paths, decodeJSONPointer(field))
 	}
+	slices.SortFunc(paths, compareSecretRemovalPaths)
+
+	for _, path := range paths {
+		removeSecretPath(change.Fields, path)
+		removeSecretChangedPath(change.ChangedFields, path)
+	}
+}
+
+// Array elements must be removed from the highest index down so earlier
+// removals do not shift the indexes of fields that have not been removed yet.
+func compareSecretRemovalPaths(a, b []string) int {
+	for i := range min(len(a), len(b)) {
+		if a[i] == b[i] {
+			continue
+		}
+		aIndex, aErr := strconv.Atoi(a[i])
+		bIndex, bErr := strconv.Atoi(b[i])
+		if aErr == nil && bErr == nil {
+			return bIndex - aIndex
+		}
+		return strings.Compare(a[i], b[i])
+	}
+	return len(b) - len(a)
 }
 
 func removeSecretChangedPath(changed map[string]FieldChange, segments []string) {
@@ -394,7 +417,12 @@ func removeSecretChangedPath(changed map[string]FieldChange, segments []string) 
 		delete(changed, segments[0])
 		return
 	}
-	removeSecretPathValue(fieldChange.New, segments[1:])
+	updated, keep := removeSecretPathValue(fieldChange.New, segments[1:])
+	if !keep {
+		delete(changed, segments[0])
+		return
+	}
+	fieldChange.New = updated
 	changed[segments[0]] = fieldChange
 }
 
@@ -406,31 +434,57 @@ func removeSecretPath(fields map[string]any, segments []string) {
 		delete(fields, segments[0])
 		return
 	}
-	removeSecretPathValue(fields[segments[0]], segments[1:])
+	value, ok := fields[segments[0]]
+	if !ok {
+		return
+	}
+	updated, keep := removeSecretPathValue(value, segments[1:])
+	if !keep {
+		delete(fields, segments[0])
+		return
+	}
+	fields[segments[0]] = updated
 }
 
-func removeSecretPathValue(value any, segments []string) {
+func removeSecretPathValue(value any, segments []string) (any, bool) {
 	if len(segments) == 0 {
-		return
+		return value, true
 	}
 	switch typed := value.(type) {
 	case map[string]any:
 		if len(segments) == 1 {
 			delete(typed, segments[0])
-			return
+			return typed, true
 		}
-		removeSecretPathValue(typed[segments[0]], segments[1:])
+		child, ok := typed[segments[0]]
+		if !ok {
+			return typed, true
+		}
+		updated, keep := removeSecretPathValue(child, segments[1:])
+		if !keep {
+			delete(typed, segments[0])
+		} else {
+			typed[segments[0]] = updated
+		}
+		return typed, true
 	case []any:
 		index, err := strconv.Atoi(segments[0])
 		if err != nil || index < 0 || index >= len(typed) {
-			return
+			return typed, true
 		}
 		if len(segments) == 1 {
-			typed[index] = nil
-			return
+			typed = slices.Delete(typed, index, index+1)
+			return typed, len(typed) > 0
 		}
-		removeSecretPathValue(typed[index], segments[1:])
+		updated, keep := removeSecretPathValue(typed[index], segments[1:])
+		if !keep {
+			typed = slices.Delete(typed, index, index+1)
+		} else {
+			typed[index] = updated
+		}
+		return typed, len(typed) > 0
 	}
+	return value, true
 }
 
 func secretResourceNamespace(rs *resources.ResourceSet, resource resources.Resource) string {
