@@ -363,45 +363,16 @@ func teamDetailView(team *kkComps.TeamResponse) string {
 		return ""
 	}
 
-	const missing = "n/a"
-
-	id := missing
-	if value := team.GetID(); value != "" {
-		id = util.AbbreviateUUID(value)
-	}
-
-	name := missing
-	if value := team.GetName(); value != "" {
-		name = value
-	}
-
-	description := missing
-	if value := team.GetDescription(); value != nil && *value != "" {
-		description = *value
-	}
-
-	isSystem := missing
-	if value := team.GetSystemTeam(); value != nil {
-		isSystem = fmt.Sprintf("%t", *value)
-	}
-
-	createdAt := missing
-	if value := team.GetCreatedAt(); !value.IsZero() {
-		createdAt = value.In(time.Local).Format("2006-01-02 15:04:05")
-	}
-
-	updatedAt := missing
-	if value := team.GetUpdatedAt(); !value.IsZero() {
-		updatedAt = value.In(time.Local).Format("2006-01-02 15:04:05")
-	}
+	record := teamToDisplayRecord(team)
+	id := util.AbbreviateUUID(record.ID)
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "id: %s\n", id)
-	fmt.Fprintf(&b, "name: %s\n", name)
-	fmt.Fprintf(&b, "description: %s\n", description)
-	fmt.Fprintf(&b, "system_team: %s\n", isSystem)
-	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
-	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+	fmt.Fprintf(&b, "name: %s\n", record.Name)
+	fmt.Fprintf(&b, "description: %s\n", record.Description)
+	fmt.Fprintf(&b, "system_team: %s\n", record.IsSystemTeam)
+	fmt.Fprintf(&b, "created_at: %s\n", record.LocalCreatedTime)
+	fmt.Fprintf(&b, "updated_at: %s\n", record.LocalUpdatedTime)
 
 	return strings.TrimRight(b.String(), "\n")
 }
