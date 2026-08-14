@@ -11,6 +11,9 @@ Gateway resources.
   with the data plane certificate PEM inlined, so it can be loaded directly
   from a remote URL with `-f https://...` and does not require any sibling
   files.
+- [openai-llm](openai-llm) creates an AI Gateway, an OpenAI provider, a model,
+  and a data plane certificate, then runs a local Docker data plane and sends
+  an OpenAI-compatible chat request through it.
 - [config-store-vault.yaml](config-store-vault.yaml) connects a nested Config
   Store to a Konnect Vault with `!ref`, then uses a Vault reference for an
   OpenAI provider authorization header.
