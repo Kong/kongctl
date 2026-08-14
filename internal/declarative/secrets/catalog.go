@@ -20,18 +20,18 @@ var capabilities = []Capability{
 	{resources.ResourceTypeDCRProvider, "/dcr_config/initial_client_secret", true, true},
 	{resources.ResourceTypeDCRProvider, "/dcr_config/dcr_token", true, true},
 	{resources.ResourceTypeDCRProvider, "/dcr_config/api_key", true, true},
-	{resources.ResourceTypeAIGatewayProvider, "/config/**/headers/*/value", true, true},
-	{resources.ResourceTypeAIGatewayProvider, "/config/**/client_secret", true, true},
-	{resources.ResourceTypeAIGatewayProvider, "/config/**/secret_access_key", true, true},
-	{resources.ResourceTypeAIGatewayProvider, "/config/**/service_account_json", true, true},
+	{resources.ResourceTypeAIGatewayProvider, "/config/auth/headers/*/value", true, true},
+	{resources.ResourceTypeAIGatewayProvider, "/config/auth/client_secret", true, true},
+	{resources.ResourceTypeAIGatewayProvider, "/config/auth/secret_access_key", true, true},
+	{resources.ResourceTypeAIGatewayProvider, "/config/auth/aws/secret_access_key", true, true},
+	{resources.ResourceTypeAIGatewayProvider, "/config/auth/service_account_json", true, true},
 	{resources.ResourceTypeAIGatewayIdentityProvider, "/config/client_secret/*", true, true},
 	{resources.ResourceTypeAIGatewayIdentityProvider, "/config/client_secret", true, true},
-	{resources.ResourceTypeAIGatewayVault, "/config/**/api_key", true, true},
-	{resources.ResourceTypeAIGatewayVault, "/config/**/token", true, true},
-	{resources.ResourceTypeAIGatewayVault, "/config/**/key", true, true},
-	{resources.ResourceTypeAIGatewayVault, "/config/**/client_secret", true, true},
-	{resources.ResourceTypeAIGatewayVault, "/config/**/secret_access_key", true, true},
-	{resources.ResourceTypeAIGatewayVault, "/config/**/secret_id", true, true},
+	{resources.ResourceTypeAIGatewayVault, "/config/api_key", true, true},
+	{resources.ResourceTypeAIGatewayVault, "/config/token", true, true},
+	{resources.ResourceTypeAIGatewayVault, "/config/client_secret", true, true},
+	{resources.ResourceTypeAIGatewayVault, "/config/secret_access_key", true, true},
+	{resources.ResourceTypeAIGatewayVault, "/config/secret_id", true, true},
 	{resources.ResourceTypeEventGatewaySchemaRegistry, "/config/authentication/password", true, true},
 	{resources.ResourceTypeAIGatewayConsumerCredential, "/api_key", true, false},
 }
@@ -51,6 +51,16 @@ func Capabilities() []Capability {
 	return append([]Capability(nil), capabilities...)
 }
 
+// IsVaultReference reports whether value is a public Konnect vault reference
+// rather than secret material itself.
+func IsVaultReference(value string) bool {
+	value = strings.TrimSpace(value)
+	if strings.HasPrefix(value, "{vault://") && strings.HasSuffix(value, "}") {
+		return len(value) > len("{vault://}")
+	}
+	return strings.HasPrefix(value, "${vault[") && strings.HasSuffix(value, "]}")
+}
+
 func matchPath(pattern, value string) bool {
 	patternSegments := splitPath(pattern)
 	valueSegments := splitPath(value)
@@ -60,12 +70,6 @@ func matchPath(pattern, value string) bool {
 func matchSegments(pattern, value []string) bool {
 	if len(pattern) == 0 {
 		return len(value) == 0
-	}
-	if pattern[0] == "**" {
-		if matchSegments(pattern[1:], value) {
-			return true
-		}
-		return len(value) > 0 && matchSegments(pattern, value[1:])
 	}
 	if len(value) == 0 || (pattern[0] != "*" && pattern[0] != value[0]) {
 		return false

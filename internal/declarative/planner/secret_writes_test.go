@@ -216,6 +216,36 @@ func TestSecretWritePlanSerializationContainsMetadataButNoValue(t *testing.T) {
 	assert.Equal(t, plan.Changes[0].SecretWrites, roundTrip.Changes[0].SecretWrites)
 }
 
+func TestStripDeclaredSecretPathsRemovesArrayElementsWithoutNullPlaceholders(t *testing.T) {
+	fieldsConfig := map[string]any{
+		"issuer":        "https://issuer.example.test",
+		"client_secret": []any{"__SECRET__:first", "__SECRET__:second"},
+	}
+	changedConfig := map[string]any{
+		"issuer":        "https://issuer.example.test",
+		"client_secret": []any{"__SECRET__:first", "__SECRET__:second"},
+	}
+	change := PlannedChange{
+		Fields: map[string]any{"config": fieldsConfig},
+		ChangedFields: map[string]FieldChange{
+			"config": {New: changedConfig},
+		},
+	}
+	declarations := map[string]resources.SecretSourceDeclaration{
+		"/config/client_secret/0": {},
+		"/config/client_secret/1": {},
+	}
+
+	stripDeclaredSecretPaths(&change, declarations)
+
+	assert.NotContains(t, fieldsConfig, "client_secret")
+	assert.NotContains(t, changedConfig, "client_secret")
+	data, err := json.Marshal(change)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), `"client_secret":[null]`)
+	assert.NotContains(t, string(data), "__SECRET__:")
+}
+
 func TestAIGatewayConsumerCredentialAPIKeyIsExcludedFromComparison(t *testing.T) {
 	ttl := int64(0)
 	apiKey := "configured-key"

@@ -82,6 +82,59 @@ portals:
 	require.ErrorContains(t, err, "not a reviewed write-only field")
 }
 
+func TestLoaderRejectsSecretOnOrganizationSelectorsOutsideResourceRegistry(t *testing.T) {
+	tests := map[string]string{
+		"user email": `
+organization:
+  users:
+    - ref: user
+      email: !secret {source: !env ORGANIZATION_USER_EMAIL}
+`,
+		"system account name": `
+organization:
+  system-accounts:
+    - ref: automation
+      name: !secret {source: !env SYSTEM_ACCOUNT_NAME}
+`,
+	}
+
+	for name, config := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, err := New().LoadFile(writeLoaderTestFile(t, config))
+			require.ErrorContains(t, err, "not a reviewed write-only field")
+		})
+	}
+}
+
+func TestLoaderAllowsPublicVaultReferenceOnReviewedSecretField(t *testing.T) {
+	const reference = "{vault://support-secrets/openai-auth-header}"
+	config := `
+ai_gateways:
+  - ref: gateway
+    name: gateway
+    display_name: Gateway
+    model_providers:
+      - ref: provider
+        name: provider
+        type: openai
+        display_name: Provider
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: "` + reference + `"
+`
+
+	rs, err := New().LoadFile(writeLoaderTestFile(t, config))
+	require.NoError(t, err)
+	assert.Empty(t, rs.GetSecretSources("provider"))
+	auth := rs.AIGatewayProviders[0].Config["auth"].(map[string]any)
+	headers := auth["headers"].([]any)
+	header := headers[0].(map[string]any)
+	assert.Equal(t, reference, header["value"])
+}
+
 func TestLoaderNormalizesDeprecatedBareEnvSecretWithoutResolvingIt(t *testing.T) {
 	rs, err := New().LoadFile(writeLoaderTestFile(t, portalSecretConfig("!env UNAVAILABLE_LEGACY_SECRET")))
 	require.NoError(t, err)

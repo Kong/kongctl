@@ -48,7 +48,7 @@ ai_gateways:
             type: basic
             headers:
               - name: api-key
-                value: fake-foundry-api-key
+                value: !secret {source: !env KONGCTL_E2E_MODEL_MATRIX_FOUNDRY_KEY}
       - ref: matrix-gemini
         name: matrix-gemini
         type: gemini

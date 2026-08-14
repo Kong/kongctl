@@ -35,8 +35,7 @@ adds the `Bearer ` prefix.
 Before applying `config-store-vault.yaml`, add a secret named
 `openai-auth-header` to `support-config-store`. Its value should be the full
 OpenAI authorization header, for example `Bearer ...`. Config Store resources
-manage the store itself, but do not manage the secrets it contains.
-Set `OPENAI_VAULT_REFERENCE` to
-`{vault://support-secrets/openai-auth-header}` so the write-only header field
-uses the required deferred declaration without putting credential material in
-the environment.
+manage the store itself, but do not manage the secrets it contains. The model
+provider uses the literal `{vault://support-secrets/openai-auth-header}` vault
+reference. The reference is public configuration, remains visible in plans,
+and is resolved by Konnect when the provider uses it.
