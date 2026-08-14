@@ -70,6 +70,7 @@ test("routes OpenAI requests through a local AI Gateway", async ({ page }) => {
   await expect(lesson).toContainText(
     "http://localhost:8000/v1/chat/completions",
   );
+  await expect(lesson).toContainText('"model": "gpt-4.1-nano"');
   await expect(lesson).toContainText("docker stop openai-llm-data-plane");
   await expect(lesson).toContainText("kongctl delete -f ai-gateway.yaml");
 });

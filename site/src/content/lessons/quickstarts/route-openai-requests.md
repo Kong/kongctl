@@ -31,7 +31,7 @@ Before you begin, you need:
 - A running [Docker](https://docs.docker.com/get-started/get-docker/) daemon.
 - OpenSSL and curl available in your terminal.
 - An [OpenAI API key](https://platform.openai.com/api-keys) with access to
-  GPT-4o and available API quota.
+  `gpt-4.1-nano` and available API quota.
 
 Keep the same terminal open throughout the lesson. The exported variables are
 used by later commands.
@@ -122,9 +122,9 @@ ai_gateways:
                     - "Bearer "
                     - !env OPENAI_API_KEY
     models:
-      - ref: my-gpt-4o
-        name: my-gpt-4o
-        display_name: My GPT-4o
+      - ref: gpt-4-1-nano
+        name: gpt-4.1-nano
+        display_name: GPT-4.1 Nano
         type: model
         formats:
           - type: openai
@@ -135,9 +135,9 @@ ai_gateways:
             model:
               body_param: model
               values:
-                - my-gpt-4o
+                - gpt-4.1-nano
         targets:
-          - name: gpt-4o
+          - name: gpt-4.1-nano
             provider: openai
             config:
               type: openai
@@ -239,15 +239,15 @@ docker logs openai-llm-data-plane
 
 ## Send an LLM request
 
-Send an OpenAI-compatible chat completion request to the local proxy. Use the
-configured `my-gpt-4o` model name; Kong maps it to the OpenAI GPT-4o target:
+Send an OpenAI-compatible chat completion request to the local proxy. Kong
+maps the configured `gpt-4.1-nano` model to the OpenAI target:
 
 ```shell label="Send a chat request"
 curl --no-progress-meter --fail-with-body \
   --request POST http://localhost:8000/v1/chat/completions \
   --header "Accept: application/json" \
   --json '{
-    "model": "my-gpt-4o",
+    "model": "gpt-4.1-nano",
     "messages": [
       {"role": "user", "content": "Say this is a test!"}
     ]
