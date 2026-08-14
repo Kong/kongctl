@@ -14,11 +14,15 @@
   title: Declarative Configuration
   description: Learn the concepts behind managing Konnect with configuration.
   order: 4
+- id: quickstarts
+  title: Quickstarts
+  description: Apply kongctl to practical Konnect workflows.
+  order: 5
 - id: federated-api-platform-management
   title: Federated Management
   description: Enable self-service with shared resources and clear ownership.
-  order: 5
+  order: 6
 - id: extensions
   title: Extensions
   description: Install, build, and publish additional kongctl commands.
-  order: 6
+  order: 7
